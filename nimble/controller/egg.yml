@@ -1,0 +1,5 @@
+egg.name: net/nimble/controller
+egg.vers: 0.1 
+egg.deps:
+    - libs/os
+    - net/nimble
