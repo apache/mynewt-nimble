@@ -18,7 +18,7 @@
 #define H_BLE_
 
 /* XXX: some or all of these should not be here */
-#include "os/os_mbuf.h"
+#include "os/os.h"
 extern struct os_mbuf_pool g_mbuf_pool; 
 
 #define BLE_DEV_ADDR_LEN        (6)

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <stdint.h>
-#include "os/os.h"
 #include "nimble/ble.h"
 
 void
