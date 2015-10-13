@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H_LL_ADV
-#define H_LL_ADV
-
-#include "nimble/ble.h"
-
-struct ble_ll_adv_sm;
-struct os_mbuf;
+#ifndef H_LL_ADV_
+#define H_LL_ADV_
 
 /* 
  * ADV event timing
@@ -137,6 +132,9 @@ int ll_adv_set_enable(uint8_t *cmd);
 /* Set advertising data */
 int ll_adv_set_adv_data(uint8_t *cmd, uint8_t len);
 
+/* Set scan response data */
+int ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len);
+
 /* Set random address */
 int ll_adv_set_rand_addr(uint8_t *addr);
 
@@ -145,9 +143,12 @@ int ll_adv_set_adv_params(uint8_t *cmd);
 
 /*---- API used by BLE LL ----*/
 /* Called when advertising tx done event posted to LL task */
-void ll_adv_tx_done(void *arg);
+void ll_adv_tx_done_proc(void *arg);
 
 /* Called to initialize advertising functionality. */
 void ll_adv_init(void);
+
+/* Called when a scan request has been received. */
+int ll_adv_rx_scan_req(uint8_t *rxbuf);
 
 #endif /* H_LL_ADV_ */

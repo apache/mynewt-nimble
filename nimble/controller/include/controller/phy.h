@@ -47,8 +47,10 @@ struct os_mbuf;
 #define BLE_IS_DATA_CHAN(chan)  (chan < BLE_PHY_ADV_CHAN_START)
 
 /* PHY MODES */
-#define BLE_PHY_MODE_TX     (0)
-#define BLE_PHY_MODE_TX_RX  (1)
+#define BLE_PHY_MODE_IDLE   (0)
+#define BLE_PHY_MODE_RX     (1)
+#define BLE_PHY_MODE_TX     (2)
+#define BLE_PHY_MODE_TX_RX  (3)
 
 /* API */
 int ble_phy_init(void);

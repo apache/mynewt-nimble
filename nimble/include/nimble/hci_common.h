@@ -85,7 +85,10 @@
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
 /* Command Specific Definitions */
-/* XXX: should these go somewhere else? Command definitions */
+/* Set scan response data */
+#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN       (31)
+
+/* Set advertising data */
 #define BLE_HCI_MAX_ADV_DATA_LEN            (31)
 
 /* Set advertising enable */

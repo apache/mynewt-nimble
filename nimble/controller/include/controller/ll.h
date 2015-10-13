@@ -25,7 +25,7 @@
  *  1) Controller should not change value of supported max tx and rx time and
  *  octets.
  */
-struct ll_global_parms
+struct ll_global_params
 {
     int conn_init_max_tx_octets;
     int conn_init_max_tx_time;
@@ -37,15 +37,37 @@ struct ll_global_parms
 
 struct ll_obj
 {
+    uint8_t ll_state;
     struct os_eventq ll_evq;
-    struct ll_global_parms ll_parms;
+    struct ll_global_params ll_params;
+    struct os_event ll_rx_pkt_ev;
+    STAILQ_HEAD(ll_rxpkt_qh, os_mbuf_pkthdr) ll_rx_pkt_q;
 };
+
+struct ll_stats
+{
+    uint32_t rx_malformed_pkts;
+    uint32_t rx_crc_ok;
+    uint32_t rx_crc_fail;
+    uint32_t rx_bytes;
+    uint32_t rx_scan_reqs;
+};
+
+extern struct ll_stats g_ll_stats;
+
+/* States */
+#define BLE_LL_STATE_STANDBY        (0)
+#define BLE_LL_STATE_ADV            (1)
+#define BLE_LL_STATE_SCANNING       (2)
+#define BLE_LL_STATE_INITITATING    (3)
+#define BLE_LL_STATE_CONNECT        (4)
 
 extern struct ll_obj g_ll_data;
 
 /* BLE LL Task Events */
 #define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
 #define BLE_LL_EVENT_ADV_TXDONE     (OS_EVENT_T_PERUSER + 1)
+#define BLE_LL_EVENT_RX_PKT_IN      (OS_EVENT_T_PERUSER + 2)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION   (0x01)
@@ -291,33 +313,6 @@ struct ll_len_req
 #define BLE_LL_CTRL_LENGTH_REQ_LEN      (8)
 
 /*
- * SCAN_REQ 
- *      -> ScanA    (6 bytes)
- *      -> AdvA     (6 bytes)
- * 
- *  ScanA is the scanners public (TxAdd=0) or random (TxAdd = 1) address
- *  AdvaA is the advertisers public (RxAdd=0) or random (RxAdd=1) address.
- * 
- * Sent by the LL in the Scanning state; received by the LL in the advertising
- * state. The advertising address is the intended recipient of this frame.
- */
-#define BLE_SCAN_REQ_LEN                (12)
-
-/*
- * SCAN_RSP
- *      -> AdvA         (6 bytes)
- *      -> ScanRspData  (0 - 31 bytes) 
- * 
- *  AdvaA is the advertisers public (TxAdd=0) or random (TxAdd=1) address.
- *  ScanRspData may contain any data from the advertisers host.
- * 
- * Sent by the LL in the advertising state; received by the LL in the
- * scanning state. 
- */
-#define BLE_SCAN_RSP_MIN_LEN            (6)
-#define BLE_SCAN_RSP_MAX_LEN            (37)
-
-/*
  * CONNECT_REQ
  *      -> InitA        (6 bytes)
  *      -> AdvA         (6 bytes)
@@ -415,5 +410,12 @@ enum ll_init_filt_policy
 
 /* External API */
 void ll_event_adv_tx_done(void *arg);
+
+/*--- PHY interfaces ---*/
+int ll_rx_start(struct os_mbuf *rxpdu);
+
+/* Called by the PHY when a receive packet ends */
+int ll_rx_end(struct os_mbuf *rxpdu, int crcok);
+
 
 #endif /* H_LL_ */

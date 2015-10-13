@@ -53,9 +53,7 @@ ll_sched_execute(struct ll_sched_item *sch)
     int rc;
 
     assert(sch->sched_cb);
-
     rc = sch->sched_cb(sch);
-
     return rc;
 }
 
@@ -96,6 +94,8 @@ ll_sched_add(struct ll_sched_item *sch)
     if (TAILQ_EMPTY(&g_ll_sched_q)) {
         TAILQ_INSERT_HEAD(&g_ll_sched_q, sch, link);
     } else {
+        /* XXX: for now, use the cputimer */
+        cputime_timer_stop(&g_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ll_sched_q, link) {
             if ((int32_t)(sch->start_time - entry->start_time) < 0) {
                 /* Make sure this event does not overlap current event */
@@ -118,13 +118,10 @@ ll_sched_add(struct ll_sched_item *sch)
         }
     }
 
-    /* Start the timer if there is an item */
-    if (sch == TAILQ_FIRST(&g_ll_sched_q)) {
-        /* XXX: for now, use a cputimer */
-        cputime_timer_start(&g_ll_sched_timer, sch->start_time);
-    }
-
     OS_EXIT_CRITICAL(sr);
+
+    /* XXX: for now, use a cputimer */
+    cputime_timer_start(&g_ll_sched_timer, sch->start_time);
 
     return rc;
 }

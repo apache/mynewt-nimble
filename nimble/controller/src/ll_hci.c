@@ -42,6 +42,12 @@ ll_hci_le_cmd_proc(uint8_t *dptr, uint8_t len, uint16_t ocf)
     rc = BLE_ERR_INV_HCI_CMD_PARMS;
 
     switch (ocf) {
+    case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
+        if (len > 0) {
+            --len;
+            rc = ll_adv_set_scan_rsp_data(dptr, len);
+        }
+        break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
         /* Length should be one byte */
         if (len == BLE_HCI_CMD_SET_ADV_ENABLE_LEN) {

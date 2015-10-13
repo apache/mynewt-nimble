@@ -68,6 +68,8 @@ host_hci_cmd_send(void *cmdbuf)
         return -1;
     }
 
+    /* XXX: I am not happy that the host has access to the g_ll_data here
+       we need to change this! */
     /* XXX: Do I need to initialize the tailq entry at all? */
     ev->ev_queued = 0;
     ev->ev_type = BLE_LL_EVENT_HCI_CMD;
@@ -139,11 +141,11 @@ host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
     uint8_t *cmd;
 
     /* Check for valid parameters */
-    rc = -1;
-    if (((data == NULL) && (len == 0)) || (len > BLE_HCI_MAX_ADV_DATA_LEN)) {
-        return rc;
+    if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_ADV_DATA_LEN)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    rc = BLE_ERR_SUCCESS;
     cmd = host_hci_le_cmdbuf_get(BLE_HCI_OCF_LE_SET_ADV_DATA, len + 1);
     if (cmd) {
         cmd[BLE_HCI_CMD_HDR_LEN] = len;
@@ -153,6 +155,29 @@ host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
 
     return rc;
 }
+
+int
+host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len)
+{
+    int rc;
+    uint8_t *cmd;
+
+    /* Check for valid parameters */
+    rc = -1;
+    if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_SCAN_RSP_DATA_LEN)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd = host_hci_le_cmdbuf_get(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA, len + 1);
+    if (cmd) {
+        cmd[BLE_HCI_CMD_HDR_LEN] = len;
+        memcpy(cmd + BLE_HCI_CMD_HDR_LEN + 1, data, len);
+        rc = host_hci_cmd_send(cmd);
+    }
+
+    return rc;
+}
+
 
 /**
  * ble host hci cmd le set rand addr

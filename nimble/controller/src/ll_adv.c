@@ -23,6 +23,7 @@
 #include "controller/ll.h"
 #include "controller/ll_adv.h"
 #include "controller/ll_sched.h"
+#include "controller/ll_scan.h"
 #include "hal/hal_cputime.h"
 
 /* 
@@ -32,6 +33,13 @@
  */
 #define BLE_LL_CFG_ADV_PDU_ITVL_HD_USECS    (5000)
 #define BLE_LL_CFG_ADV_PDU_ITVL_LD_USECS    (10000)
+
+/* XXX: need to think about advertising and scan response pdus. Do I get
+ * these from their own pools? Shouldnt I just always allocate one and thus
+ * dont need to free them or worry about not being able to allocate one?
+ * I want them to be smaller mbufs and not have to be allocated from the
+ * pool
+ */ 
 
 /* XXX: TODO
  * 1) Process the stop advertising event. Make sure you stop advertising and
@@ -61,6 +69,7 @@ struct ll_adv_sm
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
     uint8_t adv_chan;
+    uint8_t scan_rsp_len;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
@@ -70,7 +79,9 @@ struct ll_adv_sm
     uint8_t random_addr[BLE_DEV_ADDR_LEN];
     uint8_t initiator_addr[BLE_DEV_ADDR_LEN];
     uint8_t adv_data[BLE_ADV_DATA_MAX_LEN];
-    struct os_mbuf *adv_pdu;  /* XXX: temporary for now */
+    uint8_t scan_rsp_data[BLE_SCAN_RSP_DATA_MAX_LEN];
+    struct os_mbuf *adv_pdu;
+    struct os_mbuf *scan_rsp_pdu;
 };
 
 /* The advertising state machine global object */
@@ -142,6 +153,16 @@ ll_adv_tx_done_cb(struct ll_sched_item *sch)
     return BLE_LL_SCHED_STATE_DONE;
 }
 
+/**
+ * ll adv tx start cb
+ *  
+ * This is the scheduler callback (called from interrupt context) which 
+ * transmits an advertisement. 
+ * 
+ * @param sch 
+ * 
+ * @return int 
+ */
 static int
 ll_adv_tx_start_cb(struct ll_sched_item *sch)
 {
@@ -163,9 +184,13 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
         phy_mode = BLE_PHY_MODE_TX_RX;
     }
 
+    /* XXX: we should not really assert on error here! */
     /* Transmit advertisement */
     rc = ble_phy_tx(advsm->adv_pdu, phy_mode);
     assert(rc == 0);
+
+    /* Set link layer state */
+    g_ll_data.ll_state = BLE_LL_STATE_ADV;
 
     /* XXX: need to prepare for a receive after the tx */
 
@@ -255,7 +280,46 @@ ll_adv_pdu_make(struct ll_adv_sm *advsm)
     /* Set overall packet header length */
     OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
-    /* Return the mbuf */
+    return 0;
+}
+
+static int
+ll_adv_scan_rsp_pdu_make(struct ll_adv_sm *advsm)
+{
+    uint8_t     scan_rsp_len;
+    uint8_t     *dptr;
+    uint8_t     pdulen;
+    struct os_mbuf *m;
+
+    /* assume this is not a direct ind */
+    scan_rsp_len = advsm->scan_rsp_len;
+    pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
+
+    /* Make sure that the length is valid */
+    if (scan_rsp_len > BLE_SCAN_RSP_DATA_MAX_LEN) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Get the advertising PDU */
+    m = advsm->scan_rsp_pdu;
+    assert(m != NULL);
+    m->om_len = BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN + scan_rsp_len;
+
+    /* Construct scan response */
+    dptr = m->om_data;
+    dptr[0] = BLE_ADV_PDU_TYPE_SCAN_RSP;
+    dptr[1] = (uint8_t)pdulen;
+    memcpy(dptr + BLE_LL_PDU_HDR_LEN, advsm->adv_addr, BLE_DEV_ADDR_LEN);
+    dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+
+    /* Copy in scan response data, if any */
+    if (scan_rsp_len != 0) {
+        memcpy(dptr, advsm->scan_rsp_data, scan_rsp_len);
+    }
+
+    /* Set overall packet header length */
+    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
+
     return 0;
 }
 
@@ -394,21 +458,19 @@ ll_adv_set_adv_params(uint8_t *cmd)
 static void
 ll_adv_sm_stop(struct ll_adv_sm *advsm)
 {
-    uint8_t sched_type;
-
     /* XXX: Stop any timers */
 
-    /* Remove any scheduled events */
-    if (advsm->adv_type == BLE_ADV_TYPE_ADV_NONCONN_IND) {
-        sched_type = BLE_LL_SCHED_TYPE_TX;
-    } else {
-        sched_type = BLE_LL_SCHED_TYPE_ADV;
-    }
-
-    ll_sched_rmv(sched_type);
+    /* Remove any scheduled advertising items */
+    ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV);
 
     /* Disable advertising */
     advsm->enabled = 0;
+
+    /* If a scan response pdu is attached, free it */
+    if (g_ll_adv_sm.scan_rsp_pdu) {
+        os_mbuf_free(&g_mbuf_pool, g_ll_adv_sm.scan_rsp_pdu);
+        g_ll_adv_sm.scan_rsp_pdu = NULL;
+    }
 }
 
 /* Start the advertising state machine */
@@ -418,6 +480,7 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     int rc;
     uint8_t adv_chan;
     struct ll_sched_item *sch;
+    struct os_mbuf *m;
 
     /* Set flag telling us that advertising is enabled */
     advsm->enabled = 1;
@@ -441,6 +504,22 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     /* Create the advertising PDU */
     rc = ll_adv_pdu_make(advsm);
     assert(rc == 0);
+
+    /* Create scan response PDU (if needed) */
+    if ((advsm->adv_type != BLE_ADV_TYPE_ADV_NONCONN_IND) &&
+        (advsm->scan_rsp_len != 0)) {
+        m = os_mbuf_get_pkthdr(&g_mbuf_pool);
+
+        /* XXX: should not need to do this once we get the get packet header
+           mbuf thingy going */
+        if (!m) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
+        g_ll_adv_sm.scan_rsp_pdu = m;
+
+        rc = ll_adv_scan_rsp_pdu_make(advsm);
+        assert(rc == 0);
+    }
 
     /* Set first advertising channel */
     adv_chan = ll_adv_first_chan(advsm);
@@ -472,7 +551,7 @@ ll_adv_set_enable(uint8_t *cmd)
         if (!advsm->enabled) {
             if (advsm->adv_params_set) {
                 /* Start the advertising state machine */
-                ll_adv_sm_start(advsm);
+                rc = ll_adv_sm_start(advsm);
             } else {
                 rc = BLE_ERR_CMD_DISALLOWED;
             }
@@ -486,6 +565,34 @@ ll_adv_set_enable(uint8_t *cmd)
     }
 
     return rc;
+}
+
+/* XXX: how do I protect the scan response data? When I create the scan
+   response PDU, how do I make sure this task is not half-written? */
+/* XXX: where do I create the scan response pdu? */
+int
+ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
+{
+    uint8_t datalen;
+    struct ll_adv_sm *advsm;
+
+    /* Check for valid scan response data length */
+    datalen = cmd[0];
+    if ((datalen > BLE_SCAN_RSP_DATA_MAX_LEN) || (datalen != len)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Copy the new data into the advertising structure. */
+    advsm = &g_ll_adv_sm;
+    advsm->scan_rsp_len = datalen;
+    memcpy(advsm->scan_rsp_data, cmd + 1, datalen);
+
+    /* XXX: if we are enabled and have a scan rsp pdu, we need to rebuild
+     * it. I guess we could do this every time within the adv. state
+     * machine
+     */
+
+    return 0;
 }
 
 /**
@@ -517,6 +624,7 @@ ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
     advsm->adv_len = datalen;
     memcpy(advsm->adv_data, cmd + 1, datalen);
 
+    /* XXX: should I just make the pdu when I go to transmit it? */
     /* 
      * If the state machine is enabled and we are going to send a
      * PDU soon, just send the current one. Otherwise, delete the
@@ -561,8 +669,48 @@ ll_adv_set_rand_addr(uint8_t *addr)
     return 0;
 }
 
+/**
+ * ll adv rx scan req 
+ *  
+ * Called when the LL receives a scan request.  
+ *  
+ * NOTE: Called from interrupt context. 
+ * 
+ * @param rxbuf 
+ * 
+ * @return -1: scan request not for us or failed to start tx; 0 otherwise
+ */
+int
+ll_adv_rx_scan_req(uint8_t *rxbuf)
+{
+    int rc;
+    uint8_t *our_addr;
+
+    rc = -1;
+    our_addr = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+    if (!memcmp(our_addr, g_dev_addr, BLE_DEV_ADDR_LEN)) {
+        /* Setup to transmit the scan response */
+        rc = ble_phy_tx(g_ll_adv_sm.scan_rsp_pdu, BLE_PHY_MODE_TX);
+
+        /* XXX: do this at higher layer? */
+        /* Count received scan requests */
+        ++g_ll_stats.rx_scan_reqs;
+    }
+
+    return rc;
+}
+
+/**
+ * ll adv tx done proc
+ *  
+ * Process advertistement tx done event. 
+ *  
+ * Callers: LL task. 
+ * 
+ * @param arg Pointer to advertising state machine.
+ */
 void
-ll_adv_tx_done(void *arg)
+ll_adv_tx_done_proc(void *arg)
 {
     uint8_t mask;
     uint8_t final_adv_chan;
@@ -619,8 +767,19 @@ ll_adv_tx_done(void *arg)
         advsm->adv_pdu_start_time += itvl;
     }
 
+    /* XXX: I dont like how this is done (for both adv pdu's and
+     * scan response pdu's).
+     *  -> One problem is that I might be using the PDU for transmission,
+     *  which is why I cannot overwrite it.
+     */
     /* Re-make the advertising PDU since data may have changed */
     ll_adv_pdu_make(advsm);
+
+    /* Re-make the scan response PDU since data may have changed */
+    if (advsm->scan_rsp_pdu) {
+        ll_adv_scan_rsp_pdu_make(advsm);
+    }
+    /* XXX */
 
     /* 
      * The scheduled time better be in the future! If it is not, we will
@@ -657,20 +816,12 @@ ll_adv_tx_done(void *arg)
 void
 ll_adv_init(void)
 {
-    struct os_mbuf *m;
-
     /* Initialize advertising tx done event */
     g_ll_adv_tx_done_ev.ev_type = BLE_LL_EVENT_ADV_TXDONE;
     g_ll_adv_tx_done_ev.ev_arg = &g_ll_adv_sm;
 
     /* Get an advertising mbuf (packet header) and attach to state machine */
-    m = os_mbuf_get(&g_mbuf_pool, 0);
-    assert(m != NULL);
-
-    /* XXX: should not need to do this once we get the get packet header
-       mbuf thingy going */
-    m->om_flags |= OS_MBUF_F_MASK(OS_MBUF_F_PKTHDR);
-    m->om_data += g_mbuf_pool.omp_hdr_len + sizeof(struct os_mbuf_pkthdr);
-    g_ll_adv_sm.adv_pdu = m;
+    g_ll_adv_sm.adv_pdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
+    assert(g_ll_adv_sm.adv_pdu != NULL);
 }
 

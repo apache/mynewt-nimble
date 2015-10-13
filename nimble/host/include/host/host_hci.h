@@ -19,6 +19,7 @@
 
 #include "nimble/hci_common.h"
 
+int host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len);
 int host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len);
 int host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv);
 int host_hci_cmd_le_set_rand_addr(uint8_t *addr);
