@@ -46,14 +46,22 @@ struct ll_obj
 
 struct ll_stats
 {
-    uint32_t rx_malformed_pkts;
     uint32_t rx_crc_ok;
     uint32_t rx_crc_fail;
     uint32_t rx_bytes;
+    uint32_t rx_adv_ind;
+    uint32_t rx_adv_direct_ind;
+    uint32_t rx_adv_nonconn_ind;
     uint32_t rx_scan_reqs;
+    uint32_t rx_scan_rsps;
+    uint32_t rx_connect_reqs;
+    uint32_t rx_scan_ind;
+    uint32_t rx_unk_pdu;
+    uint32_t rx_malformed_pkts;
 };
 
 extern struct ll_stats g_ll_stats;
+extern struct ll_obj g_ll_data;
 
 /* States */
 #define BLE_LL_STATE_STANDBY        (0)
@@ -61,8 +69,6 @@ extern struct ll_stats g_ll_stats;
 #define BLE_LL_STATE_SCANNING       (2)
 #define BLE_LL_STATE_INITITATING    (3)
 #define BLE_LL_STATE_CONNECT        (4)
-
-extern struct ll_obj g_ll_data;
 
 /* BLE LL Task Events */
 #define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
@@ -408,14 +414,15 @@ enum ll_init_filt_policy
     BLE_LL_INIT_FILT_SINGLE,
 };
 
-/* External API */
-void ll_event_adv_tx_done(void *arg);
+/*--- External API ---*/
+/* Initialize the Link Layer */
+int ll_init(void);
 
 /*--- PHY interfaces ---*/
+/* Called by the PHY when a packet has started */
 int ll_rx_start(struct os_mbuf *rxpdu);
 
-/* Called by the PHY when a receive packet ends */
+/* Called by the PHY when a packet reception ends */
 int ll_rx_end(struct os_mbuf *rxpdu, int crcok);
-
 
 #endif /* H_LL_ */

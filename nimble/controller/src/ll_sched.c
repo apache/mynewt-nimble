@@ -22,7 +22,7 @@
 #include "controller/ll_sched.h"
 #include "hal/hal_cputime.h"
 
-/* XXX: this is temporary */
+/* XXX: this is temporary. Not sure what I want to do here */
 struct cpu_timer g_ll_sched_timer;
 
 /* XXX: TODO:
@@ -41,11 +41,14 @@ os_membuf_t g_ll_sched_mem[BLE_LL_SCHED_POOL_SIZE];
 /* Queue for timers */
 TAILQ_HEAD(ll_sched_qhead, ll_sched_item) g_ll_sched_q;
 
-/*
- * XXX:
+/**
+ * ll sched execute
+ *  
+ * Executes a schedule item by calling the schedule callback function.
  * 
- * 1) I currently dont do any sanity checking here. It might be a good idea
- * to do some.
+ * @param sch Pointer to schedule item
+ * 
+ * @return int 0: schedule item is not over; otherwise schedule item is done.
  */
 int
 ll_sched_execute(struct ll_sched_item *sch)
@@ -94,7 +97,6 @@ ll_sched_add(struct ll_sched_item *sch)
     if (TAILQ_EMPTY(&g_ll_sched_q)) {
         TAILQ_INSERT_HEAD(&g_ll_sched_q, sch, link);
     } else {
-        /* XXX: for now, use the cputimer */
         cputime_timer_stop(&g_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ll_sched_q, link) {
             if ((int32_t)(sch->start_time - entry->start_time) < 0) {
@@ -120,7 +122,6 @@ ll_sched_add(struct ll_sched_item *sch)
 
     OS_EXIT_CRITICAL(sr);
 
-    /* XXX: for now, use a cputimer */
     cputime_timer_start(&g_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -151,7 +152,6 @@ ll_sched_rmv(uint8_t sched_type)
         /* Start the timer if there is an item */
         entry = TAILQ_FIRST(&g_ll_sched_q);
         if (entry) {
-            /* XXX: for now, use a cputimer */
             cputime_timer_start(&g_ll_sched_timer, entry->start_time);
         }
     }
@@ -162,9 +162,11 @@ ll_sched_rmv(uint8_t sched_type)
 }
 
 /**
- * ble ll sched run 
+ * ll sched run 
  *  
- * Run the BLE scheduler. This is called from interrupt context. 
+ * Run the BLE scheduler. Iterate through all items on the schedule queue.
+ *  
+ * Context: interrupt (scheduler) 
  * 
  * @return int 
  */
@@ -180,39 +182,19 @@ ll_sched_run(void *arg)
         if ((int32_t)(cputime_get32() - sch->start_time) >= 0) {
             /* Execute the schedule item */
             rc = ll_sched_execute(sch);
-
-            /* If schedule item is done, remove it */
             if (rc) {
                 TAILQ_REMOVE(&g_ll_sched_q, sch, link);
-                /* XXX: might want LL task to free this so we dont access
-                 * the memory pool in the interrupt. Not sure.
-                 * I could have a queue I put these on and the LL frees
-                 * them. Or the LL just frees them.
-                 */
                 os_memblock_put(&g_ll_sched_pool, sch);
             } else {
                 /* Event is not over; schedule next wakeup time */
-                /* XXX: for now, set cputimer */
                 cputime_timer_start(&g_ll_sched_timer, sch->next_wakeup);
                 break;
             }
         } else {
-            /* XXX: for now, set cputimer */
             cputime_timer_start(&g_ll_sched_timer, sch->start_time);
             break;
         }
     }
-
-    /* 
-     * XXX: for now, since we are using the cputimer, we dont need to do
-     * anything here; the timer will not re-arm itself.
-     */
-#if 0
-    /* Disable the interrupt if there are no items */
-    if (!sch) {
-        cputime_disable_ocmp();
-    }
-#endif
 }
 
 /**
@@ -233,7 +215,7 @@ ll_sched_init(void)
                           g_ll_sched_mem, "ll_sched");
     assert(err == OS_OK);
 
-    /* XXX: temporary */
+    /* Start cputimer for the scheduler */
     cputime_timer_init(&g_ll_sched_timer, ll_sched_run, NULL);
 
     return err;

@@ -152,6 +152,8 @@ void
 ll_rx_pkt_in_proc(void)
 {
     os_sr_t sr;
+    uint8_t pdu_type;
+    uint8_t *rxbuf;
     struct os_mbuf_pkthdr *pkthdr;
     struct os_mbuf *m;
 
@@ -159,7 +161,7 @@ ll_rx_pkt_in_proc(void)
     do {
         pkthdr = STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q);
         if (pkthdr) {
-            /* XXX: must be a better way to do this! This is ugly */
+            /* Get mbuf pointer from packet header pointer */
             m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
 
             /* Remove from queue */
@@ -169,14 +171,57 @@ ll_rx_pkt_in_proc(void)
 
             /* XXX: call processing function here */
 
+            /* Set the rx buffer pointer to the start of the received data */
+            rxbuf = m->om_data;
+
+            /* XXX: need to check if this is an adv channel or data channel */
+            /* Count received packet types  */
+            pdu_type = rxbuf[0] & BLE_ADV_HDR_PDU_TYPE_MASK;
+            switch (pdu_type) {
+            case BLE_ADV_PDU_TYPE_ADV_IND:
+                ++g_ll_stats.rx_adv_ind;
+                break;
+            case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+                ++g_ll_stats.rx_adv_direct_ind;
+                break;
+            case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
+                ++g_ll_stats.rx_adv_nonconn_ind;
+                break;
+            case BLE_ADV_PDU_TYPE_SCAN_REQ:
+                ++g_ll_stats.rx_scan_reqs;
+                break;
+            case BLE_ADV_PDU_TYPE_SCAN_RSP:
+                ++g_ll_stats.rx_scan_rsps;
+                break;
+            case BLE_ADV_PDU_TYPE_CONNECT_REQ:
+                ++g_ll_stats.rx_connect_reqs;
+                break;
+            case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
+                ++g_ll_stats.rx_scan_ind;
+                break;
+            default:
+                ++g_ll_stats.rx_unk_pdu;
+                break;
+            }
+
+
+
             /* XXX: Free the mbuf for now */
             os_mbuf_free(&g_mbuf_pool, m);
         }
     } while (m != NULL);
 }
 
+/**
+ * ll rx pdu in 
+ *  
+ * Called to put a packet on the Link Layer receive packet queue. 
+ * 
+ * 
+ * @param rxpdu Pointer to received PDU
+ */
 void
-ll_rx_pkt_in(struct os_mbuf *rxpdu)
+ll_rx_pdu_in(struct os_mbuf *rxpdu)
 {
     struct os_mbuf_pkthdr *pkthdr;
 
@@ -269,10 +314,8 @@ ll_rx_end(struct os_mbuf *rxpdu, int crcok)
                          * How to deal with the end of the advertising event?
                          * Need to figure that out.
                          */
-
-                        /* XXX: do I hand up received PDU? I might have to
-                         * for LL events to work. Look at this.
-                         */
+                        /* XXX: not sure I need to do anything here on success
+                           */
                     }
                 } else {
                     ++g_ll_stats.rx_malformed_pkts;
@@ -307,7 +350,7 @@ ll_rx_end(struct os_mbuf *rxpdu, int crcok)
     /* XXX */
 
     /* Hand packet up to higher layer */
-    ll_rx_pkt_in(rxpdu);
+    ll_rx_pdu_in(rxpdu);
 
     return rc;
 }

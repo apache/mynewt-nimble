@@ -47,7 +47,7 @@ struct ble_phy_obj
 {
     int8_t  txpwr_dbm;
     uint8_t chan;
-    uint8_t mode;
+    uint8_t phymode;
     uint8_t _pad8;
     struct os_mbuf *rxpdu;
 };
@@ -63,6 +63,8 @@ struct ble_phy_statistics
     uint32_t rx_valid;
     uint32_t rx_crc_err;
     uint32_t phy_isrs;
+    uint32_t radio_state_errs;
+    uint32_t no_bufs;
 };
 struct ble_phy_statistics g_ble_phy_stats;
 
@@ -71,14 +73,58 @@ struct ble_phy_statistics g_ble_phy_stats;
  * interrupt with the event bit already set to 1
  */
 
+/**
+ * ble phy rxpdu get
+ *  
+ * Gets a mbuf for PDU reception. 
+ * 
+ * @return struct os_mbuf* Pointer to retrieved mbuf or NULL if none available
+ */
+static struct os_mbuf *
+ble_phy_rxpdu_get(void)
+{
+    struct os_mbuf *m;
+
+    m = g_ble_phy_data.rxpdu;
+    if (m == NULL) {
+        m = os_mbuf_get_pkthdr(&g_mbuf_pool);
+        if (!m) {
+            ++g_ble_phy_stats.no_bufs;
+        } else {
+            g_ble_phy_data.rxpdu = m;
+        }
+    }
+
+    return m;
+}
+
+static void
+nrf52_wait_disabled(void)
+{
+    uint32_t state;
+
+    state = NRF_RADIO->STATE;
+    if (state != RADIO_STATE_STATE_Disabled) {
+        if ((state == RADIO_STATE_STATE_RxDisable) ||
+            (state == RADIO_STATE_STATE_TxDisable)) {
+            /* This will end within a short time (6 usecs). Just poll */
+            while (NRF_RADIO->STATE == state) {
+                /* If this fails, something is really wrong. Should last
+                 * no more than 6 usecs */
+            }
+        }
+    }
+}
+
 static void
 ble_phy_isr(void)
 {
     int rc;
     uint8_t mode;
     uint32_t crc_ok;
-    uint32_t x;
     uint32_t irq_en;
+    uint32_t state;
+    uint32_t shortcuts;
 
     /* Check for disabled event. This only happens for transmits now */
     irq_en = NRF_RADIO->INTENCLR;
@@ -86,10 +132,15 @@ ble_phy_isr(void)
         /* Clear events and clear interrupt on disabled event */
         NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
+        NRF_RADIO->EVENTS_END = 0;
+        shortcuts = NRF_RADIO->SHORTS;
 
-        mode = g_ble_phy_data.mode;
+        mode = g_ble_phy_data.phymode;
         if (mode == BLE_PHY_MODE_TX_RX) {
-            /* XXX: where does the rxpdu get set? */
+            /* XXX: what about the rx address registers? Where are they set? */
+            /* Debug check to make sure we go from tx to rx */
+            assert((shortcuts & RADIO_SHORTS_DISABLED_RXEN_Msk) != 0);
+
             /* Packet pointer needs to be reset. */
             if (g_ble_phy_data.rxpdu != NULL) {
                 NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
@@ -97,6 +148,7 @@ ble_phy_isr(void)
                 /* I want to know when 1st byte received (after address) */
                 NRF_RADIO->BCC = 8; /* in bits */
                 NRF_RADIO->EVENTS_ADDRESS = 0;
+                NRF_RADIO->EVENTS_BCMATCH = 0;
                 NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
                                     RADIO_SHORTS_READY_START_Msk |
                                     RADIO_SHORTS_ADDRESS_BCSTART_Msk |
@@ -104,7 +156,7 @@ ble_phy_isr(void)
                                     RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
 
                 NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
-                g_ble_phy_data.mode = BLE_PHY_MODE_RX;
+                g_ble_phy_data.phymode = BLE_PHY_MODE_RX;
             }
         } else {
             /* We should never get here in rx mode (or idle) */
@@ -112,8 +164,6 @@ ble_phy_isr(void)
                 assert(0);
             }
         }
-
-        NRF_RADIO->EVENTS_END = 0;
     }
 
     /* We get this if we have started to receive a frame */
@@ -123,9 +173,21 @@ ble_phy_isr(void)
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
 
         /* Wait to get 1st byte of frame */
-        while (NRF_RADIO->EVENTS_BCMATCH == 0) {
-            /* Just spin here */
-            /* XXX: possibly check for disable so we dont spin forever? */
+        while (1) {
+            state = NRF_RADIO->STATE;
+            if (NRF_RADIO->EVENTS_BCMATCH != 0) {
+                break;
+            }
+
+            /* 
+             * If state is disabled, we should have the BCMATCH. If not,
+             * something is wrong!
+             */ 
+            if (state == RADIO_STATE_STATE_Disabled) {
+                NRF_RADIO->INTENCLR = NRF52_RADIO_IRQ_MASK_ALL;
+                NRF_RADIO->SHORTS = 0;
+                goto phy_isr_exit;
+            }
         }
 
         /* Call Link Layer receive start function */
@@ -141,14 +203,16 @@ ble_phy_isr(void)
                                     RADIO_SHORTS_READY_START_Msk;
             }
 
-            /* XXX: what about RSSI here? When does that start or stop? */
-
             /* Set rx end ISR enable */
             NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
         } else {
-            /* Disable */
+            /* Disable PHY */
             ble_phy_disable();
+            irq_en = 0;
         }
+
+        /* Count rx starts */
+        ++g_ble_phy_stats.rx_starts;
     }
 
     /* Receive packet end (we dont enable this for transmit) */
@@ -158,19 +222,22 @@ ble_phy_isr(void)
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_END_Msk;
         crc_ok = NRF_RADIO->CRCSTATUS;
 
+        /* XXX: an RSSI sample should be available. Read it */
+
         /* Call Link Layer receive payload function */
         rc = ll_rx_end(g_ble_phy_data.rxpdu, (int)crc_ok);
-        if (rc >= 0) {
-            /* XXX: what about RSSI? */
-        } else {
+        if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
         }
+
+        /* The receive PDU has been handed to the Link Layer */
+        g_ble_phy_data.rxpdu = NULL;
     }
 
-    /* XXX: dummy read since it was suggested by nordic */
-    x = NRF_RADIO->STATE;
-    assert(x < 0xFFFF);
+phy_isr_exit:
+    /* Ensures IRQ is cleared */
+    shortcuts = NRF_RADIO->SHORTS;
 
     /* Count # of interrupts */
     ++g_ble_phy_stats.phy_isrs;
@@ -181,7 +248,7 @@ ble_phy_isr(void)
  *  
  * Initialize the PHY. This is expected to be called once. 
  * 
- * @return int 0: success; -1 otherwise
+ * @return int 0: success; PHY error code otherwise
  */
 int
 ble_phy_init(void)
@@ -197,7 +264,7 @@ ble_phy_init(void)
             break;
         }
         if ((int32_t)(os_time_get() - os_tmo) > 0) {
-            return -1;
+            return BLE_PHY_ERR_INIT;
         }
     }
 
@@ -244,49 +311,93 @@ ble_phy_init(void)
 int 
 ble_phy_rx(struct os_mbuf *rxpdu)
 {
-    /* XXX: what about interrupt enable/disable mask here? */
+    /* Check radio state */
+    nrf52_wait_disabled();
+    if (NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) {
+        ble_phy_disable();
+        ++g_ble_phy_stats.radio_state_errs;
+        return BLE_PHY_ERR_RADIO_STATE;
+    }
+
+    /* If no pdu, get one */
+    if (ble_phy_rxpdu_get() == NULL) {
+        return BLE_PHY_ERR_NO_BUFS;
+    }
+
+    /* Make sure all interrupts are disabled */
+    NRF_RADIO->INTENCLR = NRF52_RADIO_IRQ_MASK_ALL;
 
     /* Clear events prior to enabling receive */
     NRF_RADIO->EVENTS_END = 0;
     NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->EVENTS_DISABLED = 0;
     NRF_RADIO->EVENTS_BCMATCH = 0;
+    NRF_RADIO->EVENTS_RSSIEND = 0;
 
-    /* XXX: program the shorts */
+    /* I want to know when 1st byte received (after address) */
+    NRF_RADIO->BCC = 8; /* in bits */
+    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
+                        RADIO_SHORTS_READY_START_Msk |
+                        RADIO_SHORTS_ADDRESS_BCSTART_Msk |
+                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
+                        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
+
+    NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
+
+    /* Start the receive task in the radio */
+    NRF_RADIO->TASKS_RXEN = 1;
+
+    g_ble_phy_data.phymode = BLE_PHY_MODE_RX;
+
     return 0;
 }
+
+/* WWW */
+int wFail;
+/* WWW */
 
 int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t mode)
 {
     int rc;
     uint32_t state;
+    uint32_t shortcuts;
 
-    /* Return error if no PDU */
-    if (txpdu == NULL) {
-        return -1;
-    }
+    /* Better have a pdu! */
+    assert(txpdu != NULL);
+    /* WWW */
+    wFail = 1;
+    /* WWW */
 
-    /* Make sure radio in valid state. If not, return error. */
-    state = NRF_RADIO->STATE;
-    if (state != RADIO_STATE_STATE_Disabled) {
-        if ((state == RADIO_STATE_STATE_RxDisable) ||
-            (state == RADIO_STATE_STATE_TxDisable)) {
-            /* This will end within a short time (6 usecs). Just poll */
-            while (NRF_RADIO->STATE == state) {
-                /* 
-                 * XXX: Spin. If we never get out of here, just die.
-                 * I guess we could have a way out of here.
-                 */
-            }
-        } else {
-            return -1;
+    /* If radio is not disabled, */
+    nrf52_wait_disabled();
+
+    if (mode == BLE_PHY_MODE_RX_TX) {
+        if ((NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk) == 0) {
+            /* WWW */
+            wFail = 2;
+            /* WWW */
+            assert(0);
         }
+        /* Radio better be in TXRU state or we are in bad shape */
+        state = RADIO_STATE_STATE_TxRu;
+    } else {
+        state = RADIO_STATE_STATE_Disabled;
+    }
+    /* Radio should be in disabled state */
+    if (NRF_RADIO->STATE != state) {
+        ble_phy_disable();
+        ++g_ble_phy_stats.radio_state_errs;
+        return BLE_PHY_ERR_RADIO_STATE;
     }
 
     /* Select tx address */
     if (g_ble_phy_data.chan < BLE_PHY_NUM_DATA_CHANS) {
         /* XXX: fix this */
+        /* WWW */
+        wFail = 3;
+        /* WWW */
+
         assert(0);
         NRF_RADIO->TXADDRESS = 0;
         NRF_RADIO->RXADDRESSES = 0;
@@ -306,40 +417,33 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t mode)
     NRF_RADIO->EVENTS_DISABLED = 0;
 
     /* Enable shortcuts for transmit start/end. */
+    shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
     if (mode == BLE_PHY_MODE_TX_RX) {
-        NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
-                            RADIO_SHORTS_READY_START_Msk |
-                            RADIO_SHORTS_DISABLED_RXEN_Msk;
+        /* If we are going into receive after this, try to get a buffer. */
+        if (ble_phy_rxpdu_get()) {
+            shortcuts |= RADIO_SHORTS_DISABLED_RXEN_Msk;
+        }
         NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
-    } else {
-        NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
-                            RADIO_SHORTS_READY_START_Msk;
     }
-    g_ble_phy_data.mode = (uint8_t)mode;
+    NRF_RADIO->SHORTS = shortcuts;
+    g_ble_phy_data.phymode = (uint8_t)mode;
 
-    /* 
-     * Trigger the start task but only if we are disabled. Otherwise, we
-     * are going from rx to tx and have already started the tx enable task
-     */
-    state = NRF_RADIO->STATE;
-    if (state == RADIO_STATE_STATE_Disabled) {
+    /* Trigger transmit start unless we are going from rx to tx */
+    if (mode != BLE_PHY_MODE_RX_TX) {
         NRF_RADIO->TASKS_TXEN = 1;
     }
-
-    /* If we are going into receive after this, try to get a buffer. */
-    g_ble_phy_data.rxpdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
 
     /* Read back radio state. If in TXRU, we are fine */
     state = NRF_RADIO->STATE;
     if ((state == RADIO_STATE_STATE_TxRu) || (state == RADIO_STATE_STATE_Tx)) {
         /* Increment number of transmitted frames */
         ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += txpdu->om_len; /* XXX: use pkthdr */
+        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len;
         rc = 0;
     } else {
         /* Frame failed to transmit */
         ++g_ble_phy_stats.tx_fail;
-        rc = -1;
+        rc = BLE_PHY_ERR_RADIO_STATE;
     }
 
     return rc;
@@ -356,7 +460,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t mode)
  * 
  * @param dbm Power output in dBm.
  * 
- * @return int 0: success; -1 otherwise.
+ * @return int 0: success; anything else is an error
  */
 int
 ble_phy_txpwr_set(int dbm)
@@ -373,7 +477,6 @@ ble_phy_txpwr_set(int dbm)
         }
     }
 
-    /* XXX: Should we do this only in a certain state? */
     NRF_RADIO->TXPOWER = dbm;
 
     return 0;
@@ -404,19 +507,18 @@ ble_phy_txpwr_get(void)
  * 
  * @param chan This is the Data Channel Index or Advertising Channel index
  * 
- * @return int 0: success; -1 otherwise
+ * @return int 0: success; PHY error code otherwise
  */
 int
 ble_phy_setchan(uint8_t chan)
 {
     uint8_t freq;
-    int     rc;
 
     assert(chan < BLE_PHY_NUM_CHANS);
 
     /* Check for valid channel range */
     if (chan >= BLE_PHY_NUM_CHANS) {
-        return -1;
+        return BLE_PHY_ERR_INV_PARAM;
     }
 
     /* If the current channel is set, just return */
@@ -425,7 +527,6 @@ ble_phy_setchan(uint8_t chan)
     }
 
     /* Get correct nrf52 frequency */
-    rc = 0;
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
         if (chan < 11) {
             /* Data channel 0 starts at 2404. 0 - 10 are contiguous */
@@ -437,33 +538,23 @@ ble_phy_setchan(uint8_t chan)
                    (BLE_PHY_CHAN_SPACING_MHZ * (chan + 1));
         }
     } else {
-        switch (chan) {
-        case 37:
-            /* This advertising channel is at 2402 MHz */
+        if (chan == 37) {
             freq = BLE_PHY_CHAN_SPACING_MHZ;
-            break;
-        case 38:
+        } else if (chan == 38) {
             /* This advertising channel is at 2426 MHz */
             freq = BLE_PHY_CHAN_SPACING_MHZ * 13;
-            break;
-        case 39:
+        } else {
             /* This advertising channel is at 2480 MHz */
             freq = BLE_PHY_CHAN_SPACING_MHZ * 40;
-            break;
-        default:
-            rc = -1;
-            break;
         }
     }
 
     /* Set the frequency and the data whitening initial value */
-    if (!rc) {
-        g_ble_phy_data.chan = chan;
-        NRF_RADIO->FREQUENCY = freq;
-        NRF_RADIO->DATAWHITEIV = chan;
-    }
+    g_ble_phy_data.chan = chan;
+    NRF_RADIO->FREQUENCY = freq;
+    NRF_RADIO->DATAWHITEIV = chan;
 
-    return rc;
+    return 0;
 }
 
 void
@@ -472,9 +563,6 @@ ble_phy_disable(void)
     NRF_RADIO->INTENCLR = NRF52_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
-    g_ble_phy_data.mode = BLE_PHY_MODE_IDLE;
+    g_ble_phy_data.phymode = BLE_PHY_MODE_IDLE;
 }
 
-/* XXX: find replacements for the -1 error return code. I think it adds too
- * much code. Look at the disassembled code to make sure. A small positive
-   number if a good error code too. */

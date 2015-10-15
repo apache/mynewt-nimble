@@ -17,7 +17,17 @@
 #ifndef H_BLE_PHY_
 #define H_BLE_PHY_
 
+/* Forward declarations */
 struct os_mbuf;
+
+/* 
+ * XXX: Transceiver definitions. These dont belong here and will be moved
+ * once we finalize transceiver specific support.
+ */ 
+#define XCVR_TX_START_DELAY_USECS     (140)
+#define XCVR_PROC_DELAY_USECS         (50)
+#define XCVR_TX_SCHED_DELAY_USECS     \
+    (XCVR_TX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
 
 /* Channel/Frequency defintions */
 #define BLE_PHY_NUM_CHANS           (40)
@@ -43,23 +53,47 @@ struct os_mbuf;
 #define BLE_PHY_BIT_RATE_BPS        (1000000)
 
 /* Macros */
-#define BLE_IS_ADV_CHAN(chan)   (chan >= BLE_PHY_ADV_CHAN_START)
-#define BLE_IS_DATA_CHAN(chan)  (chan < BLE_PHY_ADV_CHAN_START)
+#define BLE_IS_ADV_CHAN(chan)       (chan >= BLE_PHY_ADV_CHAN_START)
+#define BLE_IS_DATA_CHAN(chan)      (chan < BLE_PHY_ADV_CHAN_START)
 
 /* PHY MODES */
-#define BLE_PHY_MODE_IDLE   (0)
-#define BLE_PHY_MODE_RX     (1)
-#define BLE_PHY_MODE_TX     (2)
-#define BLE_PHY_MODE_TX_RX  (3)
+#define BLE_PHY_MODE_IDLE           (0)
+#define BLE_PHY_MODE_RX             (1)
+#define BLE_PHY_MODE_TX             (2)
+#define BLE_PHY_MODE_TX_RX          (3)
+#define BLE_PHY_MODE_RX_TX          (4)
 
-/* API */
+/* PHY error codes */
+#define BLE_PHY_ERR_RADIO_STATE     (1)
+#define BLE_PHY_ERR_INIT            (2)
+#define BLE_PHY_ERR_INV_PARAM       (3)
+#define BLE_PHY_ERR_NO_BUFS         (4)
+
+/* Initialize the PHY */
 int ble_phy_init(void);
+
+/* Reset the PHY */
+int ble_phy_reset(void);
+
+/* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan);
+
+/* Place the PHY into transmit mode */
 int ble_phy_tx(struct os_mbuf *, uint8_t mode);
+
+/* Place the PHY into receive mode */
 int ble_phy_rx(struct os_mbuf *);
+
+/* Get an RSSI reading */
 int ble_phy_rssi_get(void);
+
+/* Set the transmit power */
 int ble_phy_txpwr_set(int dbm);
+
+/* Get the transmit power */
 int ble_phy_txpwr_get(void);
+
+/* Disable the PHY */
 void ble_phy_disable(void);
 
 #endif /* H_BLE_PHY_ */

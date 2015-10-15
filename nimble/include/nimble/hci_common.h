@@ -18,12 +18,21 @@
 
 #include "ble.h"
 
-/* HCI Command Header */
-#define BLE_HCI_CMD_HDR_LEN     (3)
+/* 
+ * HCI Command Header
+ * 
+ * Comprised of the following fields
+ *  -> Opcode command field (1)
+ *  -> Opcode group field   (1)
+ *  -> Parameter Length     (1)
+ *      Length of all the parameters (does not include any part of the hci
+ *      command header
+ */
+#define BLE_HCI_CMD_HDR_LEN                 (3)
 
 /* Get the OGF and OCF from the opcode in the command */
-#define BLE_HCI_OGF(opcode)     (((opcode) >> 10) & 0x003F)
-#define BLE_HCI_OCF(opcode)     ((opcode) & 0x03FF)
+#define BLE_HCI_OGF(opcode)                 (((opcode) >> 10) & 0x003F)
+#define BLE_HCI_OCF(opcode)                 ((opcode) & 0x03FF)
 
 /* Opcode Group */
 #define BLE_HCI_OGF_LINK_CTRL               (0x01)
@@ -84,18 +93,40 @@
 #define BLE_HCI_OCF_LE_SET_RESOLV_PRIV_ADDR (0x002E)
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
+/* Event Codes */
+#define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
+#define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
+#define BLE_HCI_EVCODE_CNXN_DONE            (0x03)
+#define BLE_HCI_EVCODE_CNXN_REQUEST         (0x04)
+#define BLE_HCI_EVCODE_DISCNXN_CMP          (0x05)
+#define BLE_HCI_EVCODE_AUTH_CMP             (0x06)
+#define BLE_HCI_EVCODE_REM_NAME_REQ_CM P    (0x07)
+#define BLE_HCI_EVCODE_ENCRYPT_CHG          (0x08)
+#define BLE_HCI_EVCODE_CHG_LINK_KEY_CMP     (0x09)
+#define BLE_HCI_EVCODE_MASTER_LINK_KEY_CMP  (0x0A)
+#define BLE_HCI_EVCODE_RD_REM_SUPP_FEAT_CMP (0x0B)
+#define BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP  (0x0C)
+#define BLE_HCI_EVCODE_QOS_SETUP_CMP        (0x0D)
+#define BLE_HCI_EVCODE_COMMAND_COMPLETE     (0x0E)
+#define BLE_HCI_EVCODE_COMMAND_STATE        (0x0F)
+#define BLE_HCI_EVCODE_HW_ERROR             (0x10)
+/* XXX: Define them all... */
+
 /* Command Specific Definitions */
+/* Set event mask */
+#define BLE_HCI_SET_LE_EVENT_MASK_LEN   (8)
+
 /* Set scan response data */
-#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN       (31)
+#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN   (31)
 
 /* Set advertising data */
-#define BLE_HCI_MAX_ADV_DATA_LEN            (31)
+#define BLE_HCI_MAX_ADV_DATA_LEN        (31)
 
 /* Set advertising enable */
-#define BLE_HCI_CMD_SET_ADV_ENABLE_LEN      (1)
+#define BLE_HCI_SET_ADV_ENABLE_LEN      (1)
 
 /* Set advertising parameters */
-#define BLE_HCI_CMD_SET_ADV_PARAM_LEN       (15)
+#define BLE_HCI_SET_ADV_PARAM_LEN       (15)
 
 /* Advertising types */
 #define BLE_ADV_TYPE_ADV_IND            (0)
