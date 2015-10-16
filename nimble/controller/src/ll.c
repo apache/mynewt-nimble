@@ -15,20 +15,16 @@
  */
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 #include "os/os.h"
 #include "controller/phy.h"
 #include "controller/ll.h"
 #include "controller/ll_adv.h"
 #include "controller/ll_sched.h"
 #include "controller/ll_scan.h"
+#include "controller/ll_hci.h"
 
 /* XXX: use the sanity task! */
-/* XXX: Remember to check rx packet lengths and report errors if they
- * are wrong. Need to check CRC too.
- */
-
-/* XXX: find a place for this */
-void ll_hci_cmd_proc(struct os_event *ev);
 
 /* Connection related define */
 #define BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS  (27)
@@ -140,6 +136,69 @@ ble_init_conn_sm(struct ll_sm_connection *cnxn)
     return 0;
 }
 
+/* Checks to see that the device is a valid random address */
+int
+ll_is_valid_rand_addr(uint8_t *addr)
+{
+    int i;
+    int rc;
+    uint16_t sum;
+    uint8_t addr_type;
+
+    /* Make sure all bits are neither one nor zero */
+    sum = 0;
+    for (i = 0; i < (BLE_DEV_ADDR_LEN -1); ++i) {
+        sum += addr[i];
+    }
+    sum += addr[5] & 0x3f;
+
+    if ((sum == 0) || (sum == ((5*255) + 0x3f))) {
+        return 0;
+    }
+
+    /* Get the upper two bits of the address */
+    rc = 1;
+    addr_type = addr[5] & 0xc0;
+    if (addr_type == 0xc0) {
+        /* Static random address. No other checks needed */
+    } else if (addr_type == 0x40) {
+        /* Resolvable */
+        sum = addr[3] + addr[4] + (addr[5] & 0x3f);
+        if ((sum == 0) || (sum == (255 + 255 + 0x3f))) {
+            rc = 0;
+        }
+    } else if (addr_type == 0) {
+        /* non-resolvable. Cant be equal to public */
+        if (!memcmp(g_dev_addr, addr, BLE_DEV_ADDR_LEN)) {
+            rc = 0;
+        }
+    } else {
+        /* Invalid upper two bits */
+        rc = 0;
+    }
+
+    return rc;
+}
+
+/**
+ * ll pdu tx time get 
+ *  
+ * Returns the number of usecs it will take to transmit a PDU of length 'len' 
+ * bytes. Each byte takes 8 usecs. 
+ * 
+ * @param len The number of PDU bytes to transmit
+ * 
+ * @return uint16_t The number of usecs it will take to transmit a PDU of 
+ *                  length 'len' bytes. 
+ */
+uint16_t
+ll_pdu_tx_time_get(uint16_t len)
+{
+    len += BLE_LL_OVERHEAD_LEN;
+    len = len << 3;
+    return len;
+}
+
 /**
  * ll rx pkt in proc
  *  
@@ -158,58 +217,57 @@ ll_rx_pkt_in_proc(void)
     struct os_mbuf *m;
 
     /* Drain all packets off the queue */
-    do {
+    while (1) {
         pkthdr = STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q);
-        if (pkthdr) {
-            /* Get mbuf pointer from packet header pointer */
-            m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
-
-            /* Remove from queue */
-            OS_ENTER_CRITICAL(sr);
-            STAILQ_REMOVE_HEAD(&g_ll_data.ll_rx_pkt_q, omp_next);
-            OS_EXIT_CRITICAL(sr);
-
-            /* XXX: call processing function here */
-
-            /* Set the rx buffer pointer to the start of the received data */
-            rxbuf = m->om_data;
-
-            /* XXX: need to check if this is an adv channel or data channel */
-            /* Count received packet types  */
-            pdu_type = rxbuf[0] & BLE_ADV_HDR_PDU_TYPE_MASK;
-            switch (pdu_type) {
-            case BLE_ADV_PDU_TYPE_ADV_IND:
-                ++g_ll_stats.rx_adv_ind;
-                break;
-            case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-                ++g_ll_stats.rx_adv_direct_ind;
-                break;
-            case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
-                ++g_ll_stats.rx_adv_nonconn_ind;
-                break;
-            case BLE_ADV_PDU_TYPE_SCAN_REQ:
-                ++g_ll_stats.rx_scan_reqs;
-                break;
-            case BLE_ADV_PDU_TYPE_SCAN_RSP:
-                ++g_ll_stats.rx_scan_rsps;
-                break;
-            case BLE_ADV_PDU_TYPE_CONNECT_REQ:
-                ++g_ll_stats.rx_connect_reqs;
-                break;
-            case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
-                ++g_ll_stats.rx_scan_ind;
-                break;
-            default:
-                ++g_ll_stats.rx_unk_pdu;
-                break;
-            }
-
-
-
-            /* XXX: Free the mbuf for now */
-            os_mbuf_free(&g_mbuf_pool, m);
+        if (!pkthdr) {
+            break;
         }
-    } while (m != NULL);
+        /* Get mbuf pointer from packet header pointer */
+        m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
+
+        /* Remove from queue */
+        OS_ENTER_CRITICAL(sr);
+        STAILQ_REMOVE_HEAD(&g_ll_data.ll_rx_pkt_q, omp_next);
+        OS_EXIT_CRITICAL(sr);
+
+        /* XXX: call processing function here */
+
+        /* Set the rx buffer pointer to the start of the received data */
+        rxbuf = m->om_data;
+
+        /* XXX: need to check if this is an adv channel or data channel */
+        /* Count received packet types  */
+        pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+        switch (pdu_type) {
+        case BLE_ADV_PDU_TYPE_ADV_IND:
+            ++g_ll_stats.rx_adv_ind;
+            break;
+        case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+            ++g_ll_stats.rx_adv_direct_ind;
+            break;
+        case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
+            ++g_ll_stats.rx_adv_nonconn_ind;
+            break;
+        case BLE_ADV_PDU_TYPE_SCAN_REQ:
+            ++g_ll_stats.rx_scan_reqs;
+            break;
+        case BLE_ADV_PDU_TYPE_SCAN_RSP:
+            ++g_ll_stats.rx_scan_rsps;
+            break;
+        case BLE_ADV_PDU_TYPE_CONNECT_REQ:
+            ++g_ll_stats.rx_connect_reqs;
+            break;
+        case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
+            ++g_ll_stats.rx_scan_ind;
+            break;
+        default:
+            ++g_ll_stats.rx_unk_pdu;
+            break;
+        }
+
+        /* XXX: Free the mbuf for now */
+        os_mbuf_free(&g_mbuf_pool, m);
+    }
 }
 
 /**
@@ -243,7 +301,7 @@ ll_rx_start(struct os_mbuf *rxpdu)
 
     /* XXX: need to check if this is an adv channel or data channel */
     rxbuf = rxpdu->om_data;
-    pdu_type = rxbuf[0] & BLE_ADV_HDR_PDU_TYPE_MASK;
+    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
     switch (g_ll_data.ll_state) {
     case BLE_LL_STATE_ADV:
@@ -290,8 +348,8 @@ ll_rx_end(struct os_mbuf *rxpdu, int crcok)
     rxbuf = rxpdu->om_data;
 
     /* XXX: need to check if this is an adv channel or data channel */
-    pdu_type = rxbuf[0] & BLE_ADV_HDR_PDU_TYPE_MASK;
-    pdu_len = rxbuf[1] & BLE_ADV_HDR_LEN_MASK;
+    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+    pdu_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
 
     /* Setup the mbuf */
     mblen = pdu_len + BLE_LL_PDU_HDR_LEN;

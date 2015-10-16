@@ -18,8 +18,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/hci_common.h"
-#include "controller/ll.h" /* XXX: not good that this needs to be included */
-#include "controller/ll_adv.h"
+#include "nimble/hci_transport.h"
 
 #define HCI_CMD_BUFS        (4)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -49,33 +48,10 @@ host_hci_le_cmdbuf_get(uint16_t ocf, uint8_t len)
     return cmd;
 }
 
-/* XXX:
- * this needs the LL event queue from the LL global data. Not sure I
- * would want this here. In fact, I know I dont. This should be a transport
- * layer call and that should do it.
- */
-int
-host_hci_cmd_send(void *cmdbuf)
+static int
+host_hci_cmd_send(uint8_t *cmdbuf)
 {
-    os_error_t err;
-    struct os_event *ev;
-
-    /* Get an event structure off the queue */
-    ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
-    if (!ev) {
-        err = os_memblock_put(&g_hci_cmd_pool, cmdbuf);
-        assert(err == OS_OK);
-        return -1;
-    }
-
-    /* XXX: I am not happy that the host has access to the g_ll_data here
-       we need to change this! */
-    ev->ev_queued = 0;
-    ev->ev_type = BLE_LL_EVENT_HCI_CMD;
-    ev->ev_arg = cmdbuf;
-    os_eventq_put(&g_ll_data.ll_evq, ev);
-
-    return 0;
+    return hci_transport_host_cmd_send(cmdbuf);
 }
 
 int

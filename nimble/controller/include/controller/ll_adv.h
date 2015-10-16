@@ -18,39 +18,16 @@
 #define H_LL_ADV_
 
 /* 
- * ADV event timing
- *      T_advEvent = advInterval + advDelay
- * 
- *      advInterval: increments of 625 usecs
- *      advDelay: RAND[0, 10] msecs
- * 
- */
-#define BLE_LL_ADV_ITVL                 (625)           /* usecs */
-#define BLE_LL_ADV_ITVL_MIN             (32)            /* units */
-#define BLE_LL_ADV_ITVL_MAX             (16384)         /* units */
-#define BLE_LL_ADV_ITVL_MS_MIN          (20)            /* msecs */
-#define BLE_LL_ADV_ITVL_MS_MAX          (10240)         /* msecs */
-#define BLE_LL_ADV_ITVL_SCAN_MIN        (160)           /* units */
-#define BLE_LL_ADV_ITVL_SCAN_MS_MIN     (100)           /* msecs */
-#define BLE_LL_ADV_ITVL_NONCONN_MIN     (160)           /* units */
-#define BLE_LL_ADV_ITVL_NONCONN_MS_MIN  (100)           /* msecs */
-#define BLE_LL_ADV_DELAY_MS_MIN         (0)             /* msecs */
-#define BLE_LL_ADV_DELAY_MS_MAX         (10)            /* msecs */
-#define BLE_LL_ADV_PDU_ITVL_LD_MS_MAX   (10)            /* msecs */
-#define BLE_LL_ADV_PDU_ITVL_HD_MS_MAX   (3750)          /* usecs */
-#define BLE_LL_ADV_STATE_HD_MAX         (1280)          /* msecs */
-
-/* 
  * Advertising PDU format:
  * -> 2 byte header
  *      -> LSB contains pdu type, txadd and rxadd bits.
  *      -> MSB contains length (6 bits).
  * -> Payload
  */
-#define BLE_ADV_HDR_PDU_TYPE_MASK       (0x0F)
-#define BLE_ADV_HDR_TXADD_MASK          (0x40)
-#define BLE_ADV_HDR_RXADD_MASK          (0x80)
-#define BLE_ADV_HDR_LEN_MASK            (0x3F)
+#define BLE_ADV_PDU_HDR_TYPE_MASK           (0x0F)
+#define BLE_ADV_PDU_HDR_TXADD_MASK          (0x40)
+#define BLE_ADV_PDU_HDR_RXADD_MASK          (0x80)
+#define BLE_ADV_PDU_HDR_LEN_MASK            (0x3F)
 
 /* Advertising channel PDU types */
 #define BLE_ADV_PDU_TYPE_ADV_IND            (0)
@@ -65,10 +42,10 @@
  * TxAdd and RxAdd bit definitions. A 0 is a public address; a 1 is a
  * random address.
  */
-#define BLE_ADV_TXADD_RAND              (0x40)
-#define BLE_ADV_RXADD_RAND              (0x80)
+#define BLE_ADV_PDU_HDR_TXADD_RAND          (0x40)
+#define BLE_ADV_PDU_HDR_RXADD_RAND          (0x80)
 
-/* Maximum */
+/* Maximum advertisement data length */
 #define BLE_ADV_DATA_MAX_LEN            (31)
 
 /* 

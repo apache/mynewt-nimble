@@ -53,7 +53,15 @@
  *    we need to send a CONNECTION COMPLETE event. Do this.
  */
 
-/* Advertising state machine */
+/* 
+ * Advertising state machine 
+ * 
+ * The advertising state machine data structure.
+ * 
+ *  adv_pdu_len
+ *      The length of the advertising PDU that will be sent. This does not
+ *      include the preamble, access address and CRC.
+ */
 struct ll_adv_sm
 {
     uint8_t enabled;
@@ -66,12 +74,12 @@ struct ll_adv_sm
     uint8_t peer_addr_type;
     uint8_t adv_chan;
     uint8_t scan_rsp_len;
+    uint8_t adv_pdu_len;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
     uint32_t adv_event_start_time;
     uint32_t adv_pdu_start_time;
-    uint8_t adv_addr[BLE_DEV_ADDR_LEN];
     uint8_t random_addr[BLE_DEV_ADDR_LEN];
     uint8_t initiator_addr[BLE_DEV_ADDR_LEN];
     uint8_t adv_data[BLE_ADV_DATA_MAX_LEN];
@@ -93,15 +101,17 @@ struct ll_adv_stats
 
 struct ll_adv_stats g_ll_adv_stats;
 
-
+/* XXX: We can calculate scan response time as well. */
 /* 
- * Worst case time to end an advertising event. This is the longest possible
- * time it takes to send an advertisement, receive a scan request and send
- * a scan response (with the appropriate IFS time between them). This number is
- * calculated using the following formula:
- *  ADV_PDU + IFS + SCAN_REQ + IFS + SCAN_RSP = 376 + 150 + 176 + 150 + 376
+ * Worst case time needed for scheduled advertising item. This is the longest
+ * possible time to receive a scan request and send a scan response (with the
+ * appropriate IFS time between them). This number is calculated using the
+ * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
+ * 
+ * NOTE: The advertising PDU transmit time is NOT included here since we know
+ * how long that will take.
  */
-#define BLE_LL_ADV_EVENT_MAX_USECS      (1228)
+#define BLE_LL_ADV_SCHED_MAX_USECS  (852)
 
 /**
  * ble ll adv first chan 
@@ -111,7 +121,7 @@ struct ll_adv_stats g_ll_adv_stats;
  * 
  * @param advsm 
  * 
- * @return uint8_t 
+ * @return uint8_t The number of the first channel usable for advertising.
  */
 static uint8_t
 ll_adv_first_chan(struct ll_adv_sm *advsm)
@@ -131,6 +141,173 @@ ll_adv_first_chan(struct ll_adv_sm *advsm)
 }
 
 /**
+ * ll adv pdu make 
+ *  
+ * Create the advertising PDU 
+ * 
+ * 
+ * @param advsm Pointer to advertisement state machine
+ */
+static void
+ll_adv_pdu_make(struct ll_adv_sm *advsm)
+{
+    uint8_t     adv_data_len;
+    uint8_t     *dptr;
+    uint8_t     pdulen;
+    uint8_t     pdu_type;
+    uint8_t     *addr;
+    struct os_mbuf *m;
+
+    /* assume this is not a direct ind */
+    adv_data_len = advsm->adv_len;
+    pdulen = BLE_DEV_ADDR_LEN + adv_data_len;
+
+    /* Must be an advertising type! */
+    switch (advsm->adv_type) {
+    case BLE_ADV_TYPE_ADV_IND:
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
+        break;
+
+    case BLE_ADV_TYPE_ADV_NONCONN_IND:
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_NONCONN_IND;
+        break;
+
+    case BLE_ADV_TYPE_ADV_SCAN_IND:
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
+        break;
+
+    case BLE_ADV_TYPE_ADV_DIRECT_IND_HD:
+    case BLE_ADV_TYPE_ADV_DIRECT_IND_LD:
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
+        adv_data_len = 0;
+        pdulen = BLE_ADV_DIRECT_IND_LEN;
+        break;
+
+        /* Set these to avoid compiler warnings */
+    default:
+        pdulen = 0;
+        pdu_type = 0;
+        adv_data_len = 0xFF;
+        break;
+    }
+
+    /* An invalid advertising data length indicates a memory overwrite */
+    assert(adv_data_len <= BLE_ADV_DATA_MAX_LEN);
+
+    /* Set the PDU length in the state machine */
+    advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
+
+    /* Get the advertising PDU */
+    m = advsm->adv_pdu;
+    assert(m != NULL);
+    m->om_len = advsm->adv_pdu_len;
+    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
+
+    /* Construct scan response */
+    if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_PUBLIC) {
+        addr = g_dev_addr;
+    } else if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_RANDOM) {
+        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        addr = advsm->random_addr;
+    } else {
+        /* XXX: unsupported for now  */
+        addr = NULL;
+        assert(0);
+    }
+
+    /* Construct advertisement */
+    dptr = m->om_data;
+    dptr[0] = pdu_type;
+    dptr[1] = (uint8_t)pdulen;
+    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
+    dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+
+    /* For ADV_DIRECT_IND, we need to put initiators address in there */
+    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+        memcpy(dptr, advsm->initiator_addr, BLE_DEV_ADDR_LEN);
+    }
+
+    /* Copy in advertising data, if any */
+    if (adv_data_len != 0) {
+        memcpy(dptr, advsm->adv_data, adv_data_len);
+    }
+}
+
+/**
+ * ll adv scan rsp pdu make
+ *  
+ * Create a scan response PDU 
+ * 
+ * @param advsm 
+ */
+static void
+ll_adv_scan_rsp_pdu_make(struct ll_adv_sm *advsm)
+{
+    uint8_t     scan_rsp_len;
+    uint8_t     *dptr;
+    uint8_t     *addr;
+    uint8_t     pdulen;
+    uint8_t     hdr;
+    struct os_mbuf *m;
+
+    /* Make sure that the length is valid */
+    scan_rsp_len = advsm->scan_rsp_len;
+    assert(scan_rsp_len <= BLE_SCAN_RSP_DATA_MAX_LEN);
+
+    /* Set PDU payload length */
+    pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
+
+    /* Get the advertising PDU */
+    m = advsm->scan_rsp_pdu;
+    assert(m != NULL);
+    m->om_len = BLE_LL_PDU_HDR_LEN + pdulen;
+    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
+
+    /* Construct scan response */
+    if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_PUBLIC) {
+        hdr = BLE_ADV_PDU_TYPE_SCAN_RSP;
+        addr = g_dev_addr;
+    } else if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_RANDOM) {
+        hdr = BLE_ADV_PDU_TYPE_SCAN_RSP | BLE_ADV_PDU_HDR_TXADD_RAND;
+        addr = advsm->random_addr;
+    } else {
+        /* XXX: unsupported for now  */
+        hdr = 0;
+        addr = NULL;
+        assert(0);
+    }
+
+    /* Write into the pdu buffer */
+    dptr = m->om_data;
+    dptr[0] = hdr;
+    dptr[1] = pdulen;
+    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
+
+    /* Copy in scan response data, if any */
+    if (scan_rsp_len != 0) {
+        dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;  
+        memcpy(dptr, advsm->scan_rsp_data, scan_rsp_len);
+    }
+}
+
+/**
+ * ble ll adv rx cb 
+ *  
+ * Scheduler callback used after advertising PDU sent. 
+ * 
+ * @param arg 
+ */
+static int
+ll_adv_rx_cb(struct ll_sched_item *sch)
+{
+    /* Disable the PHY as we might be receiving */
+    ble_phy_disable();
+    os_eventq_put(&g_ll_data.ll_evq, &g_ll_adv_sm.adv_txdone_ev);
+    return BLE_LL_SCHED_STATE_DONE;
+}
+
+
+/**
  * ble ll adv tx done cb 
  *  
  * Scheduler callback when an advertising PDU has been sent. 
@@ -140,12 +317,6 @@ ll_adv_first_chan(struct ll_adv_sm *advsm)
 static int
 ll_adv_tx_done_cb(struct ll_sched_item *sch)
 {
-    /* 
-     * XXX: when we get here, we should not be done. We need
-     * to check to see if we are getting a receive. If so, extend
-     * wait. For now, just set to done.
-     */
-    ble_phy_disable();
     os_eventq_put(&g_ll_data.ll_evq, &g_ll_adv_sm.adv_txdone_ev);
     return BLE_LL_SCHED_STATE_DONE;
 }
@@ -176,7 +347,7 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     rc = ble_phy_setchan(advsm->adv_chan);
     assert(rc == 0);
 
-    /* Get phy mode */
+    /* Set phy mode based on type of advertisement */
     if (advsm->adv_type == BLE_ADV_TYPE_ADV_NONCONN_IND) {
         phy_mode = BLE_PHY_MODE_TX;
     } else {
@@ -186,134 +357,43 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     /* Transmit advertisement */
     rc = ble_phy_tx(advsm->adv_pdu, phy_mode);
     if (rc) {
+        /* Transmit failed. */
+        ble_phy_disable();
         rc = ll_adv_tx_done_cb(sch);
     } else {
-
-        /* Set link layer state */
+        /* Set link layer state to advertising */
         g_ll_data.ll_state = BLE_LL_STATE_ADV;
 
-        /* 
-         * XXX: The next wakeup time for this event is really
-         *  next_wake = start_time + txtime + IFS + jitter +
-         *              time_to_detect_rx_pkt
-         * 
-         *  For now, we will cheat and make the next wake time the end
-         *  time.
-         */
-        sch->next_wakeup = sch->end_time;
-        sch->sched_cb = ll_adv_tx_done_cb;
+        /* Set schedule item next wakeup time */
+        if (advsm->adv_type == BLE_ADV_TYPE_ADV_NONCONN_IND) {
+            sch->next_wakeup = sch->end_time;
+            sch->sched_cb = ll_adv_tx_done_cb;
+        } else {
+            /* XXX: set next wakeup time. We have to look for either a
+             * connect request or scan request or both, depending on
+             * advertising type. For now, we will just wait until the
+             * end of the scheduled event, which was set to the worst case
+             * time to send a scan response PDU. Note that I use the time
+             * now to insure the callback occurs after we are dont transmitting
+             * the scan response, as we may have been late starting the tx.
+             */
+            sch->next_wakeup = cputime_get32() +
+                (sch->end_time - sch->start_time);
+            sch->sched_cb = ll_adv_rx_cb;
+        }
+
         rc = BLE_LL_SCHED_STATE_RUNNING;
     }
 
     return rc;
 }
 
-static void
-ll_adv_pdu_make(struct ll_adv_sm *advsm)
-{
-    uint8_t     adv_data_len;
-    uint8_t     *dptr;
-    uint8_t     pdulen;
-    uint8_t     pdu_type;
-    struct os_mbuf *m;
-
-    /* assume this is not a direct ind */
-    adv_data_len = advsm->adv_len;
-    pdulen = BLE_DEV_ADDR_LEN + adv_data_len;
-
-    /* Must be an advertising type! */
-    switch (advsm->adv_type) {
-    case BLE_ADV_TYPE_ADV_IND:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
-        break;
-
-    case BLE_ADV_TYPE_ADV_NONCONN_IND:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_NONCONN_IND;
-        break;
-
-    case BLE_ADV_TYPE_ADV_SCAN_IND:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
-        break;
-
-    case BLE_ADV_TYPE_ADV_DIRECT_IND_HD:
-    case BLE_ADV_TYPE_ADV_DIRECT_IND_LD:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
-        adv_data_len = 0;
-        pdulen = BLE_ADV_DIRECT_IND_LEN;
-        break;
-
-        /* Put an invalid data length here so we leave */
-    default:
-        pdulen = 0;
-        adv_data_len = 0xFF;
-        break;
-    }
-
-    /* An invalid advertising data length indicates a memory overwrite */
-    assert(adv_data_len <= BLE_ADV_DATA_MAX_LEN);
-
-    /* Get the advertising PDU */
-    m = advsm->adv_pdu;
-    assert(m != NULL);
-    m->om_len = BLE_LL_PDU_HDR_LEN + pdulen;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
-
-    /* Construct advertisement */
-    dptr = m->om_data;
-    dptr[0] = pdu_type;
-    dptr[1] = (uint8_t)pdulen;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, advsm->adv_addr, BLE_DEV_ADDR_LEN);
-    dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-
-    /* For ADV_DIRECT_IND, we need to put initiators address in there */
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
-        memcpy(dptr, advsm->initiator_addr, BLE_DEV_ADDR_LEN);
-    }
-
-    /* Copy in advertising data, if any */
-    if (adv_data_len != 0) {
-        memcpy(dptr, advsm->adv_data, adv_data_len);
-    }
-}
-
-static void
-ll_adv_scan_rsp_pdu_make(struct ll_adv_sm *advsm)
-{
-    uint8_t     scan_rsp_len;
-    uint8_t     *dptr;
-    uint8_t     pdulen;
-    struct os_mbuf *m;
-
-    /* Make sure that the length is valid */
-    scan_rsp_len = advsm->scan_rsp_len;
-    assert(scan_rsp_len <= BLE_SCAN_RSP_DATA_MAX_LEN);
-
-    /* Set PDU payload length */
-    pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
-
-    /* Get the advertising PDU */
-    m = advsm->scan_rsp_pdu;
-    assert(m != NULL);
-    m->om_len = BLE_LL_PDU_HDR_LEN + pdulen;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
-
-    /* Construct scan response */
-    dptr = m->om_data;
-    dptr[0] = BLE_ADV_PDU_TYPE_SCAN_RSP;
-    dptr[1] = (uint8_t)pdulen;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, advsm->adv_addr, BLE_DEV_ADDR_LEN);
-    dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-
-    /* Copy in scan response data, if any */
-    if (scan_rsp_len != 0) {
-        memcpy(dptr, advsm->scan_rsp_data, scan_rsp_len);
-    }
-}
 
 static struct ll_sched_item *
 ll_adv_sched_set(struct ll_adv_sm *advsm)
 {
     int rc;
+    uint32_t max_usecs;
     struct ll_sched_item *sch;
 
     sch = ll_sched_get_item();
@@ -321,19 +401,22 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
         /* Set sched type */
         sch->sched_type = BLE_LL_SCHED_TYPE_ADV;
 
+        /* XXX: HW output compare to trigger tx start? Look into this */
         /* Set the start time of the event */
         sch->start_time = advsm->adv_pdu_start_time - 
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
 
-        /* We dont care about start of advertising event, only end */
+        /* Set the callback and the cookie */
         sch->cb_cookie = advsm;
         sch->sched_cb = ll_adv_tx_start_cb;
 
-        /* XXX: NONCONN should be a different time (not the worst-case)
-           and we dont account for start delay */
-        /* Set end time to worst-case time to send the advertisement,  */
-        sch->end_time = sch->start_time + 
-            cputime_usecs_to_ticks(BLE_LL_ADV_EVENT_MAX_USECS);
+        /* Set end time to maximum time this schedule item may take */
+        max_usecs = ll_pdu_tx_time_get(advsm->adv_pdu_len);
+        if (advsm->adv_type != BLE_ADV_TYPE_ADV_NONCONN_IND) {
+            max_usecs += BLE_LL_ADV_SCHED_MAX_USECS;
+        }
+        sch->end_time = advsm->adv_pdu_start_time +
+            cputime_usecs_to_ticks(max_usecs);
 
         /* XXX: for now, we cant get an overlap so assert on error. */
         /* Add the item to the scheduler */
@@ -346,8 +429,18 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
     return sch;
 }
 
-/*  Called from HCI command parser */
-/* XXX: I dont know how to deal with public or random addresses here */
+/**
+ * ll adv set adv params 
+ *  
+ * Called by the HCI command parser when a set advertising parameters command 
+ * has been received. 
+ *  
+ * Context: Link Layer task (HCI command parser) 
+ * 
+ * @param cmd 
+ * 
+ * @return int 
+ */
 int
 ll_adv_set_adv_params(uint8_t *cmd)
 {
@@ -412,14 +505,10 @@ ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    /* XXX: determine if there is anything that needs to be done for
+       own address type or peer address type */
     advsm->own_addr_type = own_addr_type;
     advsm->peer_addr_type = peer_addr_type;
-
-    /* XXX: We have to deal with own address type and peer address type.
-       For now, we just use public device address */
-    if (own_addr_type == BLE_ADV_OWN_ADDR_PUBLIC) {
-        memcpy(advsm->adv_addr, g_dev_addr, BLE_DEV_ADDR_LEN);
-    }
 
     /* There are only three adv channels, so check for any outside the range */
     adv_chanmask = cmd[13];
@@ -445,19 +534,13 @@ ll_adv_set_adv_params(uint8_t *cmd)
 static void
 ll_adv_sm_stop(struct ll_adv_sm *advsm)
 {
-    /* XXX: Stop any timers */
+    /* XXX: Stop any timers we may have started */
 
     /* Remove any scheduled advertising items */
     ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV);
 
     /* Disable advertising */
     advsm->enabled = 0;
-
-    /* If a scan response pdu is attached, free it */
-    if (g_ll_adv_sm.scan_rsp_pdu) {
-        os_mbuf_free(&g_mbuf_pool, g_ll_adv_sm.scan_rsp_pdu);
-        g_ll_adv_sm.scan_rsp_pdu = NULL;
-    }
 }
 
 /**
@@ -476,7 +559,23 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
     struct ll_sched_item *sch;
-    struct os_mbuf *m;
+
+    /* 
+     * XXX: not sure if I should do this or just report whatever random
+     * address the host sent. For now, I will reject the command with a
+     * command disallowed error. All the parameter errors refer to the command
+     * parameter (which in this case is just enable or disable).
+     */ 
+    if (advsm->own_addr_type != BLE_ADV_OWN_ADDR_PUBLIC) {
+        if (!ll_is_valid_rand_addr(advsm->random_addr)) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        /* XXX: support these other types */
+        if (advsm->own_addr_type != BLE_ADV_OWN_ADDR_RANDOM) {
+            assert(0);
+        }
+    }
 
     /* Set flag telling us that advertising is enabled */
     advsm->enabled = 1;
@@ -488,13 +587,7 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     ll_adv_pdu_make(advsm);
 
     /* Create scan response PDU (if needed) */
-    if ((advsm->adv_type != BLE_ADV_TYPE_ADV_NONCONN_IND) &&
-        (advsm->scan_rsp_len != 0)) {
-        m = os_mbuf_get_pkthdr(&g_mbuf_pool);
-        if (!m) {
-            return BLE_ERR_MEM_CAPACITY;
-        }
-        g_ll_adv_sm.scan_rsp_pdu = m;
+    if (advsm->adv_type != BLE_ADV_TYPE_ADV_NONCONN_IND) {
         ll_adv_scan_rsp_pdu_make(advsm);
     }
 
@@ -516,7 +609,6 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     if (!sch) {
         /* XXX: set a wakeup timer to deal with this. For now, assert */
         assert(0);
-
     }
 
     return 0;
@@ -574,13 +666,11 @@ ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
 
     /* Re-make the scan response PDU since data may have changed */
     OS_ENTER_CRITICAL(sr);
-    if (advsm->scan_rsp_pdu) {
-        /* 
-         * XXX: there is a chance, even with interrupts disabled, that
-         * we are transmitting the scan response PDU while writing to it.
-         */ 
-        ll_adv_scan_rsp_pdu_make(advsm);
-    }
+    /* 
+     * XXX: there is a chance, even with interrupts disabled, that
+     * we are transmitting the scan response PDU while writing to it.
+     */ 
+    ll_adv_scan_rsp_pdu_make(advsm);
     OS_EXIT_CRITICAL(sr);
 
     return 0;
@@ -645,8 +735,15 @@ ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 int
 ll_adv_set_rand_addr(uint8_t *addr)
 {
-    memcpy(g_ll_adv_sm.random_addr, addr, BLE_DEV_ADDR_LEN);
-    return BLE_ERR_SUCCESS;
+    int rc;
+
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    if (ll_is_valid_rand_addr(addr)) {
+        memcpy(g_ll_adv_sm.random_addr, addr, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    return rc;
 }
 
 /**
@@ -790,5 +887,9 @@ ll_adv_init(void)
     /* Get an advertising mbuf (packet header) and attach to state machine */
     advsm->adv_pdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
     assert(advsm->adv_pdu != NULL);
+
+    /* Get a scan response mbuf (packet header) and attach to state machine */
+    advsm->scan_rsp_pdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
+    assert(advsm->scan_rsp_pdu != NULL);
 }
 

@@ -102,14 +102,14 @@ struct ll_dev_addr
     uint8_t u8[BLE_DEV_ADDR_LEN];
 };
 
-#define BLE_IS_DEV_ADDR_STATIC(dev_addr)       ((dev_addr.u8[5] & 0xc0) == 0xc0)
-#define BLE_IS_DEV_ADDR_RESOLVABLE(dev_addr)   ((dev_addr.u8[5] & 0xc0) == 0x40)
-#define BLE_IS_DEV_ADDR_UNRESOLVABLE(dev_addr) ((dev_addr.u8[5] & 0xc0) == 0x00)
+#define BLE_IS_DEV_ADDR_STATIC(addr)        ((addr->u8[5] & 0xc0) == 0xc0)
+#define BLE_IS_DEV_ADDR_RESOLVABLE(addr)    ((addr->u8[5] & 0xc0) == 0x40)
+#define BLE_IS_DEV_ADDR_UNRESOLVABLE(addr)  ((addr->u8[5] & 0xc0) == 0x00)
 
 /* 
  * LL packet format
  * 
- *  -> Premable         (1 byte)
+ *  -> Preamble         (1 byte)
  *  -> Access Address   (4 bytes)
  *  -> PDU              (2 to 257 octets)
  *  -> CRC              (3 bytes)
@@ -117,6 +117,8 @@ struct ll_dev_addr
 #define BLE_LL_PREAMBLE_LEN     (1)
 #define BLE_LL_ACC_ADDR_LEN     (4)
 #define BLE_LL_CRC_LEN          (3)
+#define BLE_LL_OVERHEAD_LEN     \
+    (BLE_LL_CRC_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_PREAMBLE_LEN)
 #define BLE_LL_PDU_HDR_LEN      (2)
 #define BLE_LL_MIN_PDU_LEN      (BLE_LL_PDU_HDR_LEN)
 #define BLE_LL_MAX_PDU_LEN      (257)
@@ -417,6 +419,12 @@ enum ll_init_filt_policy
 /*--- External API ---*/
 /* Initialize the Link Layer */
 int ll_init(void);
+
+/* 'Boolean' function returning true if address is a valid random address */
+int ll_is_valid_rand_addr(uint8_t *addr);
+
+/* Calculate the amount of time a pdu of 'len' bytes will take to transmit */
+uint16_t ll_pdu_tx_time_get(uint16_t len);
 
 /*--- PHY interfaces ---*/
 /* Called by the PHY when a packet has started */

@@ -164,6 +164,37 @@
 #define BLE_ADV_FILT_BOTH    (0x04)
 #define BLE_ADV_FILT_MAX     (0x04)
 
+/* XXX:
+ * 
+ * I think we should probably move advertising stuff out of here
+ * into a "common" advertising header file in net/nimble/include/
+ * 
+ * I think we should remove the _LL_ADV from these definitions as well.
+ */
+
+/* 
+ * ADV event timing
+ *      T_advEvent = advInterval + advDelay
+ * 
+ *      advInterval: increments of 625 usecs
+ *      advDelay: RAND[0, 10] msecs
+ * 
+ */
+#define BLE_LL_ADV_ITVL                 (625)           /* usecs */
+#define BLE_LL_ADV_ITVL_MIN             (32)            /* units */
+#define BLE_LL_ADV_ITVL_MAX             (16384)         /* units */
+#define BLE_LL_ADV_ITVL_MS_MIN          (20)            /* msecs */
+#define BLE_LL_ADV_ITVL_MS_MAX          (10240)         /* msecs */
+#define BLE_LL_ADV_ITVL_SCAN_MIN        (160)           /* units */
+#define BLE_LL_ADV_ITVL_SCAN_MS_MIN     (100)           /* msecs */
+#define BLE_LL_ADV_ITVL_NONCONN_MIN     (160)           /* units */
+#define BLE_LL_ADV_ITVL_NONCONN_MS_MIN  (100)           /* msecs */
+#define BLE_LL_ADV_DELAY_MS_MIN         (0)             /* msecs */
+#define BLE_LL_ADV_DELAY_MS_MAX         (10)            /* msecs */
+#define BLE_LL_ADV_PDU_ITVL_LD_MS_MAX   (10)            /* msecs */
+#define BLE_LL_ADV_PDU_ITVL_HD_MS_MAX   (3750)          /* usecs */
+#define BLE_LL_ADV_STATE_HD_MAX         (1280)          /* msecs */
+
 /*--- Shared data structures ---*/
 
 /* set advertising parameters command (ocf = 0x0006) */
@@ -178,7 +209,5 @@ struct hci_adv_params
     uint16_t adv_itvl_max;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 };
-
-
 
 #endif /* H_BLE_HCI_COMMON_ */

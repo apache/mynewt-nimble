@@ -34,6 +34,8 @@
  * state. The advertising address is the intended recipient of this frame.
  */
 #define BLE_SCAN_REQ_LEN                (12)
+#define BLE_SCAN_REQ_TXTIME_USECS       (176)
+
 /*
  * SCAN_RSP
  *      -> AdvA         (6 bytes)

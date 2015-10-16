@@ -352,10 +352,6 @@ ble_phy_rx(struct os_mbuf *rxpdu)
     return 0;
 }
 
-/* WWW */
-int wFail;
-/* WWW */
-
 int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t mode)
 {
@@ -365,26 +361,21 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t mode)
 
     /* Better have a pdu! */
     assert(txpdu != NULL);
-    /* WWW */
-    wFail = 1;
-    /* WWW */
 
     /* If radio is not disabled, */
     nrf52_wait_disabled();
 
     if (mode == BLE_PHY_MODE_RX_TX) {
         if ((NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk) == 0) {
-            /* WWW */
-            wFail = 2;
-            /* WWW */
             assert(0);
         }
         /* Radio better be in TXRU state or we are in bad shape */
         state = RADIO_STATE_STATE_TxRu;
     } else {
+        /* Radio should be in disabled state */
         state = RADIO_STATE_STATE_Disabled;
     }
-    /* Radio should be in disabled state */
+
     if (NRF_RADIO->STATE != state) {
         ble_phy_disable();
         ++g_ble_phy_stats.radio_state_errs;
@@ -394,10 +385,6 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t mode)
     /* Select tx address */
     if (g_ble_phy_data.chan < BLE_PHY_NUM_DATA_CHANS) {
         /* XXX: fix this */
-        /* WWW */
-        wFail = 3;
-        /* WWW */
-
         assert(0);
         NRF_RADIO->TXADDRESS = 0;
         NRF_RADIO->RXADDRESSES = 0;

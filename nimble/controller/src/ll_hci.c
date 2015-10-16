@@ -19,7 +19,9 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "nimble/hci_transport.h"
 #include "controller/ll_adv.h"
+#include "controller/ll.h"
 
 /* XXX: not sure where to put these */
 extern struct os_mempool g_hci_cmd_pool;
@@ -207,5 +209,29 @@ ll_hci_cmd_proc(struct os_event *ev)
     } else {
         /* XXX: placeholder for sending command status or other events */
     }
+}
+
+/* XXX: For now, put this here */
+int
+hci_transport_host_cmd_send(uint8_t *cmd)
+{
+    os_error_t err;
+    struct os_event *ev;
+
+    /* Get an event structure off the queue */
+    ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
+    if (!ev) {
+        err = os_memblock_put(&g_hci_cmd_pool, cmd);
+        assert(err == OS_OK);
+        return -1;
+    }
+
+    /* Fill out the event and post to Link Layer */
+    ev->ev_queued = 0;
+    ev->ev_type = BLE_LL_EVENT_HCI_CMD;
+    ev->ev_arg = cmd;
+    os_eventq_put(&g_ll_data.ll_evq, ev);
+
+    return 0;
 }
 
