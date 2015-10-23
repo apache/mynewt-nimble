@@ -97,7 +97,6 @@
 #define BLE_ADV_SCAN_IND_MIN_LEN        (6)
 #define BLE_ADV_SCAN_IND_MAX_LEN        (37)
 
-
 /*---- HCI ----*/
 /* Start an advertiser */
 int ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type, uint8_t *init_addr,
@@ -117,6 +116,9 @@ int ll_adv_set_rand_addr(uint8_t *addr);
 
 /* Set advertising parameters */
 int ll_adv_set_adv_params(uint8_t *cmd);
+
+/* Read advertising channel power */
+int ll_adv_read_txpwr(uint8_t *rspbuf);
 
 /*---- API used by BLE LL ----*/
 /* Called when advertising tx done event posted to LL task */

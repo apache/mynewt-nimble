@@ -14,10 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef H_LL_SCAN_
-#define H_LL_SCAN_
+#ifndef H_BLE_LL_SCAN_
+#define H_BLE_LL_SCAN_
 
-#include "nimble/ble.h"
+#define BLE_LL_SCAN_CFG_NUM_DUP_ADVS         (8)
+#define BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS    (8)
+
+/* Dont allow more than 255 of these entries */
+#if BLE_LL_SCAN_CFG_NUM_DUP_ADVSS > 255
+    #error "Cannot have more than 255 duplicate entries!"
+#endif
+#if BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS > 255
+    #error "Cannot have more than 255 scan response entries!"
+#endif
 
 /* Maximum amount of scan response data in a scan response */
 #define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
@@ -49,5 +58,28 @@
  */
 #define BLE_SCAN_RSP_MIN_LEN            (6)
 #define BLE_SCAN_RSP_MAX_LEN            (6 + BLE_SCAN_RSP_DATA_MAX_LEN)
+
+/*---- HCI ----*/
+/* Set scanning parameters */
+int ble_ll_scan_set_scan_params(uint8_t *cmd);
+
+/* Turn scanning on/off */
+int ble_ll_scan_set_enable(uint8_t *cmd);
+
+/*--- Controller Internal API ---*/
+/* Process scan window end event */
+void ble_ll_scan_win_end_proc(void *arg);
+
+/* Initialize the scanner */
+void ble_ll_scan_init(void);
+
+/* Called when Link Layer starts to receive a PDU and is in scanning state */
+int ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
+
+/* Called when Link Layer has finished receiving a PDU while scanning */
+int ble_ll_scan_rx_pdu_end(uint8_t *rxbuf);
+
+/* Process a scan response PDU */
+void ble_ll_scan_rx_pdu_process(uint8_t pdu_type, uint8_t *rxbuf);
 
 #endif /* H_LL_SCAN_ */

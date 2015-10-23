@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "nimble/ble.h"
 #include "controller/phy.h"
 #include "controller/ll.h"
 #include "controller/ll_adv.h"
@@ -136,6 +137,77 @@ ble_init_conn_sm(struct ll_sm_connection *cnxn)
     return 0;
 }
 
+static void
+ble_ll_count_rx_pkts(uint8_t pdu_type)
+{
+    /* Count received packet types  */
+    switch (pdu_type) {
+    case BLE_ADV_PDU_TYPE_ADV_IND:
+        ++g_ll_stats.rx_adv_ind;
+        break;
+    case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+        /* XXX: Do I want to count these if they are not for me? */
+        ++g_ll_stats.rx_adv_direct_ind;
+        break;
+    case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
+        ++g_ll_stats.rx_adv_nonconn_ind;
+        break;
+    case BLE_ADV_PDU_TYPE_SCAN_REQ:
+        /* XXX: Do I want to count these if they are not for me? */
+        ++g_ll_stats.rx_scan_reqs;
+        break;
+    case BLE_ADV_PDU_TYPE_SCAN_RSP:
+        ++g_ll_stats.rx_scan_rsps;
+        break;
+    case BLE_ADV_PDU_TYPE_CONNECT_REQ:
+        /* XXX: Do I want to count these if they are not for me? */
+        ++g_ll_stats.rx_connect_reqs;
+        break;
+    case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
+        ++g_ll_stats.rx_scan_ind;
+        break;
+    default:
+        ++g_ll_stats.rx_unk_pdu;
+        break;
+    }
+}
+
+
+int
+ble_ll_is_on_whitelist(uint8_t *addr, int addr_type)
+{
+    /* XXX: implement this */
+    return 1;
+}
+
+int
+ble_ll_is_resolvable_priv_addr(uint8_t *addr)
+{
+    /* XXX: implement this */
+    return 0;
+}
+
+int
+ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
+{
+    int rc;
+    uint8_t *our_addr;
+
+    rc = 0;
+    if (addr_type) {
+        our_addr = g_dev_addr;
+    } else {
+        our_addr = g_random_addr;
+    }
+
+    rc = 0;
+    if (!memcmp(our_addr, g_random_addr, BLE_DEV_ADDR_LEN)) {
+        rc = 1;
+    }
+
+    return rc;
+}
+
 /* Checks to see that the device is a valid random address */
 int
 ll_is_valid_rand_addr(uint8_t *addr)
@@ -214,15 +286,13 @@ ll_rx_pkt_in_proc(void)
     uint8_t pdu_type;
     uint8_t *rxbuf;
     struct os_mbuf_pkthdr *pkthdr;
+    struct ble_mbuf_hdr *ble_hdr;
     struct os_mbuf *m;
 
     /* Drain all packets off the queue */
-    while (1) {
-        pkthdr = STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q);
-        if (!pkthdr) {
-            break;
-        }
+    while (STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q)) {
         /* Get mbuf pointer from packet header pointer */
+        pkthdr = STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q);
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
 
         /* Remove from queue */
@@ -230,38 +300,47 @@ ll_rx_pkt_in_proc(void)
         STAILQ_REMOVE_HEAD(&g_ll_data.ll_rx_pkt_q, omp_next);
         OS_EXIT_CRITICAL(sr);
 
-        /* XXX: call processing function here */
-
-        /* Set the rx buffer pointer to the start of the received data */
-        rxbuf = m->om_data;
-
         /* XXX: need to check if this is an adv channel or data channel */
-        /* Count received packet types  */
+
+        /* Count statistics */
+        rxbuf = m->om_data;
         pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-        switch (pdu_type) {
-        case BLE_ADV_PDU_TYPE_ADV_IND:
-            ++g_ll_stats.rx_adv_ind;
+        ble_hdr = BLE_MBUF_HDR_PTR(m); 
+        if (ble_hdr->crcok) {
+            /* The total bytes count the PDU header and PDU payload */
+            g_ll_stats.rx_bytes += pkthdr->omp_len;
+            ++g_ll_stats.rx_crc_ok;
+            ble_ll_count_rx_pkts(pdu_type);
+        } else {
+            ++g_ll_stats.rx_crc_fail;
+        }
+
+        /* 
+         * XXX: The reason I dont bail earlier on bad CRC is that
+         * there may be some connection stuff I need to do with a packet
+         * that has failed the CRC.
+         */ 
+
+        /* Process the PDU */
+        switch (g_ll_data.ll_state) {
+        case BLE_LL_STATE_ADV:
+            /* XXX: implement this */
             break;
-        case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-            ++g_ll_stats.rx_adv_direct_ind;
-            break;
-        case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
-            ++g_ll_stats.rx_adv_nonconn_ind;
-            break;
-        case BLE_ADV_PDU_TYPE_SCAN_REQ:
-            ++g_ll_stats.rx_scan_reqs;
-            break;
-        case BLE_ADV_PDU_TYPE_SCAN_RSP:
-            ++g_ll_stats.rx_scan_rsps;
-            break;
-        case BLE_ADV_PDU_TYPE_CONNECT_REQ:
-            ++g_ll_stats.rx_connect_reqs;
-            break;
-        case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
-            ++g_ll_stats.rx_scan_ind;
+        case BLE_LL_STATE_SCANNING:
+            if (ble_hdr->crcok) {
+                ble_ll_scan_rx_pdu_process(pdu_type, rxbuf);
+            }
+
+            /* We need to re-enable the PHY if we are in idle state */
+            if (ble_phy_state_get() == BLE_PHY_STATE_IDLE) {
+                /* XXX: If this returns error, we will need to attempt to
+                   re-start scanning! */
+                ble_phy_rx();
+            }
             break;
         default:
-            ++g_ll_stats.rx_unk_pdu;
+            /* XXX: implement */
+            assert(0);
             break;
         }
 
@@ -288,9 +367,16 @@ ll_rx_pdu_in(struct os_mbuf *rxpdu)
     os_eventq_put(&g_ll_data.ll_evq, &g_ll_data.ll_rx_pkt_ev);
 }
 
-/* 
- * Called when packet has started to be received. This occurs 1 byte
- * after the access address (we always receive one byte of the PDU)
+/**
+ * ll rx start
+ * 
+ * 
+ * @param rxpdu 
+ * 
+ * @return int 
+ *   < 0: A frame we dont want to receive.
+ *   = 0: Continue to receive frame. Dont go from rx to tx
+ *   > 1: Continue to receive frame and go from rx to idle when done
  */
 int
 ll_rx_start(struct os_mbuf *rxpdu)
@@ -315,7 +401,11 @@ ll_rx_start(struct os_mbuf *rxpdu)
             rc = -1;
         }
         break;
+    case BLE_LL_STATE_SCANNING:
+        rc = ble_ll_scan_rx_pdu_start(pdu_type, rxpdu);
+        break;
     default:
+        /* XXX: should we really assert here? What to do... */
         rc = -1;
         assert(0);
         break;
@@ -329,18 +419,22 @@ ll_rx_start(struct os_mbuf *rxpdu)
  *  
  * Called by the PHY when a receive packet has ended. 
  *  
- * NOTE: Called from interrupt context! 
+ * NOTE: Called from interrupt context!
  * 
  * @param rxbuf 
  * 
  * @return int 
+ *       < 0: Disable the phy after reception.
+ *      == 0: Success. Do not disable the PHY.
+ *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ll_rx_end(struct os_mbuf *rxpdu, int crcok)
+ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
 {
     int rc;
+    int badpkt;
     uint8_t pdu_type;
-    uint8_t pdu_len;
+    uint8_t len;
     uint16_t mblen;
     uint8_t *rxbuf;
 
@@ -349,10 +443,47 @@ ll_rx_end(struct os_mbuf *rxpdu, int crcok)
 
     /* XXX: need to check if this is an adv channel or data channel */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-    pdu_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+    len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+
+    /* XXX: Should I do this at LL task context? */
+    /* If the CRC checks, make sure lengths check! */
+    badpkt = 0;
+    if (crcok) {
+        switch (pdu_type) {
+        case BLE_ADV_PDU_TYPE_SCAN_REQ:
+        case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+            if (len != BLE_SCAN_REQ_LEN) {
+                badpkt = 1;
+            }
+            break;
+        case BLE_ADV_PDU_TYPE_SCAN_RSP:
+        case BLE_ADV_PDU_TYPE_ADV_IND:
+        case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
+        case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
+            if ((len < BLE_DEV_ADDR_LEN) || (len > BLE_ADV_SCAN_IND_MAX_LEN)) {
+                badpkt = 1;
+            }
+            break;
+        case BLE_ADV_PDU_TYPE_CONNECT_REQ:
+            if (len != BLE_CONNECT_REQ_LEN) {
+                badpkt = 1;
+            }
+            break;
+        default:
+            badpkt = 1;
+            break;
+        }
+    }
+
+    /* If this is a malformed packet, just kill it here */
+    if (badpkt) {
+        ++g_ll_stats.rx_malformed_pkts;
+        os_mbuf_free(&g_mbuf_pool, rxpdu);
+        return -1;
+    }
 
     /* Setup the mbuf */
-    mblen = pdu_len + BLE_LL_PDU_HDR_LEN;
+    mblen = len + BLE_LL_PDU_HDR_LEN;
     OS_MBUF_PKTHDR(rxpdu)->omp_len = mblen;
     rxpdu->om_len = mblen;
 
@@ -364,19 +495,13 @@ ll_rx_end(struct os_mbuf *rxpdu, int crcok)
             /* Just bail if CRC is not good */
             if (crcok) {
                 /* XXX: this does not deal with random address yet */
-                if (pdu_len == BLE_SCAN_REQ_LEN) {
-                    rc = ll_adv_rx_scan_req(rxbuf);
-                    if (rc) {
-                        /* XXX: One thing left to reconcile here. We have
-                         * the advertisement schedule element still running.
-                         * How to deal with the end of the advertising event?
-                         * Need to figure that out.
-                         */
-                        /* XXX: not sure I need to do anything here on success
-                           */
-                    }
-                } else {
-                    ++g_ll_stats.rx_malformed_pkts;
+                rc = ll_adv_rx_scan_req(rxbuf);
+                if (rc) {
+                    /* XXX: One thing left to reconcile here. We have
+                     * the advertisement schedule element still running.
+                     * How to deal with the end of the advertising event?
+                     * Need to figure that out.
+                     */
                 }
             }
         } else {
@@ -385,27 +510,21 @@ ll_rx_end(struct os_mbuf *rxpdu, int crcok)
                 /* XXX: deal with this */
             }
         }
-
+        break;
+    case BLE_LL_STATE_SCANNING:
+        if (crcok) {
+            /* 
+             * NOTE: If this returns a positive number there was an error but
+             * there is no need to disable the PHY on return as that was
+             * done already.
+             */
+            rc = ble_ll_scan_rx_pdu_end(rxbuf);
+        }
         break;
     default:
         assert(0);
         break;
     }
-
-    /* 
-     * XXX: could move these to task level. Need to determine that. For
-     * now, just keep here. We need to create the ble mbuf header
-     */
-    /* Count statistics */
-    if (crcok) {
-        ++g_ll_stats.rx_crc_ok;
-    } else {
-        ++g_ll_stats.rx_crc_fail;
-    }
-
-    /* The total bytes count the PDU header and PDU payload */
-    g_ll_stats.rx_bytes += BLE_LL_PDU_HDR_LEN + pdu_len;
-    /* XXX */
 
     /* Hand packet up to higher layer */
     ll_rx_pdu_in(rxpdu);
@@ -437,11 +556,14 @@ ll_task(void *arg)
         case BLE_LL_EVENT_ADV_TXDONE:
             ll_adv_tx_done_proc(ev->ev_arg);
             break;
+        case BLE_LL_EVENT_SCAN_WIN_END:
+            ble_ll_scan_win_end_proc(ev->ev_arg);
+            break;
         case BLE_LL_EVENT_RX_PKT_IN:
             ll_rx_pkt_in_proc();
             break;
         default:
-            /* XXX: unknown event? What should we do? */
+            assert(0);
             break;
         }
 
@@ -450,6 +572,39 @@ ll_task(void *arg)
     }
 }
 
+/**
+ * ble ll state set
+ *  
+ * Called to set the current link layer state. 
+ *  
+ * Context: Interrupt and Link Layer task
+ * 
+ * @param ll_state 
+ */
+void
+ble_ll_state_set(int ll_state)
+{
+    g_ll_data.ll_state = ll_state;
+}
+
+/**
+ * ble ll event send
+ *  
+ * Send an event to the Link Layer task 
+ * 
+ * @param ev Event to add to the Link Layer event queue.
+ */
+void
+ble_ll_event_send(struct os_event *ev)
+{
+    os_eventq_put(&g_ll_data.ll_evq, ev);
+}
+
+/**
+ * Initialize the Link Layer. Should be called only once 
+ * 
+ * @return int 
+ */
 int
 ll_init(void)
 {
@@ -459,11 +614,17 @@ ll_init(void)
     /* Initialize eventq */
     os_eventq_init(&g_ll_data.ll_evq);
 
+    /* Initialize receive packet (from phy) event */
+    g_ll_data.ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
+
     /* Init the scheduler */
     ll_sched_init();
 
-    /* Initialize advertising code */
+    /* Initialize advertiser */
     ll_adv_init();
+
+    /* Initialize a scanner */
+    ble_ll_scan_init();
 
     /* Initialize the LL task */
     os_task_init(&g_ll_task, "ble_ll", ll_task, NULL, BLE_LL_TASK_PRI, 

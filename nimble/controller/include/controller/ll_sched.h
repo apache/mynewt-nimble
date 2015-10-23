@@ -40,7 +40,7 @@ struct ll_sched_item
     uint32_t        start_time;
     uint32_t        end_time;
     uint32_t        next_wakeup;
-    void            *cb_cookie;
+    void            *cb_arg;
     sched_cb_func   sched_cb;
     TAILQ_ENTRY(ll_sched_item) link;
 };

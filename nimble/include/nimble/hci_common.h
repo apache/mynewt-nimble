@@ -93,28 +93,12 @@
 #define BLE_HCI_OCF_LE_SET_RESOLV_PRIV_ADDR (0x002E)
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
-/* Event Codes */
-#define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
-#define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
-#define BLE_HCI_EVCODE_CNXN_DONE            (0x03)
-#define BLE_HCI_EVCODE_CNXN_REQUEST         (0x04)
-#define BLE_HCI_EVCODE_DISCNXN_CMP          (0x05)
-#define BLE_HCI_EVCODE_AUTH_CMP             (0x06)
-#define BLE_HCI_EVCODE_REM_NAME_REQ_CM P    (0x07)
-#define BLE_HCI_EVCODE_ENCRYPT_CHG          (0x08)
-#define BLE_HCI_EVCODE_CHG_LINK_KEY_CMP     (0x09)
-#define BLE_HCI_EVCODE_MASTER_LINK_KEY_CMP  (0x0A)
-#define BLE_HCI_EVCODE_RD_REM_SUPP_FEAT_CMP (0x0B)
-#define BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP  (0x0C)
-#define BLE_HCI_EVCODE_QOS_SETUP_CMP        (0x0D)
-#define BLE_HCI_EVCODE_COMMAND_COMPLETE     (0x0E)
-#define BLE_HCI_EVCODE_COMMAND_STATE        (0x0F)
-#define BLE_HCI_EVCODE_HW_ERROR             (0x10)
-/* XXX: Define them all... */
-
 /* Command Specific Definitions */
 /* Set event mask */
 #define BLE_HCI_SET_LE_EVENT_MASK_LEN   (8)
+
+/* Read buffer size */
+#define BLE_HCI_RD_BUF_SIZE_LEN         (0)
 
 /* Set scan response data */
 #define BLE_HCI_MAX_SCAN_RSP_DATA_LEN   (31)
@@ -124,6 +108,9 @@
 
 /* Set advertising enable */
 #define BLE_HCI_SET_ADV_ENABLE_LEN      (1)
+
+/* Set scan enable */
+#define BLE_HCI_SET_SCAN_ENABLE_LEN     (2)
 
 /* Set advertising parameters */
 #define BLE_HCI_SET_ADV_PARAM_LEN       (15)
@@ -194,6 +181,70 @@
 #define BLE_LL_ADV_PDU_ITVL_LD_MS_MAX   (10)            /* msecs */
 #define BLE_LL_ADV_PDU_ITVL_HD_MS_MAX   (3750)          /* usecs */
 #define BLE_LL_ADV_STATE_HD_MAX         (1280)          /* msecs */
+
+#define BLE_HCI_ADV_ITVL_DEF            (0x800)         /* 1.28 seconds */
+#define BLE_HCI_ADV_CHANMASK_DEF        (0x7)           /* all channels */
+
+/* Set scan parameters */
+#define BLE_HCI_SET_SCAN_PARAM_LEN          (7)
+#define BLE_HCI_SCAN_TYPE_PASSIVE           (0)
+#define BLE_HCI_SCAN_TYPE_ACTIVE            (1)
+
+/* Scan interval and scan window timing */
+#define BLE_HCI_SCAN_ITVL                   (625)           /* usecs */
+#define BLE_HCI_SCAN_ITVL_MIN               (4)             /* units */
+#define BLE_HCI_SCAN_ITVL_MAX               (16384)         /* units */
+#define BLE_HCI_SCAN_ITVL_DEF               (16)            /* units */
+#define BLE_HCI_SCAN_WINDOW_MIN             (4)             /* units */
+#define BLE_HCI_SCAN_WINDOW_MAX             (16384)         /* units */
+#define BLE_HCI_SCAN_WINDOW_DEF             (16)            /* units */
+
+/* 
+ * Scanning filter policy
+ *  NO_WL:
+ *      Scanner processes all advertising packets (white list not used) except
+ *      directed, connectable advertising packets not sent to the scanner.
+ *  USE_WL:
+ *      Scanner processes advertisements from white list only. A connectable,
+ *      directed advertisment is ignored unless it contains scanners address.
+ *  NO_WL_INITA:
+ *      Scanner process all advertising packets (white list not used). A
+ *      connectable, directed advertisement shall not be ignored if the InitA
+ *      is a resolvable private address.
+ *  USE_WL_INITA:
+ *      Scanner process advertisements from white list ony. A connectable,
+ *      directed advertisement shall not be ignored if the InitA is a
+ *      resolvable private address.
+ */
+#define BLE_HCI_SCAN_FILT_NO_WL             (0)
+#define BLE_HCI_SCAN_FILT_USE_WL            (1)
+#define BLE_HCI_SCAN_FILT_NO_WL_INITA       (2)
+#define BLE_HCI_SCAN_FILT_USE_WL_INITA      (3)
+#define BLE_HCI_SCAN_FILT_MAX               (3)
+
+/* Event Codes */
+#define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
+#define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
+#define BLE_HCI_EVCODE_CNXN_DONE            (0x03)
+#define BLE_HCI_EVCODE_CNXN_REQUEST         (0x04)
+#define BLE_HCI_EVCODE_DISCNXN_CMP          (0x05)
+#define BLE_HCI_EVCODE_AUTH_CMP             (0x06)
+#define BLE_HCI_EVCODE_REM_NAME_REQ_CM P    (0x07)
+#define BLE_HCI_EVCODE_ENCRYPT_CHG          (0x08)
+#define BLE_HCI_EVCODE_CHG_LINK_KEY_CMP     (0x09)
+#define BLE_HCI_EVCODE_MASTER_LINK_KEY_CMP  (0x0A)
+#define BLE_HCI_EVCODE_RD_REM_SUPP_FEAT_CMP (0x0B)
+#define BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP  (0x0C)
+#define BLE_HCI_EVCODE_QOS_SETUP_CMP        (0x0D)
+#define BLE_HCI_EVCODE_COMMAND_COMPLETE     (0x0E)
+#define BLE_HCI_EVCODE_COMMAND_STATE        (0x0F)
+#define BLE_HCI_EVCODE_HW_ERROR             (0x10)
+#define BLE_HCI_EVCODE_LE_META              (0x3E)
+/* XXX: Define them all... */
+
+/* Event specific definitions */
+/* Event command complete */
+#define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (6)
 
 /*--- Shared data structures ---*/
 

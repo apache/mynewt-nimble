@@ -19,10 +19,38 @@
 
 /* XXX: some or all of these should not be here */
 #include "os/os.h"
-extern struct os_mbuf_pool g_mbuf_pool; 
+extern struct os_mbuf_pool g_mbuf_pool;
+
+/*
+ * BLE MBUF structure:
+ * 
+ * The BLE mbuf structure is as follows. Note that this structure applies to
+ * the packet header mbuf (not mbufs that are part of a "packet chain"):
+ *      struct os_mbuf          (12)
+ *      struct os_mbuf_pkthdr   (8)
+ *      struct ble_mbuf_hdr     (4)
+ * 
+ * The BLE mbuf header contains the following:
+ *  flags: currently unused
+ *  channel: The logical BLE channel PHY channel # (0 - 39)
+ *  crcok: flag denoting CRC check passed (1) or failed (0).
+ *  rssi: RSSI, in dBm.
+ */
+struct ble_mbuf_hdr
+{
+    uint8_t flags;
+    uint8_t channel;
+    uint8_t crcok;
+    int8_t rssi;
+};
+
+#define BLE_MBUF_HDR_PTR(om)    \
+    (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
+                            sizeof(struct os_mbuf_pkthdr))
 
 #define BLE_DEV_ADDR_LEN        (6)
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
+extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
 void htole16(uint8_t *buf, uint16_t x);
 void htole32(uint8_t *buf, uint32_t x);
@@ -36,7 +64,7 @@ enum ble_error_codes
 {
     /* An "error" code of 0 means success */
     BLE_ERR_SUCCESS             = 0,
-    BLE_ERR_UNK_HCI_CMD         = 1,
+    BLE_ERR_UNKNOWN_HCI_CMD     = 1,
     BLE_ERR_UNK_CONN_ID         = 2,
     BLE_ERR_HW_FAIL             = 3,
     BLE_ERR_PAGE_TMO            = 4,
@@ -99,7 +127,8 @@ enum ble_error_codes
     BLE_ERR_CONN_TERM_MIC       = 61,
     BLE_ERR_CONN_ESTABLISHMENT  = 62,
     BLE_ERR_MAC_CONN_FAIL       = 63,
-    BLE_ERR_COARSE_CLK_ADJ      = 64
+    BLE_ERR_COARSE_CLK_ADJ      = 64,
+    BLE_ERR_MAX                 = 255
 };
 
 #endif /* H_BLE_ */

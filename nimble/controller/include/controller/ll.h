@@ -58,6 +58,9 @@ struct ll_stats
     uint32_t rx_scan_ind;
     uint32_t rx_unk_pdu;
     uint32_t rx_malformed_pkts;
+    uint32_t hci_cmds;
+    uint32_t hci_cmd_errs;
+    uint32_t hci_events_sent;
 };
 
 extern struct ll_stats g_ll_stats;
@@ -74,6 +77,7 @@ extern struct ll_obj g_ll_data;
 #define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
 #define BLE_LL_EVENT_ADV_TXDONE     (OS_EVENT_T_PERUSER + 1)
 #define BLE_LL_EVENT_RX_PKT_IN      (OS_EVENT_T_PERUSER + 2)
+#define BLE_LL_EVENT_SCAN_WIN_END   (OS_EVENT_T_PERUSER + 3)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION   (0x01)
@@ -97,7 +101,7 @@ extern struct ll_obj g_ll_data;
  */
 #define BLE_DEV_ADDR_LEN    (6)     /* bytes */
 
-struct ll_dev_addr
+struct ble_dev_addr
 {
     uint8_t u8[BLE_DEV_ADDR_LEN];
 };
@@ -380,28 +384,6 @@ struct ble_conn_req_data
 #define BLE_MASTER_SCA_0_20_PPM         (7)
 
 /*
- * Scanner filter policy 
- * 
- * Determines how the scanner's Link Layer processes advertisements.
- * 
- *  NONE: no filtering (default value)
- *  ADV: only advertising packets from devices in white list allowed. A
- *      connectable, directed advertisment is ignored if the scanner's device
- *      address is not in the packet.
- *  ADV_INITA: same as ADV but do not ignore connectable, directed
- *      advertisements if InitA address is resolvable.
- *  NONE_INITA: same as none (process all advertisements) but do not ignore
- *      connectable, directed advertisements if InitA address is resolvable.
- */
-enum ll_scan_filt_policy
-{
-    BLE_LL_SCAN_FILT_NONE = 0,
-    BLE_LL_SCAN_FILT_ADV,
-    BLE_LL_SCAN_FILT_ADV_INITA,
-    BLE_LL_SCAN_FILT_NONE_INITA,
-};
-
-/*
  * Initiator filter policy 
  * 
  * Determines how the initiator's Link Layer processes advertisements.
@@ -426,11 +408,27 @@ int ll_is_valid_rand_addr(uint8_t *addr);
 /* Calculate the amount of time a pdu of 'len' bytes will take to transmit */
 uint16_t ll_pdu_tx_time_get(uint16_t len);
 
+/* Boolean returning true if device is on whitelist */
+int ble_ll_is_on_whitelist(uint8_t *addr, int addr_type);
+
+/* Is this address a resolvable private address? */
+int ble_ll_is_resolvable_priv_addr(uint8_t *addr);
+
+/* Is 'addr' our device address? 'addr_type' is public (0) or random (!=0) */
+int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
+
 /*--- PHY interfaces ---*/
 /* Called by the PHY when a packet has started */
 int ll_rx_start(struct os_mbuf *rxpdu);
 
 /* Called by the PHY when a packet reception ends */
-int ll_rx_end(struct os_mbuf *rxpdu, int crcok);
+int ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok);
+
+/*--- Controller API ---*/
+/* Set the link layer state */
+void ble_ll_state_set(int ll_state);
+
+/* Send an event to LL task */
+void ble_ll_event_send(struct os_event *ev);
 
 #endif /* H_LL_ */
