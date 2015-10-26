@@ -25,13 +25,9 @@
 #include "controller/ll.h"
 #include "controller/ll_hci.h"
 
-/* XXX: not sure where to put these */
-extern struct os_mempool g_hci_cmd_pool;
-extern struct os_mempool g_hci_os_event_pool;
-/* XXX */
-
 /* LE event mask */
 uint8_t g_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
+uint8_t g_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 
 /**
  * ll hci get num cmd pkts 
@@ -39,39 +35,26 @@ uint8_t g_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
  * Returns the number of command packets that the host is allowed to send 
  * to the controller. 
  *  
- * XXX: For now, we will return 1. 
- * 
  * @return uint8_t 
  */
 static uint8_t
 ll_hci_get_num_cmd_pkts(void)
 {
-    return 1;
+    return BLE_LL_CFG_NUM_HCI_CMD_PKTS;
 }
 
-/* XXX: Not sure where to do it, but we need to check the LE event mask
-   before sending a particular type of event. */
-
-/* XXX: we need to implement the sending of the event. For now, I just free
-   the memory buffers */
 static int
-ll_hci_event_send(struct os_event *ev)
+ll_hci_event_send(uint8_t *evbuf)
 {
-    os_error_t err;
+    int rc;
 
-    /* XXX: For now, just free it all */
-    /* Free the command buffer */
-    err = os_memblock_put(&g_hci_cmd_pool, ev->ev_arg);
-    assert(err == OS_OK);
-
-    /* Free the event */
-    err = os_memblock_put(&g_hci_os_event_pool, ev);
-    assert(err == OS_OK);
-    /* XXX */
-
+    /* Count number of events sent */
     ++g_ll_stats.hci_events_sent;
 
-    return 0;
+    /* Send the event to the host */
+    rc = hci_transport_ctlr_event_send(evbuf);
+
+    return rc;
 }
 
 /**
@@ -226,10 +209,15 @@ ll_hci_cmd_proc(struct os_event *ev)
     uint8_t *cmdbuf;
     uint16_t opcode;
     uint16_t ocf;
+    os_error_t err;
 
     /* The command buffer is the event argument */
     cmdbuf = (uint8_t *)ev->ev_arg;
     assert(cmdbuf != NULL);
+
+    /* Free the event */
+    err = os_memblock_put(&g_hci_os_event_pool, ev);
+    assert(err == OS_OK);
 
     /* Get the opcode from the command buffer */
     opcode = le16toh(cmdbuf);
@@ -243,6 +231,10 @@ ll_hci_cmd_proc(struct os_event *ev)
     case BLE_HCI_OGF_LE:
         rc = ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
+    case BLE_HCI_OGF_CTLR_BASEBAND:
+        /* XXX: Implement  */
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
     default:
         /* XXX: Need to support other OGF. For now, return unsupported */
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
@@ -254,14 +246,9 @@ ll_hci_cmd_proc(struct os_event *ev)
     if (rc) {
         ++g_ll_stats.hci_cmd_errs;
     } else {
-        /* 
-         * XXX: move to controller stats (hci). Change name of ll_hci.c to
-         * ctlr_hci.c
-         */
         ++g_ll_stats.hci_cmds;
     }
 
-    /* XXX: This assumes controller and host are in same MCU */
     /* If no response is generated, we free the buffers */
     if (rc <= BLE_ERR_MAX) {
         /* Create a command complete event with status from command */
@@ -271,8 +258,8 @@ ll_hci_cmd_proc(struct os_event *ev)
         htole16(cmdbuf + 3, opcode);
         cmdbuf[5] = (uint8_t)rc;
 
-        /* Send the event */
-        ll_hci_event_send(ev);
+        /* Send the event. This event cannot be masked */
+        ll_hci_event_send(cmdbuf);
     } else {
         /* XXX: placeholder for sending command status or other events */
         assert(0);
@@ -303,3 +290,17 @@ hci_transport_host_cmd_send(uint8_t *cmd)
     return 0;
 }
 
+void
+ll_hci_init()
+{
+    /* Set defaults for LE events: Vol 2 Part E 7.8.1 */
+    g_ll_hci_le_event_mask[0] = 0x1f;
+
+    /* Set defaults for controller/baseband events: Vol 2 Part E 7.3.1 */
+    g_ll_hci_event_mask[0] = 0xff;
+    g_ll_hci_event_mask[1] = 0xff;
+    g_ll_hci_event_mask[2] = 0xff;
+    g_ll_hci_event_mask[3] = 0xff;
+    g_ll_hci_event_mask[4] = 0xff;
+    g_ll_hci_event_mask[5] = 0x1f;
+}

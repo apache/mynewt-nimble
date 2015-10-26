@@ -19,7 +19,7 @@
 /* Send a HCI command from the host to the controller */
 int hci_transport_host_cmd_send(uint8_t *cmd);
 
-/* Send a HCI command from the controller to the host */
-int hci_transport_ctlr_cmd_send(uint8_t *cmd);
+/* Send a HCI event from the controller to the host */
+int hci_transport_ctlr_event_send(uint8_t *hci_ev);
 
 #endif /* H_HCI_COMMON_ */

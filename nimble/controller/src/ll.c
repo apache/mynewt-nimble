@@ -494,7 +494,6 @@ ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
             /* Just bail if CRC is not good */
             if (crcok) {
-                /* XXX: this does not deal with random address yet */
                 rc = ll_adv_rx_scan_req(rxbuf);
                 if (rc) {
                     /* XXX: One thing left to reconcile here. We have

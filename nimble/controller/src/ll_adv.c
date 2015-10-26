@@ -166,20 +166,20 @@ ll_adv_pdu_make(struct ll_adv_sm *advsm)
 
     /* Must be an advertising type! */
     switch (advsm->adv_type) {
-    case BLE_ADV_TYPE_ADV_IND:
+    case BLE_HCI_ADV_TYPE_ADV_IND:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
         break;
 
-    case BLE_ADV_TYPE_ADV_NONCONN_IND:
+    case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_NONCONN_IND;
         break;
 
-    case BLE_ADV_TYPE_ADV_SCAN_IND:
+    case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
         break;
 
-    case BLE_ADV_TYPE_ADV_DIRECT_IND_HD:
-    case BLE_ADV_TYPE_ADV_DIRECT_IND_LD:
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
@@ -206,9 +206,9 @@ ll_adv_pdu_make(struct ll_adv_sm *advsm)
     OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Construct scan response */
-    if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_PUBLIC) {
+    if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         addr = g_dev_addr;
-    } else if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_RANDOM) {
+    } else if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
         addr = g_random_addr;
     } else {
@@ -266,10 +266,10 @@ ll_adv_scan_rsp_pdu_make(struct ll_adv_sm *advsm)
     OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Construct scan response */
-    if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_PUBLIC) {
+    if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         hdr = BLE_ADV_PDU_TYPE_SCAN_RSP;
         addr = g_dev_addr;
-    } else if (advsm->own_addr_type == BLE_ADV_OWN_ADDR_RANDOM) {
+    } else if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         hdr = BLE_ADV_PDU_TYPE_SCAN_RSP | BLE_ADV_PDU_HDR_TXADD_RAND;
         addr = g_random_addr;
     } else {
@@ -350,7 +350,7 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     assert(rc == 0);
 
     /* Set phy mode based on type of advertisement */
-    if (advsm->adv_type == BLE_ADV_TYPE_ADV_NONCONN_IND) {
+    if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
         end_trans = BLE_PHY_TRANSITION_NONE;
     } else {
         end_trans = BLE_PHY_TRANSITION_TX_RX;
@@ -366,7 +366,7 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
         ble_ll_state_set(BLE_LL_STATE_ADV);
 
         /* Set schedule item next wakeup time */
-        if (advsm->adv_type == BLE_ADV_TYPE_ADV_NONCONN_IND) {
+        if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
             sch->next_wakeup = sch->end_time;
             sch->sched_cb = ll_adv_tx_done_cb;
         } else {
@@ -406,7 +406,6 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
         /* Set the start time of the event */
         sch->start_time = advsm->adv_pdu_start_time - 
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-        /* WWW: did I subtract this time from the start time for all events? */
 
         /* Set the callback and argument */
         sch->cb_arg = advsm;
@@ -414,7 +413,7 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
 
         /* Set end time to maximum time this schedule item may take */
         max_usecs = ll_pdu_tx_time_get(advsm->adv_pdu_len);
-        if (advsm->adv_type != BLE_ADV_TYPE_ADV_NONCONN_IND) {
+        if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
             max_usecs += BLE_LL_ADV_SCHED_MAX_USECS;
         }
         sch->end_time = advsm->adv_pdu_start_time +
@@ -473,13 +472,13 @@ ll_adv_set_adv_params(uint8_t *cmd)
     }
 
     switch (adv_type) {
-    case BLE_ADV_TYPE_ADV_IND:
-    case BLE_ADV_TYPE_ADV_DIRECT_IND_HD:
-    case BLE_ADV_TYPE_ADV_DIRECT_IND_LD:
+    case BLE_HCI_ADV_TYPE_ADV_IND:
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
         min_itvl = BLE_LL_ADV_ITVL_MIN;
         break;
-    case BLE_ADV_TYPE_ADV_NONCONN_IND:
-    case BLE_ADV_TYPE_ADV_SCAN_IND:
+    case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
+    case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
         min_itvl = BLE_LL_ADV_ITVL_NONCONN_MIN;
         break;
     default:
@@ -487,8 +486,9 @@ ll_adv_set_adv_params(uint8_t *cmd)
         break;
     }
 
+    /* XXX: isnt there a maximum that we need to check? */
     /* Make sure interval minimum is valid for the advertising type */
-    if ((adv_itvl_min < min_itvl) || (adv_itvl_min > BLE_LL_ADV_ITVL_MAX)) {
+    if ((adv_itvl_min < min_itvl) || (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -496,8 +496,8 @@ ll_adv_set_adv_params(uint8_t *cmd)
     own_addr_type =  cmd[5];
     peer_addr_type = cmd[6];
 
-    if ((own_addr_type > BLE_ADV_OWN_ADDR_MAX) ||
-        (peer_addr_type > BLE_ADV_PEER_ADDR_MAX)) {
+    if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
+        (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -509,7 +509,7 @@ ll_adv_set_adv_params(uint8_t *cmd)
 
     /* Check for valid filter policy */
     adv_filter_policy = cmd[14];
-    if (adv_filter_policy > BLE_ADV_FILT_MAX) {
+    if (adv_filter_policy > BLE_HCI_ADV_FILT_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -563,13 +563,13 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
      * command disallowed error. All the parameter errors refer to the command
      * parameter (which in this case is just enable or disable).
      */ 
-    if (advsm->own_addr_type != BLE_ADV_OWN_ADDR_PUBLIC) {
+    if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         if (!ll_is_valid_rand_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
 
         /* XXX: support these other types */
-        if (advsm->own_addr_type != BLE_ADV_OWN_ADDR_RANDOM) {
+        if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_RANDOM) {
             assert(0);
         }
     }
@@ -584,7 +584,7 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     ll_adv_pdu_make(advsm);
 
     /* Create scan response PDU (if needed) */
-    if (advsm->adv_type != BLE_ADV_TYPE_ADV_NONCONN_IND) {
+    if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
         ll_adv_scan_rsp_pdu_make(advsm);
     }
 
@@ -774,13 +774,21 @@ int
 ll_adv_rx_scan_req(uint8_t *rxbuf)
 {
     int rc;
+    uint8_t rxaddr_type;
     uint8_t *our_addr;
+    uint8_t *adva;
 
-    /* WWW: dont I need to do more checks on the address? What if it is a
-       random address? */
+    /* Determine if this is addressed to us */
+    rxaddr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
+    if (rxaddr_type) {
+        our_addr = g_random_addr;
+    } else {
+        our_addr = g_dev_addr;
+    }
+
     rc = -1;
-    our_addr = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-    if (!memcmp(our_addr, g_dev_addr, BLE_DEV_ADDR_LEN)) {
+    adva = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+    if (!memcmp(our_addr, adva, BLE_DEV_ADDR_LEN)) {
         /* Setup to transmit the scan response */
         rc = ble_phy_tx(g_ll_adv_sm.scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
                         BLE_PHY_TRANSITION_NONE);
@@ -846,7 +854,7 @@ ll_adv_tx_done_proc(void *arg)
         }
 
         /* Set next start time to next pdu transmit time */
-        if (advsm->adv_type == BLE_ADV_TYPE_ADV_DIRECT_IND_HD) {
+        if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
             itvl = BLE_LL_CFG_ADV_PDU_ITVL_HD_USECS;
         } else {
             itvl = BLE_LL_CFG_ADV_PDU_ITVL_LD_USECS;

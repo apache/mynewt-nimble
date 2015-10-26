@@ -21,6 +21,10 @@
 #include "os/os.h"
 extern struct os_mbuf_pool g_mbuf_pool;
 
+/* Shared command pool for transort between host and controller */
+extern struct os_mempool g_hci_cmd_pool;
+extern struct os_mempool g_hci_os_event_pool;
+
 /*
  * BLE MBUF structure:
  * 

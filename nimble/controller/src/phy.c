@@ -60,7 +60,7 @@ struct ble_phy_statistics
     uint32_t tx_fail;
     uint32_t tx_bytes;
     uint32_t rx_starts;
-    uint32_t rx_valid;      /* XXX: do I need to count them here and at LL? */
+    uint32_t rx_valid;
     uint32_t rx_crc_err;
     uint32_t phy_isrs;
     uint32_t radio_state_errs;
@@ -74,8 +74,6 @@ struct ble_phy_statistics g_ble_phy_stats;
  * 1) Test the following to make sure it works: suppose an event is already
  * set to 1 and the interrupt is not enabled. What happens if you enable the
  * interrupt with the event bit already set to 1  
- *  
- * 2) Deal with RSSI 
  */
 
 /**
@@ -146,7 +144,9 @@ ble_phy_isr(void)
 
         transition = g_ble_phy_data.phy_transition;
         if (transition == BLE_PHY_TRANSITION_TX_RX) {
-            /* XXX: what about the rx address registers? Where are they set? */
+            /* XXX: for now, assume we receive on logical address 0 */
+            NRF_RADIO->RXADDRESSES = 1;
+
             /* Debug check to make sure we go from tx to rx */
             assert((shortcuts & RADIO_SHORTS_DISABLED_RXEN_Msk) != 0);
 
@@ -237,7 +237,7 @@ ble_phy_isr(void)
         ble_hdr->channel = g_ble_phy_data.phy_chan;
         ble_hdr->crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
 
-        /* XXX: not sure if I should count these here as well as LL. */
+        /* Count PHY crc errors and valid packets */
         if (ble_hdr->crcok == 0) {
             ++g_ble_phy_stats.rx_crc_err;
         } else {
@@ -579,6 +579,13 @@ ble_phy_setchan(uint8_t chan)
     return 0;
 }
 
+/**
+ * Disable the PHY. This will do the following: 
+ *  -> Turn off all phy interrupts.
+ *  -> Disable internal shortcuts.
+ *  -> Disable the radio.
+ *  -> Sets phy state to idle.
+ */
 void
 ble_phy_disable(void)
 {
@@ -586,8 +593,6 @@ ble_phy_disable(void)
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
-
-    /* XXX: should this wait to make sure we are disabled? Not sure... */
 }
 
 /**
@@ -601,11 +606,3 @@ ble_phy_state_get(void)
     return g_ble_phy_data.phy_state;
 }
 
-
-/* WWW: What do I need to reset/clear/set when going from TX to RX? I am sure
- * there are probably things I need to clear/setup or make are cleared/setup.
- * I dont do the normal "ble_phy_rx" call so I might need to clear out a
- * bunch of registers or set some.
- * 
- * Look at: RXADDRESSES. 
- */

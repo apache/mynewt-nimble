@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -25,8 +26,9 @@
 #include "controller/ll_adv.h"
 #include "controller/ll_scan.h"
 #include "hal/hal_cputime.h"
+#include "hal/hal_gpio.h"
 
-/* 
+ /* 
  * XXX:
  * 1) Implement white list.
  * 2) I need to add addresses to dup filter array.
@@ -171,9 +173,9 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Get pointer to our device address */
-    if (scansm->own_addr_type == BLE_ADV_OWN_ADDR_PUBLIC) {
+    if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         addr = g_dev_addr;
-    } else if (scansm->own_addr_type == BLE_ADV_OWN_ADDR_RANDOM) {
+    } else if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
         addr = g_random_addr;
     } else {
@@ -398,6 +400,9 @@ ble_ll_scan_start_cb(struct ll_sched_item *sch)
     int rc;
     struct ble_ll_scan_sm *scansm;
 
+    /* Toggle the LED */
+    gpio_toggle(LED_BLINK_PIN);
+
     /* Get the state machine for the event */
     scansm = (struct ble_ll_scan_sm *)sch->cb_arg;
 
@@ -497,13 +502,13 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
      * command disallowed error. All the parameter errors refer to the command
      * parameter (which in this case is just enable or disable).
      */ 
-    if (scansm->own_addr_type != BLE_ADV_OWN_ADDR_PUBLIC) {
+    if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         if (!ll_is_valid_rand_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
 
         /* XXX: support these other types */
-        if (scansm->own_addr_type != BLE_ADV_OWN_ADDR_RANDOM) {
+        if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_RANDOM) {
             assert(0);
         }
     }
@@ -542,6 +547,9 @@ ble_ll_scan_win_end_proc(void *arg)
     uint32_t itvl;
     struct ble_ll_scan_sm *scansm;
 
+    /* Toggle the LED */
+    gpio_toggle(LED_BLINK_PIN);
+
     /* We are no longer scanning  */
     scansm = (struct ble_ll_scan_sm *)arg;
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
@@ -560,7 +568,7 @@ ble_ll_scan_win_end_proc(void *arg)
     /* XXX: deal with scan forever */
 
     /* Set next scan window start time */
-    itvl = cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+    itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
     scansm->scan_win_start_time += itvl;
         
     /* 
@@ -836,7 +844,7 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     }
 
     /* Check own addr type */
-    if (own_addr_type > BLE_ADV_OWN_ADDR_MAX) {
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 

@@ -18,6 +18,29 @@
 #define H_LL_ADV_
 
 /* 
+ * ADV event timing
+ *      T_advEvent = advInterval + advDelay
+ * 
+ *      advInterval: increments of 625 usecs
+ *      advDelay: RAND[0, 10] msecs
+ * 
+ */
+#define BLE_LL_ADV_ITVL                 (625)           /* usecs */
+#define BLE_LL_ADV_ITVL_MIN             (32)            /* units */
+#define BLE_LL_ADV_ITVL_MAX             (16384)         /* units */
+#define BLE_LL_ADV_ITVL_MS_MIN          (20)            /* msecs */
+#define BLE_LL_ADV_ITVL_MS_MAX          (10240)         /* msecs */
+#define BLE_LL_ADV_ITVL_SCAN_MIN        (160)           /* units */
+#define BLE_LL_ADV_ITVL_SCAN_MS_MIN     (100)           /* msecs */
+#define BLE_LL_ADV_ITVL_NONCONN_MIN     (160)           /* units */
+#define BLE_LL_ADV_ITVL_NONCONN_MS_MIN  (100)           /* msecs */
+#define BLE_LL_ADV_DELAY_MS_MIN         (0)             /* msecs */
+#define BLE_LL_ADV_DELAY_MS_MAX         (10)            /* msecs */
+#define BLE_LL_ADV_PDU_ITVL_LD_MS_MAX   (10)            /* msecs */
+#define BLE_LL_ADV_PDU_ITVL_HD_MS_MAX   (3750)          /* usecs */
+#define BLE_LL_ADV_STATE_HD_MAX         (1280)          /* msecs */
+
+/* 
  * Advertising PDU format:
  * -> 2 byte header
  *      -> LSB contains pdu type, txadd and rxadd bits.

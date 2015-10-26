@@ -33,6 +33,23 @@ struct os_mempool g_hci_os_event_pool;
 os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS, 
                                                HCI_OS_EVENT_BUF_SIZE)];
 
+/* Host HCI Task Events */
+struct os_eventq g_ble_host_hci_evq;
+#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER)
+
+/* Statistics */
+struct host_hci_stats
+{
+    uint32_t events_rxd;
+};
+
+struct host_hci_stats g_host_hci_stats;
+
+
+/* Callout for timer */
+extern void bletest_execute(void);
+struct os_callout_func g_ble_host_hci_timer;
+
 static int
 host_hci_cmd_send(uint8_t *cmdbuf)
 {
@@ -74,10 +91,10 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
     rc = -1;
     if ((adv->adv_itvl_min > adv->adv_itvl_max) ||
         (adv->adv_itvl_min == adv->adv_itvl_max) ||
-        (adv->own_addr_type > BLE_ADV_OWN_ADDR_MAX) ||
-        (adv->peer_addr_type > BLE_ADV_PEER_ADDR_MAX) ||
-        (adv->adv_filter_policy > BLE_ADV_FILT_MAX) ||
-        (adv->adv_type > BLE_ADV_TYPE_MAX) ||
+        (adv->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
+        (adv->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) ||
+        (adv->adv_filter_policy > BLE_HCI_ADV_FILT_MAX) ||
+        (adv->adv_type > BLE_HCI_ADV_TYPE_MAX) ||
         (adv->adv_channel_map == 0) ||
         ((adv->adv_channel_map & 0xF8) != 0)) {
         /* These parameters are not valid */
@@ -85,16 +102,19 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
     }
 
     /* Make sure interval is valid for advertising type. */
-    if ((adv->adv_type == BLE_ADV_TYPE_ADV_NONCONN_IND) || 
-        (adv->adv_type == BLE_ADV_TYPE_ADV_SCAN_IND)) {
-        itvl = BLE_LL_ADV_ITVL_NONCONN_MIN;
+    if ((adv->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) || 
+        (adv->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND)) {
+        itvl = BLE_HCI_ADV_ITVL_NONCONN_MIN;
     } else {
-        itvl = BLE_LL_ADV_ITVL_MIN;
+        itvl = BLE_HCI_ADV_ITVL_MIN;
     }
 
-    if ((adv->adv_itvl_min < itvl) || 
-        (adv->adv_itvl_min > BLE_LL_ADV_ITVL_MAX)) {
-        return rc;
+    /* Do not check if high duty-cycle directed */
+    if (adv->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+        if ((adv->adv_itvl_min < itvl) || 
+            (adv->adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
+            return rc;
+        }
     }
 
     htole16(cmd, adv->adv_itvl_min);
@@ -222,7 +242,7 @@ host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
     }
 
     /* Check own addr type */
-    if (own_addr_type > BLE_ADV_OWN_ADDR_MAX) {
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -256,6 +276,86 @@ host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
     return rc;
 }
 
+void
+host_hci_event_proc(struct os_event *ev)
+{
+    os_error_t err;
+
+    /* Count events received */
+    ++g_host_hci_stats.events_rxd;
+
+    /* XXX: Process the event */
+
+    /* Free the command buffer */
+    err = os_memblock_put(&g_hci_cmd_pool, ev->ev_arg);
+    assert(err == OS_OK);
+
+    /* Free the event */
+    err = os_memblock_put(&g_hci_os_event_pool, ev);
+    assert(err == OS_OK);
+}
+
+/* XXX: For now, put this here */
+int
+hci_transport_ctlr_event_send(uint8_t *hci_ev)
+{
+    os_error_t err;
+    struct os_event *ev;
+
+    /* Get an event structure off the queue */
+    ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
+    if (!ev) {
+        err = os_memblock_put(&g_hci_cmd_pool, hci_ev);
+        assert(err == OS_OK);
+        return -1;
+    }
+
+    /* Fill out the event and post to Link Layer */
+    ev->ev_queued = 0;
+    ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
+    ev->ev_arg = hci_ev;
+    os_eventq_put(&g_ble_host_hci_evq, ev);
+
+    return 0;
+}
+
+void
+host_hci_timer_cb(void *arg)
+{
+    /* Call the bletest code */
+    bletest_execute();
+
+    /* Re-start the timer */
+    os_callout_reset(&g_ble_host_hci_timer.cf_c, OS_TICKS_PER_SEC);
+}
+
+void
+host_hci_task(void *arg)
+{
+    struct os_event *ev;
+    struct os_callout_func *cf;
+
+    host_hci_timer_cb(NULL);
+
+    while (1) {
+        ev = os_eventq_get(&g_ble_host_hci_evq);
+        switch (ev->ev_type) {
+        case OS_EVENT_T_TIMER:
+            cf = (struct os_callout_func *)ev;
+            assert(cf->cf_func);
+            cf->cf_func(cf->cf_arg);
+            break;
+        case BLE_HOST_HCI_EVENT_CTLR_EVENT:
+            /* Process HCI event from controller */
+            host_hci_event_proc(ev);
+            break;
+        default:
+            assert(0);
+            break;
+        }
+    }
+}
+
 int
 host_hci_init(void)
 {
@@ -272,6 +372,13 @@ host_hci_init(void)
                          HCI_OS_EVENT_BUF_SIZE, &g_hci_os_event_buf, 
                          "HCIOsEventPool");
     assert(rc == 0);
+
+    /* Initialize the host timer */
+    os_callout_func_init(&g_ble_host_hci_timer, &g_ble_host_hci_evq,
+                         host_hci_timer_cb, NULL);
+
+    /* Initialize eventq */
+    os_eventq_init(&g_ble_host_hci_evq);
 
     return rc;
 }
