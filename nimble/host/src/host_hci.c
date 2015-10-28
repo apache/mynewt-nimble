@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 
@@ -279,10 +280,15 @@ host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
 void
 host_hci_event_proc(struct os_event *ev)
 {
+    uint8_t *evbuf;
     os_error_t err;
 
     /* Count events received */
     ++g_host_hci_stats.events_rxd;
+
+    /* Display to console */
+    evbuf = (uint8_t *)ev->ev_arg;
+    console_printf("Host received event %u", evbuf[0]);
 
     /* XXX: Process the event */
 

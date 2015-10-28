@@ -109,11 +109,11 @@ struct ble_ll_scan_advertisers
 #define BLE_LL_SC_ADV_F_ADV_RPT_SENT    (0x08)
 
 /* Contains list of advertisers that we have heard scan responses from */
-uint8_t g_ble_ll_num_scan_rsp_advs;
+uint8_t g_ble_ll_scan_num_rsp_advs;
 struct ble_ll_scan_advertisers g_ble_ll_scan_rsp_advs[BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS];
 
 /* Used to filter duplicate advertising events to host */
-uint8_t g_ble_ll_num_scan_dup_advs;
+uint8_t g_ble_ll_scan_num_dup_advs;
 struct ble_ll_scan_advertisers g_ble_ll_scan_dup_advs[BLE_LL_SCAN_CFG_NUM_DUP_ADVS];
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
@@ -215,7 +215,7 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
 
     /* Do we have an address match? Must match address type */
     adv = &g_ble_ll_scan_dup_advs[0];
-    num_advs = g_ble_ll_num_scan_dup_advs;
+    num_advs = g_ble_ll_scan_num_dup_advs;
     while (num_advs) {
         if (!memcmp(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
             /* Address type must match */
@@ -265,7 +265,7 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
     struct ble_ll_scan_advertisers *adv;
 
     /* XXX: for now, if we dont have room, just leave */
-    num_advs = g_ble_ll_num_scan_dup_advs;
+    num_advs = g_ble_ll_scan_num_dup_advs;
     if (num_advs == BLE_LL_SCAN_CFG_NUM_DUP_ADVS) {
         return;
     }
@@ -282,7 +282,7 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
     if (addr_type) {
         adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
     }
-    ++g_ble_ll_num_scan_dup_advs;
+    ++g_ble_ll_scan_num_dup_advs;
 }
 
 /**
@@ -301,7 +301,7 @@ ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t addr_type)
 
     /* Do we have an address match? Must match address type */
     adv = &g_ble_ll_scan_rsp_advs[0];
-    num_advs = g_ble_ll_num_scan_rsp_advs;
+    num_advs = g_ble_ll_scan_num_rsp_advs;
     while (num_advs) {
         if (!memcmp(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
             /* Address type must match */
@@ -329,7 +329,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
     struct ble_ll_scan_advertisers *adv;
 
     /* XXX: for now, if we dont have room, just leave */
-    num_advs = g_ble_ll_num_scan_rsp_advs;
+    num_advs = g_ble_ll_scan_num_rsp_advs;
     if (num_advs == BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS) {
         return;
     }
@@ -346,7 +346,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
     if (addr_type) {
         adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
     }
-    ++g_ble_ll_num_scan_rsp_advs;
+    ++g_ble_ll_scan_num_rsp_advs;
 
     return;
 }
