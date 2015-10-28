@@ -32,13 +32,11 @@
  /* 
  * XXX:
  * 1) Implement white list.
- * 2) I need to add addresses to dup filter array.
- * 4) Need to look at packets for us and those not for us. Probably some of
+ * 2) Need to look at packets for us and those not for us. Probably some of
  * this code needs to go into the link layer (in ll.c).
- * 5) Interleave sending scan requests to different advertisers? I guess I need 
+ * 3) Interleave sending scan requests to different advertisers? I guess I need 
  *    a list of advertisers to which I sent a scan request and have yet to
  *    receive a scan response from? Implement this.
- * 6) Make sure we send an advertising report if we hear a scan response too!
  */
 
 /* 
@@ -200,15 +198,15 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
 }
 
 /**
- * Check if a packet is a duplicate advertising packet.
+ * Checks to see if an advertiser is on the duplicate address list. 
  * 
- * @param pdu_type 
- * @param rxbuf 
+ * @param addr Pointer to address
+ * @param addr_type Type of address
  * 
- * @return int 0: not a duplicate. 1:duplicate
+ * @return uint8_t 0: not on list; any other value is 
  */
-int
-ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
+static struct ble_ll_scan_advertisers *
+ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t addr_type)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -229,24 +227,42 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
                 }
             }
 
-            /* Check appropriate flag (based on type of PDU) */
-            if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
-                if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_DIRECT_RPT_SENT) {
-                    return 1;
-                }
-            } else {
-                if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_ADV_RPT_SENT) {
-                    return 1;
-                }
-            }
+            return adv;
         }
         ++adv;
         --num_advs;
     }
 
-    /* XXX: This function really should check both the scan response and
-     * dup advs. I dont see any reason why we cant use the scan response
-       array for host advertisement report duplicate checking */
+    return NULL;
+}
+
+/**
+ * Check if a packet is a duplicate advertising packet.
+ * 
+ * @param pdu_type 
+ * @param rxbuf 
+ * 
+ * @return int 0: not a duplicate. 1:duplicate
+ */
+int
+ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
+{
+    struct ble_ll_scan_advertisers *adv;
+
+    adv = ble_ll_scan_find_dup_adv(addr, addr_type);
+    if (adv) {
+        /* Check appropriate flag (based on type of PDU) */
+        if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+            if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_DIRECT_RPT_SENT) {
+                return 1;
+            }
+        } else {
+            if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_ADV_RPT_SENT) {
+                return 1;
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -264,25 +280,31 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
 
-    /* XXX: for now, if we dont have room, just leave */
-    num_advs = g_ble_ll_scan_num_dup_advs;
-    if (num_advs == BLE_LL_SCAN_CFG_NUM_DUP_ADVS) {
-        return;
-    }
+    /* Check to see if on list. */
+    adv = ble_ll_scan_find_dup_adv(addr, addr_type);
+    if (!adv) {
+        /* XXX: for now, if we dont have room, just leave */
+        num_advs = g_ble_ll_scan_num_dup_advs;
+        if (num_advs == BLE_LL_SCAN_CFG_NUM_DUP_ADVS) {
+            return;
+        }
 
-    /* Add the advertiser to the array */
-    adv = &g_ble_ll_scan_dup_advs[num_advs];
-    memcpy(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN);
+        /* Add the advertiser to the array */
+        adv = &g_ble_ll_scan_dup_advs[num_advs];
+        memcpy(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN);
+        ++g_ble_ll_scan_num_dup_advs;
+
+        adv->sc_adv_flags = 0;
+        if (addr_type) {
+            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
+        }
+    }
 
     /* 
      * XXX: need to set correct flag based on type of report being sent
      * for now, we dont send direct advertising reports
      */
-    adv->sc_adv_flags = BLE_LL_SC_ADV_F_ADV_RPT_SENT;
-    if (addr_type) {
-        adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
-    }
-    ++g_ble_ll_scan_num_dup_advs;
+    adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
 }
 
 /**
