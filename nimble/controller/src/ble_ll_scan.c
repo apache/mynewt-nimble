@@ -25,6 +25,7 @@
 #include "controller/ll_sched.h"
 #include "controller/ll_adv.h"
 #include "controller/ll_scan.h"
+#include "controller/ll_hci.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
@@ -37,6 +38,7 @@
  * 5) Interleave sending scan requests to different advertisers? I guess I need 
  *    a list of advertisers to which I sent a scan request and have yet to
  *    receive a scan response from? Implement this.
+ * 6) Make sure we send an advertising report if we hear a scan response too!
  */
 
 /* 
@@ -45,6 +47,10 @@
  * is there no chance that a public address will match a random
  * address? This applies to checking for advertisers that we have heard a scan 
  * response from or sent an advertising report for.
+ * 
+ * 2) I think I can guarantee that we dont process things out of order if
+ * I send an event when a scan request is sent. The scan_rsp_pending flag
+ * code might be made simpler.
  */
 
 /* 
@@ -245,6 +251,41 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
 }
 
 /**
+ * Add an advertiser the list of duplicate advertisers. An address gets added to
+ * the list of duplicate addresses when the controller sends an advertising 
+ * report to the host. 
+ * 
+ * @param addr 
+ * @param addr_type 
+ */
+void
+ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
+{
+    uint8_t num_advs;
+    struct ble_ll_scan_advertisers *adv;
+
+    /* XXX: for now, if we dont have room, just leave */
+    num_advs = g_ble_ll_num_scan_dup_advs;
+    if (num_advs == BLE_LL_SCAN_CFG_NUM_DUP_ADVS) {
+        return;
+    }
+
+    /* Add the advertiser to the array */
+    adv = &g_ble_ll_scan_dup_advs[num_advs];
+    memcpy(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN);
+
+    /* 
+     * XXX: need to set correct flag based on type of report being sent
+     * for now, we dont send direct advertising reports
+     */
+    adv->sc_adv_flags = BLE_LL_SC_ADV_F_ADV_RPT_SENT;
+    if (addr_type) {
+        adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
+    }
+    ++g_ble_ll_num_scan_dup_advs;
+}
+
+/**
  * Checks to see if we have received a scan response from this advertiser. 
  * 
  * @param adv_addr Address of advertiser
@@ -293,28 +334,12 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
         return;
     }
 
-    /* XXX: might make a function out of this */
-    /* Make sure this address is not here */
-    adv = &g_ble_ll_scan_rsp_advs[0];
-    while (num_advs) {
-        if (!memcmp(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
-            /* Address type must match */
-            if (addr_type) {
-                if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) {
-                    return;
-                }
-            } else {
-                if ((adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) == 0) {
-                    return;
-                }
-            }
-        }
-        ++adv;
-        --num_advs;
+    /* Check if address is already on the list */
+    if (ble_ll_scan_have_rxd_scan_rsp(addr, addr_type)) {
+        return;
     }
 
     /* Add the advertiser to the array */
-    num_advs = g_ble_ll_num_scan_rsp_advs;
     adv = &g_ble_ll_scan_rsp_advs[num_advs];
     memcpy(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN);
     adv->sc_adv_flags = BLE_LL_SC_ADV_F_SCAN_RSP_RXD;
@@ -324,6 +349,85 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
     ++g_ble_ll_num_scan_rsp_advs;
 
     return;
+}
+
+/**
+ * Send an advertising report to the host.
+ * 
+ * NOTE: while we are allowed to send multiple devices in one report, we 
+ * will just send for one for now. 
+ * 
+ * @param pdu_type 
+ * @param rxadv 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t addr_type, uint8_t *rxbuf,
+                           int8_t rssi)
+{
+    int rc;
+    uint8_t evtype;
+    uint8_t subev;
+    uint8_t *evbuf;
+    uint8_t adv_data_len;
+
+    subev = BLE_HCI_LE_SUBEV_ADV_RPT;
+    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+        /* XXX: NOTE: the direct advertising report is only used when InitA
+           is a resolvable private address. We dont support that yet! */
+        //subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
+        evtype = BLE_HCI_ADV_RPT_EVTYPE_DIR_IND;
+        adv_data_len = 0;
+    } else {
+        if (pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) {
+            evtype = BLE_HCI_ADV_RPT_EVTYPE_ADV_IND;
+        } else if (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND) {
+            evtype = BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND;
+        } else if (pdu_type == BLE_ADV_PDU_TYPE_ADV_NONCONN_IND) {
+            evtype = BLE_HCI_ADV_RPT_EVTYPE_NONCONN_IND;
+        } else {
+            evtype = BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP;
+        }
+        subev = BLE_HCI_LE_SUBEV_ADV_RPT;
+
+        adv_data_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+        adv_data_len -= (BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN);
+    }
+
+    rc = BLE_ERR_MEM_CAPACITY;
+    if (ble_ll_hci_is_le_event_enabled(subev - 1)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = 12 + adv_data_len;
+            evbuf[2] = subev;
+            evbuf[3] = 1;       /* number of reports */
+            evbuf[4] = evtype;
+
+            /* XXX: need to deal with resolvable addresses here! */
+            if (addr_type) {
+                evbuf[5] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+            } else {
+                evbuf[5] = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
+            }
+            memcpy(evbuf + 6, rxbuf + BLE_LL_PDU_HDR_LEN, BLE_DEV_ADDR_LEN);
+            evbuf[12] = adv_data_len;
+            memcpy(evbuf + 13, rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN,
+                   adv_data_len);
+            evbuf[13 + adv_data_len] = rssi;
+        }
+
+        rc = ble_ll_hci_event_send(evbuf);
+        if (!rc) {
+            /* If we are filtering, add it to list of duplicate addresses */
+            if (g_ble_ll_scan_sm.scan_filt_dups) {
+                ble_ll_scan_add_dup_adv(rxbuf + BLE_LL_PDU_HDR_LEN, addr_type);
+            }
+        }
+    }
+
+    return rc;
 }
 
 /**
@@ -730,7 +834,7 @@ ble_ll_scan_rx_pdu_end(uint8_t *rxbuf)
  * @param rxbuf 
  */
 void
-ble_ll_scan_rx_pdu_process(uint8_t pdu_type, uint8_t *rxbuf)
+ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi)
 {
     uint8_t *adv_addr;
     uint8_t *adva;
@@ -798,9 +902,8 @@ ble_ll_scan_rx_pdu_process(uint8_t pdu_type, uint8_t *rxbuf)
         }
     }
 
-    /* XXX: send the host an advertising report. Add that address to the dup
-       adv array */
-    //ble_ll_hci_send_adv_report();
+    /* Send the advertising report */
+    ble_ll_hci_send_adv_report(pdu_type, addr_type, rxbuf, rssi);
 }
 
 int

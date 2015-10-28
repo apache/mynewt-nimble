@@ -328,7 +328,7 @@ ll_rx_pkt_in_proc(void)
             break;
         case BLE_LL_STATE_SCANNING:
             if (ble_hdr->crcok) {
-                ble_ll_scan_rx_pdu_process(pdu_type, rxbuf);
+                ble_ll_scan_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->rssi);
             }
 
             /* We need to re-enable the PHY if we are in idle state */
@@ -550,7 +550,7 @@ ll_task(void *arg)
             break;
         case BLE_LL_EVENT_HCI_CMD:
             /* Process HCI command */
-            ll_hci_cmd_proc(ev);
+            ble_ll_hci_cmd_proc(ev);
             break;
         case BLE_LL_EVENT_ADV_TXDONE:
             ll_adv_tx_done_proc(ev->ev_arg);
@@ -615,6 +615,9 @@ ll_init(void)
 
     /* Initialize receive packet (from phy) event */
     g_ll_data.ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
+
+    /* Initialize LL HCI */
+    ble_ll_hci_init();
 
     /* Init the scheduler */
     ll_sched_init();

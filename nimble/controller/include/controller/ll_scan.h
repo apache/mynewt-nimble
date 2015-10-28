@@ -80,6 +80,6 @@ int ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 int ble_ll_scan_rx_pdu_end(uint8_t *rxbuf);
 
 /* Process a scan response PDU */
-void ble_ll_scan_rx_pdu_process(uint8_t pdu_type, uint8_t *rxbuf);
+void ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi);
 
 #endif /* H_LL_SCAN_ */

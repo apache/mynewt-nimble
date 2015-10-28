@@ -26,8 +26,8 @@
 #include "controller/ll_hci.h"
 
 /* LE event mask */
-uint8_t g_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
-uint8_t g_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
+uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
+uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 
 /**
  * ll hci get num cmd pkts 
@@ -38,13 +38,20 @@ uint8_t g_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
  * @return uint8_t 
  */
 static uint8_t
-ll_hci_get_num_cmd_pkts(void)
+ble_ll_hci_get_num_cmd_pkts(void)
 {
     return BLE_LL_CFG_NUM_HCI_CMD_PKTS;
 }
 
-static int
-ll_hci_event_send(uint8_t *evbuf)
+/**
+ * Send an event to the host. 
+ * 
+ * @param evbuf Pointer to event buffer to send
+ * 
+ * @return int 0: success; -1 otherwise.
+ */
+int
+ble_ll_hci_event_send(uint8_t *evbuf)
 {
     int rc;
 
@@ -52,7 +59,7 @@ ll_hci_event_send(uint8_t *evbuf)
     ++g_ll_stats.hci_events_sent;
 
     /* Send the event to the host */
-    rc = hci_transport_ctlr_event_send(evbuf);
+    rc = ble_hci_transport_ctlr_event_send(evbuf);
 
     return rc;
 }
@@ -69,10 +76,10 @@ ll_hci_event_send(uint8_t *evbuf)
  * @return int BLE_ERR_SUCCESS. Does not return any errors.
  */
 static int
-ll_hci_set_le_event_mask(uint8_t *cmdbuf)
+ble_ll_hci_set_le_event_mask(uint8_t *cmdbuf)
 {
     /* Copy the data into the event mask */
-    memcpy(g_ll_hci_le_event_mask, cmdbuf, BLE_HCI_SET_LE_EVENT_MASK_LEN);
+    memcpy(g_ble_ll_hci_le_event_mask, cmdbuf, BLE_HCI_SET_LE_EVENT_MASK_LEN);
     return BLE_ERR_SUCCESS;
 }
 
@@ -88,7 +95,7 @@ ll_hci_set_le_event_mask(uint8_t *cmdbuf)
  * @return int 
  */
 static int
-ll_hci_le_read_bufsize(uint8_t *rspbuf)
+ble_ll_hci_le_read_bufsize(uint8_t *rspbuf)
 {    
     /* Place the data packet length and number of packets in the buffer */
     htole16(rspbuf, BLE_LL_CFG_ACL_DATA_PKT_LEN);
@@ -97,8 +104,28 @@ ll_hci_le_read_bufsize(uint8_t *rspbuf)
 }
 
 /**
- * ll hci le cmd proc
- *  
+ * Checks to see if a LE event has been disabled by the host. 
+ * 
+ * @param bitpos This is the bit position of the LE event. Note that this can 
+ * be a value from 0 to 63, inclusive. 
+ * 
+ * @return uint8_t 0: event is not enabled; otherwise event is enabled.
+ */
+uint8_t
+ble_ll_hci_is_le_event_enabled(int bitpos)
+{
+    uint8_t enabled;
+    uint8_t bytenum;
+    uint8_t bitmask;
+
+    bytenum = bitpos / 8;
+    bitmask = 1 << (bitpos & 0x7);
+    enabled = g_ble_ll_hci_le_event_mask[bytenum] & bitmask;
+
+    return enabled;
+}
+
+/**
  * Process a LE command sent from the host to the controller. The HCI command 
  * has a 3 byte command header followed by data. The header is: 
  *  -> opcode (2 bytes)
@@ -110,8 +137,8 @@ ll_hci_le_read_bufsize(uint8_t *rspbuf)
  * 
  * @return int 
  */
-int
-ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+static int
+ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 {
     int rc;
     uint8_t len;
@@ -136,12 +163,12 @@ ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     switch (ocf) {
     case BLE_HCI_OCF_LE_SET_EVENT_MASK:
         if (len == BLE_HCI_SET_LE_EVENT_MASK_LEN) {
-            rc = ll_hci_set_le_event_mask(cmdbuf);
+            rc = ble_ll_hci_set_le_event_mask(cmdbuf);
         }
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE:
         if (len == BLE_HCI_RD_BUF_SIZE_LEN) {
-            rc = ll_hci_le_read_bufsize(rspbuf);
+            rc = ble_ll_hci_le_read_bufsize(rspbuf);
             *rsplen = 3;
         }
         break;
@@ -201,7 +228,7 @@ ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 }
 
 void
-ll_hci_cmd_proc(struct os_event *ev)
+ble_ll_hci_cmd_proc(struct os_event *ev)
 {
     int rc;
     uint8_t ogf;
@@ -229,7 +256,7 @@ ll_hci_cmd_proc(struct os_event *ev)
 
     switch (ogf) {
     case BLE_HCI_OGF_LE:
-        rc = ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
+        rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
     case BLE_HCI_OGF_CTLR_BASEBAND:
         /* XXX: Implement  */
@@ -254,12 +281,12 @@ ll_hci_cmd_proc(struct os_event *ev)
         /* Create a command complete event with status from command */
         cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
         cmdbuf[1] = 4 + rsplen;    /* Length of the data */
-        cmdbuf[2] = ll_hci_get_num_cmd_pkts();
+        cmdbuf[2] = ble_ll_hci_get_num_cmd_pkts();
         htole16(cmdbuf + 3, opcode);
         cmdbuf[5] = (uint8_t)rc;
 
         /* Send the event. This event cannot be masked */
-        ll_hci_event_send(cmdbuf);
+        ble_ll_hci_event_send(cmdbuf);
     } else {
         /* XXX: placeholder for sending command status or other events */
         assert(0);
@@ -268,7 +295,7 @@ ll_hci_cmd_proc(struct os_event *ev)
 
 /* XXX: For now, put this here */
 int
-hci_transport_host_cmd_send(uint8_t *cmd)
+ble_hci_transport_host_cmd_send(uint8_t *cmd)
 {
     os_error_t err;
     struct os_event *ev;
@@ -290,17 +317,20 @@ hci_transport_host_cmd_send(uint8_t *cmd)
     return 0;
 }
 
+/**
+ * Initalize the LL HCI.
+ */
 void
-ll_hci_init()
+ble_ll_hci_init(void)
 {
     /* Set defaults for LE events: Vol 2 Part E 7.8.1 */
-    g_ll_hci_le_event_mask[0] = 0x1f;
+    g_ble_ll_hci_le_event_mask[0] = 0x1f;
 
     /* Set defaults for controller/baseband events: Vol 2 Part E 7.3.1 */
-    g_ll_hci_event_mask[0] = 0xff;
-    g_ll_hci_event_mask[1] = 0xff;
-    g_ll_hci_event_mask[2] = 0xff;
-    g_ll_hci_event_mask[3] = 0xff;
-    g_ll_hci_event_mask[4] = 0xff;
-    g_ll_hci_event_mask[5] = 0x1f;
+    g_ble_ll_hci_event_mask[0] = 0xff;
+    g_ble_ll_hci_event_mask[1] = 0xff;
+    g_ble_ll_hci_event_mask[2] = 0xff;
+    g_ble_ll_hci_event_mask[3] = 0xff;
+    g_ble_ll_hci_event_mask[4] = 0xff;
+    g_ble_ll_hci_event_mask[5] = 0x1f;
 }

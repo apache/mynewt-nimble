@@ -53,7 +53,7 @@ struct os_callout_func g_ble_host_hci_timer;
 static int
 host_hci_cmd_send(uint8_t *cmdbuf)
 {
-    return hci_transport_host_cmd_send(cmdbuf);
+    return ble_hci_transport_host_cmd_send(cmdbuf);
 }
 
 static int
@@ -297,7 +297,7 @@ host_hci_event_proc(struct os_event *ev)
 
 /* XXX: For now, put this here */
 int
-hci_transport_ctlr_event_send(uint8_t *hci_ev)
+ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
 {
     os_error_t err;
     struct os_event *ev;

@@ -226,9 +226,29 @@
 #define BLE_HCI_EVCODE_LE_META              (0x3E)
 /* XXX: Define them all... */
 
+/* LE sub-event codes */
+#define BLE_HCI_LE_SUBEV_CONN_COMPLETE      (0x01)
+#define BLE_HCI_LE_SUBEV_ADV_RPT            (0x02)
+#define BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE  (0x03)
+#define BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT   (0x04)
+#define BLE_HCI_LE_SUBEV_LT_KEY_REQ         (0x05)
+#define BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ  (0x06)
+#define BLE_HCI_LE_SUBEV_DATA_LEN_CHG       (0x07)
+#define BLE_HCI_LE_SUBEV_RD_LOC_P256_PUBKEY (0x08)
+#define BLE_HCI_LE_SUBEV_GEN_DHKEY_COMPLETE (0x09)
+#define BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE  (0x0A)
+#define BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT     (0x0B)
+
 /* Event specific definitions */
 /* Event command complete */
 #define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (6)
+
+/* Advertising report */
+#define BLE_HCI_ADV_RPT_EVTYPE_ADV_IND      (0)
+#define BLE_HCI_ADV_RPT_EVTYPE_DIR_IND      (1)
+#define BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND     (2)
+#define BLE_HCI_ADV_RPT_EVTYPE_NONCONN_IND  (3)
+#define BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP     (5)
 
 /*--- Shared data structures ---*/
 
