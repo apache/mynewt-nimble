@@ -19,7 +19,7 @@
 #include "bsp/cmsis_nvic.h"
 #include "nimble/ble.h"
 #include "controller/phy.h"
-#include "controller/ll.h"
+#include "controller/ble_ll.h"
 #include "hal/hal_cputime.h"
 #include "mcu/nrf52.h"
 #include "mcu/nrf52_bitfields.h"
@@ -206,7 +206,7 @@ ble_phy_isr(void)
         }
 
         /* Call Link Layer receive start function */
-        rc = ll_rx_start(g_ble_phy_data.rxpdu);
+        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu);
         if (rc >= 0) {
             if (rc > 0) {
                 /* We need to go from disabled to TXEN */
@@ -254,7 +254,7 @@ ble_phy_isr(void)
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ll_rx_end(rxpdu, ble_hdr->crcok);
+        rc = ble_ll_rx_end(rxpdu, ble_hdr->crcok);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();

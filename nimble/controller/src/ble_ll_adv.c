@@ -21,9 +21,9 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "controller/phy.h"
-#include "controller/ll.h"
-#include "controller/ll_adv.h"
-#include "controller/ll_sched.h"
+#include "controller/ble_ll.h"
+#include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_sched.h"
 #include "controller/ll_scan.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
@@ -68,7 +68,7 @@
  *      The length of the advertising PDU that will be sent. This does not
  *      include the preamble, access address and CRC.
  */
-struct ll_adv_sm
+struct ble_ll_adv_sm
 {
     uint8_t enabled;
     uint8_t adv_type;
@@ -94,9 +94,9 @@ struct ll_adv_sm
 };
 
 /* The advertising state machine global object */
-struct ll_adv_sm g_ll_adv_sm;
+struct ble_ll_adv_sm g_ble_ll_adv_sm;
 
-struct ll_adv_stats
+struct ble_ll_adv_stats
 {
     uint32_t late_tx_done;
     uint32_t cant_set_sched;
@@ -104,7 +104,7 @@ struct ll_adv_stats
     uint32_t adv_txg;
 };
 
-struct ll_adv_stats g_ll_adv_stats;
+struct ble_ll_adv_stats g_ble_ll_adv_stats;
 
 /* XXX: We can calculate scan response time as well. */
 /* 
@@ -130,7 +130,7 @@ extern void bletest_inc_adv_pkt_num(void);
  * @return uint8_t The number of the first channel usable for advertising.
  */
 static uint8_t
-ll_adv_first_chan(struct ll_adv_sm *advsm)
+ble_ll_adv_first_chan(struct ble_ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
 
@@ -147,15 +147,12 @@ ll_adv_first_chan(struct ll_adv_sm *advsm)
 }
 
 /**
- * ll adv pdu make 
- *  
  * Create the advertising PDU 
- * 
  * 
  * @param advsm Pointer to advertisement state machine
  */
 static void
-ll_adv_pdu_make(struct ll_adv_sm *advsm)
+ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
 {
     uint8_t     adv_data_len;
     uint8_t     *dptr;
@@ -240,14 +237,12 @@ ll_adv_pdu_make(struct ll_adv_sm *advsm)
 }
 
 /**
- * ll adv scan rsp pdu make
- *  
  * Create a scan response PDU 
  * 
  * @param advsm 
  */
 static void
-ll_adv_scan_rsp_pdu_make(struct ll_adv_sm *advsm)
+ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 {
     uint8_t     scan_rsp_len;
     uint8_t     *dptr;
@@ -297,39 +292,33 @@ ll_adv_scan_rsp_pdu_make(struct ll_adv_sm *advsm)
 }
 
 /**
- * ble ll adv rx cb 
- *  
  * Scheduler callback used after advertising PDU sent. 
  * 
  * @param arg 
  */
 static int
-ll_adv_rx_cb(struct ll_sched_item *sch)
+ble_ll_adv_rx_cb(struct ble_ll_sched_item *sch)
 {
     /* Disable the PHY as we might be receiving */
     ble_phy_disable();
-    os_eventq_put(&g_ll_data.ll_evq, &g_ll_adv_sm.adv_txdone_ev);
+    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_adv_sm.adv_txdone_ev);
     return BLE_LL_SCHED_STATE_DONE;
 }
 
 
 /**
- * ble ll adv tx done cb 
- *  
  * Scheduler callback when an advertising PDU has been sent. 
  * 
  * @param arg 
  */
 static int
-ll_adv_tx_done_cb(struct ll_sched_item *sch)
+ble_ll_adv_tx_done_cb(struct ble_ll_sched_item *sch)
 {
-    os_eventq_put(&g_ll_data.ll_evq, &g_ll_adv_sm.adv_txdone_ev);
+    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_adv_sm.adv_txdone_ev);
     return BLE_LL_SCHED_STATE_DONE;
 }
 
 /**
- * ll adv tx start cb
- *  
  * This is the scheduler callback (called from interrupt context) which 
  * transmits an advertisement. 
  *  
@@ -340,14 +329,14 @@ ll_adv_tx_done_cb(struct ll_sched_item *sch)
  * @return int 
  */
 static int
-ll_adv_tx_start_cb(struct ll_sched_item *sch)
+ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 {
     int rc;
     uint8_t end_trans;
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
 
     /* Get the state machine for the event */
-    advsm = (struct ll_adv_sm *)sch->cb_arg;
+    advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
 
     /* Toggle the LED */
     gpio_toggle(LED_BLINK_PIN);
@@ -367,18 +356,18 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     rc = ble_phy_tx(advsm->adv_pdu, BLE_PHY_TRANSITION_NONE, end_trans);
     if (rc) {
         /* Transmit failed. */
-        rc = ll_adv_tx_done_cb(sch);
+        rc = ble_ll_adv_tx_done_cb(sch);
     } else {
         /* Set link layer state to advertising */
         ble_ll_state_set(BLE_LL_STATE_ADV);
 
         /* Count # of adv. sent */
-        ++g_ll_adv_stats.adv_txg;
+        ++g_ble_ll_adv_stats.adv_txg;
 
         /* Set schedule item next wakeup time */
         if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
             sch->next_wakeup = sch->end_time;
-            sch->sched_cb = ll_adv_tx_done_cb;
+            sch->sched_cb = ble_ll_adv_tx_done_cb;
         } else {
             /* XXX: set next wakeup time. We have to look for either a
              * connect request or scan request or both, depending on
@@ -390,7 +379,7 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
              */
             sch->next_wakeup = cputime_get32() +
                 (sch->end_time - sch->start_time);
-            sch->sched_cb = ll_adv_rx_cb;
+            sch->sched_cb = ble_ll_adv_rx_cb;
         }
 
         rc = BLE_LL_SCHED_STATE_RUNNING;
@@ -399,14 +388,14 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     return rc;
 }
 
-static struct ll_sched_item *
-ll_adv_sched_set(struct ll_adv_sm *advsm)
+static struct ble_ll_sched_item *
+ble_ll_adv_sched_set(struct ble_ll_adv_sm *advsm)
 {
     int rc;
     uint32_t max_usecs;
-    struct ll_sched_item *sch;
+    struct ble_ll_sched_item *sch;
 
-    sch = ll_sched_get_item();
+    sch = ble_ll_sched_get_item();
     if (sch) {
         /* Set sched type */
         sch->sched_type = BLE_LL_SCHED_TYPE_ADV;
@@ -418,10 +407,10 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
 
         /* Set the callback and argument */
         sch->cb_arg = advsm;
-        sch->sched_cb = ll_adv_tx_start_cb;
+        sch->sched_cb = ble_ll_adv_tx_start_cb;
 
         /* Set end time to maximum time this schedule item may take */
-        max_usecs = ll_pdu_tx_time_get(advsm->adv_pdu_len);
+        max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len);
         if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
             max_usecs += BLE_LL_ADV_SCHED_MAX_USECS;
         }
@@ -430,18 +419,16 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
 
         /* XXX: for now, we cant get an overlap so assert on error. */
         /* Add the item to the scheduler */
-        rc = ll_sched_add(sch);
+        rc = ble_ll_sched_add(sch);
         assert(rc == 0);
     } else {
-        ++g_ll_adv_stats.cant_set_sched;
+        ++g_ble_ll_adv_stats.cant_set_sched;
     }
 
     return sch;
 }
 
 /**
- * ll adv set adv params 
- *  
  * Called by the HCI command parser when a set advertising parameters command 
  * has been received. 
  *  
@@ -452,7 +439,7 @@ ll_adv_sched_set(struct ll_adv_sm *advsm)
  * @return int 
  */
 int
-ll_adv_set_adv_params(uint8_t *cmd)
+ble_ll_adv_set_adv_params(uint8_t *cmd)
 {
     uint8_t adv_type;
     uint8_t adv_filter_policy;
@@ -462,10 +449,10 @@ ll_adv_set_adv_params(uint8_t *cmd)
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint16_t min_itvl;
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
 
     /* If already enabled, we return an error */
-    advsm = &g_ll_adv_sm;
+    advsm = &g_ble_ll_adv_sm;
     if (advsm->enabled) {
         return BLE_ERR_CMD_DISALLOWED;
     }
@@ -536,22 +523,24 @@ ll_adv_set_adv_params(uint8_t *cmd)
     return 0;
 }
 
-/* Stop the advertising state machine */
+/**
+ * Stop advertising state machine 
+ * 
+ * @param advsm 
+ */
 static void
-ll_adv_sm_stop(struct ll_adv_sm *advsm)
+ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 {
     /* XXX: Stop any timers we may have started */
 
     /* Remove any scheduled advertising items */
-    ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV);
+    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV);
 
     /* Disable advertising */
     advsm->enabled = 0;
 }
 
 /**
- * ll adv sm start 
- *  
  * Start the advertising state machine. 
  *  
  * Context: Link-layer task. 
@@ -561,10 +550,10 @@ ll_adv_sm_stop(struct ll_adv_sm *advsm)
  * @return int 
  */
 static int
-ll_adv_sm_start(struct ll_adv_sm *advsm)
+ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
-    struct ll_sched_item *sch;
+    struct ble_ll_sched_item *sch;
 
     /* 
      * XXX: not sure if I should do this or just report whatever random
@@ -590,15 +579,15 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     advsm->adv_itvl_usecs = (uint32_t)advsm->adv_itvl_max * BLE_LL_ADV_ITVL;
 
     /* Create the advertising PDU */
-    ll_adv_pdu_make(advsm);
+    ble_ll_adv_pdu_make(advsm);
 
     /* Create scan response PDU (if needed) */
     if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
-        ll_adv_scan_rsp_pdu_make(advsm);
+        ble_ll_adv_scan_rsp_pdu_make(advsm);
     }
 
     /* Set first advertising channel */
-    adv_chan = ll_adv_first_chan(advsm);
+    adv_chan = ble_ll_adv_first_chan(advsm);
     advsm->adv_chan = adv_chan;
 
     /* 
@@ -611,7 +600,7 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
     /* Set packet in schedule */
-    sch = ll_adv_sched_set(advsm);
+    sch = ble_ll_adv_sched_set(advsm);
     if (!sch) {
         /* XXX: set a wakeup timer to deal with this. For now, assert */
         assert(0);
@@ -621,8 +610,6 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
 }
 
 /**
- * ll adv read txpwr
- *  
  * Called when the LE HCI command read advertising channel tx power command 
  * has been received. Returns the current advertising transmit power. 
  *  
@@ -631,20 +618,27 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
  * @return int 
  */
 int
-ll_adv_read_txpwr(uint8_t *rspbuf)
+ble_ll_adv_read_txpwr(uint8_t *rspbuf)
 {
     rspbuf[0] = BLE_LL_CFG_ADV_TXPWR;
     return BLE_ERR_SUCCESS;
 }
 
+/**
+ * Turn advertising on/off.
+ * 
+ * @param cmd 
+ * 
+ * @return int 
+ */
 int
-ll_adv_set_enable(uint8_t *cmd)
+ble_ll_adv_set_enable(uint8_t *cmd)
 {
     int rc;
     uint8_t enable;
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
 
-    advsm = &g_ll_adv_sm;
+    advsm = &g_ble_ll_adv_sm;
 
     rc = 0;
     enable = cmd[0];
@@ -652,11 +646,11 @@ ll_adv_set_enable(uint8_t *cmd)
         /* If already enabled, do nothing */
         if (!advsm->enabled) {
             /* Start the advertising state machine */
-            rc = ll_adv_sm_start(advsm);
+            rc = ble_ll_adv_sm_start(advsm);
         }
     } else if (enable == 0) {
         if (advsm->enabled) {
-            ll_adv_sm_stop(advsm);
+            ble_ll_adv_sm_stop(advsm);
         }
     } else {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
@@ -665,12 +659,20 @@ ll_adv_set_enable(uint8_t *cmd)
     return rc;
 }
 
+/**
+ * Set the scan response data that the controller will send.
+ * 
+ * @param cmd 
+ * @param len 
+ * 
+ * @return int 
+ */
 int
-ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
+ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
 {
     uint8_t datalen;
     os_sr_t sr;
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
 
     /* Check for valid scan response data length */
     datalen = cmd[0];
@@ -679,7 +681,7 @@ ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
     }
 
     /* Copy the new data into the advertising structure. */
-    advsm = &g_ll_adv_sm;
+    advsm = &g_ble_ll_adv_sm;
     advsm->scan_rsp_len = datalen;
     memcpy(advsm->scan_rsp_data, cmd + 1, datalen);
 
@@ -689,15 +691,13 @@ ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
      * XXX: there is a chance, even with interrupts disabled, that
      * we are transmitting the scan response PDU while writing to it.
      */ 
-    ll_adv_scan_rsp_pdu_make(advsm);
+    ble_ll_adv_scan_rsp_pdu_make(advsm);
     OS_EXIT_CRITICAL(sr);
 
     return 0;
 }
 
 /**
- * ble ll adv set adv data 
- *  
  * Called by the LL HCI command parser when a set advertising 
  * data command has been sent from the host to the controller. 
  * 
@@ -707,10 +707,10 @@ ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
  * @return int 0: success; BLE_ERR_INV_HCI_CMD_PARMS otherwise.
  */
 int
-ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
+ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 {
     uint8_t datalen;
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
     os_sr_t sr;
 
     /* Check for valid advertising data length */
@@ -720,7 +720,7 @@ ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
     }
 
     /* Copy the new data into the advertising structure. */
-    advsm = &g_ll_adv_sm;
+    advsm = &g_ble_ll_adv_sm;
     advsm->adv_len = datalen;
     memcpy(advsm->adv_data, cmd + 1, datalen);
 
@@ -732,7 +732,7 @@ ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
          * it.
          */
         OS_ENTER_CRITICAL(sr);
-        ll_adv_pdu_make(advsm);
+        ble_ll_adv_pdu_make(advsm);
         OS_EXIT_CRITICAL(sr);
     }
 
@@ -770,10 +770,10 @@ ble_ll_adv_rx_scan_req(uint8_t *rxbuf)
     adva = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
     if (!memcmp(our_addr, adva, BLE_DEV_ADDR_LEN)) {
         /* Setup to transmit the scan response */
-        rc = ble_phy_tx(g_ll_adv_sm.scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
+        rc = ble_phy_tx(g_ble_ll_adv_sm.scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
-            ++g_ll_adv_stats.scan_rsp_txg;
+            ++g_ble_ll_adv_stats.scan_rsp_txg;
         }
     }
 
@@ -781,8 +781,6 @@ ble_ll_adv_rx_scan_req(uint8_t *rxbuf)
 }
 
 /**
- * ll adv tx done proc
- *  
  * Process advertistement tx done event. 
  *  
  * Context: Link Layer task. 
@@ -790,16 +788,16 @@ ble_ll_adv_rx_scan_req(uint8_t *rxbuf)
  * @param arg Pointer to advertising state machine.
  */
 void
-ll_adv_tx_done_proc(void *arg)
+ble_ll_adv_tx_done_proc(void *arg)
 {
     uint8_t mask;
     uint8_t final_adv_chan;
     int32_t delta_t;
     uint32_t itvl;
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
 
     /* Free the advertising packet */
-    advsm = (struct ll_adv_sm *)arg;
+    advsm = (struct ble_ll_adv_sm *)arg;
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
     /* For debug purposes */
@@ -820,7 +818,7 @@ ll_adv_tx_done_proc(void *arg)
 
     if (advsm->adv_chan == final_adv_chan) {
         /* This event is over. Set adv channel to first one */
-        advsm->adv_chan = ll_adv_first_chan(advsm);
+        advsm->adv_chan = ble_ll_adv_first_chan(advsm);
 
         /* Calculate start time of next advertising event */
         itvl = advsm->adv_itvl_usecs;
@@ -860,10 +858,10 @@ ll_adv_tx_done_proc(void *arg)
     delta_t = (int32_t)(advsm->adv_pdu_start_time - cputime_get32());
     if (delta_t < 0) {
         /* Count times we were late */
-        ++g_ll_adv_stats.late_tx_done;
+        ++g_ble_ll_adv_stats.late_tx_done;
 
         /* Set back to first adv channel */
-        advsm->adv_chan = ll_adv_first_chan(advsm);
+        advsm->adv_chan = ble_ll_adv_first_chan(advsm);
 
         /* Calculate start time of next advertising event */
         while (delta_t < 0) {
@@ -876,26 +874,24 @@ ll_adv_tx_done_proc(void *arg)
         }
     }
 
-    if (!ll_adv_sched_set(advsm)) {
+    if (!ble_ll_adv_sched_set(advsm)) {
         /* XXX: we will need to set a timer here to wake us up */
         assert(0);
     }
 }
 
 /**
- * ll adv init 
- *  
  * Initialize the advertising functionality of a BLE device. This should 
  * be called once on initialization
  */
 void
-ll_adv_init(void)
+ble_ll_adv_init(void)
 {
-    struct ll_adv_sm *advsm;
+    struct ble_ll_adv_sm *advsm;
 
     /* Set default advertising parameters */
-    advsm = &g_ll_adv_sm;
-    memset(advsm, 0, sizeof(struct ll_adv_sm));
+    advsm = &g_ble_ll_adv_sm;
+    memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
 
     advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
     advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;

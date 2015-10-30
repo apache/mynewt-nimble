@@ -20,9 +20,9 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
-#include "controller/ll_adv.h"
+#include "controller/ble_ll_adv.h"
 #include "controller/ll_scan.h"
-#include "controller/ll.h"
+#include "controller/ble_ll.h"
 #include "controller/ll_hci.h"
 
 /* LE event mask */
@@ -56,7 +56,7 @@ ble_ll_hci_event_send(uint8_t *evbuf)
     int rc;
 
     /* Count number of events sent */
-    ++g_ll_stats.hci_events_sent;
+    ++g_ble_ll_stats.hci_events_sent;
 
     /* Send the event to the host */
     rc = ble_hci_transport_ctlr_event_send(evbuf);
@@ -181,31 +181,31 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
         /* Length should be one byte */
         if (len == BLE_HCI_SET_ADV_PARAM_LEN) {
-            rc = ll_adv_set_adv_params(cmdbuf);
+            rc = ble_ll_adv_set_adv_params(cmdbuf);
         }
         break;
     case BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR:
         if (len == BLE_HCI_RD_BUF_SIZE_LEN) {
-            rc = ll_adv_read_txpwr(rspbuf);
+            rc = ble_ll_adv_read_txpwr(rspbuf);
             *rsplen = 1;
         }
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
         if (len > 0) {
             --len;
-            rc = ll_adv_set_adv_data(cmdbuf, len);
+            rc = ble_ll_adv_set_adv_data(cmdbuf, len);
         }
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
         if (len > 0) {
             --len;
-            rc = ll_adv_set_scan_rsp_data(cmdbuf, len);
+            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, len);
         }
         break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
         /* Length should be one byte */
         if (len == BLE_HCI_SET_ADV_ENABLE_LEN) {
-            rc = ll_adv_set_enable(cmdbuf);
+            rc = ble_ll_adv_set_enable(cmdbuf);
         }
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
@@ -271,9 +271,9 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     /* Make sure valid error code */
     assert(rc >= 0);
     if (rc) {
-        ++g_ll_stats.hci_cmd_errs;
+        ++g_ble_ll_stats.hci_cmd_errs;
     } else {
-        ++g_ll_stats.hci_cmds;
+        ++g_ble_ll_stats.hci_cmds;
     }
 
     /* If no response is generated, we free the buffers */
@@ -312,7 +312,7 @@ ble_hci_transport_host_cmd_send(uint8_t *cmd)
     ev->ev_queued = 0;
     ev->ev_type = BLE_LL_EVENT_HCI_CMD;
     ev->ev_arg = cmd;
-    os_eventq_put(&g_ll_data.ll_evq, ev);
+    os_eventq_put(&g_ble_ll_data.ll_evq, ev);
 
     return 0;
 }

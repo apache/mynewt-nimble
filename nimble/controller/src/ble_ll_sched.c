@@ -18,12 +18,12 @@
 #include <string.h>
 #include "os/os.h"
 #include "controller/phy.h"
-#include "controller/ll.h"
-#include "controller/ll_sched.h"
+#include "controller/ble_ll.h"
+#include "controller/ble_ll_sched.h"
 #include "hal/hal_cputime.h"
 
 /* XXX: this is temporary. Not sure what I want to do here */
-struct cpu_timer g_ll_sched_timer;
+struct cpu_timer g_ble_ll_sched_timer;
 
 /* XXX: TODO:
  *  1) Add a "priority" scheme possibly. This would allow items to be
@@ -33,17 +33,15 @@ struct cpu_timer g_ll_sched_timer;
  */
 #define BLE_LL_CFG_SCHED_ITEMS      (8)
 #define BLE_LL_SCHED_POOL_SIZE      \
-    OS_MEMPOOL_SIZE(BLE_LL_CFG_SCHED_ITEMS, sizeof(struct ll_sched_item))
+    OS_MEMPOOL_SIZE(BLE_LL_CFG_SCHED_ITEMS, sizeof(struct ble_ll_sched_item))
 
-struct os_mempool g_ll_sched_pool;
-os_membuf_t g_ll_sched_mem[BLE_LL_SCHED_POOL_SIZE];
+struct os_mempool g_ble_ll_sched_pool;
+os_membuf_t g_ble_ll_sched_mem[BLE_LL_SCHED_POOL_SIZE];
 
 /* Queue for timers */
-TAILQ_HEAD(ll_sched_qhead, ll_sched_item) g_ll_sched_q;
+TAILQ_HEAD(ll_sched_qhead, ble_ll_sched_item) g_ble_ll_sched_q;
 
 /**
- * ll sched execute
- *  
  * Executes a schedule item by calling the schedule callback function.
  * 
  * @param sch Pointer to schedule item
@@ -51,7 +49,7 @@ TAILQ_HEAD(ll_sched_qhead, ll_sched_item) g_ll_sched_q;
  * @return int 0: schedule item is not over; otherwise schedule item is done.
  */
 int
-ll_sched_execute(struct ll_sched_item *sch)
+ble_ll_sched_execute(struct ble_ll_sched_item *sch)
 {
     int rc;
 
@@ -60,45 +58,60 @@ ll_sched_execute(struct ll_sched_item *sch)
     return rc;
 }
 
-/* Get a schedule item from the event pool */
-struct ll_sched_item *
-ll_sched_get_item(void)
-{
-    struct ll_sched_item *sch;
 
-    sch = os_memblock_get(&g_ll_sched_pool);
+/**
+ * Allocate a schedule item
+ * 
+ * @return struct ble_ll_sched_item* 
+ */
+struct ble_ll_sched_item *
+ble_ll_sched_get_item(void)
+{
+    struct ble_ll_sched_item *sch;
+
+    sch = os_memblock_get(&g_ble_ll_sched_pool);
     if (sch) {
-        memset(sch, 0, sizeof(struct ll_sched_item));
+        memset(sch, 0, sizeof(struct ble_ll_sched_item));
     }
     return sch;
 }
 
-/* Free the schedule item */
+/**
+ * Free a schedule item
+ * 
+ * @param sch 
+ */
 void
-ll_sched_free_item(struct ll_sched_item *sch)
+ble_ll_sched_free_item(struct ble_ll_sched_item *sch)
 {
     os_error_t err;
-    err = os_memblock_put(&g_ll_sched_pool, sch);
+    err = os_memblock_put(&g_ble_ll_sched_pool, sch);
     assert(err == OS_OK);
 }
 
-/* Schedule a LL event */
+/**
+ * Add a schedule item to the schedule list
+ * 
+ * @param sch 
+ * 
+ * @return int 
+ */
 int
-ll_sched_add(struct ll_sched_item *sch)
+ble_ll_sched_add(struct ble_ll_sched_item *sch)
 {
     int rc;
     os_sr_t sr;
-    struct ll_sched_item *entry;
+    struct ble_ll_sched_item *entry;
 
     /* Determine if we are able to add this to the schedule */
     OS_ENTER_CRITICAL(sr);
 
     rc = 0;
-    if (TAILQ_EMPTY(&g_ll_sched_q)) {
-        TAILQ_INSERT_HEAD(&g_ll_sched_q, sch, link);
+    if (TAILQ_EMPTY(&g_ble_ll_sched_q)) {
+        TAILQ_INSERT_HEAD(&g_ble_ll_sched_q, sch, link);
     } else {
-        cputime_timer_stop(&g_ll_sched_timer);
-        TAILQ_FOREACH(entry, &g_ll_sched_q, link) {
+        cputime_timer_stop(&g_ble_ll_sched_timer);
+        TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
             if ((int32_t)(sch->start_time - entry->start_time) < 0) {
                 /* Make sure this event does not overlap current event */
                 if ((int32_t)(sch->end_time - entry->start_time) < 0) {
@@ -116,43 +129,49 @@ ll_sched_add(struct ll_sched_item *sch)
             }
         }
         if (!entry) {
-            TAILQ_INSERT_TAIL(&g_ll_sched_q, sch, link);
+            TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
         }
     }
 
     OS_EXIT_CRITICAL(sr);
 
-    cputime_timer_start(&g_ll_sched_timer, sch->start_time);
+    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
 
-/* Remove an event (or events) from the scheduler */
+/**
+ * Remove a schedule item 
+ * 
+ * @param sched_type 
+ * 
+ * @return int 
+ */
 int
-ll_sched_rmv(uint8_t sched_type)
+ble_ll_sched_rmv(uint8_t sched_type)
 {
     os_sr_t sr;
-    struct ll_sched_item *entry;
-    struct ll_sched_item *next;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *next;
 
     OS_ENTER_CRITICAL(sr);
 
-    entry = TAILQ_FIRST(&g_ll_sched_q);
+    entry = TAILQ_FIRST(&g_ble_ll_sched_q);
     if (entry) {
-        cputime_timer_stop(&g_ll_sched_timer);
+        cputime_timer_stop(&g_ble_ll_sched_timer);
         while (entry) {
             next = TAILQ_NEXT(entry, link);
             if (entry->sched_type == sched_type) {
-                TAILQ_REMOVE(&g_ll_sched_q, entry, link);
-                os_memblock_put(&g_ll_sched_pool, entry);
+                TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
+                os_memblock_put(&g_ble_ll_sched_pool, entry);
             } 
             entry = next;
         }
 
         /* Start the timer if there is an item */
-        entry = TAILQ_FIRST(&g_ll_sched_q);
+        entry = TAILQ_FIRST(&g_ble_ll_sched_q);
         if (entry) {
-            cputime_timer_start(&g_ll_sched_timer, entry->start_time);
+            cputime_timer_start(&g_ble_ll_sched_timer, entry->start_time);
         }
     }
 
@@ -162,8 +181,6 @@ ll_sched_rmv(uint8_t sched_type)
 }
 
 /**
- * ll sched run 
- *  
  * Run the BLE scheduler. Iterate through all items on the schedule queue.
  *  
  * Context: interrupt (scheduler) 
@@ -171,52 +188,50 @@ ll_sched_rmv(uint8_t sched_type)
  * @return int 
  */
 void
-ll_sched_run(void *arg)
+ble_ll_sched_run(void *arg)
 {
     int rc;
-    struct ll_sched_item *sch;
+    struct ble_ll_sched_item *sch;
 
     /* Look through schedule queue */
-    while ((sch = TAILQ_FIRST(&g_ll_sched_q)) != NULL) {
+    while ((sch = TAILQ_FIRST(&g_ble_ll_sched_q)) != NULL) {
         /* Make sure we have passed the start time of the first event */
         if ((int32_t)(cputime_get32() - sch->start_time) >= 0) {
             /* Execute the schedule item */
-            rc = ll_sched_execute(sch);
+            rc = ble_ll_sched_execute(sch);
             if (rc) {
-                TAILQ_REMOVE(&g_ll_sched_q, sch, link);
-                os_memblock_put(&g_ll_sched_pool, sch);
+                TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
+                os_memblock_put(&g_ble_ll_sched_pool, sch);
             } else {
                 /* Event is not over; schedule next wakeup time */
-                cputime_timer_start(&g_ll_sched_timer, sch->next_wakeup);
+                cputime_timer_start(&g_ble_ll_sched_timer, sch->next_wakeup);
                 break;
             }
         } else {
-            cputime_timer_start(&g_ll_sched_timer, sch->start_time);
+            cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
             break;
         }
     }
 }
 
 /**
- * ble ll sched init 
- *  
  * Initialize the scheduler. Should only be called once and should be called 
  * before any of the scheduler API are called. 
  * 
  * @return int 
  */
 int
-ll_sched_init(void)
+ble_ll_sched_init(void)
 {
     os_error_t err;
 
-    err = os_mempool_init(&g_ll_sched_pool, BLE_LL_CFG_SCHED_ITEMS, 
-                          sizeof(struct ll_sched_item), 
-                          g_ll_sched_mem, "ll_sched");
+    err = os_mempool_init(&g_ble_ll_sched_pool, BLE_LL_CFG_SCHED_ITEMS, 
+                          sizeof(struct ble_ll_sched_item), 
+                          g_ble_ll_sched_mem, "ll_sched");
     assert(err == OS_OK);
 
     /* Start cputimer for the scheduler */
-    cputime_timer_init(&g_ll_sched_timer, ll_sched_run, NULL);
+    cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
 
     return err;
 }

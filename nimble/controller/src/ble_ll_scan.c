@@ -21,9 +21,9 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "controller/phy.h"
-#include "controller/ll.h"
-#include "controller/ll_sched.h"
-#include "controller/ll_adv.h"
+#include "controller/ble_ll.h"
+#include "controller/ble_ll_sched.h"
+#include "controller/ble_ll_adv.h"
 #include "controller/ll_scan.h"
 #include "controller/ll_hci.h"
 #include "hal/hal_cputime.h"
@@ -514,7 +514,7 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf)
 }
 
 static int
-ble_ll_scan_win_end_cb(struct ll_sched_item *sch)
+ble_ll_scan_win_end_cb(struct ble_ll_sched_item *sch)
 {
     ble_phy_disable();
     ble_ll_event_send(&g_ble_ll_scan_sm.scan_win_end_ev);
@@ -522,7 +522,7 @@ ble_ll_scan_win_end_cb(struct ll_sched_item *sch)
 }
 
 static int
-ble_ll_scan_start_cb(struct ll_sched_item *sch)
+ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
@@ -571,7 +571,7 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
     /* XXX: Stop any timers we may have started */
 
     /* Remove any scheduled advertising items */
-    ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN);
+    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN);
 
     /* Disable the PHY */
     ble_phy_disable();
@@ -583,13 +583,13 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
     ++g_ble_ll_scan_stats.scan_stops;
 }
 
-static struct ll_sched_item *
+static struct ble_ll_sched_item *
 ble_ll_scan_sched_set(struct ble_ll_scan_sm *scansm)
 {
     int rc;
-    struct ll_sched_item *sch;
+    struct ble_ll_sched_item *sch;
 
-    sch = ll_sched_get_item();
+    sch = ble_ll_sched_get_item();
     if (sch) {
         /* Set sched type */
         sch->sched_type = BLE_LL_SCHED_TYPE_SCAN;
@@ -609,7 +609,7 @@ ble_ll_scan_sched_set(struct ble_ll_scan_sm *scansm)
 
         /* XXX: for now, we cant get an overlap so assert on error. */
         /* Add the item to the scheduler */
-        rc = ll_sched_add(sch);
+        rc = ble_ll_sched_add(sch);
         assert(rc == 0);
     } else {
         ++g_ble_ll_scan_stats.cant_set_sched;
@@ -621,7 +621,7 @@ ble_ll_scan_sched_set(struct ble_ll_scan_sm *scansm)
 static int
 ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 {
-    struct ll_sched_item *sch;
+    struct ble_ll_sched_item *sch;
 
     /* 
      * XXX: not sure if I should do this or just report whatever random

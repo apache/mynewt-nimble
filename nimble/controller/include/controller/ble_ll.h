@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H_LL_
-#define H_LL_
+#ifndef H_BLE_LL_
+#define H_BLE_LL_
 
 /* XXX: Not sure this should go here, but whatever */
 /* 
@@ -25,7 +25,7 @@
  *  1) Controller should not change value of supported max tx and rx time and
  *  octets.
  */
-struct ll_global_params
+struct ble_ll_global_params
 {
     int conn_init_max_tx_octets;
     int conn_init_max_tx_time;
@@ -35,16 +35,16 @@ struct ll_global_params
     int supp_max_rx_time;
 };
 
-struct ll_obj
+struct ble_ll_obj
 {
     uint8_t ll_state;
     struct os_eventq ll_evq;
-    struct ll_global_params ll_params;
+    struct ble_ll_global_params ll_params;
     struct os_event ll_rx_pkt_ev;
     STAILQ_HEAD(ll_rxpkt_qh, os_mbuf_pkthdr) ll_rx_pkt_q;
 };
 
-struct ll_stats
+struct ble_ll_stats
 {
     uint32_t rx_crc_ok;
     uint32_t rx_crc_fail;
@@ -63,8 +63,8 @@ struct ll_stats
     uint32_t hci_events_sent;
 };
 
-extern struct ll_stats g_ll_stats;
-extern struct ll_obj g_ll_data;
+extern struct ble_ll_stats g_ble_ll_stats;
+extern struct ble_ll_obj g_ble_ll_data;
 
 /* States */
 #define BLE_LL_STATE_STANDBY        (0)
@@ -181,7 +181,7 @@ struct ble_dev_addr
 #define BLE_LL_CTRL_LENGTH_RSP          (21)
 
 /* LL control connection update request */
-struct ll_conn_upd_req
+struct ble_ll_conn_upd_req
 {
     uint8_t winsize;
     uint16_t winoffset;
@@ -194,7 +194,7 @@ struct ll_conn_upd_req
 #define BLE_LL_CTRL_CONN_UPD_REQ_LEN        (11)
 
 /* LL control channel map request */
-struct ll_chan_map_req
+struct ble_ll_chan_map_req
 {
     uint8_t chmap[5];
     uint16_t instant;
@@ -209,7 +209,7 @@ struct ll_chan_map_req
 #define BLE_LL_CTRL_TERMINATE_IND_LEN      (1)
 
 /* LL control enc req */
-struct ll_enc_req
+struct ble_ll_enc_req
 {
     uint8_t rand[8];
     uint16_t ediv;
@@ -220,7 +220,7 @@ struct ll_enc_req
 #define BLE_LL_CTRL_ENC_REQ_LEN             (22)
 
 /* LL control enc rsp */
-struct ll_enc_rsp
+struct ble_ll_enc_rsp
 {
     uint8_t skds[8];
     uint32_t ivs;
@@ -255,7 +255,7 @@ struct ll_enc_rsp
  *  -> sub_ver_num: Contains a unique value for implementation or revision of
  *      the bluetooth controller.
  */
-struct ll_version_ind
+struct ble_ll_version_ind
 {
     uint8_t ble_ctrlr_ver;
     uint16_t company_id;
@@ -277,7 +277,7 @@ struct ll_version_ind
 #define BLE_LL_CTRL_SLAVE_FEATURE_REQ_LEN   (8)
 
 /* LL control connection param req and connection param rsp */
-struct ll_conn_params
+struct ble_ll_conn_params
 {
     uint16_t interval_min;
     uint16_t interval_max;
@@ -296,7 +296,7 @@ struct ll_conn_params
 #define BLE_LL_CTRL_CONN_PARAMS_LEN     (24)
 
 /* LL control reject ind ext */
-struct ll_reject_ind_ext
+struct ble_ll_reject_ind_ext
 {
     uint8_t reject_opcode;
     uint8_t err_code;
@@ -314,7 +314,7 @@ struct ll_reject_ind_ext
  *  -> max_tx_bytes (2 bytes): defines connMaxTxOctets. Range 27 to 251
  *  -> max_tx_time (2 bytes): defines connMaxTxTime. Range 328 to 2120 usecs.
  */
-struct ll_len_req
+struct ble_ll_len_req
 {
     uint16_t max_rx_bytes;
     uint16_t max_rx_time;
@@ -392,7 +392,7 @@ struct ble_conn_req_data
  *  SINGLE: do not use white list; process connectable advertisements from
  *      a single specific device specified by the host.
  */
-enum ll_init_filt_policy
+enum ble_ll_init_filt_policy
 {
     BLE_LL_INIT_FILT_LIST = 0,
     BLE_LL_INIT_FILT_SINGLE,
@@ -400,13 +400,13 @@ enum ll_init_filt_policy
 
 /*--- External API ---*/
 /* Initialize the Link Layer */
-int ll_init(void);
+int ble_ll_init(void);
 
 /* 'Boolean' function returning true if address is a valid random address */
 int ble_ll_is_valid_random_addr(uint8_t *addr);
 
 /* Calculate the amount of time a pdu of 'len' bytes will take to transmit */
-uint16_t ll_pdu_tx_time_get(uint16_t len);
+uint16_t ble_ll_pdu_tx_time_get(uint16_t len);
 
 /* Boolean returning true if device is on whitelist */
 int ble_ll_is_on_whitelist(uint8_t *addr, int addr_type);
@@ -419,10 +419,10 @@ int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
 
 /*--- PHY interfaces ---*/
 /* Called by the PHY when a packet has started */
-int ll_rx_start(struct os_mbuf *rxpdu);
+int ble_ll_rx_start(struct os_mbuf *rxpdu);
 
 /* Called by the PHY when a packet reception ends */
-int ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok);
+int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok);
 
 /*--- Controller API ---*/
 /* Set the link layer state */

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H_LL_SCHED_
-#define H_LL_SCHED_
+#ifndef H_BLE_LL_SCHED_
+#define H_BLE_LL_SCHED_
 
 /* BLE scheduler errors */
 #define BLE_LL_SCHED_ERR_OVERLAP    (1)
@@ -31,10 +31,10 @@
 #define BLE_LL_SCHED_STATE_DONE     (1)
 
 /* Callback function */
-struct ll_sched_item;
-typedef int (*sched_cb_func)(struct ll_sched_item *sch);
+struct ble_ll_sched_item;
+typedef int (*sched_cb_func)(struct ble_ll_sched_item *sch);
 
-struct ll_sched_item
+struct ble_ll_sched_item
 {
     int             sched_type;
     uint32_t        start_time;
@@ -42,22 +42,22 @@ struct ll_sched_item
     uint32_t        next_wakeup;
     void            *cb_arg;
     sched_cb_func   sched_cb;
-    TAILQ_ENTRY(ll_sched_item) link;
+    TAILQ_ENTRY(ble_ll_sched_item) link;
 };
 
 /* Add an item to the schedule */
-int ll_sched_add(struct ll_sched_item *sch);
+int ble_ll_sched_add(struct ble_ll_sched_item *sch);
 
 /* Remove item(s) from schedule */
-int ll_sched_rmv(uint8_t sched_type);
+int ble_ll_sched_rmv(uint8_t sched_type);
 
 /* Initialize the scheduler */
-int ll_sched_init(void);
+int ble_ll_sched_init(void);
 
 /* Get a schedule item */
-struct ll_sched_item *ll_sched_get_item(void);
+struct ble_ll_sched_item *ble_ll_sched_get_item(void);
 
 /* Free a schedule item */
-void ll_sched_free_item(struct ll_sched_item *sch);
+void ble_ll_sched_free_item(struct ble_ll_sched_item *sch);
 
 #endif /* H_LL_SCHED_ */

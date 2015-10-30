@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H_LL_ADV_
-#define H_LL_ADV_
+#ifndef H_BLE_LL_ADV_
+#define H_BLE_LL_ADV_
 
 /* 
  * ADV event timing
@@ -122,30 +122,30 @@
 
 /*---- HCI ----*/
 /* Start an advertiser */
-int ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type, uint8_t *init_addr,
-                     uint16_t adv_itvl, void *handle);
+int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type, 
+                         uint8_t *init_addr, uint16_t adv_itvl, void *handle);
 
 /* Start or stop advertising */
-int ll_adv_set_enable(uint8_t *cmd);
+int ble_ll_adv_set_enable(uint8_t *cmd);
 
 /* Set advertising data */
-int ll_adv_set_adv_data(uint8_t *cmd, uint8_t len);
+int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len);
 
 /* Set scan response data */
-int ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len);
+int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len);
 
 /* Set advertising parameters */
-int ll_adv_set_adv_params(uint8_t *cmd);
+int ble_ll_adv_set_adv_params(uint8_t *cmd);
 
 /* Read advertising channel power */
-int ll_adv_read_txpwr(uint8_t *rspbuf);
+int ble_ll_adv_read_txpwr(uint8_t *rspbuf);
 
 /*---- API used by BLE LL ----*/
 /* Called when advertising tx done event posted to LL task */
-void ll_adv_tx_done_proc(void *arg);
+void ble_ll_adv_tx_done_proc(void *arg);
 
 /* Called to initialize advertising functionality. */
-void ll_adv_init(void);
+void ble_ll_adv_init(void);
 
 /* Called when a scan request has been received. */
 int ble_ll_adv_rx_scan_req(uint8_t *rxbuf);

@@ -19,9 +19,9 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "controller/phy.h"
-#include "controller/ll.h"
-#include "controller/ll_adv.h"
-#include "controller/ll_sched.h"
+#include "controller/ble_ll.h"
+#include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_sched.h"
 #include "controller/ll_scan.h"
 #include "controller/ll_hci.h"
 
@@ -32,19 +32,19 @@
 #define BLE_LL_CONN_INIT_MAX_REMOTE_TIME    (238)
 
 /* The global BLE LL data object */
-struct ll_obj g_ll_data;
+struct ble_ll_obj g_ble_ll_data;
 
 /* Global link layer statistics */
-struct ll_stats g_ll_stats;
+struct ble_ll_stats g_ble_ll_stats;
 
 /* The BLE LL task data structure */
 #define BLE_LL_TASK_PRI     (OS_TASK_PRI_HIGHEST)
 #define BLE_LL_STACK_SIZE   (128)
-struct os_task g_ll_task;
-os_stack_t g_ll_stack[BLE_LL_STACK_SIZE];
+struct os_task g_ble_ll_task;
+os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
 /* XXX: this is just temporary; used to calculate the channel index */
-struct ll_sm_connection
+struct ble_ll_sm_connection
 {
     /* Data channel index for connection */
     uint8_t unmapped_chan;
@@ -74,7 +74,7 @@ struct ll_sm_connection
 };
 
 uint8_t
-ll_next_data_channel(struct ll_sm_connection *cnxn)
+ble_ll_next_data_channel(struct ble_ll_sm_connection *cnxn)
 {
     int     i;
     int     j;
@@ -123,12 +123,12 @@ ll_next_data_channel(struct ll_sm_connection *cnxn)
 
 /* Called when a connection gets initialized */
 int
-ble_init_conn_sm(struct ll_sm_connection *cnxn)
+ble_init_conn_sm(struct ble_ll_sm_connection *cnxn)
 {
-    cnxn->max_tx_time = g_ll_data.ll_params.conn_init_max_tx_time;
-    cnxn->max_rx_time = g_ll_data.ll_params.supp_max_rx_time;
-    cnxn->max_tx_octets = g_ll_data.ll_params.conn_init_max_tx_octets;
-    cnxn->max_rx_octets = g_ll_data.ll_params.supp_max_rx_octets;
+    cnxn->max_tx_time = g_ble_ll_data.ll_params.conn_init_max_tx_time;
+    cnxn->max_rx_time = g_ble_ll_data.ll_params.supp_max_rx_time;
+    cnxn->max_tx_octets = g_ble_ll_data.ll_params.conn_init_max_tx_octets;
+    cnxn->max_rx_octets = g_ble_ll_data.ll_params.supp_max_rx_octets;
     cnxn->remote_max_rx_octets = BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS;
     cnxn->remote_max_tx_octets = BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS;
     cnxn->remote_max_rx_time = BLE_LL_CONN_INIT_MAX_REMOTE_TIME;
@@ -143,31 +143,31 @@ ble_ll_count_rx_pkts(uint8_t pdu_type)
     /* Count received packet types  */
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
-        ++g_ll_stats.rx_adv_ind;
+        ++g_ble_ll_stats.rx_adv_ind;
         break;
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
         /* XXX: Do I want to count these if they are not for me? */
-        ++g_ll_stats.rx_adv_direct_ind;
+        ++g_ble_ll_stats.rx_adv_direct_ind;
         break;
     case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
-        ++g_ll_stats.rx_adv_nonconn_ind;
+        ++g_ble_ll_stats.rx_adv_nonconn_ind;
         break;
     case BLE_ADV_PDU_TYPE_SCAN_REQ:
         /* XXX: Do I want to count these if they are not for me? */
-        ++g_ll_stats.rx_scan_reqs;
+        ++g_ble_ll_stats.rx_scan_reqs;
         break;
     case BLE_ADV_PDU_TYPE_SCAN_RSP:
-        ++g_ll_stats.rx_scan_rsps;
+        ++g_ble_ll_stats.rx_scan_rsps;
         break;
     case BLE_ADV_PDU_TYPE_CONNECT_REQ:
         /* XXX: Do I want to count these if they are not for me? */
-        ++g_ll_stats.rx_connect_reqs;
+        ++g_ble_ll_stats.rx_connect_reqs;
         break;
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
-        ++g_ll_stats.rx_scan_ind;
+        ++g_ble_ll_stats.rx_scan_ind;
         break;
     default:
-        ++g_ll_stats.rx_unk_pdu;
+        ++g_ble_ll_stats.rx_unk_pdu;
         break;
     }
 }
@@ -288,7 +288,7 @@ ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
  *                  length 'len' bytes. 
  */
 uint16_t
-ll_pdu_tx_time_get(uint16_t len)
+ble_ll_pdu_tx_time_get(uint16_t len)
 {
     len += BLE_LL_OVERHEAD_LEN;
     len = len << 3;
@@ -304,7 +304,7 @@ ll_pdu_tx_time_get(uint16_t len)
  *  
  */
 void
-ll_rx_pkt_in_proc(void)
+ble_ll_rx_pkt_in_proc(void)
 {
     os_sr_t sr;
     uint8_t pdu_type;
@@ -314,14 +314,14 @@ ll_rx_pkt_in_proc(void)
     struct os_mbuf *m;
 
     /* Drain all packets off the queue */
-    while (STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q)) {
+    while (STAILQ_FIRST(&g_ble_ll_data.ll_rx_pkt_q)) {
         /* Get mbuf pointer from packet header pointer */
-        pkthdr = STAILQ_FIRST(&g_ll_data.ll_rx_pkt_q);
+        pkthdr = STAILQ_FIRST(&g_ble_ll_data.ll_rx_pkt_q);
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
 
         /* Remove from queue */
         OS_ENTER_CRITICAL(sr);
-        STAILQ_REMOVE_HEAD(&g_ll_data.ll_rx_pkt_q, omp_next);
+        STAILQ_REMOVE_HEAD(&g_ble_ll_data.ll_rx_pkt_q, omp_next);
         OS_EXIT_CRITICAL(sr);
 
         /* XXX: need to check if this is an adv channel or data channel */
@@ -332,11 +332,11 @@ ll_rx_pkt_in_proc(void)
         ble_hdr = BLE_MBUF_HDR_PTR(m); 
         if (ble_hdr->crcok) {
             /* The total bytes count the PDU header and PDU payload */
-            g_ll_stats.rx_bytes += pkthdr->omp_len;
-            ++g_ll_stats.rx_crc_ok;
+            g_ble_ll_stats.rx_bytes += pkthdr->omp_len;
+            ++g_ble_ll_stats.rx_crc_ok;
             ble_ll_count_rx_pkts(pdu_type);
         } else {
-            ++g_ll_stats.rx_crc_fail;
+            ++g_ble_ll_stats.rx_crc_fail;
         }
 
         /* 
@@ -346,7 +346,7 @@ ll_rx_pkt_in_proc(void)
          */ 
 
         /* Process the PDU */
-        switch (g_ll_data.ll_state) {
+        switch (g_ble_ll_data.ll_state) {
         case BLE_LL_STATE_ADV:
             /* XXX: implement this */
             break;
@@ -374,26 +374,22 @@ ll_rx_pkt_in_proc(void)
 }
 
 /**
- * ll rx pdu in 
- *  
  * Called to put a packet on the Link Layer receive packet queue. 
- * 
  * 
  * @param rxpdu Pointer to received PDU
  */
 void
-ll_rx_pdu_in(struct os_mbuf *rxpdu)
+ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
 {
     struct os_mbuf_pkthdr *pkthdr;
 
     pkthdr = OS_MBUF_PKTHDR(rxpdu);
-    STAILQ_INSERT_TAIL(&g_ll_data.ll_rx_pkt_q, pkthdr, omp_next);
-    os_eventq_put(&g_ll_data.ll_evq, &g_ll_data.ll_rx_pkt_ev);
+    STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_rx_pkt_q, pkthdr, omp_next);
+    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_rx_pkt_ev);
 }
 
-/**
- * ll rx start
- * 
+/** 
+ * Called upon start of received PDU 
  * 
  * @param rxpdu 
  * 
@@ -403,7 +399,7 @@ ll_rx_pdu_in(struct os_mbuf *rxpdu)
  *   > 1: Continue to receive frame and go from rx to idle when done
  */
 int
-ll_rx_start(struct os_mbuf *rxpdu)
+ble_ll_rx_start(struct os_mbuf *rxpdu)
 {
     int rc;
     uint8_t pdu_type;
@@ -413,7 +409,7 @@ ll_rx_start(struct os_mbuf *rxpdu)
     rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
-    switch (g_ll_data.ll_state) {
+    switch (g_ble_ll_data.ll_state) {
     case BLE_LL_STATE_ADV:
         /* If we get a scan request we must tell the phy to go from rx to tx */
         if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
@@ -439,8 +435,6 @@ ll_rx_start(struct os_mbuf *rxpdu)
 }
 
 /**
- * ll rx end 
- *  
  * Called by the PHY when a receive packet has ended. 
  *  
  * NOTE: Called from interrupt context!
@@ -453,7 +447,7 @@ ll_rx_start(struct os_mbuf *rxpdu)
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
+ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
 {
     int rc;
     int badpkt;
@@ -501,7 +495,7 @@ ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* If this is a malformed packet, just kill it here */
     if (badpkt) {
-        ++g_ll_stats.rx_malformed_pkts;
+        ++g_ble_ll_stats.rx_malformed_pkts;
         os_mbuf_free(&g_mbuf_pool, rxpdu);
         return -1;
     }
@@ -512,7 +506,7 @@ ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
     rxpdu->om_len = mblen;
 
     rc = -1;
-    switch (g_ll_data.ll_state) {
+    switch (g_ble_ll_data.ll_state) {
     case BLE_LL_STATE_ADV:
         /* If we get a scan request*/
         if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
@@ -550,13 +544,13 @@ ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
     }
 
     /* Hand packet up to higher layer */
-    ll_rx_pdu_in(rxpdu);
+    ble_ll_rx_pdu_in(rxpdu);
 
     return rc;
 }
 
 void
-ll_task(void *arg)
+ble_ll_task(void *arg)
 {
     struct os_event *ev;
 
@@ -568,7 +562,7 @@ ll_task(void *arg)
 
     /* Wait for an event */
     while (1) {
-        ev = os_eventq_get(&g_ll_data.ll_evq);
+        ev = os_eventq_get(&g_ble_ll_data.ll_evq);
         switch (ev->ev_type) {
         case OS_EVENT_T_TIMER:
             break;
@@ -577,13 +571,13 @@ ll_task(void *arg)
             ble_ll_hci_cmd_proc(ev);
             break;
         case BLE_LL_EVENT_ADV_TXDONE:
-            ll_adv_tx_done_proc(ev->ev_arg);
+            ble_ll_adv_tx_done_proc(ev->ev_arg);
             break;
         case BLE_LL_EVENT_SCAN_WIN_END:
             ble_ll_scan_win_end_proc(ev->ev_arg);
             break;
         case BLE_LL_EVENT_RX_PKT_IN:
-            ll_rx_pkt_in_proc();
+            ble_ll_rx_pkt_in_proc();
             break;
         default:
             assert(0);
@@ -607,7 +601,7 @@ ll_task(void *arg)
 void
 ble_ll_state_set(int ll_state)
 {
-    g_ll_data.ll_state = ll_state;
+    g_ble_ll_data.ll_state = ll_state;
 }
 
 /**
@@ -620,7 +614,7 @@ ble_ll_state_set(int ll_state)
 void
 ble_ll_event_send(struct os_event *ev)
 {
-    os_eventq_put(&g_ll_data.ll_evq, ev);
+    os_eventq_put(&g_ble_ll_data.ll_evq, ev);
 }
 
 /**
@@ -629,32 +623,32 @@ ble_ll_event_send(struct os_event *ev)
  * @return int 
  */
 int
-ll_init(void)
+ble_ll_init(void)
 {
     /* Initialize the receive queue */
-    STAILQ_INIT(&g_ll_data.ll_rx_pkt_q);
+    STAILQ_INIT(&g_ble_ll_data.ll_rx_pkt_q);
 
     /* Initialize eventq */
-    os_eventq_init(&g_ll_data.ll_evq);
+    os_eventq_init(&g_ble_ll_data.ll_evq);
 
     /* Initialize receive packet (from phy) event */
-    g_ll_data.ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
+    g_ble_ll_data.ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
 
     /* Initialize LL HCI */
     ble_ll_hci_init();
 
     /* Init the scheduler */
-    ll_sched_init();
+    ble_ll_sched_init();
 
     /* Initialize advertiser */
-    ll_adv_init();
+    ble_ll_adv_init();
 
     /* Initialize a scanner */
     ble_ll_scan_init();
 
     /* Initialize the LL task */
-    os_task_init(&g_ll_task, "ble_ll", ll_task, NULL, BLE_LL_TASK_PRI, 
-                 OS_WAIT_FOREVER, g_ll_stack, BLE_LL_STACK_SIZE);
+    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, BLE_LL_TASK_PRI, 
+                 OS_WAIT_FOREVER, g_ble_ll_stack, BLE_LL_STACK_SIZE);
 
     return 0;
 }
