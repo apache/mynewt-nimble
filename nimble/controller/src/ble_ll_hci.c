@@ -21,9 +21,9 @@
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 #include "controller/ble_ll_adv.h"
-#include "controller/ll_scan.h"
+#include "controller/ble_ll_scan.h"
 #include "controller/ble_ll.h"
-#include "controller/ll_hci.h"
+#include "controller/ble_ll_hci.h"
 
 /* LE event mask */
 uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];

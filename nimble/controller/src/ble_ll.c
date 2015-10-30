@@ -22,8 +22,8 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
-#include "controller/ll_scan.h"
-#include "controller/ll_hci.h"
+#include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_hci.h"
 
 /* XXX: use the sanity task! */
 
