@@ -403,7 +403,7 @@ enum ll_init_filt_policy
 int ll_init(void);
 
 /* 'Boolean' function returning true if address is a valid random address */
-int ll_is_valid_rand_addr(uint8_t *addr);
+int ble_ll_is_valid_random_addr(uint8_t *addr);
 
 /* Calculate the amount of time a pdu of 'len' bytes will take to transmit */
 uint16_t ll_pdu_tx_time_get(uint16_t len);
@@ -430,5 +430,8 @@ void ble_ll_state_set(int ll_state);
 
 /* Send an event to LL task */
 void ble_ll_event_send(struct os_event *ev);
+
+/* Set random address */
+int ble_ll_set_random_addr(uint8_t *addr);
 
 #endif /* H_LL_ */

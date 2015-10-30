@@ -187,30 +187,9 @@ ble_ll_is_resolvable_priv_addr(uint8_t *addr)
     return 0;
 }
 
-int
-ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
-{
-    int rc;
-    uint8_t *our_addr;
-
-    rc = 0;
-    if (addr_type) {
-        our_addr = g_dev_addr;
-    } else {
-        our_addr = g_random_addr;
-    }
-
-    rc = 0;
-    if (!memcmp(our_addr, g_random_addr, BLE_DEV_ADDR_LEN)) {
-        rc = 1;
-    }
-
-    return rc;
-}
-
 /* Checks to see that the device is a valid random address */
 int
-ll_is_valid_rand_addr(uint8_t *addr)
+ble_ll_is_valid_random_addr(uint8_t *addr)
 {
     int i;
     int rc;
@@ -247,6 +226,51 @@ ll_is_valid_rand_addr(uint8_t *addr)
     } else {
         /* Invalid upper two bits */
         rc = 0;
+    }
+
+    return rc;
+}
+
+/**
+ * Called from the HCI command parser when the set random address command 
+ * is received. 
+ *  
+ * Context: Link Layer task (HCI command parser) 
+ * 
+ * @param addr Pointer to address
+ * 
+ * @return int 0: success
+ */
+int
+ble_ll_set_random_addr(uint8_t *addr)
+{
+    int rc;
+
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    if (ble_ll_is_valid_random_addr(addr)) {
+        memcpy(g_random_addr, addr, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    return rc;
+}
+
+int
+ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
+{
+    int rc;
+    uint8_t *our_addr;
+
+    rc = 0;
+    if (addr_type) {
+        our_addr = g_dev_addr;
+    } else {
+        our_addr = g_random_addr;
+    }
+
+    rc = 0;
+    if (!memcmp(our_addr, g_random_addr, BLE_DEV_ADDR_LEN)) {
+        rc = 1;
     }
 
     return rc;
@@ -494,7 +518,7 @@ ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
             /* Just bail if CRC is not good */
             if (crcok) {
-                rc = ll_adv_rx_scan_req(rxbuf);
+                rc = ble_ll_adv_rx_scan_req(rxbuf);
                 if (rc) {
                     /* XXX: One thing left to reconcile here. We have
                      * the advertisement schedule element still running.

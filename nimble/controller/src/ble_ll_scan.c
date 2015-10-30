@@ -414,7 +414,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t addr_type, uint8_t *rxbuf,
         subev = BLE_HCI_LE_SUBEV_ADV_RPT;
 
         adv_data_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-        adv_data_len -= (BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN);
+        adv_data_len -= BLE_DEV_ADDR_LEN;
     }
 
     rc = BLE_ERR_MEM_CAPACITY;
@@ -433,18 +433,19 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t addr_type, uint8_t *rxbuf,
             } else {
                 evbuf[5] = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
             }
-            memcpy(evbuf + 6, rxbuf + BLE_LL_PDU_HDR_LEN, BLE_DEV_ADDR_LEN);
+            rxbuf += BLE_LL_PDU_HDR_LEN;
+            memcpy(evbuf + 6, rxbuf, BLE_DEV_ADDR_LEN);
             evbuf[12] = adv_data_len;
-            memcpy(evbuf + 13, rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN,
+            memcpy(evbuf + 13, rxbuf + BLE_DEV_ADDR_LEN,
                    adv_data_len);
             evbuf[13 + adv_data_len] = rssi;
-        }
 
-        rc = ble_ll_hci_event_send(evbuf);
-        if (!rc) {
-            /* If we are filtering, add it to list of duplicate addresses */
-            if (g_ble_ll_scan_sm.scan_filt_dups) {
-                ble_ll_scan_add_dup_adv(rxbuf + BLE_LL_PDU_HDR_LEN, addr_type);
+            rc = ble_ll_hci_event_send(evbuf);
+            if (!rc) {
+                /* If filtering, add it to list of duplicate addresses */
+                if (g_ble_ll_scan_sm.scan_filt_dups) {
+                    ble_ll_scan_add_dup_adv(rxbuf, addr_type);
+                }
             }
         }
     }
@@ -629,7 +630,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
      * parameter (which in this case is just enable or disable).
      */ 
     if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
-        if (!ll_is_valid_rand_addr(g_random_addr)) {
+        if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
 
@@ -799,49 +800,42 @@ ble_ll_scan_rx_pdu_end(uint8_t *rxbuf)
     /* We only care about indirect advertisements or scan indirect */
     if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
         (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND)) {
-            /* See if we should check the whitelist */
-            adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
-            addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
-            if ((scansm->scan_filt_policy == BLE_HCI_SCAN_FILT_USE_WL) ||
-                (scansm->scan_filt_policy == BLE_HCI_SCAN_FILT_USE_WL_INITA)) {
-                /* Check if device is on whitelist. If not, leave */
-                if (!ble_ll_is_on_whitelist(adv_addr, addr_type)) {
-                    return -1;
-                }
-            }
-
-            /* 
-             * Check to see if we have received a scan response from this
-             * advertisor. If so, no need to send scan request.
-             */
-            if (ble_ll_scan_have_rxd_scan_rsp(adv_addr, addr_type)) {
+        /* See if we should check the whitelist */
+        adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+        addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
+        if ((scansm->scan_filt_policy == BLE_HCI_SCAN_FILT_USE_WL) ||
+            (scansm->scan_filt_policy == BLE_HCI_SCAN_FILT_USE_WL_INITA)) {
+            /* Check if device is on whitelist. If not, leave */
+            if (!ble_ll_is_on_whitelist(adv_addr, addr_type)) {
                 return -1;
             }
+        }
 
-            /* Better not be a scan response pending */
-            assert(scansm->scan_rsp_pending == 0);
+        /* 
+         * Check to see if we have received a scan response from this
+         * advertisor. If so, no need to send scan request.
+         */
+        if (ble_ll_scan_have_rxd_scan_rsp(adv_addr, addr_type)) {
+            return -1;
+        }
 
-            /* We want to send a request. See if backoff allows us */
-            --scansm->backoff_count;
-            if (scansm->backoff_count == 0) {
-                /* Setup to transmit the scan request */
-                ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
-                rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_RX_TX,
-                                BLE_PHY_TRANSITION_TX_RX);
+        /* Better not be a scan response pending */
+        assert(scansm->scan_rsp_pending == 0);
 
-                /* XXX: I still may want to post an event to the LL task
-                 * instead of setting the scan response flag here. For now,
-                   just do it here. */
-                /* Set "waiting for scan response" flag */
-                scansm->scan_rsp_pending = 1;
-            }
+        /* We want to send a request. See if backoff allows us */
+        --scansm->backoff_count;
+        if (scansm->backoff_count == 0) {
+            /* Setup to transmit the scan request */
+            ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
+            rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_RX_TX,
+                            BLE_PHY_TRANSITION_TX_RX);
 
-            /* 
-             * XXX: how do we go back into receive when in scanning mode?
-             * For example, if we disable the PHY, we need to put the device
-             * back into receive mode. How does that happen???? Does the rx end
-             * do that or should the LL task?
-             */ 
+            /* XXX: I still may want to post an event to the LL task
+             * instead of setting the scan response flag here. For now,
+               just do it here. */
+            /* Set "waiting for scan response" flag */
+            scansm->scan_rsp_pending = 1;
+        }
     }
 
     return rc;
@@ -924,6 +918,7 @@ ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi)
         }
     }
 
+    /* XXX: what do I do with return code here? Anything? */
     /* Send the advertising report */
     ble_ll_hci_send_adv_report(pdu_type, addr_type, rxbuf, rssi);
 }

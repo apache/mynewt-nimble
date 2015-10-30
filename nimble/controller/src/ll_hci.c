@@ -175,7 +175,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     case BLE_HCI_OCF_LE_SET_RAND_ADDR:
         if (len == BLE_DEV_ADDR_LEN) {
-            rc = ll_adv_set_rand_addr(cmdbuf);
+            rc = ble_ll_set_random_addr(cmdbuf);
         }
         break;
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:

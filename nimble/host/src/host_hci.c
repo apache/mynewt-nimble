@@ -20,8 +20,9 @@
 #include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
+#include "host_dbg.h"
 
-#define HCI_CMD_BUFS        (4)
+#define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
 os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS, HCI_CMD_BUF_SIZE)];
@@ -280,15 +281,13 @@ host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
 void
 host_hci_event_proc(struct os_event *ev)
 {
-    uint8_t *evbuf;
     os_error_t err;
 
     /* Count events received */
     ++g_host_hci_stats.events_rxd;
 
     /* Display to console */
-    evbuf = (uint8_t *)ev->ev_arg;
-    console_printf("Host received event %u", evbuf[0]);
+    host_hci_dbg_event_disp((uint8_t *)ev->ev_arg);
 
     /* XXX: Process the event */
 
@@ -307,6 +306,8 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
 {
     os_error_t err;
     struct os_event *ev;
+
+    assert(hci_ev != NULL);
 
     /* Get an event structure off the queue */
     ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);

@@ -134,9 +134,6 @@ int ll_adv_set_adv_data(uint8_t *cmd, uint8_t len);
 /* Set scan response data */
 int ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len);
 
-/* Set random address */
-int ll_adv_set_rand_addr(uint8_t *addr);
-
 /* Set advertising parameters */
 int ll_adv_set_adv_params(uint8_t *cmd);
 
@@ -151,6 +148,6 @@ void ll_adv_tx_done_proc(void *arg);
 void ll_adv_init(void);
 
 /* Called when a scan request has been received. */
-int ll_adv_rx_scan_req(uint8_t *rxbuf);
+int ble_ll_adv_rx_scan_req(uint8_t *rxbuf);
 
 #endif /* H_LL_ADV_ */

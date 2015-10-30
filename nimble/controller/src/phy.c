@@ -128,6 +128,7 @@ ble_phy_isr(void)
     uint32_t irq_en;
     uint32_t state;
     uint32_t shortcuts;
+    struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Check for disabled event. This only happens for transmits now */
@@ -167,6 +168,10 @@ ble_phy_isr(void)
 
                 NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
                 g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
+            } else {
+                /* Disable the phy */
+                /* XXX: count no bufs? */
+                ble_phy_disable();
             }
         } else {
             /* Better not be going from rx to tx! */
@@ -179,6 +184,8 @@ ble_phy_isr(void)
         /* Clear events and clear interrupt */
         NRF_RADIO->EVENTS_ADDRESS = 0;
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
+
+        assert(g_ble_phy_data.rxpdu != NULL);
 
         /* Wait to get 1st byte of frame */
         while (1) {
@@ -245,14 +252,13 @@ ble_phy_isr(void)
         }
 
         /* Call Link Layer receive payload function */
-        rc = ll_rx_end(g_ble_phy_data.rxpdu, ble_hdr->crcok);
+        rxpdu = g_ble_phy_data.rxpdu;
+        g_ble_phy_data.rxpdu = NULL;
+        rc = ll_rx_end(rxpdu, ble_hdr->crcok);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
         }
-
-        /* The receive PDU has been handed to the Link Layer */
-        g_ble_phy_data.rxpdu = NULL;
     }
 
 phy_isr_exit:

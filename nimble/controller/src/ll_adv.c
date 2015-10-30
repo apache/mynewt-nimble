@@ -17,6 +17,7 @@
 #include <string.h>
 #include <assert.h>
 #include "os/os.h"
+#include "bsp/bsp.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "controller/phy.h"
@@ -25,6 +26,7 @@
 #include "controller/ll_sched.h"
 #include "controller/ll_scan.h"
 #include "hal/hal_cputime.h"
+#include "hal/hal_gpio.h"
 
 /* 
  * Advertising configuration parameters. These are parameters that I have
@@ -98,7 +100,8 @@ struct ll_adv_stats
 {
     uint32_t late_tx_done;
     uint32_t cant_set_sched;
-    /* XXX: add to these */
+    uint32_t scan_rsp_txg;
+    uint32_t adv_txg;
 };
 
 struct ll_adv_stats g_ll_adv_stats;
@@ -115,9 +118,10 @@ struct ll_adv_stats g_ll_adv_stats;
  */
 #define BLE_LL_ADV_SCHED_MAX_USECS  (852)
 
+/* For debug purposes */
+extern void bletest_inc_adv_pkt_num(void);
+
 /**
- * ble ll adv first chan 
- *  
  * Calculate the first channel that we should advertise upon when we start 
  * an advertising event. 
  * 
@@ -345,6 +349,9 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     /* Get the state machine for the event */
     advsm = (struct ll_adv_sm *)sch->cb_arg;
 
+    /* Toggle the LED */
+    gpio_toggle(LED_BLINK_PIN);
+
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan);
     assert(rc == 0);
@@ -364,6 +371,9 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
     } else {
         /* Set link layer state to advertising */
         ble_ll_state_set(BLE_LL_STATE_ADV);
+
+        /* Count # of adv. sent */
+        ++g_ll_adv_stats.adv_txg;
 
         /* Set schedule item next wakeup time */
         if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
@@ -388,7 +398,6 @@ ll_adv_tx_start_cb(struct ll_sched_item *sch)
 
     return rc;
 }
-
 
 static struct ll_sched_item *
 ll_adv_sched_set(struct ll_adv_sm *advsm)
@@ -564,7 +573,7 @@ ll_adv_sm_start(struct ll_adv_sm *advsm)
      * parameter (which in this case is just enable or disable).
      */ 
     if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
-        if (!ll_is_valid_rand_addr(g_random_addr)) {
+        if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
 
@@ -730,39 +739,10 @@ ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
     return 0;
 }
 
-/* XXX: this might be used for both scanning and advertising. */
 /**
- * ble ll adv set rand addr 
- *  
- * Called from the HCI command parser when the set random address command 
- * is received. 
- *  
- * Context: Link Layer task (HCI command parser) 
- * 
- * @param addr Pointer to address
- * 
- * @return int 0: success
- */
-int
-ll_adv_set_rand_addr(uint8_t *addr)
-{
-    int rc;
-
-    rc = BLE_ERR_INV_HCI_CMD_PARMS;
-    if (ll_is_valid_rand_addr(addr)) {
-        memcpy(g_random_addr, addr, BLE_DEV_ADDR_LEN);
-        rc = BLE_ERR_SUCCESS;
-    }
-
-    return rc;
-}
-
-/**
- * ll adv rx scan req 
- *  
  * Called when the LL receives a scan request.  
  *  
- * NOTE: Called from interrupt context. 
+ * Context: Called from interrupt context. 
  * 
  * @param rxbuf 
  * 
@@ -771,7 +751,7 @@ ll_adv_set_rand_addr(uint8_t *addr)
  *        > 0: PHY error attempting to go from rx to tx.
  */
 int
-ll_adv_rx_scan_req(uint8_t *rxbuf)
+ble_ll_adv_rx_scan_req(uint8_t *rxbuf)
 {
     int rc;
     uint8_t rxaddr_type;
@@ -792,6 +772,9 @@ ll_adv_rx_scan_req(uint8_t *rxbuf)
         /* Setup to transmit the scan response */
         rc = ble_phy_tx(g_ll_adv_sm.scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
                         BLE_PHY_TRANSITION_NONE);
+        if (!rc) {
+            ++g_ll_adv_stats.scan_rsp_txg;
+        }
     }
 
     return rc;
@@ -819,6 +802,9 @@ ll_adv_tx_done_proc(void *arg)
     advsm = (struct ll_adv_sm *)arg;
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
+    /* For debug purposes */
+    bletest_inc_adv_pkt_num();
+
     /* 
      * Check if we have ended our advertising event. If our last advertising
      * packet was sent on the last channel, it means we are done with this
@@ -841,6 +827,9 @@ ll_adv_tx_done_proc(void *arg)
         itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
         advsm->adv_event_start_time += cputime_usecs_to_ticks(itvl);
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+
+        /* Toggle the LED */
+        gpio_toggle(LED_BLINK_PIN);
     } else {
         /* 
          * Move to next advertising channel. If not in the mask, just
