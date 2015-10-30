@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H_LL_HCI_
-#define H_LL_HCI_
+#ifndef H_BLE_LL_HCI_
+#define H_BLE_LL_HCI_
 
 /* Define the number of data packets that the controller can store */
 #define BLE_LL_CFG_NUM_ACL_DATA_PKTS    (4)
