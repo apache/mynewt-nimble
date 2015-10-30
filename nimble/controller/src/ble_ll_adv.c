@@ -20,7 +20,7 @@
 #include "bsp/bsp.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "controller/phy.h"
+#include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
