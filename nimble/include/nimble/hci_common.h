@@ -21,10 +21,9 @@
 /* 
  * HCI Command Header
  * 
- * Comprised of the following fields
- *  -> Opcode command field (1)
- *  -> Opcode group field   (1)
- *  -> Parameter Length     (1)
+ * Comprises the following fields
+ *  -> Opcode group field & Opcode command field (2)
+ *  -> Parameter Length                          (1)
  *      Length of all the parameters (does not include any part of the hci
  *      command header
  */

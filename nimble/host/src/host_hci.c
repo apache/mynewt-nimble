@@ -91,8 +91,7 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
 
     /* Make sure parameters are valid */
     rc = -1;
-    if ((adv->adv_itvl_min > adv->adv_itvl_max) ||
-        (adv->adv_itvl_min == adv->adv_itvl_max) ||
+    if ((adv->adv_itvl_min >= adv->adv_itvl_max) ||
         (adv->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
         (adv->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) ||
         (adv->adv_filter_policy > BLE_HCI_ADV_FILT_MAX) ||
