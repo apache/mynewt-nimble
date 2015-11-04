@@ -16,11 +16,15 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <errno.h>
+#include <stdio.h>
 #include "os/os.h"
 #include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
+#include "host/host_task.h"
 #include "host_dbg.h"
+#include "l2cap.h"
 
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -52,11 +56,13 @@ struct host_hci_stats g_host_hci_stats;
 extern void bletest_execute(void);
 struct os_callout_func g_ble_host_hci_timer;
 
+#if 0
 static int
 host_hci_cmd_send(uint8_t *cmdbuf)
 {
     return ble_hci_transport_host_cmd_send(cmdbuf);
 }
+#endif
 
 static int
 host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
@@ -74,7 +80,7 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
         if (len) {
             memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
         }
-        rc = host_hci_cmd_send(cmd);
+        //rc = host_hci_cmd_send(cmd);
     }
 
     return rc;
@@ -412,10 +418,10 @@ void
 host_hci_timer_cb(void *arg)
 {
     /* Call the bletest code */
-    bletest_execute();
+    //bletest_execute();
 
     /* Re-start the timer */
-    os_callout_reset(&g_ble_host_hci_timer.cf_c, OS_TICKS_PER_SEC);
+    //os_callout_reset(&g_ble_host_hci_timer.cf_c, OS_TICKS_PER_SEC);
 }
 
 void
@@ -443,6 +449,77 @@ host_hci_task(void *arg)
             break;
         }
     }
+}
+
+static int
+host_hci_data_parse_hdr(void *pkt, uint16_t len, struct hci_data_hdr *hdr)
+{
+    uint8_t *u8ptr;
+    uint16_t off;
+
+    if (len < BLE_HCI_DATA_HDR_SZ) {
+        return EMSGSIZE;
+    }
+
+    off = 0;
+    u8ptr = pkt;
+
+    hdr->hdh_handle_pb_bc = le16toh(u8ptr + off);
+    off += 2;
+
+    hdr->hdh_len = le16toh(u8ptr + off);
+    off += 2;
+
+    return 0;
+}
+
+int
+host_hci_data_rx(void *pkt, uint16_t len)
+{
+    struct ble_host_connection *connection;
+    struct ble_l2cap_hdr l2cap_hdr;
+    struct hci_data_hdr hci_hdr;
+    uint16_t handle;
+    uint16_t off;
+    uint8_t *u8ptr;
+    int rc;
+
+    u8ptr = pkt;
+    off = 0;
+
+    rc = host_hci_data_parse_hdr(u8ptr + off, len - off, &hci_hdr);
+    if (rc != 0) {
+        return rc;
+    }
+    off += BLE_HCI_DATA_HDR_SZ;
+    if (len < off + hci_hdr.hdh_len) {
+        return EMSGSIZE;
+    }
+
+    handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
+    connection = ble_host_find_connection(handle);
+    if (connection == NULL) {
+        return ENOTCONN;
+    }
+
+    rc = ble_l2cap_parse_hdr(u8ptr + off, len - off, &l2cap_hdr);
+    if (rc != 0) {
+        return rc;
+    }
+    off += BLE_L2CAP_HDR_SZ;
+    if (l2cap_hdr.blh_len != hci_hdr.hdh_len - BLE_L2CAP_HDR_SZ) {
+        return EMSGSIZE;
+    }
+
+    printf("hci-handle-pb-bc=%d\n", hci_hdr.hdh_handle_pb_bc);
+    printf("hci-len=%d\n", hci_hdr.hdh_len);
+    printf("l2cap-len=%d\n", l2cap_hdr.blh_len);
+    printf("l2cap-cid=%d\n", l2cap_hdr.blh_cid);
+    printf("\n");
+
+    ble_l2cap_rx(connection, &hci_hdr, &l2cap_hdr, u8ptr + off);
+
+    return 0;
 }
 
 int

@@ -267,4 +267,15 @@ struct hci_adv_params
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 };
 
+#define BLE_HCI_DATA_HDR_SZ         4
+#define BLE_HCI_DATA_HANDLE(handle_pb_bc)   (((handle_pb_bc) & 0x0fff) >> 0)
+#define BLE_HCI_DATA_PB(handle_pb_bc)       (((handle_pb_bc) & 0x3000) >> 12)
+#define BLE_HCI_DATA_BC(handle_pb_bc)       (((handle_pb_bc) & 0xc000) >> 14)
+
+struct hci_data_hdr
+{
+    uint16_t hdh_handle_pb_bc;
+    uint16_t hdh_len;
+};
+
 #endif /* H_BLE_HCI_COMMON_ */
