@@ -150,4 +150,7 @@ void ble_ll_adv_init(void);
 /* Called when a scan request has been received. */
 int ble_ll_adv_rx_scan_req(uint8_t *rxbuf);
 
+/* Boolean function denoting whether or not the whitelist can be changed */
+int ble_ll_adv_can_chg_whitelist(void);
+
 #endif /* H_LL_ADV_ */

@@ -172,14 +172,6 @@ ble_ll_count_rx_pkts(uint8_t pdu_type)
     }
 }
 
-
-int
-ble_ll_is_on_whitelist(uint8_t *addr, int addr_type)
-{
-    /* XXX: implement this */
-    return 1;
-}
-
 int
 ble_ll_is_resolvable_priv_addr(uint8_t *addr)
 {
@@ -352,7 +344,8 @@ ble_ll_rx_pkt_in_proc(void)
             break;
         case BLE_LL_STATE_SCANNING:
             if (ble_hdr->crcok) {
-                ble_ll_scan_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->rssi);
+                ble_ll_scan_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->rssi,
+                                        ble_hdr->flags);
             }
 
             /* We need to re-enable the PHY if we are in idle state */
@@ -530,12 +523,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
         break;
     case BLE_LL_STATE_SCANNING:
         if (crcok) {
-            /* 
-             * NOTE: If this returns a positive number there was an error but
-             * there is no need to disable the PHY on return as that was
-             * done already.
-             */
-            rc = ble_ll_scan_rx_pdu_end(rxbuf);
+            rc = ble_ll_scan_rx_pdu_end(rxpdu);
         }
         break;
     default:

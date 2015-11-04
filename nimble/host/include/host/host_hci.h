@@ -31,5 +31,10 @@ int host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups);
 int host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl, 
                                     uint16_t scan_window, uint8_t own_addr_type,
                                     uint8_t filter_policy);
+int host_hci_cmd_le_clear_whitelist(void);
+int host_hci_cmd_le_read_whitelist(void);
+int host_hci_cmd_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type);
+int host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type);
+
 
 #endif /* H_HOST_HCI_ */

@@ -153,11 +153,11 @@
  *  CONN: process all scan request but only connection requests from white list
  *  BOTH: ignore all scan and connection requests unless in white list.
  */
-#define BLE_HCI_ADV_FILT_NONE               (0x01)
-#define BLE_HCI_ADV_FILT_SCAN               (0x02)
-#define BLE_HCI_ADV_FILT_CONN               (0x03)
-#define BLE_HCI_ADV_FILT_BOTH               (0x04)
-#define BLE_HCI_ADV_FILT_MAX                (0x04)
+#define BLE_HCI_ADV_FILT_NONE               (0)
+#define BLE_HCI_ADV_FILT_SCAN               (1)
+#define BLE_HCI_ADV_FILT_CONN               (2)
+#define BLE_HCI_ADV_FILT_BOTH               (3)
+#define BLE_HCI_ADV_FILT_MAX                (3)
 
 /* Advertising interval */
 #define BLE_HCI_ADV_ITVL                    (625)           /* usecs */
@@ -204,6 +204,9 @@
 #define BLE_HCI_SCAN_FILT_NO_WL_INITA       (2)
 #define BLE_HCI_SCAN_FILT_USE_WL_INITA      (3)
 #define BLE_HCI_SCAN_FILT_MAX               (3)
+
+/* Whitelist commands */
+#define BLE_HCI_CHG_WHITE_LIST_LEN          (7)
 
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)

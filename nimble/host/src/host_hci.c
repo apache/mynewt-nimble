@@ -80,6 +80,22 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
     return rc;
 }
 
+static int
+host_hci_cmd_le_whitelist_chg(uint8_t *addr, uint8_t addr_type, uint8_t ocf)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_CHG_WHITE_LIST_LEN];
+
+    if (addr_type <= BLE_ADDR_TYPE_RANDOM) {
+        cmd[0] = addr_type;
+        memcpy(cmd + 1, addr, BLE_DEV_ADDR_LEN);
+        rc = host_hci_le_cmd_send(ocf, BLE_HCI_CHG_WHITE_LIST_LEN, cmd);
+    } else {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    return rc;
+}
+
 int
 host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
 {
@@ -274,6 +290,73 @@ host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
     cmd[1] = filter_dups;
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_ENABLE, 
                               BLE_HCI_SET_SCAN_ENABLE_LEN, cmd);
+    return rc;
+}
+
+/**
+ * Clear the whitelist.
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_clear_whitelist(void)
+{
+    int rc;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CLEAR_WHITE_LIST, 0, NULL);
+    return rc;
+}
+
+/**
+ * Read the whitelist size. Note that this is not how many elements have 
+ * been added to the whitelist; rather it is the number of whitelist entries 
+ * allowed by the controller. 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_read_whitelist(void)
+{
+    int rc;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE, 0, NULL);
+    return rc;
+}
+
+/**
+ * Add a device to the whitelist.
+ * 
+ * @param addr 
+ * @param addr_type 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type)
+{
+    int rc;
+
+    rc = host_hci_cmd_le_whitelist_chg(addr, addr_type, 
+                                       BLE_HCI_OCF_LE_ADD_WHITE_LIST);
+
+    return rc;
+}
+
+/**
+ * Remove a device from the whitelist.
+ * 
+ * @param addr 
+ * @param addr_type 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type)
+{
+    int rc;
+
+    rc = host_hci_cmd_le_whitelist_chg(addr, addr_type, 
+                                       BLE_HCI_OCF_LE_RMV_WHITE_LIST);
     return rc;
 }
 

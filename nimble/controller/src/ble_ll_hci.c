@@ -24,6 +24,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
+#include "controller/ble_ll_whitelist.h"
 
 /* LE event mask */
 uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
@@ -132,9 +133,9 @@ ble_ll_hci_is_le_event_enabled(int bitpos)
  *  -> Length of parameters (1 byte; does include command header bytes).
  * 
  * @param cmdbuf Pointer to command buffer. Points to start of command header.
- * @param len 
- * @param ocf 
- * 
+ * @param ocf    Opcode command field.
+ * @param *rsplen Pointer to length of response
+ *  
  * @return int 
  */
 static int
@@ -217,6 +218,29 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         /* Length should be one byte */
         if (len == BLE_HCI_SET_SCAN_PARAM_LEN) {
             rc = ble_ll_scan_set_scan_params(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
+        /* No params with this command  */
+        if (len == 0) {
+            rc = ble_ll_whitelist_clear();
+        }
+        break;
+    case BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE:
+        /* No params with this command  */
+        if (len == 0) {
+            rc = ble_ll_whitelist_read_size(rspbuf);
+            *rsplen = 1;
+        }
+        break;
+    case BLE_HCI_OCF_LE_ADD_WHITE_LIST:
+        if (len == BLE_HCI_CHG_WHITE_LIST_LEN) {
+            rc = ble_ll_whitelist_add(cmdbuf + 1, cmdbuf[0]);
+        }
+        break;
+    case BLE_HCI_OCF_LE_RMV_WHITE_LIST:
+        if (len == BLE_HCI_CHG_WHITE_LIST_LEN) {
+            rc = ble_ll_whitelist_rmv(cmdbuf + 1, cmdbuf[0]);
         }
         break;
     default:

@@ -408,9 +408,6 @@ int ble_ll_is_valid_random_addr(uint8_t *addr);
 /* Calculate the amount of time a pdu of 'len' bytes will take to transmit */
 uint16_t ble_ll_pdu_tx_time_get(uint16_t len);
 
-/* Boolean returning true if device is on whitelist */
-int ble_ll_is_on_whitelist(uint8_t *addr, int addr_type);
-
 /* Is this address a resolvable private address? */
 int ble_ll_is_resolvable_priv_addr(uint8_t *addr);
 

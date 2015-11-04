@@ -158,6 +158,7 @@ ble_phy_isr(void)
                 /* I want to know when 1st byte received (after address) */
                 NRF_RADIO->BCC = 8; /* in bits */
                 NRF_RADIO->EVENTS_ADDRESS = 0;
+                NRF_RADIO->EVENTS_DEVMATCH = 0;
                 NRF_RADIO->EVENTS_BCMATCH = 0;
                 NRF_RADIO->EVENTS_RSSIEND = 0;
                 NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
@@ -369,6 +370,7 @@ ble_phy_rx(void)
     NRF_RADIO->EVENTS_DISABLED = 0;
     NRF_RADIO->EVENTS_BCMATCH = 0;
     NRF_RADIO->EVENTS_RSSIEND = 0;
+    NRF_RADIO->EVENTS_DEVMATCH = 0;
 
     /* I want to know when 1st byte received (after address) */
     NRF_RADIO->BCC = 8; /* in bits */

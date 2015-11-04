@@ -56,7 +56,8 @@
  *    we need to send a CONNECTION COMPLETE event. Do this.
  * 9) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 10) Add whitelist! Do this to the code.
+ * 10) Add whitelist! Do this to the code. Need to enable/disable whitelisting
+ * appropriately. Also need to set appropriate bits at the PHY (DEVMATCH).
  */
 
 /* 
@@ -878,6 +879,29 @@ ble_ll_adv_tx_done_proc(void *arg)
         /* XXX: we will need to set a timer here to wake us up */
         assert(0);
     }
+}
+
+/**
+ * Checks if the controller can change the whitelist. If advertising is enabled 
+ * and is using the whitelist the controller is not allowed to change the 
+ * whitelist. 
+ * 
+ * @return int 0: not allowed to change whitelist; 1: change allowed.
+ */
+int
+ble_ll_adv_can_chg_whitelist(void)
+{
+    int rc;
+    struct ble_ll_adv_sm *advsm;
+
+    advsm = &g_ble_ll_adv_sm;
+    if (advsm->enabled && (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
+        rc = 0;
+    } else {
+        rc = 1;
+    }
+
+    return rc;
 }
 
 /**

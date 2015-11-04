@@ -77,9 +77,13 @@ void ble_ll_scan_init(void);
 int ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 
 /* Called when Link Layer has finished receiving a PDU while scanning */
-int ble_ll_scan_rx_pdu_end(uint8_t *rxbuf);
+int ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu);
 
 /* Process a scan response PDU */
-void ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi);
+void ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
+                             uint8_t flags);
+
+/* Boolean function denoting whether or not the whitelist can be changed */
+int  ble_ll_scan_can_chg_whitelist(void);
 
 #endif /* H_LL_SCAN_ */

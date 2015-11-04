@@ -35,7 +35,8 @@ extern struct os_mempool g_hci_os_event_pool;
  *      struct ble_mbuf_hdr     (4)
  * 
  * The BLE mbuf header contains the following:
- *  flags: currently unused
+ *  flags: bitfield with the following values
+ *      0x01:   Set if there was a match on the whitelist
  *  channel: The logical BLE channel PHY channel # (0 - 39)
  *  crcok: flag denoting CRC check passed (1) or failed (0).
  *  rssi: RSSI, in dBm.
@@ -47,6 +48,9 @@ struct ble_mbuf_hdr
     uint8_t crcok;
     int8_t rssi;
 };
+
+/* Flag definitions */
+#define BLE_MBUF_HDR_F_DEVMATCH     (0x01)
 
 #define BLE_MBUF_HDR_PTR(om)    \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
@@ -64,6 +68,7 @@ uint32_t le32toh(uint8_t *buf);
 uint64_t le64toh(uint8_t *buf);
 /* XXX */
 
+/* BLE Error Codes (Core v4.2 Vol 2 part D) */
 enum ble_error_codes
 {
     /* An "error" code of 0 means success */
@@ -135,5 +140,9 @@ enum ble_error_codes
     BLE_ERR_ATTR_NOT_FOUND      = 65,
     BLE_ERR_MAX                 = 255
 };
+
+/* Address types */
+#define BLE_ADDR_TYPE_PUBLIC    (0)
+#define BLE_ADDR_TYPE_RANDOM    (1)
 
 #endif /* H_BLE_ */

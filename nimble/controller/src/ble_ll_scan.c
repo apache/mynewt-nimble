@@ -26,12 +26,12 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_hci.h"
+#include "controller/ble_ll_whitelist.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
  /* 
  * XXX:
- * 1) Implement white list.
  * 2) Need to look at packets for us and those not for us. Probably some of
  * this code needs to go into the link layer (in ll.c).
  * 3) Interleave sending scan requests to different advertisers? I guess I need 
@@ -51,9 +51,7 @@
  * code might be made simpler.
  */
 
-/* 
- * Scanning state machine 
- */
+/* Scanning state machine */
 struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
@@ -82,7 +80,7 @@ struct ble_ll_scan_stats
 {
     uint32_t scan_starts;
     uint32_t scan_stops;
-    uint32_t scan_win_late;
+    uint32_t scan_win_misses;
     uint32_t cant_set_sched;
     uint32_t scan_req_txf;
     uint32_t scan_req_txg;
@@ -201,12 +199,12 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
  * Checks to see if an advertiser is on the duplicate address list. 
  * 
  * @param addr Pointer to address
- * @param addr_type Type of address
+ * @param txadd TxAdd bit. 0: public; random otherwise
  * 
  * @return uint8_t 0: not on list; any other value is 
  */
 static struct ble_ll_scan_advertisers *
-ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t addr_type)
+ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -217,7 +215,7 @@ ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t addr_type)
     while (num_advs) {
         if (!memcmp(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
             /* Address type must match */
-            if (addr_type) {
+            if (txadd) {
                 if ((adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) == 0) {
                     continue;
                 }
@@ -245,11 +243,11 @@ ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t addr_type)
  * @return int 0: not a duplicate. 1:duplicate
  */
 int
-ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
+ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
 {
     struct ble_ll_scan_advertisers *adv;
 
-    adv = ble_ll_scan_find_dup_adv(addr, addr_type);
+    adv = ble_ll_scan_find_dup_adv(addr, txadd);
     if (adv) {
         /* Check appropriate flag (based on type of PDU) */
         if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
@@ -272,16 +270,16 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t addr_type, uint8_t *addr)
  * report to the host. 
  * 
  * @param addr 
- * @param addr_type 
+ * @param Txadd. TxAdd bit (0 public, random otherwise)
  */
 void
-ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
+ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
 
     /* Check to see if on list. */
-    adv = ble_ll_scan_find_dup_adv(addr, addr_type);
+    adv = ble_ll_scan_find_dup_adv(addr, txadd);
     if (!adv) {
         /* XXX: for now, if we dont have room, just leave */
         num_advs = g_ble_ll_scan_num_dup_advs;
@@ -295,7 +293,7 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
         ++g_ble_ll_scan_num_dup_advs;
 
         adv->sc_adv_flags = 0;
-        if (addr_type) {
+        if (txadd) {
             adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
         }
     }
@@ -311,12 +309,12 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t addr_type)
  * Checks to see if we have received a scan response from this advertiser. 
  * 
  * @param adv_addr Address of advertiser
- * @param addr_type Type of address (0: public; random otherwise)
+ * @param txadd TxAdd bit (0: public; random otherwise)
  * 
  * @return int 0: have not received a scan response; 1 otherwise.
  */
 static int
-ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t addr_type)
+ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -327,7 +325,7 @@ ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t addr_type)
     while (num_advs) {
         if (!memcmp(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
             /* Address type must match */
-            if (addr_type) {
+            if (txadd) {
                 if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) {
                     return 1;
                 }
@@ -345,7 +343,7 @@ ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t addr_type)
 }
 
 static void
-ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
+ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -357,7 +355,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
     }
 
     /* Check if address is already on the list */
-    if (ble_ll_scan_have_rxd_scan_rsp(addr, addr_type)) {
+    if (ble_ll_scan_have_rxd_scan_rsp(addr, txadd)) {
         return;
     }
 
@@ -365,7 +363,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
     adv = &g_ble_ll_scan_rsp_advs[num_advs];
     memcpy(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN);
     adv->sc_adv_flags = BLE_LL_SC_ADV_F_SCAN_RSP_RXD;
-    if (addr_type) {
+    if (txadd) {
         adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
     }
     ++g_ble_ll_scan_num_rsp_advs;
@@ -380,12 +378,12 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t addr_type)
  * will just send for one for now. 
  * 
  * @param pdu_type 
- * @param rxadv 
- * 
- * @return int 
+ * @param txadd 
+ * @param rxbuf 
+ * @param rssi 
  */
-static int
-ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t addr_type, uint8_t *rxbuf,
+static void
+ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                            int8_t rssi)
 {
     int rc;
@@ -428,7 +426,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t addr_type, uint8_t *rxbuf,
             evbuf[4] = evtype;
 
             /* XXX: need to deal with resolvable addresses here! */
-            if (addr_type) {
+            if (txadd) {
                 evbuf[5] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
             } else {
                 evbuf[5] = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
@@ -444,25 +442,26 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t addr_type, uint8_t *rxbuf,
             if (!rc) {
                 /* If filtering, add it to list of duplicate addresses */
                 if (g_ble_ll_scan_sm.scan_filt_dups) {
-                    ble_ll_scan_add_dup_adv(rxbuf, addr_type);
+                    ble_ll_scan_add_dup_adv(rxbuf, txadd);
                 }
             }
         }
     }
-
-    return rc;
 }
 
 /**
- * ble ll scan chk filter policy 
- * 
+ * Checks the scanner filter policy to determine if we should allow or discard 
+ * the received PDU. 
+ *  
+ * NOTE: connect requests and scan requests are not passed here 
+ *  
  * @param pdu_type 
  * @param rxbuf 
  * 
  * @return int 0: pdu allowed by filter policy. 1: pdu not allowed
  */
 int
-ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf)
+ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
 {
     uint8_t *addr;
     uint8_t addr_type;
@@ -491,10 +490,11 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf)
     }
 
     /* If we are using the whitelist, check that first */
-    addr = rxbuf + BLE_LL_PDU_HDR_LEN;
-    if (use_whitelist) {
-        addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
-        if (!ble_ll_is_on_whitelist(addr, addr_type)) {
+    if (use_whitelist && (pdu_type != BLE_ADV_PDU_TYPE_SCAN_RSP)) {
+        /* If there was a devmatch, we will allow the PDU */
+        if (flags & BLE_MBUF_HDR_F_DEVMATCH) {
+            return 0;
+        } else {
             return 1;
         }
     }
@@ -502,6 +502,7 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf)
     /* If this is a directed advertisement, check that it is for us */
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
         /* Is this for us? If not, is it resolvable */
+        addr = rxbuf + BLE_LL_PDU_HDR_LEN;
         addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
         if (!ble_ll_is_our_devaddr(addr + BLE_DEV_ADDR_LEN, addr_type)) {
             if (!chk_inita || !ble_ll_is_resolvable_priv_addr(addr)) {
@@ -547,8 +548,6 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
         /* Set link layer state to scanning */
         ble_ll_state_set(BLE_LL_STATE_SCANNING);
 
-        /* XXX: scan forever? */
-
         /* Set end time to end of scan window */
         sch->next_wakeup = sch->end_time;
         sch->sched_cb = ble_ll_scan_win_end_cb;
@@ -576,6 +575,9 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
     /* Disable the PHY */
     ble_phy_disable();
 
+    /* Disable whitelisting (just in case) */
+    ble_ll_whitelist_disable();
+
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
 
@@ -594,17 +596,14 @@ ble_ll_scan_sched_set(struct ble_ll_scan_sm *scansm)
         /* Set sched type */
         sch->sched_type = BLE_LL_SCHED_TYPE_SCAN;
 
-        /* XXX: probably the PHY should provide an API to return this stuff
-           to me as opposed to # define (XCVR_RX_SCHED) */
         /* Set the start time of the event */
         sch->start_time = scansm->scan_win_start_time - 
             cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS);
 
-        /* XXX: what about continuous scanning? */
         /* Set the callback, arg, start and end time */
         sch->cb_arg = scansm;
         sch->sched_cb = ble_ll_scan_start_cb;
-        sch->end_time = sch->start_time + 
+        sch->end_time = scansm->scan_win_start_time + 
             cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
 
         /* XXX: for now, we cant get an overlap so assert on error. */
@@ -640,6 +639,13 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
         }
     }
 
+    /* Enable/disable whitelisting */
+    if (scansm->scan_filt_policy & 1) {
+        ble_ll_whitelist_enable();
+    } else {
+        ble_ll_whitelist_disable();
+    }
+
     /* Count # of times started */
     ++g_ble_ll_scan_stats.scan_starts;
 
@@ -672,6 +678,7 @@ ble_ll_scan_win_end_proc(void *arg)
 {
     int32_t delta_t;
     uint32_t itvl;
+    uint32_t win_ticks;
     struct ble_ll_scan_sm *scansm;
 
     /* Toggle the LED */
@@ -692,27 +699,28 @@ ble_ll_scan_win_end_proc(void *arg)
         ble_ll_scan_req_backoff(scansm, 0);
     }
 
-    /* XXX: deal with scan forever */
+    /* Calculate # of ticks per scan window */
+    win_ticks = cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
 
     /* Set next scan window start time */
     itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
     scansm->scan_win_start_time += itvl;
         
-    /* 
-     * The scheduled time better be in the future! If it is not, we will
-     * count a statistic and close the current advertising event. We will
-     * then setup the next advertising event.
-     */
-    delta_t = (int32_t)(scansm->scan_win_start_time - cputime_get32());
-    if (delta_t < 0) {
+    /* Set next scanning window start. */        
+    delta_t = (int32_t)(cputime_get32() - scansm->scan_win_start_time);
+    if (delta_t >= win_ticks) {
+        /* 
+         * Since it is possible to scan continuously, it is possible
+         * that we will be late here if the scan window is equal to the
+         * scan interval (or very close). So what we will do here is only
+         * increment a stat if we missed a scan window
+         */
         /* Count times we were late */
-        ++g_ble_ll_scan_stats.scan_win_late;
+        ++g_ble_ll_scan_stats.scan_win_misses;
 
         /* Calculate start time of next scan windowe */
-        while (delta_t < 0) {
-            scansm->scan_win_start_time += itvl;
-            delta_t += (int32_t)itvl;
-        }
+        scansm->scan_win_start_time += itvl;
+        delta_t -= (int32_t)itvl;
     }
 
     if (!ble_ll_scan_sched_set(scansm)) {
@@ -778,39 +786,84 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
     return rc;
 }
 
+
+/* 
+ * NOTE: If this returns a positive number there was an error but
+ * there is no need to disable the PHY on return as that was
+ * done already.
+ */
+
+/**
+ * Called when a receive PDU has ended. 
+ *  
+ * Context: Interrupt 
+ * 
+ * @param rxpdu 
+ * 
+ * @return int 
+ *       < 0: Disable the phy after reception.
+ *      == 0: Success. Do not disable the PHY.
+ *       > 0: Do not disable PHY as that has already been done.
+ */
 int
-ble_ll_scan_rx_pdu_end(uint8_t *rxbuf)
+ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
 {
     int rc;
+    int chk_send_req;
+    int chk_whitelist;
     uint8_t pdu_type;
     uint8_t addr_type;
     uint8_t *adv_addr;
+    uint8_t *rxbuf;
+    struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_scan_sm *scansm;
 
     /* If passively scanning return (with -1) since no scan request is sent */
-    rc = -1;
     scansm = &g_ble_ll_scan_sm;
-    if (scansm->scan_type != BLE_HCI_SCAN_TYPE_ACTIVE) {
-        return -1;
+
+    /* Get pdu type, pointer to address and address "type"  */
+    rxbuf = rxpdu->om_data;
+    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+    adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+    if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
+        addr_type = BLE_ADDR_TYPE_RANDOM;
+    } else {
+        addr_type = BLE_ADDR_TYPE_PUBLIC;
     }
 
-    /* Get pdu type */
-    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-
-    /* We only care about indirect advertisements or scan indirect */
-    if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
-        (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND)) {
-        /* See if we should check the whitelist */
-        adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
-        addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
-        if ((scansm->scan_filt_policy == BLE_HCI_SCAN_FILT_USE_WL) ||
-            (scansm->scan_filt_policy == BLE_HCI_SCAN_FILT_USE_WL_INITA)) {
-            /* Check if device is on whitelist. If not, leave */
-            if (!ble_ll_is_on_whitelist(adv_addr, addr_type)) {
-                return -1;
-            }
+    /* Determine if request may be sent and if whitelist needs to be checked */
+    chk_send_req = 0;
+    switch (pdu_type) {
+    case BLE_ADV_PDU_TYPE_ADV_IND:
+    case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
+        if (scansm->scan_type == BLE_HCI_SCAN_TYPE_ACTIVE) {
+            chk_send_req = 1;
         }
+        chk_whitelist = 1;
+        break;
+    case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
+    case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+        chk_whitelist = 1;
+        break;
+    default:
+        chk_whitelist = 0;
+        break;
+    }
 
+    /* Set device match bit if we are whitelisting */
+    if (chk_whitelist && (scansm->scan_filt_policy & 1)) {
+        /* Check if device is on whitelist. If not, leave */
+        if (!ble_ll_whitelist_match(adv_addr, addr_type)) {
+            return -1;
+        } else {
+            ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+            ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+        }
+    }
+
+    /* Should we send a scan request? */
+    rc = -1;
+    if (chk_send_req) {
         /* 
          * Check to see if we have received a scan response from this
          * advertisor. If so, no need to send scan request.
@@ -850,11 +903,13 @@ ble_ll_scan_rx_pdu_end(uint8_t *rxbuf)
  * @param rxbuf 
  */
 void
-ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi)
+ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
+                        uint8_t flags)
 {
     uint8_t *adv_addr;
     uint8_t *adva;
-    uint8_t addr_type;
+    uint8_t txadd;
+    uint8_t rxadd;
     struct ble_ll_scan_sm *scansm;
 
     /* We dont care about scan requests or connect requests */
@@ -864,12 +919,12 @@ ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi)
     }
 
     /* Check the scanner filter policy */
-    if (ble_ll_scan_chk_filter_policy(pdu_type, rxbuf)) {
+    if (ble_ll_scan_chk_filter_policy(pdu_type, rxbuf, flags)) {
         return;
     }
 
     /* Get advertisers address type and a pointer to the address */
-    addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
+    txadd = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
     adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 
     /* 
@@ -886,18 +941,18 @@ ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi)
          */
         if (scansm->scan_rsp_pending) {
             /* 
-             * XXX: should I check address type as well? To compare
-             * the received scan response to the address in the scan
-             * request?
-             * 
-             * I could also check the timing of the scan reponse; make sure
-             * that it is relatively close to the end of the scan request.
+             * We could also check the timing of the scan reponse; make sure
+             * that it is relatively close to the end of the scan request but
+             * we wont for now.
              */
             adva = scansm->scan_req_pdu->om_data + BLE_LL_PDU_HDR_LEN +
                    BLE_DEV_ADDR_LEN;
-            if (!memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
+            rxadd = scansm->scan_req_pdu->om_data[0] & 
+                    BLE_ADV_PDU_HDR_RXADD_MASK;
+            if (((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
+                !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
                 /* We have received a scan response. Add to list */
-                ble_ll_scan_add_scan_rsp_adv(adv_addr, addr_type);
+                ble_ll_scan_add_scan_rsp_adv(adv_addr, txadd);
 
                 /* Perform scan request backoff procedure */
                 ble_ll_scan_req_backoff(scansm, 1);
@@ -913,14 +968,13 @@ ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi)
 
     /* Filter duplicates */
     if (scansm->scan_filt_dups) {
-        if (ble_ll_scan_is_dup_adv(pdu_type, addr_type, adv_addr)) {
+        if (ble_ll_scan_is_dup_adv(pdu_type, txadd, adv_addr)) {
             return;
         }
     }
 
-    /* XXX: what do I do with return code here? Anything? */
     /* Send the advertising report */
-    ble_ll_hci_send_adv_report(pdu_type, addr_type, rxbuf, rssi);
+    ble_ll_hci_send_adv_report(pdu_type, txadd, rxbuf, rssi);
 }
 
 int
@@ -1025,6 +1079,29 @@ ble_ll_scan_set_enable(uint8_t *cmd)
 
     return rc;
 }
+
+/**
+ * Checks if controller can change the whitelist. If scanning is enabled and
+ * using the whitelist the controller is not allowed to change the whitelist.
+ * 
+ * @return int 0: not allowed to change whitelist; 1: change allowed.
+ */
+int
+ble_ll_scan_can_chg_whitelist(void)
+{
+    int rc;
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = &g_ble_ll_scan_sm;
+    if (scansm->scan_enabled && (scansm->scan_filt_policy & 1)) {
+        rc = 0;
+    } else {
+        rc = 1;
+    }
+
+    return rc;
+}
+
 
 /**
  * ble ll scan init 
