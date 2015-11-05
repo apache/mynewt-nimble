@@ -52,18 +52,15 @@ struct host_hci_stats
 
 struct host_hci_stats g_host_hci_stats;
 
-
-/* Callout for timer */
-extern void bletest_execute(void);
-struct os_callout_func g_ble_host_hci_timer;
-
-#if 0
 static int
 host_hci_cmd_send(uint8_t *cmdbuf)
 {
+#ifdef ARCH_sim
+    return 0;
+#else
     return ble_hci_transport_host_cmd_send(cmdbuf);
-}
 #endif
+}
 
 static int
 host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
@@ -81,7 +78,7 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
         if (len) {
             memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
         }
-        //rc = host_hci_cmd_send(cmd);
+        rc = host_hci_cmd_send(cmd);
     }
 
     return rc;
@@ -416,22 +413,10 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
 }
 
 void
-host_hci_timer_cb(void *arg)
-{
-    /* Call the bletest code */
-    //bletest_execute();
-
-    /* Re-start the timer */
-    //os_callout_reset(&g_ble_host_hci_timer.cf_c, OS_TICKS_PER_SEC);
-}
-
-void
 host_hci_task(void *arg)
 {
     struct os_event *ev;
     struct os_callout_func *cf;
-
-    host_hci_timer_cb(NULL);
 
     while (1) {
         ev = os_eventq_get(&g_ble_host_hci_evq);
@@ -523,10 +508,6 @@ host_hci_init(void)
                          HCI_OS_EVENT_BUF_SIZE, &g_hci_os_event_buf, 
                          "HCIOsEventPool");
     assert(rc == 0);
-
-    /* Initialize the host timer */
-    os_callout_func_init(&g_ble_host_hci_timer, &g_ble_host_hci_evq,
-                         host_hci_timer_cb, NULL);
 
     /* Initialize eventq */
     os_eventq_init(&g_ble_host_hci_evq);
