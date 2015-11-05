@@ -26,14 +26,16 @@ TEST_CASE(l2cap_test_bad_header)
      */
     l2cap_hdr.blh_len = 0;
     l2cap_hdr.blh_cid = 0;
-    ble_l2cap_write_hdr(pkt, sizeof pkt, &l2cap_hdr);
+    rc = ble_l2cap_write_hdr(pkt, sizeof pkt, &l2cap_hdr);
+    TEST_ASSERT(rc == 0);
     rc = ble_l2cap_rx(conn, &hci_hdr, pkt);
     TEST_ASSERT(rc == EMSGSIZE);
 
     /* Length is correct; specified channel doesn't exist. */
     l2cap_hdr.blh_len = 6;
     l2cap_hdr.blh_cid = 0;
-    ble_l2cap_write_hdr(pkt, sizeof pkt, &l2cap_hdr);
+    rc = ble_l2cap_write_hdr(pkt, sizeof pkt, &l2cap_hdr);
+    TEST_ASSERT(rc == 0);
     rc = ble_l2cap_rx(conn, &hci_hdr, pkt);
     TEST_ASSERT(rc == ENOENT);
 
