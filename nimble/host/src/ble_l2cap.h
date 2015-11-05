@@ -61,8 +61,8 @@ void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
 int ble_l2cap_parse_hdr(void *pkt, uint16_t len,
                         struct ble_l2cap_hdr *l2cap_hdr);
-void ble_l2cap_write_hdr(void *dst, uint16_t len,
-                         const struct ble_l2cap_hdr *l2cap_hdr);
+int ble_l2cap_write_hdr(void *dst, uint16_t len,
+                        const struct ble_l2cap_hdr *l2cap_hdr);
 
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,

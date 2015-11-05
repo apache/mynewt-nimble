@@ -89,7 +89,7 @@ ble_l2cap_parse_hdr(void *pkt, uint16_t len, struct ble_l2cap_hdr *l2cap_hdr)
     return 0;
 }
 
-void
+int
 ble_l2cap_write_hdr(void *dst, uint16_t len,
                     const struct ble_l2cap_hdr *l2cap_hdr)
 {
@@ -108,6 +108,8 @@ ble_l2cap_write_hdr(void *dst, uint16_t len,
 
     htole16(u8ptr + off, l2cap_hdr->blh_cid);
     off += 2;
+
+    return 0;
 }
 
 static struct ble_l2cap_chan *
