@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015 Stack Inc.
+ * Copyright (c) 2015 Runtime Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,4 +153,4 @@ int ble_ll_adv_rx_scan_req(uint8_t *rxbuf);
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);
 
-#endif /* H_LL_ADV_ */
+#endif /* H_BLE_LL_ADV_ */

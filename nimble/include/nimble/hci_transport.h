@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015 Stack Inc.
+ * Copyright (c) 2015 Runtime Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef H_HCI_TRANSPORT_
 #define H_HCI_TRANSPORT_
 
@@ -22,4 +23,4 @@ int ble_hci_transport_host_cmd_send(uint8_t *cmd);
 /* Send a HCI event from the controller to the host */
 int ble_hci_transport_ctlr_event_send(uint8_t *hci_ev);
 
-#endif /* H_HCI_COMMON_ */
+#endif /* H_HCI_TRANSPORT_ */

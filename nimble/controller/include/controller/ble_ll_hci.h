@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015 Stack Inc.
+ * Copyright (c) 2015 Runtime Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,4 +39,4 @@ uint8_t ble_ll_hci_is_le_event_enabled(int bitpos);
 /* Send event from controller to host */
 int ble_ll_hci_event_send(uint8_t *evbuf);
 
-#endif /* H_LL_ADV_ */
+#endif /* H_BLE_LL_HCI_ */
