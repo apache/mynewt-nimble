@@ -5,3 +5,6 @@ egg.deps:
     - net/nimble
 egg.req_caps:
     - console
+
+# Satisfy capability dependencies for the self-contained test executable.
+egg.deps.test: libs/console/stub

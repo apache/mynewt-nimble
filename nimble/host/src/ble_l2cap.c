@@ -67,7 +67,7 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
     assert(rc == 0);
 }
 
-static int
+int
 ble_l2cap_parse_hdr(void *pkt, uint16_t len, struct ble_l2cap_hdr *l2cap_hdr)
 {
     uint8_t *u8ptr;
@@ -86,11 +86,28 @@ ble_l2cap_parse_hdr(void *pkt, uint16_t len, struct ble_l2cap_hdr *l2cap_hdr)
     l2cap_hdr->blh_cid = le16toh(u8ptr + off);
     off += 2;
 
-    if (len < BLE_L2CAP_HDR_SZ + l2cap_hdr->blh_len) {
+    return 0;
+}
+
+void
+ble_l2cap_write_hdr(void *dst, uint16_t len,
+                    const struct ble_l2cap_hdr *l2cap_hdr)
+{
+    uint8_t *u8ptr;
+    uint16_t off;
+
+    if (len < BLE_L2CAP_HDR_SZ) {
         return EMSGSIZE;
     }
 
-    return 0;
+    off = 0;
+    u8ptr = dst;
+
+    htole16(u8ptr + off, l2cap_hdr->blh_len);
+    off += 2;
+
+    htole16(u8ptr + off, l2cap_hdr->blh_cid);
+    off += 2;
 }
 
 static struct ble_l2cap_chan *

@@ -18,6 +18,7 @@
 #define H_L2CAP_
 
 #include <inttypes.h>
+#include "os/queue.h"
 #include "os/os_mbuf.h"
 struct ble_hs_conn;
 struct hci_data_hdr;
@@ -57,6 +58,11 @@ SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
+
+int ble_l2cap_parse_hdr(void *pkt, uint16_t len,
+                        struct ble_l2cap_hdr *l2cap_hdr);
+void ble_l2cap_write_hdr(void *dst, uint16_t len,
+                         const struct ble_l2cap_hdr *l2cap_hdr);
 
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
