@@ -16,11 +16,11 @@
 
 #include <assert.h>
 #include "os/os.h"
-#include "host/attr.h"
-#include "host/host_task.h"
+#include "host/ble_hs.h"
+#include "ble_hs_att.h"
 #include "ble_hs_conn.h"
 #ifdef ARCH_sim
-#include "itf.h"
+#include "ble_hs_itf.h"
 #endif
 
 

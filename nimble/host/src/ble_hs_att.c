@@ -19,7 +19,6 @@
 #include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "host/attr.h"
 #include "ble_l2cap.h"
 #include "ble_l2cap_util.h"
 #include "ble_hs_conn.h"

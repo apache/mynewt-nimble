@@ -1,10 +1,10 @@
 #include <stddef.h>
 #include <errno.h>
 #include "nimble/hci_common.h"
+#include "host/ble_hs.h"
+#include "host/ble_hs_test.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
-#include "host/host_task.h"
-#include "host/host_test.h"
 #include "testutil/testutil.h"
 
 TEST_CASE(l2cap_test_bad_header)

@@ -27,11 +27,11 @@
 #include <unistd.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "host/attr.h"
-#include "host/host_task.h"
+#include "host/ble_hs.h"
 #include "host/host_hci.h"
 #include "ble_hs_conn.h"
-#include "itf.h"
+#include "ble_hs_att.h"
+#include "ble_hs_itf.h"
 
 #define BLE_SIM_BASE_PORT       10000
 
