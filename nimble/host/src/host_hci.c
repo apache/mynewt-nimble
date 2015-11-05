@@ -24,7 +24,8 @@
 #include "nimble/hci_transport.h"
 #include "host/host_task.h"
 #include "host_dbg.h"
-#include "l2cap.h"
+#include "ble_hs_conn.h"
+#include "ble_l2cap.h"
 
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -476,8 +477,7 @@ host_hci_data_parse_hdr(void *pkt, uint16_t len, struct hci_data_hdr *hdr)
 int
 host_hci_data_rx(void *pkt, uint16_t len)
 {
-    struct ble_host_connection *connection;
-    struct ble_l2cap_hdr l2cap_hdr;
+    struct ble_hs_conn *connection;
     struct hci_data_hdr hci_hdr;
     uint16_t handle;
     uint16_t off;
@@ -497,27 +497,12 @@ host_hci_data_rx(void *pkt, uint16_t len)
     }
 
     handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
-    connection = ble_host_find_connection(handle);
+    connection = ble_hs_conn_find(handle);
     if (connection == NULL) {
         return ENOTCONN;
     }
 
-    rc = ble_l2cap_parse_hdr(u8ptr + off, len - off, &l2cap_hdr);
-    if (rc != 0) {
-        return rc;
-    }
-    off += BLE_L2CAP_HDR_SZ;
-    if (l2cap_hdr.blh_len != hci_hdr.hdh_len - BLE_L2CAP_HDR_SZ) {
-        return EMSGSIZE;
-    }
-
-    printf("hci-handle-pb-bc=%d\n", hci_hdr.hdh_handle_pb_bc);
-    printf("hci-len=%d\n", hci_hdr.hdh_len);
-    printf("l2cap-len=%d\n", l2cap_hdr.blh_len);
-    printf("l2cap-cid=%d\n", l2cap_hdr.blh_cid);
-    printf("\n");
-
-    ble_l2cap_rx(connection, &hci_hdr, &l2cap_hdr, u8ptr + off);
+    ble_l2cap_rx(connection, &hci_hdr, u8ptr + off);
 
     return 0;
 }

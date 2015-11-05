@@ -18,6 +18,7 @@
 #include "os/os.h"
 #include "host/attr.h"
 #include "host/host_task.h"
+#include "ble_hs_conn.h"
 #ifdef ARCH_sim
 #include "itf.h"
 #endif
@@ -25,47 +26,9 @@
 
 int ble_host_listen_enabled;
 
-struct ble_host_connection ble_host_connections[BLE_HOST_MAX_CONNECTIONS];
-int ble_host_num_connections;
-
 static struct os_eventq host_task_evq;
 //static struct ble_att_chan default_attr_chan; 
 static struct os_callout ble_host_task_timer;
-
-/**
- * Initialize the host portion of the BLE stack.
- */
-int 
-host_init(void)
-{
-    os_eventq_init(&host_task_evq);
-    os_callout_init(&ble_host_task_timer, &host_task_evq, NULL);
-
-#ifdef ARCH_sim
-    if (ble_host_listen_enabled) {
-        int rc;
-
-        rc = ble_sim_listen(1);
-        assert(rc == 0);
-    }
-#endif
-
-    return 0;
-}
-
-struct ble_host_connection *
-ble_host_find_connection(uint16_t con_handle)
-{
-    int i;
-
-    for (i = 0; i < BLE_HOST_MAX_CONNECTIONS; i++) {
-        if (ble_host_connections[i].bc_handle == con_handle) {
-            return ble_host_connections + i;
-        }
-    }
-
-    return NULL;
-}
 
 int
 ble_host_send_data_connectionless(uint16_t con_handle, uint16_t cid,
@@ -124,4 +87,37 @@ ble_host_task_handler(void *arg)
                 break;
         }
     }
+}
+
+/**
+ * Initialize the host portion of the BLE stack.
+ */
+int
+host_init(void)
+{
+    int rc;
+
+    os_eventq_init(&host_task_evq);
+    os_callout_init(&ble_host_task_timer, &host_task_evq, NULL);
+
+    rc = ble_hs_conn_init();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_l2cap_init();
+    if (rc != 0) {
+        return rc;
+    }
+
+#ifdef ARCH_sim
+    if (ble_host_listen_enabled) {
+        int rc;
+
+        rc = ble_sim_listen(1);
+        assert(rc == 0);
+    }
+#endif
+
+    return 0;
 }

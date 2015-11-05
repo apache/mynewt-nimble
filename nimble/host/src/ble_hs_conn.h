@@ -14,28 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef H_L2CAP_
-#define H_L2CAP_
+#ifndef H_BLE_HS_CONN_
+#define H_BLE_HS_CONN_
 
-struct ble_host_connection;
-struct hci_data_hdr;
+#include "os/queue.h"
+#include "ble_l2cap.h"
 
-#define BLE_L2CAP_CID_SIG   1
-#define BLE_L2CAP_CID_ATT   4
+struct ble_hs_conn *ble_host_find_connection(uint16_t con_handle);
 
-#define BLE_L2CAP_HDR_SZ    4
+struct ble_hs_conn {
+    SLIST_ENTRY(ble_hs_conn) bhc_next;
+    uint16_t bhc_handle;
+    int bhc_fd; // XXX Temporary.
 
-struct ble_l2cap_hdr
-{
-    uint16_t blh_len;
-    uint16_t blh_cid;
+    struct ble_l2cap_chan_list bhc_channels;
 };
 
-int ble_l2cap_parse_hdr(void *pkt, uint16_t len,
-                        struct ble_l2cap_hdr *l2cap_hdr);
-int ble_l2cap_rx(struct ble_host_connection *connection,
-                 struct hci_data_hdr *hci_hdr,
-                 struct ble_l2cap_hdr *l2cap_hdr,
-                 void *pkt);
+struct ble_hs_conn *ble_hs_conn_alloc(void);
+void ble_hs_conn_free(struct ble_hs_conn *conn);
+struct ble_hs_conn *ble_hs_conn_find(uint16_t con_handle);
+struct ble_hs_conn *ble_hs_conn_first(void);
+int ble_hs_conn_init(void);
 
 #endif

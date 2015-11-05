@@ -30,10 +30,8 @@
 #include "host/attr.h"
 #include "host/host_task.h"
 #include "host/host_hci.h"
+#include "ble_hs_conn.h"
 #include "itf.h"
-
-#define BLE_L2CAP_CID_ATT       4
-#define BLE_L2CAP_CID_SIG       5
 
 #define BLE_SIM_BASE_PORT       10000
 
@@ -52,23 +50,25 @@ set_nonblock(int fd)
 int
 ble_sim_listen(uint16_t con_handle)
 {
-    struct ble_host_connection *connection;
+    struct ble_hs_conn *conn;
     struct sockaddr_in sin;
     struct hostent *ent;
     int fd;
     int rc;
 
-    if (ble_host_num_connections >= BLE_HOST_MAX_CONNECTIONS) {
-        return EINVAL; // XXX
+    conn = ble_hs_conn_alloc();
+    if (conn == NULL) {
+        rc = ENOMEM;
+        goto err;
     }
-    connection = ble_host_connections + ble_host_num_connections;
 
     /* resolve host addr first, then create a socket and bind() to 
      * that address.
      */
     ent = gethostbyname("localhost");
     if (ent == NULL) {
-        return errno;
+        rc = errno;
+        goto err;
     }
 
     memset(&sin, 0, sizeof(sin));
@@ -78,7 +78,8 @@ ble_sim_listen(uint16_t con_handle)
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        return errno;
+        rc = errno;
+        goto err;
     }
 
     set_nonblock(fd);
@@ -86,31 +87,35 @@ ble_sim_listen(uint16_t con_handle)
     rc = bind(fd, (struct sockaddr *)&sin, sizeof sin);
     if (rc != 0) {
         close(fd);
-        return errno;
+        rc = errno;
+        goto err;
     }
 
-    memset(connection, 0, sizeof *connection);
-    connection->bc_handle = con_handle;
-    connection->bc_fd = fd;
-
-    ble_host_num_connections++;
+    memset(conn, 0, sizeof *conn);
+    conn->bhc_handle = con_handle;
+    conn->bhc_fd = fd;
 
     return 0;
+
+err:
+    ble_hs_conn_free(conn);
+    return rc;
 }
 
 static int
-ble_sim_connect(uint16_t con_handle)
+ble_sim_connect(uint16_t con_handle, struct ble_hs_conn **out_conn)
 {
-    struct ble_host_connection *connection;
+    struct ble_hs_conn *conn;
     struct sockaddr_in sin;
     struct hostent *ent;
     int fd;
     int rc;
 
-    if (ble_host_num_connections >= BLE_HOST_MAX_CONNECTIONS) {
-        return EINVAL; // XXX
+    conn = ble_hs_conn_alloc();
+    if (conn == NULL) {
+        rc = ENOMEM;
+        goto err;
     }
-    connection = ble_host_connections + ble_host_num_connections;
 
     /* resolve host addr first, then create a socket and bind() to 
      * that address.
@@ -140,46 +145,44 @@ ble_sim_connect(uint16_t con_handle)
         goto err;
     }
 
-    memset(connection, 0, sizeof *connection);
-    connection->bc_handle = con_handle;
-    connection->bc_fd = fd;
+    memset(conn, 0, sizeof *conn);
+    conn->bhc_handle = con_handle;
+    conn->bhc_fd = fd;
 
-    ble_host_num_connections++;
+    *out_conn = conn;
 
     return 0;
 
 err:
+    ble_hs_conn_free(conn);
+    *out_conn = NULL;
     return rc;
 }
 
 static int
-ble_sim_ensure_connection(uint16_t con_handle,
-                          struct ble_host_connection **connection)
+ble_sim_ensure_connection(uint16_t con_handle, struct ble_hs_conn **conn)
 {
     int rc;
 
-    *connection = ble_host_find_connection(con_handle);
-    if (*connection != NULL) {
-        return 0;
+    *conn = ble_hs_conn_find(con_handle);
+    if (*conn == NULL) {
+        rc = ble_sim_connect(con_handle, conn);
+        if (rc != 0) {
+            return rc;
+        }
     }
 
-    rc = ble_sim_connect(con_handle);
-    if (rc != 0) {
-        return rc;
-    }
-
-    *connection = ble_host_connections + ble_host_num_connections - 1;
     return 0;
 }
 
 static int
 ble_sim_send(uint16_t con_handle, const void *data, uint16_t len)
 {
-    struct ble_host_connection *connection;
+    struct ble_hs_conn *conn;
     int rc;
     int i;
 
-    rc = ble_sim_ensure_connection(con_handle, &connection);
+    rc = ble_sim_ensure_connection(con_handle, &conn);
     if (rc != 0) {
         return rc;
     }
@@ -191,7 +194,7 @@ ble_sim_send(uint16_t con_handle, const void *data, uint16_t len)
     printf("\n");
 
     while (len > 0) {
-        rc = send(connection->bc_fd, data, len, 0);
+        rc = send(conn->bhc_fd, data, len, 0);
         if (rc >= 0) {
             data += rc;
             len -= rc;
@@ -236,7 +239,7 @@ int
 ble_host_sim_poll(void)
 {
     static uint8_t buf[1024];
-    struct ble_host_connection *conn;
+    struct ble_hs_conn *conn;
     fd_set r_fd_set;
     fd_set w_fd_set;
     uint16_t pkt_size;
@@ -250,8 +253,11 @@ ble_host_sim_poll(void)
     FD_ZERO(&w_fd_set);
 
     max_fd = 0;
-    for (i = 0; i < ble_host_num_connections; i++) {
-        fd = ble_host_connections[i].bc_fd;
+    for (conn = ble_hs_conn_first();
+         conn != NULL;
+         conn = SLIST_NEXT(conn, bhc_next)) {
+
+        fd = conn->bhc_fd;
         FD_SET(fd, &r_fd_set);
         FD_SET(fd, &w_fd_set);
         if (fd > max_fd) {
@@ -264,11 +270,13 @@ ble_host_sim_poll(void)
     } while (nevents < 0 && errno == EINTR);
 
     if (nevents > 0) {
-        for (i = 0; i < ble_host_num_connections; i++) {
-            if (FD_ISSET(ble_host_connections[i].bc_fd, &r_fd_set)) {
-                conn = ble_host_connections + i;
+    for (conn = ble_hs_conn_first();
+         conn != NULL;
+         conn = SLIST_NEXT(conn, bhc_next)) {
+
+            if (FD_ISSET(conn->bhc_fd, &r_fd_set)) {
                 while (1) {
-                    rc = recv(conn->bc_fd, buf, sizeof buf, 0);
+                    rc = recv(conn->bhc_fd, buf, sizeof buf, 0);
                     if (rc <= 0) {
                         break;
                     }

@@ -14,11 +14,32 @@
  * limitations under the License.
  */
 
-#include <os/os.h>
 #include <string.h>
+#include <errno.h>
 
-#include <nimble/ble.h>
-#include <host/attr.h>
+#include "os/os.h"
+#include "nimble/ble.h"
+#include "host/attr.h"
+#include "ble_l2cap.h"
+#include "ble_hs_conn.h"
+#include "ble_hs_att.h"
+
+typedef int ble_hs_att_rx_fn(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan,
+                             void *buf, int len);
+struct ble_hs_att_rx_dispatch_entry {
+    uint8_t bde_op;
+    ble_hs_att_rx_fn *bde_fn;
+};
+
+#define BLE_HS_ATT_OP_READ          0x0a
+
+struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
+    { BLE_HS_ATT_OP_READ, NULL },
+};
+
+#define BLE_HS_ATT_RX_DISPATCH_SZ \
+    (sizeof ble_hs_att_rx_dispatch / sizeof ble_hs_att_rx_dispatch[0])
 
 static STAILQ_HEAD(, host_attr) g_host_attr_list = 
     STAILQ_HEAD_INITIALIZER(g_host_attr_list);
@@ -240,10 +261,55 @@ host_attr_find_by_uuid(ble_uuid_t *uuid, struct host_attr **ha_ptr)
     }
 }
 
-#if 0
-int
-ble_host_att_rx(void *pkt, int len)
+static struct ble_hs_att_rx_dispatch_entry *
+ble_hs_att_rx_dispatch_entry_find(uint8_t op)
 {
+    struct ble_hs_att_rx_dispatch_entry *entry;
+    int i;
 
+    for (i = 0; i < BLE_HS_ATT_RX_DISPATCH_SZ; i++) {
+        entry = ble_hs_att_rx_dispatch + i;
+        if (entry->bde_op == op) {
+            return entry;
+        }
+    }
+
+    return NULL;
 }
-#endif
+
+static int
+ble_hs_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+    struct ble_hs_att_rx_dispatch_entry *entry;
+    uint8_t op;
+    int rc;
+
+    if (chan->blc_rx_buf_sz < 1) {
+        return EMSGSIZE;
+    }
+
+    op = chan->blc_rx_buf[0];
+    entry = ble_hs_att_rx_dispatch_entry_find(op);
+    if (entry == NULL) {
+        return EINVAL;
+    }
+
+    rc = entry->bde_fn(conn, chan, chan->blc_rx_buf, chan->blc_rx_buf_sz);
+    return rc;
+}
+
+struct ble_l2cap_chan *
+ble_hs_att_create_chan(void)
+{
+    struct ble_l2cap_chan *chan;
+
+    chan = ble_l2cap_chan_alloc();
+    if (chan == NULL) {
+        return NULL;
+    }
+
+    chan->blc_cid = BLE_L2CAP_CID_ATT;
+    chan->blc_rx_fn = ble_hs_att_rx;
+
+    return chan;
+}
