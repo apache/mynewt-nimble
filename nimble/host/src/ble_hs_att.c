@@ -16,17 +16,17 @@
 
 #include <string.h>
 #include <errno.h>
-
+#include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "host/attr.h"
 #include "ble_l2cap.h"
+#include "ble_l2cap_util.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_att.h"
 
 typedef int ble_hs_att_rx_fn(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan,
-                             void *buf, int len);
+                             struct ble_l2cap_chan *chan);
 struct ble_hs_att_rx_dispatch_entry {
     uint8_t bde_op;
     ble_hs_att_rx_fn *bde_fn;
@@ -34,8 +34,12 @@ struct ble_hs_att_rx_dispatch_entry {
 
 #define BLE_HS_ATT_OP_READ          0x0a
 
+/** Dispatch table for incoming ATT requests.  Sorted by op code. */
+static int ble_hs_att_rx_read(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan);
+
 struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
-    { BLE_HS_ATT_OP_READ, NULL },
+    { BLE_HS_ATT_OP_READ, ble_hs_att_rx_read },
 };
 
 #define BLE_HS_ATT_RX_DISPATCH_SZ \
@@ -272,9 +276,51 @@ ble_hs_att_rx_dispatch_entry_find(uint8_t op)
         if (entry->bde_op == op) {
             return entry;
         }
+
+        if (entry->bde_op > op) {
+            break;
+        }
     }
 
     return NULL;
+}
+
+/**
+ * | Parameter          | Size (octets) |
+ * +--------------------+---------------+
+ * | Attribute Opcode   | 1             |
+ * | Attribute Handle   | 2             |
+ */
+static int
+ble_hs_att_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+    uint16_t handle;
+    uint8_t op;
+    int off;
+    int rc;
+
+    off = 0;
+
+    rc = os_mbuf_copydata(chan->blc_rx_buf, off, 1, &op);
+    if (rc != 0) {
+        return EMSGSIZE;
+    }
+    off += 1;
+
+    assert(op == BLE_HS_ATT_OP_READ);
+
+    rc = ble_l2cap_read_uint16(chan, off, &handle);
+    if (rc != 0) {
+        return EMSGSIZE;
+    }
+    off += 2;
+
+    /* XXX: Perform read. */
+
+    /* Strip ATT read request from the buffer. */
+    ble_l2cap_strip(chan, off);
+
+    return 0;
 }
 
 static int
@@ -284,18 +330,22 @@ ble_hs_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     uint8_t op;
     int rc;
 
-    if (chan->blc_rx_buf_sz < 1) {
+    rc = os_mbuf_copydata(chan->blc_rx_buf, 0, 1, &op);
+    if (rc != 0) {
         return EMSGSIZE;
     }
 
-    op = chan->blc_rx_buf[0];
     entry = ble_hs_att_rx_dispatch_entry_find(op);
     if (entry == NULL) {
         return EINVAL;
     }
 
-    rc = entry->bde_fn(conn, chan, chan->blc_rx_buf, chan->blc_rx_buf_sz);
-    return rc;
+    rc = entry->bde_fn(conn, chan);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 struct ble_l2cap_chan *

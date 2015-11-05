@@ -25,6 +25,18 @@
 
 #define BLE_L2CAP_CHAN_MAX  32
 
+#define BLE_L2CAP_NUM_MBUFS      (16)
+#define BLE_L2CAP_BUF_SIZE       (256)
+#define BLE_L2CAP_MEMBLOCK_SIZE  \
+    (BLE_L2CAP_BUF_SIZE + sizeof(struct os_mbuf) + \
+     sizeof(struct os_mbuf_pkthdr))
+
+#define BLE_L2CAP_MEMPOOL_SIZE  \
+    OS_MEMPOOL_SIZE(BLE_L2CAP_NUM_MBUFS, BLE_L2CAP_MEMBLOCK_SIZE)
+
+struct os_mbuf_pool ble_l2cap_mbuf_pool;
+
+static struct os_mempool ble_l2cap_mbuf_mempool;
 static struct os_mempool ble_l2cap_chan_pool;
 
 struct ble_l2cap_chan *
@@ -121,7 +133,20 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         return ENOENT;
     }
 
-    /* XXX: Append incoming data to channel buffer. */
+    if (chan->blc_rx_buf == NULL) {
+        chan->blc_rx_buf = os_mbuf_get(&ble_l2cap_mbuf_pool, 0);
+        if (chan->blc_rx_buf == NULL) {
+            /* XXX Need to deal with this in a way that prevents starvation. */
+            return ENOMEM;
+        }
+    }
+
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, chan->blc_rx_buf,
+                        u8ptr + BLE_L2CAP_HDR_SZ, l2cap_hdr.blh_len);
+    if (rc != 0) {
+        /* XXX Need to deal with this in a way that prevents starvation. */
+        return rc;
+    }
 
     rc = chan->blc_rx_fn(conn, chan);
     if (rc != 0) {
@@ -135,6 +160,7 @@ int
 ble_l2cap_init(void)
 {
     os_membuf_t *chan_mem;
+    os_membuf_t *mbuf_mem;
     int rc;
 
     chan_mem = malloc(
@@ -147,6 +173,22 @@ ble_l2cap_init(void)
     rc = os_mempool_init(&ble_l2cap_chan_pool, BLE_L2CAP_CHAN_MAX,
                          sizeof (struct ble_l2cap_chan),
                          chan_mem, "ble_l2cap_chan_pool");
+    if (rc != 0) {
+        return EINVAL; // XXX
+    }
+
+    mbuf_mem = malloc(BLE_L2CAP_MEMPOOL_SIZE);
+    if (mbuf_mem == NULL) {
+        return ENOMEM;
+    }
+    rc = os_mempool_init(&ble_l2cap_mbuf_mempool, BLE_L2CAP_NUM_MBUFS,
+                         BLE_L2CAP_MEMBLOCK_SIZE,
+                         mbuf_mem, "ble_l2cap_mbuf_pool");
+    if (rc != 0) {
+        return EINVAL; // XXX
+    }
+    rc = os_mbuf_pool_init(&ble_l2cap_mbuf_pool, &ble_l2cap_mbuf_mempool,
+                           0, BLE_L2CAP_MEMBLOCK_SIZE, BLE_L2CAP_NUM_MBUFS);
     if (rc != 0) {
         return EINVAL; // XXX
     }

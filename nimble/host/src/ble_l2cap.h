@@ -18,6 +18,7 @@
 #define H_L2CAP_
 
 #include <inttypes.h>
+#include "os/os_mbuf.h"
 struct ble_hs_conn;
 struct hci_data_hdr;
 
@@ -44,9 +45,7 @@ struct ble_l2cap_chan
     uint16_t blc_cid;
     ble_l2cap_rx_fn *blc_rx_fn;
 
-    /* XXX: These will probably be replaced by an mbuf. */
-    uint8_t blc_rx_buf[BLE_L2CAP_CHAN_BUF_CAP];
-    int blc_rx_buf_sz;
+    struct os_mbuf *blc_rx_buf;
 
     // tx mbuf
     // tx callback
@@ -58,10 +57,13 @@ SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
+
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
                  void *pkt);
 
 int ble_l2cap_init(void);
+
+extern struct os_mbuf_pool ble_l2cap_mbuf_pool;
 
 #endif
