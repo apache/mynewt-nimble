@@ -112,7 +112,7 @@ ble_l2cap_write_hdr(void *dst, uint16_t len,
     return 0;
 }
 
-static struct ble_l2cap_chan *
+struct ble_l2cap_chan *
 ble_l2cap_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 {
     struct ble_l2cap_chan *chan;
@@ -124,6 +124,53 @@ ble_l2cap_chan_find(struct ble_hs_conn *conn, uint16_t cid)
     }
 
     return NULL;
+}
+
+/**
+ * If the specified pointer points to null, this function attempts to allocate
+ * an mbuf from the l2cap mbuf pool and assigns the result to the pointer.  No
+ * effect if the specified pointer already points to an mbuf.
+ *
+ * @return                      0 on success;
+ *                              ENOMEM on mbuf allocation failure.
+ */
+static int
+ble_l2cap_ensure_buf(struct os_mbuf **om)
+{
+    if (*om == NULL) {
+        *om = os_mbuf_get(&ble_l2cap_mbuf_pool, 0);
+        if (*om == NULL) {
+            return ENOMEM;
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                     void *payload, int len)
+{
+    int rc;
+
+    rc = ble_l2cap_ensure_buf(&chan->blc_rx_buf);
+    if (rc != 0) {
+        /* XXX Need to deal with this in a way that prevents starvation. */
+        return ENOMEM;
+    }
+
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, chan->blc_rx_buf, payload, len);
+    if (rc != 0) {
+        /* XXX Need to deal with this in a way that prevents starvation. */
+        return rc;
+    }
+
+    rc = chan->blc_rx_fn(conn, chan);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 int
@@ -152,25 +199,32 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         return ENOENT;
     }
 
-    if (chan->blc_rx_buf == NULL) {
-        chan->blc_rx_buf = os_mbuf_get(&ble_l2cap_mbuf_pool, 0);
-        if (chan->blc_rx_buf == NULL) {
-            /* XXX Need to deal with this in a way that prevents starvation. */
-            return ENOMEM;
-        }
+    rc = ble_l2cap_rx_payload(conn, chan, u8ptr + BLE_L2CAP_HDR_SZ,
+                              l2cap_hdr.blh_len);
+    if (rc != 0) {
+        return rc;
     }
 
-    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, chan->blc_rx_buf,
-                        u8ptr + BLE_L2CAP_HDR_SZ, l2cap_hdr.blh_len);
+    return 0;
+}
+
+int
+ble_l2cap_tx(struct ble_l2cap_chan *chan, void *payload, int len)
+{
+    int rc;
+
+    rc = ble_l2cap_ensure_buf(&chan->blc_tx_buf);
     if (rc != 0) {
         /* XXX Need to deal with this in a way that prevents starvation. */
-        return rc;
+        return ENOMEM;
     }
 
-    rc = chan->blc_rx_fn(conn, chan);
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, payload, len);
     if (rc != 0) {
         return rc;
     }
+
+    /* XXX: L2CAP kick. */
 
     return 0;
 }

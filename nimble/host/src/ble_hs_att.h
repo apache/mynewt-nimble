@@ -21,11 +21,6 @@
 
 #define BLE_HOST_EVENT_NEW_ATTR_CONN (OS_EVENT_T_PERUSER)
 
-struct ble_att_chan {
-    int c_fd;
-    int c_state; 
-}; 
-
 struct host_attr;
 
 /**
@@ -73,5 +68,6 @@ struct host_attr {
 #define HA_METH_EXCHANGE_MTU_RSP (0x03)
 
 struct ble_l2cap_chan *ble_hs_att_create_chan(void);
+int ble_hs_att_init(void);
 
 #endif

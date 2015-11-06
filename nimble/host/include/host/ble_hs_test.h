@@ -18,6 +18,7 @@
 #define H_HOST_TEST_
 
 int l2cap_test_all(void);
+int ble_hs_att_test_all(void);
 
 #endif
 

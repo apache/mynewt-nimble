@@ -27,7 +27,6 @@
 int ble_host_listen_enabled;
 
 static struct os_eventq host_task_evq;
-//static struct ble_att_chan default_attr_chan; 
 static struct os_callout ble_host_task_timer;
 
 int
@@ -79,7 +78,6 @@ ble_host_task_handler(void *arg)
         switch (ev->ev_type) {
             case OS_EVENT_T_TIMER:
                 /* Poll the attribute channel */
-                //ble_att_chan_poll(&default_attr_chan, &host_task_evq);            
                 /* Reset callout, wakeup every 50ms */
                 os_callout_reset(&ble_host_task_timer, 50);
                 break;
@@ -106,6 +104,11 @@ host_init(void)
     }
 
     rc = ble_l2cap_init();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_att_init();
     if (rc != 0) {
         return rc;
     }

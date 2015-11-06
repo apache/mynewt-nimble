@@ -28,8 +28,6 @@ struct hci_data_hdr;
 
 #define BLE_L2CAP_HDR_SZ    4
 
-#define BLE_L2CAP_CHAN_BUF_CAP      256
-
 struct ble_l2cap_hdr
 {
     uint16_t blh_len;
@@ -37,19 +35,22 @@ struct ble_l2cap_hdr
 };
 
 struct ble_l2cap_chan;
+
 typedef int ble_l2cap_rx_fn(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan);
+
+typedef int ble_l2cap_tx_fn(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);
 
 struct ble_l2cap_chan
 {
     SLIST_ENTRY(ble_l2cap_chan) blc_next;
     uint16_t blc_cid;
-    ble_l2cap_rx_fn *blc_rx_fn;
 
     struct os_mbuf *blc_rx_buf;
+    struct os_mbuf *blc_tx_buf;
 
-    // tx mbuf
-    // tx callback
+    ble_l2cap_rx_fn *blc_rx_fn;
 };
 
 
@@ -58,15 +59,20 @@ SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
+struct ble_l2cap_chan *ble_l2cap_chan_find(struct ble_hs_conn *conn,
+                                           uint16_t cid);
 
 int ble_l2cap_parse_hdr(void *pkt, uint16_t len,
                         struct ble_l2cap_hdr *l2cap_hdr);
 int ble_l2cap_write_hdr(void *dst, uint16_t len,
                         const struct ble_l2cap_hdr *l2cap_hdr);
 
+int ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         void *payload, int len);
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
                  void *pkt);
+int ble_l2cap_tx(struct ble_l2cap_chan *chan, void *payload, int len);
 
 int ble_l2cap_init(void);
 

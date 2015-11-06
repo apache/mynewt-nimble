@@ -22,6 +22,7 @@
 #include "ble_l2cap.h"
 #include "ble_l2cap_util.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_att_cmd.h"
 #include "ble_hs_att.h"
 
 typedef int ble_hs_att_rx_fn(struct ble_hs_conn *conn,
@@ -31,14 +32,12 @@ struct ble_hs_att_rx_dispatch_entry {
     ble_hs_att_rx_fn *bde_fn;
 };
 
-#define BLE_HS_ATT_OP_READ          0x0a
-
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
 static int ble_hs_att_rx_read(struct ble_hs_conn *conn,
                               struct ble_l2cap_chan *chan);
 
 struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
-    { BLE_HS_ATT_OP_READ, ble_hs_att_rx_read },
+    { BLE_HS_ATT_OP_READ_REQ, ble_hs_att_rx_read },
 };
 
 #define BLE_HS_ATT_RX_DISPATCH_SZ \
@@ -61,7 +60,7 @@ host_attr_list_lock(void)
     int rc;
 
     rc = os_mutex_pend(&g_host_attr_list_mutex, OS_WAIT_FOREVER);
-    if (rc != 0) {
+    if (rc != 0 && rc != OS_NOT_STARTED) {
         goto err;
     }
 
@@ -81,7 +80,7 @@ host_attr_list_unlock(void)
     int rc;
 
     rc = os_mutex_release(&g_host_attr_list_mutex);
-    if (rc != 0) {
+    if (rc != 0 && rc != OS_NOT_STARTED) {
         goto err;
     }
 
@@ -284,40 +283,56 @@ ble_hs_att_rx_dispatch_entry_find(uint8_t op)
     return NULL;
 }
 
-/**
- * | Parameter          | Size (octets) |
- * +--------------------+---------------+
- * | Attribute Opcode   | 1             |
- * | Attribute Handle   | 2             |
- */
+static int
+ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
+                        uint16_t handle, uint8_t error_code)
+{
+    struct ble_hs_att_error_rsp rsp;
+    uint8_t buf[BLE_HS_ATT_ERROR_RSP_SZ];
+    int rc;
+
+    rsp.bhaep_op = BLE_HS_ATT_OP_ERROR_RSP;
+    rsp.bhaep_req_op = req_op;
+    rsp.bhaep_handle = handle;
+    rsp.bhaep_error_code = error_code;
+
+    rc = ble_hs_att_error_rsp_write(buf, sizeof buf, &rsp);
+    assert(rc == 0);
+
+    rc = ble_l2cap_tx(chan, buf, sizeof buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 static int
 ble_hs_att_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
-    uint16_t handle;
-    uint8_t op;
-    int off;
+    struct ble_hs_att_read_req req;
+    struct host_attr *attr;
+    uint8_t buf[BLE_HS_ATT_READ_REQ_SZ];
     int rc;
 
-    off = 0;
-
-    rc = os_mbuf_copydata(chan->blc_rx_buf, off, 1, &op);
+    rc = os_mbuf_copydata(chan->blc_rx_buf, 0, sizeof buf, buf);
     if (rc != 0) {
-        return EMSGSIZE;
+        return rc;
     }
-    off += 1;
-
-    assert(op == BLE_HS_ATT_OP_READ);
-
-    rc = ble_l2cap_read_uint16(chan, off, &handle);
-    if (rc != 0) {
-        return EMSGSIZE;
-    }
-    off += 2;
-
-    /* XXX: Perform read. */
-
     /* Strip ATT read request from the buffer. */
-    ble_l2cap_strip(chan, off);
+    ble_l2cap_strip(chan, BLE_HS_ATT_READ_REQ_SZ);
+
+    rc = ble_hs_att_read_req_parse(buf, sizeof buf, &req);
+    assert(rc == 0);
+
+    rc = host_attr_find_by_handle(req.bharq_handle, &attr);
+    if (rc != 0) {
+        ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_READ_REQ,
+                                req.bharq_handle, rc);
+        return rc;
+    }
+
+    /* XXX: Send response. */
 
     return 0;
 }
@@ -361,4 +376,13 @@ ble_hs_att_create_chan(void)
     chan->blc_rx_fn = ble_hs_att_rx;
 
     return chan;
+}
+
+int
+ble_hs_att_init(void)
+{
+    int rc;
+
+    rc = os_mutex_init(&g_host_attr_list_mutex);
+    return rc;
 }
