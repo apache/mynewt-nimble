@@ -29,14 +29,45 @@
 static uint8_t *ble_hs_att_test_attr_1;
 static int ble_hs_att_test_attr_1_len;
 
+static uint8_t ble_hs_att_test_attr_2[1024];
+static int ble_hs_att_test_attr_2_len;
+
 static int
 ble_hs_att_test_misc_attr_fn_1(struct ble_hs_att_entry *entry,
-                               uint8_t op, uint8_t **data, int *len)
+                               uint8_t op, union ble_hs_att_handle_arg *arg)
 {
-    *data = ble_hs_att_test_attr_1;
-    *len = ble_hs_att_test_attr_1_len;
+    switch (op) {
+    case BLE_HS_ATT_OP_READ_REQ:
+        arg->aha_read.attr_data = ble_hs_att_test_attr_1;
+        arg->aha_read.attr_len = ble_hs_att_test_attr_1_len;
+        return 0;
 
-    return 0;
+    default:
+        return -1;
+    }
+}
+
+static int
+ble_hs_att_test_misc_attr_fn_2(struct ble_hs_att_entry *entry,
+                               uint8_t op, union ble_hs_att_handle_arg *arg)
+{
+    struct os_mbuf_pkthdr *omp;
+    int rc;
+
+    switch (op) {
+    case BLE_HS_ATT_OP_WRITE_REQ:
+        omp = OS_MBUF_PKTHDR(arg->aha_write.om);
+        rc = os_mbuf_copydata(arg->aha_write.om, 0, arg->aha_write.attr_len,
+                              ble_hs_att_test_attr_2);
+        TEST_ASSERT(rc == 0);
+        ble_hs_att_test_attr_2_len = arg->aha_write.attr_len;
+        return 0;
+
+    default:
+        return -1;
+    }
+
+    (void)omp;
 }
 
 static void
@@ -89,6 +120,21 @@ ble_hs_att_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
     os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, attr_len + 1);
 }
 
+static void
+ble_hs_att_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
+{
+    uint8_t u8;
+    int rc;
+
+    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, 1, &u8);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(u8 == BLE_HS_ATT_OP_WRITE_RSP);
+
+    /* Remove the write response from the buffer. */
+    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf,
+                BLE_HS_ATT_WRITE_RSP_SZ);
+}
+
 TEST_CASE(ble_hs_att_test_read)
 {
     struct ble_hs_att_read_req req;
@@ -97,6 +143,9 @@ TEST_CASE(ble_hs_att_test_read)
     uint8_t buf[BLE_HS_ATT_READ_REQ_SZ];
     uint8_t uuid[16] = {0};
     int rc;
+
+    rc = host_init();
+    TEST_ASSERT_FATAL(rc == 0);
 
     conn = ble_hs_conn_alloc();
     TEST_ASSERT_FATAL(conn != NULL);
@@ -146,18 +195,58 @@ TEST_CASE(ble_hs_att_test_read)
 
     ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_1,
                                             BLE_HS_ATT_MTU_DFLT - 1);
-
-    ble_hs_conn_free(conn);
 }
 
-TEST_SUITE(att_suite)
+TEST_CASE(ble_hs_att_test_write)
 {
+    struct ble_hs_att_write_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_HS_ATT_READ_REQ_SZ + 8];
+    uint8_t uuid[16] = {0};
     int rc;
 
     rc = host_init();
     TEST_ASSERT_FATAL(rc == 0);
 
+    conn = ble_hs_conn_alloc();
+    TEST_ASSERT_FATAL(conn != NULL);
+
+    chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+
+    /*** Nonexistent attribute. */
+    req.bhawq_op = BLE_HS_ATT_OP_WRITE_REQ;
+    req.bhawq_handle = 0;
+    rc = ble_hs_att_write_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    memcpy(buf + BLE_HS_ATT_READ_REQ_SZ, ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_WRITE_REQ, 0,
+                                           BLE_ERR_ATTR_NOT_FOUND);
+
+    /*** Successful write. */
+    rc = ble_hs_att_register(uuid, 0, &req.bhawq_handle,
+                             ble_hs_att_test_misc_attr_fn_2);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_hs_att_write_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    memcpy(buf + BLE_HS_ATT_WRITE_REQ_MIN_SZ,
+           ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_write_rsp(chan);
+}
+
+TEST_SUITE(att_suite)
+{
     ble_hs_att_test_read();
+    ble_hs_att_test_write();
 }
 
 int

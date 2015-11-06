@@ -23,6 +23,18 @@
 
 struct ble_hs_att_entry;
 
+union ble_hs_att_handle_arg {
+    struct {
+        void *attr_data;
+        int attr_len;
+    } aha_read;
+
+    struct {
+        struct os_mbuf *om;
+        int attr_len;
+    } aha_write;
+};
+
 /**
  * Called from ble_hs_att_walk().  Called on each entry in the 
  * ble_hs_att_list.
@@ -41,7 +53,8 @@ typedef int (*ble_hs_att_walk_func_t)(struct ble_hs_att_entry *, void *arg);
  * @param The request data associated with that host attribute
  */
 typedef int ble_hs_att_handle_func(struct ble_hs_att_entry *entry,
-                                   uint8_t op, uint8_t **data, int *len);
+                                   uint8_t op,
+                                   union ble_hs_att_handle_arg *arg);
 
 #define HA_FLAG_PERM_READ            (1 << 0)
 #define HA_FLAG_PERM_WRITE           (1 << 1) 
@@ -64,11 +77,6 @@ struct ble_hs_att_entry {
 #define HA_OPCODE_METHOD_END (5)
 #define HA_OPCODE_COMMAND_FLAG (1 << 6) 
 #define HA_OPCODE_AUTH_SIG_FLAG (1 << 7) 
-
-
-#define HA_METH_ERROR_RSP        (0x01)
-#define HA_METH_EXCHANGE_MTU_REQ (0x02)
-#define HA_METH_EXCHANGE_MTU_RSP (0x03)
 
 int ble_hs_att_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
                         ble_hs_att_handle_func *fn);

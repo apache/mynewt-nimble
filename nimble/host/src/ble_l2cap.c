@@ -138,7 +138,7 @@ static int
 ble_l2cap_ensure_buf(struct os_mbuf **om)
 {
     if (*om == NULL) {
-        *om = os_mbuf_get(&ble_l2cap_mbuf_pool, 0);
+        *om = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
         if (*om == NULL) {
             return ENOMEM;
         }
@@ -151,6 +151,7 @@ int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      void *payload, int len)
 {
+    struct os_mbuf *om;
     int rc;
 
     rc = ble_l2cap_ensure_buf(&chan->blc_rx_buf);
@@ -165,7 +166,12 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return rc;
     }
 
-    rc = chan->blc_rx_fn(conn, chan);
+    /* XXX: Check that complete SDU has been received. */
+    om = chan->blc_rx_buf;
+    chan->blc_rx_buf = NULL;
+
+    rc = chan->blc_rx_fn(conn, chan, om);
+    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, om);
     if (rc != 0) {
         return rc;
     }

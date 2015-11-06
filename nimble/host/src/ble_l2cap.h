@@ -37,7 +37,8 @@ struct ble_l2cap_hdr
 struct ble_l2cap_chan;
 
 typedef int ble_l2cap_rx_fn(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan);
+                            struct ble_l2cap_chan *chan,
+                            struct os_mbuf *om);
 
 typedef int ble_l2cap_tx_fn(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);
