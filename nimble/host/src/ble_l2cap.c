@@ -224,8 +224,6 @@ ble_l2cap_tx(struct ble_l2cap_chan *chan, void *payload, int len)
         return rc;
     }
 
-    /* XXX: L2CAP kick. */
-
     return 0;
 }
 

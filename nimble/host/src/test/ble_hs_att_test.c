@@ -21,13 +21,26 @@
 #include "host/ble_hs_test.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_att.h"
 #include "ble_hs_att_cmd.h"
 #include "testutil/testutil.h"
 
+static uint8_t ble_hs_att_test_attr_1[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+static int
+ble_hs_att_test_misc_attr_fn_1(struct ble_hs_att_entry *entry,
+                               uint8_t op, uint8_t **data, int *len)
+{
+    *data = ble_hs_att_test_attr_1;
+    *len = sizeof ble_hs_att_test_attr_1;
+
+    return 0;
+}
+
 static void
-ble_hs_att_test_misc_verify_err_rsp(struct ble_l2cap_chan *chan,
-                                    uint8_t req_op, uint16_t handle,
-                                    uint8_t error_code)
+ble_hs_att_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
+                                       uint8_t req_op, uint16_t handle,
+                                       uint8_t error_code)
 {
     struct ble_hs_att_error_rsp rsp;
     uint8_t buf[BLE_HS_ATT_ERROR_RSP_SZ];
@@ -43,6 +56,35 @@ ble_hs_att_test_misc_verify_err_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(rsp.bhaep_req_op == req_op);
     TEST_ASSERT(rsp.bhaep_handle == handle);
     TEST_ASSERT(rsp.bhaep_error_code == error_code);
+
+    /* Remove the error response from the buffer. */
+    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf,
+                BLE_HS_ATT_ERROR_RSP_SZ);
+}
+
+static void
+ble_hs_att_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
+                                        uint8_t *attr_data, int attr_len)
+{
+    uint8_t u8;
+    int rc;
+    int i;
+
+    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, 1, &u8);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(u8 == BLE_HS_ATT_OP_READ_RSP);
+
+    for (i = 0; i < attr_len; i++) {
+        rc = os_mbuf_copydata(chan->blc_tx_buf, i + 1, 1, &u8);
+        TEST_ASSERT(rc == 0);
+        TEST_ASSERT(u8 == attr_data[i]);
+    }
+
+    rc = os_mbuf_copydata(chan->blc_tx_buf, i + 1, 1, &u8);
+    TEST_ASSERT(rc != 0);
+
+    /* Remove the read response from the buffer. */
+    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, i);
 }
 
 TEST_CASE(ble_hs_att_test_small_read)
@@ -51,6 +93,7 @@ TEST_CASE(ble_hs_att_test_small_read)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     uint8_t buf[BLE_HS_ATT_READ_REQ_SZ];
+    uint8_t uuid[16] = {0};
     int rc;
 
     conn = ble_hs_conn_alloc();
@@ -67,8 +110,22 @@ TEST_CASE(ble_hs_att_test_small_read)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_hs_att_test_misc_verify_err_rsp(chan, BLE_HS_ATT_OP_READ_REQ, 0,
+    ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_READ_REQ, 0,
                                         BLE_ERR_ATTR_NOT_FOUND);
+
+    /*** Successful read. */
+    rc = ble_hs_att_register(uuid, 0, &req.bharq_handle,
+                             ble_hs_att_test_misc_attr_fn_1);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_hs_att_read_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_1,
+                                            sizeof ble_hs_att_test_attr_1);
 
     ble_hs_conn_free(conn);
 }

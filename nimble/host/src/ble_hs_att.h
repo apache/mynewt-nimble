@@ -21,26 +21,27 @@
 
 #define BLE_HOST_EVENT_NEW_ATTR_CONN (OS_EVENT_T_PERUSER)
 
-struct host_attr;
+struct ble_hs_att_entry;
 
 /**
- * Called from host_attr_walk().  Called on each entry in the 
- * host_attr_list.
+ * Called from ble_hs_att_walk().  Called on each entry in the 
+ * ble_hs_att_list.
  *
- * @param Contains the current host_attr being iterated through
- * @param The user supplied argument to host_attr_walk()
+ * @param Contains the current ble_hs_att being iterated through
+ * @param The user supplied argument to ble_hs_att_walk()
  *
  * @return 0 on continue, 1 on stop
  */
-typedef int (*host_attr_walk_func_t)(struct host_attr *, void *arg);
+typedef int (*ble_hs_att_walk_func_t)(struct ble_hs_att_entry *, void *arg);
 
 /**
  * Handles a host attribute request.
  *
- * @param The host attribute being requested 
+ * @param entry The host attribute being requested
  * @param The request data associated with that host attribute
  */
-typedef int (*host_attr_handle_func_t)(struct host_attr *, uint8_t *data);
+typedef int ble_hs_att_handle_func(struct ble_hs_att_entry *entry,
+                                   uint8_t op, uint8_t **data, int *len);
 
 #define HA_FLAG_PERM_READ            (1 << 0)
 #define HA_FLAG_PERM_WRITE           (1 << 1) 
@@ -49,12 +50,14 @@ typedef int (*host_attr_handle_func_t)(struct host_attr *, uint8_t *data);
 #define HA_FLAG_AUTHENTICATION_REQ   (1 << 4)
 #define HA_FLAG_AUTHORIZATION_REQ    (1 << 5)
 
-struct host_attr {
+struct ble_hs_att_entry {
+    STAILQ_ENTRY(ble_hs_att_entry) ha_next;
+
     ble_uuid_t ha_uuid;
     uint8_t ha_flags;
     uint8_t ha_pad1;
     uint16_t ha_handle_id;
-    STAILQ_ENTRY(host_attr) ha_next;
+    ble_hs_att_handle_func *ha_fn;
 };
 
 #define HA_OPCODE_METHOD_START (0)
@@ -67,6 +70,8 @@ struct host_attr {
 #define HA_METH_EXCHANGE_MTU_REQ (0x02)
 #define HA_METH_EXCHANGE_MTU_RSP (0x03)
 
+int ble_hs_att_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
+                        ble_hs_att_handle_func *fn);
 struct ble_l2cap_chan *ble_hs_att_create_chan(void);
 int ble_hs_att_init(void);
 

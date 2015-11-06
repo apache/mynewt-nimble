@@ -43,11 +43,15 @@ struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
 #define BLE_HS_ATT_RX_DISPATCH_SZ \
     (sizeof ble_hs_att_rx_dispatch / sizeof ble_hs_att_rx_dispatch[0])
 
-static STAILQ_HEAD(, host_attr) g_host_attr_list = 
-    STAILQ_HEAD_INITIALIZER(g_host_attr_list);
-static uint16_t g_host_attr_id;
+static STAILQ_HEAD(, ble_hs_att_entry) g_ble_hs_att_list =
+    STAILQ_HEAD_INITIALIZER(g_ble_hs_att_list);
+static uint16_t g_ble_hs_att_id;
 
-static struct os_mutex g_host_attr_list_mutex;
+static struct os_mutex g_ble_hs_att_list_mutex;
+
+#define BLE_HS_ATT_NUM_ENTRIES          1024
+static void *ble_hs_att_entry_mem;
+static struct os_mempool ble_hs_att_entry_pool;
 
 /**
  * Lock the host attribute list.
@@ -55,11 +59,11 @@ static struct os_mutex g_host_attr_list_mutex;
  * @return 0 on success, non-zero error code on failure.
  */
 static int 
-host_attr_list_lock(void)
+ble_hs_att_list_lock(void)
 {
     int rc;
 
-    rc = os_mutex_pend(&g_host_attr_list_mutex, OS_WAIT_FOREVER);
+    rc = os_mutex_pend(&g_ble_hs_att_list_mutex, OS_WAIT_FOREVER);
     if (rc != 0 && rc != OS_NOT_STARTED) {
         goto err;
     }
@@ -75,11 +79,11 @@ err:
  * @return 0 on success, non-zero error code on failure.
  */
 static int 
-host_attr_list_unlock(void)
+ble_hs_att_list_unlock(void)
 {
     int rc;
 
-    rc = os_mutex_release(&g_host_attr_list_mutex);
+    rc = os_mutex_release(&g_ble_hs_att_list_mutex);
     if (rc != 0 && rc != OS_NOT_STARTED) {
         goto err;
     }
@@ -89,6 +93,29 @@ err:
     return (rc);
 }
 
+static struct ble_hs_att_entry *
+ble_hs_att_entry_alloc(void)
+{
+    struct ble_hs_att_entry *entry;
+
+    entry = os_memblock_get(&ble_hs_att_entry_pool);
+    if (entry != NULL) {
+        memset(entry, 0, sizeof *entry);
+    }
+
+    return entry;
+}
+
+#if 0
+static void
+ble_hs_att_entry_free(struct ble_hs_att_entry *entry)
+{
+    int rc;
+
+    rc = os_memblock_put(&ble_hs_att_entry_pool, entry);
+    assert(rc == 0);
+}
+#endif
 
 /**
  * Allocate the next handle id and return it.
@@ -96,41 +123,55 @@ err:
  * @return A new 16-bit handle ID.
  */
 static uint16_t
-host_attr_next_id(void)
+ble_hs_att_next_id(void)
 {
-    return (++g_host_attr_id);
+    return (++g_ble_hs_att_id);
 }
 
 /**
  * Register a host attribute with the BLE stack.
  *
- * @param ha A filled out host_attr structure to register
+ * @param ha A filled out ble_hs_att structure to register
  * @param handle_id A pointer to a 16-bit handle ID, which will be the 
  *                  handle that is allocated.
  *
  * @return 0 on success, non-zero error code on failure.
  */
 int 
-host_attr_register(struct host_attr *ha, uint16_t *handle_id)
+ble_hs_att_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
+                    ble_hs_att_handle_func *fn)
 {
+    struct ble_hs_att_entry *entry;
     int rc;
 
-    *handle_id = host_attr_next_id();
-    ha->ha_handle_id = *handle_id;
+    entry = ble_hs_att_entry_alloc();
+    if (entry == NULL) {
+        return ENOMEM;
+    }
 
-    rc = host_attr_list_lock();
+    memcpy(&entry->ha_uuid, uuid, sizeof entry->ha_uuid);
+    entry->ha_flags = flags;
+    entry->ha_handle_id = ble_hs_att_next_id();
+    entry->ha_fn = fn;
+
+    rc = ble_hs_att_list_lock();
     if (rc != 0) {
         goto err;
     }
 
-    STAILQ_INSERT_TAIL(&g_host_attr_list, ha, ha_next);
+    STAILQ_INSERT_TAIL(&g_ble_hs_att_list, entry, ha_next);
 
-    rc = host_attr_list_unlock();
+    rc = ble_hs_att_list_unlock();
     if (rc != 0) {
         goto err;
+    }
+
+    if (handle_id != NULL) {
+        *handle_id = entry->ha_handle_id;
     }
 
     return (0);
+
 err:
     return (rc);
 }
@@ -144,29 +185,29 @@ err:
  *                  list.
  * @param arg       The argument to provide to walk_func
  * @param ha_ptr    A pointer to a pointer which will be set to the last 
- *                  host_attr element processed, or NULL if the entire list has 
+ *                  ble_hs_att element processed, or NULL if the entire list has 
  *                  been processed
  *
  * @return 1 on stopped, 0 on fully processed and an error code otherwise.
  */
 int
-host_attr_walk(host_attr_walk_func_t walk_func, void *arg, 
-        struct host_attr **ha_ptr)
+ble_hs_att_walk(ble_hs_att_walk_func_t walk_func, void *arg, 
+        struct ble_hs_att_entry **ha_ptr)
 {
-    struct host_attr *ha;
+    struct ble_hs_att_entry *ha;
     int rc;
 
-    rc = host_attr_list_lock();
+    rc = ble_hs_att_list_lock();
     if (rc != 0) {
         goto err;
     }
 
     *ha_ptr = NULL;
     ha = NULL;
-    STAILQ_FOREACH(ha, &g_host_attr_list, ha_next) {
+    STAILQ_FOREACH(ha, &g_ble_hs_att_list, ha_next) {
         rc = walk_func(ha, arg);
         if (rc == 1) {
-            rc = host_attr_list_unlock();
+            rc = ble_hs_att_list_unlock();
             if (rc != 0) {
                 goto err;
             }
@@ -175,7 +216,7 @@ host_attr_walk(host_attr_walk_func_t walk_func, void *arg,
         }
     }
 
-    rc = host_attr_list_unlock();
+    rc = ble_hs_att_list_unlock();
     if (rc != 0) {
         goto err;
     }
@@ -186,7 +227,7 @@ err:
 }
 
 static int 
-host_attr_match_handle(struct host_attr *ha, void *arg)
+ble_hs_att_match_handle(struct ble_hs_att_entry *ha, void *arg)
 {
     if (ha->ha_handle_id == *(uint16_t *) arg) {
         return (1);
@@ -200,17 +241,17 @@ host_attr_match_handle(struct host_attr *ha, void *arg)
  * Find a host attribute by handle id. 
  *
  * @param handle_id The handle_id to search for
- * @param host_attr A pointer to a pointer to put the matching host attr into.
+ * @param ble_hs_att A pointer to a pointer to put the matching host attr into.
  *
  * @return 0 on success, BLE_ERR_ATTR_NOT_FOUND on not found, and non-zero on 
  *         error.
  */
 int
-host_attr_find_by_handle(uint16_t handle_id, struct host_attr **ha_ptr)
+ble_hs_att_find_by_handle(uint16_t handle_id, struct ble_hs_att_entry **ha_ptr)
 {
     int rc;
 
-    rc = host_attr_walk(host_attr_match_handle, &handle_id, ha_ptr);
+    rc = ble_hs_att_walk(ble_hs_att_match_handle, &handle_id, ha_ptr);
     if (rc == 1) {
         /* Found a matching handle */
         return (0);
@@ -223,7 +264,7 @@ host_attr_find_by_handle(uint16_t handle_id, struct host_attr **ha_ptr)
 }
 
 static int 
-host_attr_match_uuid(struct host_attr *ha, void *arg)
+ble_hs_att_match_uuid(struct ble_hs_att_entry *ha, void *arg)
 {
     ble_uuid_t *uuid;
 
@@ -236,7 +277,6 @@ host_attr_match_uuid(struct host_attr *ha, void *arg)
     }
 }
 
-
 /**
  * Find a host attribute by UUID.
  *
@@ -247,11 +287,11 @@ host_attr_match_uuid(struct host_attr *ha, void *arg)
  *         error.
  */
 int
-host_attr_find_by_uuid(ble_uuid_t *uuid, struct host_attr **ha_ptr) 
+ble_hs_att_find_by_uuid(ble_uuid_t *uuid, struct ble_hs_att_entry **ha_ptr) 
 {
     int rc;
     
-    rc = host_attr_walk(host_attr_match_uuid, uuid, ha_ptr);
+    rc = ble_hs_att_walk(ble_hs_att_match_uuid, uuid, ha_ptr);
     if (rc == 1) {
         /* Found a matching handle */
         return (0);
@@ -308,11 +348,37 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
 }
 
 static int
+ble_hs_att_tx_read_rsp(struct ble_l2cap_chan *chan, void *data, int data_len)
+{
+    uint8_t op;
+    int rc;
+
+    op = BLE_HS_ATT_OP_READ_RSP;
+    rc = ble_l2cap_tx(chan, &op, 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* XXX: Check attribute length against MTU. */
+
+    rc = ble_l2cap_tx(chan, data, data_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* XXX: Kick L2CAP. */
+
+    return 0;
+}
+
+static int
 ble_hs_att_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     struct ble_hs_att_read_req req;
-    struct host_attr *attr;
+    struct ble_hs_att_entry *entry;
     uint8_t buf[BLE_HS_ATT_READ_REQ_SZ];
+    uint8_t *attr_data;
+    int attr_len;
     int rc;
 
     rc = os_mbuf_copydata(chan->blc_rx_buf, 0, sizeof buf, buf);
@@ -325,16 +391,33 @@ ble_hs_att_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     rc = ble_hs_att_read_req_parse(buf, sizeof buf, &req);
     assert(rc == 0);
 
-    rc = host_attr_find_by_handle(req.bharq_handle, &attr);
+    rc = ble_hs_att_find_by_handle(req.bharq_handle, &entry);
     if (rc != 0) {
-        ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_READ_REQ,
-                                req.bharq_handle, rc);
-        return rc;
+        goto send_err;
     }
 
-    /* XXX: Send response. */
+    if (entry->ha_fn == NULL) {
+        rc = BLE_ERR_UNSPECIFIED;
+        goto send_err;
+    }
+
+    rc = entry->ha_fn(entry, BLE_HS_ATT_OP_READ_REQ, &attr_data, &attr_len);
+    if (rc != 0) {
+        rc = BLE_ERR_UNSPECIFIED;
+        goto send_err;
+    }
+
+    rc = ble_hs_att_tx_read_rsp(chan, attr_data, attr_len);
+    if (rc != 0) {
+        goto send_err;
+    }
 
     return 0;
+
+send_err:
+    ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_READ_REQ,
+                            req.bharq_handle, rc);
+    return rc;
 }
 
 static int
@@ -383,6 +466,25 @@ ble_hs_att_init(void)
 {
     int rc;
 
-    rc = os_mutex_init(&g_host_attr_list_mutex);
-    return rc;
+    rc = os_mutex_init(&g_ble_hs_att_list_mutex);
+    if (rc != 0) {
+        return rc;
+    }
+
+    free(ble_hs_att_entry_mem);
+    ble_hs_att_entry_mem = malloc(
+        OS_MEMPOOL_BYTES(BLE_HS_ATT_NUM_ENTRIES,
+                         sizeof (struct ble_hs_att_entry)));
+    if (ble_hs_att_entry_mem == NULL) {
+        return ENOMEM;
+    }
+
+    rc = os_mempool_init(&ble_hs_att_entry_pool, BLE_HS_ATT_NUM_ENTRIES,
+                         sizeof (struct ble_hs_att_entry),
+                         ble_hs_att_entry_mem, "ble_hs_att_entry_pool");
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }

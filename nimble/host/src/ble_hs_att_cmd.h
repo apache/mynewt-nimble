@@ -19,12 +19,13 @@ struct ble_l2cap_chan;
 
 #define BLE_HS_ATT_OP_ERROR_RSP     0x01
 #define BLE_HS_ATT_OP_READ_REQ      0x0a
+#define BLE_HS_ATT_OP_READ_RSP      0x0b
 
 /**
- * | Parameter                          | Size (octets) |
- * +------------------------------------+---------------+
- * | Attribute Opcode                   | 1             |
- * | Attribute Handle                   | 2             |
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Handle                   | 2                 |
  */
 #define BLE_HS_ATT_READ_REQ_SZ      3
 struct ble_hs_att_read_req {
@@ -33,12 +34,20 @@ struct ble_hs_att_read_req {
 };
 
 /**
- * | Parameter                          | Size (octets) |
- * +------------------------------------+---------------+
- * | Attribute Opcode                   | 1             |
- * | Request Opcode In Error            | 1             |
- * | Attribute Handle In Error          | 2             |
- * | Error Code                         | 1             |
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Value                    | 0 to (ATT_MTU-1)  |
+ */
+#define BLE_HS_ATT_READ_RSP_MIN_SZ      1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Request Opcode In Error            | 1                 |
+ * | Attribute Handle In Error          | 2                 |
+ * | Error Code                         | 1                 |
  */
 #define BLE_HS_ATT_ERROR_RSP_SZ     5
 struct ble_hs_att_error_rsp {
