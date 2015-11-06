@@ -630,9 +630,10 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
  * @return int 
  */
 int
-ble_ll_adv_read_txpwr(uint8_t *rspbuf)
+ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
 {
     rspbuf[0] = BLE_LL_CFG_ADV_TXPWR;
+    *rsplen = 1;
     return BLE_ERR_SUCCESS;
 }
 

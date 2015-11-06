@@ -85,22 +85,39 @@ ble_ll_hci_set_le_event_mask(uint8_t *cmdbuf)
 }
 
 /**
- * ll hci le read bufsize
- *  
- * This is the function that processes the LE read buffer size command.
- *  
- * Context: Link Layer task (HCI command parser) 
+ * HCI read buffer size command. Returns the ACL data packet length and 
+ * num data packets. 
  * 
- * @param cmdbuf 
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
  * 
- * @return int 
+ * @return int BLE error code
  */
 static int
-ble_ll_hci_le_read_bufsize(uint8_t *rspbuf)
+ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
 {    
     /* Place the data packet length and number of packets in the buffer */
     htole16(rspbuf, BLE_LL_CFG_ACL_DATA_PKT_LEN);
     rspbuf[2] = BLE_LL_CFG_NUM_ACL_DATA_PKTS;
+    *rsplen = BLE_HCI_RD_BUF_SIZE_RSPLEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * HCI read local supported features command. Returns the features 
+ * supported by the controller.
+ * 
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ * 
+ * @return int BLE error code
+ */
+static int
+ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
+{    
+    /* Add list of supported features. */
+    memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
+    *rsplen = BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
 
@@ -169,11 +186,14 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE:
         if (len == BLE_HCI_RD_BUF_SIZE_LEN) {
-            rc = ble_ll_hci_le_read_bufsize(rspbuf);
-            *rsplen = 3;
+            rc = ble_ll_hci_le_read_bufsize(rspbuf, rsplen);
         }
         break;
-
+    case BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT:
+        if (len == 0) {
+            rc = ble_ll_hci_le_read_local_features(rspbuf, rsplen);
+        }
+        break;
     case BLE_HCI_OCF_LE_SET_RAND_ADDR:
         if (len == BLE_DEV_ADDR_LEN) {
             rc = ble_ll_set_random_addr(cmdbuf);
@@ -186,9 +206,8 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         }
         break;
     case BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR:
-        if (len == BLE_HCI_RD_BUF_SIZE_LEN) {
-            rc = ble_ll_adv_read_txpwr(rspbuf);
-            *rsplen = 1;
+        if (len == 0) {
+            rc = ble_ll_adv_read_txpwr(rspbuf, rsplen);
         }
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
@@ -220,6 +239,20 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = ble_ll_scan_set_scan_params(cmdbuf);
         }
         break;
+#if 0
+    case BLE_HCI_OCF_LE_CREATE_CONN:
+        /* Length should be one byte */
+        if (len == BLE_HCI_CREATE_CONN_LEN) {
+            rc = ble_ll_conn_create(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:
+        /* Length should be one byte */
+        if (len == 0) {
+            rc = ble_ll_conn_create_cancel(cmdbuf);
+        }
+        break;
+#endif
     case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
         /* No params with this command  */
         if (len == 0) {
@@ -229,8 +262,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE:
         /* No params with this command  */
         if (len == 0) {
-            rc = ble_ll_whitelist_read_size(rspbuf);
-            *rsplen = 1;
+            rc = ble_ll_whitelist_read_size(rspbuf, rsplen);
         }
         break;
     case BLE_HCI_OCF_LE_ADD_WHITE_LIST:

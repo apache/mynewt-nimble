@@ -56,7 +56,7 @@
 /* List of OCF for LE commands (OGF = 0x08) */
 #define BLE_HCI_OCF_LE_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_LE_RD_BUF_SIZE          (0x0002)
-#define BLE_HCI_OCF_LE_RD_SUPP_FEAT         (0x0003)
+#define BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT     (0x0003)
 /* NOTE: 0x0004 is intentionally left undefined */
 #define BLE_HCI_OCF_LE_SET_RAND_ADDR        (0x0005)
 #define BLE_HCI_OCF_LE_SET_ADV_PARAMS       (0x0006)
@@ -66,13 +66,13 @@
 #define BLE_HCI_OCF_LE_SET_ADV_ENABLE       (0x000A)
 #define BLE_HCI_OCF_LE_SET_SCAN_PARAMS      (0x000B)
 #define BLE_HCI_OCF_LE_SET_SCAN_ENABLE      (0x000C)
-#define BLE_HCI_OCF_LE_CREATE_CNXN          (0x000D)
-#define BLE_HCI_OCF_LE_CREATE_CNXN_CANCEL   (0x000E)
+#define BLE_HCI_OCF_LE_CREATE_CONN          (0x000D)
+#define BLE_HCI_OCF_LE_CREATE_CONN_CANCEL   (0x000E)
 #define BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE   (0x000F)
 #define BLE_HCI_OCF_LE_CLEAR_WHITE_LIST     (0x0010)
 #define BLE_HCI_OCF_LE_ADD_WHITE_LIST       (0x0011)
 #define BLE_HCI_OCF_LE_RMV_WHITE_LIST       (0x0012)
-#define BLE_HCI_OCF_LE_CNXN_UPDATE          (0x0013)
+#define BLE_HCI_OCF_LE_CONN_UPDATE          (0x0013)
 #define BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS  (0x0014)
 #define BLE_HCI_OCF_LE_RD_CHAN_MAP          (0x0015)
 #define BLE_HCI_OCF_LE_RD_REM_FEAT          (0x0016)
@@ -85,8 +85,8 @@
 #define BLE_HCI_OCF_LE_RX_TEST              (0x001D)
 #define BLE_HCI_OCF_LE_TX_TEST              (0x001E)
 #define BLE_HCI_OCF_LE_TEST_END             (0x001F)
-#define BLE_HCI_OCF_LE_REM_CNXN_PARAM_RR    (0x0020)
-#define BLE_HCI_OCF_LE_REM_CNXN_PARAM_NRR   (0x0021)
+#define BLE_HCI_OCF_LE_REM_CONN_PARAM_RR    (0x0020)
+#define BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR   (0x0021)
 #define BLE_HCI_OCF_LE_SET_DATA_LEN         (0x0022)
 #define BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN (0x0023)
 #define BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN (0x0024)
@@ -103,11 +103,15 @@
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
 /* Command Specific Definitions */
-/* Set event mask */
+/*--- BLE_HCI_OCF_LE_SET_EVENT_MASK OCF 0x0001 ---*/
 #define BLE_HCI_SET_LE_EVENT_MASK_LEN   (8)
 
-/* Read buffer size */
+/*--- BLE_HCI_OCF_LE_RD_BUF_SIZE  OCF 0x0002  ---*/
 #define BLE_HCI_RD_BUF_SIZE_LEN         (0)
+#define BLE_HCI_RD_BUF_SIZE_RSPLEN      (3)
+
+/* Read local supported features*/
+#define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN (8)
 
 /* Set scan response data */
 #define BLE_HCI_MAX_SCAN_RSP_DATA_LEN   (31)
@@ -209,12 +213,15 @@
 /* Whitelist commands */
 #define BLE_HCI_CHG_WHITE_LIST_LEN          (7)
 
+/* Create Connection */
+#define BLE_HCI_CREATE_CONN_LEN             (25)             
+
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
 #define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
-#define BLE_HCI_EVCODE_CNXN_DONE            (0x03)
-#define BLE_HCI_EVCODE_CNXN_REQUEST         (0x04)
-#define BLE_HCI_EVCODE_DISCNXN_CMP          (0x05)
+#define BLE_HCI_EVCODE_CONN_DONE            (0x03)
+#define BLE_HCI_EVCODE_CONN_REQUEST         (0x04)
+#define BLE_HCI_EVCODE_DISCONN_CMP          (0x05)
 #define BLE_HCI_EVCODE_AUTH_CMP             (0x06)
 #define BLE_HCI_EVCODE_REM_NAME_REQ_CM P    (0x07)
 #define BLE_HCI_EVCODE_ENCRYPT_CHG          (0x08)
@@ -266,6 +273,23 @@ struct hci_adv_params
     uint16_t adv_itvl_min; 
     uint16_t adv_itvl_max;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+};
+
+/* Create connection command */
+struct hci_create_conn
+{
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint8_t filter_policy;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+    uint8_t own_addr_type;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
 };
 
 #define BLE_HCI_DATA_HDR_SZ         4

@@ -95,13 +95,14 @@ ble_ll_whitelist_clear(void)
  * @return int 0: success.
  */
 int
-ble_ll_whitelist_read_size(uint8_t *rspbuf)
+ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
 {
 #ifdef BLE_USES_HW_WHITELIST
     rspbuf[0] = ble_hw_whitelist_size();
 #else
     rspbuf[0] = BLE_LL_CFG_WHITELIST_SIZE;
 #endif
+    *rsplen = 1;
     return BLE_ERR_SUCCESS;
 }
 

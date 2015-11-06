@@ -23,7 +23,7 @@
 int ble_ll_whitelist_clear(void);
 
 /* Read the size of the whitelist */
-int ble_ll_whitelist_read_size(uint8_t *rspbuf);
+int ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen);
 
 /* Add a device to the whitelist */
 int ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type);

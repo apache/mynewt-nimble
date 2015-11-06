@@ -138,7 +138,7 @@ int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len);
 int ble_ll_adv_set_adv_params(uint8_t *cmd);
 
 /* Read advertising channel power */
-int ble_ll_adv_read_txpwr(uint8_t *rspbuf);
+int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
 
 /*---- API used by BLE LL ----*/
 /* Called when advertising tx done event posted to LL task */
