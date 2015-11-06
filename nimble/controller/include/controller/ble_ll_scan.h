@@ -21,7 +21,7 @@
 #define BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS    (8)
 
 /* Dont allow more than 255 of these entries */
-#if BLE_LL_SCAN_CFG_NUM_DUP_ADVSS > 255
+#if BLE_LL_SCAN_CFG_NUM_DUP_ADVS > 255
     #error "Cannot have more than 255 duplicate entries!"
 #endif
 #if BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS > 255
@@ -86,4 +86,4 @@ void ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
 /* Boolean function denoting whether or not the whitelist can be changed */
 int  ble_ll_scan_can_chg_whitelist(void);
 
-#endif /* H_LL_SCAN_ */
+#endif /* H_BLE_LL_SCAN_ */

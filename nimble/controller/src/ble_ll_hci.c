@@ -25,6 +25,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
+#include "controller/ble_ll_conn.h"
 
 /* LE event mask */
 uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
@@ -239,7 +240,6 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = ble_ll_scan_set_scan_params(cmdbuf);
         }
         break;
-#if 0
     case BLE_HCI_OCF_LE_CREATE_CONN:
         /* Length should be one byte */
         if (len == BLE_HCI_CREATE_CONN_LEN) {
@@ -249,10 +249,9 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:
         /* Length should be one byte */
         if (len == 0) {
-            rc = ble_ll_conn_create_cancel(cmdbuf);
+            rc = ble_ll_conn_create_cancel();
         }
         break;
-#endif
     case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
         /* No params with this command  */
         if (len == 0) {
