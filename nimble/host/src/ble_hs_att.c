@@ -348,8 +348,10 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
 }
 
 static int
-ble_hs_att_tx_read_rsp(struct ble_l2cap_chan *chan, void *data, int data_len)
+ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                       void *attr_data, int attr_len)
 {
+    uint16_t data_len;
     uint8_t op;
     int rc;
 
@@ -359,9 +361,14 @@ ble_hs_att_tx_read_rsp(struct ble_l2cap_chan *chan, void *data, int data_len)
         return rc;
     }
 
-    /* XXX: Check attribute length against MTU. */
+    /* Vol. 3, part F, 3.2.9; don't send more than ATT_MTU-1 bytes of data. */
+    if (attr_len > conn->bhc_att_mtu - 1) {
+        data_len = conn->bhc_att_mtu - 1;
+    } else {
+        data_len = attr_len;
+    }
 
-    rc = ble_l2cap_tx(chan, data, data_len);
+    rc = ble_l2cap_tx(chan, attr_data, data_len);
     if (rc != 0) {
         return rc;
     }
@@ -407,7 +414,7 @@ ble_hs_att_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
         goto send_err;
     }
 
-    rc = ble_hs_att_tx_read_rsp(chan, attr_data, attr_len);
+    rc = ble_hs_att_tx_read_rsp(conn, chan, attr_data, attr_len);
     if (rc != 0) {
         goto send_err;
     }

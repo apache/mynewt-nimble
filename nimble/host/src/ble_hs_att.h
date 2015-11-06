@@ -19,7 +19,7 @@
 
 #include "host/uuid.h"
 
-#define BLE_HOST_EVENT_NEW_ATTR_CONN (OS_EVENT_T_PERUSER)
+#define BLE_HS_ATT_MTU_DFLT         23
 
 struct ble_hs_att_entry;
 

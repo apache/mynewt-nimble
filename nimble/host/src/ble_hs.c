@@ -81,8 +81,6 @@ ble_host_task_handler(void *arg)
                 /* Reset callout, wakeup every 50ms */
                 os_callout_reset(&ble_host_task_timer, 50);
                 break;
-            case BLE_HOST_EVENT_NEW_ATTR_CONN: 
-                break;
         }
     }
 }

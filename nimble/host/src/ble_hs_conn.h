@@ -26,6 +26,7 @@ struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
     int bhc_fd; // XXX Temporary.
+    uint16_t bhc_att_mtu;
 
     struct ble_l2cap_chan_list bhc_channels;
 };
