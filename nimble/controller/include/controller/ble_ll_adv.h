@@ -147,8 +147,8 @@ void ble_ll_adv_tx_done_proc(void *arg);
 /* Called to initialize advertising functionality. */
 void ble_ll_adv_init(void);
 
-/* Called when a scan request has been received. */
-int ble_ll_adv_rx_scan_req(uint8_t *rxbuf);
+/* Called on rx pdu end when in advertising state */
+int ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu);
 
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);

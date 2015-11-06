@@ -706,10 +706,10 @@ ble_ll_scan_win_end_proc(void *arg)
     /* Set next scan window start time */
     itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
     scansm->scan_win_start_time += itvl;
-        
+      
     /* Set next scanning window start. */        
     delta_t = (int32_t)(cputime_get32() - scansm->scan_win_start_time);
-    if (delta_t >= win_ticks) {
+    while (delta_t >= (int32_t)win_ticks) {
         /* 
          * Since it is possible to scan continuously, it is possible
          * that we will be late here if the scan window is equal to the

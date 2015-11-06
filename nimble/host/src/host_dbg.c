@@ -34,7 +34,7 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
     char adv_data_buf[32];
 
     switch (subev) {
-    case 0x02:
+    case BLE_HCI_LE_SUBEV_ADV_RPT:
         advlen = evdata[9];
         rssi = evdata[10 + advlen];
         console_printf("LE advertising report. len=%u num=%u evtype=%u "
@@ -68,22 +68,47 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 }
 
 void
+host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
+{
+    uint8_t ogf;
+    uint8_t ocf;
+    uint16_t opcode;
+    char parmbuf[32];
+
+    opcode = le16toh(evdata + 1);
+    ogf = BLE_HCI_OGF(opcode);
+    ocf = BLE_HCI_OCF(opcode);
+
+    /* Display parameters based on command. */
+    parmbuf[0] = '\0';
+    if (ogf == BLE_HCI_OGF_LE) {
+        switch (ocf) {
+        case BLE_HCI_OCF_LE_SET_ADV_DATA:
+            snprintf(parmbuf, 12, "status=%-3d ", evdata[3]);
+            break;
+        default:
+            break;
+        }
+    }
+
+    console_printf("Command Complete: cmd_pkts=%u ocf=0x%x ogf=0x%x %s",
+                   evdata[0], ocf, ogf, parmbuf);
+}
+
+void
 host_hci_dbg_event_disp(uint8_t *evbuf)
 {
     uint8_t *evdata;
     uint8_t evcode;
     uint8_t len;
-    uint16_t opcode;
-
+ 
     evcode = evbuf[0];
     len = evbuf[1];
     evdata = evbuf + 2;
 
     switch (evcode) {
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
-        opcode = le16toh(evdata +1);
-        console_printf("Command Complete: cmd_pkts=%u ocf=0x%x ogf=0x%x",
-                       evdata[0], opcode & 0x3FF, opcode >> 10);
+        host_hci_dbg_cmd_complete_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_LE_META:
         host_hci_dbg_le_event_disp(evdata[0], len, evdata + 1);

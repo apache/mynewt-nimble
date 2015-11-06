@@ -25,6 +25,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_whitelist.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
@@ -56,8 +57,7 @@
  *    we need to send a CONNECTION COMPLETE event. Do this.
  * 9) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 10) Add whitelist! Do this to the code. Need to enable/disable whitelisting
- * appropriately. Also need to set appropriate bits at the PHY (DEVMATCH).
+ * 10) Deal with whitelisting at LL when pdu is handed up to LL task.
  */
 
 /* 
@@ -463,8 +463,8 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     adv_itvl_max = le16toh(cmd + 2);
     adv_type = cmd[4];
 
-    /* Min has to be less than max and cannot equal max */
-    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min == adv_itvl_max)) {
+    /* Min has to be less than max */
+    if (adv_itvl_min >= adv_itvl_max) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -483,7 +483,6 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         break;
     }
 
-    /* XXX: isnt there a maximum that we need to check? */
     /* Make sure interval minimum is valid for the advertising type */
     if ((adv_itvl_min < min_itvl) || (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -534,6 +533,9 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 {
     /* XXX: Stop any timers we may have started */
 
+    /* Disable whitelisting (just in case) */
+    ble_ll_whitelist_disable();
+
     /* Remove any scheduled advertising items */
     ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV);
 
@@ -542,7 +544,9 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 }
 
 /**
- * Start the advertising state machine. 
+ * Start the advertising state machine. This is called when the host sends 
+ * the "enable advertising" command and is not called again while in the 
+ * advertising state. 
  *  
  * Context: Link-layer task. 
  * 
@@ -590,6 +594,13 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     /* Set first advertising channel */
     adv_chan = ble_ll_adv_first_chan(advsm);
     advsm->adv_chan = adv_chan;
+
+    /* Enable/disable whitelisting based on filter policy */
+    if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
+        ble_ll_whitelist_enable();
+    } else {
+        ble_ll_whitelist_disable();
+    }
 
     /* 
      * Set start time for the advertising event. This time is the same
@@ -751,15 +762,20 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
  *          0: Scan request is for us and we successfully went from rx to tx.
  *        > 0: PHY error attempting to go from rx to tx.
  */
-int
-ble_ll_adv_rx_scan_req(uint8_t *rxbuf)
+static int
+ble_ll_adv_rx_scan_req(struct os_mbuf *rxpdu)
 {
     int rc;
     uint8_t rxaddr_type;
     uint8_t *our_addr;
     uint8_t *adva;
+    uint8_t addr_type;
+    uint8_t *rxbuf;
+    struct ble_mbuf_hdr *ble_hdr;
+    struct ble_ll_adv_sm *advsm;
 
     /* Determine if this is addressed to us */
+    rxbuf = rxpdu->om_data;
     rxaddr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
     if (rxaddr_type) {
         our_addr = g_random_addr;
@@ -770,11 +786,70 @@ ble_ll_adv_rx_scan_req(uint8_t *rxbuf)
     rc = -1;
     adva = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
     if (!memcmp(our_addr, adva, BLE_DEV_ADDR_LEN)) {
+        /* Set device match bit if we are whitelisting */
+        advsm = &g_ble_ll_adv_sm;
+        if (advsm->adv_filter_policy & 1) {
+            /* Get the scanners address type */
+            if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
+                addr_type = BLE_ADDR_TYPE_RANDOM;
+            } else {
+                addr_type = BLE_ADDR_TYPE_PUBLIC;
+            }
+
+            /* Check for whitelist match */
+            if (!ble_ll_whitelist_match(rxbuf + BLE_LL_PDU_HDR_LEN, 
+                                        addr_type)) {
+                return rc;
+            } else {
+                ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+                ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+            }
+        }
+
         /* Setup to transmit the scan response */
-        rc = ble_phy_tx(g_ble_ll_adv_sm.scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
+        rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
             ++g_ble_ll_adv_stats.scan_rsp_txg;
+        }
+    }
+
+    return rc;
+}
+
+/**
+ * Called on phy rx pdu end when in advertising state.
+ * 
+ * Context: Interrupt 
+ *  
+ * @param pdu_type 
+ * @param rxpdu 
+ *  
+ * @return int 
+ *       < 0: Disable the phy after reception.
+ *      == 0: Do not disable the PHY as we are gi
+ *       > 0: Do not disable PHY as that has already been done.
+ */
+int
+ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu)
+{
+    int rc;
+
+    /* We only care about scan requests and connection requests */
+    rc = -1;
+    if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
+        rc = ble_ll_adv_rx_scan_req(rxpdu);
+        if (rc) {
+            /* XXX: One thing left to reconcile here. We have
+             * the advertisement schedule element still running.
+             * How to deal with the end of the advertising event?
+             * Need to figure that out.
+             */
+        }
+    } else {
+        if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
+            rc = 0;
+            /* XXX: deal with this. Dont forget filter policy  */
         }
     }
 

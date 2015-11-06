@@ -61,6 +61,7 @@ struct ble_phy_statistics
     uint32_t tx_fail;
     uint32_t tx_bytes;
     uint32_t rx_starts;
+    uint32_t rx_aborts;
     uint32_t rx_valid;
     uint32_t rx_crc_err;
     uint32_t phy_isrs;
@@ -226,6 +227,7 @@ ble_phy_isr(void)
             /* Disable PHY */
             ble_phy_disable();
             irq_en = 0;
+            ++g_ble_phy_stats.rx_aborts;
         }
 
         /* Count rx starts */

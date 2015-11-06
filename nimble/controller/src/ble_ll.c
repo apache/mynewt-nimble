@@ -26,7 +26,14 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_hci.h"
 
-/* XXX: use the sanity task! */
+/* XXX:
+ * 
+ * 1) use the sanity task!
+ * 2) Need to figure out what to do with packets that we hand up that did
+ * not pass the filter policy for the given state. Currently I count all
+ * packets I think. Need to figure out what to do with this.
+ * 
+ */
 
 /* Connection related define */
 #define BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS  (27)
@@ -502,24 +509,8 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
     rc = -1;
     switch (g_ble_ll_data.ll_state) {
     case BLE_LL_STATE_ADV:
-        /* If we get a scan request*/
-        if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
-            /* Just bail if CRC is not good */
-            if (crcok) {
-                rc = ble_ll_adv_rx_scan_req(rxbuf);
-                if (rc) {
-                    /* XXX: One thing left to reconcile here. We have
-                     * the advertisement schedule element still running.
-                     * How to deal with the end of the advertising event?
-                     * Need to figure that out.
-                     */
-                }
-            }
-        } else {
-            if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
-                rc = 0;
-                /* XXX: deal with this */
-            }
+        if (crcok) {
+            rc = ble_ll_adv_rx_pdu_end(pdu_type, rxpdu);
         }
         break;
     case BLE_LL_STATE_SCANNING:

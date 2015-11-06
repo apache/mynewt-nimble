@@ -228,25 +228,29 @@ ble_ll_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
     return BLE_ERR_SUCCESS;
 }
 
-/* Enable whitelisting */
+/**
+ * Enable whitelisting. 
+ *  
+ * Note: This function has no effect if we are not using HW whitelisting
+ */
 void
 ble_ll_whitelist_enable(void)
 {
 #ifdef BLE_USES_HW_WHITELIST
     ble_hw_whitelist_enable();
-#else
-    /* XXX: Is there anything to do here? */
 #endif
 }
 
-/* Disable whitelisting */
+/**
+ * Disable whitelisting.
+ *  
+ * Note: This function has no effect if we are not using HW whitelisting
+ */
 void
 ble_ll_whitelist_disable(void)
 {
 #ifdef BLE_USES_HW_WHITELIST
     ble_hw_whitelist_disable();
-#else
-    /* XXX: Is there anything to do here? */
 #endif
 }
 
