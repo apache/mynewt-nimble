@@ -297,6 +297,84 @@ host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
     return rc;
 }
 
+int
+host_hci_cmd_le_create_connection(struct hci_create_conn *hcc)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_CREATE_CONN_LEN];
+
+    /* Check scan interval and scan window */
+    if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) ||
+        (hcc->scan_itvl > BLE_HCI_SCAN_ITVL_MAX) ||
+        (hcc->scan_window < BLE_HCI_SCAN_WINDOW_MIN) ||
+        (hcc->scan_window > BLE_HCI_SCAN_WINDOW_MAX) ||
+        (hcc->scan_itvl < hcc->scan_window)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check initiator filter policy */
+    if (hcc->filter_policy > BLE_HCI_SCAN_FILT_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check peer addr type */
+    if (hcc->peer_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check own addr type */
+    if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check connection interval min */
+    if ((hcc->conn_itvl_min < BLE_HCI_CONN_ITVL_MIN) ||
+        (hcc->conn_itvl_min > BLE_HCI_CONN_ITVL_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check connection interval max */
+    if ((hcc->conn_itvl_max < BLE_HCI_CONN_ITVL_MIN) ||
+        (hcc->conn_itvl_max > BLE_HCI_CONN_ITVL_MAX) ||
+        (hcc->conn_itvl_max < hcc->conn_itvl_min)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check connection latency */
+    if ((hcc->conn_latency < BLE_HCI_CONN_LATENCY_MIN) ||
+        (hcc->conn_latency > BLE_HCI_CONN_LATENCY_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check supervision timeout */
+    if ((hcc->supervision_timeout < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
+        (hcc->supervision_timeout > BLE_HCI_CONN_SPVN_TIMEOUT_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check connection event length */
+    if (hcc->min_ce_len > hcc->max_ce_len) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    htole16(cmd + 0, hcc->scan_itvl);
+    htole16(cmd + 2, hcc->scan_window);
+    cmd[4] = hcc->filter_policy;
+    cmd[5] = hcc->peer_addr_type;
+    memcpy(cmd + 6, hcc->peer_addr, BLE_DEV_ADDR_LEN);
+    cmd[12] = hcc->own_addr_type;
+    htole16(cmd + 13, hcc->conn_itvl_min);
+    htole16(cmd + 15, hcc->conn_itvl_max);
+    htole16(cmd + 17, hcc->conn_latency);
+    htole16(cmd + 19, hcc->supervision_timeout);
+    htole16(cmd + 21, hcc->min_ce_len);
+    htole16(cmd + 23, hcc->max_ce_len);
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CREATE_CONN,
+                              BLE_HCI_CREATE_CONN_LEN, cmd);
+    return rc;
+}
+
 /**
  * Clear the whitelist.
  * 

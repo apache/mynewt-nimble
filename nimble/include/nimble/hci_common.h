@@ -215,6 +215,12 @@
 
 /* Create Connection */
 #define BLE_HCI_CREATE_CONN_LEN             (25)             
+#define BLE_HCI_CONN_ITVL_MIN               (0x0006)
+#define BLE_HCI_CONN_ITVL_MAX               (0x0c80)
+#define BLE_HCI_CONN_LATENCY_MIN            (0x0000)
+#define BLE_HCI_CONN_LATENCY_MAX            (0x01f3)
+#define BLE_HCI_CONN_SPVN_TIMEOUT_MIN       (0x000a)
+#define BLE_HCI_CONN_SPVN_TIMEOUT_MAX       (0x0c80)
 
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
