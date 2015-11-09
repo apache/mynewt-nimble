@@ -23,10 +23,10 @@ extern int ble_host_listen_enabled;
 
 /** --- */
 
-void ble_host_task_handler(void *arg);
+void ble_hs_task_handler(void *arg);
 int ble_host_send_data_connectionless(uint16_t con_handle, uint16_t cid,
                                       uint8_t *data, uint16_t len);
-int ble_host_poll(void);
-int host_init(void);
+int ble_hs_poll(void);
+int ble_hs_init(void);
 
 #endif /* _BLE_HOST_H */

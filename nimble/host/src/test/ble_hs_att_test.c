@@ -144,7 +144,7 @@ TEST_CASE(ble_hs_att_test_read)
     uint8_t uuid[16] = {0};
     int rc;
 
-    rc = host_init();
+    rc = ble_hs_init();
     TEST_ASSERT_FATAL(rc == 0);
 
     conn = ble_hs_conn_alloc();
@@ -206,7 +206,7 @@ TEST_CASE(ble_hs_att_test_write)
     uint8_t uuid[16] = {0};
     int rc;
 
-    rc = host_init();
+    rc = ble_hs_init();
     TEST_ASSERT_FATAL(rc == 0);
 
     conn = ble_hs_conn_alloc();

@@ -412,31 +412,6 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     return 0;
 }
 
-void
-host_hci_task(void *arg)
-{
-    struct os_event *ev;
-    struct os_callout_func *cf;
-
-    while (1) {
-        ev = os_eventq_get(&g_ble_host_hci_evq);
-        switch (ev->ev_type) {
-        case OS_EVENT_T_TIMER:
-            cf = (struct os_callout_func *)ev;
-            assert(cf->cf_func);
-            cf->cf_func(cf->cf_arg);
-            break;
-        case BLE_HOST_HCI_EVENT_CTLR_EVENT:
-            /* Process HCI event from controller */
-            host_hci_event_proc(ev);
-            break;
-        default:
-            assert(0);
-            break;
-        }
-    }
-}
-
 static int
 host_hci_data_parse_hdr(void *pkt, uint16_t len, struct hci_data_hdr *hdr)
 {
@@ -490,27 +465,4 @@ host_hci_data_rx(void *pkt, uint16_t len)
     ble_l2cap_rx(connection, &hci_hdr, u8ptr + off);
 
     return 0;
-}
-
-int
-host_hci_init(void)
-{
-    int rc;
-
-    /* Create memory pool of command buffers */
-    rc = os_mempool_init(&g_hci_cmd_pool, HCI_CMD_BUFS, HCI_CMD_BUF_SIZE, 
-                         &g_hci_cmd_buf, "HCICmdPool");
-    assert(rc == 0);
-
-    /* XXX: really only needed by the transport */
-    /* Create memory pool of OS events */
-    rc = os_mempool_init(&g_hci_os_event_pool, HCI_NUM_OS_EVENTS, 
-                         HCI_OS_EVENT_BUF_SIZE, &g_hci_os_event_buf, 
-                         "HCIOsEventPool");
-    assert(rc == 0);
-
-    /* Initialize eventq */
-    os_eventq_init(&g_ble_host_hci_evq);
-
-    return rc;
 }

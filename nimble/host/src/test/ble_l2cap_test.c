@@ -62,7 +62,7 @@ TEST_SUITE(l2cap_gen)
 {
     int rc;
 
-    rc = host_init();
+    rc = ble_hs_init();
     TEST_ASSERT_FATAL(rc == 0);
 
     l2cap_test_bad_header();
