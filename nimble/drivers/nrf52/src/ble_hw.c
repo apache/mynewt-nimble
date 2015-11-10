@@ -18,7 +18,6 @@
 #include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "mcu/nrf52.h"
 #include "mcu/nrf52_bitfields.h"
 
 #define BLE_HW_WHITE_LIST_SIZE      (8)

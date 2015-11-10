@@ -1,0 +1,4 @@
+egg.name: net/nimble/drivers/native
+egg.vers: 0.1
+egg.deps:
+    - net/nimble/controller

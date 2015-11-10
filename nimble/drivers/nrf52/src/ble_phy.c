@@ -18,11 +18,9 @@
 #include <assert.h>
 #include "os/os.h"
 #include "bsp/cmsis_nvic.h"
-#include "nimble/ble.h"
+#include "nimble/ble.h"             /* XXX: needed for ble mbuf header.*/
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
-#include "hal/hal_cputime.h"
-#include "mcu/nrf52.h"
 #include "mcu/nrf52_bitfields.h"
 
 /* To disable all radio interrupts */

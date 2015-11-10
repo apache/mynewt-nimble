@@ -17,7 +17,11 @@
 #ifndef H_BLE_HW_
 #define H_BLE_HW_
 
+#if defined(ARCH_sim)
+#define BLE_USES_HW_WHITELIST   (0)
+#else
 #define BLE_USES_HW_WHITELIST   (1)
+#endif
 
 /* Returns the number of hw whitelist elements */
 uint8_t ble_hw_whitelist_size(void);
