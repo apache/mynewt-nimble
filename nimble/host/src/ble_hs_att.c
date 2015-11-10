@@ -44,7 +44,7 @@ static int ble_hs_att_rx_write_req(struct ble_hs_conn *conn,
                                    struct ble_l2cap_chan *chan,
                                    struct os_mbuf *om);
 
-struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
+static struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
     { BLE_HS_ATT_OP_MTU_REQ,    ble_hs_att_rx_mtu_req },
     { BLE_HS_ATT_OP_READ_REQ,   ble_hs_att_rx_read_req },
     { BLE_HS_ATT_OP_WRITE_REQ,  ble_hs_att_rx_write_req },

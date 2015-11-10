@@ -39,4 +39,6 @@ int host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type);
 
 int host_hci_data_rx(void *pkt, uint16_t len);
 
+extern uint16_t host_hci_outstanding_opcode;
+
 #endif /* H_HOST_HCI_ */

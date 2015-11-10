@@ -15,8 +15,10 @@
  */
 
 #include <assert.h>
+#include <string.h>
 #include <errno.h>
 #include "os/os.h"
+#include "host/host_hci.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_att.h"
@@ -27,6 +29,13 @@ static SLIST_HEAD(, ble_hs_conn) ble_hs_conns =
     SLIST_HEAD_INITIALIZER(ble_hs_conns); 
 
 static struct os_mempool ble_hs_conn_pool;
+
+static struct {
+    unsigned bhcp_valid:1;
+
+    uint8_t bhcp_addr[6];
+    unsigned bhcp_use_white:1;
+} ble_hs_conn_pending;
 
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
@@ -104,6 +113,51 @@ struct ble_hs_conn *
 ble_hs_conn_first(void)
 {
     return SLIST_FIRST(&ble_hs_conns);
+}
+
+/**
+ * Initiates a connection using the GAP Direct Connection Establishment
+ * Procedure.
+ * XXX: This will likely be moved.
+ *
+ * @return 0 on success; nonzero on failure.
+ */
+int
+ble_hs_conn_initiate_direct(int addr_type, uint8_t *addr)
+{
+    struct hci_create_conn hcc;
+    int rc;
+
+    /* Make sure no connection attempt is already in progress. */
+    if (ble_hs_conn_pending.bhcp_valid) {
+        return EALREADY;
+    }
+
+    hcc.scan_itvl = 0x0010;
+    hcc.scan_window = 0x0010;
+    hcc.filter_policy = BLE_HCI_CONN_FILT_NO_WL;
+    hcc.peer_addr_type = addr_type;
+    memcpy(hcc.peer_addr, addr, sizeof hcc.peer_addr);
+    hcc.own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
+    hcc.conn_itvl_min = 24;
+    hcc.conn_itvl_min = 40;
+    hcc.conn_latency = 0;
+    hcc.supervision_timeout = 0x0100; // XXX
+    hcc.min_ce_len = 0x0010; // XXX
+    hcc.min_ce_len = 0x0300; // XXX
+
+    ble_hs_conn_pending.bhcp_valid = 1;
+    memcpy(ble_hs_conn_pending.bhcp_addr, addr,
+           sizeof ble_hs_conn_pending.bhcp_addr);
+    ble_hs_conn_pending.bhcp_use_white = 0;
+
+    rc = host_hci_cmd_le_create_connection(&hcc);
+    if (rc != 0) {
+        ble_hs_conn_pending.bhcp_valid = 0;
+        return rc;
+    }
+
+    return 0;
 }
 
 int 

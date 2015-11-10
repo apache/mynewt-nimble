@@ -30,6 +30,8 @@
  */
 #define BLE_HCI_CMD_HDR_LEN                 (3)
 
+#define BLE_HCI_OPCODE_NOP                  (0)
+
 /* Get the OGF and OCF from the opcode in the command */
 #define BLE_HCI_OGF(opcode)                 (((opcode) >> 10) & 0x003F)
 #define BLE_HCI_OCF(opcode)                 ((opcode) & 0x03FF)
@@ -215,6 +217,9 @@
 
 /* Create Connection */
 #define BLE_HCI_CREATE_CONN_LEN             (25)             
+#define BLE_HCI_CONN_FILT_NO_WL             (0)
+#define BLE_HCI_CONN_FILT_USE_WL            (1)
+#define BLE_HCI_CONN_FILT_MAX               (1)
 #define BLE_HCI_CONN_ITVL_MIN               (0x0006)
 #define BLE_HCI_CONN_ITVL_MAX               (0x0c80)
 #define BLE_HCI_CONN_LATENCY_MIN            (0x0000)
@@ -237,7 +242,7 @@
 #define BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP  (0x0C)
 #define BLE_HCI_EVCODE_QOS_SETUP_CMP        (0x0D)
 #define BLE_HCI_EVCODE_COMMAND_COMPLETE     (0x0E)
-#define BLE_HCI_EVCODE_COMMAND_STATE        (0x0F)
+#define BLE_HCI_EVCODE_COMMAND_STATUS       (0x0F)
 #define BLE_HCI_EVCODE_HW_ERROR             (0x10)
 #define BLE_HCI_EVCODE_LE_META              (0x3E)
 /* XXX: Define them all... */
@@ -258,6 +263,8 @@
 /* Event specific definitions */
 /* Event command complete */
 #define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (6)
+
+#define BLE_HCI_EVENT_CMD_STATUS_LEN        (6)
 
 /* Advertising report */
 #define BLE_HCI_ADV_RPT_EVTYPE_ADV_IND      (0)

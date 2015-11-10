@@ -35,6 +35,7 @@ struct ble_hs_conn *ble_hs_conn_alloc(void);
 void ble_hs_conn_free(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t con_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
+int ble_hs_conn_initiate_direct(int addr_type, uint8_t *addr);
 int ble_hs_conn_init(void);
 
 #endif
