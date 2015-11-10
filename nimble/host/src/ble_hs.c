@@ -91,7 +91,7 @@ ble_hs_task_handler(void *arg)
             break;
         case BLE_HOST_HCI_EVENT_CTLR_EVENT:
             /* Process HCI event from controller */
-            host_hci_event_proc(ev);
+            host_hci_os_event_proc(ev);
             break;
         default:
             assert(0);

@@ -27,6 +27,7 @@ main(void)
 
     l2cap_test_all();
     ble_hs_att_test_all();
+    ble_host_hci_test_all();
 
     return tu_any_failed;
 }

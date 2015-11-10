@@ -19,6 +19,7 @@
 
 int l2cap_test_all(void);
 int ble_hs_att_test_all(void);
+int ble_host_hci_test_all(void);
 
 #endif
 

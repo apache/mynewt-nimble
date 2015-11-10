@@ -172,19 +172,16 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     return 0;
 }
 
-void
-host_hci_event_proc(struct os_event *ev)
+int
+host_hci_event_rx(uint8_t *data)
 {
     struct host_hci_event_dispatch_entry *entry;
-    os_error_t err;
-    uint8_t *data;
     uint8_t event_code;
     uint8_t param_len;
+    int rc;
 
     /* Count events received */
     ++g_host_hci_stats.events_rxd;
-
-    data = ev->ev_arg;
 
     /* Display to console */
     host_hci_dbg_event_disp(data);
@@ -195,9 +192,21 @@ host_hci_event_proc(struct os_event *ev)
     entry = host_hci_dispatch_entry_find(event_code);
     if (entry == NULL) {
         ++g_host_hci_stats.unknown_events_rxd;
+        rc = ENOTSUP;
     } else {
-        entry->hed_fn(event_code, data, param_len + 2);
+        rc = entry->hed_fn(event_code, data, param_len + 2);
     }
+
+    return rc;
+}
+
+int
+host_hci_os_event_proc(struct os_event *ev)
+{
+    os_error_t err;
+    int rc;
+
+    rc = host_hci_event_rx(ev->ev_arg);
 
     /* Free the command buffer */
     err = os_memblock_put(&g_hci_cmd_pool, ev->ev_arg);
@@ -206,6 +215,8 @@ host_hci_event_proc(struct os_event *ev)
     /* Free the event */
     err = os_memblock_put(&g_hci_os_event_pool, ev);
     assert(err == OS_OK);
+
+    return rc;
 }
 
 /* XXX: For now, put this here */
