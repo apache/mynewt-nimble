@@ -1,2 +1,5 @@
 egg.name: net/nimble/drivers/nrf52
 egg.vers: 0.1 
+egg.deps:
+    - net/nimble
+    - net/nimble/controller
