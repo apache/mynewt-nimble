@@ -20,9 +20,6 @@
 #include "host/ble_hs.h"
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
-#ifdef ARCH_sim
-#include "ble_hs_itf.h"
-#endif
 
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -40,40 +37,6 @@ os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
 /* Host HCI Task Events */
 struct os_eventq g_ble_host_hci_evq;
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER)
-
-int ble_host_listen_enabled;
-
-int
-ble_host_send_data_connectionless(uint16_t con_handle, uint16_t cid,
-                                  uint8_t *data, uint16_t len)
-{
-    int rc;
-
-#ifdef ARCH_sim
-    rc = ble_host_sim_send_data_connectionless(con_handle, cid, data, len);
-#else
-    rc = -1;
-#endif
-
-    return rc;
-}
-
-/**
- * XXX: This is only here for testing.
- */
-int 
-ble_hs_poll(void)
-{
-    int rc;
-
-#ifdef ARCH_sim
-    rc = ble_host_sim_poll();
-#else
-    rc = -1;
-#endif
-
-    return rc;
-}
 
 void
 ble_hs_task_handler(void *arg)
@@ -137,15 +100,6 @@ ble_hs_init(void)
     if (rc != 0) {
         return rc;
     }
-
-#ifdef ARCH_sim
-    if (ble_host_listen_enabled) {
-        int rc;
-
-        rc = ble_sim_listen(1);
-        assert(rc == 0);
-    }
-#endif
 
     return 0;
 }

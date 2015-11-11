@@ -21,37 +21,12 @@
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
+#include "testutil/testutil.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_att.h"
 #include "ble_hs_att_cmd.h"
-#include "testutil/testutil.h"
-
-static void
-ble_host_hci_test_misc_build_cmd_complete(uint8_t *dst, int len,
-                                          uint8_t param_len, uint8_t num_pkts,
-                                          uint16_t opcode)
-{
-    TEST_ASSERT(len >= BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN);
-
-    dst[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
-    dst[1] = 5 + param_len;
-    dst[2] = num_pkts;
-    htole16(dst + 3, opcode);
-}
-
-static void
-ble_host_hci_test_misc_build_cmd_status(uint8_t *dst, int len,
-                                        uint8_t status, uint8_t num_pkts,
-                                        uint16_t opcode)
-{
-    TEST_ASSERT(len >= BLE_HCI_EVENT_CMD_STATUS_LEN);
-
-    dst[0] = BLE_HCI_EVCODE_COMMAND_STATUS;
-    dst[1] = BLE_HCI_EVENT_CMD_STATUS_LEN;
-    dst[2] = num_pkts;
-    htole16(dst + 3, opcode);
-}
+#include "ble_hs_test_util.h"
 
 TEST_CASE(ble_host_hci_test_event_bad)
 {
@@ -74,15 +49,28 @@ TEST_CASE(ble_host_hci_test_event_cmd_complete)
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Unsent OCF. */
-    ble_host_hci_test_misc_build_cmd_complete(buf, sizeof buf, 1, 1, 12345);
+    ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 1, 1, 12345);
     rc = host_hci_event_rx(buf);
     TEST_ASSERT(rc == ENOENT);
 
     /*** No error on NOP. */
-    ble_host_hci_test_misc_build_cmd_complete(buf, sizeof buf, 1, 1,
+    ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 1, 1,
                                               BLE_HCI_OPCODE_NOP);
     rc = host_hci_event_rx(buf);
     TEST_ASSERT(rc == 0);
+
+    /*** Acknowledge sent command. */
+    rc = host_hci_cmd_le_set_adv_enable(0);
+    TEST_ASSERT(rc == 0);
+    ble_hs_test_util_build_cmd_complete(
+        buf, sizeof buf, 1, 1,
+        (BLE_HCI_OGF_LE << 10) | BLE_HCI_OCF_LE_SET_ADV_ENABLE);
+    rc = host_hci_event_rx(buf);
+    TEST_ASSERT(rc == 0);
+
+    /*** Duplicate ack is error. */
+    rc = host_hci_event_rx(buf);
+    TEST_ASSERT(rc == ENOENT);
 }
 
 TEST_CASE(ble_host_hci_test_event_cmd_status)
@@ -94,15 +82,28 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Unsent OCF. */
-    ble_host_hci_test_misc_build_cmd_status(buf, sizeof buf, 0, 1, 12345);
+    ble_hs_test_util_build_cmd_status(buf, sizeof buf, 0, 1, 12345);
     rc = host_hci_event_rx(buf);
     TEST_ASSERT(rc == ENOENT);
 
     /*** No error on NOP. */
-    ble_host_hci_test_misc_build_cmd_complete(buf, sizeof buf, 0, 1,
+    ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 0, 1,
                                               BLE_HCI_OPCODE_NOP);
     rc = host_hci_event_rx(buf);
     TEST_ASSERT(rc == 0);
+
+    /*** Acknowledge sent command. */
+    rc = host_hci_cmd_le_set_adv_enable(0);
+    TEST_ASSERT(rc == 0);
+    ble_hs_test_util_build_cmd_status(
+        buf, sizeof buf, BLE_ERR_SUCCESS, 1,
+        (BLE_HCI_OGF_LE << 10) | BLE_HCI_OCF_LE_SET_ADV_ENABLE);
+    rc = host_hci_event_rx(buf);
+    TEST_ASSERT(rc == 0);
+
+    /*** Duplicate ack is error. */
+    rc = host_hci_event_rx(buf);
+    TEST_ASSERT(rc == ENOENT);
 }
 
 TEST_SUITE(ble_host_hci_suite)

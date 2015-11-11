@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef H_ITF_
-#define H_ITF_
+#ifndef H_BLE_HS_TEST_UTIL_
+#define H_BLE_HS_TEST_UTIL_
 
-struct os_eventq;
+#include <inttypes.h>
 
-int ble_host_sim_send_data_connectionless(uint16_t con_handle, uint16_t cid,
-                                          uint8_t *data, uint16_t len);
-int ble_sim_listen(uint16_t con_handle);
-int ble_host_sim_poll(void);
+void ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
+                                         uint8_t param_len, uint8_t num_pkts,
+                                         uint16_t opcode);
+void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
+                                       uint8_t status, uint8_t num_pkts,
+                                       uint16_t opcode);
+void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr);
 
 #endif

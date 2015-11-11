@@ -26,6 +26,14 @@
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
+#include "ble_hs_ack.h"
+
+static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
+                                    int len);
+static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
+static int host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len);
+static int host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data,
+                                        int len);
 
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -65,17 +73,28 @@ struct host_hci_event_dispatch_entry {
     host_hci_event_fn *hed_fn;
 };
 
-static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
-                                    int len);
-static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
-
 static struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     { BLE_HCI_EVCODE_COMMAND_COMPLETE, host_hci_rx_cmd_complete },
     { BLE_HCI_EVCODE_COMMAND_STATUS, host_hci_rx_cmd_status },
+    { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
 };
 
 #define HOST_HCI_EVENT_DISPATCH_SZ \
     (sizeof host_hci_event_dispatch / sizeof host_hci_event_dispatch[0])
+
+/** Dispatch table for incoming LE meta events.  Sorted by subevent field. */
+typedef int host_hci_le_event_fn(uint8_t subevent, uint8_t *data, int len);
+struct host_hci_le_event_dispatch_entry {
+    uint8_t hmd_subevent;
+    host_hci_le_event_fn *hmd_fn;
+};
+
+static struct host_hci_le_event_dispatch_entry host_hci_le_event_dispatch[] = {
+    { BLE_HCI_LE_SUBEV_CONN_COMPLETE, host_hci_rx_le_conn_complete },
+};
+
+#define HOST_HCI_LE_EVENT_DISPATCH_SZ \
+    (sizeof host_hci_le_event_dispatch / sizeof host_hci_le_event_dispatch[0])
 
 static struct host_hci_event_dispatch_entry *
 host_hci_dispatch_entry_find(uint8_t event_code)
@@ -93,13 +112,31 @@ host_hci_dispatch_entry_find(uint8_t event_code)
     return NULL;
 }
 
+static struct host_hci_le_event_dispatch_entry *
+host_hci_le_dispatch_entry_find(uint8_t event_code)
+{
+    struct host_hci_le_event_dispatch_entry *entry;
+    int i;
+
+    for (i = 0; i < HOST_HCI_EVENT_DISPATCH_SZ; i++) {
+        entry = host_hci_le_event_dispatch + i;
+        if (entry->hmd_subevent == event_code) {
+            return entry;
+        }
+    }
+
+    return NULL;
+}
+
 static int
 host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 {
     uint16_t opcode;
     uint16_t ocf;
     uint8_t num_pkts;
-    uint8_t *parms;
+    uint8_t *params;
+    int param_len;
+    int rc;
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
         /* XXX: Increment stat. */
@@ -108,7 +145,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 
     num_pkts = data[2];
     opcode = le16toh(data + 3);
-    parms = data + 4;
+    params = data + 4;
 
     /* XXX: Process num_pkts field. */
     (void)num_pkts;
@@ -121,13 +158,16 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     }
 
     if (opcode == host_hci_outstanding_opcode) {
+        /* Mark the outstanding command as acked. */
         host_hci_outstanding_opcode = 0;
     }
 
     ocf = BLE_HCI_OCF(opcode);
-    /* XXX: Dispatch based on OCF. */
-    (void)parms;
-    (void)ocf;
+    param_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
+    rc = ble_hs_ack_rx_cmd_complete(ocf, params, param_len);
+    if (rc != 0) {
+        return rc;
+    }
 
     return 0;
 }
@@ -139,6 +179,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     uint16_t ocf;
     uint8_t num_pkts;
     uint8_t status;
+    int rc;
 
     if (len < BLE_HCI_EVENT_CMD_STATUS_LEN) {
         /* XXX: Increment stat. */
@@ -161,13 +202,69 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     }
 
     if (opcode == host_hci_outstanding_opcode) {
+        /* Mark the outstanding command as acked. */
         host_hci_outstanding_opcode = 0;
     }
 
     ocf = BLE_HCI_OCF(opcode);
-    /* XXX: Dispatch based on OCF. */
-    (void)status;
-    (void)ocf;
+    rc = ble_hs_ack_rx_cmd_status(ocf, status);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len)
+{
+    struct host_hci_le_event_dispatch_entry *entry;
+    uint8_t subevent;
+    int rc;
+
+    if (len < BLE_HCI_EVENT_HDR_LEN + BLE_HCI_LE_MIN_LEN) {
+        /* XXX: Increment stat. */
+        return EMSGSIZE;
+    }
+
+    subevent = data[2];
+    entry = host_hci_le_dispatch_entry_find(subevent);
+    if (entry != NULL) {
+        rc = entry->hmd_fn(subevent, data + BLE_HCI_EVENT_HDR_LEN,
+                           len - BLE_HCI_EVENT_HDR_LEN);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
+static int
+host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
+{
+    struct hci_le_conn_complete evt;
+    int rc;
+
+    if (len < BLE_HCI_LE_CONN_COMPLETE_LEN) {
+        return EMSGSIZE;
+    }
+
+    evt.subevent_code = data[0];
+    evt.status = data[1];
+    evt.connection_handle = le16toh(data + 2);
+    evt.role = data[4];
+    evt.peer_addr_type = data[5];
+    memcpy(evt.peer_addr, data + 6, BLE_DEV_ADDR_LEN);
+    evt.conn_itvl = le16toh(data + 12);
+    evt.conn_latency = le16toh(data + 14);
+    evt.supervision_timeout = le16toh(data + 16);
+    evt.master_clk_acc = data[18];
+
+    rc = ble_hs_conn_rx_conn_complete(&evt);
+    if (rc != 0) {
+        return rc;
+    }
 
     return 0;
 }

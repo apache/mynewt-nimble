@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef _BLE_HOST_H 
-#define _BLE_HOST_H 
+#ifndef H_BLE_HS_ACK_
+#define H_BLE_HS_ACK_
 
 #include <inttypes.h>
 
-void ble_hs_task_handler(void *arg);
-int ble_hs_init(void);
+int ble_hs_ack_rx_cmd_complete(uint16_t ocf, uint8_t *params, int param_len);
+int ble_hs_ack_rx_cmd_status(uint16_t ocf, uint8_t status);
 
-#endif /* _BLE_HOST_H */
+#endif

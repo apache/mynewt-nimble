@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef _BLE_HOST_H 
-#define _BLE_HOST_H 
+#ifndef H_BLE_GAP_CONN_
+#define H_BLE_GAP_CONN_
 
-#include <inttypes.h>
+int ble_gap_conn_initiate_direct(int addr_type, uint8_t *addr);
 
-void ble_hs_task_handler(void *arg);
-int ble_hs_init(void);
-
-#endif /* _BLE_HOST_H */
+#endif

@@ -20,11 +20,12 @@
 #include "nimble/hci_common.h"
 #include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
+#include "testutil/testutil.h"
 #include "ble_l2cap.h"
+#include "ble_hs_test_util.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_att.h"
 #include "ble_hs_att_cmd.h"
-#include "testutil/testutil.h"
 
 static uint8_t *ble_hs_att_test_attr_1;
 static int ble_hs_att_test_attr_1_len;
@@ -147,7 +148,8 @@ TEST_CASE(ble_hs_att_test_read)
     rc = ble_hs_init();
     TEST_ASSERT_FATAL(rc == 0);
 
-    conn = ble_hs_conn_alloc();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
 
     chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
@@ -209,7 +211,8 @@ TEST_CASE(ble_hs_att_test_write)
     rc = ble_hs_init();
     TEST_ASSERT_FATAL(rc == 0);
 
-    conn = ble_hs_conn_alloc();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
 
     chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);

@@ -25,19 +25,61 @@
 
 #define BLE_HS_CONN_MAX 16
 
-static SLIST_HEAD(, ble_hs_conn) ble_hs_conns =
-    SLIST_HEAD_INITIALIZER(ble_hs_conns); 
-
+static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
+static struct os_mutex ble_hs_conn_mutex;
+
+#define BLE_HS_CONN_STATE_NULL      0
+#define BLE_HS_CONN_STATE_UNACKED   1
+#define BLE_HS_CONN_STATE_ACKED     2
 
 static struct {
-    unsigned bhcp_valid:1;
+    uint8_t bhcp_state;
 
-    uint8_t bhcp_addr[6];
+    uint8_t bhcp_addr[BLE_DEV_ADDR_LEN];
     unsigned bhcp_use_white:1;
-} ble_hs_conn_pending;
+} ble_hs_conn_cur;
 
-struct ble_hs_conn *
+void
+ble_hs_conn_lock(void)
+{
+    int rc;
+
+    rc = os_mutex_pend(&ble_hs_conn_mutex, 0xffffffff);
+    assert(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+void
+ble_hs_conn_unlock(void)
+{
+    int rc;
+
+    rc = os_mutex_release(&ble_hs_conn_mutex);
+    assert(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+static void
+ble_hs_conn_free(struct ble_hs_conn *conn)
+{
+    struct ble_l2cap_chan *chan;
+    int rc;
+
+    if (conn == NULL) {
+        return;
+    }
+
+    SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
+
+    while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
+        SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
+        ble_l2cap_chan_free(chan);
+    }
+
+    rc = os_memblock_put(&ble_hs_conn_pool, conn);
+    assert(rc == 0);
+}
+
+static struct ble_hs_conn *
 ble_hs_conn_alloc(void)
 {
     struct ble_l2cap_chan *chan;
@@ -58,11 +100,6 @@ ble_hs_conn_alloc(void)
     }
     SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
 
-    /* XXX: Allocated entries always go into the list.  Allocation and
-     * insertion may need to be split into separate operations.
-     */
-    SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
-
     return conn;
 
 err:
@@ -70,25 +107,15 @@ err:
     return NULL;
 }
 
-void
-ble_hs_conn_free(struct ble_hs_conn *conn)
+static void
+ble_hs_conn_insert(struct ble_hs_conn *conn)
 {
-    struct ble_l2cap_chan *chan;
-    int rc;
+    ble_hs_conn_lock();
 
-    if (conn == NULL) {
-        return;
-    }
+    assert(ble_hs_conn_find(conn->bhc_handle) == NULL);
+    SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
 
-    SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
-
-    while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
-        SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
-        ble_l2cap_chan_free(chan);
-    }
-
-    rc = os_memblock_put(&ble_hs_conn_pool, conn);
-    assert(rc == 0);
+    ble_hs_conn_unlock();
 }
 
 struct ble_hs_conn *
@@ -115,49 +142,109 @@ ble_hs_conn_first(void)
     return SLIST_FIRST(&ble_hs_conns);
 }
 
-/**
- * Initiates a connection using the GAP Direct Connection Establishment
- * Procedure.
- * XXX: This will likely be moved.
- *
- * @return 0 on success; nonzero on failure.
- */
 int
-ble_hs_conn_initiate_direct(int addr_type, uint8_t *addr)
+ble_hs_conn_pending(void)
 {
-    struct hci_create_conn hcc;
+    return ble_hs_conn_cur.bhcp_state != BLE_HS_CONN_STATE_NULL;
+}
+
+int
+ble_hs_conn_initiate(struct hci_create_conn *hcc)
+{
     int rc;
 
-    /* Make sure no connection attempt is already in progress. */
-    if (ble_hs_conn_pending.bhcp_valid) {
-        return EALREADY;
+    ble_hs_conn_lock();
+
+    if (ble_hs_conn_pending()) {
+        rc = EALREADY;
+        goto done;
     }
 
-    hcc.scan_itvl = 0x0010;
-    hcc.scan_window = 0x0010;
-    hcc.filter_policy = BLE_HCI_CONN_FILT_NO_WL;
-    hcc.peer_addr_type = addr_type;
-    memcpy(hcc.peer_addr, addr, sizeof hcc.peer_addr);
-    hcc.own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-    hcc.conn_itvl_min = 24;
-    hcc.conn_itvl_min = 40;
-    hcc.conn_latency = 0;
-    hcc.supervision_timeout = 0x0100; // XXX
-    hcc.min_ce_len = 0x0010; // XXX
-    hcc.min_ce_len = 0x0300; // XXX
+    ble_hs_conn_cur.bhcp_state = BLE_HS_CONN_STATE_UNACKED;
+    memcpy(ble_hs_conn_cur.bhcp_addr, hcc->peer_addr,
+           sizeof ble_hs_conn_cur.bhcp_addr);
+    ble_hs_conn_cur.bhcp_use_white = 0;
 
-    ble_hs_conn_pending.bhcp_valid = 1;
-    memcpy(ble_hs_conn_pending.bhcp_addr, addr,
-           sizeof ble_hs_conn_pending.bhcp_addr);
-    ble_hs_conn_pending.bhcp_use_white = 0;
-
-    rc = host_hci_cmd_le_create_connection(&hcc);
+    rc = host_hci_cmd_le_create_connection(hcc);
     if (rc != 0) {
-        ble_hs_conn_pending.bhcp_valid = 0;
-        return rc;
+        ble_hs_conn_cur.bhcp_state = BLE_HS_CONN_STATE_NULL;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
+
+done:
+    ble_hs_conn_unlock();
+    return rc;
+}
+
+int
+ble_hs_conn_rx_cmd_status_create_conn(uint16_t ocf, uint8_t status)
+{
+    int rc;
+
+    ble_hs_conn_lock();
+
+    if (ble_hs_conn_cur.bhcp_state != BLE_HS_CONN_STATE_UNACKED) {
+        rc = ENOENT;
+        goto done;
+    }
+
+    if (status == BLE_ERR_SUCCESS) {
+        ble_hs_conn_cur.bhcp_state = BLE_HS_CONN_STATE_ACKED;
+    } else {
+        ble_hs_conn_cur.bhcp_state = BLE_HS_CONN_STATE_NULL;
+    }
+
+    rc = 0;
+
+done:
+    ble_hs_conn_unlock();
+    return rc;
+}
+
+int
+ble_hs_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    if (ble_hs_conn_cur.bhcp_state != BLE_HS_CONN_STATE_ACKED) {
+        rc = ENOENT;
+        goto done;
+    }
+
+    /* Clear pending connection. */
+    ble_hs_conn_cur.bhcp_state = BLE_HS_CONN_STATE_NULL;
+
+    if (evt->status != BLE_ERR_SUCCESS) {
+        rc = 0;
+        goto done;
+    }
+
+    /* XXX: Ensure device address is expected. */
+    /* XXX: Ensure event fields are acceptable. */
+
+    conn = ble_hs_conn_alloc();
+    if (conn == NULL) {
+        rc = ENOMEM;
+        goto done;
+    }
+
+    conn->bhc_handle = evt->connection_handle;
+    memcpy(conn->bhc_addr, evt->peer_addr, sizeof conn->bhc_addr);
+
+    ble_hs_conn_insert(conn);
+
+    /* XXX: Notify someone (GAP?) of new connection. */
+
+    rc = 0;
+
+done:
+    ble_hs_conn_unlock();
+    return rc;
 }
 
 int 
@@ -176,6 +263,13 @@ ble_hs_conn_init(void)
     rc = os_mempool_init(&ble_hs_conn_pool, BLE_HS_CONN_MAX,
                          sizeof (struct ble_hs_conn),
                          connection_mem, "ble_hs_conn_pool");
+    if (rc != 0) {
+        return EINVAL; // XXX
+    }
+
+    SLIST_INIT(&ble_hs_conns);
+
+    rc = os_mutex_init(&ble_hs_conn_mutex);
     if (rc != 0) {
         return EINVAL; // XXX
     }

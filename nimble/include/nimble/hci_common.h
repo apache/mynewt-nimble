@@ -260,9 +260,13 @@
 #define BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE  (0x0A)
 #define BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT     (0x0B)
 
+/* Generic event header */
+#define BLE_HCI_EVENT_HDR_LEN               (2)
+
 /* Event specific definitions */
 /* Event command complete */
-#define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (6)
+#define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (5)
+#define BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN  (6)
 
 #define BLE_HCI_EVENT_CMD_STATUS_LEN        (6)
 
@@ -272,6 +276,11 @@
 #define BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND     (2)
 #define BLE_HCI_ADV_RPT_EVTYPE_NONCONN_IND  (3)
 #define BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP     (5)
+
+/* LE sub-event specific definitions */
+#define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */
+
+#define BLE_HCI_LE_CONN_COMPLETE_LEN        (19)
 
 /*--- Shared data structures ---*/
 
@@ -303,6 +312,21 @@ struct hci_create_conn
     uint16_t supervision_timeout;
     uint16_t min_ce_len;
     uint16_t max_ce_len;
+};
+
+/* Connection complete LE meta subevent */
+struct hci_le_conn_complete
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint16_t connection_handle;
+    uint8_t role;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+    uint16_t conn_itvl;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint8_t master_clk_acc;
 };
 
 #define BLE_HCI_DATA_HDR_SZ         4

@@ -174,7 +174,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
      * command data itself. That is fine, as each command reads all the data
      * before crafting a response.
      */ 
-    rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
+    rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 
     /* Move past HCI command header */
     cmdbuf += BLE_HCI_CMD_HDR_LEN;
