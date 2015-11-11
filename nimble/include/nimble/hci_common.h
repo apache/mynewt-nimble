@@ -226,6 +226,15 @@
 #define BLE_HCI_CONN_LATENCY_MAX            (0x01f3)
 #define BLE_HCI_CONN_SPVN_TIMEOUT_MIN       (0x000a)
 #define BLE_HCI_CONN_SPVN_TIMEOUT_MAX       (0x0c80)
+#define BLE_HCI_CONN_SPVN_TMO_UNITS         (10)    /* msecs */
+#define BLE_HCI_INITIATOR_FILT_POLICY_MAX   (1)
+
+/* Peer Address Type */
+#define BLE_HCI_CONN_PEER_ADDR_PUBLIC       (0)
+#define BLE_HCI_CONN_PEER_ADDR_RANDOM       (1)
+#define BLE_HCI_CONN_PEER_ADDR_PUB_ID       (2)
+#define BLE_HCI_CONN_PEER_ADDR_RAND_ID      (3)
+#define BLE_HCI_CONN_PEER_ADDR_MAX          (3)
 
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)

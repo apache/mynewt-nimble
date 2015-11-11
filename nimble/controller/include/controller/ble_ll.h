@@ -131,6 +131,34 @@ struct ble_dev_addr
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)
 
+/* 
+ * Advertising PDU format:
+ * -> 2 byte header
+ *      -> LSB contains pdu type, txadd and rxadd bits.
+ *      -> MSB contains length (6 bits).
+ * -> Payload
+ */
+#define BLE_ADV_PDU_HDR_TYPE_MASK           (0x0F)
+#define BLE_ADV_PDU_HDR_TXADD_MASK          (0x40)
+#define BLE_ADV_PDU_HDR_RXADD_MASK          (0x80)
+#define BLE_ADV_PDU_HDR_LEN_MASK            (0x3F)
+
+/* Advertising channel PDU types */
+#define BLE_ADV_PDU_TYPE_ADV_IND            (0)
+#define BLE_ADV_PDU_TYPE_ADV_DIRECT_IND     (1)
+#define BLE_ADV_PDU_TYPE_ADV_NONCONN_IND    (2)
+#define BLE_ADV_PDU_TYPE_SCAN_REQ           (3)
+#define BLE_ADV_PDU_TYPE_SCAN_RSP           (4)
+#define BLE_ADV_PDU_TYPE_CONNECT_REQ        (5)
+#define BLE_ADV_PDU_TYPE_ADV_SCAN_IND       (6)
+
+/* 
+ * TxAdd and RxAdd bit definitions. A 0 is a public address; a 1 is a
+ * random address.
+ */
+#define BLE_ADV_PDU_HDR_TXADD_RAND          (0x40)
+#define BLE_ADV_PDU_HDR_RXADD_RAND          (0x80)
+
 /*
  * Data Channel format
  * 

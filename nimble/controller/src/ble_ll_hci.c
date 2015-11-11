@@ -154,7 +154,9 @@ ble_ll_hci_is_le_event_enabled(int bitpos)
  * @param ocf    Opcode command field.
  * @param *rsplen Pointer to length of response
  *  
- * @return int 
+ * @return int  This function returns a BLE error code. If a command status 
+ *              event should be returned as opposed to command complete,
+ *              256 gets added to the return value.
  */
 static int
 ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
@@ -241,25 +243,22 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         }
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN:
-        /* Length should be one byte */
         if (len == BLE_HCI_CREATE_CONN_LEN) {
             rc = ble_ll_conn_create(cmdbuf);
         }
+        rc += (BLE_ERR_MAX + 1);
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:
-        /* Length should be one byte */
         if (len == 0) {
             rc = ble_ll_conn_create_cancel();
         }
         break;
     case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
-        /* No params with this command  */
         if (len == 0) {
             rc = ble_ll_whitelist_clear();
         }
         break;
     case BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE:
-        /* No params with this command  */
         if (len == 0) {
             rc = ble_ll_whitelist_read_size(rspbuf, rsplen);
         }
@@ -275,7 +274,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         }
         break;
     default:
-        /* XXX: deal with unsupported command */
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
     }
 
@@ -335,17 +334,21 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     if (rc <= BLE_ERR_MAX) {
         /* Create a command complete event with status from command */
         cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
-        cmdbuf[1] = 4 + rsplen;    /* Length of the data */
+        cmdbuf[1] = 4 + rsplen;
         cmdbuf[2] = ble_ll_hci_get_num_cmd_pkts();
         htole16(cmdbuf + 3, opcode);
         cmdbuf[5] = (uint8_t)rc;
-
-        /* Send the event. This event cannot be masked */
-        ble_ll_hci_event_send(cmdbuf);
     } else {
-        /* XXX: placeholder for sending command status or other events */
-        assert(0);
+        /* Create a command complete event with status from command */
+        cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_STATUS;
+        cmdbuf[1] = 4;
+        cmdbuf[2] = (uint8_t)(rc - (BLE_ERR_MAX + 1));
+        cmdbuf[3] = ble_ll_hci_get_num_cmd_pkts();
+        htole16(cmdbuf + 4, opcode);
     }
+
+    /* Send the event (events cannot be masked) */
+    ble_ll_hci_event_send(cmdbuf);
 }
 
 /* XXX: For now, put this here */

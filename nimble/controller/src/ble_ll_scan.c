@@ -73,6 +73,11 @@ struct ble_ll_scan_sm
     struct os_event scan_win_end_ev;
 };
 
+/* Scan types */
+#define BLE_SCAN_TYPE_PASSIVE   (BLE_HCI_SCAN_TYPE_PASSIVE)
+#define BLE_SCAN_TYPE_ACTIVE    (BLE_HCI_SCAN_TYPE_ACTIVE)
+#define BLE_SCAN_TYPE_INITIATE  (2)
+
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
@@ -756,7 +761,7 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
      */
     rc = 0;
     scansm = &g_ble_ll_scan_sm;
-    if (scansm->scan_type == BLE_HCI_SCAN_TYPE_ACTIVE) {
+    if (scansm->scan_type == BLE_SCAN_TYPE_ACTIVE) {
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
             (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND)) {
             rc = 1;
@@ -837,7 +842,7 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
-        if (scansm->scan_type == BLE_HCI_SCAN_TYPE_ACTIVE) {
+        if (scansm->scan_type == BLE_SCAN_TYPE_ACTIVE) {
             chk_send_req = 1;
         }
         chk_whitelist = 1;
@@ -988,8 +993,6 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     uint16_t scan_window;
     struct ble_ll_scan_sm *scansm;
 
-    scansm = &g_ble_ll_scan_sm;
-
     /* If already enabled, we return an error */
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_enabled) {
@@ -1033,6 +1036,7 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     scansm->scan_itvl = scan_itvl;
     scansm->scan_window = scan_window;
     scansm->scan_filt_policy = filter_policy;
+    scansm->own_addr_type = own_addr_type;
 
     return 0;
 }
@@ -1103,6 +1107,36 @@ ble_ll_scan_can_chg_whitelist(void)
     return rc;
 }
 
+void
+ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = &g_ble_ll_scan_sm;
+    scansm->scan_type = BLE_SCAN_TYPE_INITIATE;
+    scansm->scan_itvl = hcc->scan_itvl;
+    scansm->scan_window = hcc->scan_window;
+    scansm->scan_filt_policy = hcc->filter_policy;
+    scansm->own_addr_type = hcc->own_addr_type;
+}
+
+/**
+ * Checks to see if the scanner is enabled.
+ * 
+ * @return int 0: not enabled; enabled otherwise
+ */
+int
+ble_ll_scan_enabled(void)
+{
+    return (int)g_ble_ll_scan_sm.scan_enabled;
+}
+
+/* Returns the PDU allocated by the scanner */
+struct os_mbuf *
+ble_ll_scan_get_pdu(void)
+{
+    return g_ble_ll_scan_sm.scan_req_pdu;
+}
 
 /**
  * ble ll scan init 

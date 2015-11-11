@@ -84,6 +84,16 @@ void ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
                              uint8_t flags);
 
 /* Boolean function denoting whether or not the whitelist can be changed */
-int  ble_ll_scan_can_chg_whitelist(void);
+int ble_ll_scan_can_chg_whitelist(void);
+
+/* Boolean function returning true if scanning enabled */
+int ble_ll_scan_enabled(void);
+
+/* Initialize the scanner when we start initiating */
+struct hci_create_conn;
+void ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
+
+/* Returns the PDU allocated by the scanner */
+struct os_mbuf *ble_ll_scan_get_pdu(void);
 
 #endif /* H_BLE_LL_SCAN_ */

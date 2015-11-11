@@ -54,11 +54,6 @@ os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 /* XXX: this is just temporary; used to calculate the channel index */
 struct ble_ll_sm_connection
 {
-    /* Data channel index for connection */
-    uint8_t unmapped_chan;
-    uint8_t last_unmapped_chan;
-    uint8_t num_used_channels;
-
     /* Flow control */
     uint8_t tx_seq;
     uint8_t next_exp_seq;
@@ -80,54 +75,6 @@ struct ble_ll_sm_connection
     /* The connection request data */
     struct ble_conn_req_data req_data; 
 };
-
-uint8_t
-ble_ll_next_data_channel(struct ble_ll_sm_connection *cnxn)
-{
-    int     i;
-    int     j;
-    uint8_t curchan;
-    uint8_t remap_index;
-    uint8_t bitpos;
-    uint8_t cntr;
-    uint8_t mask;
-    uint8_t usable_chans;
-
-    /* Get next un mapped channel */
-    curchan = (cnxn->last_unmapped_chan + cnxn->req_data.hop_inc) % 
-              BLE_PHY_NUM_DATA_CHANS;
-
-    /* Set the current unmapped channel */
-    cnxn->unmapped_chan = curchan;
-
-    /* Is this a valid channel? */
-    bitpos = 1 << (curchan & 0x07);
-    if ((cnxn->req_data.chanmap[curchan >> 3] & bitpos) == 0) {
-
-        /* Calculate remap index */
-        remap_index = curchan % cnxn->num_used_channels;
-
-        /* Iterate through channel map to find this channel */
-        cntr = 0;
-        for (i = 0; i < 5; i++) {
-            usable_chans = cnxn->req_data.chanmap[i];
-            if (usable_chans != 0) {
-                mask = 0x01;
-                for (j = 0; j < 8; j++) {
-                    if (usable_chans & mask) {
-                        if (cntr == remap_index) {
-                            return cntr;
-                        }
-                        ++cntr;
-                    }
-                    mask <<= 1;
-                }
-            }
-        }
-    }
-
-    return curchan;
-}
 
 /* Called when a connection gets initialized */
 int
