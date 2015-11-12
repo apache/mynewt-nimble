@@ -27,6 +27,7 @@
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 #include "ble_hs_ack.h"
+#include "ble_gap_conn.h"
 
 static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
                                     int len);
@@ -73,7 +74,7 @@ struct host_hci_event_dispatch_entry {
     host_hci_event_fn *hed_fn;
 };
 
-static struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
+static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     { BLE_HCI_EVCODE_COMMAND_COMPLETE, host_hci_rx_cmd_complete },
     { BLE_HCI_EVCODE_COMMAND_STATUS, host_hci_rx_cmd_status },
     { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
@@ -89,17 +90,18 @@ struct host_hci_le_event_dispatch_entry {
     host_hci_le_event_fn *hmd_fn;
 };
 
-static struct host_hci_le_event_dispatch_entry host_hci_le_event_dispatch[] = {
+static const struct host_hci_le_event_dispatch_entry
+        host_hci_le_event_dispatch[] = {
     { BLE_HCI_LE_SUBEV_CONN_COMPLETE, host_hci_rx_le_conn_complete },
 };
 
 #define HOST_HCI_LE_EVENT_DISPATCH_SZ \
     (sizeof host_hci_le_event_dispatch / sizeof host_hci_le_event_dispatch[0])
 
-static struct host_hci_event_dispatch_entry *
+static const struct host_hci_event_dispatch_entry *
 host_hci_dispatch_entry_find(uint8_t event_code)
 {
-    struct host_hci_event_dispatch_entry *entry;
+    const struct host_hci_event_dispatch_entry *entry;
     int i;
 
     for (i = 0; i < HOST_HCI_EVENT_DISPATCH_SZ; i++) {
@@ -112,10 +114,10 @@ host_hci_dispatch_entry_find(uint8_t event_code)
     return NULL;
 }
 
-static struct host_hci_le_event_dispatch_entry *
+static const struct host_hci_le_event_dispatch_entry *
 host_hci_le_dispatch_entry_find(uint8_t event_code)
 {
-    struct host_hci_le_event_dispatch_entry *entry;
+    const struct host_hci_le_event_dispatch_entry *entry;
     int i;
 
     for (i = 0; i < HOST_HCI_EVENT_DISPATCH_SZ; i++) {
@@ -131,11 +133,10 @@ host_hci_le_dispatch_entry_find(uint8_t event_code)
 static int
 host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 {
+    struct ble_hs_ack ack;
     uint16_t opcode;
-    uint16_t ocf;
     uint8_t num_pkts;
     uint8_t *params;
-    int param_len;
     int rc;
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
@@ -162,9 +163,16 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
         host_hci_outstanding_opcode = 0;
     }
 
-    ocf = BLE_HCI_OCF(opcode);
-    param_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
-    rc = ble_hs_ack_rx_cmd_complete(ocf, params, param_len);
+    ack.bha_ocf = BLE_HCI_OCF(opcode);
+    ack.bha_params = params;
+    ack.bha_params_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
+    if (ack.bha_params_len > 0) {
+        ack.bha_status = params[0];
+    } else {
+        ack.bha_status = 255;
+    }
+
+    rc = ble_hs_ack_rx(&ack);
     if (rc != 0) {
         return rc;
     }
@@ -175,8 +183,8 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 static int
 host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
 {
+    struct ble_hs_ack ack;
     uint16_t opcode;
-    uint16_t ocf;
     uint8_t num_pkts;
     uint8_t status;
     int rc;
@@ -206,8 +214,12 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
         host_hci_outstanding_opcode = 0;
     }
 
-    ocf = BLE_HCI_OCF(opcode);
-    rc = ble_hs_ack_rx_cmd_status(ocf, status);
+    ack.bha_ocf = BLE_HCI_OCF(opcode);
+    ack.bha_params = NULL;
+    ack.bha_params_len = 0;
+    ack.bha_status = status;
+
+    rc = ble_hs_ack_rx(&ack);
     if (rc != 0) {
         return rc;
     }
@@ -218,7 +230,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
 static int
 host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len)
 {
-    struct host_hci_le_event_dispatch_entry *entry;
+    const struct host_hci_le_event_dispatch_entry *entry;
     uint8_t subevent;
     int rc;
 
@@ -261,7 +273,7 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     evt.supervision_timeout = le16toh(data + 16);
     evt.master_clk_acc = data[18];
 
-    rc = ble_hs_conn_rx_conn_complete(&evt);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
     if (rc != 0) {
         return rc;
     }
@@ -272,9 +284,10 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
 int
 host_hci_event_rx(uint8_t *data)
 {
-    struct host_hci_event_dispatch_entry *entry;
+    const struct host_hci_event_dispatch_entry *entry;
     uint8_t event_code;
     uint8_t param_len;
+    int event_len;
     int rc;
 
     /* Count events received */
@@ -286,12 +299,15 @@ host_hci_event_rx(uint8_t *data)
     /* Process the event */
     event_code = data[0];
     param_len = data[1];
+
+    event_len = param_len + 2;
+
     entry = host_hci_dispatch_entry_find(event_code);
     if (entry == NULL) {
         ++g_host_hci_stats.unknown_events_rxd;
         rc = ENOTSUP;
     } else {
-        rc = entry->hed_fn(event_code, data, param_len + 2);
+        rc = entry->hed_fn(event_code, data, event_len);
     }
 
     return rc;

@@ -20,6 +20,7 @@
 #include "host/ble_hs.h"
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
+#include "ble_gap_conn.h"
 
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -97,6 +98,11 @@ ble_hs_init(void)
     }
 
     rc = ble_hs_att_init();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gap_conn_init();
     if (rc != 0) {
         return rc;
     }

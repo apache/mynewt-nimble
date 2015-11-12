@@ -24,13 +24,15 @@
 #include "ble_l2cap.h"
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_test_util.h"
 #include "testutil/testutil.h"
 
-TEST_CASE(ble_hs_conn_test_success)
+TEST_CASE(ble_hs_conn_test_master_direct_success)
 {
     struct hci_le_conn_complete evt;
+    struct ble_hs_ack ack;
     struct ble_hs_conn *conn;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
@@ -39,19 +41,21 @@ TEST_CASE(ble_hs_conn_test_success)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
     rc = ble_gap_conn_initiate_direct(0, addr);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
 
     /* Receive command status event. */
-    rc = ble_hs_conn_rx_cmd_status_create_conn(BLE_HCI_OCF_LE_CREATE_CONN,
-                                               BLE_ERR_SUCCESS);
+    memset(&ack, 0, sizeof ack);
+    ack.bha_ocf = BLE_HCI_OCF_LE_CREATE_CONN;
+    ack.bha_status = BLE_ERR_SUCCESS;
+    rc = ble_hs_ack_rx(&ack);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -59,20 +63,21 @@ TEST_CASE(ble_hs_conn_test_success)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_hs_conn_rx_conn_complete(&evt);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
 
     conn = ble_hs_conn_first();
-    TEST_ASSERT(conn != NULL);
+    TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
     TEST_ASSERT(conn->bhc_att_mtu == BLE_HS_ATT_MTU_DFLT);
     TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
 }
 
-TEST_CASE(ble_hs_conn_test_hci_errors)
+TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
 {
     struct hci_le_conn_complete evt;
+    struct ble_hs_ack ack;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
@@ -80,13 +85,13 @@ TEST_CASE(ble_hs_conn_test_hci_errors)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
     rc = ble_gap_conn_initiate_direct(0, addr);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
 
     /* Receive connection complete event without intervening command status. */
     memset(&evt, 0, sizeof evt);
@@ -94,28 +99,82 @@ TEST_CASE(ble_hs_conn_test_hci_errors)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_hs_conn_rx_conn_complete(&evt);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc != 0);
-    TEST_ASSERT(ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
 
-    /* Receive connection complete event. */
-    rc = ble_hs_conn_rx_cmd_status_create_conn(BLE_HCI_OCF_LE_CREATE_CONN,
-                                               BLE_ERR_SUCCESS);
+    /* Receive success command status event. */
+    memset(&ack, 0, sizeof ack);
+    ack.bha_ocf = BLE_HCI_OCF_LE_CREATE_CONN;
+    ack.bha_status = BLE_ERR_SUCCESS;
+    rc = ble_hs_ack_rx(&ack);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
 
     /* Receive failure connection complete event. */
     evt.status = BLE_ERR_UNSPECIFIED;
-    rc = ble_hs_conn_rx_conn_complete(&evt);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_hs_conn_pending());
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
+}
+
+TEST_CASE(ble_hs_conn_test_slave_direct_success)
+{
+    struct hci_le_conn_complete evt;
+    struct ble_hs_conn *conn;
+    struct ble_hs_ack ack;
+    uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    rc = ble_hs_init();
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure no current or pending connections. */
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_state_slave == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+
+    /* Initiate advertising. */
+    rc = ble_gap_conn_advertise_direct(0, addr);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_state_slave ==
+                BLE_GAP_CONN_STATE_SLAVE_DIRECT_UNACKED);
+
+    /* Receive command status event. */
+    memset(&ack, 0, sizeof ack);
+    ack.bha_ocf = BLE_HCI_OCF_LE_SET_ADV_PARAMS;
+    ack.bha_status = BLE_ERR_SUCCESS;
+    rc = ble_hs_ack_rx(&ack);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_state_slave ==
+                BLE_GAP_CONN_STATE_SLAVE_DIRECT_ACKED);
+
+    /* Receive successful connection complete event. */
+    memset(&evt, 0, sizeof evt);
+    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+    evt.status = BLE_ERR_SUCCESS;
+    evt.connection_handle = 2;
+    memcpy(evt.peer_addr, addr, 6);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_state_slave == BLE_GAP_CONN_STATE_NULL);
+
+    conn = ble_hs_conn_first();
+    TEST_ASSERT_FATAL(conn != NULL);
+    TEST_ASSERT(conn->bhc_handle == 2);
+    TEST_ASSERT(conn->bhc_att_mtu == BLE_HS_ATT_MTU_DFLT);
+    TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
 }
 
 TEST_SUITE(conn_suite)
 {
-    ble_hs_conn_test_success();
-    ble_hs_conn_test_hci_errors();
+    ble_hs_conn_test_master_direct_success();
+    ble_hs_conn_test_master_direct_hci_errors();
+    ble_hs_conn_test_slave_direct_success();
 }
 
 int

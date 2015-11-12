@@ -18,7 +18,7 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "testutil/testutil.h"
-#include "ble_hs_conn.h"
+#include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_test_util.h"
 
@@ -53,13 +53,16 @@ void
 ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
 {
     struct hci_le_conn_complete evt;
+    struct ble_hs_ack ack;
     int rc;
 
     rc = ble_gap_conn_initiate_direct(0, addr);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_hs_conn_rx_cmd_status_create_conn(BLE_HCI_OCF_LE_CREATE_CONN,
-                                               BLE_ERR_SUCCESS);
+    memset(&ack, 0, sizeof ack);
+    ack.bha_ocf = BLE_HCI_OCF_LE_CREATE_CONN;
+    ack.bha_status = BLE_ERR_SUCCESS;
+    rc = ble_gap_conn_rx_ack_create_conn(&ack);
     TEST_ASSERT(rc == 0);
 
     memset(&evt, 0, sizeof evt);
@@ -67,5 +70,5 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_hs_conn_rx_conn_complete(&evt);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
 }

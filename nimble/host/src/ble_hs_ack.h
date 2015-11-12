@@ -19,7 +19,13 @@
 
 #include <inttypes.h>
 
-int ble_hs_ack_rx_cmd_complete(uint16_t ocf, uint8_t *params, int param_len);
-int ble_hs_ack_rx_cmd_status(uint16_t ocf, uint8_t status);
+struct ble_hs_ack {
+    uint16_t bha_ocf;
+    uint8_t bha_status;
+    uint8_t *bha_params;
+    int bha_params_len;
+};
+
+int ble_hs_ack_rx(struct ble_hs_ack *ack);
 
 #endif

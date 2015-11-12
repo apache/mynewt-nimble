@@ -166,6 +166,8 @@
 #define BLE_HCI_ADV_FILT_BOTH               (3)
 #define BLE_HCI_ADV_FILT_MAX                (3)
 
+#define BLE_HCI_ADV_FILT_DEF                (BLE_HCI_ADV_FILT_NONE)
+
 /* Advertising interval */
 #define BLE_HCI_ADV_ITVL                    (625)           /* usecs */
 #define BLE_HCI_ADV_ITVL_MIN                (32)            /* units */

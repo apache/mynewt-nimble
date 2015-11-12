@@ -17,67 +17,34 @@
 #include <stddef.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "ble_gap_conn.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
 
-typedef int ble_hs_ack_rx_cmd_complete_fn(uint16_t ocf, uint8_t *params,
-                                          int param_len);
+typedef int ble_hs_ack_rx_fn(struct ble_hs_ack *ack);
 
-struct ble_hs_ack_cmd_complete_dispatch_entry {
-    uint8_t hac_ocf;
-    ble_hs_ack_rx_cmd_complete_fn *hac_fn;
+struct ble_hs_ack_dispatch_entry {
+    uint8_t bhe_ocf;
+    ble_hs_ack_rx_fn *bhe_fn;
 };
 
-static const struct ble_hs_ack_cmd_complete_dispatch_entry
-        ble_hs_ack_cmd_complete_dispatch[] = {
-    { 0, NULL }, /* XXX */
+static const struct ble_hs_ack_dispatch_entry ble_hs_ack_dispatch[] = {
+    { BLE_HCI_OCF_LE_CREATE_CONN, ble_gap_conn_rx_ack_create_conn },
+    { BLE_HCI_OCF_LE_SET_ADV_PARAMS, ble_gap_conn_rx_ack_set_adv_params },
 };
 
-#define BLE_HS_ACK_CMD_COMPLETE_DISPATCH_SZ         \
-    (sizeof ble_hs_ack_cmd_complete_dispatch /      \
-     sizeof ble_hs_ack_cmd_complete_dispatch[0])
+#define BLE_HS_ACK_DISPATCH_SZ  \
+    (sizeof ble_hs_ack_dispatch / sizeof ble_hs_ack_dispatch[0])
 
-typedef int ble_hs_ack_rx_cmd_status_fn(uint16_t ocf, uint8_t status);
-
-struct ble_hs_ack_cmd_status_dispatch_entry {
-    uint8_t hat_ocf;
-    ble_hs_ack_rx_cmd_status_fn *hat_fn;
-};
-
-static const struct ble_hs_ack_cmd_status_dispatch_entry
-        ble_hs_ack_cmd_status_dispatch[] = {
-    { BLE_HCI_OCF_LE_CREATE_CONN, ble_hs_conn_rx_cmd_status_create_conn },
-};
-
-#define BLE_HS_ACK_CMD_STATUS_DISPATCH_SZ       \
-    (sizeof ble_hs_ack_cmd_status_dispatch /    \
-     sizeof ble_hs_ack_cmd_status_dispatch[0])
-
-static const struct ble_hs_ack_cmd_complete_dispatch_entry *
-ble_hs_cmd_complete_find_entry(uint16_t ocf)
+static const struct ble_hs_ack_dispatch_entry *
+ble_hs_ack_find_dispatch_entry(uint16_t ocf)
 {
-    const struct ble_hs_ack_cmd_complete_dispatch_entry *entry;
+    const struct ble_hs_ack_dispatch_entry *entry;
     int i;
 
-    for (i = 0; i < 0/*XXX BLE_HS_ACK_CMD_COMPLETE_DISPATCH_SZ*/; i++) {
-        entry = ble_hs_ack_cmd_complete_dispatch + i;
-        if (entry->hac_ocf == ocf) {
-            return entry;
-        }
-    }
-
-    return NULL;
-}
-
-static const struct ble_hs_ack_cmd_status_dispatch_entry *
-ble_hs_cmd_status_find_entry(uint16_t ocf)
-{
-    const struct ble_hs_ack_cmd_status_dispatch_entry *entry;
-    int i;
-
-    for (i = 0; i < BLE_HS_ACK_CMD_STATUS_DISPATCH_SZ; i++) {
-        entry = ble_hs_ack_cmd_status_dispatch + i;
-        if (entry->hat_ocf == ocf) {
+    for (i = 0; i < BLE_HS_ACK_DISPATCH_SZ; i++) {
+        entry = ble_hs_ack_dispatch + i;
+        if (entry->bhe_ocf == ocf) {
             return entry;
         }
     }
@@ -86,31 +53,14 @@ ble_hs_cmd_status_find_entry(uint16_t ocf)
 }
 
 int
-ble_hs_ack_rx_cmd_complete(uint16_t ocf, uint8_t *params, int param_len)
+ble_hs_ack_rx(struct ble_hs_ack *ack)
 {
-    const struct ble_hs_ack_cmd_complete_dispatch_entry *entry;
+    const struct ble_hs_ack_dispatch_entry *entry;
     int rc;
 
-    entry = ble_hs_cmd_complete_find_entry(ocf);
+    entry = ble_hs_ack_find_dispatch_entry(ack->bha_ocf);
     if (entry != NULL) {
-        rc = entry->hac_fn(ocf, params, param_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    return 0;
-}
-
-int
-ble_hs_ack_rx_cmd_status(uint16_t ocf, uint8_t status)
-{
-    const struct ble_hs_ack_cmd_status_dispatch_entry *entry;
-    int rc;
-
-    entry = ble_hs_cmd_status_find_entry(ocf);
-    if (entry != NULL) {
-        rc = entry->hat_fn(ocf, status);
+        rc = entry->bhe_fn(ack);
         if (rc != 0) {
             return rc;
         }

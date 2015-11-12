@@ -17,6 +17,24 @@
 #ifndef H_BLE_GAP_CONN_
 #define H_BLE_GAP_CONN_
 
+struct ble_hs_ack;
+
+#define BLE_GAP_CONN_STATE_NULL                     0
+
+#define BLE_GAP_CONN_STATE_MASTER_DIRECT_UNACKED    1
+#define BLE_GAP_CONN_STATE_MASTER_DIRECT_ACKED      2
+
+#define BLE_GAP_CONN_STATE_SLAVE_DIRECT_UNACKED     1
+#define BLE_GAP_CONN_STATE_SLAVE_DIRECT_ACKED       2
+
 int ble_gap_conn_initiate_direct(int addr_type, uint8_t *addr);
+int ble_gap_conn_advertise_direct(int addr_type, uint8_t *addr);
+int ble_gap_conn_rx_ack_create_conn(struct ble_hs_ack *ack);
+int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);
+int ble_gap_conn_rx_ack_set_adv_params(struct ble_hs_ack *ack);
+int ble_gap_conn_init(void);
+
+extern int ble_gap_conn_state_master;
+extern int ble_gap_conn_state_slave;
 
 #endif
