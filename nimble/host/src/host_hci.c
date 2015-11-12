@@ -137,7 +137,6 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     uint16_t opcode;
     uint8_t num_pkts;
     uint8_t *params;
-    int rc;
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
         /* XXX: Increment stat. */
@@ -161,6 +160,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     if (opcode == host_hci_outstanding_opcode) {
         /* Mark the outstanding command as acked. */
         host_hci_outstanding_opcode = 0;
+        /* XXX: Stop timer. */
     }
 
     ack.bha_ocf = BLE_HCI_OCF(opcode);
@@ -172,10 +172,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
         ack.bha_status = 255;
     }
 
-    rc = ble_hs_ack_rx(&ack);
-    if (rc != 0) {
-        return rc;
-    }
+    ble_hs_ack_rx(&ack);
 
     return 0;
 }
@@ -187,7 +184,6 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     uint16_t opcode;
     uint8_t num_pkts;
     uint8_t status;
-    int rc;
 
     if (len < BLE_HCI_EVENT_CMD_STATUS_LEN) {
         /* XXX: Increment stat. */
@@ -212,6 +208,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     if (opcode == host_hci_outstanding_opcode) {
         /* Mark the outstanding command as acked. */
         host_hci_outstanding_opcode = 0;
+        /* XXX: Stop timer. */
     }
 
     ack.bha_ocf = BLE_HCI_OCF(opcode);
@@ -219,10 +216,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     ack.bha_params_len = 0;
     ack.bha_status = status;
 
-    rc = ble_hs_ack_rx(&ack);
-    if (rc != 0) {
-        return rc;
-    }
+    ble_hs_ack_rx(&ack);
 
     return 0;
 }
@@ -411,4 +405,10 @@ host_hci_data_rx(void *pkt, uint16_t len)
     ble_l2cap_rx(connection, &hci_hdr, u8ptr + off);
 
     return 0;
+}
+
+void
+host_hci_init(void)
+{
+    host_hci_outstanding_opcode = 0;
 }

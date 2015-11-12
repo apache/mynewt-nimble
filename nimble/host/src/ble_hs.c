@@ -20,6 +20,7 @@
 #include "host/ble_hs.h"
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
 
 #define HCI_CMD_BUFS        (8)
@@ -87,6 +88,8 @@ ble_hs_init(void)
     /* Initialize eventq */
     os_eventq_init(&g_ble_host_hci_evq);
 
+    host_hci_init();
+
     rc = ble_hs_conn_init();
     if (rc != 0) {
         return rc;
@@ -106,6 +109,8 @@ ble_hs_init(void)
     if (rc != 0) {
         return rc;
     }
+
+    ble_hs_ack_init();
 
     return 0;
 }

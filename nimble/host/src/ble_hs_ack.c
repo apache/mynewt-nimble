@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -21,50 +23,31 @@
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
 
-typedef int ble_hs_ack_rx_fn(struct ble_hs_ack *ack);
+static ble_hs_ack_fn *ble_hs_ack_cb;
+static void *ble_hs_ack_arg;
 
-struct ble_hs_ack_dispatch_entry {
-    uint8_t bhe_ocf;
-    ble_hs_ack_rx_fn *bhe_fn;
-};
-
-static const struct ble_hs_ack_dispatch_entry ble_hs_ack_dispatch[] = {
-    { BLE_HCI_OCF_LE_CREATE_CONN, ble_gap_conn_rx_ack_create_conn },
-    { BLE_HCI_OCF_LE_SET_ADV_PARAMS, ble_gap_conn_rx_ack_set_adv_params },
-};
-
-#define BLE_HS_ACK_DISPATCH_SZ  \
-    (sizeof ble_hs_ack_dispatch / sizeof ble_hs_ack_dispatch[0])
-
-static const struct ble_hs_ack_dispatch_entry *
-ble_hs_ack_find_dispatch_entry(uint16_t ocf)
-{
-    const struct ble_hs_ack_dispatch_entry *entry;
-    int i;
-
-    for (i = 0; i < BLE_HS_ACK_DISPATCH_SZ; i++) {
-        entry = ble_hs_ack_dispatch + i;
-        if (entry->bhe_ocf == ocf) {
-            return entry;
-        }
-    }
-
-    return NULL;
-}
-
-int
+void
 ble_hs_ack_rx(struct ble_hs_ack *ack)
 {
-    const struct ble_hs_ack_dispatch_entry *entry;
-    int rc;
+    ble_hs_ack_fn *cb;
 
-    entry = ble_hs_ack_find_dispatch_entry(ack->bha_ocf);
-    if (entry != NULL) {
-        rc = entry->bhe_fn(ack);
-        if (rc != 0) {
-            return rc;
-        }
+    if (ble_hs_ack_cb != NULL) {
+        cb = ble_hs_ack_cb;
+        ble_hs_ack_cb = NULL;
+
+        cb(ack, ble_hs_ack_arg);
     }
+}
 
-    return 0;
+void
+ble_hs_ack_set_callback(ble_hs_ack_fn *cb, void *arg)
+{
+    ble_hs_ack_cb = cb;
+    ble_hs_ack_arg = arg;
+}
+
+void
+ble_hs_ack_init(void)
+{
+    ble_hs_ack_set_callback(NULL, NULL);
 }

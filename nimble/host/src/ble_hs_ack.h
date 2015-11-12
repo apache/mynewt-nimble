@@ -26,6 +26,10 @@ struct ble_hs_ack {
     int bha_params_len;
 };
 
-int ble_hs_ack_rx(struct ble_hs_ack *ack);
+typedef void ble_hs_ack_fn(struct ble_hs_ack *ack, void *arg);
+
+void ble_hs_ack_rx(struct ble_hs_ack *ack);
+void ble_hs_ack_set_callback(ble_hs_ack_fn *cb, void *arg);
+void ble_hs_ack_init(void);
 
 #endif

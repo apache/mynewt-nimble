@@ -32,7 +32,6 @@
 TEST_CASE(ble_hs_conn_test_master_direct_success)
 {
     struct hci_le_conn_complete evt;
-    struct ble_hs_ack ack;
     struct ble_hs_conn *conn;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
@@ -41,21 +40,17 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
     rc = ble_gap_conn_initiate_direct(0, addr);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive command status event. */
-    memset(&ack, 0, sizeof ack);
-    ack.bha_ocf = BLE_HCI_OCF_LE_CREATE_CONN;
-    ack.bha_status = BLE_ERR_SUCCESS;
-    rc = ble_hs_ack_rx(&ack);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
+    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -65,7 +60,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
 
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
@@ -77,7 +72,6 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
 TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
 {
     struct hci_le_conn_complete evt;
-    struct ble_hs_ack ack;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
@@ -85,13 +79,13 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
     rc = ble_gap_conn_initiate_direct(0, addr);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive connection complete event without intervening command status. */
     memset(&evt, 0, sizeof evt);
@@ -101,21 +95,17 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc != 0);
-    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive success command status event. */
-    memset(&ack, 0, sizeof ack);
-    ack.bha_ocf = BLE_HCI_OCF_LE_CREATE_CONN;
-    ack.bha_status = BLE_ERR_SUCCESS;
-    rc = ble_hs_ack_rx(&ack);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master != BLE_GAP_CONN_STATE_NULL);
+    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive failure connection complete event. */
     evt.status = BLE_ERR_UNSPECIFIED;
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 }
 
@@ -123,7 +113,6 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
 {
     struct hci_le_conn_complete evt;
     struct ble_hs_conn *conn;
-    struct ble_hs_ack ack;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
@@ -131,26 +120,25 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
-    TEST_ASSERT(ble_gap_conn_state_slave == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
     rc = ble_gap_conn_advertise_direct(0, addr);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
-    TEST_ASSERT(ble_gap_conn_state_slave ==
-                BLE_GAP_CONN_STATE_SLAVE_DIRECT_UNACKED);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
-    /* Receive command status event. */
-    memset(&ack, 0, sizeof ack);
-    ack.bha_ocf = BLE_HCI_OCF_LE_SET_ADV_PARAMS;
-    ack.bha_status = BLE_ERR_SUCCESS;
-    rc = ble_hs_ack_rx(&ack);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
-    TEST_ASSERT(ble_gap_conn_state_slave ==
-                BLE_GAP_CONN_STATE_SLAVE_DIRECT_ACKED);
+    /* Receive set-adv-params ack. */
+    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS, BLE_ERR_SUCCESS);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+
+    /* Receive set-adv-enable ack. */
+    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE, BLE_ERR_SUCCESS);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -160,8 +148,8 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_state_master == BLE_GAP_CONN_STATE_NULL);
-    TEST_ASSERT(ble_gap_conn_state_slave == BLE_GAP_CONN_STATE_NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
 
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);

@@ -25,6 +25,7 @@
 #include "host/ble_hs.h"
 #include "host/host_hci.h"
 #include "host_dbg.h"
+#include "ble_hs_ack.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 
@@ -44,6 +45,9 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
     int rc;
     uint8_t *cmd;
     uint16_t opcode;
+
+    /* Don't allow multiple commands "in flight." */
+    assert(host_hci_outstanding_opcode == 0);
 
     rc = -1;
     cmd = os_memblock_get(&g_hci_cmd_pool);
@@ -157,7 +161,8 @@ host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len)
     uint8_t cmd[BLE_HCI_MAX_SCAN_RSP_DATA_LEN + 1];
 
     /* Check for valid parameters */
-    if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_SCAN_RSP_DATA_LEN)) {
+    if (((data == NULL) && (len != 0)) ||
+         (len > BLE_HCI_MAX_SCAN_RSP_DATA_LEN)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
