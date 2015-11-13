@@ -163,7 +163,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
         /* XXX: Stop timer. */
     }
 
-    ack.bha_ocf = BLE_HCI_OCF(opcode);
+    ack.bha_opcode = opcode;
     ack.bha_params = params;
     ack.bha_params_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
     if (ack.bha_params_len > 0) {
@@ -211,7 +211,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
         /* XXX: Stop timer. */
     }
 
-    ack.bha_ocf = BLE_HCI_OCF(opcode);
+    ack.bha_opcode = opcode;
     ack.bha_params = NULL;
     ack.bha_params_len = 0;
     ack.bha_status = status;

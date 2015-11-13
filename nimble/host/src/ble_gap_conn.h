@@ -17,6 +17,8 @@
 #ifndef H_BLE_GAP_CONN_
 #define H_BLE_GAP_CONN_
 
+#include <inttypes.h>
+struct hci_le_conn_complete;
 struct ble_hs_ack;
 
 int ble_gap_conn_initiate_direct(int addr_type, uint8_t *addr);

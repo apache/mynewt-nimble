@@ -302,7 +302,7 @@ host_hci_cmd_le_create_connection(struct hci_create_conn *hcc)
     }
 
     /* Check peer addr type */
-    if (hcc->peer_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+    if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 

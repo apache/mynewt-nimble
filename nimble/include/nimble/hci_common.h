@@ -145,10 +145,17 @@
 #define BLE_HCI_ADV_OWN_ADDR_PRIV_RAND  (3)
 #define BLE_HCI_ADV_OWN_ADDR_MAX        (3)
 
-/* Peer Address Type */
-#define BLE_HCI_ADV_PEER_ADDR_PUBLIC    (0)
-#define BLE_HCI_ADV_PEER_ADDR_RANDOM    (1)
-#define BLE_HCI_ADV_PEER_ADDR_MAX       (1)
+/* Advertisement peer address Type */
+#define BLE_HCI_ADV_PEER_ADDR_PUBLIC        (0)
+#define BLE_HCI_ADV_PEER_ADDR_RANDOM        (1)
+#define BLE_HCI_ADV_PEER_ADDR_MAX           (1)
+
+/* Connect peer address type */
+#define BLE_HCI_CONN_PEER_ADDR_PUBLIC        (0)
+#define BLE_HCI_CONN_PEER_ADDR_RANDOM        (1)
+#define BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT  (2)
+#define BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT  (3)
+#define BLE_HCI_CONN_PEER_ADDR_MAX           (3)
 
 /* 
  * Advertising filter policy

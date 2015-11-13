@@ -26,6 +26,7 @@ void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
                                        uint8_t status, uint8_t num_pkts,
                                        uint16_t opcode);
 void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr);
-void ble_hs_test_util_rx_ack(uint16_t ocf, uint8_t status);
+void ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status);
+void ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status);
 
 #endif

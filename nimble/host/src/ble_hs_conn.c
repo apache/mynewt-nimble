@@ -27,25 +27,6 @@
 
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
-static struct os_mutex ble_hs_conn_mutex;
-
-void
-ble_hs_conn_lock(void)
-{
-    int rc;
-
-    rc = os_mutex_pend(&ble_hs_conn_mutex, 0xffffffff);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
-}
-
-void
-ble_hs_conn_unlock(void)
-{
-    int rc;
-
-    rc = os_mutex_release(&ble_hs_conn_mutex);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
-}
 
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
@@ -99,12 +80,14 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 void
 ble_hs_conn_insert(struct ble_hs_conn *conn)
 {
-    ble_hs_conn_lock();
-
     assert(ble_hs_conn_find(conn->bhc_handle) == NULL);
     SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
+}
 
-    ble_hs_conn_unlock();
+void
+ble_hs_conn_remove(struct ble_hs_conn *conn)
+{
+    SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
 }
 
 struct ble_hs_conn *
@@ -131,7 +114,6 @@ ble_hs_conn_first(void)
     return SLIST_FIRST(&ble_hs_conns);
 }
 
-
 int 
 ble_hs_conn_init(void)
 {
@@ -153,11 +135,6 @@ ble_hs_conn_init(void)
     }
 
     SLIST_INIT(&ble_hs_conns);
-
-    rc = os_mutex_init(&ble_hs_conn_mutex);
-    if (rc != 0) {
-        return EINVAL; // XXX
-    }
 
     return 0;
 }

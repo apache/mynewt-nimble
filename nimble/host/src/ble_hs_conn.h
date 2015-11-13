@@ -34,11 +34,10 @@ struct ble_hs_conn {
     struct ble_l2cap_chan_list bhc_channels;
 };
 
-void ble_hs_conn_lock(void);
-void ble_hs_conn_unlock(void);
 struct ble_hs_conn *ble_hs_conn_alloc(void);
 void ble_hs_conn_free(struct ble_hs_conn *conn);
 void ble_hs_conn_insert(struct ble_hs_conn *conn);
+void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t con_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
 int ble_hs_conn_init(void);

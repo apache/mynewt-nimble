@@ -21,6 +21,7 @@
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
+#include "ble_hs_work.h"
 #include "ble_gap_conn.h"
 
 #define HCI_CMD_BUFS        (8)
@@ -38,7 +39,9 @@ os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
 
 /* Host HCI Task Events */
 struct os_eventq g_ble_host_hci_evq;
-#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER)
+static struct os_event ble_hs_kick_ev;
+#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
+#define BLE_HS_KICK_EVENT               (OS_EVENT_T_PERUSER + 1)
 
 void
 ble_hs_task_handler(void *arg)
@@ -54,19 +57,40 @@ ble_hs_task_handler(void *arg)
             assert(cf->cf_func);
             cf->cf_func(cf->cf_arg);
             break;
+
         case BLE_HOST_HCI_EVENT_CTLR_EVENT:
             /* Process HCI event from controller */
             host_hci_os_event_proc(ev);
             break;
+
+        case BLE_HS_KICK_EVENT:
+            break;
+
         default:
             assert(0);
             break;
+        }
+
+        /* If a work event is not already in progress, and there is another
+         * event pending, begin processing it.
+         */
+        if (!ble_hs_work_busy) {
+            ble_hs_work_process_next();
         }
     }
 }
 
 /**
- * Initialize the host portion of the BLE stack.
+ * Wakes the BLE host task so that it can process work events.
+ */
+void
+ble_hs_kick(void)
+{
+    os_eventq_put(&g_ble_host_hci_evq, &ble_hs_kick_ev);
+}
+
+/**
+ * Initializes the host portion of the BLE stack.
  */
 int
 ble_hs_init(void)
@@ -111,6 +135,15 @@ ble_hs_init(void)
     }
 
     ble_hs_ack_init();
+
+    rc = ble_hs_work_init();
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_hs_kick_ev.ev_queued = 0;
+    ble_hs_kick_ev.ev_type = BLE_HS_KICK_EVENT;
+    ble_hs_kick_ev.ev_arg = NULL;
 
     return 0;
 }

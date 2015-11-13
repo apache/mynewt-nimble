@@ -22,6 +22,7 @@
 #include "ble_hs_ack.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
+#include "ble_hs_work.h"
 #include "ble_gap_conn.h"
 
 #define BLE_GAP_CONN_STATE_IDLE                     0
@@ -49,6 +50,9 @@ ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
     } else {
         ble_gap_conn_master_state = BLE_GAP_CONN_STATE_MASTER_DIRECT_ACKED;
     }
+
+    /* The host is done sending commands to the controller. */
+    ble_hs_work_done();
 }
 
 static void
@@ -88,7 +92,6 @@ ble_gap_conn_slave_ack(struct ble_hs_ack *ack, void *arg)
 /**
  * Initiates a connection using the GAP Direct Connection Establishment
  * Procedure.
- * XXX: Add timeout parameter.
  *
  * @return 0 on success; nonzero on failure.
  */
@@ -128,7 +131,6 @@ ble_gap_conn_initiate_direct(int addr_type, uint8_t *addr)
     return 0;
 }
 
-/* XXX: Add timeout parameter. */
 int
 ble_gap_conn_advertise_direct(int addr_type, uint8_t *addr)
 {
@@ -184,11 +186,27 @@ ble_gap_conn_accept_conn(uint8_t *addr)
     return ENOENT;
 }
 
+/**
+ * Processes an incoming connection-complete HCI event.
+ */
 int
 ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
 {
     struct ble_hs_conn *conn;
     int rc;
+
+    /* Determine if this event refers to a completed connection or a connection
+     * in progress.
+     */
+    conn = ble_hs_conn_find(evt->connection_handle);
+    if (conn != NULL) {
+        if (evt->status != 0) {
+            ble_hs_conn_remove(conn);
+            ble_hs_conn_free(conn);
+        }
+
+        return 0;
+    }
 
     rc = ble_gap_conn_accept_conn(evt->peer_addr);
     if (rc != 0) {

@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,22 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef H_BLE_HS_ACK_
-#define H_BLE_HS_ACK_
+#ifndef H_BLE_GAP_
+#define H_BLE_GAP_
 
 #include <inttypes.h>
 
-struct ble_hs_ack {
-    uint16_t bha_opcode;
-    uint8_t bha_status;
-    uint8_t *bha_params;
-    int bha_params_len;
-};
-
-typedef void ble_hs_ack_fn(struct ble_hs_ack *ack, void *arg);
-
-void ble_hs_ack_rx(struct ble_hs_ack *ack);
-void ble_hs_ack_set_callback(ble_hs_ack_fn *cb, void *arg);
-void ble_hs_ack_init(void);
+int ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr);
 
 #endif

@@ -20,6 +20,7 @@
 #include <inttypes.h>
 
 void ble_hs_task_handler(void *arg);
+void ble_hs_kick(void);
 int ble_hs_init(void);
 
 #endif /* _BLE_HOST_H */

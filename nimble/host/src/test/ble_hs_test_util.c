@@ -59,7 +59,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     rc = ble_gap_conn_initiate_direct(0, addr);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
 
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -70,13 +70,18 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
 }
 
 void
-ble_hs_test_util_rx_ack(uint16_t ocf, uint8_t status)
+ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status)
 {
     uint8_t buf[BLE_HCI_EVENT_CMD_STATUS_LEN];
     int rc;
 
-    ble_hs_test_util_build_cmd_status(buf, sizeof buf, status, 1,
-                                      (BLE_HCI_OGF_LE << 10) | ocf);
+    ble_hs_test_util_build_cmd_status(buf, sizeof buf, status, 1, opcode);
     rc = host_hci_event_rx(buf);
     TEST_ASSERT(rc == 0);
+}
+
+void
+ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
+{
+    ble_hs_test_util_rx_ack((BLE_HCI_OGF_LE << 10) | ocf, status);
 }

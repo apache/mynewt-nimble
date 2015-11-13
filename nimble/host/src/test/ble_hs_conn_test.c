@@ -49,7 +49,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive command status event. */
-    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive successful connection complete event. */
@@ -98,7 +98,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive success command status event. */
-    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive failure connection complete event. */
@@ -131,12 +131,12 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
     /* Receive set-adv-params ack. */
-    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS, BLE_ERR_SUCCESS);
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS, BLE_ERR_SUCCESS);
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
     /* Receive set-adv-enable ack. */
-    ble_hs_test_util_rx_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE, BLE_ERR_SUCCESS);
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE, BLE_ERR_SUCCESS);
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
