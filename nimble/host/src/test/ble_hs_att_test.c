@@ -145,7 +145,7 @@ TEST_CASE(ble_hs_att_test_read)
     uint8_t uuid[16] = {0};
     int rc;
 
-    rc = ble_hs_init();
+    rc = ble_hs_init(10);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
@@ -208,7 +208,7 @@ TEST_CASE(ble_hs_att_test_write)
     uint8_t uuid[16] = {0};
     int rc;
 
-    rc = ble_hs_init();
+    rc = ble_hs_init(10);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));

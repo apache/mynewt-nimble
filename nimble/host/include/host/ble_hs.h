@@ -21,6 +21,6 @@
 
 void ble_hs_task_handler(void *arg);
 void ble_hs_kick(void);
-int ble_hs_init(void);
+int ble_hs_init(uint8_t prio);
 
 #endif /* _BLE_HOST_H */

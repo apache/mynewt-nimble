@@ -24,6 +24,16 @@
 #include "ble_hs_work.h"
 #include "ble_gap_conn.h"
 
+#ifdef ARCH_sim
+#define BLE_HS_STACK_SIZE   (1024)
+#else
+#define BLE_HS_STACK_SIZE   (128)
+#endif
+
+struct os_task ble_hs_task;
+os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE];
+
+
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
@@ -71,7 +81,7 @@ ble_hs_task_handler(void *arg)
             break;
         }
 
-        /* If a work event is not already in progress, and there is another
+        /* If a work event is not already in progress and there is another
          * event pending, begin processing it.
          */
         if (!ble_hs_work_busy) {
@@ -93,7 +103,7 @@ ble_hs_kick(void)
  * Initializes the host portion of the BLE stack.
  */
 int
-ble_hs_init(void)
+ble_hs_init(uint8_t prio)
 {
     int rc;
 
@@ -144,6 +154,9 @@ ble_hs_init(void)
     ble_hs_kick_ev.ev_queued = 0;
     ble_hs_kick_ev.ev_type = BLE_HS_KICK_EVENT;
     ble_hs_kick_ev.ev_arg = NULL;
+
+    os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
+                 OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
 
     return 0;
 }

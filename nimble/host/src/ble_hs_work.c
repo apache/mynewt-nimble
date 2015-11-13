@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <errno.h>
 #include "os/os.h"
+#include "host/ble_hs.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_work.h"
 
@@ -42,6 +43,7 @@ void
 ble_hs_work_enqueue(struct ble_hs_work_entry *entry)
 {
     STAILQ_INSERT_TAIL(&ble_hs_work_queue, entry, bwe_next);
+    ble_hs_kick();
 }
 
 void
@@ -56,6 +58,8 @@ ble_hs_work_process_next(void)
     if (entry == NULL) {
         return;
     }
+
+    STAILQ_REMOVE_HEAD(&ble_hs_work_queue, bwe_next);
 
     switch (entry->bwe_type) {
     case BLE_HS_WORK_TYPE_DIRECT_CONNECT:

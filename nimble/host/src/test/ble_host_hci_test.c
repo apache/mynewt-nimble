@@ -45,7 +45,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_complete)
     uint8_t buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN];
     int rc;
 
-    rc = ble_hs_init();
+    rc = ble_hs_init(10);
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Unsent OCF. */
@@ -78,7 +78,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
     uint8_t buf[BLE_HCI_EVENT_CMD_STATUS_LEN];
     int rc;
 
-    rc = ble_hs_init();
+    rc = ble_hs_init(10);
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Unsent OCF. */
