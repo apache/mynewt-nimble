@@ -18,6 +18,7 @@
 #define H_BLE_GAP_CONN_
 
 #include <inttypes.h>
+#include "host/ble_gap.h"
 struct hci_le_conn_complete;
 struct ble_hs_ack;
 
@@ -27,5 +28,8 @@ int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);
 int ble_gap_conn_master_in_progress(void);
 int ble_gap_conn_slave_in_progress(void);
 int ble_gap_conn_init(void);
+
+extern ble_gap_connect_fn *ble_gap_conn_cb;
+extern void *ble_gap_conn_arg;
 
 #endif

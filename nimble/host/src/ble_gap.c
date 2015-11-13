@@ -17,8 +17,24 @@
 #include <stddef.h>
 #include <errno.h>
 #include <string.h>
+#include "host/ble_gap.h"
 #include "ble_hs_work.h"
-#include "ble_gap.h"
+#include "ble_gap_conn.h"
+
+/**
+ * Configures the connection event callback.  The callback is executed whenever
+ * any of the following events occurs:
+ *     o Connection creation succeeds.
+ *     o Connection creation fails.
+ *     o Connection establishment fails.
+ *     o Established connection broken.
+ */
+void
+ble_gap_set_connect_cb(ble_gap_connect_fn *cb, void *arg)
+{
+    ble_gap_conn_cb = cb;
+    ble_gap_conn_arg = arg;
+}
 
 /**
  * Performs the Direct Connection Establishment Procedure, as described in

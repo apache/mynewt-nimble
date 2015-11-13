@@ -34,27 +34,66 @@
 #define BLE_GAP_CONN_STATE_SLAVE_PARAMS_ACKED       2
 #define BLE_GAP_CONN_STATE_SLAVE_ENABLE_ACKED       3
 
+ble_gap_connect_fn *ble_gap_conn_cb;
+void *ble_gap_conn_arg;
+
 static int ble_gap_conn_master_state;
 static int ble_gap_conn_slave_state;
 static uint8_t ble_gap_conn_addr_master[BLE_DEV_ADDR_LEN];
 static uint8_t ble_gap_conn_addr_slave[BLE_DEV_ADDR_LEN];
 
+/**
+ * Calls the connect callback if one is configured.
+ *
+ * @param status                The HCI status of the connection attempt.
+ * @param conn                  The connection this notification concerns;
+ *                                  null if a connection was never created.
+ */
 static void
-ble_gap_conn_master_failed(void)
+ble_gap_conn_notify_app(uint8_t status, struct ble_hs_conn *conn)
+{
+    struct ble_gap_connect_desc desc;
+
+    if (ble_gap_conn_cb != NULL) {
+        desc.status = status;
+        if (conn != NULL) {
+            desc.handle = conn->bhc_handle;
+            memcpy(desc.peer_addr, conn->bhc_addr, sizeof desc.peer_addr);
+        } else {
+            desc.handle = 0;
+            memset(&desc.peer_addr, 0, sizeof desc.peer_addr);
+        }
+
+        ble_gap_conn_cb(&desc, ble_gap_conn_arg);
+    }
+}
+
+/**
+ * Called when an error is encountered while the master-connection-fsm is
+ * active.  Resets the state machine, clears the HCI ack callback, and notifies
+ * the host task that the next work item can be processed.
+ */
+static void
+ble_gap_conn_master_failed(uint8_t status)
 {
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
     ble_hs_ack_set_callback(NULL, NULL);
     ble_hs_work_done();
-    /* XXX: Notify someone. */
+    ble_gap_conn_notify_app(status, NULL);
 }
 
+/**
+ * Called when an error is encountered while the slave-connection-fsm is
+ * active.  Resets the state machine, clears the HCI ack callback, and notifies
+ * the host task that the next work item can be processed.
+ */
 static void
-ble_gap_conn_slave_failed(void)
+ble_gap_conn_slave_failed(uint8_t status)
 {
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
     ble_hs_ack_set_callback(NULL, NULL);
     ble_hs_work_done();
-    /* XXX: Notify someone. */
+    ble_gap_conn_notify_app(status, NULL);
 }
 
 /**
@@ -68,7 +107,7 @@ ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
            BLE_GAP_CONN_STATE_MASTER_DIRECT_UNACKED);
 
     if (ack->bha_status != 0) {
-        ble_gap_conn_master_failed();
+        ble_gap_conn_master_failed(ack->bha_status);
     } else {
         ble_gap_conn_master_state = BLE_GAP_CONN_STATE_MASTER_DIRECT_ACKED;
     }
@@ -88,21 +127,21 @@ ble_gap_conn_slave_ack(struct ble_hs_ack *ack, void *arg)
 
     switch (ble_gap_conn_slave_state) {
     case BLE_GAP_CONN_STATE_SLAVE_UNACKED:
-        if (ack->bha_status != 0) {
-            ble_gap_conn_slave_failed();
+        if (ack->bha_status != BLE_ERR_SUCCESS) {
+            ble_gap_conn_slave_failed(ack->bha_status);
         } else {
             ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_SLAVE_PARAMS_ACKED;
             ble_hs_ack_set_callback(ble_gap_conn_slave_ack, NULL);
             rc = host_hci_cmd_le_set_adv_enable(1);
-            if (rc != 0) {
-                ble_gap_conn_slave_failed();
+            if (rc != BLE_ERR_SUCCESS) {
+                ble_gap_conn_slave_failed(rc);
             }
         }
         break;
 
     case BLE_GAP_CONN_STATE_SLAVE_PARAMS_ACKED:
         if (ack->bha_status != 0) {
-            ble_gap_conn_slave_failed();
+            ble_gap_conn_slave_failed(ack->bha_status);
         } else {
             ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_SLAVE_ENABLE_ACKED;
 
@@ -161,10 +200,15 @@ ble_gap_conn_direct_connect(int addr_type, uint8_t *addr)
     return 0;
 
 err:
-    /* XXX: Notify someone. */
+    ble_gap_conn_notify_app(rc, NULL);
     return rc;
 }
 
+/**
+ * Enables the GAP Directed Connectable Mode.
+ *
+ * @return 0 on success; nonzero on failure.
+ */
 int
 ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr)
 {
@@ -199,7 +243,7 @@ ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr)
     return 0;
 
 err:
-    /* XXX: Notify someone. */
+    ble_gap_conn_notify_app(rc, NULL);
     return rc;
 }
 
@@ -244,6 +288,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     if (conn != NULL) {
         if (evt->status != 0) {
             ble_hs_conn_remove(conn);
+            ble_gap_conn_notify_app(evt->status, conn);
             ble_hs_conn_free(conn);
         }
 
@@ -265,6 +310,8 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     conn = ble_hs_conn_alloc();
     if (conn == NULL) {
+        /* XXX: Ensure this never happens. */
+        ble_gap_conn_notify_app(BLE_ERR_MEM_CAPACITY, NULL);
         return ENOMEM;
     }
 
@@ -273,17 +320,23 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     ble_hs_conn_insert(conn);
 
-    /* XXX: Notify someone. */
+    ble_gap_conn_notify_app(0, conn);
 
     return 0;
 }
 
+/**
+ * Tells you if the BLE host is in the process of creating a master connection.
+ */
 int
 ble_gap_conn_master_in_progress(void)
 {
     return ble_gap_conn_master_state != BLE_GAP_CONN_STATE_IDLE;
 }
 
+/**
+ * Tells you if the BLE host is in the process of creating a slave connection.
+ */
 int
 ble_gap_conn_slave_in_progress(void)
 {

@@ -18,7 +18,17 @@
 #define H_BLE_GAP_
 
 #include <inttypes.h>
+struct hci_le_conn_complete;
 
+struct ble_gap_connect_desc {
+    uint16_t handle;
+    uint8_t status;
+    uint8_t peer_addr[6];
+};
+
+typedef void ble_gap_connect_fn(struct ble_gap_connect_desc *desc, void *arg);
+
+void ble_gap_set_connect_cb(ble_gap_connect_fn *cb, void *arg);
 int ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr);
 int ble_gap_directed_connectable(uint8_t addr_type, uint8_t *addr);
 
