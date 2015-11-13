@@ -44,7 +44,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_initiate_direct(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
@@ -83,7 +83,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_initiate_direct(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
@@ -125,7 +125,7 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_conn_advertise_direct(0, addr);
+    rc = ble_gap_conn_direct_advertise(0, addr);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());

@@ -20,5 +20,6 @@
 #include <inttypes.h>
 
 int ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr);
+int ble_gap_directed_connectable(uint8_t addr_type, uint8_t *addr);
 
 #endif

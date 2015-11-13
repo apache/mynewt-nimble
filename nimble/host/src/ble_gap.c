@@ -52,3 +52,36 @@ ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr)
 
     return 0;
 }
+
+/**
+ * Enables Directed Connectable Mode, as described in vol. 3, part C, section
+ * 9.3.3.
+ *
+ * @param addr_type             The peer's address type; one of:
+ *                                  o BLE_HCI_ADV_PEER_ADDR_PUBLIC
+ *                                  o BLE_HCI_ADV_PEER_ADDR_RANDOM
+ *                                  o BLE_HCI_ADV_PEER_ADDR_PUBLIC_IDENT
+ *                                  o BLE_HCI_ADV_PEER_ADDR_RANDOM_IDENT
+ * @param addr                  The address of the peer to connect to.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int
+ble_gap_directed_connectable(uint8_t addr_type, uint8_t *addr)
+{
+    struct ble_hs_work_entry *entry;
+
+    entry = ble_hs_work_entry_alloc();
+    if (entry == NULL) {
+        return ENOMEM;
+    }
+
+    entry->bwe_type = BLE_HS_WORK_TYPE_DIRECT_ADVERTISE;
+    entry->bwe_direct_advertise.bwda_peer_addr_type = addr_type;
+    memcpy(entry->bwe_direct_advertise.bwda_peer_addr, addr,
+           sizeof entry->bwe_direct_advertise.bwda_peer_addr);
+
+    ble_hs_work_enqueue(entry);
+
+    return 0;
+}

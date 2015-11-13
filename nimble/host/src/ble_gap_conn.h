@@ -21,8 +21,8 @@
 struct hci_le_conn_complete;
 struct ble_hs_ack;
 
-int ble_gap_conn_initiate_direct(int addr_type, uint8_t *addr);
-int ble_gap_conn_advertise_direct(int addr_type, uint8_t *addr);
+int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
+int ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr);
 int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);
 int ble_gap_conn_master_in_progress(void);
 int ble_gap_conn_slave_in_progress(void);

@@ -59,9 +59,15 @@ ble_hs_work_process_next(void)
 
     switch (entry->bwe_type) {
     case BLE_HS_WORK_TYPE_DIRECT_CONNECT:
-        rc = ble_gap_conn_initiate_direct(
+        rc = ble_gap_conn_direct_connect(
             entry->bwe_direct_connect.bwdc_peer_addr_type,
             entry->bwe_direct_connect.bwdc_peer_addr);
+        break;
+
+    case BLE_HS_WORK_TYPE_DIRECT_ADVERTISE:
+        rc = ble_gap_conn_direct_advertise(
+            entry->bwe_direct_advertise.bwda_peer_addr_type,
+            entry->bwe_direct_advertise.bwda_peer_addr);
         break;
 
     default:

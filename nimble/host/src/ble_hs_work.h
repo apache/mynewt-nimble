@@ -21,11 +21,17 @@
 #include "os/queue.h"
 
 #define BLE_HS_WORK_TYPE_DIRECT_CONNECT     0
-#define BLE_HS_WORK_TYPE_MAX                1
+#define BLE_HS_WORK_TYPE_DIRECT_ADVERTISE   1
+#define BLE_HS_WORK_TYPE_MAX                2
 
 struct ble_hs_work_direct_connect {
     uint8_t bwdc_peer_addr[8];
     uint8_t bwdc_peer_addr_type;
+};
+
+struct ble_hs_work_direct_advertise {
+    uint8_t bwda_peer_addr[8];
+    uint8_t bwda_peer_addr_type;
 };
 
 struct ble_hs_work_entry {
@@ -34,6 +40,7 @@ struct ble_hs_work_entry {
 
     union {
         struct ble_hs_work_direct_connect bwe_direct_connect;
+        struct ble_hs_work_direct_advertise bwe_direct_advertise;
     };
 };
 

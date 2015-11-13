@@ -56,7 +56,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     struct hci_le_conn_complete evt;
     int rc;
 
-    rc = ble_gap_conn_initiate_direct(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
