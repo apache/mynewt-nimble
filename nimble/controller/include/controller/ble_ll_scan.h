@@ -17,6 +17,10 @@
 #ifndef H_BLE_LL_SCAN_
 #define H_BLE_LL_SCAN_
 
+/* 
+ * Configuration items for the number of duplicate advertisers and the
+ * number of advertisers from which we have heard a scan response 
+ */
 #define BLE_LL_SCAN_CFG_NUM_DUP_ADVS         (8)
 #define BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS    (8)
 
@@ -27,9 +31,6 @@
 #if BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS > 255
     #error "Cannot have more than 255 scan response entries!"
 #endif
-
-/* Maximum amount of scan response data in a scan response */
-#define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
 
 /*
  * SCAN_REQ 
@@ -56,8 +57,35 @@
  * Sent by the LL in the advertising state; received by the LL in the
  * scanning state. 
  */
+#define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
 #define BLE_SCAN_RSP_MIN_LEN            (6)
 #define BLE_SCAN_RSP_MAX_LEN            (6 + BLE_SCAN_RSP_DATA_MAX_LEN)
+
+/* Scanning state machine (used when initiating as well) */
+struct ble_ll_scan_sm
+{
+    uint8_t scan_enabled;
+    uint8_t scan_type;
+    uint8_t own_addr_type;
+    uint8_t scan_chan;
+    uint8_t scan_filt_policy;
+    uint8_t scan_filt_dups;
+    uint8_t scan_rsp_pending;
+    uint8_t scan_rsp_cons_fails;
+    uint8_t scan_rsp_cons_ok;
+    uint16_t upper_limit;
+    uint16_t backoff_count;
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint32_t scan_win_start_time;
+    struct os_mbuf *scan_req_pdu;
+    struct os_event scan_win_end_ev;
+};
+
+/* Scan types */
+#define BLE_SCAN_TYPE_PASSIVE   (BLE_HCI_SCAN_TYPE_PASSIVE)
+#define BLE_SCAN_TYPE_ACTIVE    (BLE_HCI_SCAN_TYPE_ACTIVE)
+#define BLE_SCAN_TYPE_INITIATE  (2)
 
 /*---- HCI ----*/
 /* Set scanning parameters */
@@ -89,11 +117,20 @@ int ble_ll_scan_can_chg_whitelist(void);
 /* Boolean function returning true if scanning enabled */
 int ble_ll_scan_enabled(void);
 
+/* Boolean function returns true if whitelist is enabled for scanning */
+int ble_ll_scan_whitelist_enabled(void);
+
 /* Initialize the scanner when we start initiating */
 struct hci_create_conn;
-void ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
+int ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
 
 /* Returns the PDU allocated by the scanner */
 struct os_mbuf *ble_ll_scan_get_pdu(void);
+
+/* Stop the scanning state machine */
+void ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm);
+
+/* Returns the global scanning state machine */
+struct ble_ll_scan_sm *ble_ll_scan_sm_get(void);
 
 #endif /* H_BLE_LL_SCAN_ */

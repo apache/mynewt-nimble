@@ -25,6 +25,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_whitelist.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
@@ -52,12 +53,18 @@
  * now, we set it to max.
  * 6) Currently, when we set scheduling events, we dont take into account
  * processor overhead/delays. We will want to do that.
- * 7) Need to implement the whole HCI command done stuff.
  * 8) For set adv enable command: if we get a connection, or we time out,
  *    we need to send a CONNECTION COMPLETE event. Do this.
  * 9) How does the advertising channel tx power get set? I dont implement
  * that currently.
  * 10) Deal with whitelisting at LL when pdu is handed up to LL task.
+ * 11) What about High duty cycle advertising? Do we exit the advertising state
+ * after 1.28 seconds automatically? Seems like we do!!! 4.4.2.4.2 Vol 6 Part B
+ * => YES! we have to implement this and set back a CONN COMPLETE event with
+ *    error code DIRECTED ADV TIMEOUT.
+ * 12) Something to consider: if we are attempting to advertise but dont have
+ * any connection state machines available, I dont think we should enable
+ * advertising.
  */
 
 /* 
@@ -145,6 +152,37 @@ ble_ll_adv_first_chan(struct ble_ll_adv_sm *advsm)
     }
 
     return adv_chan;
+}
+
+
+/**
+ * Compares the advertiser address in an advertising PDU with our
+ * address to see if there is a match
+ * 
+ * @param rxbuf Pointer to received PDU
+ * 
+ * @return int Returns memcmp return values (0 = match).
+ */
+static int
+ble_ll_adv_addr_cmp(uint8_t *rxbuf)
+{
+    int rc;
+    uint8_t *adva;
+    uint8_t *our_addr;
+    uint8_t rxaddr_type;
+
+    /* Determine if this is addressed to us */
+    rxaddr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
+    if (rxaddr_type) {
+        our_addr = g_random_addr;
+    } else {
+        our_addr = g_dev_addr;
+    }
+
+    adva = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+    rc = memcmp(our_addr, adva, BLE_DEV_ADDR_LEN);
+
+    return rc;
 }
 
 /**
@@ -753,61 +791,60 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 }
 
 /**
- * Called when the LL receives a scan request.  
+ * Called when the LL receives a scan request or connection request
  *  
  * Context: Called from interrupt context. 
  * 
  * @param rxbuf 
  * 
- * @return -1: scan request not for us. 
- *          0: Scan request is for us and we successfully went from rx to tx.
+ * @return -1: request not for us or is a connect request. 
+ *          0: request (scan) is for us and we successfully went from rx to tx.
  *        > 0: PHY error attempting to go from rx to tx.
  */
 static int
-ble_ll_adv_rx_scan_req(struct os_mbuf *rxpdu)
+ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 {
     int rc;
-    uint8_t rxaddr_type;
-    uint8_t *our_addr;
-    uint8_t *adva;
-    uint8_t addr_type;
+    uint8_t chk_whitelist;
+    uint8_t txadd;
     uint8_t *rxbuf;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_adv_sm *advsm;
 
-    /* Determine if this is addressed to us */
     rxbuf = rxpdu->om_data;
-    rxaddr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
-    if (rxaddr_type) {
-        our_addr = g_random_addr;
-    } else {
-        our_addr = g_dev_addr;
+    if (ble_ll_adv_addr_cmp(rxbuf)) {
+        return -1;
     }
 
-    rc = -1;
-    adva = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-    if (!memcmp(our_addr, adva, BLE_DEV_ADDR_LEN)) {
-        /* Set device match bit if we are whitelisting */
-        advsm = &g_ble_ll_adv_sm;
-        if (advsm->adv_filter_policy & 1) {
-            /* Get the scanners address type */
-            if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-                addr_type = BLE_ADDR_TYPE_RANDOM;
-            } else {
-                addr_type = BLE_ADDR_TYPE_PUBLIC;
-            }
+    /* Set device match bit if we are whitelisting */
+    advsm = &g_ble_ll_adv_sm;
+    if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
+        chk_whitelist = advsm->adv_filter_policy & 1;
+    } else {
+        chk_whitelist = advsm->adv_filter_policy & 2;
+    }
 
-            /* Check for whitelist match */
-            if (!ble_ll_whitelist_match(rxbuf + BLE_LL_PDU_HDR_LEN, 
-                                        addr_type)) {
-                return rc;
-            } else {
-                ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-                ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
-            }
+    /* Set device match bit if we are whitelisting */
+    if (chk_whitelist) {
+        /* Get the scanners address type */
+        if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
+            txadd = BLE_ADDR_TYPE_RANDOM;
+        } else {
+            txadd = BLE_ADDR_TYPE_PUBLIC;
         }
 
-        /* Setup to transmit the scan response */
+        /* Check for whitelist match */
+        if (!ble_ll_whitelist_match(rxbuf + BLE_LL_PDU_HDR_LEN, txadd)) {
+            return -1;
+        } else {
+            ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+            ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+        }
+    }
+
+    /* Setup to transmit the scan response if appropriate */
+    rc = -1;
+    if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
@@ -819,16 +856,60 @@ ble_ll_adv_rx_scan_req(struct os_mbuf *rxpdu)
 }
 
 /**
- * Called on phy rx pdu end when in advertising state.
+ * Called when a connect request has been received. 
+ *  
+ * Context: Link Layer 
+ * 
+ * @param rxbuf 
+ * @param flags 
+ */
+void
+ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
+{
+    int valid;
+    struct ble_ll_adv_sm *advsm;
+
+    /* Check filter policy. */
+    valid = 0;
+    advsm = &g_ble_ll_adv_sm;
+    if (advsm->adv_filter_policy & 2) {
+        if (flags & BLE_MBUF_HDR_F_DEVMATCH) {
+            /* valid connection request received */
+            valid = 1;
+        }
+    } else {
+        /* If this is for us? */
+        if (!ble_ll_adv_addr_cmp(rxbuf)) {
+            valid = 1;
+        }
+    }
+
+    if (valid) {
+        /* Stop advertising and start connection */
+        ble_ll_adv_sm_stop(advsm);
+        ble_ll_conn_slave_start(rxbuf);
+    }
+}
+
+/**
+ * Called on phy rx pdu end when in advertising state. 
+ *  
+ * There are only two pdu types we care about in this state: scan requests 
+ * and connection requests. When we receive a scan request we must determine if 
+ * we need to send a scan response and that needs to be acted on within T_IFS.
+ *  
+ * When we receive a connection request, we need to determine if we will allow 
+ * this device to start a connection with us. However, no immediate response is 
+ * sent so we handle this at the link layer task. 
  * 
  * Context: Interrupt 
  *  
- * @param pdu_type 
- * @param rxpdu 
+ * @param pdu_type Type of pdu received.
+ * @param rxpdu Pointer to received PDU
  *  
  * @return int 
  *       < 0: Disable the phy after reception.
- *      == 0: Do not disable the PHY as we are gi
+ *      == 0: Do not disable the PHY
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
@@ -836,21 +917,19 @@ ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu)
 {
     int rc;
 
-    /* We only care about scan requests and connection requests */
     rc = -1;
-    if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
-        rc = ble_ll_adv_rx_scan_req(rxpdu);
+    if ((pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
+        (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
+        /* Process request */
+        rc = ble_ll_adv_rx_req(pdu_type, rxpdu);
         if (rc) {
             /* XXX: One thing left to reconcile here. We have
              * the advertisement schedule element still running.
              * How to deal with the end of the advertising event?
              * Need to figure that out.
+             * 
+             * XXX: This applies to connection requests as well.
              */
-        }
-    } else {
-        if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
-            rc = 0;
-            /* XXX: deal with this. Dont forget filter policy  */
         }
     }
 

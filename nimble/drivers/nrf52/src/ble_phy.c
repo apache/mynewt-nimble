@@ -23,6 +23,11 @@
 #include "controller/ble_ll.h"
 #include "mcu/nrf52_bitfields.h"
 
+/* 
+ * XXX: TODO
+ * 1) make phy rx start and end function pointers to call?
+ */
+
 /* To disable all radio interrupts */
 #define NRF52_RADIO_IRQ_MASK_ALL    (0x34FF)
 

@@ -125,4 +125,7 @@ int ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu);
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);
 
+/* Called when a connection request has been received at the link layer */
+void ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags);
+
 #endif /* H_BLE_LL_ADV_ */

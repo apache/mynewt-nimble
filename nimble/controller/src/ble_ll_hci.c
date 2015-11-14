@@ -246,6 +246,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         if (len == BLE_HCI_CREATE_CONN_LEN) {
             rc = ble_ll_conn_create(cmdbuf);
         }
+        /* This is a hack; command status gets sent instead of cmd complete */
         rc += (BLE_ERR_MAX + 1);
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:

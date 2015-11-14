@@ -24,7 +24,16 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
+
+/* 
+ * XXX: Just thought of something! Can I always set the DEVMATCH bit at
+ * the lower layer? This way the LL just looks at devmatch when it wants
+ * to see if a packet is "for us". I am referring to packets that pass
+ * whitelisting but also need to be "for us" (connect requests, scan requests,
+ * scan responses, etc). Look into this. This way I would not need to do
+   additional whitelist checks at the upper layer. */
 
 /* XXX:
  * 
@@ -202,21 +211,29 @@ ble_ll_set_random_addr(uint8_t *addr)
     return rc;
 }
 
+/**
+ * Checks to see if an address is our device address (either public or 
+ * random) 
+ * 
+ * @param addr 
+ * @param addr_type 
+ * 
+ * @return int 
+ */
 int
 ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
 {
     int rc;
     uint8_t *our_addr;
 
-    rc = 0;
     if (addr_type) {
-        our_addr = g_dev_addr;
-    } else {
         our_addr = g_random_addr;
+    } else {
+        our_addr = g_dev_addr;
     }
 
     rc = 0;
-    if (!memcmp(our_addr, g_random_addr, BLE_DEV_ADDR_LEN)) {
+    if (!memcmp(our_addr, addr, BLE_DEV_ADDR_LEN)) {
         rc = 1;
     }
 
@@ -245,9 +262,9 @@ ble_ll_pdu_tx_time_get(uint16_t len)
 /**
  * ll rx pkt in proc
  *  
- * Process received packet from PHY 
+ * Process received packet from PHY.
  *  
- * Callers: LL task. 
+ * Context: Link layer task
  *  
  */
 void
@@ -295,7 +312,9 @@ ble_ll_rx_pkt_in_proc(void)
         /* Process the PDU */
         switch (g_ble_ll_data.ll_state) {
         case BLE_LL_STATE_ADV:
-            /* XXX: implement this */
+            if (ble_hdr->crcok && (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
+                ble_ll_adv_conn_req_rxd(rxbuf, ble_hdr->flags);
+            }
             break;
         case BLE_LL_STATE_SCANNING:
             if (ble_hdr->crcok) {
@@ -310,8 +329,14 @@ ble_ll_rx_pkt_in_proc(void)
                 ble_phy_rx();
             }
             break;
-        default:
+        case BLE_LL_STATE_INITIATING:
+            ble_ll_init_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->crcok);
+            break;
+        case BLE_LL_STATE_CONNECTION:
             /* XXX: implement */
+            break;
+        default:
+            /* We should not receive packets in standby state! */
             assert(0);
             break;
         }
@@ -369,9 +394,13 @@ ble_ll_rx_start(struct os_mbuf *rxpdu)
             rc = -1;
         }
         break;
+    case BLE_LL_STATE_INITIATING:
+        rc = ble_ll_init_rx_pdu_start(pdu_type);
+        break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_pdu_start(pdu_type, rxpdu);
         break;
+    case BLE_LL_STATE_CONNECTION:
     default:
         /* XXX: should we really assert here? What to do... */
         rc = -1;
@@ -464,6 +493,14 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (crcok) {
             rc = ble_ll_scan_rx_pdu_end(rxpdu);
         }
+        break;
+    case BLE_LL_STATE_INITIATING:
+        if (crcok) {
+            rc = ble_ll_init_rx_pdu_end(rxpdu);
+        }
+        break;
+    case BLE_LL_STATE_CONNECTION:
+        /* XXX */
         break;
     default:
         assert(0);

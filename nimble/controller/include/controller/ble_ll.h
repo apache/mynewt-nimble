@@ -70,8 +70,8 @@ extern struct ble_ll_obj g_ble_ll_data;
 #define BLE_LL_STATE_STANDBY        (0)
 #define BLE_LL_STATE_ADV            (1)
 #define BLE_LL_STATE_SCANNING       (2)
-#define BLE_LL_STATE_INITITATING    (3)
-#define BLE_LL_STATE_CONNECT        (4)
+#define BLE_LL_STATE_INITIATING     (3)
+#define BLE_LL_STATE_CONNECTION     (4)
 
 /* BLE LL Task Events */
 #define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
@@ -401,15 +401,6 @@ struct ble_conn_req_data
 
 #define BLE_CONN_REQ_HOP_MASK           (0x1F)
 #define BLE_CONN_REQ_SCA_MASK           (0xE0)
-
-#define BLE_MASTER_SCA_251_500_PPM      (0)
-#define BLE_MASTER_SCA_151_250_PPM      (1)
-#define BLE_MASTER_SCA_101_150_PPM      (2)
-#define BLE_MASTER_SCA_76_100_PPM       (3)
-#define BLE_MASTER_SCA_51_75_PPM        (4)
-#define BLE_MASTER_SCA_31_50_PPM        (5)
-#define BLE_MASTER_SCA_21_30_PPM        (6)
-#define BLE_MASTER_SCA_0_20_PPM         (7)
 
 /*
  * Initiator filter policy 

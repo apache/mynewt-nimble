@@ -52,32 +52,6 @@
  * code might be made simpler.
  */
 
-/* Scanning state machine */
-struct ble_ll_scan_sm
-{
-    uint8_t scan_enabled;
-    uint8_t scan_type;
-    uint8_t own_addr_type;
-    uint8_t scan_chan;
-    uint8_t scan_filt_policy;
-    uint8_t scan_filt_dups;
-    uint8_t scan_rsp_pending;
-    uint8_t scan_rsp_cons_fails;
-    uint8_t scan_rsp_cons_ok;
-    uint16_t upper_limit;
-    uint16_t backoff_count;
-    uint16_t scan_itvl;
-    uint16_t scan_window;
-    uint32_t scan_win_start_time;
-    struct os_mbuf *scan_req_pdu;
-    struct os_event scan_win_end_ev;
-};
-
-/* Scan types */
-#define BLE_SCAN_TYPE_PASSIVE   (BLE_HCI_SCAN_TYPE_PASSIVE)
-#define BLE_SCAN_TYPE_ACTIVE    (BLE_HCI_SCAN_TYPE_ACTIVE)
-#define BLE_SCAN_TYPE_INITIATE  (2)
-
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
@@ -421,7 +395,6 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
         adv_data_len -= BLE_DEV_ADDR_LEN;
     }
 
-    rc = BLE_ERR_MEM_CAPACITY;
     if (ble_ll_hci_is_le_event_enabled(subev - 1)) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
@@ -552,7 +525,11 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
         rc =  BLE_LL_SCHED_STATE_DONE;
     } else {
         /* Set link layer state to scanning */
-        ble_ll_state_set(BLE_LL_STATE_SCANNING);
+        if (g_ble_ll_scan_sm.scan_type == BLE_SCAN_TYPE_INITIATE) {
+            ble_ll_state_set(BLE_LL_STATE_INITIATING);
+        } else {
+            ble_ll_state_set(BLE_LL_STATE_SCANNING);
+        }
 
         /* Set end time to end of scan window */
         sch->next_wakeup = sch->end_time;
@@ -564,22 +541,15 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
 }
 
 /**
- * ll scan sm stop 
- *  
  * Stop the scanning state machine 
- * 
- * @param scansm Pointer to scanning state machine.
  */
-static void
+void
 ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
 {
     /* XXX: Stop any timers we may have started */
 
     /* Remove any scheduled advertising items */
     ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN);
-
-    /* Disable the PHY */
-    ble_phy_disable();
 
     /* Disable whitelisting (just in case) */
     ble_ll_whitelist_disable();
@@ -676,7 +646,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
         assert(0);
     }
 
-    return 0;
+    return BLE_ERR_SUCCESS;
 }
 
 void
@@ -755,19 +725,17 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
     int rc;
     struct ble_ll_scan_sm *scansm;
 
-    /* 
-     * If there is a chance that we will respond to the PDU we must
-     * return the appropriate value so that the PHY goes from rx to tx.
-     */
     rc = 0;
     scansm = &g_ble_ll_scan_sm;
-    if (scansm->scan_type == BLE_SCAN_TYPE_ACTIVE) {
+
+    switch (scansm->scan_type) {
+    case BLE_SCAN_TYPE_ACTIVE:
+        /* If adv ind or scan ind, we may send scan request */
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
             (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND)) {
             rc = 1;
         }
 
-        /* XXX: could post event here to LL task to do the backoff... */
         /* 
          * If there is a scan response pending, it means that we did
          * not receive a scan response to our previous request unless
@@ -778,6 +746,10 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
                 ble_ll_scan_req_backoff(scansm, 0);
             }
         }
+        break;
+    case BLE_SCAN_TYPE_PASSIVE:
+    default:
+        break;
     }
 
     /* 
@@ -791,7 +763,6 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
 
     return rc;
 }
-
 
 /* 
  * NOTE: If this returns a positive number there was an error but
@@ -1078,6 +1049,11 @@ ble_ll_scan_set_enable(uint8_t *cmd)
         }
     } else {
         if (scansm->scan_enabled) {
+            /* XXX: what happens if a receive has started? What about
+             * the phy pdu? Do we need to do anything with it? The rx pdu
+               at the phy??? Keep it there? */
+            /* Disable the PHY */
+            ble_phy_disable();
             ble_ll_scan_sm_stop(scansm);
         }
     }
@@ -1107,7 +1083,7 @@ ble_ll_scan_can_chg_whitelist(void)
     return rc;
 }
 
-void
+int
 ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
 {
     struct ble_ll_scan_sm *scansm;
@@ -1118,6 +1094,7 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
     scansm->scan_window = hcc->scan_window;
     scansm->scan_filt_policy = hcc->filter_policy;
     scansm->own_addr_type = hcc->own_addr_type;
+    return ble_ll_scan_sm_start(scansm);
 }
 
 /**
@@ -1136,6 +1113,20 @@ struct os_mbuf *
 ble_ll_scan_get_pdu(void)
 {
     return g_ble_ll_scan_sm.scan_req_pdu;
+}
+
+/* Returns the global scanning state machine */
+struct ble_ll_scan_sm *
+ble_ll_scan_sm_get(void)
+{
+    return &g_ble_ll_scan_sm;
+}
+
+/* Returns true if whitelist is enabled for scanning */
+int
+ble_ll_scan_whitelist_enabled(void)
+{
+    return g_ble_ll_scan_sm.scan_filt_policy & 1;
 }
 
 /**

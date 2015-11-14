@@ -17,7 +17,23 @@
 #ifndef H_BLE_LL_CONN_
 #define H_BLE_LL_CONN_
 
+/* Definitions for source clock accuracy */
+#define BLE_MASTER_SCA_251_500_PPM      (0)
+#define BLE_MASTER_SCA_151_250_PPM      (1)
+#define BLE_MASTER_SCA_101_150_PPM      (2)
+#define BLE_MASTER_SCA_76_100_PPM       (3)
+#define BLE_MASTER_SCA_51_75_PPM        (4)
+#define BLE_MASTER_SCA_31_50_PPM        (5)
+#define BLE_MASTER_SCA_21_30_PPM        (6)
+#define BLE_MASTER_SCA_0_20_PPM         (7)
+
 int ble_ll_conn_create(uint8_t *cmdbuf);
 int ble_ll_conn_create_cancel(void);
+int ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva);
+int ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva);
+void ble_ll_init_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, uint8_t crcok);
+int ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu);
+int ble_ll_init_rx_pdu_start(uint8_t pdu_type);
+void ble_ll_conn_slave_start(uint8_t *rxbuf);
 
 #endif /* H_BLE_LL_CONN_ */
