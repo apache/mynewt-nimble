@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef _BLE_HOST_UUID_H 
-#define _BLE_HOST_UUID_H 
+#ifndef H_BLE_HS_UUID_
+#define H_BLE_HS_UUID_
 
-typedef struct ble_uuid { uint8_t uuid[128]; } ble_uuid_t;
+int ble_hs_uuid_16bit(uint8_t *uuid128);
 
 #endif /* _BLE_HOST_UUID_H */

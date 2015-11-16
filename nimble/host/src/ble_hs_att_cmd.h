@@ -20,30 +20,12 @@ struct ble_l2cap_chan;
 #define BLE_HS_ATT_OP_ERROR_RSP             0x01
 #define BLE_HS_ATT_OP_MTU_REQ               0x02
 #define BLE_HS_ATT_OP_MTU_RSP               0x03
+#define BLE_HS_ATT_OP_FIND_INFO_REQ         0x04
+#define BLE_HS_ATT_OP_FIND_INFO_RSP         0x05
 #define BLE_HS_ATT_OP_READ_REQ              0x0a
 #define BLE_HS_ATT_OP_READ_RSP              0x0b
 #define BLE_HS_ATT_OP_WRITE_REQ             0x12
 #define BLE_HS_ATT_OP_WRITE_RSP             0x13
-
-/**
- * | Parameter                          | Size (octets)     |
- * +------------------------------------+-------------------+
- * | Attribute Opcode                   | 1                 |
- * | Attribute Handle                   | 2                 |
- */
-#define BLE_HS_ATT_READ_REQ_SZ              3
-struct ble_hs_att_read_req {
-    uint8_t bharq_op;
-    uint16_t bharq_handle;
-};
-
-/**
- * | Parameter                          | Size (octets)     |
- * +------------------------------------+-------------------+
- * | Attribute Opcode                   | 1                 |
- * | Attribute Value                    | 0 to (ATT_MTU-1)  |
- */
-#define BLE_HS_ATT_READ_RSP_MIN_SZ          1
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -89,6 +71,57 @@ struct ble_hs_att_mtu_rsp {
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |
+ * | Starting Handle                    | 2                 |
+ * | Ending Handle                      | 2                 |
+ */
+#define BLE_HS_ATT_FIND_INFO_REQ_SZ         5
+struct ble_hs_att_find_info_req {
+    uint8_t bhafq_op;
+    uint16_t bhafq_start_handle;
+    uint16_t bhafq_end_handle;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Format                             | 1                 |
+ * | Information Data                   | 4 to (ATT_MTU-2)  |
+ */
+#define BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ     2
+struct ble_hs_att_find_info_rsp {
+    uint8_t bhafp_op;
+    uint8_t bhafp_format;
+    /* Followed by information data. */
+};
+
+#define BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT   1
+#define BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT  2
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Handle                   | 2                 |
+ */
+#define BLE_HS_ATT_READ_REQ_SZ              3
+struct ble_hs_att_read_req {
+    uint8_t bharq_op;
+    uint16_t bharq_handle;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Value                    | 0 to (ATT_MTU-1)  |
+ */
+#define BLE_HS_ATT_READ_RSP_MIN_SZ          1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
  * | Attribute Handle                   | 2                 |
  * | Attribute Value                    | 0 to (ATT_MTU-3)  |
  */
@@ -108,6 +141,14 @@ int ble_hs_att_mtu_req_parse(void *payload, int len,
                              struct ble_hs_att_mtu_req *req);
 int ble_hs_att_mtu_rsp_parse(void *payload, int len,
                              struct ble_hs_att_mtu_rsp *rsp);
+int ble_hs_att_find_info_req_parse(void *payload, int len,
+                                   struct ble_hs_att_find_info_req *req);
+int ble_hs_att_find_info_req_write(void *payload, int len,
+                                   struct ble_hs_att_find_info_req *req);
+int ble_hs_att_find_info_rsp_parse(void *payload, int len,
+                                   struct ble_hs_att_find_info_rsp *rsp);
+int ble_hs_att_find_info_rsp_write(void *payload, int len,
+                                   struct ble_hs_att_find_info_rsp *rsp);
 int ble_hs_att_read_req_parse(void *payload, int len,
                               struct ble_hs_att_read_req *req);
 int ble_hs_att_read_req_write(void *payload, int len,

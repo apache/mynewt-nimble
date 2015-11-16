@@ -164,7 +164,7 @@ TEST_CASE(ble_hs_att_test_read)
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_READ_REQ, 0,
-                                           BLE_ERR_ATTR_NOT_FOUND);
+                                           BLE_HS_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful read. */
     ble_hs_att_test_attr_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
@@ -228,7 +228,7 @@ TEST_CASE(ble_hs_att_test_write)
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_WRITE_REQ, 0,
-                                           BLE_ERR_ATTR_NOT_FOUND);
+                                           BLE_HS_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful write. */
     rc = ble_hs_att_register(uuid, 0, &req.bhawq_handle,
@@ -246,10 +246,72 @@ TEST_CASE(ble_hs_att_test_write)
     ble_hs_att_test_misc_verify_tx_write_rsp(chan);
 }
 
+TEST_CASE(ble_hs_att_test_find_info)
+{
+    struct ble_hs_att_find_info_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_HS_ATT_FIND_INFO_REQ_SZ];
+    int rc;
+
+    rc = ble_hs_init(10);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+
+    chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+
+    /*** Start handle of 0. */
+    req.bhafq_op = BLE_HS_ATT_OP_FIND_INFO_REQ;
+    req.bhafq_start_handle = 0;
+    req.bhafq_end_handle = 0;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
+                                           0, BLE_HS_ATT_ERR_INVALID_HANDLE);
+
+    /*** Start handle > end handle. */
+    req.bhafq_start_handle = 101;
+    req.bhafq_end_handle = 100;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
+                                           101, BLE_HS_ATT_ERR_INVALID_HANDLE);
+
+    /*** No attributes. */
+    req.bhafq_start_handle = 200;
+    req.bhafq_end_handle = 300;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
+                                           200, BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
+
+    /* XXX: Test successful responses. */
+}
+
 TEST_SUITE(att_suite)
 {
     ble_hs_att_test_read();
     ble_hs_att_test_write();
+    ble_hs_att_test_find_info();
 }
 
 int

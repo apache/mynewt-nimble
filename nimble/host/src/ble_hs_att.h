@@ -17,9 +17,11 @@
 #ifndef H_BLE_HS_ATT_
 #define H_BLE_HS_ATT_
 
-#include "host/uuid.h"
-
 #define BLE_HS_ATT_MTU_DFLT         23
+#define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
+
+#define BLE_HS_ATT_ERR_INVALID_HANDLE   0x01
+#define BLE_HS_ATT_ERR_ATTR_NOT_FOUND   0x0a
 
 struct ble_hs_att_entry;
 
@@ -49,8 +51,14 @@ typedef int (*ble_hs_att_walk_func_t)(struct ble_hs_att_entry *, void *arg);
 /**
  * Handles a host attribute request.
  *
- * @param entry The host attribute being requested
- * @param The request data associated with that host attribute
+ * @param entry                 The host attribute being requested.
+ * @param op                    The operation being performed on the attribute.
+ * @param arg                   The request data associated with that host
+ *                                  attribute.
+ *
+ * @return                      0 on success;
+ *                              One of the BLE_HS_ATT_ERR_[...] codes on
+ *                                  failure.
  */
 typedef int ble_hs_att_handle_func(struct ble_hs_att_entry *entry,
                                    uint8_t op,
@@ -66,7 +74,7 @@ typedef int ble_hs_att_handle_func(struct ble_hs_att_entry *entry,
 struct ble_hs_att_entry {
     STAILQ_ENTRY(ble_hs_att_entry) ha_next;
 
-    ble_uuid_t ha_uuid;
+    uint8_t ha_uuid[16];
     uint8_t ha_flags;
     uint8_t ha_pad1;
     uint16_t ha_handle_id;
