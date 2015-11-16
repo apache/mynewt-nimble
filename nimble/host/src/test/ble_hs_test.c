@@ -30,6 +30,7 @@ main(void)
     ble_host_hci_test_all();
     ble_hs_conn_test_all();
     ble_gap_test_all();
+    ble_hs_uuid_test_all();
 
     return tu_any_failed;
 }

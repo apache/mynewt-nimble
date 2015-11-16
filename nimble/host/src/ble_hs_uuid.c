@@ -23,19 +23,35 @@ static uint8_t ble_hs_uuid_base[16] = {
     0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB
 };
 
+/**
+ * Attempts to convert the supplied 128-bit UUID into its shortened 16-bit
+ * form.
+ *
+ * @return                          Positive 16-bit unsigned integer on
+ *                                      success;
+ *                                  -1 if the UUID could not be converted.
+ */
 int
 ble_hs_uuid_16bit(uint8_t *uuid128)
 {
     uint16_t uuid16;
     int rc;
 
-    rc = memcmp(uuid128 + 2, ble_hs_uuid_base + 2,
-                sizeof ble_hs_uuid_base - 2);
+    /* The UUID can only be converted if its final 96 bits are equal to the
+     * base UUID.
+     */
+    rc = memcmp(uuid128 + 4, ble_hs_uuid_base + 4,
+                sizeof ble_hs_uuid_base - 4);
     if (rc != 0) {
         return -1;
     }
 
-    uuid16 = (uuid128[0] << 8) + uuid128[1];
+    if (uuid128[0] != 0 || uuid128[1] != 0) {
+        /* This UUID has a 32-bit form, but not a 16-bit form. */
+        return -1;
+    }
+
+    uuid16 = (uuid128[2] << 8) + uuid128[3];
 
     return uuid16;
 }
