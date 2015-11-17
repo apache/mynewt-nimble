@@ -421,7 +421,7 @@ ble_hs_att_fill_info(struct ble_hs_att_find_info_req *req, uint8_t *buf,
                     goto done;
                 }
 
-                new_rsp_sz = *rsp_sz + 16;
+                new_rsp_sz = *rsp_sz + 18;
                 if (new_rsp_sz > buf_sz) {
                     goto done;
                 }
@@ -482,8 +482,11 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
      * response base at the start of the buffer.
      */
     rc = ble_hs_att_fill_info(
-        &req, ble_hs_att_tx_buf + BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
-        conn->bhc_att_mtu, &rsp_sz, &rsp.bhafp_format);
+        &req,
+        ble_hs_att_tx_buf + BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
+        conn->bhc_att_mtu - BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
+        &rsp_sz,
+        &rsp.bhafp_format);
     if (rc != 0) {
         ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                                 req.bhafq_start_handle,

@@ -136,6 +136,68 @@ ble_hs_att_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
                 BLE_HS_ATT_WRITE_RSP_SZ);
 }
 
+struct ble_hs_att_test_info_entry {
+    uint16_t handle;        /* 0 on last entry */
+    uint16_t uuid16;        /* 0 if not present. */
+    uint8_t uuid128[16];
+};
+
+static void
+ble_hs_att_test_misc_verify_tx_find_info_rsp(
+    struct ble_l2cap_chan *chan, struct ble_hs_att_test_info_entry *entries)
+{
+    struct ble_hs_att_test_info_entry *entry;
+    struct ble_hs_att_find_info_rsp rsp;
+    uint16_t handle;
+    uint16_t uuid16;
+    uint8_t buf[BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ];
+    uint8_t uuid128[16];
+    int off;
+    int rc;
+
+    off = 0;
+
+    rc = os_mbuf_copydata(chan->blc_tx_buf, off, sizeof buf, buf);
+    TEST_ASSERT(rc == 0);
+    off += sizeof buf;
+
+    rc = ble_hs_att_find_info_rsp_parse(buf, sizeof buf, &rsp);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(rsp.bhafp_op == BLE_HS_ATT_OP_FIND_INFO_RSP);
+
+    for (entry = entries; entry->handle != 0; entry++) {
+        rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &handle);
+        TEST_ASSERT(rc == 0);
+        off += 2;
+
+        handle = le16toh((void *)&handle);
+        TEST_ASSERT(handle == entry->handle);
+
+        if (entry->uuid16 != 0) {
+            TEST_ASSERT(rsp.bhafp_format ==
+                        BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT);
+            rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &uuid16);
+            TEST_ASSERT(rc == 0);
+            off += 2;
+
+            uuid16 = le16toh((void *)&uuid16);
+            TEST_ASSERT(uuid16 == entry->uuid16);
+        } else {
+            TEST_ASSERT(rsp.bhafp_format ==
+                        BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT);
+            rc = os_mbuf_copydata(chan->blc_tx_buf, off, 16, uuid128);
+            TEST_ASSERT(rc == 0);
+            off += 16;
+
+            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
+        }
+    }
+
+    /* Remove the error response from the buffer. */
+    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, off);
+}
+
 TEST_CASE(ble_hs_att_test_read)
 {
     struct ble_hs_att_read_req req;
@@ -251,7 +313,16 @@ TEST_CASE(ble_hs_att_test_find_info)
     struct ble_hs_att_find_info_req req;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    uint16_t handle1;
+    uint16_t handle2;
+    uint16_t handle3;
     uint8_t buf[BLE_HS_ATT_FIND_INFO_REQ_SZ];
+    uint8_t uuid1[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+    uint8_t uuid2[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    uint8_t uuid3[16] = {
+        0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x10, 0x00,
+        0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb
+    };
     int rc;
 
     rc = ble_hs_init(10);
@@ -263,6 +334,9 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
+
+    /* Increase the MTU to 128 bytes to allow testing of long responses. */
+    conn->bhc_att_mtu = 128;
 
     /*** Start handle of 0. */
     req.bhafq_op = BLE_HS_ATT_OP_FIND_INFO_REQ;
@@ -304,7 +378,108 @@ TEST_CASE(ble_hs_att_test_find_info)
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                                            200, BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
 
-    /* XXX: Test successful responses. */
+    /*** Range too late. */
+    rc = ble_hs_att_register(uuid1, 0, &handle1,
+                             ble_hs_att_test_misc_attr_fn_1);
+    TEST_ASSERT(rc == 0);
+
+    req.bhafq_start_handle = 200;
+    req.bhafq_end_handle = 300;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
+                                           200, BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
+
+    /*** One 128-bit entry. */
+    req.bhafq_start_handle = handle1;
+    req.bhafq_end_handle = handle1;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
+        ((struct ble_hs_att_test_info_entry[]) { {
+            .handle = handle1,
+            .uuid128 = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+        }, {
+            .handle = 0,
+        } }));
+
+    /*** Two 128-bit entries. */
+    rc = ble_hs_att_register(uuid2, 0,
+                             &handle2, ble_hs_att_test_misc_attr_fn_1);
+    TEST_ASSERT(rc == 0);
+
+    req.bhafq_start_handle = handle1;
+    req.bhafq_end_handle = handle2;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
+        ((struct ble_hs_att_test_info_entry[]) { {
+            .handle = handle1,
+            .uuid128 = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+        }, {
+            .handle = handle2,
+            .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
+        }, {
+            .handle = 0,
+        } }));
+
+    /*** Two 128-bit entries; 16-bit entry doesn't get sent. */
+    rc = ble_hs_att_register(uuid3, 0,
+                             &handle3, ble_hs_att_test_misc_attr_fn_1);
+    TEST_ASSERT(rc == 0);
+
+    req.bhafq_start_handle = handle1;
+    req.bhafq_end_handle = handle3;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
+        ((struct ble_hs_att_test_info_entry[]) { {
+            .handle = handle1,
+            .uuid128 = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+        }, {
+            .handle = handle2,
+            .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
+        }, {
+            .handle = 0,
+        } }));
+
+    /*** Remaining 16-bit entry requested. */
+    req.bhafq_start_handle = handle3;
+    req.bhafq_end_handle = handle3;
+
+    rc = ble_hs_att_find_info_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
+        ((struct ble_hs_att_test_info_entry[]) { {
+            .handle = handle3,
+            .uuid16 = 0x000f,
+        }, {
+            .handle = 0,
+        } }));
 }
 
 TEST_SUITE(att_suite)

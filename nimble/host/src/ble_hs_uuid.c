@@ -52,6 +52,9 @@ ble_hs_uuid_16bit(uint8_t *uuid128)
     }
 
     uuid16 = (uuid128[2] << 8) + uuid128[3];
+    if (uuid16 == 0) {
+        return -1;
+    }
 
     return uuid16;
 }
