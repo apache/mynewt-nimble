@@ -21,17 +21,19 @@
 #include "ble_l2cap.h"
 struct hci_le_conn_complete;
 struct hci_create_conn;
+struct ble_l2cap_chan;
 
-struct ble_hs_conn *ble_host_find_connection(uint16_t con_handle);
+typedef uint8_t ble_hs_conn_flags;
+#define BLE_HS_CONN_F_CLIENT        0x01
 
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
-    int bhc_fd; // XXX Temporary.
-    uint16_t bhc_att_mtu;
     uint8_t bhc_addr[BLE_DEV_ADDR_LEN];
 
     struct ble_l2cap_chan_list bhc_channels;
+
+    ble_hs_conn_flags bhc_flags;
 };
 
 struct ble_hs_conn *ble_hs_conn_alloc(void);
@@ -40,6 +42,8 @@ void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t con_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
+struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
+                                             uint16_t cid);
 int ble_hs_conn_init(void);
 
 #endif

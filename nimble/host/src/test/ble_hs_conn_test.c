@@ -32,6 +32,7 @@
 TEST_CASE(ble_hs_conn_test_master_direct_success)
 {
     struct hci_le_conn_complete evt;
+    struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
@@ -65,8 +66,13 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(conn->bhc_att_mtu == BLE_HS_ATT_MTU_DFLT);
     TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+    TEST_ASSERT(chan->blc_my_mtu == 0);
+    TEST_ASSERT(chan->blc_peer_mtu == 0);
+    TEST_ASSERT(chan->blc_default_mtu == BLE_HS_ATT_MTU_DFLT);
 }
 
 TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
@@ -112,6 +118,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
 TEST_CASE(ble_hs_conn_test_slave_direct_success)
 {
     struct hci_le_conn_complete evt;
+    struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
@@ -154,8 +161,13 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(conn->bhc_att_mtu == BLE_HS_ATT_MTU_DFLT);
     TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+    TEST_ASSERT(chan->blc_my_mtu == 0);
+    TEST_ASSERT(chan->blc_peer_mtu == 0);
+    TEST_ASSERT(chan->blc_default_mtu == BLE_HS_ATT_MTU_DFLT);
 }
 
 TEST_SUITE(conn_suite)

@@ -39,8 +39,6 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
-    conn->bhc_att_mtu = BLE_HS_ATT_MTU_DFLT;
-
     SLIST_INIT(&conn->bhc_channels);
 
     chan = ble_hs_att_create_chan();
@@ -112,6 +110,20 @@ struct ble_hs_conn *
 ble_hs_conn_first(void)
 {
     return SLIST_FIRST(&ble_hs_conns);
+}
+
+struct ble_l2cap_chan *
+ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
+{
+    struct ble_l2cap_chan *chan;
+
+    SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
+        if (chan->blc_cid == cid) {
+            return chan;
+        }
+    }
+
+    return NULL;
 }
 
 int 

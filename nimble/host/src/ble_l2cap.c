@@ -67,6 +67,23 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
     assert(rc == 0);
 }
 
+uint16_t
+ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
+{
+    uint16_t mtu;
+
+    /* If either side has not exchanged MTU size, use the default.  Otherwise,
+     * use the lesser of the two exchanged values.
+     */
+    if (chan->blc_my_mtu == 0 || chan->blc_peer_mtu == 0) {
+        mtu = chan->blc_default_mtu;
+    } else {
+        mtu = min(chan->blc_my_mtu, chan->blc_peer_mtu);
+    }
+
+    return mtu;
+}
+
 int
 ble_l2cap_parse_hdr(void *pkt, uint16_t len, struct ble_l2cap_hdr *l2cap_hdr)
 {
@@ -110,20 +127,6 @@ ble_l2cap_write_hdr(void *dst, uint16_t len,
     off += 2;
 
     return 0;
-}
-
-struct ble_l2cap_chan *
-ble_l2cap_chan_find(struct ble_hs_conn *conn, uint16_t cid)
-{
-    struct ble_l2cap_chan *chan;
-
-    SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
-        if (chan->blc_cid == cid) {
-            return chan;
-        }
-    }
-
-    return NULL;
 }
 
 /**
@@ -200,7 +203,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         return EMSGSIZE;
     }
 
-    chan = ble_l2cap_chan_find(conn, l2cap_hdr.blh_cid);
+    chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
     if (chan == NULL) {
         return ENOENT;
     }

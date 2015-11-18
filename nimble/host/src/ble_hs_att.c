@@ -340,15 +340,24 @@ ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     uint8_t buf[BLE_HS_ATT_MTU_REQ_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
-    if (rc != 0) {
-        return rc;
+    /* We should only receive this command as a server. */
+    if (conn->bhc_flags & BLE_HS_CONN_F_CLIENT) {
+        /* XXX: Unspecified what to do in this case. */
+        return EINVAL;
     }
+
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    assert(rc == 0);
 
     rc = ble_hs_att_mtu_req_parse(buf, sizeof buf, &req);
     assert(rc == 0);
 
-    /* XXX: Update connection MTU. */
+    if (req.bhamq_mtu < BLE_HS_ATT_MTU_DFLT) {
+        req.bhamq_mtu = BLE_HS_ATT_MTU_DFLT;
+    }
+
+    chan->blc_peer_mtu = req.bhamq_mtu;
+
     /* XXX: Send response. */
 
     return 0;
@@ -466,8 +475,8 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
     rc = ble_hs_att_find_info_req_parse(buf, sizeof buf, &req);
     assert(rc == 0);
 
-    /* Tx error response if start handle is greater than end handle or is 0.
-     * (Vol. 3, Part F, 3.4.3.1).
+    /* Tx error response if start handle is greater than end handle or is equal
+     * to 0 (Vol. 3, Part F, 3.4.3.1).
      */
     if (req.bhafq_start_handle > req.bhafq_end_handle ||
         req.bhafq_start_handle == 0) {
@@ -484,7 +493,7 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
     rc = ble_hs_att_fill_info(
         &req,
         ble_hs_att_tx_buf + BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
-        conn->bhc_att_mtu - BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
+        ble_l2cap_chan_mtu(chan) - BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
         &rsp_sz,
         &rsp.bhafp_format);
     if (rc != 0) {
@@ -527,8 +536,8 @@ ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     /* Vol. 3, part F, 3.2.9; don't send more than ATT_MTU-1 bytes of data. */
-    if (attr_len > conn->bhc_att_mtu - 1) {
-        data_len = conn->bhc_att_mtu - 1;
+    if (attr_len > ble_l2cap_chan_mtu(chan) - 1) {
+        data_len = ble_l2cap_chan_mtu(chan) - 1;
     } else {
         data_len = attr_len;
     }
@@ -695,6 +704,7 @@ ble_hs_att_create_chan(void)
     }
 
     chan->blc_cid = BLE_L2CAP_CID_ATT;
+    chan->blc_default_mtu = BLE_HS_ATT_MTU_DFLT;
     chan->blc_rx_fn = ble_hs_att_rx;
 
     return chan;

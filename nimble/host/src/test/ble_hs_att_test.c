@@ -214,7 +214,7 @@ TEST_CASE(ble_hs_att_test_read)
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
 
-    chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
 
     /*** Nonexistent attribute. */
@@ -277,7 +277,7 @@ TEST_CASE(ble_hs_att_test_write)
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
 
-    chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
 
     /*** Nonexistent attribute. */
@@ -332,11 +332,12 @@ TEST_CASE(ble_hs_att_test_find_info)
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
 
-    chan = ble_l2cap_chan_find(conn, BLE_L2CAP_CID_ATT);
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
 
     /* Increase the MTU to 128 bytes to allow testing of long responses. */
-    conn->bhc_att_mtu = 128;
+    chan->blc_my_mtu = 128;
+    chan->blc_peer_mtu = 128;
 
     /*** Start handle of 0. */
     req.bhafq_op = BLE_HS_ATT_OP_FIND_INFO_REQ;

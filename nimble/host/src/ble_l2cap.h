@@ -47,6 +47,9 @@ struct ble_l2cap_chan
 {
     SLIST_ENTRY(ble_l2cap_chan) blc_next;
     uint16_t blc_cid;
+    uint16_t blc_my_mtu;        /* 0 if not exchanged. */
+    uint16_t blc_peer_mtu;      /* 0 if not exchanged. */
+    uint16_t blc_default_mtu;
 
     struct os_mbuf *blc_rx_buf;
     struct os_mbuf *blc_tx_buf;
@@ -60,8 +63,7 @@ SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
-struct ble_l2cap_chan *ble_l2cap_chan_find(struct ble_hs_conn *conn,
-                                           uint16_t cid);
+uint16_t ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan);
 
 int ble_l2cap_parse_hdr(void *pkt, uint16_t len,
                         struct ble_l2cap_hdr *l2cap_hdr);
