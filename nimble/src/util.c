@@ -17,72 +17,86 @@
 #include "nimble/ble.h"
 
 void
-htole16(uint8_t *buf, uint16_t x)
+htole16(void *buf, uint16_t x)
 {
-    buf[0] = (uint8_t)x;
-    buf[1] = (uint8_t)(x >> 8);
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    u8ptr[0] = (uint8_t)x;
+    u8ptr[1] = (uint8_t)(x >> 8);
 }
 
 void
-htole32(uint8_t *buf, uint32_t x)
+htole32(void *buf, uint32_t x)
 {
-    buf[0] = (uint8_t)x;
-    buf[1] = (uint8_t)(x >> 8);
-    buf[2] = (uint8_t)(x >> 16);
-    buf[3] = (uint8_t)(x >> 24);
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    u8ptr[0] = (uint8_t)x;
+    u8ptr[1] = (uint8_t)(x >> 8);
+    u8ptr[2] = (uint8_t)(x >> 16);
+    u8ptr[3] = (uint8_t)(x >> 24);
 }
 
 void
-htole64(uint8_t *buf, uint64_t x)
+htole64(void *buf, uint64_t x)
 {
-    buf[0] = (uint8_t)x;
-    buf[1] = (uint8_t)(x >> 8);
-    buf[2] = (uint8_t)(x >> 16);
-    buf[3] = (uint8_t)(x >> 24);
-    buf[4] = (uint8_t)(x >> 32);
-    buf[5] = (uint8_t)(x >> 40);
-    buf[6] = (uint8_t)(x >> 48);
-    buf[7] = (uint8_t)(x >> 56);
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    u8ptr[0] = (uint8_t)x;
+    u8ptr[1] = (uint8_t)(x >> 8);
+    u8ptr[2] = (uint8_t)(x >> 16);
+    u8ptr[3] = (uint8_t)(x >> 24);
+    u8ptr[4] = (uint8_t)(x >> 32);
+    u8ptr[5] = (uint8_t)(x >> 40);
+    u8ptr[6] = (uint8_t)(x >> 48);
+    u8ptr[7] = (uint8_t)(x >> 56);
 }
 
 uint16_t
-le16toh(uint8_t *buf)
+le16toh(void *buf)
 {
     uint16_t x;
+    uint8_t *u8ptr;
 
-    x = buf[0];
-    x |= (uint16_t)buf[1] << 8;
+    u8ptr = buf;
+    x = u8ptr[0];
+    x |= (uint16_t)u8ptr[1] << 8;
 
     return x;
 }
 
 uint32_t
-le32toh(uint8_t *buf)
+le32toh(void *buf)
 {
     uint32_t x;
+    uint8_t *u8ptr;
 
-    x = buf[0];
-    x |= (uint32_t)buf[1] << 8;
-    x |= (uint32_t)buf[2] << 16;
-    x |= (uint32_t)buf[3] << 24;
+    u8ptr = buf;
+    x = u8ptr[0];
+    x |= (uint32_t)u8ptr[1] << 8;
+    x |= (uint32_t)u8ptr[2] << 16;
+    x |= (uint32_t)u8ptr[3] << 24;
 
     return x;
 }
 
 uint64_t
-le64toh(uint8_t *buf)
+le64toh(void *buf)
 {
     uint64_t x;
+    uint8_t *u8ptr;
 
-    x = buf[0];
-    x |= (uint64_t)buf[1] << 8;
-    x |= (uint64_t)buf[2] << 16;
-    x |= (uint64_t)buf[3] << 24;
-    x |= (uint64_t)buf[4] << 32;
-    x |= (uint64_t)buf[5] << 40;
-    x |= (uint64_t)buf[6] << 48;
-    x |= (uint64_t)buf[7] << 54;
+    u8ptr = buf;
+    x = u8ptr[0];
+    x |= (uint64_t)u8ptr[1] << 8;
+    x |= (uint64_t)u8ptr[2] << 16;
+    x |= (uint64_t)u8ptr[3] << 24;
+    x |= (uint64_t)u8ptr[4] << 32;
+    x |= (uint64_t)u8ptr[5] << 40;
+    x |= (uint64_t)u8ptr[6] << 48;
+    x |= (uint64_t)u8ptr[7] << 54;
 
     return x;
 }
-

@@ -62,12 +62,12 @@ struct ble_mbuf_hdr
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
-void htole16(uint8_t *buf, uint16_t x);
-void htole32(uint8_t *buf, uint32_t x);
-void htole64(uint8_t *buf, uint64_t x);
-uint16_t le16toh(uint8_t *buf);
-uint32_t le32toh(uint8_t *buf);
-uint64_t le64toh(uint8_t *buf);
+void htole16(void *buf, uint16_t x);
+void htole32(void *buf, uint32_t x);
+void htole64(void *buf, uint64_t x);
+uint16_t le16toh(void *buf);
+uint32_t le32toh(void *buf);
+uint64_t le64toh(void *buf);
 /* XXX */
 
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */
