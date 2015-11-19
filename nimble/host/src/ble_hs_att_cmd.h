@@ -22,6 +22,8 @@ struct ble_l2cap_chan;
 #define BLE_HS_ATT_OP_MTU_RSP               0x03
 #define BLE_HS_ATT_OP_FIND_INFO_REQ         0x04
 #define BLE_HS_ATT_OP_FIND_INFO_RSP         0x05
+#define BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ   0x06
+#define BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP   0x07
 #define BLE_HS_ATT_OP_READ_REQ              0x0a
 #define BLE_HS_ATT_OP_READ_RSP              0x0b
 #define BLE_HS_ATT_OP_WRITE_REQ             0x12
@@ -90,6 +92,31 @@ struct ble_hs_att_find_info_rsp {
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |
+ * | Starting Handle                    | 2                 |
+ * | Ending Handle                      | 2                 |
+ * | Attribute Type                     | 2                 |
+ * | Attribute Value                    | 0 to (ATT_MTU-7)  |
+ */
+#define BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ   7
+struct ble_hs_att_find_type_value_req {
+    uint8_t bhavq_op;
+    uint16_t bhavq_start_handle;
+    uint16_t bhavq_end_handle;
+    uint16_t bhavq_attr_type;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Information Data                   | 4 to (ATT_MTU-1)  |
+ */
+#define BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ   1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
  * | Attribute Handle                   | 2                 |
  */
 #define BLE_HS_ATT_READ_REQ_SZ              3
@@ -137,6 +164,10 @@ int ble_hs_att_find_info_rsp_parse(void *payload, int len,
                                    struct ble_hs_att_find_info_rsp *rsp);
 int ble_hs_att_find_info_rsp_write(void *payload, int len,
                                    struct ble_hs_att_find_info_rsp *rsp);
+int ble_hs_att_find_type_value_req_parse(
+    void *payload, int len, struct ble_hs_att_find_type_value_req *req);
+int ble_hs_att_find_type_value_req_write(
+    void *payload, int len, struct ble_hs_att_find_type_value_req *req);
 int ble_hs_att_read_req_parse(void *payload, int len,
                               struct ble_hs_att_read_req *req);
 int ble_hs_att_read_req_write(void *payload, int len,

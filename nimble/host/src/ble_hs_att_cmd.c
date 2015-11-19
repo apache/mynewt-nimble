@@ -190,6 +190,50 @@ ble_hs_att_find_info_rsp_write(void *payload, int len,
 }
 
 int
+ble_hs_att_find_type_value_req_parse(
+    void *payload, int len, struct ble_hs_att_find_type_value_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    req->bhavq_op = u8ptr[0];
+    req->bhavq_start_handle = le16toh(u8ptr + 1);
+    req->bhavq_end_handle = le16toh(u8ptr + 3);
+    req->bhavq_attr_type = le16toh(u8ptr + 5);
+
+    if (req->bhavq_op != BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ) {
+        return EINVAL;
+    }
+
+    return 0;
+}
+
+int
+ble_hs_att_find_type_value_req_write(
+    void *payload, int len, struct ble_hs_att_find_type_value_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    u8ptr[0] = req->bhavq_op;
+    htole16(u8ptr + 1, req->bhavq_start_handle);
+    htole16(u8ptr + 3, req->bhavq_end_handle);
+    htole16(u8ptr + 5, req->bhavq_attr_type);
+
+    return 0;
+}
+
+int
 ble_hs_att_read_req_parse(void *payload, int len,
                           struct ble_hs_att_read_req *req)
 {

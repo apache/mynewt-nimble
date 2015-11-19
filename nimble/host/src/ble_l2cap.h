@@ -23,8 +23,8 @@
 struct ble_hs_conn;
 struct hci_data_hdr;
 
-#define BLE_L2CAP_CID_SIG   1
 #define BLE_L2CAP_CID_ATT   4
+#define BLE_L2CAP_CID_SIG   5
 
 #define BLE_L2CAP_HDR_SZ    4
 
