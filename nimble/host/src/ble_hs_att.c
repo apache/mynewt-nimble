@@ -313,7 +313,6 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
                         uint16_t handle, uint8_t error_code)
 {
     struct ble_hs_att_error_rsp rsp;
-    uint8_t buf[BLE_HS_ATT_ERROR_RSP_SZ];
     int rc;
 
     rsp.bhaep_op = BLE_HS_ATT_OP_ERROR_RSP;
@@ -321,10 +320,11 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
     rsp.bhaep_handle = handle;
     rsp.bhaep_error_code = error_code;
 
-    rc = ble_hs_att_error_rsp_write(buf, sizeof buf, &rsp);
+    rc = ble_hs_att_error_rsp_write(ble_hs_att_tx_buf,
+                                    BLE_HS_ATT_ERROR_RSP_SZ, &rsp);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(chan, buf, sizeof buf);
+    rc = ble_l2cap_tx(chan, ble_hs_att_tx_buf, BLE_HS_ATT_ERROR_RSP_SZ);
     if (rc != 0) {
         return rc;
     }
@@ -333,11 +333,37 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
 }
 
 static int
+ble_hs_att_tx_mtu_cmd(struct ble_l2cap_chan *chan, uint8_t op, uint16_t mtu)
+{
+    struct ble_hs_att_mtu_cmd cmd;
+    int rc;
+
+    assert(!(chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU));
+    assert(op == BLE_HS_ATT_OP_MTU_REQ || op == BLE_HS_ATT_OP_MTU_RSP);
+    assert(mtu >= BLE_HS_ATT_MTU_DFLT);
+
+    cmd.bhamc_op = op;
+    cmd.bhamc_mtu = mtu;
+
+    rc = ble_hs_att_mtu_cmd_write(ble_hs_att_tx_buf, BLE_HS_ATT_MTU_MAX,
+                                  &cmd);
+    assert(rc == 0);
+
+    rc = ble_l2cap_tx(chan, ble_hs_att_tx_buf, BLE_HS_ATT_MTU_CMD_SZ);
+    if (rc != 0) {
+        return rc;
+    }
+
+    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+
+    return 0;
+}
+
+static int
 ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                       struct os_mbuf *om)
 {
-    struct ble_hs_att_mtu_req req;
-    uint8_t buf[BLE_HS_ATT_MTU_REQ_SZ];
+    struct ble_hs_att_mtu_cmd cmd;
     int rc;
 
     /* We should only receive this command as a server. */
@@ -346,19 +372,23 @@ ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return EINVAL;
     }
 
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_MTU_CMD_SZ, ble_hs_att_tx_buf);
     assert(rc == 0);
 
-    rc = ble_hs_att_mtu_req_parse(buf, sizeof buf, &req);
+    rc = ble_hs_att_mtu_cmd_parse(ble_hs_att_tx_buf, BLE_HS_ATT_MTU_CMD_SZ,
+                                  &cmd);
     assert(rc == 0);
 
-    if (req.bhamq_mtu < BLE_HS_ATT_MTU_DFLT) {
-        req.bhamq_mtu = BLE_HS_ATT_MTU_DFLT;
+    if (cmd.bhamc_mtu < BLE_HS_ATT_MTU_DFLT) {
+        cmd.bhamc_mtu = BLE_HS_ATT_MTU_DFLT;
     }
 
-    chan->blc_peer_mtu = req.bhamq_mtu;
+    chan->blc_peer_mtu = cmd.bhamc_mtu;
 
-    /* XXX: Send response. */
+    rc = ble_hs_att_tx_mtu_cmd(chan, BLE_HS_ATT_OP_MTU_RSP, chan->blc_my_mtu);
+    if (rc != 0) {
+        return rc;
+    }
 
     return 0;
 }
@@ -463,16 +493,17 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
 {
     struct ble_hs_att_find_info_req req;
     struct ble_hs_att_find_info_rsp rsp;
-    uint8_t buf[BLE_HS_ATT_FIND_INFO_REQ_SZ];
     int rsp_sz;
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_FIND_INFO_REQ_SZ,
+                          ble_hs_att_tx_buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hs_att_find_info_req_parse(buf, sizeof buf, &req);
+    rc = ble_hs_att_find_info_req_parse(ble_hs_att_tx_buf,
+                                        BLE_HS_ATT_FIND_INFO_REQ_SZ, &req);
     assert(rc == 0);
 
     /* Tx error response if start handle is greater than end handle or is equal
@@ -509,7 +540,8 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
      */
     rsp.bhafp_op = BLE_HS_ATT_OP_FIND_INFO_RSP;
     rc = ble_hs_att_find_info_rsp_write(ble_hs_att_tx_buf,
-                                        BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ, &rsp);
+                                        BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
+                                        &rsp);
     assert(rc == 0);
 
     rc = ble_l2cap_tx(chan, ble_hs_att_tx_buf,
@@ -559,15 +591,15 @@ ble_hs_att_rx_read_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     union ble_hs_att_handle_arg arg;
     struct ble_hs_att_read_req req;
     struct ble_hs_att_entry *entry;
-    uint8_t buf[BLE_HS_ATT_READ_REQ_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_READ_REQ_SZ, ble_hs_att_tx_buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hs_att_read_req_parse(buf, sizeof buf, &req);
+    rc = ble_hs_att_read_req_parse(ble_hs_att_tx_buf, BLE_HS_ATT_READ_REQ_SZ,
+                                   &req);
     assert(rc == 0);
 
     rc = ble_hs_att_find_by_handle(req.bharq_handle, &entry);
@@ -625,15 +657,16 @@ ble_hs_att_rx_write_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     union ble_hs_att_handle_arg arg;
     struct ble_hs_att_write_req req;
     struct ble_hs_att_entry *entry;
-    uint8_t buf[BLE_HS_ATT_WRITE_REQ_MIN_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_WRITE_REQ_MIN_SZ,
+                          ble_hs_att_tx_buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hs_att_write_req_parse(buf, sizeof buf, &req);
+    rc = ble_hs_att_write_req_parse(ble_hs_att_tx_buf,
+                                    BLE_HS_ATT_WRITE_REQ_MIN_SZ, &req);
     assert(rc == 0);
 
     rc = ble_hs_att_find_by_handle(req.bhawq_handle, &entry);
@@ -704,6 +737,7 @@ ble_hs_att_create_chan(void)
     }
 
     chan->blc_cid = BLE_L2CAP_CID_ATT;
+    chan->blc_my_mtu = BLE_HS_ATT_MTU_DFLT;
     chan->blc_default_mtu = BLE_HS_ATT_MTU_DFLT;
     chan->blc_rx_fn = ble_hs_att_rx;
 

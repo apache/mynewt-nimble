@@ -66,23 +66,43 @@ ble_hs_att_error_rsp_write(void *payload, int len,
 }
 
 int
-ble_hs_att_mtu_req_parse(void *payload, int len,
-                         struct ble_hs_att_mtu_req *req)
+ble_hs_att_mtu_cmd_parse(void *payload, int len,
+                         struct ble_hs_att_mtu_cmd *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_HS_ATT_MTU_REQ_SZ) {
+    if (len < BLE_HS_ATT_MTU_CMD_SZ) {
         return EMSGSIZE;
     }
 
     u8ptr = payload;
 
-    req->bhamq_op = u8ptr[0];
-    req->bhamq_mtu = le16toh(u8ptr + 1);
+    cmd->bhamc_op = u8ptr[0];
+    cmd->bhamc_mtu = le16toh(u8ptr + 1);
 
-    if (req->bhamq_op != BLE_HS_ATT_OP_MTU_REQ) {
+    if (cmd->bhamc_op != BLE_HS_ATT_OP_MTU_REQ &&
+        cmd->bhamc_op != BLE_HS_ATT_OP_MTU_RSP) {
+
         return EINVAL;
     }
+
+    return 0;
+}
+
+int
+ble_hs_att_mtu_cmd_write(void *payload, int len,
+                         struct ble_hs_att_mtu_cmd *cmd)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_MTU_CMD_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    u8ptr[0] = cmd->bhamc_op;
+    htole16(u8ptr + 1, cmd->bhamc_mtu);
 
     return 0;
 }
@@ -165,28 +185,6 @@ ble_hs_att_find_info_rsp_write(void *payload, int len,
 
     u8ptr[0] = rsp->bhafp_op;
     u8ptr[1] = rsp->bhafp_format;
-
-    return 0;
-}
-
-int
-ble_hs_att_mtu_rsp_parse(void *payload, int len,
-                         struct ble_hs_att_mtu_rsp *rsp)
-{
-    uint8_t *u8ptr;
-
-    if (len < BLE_HS_ATT_MTU_RSP_SZ) {
-        return EMSGSIZE;
-    }
-
-    u8ptr = payload;
-
-    rsp->bhamp_op = u8ptr[0];
-    rsp->bhamp_mtu = le16toh(u8ptr + 1);
-
-    if (rsp->bhamp_op != BLE_HS_ATT_OP_MTU_RSP) {
-        return EINVAL;
-    }
 
     return 0;
 }

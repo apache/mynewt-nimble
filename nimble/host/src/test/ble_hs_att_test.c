@@ -33,6 +33,23 @@ static int ble_hs_att_test_attr_1_len;
 static uint8_t ble_hs_att_test_attr_2[1024];
 static int ble_hs_att_test_attr_2_len;
 
+static void
+ble_hs_att_test_misc_init(struct ble_hs_conn **conn,
+                          struct ble_l2cap_chan **att_chan)
+{
+    int rc;
+
+    rc = ble_hs_init(10);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    *conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(*conn != NULL);
+
+    *att_chan = ble_hs_conn_chan_find(*conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(*att_chan != NULL);
+}
+
 static int
 ble_hs_att_test_misc_attr_fn_1(struct ble_hs_att_entry *entry,
                                uint8_t op, union ble_hs_att_handle_arg *arg)
@@ -136,6 +153,27 @@ ble_hs_att_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
                 BLE_HS_ATT_WRITE_RSP_SZ);
 }
 
+static void
+ble_hs_att_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
+{
+    struct ble_hs_att_mtu_cmd rsp;
+    uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
+    int rc;
+
+    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, sizeof buf, buf);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_hs_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(rsp.bhamc_op == BLE_HS_ATT_OP_MTU_RSP);
+    TEST_ASSERT(rsp.bhamc_mtu == chan->blc_my_mtu);
+
+    /* Remove the write response from the buffer. */
+    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf,
+                BLE_HS_ATT_MTU_CMD_SZ);
+}
+
 struct ble_hs_att_test_info_entry {
     uint16_t handle;        /* 0 on last entry */
     uint16_t uuid16;        /* 0 if not present. */
@@ -198,6 +236,52 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
     os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, off);
 }
 
+static void
+ble_hs_att_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
+                                  uint16_t peer_actual, uint16_t chan_mtu)
+{
+    struct ble_hs_att_mtu_cmd req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
+    int rc;
+
+    ble_hs_att_test_misc_init(&conn, &chan);
+
+    chan->blc_my_mtu = my_mtu;
+
+    req.bhamc_op = BLE_HS_ATT_OP_MTU_REQ;
+    req.bhamc_mtu = peer_sent;
+    rc = ble_hs_att_mtu_cmd_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(chan->blc_peer_mtu == peer_actual);
+
+    ble_hs_att_test_misc_verify_tx_mtu_rsp(chan);
+
+    TEST_ASSERT(ble_l2cap_chan_mtu(chan) == chan_mtu);
+}
+
+TEST_CASE(ble_hs_att_test_mtu)
+{
+    /*** MTU too low; should pretend peer sent default value instead. */
+    ble_hs_att_test_misc_mtu_exchange(BLE_HS_ATT_MTU_DFLT, 5,
+                                      BLE_HS_ATT_MTU_DFLT,
+                                      BLE_HS_ATT_MTU_DFLT);
+
+    /*** MTUs equal. */
+    ble_hs_att_test_misc_mtu_exchange(50, 50, 50, 50);
+
+    /*** Peer's higher than mine. */
+    ble_hs_att_test_misc_mtu_exchange(50, 100, 100, 50);
+
+    /*** Mine higher than peer's. */
+    ble_hs_att_test_misc_mtu_exchange(100, 50, 50, 50);
+}
+
 TEST_CASE(ble_hs_att_test_read)
 {
     struct ble_hs_att_read_req req;
@@ -207,15 +291,7 @@ TEST_CASE(ble_hs_att_test_read)
     uint8_t uuid[16] = {0};
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
+    ble_hs_att_test_misc_init(&conn, &chan);
 
     /*** Nonexistent attribute. */
     req.bharq_op = BLE_HS_ATT_OP_READ_REQ;
@@ -270,15 +346,7 @@ TEST_CASE(ble_hs_att_test_write)
     uint8_t uuid[16] = {0};
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
+    ble_hs_att_test_misc_init(&conn, &chan);
 
     /*** Nonexistent attribute. */
     req.bhawq_op = BLE_HS_ATT_OP_WRITE_REQ;
@@ -325,19 +393,12 @@ TEST_CASE(ble_hs_att_test_find_info)
     };
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
+    ble_hs_att_test_misc_init(&conn, &chan);
 
     /* Increase the MTU to 128 bytes to allow testing of long responses. */
     chan->blc_my_mtu = 128;
     chan->blc_peer_mtu = 128;
+    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
 
     /*** Start handle of 0. */
     req.bhafq_op = BLE_HS_ATT_OP_FIND_INFO_REQ;
@@ -485,6 +546,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
 TEST_SUITE(att_suite)
 {
+    ble_hs_att_test_mtu();
     ble_hs_att_test_read();
     ble_hs_att_test_write();
     ble_hs_att_test_find_info();

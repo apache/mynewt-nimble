@@ -75,11 +75,15 @@ ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
     /* If either side has not exchanged MTU size, use the default.  Otherwise,
      * use the lesser of the two exchanged values.
      */
-    if (chan->blc_my_mtu == 0 || chan->blc_peer_mtu == 0) {
+    if (!(chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) ||
+        chan->blc_peer_mtu == 0) {
+
         mtu = chan->blc_default_mtu;
     } else {
         mtu = min(chan->blc_my_mtu, chan->blc_peer_mtu);
     }
+
+    assert(mtu >= chan->blc_default_mtu);
 
     return mtu;
 }

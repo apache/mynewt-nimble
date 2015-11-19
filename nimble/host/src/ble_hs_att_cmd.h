@@ -47,24 +47,12 @@ struct ble_hs_att_error_rsp {
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |
- * | Client Rx MTU                      | 2                 |
- */
-#define BLE_HS_ATT_MTU_REQ_SZ               3
-struct ble_hs_att_mtu_req {
-    uint8_t bhamq_op;
-    uint16_t bhamq_mtu;
-};
-
-/**
- * | Parameter                          | Size (octets)     |
- * +------------------------------------+-------------------+
- * | Attribute Opcode                   | 1                 |
  * | Server Rx MTU                      | 2                 |
  */
-#define BLE_HS_ATT_MTU_RSP_SZ               3
-struct ble_hs_att_mtu_rsp {
-    uint8_t bhamp_op;
-    uint16_t bhamp_mtu;
+#define BLE_HS_ATT_MTU_CMD_SZ               3
+struct ble_hs_att_mtu_cmd {
+    uint8_t bhamc_op;
+    uint16_t bhamc_mtu;
 };
 
 /**
@@ -137,10 +125,10 @@ int ble_hs_att_error_rsp_parse(void *payload, int len,
                                struct ble_hs_att_error_rsp *rsp);
 int ble_hs_att_error_rsp_write(void *payload, int len,
                                struct ble_hs_att_error_rsp *rsp);
-int ble_hs_att_mtu_req_parse(void *payload, int len,
-                             struct ble_hs_att_mtu_req *req);
-int ble_hs_att_mtu_rsp_parse(void *payload, int len,
-                             struct ble_hs_att_mtu_rsp *rsp);
+int ble_hs_att_mtu_cmd_parse(void *payload, int len,
+                             struct ble_hs_att_mtu_cmd *cmd);
+int ble_hs_att_mtu_cmd_write(void *payload, int len,
+                             struct ble_hs_att_mtu_cmd *cmd);
 int ble_hs_att_find_info_req_parse(void *payload, int len,
                                    struct ble_hs_att_find_info_req *req);
 int ble_hs_att_find_info_req_write(void *payload, int len,
