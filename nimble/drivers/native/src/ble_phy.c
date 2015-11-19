@@ -152,7 +152,7 @@ ble_phy_isr(void)
         assert(g_ble_phy_data.rxpdu != NULL);
 
         /* Call Link Layer receive start function */
-        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu);
+        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
         if (rc >= 0) {
             /* XXX: set rx end enable isr */
         } else {
@@ -349,7 +349,7 @@ ble_phy_txpwr_get(void)
  * @return int 0: success; PHY error code otherwise
  */
 int
-ble_phy_setchan(uint8_t chan)
+ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 {
     assert(chan < BLE_PHY_NUM_CHANS);
 

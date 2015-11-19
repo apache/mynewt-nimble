@@ -26,6 +26,7 @@
 /* 
  * XXX: TODO
  * 1) make phy rx start and end function pointers to call?
+ * 2) How to set access address for data channel pdu's and crcinit
  */
 
 /* To disable all radio interrupts */
@@ -212,7 +213,7 @@ ble_phy_isr(void)
         }
 
         /* Call Link Layer receive start function */
-        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu);
+        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
         if (rc >= 0) {
             if (rc > 0) {
                 /* We need to go from disabled to TXEN */
@@ -426,19 +427,6 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
         return BLE_PHY_ERR_RADIO_STATE;
     }
 
-    /* Select tx address */
-    if (g_ble_phy_data.phy_chan < BLE_PHY_NUM_DATA_CHANS) {
-        /* XXX: fix this */
-        assert(0);
-        NRF_RADIO->TXADDRESS = 0;
-        NRF_RADIO->RXADDRESSES = 0;
-        NRF_RADIO->CRCINIT = 0;
-    } else {
-        NRF_RADIO->TXADDRESS = 0;
-        NRF_RADIO->RXADDRESSES = 1;
-        NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
-    }
-
     /* Set radio transmit data pointer */
     NRF_RADIO->PACKETPTR = (uint32_t)txpdu->om_data;
 
@@ -546,9 +534,10 @@ ble_phy_txpwr_get(void)
  * @return int 0: success; PHY error code otherwise
  */
 int
-ble_phy_setchan(uint8_t chan)
+ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 {
     uint8_t freq;
+    uint32_t prefix;
 
     assert(chan < BLE_PHY_NUM_CHANS);
 
@@ -573,6 +562,16 @@ ble_phy_setchan(uint8_t chan)
             freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) + 
                    (BLE_PHY_CHAN_SPACING_MHZ * (chan + 1));
         }
+
+        /* Configure logical address 1 and crcinit */
+        prefix = NRF_RADIO->PREFIX0;
+        prefix &= 0xffff00ff;
+        prefix |= ((access_addr >> 24) & 0xFF) << 8;
+        NRF_RADIO->BASE1 = (access_addr << 8) & 0xFFFFFF00;
+        NRF_RADIO->PREFIX0 = prefix;
+        NRF_RADIO->TXADDRESS = 1;
+        NRF_RADIO->RXADDRESSES = (1 << 1);
+        NRF_RADIO->CRCINIT = crcinit;
     } else {
         if (chan == 37) {
             freq = BLE_PHY_CHAN_SPACING_MHZ;
@@ -583,6 +582,11 @@ ble_phy_setchan(uint8_t chan)
             /* This advertising channel is at 2480 MHz */
             freq = BLE_PHY_CHAN_SPACING_MHZ * 40;
         }
+
+        /* Logical adddress 0 preconfigured */
+        NRF_RADIO->TXADDRESS = 0;
+        NRF_RADIO->RXADDRESSES = (1 << 0);
+        NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
     }
 
     /* Set the frequency and the data whitening initial value */

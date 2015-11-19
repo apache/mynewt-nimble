@@ -82,7 +82,7 @@ int ble_phy_init(void);
 int ble_phy_reset(void);
 
 /* Set the PHY channel */
-int ble_phy_setchan(uint8_t chan);
+int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
 /* Place the PHY into transmit mode */
 int ble_phy_tx(struct os_mbuf *, uint8_t beg_trans, uint8_t end_trans);

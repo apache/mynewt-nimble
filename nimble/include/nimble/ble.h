@@ -37,6 +37,7 @@ extern struct os_mempool g_hci_os_event_pool;
  * The BLE mbuf header contains the following:
  *  flags: bitfield with the following values
  *      0x01:   Set if there was a match on the whitelist
+ *      0x02:   Set if a connect request was transmitted upon receiving pdu
  *  channel: The logical BLE channel PHY channel # (0 - 39)
  *  crcok: flag denoting CRC check passed (1) or failed (0).
  *  rssi: RSSI, in dBm.
@@ -50,7 +51,8 @@ struct ble_mbuf_hdr
 };
 
 /* Flag definitions */
-#define BLE_MBUF_HDR_F_DEVMATCH     (0x01)
+#define BLE_MBUF_HDR_F_DEVMATCH         (0x01)
+#define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x02)
 
 #define BLE_MBUF_HDR_PTR(om)    \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
@@ -80,7 +82,7 @@ enum ble_error_codes
     BLE_ERR_AUTH_FAIL           = 5,
     BLE_ERR_PINKEY_MISSING      = 6,
     BLE_ERR_MEM_CAPACITY        = 7,
-    BLE_ERR_CONN_TMO            = 8,
+    BLE_ERR_CONN_SPVN_TMO       = 8,
     BLE_ERR_CONN_LIMIT          = 9,
     BLE_ERR_SYNCH_CONN_LIMIT    = 10,
     BLE_ERR_ACL_CONN_EXISTS     = 11,

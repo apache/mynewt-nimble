@@ -25,6 +25,7 @@
 #define BLE_LL_SCHED_TYPE_SCAN      (1)
 #define BLE_LL_SCHED_TYPE_TX        (2)
 #define BLE_LL_SCHED_TYPE_RX        (3)
+#define BLE_LL_SCHED_TYPE_CONN      (4)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -49,7 +50,7 @@ struct ble_ll_sched_item
 int ble_ll_sched_add(struct ble_ll_sched_item *sch);
 
 /* Remove item(s) from schedule */
-int ble_ll_sched_rmv(uint8_t sched_type);
+int ble_ll_sched_rmv(uint8_t sched_type, void *cb_arg);
 
 /* Initialize the scheduler */
 int ble_ll_sched_init(void);

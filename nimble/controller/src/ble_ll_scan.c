@@ -501,6 +501,15 @@ ble_ll_scan_win_end_cb(struct ble_ll_sched_item *sch)
     return BLE_LL_SCHED_STATE_DONE;
 }
 
+/**
+ * Schedule callback for the start of a scan window 
+ *  
+ * Context: Interrupt 
+ * 
+ * @param sch 
+ * 
+ * @return int 
+ */
 static int
 ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
 {
@@ -514,7 +523,7 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
     scansm = (struct ble_ll_scan_sm *)sch->cb_arg;
 
     /* Set channel */
-    rc = ble_phy_setchan(scansm->scan_chan);
+    rc = ble_phy_setchan(scansm->scan_chan, 0, 0);
     assert(rc == 0);
 
     /* Start receiving */
@@ -549,7 +558,7 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
     /* XXX: Stop any timers we may have started */
 
     /* Remove any scheduled advertising items */
-    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN);
+    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN, NULL);
 
     /* Disable whitelisting (just in case) */
     ble_ll_whitelist_disable();
@@ -559,6 +568,10 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
 
     /* Count # of times stopped */
     ++g_ble_ll_scan_stats.scan_stops;
+
+    /* XXX: Not sure this is correct. The LL might not actually be scanning */
+    /* Set LL state to standby */
+    ble_ll_state_set(BLE_LL_STATE_STANDBY);
 }
 
 static struct ble_ll_sched_item *

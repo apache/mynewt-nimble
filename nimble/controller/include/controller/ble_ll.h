@@ -17,33 +17,28 @@
 #ifndef H_BLE_LL_
 #define H_BLE_LL_
 
-/* XXX: Not sure this should go here, but whatever */
 /* 
- * ble ll global parameters
- * 
- * NOTES:
- *  1) Controller should not change value of supported max tx and rx time and
- *  octets.
+ * Global Link Layer data object. There is only one Link Layer data object
+ * per controller although there may be many instances of the link layer state
+ * machine running.
  */
-struct ble_ll_global_params
-{
-    int conn_init_max_tx_octets;
-    int conn_init_max_tx_time;
-    int supp_max_tx_octets;
-    int supp_max_tx_time;
-    int supp_max_rx_octets;
-    int supp_max_rx_time;
-};
-
 struct ble_ll_obj
 {
+    /* Current Link Layer state */
     uint8_t ll_state;
+
+    /* Task event queue */
     struct os_eventq ll_evq;
-    struct ble_ll_global_params ll_params;
+
+    /* Receive packet (from phy) event */
     struct os_event ll_rx_pkt_ev;
+
+    /* Packet receive queue */
     STAILQ_HEAD(ll_rxpkt_qh, os_mbuf_pkthdr) ll_rx_pkt_q;
 };
+extern struct ble_ll_obj g_ble_ll_data;
 
+/* Link layer statistics */
 struct ble_ll_stats
 {
     uint32_t rx_crc_ok;
@@ -61,10 +56,9 @@ struct ble_ll_stats
     uint32_t hci_cmds;
     uint32_t hci_cmd_errs;
     uint32_t hci_events_sent;
+    uint32_t bad_ll_state;
 };
-
 extern struct ble_ll_stats g_ble_ll_stats;
-extern struct ble_ll_obj g_ble_ll_data;
 
 /* States */
 #define BLE_LL_STATE_STANDBY        (0)
@@ -78,6 +72,8 @@ extern struct ble_ll_obj g_ble_ll_data;
 #define BLE_LL_EVENT_ADV_TXDONE     (OS_EVENT_T_PERUSER + 1)
 #define BLE_LL_EVENT_RX_PKT_IN      (OS_EVENT_T_PERUSER + 2)
 #define BLE_LL_EVENT_SCAN_WIN_END   (OS_EVENT_T_PERUSER + 3)
+#define BLE_LL_EVENT_CONN_SPVN_TMO  (OS_EVENT_T_PERUSER + 4)
+#define BLE_LL_EVENT_CONN_EV_END    (OS_EVENT_T_PERUSER + 5)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION   (0x01)
@@ -162,7 +158,7 @@ struct ble_dev_addr
 /*
  * Data Channel format
  * 
- *  -> Header (2 bytes.
+ *  -> Header (2 bytes)
  *      -> LSB contains llid, nesn, sn and md
  *      -> MSB contains length (8 bits)
  *  -> Payload (0 to 251)
@@ -173,6 +169,7 @@ struct ble_dev_addr
 #define BLE_LL_DATA_HDR_SN_MASK         (0x08)
 #define BLE_LL_DATA_HDR_MD_MASK         (0x10)
 #define BLE_LL_DATA_HDR_RSRVD_MASK      (0xE0)
+#define BLE_LL_DATA_MAX_OVERHEAD        (6)
 
 /* LLID definitions */
 #define BLE_LL_LLID_RSRVD               (0)
@@ -383,39 +380,8 @@ struct ble_ll_len_req
  *      hop_inc: Hop increment used for frequency hopping. Random value in
  *               range of 5 to 16.
  */
-#define BLE_CONNECT_REQ_LEN             (34)
-
-struct ble_conn_req_data
-{
-    uint32_t    aa;
-    uint8_t     crc_init[3];
-    uint8_t     winsize;
-    uint16_t    winoffset;
-    uint16_t    interval;
-    uint16_t    latency;
-    uint16_t    timeout;
-    uint8_t     chanmap[5];
-    uint8_t     hop_inc;
-    uint8_t     master_sca;
-};
-
-#define BLE_CONN_REQ_HOP_MASK           (0x1F)
-#define BLE_CONN_REQ_SCA_MASK           (0xE0)
-
-/*
- * Initiator filter policy 
- * 
- * Determines how the initiator's Link Layer processes advertisements.
- * 
- *  LIST: process connectable advertisements only from devices in white list.
- *  SINGLE: do not use white list; process connectable advertisements from
- *      a single specific device specified by the host.
- */
-enum ble_ll_init_filt_policy
-{
-    BLE_LL_INIT_FILT_LIST = 0,
-    BLE_LL_INIT_FILT_SINGLE,
-};
+#define BLE_CONNECT_REQ_LEN         (34)
+#define BLE_CONNECT_REQ_PDU_LEN     (BLE_CONNECT_REQ_LEN + BLE_LL_PDU_HDR_LEN)
 
 /*--- External API ---*/
 /* Initialize the Link Layer */
@@ -435,7 +401,7 @@ int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
 
 /*--- PHY interfaces ---*/
 /* Called by the PHY when a packet has started */
-int ble_ll_rx_start(struct os_mbuf *rxpdu);
+int ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan);
 
 /* Called by the PHY when a packet reception ends */
 int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok);

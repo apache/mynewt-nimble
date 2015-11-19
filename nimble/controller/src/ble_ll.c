@@ -33,7 +33,17 @@
  * to see if a packet is "for us". I am referring to packets that pass
  * whitelisting but also need to be "for us" (connect requests, scan requests,
  * scan responses, etc). Look into this. This way I would not need to do
-   additional whitelist checks at the upper layer. */
+ * additional whitelist checks at the upper layer.
+ */
+
+/* 
+ * XXX: I need to re-think the whoele LL state code and how I deal with it.
+ * I dont think I am handling it very well. The LL state should only change
+ * at the LL task I think. I am also not sure how to make sure that any packets
+ * handled by the LL are handled by the appropriate state. For example, can I
+ * get a scan window end and then process packets? When the schedule event for
+ * the scan window ends, what do I do to the LL state? Check all this out.
+ */
 
 /* XXX:
  * 
@@ -43,10 +53,6 @@
  * packets I think. Need to figure out what to do with this.
  * 
  */
-
-/* Connection related define */
-#define BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS  (27)
-#define BLE_LL_CONN_INIT_MAX_REMOTE_TIME    (238)
 
 /* The global BLE LL data object */
 struct ble_ll_obj g_ble_ll_data;
@@ -60,47 +66,11 @@ struct ble_ll_stats g_ble_ll_stats;
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
-/* XXX: this is just temporary; used to calculate the channel index */
-struct ble_ll_sm_connection
-{
-    /* Flow control */
-    uint8_t tx_seq;
-    uint8_t next_exp_seq;
-
-    /* Parameters kept by the link-layer per connection */
-    uint8_t max_tx_octets;
-    uint8_t max_rx_octets;
-    uint8_t max_tx_time;
-    uint8_t max_rx_time;
-    uint8_t remote_max_tx_octets;
-    uint8_t remote_max_rx_octets;
-    uint8_t remote_max_tx_time;
-    uint8_t remote_max_rx_time;
-    uint8_t effective_max_tx_octets;
-    uint8_t effective_max_rx_octets;
-    uint8_t effective_max_tx_time;
-    uint8_t effective_max_rx_time;
-
-    /* The connection request data */
-    struct ble_conn_req_data req_data; 
-};
-
-/* Called when a connection gets initialized */
-int
-ble_init_conn_sm(struct ble_ll_sm_connection *cnxn)
-{
-    cnxn->max_tx_time = g_ble_ll_data.ll_params.conn_init_max_tx_time;
-    cnxn->max_rx_time = g_ble_ll_data.ll_params.supp_max_rx_time;
-    cnxn->max_tx_octets = g_ble_ll_data.ll_params.conn_init_max_tx_octets;
-    cnxn->max_rx_octets = g_ble_ll_data.ll_params.supp_max_rx_octets;
-    cnxn->remote_max_rx_octets = BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS;
-    cnxn->remote_max_tx_octets = BLE_LL_CONN_INIT_MAX_REMOTE_OCTETS;
-    cnxn->remote_max_rx_time = BLE_LL_CONN_INIT_MAX_REMOTE_TIME;
-    cnxn->remote_max_tx_time = BLE_LL_CONN_INIT_MAX_REMOTE_TIME;
-
-    return 0;
-}
-
+/**
+ * Counts received packets by type 
+ * 
+ * @param pdu_type 
+ */
 static void
 ble_ll_count_rx_pkts(uint8_t pdu_type)
 {
@@ -134,6 +104,8 @@ ble_ll_count_rx_pkts(uint8_t pdu_type)
         ++g_ble_ll_stats.rx_unk_pdu;
         break;
     }
+
+    /* XXX: what about data packets? */
 }
 
 int
@@ -330,7 +302,7 @@ ble_ll_rx_pkt_in_proc(void)
             }
             break;
         case BLE_LL_STATE_INITIATING:
-            ble_ll_init_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->crcok);
+            ble_ll_init_rx_pdu_proc(rxbuf, ble_hdr);
             break;
         case BLE_LL_STATE_CONNECTION:
             /* XXX: implement */
@@ -341,7 +313,7 @@ ble_ll_rx_pkt_in_proc(void)
             break;
         }
 
-        /* XXX: Free the mbuf for now */
+        /* Free the packet buffer */
         os_mbuf_free(&g_mbuf_pool, m);
     }
 }
@@ -365,14 +337,15 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
  * Called upon start of received PDU 
  * 
  * @param rxpdu 
+ *        chan 
  * 
  * @return int 
  *   < 0: A frame we dont want to receive.
  *   = 0: Continue to receive frame. Dont go from rx to tx
- *   > 1: Continue to receive frame and go from rx to idle when done
+ *   > 0: Continue to receive frame and go from rx to tx when done
  */
 int
-ble_ll_rx_start(struct os_mbuf *rxpdu)
+ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
 {
     int rc;
     uint8_t pdu_type;
@@ -380,6 +353,26 @@ ble_ll_rx_start(struct os_mbuf *rxpdu)
 
     /* XXX: need to check if this is an adv channel or data channel */
     rxbuf = rxpdu->om_data;
+    if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        /* 
+         * Data channel pdu. We should be in CONNECTION state with an
+         * ongoing connection
+         */
+        /* XXX: check access address for surety? What to do... */
+        if (g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION) {
+            /* Set flag in connection noting we have received a response */
+            ble_ll_conn_rsp_rxd();
+
+            /* Set up to go from rx to tx */
+            rc = 1;
+        } else {
+            ++g_ble_ll_stats.bad_ll_state;
+            rc = 0;
+        }
+        return rc;
+    } 
+
+    /* Advertising channel PDU */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
     switch (g_ble_ll_data.ll_state) {
@@ -395,16 +388,24 @@ ble_ll_rx_start(struct os_mbuf *rxpdu)
         }
         break;
     case BLE_LL_STATE_INITIATING:
-        rc = ble_ll_init_rx_pdu_start(pdu_type);
+        if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
+            (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND)) {
+            rc = 1;
+        } else {
+            rc = 0;
+        }
         break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_pdu_start(pdu_type, rxpdu);
         break;
     case BLE_LL_STATE_CONNECTION:
+        /* XXX: This should not happen. What to do? */
+        rc = 0;
+        break;
     default:
-        /* XXX: should we really assert here? What to do... */
+        /* Should not be in this state */
         rc = -1;
-        assert(0);
+        ++g_ble_ll_stats.bad_ll_state;
         break;
     }
 
@@ -543,6 +544,12 @@ ble_ll_task(void *arg)
         case BLE_LL_EVENT_RX_PKT_IN:
             ble_ll_rx_pkt_in_proc();
             break;
+        case BLE_LL_EVENT_CONN_SPVN_TMO:
+            ble_ll_conn_spvn_timeout(ev->ev_arg);
+            break;
+        case BLE_LL_EVENT_CONN_EV_END:
+            ble_ll_conn_event_end(ev->ev_arg);
+            break;
         default:
             assert(0);
             break;
@@ -589,14 +596,19 @@ ble_ll_event_send(struct os_event *ev)
 int
 ble_ll_init(void)
 {
+    struct ble_ll_obj *lldata;
+
+    /* Get pointer to global data object */
+    lldata = &g_ble_ll_data;
+
     /* Initialize the receive queue */
-    STAILQ_INIT(&g_ble_ll_data.ll_rx_pkt_q);
+    STAILQ_INIT(&lldata->ll_rx_pkt_q);
 
     /* Initialize eventq */
-    os_eventq_init(&g_ble_ll_data.ll_evq);
+    os_eventq_init(&lldata->ll_evq);
 
     /* Initialize receive packet (from phy) event */
-    g_ble_ll_data.ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
+    lldata->ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
 
     /* Initialize LL HCI */
     ble_ll_hci_init();
@@ -609,6 +621,9 @@ ble_ll_init(void)
 
     /* Initialize a scanner */
     ble_ll_scan_init();
+
+    /* Initialize the connection module */
+    ble_ll_conn_init();
 
     /* Initialize the LL task */
     os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, BLE_LL_TASK_PRI, 

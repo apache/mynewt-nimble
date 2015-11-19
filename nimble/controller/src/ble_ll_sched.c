@@ -141,14 +141,17 @@ ble_ll_sched_add(struct ble_ll_sched_item *sch)
 }
 
 /**
- * Remove a schedule item 
+ * Remove a schedule item. You can use this function to: 
+ *  1) Remove all schedule items of type 'sched_type' (cb_arg = NULL)
+ *  2) Remove schedule items of type 'sched_type' and matching callback args
+ * 
  * 
  * @param sched_type 
  * 
  * @return int 
  */
 int
-ble_ll_sched_rmv(uint8_t sched_type)
+ble_ll_sched_rmv(uint8_t sched_type, void *cb_arg)
 {
     os_sr_t sr;
     struct ble_ll_sched_item *entry;
@@ -162,8 +165,10 @@ ble_ll_sched_rmv(uint8_t sched_type)
         while (entry) {
             next = TAILQ_NEXT(entry, link);
             if (entry->sched_type == sched_type) {
-                TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
-                os_memblock_put(&g_ble_ll_sched_pool, entry);
+                if ((cb_arg == NULL) || (cb_arg == entry->cb_arg)) {
+                    TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
+                    os_memblock_put(&g_ble_ll_sched_pool, entry);
+                }
             } 
             entry = next;
         }
@@ -230,7 +235,7 @@ ble_ll_sched_init(void)
                           g_ble_ll_sched_mem, "ll_sched");
     assert(err == OS_OK);
 
-    /* Start cputimer for the scheduler */
+    /* Initialize cputimer for the scheduler */
     cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
 
     return err;

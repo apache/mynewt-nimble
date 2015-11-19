@@ -40,7 +40,6 @@ ble_ll_whitelist_chg_allowed(void)
 {
     int rc;
 
-    /* XXX: add initiating to this */
     /* 
      * This command is not allowed if:
      *  -> advertising uses the whitelist and we are currently advertising.

@@ -65,6 +65,7 @@
  * 12) Something to consider: if we are attempting to advertise but dont have
  * any connection state machines available, I dont think we should enable
  * advertising.
+ * 13) Implement high duty cycle advertising timeout.
  */
 
 /* 
@@ -381,7 +382,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     gpio_toggle(LED_BLINK_PIN);
 
     /* Set channel */
-    rc = ble_phy_setchan(advsm->adv_chan);
+    rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
     assert(rc == 0);
 
     /* Set phy mode based on type of advertisement */
@@ -575,7 +576,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
     ble_ll_whitelist_disable();
 
     /* Remove any scheduled advertising items */
-    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV);
+    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV, NULL);
 
     /* Disable advertising */
     advsm->enabled = 0;
