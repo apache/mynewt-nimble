@@ -27,11 +27,13 @@
 #include "ble_hs_att.h"
 #include "ble_hs_att_cmd.h"
 
-static uint8_t *ble_hs_att_test_attr_1;
-static int ble_hs_att_test_attr_1_len;
+static uint8_t *ble_hs_att_test_attr_r_1;
+static int ble_hs_att_test_attr_r_1_len;
+static uint8_t *ble_hs_att_test_attr_r_2;
+static int ble_hs_att_test_attr_r_2_len;
 
-static uint8_t ble_hs_att_test_attr_2[1024];
-static int ble_hs_att_test_attr_2_len;
+static uint8_t ble_hs_att_test_attr_w_1[1024];
+static int ble_hs_att_test_attr_w_1_len;
 
 static void
 ble_hs_att_test_misc_init(struct ble_hs_conn **conn,
@@ -51,13 +53,13 @@ ble_hs_att_test_misc_init(struct ble_hs_conn **conn,
 }
 
 static int
-ble_hs_att_test_misc_attr_fn_1(struct ble_hs_att_entry *entry,
-                               uint8_t op, union ble_hs_att_handle_arg *arg)
+ble_hs_att_test_misc_attr_fn_r_1(struct ble_hs_att_entry *entry,
+                                 uint8_t op, union ble_hs_att_handle_arg *arg)
 {
     switch (op) {
     case BLE_HS_ATT_OP_READ_REQ:
-        arg->aha_read.attr_data = ble_hs_att_test_attr_1;
-        arg->aha_read.attr_len = ble_hs_att_test_attr_1_len;
+        arg->aha_read.attr_data = ble_hs_att_test_attr_r_1;
+        arg->aha_read.attr_len = ble_hs_att_test_attr_r_1_len;
         return 0;
 
     default:
@@ -66,8 +68,23 @@ ble_hs_att_test_misc_attr_fn_1(struct ble_hs_att_entry *entry,
 }
 
 static int
-ble_hs_att_test_misc_attr_fn_2(struct ble_hs_att_entry *entry,
-                               uint8_t op, union ble_hs_att_handle_arg *arg)
+ble_hs_att_test_misc_attr_fn_r_2(struct ble_hs_att_entry *entry,
+                                 uint8_t op, union ble_hs_att_handle_arg *arg)
+{
+    switch (op) {
+    case BLE_HS_ATT_OP_READ_REQ:
+        arg->aha_read.attr_data = ble_hs_att_test_attr_r_2;
+        arg->aha_read.attr_len = ble_hs_att_test_attr_r_2_len;
+        return 0;
+
+    default:
+        return -1;
+    }
+}
+
+static int
+ble_hs_att_test_misc_attr_fn_w_1(struct ble_hs_att_entry *entry,
+                                 uint8_t op, union ble_hs_att_handle_arg *arg)
 {
     struct os_mbuf_pkthdr *omp;
     int rc;
@@ -76,9 +93,9 @@ ble_hs_att_test_misc_attr_fn_2(struct ble_hs_att_entry *entry,
     case BLE_HS_ATT_OP_WRITE_REQ:
         omp = OS_MBUF_PKTHDR(arg->aha_write.om);
         rc = os_mbuf_copydata(arg->aha_write.om, 0, arg->aha_write.attr_len,
-                              ble_hs_att_test_attr_2);
+                              ble_hs_att_test_attr_w_1);
         TEST_ASSERT(rc == 0);
-        ble_hs_att_test_attr_2_len = arg->aha_write.attr_len;
+        ble_hs_att_test_attr_w_1_len = arg->aha_write.attr_len;
         return 0;
 
     default:
@@ -232,7 +249,55 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
         }
     }
 
-    /* Remove the error response from the buffer. */
+    /* Ensure there is no extra data in the response. */
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(chan->blc_tx_buf)->omp_len);
+
+    /* Remove the response from the buffer. */
+    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, off);
+}
+
+struct ble_hs_att_test_type_value_entry {
+    uint16_t first;        /* 0 on last entry */
+    uint16_t last;
+};
+
+static void
+ble_hs_att_test_misc_verify_tx_find_type_value_rsp(
+    struct ble_l2cap_chan *chan,
+    struct ble_hs_att_test_type_value_entry *entries)
+{
+    struct ble_hs_att_test_type_value_entry *entry;
+    uint16_t u16;
+    uint8_t op;
+    int off;
+    int rc;
+
+    off = 0;
+
+    rc = os_mbuf_copydata(chan->blc_tx_buf, off, 1, &op);
+    TEST_ASSERT(rc == 0);
+    off += 1;
+
+    TEST_ASSERT(op == BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP);
+
+    for (entry = entries; entry->first != 0; entry++) {
+        rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &u16);
+        TEST_ASSERT(rc == 0);
+        htole16(&u16, u16);
+        TEST_ASSERT(u16 == entry->first);
+        off += 2;
+
+        rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &u16);
+        TEST_ASSERT(rc == 0);
+        htole16(&u16, u16);
+        TEST_ASSERT(u16 == entry->last);
+        off += 2;
+    }
+
+    /* Ensure there is no extra data in the response. */
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(chan->blc_tx_buf)->omp_len);
+
+    /* Remove the response from the buffer. */
     os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, off);
 }
 
@@ -305,10 +370,10 @@ TEST_CASE(ble_hs_att_test_read)
                                            BLE_HS_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful read. */
-    ble_hs_att_test_attr_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
-    ble_hs_att_test_attr_1_len = 8;
+    ble_hs_att_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
+    ble_hs_att_test_attr_r_1_len = 8;
     rc = ble_hs_att_register(uuid, 0, &req.bharq_handle,
-                             ble_hs_att_test_misc_attr_fn_1);
+                             ble_hs_att_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_att_read_req_write(buf, sizeof buf, &req);
@@ -317,15 +382,15 @@ TEST_CASE(ble_hs_att_test_read)
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_1,
-                                            ble_hs_att_test_attr_1_len);
+    ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_r_1,
+                                            ble_hs_att_test_attr_r_1_len);
 
 
     /*** Partial read. */
-    ble_hs_att_test_attr_1 =
+    ble_hs_att_test_attr_r_1 =
         (uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
-    ble_hs_att_test_attr_1_len = 40;
+    ble_hs_att_test_attr_r_1_len = 40;
 
     rc = ble_hs_att_read_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -333,7 +398,7 @@ TEST_CASE(ble_hs_att_test_read)
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_1,
+    ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_r_1,
                                             BLE_HS_ATT_MTU_DFLT - 1);
 }
 
@@ -362,7 +427,7 @@ TEST_CASE(ble_hs_att_test_write)
 
     /*** Successful write. */
     rc = ble_hs_att_register(uuid, 0, &req.bhawq_handle,
-                             ble_hs_att_test_misc_attr_fn_2);
+                             ble_hs_att_test_misc_attr_fn_w_1);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_att_write_req_write(buf, sizeof buf, &req);
@@ -442,7 +507,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     /*** Range too late. */
     rc = ble_hs_att_register(uuid1, 0, &handle1,
-                             ble_hs_att_test_misc_attr_fn_1);
+                             ble_hs_att_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
     req.bhafq_start_handle = 200;
@@ -477,7 +542,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     /*** Two 128-bit entries. */
     rc = ble_hs_att_register(uuid2, 0,
-                             &handle2, ble_hs_att_test_misc_attr_fn_1);
+                             &handle2, ble_hs_att_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
     req.bhafq_start_handle = handle1;
@@ -502,7 +567,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     /*** Two 128-bit entries; 16-bit entry doesn't get sent. */
     rc = ble_hs_att_register(uuid3, 0,
-                             &handle3, ble_hs_att_test_misc_attr_fn_1);
+                             &handle3, ble_hs_att_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
     req.bhafq_start_handle = handle1;
@@ -544,12 +609,228 @@ TEST_CASE(ble_hs_att_test_find_info)
         } }));
 }
 
+TEST_CASE(ble_hs_att_test_find_type_value)
+{
+    struct ble_hs_att_find_type_value_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ + 2];
+    uint16_t handle1;
+    uint16_t handle2;
+    uint16_t handle3;
+    uint16_t handle4;
+    uint16_t handle5;
+    uint8_t uuid1[16] = {
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00,
+        0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb
+    };
+    uint8_t uuid2[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    uint8_t uuid3[16] = {
+        0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x10, 0x00,
+        0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb
+    };
+    int rc;
+
+    ble_hs_att_test_misc_init(&conn, &chan);
+
+    /* Increase the MTU to 128 bytes to allow testing of long responses. */
+    chan->blc_my_mtu = 128;
+    chan->blc_peer_mtu = 128;
+    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+
+    /* One-time write of the attribute value at the end of the request. */
+    ble_hs_att_test_attr_r_1 = (uint8_t[]){0x99, 0x99};
+    ble_hs_att_test_attr_r_1_len = 2;
+    memcpy(buf + BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ, ble_hs_att_test_attr_r_1,
+           ble_hs_att_test_attr_r_1_len);
+
+    /*** Start handle of 0. */
+    req.bhavq_op = BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ;
+    req.bhavq_start_handle = 0;
+    req.bhavq_end_handle = 0;
+    req.bhavq_attr_type = 0x0001;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(
+        chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 0,
+        BLE_HS_ATT_ERR_INVALID_HANDLE);
+
+    /*** Start handle > end handle. */
+    req.bhavq_start_handle = 101;
+    req.bhavq_end_handle = 100;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(
+        chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 101,
+        BLE_HS_ATT_ERR_INVALID_HANDLE);
+
+    /*** No attributes. */
+    req.bhavq_start_handle = 200;
+    req.bhavq_end_handle = 300;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(
+        chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 200,
+        BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
+
+    /*** Range too late. */
+    rc = ble_hs_att_register(uuid1, 0, &handle1,
+                             ble_hs_att_test_misc_attr_fn_r_1);
+    TEST_ASSERT(rc == 0);
+
+    req.bhavq_start_handle = 200;
+    req.bhavq_end_handle = 300;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    ble_hs_att_test_misc_verify_tx_err_rsp(
+        chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 200,
+        BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
+
+    /*** One entry, one attribute. */
+    req.bhavq_start_handle = handle1;
+    req.bhavq_end_handle = handle1;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
+        ((struct ble_hs_att_test_type_value_entry[]) { {
+            .first = handle1,
+            .last = handle1,
+        }, {
+            .first = 0,
+        } }));
+
+    /*** One entry, two attributes. */
+    rc = ble_hs_att_register(uuid1, 0,
+                             &handle2, ble_hs_att_test_misc_attr_fn_r_1);
+    TEST_ASSERT(rc == 0);
+
+    req.bhavq_start_handle = handle1;
+    req.bhavq_end_handle = handle2;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
+        ((struct ble_hs_att_test_type_value_entry[]) { {
+            .first = handle1,
+            .last = handle2,
+        }, {
+            .first = 0,
+        } }));
+
+    /*** Entry 1: two attributes; entry 2: one attribute. */
+    rc = ble_hs_att_register(uuid2, 0, &handle3,
+                             ble_hs_att_test_misc_attr_fn_r_2);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_hs_att_register(uuid1, 0, &handle4,
+                             ble_hs_att_test_misc_attr_fn_r_1);
+    TEST_ASSERT(rc == 0);
+
+    req.bhavq_start_handle = 0x0001;
+    req.bhavq_end_handle = 0xffff;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
+        ((struct ble_hs_att_test_type_value_entry[]) { {
+            .first = handle1,
+            .last = handle2,
+        }, {
+            .first = handle4,
+            .last = handle4,
+        }, {
+            .first = 0,
+        } }));
+
+    /*** Ensure attribute with wrong value is not included. */
+    ble_hs_att_test_attr_r_2 = (uint8_t[]){0x00, 0x00};
+    ble_hs_att_test_attr_r_2_len = 2;
+
+    req.bhavq_start_handle = 0x0001;
+    req.bhavq_end_handle = 0xffff;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
+        ((struct ble_hs_att_test_type_value_entry[]) { {
+            .first = handle1,
+            .last = handle2,
+        }, {
+            .first = handle4,
+            .last = handle4,
+        }, {
+            .first = 0,
+        } }));
+
+    /*** Ensure attribute with wrong type is not included. */
+    rc = ble_hs_att_register(uuid3, 0, &handle5,
+                             ble_hs_att_test_misc_attr_fn_r_1);
+
+    req.bhavq_start_handle = 0x0001;
+    req.bhavq_end_handle = 0xffff;
+
+    rc = ble_hs_att_find_type_value_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
+        ((struct ble_hs_att_test_type_value_entry[]) { {
+            .first = handle1,
+            .last = handle2,
+        }, {
+            .first = handle4,
+            .last = handle4,
+        }, {
+            .first = 0,
+        } }));
+}
+
 TEST_SUITE(att_suite)
 {
     ble_hs_att_test_mtu();
     ble_hs_att_test_read();
     ble_hs_att_test_write();
     ble_hs_att_test_find_info();
+    ble_hs_att_test_find_type_value();
 }
 
 int

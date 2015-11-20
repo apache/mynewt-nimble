@@ -21,8 +21,10 @@
 #define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
 
 #define BLE_HS_ATT_ERR_INVALID_HANDLE       0x01
+#define BLE_HS_ATT_ERR_INVALID_PDU          0x04
 #define BLE_HS_ATT_ERR_REQ_NOT_SUPPORTED    0x06
 #define BLE_HS_ATT_ERR_ATTR_NOT_FOUND       0x0a
+#define BLE_HS_ATT_ERR_UNLIKELY             0x0e
 #define BLE_HS_ATT_ERR_INSUFFICIENT_RES     0x11
 
 struct ble_hs_att_entry;

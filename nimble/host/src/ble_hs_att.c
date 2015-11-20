@@ -26,8 +26,6 @@
 #include "ble_hs_att_cmd.h"
 #include "ble_hs_att.h"
 
-static uint8_t *ble_hs_att_tx_buf;
-
 typedef int ble_hs_att_rx_fn(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
                              struct os_mbuf *om);
@@ -43,6 +41,9 @@ static int ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn,
 static int ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
                                        struct ble_l2cap_chan *chan,
                                        struct os_mbuf *om);
+static int ble_hs_att_rx_find_type_value_req(struct ble_hs_conn *conn,
+                                             struct ble_l2cap_chan *chan,
+                                             struct os_mbuf *om);
 static int ble_hs_att_rx_read_req(struct ble_hs_conn *conn,
                                   struct ble_l2cap_chan *chan,
                                   struct os_mbuf *om);
@@ -51,10 +52,11 @@ static int ble_hs_att_rx_write_req(struct ble_hs_conn *conn,
                                    struct os_mbuf *om);
 
 static struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
-    { BLE_HS_ATT_OP_MTU_REQ,        ble_hs_att_rx_mtu_req },
-    { BLE_HS_ATT_OP_FIND_INFO_REQ,  ble_hs_att_rx_find_info_req },
-    { BLE_HS_ATT_OP_READ_REQ,       ble_hs_att_rx_read_req },
-    { BLE_HS_ATT_OP_WRITE_REQ,      ble_hs_att_rx_write_req },
+    { BLE_HS_ATT_OP_MTU_REQ,              ble_hs_att_rx_mtu_req },
+    { BLE_HS_ATT_OP_FIND_INFO_REQ,        ble_hs_att_rx_find_info_req },
+    { BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ,  ble_hs_att_rx_find_type_value_req },
+    { BLE_HS_ATT_OP_READ_REQ,             ble_hs_att_rx_read_req },
+    { BLE_HS_ATT_OP_WRITE_REQ,            ble_hs_att_rx_write_req },
 };
 
 #define BLE_HS_ATT_RX_DISPATCH_SZ \
@@ -313,6 +315,7 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
                         uint16_t handle, uint8_t error_code)
 {
     struct ble_hs_att_error_rsp rsp;
+    uint8_t buf[BLE_HS_ATT_ERROR_RSP_SZ];
     int rc;
 
     rsp.bhaep_op = BLE_HS_ATT_OP_ERROR_RSP;
@@ -320,11 +323,10 @@ ble_hs_att_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
     rsp.bhaep_handle = handle;
     rsp.bhaep_error_code = error_code;
 
-    rc = ble_hs_att_error_rsp_write(ble_hs_att_tx_buf,
-                                    BLE_HS_ATT_ERROR_RSP_SZ, &rsp);
+    rc = ble_hs_att_error_rsp_write(buf, sizeof buf, &rsp);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(chan, ble_hs_att_tx_buf, BLE_HS_ATT_ERROR_RSP_SZ);
+    rc = ble_l2cap_tx_flat(chan, buf, BLE_HS_ATT_ERROR_RSP_SZ);
     if (rc != 0) {
         return rc;
     }
@@ -336,6 +338,7 @@ static int
 ble_hs_att_tx_mtu_cmd(struct ble_l2cap_chan *chan, uint8_t op, uint16_t mtu)
 {
     struct ble_hs_att_mtu_cmd cmd;
+    uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
     int rc;
 
     assert(!(chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU));
@@ -345,11 +348,10 @@ ble_hs_att_tx_mtu_cmd(struct ble_l2cap_chan *chan, uint8_t op, uint16_t mtu)
     cmd.bhamc_op = op;
     cmd.bhamc_mtu = mtu;
 
-    rc = ble_hs_att_mtu_cmd_write(ble_hs_att_tx_buf, BLE_HS_ATT_MTU_MAX,
-                                  &cmd);
+    rc = ble_hs_att_mtu_cmd_write(buf, sizeof buf, &cmd);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(chan, ble_hs_att_tx_buf, BLE_HS_ATT_MTU_CMD_SZ);
+    rc = ble_l2cap_tx_flat(chan, buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
@@ -364,6 +366,7 @@ ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                       struct os_mbuf *om)
 {
     struct ble_hs_att_mtu_cmd cmd;
+    uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
     int rc;
 
     /* We should only receive this command as a server. */
@@ -372,11 +375,10 @@ ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return EINVAL;
     }
 
-    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_MTU_CMD_SZ, ble_hs_att_tx_buf);
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     assert(rc == 0);
 
-    rc = ble_hs_att_mtu_cmd_parse(ble_hs_att_tx_buf, BLE_HS_ATT_MTU_CMD_SZ,
-                                  &cmd);
+    rc = ble_hs_att_mtu_cmd_parse(buf, sizeof buf, &cmd);
     assert(rc == 0);
 
     if (cmd.bhamc_mtu < BLE_HS_ATT_MTU_DFLT) {
@@ -394,16 +396,14 @@ ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 }
 
 /**
- * Fills the static ATT transmit buffer with the variable length Information
- * Data field of a Find Information ATT response.
+ * Fills the supplied mbuf with the variable length Information Data field of a
+ * Find Information ATT response.
  *
  * @param req                   The Find Information request being responded
  *                                  to.
- * @param buf                   The destination buffer where the Information
+ * @param om                    The destination mbuf where the Information
  *                                  Data field gets written.
- * @param buf_sz                The maximum size of the output data.
- * @param rsp_sz                On success, the number of bytes written gets
- *                                  stored here.
+ * @param mtu                   The ATT L2CAP channel MTU.
  * @param format                On success, the format field of the response
  *                                  gets stored here.  One of:
  *                                     o BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT
@@ -412,27 +412,32 @@ ble_hs_att_rx_mtu_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
  * @return                      0 on success; an ATT error code on failure.
  */
 static int
-ble_hs_att_fill_info(struct ble_hs_att_find_info_req *req, uint8_t *buf,
-                     int buf_sz, int *rsp_sz, uint8_t *format)
+ble_hs_att_fill_info(struct ble_hs_att_find_info_req *req, struct os_mbuf *om,
+                     uint16_t mtu, uint8_t *format)
 {
     struct ble_hs_att_entry *ha;
-    int new_rsp_sz;
-    int uuid16;
+    uint16_t handle_id;
+    uint16_t uuid16;
+    int num_entries;
+    int rsp_sz;
+    int rc;
 
     *format = 0;
-    *rsp_sz = 0;
+    num_entries = 0;
+    rc = 0;
 
     ble_hs_att_list_lock();
 
     STAILQ_FOREACH(ha, &g_ble_hs_att_list, ha_next) {
         if (ha->ha_handle_id > req->bhafq_end_handle) {
+            rc = 0;
             goto done;
         }
         if (ha->ha_handle_id >= req->bhafq_start_handle) {
             uuid16 = ble_hs_uuid_16bit(ha->ha_uuid);
 
             if (*format == 0) {
-                if (uuid16 != -1) {
+                if (uuid16 != 0) {
                     *format = BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT;
                 } else {
                     *format = BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT;
@@ -441,69 +446,97 @@ ble_hs_att_fill_info(struct ble_hs_att_find_info_req *req, uint8_t *buf,
 
             switch (*format) {
             case BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT:
-                if (uuid16 == -1) {
+                if (uuid16 == 0) {
+                    rc = 0;
                     goto done;
                 }
 
-                new_rsp_sz = *rsp_sz + 4;
-                if (new_rsp_sz > buf_sz) {
+                rsp_sz = OS_MBUF_PKTHDR(om)->omp_len + 4;
+                if (rsp_sz > mtu) {
+                    rc = 0;
                     goto done;
                 }
 
-                htole16(buf + *rsp_sz, ha->ha_handle_id);
-                htole16(buf + *rsp_sz + 2, uuid16);
-                *rsp_sz = new_rsp_sz;
+                htole16(&handle_id, ha->ha_handle_id);
+                rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, &handle_id, 2);
+                if (rc != 0) {
+                    goto done;
+                }
+
+                htole16(&uuid16, uuid16);
+                rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, &uuid16, 2);
+                if (rc != 0) {
+                    goto done;
+                }
                 break;
 
             case BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT:
-                if (uuid16 != -1) {
+                if (uuid16 != 0) {
+                    rc = 0;
                     goto done;
                 }
 
-                new_rsp_sz = *rsp_sz + 18;
-                if (new_rsp_sz > buf_sz) {
+                rsp_sz = OS_MBUF_PKTHDR(om)->omp_len + 18;
+                if (rsp_sz > mtu) {
+                    rc = 0;
                     goto done;
                 }
 
-                htole16(buf + *rsp_sz, ha->ha_handle_id);
-                memcpy(buf + *rsp_sz + 2, ha->ha_uuid, 16);
-                *rsp_sz = new_rsp_sz;
+                htole16(&handle_id, ha->ha_handle_id);
+                rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, &handle_id, 2);
+                if (rc != 0) {
+                    goto done;
+                }
+
+                rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, &ha->ha_uuid,
+                                    16);
+                if (rc != 0) {
+                    goto done;
+                }
                 break;
 
             default:
                 assert(0);
                 break;
             }
+
+            num_entries++;
         }
     }
 
 done:
     ble_hs_att_list_unlock();
-    if (*rsp_sz == 0) {
+
+    if (rc == 0 && num_entries == 0) {
         return ENOENT;
     } else {
-        return 0;
+        return rc;
     }
 }
 
 static int
 ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan,
-                            struct os_mbuf *om)
+                            struct os_mbuf *rxom)
 {
     struct ble_hs_att_find_info_req req;
     struct ble_hs_att_find_info_rsp rsp;
-    int rsp_sz;
+    struct os_mbuf *txom;
+    uint8_t buf[max(BLE_HS_ATT_FIND_INFO_REQ_SZ,
+                    BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ)];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_FIND_INFO_REQ_SZ,
-                          ble_hs_att_tx_buf);
+    txom = NULL;
+
+    rc = os_mbuf_copydata(rxom, 0, BLE_HS_ATT_FIND_INFO_REQ_SZ, buf);
     if (rc != 0) {
-        return rc;
+        req.bhafq_start_handle = 0;
+        rc = BLE_HS_ATT_ERR_INVALID_PDU;
+        goto err;
     }
 
-    rc = ble_hs_att_find_info_req_parse(ble_hs_att_tx_buf,
-                                        BLE_HS_ATT_FIND_INFO_REQ_SZ, &req);
+    rc = ble_hs_att_find_info_req_parse(buf, BLE_HS_ATT_FIND_INFO_REQ_SZ,
+                                        &req);
     assert(rc == 0);
 
     /* Tx error response if start handle is greater than end handle or is equal
@@ -512,59 +545,358 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
     if (req.bhafq_start_handle > req.bhafq_end_handle ||
         req.bhafq_start_handle == 0) {
 
-        ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
-                                req.bhafq_start_handle,
-                                BLE_HS_ATT_ERR_INVALID_HANDLE);
-        return EINVAL;
+        rc = BLE_HS_ATT_ERR_INVALID_HANDLE;
+        goto err;
     }
 
-    /* Write the variable length Information Data field, reserving room for the
-     * response base at the start of the buffer.
-     */
-    rc = ble_hs_att_fill_info(
-        &req,
-        ble_hs_att_tx_buf + BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
-        ble_l2cap_chan_mtu(chan) - BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
-        &rsp_sz,
-        &rsp.bhafp_format);
-    if (rc != 0) {
-        ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
-                                req.bhafq_start_handle,
-                                BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
-        return rc;
-
+    txom = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
+    if (txom == NULL) {
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
     }
 
-    /* Now that the value of the format field is known, write the response base
-     * at the start of the buffer.
+    /* Write the response base at the start of the buffer.  The format field is
+     * unknown at this point; it will be filled in later.
      */
     rsp.bhafp_op = BLE_HS_ATT_OP_FIND_INFO_RSP;
-    rc = ble_hs_att_find_info_rsp_write(ble_hs_att_tx_buf,
-                                        BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
+    rc = ble_hs_att_find_info_rsp_write(buf, BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
                                         &rsp);
     assert(rc == 0);
-
-    rc = ble_l2cap_tx(chan, ble_hs_att_tx_buf,
-                      BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ + rsp_sz);
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, txom, buf,
+                        BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ);
     if (rc != 0) {
-        return rc;
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
+    }
+
+    /* Write the variable length Information Data field, populating the format
+     * field as appropriate.
+     */
+    rc = ble_hs_att_fill_info(&req, txom, ble_l2cap_chan_mtu(chan),
+                              txom->om_data + 1);
+    if (rc != 0) {
+        rc = BLE_HS_ATT_ERR_ATTR_NOT_FOUND;
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
     }
 
     return 0;
+
+err:
+    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, txom);
+    ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
+                            req.bhafq_start_handle, rc);
+
+    return rc;
+}
+
+/**
+ * Processes a single non-matching attribute entry while filling a
+ * Find-By-Type-Value-Response.
+ *
+ * @param om                    The response mbuf.
+ * @param first                 Pointer to the first matching handle ID in the
+ *                                  current group of IDs.  0 if there is not a
+ *                                  current group.
+ * @param prev                  Pointer to the most recent matching handle ID
+ *                                  in the current group of IDs.  0 if there is
+ *                                  not a current group.
+ * @param mtu                   The ATT L2CAP channel MTU.
+ *
+ * @return                      0 if the response should be sent;
+ *                              EAGAIN if the entry was successfully processed
+ *                                  and subsequent entries can be inspected.
+ *                              Other nonzero on error.
+ */
+static int
+ble_hs_att_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
+                                    uint16_t *prev, int mtu)
+{
+    uint16_t u16;
+    int rsp_sz;
+    int rc;
+
+    /* If there is no current group, then there is nothing to do. */
+    if (*first == 0) {
+        return EAGAIN;
+    }
+
+    rsp_sz = OS_MBUF_PKTHDR(om)->omp_len + 4;
+    if (rsp_sz > mtu) {
+        return 0;
+    }
+
+    u16 = *first;
+    htole16(&u16, u16);
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, &u16, 2);
+    if (rc != 0) {
+        return ENOMEM;
+    }
+
+    u16 = *prev;
+    htole16(&u16, u16);
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, &u16, 2);
+    if (rc != 0) {
+        return ENOMEM;
+    }
+
+    *first = 0;
+    *prev = 0;
+
+    return EAGAIN;
+}
+
+/**
+ * Processes a single matching attribute entry while filling a
+ * Find-By-Type-Value-Response.
+ *
+ * @param om                    The response mbuf.
+ * @param first                 Pointer to the first matching handle ID in the
+ *                                  current group of IDs.  0 if there is not a
+ *                                  current group.
+ * @param prev                  Pointer to the most recent matching handle ID
+ *                                  in the current group of IDs.  0 if there is
+ *                                  not a current group.
+ * @param handle_id             The matching handle ID to process.
+ * @param mtu                   The ATT L2CAP channel MTU.
+ *
+ * @return                      0 if the response should be sent;
+ *                              EAGAIN if the entry was successfully processed
+ *                                  and subsequent entries can be inspected.
+ *                              Other nonzero on error.
+ */
+static int
+ble_hs_att_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
+                                 uint16_t *prev, uint16_t handle_id, int mtu)
+{
+    int rc;
+
+    /* If this is the start of a group, record it as the first ID and keep
+     * searching.
+     */
+    if (*first == 0) {
+        *first = handle_id;
+        *prev = handle_id;
+        return EAGAIN;
+    }
+
+    /* If this is the continuation of a group, keep searching. */
+    if (handle_id == *prev + 1) {
+        *prev = handle_id;
+        return EAGAIN;
+    }
+
+    /* Otherwise, this handle is not a part of the previous group.  Write the
+     * previous group to the response, and remember this ID as the start of the
+     * next group.
+     */
+    rc = ble_hs_att_fill_type_value_no_match(om, first, prev, mtu);
+    *first = handle_id;
+    *prev = handle_id;
+    return rc;
+}
+
+/**
+ * Fills the supplied mbuf with the variable length Handles-Information-List
+ * field of a Find-By-Type-Value ATT response.
+ *
+ * @param req                   The Find-By-Type-Value-Request being responded
+ *                                  to.
+ * @param rxom                  The mbuf containing the received request.
+ * @param txom                  The destination mbuf where the
+ *                                  Handles-Information-List field gets
+ *                                  written.
+ * @param mtu                   The ATT L2CAP channel MTU.
+ *
+ * @return                      0 on success; an ATT error code on failure.
+ */
+static int
+ble_hs_att_fill_type_value(struct ble_hs_att_find_type_value_req *req,
+                           struct os_mbuf *rxom, struct os_mbuf *txom,
+                           uint16_t mtu)
+{
+    union ble_hs_att_handle_arg arg;
+    struct ble_hs_att_entry *ha;
+    uint16_t uuid16;
+    uint16_t first;
+    uint16_t prev;
+    int any_entries;
+    int match;
+    int rc;
+
+    first = 0;
+    prev = 0;
+    rc = 0;
+
+    ble_hs_att_list_lock();
+
+    /* Iterate through the attribute list, keeping track of the current
+     * matching group.  For each attribute entry, determine if data needs to be
+     * written to the response.
+     */
+    STAILQ_FOREACH(ha, &g_ble_hs_att_list, ha_next) {
+        match = 0;
+
+        if (ha->ha_handle_id > req->bhavq_end_handle) {
+            break;
+        }
+
+        if (ha->ha_handle_id >= req->bhavq_start_handle) {
+            /* Compare the attribute type and value to the request fields to
+             * determine if this attribute matches.
+             */
+            uuid16 = ble_hs_uuid_16bit(ha->ha_uuid);
+            if (uuid16 == req->bhavq_attr_type) {
+                rc = ha->ha_fn(ha, BLE_HS_ATT_OP_READ_REQ, &arg);
+                if (rc != 0) {
+                    rc = BLE_HS_ATT_ERR_UNLIKELY;
+                    goto done;
+                }
+                rc = os_mbuf_memcmp(rxom,
+                                    BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ,
+                                    arg.aha_read.attr_data,
+                                    arg.aha_read.attr_len);
+                if (rc == 0) {
+                    match = 1;
+                }
+            }
+        }
+
+        if (match) {
+            rc = ble_hs_att_fill_type_value_match(txom, &first, &prev,
+                                                  ha->ha_handle_id, mtu);
+        } else {
+            rc = ble_hs_att_fill_type_value_no_match(txom, &first, &prev, mtu);
+        }
+
+        if (rc == 0) {
+            goto done;
+        }
+        if (rc != EAGAIN) {
+            rc = BLE_HS_ATT_ERR_UNLIKELY;
+            goto done;
+        }
+    }
+
+    /* Process one last non-matching ID in case a group was in progress when
+     * the end of the attribute list was reached.
+     */
+    rc = ble_hs_att_fill_type_value_no_match(txom, &first, &prev, mtu);
+    if (rc == EAGAIN) {
+        rc = 0;
+    } else if (rc != 0) {
+        rc = BLE_HS_ATT_ERR_UNLIKELY;
+    }
+
+done:
+    ble_hs_att_list_unlock();
+
+    any_entries = OS_MBUF_PKTHDR(txom)->omp_len >
+                  BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ;
+    if (rc == 0 && !any_entries) {
+        return BLE_HS_ATT_ERR_ATTR_NOT_FOUND;
+    } else {
+        return rc;
+    }
+}
+
+static int
+ble_hs_att_rx_find_type_value_req(struct ble_hs_conn *conn,
+                                  struct ble_l2cap_chan *chan,
+                                  struct os_mbuf *rxom)
+{
+    struct ble_hs_att_find_type_value_req req;
+    struct os_mbuf *txom;
+    uint8_t buf[max(BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ,
+                    BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ)];
+    int rc;
+
+    txom = NULL;
+
+    rc = os_mbuf_copydata(rxom, 0, BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ, buf);
+    if (rc != 0) {
+        req.bhavq_start_handle = 0;
+        rc = BLE_HS_ATT_ERR_INVALID_PDU;
+        goto err;
+    }
+
+    rc = ble_hs_att_find_type_value_req_parse(
+        buf, BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ, &req);
+    assert(rc == 0);
+
+    /* Tx error response if start handle is greater than end handle or is equal
+     * to 0 (Vol. 3, Part F, 3.4.3.3).
+     */
+    if (req.bhavq_start_handle > req.bhavq_end_handle ||
+        req.bhavq_start_handle == 0) {
+
+        rc = BLE_HS_ATT_ERR_INVALID_HANDLE;
+        goto err;
+    }
+
+    txom = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
+    if (txom == NULL) {
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
+    }
+
+    /* Write the response base at the start of the buffer. */
+    buf[0] = BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP;
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, txom, buf,
+                        BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ);
+    if (rc != 0) {
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
+    }
+
+    /* Write the variable length Information Data field. */
+    rc = ble_hs_att_fill_type_value(&req, rxom, txom,
+                                    ble_l2cap_chan_mtu(chan));
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        rc = BLE_HS_ATT_ERR_UNLIKELY;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, txom);
+    ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ,
+                            req.bhavq_start_handle, rc);
+    return rc;
 }
 
 static int
 ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                        void *attr_data, int attr_len)
 {
+    struct os_mbuf *txom;
     uint16_t data_len;
     uint8_t op;
     int rc;
 
+    txom = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
+    if (txom == NULL) {
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
+    }
+
     op = BLE_HS_ATT_OP_READ_RSP;
-    rc = ble_l2cap_tx(chan, &op, 1);
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, txom, &op, 1);
     if (rc != 0) {
-        return rc;
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
     }
 
     /* Vol. 3, part F, 3.2.9; don't send more than ATT_MTU-1 bytes of data. */
@@ -574,14 +906,23 @@ ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         data_len = attr_len;
     }
 
-    rc = ble_l2cap_tx(chan, attr_data, data_len);
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, txom, attr_data, data_len);
     if (rc != 0) {
-        return rc;
+        rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
     }
 
-    /* XXX: Kick L2CAP. */
+    rc = ble_l2cap_tx(chan, txom);
+    if (rc != 0) {
+        rc = BLE_HS_ATT_ERR_UNLIKELY;
+        goto err;
+    }
 
     return 0;
+
+err:
+    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, txom);
+    return rc;
 }
 
 static int
@@ -591,43 +932,45 @@ ble_hs_att_rx_read_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     union ble_hs_att_handle_arg arg;
     struct ble_hs_att_read_req req;
     struct ble_hs_att_entry *entry;
+    uint8_t buf[BLE_HS_ATT_READ_REQ_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_READ_REQ_SZ, ble_hs_att_tx_buf);
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     if (rc != 0) {
-        return rc;
+        req.bharq_handle = 0;
+        rc = BLE_HS_ATT_ERR_INVALID_PDU;
+        goto err;
     }
 
-    rc = ble_hs_att_read_req_parse(ble_hs_att_tx_buf, BLE_HS_ATT_READ_REQ_SZ,
-                                   &req);
+    rc = ble_hs_att_read_req_parse(buf, sizeof buf, &req);
     assert(rc == 0);
 
     rc = ble_hs_att_find_by_handle(req.bharq_handle, &entry);
     if (rc != 0) {
         rc = BLE_HS_ATT_ERR_INVALID_HANDLE;
-        goto send_err;
+        goto err;
     }
 
     if (entry->ha_fn == NULL) {
         rc = BLE_ERR_UNSPECIFIED;
-        goto send_err;
+        goto err;
     }
 
     rc = entry->ha_fn(entry, BLE_HS_ATT_OP_READ_REQ, &arg);
     if (rc != 0) {
         rc = BLE_ERR_UNSPECIFIED;
-        goto send_err;
+        goto err;
     }
 
     rc = ble_hs_att_tx_read_rsp(conn, chan, arg.aha_read.attr_data,
                                 arg.aha_read.attr_len);
     if (rc != 0) {
-        goto send_err;
+        goto err;
     }
 
     return 0;
 
-send_err:
+err:
     ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_READ_REQ,
                             req.bharq_handle, rc);
     return rc;
@@ -640,12 +983,10 @@ ble_hs_att_tx_write_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     int rc;
 
     op = BLE_HS_ATT_OP_WRITE_RSP;
-    rc = ble_l2cap_tx(chan, &op, 1);
+    rc = ble_l2cap_tx_flat(chan, &op, 1);
     if (rc != 0) {
         return rc;
     }
-
-    /* XXX: Kick L2CAP. */
 
     return 0;
 }
@@ -657,16 +998,15 @@ ble_hs_att_rx_write_req(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     union ble_hs_att_handle_arg arg;
     struct ble_hs_att_write_req req;
     struct ble_hs_att_entry *entry;
+    uint8_t buf[BLE_HS_ATT_WRITE_REQ_MIN_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, BLE_HS_ATT_WRITE_REQ_MIN_SZ,
-                          ble_hs_att_tx_buf);
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hs_att_write_req_parse(ble_hs_att_tx_buf,
-                                    BLE_HS_ATT_WRITE_REQ_MIN_SZ, &req);
+    rc = ble_hs_att_write_req_parse(buf, sizeof buf, &req);
     assert(rc == 0);
 
     rc = ble_hs_att_find_by_handle(req.bhawq_handle, &entry);
@@ -772,21 +1112,11 @@ ble_hs_att_init(void)
         goto err;
     }
 
-    free(ble_hs_att_tx_buf);
-    ble_hs_att_tx_buf = malloc(BLE_HS_ATT_MTU_MAX);
-    if (ble_hs_att_tx_buf == NULL) {
-        rc = ENOMEM;
-        goto err;
-    }
-
     return 0;
 
 err:
     free(ble_hs_att_entry_mem);
     ble_hs_att_entry_mem = NULL;
-
-    free(ble_hs_att_tx_buf);
-    ble_hs_att_tx_buf = NULL;
 
     return rc;
 }

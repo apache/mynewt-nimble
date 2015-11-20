@@ -22,7 +22,7 @@
 
 TEST_CASE(ble_hs_uuid_test_128_to_16)
 {
-    int uuid16;
+    uint16_t uuid16;
 
     /*** RFCOMM */
     uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
@@ -52,19 +52,19 @@ TEST_CASE(ble_hs_uuid_test_128_to_16)
     uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
         0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x00,
         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9c, 0x34, 0xfb}));
-    TEST_ASSERT(uuid16 == -1);
+    TEST_ASSERT(uuid16 == 0);
 
     /*** Invalid prefix. */
     uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
         0x01, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x00,
         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}));
-    TEST_ASSERT(uuid16 == -1);
+    TEST_ASSERT(uuid16 == 0);
 
     /*** 16-bit UUID of 0. */
     uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}));
-    TEST_ASSERT(uuid16 == -1);
+    TEST_ASSERT(uuid16 == 0);
 }
 
 TEST_SUITE(ble_hs_uuid_test_suite)

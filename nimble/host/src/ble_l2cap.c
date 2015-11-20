@@ -221,23 +221,65 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
     return 0;
 }
 
+/**
+ * Transmits the L2CAP payload contained in the specified mbuf.  The supplied
+ * mbuf is consumed, regardless of the outcome of the function call.
+ *
+ * @param chan                  The L2CAP channel to transmit over.
+ * @param om                    The data to transmit.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
 int
-ble_l2cap_tx(struct ble_l2cap_chan *chan, void *payload, int len)
+ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
 {
-    int rc;
-
-    rc = ble_l2cap_ensure_buf(&chan->blc_tx_buf);
-    if (rc != 0) {
-        /* XXX Need to deal with this in a way that prevents starvation. */
-        return ENOMEM;
+    /* XXX Enqueue mbuf. */
+    if (chan->blc_tx_buf != NULL) {
+        os_mbuf_free_chain(&ble_l2cap_mbuf_pool, chan->blc_tx_buf);
     }
 
-    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, payload, len);
-    if (rc != 0) {
-        return rc;
-    }
+    chan->blc_tx_buf = om;
 
     return 0;
+}
+
+/**
+ * Transmits the L2CAP payload contained in the specified flat buffer.
+ *
+ * @param chan                  The L2CAP channel to transmit over.
+ * @param payload               The data to transmit.
+ * @param len                   The number of data bytes to send.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
+int
+ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
+    if (om == NULL) {
+        rc = ENOMEM;
+        goto done;
+    }
+
+    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, payload, len);
+    if (rc != 0) {
+        goto done;
+    }
+
+    rc = ble_l2cap_tx(chan, om);
+    om = NULL;
+    if (rc != 0) {
+        goto done;
+    }
+
+    rc = 0;
+
+done:
+    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, om);
+    return rc;
 }
 
 int

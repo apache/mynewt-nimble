@@ -79,7 +79,8 @@ int ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
                  void *pkt);
-int ble_l2cap_tx(struct ble_l2cap_chan *chan, void *payload, int len);
+int ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om);
+int ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len);
 
 int ble_l2cap_init(void);
 

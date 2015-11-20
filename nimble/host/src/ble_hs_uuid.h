@@ -17,6 +17,6 @@
 #ifndef H_BLE_HS_UUID_
 #define H_BLE_HS_UUID_
 
-int ble_hs_uuid_16bit(uint8_t *uuid128);
+uint16_t ble_hs_uuid_16bit(uint8_t *uuid128);
 
 #endif /* _BLE_HOST_UUID_H */
