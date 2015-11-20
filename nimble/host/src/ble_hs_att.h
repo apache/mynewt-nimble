@@ -17,6 +17,8 @@
 #ifndef H_BLE_HS_ATT_
 #define H_BLE_HS_ATT_
 
+struct ble_hs_conn;
+
 #define BLE_HS_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
 
@@ -26,8 +28,6 @@
 #define BLE_HS_ATT_ERR_ATTR_NOT_FOUND       0x0a
 #define BLE_HS_ATT_ERR_UNLIKELY             0x0e
 #define BLE_HS_ATT_ERR_INSUFFICIENT_RES     0x11
-
-struct ble_hs_att_entry;
 
 union ble_hs_att_handle_arg {
     struct {
@@ -40,6 +40,8 @@ union ble_hs_att_handle_arg {
         int attr_len;
     } aha_write;
 };
+
+struct ble_hs_att_entry;
 
 /**
  * Called from ble_hs_att_walk().  Called on each entry in the 

@@ -37,8 +37,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
@@ -81,8 +80,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
@@ -123,8 +121,7 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_conn_master_in_progress());

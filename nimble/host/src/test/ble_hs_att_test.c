@@ -39,10 +39,7 @@ static void
 ble_hs_att_test_misc_init(struct ble_hs_conn **conn,
                           struct ble_l2cap_chan **att_chan)
 {
-    int rc;
-
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_init();
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
     *conn = ble_hs_conn_find(2);
@@ -114,7 +111,7 @@ ble_hs_att_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     uint8_t buf[BLE_HS_ATT_ERROR_RSP_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, sizeof buf, buf);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_att_error_rsp_parse(buf, sizeof buf, &rsp);
@@ -126,7 +123,7 @@ ble_hs_att_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(rsp.bhaep_error_code == error_code);
 
     /* Remove the error response from the buffer. */
-    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf,
+    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx,
                 BLE_HS_ATT_ERROR_RSP_SZ);
 }
 
@@ -138,21 +135,21 @@ ble_hs_att_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
     int rc;
     int i;
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, 1, &u8);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_HS_ATT_OP_READ_RSP);
 
     for (i = 0; i < attr_len; i++) {
-        rc = os_mbuf_copydata(chan->blc_tx_buf, i + 1, 1, &u8);
+        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, i + 1, 1, &u8);
         TEST_ASSERT(rc == 0);
         TEST_ASSERT(u8 == attr_data[i]);
     }
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, i + 1, 1, &u8);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, i + 1, 1, &u8);
     TEST_ASSERT(rc != 0);
 
     /* Remove the read response from the buffer. */
-    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, attr_len + 1);
+    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx, attr_len + 1);
 }
 
 static void
@@ -161,12 +158,12 @@ ble_hs_att_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
     uint8_t u8;
     int rc;
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, 1, &u8);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_HS_ATT_OP_WRITE_RSP);
 
     /* Remove the write response from the buffer. */
-    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf,
+    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx,
                 BLE_HS_ATT_WRITE_RSP_SZ);
 }
 
@@ -177,7 +174,7 @@ ble_hs_att_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
     uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, 0, sizeof buf, buf);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
@@ -187,7 +184,7 @@ ble_hs_att_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
     TEST_ASSERT(rsp.bhamc_mtu == chan->blc_my_mtu);
 
     /* Remove the write response from the buffer. */
-    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf,
+    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx,
                 BLE_HS_ATT_MTU_CMD_SZ);
 }
 
@@ -212,7 +209,7 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
 
     off = 0;
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, off, sizeof buf, buf);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
     off += sizeof buf;
 
@@ -222,7 +219,7 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
     TEST_ASSERT(rsp.bhafp_op == BLE_HS_ATT_OP_FIND_INFO_RSP);
 
     for (entry = entries; entry->handle != 0; entry++) {
-        rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &handle);
+        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &handle);
         TEST_ASSERT(rc == 0);
         off += 2;
 
@@ -232,7 +229,7 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
         if (entry->uuid16 != 0) {
             TEST_ASSERT(rsp.bhafp_format ==
                         BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT);
-            rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &uuid16);
+            rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &uuid16);
             TEST_ASSERT(rc == 0);
             off += 2;
 
@@ -241,7 +238,7 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
         } else {
             TEST_ASSERT(rsp.bhafp_format ==
                         BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT);
-            rc = os_mbuf_copydata(chan->blc_tx_buf, off, 16, uuid128);
+            rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 16, uuid128);
             TEST_ASSERT(rc == 0);
             off += 16;
 
@@ -250,10 +247,10 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
     }
 
     /* Ensure there is no extra data in the response. */
-    TEST_ASSERT(off == OS_MBUF_PKTHDR(chan->blc_tx_buf)->omp_len);
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(ble_hs_test_util_prev_tx)->omp_len);
 
     /* Remove the response from the buffer. */
-    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, off);
+    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx, off);
 }
 
 struct ble_hs_att_test_type_value_entry {
@@ -274,20 +271,20 @@ ble_hs_att_test_misc_verify_tx_find_type_value_rsp(
 
     off = 0;
 
-    rc = os_mbuf_copydata(chan->blc_tx_buf, off, 1, &op);
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 1, &op);
     TEST_ASSERT(rc == 0);
     off += 1;
 
     TEST_ASSERT(op == BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP);
 
     for (entry = entries; entry->first != 0; entry++) {
-        rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &u16);
+        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &u16);
         TEST_ASSERT(rc == 0);
         htole16(&u16, u16);
         TEST_ASSERT(u16 == entry->first);
         off += 2;
 
-        rc = os_mbuf_copydata(chan->blc_tx_buf, off, 2, &u16);
+        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &u16);
         TEST_ASSERT(rc == 0);
         htole16(&u16, u16);
         TEST_ASSERT(u16 == entry->last);
@@ -295,10 +292,10 @@ ble_hs_att_test_misc_verify_tx_find_type_value_rsp(
     }
 
     /* Ensure there is no extra data in the response. */
-    TEST_ASSERT(off == OS_MBUF_PKTHDR(chan->blc_tx_buf)->omp_len);
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(ble_hs_test_util_prev_tx)->omp_len);
 
     /* Remove the response from the buffer. */
-    os_mbuf_adj(&ble_l2cap_mbuf_pool, chan->blc_tx_buf, off);
+    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx, off);
 }
 
 static void
@@ -322,6 +319,7 @@ ble_hs_att_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     TEST_ASSERT(chan->blc_peer_mtu == peer_actual);
 
@@ -366,6 +364,7 @@ TEST_CASE(ble_hs_att_test_read)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_READ_REQ, 0,
                                            BLE_HS_ATT_ERR_INVALID_HANDLE);
 
@@ -381,6 +380,7 @@ TEST_CASE(ble_hs_att_test_read)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_r_1,
                                             ble_hs_att_test_attr_r_1_len);
@@ -397,6 +397,7 @@ TEST_CASE(ble_hs_att_test_read)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_read_rsp(chan, ble_hs_att_test_attr_r_1,
                                             BLE_HS_ATT_MTU_DFLT - 1);
@@ -422,6 +423,7 @@ TEST_CASE(ble_hs_att_test_write)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_WRITE_REQ, 0,
                                            BLE_HS_ATT_ERR_INVALID_HANDLE);
 
@@ -437,6 +439,7 @@ TEST_CASE(ble_hs_att_test_write)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_write_rsp(chan);
 }
@@ -475,6 +478,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                                            0, BLE_HS_ATT_ERR_INVALID_HANDLE);
@@ -488,6 +492,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                                            101, BLE_HS_ATT_ERR_INVALID_HANDLE);
@@ -501,6 +506,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                                            200, BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
@@ -518,6 +524,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                                            200, BLE_HS_ATT_ERR_ATTR_NOT_FOUND);
@@ -531,6 +538,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
         ((struct ble_hs_att_test_info_entry[]) { {
@@ -553,6 +561,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
         ((struct ble_hs_att_test_info_entry[]) { {
@@ -578,6 +587,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
         ((struct ble_hs_att_test_info_entry[]) { {
@@ -599,6 +609,7 @@ TEST_CASE(ble_hs_att_test_find_info)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_info_rsp(chan,
         ((struct ble_hs_att_test_info_entry[]) { {
@@ -655,6 +666,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(
         chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 0,
@@ -669,6 +681,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(
         chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 101,
@@ -683,6 +696,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(
         chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 200,
@@ -701,6 +715,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_err_rsp(
         chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ, 200,
@@ -715,6 +730,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
         ((struct ble_hs_att_test_type_value_entry[]) { {
@@ -737,6 +753,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
         ((struct ble_hs_att_test_type_value_entry[]) { {
@@ -763,6 +780,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
         ((struct ble_hs_att_test_type_value_entry[]) { {
@@ -787,6 +805,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
         ((struct ble_hs_att_test_type_value_entry[]) { {
@@ -811,6 +830,7 @@ TEST_CASE(ble_hs_att_test_find_type_value)
 
     rc = ble_l2cap_rx_payload(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
 
     ble_hs_att_test_misc_verify_tx_find_type_value_rsp(chan,
         ((struct ble_hs_att_test_type_value_entry[]) { {

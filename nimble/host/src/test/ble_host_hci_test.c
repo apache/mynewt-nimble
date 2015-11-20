@@ -45,8 +45,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_complete)
     uint8_t buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN];
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_init();
 
     /*** Unsent OCF. */
     ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 1, 1, 12345);
@@ -78,8 +77,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
     uint8_t buf[BLE_HCI_EVENT_CMD_STATUS_LEN];
     int rc;
 
-    rc = ble_hs_init(10);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_init();
 
     /*** Unsent OCF. */
     ble_hs_test_util_build_cmd_status(buf, sizeof buf, 0, 1, 12345);

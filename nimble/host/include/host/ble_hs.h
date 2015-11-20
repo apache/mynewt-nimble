@@ -18,8 +18,20 @@
 #define _BLE_HOST_H 
 
 #include <inttypes.h>
+struct os_mbuf;
 
+#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
+#define BLE_HS_KICK_EVENT               (OS_EVENT_T_PERUSER + 1)
+#define BLE_HS_RX_DATA_EVENT            (OS_EVENT_T_PERUSER + 2)
+#define BLE_HS_TX_DATA_EVENT            (OS_EVENT_T_PERUSER + 3)
+
+extern struct os_mbuf_pool ble_hs_mbuf_pool;
+extern struct os_eventq ble_hs_evq;
+
+void ble_hs_process_tx_data_queue(void);
 void ble_hs_task_handler(void *arg);
+int ble_hs_rx_data(struct os_mbuf *om);
+int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_kick(void);
 int ble_hs_init(uint8_t prio);
 

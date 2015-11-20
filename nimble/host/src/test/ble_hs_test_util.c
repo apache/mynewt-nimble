@@ -19,9 +19,12 @@
 #include "nimble/hci_common.h"
 #include "testutil/testutil.h"
 #include "host/host_hci.h"
+#include "host/ble_hs.h"
 #include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_test_util.h"
+
+struct os_mbuf *ble_hs_test_util_prev_tx;
 
 void
 ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
@@ -84,4 +87,15 @@ void
 ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
 {
     ble_hs_test_util_rx_ack((BLE_HCI_OGF_LE << 10) | ocf, status);
+}
+
+void
+ble_hs_test_util_init(void)
+{
+    int rc;
+
+    rc = ble_hs_init(10);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_hs_test_util_prev_tx = NULL;
 }

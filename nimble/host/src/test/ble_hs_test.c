@@ -14,8 +14,22 @@
  * limitations under the License.
  */
 
+#include "os/os.h"
+#include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
+#include "ble_l2cap.h"
+#include "ble_hs_test_util.h"
+
+void
+ble_hs_test_pkt_txed(struct os_mbuf *om)
+{
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx);
+    ble_hs_test_util_prev_tx = om;
+
+    /* XXX: For now, just strip the L2CAP header. */
+    os_mbuf_adj(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+}
 
 #ifdef PKG_TEST
 

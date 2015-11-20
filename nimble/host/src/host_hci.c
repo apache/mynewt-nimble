@@ -49,10 +49,6 @@ struct os_mempool g_hci_os_event_pool;
 os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS, 
                                                HCI_OS_EVENT_BUF_SIZE)];
 
-/* Host HCI Task Events */
-struct os_eventq g_ble_host_hci_evq;
-#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER)
-
 /* Statistics */
 struct host_hci_stats
 {
@@ -347,7 +343,7 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     ev->ev_queued = 0;
     ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
     ev->ev_arg = hci_ev;
-    os_eventq_put(&g_ble_host_hci_evq, ev);
+    os_eventq_put(&ble_hs_evq, ev);
 
     return 0;
 }

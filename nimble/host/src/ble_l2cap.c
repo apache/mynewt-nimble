@@ -20,24 +20,15 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "host/ble_hs.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 
-#define BLE_L2CAP_CHAN_MAX  32
+#define BLE_L2CAP_CHAN_MAX              32
 
-#define BLE_L2CAP_NUM_MBUFS      (16)
-#define BLE_L2CAP_BUF_SIZE       (256)
-#define BLE_L2CAP_MEMBLOCK_SIZE  \
-    (BLE_L2CAP_BUF_SIZE + sizeof(struct os_mbuf) + \
-     sizeof(struct os_mbuf_pkthdr))
-
-#define BLE_L2CAP_MEMPOOL_SIZE  \
-    OS_MEMPOOL_SIZE(BLE_L2CAP_NUM_MBUFS, BLE_L2CAP_MEMBLOCK_SIZE)
-
-struct os_mbuf_pool ble_l2cap_mbuf_pool;
-
-static struct os_mempool ble_l2cap_mbuf_mempool;
 static struct os_mempool ble_l2cap_chan_pool;
+
+static void *ble_l2cap_chan_mem;
 
 struct ble_l2cap_chan *
 ble_l2cap_chan_alloc(void)
@@ -145,7 +136,7 @@ static int
 ble_l2cap_ensure_buf(struct os_mbuf **om)
 {
     if (*om == NULL) {
-        *om = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
+        *om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
         if (*om == NULL) {
             return ENOMEM;
         }
@@ -167,7 +158,7 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return ENOMEM;
     }
 
-    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, chan->blc_rx_buf, payload, len);
+    rc = os_mbuf_append(&ble_hs_mbuf_pool, chan->blc_rx_buf, payload, len);
     if (rc != 0) {
         /* XXX Need to deal with this in a way that prevents starvation. */
         return rc;
@@ -178,7 +169,7 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     chan->blc_rx_buf = NULL;
 
     rc = chan->blc_rx_fn(conn, chan, om);
-    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, om);
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
     if (rc != 0) {
         return rc;
     }
@@ -233,14 +224,32 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 int
 ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
 {
-    /* XXX Enqueue mbuf. */
-    if (chan->blc_tx_buf != NULL) {
-        os_mbuf_free_chain(&ble_l2cap_mbuf_pool, chan->blc_tx_buf);
+    struct ble_l2cap_hdr hdr;
+    int rc;
+
+    hdr.blh_len = OS_MBUF_PKTHDR(om)->omp_len;
+    hdr.blh_cid = chan->blc_cid;
+
+    om = os_mbuf_prepend(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+    if (om == NULL) {
+        rc = ENOMEM;
+        goto err;
     }
 
-    chan->blc_tx_buf = om;
+    // XXX
+    rc = ble_l2cap_write_hdr(om->om_data, BLE_L2CAP_HDR_SZ, &hdr);
+    assert(rc == 0);
+
+    rc = ble_hs_tx_data(om);
+    if (rc != 0) {
+        goto err;
+    }
 
     return 0;
+
+err:
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    return rc;
 }
 
 /**
@@ -258,13 +267,13 @@ ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len)
     struct os_mbuf *om;
     int rc;
 
-    om = os_mbuf_get_pkthdr(&ble_l2cap_mbuf_pool);
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
     if (om == NULL) {
         rc = ENOMEM;
         goto done;
     }
 
-    rc = os_mbuf_append(&ble_l2cap_mbuf_pool, om, payload, len);
+    rc = os_mbuf_append(&ble_hs_mbuf_pool, om, payload, len);
     if (rc != 0) {
         goto done;
     }
@@ -278,46 +287,43 @@ ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len)
     rc = 0;
 
 done:
-    os_mbuf_free_chain(&ble_l2cap_mbuf_pool, om);
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
     return rc;
+}
+
+static void
+ble_l2cap_free_mem(void)
+{
+    free(ble_l2cap_chan_mem);
+    ble_l2cap_chan_mem = NULL;
 }
 
 int
 ble_l2cap_init(void)
 {
-    os_membuf_t *chan_mem;
-    os_membuf_t *mbuf_mem;
     int rc;
 
-    chan_mem = malloc(
+    ble_l2cap_free_mem();
+
+    ble_l2cap_chan_mem = malloc(
         OS_MEMPOOL_SIZE(BLE_L2CAP_CHAN_MAX,
                         sizeof (struct ble_l2cap_chan)));
-    if (chan_mem == NULL) {
-        return ENOMEM;
+    if (ble_l2cap_chan_mem == NULL) {
+        rc = ENOMEM;
+        goto err;
     }
 
     rc = os_mempool_init(&ble_l2cap_chan_pool, BLE_L2CAP_CHAN_MAX,
                          sizeof (struct ble_l2cap_chan),
-                         chan_mem, "ble_l2cap_chan_pool");
+                         ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
-        return EINVAL; // XXX
-    }
-
-    mbuf_mem = malloc(BLE_L2CAP_MEMPOOL_SIZE);
-    if (mbuf_mem == NULL) {
-        return ENOMEM;
-    }
-    rc = os_mempool_init(&ble_l2cap_mbuf_mempool, BLE_L2CAP_NUM_MBUFS,
-                         BLE_L2CAP_MEMBLOCK_SIZE,
-                         mbuf_mem, "ble_l2cap_mbuf_pool");
-    if (rc != 0) {
-        return EINVAL; // XXX
-    }
-    rc = os_mbuf_pool_init(&ble_l2cap_mbuf_pool, &ble_l2cap_mbuf_mempool,
-                           0, BLE_L2CAP_MEMBLOCK_SIZE, BLE_L2CAP_NUM_MBUFS);
-    if (rc != 0) {
-        return EINVAL; // XXX
+        rc = EINVAL; // XXX
+        goto err;
     }
 
     return 0;
+
+err:
+    ble_l2cap_free_mem();
+    return rc;
 }

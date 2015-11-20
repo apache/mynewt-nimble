@@ -56,7 +56,6 @@ struct ble_l2cap_chan
     ble_l2cap_chan_flags blc_flags;
 
     struct os_mbuf *blc_rx_buf;
-    struct os_mbuf *blc_tx_buf;
 
     ble_l2cap_rx_fn *blc_rx_fn;
 };

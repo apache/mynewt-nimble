@@ -2,9 +2,11 @@ egg.name: net/nimble/host
 egg.vers: 0.1 
 egg.deps:
     - libs/os
+    - libs/util
     - net/nimble
 egg.req_caps:
     - console
 
 # Satisfy capability dependencies for the self-contained test executable.
 egg.deps.test: libs/console/stub
+egg.cflags.test: -DPHONY_TRANSPORT

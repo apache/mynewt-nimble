@@ -124,7 +124,7 @@ TEST_CASE(ble_gap_test_case)
                  BLE_GAP_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_gap_test_stack,
                  OS_STACK_ALIGN(BLE_GAP_TEST_STACK_SIZE));
 
-    ble_hs_init(BLE_GAP_TEST_HS_PRIO);
+    ble_hs_test_util_init();
 
     os_start();
 }

@@ -15,6 +15,8 @@
  */
 
 #include <assert.h>
+#include <errno.h>
+#include "util/tpq.h"
 #include "os/os.h"
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
@@ -23,6 +25,9 @@
 #include "ble_hs_ack.h"
 #include "ble_hs_work.h"
 #include "ble_gap_conn.h"
+#ifdef PHONY_TRANSPORT
+#include "host/ble_hs_test.h"
+#endif
 
 #ifdef ARCH_sim
 #define BLE_HS_STACK_SIZE   (1024)
@@ -33,7 +38,6 @@
 struct os_task ble_hs_task;
 os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE];
 
-
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
@@ -43,15 +47,68 @@ os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS, HCI_CMD_BUF_SIZE)];
 #define HCI_NUM_OS_EVENTS       (32)
 #define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
 
+#define BLE_HS_NUM_MBUFS             (16)
+#define BLE_HS_MBUF_BUF_SIZE         (256)
+#define BLE_HS_MBUF_MEMBLOCK_SIZE                                \
+    (BLE_HS_MBUF_BUF_SIZE + sizeof(struct os_mbuf) +             \
+     sizeof(struct os_mbuf_pkthdr))
+
+#define BLE_HS_MBUF_MEMPOOL_SIZE                                 \
+    OS_MEMPOOL_SIZE(BLE_HS_NUM_MBUFS, BLE_HS_MBUF_MEMBLOCK_SIZE)
+
+#define BLE_HS_PKT_MAX              BLE_HS_NUM_MBUFS
+
 struct os_mempool g_hci_os_event_pool;
 os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
                                                HCI_OS_EVENT_BUF_SIZE)];
 
+static os_membuf_t *ble_hs_mbuf_mem;
+struct os_mempool ble_hs_mbuf_mempool;
+struct os_mbuf_pool ble_hs_mbuf_pool;
+
 /* Host HCI Task Events */
-struct os_eventq g_ble_host_hci_evq;
+struct os_eventq ble_hs_evq;
 static struct os_event ble_hs_kick_ev;
-#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
-#define BLE_HS_KICK_EVENT               (OS_EVENT_T_PERUSER + 1)
+
+
+struct ble_hs_pkt {
+    struct tpq_elem bhp_tpq_elem;
+    struct os_mbuf *bhp_om;
+};
+static os_membuf_t *ble_hs_pkt_mem;
+static struct os_mempool ble_hs_pkt_pool;
+
+static struct tpq ble_hs_rx_q;
+static struct tpq ble_hs_tx_q;
+
+void
+ble_hs_process_tx_data_queue(void)
+{
+    struct ble_hs_pkt *pkt;
+    struct tpq_elem *tpq_elem;
+
+    while ((tpq_elem = tpq_get(&ble_hs_tx_q)) != NULL) {
+        pkt = (void *)tpq_elem;
+
+#ifdef PHONY_TRANSPORT
+        ble_hs_test_pkt_txed(pkt->bhp_om);
+#endif
+
+        os_memblock_put(&ble_hs_pkt_pool, pkt);
+    }
+}
+
+static void
+ble_hs_process_rx_data_queue(void)
+{
+    struct ble_hs_pkt *pkt;
+    struct tpq_elem *tpq_elem;
+
+    while ((tpq_elem = tpq_get(&ble_hs_tx_q)) != NULL) {
+        pkt = (void *)tpq_elem;
+        os_memblock_put(&ble_hs_pkt_pool, pkt);
+    }
+}
 
 void
 ble_hs_task_handler(void *arg)
@@ -60,7 +117,7 @@ ble_hs_task_handler(void *arg)
     struct os_callout_func *cf;
 
     while (1) {
-        ev = os_eventq_get(&g_ble_host_hci_evq);
+        ev = os_eventq_get(&ble_hs_evq);
         switch (ev->ev_type) {
         case OS_EVENT_T_TIMER:
             cf = (struct os_callout_func *)ev;
@@ -71,6 +128,14 @@ ble_hs_task_handler(void *arg)
         case BLE_HOST_HCI_EVENT_CTLR_EVENT:
             /* Process HCI event from controller */
             host_hci_os_event_proc(ev);
+            break;
+
+        case BLE_HS_RX_DATA_EVENT:
+            ble_hs_process_rx_data_queue();
+            break;
+
+        case BLE_HS_TX_DATA_EVENT:
+            ble_hs_process_tx_data_queue();
             break;
 
         case BLE_HS_KICK_EVENT:
@@ -90,13 +155,57 @@ ble_hs_task_handler(void *arg)
     }
 }
 
+int
+ble_hs_rx_data(struct os_mbuf *om)
+{
+    struct ble_hs_pkt *pkt;
+
+    pkt = os_memblock_get(&ble_hs_pkt_pool);
+    if (pkt == NULL) {
+        os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+        return ENOMEM;
+    }
+
+    pkt->bhp_om = om;
+    tpq_put(&ble_hs_evq, &ble_hs_rx_q, &pkt->bhp_tpq_elem);
+
+    return 0;
+}
+
+int
+ble_hs_tx_data(struct os_mbuf *om)
+{
+    struct ble_hs_pkt *pkt;
+
+    pkt = os_memblock_get(&ble_hs_pkt_pool);
+    if (pkt == NULL) {
+        os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+        return ENOMEM;
+    }
+
+    pkt->bhp_om = om;
+    tpq_put(&ble_hs_evq, &ble_hs_tx_q, &pkt->bhp_tpq_elem);
+
+    return 0;
+}
+
 /**
  * Wakes the BLE host task so that it can process work events.
  */
 void
 ble_hs_kick(void)
 {
-    os_eventq_put(&g_ble_host_hci_evq, &ble_hs_kick_ev);
+    os_eventq_put(&ble_hs_evq, &ble_hs_kick_ev);
+}
+
+static void
+ble_hs_free_mem(void)
+{
+    free(ble_hs_pkt_mem);
+    ble_hs_pkt_mem = NULL;
+
+    free(ble_hs_mbuf_mem);
+    ble_hs_mbuf_mem = NULL;
 }
 
 /**
@@ -106,6 +215,8 @@ int
 ble_hs_init(uint8_t prio)
 {
     int rc;
+
+    ble_hs_free_mem();
 
     /* Create memory pool of command buffers */
     rc = os_mempool_init(&g_hci_cmd_pool, HCI_CMD_BUFS, HCI_CMD_BUF_SIZE,
@@ -120,35 +231,69 @@ ble_hs_init(uint8_t prio)
     assert(rc == 0);
 
     /* Initialize eventq */
-    os_eventq_init(&g_ble_host_hci_evq);
+    os_eventq_init(&ble_hs_evq);
 
     host_hci_init();
 
+    ble_hs_mbuf_mem = malloc(BLE_HS_MBUF_MEMPOOL_SIZE);
+    if (ble_hs_mbuf_mem == NULL) {
+        rc = ENOMEM;
+        goto err;
+    }
+    rc = os_mempool_init(&ble_hs_mbuf_mempool, BLE_HS_NUM_MBUFS,
+                         BLE_HS_MBUF_MEMBLOCK_SIZE,
+                         ble_hs_mbuf_mem, "ble_hs_mbuf_pool");
+    if (rc != 0) {
+        rc = EINVAL; // XXX
+        goto err;
+    }
+    rc = os_mbuf_pool_init(&ble_hs_mbuf_pool, &ble_hs_mbuf_mempool, 0,
+                           BLE_HS_MBUF_MEMBLOCK_SIZE, BLE_HS_NUM_MBUFS);
+    if (rc != 0) {
+        rc = EINVAL; // XXX
+        goto err;
+    }
+
+    ble_hs_pkt_mem = malloc(
+        OS_MEMPOOL_SIZE(BLE_HS_PKT_MAX,
+                        sizeof (struct ble_hs_pkt)));
+    if (ble_hs_pkt_mem == NULL) {
+        rc = ENOMEM;
+        goto err;
+    }
+    rc = os_mempool_init(&ble_hs_pkt_pool, BLE_HS_PKT_MAX,
+                         sizeof (struct ble_hs_pkt),
+                         ble_hs_pkt_mem, "ble_hs_pkt_pool");
+    if (rc != 0) {
+        rc = EINVAL; // XXX
+        goto err;
+    }
+
     rc = ble_hs_conn_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_l2cap_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_hs_att_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_gap_conn_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     ble_hs_ack_init();
 
     rc = ble_hs_work_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     ble_hs_kick_ev.ev_queued = 0;
@@ -158,5 +303,13 @@ ble_hs_init(uint8_t prio)
     os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
                  OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
 
+
+    tpq_init(&ble_hs_rx_q, BLE_HS_RX_DATA_EVENT, NULL);
+    tpq_init(&ble_hs_tx_q, BLE_HS_TX_DATA_EVENT, NULL);
+
     return 0;
+
+err:
+    ble_hs_free_mem();
+    return rc;
 }
