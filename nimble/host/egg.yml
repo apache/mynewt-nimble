@@ -8,5 +8,5 @@ egg.req_caps:
     - console
 
 # Satisfy capability dependencies for the self-contained test executable.
-egg.deps.test: libs/console/stub
-egg.cflags.test: -DPHONY_TRANSPORT
+egg.deps.selftest: libs/console/stub
+egg.cflags.selftest: -DPHONY_TRANSPORT
