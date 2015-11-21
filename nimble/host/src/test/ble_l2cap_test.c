@@ -29,7 +29,7 @@ TEST_CASE(l2cap_test_bad_header)
     struct ble_l2cap_hdr l2cap_hdr;
     struct hci_data_hdr hci_hdr;
     struct ble_hs_conn *conn;
-    uint8_t pkt[8];
+    struct os_mbuf *om;
     int rc;
 
     ble_hs_test_util_init();
@@ -41,23 +41,37 @@ TEST_CASE(l2cap_test_bad_header)
     hci_hdr.hdh_handle_pb_bc = 0;
     hci_hdr.hdh_len = 10;
 
-    /* HCI header indicates a length of 10, but L2CAP header has a length
-     * of 0.
+    /*** HCI header indicates a length of 10, but L2CAP header has a length
+     *   of 0.
      */
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    TEST_ASSERT_FATAL(om != NULL);
+
     l2cap_hdr.blh_len = 0;
     l2cap_hdr.blh_cid = 0;
-    rc = ble_l2cap_write_hdr(pkt, sizeof pkt, &l2cap_hdr);
-    TEST_ASSERT(rc == 0);
-    rc = ble_l2cap_rx(conn, &hci_hdr, pkt);
+
+    om = ble_l2cap_prepend_hdr(om, &l2cap_hdr);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT(rc == EMSGSIZE);
 
-    /* Length is correct; specified channel doesn't exist. */
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+
+    /*** Length is correct; specified channel doesn't exist. */
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    TEST_ASSERT_FATAL(om != NULL);
+
     l2cap_hdr.blh_len = 6;
     l2cap_hdr.blh_cid = 0;
-    rc = ble_l2cap_write_hdr(pkt, sizeof pkt, &l2cap_hdr);
-    TEST_ASSERT(rc == 0);
-    rc = ble_l2cap_rx(conn, &hci_hdr, pkt);
+
+    om = ble_l2cap_prepend_hdr(om, &l2cap_hdr);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT(rc == ENOENT);
+
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
 }
 
 TEST_SUITE(l2cap_gen)

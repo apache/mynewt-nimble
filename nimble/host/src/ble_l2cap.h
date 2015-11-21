@@ -68,16 +68,19 @@ void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
 uint16_t ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan);
 
-int ble_l2cap_parse_hdr(void *pkt, uint16_t len,
+int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
                         struct ble_l2cap_hdr *l2cap_hdr);
-int ble_l2cap_write_hdr(void *dst, uint16_t len,
-                        const struct ble_l2cap_hdr *l2cap_hdr);
+struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om,
+                                      const struct ble_l2cap_hdr *l2cap_hdr);
 
 int ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         void *payload, int len);
+                         struct os_mbuf *om);
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
-                 void *pkt);
+                 struct os_mbuf *om);
+int ble_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan,
+                              const void *data, int len);
 int ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om);
 int ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len);
 

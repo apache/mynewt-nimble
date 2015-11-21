@@ -80,119 +80,122 @@ ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
 }
 
 int
-ble_l2cap_parse_hdr(void *pkt, uint16_t len, struct ble_l2cap_hdr *l2cap_hdr)
+ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
+                    struct ble_l2cap_hdr *l2cap_hdr)
 {
-    uint8_t *u8ptr;
-    uint16_t off;
+    int rc;
 
-    if (len < BLE_L2CAP_HDR_SZ) {
+    rc = os_mbuf_copydata(om, off, sizeof *l2cap_hdr, l2cap_hdr);
+    if (rc != 0) {
         return EMSGSIZE;
     }
 
-    off = 0;
-    u8ptr = pkt;
-
-    l2cap_hdr->blh_len = le16toh(u8ptr + off);
-    off += 2;
-
-    l2cap_hdr->blh_cid = le16toh(u8ptr + off);
-    off += 2;
+    l2cap_hdr->blh_len = le16toh(&l2cap_hdr->blh_len);
+    l2cap_hdr->blh_cid = le16toh(&l2cap_hdr->blh_cid);
 
     return 0;
 }
 
-int
-ble_l2cap_write_hdr(void *dst, uint16_t len,
-                    const struct ble_l2cap_hdr *l2cap_hdr)
+struct os_mbuf *
+ble_l2cap_prepend_hdr(struct os_mbuf *om,
+                      const struct ble_l2cap_hdr *l2cap_hdr)
 {
-    uint8_t *u8ptr;
-    uint16_t off;
+    uint8_t buf[BLE_L2CAP_HDR_SZ];
+    int rc;
 
-    if (len < BLE_L2CAP_HDR_SZ) {
-        return EMSGSIZE;
+    om = os_mbuf_prepend(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+    if (om == NULL) {
+        goto err;
     }
 
-    off = 0;
-    u8ptr = dst;
+    htole16(buf + 0, l2cap_hdr->blh_len);
+    htole16(buf + 2, l2cap_hdr->blh_cid);
 
-    htole16(u8ptr + off, l2cap_hdr->blh_len);
-    off += 2;
-
-    htole16(u8ptr + off, l2cap_hdr->blh_cid);
-    off += 2;
-
-    return 0;
-}
-
-/**
- * If the specified pointer points to null, this function attempts to allocate
- * an mbuf from the l2cap mbuf pool and assigns the result to the pointer.  No
- * effect if the specified pointer already points to an mbuf.
- *
- * @return                      0 on success;
- *                              ENOMEM on mbuf allocation failure.
- */
-static int
-ble_l2cap_ensure_buf(struct os_mbuf **om)
-{
-    if (*om == NULL) {
-        *om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
-        if (*om == NULL) {
-            return ENOMEM;
-        }
+    rc = os_mbuf_copyinto(&ble_hs_mbuf_pool, om, 0, buf, sizeof buf);
+    if (rc != 0) {
+        goto err;
     }
 
-    return 0;
+    return om;
+
+err:
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    return NULL;
 }
 
 int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                     void *payload, int len)
+                     struct os_mbuf *om)
 {
-    struct os_mbuf *om;
     int rc;
 
-    rc = ble_l2cap_ensure_buf(&chan->blc_rx_buf);
-    if (rc != 0) {
-        /* XXX Need to deal with this in a way that prevents starvation. */
-        return ENOMEM;
-    }
-
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, chan->blc_rx_buf, payload, len);
-    if (rc != 0) {
-        /* XXX Need to deal with this in a way that prevents starvation. */
-        return rc;
+    if (chan->blc_rx_buf == NULL) {
+        chan->blc_rx_buf = om;
+    } else {
+        os_mbuf_splice(chan->blc_rx_buf, om);
     }
 
     /* XXX: Check that complete SDU has been received. */
-    om = chan->blc_rx_buf;
+    rc = chan->blc_rx_fn(conn, chan, chan->blc_rx_buf);
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, chan->blc_rx_buf);
     chan->blc_rx_buf = NULL;
-
-    rc = chan->blc_rx_fn(conn, chan, om);
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
     if (rc != 0) {
         return rc;
     }
 
     return 0;
+}
+
+int
+ble_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          const void *data, int len)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    if (om == NULL) {
+        rc = ENOMEM;
+        goto err;
+    }
+
+    rc = os_mbuf_append(&ble_hs_mbuf_pool, om, data, len);
+    if (rc != 0) {
+        rc = ENOMEM;
+        goto err;
+    }
+
+
+    rc = ble_l2cap_rx_payload(conn, chan, om);
+    om = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    return rc;
 }
 
 int
 ble_l2cap_rx(struct ble_hs_conn *conn,
              struct hci_data_hdr *hci_hdr,
-             void *pkt)
+             struct os_mbuf *om)
 {
     struct ble_l2cap_chan *chan;
     struct ble_l2cap_hdr l2cap_hdr;
-    uint8_t *u8ptr;
     int rc;
 
-    u8ptr = pkt;
-
-    rc = ble_l2cap_parse_hdr(u8ptr, hci_hdr->hdh_len, &l2cap_hdr);
+    rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
     if (rc != 0) {
         return rc;
     }
+
+    /* Strip L2CAP header from the front of the mbuf. */
+    os_mbuf_adj(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
 
     if (l2cap_hdr.blh_len != hci_hdr->hdh_len - BLE_L2CAP_HDR_SZ) {
         return EMSGSIZE;
@@ -203,8 +206,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         return ENOENT;
     }
 
-    rc = ble_l2cap_rx_payload(conn, chan, u8ptr + BLE_L2CAP_HDR_SZ,
-                              l2cap_hdr.blh_len);
+    rc = ble_l2cap_rx_payload(conn, chan, om);
     if (rc != 0) {
         return rc;
     }
@@ -230,15 +232,11 @@ ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
     hdr.blh_len = OS_MBUF_PKTHDR(om)->omp_len;
     hdr.blh_cid = chan->blc_cid;
 
-    om = os_mbuf_prepend(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+    om = ble_l2cap_prepend_hdr(om, &hdr);
     if (om == NULL) {
         rc = ENOMEM;
         goto err;
     }
-
-    // XXX
-    rc = ble_l2cap_write_hdr(om->om_data, BLE_L2CAP_HDR_SZ, &hdr);
-    assert(rc == 0);
 
     rc = ble_hs_tx_data(om);
     if (rc != 0) {

@@ -348,6 +348,7 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     return 0;
 }
 
+#if 0
 static int
 host_hci_data_parse_hdr(void *pkt, uint16_t len, struct hci_data_hdr *hdr)
 {
@@ -402,6 +403,7 @@ host_hci_data_rx(void *pkt, uint16_t len)
 
     return 0;
 }
+#endif
 
 void
 host_hci_init(void)
