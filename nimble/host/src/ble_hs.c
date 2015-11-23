@@ -106,6 +106,8 @@ ble_hs_process_rx_data_queue(void)
 
     while ((tpq_elem = tpq_get(&ble_hs_tx_q)) != NULL) {
         pkt = (void *)tpq_elem;
+        host_hci_data_rx(pkt->bhp_om);
+
         os_memblock_put(&ble_hs_pkt_pool, pkt);
     }
 }
@@ -155,6 +157,15 @@ ble_hs_task_handler(void *arg)
     }
 }
 
+/**
+ * Called when a data packet is received from the controller.  This function
+ * consumes the supplied mbuf, regardless of the outcome.
+ *
+ * @param om                    The incoming data packet, beginning with the
+ *                                  HCI ACL data header.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int
 ble_hs_rx_data(struct os_mbuf *om)
 {

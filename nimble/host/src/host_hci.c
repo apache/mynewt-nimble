@@ -29,6 +29,9 @@
 #include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
 
+_Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
+               "struct hci_data_hdr must be 4 bytes");
+
 static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
                                     int len);
 static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
@@ -348,62 +351,58 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     return 0;
 }
 
-#if 0
 static int
-host_hci_data_parse_hdr(void *pkt, uint16_t len, struct hci_data_hdr *hdr)
+host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
 {
-    uint8_t *u8ptr;
-    uint16_t off;
+    int rc;
 
-    if (len < BLE_HCI_DATA_HDR_SZ) {
+    rc = os_mbuf_copydata(om, 0, BLE_HCI_DATA_HDR_SZ, hdr);
+    if (rc != 0) {
         return EMSGSIZE;
     }
 
-    off = 0;
-    u8ptr = pkt;
+    /* Strip HCI ACL data header from the front of the packet. */
+    /* XXX: This is probably the wrong mbuf pool. */
+    os_mbuf_adj(&ble_hs_mbuf_pool, om, BLE_HCI_DATA_HDR_SZ);
 
-    hdr->hdh_handle_pb_bc = le16toh(u8ptr + off);
-    off += 2;
-
-    hdr->hdh_len = le16toh(u8ptr + off);
-    off += 2;
+    hdr->hdh_handle_pb_bc = le16toh(&hdr->hdh_handle_pb_bc);
+    hdr->hdh_len = le16toh(&hdr->hdh_len);
 
     return 0;
 }
 
 int
-host_hci_data_rx(void *pkt, uint16_t len)
+host_hci_data_rx(struct os_mbuf *om)
 {
     struct ble_hs_conn *connection;
     struct hci_data_hdr hci_hdr;
     uint16_t handle;
-    uint16_t off;
-    uint8_t *u8ptr;
     int rc;
 
-    u8ptr = pkt;
-    off = 0;
-
-    rc = host_hci_data_parse_hdr(u8ptr + off, len - off, &hci_hdr);
+    rc = host_hci_data_hdr_strip(om, &hci_hdr);
     if (rc != 0) {
-        return rc;
+        goto done;
     }
-    off += BLE_HCI_DATA_HDR_SZ;
-    if (len < off + hci_hdr.hdh_len) {
-        return EMSGSIZE;
+
+    if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
+        rc = EMSGSIZE;
+        goto done;
     }
 
     handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
     connection = ble_hs_conn_find(handle);
     if (connection == NULL) {
-        return ENOTCONN;
+        rc = ENOTCONN;
+        goto done;
     }
 
-    ble_l2cap_rx(connection, &hci_hdr, u8ptr + off);
+    rc = ble_l2cap_rx(connection, &hci_hdr, om);
+    om = NULL;
 
-    return 0;
+done:
+    os_mbuf_free_chain(&ble_hs_mbuf_pool, om); /* XXX: Wrong pool. */
+    return rc;
 }
-#endif
 
 void
 host_hci_init(void)
