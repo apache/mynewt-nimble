@@ -18,7 +18,6 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "ble_l2cap.h"
-#include "ble_l2cap_util.h"
 #include "ble_hs_att_cmd.h"
 
 int

@@ -363,7 +363,7 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
 
     /* Strip HCI ACL data header from the front of the packet. */
     /* XXX: This is probably the wrong mbuf pool. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, om, BLE_HCI_DATA_HDR_SZ);
+    os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ);
 
     hdr->hdh_handle_pb_bc = le16toh(&hdr->hdh_handle_pb_bc);
     hdr->hdh_len = le16toh(&hdr->hdh_len);
@@ -400,7 +400,7 @@ host_hci_data_rx(struct os_mbuf *om)
     om = NULL;
 
 done:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om); /* XXX: Wrong pool. */
+    os_mbuf_free_chain(om); /* XXX: Wrong pool. */
     return rc;
 }
 

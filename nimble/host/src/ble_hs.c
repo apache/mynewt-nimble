@@ -173,7 +173,7 @@ ble_hs_rx_data(struct os_mbuf *om)
 
     pkt = os_memblock_get(&ble_hs_pkt_pool);
     if (pkt == NULL) {
-        os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+        os_mbuf_free_chain(om);
         return ENOMEM;
     }
 
@@ -190,7 +190,7 @@ ble_hs_tx_data(struct os_mbuf *om)
 
     pkt = os_memblock_get(&ble_hs_pkt_pool);
     if (pkt == NULL) {
-        os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+        os_mbuf_free_chain(om);
         return ENOMEM;
     }
 
@@ -258,7 +258,7 @@ ble_hs_init(uint8_t prio)
         rc = EINVAL; // XXX
         goto err;
     }
-    rc = os_mbuf_pool_init(&ble_hs_mbuf_pool, &ble_hs_mbuf_mempool, 0,
+    rc = os_mbuf_pool_init(&ble_hs_mbuf_pool, &ble_hs_mbuf_mempool,
                            BLE_HS_MBUF_MEMBLOCK_SIZE, BLE_HS_NUM_MBUFS);
     if (rc != 0) {
         rc = EINVAL; // XXX

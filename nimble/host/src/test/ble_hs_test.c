@@ -24,11 +24,11 @@
 void
 ble_hs_test_pkt_txed(struct os_mbuf *om)
 {
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx);
+    os_mbuf_free_chain(ble_hs_test_util_prev_tx);
     ble_hs_test_util_prev_tx = om;
 
     /* XXX: For now, just strip the L2CAP header. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+    os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
 }
 
 #ifdef PKG_TEST

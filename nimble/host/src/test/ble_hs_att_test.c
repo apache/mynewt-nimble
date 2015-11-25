@@ -123,7 +123,7 @@ ble_hs_att_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(rsp.bhaep_error_code == error_code);
 
     /* Remove the error response from the buffer. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx,
+    os_mbuf_adj(ble_hs_test_util_prev_tx,
                 BLE_HS_ATT_ERROR_RSP_SZ);
 }
 
@@ -149,7 +149,7 @@ ble_hs_att_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(rc != 0);
 
     /* Remove the read response from the buffer. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx, attr_len + 1);
+    os_mbuf_adj(ble_hs_test_util_prev_tx, attr_len + 1);
 }
 
 static void
@@ -163,7 +163,7 @@ ble_hs_att_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
     TEST_ASSERT(u8 == BLE_HS_ATT_OP_WRITE_RSP);
 
     /* Remove the write response from the buffer. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx,
+    os_mbuf_adj(ble_hs_test_util_prev_tx,
                 BLE_HS_ATT_WRITE_RSP_SZ);
 }
 
@@ -184,7 +184,7 @@ ble_hs_att_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
     TEST_ASSERT(rsp.bhamc_mtu == chan->blc_my_mtu);
 
     /* Remove the write response from the buffer. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx,
+    os_mbuf_adj(ble_hs_test_util_prev_tx,
                 BLE_HS_ATT_MTU_CMD_SZ);
 }
 
@@ -250,7 +250,7 @@ ble_hs_att_test_misc_verify_tx_find_info_rsp(
     TEST_ASSERT(off == OS_MBUF_PKTHDR(ble_hs_test_util_prev_tx)->omp_len);
 
     /* Remove the response from the buffer. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx, off);
+    os_mbuf_adj(ble_hs_test_util_prev_tx, off);
 }
 
 struct ble_hs_att_test_type_value_entry {
@@ -295,7 +295,7 @@ ble_hs_att_test_misc_verify_tx_find_type_value_rsp(
     TEST_ASSERT(off == OS_MBUF_PKTHDR(ble_hs_test_util_prev_tx)->omp_len);
 
     /* Remove the response from the buffer. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, ble_hs_test_util_prev_tx, off);
+    os_mbuf_adj(ble_hs_test_util_prev_tx, off);
 }
 
 static void

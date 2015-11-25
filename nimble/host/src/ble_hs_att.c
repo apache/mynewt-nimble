@@ -21,7 +21,6 @@
 #include "nimble/ble.h"
 #include "host/ble_hs.h"
 #include "ble_l2cap.h"
-#include "ble_l2cap_util.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_uuid.h"
 #include "ble_hs_att_cmd.h"
@@ -459,13 +458,13 @@ ble_hs_att_fill_info(struct ble_hs_att_find_info_req *req, struct os_mbuf *om,
                 }
 
                 htole16(&handle_id, ha->ha_handle_id);
-                rc = os_mbuf_append(&ble_hs_mbuf_pool, om, &handle_id, 2);
+                rc = os_mbuf_append(om, &handle_id, 2);
                 if (rc != 0) {
                     goto done;
                 }
 
                 htole16(&uuid16, uuid16);
-                rc = os_mbuf_append(&ble_hs_mbuf_pool, om, &uuid16, 2);
+                rc = os_mbuf_append(om, &uuid16, 2);
                 if (rc != 0) {
                     goto done;
                 }
@@ -484,12 +483,12 @@ ble_hs_att_fill_info(struct ble_hs_att_find_info_req *req, struct os_mbuf *om,
                 }
 
                 htole16(&handle_id, ha->ha_handle_id);
-                rc = os_mbuf_append(&ble_hs_mbuf_pool, om, &handle_id, 2);
+                rc = os_mbuf_append(om, &handle_id, 2);
                 if (rc != 0) {
                     goto done;
                 }
 
-                rc = os_mbuf_append(&ble_hs_mbuf_pool, om, &ha->ha_uuid,
+                rc = os_mbuf_append(om, &ha->ha_uuid,
                                     16);
                 if (rc != 0) {
                     goto done;
@@ -550,7 +549,7 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
         goto err;
     }
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (txom == NULL) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -563,7 +562,7 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
     rc = ble_hs_att_find_info_rsp_write(buf, BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
                                         &rsp);
     assert(rc == 0);
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, txom, buf,
+    rc = os_mbuf_append(txom, buf,
                         BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ);
     if (rc != 0) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
@@ -589,7 +588,7 @@ ble_hs_att_rx_find_info_req(struct ble_hs_conn *conn,
     return 0;
 
 err:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, txom);
+    os_mbuf_free_chain(txom);
     ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_INFO_REQ,
                             req.bhafq_start_handle, rc);
 
@@ -634,14 +633,14 @@ ble_hs_att_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
 
     u16 = *first;
     htole16(&u16, u16);
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, om, &u16, 2);
+    rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
         return ENOMEM;
     }
 
     u16 = *prev;
     htole16(&u16, u16);
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, om, &u16, 2);
+    rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
         return ENOMEM;
     }
@@ -840,7 +839,7 @@ ble_hs_att_rx_find_type_value_req(struct ble_hs_conn *conn,
         goto err;
     }
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (txom == NULL) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -848,7 +847,7 @@ ble_hs_att_rx_find_type_value_req(struct ble_hs_conn *conn,
 
     /* Write the response base at the start of the buffer. */
     buf[0] = BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP;
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, txom, buf,
+    rc = os_mbuf_append(txom, buf,
                         BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ);
     if (rc != 0) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
@@ -872,7 +871,7 @@ ble_hs_att_rx_find_type_value_req(struct ble_hs_conn *conn,
     return 0;
 
 err:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, txom);
+    os_mbuf_free_chain(txom);
     ble_hs_att_tx_error_rsp(chan, BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ,
                             req.bhavq_start_handle, rc);
     return rc;
@@ -887,14 +886,14 @@ ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     uint8_t op;
     int rc;
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (txom == NULL) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
     }
 
     op = BLE_HS_ATT_OP_READ_RSP;
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, txom, &op, 1);
+    rc = os_mbuf_append(txom, &op, 1);
     if (rc != 0) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -907,7 +906,7 @@ ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         data_len = attr_len;
     }
 
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, txom, attr_data, data_len);
+    rc = os_mbuf_append(txom, attr_data, data_len);
     if (rc != 0) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -922,7 +921,7 @@ ble_hs_att_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return 0;
 
 err:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, txom);
+    os_mbuf_free_chain(txom);
     return rc;
 }
 

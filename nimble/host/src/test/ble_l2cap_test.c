@@ -44,7 +44,7 @@ TEST_CASE(l2cap_test_bad_header)
     /*** HCI header indicates a length of 10, but L2CAP header has a length
      *   of 0.
      */
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     TEST_ASSERT_FATAL(om != NULL);
 
     l2cap_hdr.blh_len = 0;
@@ -56,10 +56,10 @@ TEST_CASE(l2cap_test_bad_header)
     rc = ble_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT(rc == EMSGSIZE);
 
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    os_mbuf_free_chain(om);
 
     /*** Length is correct; specified channel doesn't exist. */
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     TEST_ASSERT_FATAL(om != NULL);
 
     l2cap_hdr.blh_len = 6;
@@ -71,7 +71,7 @@ TEST_CASE(l2cap_test_bad_header)
     rc = ble_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT(rc == ENOENT);
 
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    os_mbuf_free_chain(om);
 }
 
 TEST_SUITE(l2cap_gen)

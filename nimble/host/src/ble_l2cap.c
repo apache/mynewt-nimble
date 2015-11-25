@@ -103,7 +103,7 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om,
     uint8_t buf[BLE_L2CAP_HDR_SZ];
     int rc;
 
-    om = os_mbuf_prepend(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+    om = os_mbuf_prepend(om, BLE_L2CAP_HDR_SZ);
     if (om == NULL) {
         goto err;
     }
@@ -111,7 +111,7 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om,
     htole16(buf + 0, l2cap_hdr->blh_len);
     htole16(buf + 2, l2cap_hdr->blh_cid);
 
-    rc = os_mbuf_copyinto(&ble_hs_mbuf_pool, om, 0, buf, sizeof buf);
+    rc = os_mbuf_copyinto(om, 0, buf, sizeof buf);
     if (rc != 0) {
         goto err;
     }
@@ -119,7 +119,7 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om,
     return om;
 
 err:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    os_mbuf_free_chain(om);
     return NULL;
 }
 
@@ -137,7 +137,7 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     /* XXX: Check that complete SDU has been received. */
     rc = chan->blc_rx_fn(conn, chan, chan->blc_rx_buf);
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, chan->blc_rx_buf);
+    os_mbuf_free_chain(chan->blc_rx_buf);
     chan->blc_rx_buf = NULL;
     if (rc != 0) {
         return rc;
@@ -154,13 +154,13 @@ ble_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     struct os_mbuf *om;
     int rc;
 
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (om == NULL) {
         rc = ENOMEM;
         goto err;
     }
 
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, om, data, len);
+    rc = os_mbuf_append(om, data, len);
     if (rc != 0) {
         rc = ENOMEM;
         goto err;
@@ -176,7 +176,7 @@ ble_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     return 0;
 
 err:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    os_mbuf_free_chain(om);
     return rc;
 }
 
@@ -195,7 +195,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
     }
 
     /* Strip L2CAP header from the front of the mbuf. */
-    os_mbuf_adj(&ble_hs_mbuf_pool, om, BLE_L2CAP_HDR_SZ);
+    os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
 
     if (l2cap_hdr.blh_len != hci_hdr->hdh_len - BLE_L2CAP_HDR_SZ) {
         return EMSGSIZE;
@@ -246,7 +246,7 @@ ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
     return 0;
 
 err:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    os_mbuf_free_chain(om);
     return rc;
 }
 
@@ -265,13 +265,13 @@ ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len)
     struct os_mbuf *om;
     int rc;
 
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool);
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (om == NULL) {
         rc = ENOMEM;
         goto done;
     }
 
-    rc = os_mbuf_append(&ble_hs_mbuf_pool, om, payload, len);
+    rc = os_mbuf_append(om, payload, len);
     if (rc != 0) {
         goto done;
     }
@@ -285,7 +285,7 @@ ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len)
     rc = 0;
 
 done:
-    os_mbuf_free_chain(&ble_hs_mbuf_pool, om);
+    os_mbuf_free_chain(om);
     return rc;
 }
 
