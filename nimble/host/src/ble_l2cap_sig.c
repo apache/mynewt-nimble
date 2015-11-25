@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 
-#include <stddef.h>
-#include "ble_hs_att.h"
+#include <string.h>
+#include <errno.h>
+#include <assert.h>
+#include "nimble/ble.h"
 #include "ble_l2cap.h"
+#include "ble_l2cap_sig.h"
+
+static int
+ble_l2cap_sig_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                 struct os_mbuf *om)
+{
+    return BLE_ERR_UNSUPPORTED;
+}
 
 struct ble_l2cap_chan *
-ble_hs_att_create_chan(void)
+ble_l2cap_sig_create_chan(void)
 {
     struct ble_l2cap_chan *chan;
 
@@ -28,10 +38,10 @@ ble_hs_att_create_chan(void)
         return NULL;
     }
 
-    chan->blc_cid = BLE_L2CAP_CID_ATT;
-    chan->blc_my_mtu = BLE_HS_ATT_MTU_DFLT;
-    chan->blc_default_mtu = BLE_HS_ATT_MTU_DFLT;
-    chan->blc_rx_fn = ble_hs_att_svr_rx;
+    chan->blc_cid = BLE_L2CAP_CID_SIG;
+    chan->blc_my_mtu = BLE_L2CAP_SIG_MTU;
+    chan->blc_default_mtu = BLE_L2CAP_SIG_MTU;
+    chan->blc_rx_fn = ble_l2cap_sig_rx;
 
     return chan;
 }

@@ -24,6 +24,8 @@ struct ble_l2cap_chan;
 #define BLE_HS_ATT_OP_FIND_INFO_RSP         0x05
 #define BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ   0x06
 #define BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP   0x07
+#define BLE_HS_ATT_OP_READ_TYPE_REQ         0x08
+#define BLE_HS_ATT_OP_READ_TYPE_RSP         0x09
 #define BLE_HS_ATT_OP_READ_REQ              0x0a
 #define BLE_HS_ATT_OP_READ_RSP              0x0b
 #define BLE_HS_ATT_OP_WRITE_REQ             0x12
@@ -117,6 +119,36 @@ struct ble_hs_att_find_type_value_req {
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |
+ * | Starting Handle                    | 2                 |
+ * | Ending Handle                      | 2                 |
+ * | Attribute Type                     | 2 or 16           |
+ */
+#define BLE_HS_ATT_READ_TYPE_REQ_MIN_SZ     7
+#define BLE_HS_ATT_READ_TYPE_REQ_SZ_16      7
+#define BLE_HS_ATT_READ_TYPE_REQ_SZ_128     21
+struct ble_hs_att_read_type_req {
+    uint8_t bhatq_op;
+    uint16_t bhatq_start_handle;
+    uint16_t bhatq_end_handle;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Length                             | 1                 |
+ * | Attribute Data List                | 2 to (ATT_MTU-2)  |
+ */
+#define BLE_HS_ATT_READ_TYPE_RSP_MIN_SZ     2
+struct ble_hs_att_read_type_rsp {
+    uint8_t bhatp_op;
+    uint8_t bhatp_len;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
  * | Attribute Handle                   | 2                 |
  */
 #define BLE_HS_ATT_READ_REQ_SZ              3
@@ -172,6 +204,14 @@ int ble_hs_att_read_req_parse(void *payload, int len,
                               struct ble_hs_att_read_req *req);
 int ble_hs_att_read_req_write(void *payload, int len,
                               struct ble_hs_att_read_req *req);
+int ble_hs_att_read_type_req_parse(void *payload, int len,
+                                   struct ble_hs_att_read_type_req *req);
+int ble_hs_att_read_type_req_write(void *payload, int len,
+                                   struct ble_hs_att_read_type_req *req);
+int ble_hs_att_read_type_rsp_parse(void *payload, int len,
+                                   struct ble_hs_att_read_type_rsp *rsp);
+int ble_hs_att_read_type_rsp_write(void *payload, int len,
+                                   struct ble_hs_att_read_type_rsp *rsp);
 int ble_hs_att_write_req_parse(void *payload, int len,
                                struct ble_hs_att_write_req *req);
 int ble_hs_att_write_req_write(void *payload, int len,

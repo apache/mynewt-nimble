@@ -16,6 +16,8 @@
 
 #include <inttypes.h>
 #include <string.h>
+#include <errno.h>
+#include "nimble/ble.h"
 #include "ble_hs_uuid.h"
 
 static uint8_t ble_hs_uuid_base[16] = {
@@ -57,4 +59,21 @@ ble_hs_uuid_16bit(uint8_t *uuid128)
     }
 
     return uuid16;
+}
+
+int
+ble_hs_uuid_from_16bit(uint16_t uuid16, void *uuid128)
+{
+    uint8_t *u8ptr;
+
+    if (uuid16 == 0) {
+        return EINVAL;
+    }
+
+    u8ptr = uuid128;
+
+    memcpy(u8ptr, ble_hs_uuid_base, 16);
+    htole16(u8ptr + 2, uuid16);
+
+    return 0;
 }

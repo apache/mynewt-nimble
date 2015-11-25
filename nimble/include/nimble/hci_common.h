@@ -282,10 +282,14 @@
 #define BLE_HCI_EVENT_HDR_LEN               (2)
 
 /* Event specific definitions */
+/* Event disconnect complete */
+#define BLE_HCI_EVENT_DISCONN_COMPLETE_LEN  (4)
+
 /* Event command complete */
 #define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (5)
 #define BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN  (6)
 
+/* Event command status */
 #define BLE_HCI_EVENT_CMD_STATUS_LEN        (6)
 
 /* Advertising report */
@@ -347,7 +351,15 @@ struct hci_le_conn_complete
     uint8_t master_clk_acc;
 };
 
-#define BLE_HCI_DATA_HDR_SZ         4
+/* Disconnection complete event (note: fields out of order). */
+struct hci_disconn_complete
+{
+    uint16_t connection_handle;
+    uint8_t status;
+    uint8_t reason;
+};
+
+#define BLE_HCI_DATA_HDR_SZ                 4
 #define BLE_HCI_DATA_HANDLE(handle_pb_bc)   (((handle_pb_bc) & 0x0fff) >> 0)
 #define BLE_HCI_DATA_PB(handle_pb_bc)       (((handle_pb_bc) & 0x3000) >> 12)
 #define BLE_HCI_DATA_BC(handle_pb_bc)       (((handle_pb_bc) & 0xc000) >> 14)
@@ -357,5 +369,10 @@ struct hci_data_hdr
     uint16_t hdh_handle_pb_bc;
     uint16_t hdh_len;
 };
+
+#define BLE_HCI_PB_FIRST_NON_FLUSH          0
+#define BLE_HCI_PB_MIDDLE                   1
+#define BLE_HCI_PB_FIRST_FLUSH              2
+#define BLE_HCI_PB_FULL                     3
 
 #endif /* H_BLE_HCI_COMMON_ */

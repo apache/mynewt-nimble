@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef H_BLE_HS_UUID_
-#define H_BLE_HS_UUID_
+#ifndef H_BLE_L2CAP_SIG_
+#define H_BLE_L2CAP_SIG_
 
-uint16_t ble_hs_uuid_16bit(uint8_t *uuid128);
-int ble_hs_uuid_from_16bit(uint16_t uuid16, void *dst);
+#define BLE_L2CAP_SIG_MTU           100  /* This is our own default. */
 
-#endif /* _BLE_HOST_UUID_H */
+struct ble_l2cap_chan *ble_l2cap_sig_create_chan(void);
+
+#endif

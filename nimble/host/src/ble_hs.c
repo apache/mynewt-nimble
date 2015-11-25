@@ -290,7 +290,7 @@ ble_hs_init(uint8_t prio)
         goto err;
     }
 
-    rc = ble_hs_att_init();
+    rc = ble_hs_att_svr_init();
     if (rc != 0) {
         goto err;
     }

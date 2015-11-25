@@ -32,6 +32,8 @@
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
 
+static int host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data,
+                                        int len);
 static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
                                     int len);
 static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
@@ -76,6 +78,7 @@ struct host_hci_event_dispatch_entry {
 static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     { BLE_HCI_EVCODE_COMMAND_COMPLETE, host_hci_rx_cmd_complete },
     { BLE_HCI_EVCODE_COMMAND_STATUS, host_hci_rx_cmd_status },
+    { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
     { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
 };
 
@@ -127,6 +130,28 @@ host_hci_le_dispatch_entry_find(uint8_t event_code)
     }
 
     return NULL;
+}
+
+static int
+host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
+{
+    struct hci_disconn_complete evt;
+    int rc;
+
+    if (len < BLE_HCI_EVENT_DISCONN_COMPLETE_LEN) {
+        return EMSGSIZE;
+    }
+
+    evt.status = data[0];
+    evt.connection_handle = le16toh(data + 1);
+    evt.reason = data[3];
+
+    rc = ble_gap_conn_rx_disconn_complete(&evt);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 static int
@@ -371,6 +396,15 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
     return 0;
 }
 
+/**
+ * Called when a data packet is received from the controller.  This function
+ * consumes the supplied mbuf, regardless of the outcome.
+ *
+ * @param om                    The incoming data packet, beginning with the
+ *                                  HCI ACL data header.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int
 host_hci_data_rx(struct os_mbuf *om)
 {
@@ -402,6 +436,62 @@ host_hci_data_rx(struct os_mbuf *om)
 done:
     os_mbuf_free_chain(om); /* XXX: Wrong pool. */
     return rc;
+}
+
+uint16_t
+host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
+{
+    assert(handle <= 0x0fff);
+    assert(pb <= 0x03);
+    assert(bc <= 0x03);
+
+    return (handle  << 0)   |
+           (pb      << 12)  |
+           (bc      << 14);
+}
+
+static struct os_mbuf *
+host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
+{
+    struct hci_data_hdr hci_hdr;
+
+    hci_hdr.hdh_handle_pb_bc = host_hci_handle_pb_bc_join(handle, pb_flag, 0);
+    htole16(&hci_hdr.hdh_len, OS_MBUF_PKTHDR(om)->omp_len);
+
+    om = os_mbuf_prepend(om, sizeof hci_hdr);
+    if (om == NULL) {
+        return NULL;
+    }
+
+    memcpy(om->om_data, &hci_hdr, sizeof hci_hdr);
+
+    return om;
+}
+
+/**
+ * Transmits an HCI ACL data packet.  This function consumes the supplied mbuf,
+ * regardless of the outcome.
+ */
+int
+host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
+{
+    int rc;
+
+    /* XXX: Different transport mechanisms have different fragmentation
+     * requirements.  For now, never fragment.
+     */
+    om = host_hci_data_hdr_prepend(om, connection->bhc_handle,
+                                   BLE_HCI_PB_FULL);
+    if (om == NULL) {
+        return ENOMEM;
+    }
+
+    rc = ble_hs_tx_data(om);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 void

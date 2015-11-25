@@ -18,6 +18,8 @@
 #define H_HOST_HCI_
 
 #include "nimble/hci_common.h"
+struct ble_hs_conn;
+struct os_mbuf;
 
 int host_hci_os_event_proc(struct os_event *ev);
 int host_hci_event_rx(uint8_t *data);
@@ -37,7 +39,10 @@ int host_hci_cmd_le_read_whitelist(void);
 int host_hci_cmd_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type);
 int host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type);
 
+uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);
+
 int host_hci_data_rx(struct os_mbuf *om);
+int host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om);
 
 void host_hci_init(void);
 

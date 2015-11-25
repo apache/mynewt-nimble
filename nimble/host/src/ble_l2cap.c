@@ -24,6 +24,9 @@
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 
+_Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
+               "struct ble_l2cap_hdr must be 4 bytes");
+
 #define BLE_L2CAP_CHAN_MAX              32
 
 static struct os_mempool ble_l2cap_chan_pool;
@@ -97,45 +100,32 @@ ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
 }
 
 struct os_mbuf *
-ble_l2cap_prepend_hdr(struct os_mbuf *om,
-                      const struct ble_l2cap_hdr *l2cap_hdr)
+ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid)
 {
-    uint8_t buf[BLE_L2CAP_HDR_SZ];
-    int rc;
+    struct ble_l2cap_hdr hdr;
 
-    om = os_mbuf_prepend(om, BLE_L2CAP_HDR_SZ);
+    htole16(&hdr.blh_len, OS_MBUF_PKTHDR(om)->omp_len);
+    htole16(&hdr.blh_cid, cid);
+
+    om = os_mbuf_prepend(om, sizeof hdr);
     if (om == NULL) {
-        goto err;
+        return NULL;
     }
 
-    htole16(buf + 0, l2cap_hdr->blh_len);
-    htole16(buf + 2, l2cap_hdr->blh_cid);
-
-    rc = os_mbuf_copyinto(om, 0, buf, sizeof buf);
-    if (rc != 0) {
-        goto err;
-    }
+    memcpy(om->om_data, &hdr, sizeof hdr);
 
     return om;
-
-err:
-    os_mbuf_free_chain(om);
-    return NULL;
 }
 
-int
+static int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf *om)
 {
     int rc;
 
-    if (chan->blc_rx_buf == NULL) {
-        chan->blc_rx_buf = om;
-    } else {
-        os_mbuf_splice(chan->blc_rx_buf, om);
-    }
+    assert(chan->blc_rx_buf == NULL);
+    chan->blc_rx_buf = om;
 
-    /* XXX: Check that complete SDU has been received. */
     rc = chan->blc_rx_fn(conn, chan, chan->blc_rx_buf);
     os_mbuf_free_chain(chan->blc_rx_buf);
     chan->blc_rx_buf = NULL;
@@ -147,40 +137,6 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 }
 
 int
-ble_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
-                          struct ble_l2cap_chan *chan,
-                          const void *data, int len)
-{
-    struct os_mbuf *om;
-    int rc;
-
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
-    if (om == NULL) {
-        rc = ENOMEM;
-        goto err;
-    }
-
-    rc = os_mbuf_append(om, data, len);
-    if (rc != 0) {
-        rc = ENOMEM;
-        goto err;
-    }
-
-
-    rc = ble_l2cap_rx_payload(conn, chan, om);
-    om = NULL;
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    os_mbuf_free_chain(om);
-    return rc;
-}
-
-int
 ble_l2cap_rx(struct ble_hs_conn *conn,
              struct hci_data_hdr *hci_hdr,
              struct os_mbuf *om)
@@ -188,6 +144,9 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
     struct ble_l2cap_chan *chan;
     struct ble_l2cap_hdr l2cap_hdr;
     int rc;
+
+    /* XXX: HCI-fragmentation unsupported. */
+    assert(BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc) == BLE_HCI_PB_FULL);
 
     rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
     if (rc != 0) {
@@ -226,13 +185,9 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 int
 ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
 {
-    struct ble_l2cap_hdr hdr;
     int rc;
 
-    hdr.blh_len = OS_MBUF_PKTHDR(om)->omp_len;
-    hdr.blh_cid = chan->blc_cid;
-
-    om = ble_l2cap_prepend_hdr(om, &hdr);
+    om = ble_l2cap_prepend_hdr(om, chan->blc_cid);
     if (om == NULL) {
         rc = ENOMEM;
         goto err;
@@ -246,45 +201,6 @@ ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
     return 0;
 
 err:
-    os_mbuf_free_chain(om);
-    return rc;
-}
-
-/**
- * Transmits the L2CAP payload contained in the specified flat buffer.
- *
- * @param chan                  The L2CAP channel to transmit over.
- * @param payload               The data to transmit.
- * @param len                   The number of data bytes to send.
- *
- * @return                      0 on success; nonzero on error.
- */
-int
-ble_l2cap_tx_flat(struct ble_l2cap_chan *chan, void *payload, int len)
-{
-    struct os_mbuf *om;
-    int rc;
-
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
-    if (om == NULL) {
-        rc = ENOMEM;
-        goto done;
-    }
-
-    rc = os_mbuf_append(om, payload, len);
-    if (rc != 0) {
-        goto done;
-    }
-
-    rc = ble_l2cap_tx(chan, om);
-    om = NULL;
-    if (rc != 0) {
-        goto done;
-    }
-
-    rc = 0;
-
-done:
     os_mbuf_free_chain(om);
     return rc;
 }

@@ -18,6 +18,7 @@
 #include <errno.h>
 #include "nimble/hci_common.h"
 #include "host/ble_hs.h"
+#include "host/host_hci.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_test_util.h"
@@ -26,7 +27,6 @@
 
 TEST_CASE(l2cap_test_bad_header)
 {
-    struct ble_l2cap_hdr l2cap_hdr;
     struct hci_data_hdr hci_hdr;
     struct ble_hs_conn *conn;
     struct os_mbuf *om;
@@ -38,7 +38,8 @@ TEST_CASE(l2cap_test_bad_header)
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
 
-    hci_hdr.hdh_handle_pb_bc = 0;
+    hci_hdr.hdh_handle_pb_bc =
+        host_hci_handle_pb_bc_join(0, BLE_HCI_PB_FULL, 0);
     hci_hdr.hdh_len = 10;
 
     /*** HCI header indicates a length of 10, but L2CAP header has a length
@@ -47,10 +48,7 @@ TEST_CASE(l2cap_test_bad_header)
     om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     TEST_ASSERT_FATAL(om != NULL);
 
-    l2cap_hdr.blh_len = 0;
-    l2cap_hdr.blh_cid = 0;
-
-    om = ble_l2cap_prepend_hdr(om, &l2cap_hdr);
+    om = ble_l2cap_prepend_hdr(om, 0);
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = ble_l2cap_rx(conn, &hci_hdr, om);
@@ -62,10 +60,10 @@ TEST_CASE(l2cap_test_bad_header)
     om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     TEST_ASSERT_FATAL(om != NULL);
 
-    l2cap_hdr.blh_len = 6;
-    l2cap_hdr.blh_cid = 0;
+    om = os_mbuf_prepend(om, 6);
+    TEST_ASSERT_FATAL(om != NULL);
 
-    om = ble_l2cap_prepend_hdr(om, &l2cap_hdr);
+    om = ble_l2cap_prepend_hdr(om, 0);
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = ble_l2cap_rx(conn, &hci_hdr, om);

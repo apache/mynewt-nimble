@@ -325,6 +325,28 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     return 0;
 }
 
+int
+ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(evt->connection_handle);
+    if (conn == NULL) {
+        return ENOENT;
+    }
+
+    if (evt->status == 0) {
+        ble_hs_conn_remove(conn);
+        ble_gap_conn_notify_app(evt->reason, conn);
+        ble_hs_conn_free(conn);
+    } else {
+        /* XXX: Ensure we have a disconnect operation in progress. */
+        ble_gap_conn_notify_app(evt->status, conn);
+    }
+
+    return 0;
+}
+
 /**
  * Tells you if the BLE host is in the process of creating a master connection.
  */

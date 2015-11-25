@@ -15,13 +15,16 @@
  */
 
 #include <string.h>
+#include <errno.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "testutil/testutil.h"
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
 #include "ble_hs_ack.h"
+#include "ble_hs_conn.h"
 #include "ble_gap_conn.h"
+#include "ble_l2cap.h"
 #include "ble_hs_test_util.h"
 
 struct os_mbuf *ble_hs_test_util_prev_tx;
@@ -87,6 +90,33 @@ void
 ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
 {
     ble_hs_test_util_rx_ack((BLE_HCI_OGF_LE << 10) | ocf, status);
+}
+
+int
+ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
+                                       struct ble_l2cap_chan *chan,
+                                       const void *data, int len)
+{
+    struct hci_data_hdr hci_hdr;
+    struct os_mbuf *om;
+    int rc;
+
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = os_mbuf_append(om, data, len);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    om = ble_l2cap_prepend_hdr(om, chan->blc_cid);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    hci_hdr.hdh_handle_pb_bc =
+        host_hci_handle_pb_bc_join(conn->bhc_handle, BLE_HCI_PB_FULL, 0);
+    hci_hdr.hdh_len = OS_MBUF_PKTHDR(om)->omp_len;
+
+    rc = ble_l2cap_rx(conn, &hci_hdr, om);
+
+    return rc;
 }
 
 void

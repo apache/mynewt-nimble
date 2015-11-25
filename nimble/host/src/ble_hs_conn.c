@@ -21,6 +21,7 @@
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
 #include "ble_l2cap.h"
+#include "ble_l2cap_sig.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_att.h"
 
@@ -45,6 +46,12 @@ ble_hs_conn_alloc(void)
     SLIST_INIT(&conn->bhc_channels);
 
     chan = ble_hs_att_create_chan();
+    if (chan == NULL) {
+        goto err;
+    }
+    SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
+
+    chan = ble_l2cap_sig_create_chan();
     if (chan == NULL) {
         goto err;
     }

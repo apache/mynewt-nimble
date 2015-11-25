@@ -17,7 +17,11 @@
 #ifndef H_BLE_HS_ATT_
 #define H_BLE_HS_ATT_
 
+#include <inttypes.h>
+#include "os/queue.h"
+struct os_mbuf;
 struct ble_hs_conn;
+struct ble_l2cap_chan;
 
 #define BLE_HS_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -29,7 +33,7 @@ struct ble_hs_conn;
 #define BLE_HS_ATT_ERR_UNLIKELY             0x0e
 #define BLE_HS_ATT_ERR_INSUFFICIENT_RES     0x11
 
-union ble_hs_att_handle_arg {
+union ble_hs_att_svr_handle_arg {
     struct {
         void *attr_data;
         int attr_len;
@@ -41,18 +45,19 @@ union ble_hs_att_handle_arg {
     } aha_write;
 };
 
-struct ble_hs_att_entry;
+struct ble_hs_att_svr_entry;
 
 /**
- * Called from ble_hs_att_walk().  Called on each entry in the 
- * ble_hs_att_list.
+ * Called from ble_hs_att_svr_walk().  Called on each entry in the 
+ * ble_hs_att_svr_list.
  *
  * @param Contains the current ble_hs_att being iterated through
- * @param The user supplied argument to ble_hs_att_walk()
+ * @param The user supplied argument to ble_hs_att_svr_walk()
  *
  * @return 0 on continue, 1 on stop
  */
-typedef int (*ble_hs_att_walk_func_t)(struct ble_hs_att_entry *, void *arg);
+typedef int (*ble_hs_att_svr_walk_func_t)(struct ble_hs_att_svr_entry *entry,
+                                          void *arg);
 
 /**
  * Handles a host attribute request.
@@ -66,9 +71,9 @@ typedef int (*ble_hs_att_walk_func_t)(struct ble_hs_att_entry *, void *arg);
  *                              One of the BLE_HS_ATT_ERR_[...] codes on
  *                                  failure.
  */
-typedef int ble_hs_att_handle_func(struct ble_hs_att_entry *entry,
-                                   uint8_t op,
-                                   union ble_hs_att_handle_arg *arg);
+typedef int ble_hs_att_svr_handle_func(struct ble_hs_att_svr_entry *entry,
+                                       uint8_t op,
+                                       union ble_hs_att_svr_handle_arg *arg);
 
 #define HA_FLAG_PERM_READ            (1 << 0)
 #define HA_FLAG_PERM_WRITE           (1 << 1) 
@@ -77,14 +82,14 @@ typedef int ble_hs_att_handle_func(struct ble_hs_att_entry *entry,
 #define HA_FLAG_AUTHENTICATION_REQ   (1 << 4)
 #define HA_FLAG_AUTHORIZATION_REQ    (1 << 5)
 
-struct ble_hs_att_entry {
-    STAILQ_ENTRY(ble_hs_att_entry) ha_next;
+struct ble_hs_att_svr_entry {
+    STAILQ_ENTRY(ble_hs_att_svr_entry) ha_next;
 
     uint8_t ha_uuid[16];
     uint8_t ha_flags;
     uint8_t ha_pad1;
     uint16_t ha_handle_id;
-    ble_hs_att_handle_func *ha_fn;
+    ble_hs_att_svr_handle_func *ha_fn;
 };
 
 #define HA_OPCODE_METHOD_START (0)
@@ -92,9 +97,11 @@ struct ble_hs_att_entry {
 #define HA_OPCODE_COMMAND_FLAG (1 << 6) 
 #define HA_OPCODE_AUTH_SIG_FLAG (1 << 7) 
 
-int ble_hs_att_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
-                        ble_hs_att_handle_func *fn);
+int ble_hs_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
+                            ble_hs_att_svr_handle_func *fn);
+int ble_hs_att_svr_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                      struct os_mbuf *om);
 struct ble_l2cap_chan *ble_hs_att_create_chan(void);
-int ble_hs_att_init(void);
+int ble_hs_att_svr_init(void);
 
 #endif
