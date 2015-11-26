@@ -22,6 +22,7 @@
 #include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
+#include "host/host_hci.h"
 #include "host/ble_hs.h"
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
@@ -53,6 +54,9 @@ os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS, HCI_CMD_BUF_SIZE)];
 struct os_mempool g_hci_os_event_pool;
 os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS, 
                                                HCI_OS_EVENT_BUF_SIZE)];
+
+static uint16_t host_hci_buffer_sz;
+static uint8_t host_hci_max_pkts;
 
 /* Statistics */
 struct host_hci_stats
@@ -292,6 +296,48 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     evt.master_clk_acc = data[18];
 
     rc = ble_gap_conn_rx_conn_complete(&evt);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static void
+host_hci_rx_read_buf_size_ack(struct ble_hs_ack *ack, void *arg)
+{
+    uint16_t pktlen;
+    uint8_t max_pkts;
+
+    if (ack->bha_status != 0) {
+        /* XXX: Log / stat this. */
+        return;
+    }
+
+    if (ack->bha_params_len != BLE_HCI_RD_BUF_SIZE_RSPLEN + 1) {
+        /* XXX: Log / stat this. */
+        return;
+    }
+
+    pktlen = le16toh(ack->bha_params + 1);
+    max_pkts = ack->bha_params[3];
+
+    if (pktlen == 0 || max_pkts == 0) {
+        /* XXX: Send BR command instead. */
+        return;
+    }
+
+    host_hci_buffer_sz = pktlen;
+    host_hci_max_pkts = max_pkts;
+}
+
+int
+host_hci_read_buf_size(void)
+{
+    int rc;
+
+    ble_hs_ack_set_callback(host_hci_rx_read_buf_size_ack, NULL);
+    rc = host_hci_cmd_le_read_buffer_size();
     if (rc != 0) {
         return rc;
     }

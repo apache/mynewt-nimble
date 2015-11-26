@@ -212,6 +212,15 @@ host_hci_cmd_le_set_event_mask(uint64_t event_mask)
 }
 
 int
+host_hci_cmd_le_read_buffer_size(void)
+{
+    int rc;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_BUF_SIZE, 0, NULL);
+    return rc;
+}
+
+int
 host_hci_cmd_le_set_adv_enable(uint8_t enable)
 {
     int rc;

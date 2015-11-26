@@ -243,11 +243,11 @@ ble_hs_att_svr_match_handle(struct ble_hs_att_svr_entry *ha, void *arg)
 /**
  * Find a host attribute by handle id.
  *
- * @param handle_id The handle_id to search for
- * @param ble_hs_att A pointer to a pointer to put the matching host attr into.
+ * @param handle_id             The handle_id to search for
+ * @param ha_ptr                A pointer to a pointer to put the matching host
+ *                                  attr into.
  *
- * @return 0 on success, BLE_ERR_ATTR_NOT_FOUND on not found, and non-zero on
- *         error.
+ * @return                      0 on success; ENOENT on not found.
  */
 int
 ble_hs_att_svr_find_by_handle(uint16_t handle_id,
@@ -282,11 +282,11 @@ ble_hs_att_svr_match_uuid(struct ble_hs_att_svr_entry *ha, void *arg)
 /**
  * Find a host attribute by UUID.
  *
- * @param uuid The ble_uuid_t to search for
- * @param ha_ptr A pointer to a pointer to put the matching host attr into.
+ * @param uuid                  The ble_uuid_t to search for
+ * @param ha_ptr                A pointer to a pointer to put the matching host
+ *                                  attr into.
  *
- * @return 0 on success, BLE_ERR_ATTR_NOT_FOUND on not found, and non-zero on
- *         error.
+ * @return                      0 on success; ENOENT on not found.
  */
 int
 ble_hs_att_svr_find_by_uuid(uint8_t *uuid,
@@ -297,12 +297,10 @@ ble_hs_att_svr_find_by_uuid(uint8_t *uuid,
     rc = ble_hs_att_svr_walk(ble_hs_att_svr_match_uuid, uuid, ha_ptr);
     if (rc == 1) {
         /* Found a matching handle */
-        return (0);
-    } else if (rc == 0) {
-        /* No match */
-        return (BLE_ERR_ATTR_NOT_FOUND);
+        return 0;
     } else {
-        return (rc);
+        /* No match */
+        return ENOENT;
     }
 }
 
@@ -1170,13 +1168,13 @@ ble_hs_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     if (entry->ha_fn == NULL) {
-        rc = BLE_ERR_UNSPECIFIED;
+        rc = BLE_HS_ATT_ERR_UNLIKELY;
         goto err;
     }
 
     rc = entry->ha_fn(entry, BLE_HS_ATT_OP_READ_REQ, &arg);
     if (rc != 0) {
-        rc = BLE_ERR_UNSPECIFIED;
+        rc = BLE_HS_ATT_ERR_UNLIKELY;
         goto err;
     }
 
@@ -1255,7 +1253,7 @@ ble_hs_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     if (entry->ha_fn == NULL) {
-        rc = BLE_ERR_UNSPECIFIED;
+        rc = BLE_HS_ATT_ERR_UNLIKELY;
         goto send_err;
     }
 

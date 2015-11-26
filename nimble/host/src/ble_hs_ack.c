@@ -42,6 +42,9 @@ ble_hs_ack_rx(struct ble_hs_ack *ack)
 void
 ble_hs_ack_set_callback(ble_hs_ack_fn *cb, void *arg)
 {
+    /* Don't allow the current callback to be replaced with another. */
+    assert(ble_hs_ack_cb == NULL || cb == NULL);
+
     ble_hs_ack_cb = cb;
     ble_hs_ack_arg = arg;
 }
