@@ -17,6 +17,11 @@
 #ifndef H_BLE_LL_
 #define H_BLE_LL_
 
+#include "hal/hal_cputime.h"
+
+/* Wait for response timer */
+typedef void (*ble_ll_wfr_func)(void *arg);
+
 /* 
  * Global Link Layer data object. There is only one Link Layer data object
  * per controller although there may be many instances of the link layer state
@@ -33,6 +38,10 @@ struct ble_ll_obj
     /* Receive packet (from phy) event */
     struct os_event ll_rx_pkt_ev;
 
+    /* Wait for response timer */
+    struct cpu_timer ll_wfr_timer;
+    ble_ll_wfr_func ll_wfr_func;
+
     /* Packet receive queue */
     STAILQ_HEAD(ll_rxpkt_qh, os_mbuf_pkthdr) ll_rx_pkt_q;
 };
@@ -41,6 +50,10 @@ extern struct ble_ll_obj g_ble_ll_data;
 /* Link layer statistics */
 struct ble_ll_stats
 {
+    uint32_t hci_cmds;
+    uint32_t hci_cmd_errs;
+    uint32_t hci_events_sent;
+    uint32_t bad_ll_state;
     uint32_t rx_crc_ok;
     uint32_t rx_crc_fail;
     uint32_t rx_bytes;
@@ -53,10 +66,6 @@ struct ble_ll_stats
     uint32_t rx_scan_ind;
     uint32_t rx_unk_pdu;
     uint32_t rx_malformed_pkts;
-    uint32_t hci_cmds;
-    uint32_t hci_cmd_errs;
-    uint32_t hci_events_sent;
-    uint32_t bad_ll_state;
 };
 extern struct ble_ll_stats g_ble_ll_stats;
 
@@ -404,7 +413,7 @@ int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
 int ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan);
 
 /* Called by the PHY when a packet reception ends */
-int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok);
+int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok);
 
 /*--- Controller API ---*/
 /* Set the link layer state */
@@ -415,5 +424,11 @@ void ble_ll_event_send(struct os_event *ev);
 
 /* Set random address */
 int ble_ll_set_random_addr(uint8_t *addr);
+
+/* Enable wait for response timer */
+void ble_ll_wfr_enable(uint32_t cputime, ble_ll_wfr_func wfr_cb, void *arg);
+
+/* Disable wait for response timer */
+void ble_ll_wfr_disable(void);
 
 #endif /* H_LL_ */

@@ -38,6 +38,7 @@ extern struct os_mempool g_hci_os_event_pool;
  *  flags: bitfield with the following values
  *      0x01:   Set if there was a match on the whitelist
  *      0x02:   Set if a connect request was transmitted upon receiving pdu
+ *      0x04:   Set the first time we transmit the PDU (used to detect retry).
  *  channel: The logical BLE channel PHY channel # (0 - 39)
  *  crcok: flag denoting CRC check passed (1) or failed (0).
  *  rssi: RSSI, in dBm.
@@ -53,10 +54,17 @@ struct ble_mbuf_hdr
 /* Flag definitions */
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x01)
 #define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x02)
+#define BLE_MBUF_HDR_F_TXD              (0x04)
 
 #define BLE_MBUF_HDR_PTR(om)    \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
                             sizeof(struct os_mbuf_pkthdr))
+
+/* BLE mbuf overhead per packet header mbuf */
+#define BLE_MBUF_PKT_OVERHEAD   (sizeof(struct os_mbuf) +           \
+                                 sizeof(struct os_mbuf_pkthdr) +    \
+                                 sizeof(struct ble_mbuf_hdr))
+
 
 #define BLE_DEV_ADDR_LEN        (6)
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];

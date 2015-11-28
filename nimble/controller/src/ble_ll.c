@@ -26,6 +26,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
+#include "hal/hal_cputime.h"
 
 /* 
  * XXX: Just thought of something! Can I always set the DEVMATCH bit at
@@ -67,12 +68,12 @@ struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
 /**
- * Counts received packets by type 
+ * Counts the number of advertising PDU's by type. 
  * 
  * @param pdu_type 
  */
 static void
-ble_ll_count_rx_pkts(uint8_t pdu_type)
+ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
 {
     /* Count received packet types  */
     switch (pdu_type) {
@@ -104,8 +105,6 @@ ble_ll_count_rx_pkts(uint8_t pdu_type)
         ++g_ble_ll_stats.rx_unk_pdu;
         break;
     }
-
-    /* XXX: what about data packets? */
 }
 
 int
@@ -232,6 +231,48 @@ ble_ll_pdu_tx_time_get(uint16_t len)
 }
 
 /**
+ * Wait for response timeout function 
+ *  
+ * Context: interrupt (ble scheduler) 
+ * 
+ * @param arg 
+ */
+void
+ble_ll_wfr_timer_exp(void *arg)
+{
+    struct ble_ll_obj *lldata;
+
+    lldata = &g_ble_ll_data;
+    lldata->ll_wfr_func(arg);
+}
+
+/**
+ * Enable the wait for response timer 
+ * 
+ * @param cputime 
+ * @param wfr_cb 
+ * @param arg 
+ */
+void
+ble_ll_wfr_enable(uint32_t cputime, ble_ll_wfr_func wfr_cb, void *arg)
+{
+    /* XXX: should I reset func callback here too? Not use a global
+       ble_ll_wfr_timer expiration? */
+    g_ble_ll_data.ll_wfr_func = wfr_cb;
+    g_ble_ll_data.ll_wfr_timer.arg = arg;
+    cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
+}
+
+/**
+ * Disable the wait for response timer
+ */
+void
+ble_ll_wfr_disable(void)
+{
+    cputime_timer_stop(&g_ble_ll_data.ll_wfr_timer);
+}
+
+/**
  * ll rx pkt in proc
  *  
  * Process received packet from PHY.
@@ -260,61 +301,56 @@ ble_ll_rx_pkt_in_proc(void)
         STAILQ_REMOVE_HEAD(&g_ble_ll_data.ll_rx_pkt_q, omp_next);
         OS_EXIT_CRITICAL(sr);
 
-        /* XXX: need to check if this is an adv channel or data channel */
-
         /* Count statistics */
         rxbuf = m->om_data;
-        pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
         ble_hdr = BLE_MBUF_HDR_PTR(m); 
         if (ble_hdr->crcok) {
             /* The total bytes count the PDU header and PDU payload */
             g_ble_ll_stats.rx_bytes += pkthdr->omp_len;
             ++g_ble_ll_stats.rx_crc_ok;
-            ble_ll_count_rx_pkts(pdu_type);
         } else {
             ++g_ble_ll_stats.rx_crc_fail;
         }
 
-        /* 
-         * XXX: The reason I dont bail earlier on bad CRC is that
-         * there may be some connection stuff I need to do with a packet
-         * that has failed the CRC.
-         */ 
-
-        /* Process the PDU */
-        switch (g_ble_ll_data.ll_state) {
-        case BLE_LL_STATE_ADV:
-            if (ble_hdr->crcok && (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
-                ble_ll_adv_conn_req_rxd(rxbuf, ble_hdr->flags);
-            }
-            break;
-        case BLE_LL_STATE_SCANNING:
+        if (ble_hdr->channel < BLE_PHY_NUM_DATA_CHANS) {
+            ble_ll_conn_rx_data_pdu(m, ble_hdr->crcok);
+        } else {
             if (ble_hdr->crcok) {
-                ble_ll_scan_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->rssi,
-                                        ble_hdr->flags);
+                /* Get advertising PDU type */
+                pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+                ble_ll_count_rx_adv_pdus(pdu_type);
+
+                /* Process the PDU */
+                switch (g_ble_ll_data.ll_state) {
+                case BLE_LL_STATE_ADV:
+                    if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
+                        ble_ll_adv_conn_req_rxd(rxbuf, ble_hdr->flags);
+                    }
+                    break;
+                case BLE_LL_STATE_SCANNING:
+                    ble_ll_scan_rx_pdu_proc(pdu_type, rxbuf, ble_hdr->rssi,
+                                            ble_hdr->flags);
+
+                    /* We need to re-enable the PHY if we are in idle state */
+                    if (ble_phy_state_get() == BLE_PHY_STATE_IDLE) {
+                        /* XXX: If this returns error, we will need to attempt
+                         * to re-start scanning! */
+                        ble_phy_rx();
+                    }
+                    break;
+                case BLE_LL_STATE_INITIATING:
+                    ble_ll_init_rx_pdu_proc(rxbuf, ble_hdr);
+                    break;
+                default:
+                    /* Any other state should never occur */
+                    assert(0);
+                    break;
+                }
             }
 
-            /* We need to re-enable the PHY if we are in idle state */
-            if (ble_phy_state_get() == BLE_PHY_STATE_IDLE) {
-                /* XXX: If this returns error, we will need to attempt to
-                   re-start scanning! */
-                ble_phy_rx();
-            }
-            break;
-        case BLE_LL_STATE_INITIATING:
-            ble_ll_init_rx_pdu_proc(rxbuf, ble_hdr);
-            break;
-        case BLE_LL_STATE_CONNECTION:
-            /* XXX: implement */
-            break;
-        default:
-            /* We should not receive packets in standby state! */
-            assert(0);
-            break;
+            /* Free the packet buffer */
+            os_mbuf_free(&g_mbuf_pool, m);
         }
-
-        /* Free the packet buffer */
-        os_mbuf_free(&g_mbuf_pool, m);
     }
 }
 
@@ -351,7 +387,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
     uint8_t pdu_type;
     uint8_t *rxbuf;
 
-    /* XXX: need to check if this is an adv channel or data channel */
+    /* Check channel type */
     rxbuf = rxpdu->om_data;
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
         /* 
@@ -360,8 +396,8 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
          */
         /* XXX: check access address for surety? What to do... */
         if (g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION) {
-            /* Set flag in connection noting we have received a response */
-            ble_ll_conn_rsp_rxd();
+            /* Call conection pdu rx start function */
+            ble_ll_conn_rx_pdu_start();
 
             /* Set up to go from rx to tx */
             rc = 1;
@@ -403,7 +439,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
         rc = 0;
         break;
     default:
-        /* Should not be in this state */
+        /* Should not be in this state! */
         rc = -1;
         ++g_ble_ll_stats.bad_ll_state;
         break;
@@ -425,7 +461,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
+ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
 {
     int rc;
     int badpkt;
@@ -437,7 +473,34 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Set the rx buffer pointer to the start of the received data */
     rxbuf = rxpdu->om_data;
 
-    /* XXX: need to check if this is an adv channel or data channel */
+    /* Check channel type */
+    if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        /* Better be in connection state */
+        assert(g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION);
+
+        /* Set length in the received PDU */
+        mblen = rxbuf[1] + BLE_LL_PDU_HDR_LEN;
+        OS_MBUF_PKTHDR(rxpdu)->omp_len = mblen;
+        rxpdu->om_len = mblen;
+
+        /* 
+         * NOTE: this looks a bit odd, and it is, but for now we place the
+         * received PDU on the Link Layer task before calling the rx end
+         * function. We do this to guarantee connection event end ordering
+         * and receive PDU processing.
+         */
+        ble_ll_rx_pdu_in(rxpdu);
+
+        /* 
+         * Data channel pdu. We should be in CONNECTION state with an
+         * ongoing connection.
+         */
+        /* XXX: check access address for surety? What to do... */
+        rc = ble_ll_conn_rx_pdu_end(rxpdu, crcok);
+        return rc;
+    } 
+
+    /* Get advertising PDU type */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
 
@@ -501,9 +564,10 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t crcok)
         }
         break;
     case BLE_LL_STATE_CONNECTION:
-        /* XXX */
+        /* XXX: we should never get here! What to do??? */
         break;
     default:
+        /* This is an invalid state. */
         assert(0);
         break;
     }
@@ -609,6 +673,10 @@ ble_ll_init(void)
 
     /* Initialize receive packet (from phy) event */
     lldata->ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
+
+    /* Initialize wait for response timer */
+    cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp, 
+                       NULL);
 
     /* Initialize LL HCI */
     ble_ll_hci_init();

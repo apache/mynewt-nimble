@@ -100,6 +100,11 @@ ble_phy_rxpdu_get(void)
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {
+            /* 
+             * XXX: fix this later but we need to prepend the ACL header
+             * which is 4 bytes but we re-use 2 bytes of the PDU header.
+             */
+            m->om_data += 2;
             g_ble_phy_data.rxpdu = m;
         }
     }
@@ -151,9 +156,6 @@ ble_phy_isr(void)
 
         transition = g_ble_phy_data.phy_transition;
         if (transition == BLE_PHY_TRANSITION_TX_RX) {
-            /* XXX: for now, assume we receive on logical address 0 */
-            NRF_RADIO->RXADDRESSES = 1;
-
             /* Debug check to make sure we go from tx to rx */
             assert((shortcuts & RADIO_SHORTS_DISABLED_RXEN_Msk) != 0);
 
@@ -262,7 +264,7 @@ ble_phy_isr(void)
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu, ble_hdr->crcok);
+        rc = ble_ll_rx_end(rxpdu, ble_hdr->channel, ble_hdr->crcok);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
@@ -358,12 +360,6 @@ ble_phy_rx(void)
     if (ble_phy_rxpdu_get() == NULL) {
         return BLE_PHY_ERR_NO_BUFS;
     }
-
-    /* XXX: Assume that this is an advertising channel */
-    NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
-
-    /* XXX: for now, assume we receive on logical address 0 */
-    NRF_RADIO->RXADDRESSES = 1;
 
     /* Set packet pointer */
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;

@@ -345,7 +345,6 @@ ble_ll_adv_rx_cb(struct ble_ll_sched_item *sch)
     return BLE_LL_SCHED_STATE_DONE;
 }
 
-
 /**
  * Scheduler callback when an advertising PDU has been sent. 
  * 

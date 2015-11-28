@@ -37,6 +37,8 @@ void ble_ll_conn_slave_start(uint8_t *rxbuf);
 void ble_ll_conn_spvn_timeout(void *arg);
 void ble_ll_conn_event_end(void *arg);
 void ble_ll_conn_init(void);
-void ble_ll_conn_rsp_rxd(void);
+void ble_ll_conn_rx_pdu_start(void);
+int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok);
+void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
 
 #endif /* H_BLE_LL_CONN_ */

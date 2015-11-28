@@ -174,7 +174,7 @@ ble_phy_isr(void)
         /* Construct BLE header before handing up */
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
         ble_hdr->flags = 0;
-        ble_hdr->rssi = -77;
+        ble_hdr->rssi = -77;    /* XXX: dummy rssi */
         ble_hdr->channel = g_ble_phy_data.phy_chan;
         ble_hdr->crcok = 1;
 
@@ -188,7 +188,7 @@ ble_phy_isr(void)
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu, ble_hdr->crcok);
+        rc = ble_ll_rx_end(rxpdu, ble_hdr->channel, ble_hdr->crcok);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
