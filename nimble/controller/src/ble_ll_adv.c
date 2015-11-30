@@ -1081,11 +1081,11 @@ ble_ll_adv_init(void)
     advsm->adv_txdone_ev.ev_arg = advsm;
 
     /* Get an advertising mbuf (packet header) and attach to state machine */
-    advsm->adv_pdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
+    ble_get_packet(advsm->adv_pdu);
     assert(advsm->adv_pdu != NULL);
 
     /* Get a scan response mbuf (packet header) and attach to state machine */
-    advsm->scan_rsp_pdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
+    ble_get_packet(advsm->scan_rsp_pdu);
     assert(advsm->scan_rsp_pdu != NULL);
 }
 

@@ -96,15 +96,10 @@ ble_phy_rxpdu_get(void)
 
     m = g_ble_phy_data.rxpdu;
     if (m == NULL) {
-        m = os_mbuf_get_pkthdr(&g_mbuf_pool);
+        ble_get_packet(m);
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {
-            /* 
-             * XXX: fix this later but we need to prepend the ACL header
-             * which is 4 bytes but we re-use 2 bytes of the PDU header.
-             */
-            m->om_data += 2;
             g_ble_phy_data.rxpdu = m;
         }
     }

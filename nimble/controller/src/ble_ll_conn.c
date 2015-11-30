@@ -52,12 +52,13 @@
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
  * 14) Make sure we set LLID correctly!
- * 15) So what if I fail an empty pdu? Do I have to specifically retransmit
- * that one? If I were to take a new data pdu and replace the empty pdu with
- * the new data pdu? Could I do this or is that bad?
  * 16) Make sure we are doing the right thing in the connection rx pdu start
  * and end functions if we are a slave.
+ * 17) Make sure BLE header flags (TXD bit) is cleared when put on txq of conn
  */
+
+/* XXX: this does not belong here! Move to transport? */
+extern int ble_hs_rx_data(struct os_mbuf *om);
 
 /* 
  * XXX: Possible improvements
@@ -134,6 +135,14 @@ struct ble_ll_conn_global_params
 };
 
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
+
+/* 
+ * Length of empty pdu mbuf. Each connection state machine contains an
+ * empty pdu since we dont want to allocate a full mbuf for an empty pdu
+ * and we always want to have one available. The empty pdu length is of
+ * type uint32_t so we have 4 byte alignment.
+ */ 
+#define BLE_LL_EMPTY_PDU_MBUF_SIZE  (((BLE_MBUF_PKT_OVERHEAD + 4) + 3) / 4)
 
 /* Connection state machine */
 struct ble_ll_conn_sm
@@ -218,6 +227,9 @@ struct ble_ll_conn_sm
         SLIST_ENTRY(ble_ll_conn_sm) conn_sle;
         STAILQ_ENTRY(ble_ll_conn_sm) conn_stqe;
     };
+
+    /* empty pdu for connection */
+    uint32_t conn_empty_pdu[BLE_LL_EMPTY_PDU_MBUF_SIZE];
 };
 
 /* Pointer to connection state machine we are trying to create */
@@ -255,11 +267,6 @@ struct ble_ll_conn_stats
     uint32_t data_pdu_txf;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
-
-/* "Dummy" mbuf containing an "Empty PDU" */
-#define BLE_LL_DUMMY_EMPTY_PDU_SIZE ((BLE_MBUF_PKT_OVERHEAD + 4) / 4)
-
-static uint32_t g_ble_ll_empty_pdu[BLE_LL_DUMMY_EMPTY_PDU_SIZE];
 
 /**
  * Get a connection state machine.
@@ -583,9 +590,13 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
                 }
             }
         }
+        ble_hdr = BLE_MBUF_HDR_PTR(m);
     } else {
         /* Send empty pdu */
-        m = (struct os_mbuf *)&g_ble_ll_empty_pdu;
+        m = (struct os_mbuf *)&connsm->conn_empty_pdu;
+        ble_hdr = BLE_MBUF_HDR_PTR(m);
+        ble_hdr->flags = 0;
+        m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
     }
 
     /* Set SN, MD, NESN in transmit PDU */
@@ -596,7 +607,6 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * that the LLID is set and all other bits are 0 in the first header
      * byte.
      */
-    ble_hdr = BLE_MBUF_HDR_PTR(m);
     if (ble_hdr->flags & BLE_MBUF_HDR_F_TXD) {
         hdr_byte &= ~(BLE_LL_DATA_HDR_MD_MASK | BLE_LL_DATA_HDR_NESN_MASK);
     } else {
@@ -1017,11 +1027,9 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         }
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
 
-        /* XXX: what happens if the empty PDU is on this list? Should
-           we check to make sure it is not? */
-
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
-        os_mbuf_free(&g_mbuf_pool, m);
+        os_mbuf_free(m);
+        /* XXX: emtpy pdu? */
     }
 
     /* Make sure events off queue */
@@ -1712,6 +1720,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
              */ 
             rxbuf = rxpdu->om_data;
             hdr_byte = rxbuf[0];
+            acl_len = rxbuf[1];
             if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 if (hdr_byte & BLE_LL_DATA_HDR_NESN_MASK) {
                     connsm->allow_slave_latency = 1;
@@ -1727,21 +1736,17 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
                 /* Update last rxd sn */
                 connsm->last_rxd_sn = rxd_sn;
 
-                /* XXX: use the mbuf routine for this! */
+                /* NOTE: there should be at least two bytes available */
+                assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
+                os_mbuf_prepend(rxpdu, 2);
+                rxbuf = rxpdu->om_data;
+
                 /* Set ACL data packet header and send to host */
-                acl_len = rxbuf[1];
                 acl_hdr = (hdr_byte & BLE_LL_DATA_HDR_LLID_MASK);
                 acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
-                rxpdu->om_data = rxpdu->om_data - 2;
-                rxbuf = rxpdu->om_data;
                 htole16(rxbuf, acl_hdr);
                 htole16(rxbuf + 2, acl_len);
-
-                /* Add to length of mbuf and packet header */
-                rxpdu->om_len += 2;
-                OS_MBUF_PKTHDR(rxpdu)->omp_len += 2;
-
-                /* XXX: send to host */
+                ble_hs_rx_data(rxpdu);
                 return;
             }
         } else {
@@ -1751,8 +1756,8 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
         ++g_ble_ll_conn_stats.data_pdu_rx_invalid;
     }
 
-    /* Free the packet buffer */
-    os_mbuf_free(&g_mbuf_pool, rxpdu);
+    /* Free buffer */
+    os_mbuf_free(rxpdu);
 }
 
 /**
@@ -1853,8 +1858,8 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
             if (pkthdr) {
                 STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
                 txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-                os_mbuf_free(&g_mbuf_pool, txpdu);
-                /* XXX: deal with empty pdu's. Cant free them */
+                os_mbuf_free(txpdu);
+                /* XXX: emtpy pdu? */
             } else {
                 /* No packet on queue? This is an error! */
                 ++g_ble_ll_conn_stats.no_tx_pdu;
@@ -2044,21 +2049,12 @@ ble_ll_conn_init(void)
     conn_params->conn_init_max_tx_time = ble_ll_pdu_tx_time_get(maxbytes);
     conn_params->conn_init_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
 
-    /* 
-     * XXX: This approach may not work as I may need to keep these on the
-     * transmit packet queue of a connsm. If there are multiple state machines,
-     * I will need multiple empty PDU's. This is only true if I need to keep
-     * the empty PDU on the transmit queue for retransmission across connection
-     * events. 
-     */
-    /* Initialize dummy empty pdu */
-    m = (struct os_mbuf *)&g_ble_ll_empty_pdu;
-    m->om_data = (uint8_t *)&g_ble_ll_empty_pdu[0];
-    m->om_data += sizeof(struct os_mbuf) + sizeof(struct os_mbuf_pkthdr);
+    /* Initialize empty pdu */
+    m = (struct os_mbuf *)&connsm->conn_empty_pdu;
+    m->om_data = (uint8_t *)&connsm->conn_empty_pdu[0];
+    m->om_data += BLE_MBUF_PKT_OVERHEAD;
     m->om_len = 2;
-    m->om_flags = OS_MBUF_F_MASK(OS_MBUF_F_PKTHDR);
     OS_MBUF_PKTHDR(m)->omp_len = 2;
     m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
-    m->om_data[1] = 0;
 }
 

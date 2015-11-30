@@ -99,7 +99,7 @@ ble_phy_rxpdu_get(void)
 
     m = g_ble_phy_data.rxpdu;
     if (m == NULL) {
-        m = os_mbuf_get_pkthdr(&g_mbuf_pool);
+        ble_get_packet(m);
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {

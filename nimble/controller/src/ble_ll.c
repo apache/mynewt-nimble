@@ -349,7 +349,7 @@ ble_ll_rx_pkt_in_proc(void)
             }
 
             /* Free the packet buffer */
-            os_mbuf_free(&g_mbuf_pool, m);
+            os_mbuf_free(m);
         }
     }
 }
@@ -537,7 +537,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
     /* If this is a malformed packet, just kill it here */
     if (badpkt) {
         ++g_ble_ll_stats.rx_malformed_pkts;
-        os_mbuf_free(&g_mbuf_pool, rxpdu);
+        os_mbuf_free(rxpdu);
         return -1;
     }
 

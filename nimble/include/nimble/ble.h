@@ -65,6 +65,21 @@ struct ble_mbuf_hdr
                                  sizeof(struct os_mbuf_pkthdr) +    \
                                  sizeof(struct ble_mbuf_hdr))
 
+/**
+ * Get a BLE packet. A packet is a BLE packet header mbuf with enough 
+ * leading space for ACL data header (4 bytes). 
+ * 
+ * 
+ * @return struct os_mbuf *
+ */
+static inline void
+ble_get_packet(struct os_mbuf *om)
+{
+    om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+    if (om) {
+        om->om_data += 4;
+    }
+}
 
 #define BLE_DEV_ADDR_LEN        (6)
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];

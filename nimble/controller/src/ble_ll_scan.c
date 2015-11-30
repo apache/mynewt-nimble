@@ -1165,7 +1165,7 @@ ble_ll_scan_init(void)
     scansm->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
-    scansm->scan_req_pdu = os_mbuf_get_pkthdr(&g_mbuf_pool);
+    ble_get_packet(scansm->scan_req_pdu);
     assert(scansm->scan_req_pdu != NULL);
 }
 
