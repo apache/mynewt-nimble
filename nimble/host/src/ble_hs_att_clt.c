@@ -120,9 +120,9 @@ ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
 
 int
 ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan,
                             struct ble_hs_att_find_info_req *req)
 {
+    struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     void *buf;
     int rc;
@@ -135,6 +135,9 @@ ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
         rc = EINVAL;
         goto err;
     }
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    assert(chan != NULL);
 
     txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (txom == NULL) {
