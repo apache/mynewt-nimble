@@ -32,29 +32,22 @@
 
 /* XXX TODO
  * 1) Add set channel map command and implement channel change procedure.
- * 5) Implement getting a data packet. How do we do that?
  * 6) Make sure we have implemented all ways a connection can die/end. Not
  * a connection event; I mean the termination of a connection.
  * 8) Link layer control procedures and timers
- * 9) Did we implement what happens if we receive a connection request from
- * a device we are already connected to? We also need to check to see if we
- * were asked to create a connection when one already exists. Note that
+ * 9) We also need to check to see if we were asked to create a connection
+ * when one already exists (the connection create command) Note that
  * an initiator should only send connection requests to devices it is not
  * already connected to. Make sure this cant happen.
  * 10) Make sure we check incoming data packets for size and all that. You
  * know, supported octets and all that. For both rx and tx.
  * 11) What kind of protection do I need on the conn_txq? The LL will need to
  * disable interrupts... not sure about ISR's.
- * 12) Add/remove connection from the active connection list.
  * 13) Make sure we are setting the schedule end time properly for both slave
  * and master. We should just set this to the end of the connection event.
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
- * 14) Make sure we set LLID correctly!
- * 16) Make sure we are doing the right thing in the connection rx pdu start
- * and end functions if we are a slave.
- * 17) Make sure BLE header flags (TXD bit) is cleared when put on txq of conn
  */
 
 /* XXX: this does not belong here! Move to transport? */
@@ -68,6 +61,7 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
  * 2) See what connection state machine elements are purely master and
  * purely slave. We can make a union of them.
  * 3) Do I need a memory pool of connection elements? Probably not.
+ * 4) Modify mbuf code so that we dont free the mbuf if the pool is NULL.
  */
 
 /* Connection event timing */
@@ -222,10 +216,10 @@ struct ble_ll_conn_sm
     /* Packet transmit queue */
     STAILQ_HEAD(conn_txq_head, os_mbuf_pkthdr) conn_txq;
 
-    /* List entry for active connection pool */
+    /* List entry for active/free connection pools */
     union {
-        SLIST_ENTRY(ble_ll_conn_sm) conn_sle;
-        STAILQ_ENTRY(ble_ll_conn_sm) conn_stqe;
+        SLIST_ENTRY(ble_ll_conn_sm) act_sle;
+        STAILQ_ENTRY(ble_ll_conn_sm) free_stqe;
     };
 
     /* empty pdu for connection */
@@ -255,6 +249,7 @@ struct ble_ll_conn_stats
     uint32_t cant_set_sched;
     uint32_t conn_ev_late;
     uint32_t wfr_expirations;
+    uint32_t handle_not_found;
     uint32_t no_tx_pdu;
     uint32_t no_conn_sm;
     uint32_t no_free_conn_sm;
@@ -278,7 +273,7 @@ ble_ll_conn_sm_get(void)
 
     connsm = STAILQ_FIRST(&g_ble_ll_conn_free_list);
     if (connsm) {
-        STAILQ_REMOVE_HEAD(&g_ble_ll_conn_free_list, conn_stqe);
+        STAILQ_REMOVE_HEAD(&g_ble_ll_conn_free_list, free_stqe);
     } else {
         ++g_ble_ll_conn_stats.no_free_conn_sm;
     }
@@ -387,11 +382,10 @@ ble_ll_conn_calc_access_addr(void)
 
         /* Cannot be access address or be 1 bit different */
         aa = aa_high;
-        aa = (aa_high << 16) | aa_low;
+        aa = (aa << 16) | aa_low;
         bits_diff = 0;
-        mask = 0x00000001;
         temp = aa ^ BLE_ACCESS_ADDR_ADV;
-        for (mask = 0; mask <= 0x80000000; mask <<= 1) {
+        for (mask = 0x00000001; mask != 0; mask <<= 1) {
             if (mask & temp) {
                 ++bits_diff;
                 if (bits_diff > 1) {
@@ -436,6 +430,9 @@ ble_ll_conn_calc_access_addr(void)
         if ((consecutive > 6) || (transitions > 24)) {
             continue;
         }
+
+        /* We have a valid access address */
+        break;
     }
     return aa;
 }
@@ -540,7 +537,9 @@ ble_ll_conn_wait_txend(void *arg)
 
 /**
  * Called when we want to send a data channel pdu inside a connection event. 
- * 
+ *  
+ * Context: interrupt 
+ *  
  * @param connsm 
  * 
  * @return int 0: success; otherwise failure to transmit
@@ -838,6 +837,68 @@ ble_ll_conn_spvn_timer_cb(void *arg)
 }
 
 /**
+ * Called when a create connection command has been received. This initializes 
+ * a connection state machine in the master role. 
+ *  
+ * NOTE: Must be called before the state machine is started 
+ * 
+ * @param connsm 
+ * @param hcc 
+ */
+static void
+ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm, 
+                        struct hci_create_conn *hcc)
+{
+    /* Must be master */
+    connsm->conn_role = BLE_LL_CONN_ROLE_MASTER;
+    connsm->tx_win_size = BLE_LL_CONN_CFG_TX_WIN_SIZE;
+    connsm->tx_win_off = BLE_LL_CONN_CFG_TX_WIN_OFF;
+    connsm->master_sca = BLE_LL_CONN_CFG_MASTER_SCA;
+
+    /* Hop increment is a random value between 5 and 16. */
+    connsm->hop_inc = (rand() % 12) + 5;
+
+    /* Set slave latency and supervision timeout */
+    connsm->slave_latency = hcc->conn_latency;
+    connsm->supervision_tmo = hcc->supervision_timeout;
+
+    /* Set own address type and peer address if needed */
+    connsm->own_addr_type = hcc->own_addr_type;
+    if (hcc->filter_policy == 0) {
+        memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
+        connsm->peer_addr_type = hcc->peer_addr_type;
+    }
+
+    /* XXX: for now, just make connection interval equal to max */
+    connsm->conn_itvl = hcc->conn_itvl_max;
+
+    /* Check the min/max CE lengths are less than connection interval */
+    if (hcc->min_ce_len > (connsm->conn_itvl * 2)) {
+        connsm->min_ce_len = connsm->conn_itvl * 2;
+    } else {
+        connsm->min_ce_len = hcc->min_ce_len;
+    }
+
+    if (hcc->max_ce_len > (connsm->conn_itvl * 2)) {
+        connsm->max_ce_len = connsm->conn_itvl * 2;
+    } else {
+        connsm->max_ce_len = hcc->max_ce_len;
+    }
+
+    /* 
+     * XXX: for now, just set the channel map to all 1's. Needs to get
+     * set to default or initialized or something
+     */ 
+    connsm->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
+    memset(connsm->chanmap, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
+    connsm->chanmap[4] = 0x1f;
+
+    /*  Calculate random access address and crc initialization value */
+    connsm->access_addr = ble_ll_conn_calc_access_addr();
+    connsm->crcinit = rand() & 0xffffff;
+}
+
+/**
  * Start the connection state machine. This is done once per connection 
  * when the HCI command "create connection" is issued to the controller or 
  * when a slave receives a connect request, 
@@ -845,67 +906,15 @@ ble_ll_conn_spvn_timer_cb(void *arg)
  * @param connsm 
  */
 static void
-ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm, struct hci_create_conn *hcc)
+ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_conn_global_params *conn_params;
 
-    /* Reset event counter and last unmapped channel; get a handle */
+    /* Reset event counter and last unmapped channel */
     connsm->last_unmapped_chan = 0;
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->allow_slave_latency = 0;
-
-    if (hcc != NULL) {
-        /* Must be master */
-        connsm->conn_role = BLE_LL_CONN_ROLE_MASTER;
-        connsm->tx_win_size = BLE_LL_CONN_CFG_TX_WIN_SIZE;
-        connsm->tx_win_off = BLE_LL_CONN_CFG_TX_WIN_OFF;
-        connsm->master_sca = BLE_LL_CONN_CFG_MASTER_SCA;
-
-        /* Hop increment is a random value between 5 and 16. */
-        connsm->hop_inc = (rand() % 12) + 5;
-
-        /* Set slave latency and supervision timeout */
-        connsm->slave_latency = hcc->conn_latency;
-        connsm->supervision_tmo = hcc->supervision_timeout;
-
-        /* Set own address type and peer address if needed */
-        connsm->own_addr_type = hcc->own_addr_type;
-        if (hcc->filter_policy == 0) {
-            memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
-            connsm->peer_addr_type = hcc->peer_addr_type;
-        }
-
-        /* XXX: for now, just make connection interval equal to max */
-        connsm->conn_itvl = hcc->conn_itvl_max;
-
-        /* Check the min/max CE lengths are less than connection interval */
-        if (hcc->min_ce_len > (connsm->conn_itvl * 2)) {
-            connsm->min_ce_len = connsm->conn_itvl * 2;
-        } else {
-            connsm->min_ce_len = hcc->min_ce_len;
-        }
-
-        if (hcc->max_ce_len > (connsm->conn_itvl * 2)) {
-            connsm->max_ce_len = connsm->conn_itvl * 2;
-        } else {
-            connsm->max_ce_len = hcc->max_ce_len;
-        }
-
-        /* 
-         * XXX: for now, just set the channel map to all 1's. Needs to get
-         * set to default or initialized or something
-         */ 
-        connsm->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
-        memset(connsm->chanmap, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
-        connsm->chanmap[4] = 0x1f;
-
-        /*  Calculate random access address and crc initialization value */
-        connsm->access_addr = ble_ll_conn_calc_access_addr();
-        connsm->crcinit = rand() & 0xffffff;
-    } else {
-        connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
-    }
 
     /* Initialize connection supervision timer */
     cputime_timer_init(&connsm->conn_spvn_timer, ble_ll_conn_spvn_timer_cb, 
@@ -952,7 +961,7 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm, struct hci_create_conn *hcc)
     /* XXX: Controller notifies host of changes to effective tx/rx time/bytes*/
 
     /* Add to list of active connections */
-    SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, conn_sle);
+    SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
 }
 
 /**
@@ -1016,7 +1025,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_wfr_disable();
 
     /* Remove from the active connection list */
-    SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, conn_sle);
+    SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
 
     /* Free all packets on transmit queue */
     while (1) {
@@ -1028,8 +1037,9 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
 
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
-        os_mbuf_free(m);
-        /* XXX: emtpy pdu? */
+        if (m != (struct os_mbuf *)connsm->conn_empty_pdu) {
+            os_mbuf_free(m);
+        }
     }
 
     /* Make sure events off queue */
@@ -1046,7 +1056,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_conn_comp_event_send(connsm, ble_err);
 
     /* Put connection state machine back on free list */
-    STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, conn_stqe);
+    STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
 }
 
 /**
@@ -1386,8 +1396,9 @@ ble_ll_conn_create(uint8_t *cmdbuf)
         return BLE_ERR_CONN_LIMIT;
     }
 
-    /* Start the connection sm */
-    ble_ll_conn_sm_start(connsm, hcc);
+    /* Initialize state machine in master role and start state machine */
+    ble_ll_conn_master_init(connsm, hcc);
+    ble_ll_conn_sm_start(connsm);
 
     /* Create the connection request */
     ble_ll_conn_req_pdu_make(connsm);
@@ -1395,8 +1406,8 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     /* Start scanning */
     rc = ble_ll_scan_initiator_start(hcc);
     if (rc) {
-        SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, conn_sle);
-        STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, conn_stqe);
+        SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
+        STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
     } else {
         /* Set the connection state machine we are trying to create. */
         g_ble_ll_conn_create_sm = connsm;
@@ -1447,6 +1458,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva)
     int rc;
     struct ble_ll_conn_sm *connsm;
 
+    /* XXX: Deal with different types of random addresses here! */
     connsm = g_ble_ll_conn_create_sm;
     if (connsm && (connsm->peer_addr_type == addr_type) &&
         !memcmp(adva, connsm->peer_addr, BLE_DEV_ADDR_LEN)) {
@@ -1509,9 +1521,9 @@ ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
              */ 
             /* Get address type of advertiser */
             if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-                addr_type = BLE_ADDR_TYPE_RANDOM;
+                addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
             } else {
-                addr_type = BLE_ADDR_TYPE_PUBLIC;
+                addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
             }
 
             connsm->peer_addr_type = addr_type;
@@ -1585,9 +1597,9 @@ ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu)
         /* Check filter policy */
         adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
         if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-            addr_type = BLE_ADDR_TYPE_RANDOM;
+            addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
         } else {
-            addr_type = BLE_ADDR_TYPE_PUBLIC;
+            addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
         }
 
         /* Check filter policy */
@@ -1858,8 +1870,9 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
             if (pkthdr) {
                 STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
                 txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-                os_mbuf_free(txpdu);
-                /* XXX: emtpy pdu? */
+                if (txpdu != (struct os_mbuf *)connsm->conn_empty_pdu) {
+                    os_mbuf_free(txpdu);
+                }
             } else {
                 /* No packet on queue? This is an error! */
                 ++g_ble_ll_conn_stats.no_tx_pdu;
@@ -1904,26 +1917,104 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
 }
 
 /**
+ * Data packet from host. 
+ *  
+ * Context: Link Layer task 
+ * 
+ * @param om 
+ * @param handle 
+ * @param length 
+ * 
+ * @return int 
+ */
+void
+ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
+{
+    os_sr_t sr;
+    struct ble_mbuf_hdr *ble_hdr;
+    struct os_mbuf_pkthdr *pkthdr;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t conn_handle;
+    uint16_t pb;
+
+    /* See if we have an active matching connection handle */
+    conn_handle = handle & 0x0FFF;
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if (connsm->conn_handle == conn_handle) {
+            /* Construct LL header in buffer */
+            /* XXX: deal with length later */
+            assert(length <= 251);
+            pb = handle & 0x3000;
+            if (pb == 0) {
+                om->om_data[0] = BLE_LL_LLID_DATA_START;
+            } else if (pb == 1) {
+                om->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+            } else {
+                /* This should never happen! */
+                break;
+            }
+            om->om_data[1] = (uint8_t)length;
+
+            /* Clear flags field in BLE header */
+            ble_hdr = BLE_MBUF_HDR_PTR(om);
+            ble_hdr->flags = 0;
+
+            /* Add to transmit queue for the connection */
+            pkthdr = OS_MBUF_PKTHDR(om);
+            OS_ENTER_CRITICAL(sr);
+            STAILQ_INSERT_TAIL(&connsm->conn_txq, pkthdr, omp_next);
+            OS_EXIT_CRITICAL(sr);
+            return;
+        }
+    }
+
+    /* No connection found! */
+    ++g_ble_ll_conn_stats.handle_not_found;
+    os_mbuf_free(om);
+}
+
+/**
  * Called when a device has received a connect request while advertising and 
  * the connect request has passed the advertising filter policy and is for 
- * us. This will start a connection in the slave role. 
+ * us. This will start a connection in the slave role assuming that we dont 
+ * already have a connection with this device and that the connect request 
+ * parameters are valid. 
  *  
  * Context: Link Layer 
  *  
- * @param rxbuf Pointer to received PDU
+ * @param rxbuf Pointer to received PDU 
+ *  
+ * @return 0: connection started. 
  */
-void
+int
 ble_ll_conn_slave_start(uint8_t *rxbuf)
 {
     uint32_t temp;
     uint32_t crcinit;
+    uint8_t *inita;
     uint8_t *dptr;
+    uint8_t addr_type;
     struct ble_ll_conn_sm *connsm;
+
+    /* Ignore the connection request if we are already connected*/
+    inita = rxbuf + BLE_LL_PDU_HDR_LEN;
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if (!memcmp(&connsm->peer_addr, inita, BLE_DEV_ADDR_LEN)) {
+            if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
+                addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
+            } else {
+                addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
+            }
+            if (connsm->peer_addr_type == addr_type) {
+                return 0;
+            }
+        }
+    }
 
     /* Allocate a connection. If none available, dont do anything */
     connsm = ble_ll_conn_sm_get();
     if (connsm == NULL) {
-        return;
+        return 0;
     }
 
     /* Set the pointer at the start of the connection data */
@@ -1978,9 +2069,9 @@ ble_ll_conn_slave_start(uint8_t *rxbuf)
     /* Set the address of device that we are connecting with */
     memcpy(&connsm->peer_addr, rxbuf + BLE_LL_PDU_HDR_LEN, BLE_DEV_ADDR_LEN);
     if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-        connsm->peer_addr_type = BLE_ADDR_TYPE_RANDOM;
+        connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
     } else {
-        connsm->peer_addr_type = BLE_ADDR_TYPE_PUBLIC;
+        connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
     }
 
     /* Calculate number of used channels; make sure it meets min requirement */
@@ -1990,17 +2081,18 @@ ble_ll_conn_slave_start(uint8_t *rxbuf)
     }
 
     /* Start the connection state machine */
-    ble_ll_conn_sm_start(connsm, NULL);
+    connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
+    ble_ll_conn_sm_start(connsm);
 
     /* The connection has been created. */
     ble_ll_conn_created(connsm);
 
-    return;
+    return 1;
 
 err_slave_start:
-    STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, conn_stqe);
+    STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
     ++g_ble_ll_conn_stats.slave_rxd_bad_conn_req_params;
-    return;
+    return 0;
 }
 
 /* Initialize the connection module */
@@ -2033,6 +2125,7 @@ ble_ll_conn_init(void)
         connsm = (struct ble_ll_conn_sm *)os_memblock_get(&g_ble_ll_conn_pool);
         assert(connsm != NULL);
         connsm->conn_handle = i;
+        STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
     }
 
     /* Configure the global LL parameters */

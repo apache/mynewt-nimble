@@ -27,6 +27,7 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 {
     int8_t rssi;
     uint8_t advlen;
+    uint8_t status;
     int i;
     int imax;
     uint8_t *dptr;
@@ -39,7 +40,7 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         rssi = evdata[10 + advlen];
         console_printf("LE advertising report. len=%u num=%u evtype=%u "
                        "addrtype=%u addr=%x.%x.%x.%x.%x.%x advlen=%u "
-                       "rssi=%d", len, evdata[0], evdata[1], evdata[2],
+                       "rssi=%d\n", len, evdata[0], evdata[1], evdata[2],
                        evdata[8], evdata[7], evdata[6], evdata[5],
                        evdata[4], evdata[3], advlen, rssi);
         if (advlen) {
@@ -57,12 +58,28 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
                     ++dptr;
                 }
                 advlen -= imax;
-                console_printf("%s", adv_data_buf);
+                console_printf("%s\n", adv_data_buf);
             }
         }
         break;
+    case BLE_HCI_LE_SUBEV_CONN_COMPLETE:
+        status = evdata[0];
+        if (status == BLE_ERR_SUCCESS) {
+            console_printf("LE connection complete. handle=%u role=%u "
+                           "paddrtype=%u addr=%x.%x.%x.%x.%x.%x itvl=%u "
+                           "latency=%u spvn_tmo=%u mca=%u\n", 
+                           le16toh(evdata + 1), evdata[3], evdata[4], 
+                           evdata[10], evdata[9], evdata[8], evdata[7],
+                           evdata[6], evdata[5], 
+                           le16toh(evdata + 11), le16toh(evdata + 13), 
+                           evdata[14]);
+        } else {
+            console_printf("LE connection complete. FAIL (status=%u)\n",status);
+        }
+        break;
+
     default:
-        console_printf("\tUnknown LE event");
+        console_printf("\tUnknown LE event\n");
         break;
     }
 }
@@ -91,8 +108,23 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
         }
     }
 
-    console_printf("Command Complete: cmd_pkts=%u ocf=0x%x ogf=0x%x %s",
+    console_printf("Command Complete: cmd_pkts=%u ocf=0x%x ogf=0x%x %s\n",
                    evdata[0], ocf, ogf, parmbuf);
+}
+
+void
+host_hci_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
+{
+    uint8_t ogf;
+    uint8_t ocf;
+    uint16_t opcode;
+
+    opcode = le16toh(evdata + 2);
+    ogf = BLE_HCI_OGF(opcode);
+    ocf = BLE_HCI_OCF(opcode);
+
+    console_printf("Command Status: status=%u cmd_pkts=%u ocf=0x%x ogf=0x%x\n",
+                   evdata[0], evdata[1], ocf, ogf);
 }
 
 void
@@ -110,11 +142,14 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
         host_hci_dbg_cmd_complete_disp(evdata, len);
         break;
+    case BLE_HCI_EVCODE_COMMAND_STATUS:
+        host_hci_dbg_cmd_status_disp(evdata, len);
+        break;
     case BLE_HCI_EVCODE_LE_META:
         host_hci_dbg_le_event_disp(evdata[0], len, evdata + 1);
         break;
     default:
-        console_printf("Unknown event 0x%x len=%u", evcode, len);
+        console_printf("Unknown event 0x%x len=%u\n", evcode, len);
         break;
     }
 }

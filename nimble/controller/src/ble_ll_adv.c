@@ -885,9 +885,10 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
     }
 
     if (valid) {
-        /* Stop advertising and start connection */
-        ble_ll_adv_sm_stop(advsm);
-        ble_ll_conn_slave_start(rxbuf);
+        /* Try to start slave connection. If successful, stop advertising */
+        if (ble_ll_conn_slave_start(rxbuf)) {
+            ble_ll_adv_sm_stop(advsm);
+        }
     }
 }
 

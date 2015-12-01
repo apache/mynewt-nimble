@@ -72,14 +72,12 @@ struct ble_mbuf_hdr
  * 
  * @return struct os_mbuf *
  */
-static inline void
-ble_get_packet(struct os_mbuf *om)
-{
-    om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
-    if (om) {
-        om->om_data += 4;
-    }
-}
+#define ble_get_packet(__om) do {                                           \
+    __om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));   \
+    if (__om) {                                                             \
+        __om->om_data += 4;                                                 \
+    }                                                                       \
+} while (0)
 
 #define BLE_DEV_ADDR_LEN        (6)
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];

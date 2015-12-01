@@ -63,7 +63,7 @@ struct ble_ll_stats g_ble_ll_stats;
 
 /* The BLE LL task data structure */
 #define BLE_LL_TASK_PRI     (OS_TASK_PRI_HIGHEST)
-#define BLE_LL_STACK_SIZE   (128)
+#define BLE_LL_STACK_SIZE   (256)
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
@@ -273,6 +273,48 @@ ble_ll_wfr_disable(void)
 }
 
 /**
+ * ll tx pkt in proc
+ *  
+ * Process ACL data packet input from host
+ *  
+ * Context: Link layer task
+ *  
+ */
+void
+ble_ll_tx_pkt_in_proc(void)
+{
+    uint16_t handle;
+    uint16_t length;
+    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf *om;
+
+    /* Drain all packets off the queue */
+    while (STAILQ_FIRST(&g_ble_ll_data.ll_tx_pkt_q)) {
+        /* Get mbuf pointer from packet header pointer */
+        pkthdr = STAILQ_FIRST(&g_ble_ll_data.ll_tx_pkt_q);
+        om = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
+
+        /* Remove from queue */
+        STAILQ_REMOVE_HEAD(&g_ble_ll_data.ll_tx_pkt_q, omp_next);
+
+        /* XXX: regarding protecting the queue insert. Do I need to do that?
+         * I think I do since it will be a lower priority task. I am
+           talking about ll_tx_pkt_q here */
+
+        /* XXX: do I set ble header flags to zero here? */
+
+        /* XXX: what error checks do I want to perform here? Check valid
+           length packet header length, etc? */
+
+        /* Get handle and length */
+        handle = le16toh(om->om_data);
+        length = le16toh(om->om_data + 2);
+        os_mbuf_adj(om, 2);
+        ble_ll_conn_tx_pkt_in(om, handle, length);
+    }
+}
+
+/**
  * ll rx pkt in proc
  *  
  * Process received packet from PHY.
@@ -367,6 +409,21 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
     pkthdr = OS_MBUF_PKTHDR(rxpdu);
     STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_rx_pkt_q, pkthdr, omp_next);
     os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_rx_pkt_ev);
+}
+
+/**
+ * Called to put a packet on the Link Layer transmit packet queue. 
+ * 
+ * @param txpdu Pointer to transmit packet
+ */
+void
+ble_ll_acl_data_in(struct os_mbuf *txpkt)
+{
+    struct os_mbuf_pkthdr *pkthdr;
+
+    pkthdr = OS_MBUF_PKTHDR(txpkt);
+    STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_tx_pkt_q, pkthdr, omp_next);
+    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_tx_pkt_ev);
 }
 
 /** 
@@ -608,6 +665,9 @@ ble_ll_task(void *arg)
         case BLE_LL_EVENT_RX_PKT_IN:
             ble_ll_rx_pkt_in_proc();
             break;
+        case BLE_LL_EVENT_TX_PKT_IN:
+            ble_ll_tx_pkt_in_proc();
+            break;
         case BLE_LL_EVENT_CONN_SPVN_TMO:
             ble_ll_conn_spvn_timeout(ev->ev_arg);
             break;
@@ -665,14 +725,16 @@ ble_ll_init(void)
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
 
-    /* Initialize the receive queue */
-    STAILQ_INIT(&lldata->ll_rx_pkt_q);
-
     /* Initialize eventq */
     os_eventq_init(&lldata->ll_evq);
 
-    /* Initialize receive packet (from phy) event */
+    /* Initialize the transmit (from host) and receive (from phy) queues */
+    STAILQ_INIT(&lldata->ll_tx_pkt_q);
+    STAILQ_INIT(&lldata->ll_rx_pkt_q);
+
+    /* Initialize transmit (from host) and receive packet (from phy) event */
     lldata->ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
+    lldata->ll_tx_pkt_ev.ev_type = BLE_LL_EVENT_TX_PKT_IN;
 
     /* Initialize wait for response timer */
     cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp, 

@@ -32,7 +32,7 @@
 #ifdef ARCH_sim
 #define BLE_HS_STACK_SIZE   (1024)
 #else
-#define BLE_HS_STACK_SIZE   (128)
+#define BLE_HS_STACK_SIZE   (256)
 #endif
 
 struct os_task ble_hs_task;

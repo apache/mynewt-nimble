@@ -47,7 +47,7 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
     uint16_t opcode;
 
     /* Don't allow multiple commands "in flight." */
-    assert(host_hci_outstanding_opcode == 0);
+    //assert(host_hci_outstanding_opcode == 0);
 
     rc = -1;
     cmd = os_memblock_get(&g_hci_cmd_pool);

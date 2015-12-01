@@ -33,12 +33,13 @@ int ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva);
 int ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva);
 void ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
 int ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu);
-void ble_ll_conn_slave_start(uint8_t *rxbuf);
+int ble_ll_conn_slave_start(uint8_t *rxbuf);
 void ble_ll_conn_spvn_timeout(void *arg);
 void ble_ll_conn_event_end(void *arg);
 void ble_ll_conn_init(void);
 void ble_ll_conn_rx_pdu_start(void);
 int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
+void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 
 #endif /* H_BLE_LL_CONN_ */

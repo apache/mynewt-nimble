@@ -35,15 +35,17 @@ struct ble_ll_obj
     /* Task event queue */
     struct os_eventq ll_evq;
 
-    /* Receive packet (from phy) event */
-    struct os_event ll_rx_pkt_ev;
-
     /* Wait for response timer */
     struct cpu_timer ll_wfr_timer;
     ble_ll_wfr_func ll_wfr_func;
 
-    /* Packet receive queue */
+    /* Packet receive queue (and event). Holds received packets from PHY */
+    struct os_event ll_rx_pkt_ev;
     STAILQ_HEAD(ll_rxpkt_qh, os_mbuf_pkthdr) ll_rx_pkt_q;
+
+    /* Packet transmit queue */
+    struct os_event ll_tx_pkt_ev;
+    STAILQ_HEAD(ll_txpkt_qh, os_mbuf_pkthdr) ll_tx_pkt_q;
 };
 extern struct ble_ll_obj g_ble_ll_data;
 
@@ -83,6 +85,7 @@ extern struct ble_ll_stats g_ble_ll_stats;
 #define BLE_LL_EVENT_SCAN_WIN_END   (OS_EVENT_T_PERUSER + 3)
 #define BLE_LL_EVENT_CONN_SPVN_TMO  (OS_EVENT_T_PERUSER + 4)
 #define BLE_LL_EVENT_CONN_EV_END    (OS_EVENT_T_PERUSER + 5)
+#define BLE_LL_EVENT_TX_PKT_IN      (OS_EVENT_T_PERUSER + 6)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION   (0x01)
@@ -407,6 +410,13 @@ int ble_ll_is_resolvable_priv_addr(uint8_t *addr);
 
 /* Is 'addr' our device address? 'addr_type' is public (0) or random (!=0) */
 int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
+
+/**
+ * Called to put a packet on the Link Layer transmit packet queue. 
+ * 
+ * @param txpdu Pointer to transmit packet
+ */
+void ble_ll_acl_data_in(struct os_mbuf *txpkt);
 
 /*--- PHY interfaces ---*/
 /* Called by the PHY when a packet has started */

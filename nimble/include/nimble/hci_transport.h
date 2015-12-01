@@ -23,4 +23,7 @@ int ble_hci_transport_host_cmd_send(uint8_t *cmd);
 /* Send a HCI event from the controller to the host */
 int ble_hci_transport_ctlr_event_send(uint8_t *hci_ev);
 
+/* Send ACL data from host to contoller */
+int ble_hci_transport_host_acl_data_send(struct os_mbuf *om);
+
 #endif /* H_HCI_TRANSPORT_ */

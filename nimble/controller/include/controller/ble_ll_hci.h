@@ -17,6 +17,8 @@
 #ifndef H_BLE_LL_HCI_
 #define H_BLE_LL_HCI_
 
+/* XXX: I think the data packet length should be 251 for now. Not sure
+   how to set num data packets. */
 /* Define the number of data packets that the controller can store */
 #define BLE_LL_CFG_NUM_ACL_DATA_PKTS    (4)
 #define BLE_LL_CFG_ACL_DATA_PKT_LEN     (256)

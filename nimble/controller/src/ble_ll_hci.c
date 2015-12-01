@@ -376,6 +376,14 @@ ble_hci_transport_host_cmd_send(uint8_t *cmd)
     return 0;
 }
 
+/* Send ACL data from host to contoller */
+int
+ble_hci_transport_host_acl_data_send(struct os_mbuf *om)
+{
+    ble_ll_acl_data_in(om);
+    return 0;
+}
+
 /**
  * Initalize the LL HCI.
  */
