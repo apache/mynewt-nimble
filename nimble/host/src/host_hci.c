@@ -330,8 +330,6 @@ host_hci_rx_read_buf_size_ack(struct ble_hs_ack *ack, void *arg)
 
     host_hci_buffer_sz = pktlen;
     host_hci_max_pkts = max_pkts;
-
-    ble_hs_work_done_if(BLE_HS_WORK_TYPE_READ_HCI_BUF_SIZE);
 }
 
 int

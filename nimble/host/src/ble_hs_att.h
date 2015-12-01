@@ -23,6 +23,7 @@ struct os_mbuf;
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct ble_hs_att_find_info_req;
+struct ble_hs_att_error_rsp;
 
 #define BLE_HS_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -149,5 +150,12 @@ int ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
                                 struct ble_l2cap_chan *chan,
                                 struct os_mbuf *om);
 int ble_hs_att_clt_init(void);
+
+/*** @batch */
+void ble_hs_att_batch_rx_error(struct ble_hs_conn *conn,
+                               struct ble_hs_att_error_rsp *rsp);
+void ble_hs_att_batch_rx_find_info(struct ble_hs_conn *conn, int status,
+                                   uint16_t last_handle_id);
+int ble_hs_att_batch_init(void);
 
 #endif

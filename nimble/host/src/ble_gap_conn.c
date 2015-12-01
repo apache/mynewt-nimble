@@ -78,7 +78,6 @@ ble_gap_conn_master_failed(uint8_t status)
 {
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
     ble_hs_ack_set_callback(NULL, NULL);
-    ble_hs_work_done();
     ble_gap_conn_notify_app(status, NULL);
 }
 
@@ -92,7 +91,6 @@ ble_gap_conn_slave_failed(uint8_t status)
 {
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
     ble_hs_ack_set_callback(NULL, NULL);
-    ble_hs_work_done();
     ble_gap_conn_notify_app(status, NULL);
 }
 
@@ -111,9 +109,6 @@ ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
     } else {
         ble_gap_conn_master_state = BLE_GAP_CONN_STATE_MASTER_DIRECT_ACKED;
     }
-
-    /* The host is done sending commands to the controller. */
-    ble_hs_work_done();
 }
 
 /**
@@ -144,9 +139,6 @@ ble_gap_conn_slave_ack(struct ble_hs_ack *ack, void *arg)
             ble_gap_conn_slave_failed(ack->bha_status);
         } else {
             ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_SLAVE_ENABLE_ACKED;
-
-            /* The host is done sending commands to the controller. */
-            ble_hs_work_done();
         }
         break;
 

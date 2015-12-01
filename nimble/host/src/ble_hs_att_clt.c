@@ -185,11 +185,13 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
         return rc;
     }
 
+    handle_id = 0;
     off = BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ;
     while (off < OS_MBUF_PKTHDR(om)->omp_len) {
         rc = os_mbuf_copydata(om, off, 2, &handle_id);
         if (rc != 0) {
-            return EINVAL;
+            rc = EINVAL;
+            goto done;
         }
         off += 2;
         handle_id = le16toh(&handle_id);
@@ -198,27 +200,31 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
         case BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT:
             rc = os_mbuf_copydata(om, off, 2, &uuid16);
             if (rc != 0) {
-                return EINVAL;
+                rc = EINVAL;
+                goto done;
             }
             off += 2;
             uuid16 = le16toh(&uuid16);
 
             rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
             if (rc != 0) {
-                return EINVAL;
+                rc = EINVAL;
+                goto done;
             }
             break;
 
         case BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT:
             rc = os_mbuf_copydata(om, off, 16, &uuid128);
             if (rc != 0) {
-                return EINVAL;
+                rc = EINVAL;
+                goto done;
             }
             off += 16;
             break;
 
         default:
-            return EINVAL;
+            rc = EINVAL;
+            goto done;
         }
 
         rc = ble_hs_att_clt_entry_insert(conn, handle_id, uuid128);
@@ -227,7 +233,11 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
         }
     }
 
-    return 0;
+    rc = 0;
+
+done:
+    ble_hs_att_batch_rx_find_info(conn, -rc, handle_id);
+    return rc;
 }
 
 int

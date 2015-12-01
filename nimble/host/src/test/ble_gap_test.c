@@ -89,18 +89,15 @@ ble_gap_test_task_handler(void *arg)
     /* Make sure there are no created connections and no connections in
      * progress.
      */
-    TEST_ASSERT(ble_hs_work_cur_entry == NULL);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate a direct connection. */
     ble_gap_direct_connection_establishment(0, addr);
-    TEST_ASSERT(ble_hs_work_cur_entry != NULL);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(!cb_called);
 
     /* Receive an ack for the HCI create-connection command. */
     ble_gap_test_misc_rx_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
-    TEST_ASSERT(ble_hs_work_cur_entry == NULL);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(!cb_called);
 

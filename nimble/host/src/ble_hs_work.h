@@ -47,11 +47,7 @@ struct ble_hs_work_entry {
 
 struct ble_hs_work_entry *ble_hs_work_entry_alloc(void);
 void ble_hs_work_enqueue(struct ble_hs_work_entry *entry);
-void ble_hs_work_process_next(void);
-void ble_hs_work_done(void);
-int ble_hs_work_done_if(int work_type);
+int ble_hs_work_process_next(void);
 int ble_hs_work_init(void);
-
-extern struct ble_hs_work_entry *ble_hs_work_cur_entry;
 
 #endif

@@ -169,12 +169,10 @@ ble_hs_task_handler(void *arg)
             break;
         }
 
-        /* If a work event is not already in progress and there is another
-         * event pending, begin processing it.
-         */
-        if (ble_hs_work_cur_entry == NULL) {
-            ble_hs_work_process_next();
-        }
+        /* Process all pending jobs in the work queue. */
+        do {
+            rc = ble_hs_work_process_next();
+        } while (rc == EAGAIN);
     }
 }
 
