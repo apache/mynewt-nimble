@@ -19,21 +19,20 @@
 
 #include "os/queue.h"
 #include "ble_l2cap.h"
+#include "ble_hs_att.h"
 struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;
 
-typedef uint8_t ble_hs_conn_flags;
-#define BLE_HS_CONN_F_CLIENT        0x01
-
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
-    uint8_t bhc_addr[BLE_DEV_ADDR_LEN];
+    uint8_t bhc_addr[6];
 
     struct ble_l2cap_chan_list bhc_channels;
 
-    ble_hs_conn_flags bhc_flags;
+    /** Mapping of peer's ATT attributes to handle IDs. */
+    struct ble_hs_att_clt_entry_list bhc_att_clt_list;
 };
 
 struct ble_hs_conn *ble_hs_conn_alloc(void);

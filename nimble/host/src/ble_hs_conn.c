@@ -57,6 +57,8 @@ ble_hs_conn_alloc(void)
     }
     SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
 
+    SLIST_INIT(&conn->bhc_att_clt_list);
+
     return conn;
 
 err:
@@ -82,6 +84,8 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
     }
 
     /* XXX: Free contents of rx and tx queues. */
+
+    ble_hs_att_clt_entry_list_free(&conn->bhc_att_clt_list);
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);
@@ -136,14 +140,6 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
     }
 
     return NULL;
-}
-
-int
-ble_hs_conn_tx(struct ble_hs_conn *conn, struct os_mbuf *om)
-{
-    //struct ble_hs_conn_pkt *pkt;
-
-    return 0;
 }
 
 static void

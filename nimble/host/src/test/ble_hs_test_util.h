@@ -35,6 +35,7 @@ void ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status);
 int ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                            struct ble_l2cap_chan *chan,
                                            const void *data, int len);
+void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 
 void ble_hs_test_util_init(void);
 

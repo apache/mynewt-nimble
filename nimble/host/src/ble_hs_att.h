@@ -22,6 +22,7 @@
 struct os_mbuf;
 struct ble_hs_conn;
 struct ble_l2cap_chan;
+struct ble_hs_att_find_info_req;
 
 #define BLE_HS_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -97,11 +98,56 @@ struct ble_hs_att_svr_entry {
 #define HA_OPCODE_COMMAND_FLAG (1 << 6) 
 #define HA_OPCODE_AUTH_SIG_FLAG (1 << 7) 
 
+struct ble_hs_att_clt_entry {
+    SLIST_ENTRY(ble_hs_att_clt_entry) bhac_next;
+    uint16_t bhac_handle_id;
+    uint8_t bhac_uuid[16];
+};
+
+SLIST_HEAD(ble_hs_att_clt_entry_list, ble_hs_att_clt_entry);
+
+/*** @gen */
+struct ble_l2cap_chan *ble_hs_att_create_chan(void);
+
+/*** @svr */
 int ble_hs_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
                             ble_hs_att_svr_handle_func *fn);
-int ble_hs_att_svr_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                      struct os_mbuf *om);
-struct ble_l2cap_chan *ble_hs_att_create_chan(void);
+
+
+int ble_hs_att_svr_rx_mtu(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf *om);
+int ble_hs_att_svr_rx_find_info(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf *om);
+int ble_hs_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
+                                      struct ble_l2cap_chan *chan,
+                                      struct os_mbuf *om);
+int ble_hs_att_svr_rx_read_type(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf *om);
+int ble_hs_att_svr_rx_read(struct ble_hs_conn *conn,
+                           struct ble_l2cap_chan *chan,
+                           struct os_mbuf *om);
+int ble_hs_att_svr_rx_write(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan,
+                            struct os_mbuf *om);
 int ble_hs_att_svr_init(void);
+
+/*** @cnt */
+void ble_hs_att_clt_entry_list_free(struct ble_hs_att_clt_entry_list *list);
+int ble_hs_att_clt_entry_insert(struct ble_hs_conn *conn, uint16_t handle_id,
+                                uint8_t *uuid);
+uint16_t ble_hs_att_clt_find_entry_uuid128(struct ble_hs_conn *conn,
+                                           void *uuid128);
+uint16_t ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn,
+                                          uint16_t uuid16);
+int ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct ble_hs_att_find_info_req *req);
+int ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf *om);
+int ble_hs_att_clt_init(void);
 
 #endif

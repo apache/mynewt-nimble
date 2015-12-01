@@ -26,52 +26,12 @@
 #include "ble_hs_att_cmd.h"
 #include "ble_hs_att.h"
 
-typedef int ble_hs_att_svr_rx_fn(struct ble_hs_conn *conn,
-                                 struct ble_l2cap_chan *chan,
-                                 struct os_mbuf *om);
-struct ble_hs_att_svr_rx_dispatch_entry {
-    uint8_t bde_op;
-    ble_hs_att_svr_rx_fn *bde_fn;
-};
-
-/** Dispatch table for incoming ATT requests.  Sorted by op code. */
-static int ble_hs_att_svr_rx_mtu(struct ble_hs_conn *conn,
-                                 struct ble_l2cap_chan *chan,
-                                 struct os_mbuf *om);
-static int ble_hs_att_svr_rx_find_info(struct ble_hs_conn *conn,
-                                       struct ble_l2cap_chan *chan,
-                                       struct os_mbuf *om);
-static int ble_hs_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
-                                             struct ble_l2cap_chan *chan,
-                                             struct os_mbuf *om);
-static int ble_hs_att_svr_rx_read_type(struct ble_hs_conn *conn,
-                                       struct ble_l2cap_chan *chan,
-                                       struct os_mbuf *om);
-static int ble_hs_att_svr_rx_read(struct ble_hs_conn *conn,
-                                  struct ble_l2cap_chan *chan,
-                                  struct os_mbuf *om);
-static int ble_hs_att_svr_rx_write(struct ble_hs_conn *conn,
-                                   struct ble_l2cap_chan *chan,
-                                   struct os_mbuf *om);
-
-static struct ble_hs_att_svr_rx_dispatch_entry ble_hs_att_svr_rx_dispatch[] = {
-    { BLE_HS_ATT_OP_MTU_REQ,              ble_hs_att_svr_rx_mtu },
-    { BLE_HS_ATT_OP_FIND_INFO_REQ,        ble_hs_att_svr_rx_find_info },
-    { BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ,  ble_hs_att_svr_rx_find_type_value },
-    { BLE_HS_ATT_OP_READ_TYPE_REQ,        ble_hs_att_svr_rx_read_type },
-    { BLE_HS_ATT_OP_READ_REQ,             ble_hs_att_svr_rx_read },
-    { BLE_HS_ATT_OP_WRITE_REQ,            ble_hs_att_svr_rx_write },
-};
-
-#define BLE_HS_ATT_RX_DISPATCH_SZ \
-    (sizeof ble_hs_att_svr_rx_dispatch / sizeof ble_hs_att_svr_rx_dispatch[0])
-
 static STAILQ_HEAD(, ble_hs_att_svr_entry) ble_hs_att_svr_list;
 static uint16_t ble_hs_att_svr_id;
 
 static struct os_mutex ble_hs_att_svr_list_mutex;
 
-#define BLE_HS_ATT_NUM_ENTRIES          1024
+#define BLE_HS_ATT_SVR_NUM_ENTRIES          32
 static void *ble_hs_att_svr_entry_mem;
 static struct os_mempool ble_hs_att_svr_entry_pool;
 
@@ -304,26 +264,6 @@ ble_hs_att_svr_find_by_uuid(uint8_t *uuid,
     }
 }
 
-static struct ble_hs_att_svr_rx_dispatch_entry *
-ble_hs_att_svr_rx_dispatch_entry_find(uint8_t op)
-{
-    struct ble_hs_att_svr_rx_dispatch_entry *entry;
-    int i;
-
-    for (i = 0; i < BLE_HS_ATT_RX_DISPATCH_SZ; i++) {
-        entry = ble_hs_att_svr_rx_dispatch + i;
-        if (entry->bde_op == op) {
-            return entry;
-        }
-
-        if (entry->bde_op > op) {
-            break;
-        }
-    }
-
-    return NULL;
-}
-
 static int
 ble_hs_att_svr_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
                             uint16_t handle, uint8_t error_code)
@@ -345,7 +285,6 @@ ble_hs_att_svr_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
         goto err;
     }
 
-    rsp.bhaep_op = BLE_HS_ATT_OP_ERROR_RSP;
     rsp.bhaep_req_op = req_op;
     rsp.bhaep_handle = handle;
     rsp.bhaep_error_code = error_code;
@@ -368,7 +307,7 @@ err:
 }
 
 static int
-ble_hs_att_svr_tx_mtu_cmd(struct ble_l2cap_chan *chan, uint8_t op,
+ble_hs_att_svr_tx_mtu_rsp(struct ble_l2cap_chan *chan, uint8_t op,
                           uint16_t mtu)
 {
     struct ble_hs_att_mtu_cmd cmd;
@@ -392,10 +331,9 @@ ble_hs_att_svr_tx_mtu_cmd(struct ble_l2cap_chan *chan, uint8_t op,
         goto err;
     }
 
-    cmd.bhamc_op = op;
     cmd.bhamc_mtu = mtu;
 
-    rc = ble_hs_att_mtu_cmd_write(dst, BLE_HS_ATT_MTU_CMD_SZ, &cmd);
+    rc = ble_hs_att_mtu_rsp_write(dst, BLE_HS_ATT_MTU_CMD_SZ, &cmd);
     assert(rc == 0);
 
     rc = ble_l2cap_tx(chan, txom);
@@ -413,19 +351,13 @@ err:
     return rc;
 }
 
-static int
+int
 ble_hs_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                       struct os_mbuf *om)
 {
     struct ble_hs_att_mtu_cmd cmd;
     uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
     int rc;
-
-    /* We should only receive this command as a server. */
-    if (conn->bhc_flags & BLE_HS_CONN_F_CLIENT) {
-        /* XXX: Unspecified what to do in this case. */
-        return EINVAL;
-    }
 
     rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     assert(rc == 0);
@@ -439,7 +371,7 @@ ble_hs_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     chan->blc_peer_mtu = cmd.bhamc_mtu;
 
-    rc = ble_hs_att_svr_tx_mtu_cmd(chan, BLE_HS_ATT_OP_MTU_RSP,
+    rc = ble_hs_att_svr_tx_mtu_rsp(chan, BLE_HS_ATT_OP_MTU_RSP,
                                    chan->blc_my_mtu);
     if (rc != 0) {
         return rc;
@@ -567,7 +499,7 @@ done:
     }
 }
 
-static int
+int
 ble_hs_att_svr_rx_find_info(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan,
                             struct os_mbuf *rxom)
@@ -611,7 +543,6 @@ ble_hs_att_svr_rx_find_info(struct ble_hs_conn *conn,
     /* Write the response base at the start of the buffer.  The format field is
      * unknown at this point; it will be filled in later.
      */
-    rsp.bhafp_op = BLE_HS_ATT_OP_FIND_INFO_RSP;
     rc = ble_hs_att_find_info_rsp_write(buf, BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
                                         &rsp);
     assert(rc == 0);
@@ -860,28 +791,22 @@ done:
     }
 }
 
-static int
+int
 ble_hs_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
                                   struct ble_l2cap_chan *chan,
                                   struct os_mbuf *rxom)
 {
     struct ble_hs_att_find_type_value_req req;
     struct os_mbuf *txom;
-    uint8_t buf[max(BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ,
-                    BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ)];
+    uint8_t *buf;
     int rc;
 
     txom = NULL;
 
-    rc = os_mbuf_copydata(rxom, 0, BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ, buf);
-    if (rc != 0) {
-        req.bhavq_start_handle = 0;
-        rc = BLE_HS_ATT_ERR_INVALID_PDU;
-        goto err;
-    }
+    /* XXX: Pull up rx_om. */
 
-    rc = ble_hs_att_find_type_value_req_parse(
-        buf, BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ, &req);
+    rc = ble_hs_att_find_type_value_req_parse(rxom->om_data, rxom->om_len,
+                                              &req);
     assert(rc == 0);
 
     /* Tx error response if start handle is greater than end handle or is equal
@@ -901,13 +826,12 @@ ble_hs_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
     }
 
     /* Write the response base at the start of the buffer. */
-    buf[0] = BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP;
-    rc = os_mbuf_append(txom, buf,
-                        BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ);
-    if (rc != 0) {
+    buf = os_mbuf_extend(txom, BLE_HS_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ);
+    if (buf == NULL) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
     }
+    buf[0] = BLE_HS_ATT_OP_FIND_TYPE_VALUE_RSP;
 
     /* Write the variable length Information Data field. */
     rc = ble_hs_att_svr_fill_type_value(&req, rxom, txom,
@@ -1024,13 +948,13 @@ ble_hs_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     }
 
     /* Fill the response base. */
-    rsp.bhatp_op = BLE_HS_ATT_OP_READ_TYPE_RSP;
     rsp.bhatp_len = prev_attr_len;
     rc = ble_hs_att_read_type_rsp_write(txom->om_data, txom->om_len, &rsp);
     assert(rc == 0);
 
     /* Transmit the response. */
     rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
     if (rc != 0) {
         rc = BLE_HS_ATT_ERR_UNLIKELY;
         goto err;
@@ -1045,7 +969,7 @@ err:
     return rc;
 }
 
-static int
+int
 ble_hs_att_svr_rx_read_type(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan, struct os_mbuf *rx_om)
 {
@@ -1140,7 +1064,7 @@ err:
     return rc;
 }
 
-static int
+int
 ble_hs_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                        struct os_mbuf *om)
 {
@@ -1227,7 +1151,7 @@ err:
     return rc;
 }
 
-static int
+int
 ble_hs_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                         struct os_mbuf *om)
 {
@@ -1273,34 +1197,8 @@ ble_hs_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
 send_err:
     ble_hs_att_svr_tx_error_rsp(chan, BLE_HS_ATT_OP_WRITE_REQ,
-                            req.bhawq_handle, rc);
+                                req.bhawq_handle, rc);
     return rc;
-}
-
-int
-ble_hs_att_svr_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                  struct os_mbuf *om)
-{
-    struct ble_hs_att_svr_rx_dispatch_entry *entry;
-    uint8_t op;
-    int rc;
-
-    rc = os_mbuf_copydata(om, 0, 1, &op);
-    if (rc != 0) {
-        return EMSGSIZE;
-    }
-
-    entry = ble_hs_att_svr_rx_dispatch_entry_find(op);
-    if (entry == NULL) {
-        return EINVAL;
-    }
-
-    rc = entry->bde_fn(conn, chan, om);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
 }
 
 int
@@ -1317,16 +1215,18 @@ ble_hs_att_svr_init(void)
 
     free(ble_hs_att_svr_entry_mem);
     ble_hs_att_svr_entry_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_HS_ATT_NUM_ENTRIES,
+        OS_MEMPOOL_BYTES(BLE_HS_ATT_SVR_NUM_ENTRIES,
                          sizeof (struct ble_hs_att_svr_entry)));
     if (ble_hs_att_svr_entry_mem == NULL) {
         rc = ENOMEM;
         goto err;
     }
 
-    rc = os_mempool_init(&ble_hs_att_svr_entry_pool, BLE_HS_ATT_NUM_ENTRIES,
+    rc = os_mempool_init(&ble_hs_att_svr_entry_pool,
+                         BLE_HS_ATT_SVR_NUM_ENTRIES,
                          sizeof (struct ble_hs_att_svr_entry),
-                         ble_hs_att_svr_entry_mem, "ble_hs_att_svr_entry_pool");
+                         ble_hs_att_svr_entry_mem,
+                         "ble_hs_att_svr_entry_pool");
     if (rc != 0) {
         goto err;
     }

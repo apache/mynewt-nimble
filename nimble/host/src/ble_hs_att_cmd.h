@@ -41,7 +41,6 @@ struct ble_l2cap_chan;
  */
 #define BLE_HS_ATT_ERROR_RSP_SZ             5
 struct ble_hs_att_error_rsp {
-    uint8_t bhaep_op;
     uint8_t bhaep_req_op;
     uint16_t bhaep_handle;
     uint8_t bhaep_error_code;
@@ -55,7 +54,6 @@ struct ble_hs_att_error_rsp {
  */
 #define BLE_HS_ATT_MTU_CMD_SZ               3
 struct ble_hs_att_mtu_cmd {
-    uint8_t bhamc_op;
     uint16_t bhamc_mtu;
 };
 
@@ -68,7 +66,6 @@ struct ble_hs_att_mtu_cmd {
  */
 #define BLE_HS_ATT_FIND_INFO_REQ_SZ         5
 struct ble_hs_att_find_info_req {
-    uint8_t bhafq_op;
     uint16_t bhafq_start_handle;
     uint16_t bhafq_end_handle;
 };
@@ -82,7 +79,6 @@ struct ble_hs_att_find_info_req {
  */
 #define BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ     2
 struct ble_hs_att_find_info_rsp {
-    uint8_t bhafp_op;
     uint8_t bhafp_format;
     /* Followed by information data. */
 };
@@ -101,7 +97,6 @@ struct ble_hs_att_find_info_rsp {
  */
 #define BLE_HS_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ   7
 struct ble_hs_att_find_type_value_req {
-    uint8_t bhavq_op;
     uint16_t bhavq_start_handle;
     uint16_t bhavq_end_handle;
     uint16_t bhavq_attr_type;
@@ -127,7 +122,6 @@ struct ble_hs_att_find_type_value_req {
 #define BLE_HS_ATT_READ_TYPE_REQ_SZ_16      7
 #define BLE_HS_ATT_READ_TYPE_REQ_SZ_128     21
 struct ble_hs_att_read_type_req {
-    uint8_t bhatq_op;
     uint16_t bhatq_start_handle;
     uint16_t bhatq_end_handle;
 };
@@ -141,7 +135,6 @@ struct ble_hs_att_read_type_req {
  */
 #define BLE_HS_ATT_READ_TYPE_RSP_MIN_SZ     2
 struct ble_hs_att_read_type_rsp {
-    uint8_t bhatp_op;
     uint8_t bhatp_len;
 };
 
@@ -153,7 +146,6 @@ struct ble_hs_att_read_type_rsp {
  */
 #define BLE_HS_ATT_READ_REQ_SZ              3
 struct ble_hs_att_read_req {
-    uint8_t bharq_op;
     uint16_t bharq_handle;
 };
 
@@ -174,7 +166,6 @@ struct ble_hs_att_read_req {
  */
 #define BLE_HS_ATT_WRITE_REQ_MIN_SZ         3
 struct ble_hs_att_write_req {
-    uint8_t bhawq_op;
     uint16_t bhawq_handle;
 };
 
@@ -186,7 +177,9 @@ int ble_hs_att_error_rsp_write(void *payload, int len,
                                struct ble_hs_att_error_rsp *rsp);
 int ble_hs_att_mtu_cmd_parse(void *payload, int len,
                              struct ble_hs_att_mtu_cmd *cmd);
-int ble_hs_att_mtu_cmd_write(void *payload, int len,
+int ble_hs_att_mtu_req_write(void *payload, int len,
+                             struct ble_hs_att_mtu_cmd *cmd);
+int ble_hs_att_mtu_rsp_write(void *payload, int len,
                              struct ble_hs_att_mtu_cmd *cmd);
 int ble_hs_att_find_info_req_parse(void *payload, int len,
                                    struct ble_hs_att_find_info_req *req);

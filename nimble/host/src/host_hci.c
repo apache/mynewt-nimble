@@ -26,6 +26,7 @@
 #include "host/ble_hs.h"
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_work.h"
 #include "ble_l2cap.h"
 #include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
@@ -173,7 +174,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 
     num_pkts = data[2];
     opcode = le16toh(data + 3);
-    params = data + 4;
+    params = data + 5;
 
     /* XXX: Process num_pkts field. */
     (void)num_pkts;
@@ -329,6 +330,8 @@ host_hci_rx_read_buf_size_ack(struct ble_hs_ack *ack, void *arg)
 
     host_hci_buffer_sz = pktlen;
     host_hci_max_pkts = max_pkts;
+
+    ble_hs_work_done_if(BLE_HS_WORK_TYPE_READ_HCI_BUF_SIZE);
 }
 
 int

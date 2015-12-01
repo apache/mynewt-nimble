@@ -104,7 +104,7 @@ ble_hs_process_rx_data_queue(void)
     struct ble_hs_pkt *pkt;
     struct tpq_elem *tpq_elem;
 
-    while ((tpq_elem = tpq_get(&ble_hs_tx_q)) != NULL) {
+    while ((tpq_elem = tpq_get(&ble_hs_rx_q)) != NULL) {
         pkt = (void *)tpq_elem;
         host_hci_data_rx(pkt->bhp_om);
 
@@ -112,11 +112,32 @@ ble_hs_process_rx_data_queue(void)
     }
 }
 
+static int
+ble_hs_read_hci_buf_size(void)
+{
+    struct ble_hs_work_entry *entry;
+
+    entry = ble_hs_work_entry_alloc();
+    if (entry == NULL) {
+        return ENOMEM;
+    }
+
+    entry->bwe_type = BLE_HS_WORK_TYPE_READ_HCI_BUF_SIZE;
+
+    ble_hs_work_enqueue(entry);
+
+    return 0;
+}
+
 void
 ble_hs_task_handler(void *arg)
 {
     struct os_event *ev;
     struct os_callout_func *cf;
+    int rc;
+
+    rc = ble_hs_read_hci_buf_size();
+    assert(rc == 0);
 
     while (1) {
         ev = os_eventq_get(&ble_hs_evq);
@@ -151,7 +172,7 @@ ble_hs_task_handler(void *arg)
         /* If a work event is not already in progress and there is another
          * event pending, begin processing it.
          */
-        if (!ble_hs_work_busy) {
+        if (ble_hs_work_cur_entry == NULL) {
             ble_hs_work_process_next();
         }
     }
@@ -291,6 +312,11 @@ ble_hs_init(uint8_t prio)
     }
 
     rc = ble_hs_att_svr_init();
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_att_clt_init();
     if (rc != 0) {
         goto err;
     }

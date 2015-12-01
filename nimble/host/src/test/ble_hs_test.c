@@ -40,7 +40,8 @@ main(void)
     tu_init();
 
     l2cap_test_all();
-    ble_hs_att_test_all();
+    ble_hs_att_svr_test_all();
+    ble_hs_att_clt_test_all();
     ble_host_hci_test_all();
     ble_hs_conn_test_all();
     ble_gap_test_all();

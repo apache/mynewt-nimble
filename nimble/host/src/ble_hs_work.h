@@ -22,7 +22,8 @@
 
 #define BLE_HS_WORK_TYPE_DIRECT_CONNECT     0
 #define BLE_HS_WORK_TYPE_DIRECT_ADVERTISE   1
-#define BLE_HS_WORK_TYPE_MAX                2
+#define BLE_HS_WORK_TYPE_READ_HCI_BUF_SIZE  2
+#define BLE_HS_WORK_TYPE_MAX                3
 
 struct ble_hs_work_direct_connect {
     uint8_t bwdc_peer_addr[8];
@@ -48,8 +49,9 @@ struct ble_hs_work_entry *ble_hs_work_entry_alloc(void);
 void ble_hs_work_enqueue(struct ble_hs_work_entry *entry);
 void ble_hs_work_process_next(void);
 void ble_hs_work_done(void);
+int ble_hs_work_done_if(int work_type);
 int ble_hs_work_init(void);
 
-extern uint8_t ble_hs_work_busy;
+extern struct ble_hs_work_entry *ble_hs_work_cur_entry;
 
 #endif

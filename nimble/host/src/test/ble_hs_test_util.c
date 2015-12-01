@@ -37,7 +37,7 @@ ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
     TEST_ASSERT(len >= BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN);
 
     dst[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
-    dst[1] = 5 + param_len;
+    dst[1] = 3 + param_len;
     dst[2] = num_pkts;
     htole16(dst + 3, opcode);
 }
@@ -87,6 +87,26 @@ ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status)
 }
 
 void
+ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size)
+{
+    uint8_t buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN +
+                BLE_HCI_RD_BUF_SIZE_RSPLEN + 1];
+    int rc;
+
+    ble_hs_test_util_build_cmd_complete(buf, sizeof buf,
+                                        BLE_HCI_RD_BUF_SIZE_RSPLEN + 1, 1,
+                                        (BLE_HCI_OGF_LE << 10) |
+                                            BLE_HCI_OCF_LE_RD_BUF_SIZE);
+
+    buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 0] = 0;
+    htole16(buf + BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 1, buf_size);
+    buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 3] = 1;
+
+    rc = host_hci_event_rx(buf);
+    TEST_ASSERT(rc == 0);
+}
+
+void
 ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
 {
     ble_hs_test_util_rx_ack((BLE_HCI_OGF_LE << 10) | ocf, status);
@@ -103,6 +123,8 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
 
     om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     TEST_ASSERT_FATAL(om != NULL);
+
+    om->om_data += BLE_L2CAP_HDR_SZ;
 
     rc = os_mbuf_append(om, data, len);
     TEST_ASSERT_FATAL(rc == 0);
