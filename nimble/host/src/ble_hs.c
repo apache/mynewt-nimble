@@ -19,6 +19,7 @@
 #include "util/tpq.h"
 #include "os/os.h"
 #include "host/host_hci.h"
+#include "host/ble_gatt.h"
 #include "host/ble_hs.h"
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
@@ -69,7 +70,7 @@ struct os_mbuf_pool ble_hs_mbuf_pool;
 /* Host HCI Task Events */
 struct os_eventq ble_hs_evq;
 static struct os_event ble_hs_kick_hci_ev;
-
+static struct os_event ble_hs_kick_gatt_ev;
 
 struct ble_hs_pkt {
     struct tpq_elem bhp_tpq_elem;
@@ -165,6 +166,10 @@ ble_hs_task_handler(void *arg)
             ble_hs_hci_batch_process_next();
             break;
 
+        case BLE_HS_KICK_GATT_EVENT:
+            ble_gatt_wakeup();
+            break;
+
         default:
             assert(0);
             break;
@@ -222,6 +227,15 @@ void
 ble_hs_kick_hci(void)
 {
     os_eventq_put(&ble_hs_evq, &ble_hs_kick_hci_ev);
+}
+
+/**
+ * Wakes the BLE host task so that it can process att_batch events.
+ */
+void
+ble_hs_kick_gatt(void)
+{
+    os_eventq_put(&ble_hs_evq, &ble_hs_kick_gatt_ev);
 }
 
 static void
@@ -331,9 +345,12 @@ ble_hs_init(uint8_t prio)
     ble_hs_kick_hci_ev.ev_type = BLE_HS_KICK_HCI_EVENT;
     ble_hs_kick_hci_ev.ev_arg = NULL;
 
+    ble_hs_kick_gatt_ev.ev_queued = 0;
+    ble_hs_kick_gatt_ev.ev_type = BLE_HS_KICK_GATT_EVENT;
+    ble_hs_kick_gatt_ev.ev_arg = NULL;
+
     os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
                  OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
-
 
     tpq_init(&ble_hs_rx_q, BLE_HS_RX_DATA_EVENT, NULL);
     tpq_init(&ble_hs_tx_q, BLE_HS_TX_DATA_EVENT, NULL);

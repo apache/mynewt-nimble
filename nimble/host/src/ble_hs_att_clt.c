@@ -20,6 +20,7 @@
 #include <assert.h>
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
+#include "host/ble_gatt.h"
 #include "host/ble_hs.h"
 #include "ble_hs_uuid.h"
 #include "ble_hs_conn.h"
@@ -208,7 +209,9 @@ ble_hs_att_clt_rx_mtu(struct ble_hs_conn *conn,
         return rc;
     }
 
-    ble_hs_att_batch_rx_mtu(conn, rsp.bhamc_mtu);
+    ble_hs_att_set_peer_mtu(chan, rsp.bhamc_mtu);
+
+    ble_gatt_rx_mtu(conn, ble_l2cap_chan_mtu(chan));
 
     return 0;
 }
@@ -330,7 +333,7 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
     rc = 0;
 
 done:
-    ble_hs_att_batch_rx_find_info(conn, -rc, handle_id);
+    ble_gatt_rx_find_info(conn, -rc, handle_id);
     return rc;
 }
 

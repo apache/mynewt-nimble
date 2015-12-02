@@ -157,16 +157,4 @@ int ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
                                 struct os_mbuf *om);
 int ble_hs_att_clt_init(void);
 
-/*** @batch */
-void ble_hs_att_batch_rx_error(struct ble_hs_conn *conn,
-                               struct ble_hs_att_error_rsp *rsp);
-void ble_hs_att_batch_rx_mtu(struct ble_hs_conn *conn, uint16_t peer_mtu);
-int ble_hs_att_batch_mtu(uint16_t conn_handle);
-void ble_hs_att_batch_rx_find_info(struct ble_hs_conn *conn, int status,
-                                   uint16_t last_handle_id);
-int ble_hs_att_batch_find_info(uint16_t conn_handle_id,
-                               uint16_t att_start_handle,
-                               uint16_t att_end_handle);
-int ble_hs_att_batch_init(void);
-
 #endif
