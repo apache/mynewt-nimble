@@ -25,7 +25,8 @@
 #include "ble_hs_att.h"
 
 #define BLE_HS_ATT_BATCH_OP_NONE            0
-#define BLE_HS_ATT_BATCH_OP_FIND_INFO       1
+#define BLE_HS_ATT_BATCH_OP_MTU             1
+#define BLE_HS_ATT_BATCH_OP_FIND_INFO       2
 
 struct ble_hs_att_batch_entry {
     SLIST_ENTRY(ble_hs_att_batch_entry) next;
@@ -34,9 +35,15 @@ struct ble_hs_att_batch_entry {
     uint16_t conn_handle;
     union {
         struct {
-            uint16_t start_handle;
+            int (*cb)(int status, uint16_t conn_handle, void *arg);
+            void *cb_arg;
+        } mtu;
+
+        struct {
             uint16_t end_handle;
-            /* XXX: Callback. */
+
+            int (*cb)(int status, uint16_t conn_handle, void *arg);
+            void *cb_arg;
         } find_info;
     };
 };
@@ -70,17 +77,46 @@ ble_hs_att_batch_entry_free(struct ble_hs_att_batch_entry *entry)
 }
 
 static struct ble_hs_att_batch_entry *
-ble_hs_att_batch_find(uint16_t conn_handle)
+ble_hs_att_batch_find(uint16_t conn_handle, uint8_t att_op)
 {
     struct ble_hs_att_batch_entry *entry;
 
     SLIST_FOREACH(entry, &ble_hs_att_batch_list, next) {
         if (entry->conn_handle == conn_handle) {
-            return entry;
+            if (att_op == entry->op || att_op == BLE_HS_ATT_BATCH_OP_NONE) {
+                return entry;
+            } else {
+                return NULL;
+            }
         }
     }
 
     return NULL;
+}
+
+static int
+ble_hs_att_batch_new_entry(uint16_t conn_handle,
+                           struct ble_hs_att_batch_entry **entry,
+                           struct ble_hs_conn **conn)
+{
+    *entry = NULL;
+
+    /* Ensure we have a connection with the specified handle. */
+    *conn = ble_hs_conn_find(conn_handle);
+    if (*conn == NULL) {
+        return ENOTCONN;
+    }
+
+    *entry = ble_hs_att_batch_entry_alloc();
+    if (*entry == NULL) {
+        return ENOMEM;
+    }
+
+    (*entry)->conn_handle = conn_handle;
+
+    SLIST_INSERT_HEAD(&ble_hs_att_batch_list, *entry, next);
+
+    return 0;
 }
 
 void
@@ -89,7 +125,7 @@ ble_hs_att_batch_rx_error(struct ble_hs_conn *conn,
 {
     struct ble_hs_att_batch_entry *entry;
 
-    entry = ble_hs_att_batch_find(conn->bhc_handle);
+    entry = ble_hs_att_batch_find(conn->bhc_handle, BLE_HS_ATT_BATCH_OP_NONE);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -110,19 +146,68 @@ ble_hs_att_batch_rx_error(struct ble_hs_conn *conn,
 }
 
 void
-ble_hs_att_batch_rx_find_info(struct ble_hs_conn *conn, int status,
-                              uint16_t last_handle_id)
+ble_hs_att_batch_rx_mtu(struct ble_hs_conn *conn, uint16_t peer_mtu)
 {
     struct ble_hs_att_batch_entry *entry;
+    struct ble_l2cap_chan *chan;
 
-    entry = ble_hs_att_batch_find(conn->bhc_handle);
+    entry = ble_hs_att_batch_find(conn->bhc_handle, BLE_HS_ATT_BATCH_OP_MTU);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    if (entry->op != BLE_HS_ATT_BATCH_OP_FIND_INFO) {
-        /* Not expecting a find info response from this device. */
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    assert(chan != NULL);
+
+    ble_hs_att_set_peer_mtu(chan, peer_mtu);
+
+    /* XXX: Call success callback. */
+}
+
+int
+ble_hs_att_batch_mtu(uint16_t conn_handle)
+{
+    struct ble_hs_att_mtu_cmd req;
+    struct ble_hs_att_batch_entry *entry;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    rc = ble_hs_att_batch_new_entry(conn_handle, &entry, &conn);
+    if (rc != 0) {
+        goto err;
+    }
+    entry->op = BLE_HS_ATT_BATCH_OP_MTU;
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+
+    req.bhamc_mtu = chan->blc_my_mtu;
+    rc = ble_hs_att_clt_tx_mtu(conn, &req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (entry != NULL) {
+        SLIST_REMOVE_HEAD(&ble_hs_att_batch_list, next);
+        ble_hs_att_batch_entry_free(entry);
+    }
+    return rc;
+}
+
+void
+ble_hs_att_batch_rx_find_info(struct ble_hs_conn *conn, int status,
+                              uint16_t last_handle_id)
+{
+    struct ble_hs_att_batch_entry *entry;
+
+    entry = ble_hs_att_batch_find(conn->bhc_handle,
+                                  BLE_HS_ATT_BATCH_OP_FIND_INFO);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
         return;
     }
 
@@ -132,7 +217,8 @@ ble_hs_att_batch_rx_find_info(struct ble_hs_conn *conn, int status,
     }
 
     if (last_handle_id == 0xffff) {
-        /* Call success callback. */
+        /* XXX: Call success callback. */
+        return;
     }
 
     /* XXX: Send follow up request. */
@@ -143,41 +229,17 @@ ble_hs_att_batch_find_info(uint16_t conn_handle, uint16_t att_start_handle,
                            uint16_t att_end_handle)
 {
     struct ble_hs_att_find_info_req req;
-    struct ble_hs_att_batch_entry *existing_entry;
     struct ble_hs_att_batch_entry *entry;
     struct ble_hs_conn *conn;
     int rc;
 
-    entry = NULL;
-
-    /* Ensure we have a connection with the specified handle. */
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        rc = ENOTCONN;
+    rc = ble_hs_att_batch_new_entry(conn_handle, &entry, &conn);
+    if (rc != 0) {
         goto err;
     }
-
-    /* Ensure there isn't already an ATT job in progress for this
-     * connection.
-     */
-    existing_entry = ble_hs_att_batch_find(conn_handle);
-    if (existing_entry != NULL) {
-        rc = EALREADY;
-        goto err;
-    }
-
-    entry = ble_hs_att_batch_entry_alloc();
-    if (entry == NULL) {
-        rc = ENOMEM;
-        goto err;
-    }
-
     entry->op = BLE_HS_ATT_BATCH_OP_FIND_INFO;
     entry->conn_handle = conn_handle;
-    entry->find_info.start_handle = att_start_handle;
     entry->find_info.end_handle = att_end_handle;
-
-    SLIST_INSERT_HEAD(&ble_hs_att_batch_list, entry, next);
 
     req.bhafq_start_handle = att_start_handle;
     req.bhafq_end_handle = att_end_handle;

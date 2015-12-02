@@ -118,6 +118,21 @@ ble_hs_att_clt_find_entry_uuid128(struct ble_hs_conn *conn, void *uuid128)
     return 0;
 }
 
+static int
+ble_hs_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
+                        struct os_mbuf **txom)
+{
+    *chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    assert(*chan != NULL);
+
+    *txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    if (*txom == NULL) {
+        return ENOMEM;
+    }
+
+    return 0;
+}
+
 uint16_t
 ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
 {
@@ -132,6 +147,70 @@ ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
 
     handle_id = ble_hs_att_clt_find_entry_uuid128(conn, uuid128);
     return handle_id;
+}
+
+int
+ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_hs_att_mtu_cmd *req)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    void *buf;
+    int rc;
+
+    txom = NULL;
+
+    if (req->bhamc_mtu < BLE_HS_ATT_MTU_DFLT) {
+        rc = EINVAL;
+        goto err;
+    }
+
+    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom);
+    if (rc != 0) {
+        goto err;
+    }
+
+    buf = os_mbuf_extend(txom, BLE_HS_ATT_MTU_CMD_SZ);
+    if (buf == NULL) {
+        rc = ENOMEM;
+        goto err;
+    }
+
+    rc = ble_hs_att_mtu_req_write(buf, BLE_HS_ATT_MTU_CMD_SZ, req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_hs_att_clt_rx_mtu(struct ble_hs_conn *conn,
+                      struct ble_l2cap_chan *chan,
+                      struct os_mbuf *om)
+{
+    struct ble_hs_att_mtu_cmd rsp;
+    int rc;
+
+    /* XXX: Pull up om */
+
+    rc = ble_hs_att_mtu_cmd_parse(om->om_data, om->om_len, &rsp);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_hs_att_batch_rx_mtu(conn, rsp.bhamc_mtu);
+
+    return 0;
 }
 
 int
@@ -152,12 +231,8 @@ ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    assert(chan != NULL);
-
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
-    if (txom == NULL) {
-        rc = ENOMEM;
+    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom);
+    if (rc != 0) {
         goto err;
     }
 

@@ -31,6 +31,7 @@ struct ble_hs_att_rx_dispatch_entry {
 
 static struct ble_hs_att_rx_dispatch_entry ble_hs_att_rx_dispatch[] = {
     { BLE_HS_ATT_OP_MTU_REQ,              ble_hs_att_svr_rx_mtu },
+    { BLE_HS_ATT_OP_MTU_RSP,              ble_hs_att_clt_rx_mtu },
     { BLE_HS_ATT_OP_FIND_INFO_REQ,        ble_hs_att_svr_rx_find_info },
     { BLE_HS_ATT_OP_FIND_INFO_RSP,        ble_hs_att_clt_rx_find_info },
     { BLE_HS_ATT_OP_FIND_TYPE_VALUE_REQ,  ble_hs_att_svr_rx_find_type_value },
@@ -86,6 +87,16 @@ ble_hs_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     return 0;
+}
+
+void
+ble_hs_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
+{
+    if (peer_mtu < BLE_HS_ATT_MTU_DFLT) {
+        peer_mtu = BLE_HS_ATT_MTU_DFLT;
+    }
+
+    chan->blc_peer_mtu = peer_mtu;
 }
 
 struct ble_l2cap_chan *

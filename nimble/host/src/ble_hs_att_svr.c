@@ -114,7 +114,7 @@ ble_hs_att_svr_next_id(void)
  */
 int
 ble_hs_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
-                    ble_hs_att_svr_handle_func *fn)
+                        ble_hs_att_svr_handle_func *fn)
 {
     struct ble_hs_att_svr_entry *entry;
 
@@ -315,7 +315,6 @@ ble_hs_att_svr_tx_mtu_rsp(struct ble_l2cap_chan *chan, uint8_t op,
     void *dst;
     int rc;
 
-    assert(!(chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU));
     assert(op == BLE_HS_ATT_OP_MTU_REQ || op == BLE_HS_ATT_OP_MTU_RSP);
     assert(mtu >= BLE_HS_ATT_MTU_DFLT);
 
@@ -356,21 +355,14 @@ ble_hs_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                       struct os_mbuf *om)
 {
     struct ble_hs_att_mtu_cmd cmd;
-    uint8_t buf[BLE_HS_ATT_MTU_CMD_SZ];
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    /* XXX: Pull up om. */
+
+    rc = ble_hs_att_mtu_cmd_parse(om->om_data, om->om_len, &cmd);
     assert(rc == 0);
 
-    rc = ble_hs_att_mtu_cmd_parse(buf, sizeof buf, &cmd);
-    assert(rc == 0);
-
-    if (cmd.bhamc_mtu < BLE_HS_ATT_MTU_DFLT) {
-        cmd.bhamc_mtu = BLE_HS_ATT_MTU_DFLT;
-    }
-
-    chan->blc_peer_mtu = cmd.bhamc_mtu;
-
+    ble_hs_att_set_peer_mtu(chan, cmd.bhamc_mtu);
     rc = ble_hs_att_svr_tx_mtu_rsp(chan, BLE_HS_ATT_OP_MTU_RSP,
                                    chan->blc_my_mtu);
     if (rc != 0) {
@@ -507,22 +499,19 @@ ble_hs_att_svr_rx_find_info(struct ble_hs_conn *conn,
     struct ble_hs_att_find_info_req req;
     struct ble_hs_att_find_info_rsp rsp;
     struct os_mbuf *txom;
-    uint8_t buf[max(BLE_HS_ATT_FIND_INFO_REQ_SZ,
-                    BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ)];
+    void *buf;
     int rc;
 
     txom = NULL;
 
-    rc = os_mbuf_copydata(rxom, 0, BLE_HS_ATT_FIND_INFO_REQ_SZ, buf);
+    /* XXX: Pull up rxom. */
+
+    rc = ble_hs_att_find_info_req_parse(rxom->om_data, rxom->om_len, &req);
     if (rc != 0) {
         req.bhafq_start_handle = 0;
         rc = BLE_HS_ATT_ERR_INVALID_PDU;
         goto err;
     }
-
-    rc = ble_hs_att_find_info_req_parse(buf, BLE_HS_ATT_FIND_INFO_REQ_SZ,
-                                        &req);
-    assert(rc == 0);
 
     /* Tx error response if start handle is greater than end handle or is equal
      * to 0 (Vol. 3, Part F, 3.4.3.1).
@@ -543,15 +532,15 @@ ble_hs_att_svr_rx_find_info(struct ble_hs_conn *conn,
     /* Write the response base at the start of the buffer.  The format field is
      * unknown at this point; it will be filled in later.
      */
-    rc = ble_hs_att_find_info_rsp_write(buf, BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
-                                        &rsp);
-    assert(rc == 0);
-    rc = os_mbuf_append(txom, buf,
-                        BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ);
-    if (rc != 0) {
+    buf = os_mbuf_extend(txom, BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ);
+    if (buf == NULL) {
         rc = BLE_HS_ATT_ERR_INSUFFICIENT_RES;
         goto err;
     }
+
+    rc = ble_hs_att_find_info_rsp_write(buf, BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ,
+                                        &rsp);
+    assert(rc == 0);
 
     /* Write the variable length Information Data field, populating the format
      * field as appropriate.

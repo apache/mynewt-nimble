@@ -22,7 +22,7 @@
 #include "ble_hs_ack.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
-#include "ble_hs_work.h"
+#include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 
 #define BLE_GAP_CONN_STATE_IDLE                     0
@@ -71,7 +71,7 @@ ble_gap_conn_notify_app(uint8_t status, struct ble_hs_conn *conn)
 /**
  * Called when an error is encountered while the master-connection-fsm is
  * active.  Resets the state machine, clears the HCI ack callback, and notifies
- * the host task that the next work item can be processed.
+ * the host task that the next hci_batch item can be processed.
  */
 static void
 ble_gap_conn_master_failed(uint8_t status)
@@ -84,7 +84,7 @@ ble_gap_conn_master_failed(uint8_t status)
 /**
  * Called when an error is encountered while the slave-connection-fsm is
  * active.  Resets the state machine, clears the HCI ack callback, and notifies
- * the host task that the next work item can be processed.
+ * the host task that the next hci_batch item can be processed.
  */
 static void
 ble_gap_conn_slave_failed(uint8_t status)
@@ -108,6 +108,7 @@ ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
         ble_gap_conn_master_failed(ack->bha_status);
     } else {
         ble_gap_conn_master_state = BLE_GAP_CONN_STATE_MASTER_DIRECT_ACKED;
+        ble_hs_hci_batch_done();
     }
 }
 
@@ -139,6 +140,7 @@ ble_gap_conn_slave_ack(struct ble_hs_ack *ack, void *arg)
             ble_gap_conn_slave_failed(ack->bha_status);
         } else {
             ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_SLAVE_ENABLE_ACKED;
+            ble_hs_hci_batch_done();
         }
         break;
 

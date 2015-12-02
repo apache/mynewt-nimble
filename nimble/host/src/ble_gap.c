@@ -18,7 +18,7 @@
 #include <errno.h>
 #include <string.h>
 #include "host/ble_gap.h"
-#include "ble_hs_work.h"
+#include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 
 /**
@@ -52,19 +52,19 @@ ble_gap_set_connect_cb(ble_gap_connect_fn *cb, void *arg)
 int
 ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr)
 {
-    struct ble_hs_work_entry *entry;
+    struct ble_hs_hci_batch_entry *entry;
 
-    entry = ble_hs_work_entry_alloc();
+    entry = ble_hs_hci_batch_entry_alloc();
     if (entry == NULL) {
         return ENOMEM;
     }
 
-    entry->bwe_type = BLE_HS_WORK_TYPE_DIRECT_CONNECT;
-    entry->bwe_direct_connect.bwdc_peer_addr_type = addr_type;
-    memcpy(entry->bwe_direct_connect.bwdc_peer_addr, addr,
-           sizeof entry->bwe_direct_connect.bwdc_peer_addr);
+    entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_DIRECT_CONNECT;
+    entry->bhb_direct_connect.bwdc_peer_addr_type = addr_type;
+    memcpy(entry->bhb_direct_connect.bwdc_peer_addr, addr,
+           sizeof entry->bhb_direct_connect.bwdc_peer_addr);
 
-    ble_hs_work_enqueue(entry);
+    ble_hs_hci_batch_enqueue(entry);
 
     return 0;
 }
@@ -85,19 +85,19 @@ ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr)
 int
 ble_gap_directed_connectable(uint8_t addr_type, uint8_t *addr)
 {
-    struct ble_hs_work_entry *entry;
+    struct ble_hs_hci_batch_entry *entry;
 
-    entry = ble_hs_work_entry_alloc();
+    entry = ble_hs_hci_batch_entry_alloc();
     if (entry == NULL) {
         return ENOMEM;
     }
 
-    entry->bwe_type = BLE_HS_WORK_TYPE_DIRECT_ADVERTISE;
-    entry->bwe_direct_advertise.bwda_peer_addr_type = addr_type;
-    memcpy(entry->bwe_direct_advertise.bwda_peer_addr, addr,
-           sizeof entry->bwe_direct_advertise.bwda_peer_addr);
+    entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_DIRECT_ADVERTISE;
+    entry->bhb_direct_advertise.bwda_peer_addr_type = addr_type;
+    memcpy(entry->bhb_direct_advertise.bwda_peer_addr, addr,
+           sizeof entry->bhb_direct_advertise.bwda_peer_addr);
 
-    ble_hs_work_enqueue(entry);
+    ble_hs_hci_batch_enqueue(entry);
 
     return 0;
 }

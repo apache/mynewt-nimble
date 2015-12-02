@@ -25,6 +25,7 @@
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
+#include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_test_util.h"
 #include "testutil/testutil.h"
@@ -44,8 +45,11 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_direct_connect(0, addr);
+    rc = ble_gap_direct_connection_establishment(0, addr);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_hci_batch_process_next();
+
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive command status event. */
@@ -87,8 +91,11 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_direct_connect(0, addr);
+    rc = ble_gap_direct_connection_establishment(0, addr);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_hci_batch_process_next();
+
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
     /* Receive connection complete event without intervening command status. */
@@ -129,8 +136,11 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_conn_direct_advertise(0, addr);
+    rc = ble_gap_directed_connectable(0, addr);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_hci_batch_process_next();
+
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 

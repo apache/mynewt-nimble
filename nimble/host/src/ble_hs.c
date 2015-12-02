@@ -23,7 +23,7 @@
 #include "ble_hs_att.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
-#include "ble_hs_work.h"
+#include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
@@ -68,7 +68,7 @@ struct os_mbuf_pool ble_hs_mbuf_pool;
 
 /* Host HCI Task Events */
 struct os_eventq ble_hs_evq;
-static struct os_event ble_hs_kick_ev;
+static struct os_event ble_hs_kick_hci_ev;
 
 
 struct ble_hs_pkt {
@@ -115,16 +115,16 @@ ble_hs_process_rx_data_queue(void)
 static int
 ble_hs_read_hci_buf_size(void)
 {
-    struct ble_hs_work_entry *entry;
+    struct ble_hs_hci_batch_entry *entry;
 
-    entry = ble_hs_work_entry_alloc();
+    entry = ble_hs_hci_batch_entry_alloc();
     if (entry == NULL) {
         return ENOMEM;
     }
 
-    entry->bwe_type = BLE_HS_WORK_TYPE_READ_HCI_BUF_SIZE;
+    entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_READ_HCI_BUF_SIZE;
 
-    ble_hs_work_enqueue(entry);
+    ble_hs_hci_batch_enqueue(entry);
 
     return 0;
 }
@@ -161,18 +161,14 @@ ble_hs_task_handler(void *arg)
             ble_hs_process_tx_data_queue();
             break;
 
-        case BLE_HS_KICK_EVENT:
+        case BLE_HS_KICK_HCI_EVENT:
+            ble_hs_hci_batch_process_next();
             break;
 
         default:
             assert(0);
             break;
         }
-
-        /* Process all pending jobs in the work queue. */
-        do {
-            rc = ble_hs_work_process_next();
-        } while (rc == EAGAIN);
     }
 }
 
@@ -220,12 +216,12 @@ ble_hs_tx_data(struct os_mbuf *om)
 }
 
 /**
- * Wakes the BLE host task so that it can process work events.
+ * Wakes the BLE host task so that it can process hci_batch events.
  */
 void
-ble_hs_kick(void)
+ble_hs_kick_hci(void)
 {
-    os_eventq_put(&ble_hs_evq, &ble_hs_kick_ev);
+    os_eventq_put(&ble_hs_evq, &ble_hs_kick_hci_ev);
 }
 
 static void
@@ -326,14 +322,14 @@ ble_hs_init(uint8_t prio)
 
     ble_hs_ack_init();
 
-    rc = ble_hs_work_init();
+    rc = ble_hs_hci_batch_init();
     if (rc != 0) {
         goto err;
     }
 
-    ble_hs_kick_ev.ev_queued = 0;
-    ble_hs_kick_ev.ev_type = BLE_HS_KICK_EVENT;
-    ble_hs_kick_ev.ev_arg = NULL;
+    ble_hs_kick_hci_ev.ev_queued = 0;
+    ble_hs_kick_hci_ev.ev_type = BLE_HS_KICK_HCI_EVENT;
+    ble_hs_kick_hci_ev.ev_arg = NULL;
 
     os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
                  OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);

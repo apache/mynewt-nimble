@@ -24,7 +24,7 @@
 #include "host/ble_gap.h"
 #include "ble_hs_test_util.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_work.h"
+#include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 
 #ifdef ARCH_sim
@@ -121,12 +121,12 @@ TEST_CASE(ble_gap_test_case)
 {
     os_init();
 
+    ble_hs_test_util_init();
+
     os_task_init(&ble_gap_test_task, "ble_gap_test_task",
                  ble_gap_test_task_handler, NULL,
                  BLE_GAP_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_gap_test_stack,
                  OS_STACK_ALIGN(BLE_GAP_TEST_STACK_SIZE));
-
-    ble_hs_test_util_init();
 
     os_start();
 }

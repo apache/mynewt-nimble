@@ -24,6 +24,7 @@ struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct ble_hs_att_find_info_req;
 struct ble_hs_att_error_rsp;
+struct ble_hs_att_mtu_cmd;
 
 #define BLE_HS_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_HS_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -109,6 +110,7 @@ SLIST_HEAD(ble_hs_att_clt_entry_list, ble_hs_att_clt_entry);
 
 /*** @gen */
 struct ble_l2cap_chan *ble_hs_att_create_chan(void);
+void ble_hs_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 
 /*** @svr */
 int ble_hs_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
@@ -143,6 +145,11 @@ uint16_t ble_hs_att_clt_find_entry_uuid128(struct ble_hs_conn *conn,
                                            void *uuid128);
 uint16_t ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn,
                                           uint16_t uuid16);
+int ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn,
+                          struct ble_hs_att_mtu_cmd *req);
+int ble_hs_att_clt_rx_mtu(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf *om);
 int ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
                                 struct ble_hs_att_find_info_req *req);
 int ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
@@ -153,6 +160,8 @@ int ble_hs_att_clt_init(void);
 /*** @batch */
 void ble_hs_att_batch_rx_error(struct ble_hs_conn *conn,
                                struct ble_hs_att_error_rsp *rsp);
+void ble_hs_att_batch_rx_mtu(struct ble_hs_conn *conn, uint16_t peer_mtu);
+int ble_hs_att_batch_mtu(uint16_t conn_handle);
 void ble_hs_att_batch_rx_find_info(struct ble_hs_conn *conn, int status,
                                    uint16_t last_handle_id);
 int ble_hs_att_batch_find_info(uint16_t conn_handle_id,

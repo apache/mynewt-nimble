@@ -21,7 +21,6 @@
 struct ble_hs_conn;
 struct os_mbuf;
 
-int host_hci_read_buf_size(void);
 int host_hci_os_event_proc(struct os_event *ev);
 int host_hci_event_rx(uint8_t *data);
 int host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len);
@@ -40,6 +39,8 @@ int host_hci_cmd_le_clear_whitelist(void);
 int host_hci_cmd_le_read_whitelist(void);
 int host_hci_cmd_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type);
 int host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type);
+
+int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 
 uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);
 

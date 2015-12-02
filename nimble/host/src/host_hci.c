@@ -26,7 +26,6 @@
 #include "host/ble_hs.h"
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_work.h"
 #include "ble_l2cap.h"
 #include "ble_hs_ack.h"
 #include "ble_gap_conn.h"
@@ -304,44 +303,15 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     return 0;
 }
 
-static void
-host_hci_rx_read_buf_size_ack(struct ble_hs_ack *ack, void *arg)
+int
+host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts)
 {
-    uint16_t pktlen;
-    uint8_t max_pkts;
-
-    if (ack->bha_status != 0) {
-        /* XXX: Log / stat this. */
-        return;
-    }
-
-    if (ack->bha_params_len != BLE_HCI_RD_BUF_SIZE_RSPLEN + 1) {
-        /* XXX: Log / stat this. */
-        return;
-    }
-
-    pktlen = le16toh(ack->bha_params + 1);
-    max_pkts = ack->bha_params[3];
-
     if (pktlen == 0 || max_pkts == 0) {
-        /* XXX: Send BR command instead. */
-        return;
+        return EINVAL;
     }
 
     host_hci_buffer_sz = pktlen;
     host_hci_max_pkts = max_pkts;
-}
-
-int
-host_hci_read_buf_size(void)
-{
-    int rc;
-
-    ble_hs_ack_set_callback(host_hci_rx_read_buf_size_ack, NULL);
-    rc = host_hci_cmd_le_read_buffer_size();
-    if (rc != 0) {
-        return rc;
-    }
 
     return 0;
 }
