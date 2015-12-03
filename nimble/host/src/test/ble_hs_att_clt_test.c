@@ -77,7 +77,6 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     struct ble_att_find_info_rsp rsp;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    uint16_t handle_id;
     uint8_t buf[1024];
     uint8_t uuid128_1[16] = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
     int off;
@@ -86,16 +85,12 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     ble_att_clt_test_misc_init(&conn, &chan);
 
     /*** One 128-bit UUID. */
-    /* Ensure attribute mapping is not initially present. */
-    handle_id = ble_att_clt_find_entry_uuid128(conn, uuid128_1);
-    TEST_ASSERT_FATAL(handle_id == 0);
-
     /* Receive response with attribute mapping. */
     off = 0;
     rsp.bhafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT;
     rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     TEST_ASSERT(rc == 0);
-    off += BLE_ATT_FIND_INFO_RSP_MIN_SZ;
+    off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
     htole16(buf + off, 1);
     off += 2;
@@ -105,20 +100,13 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
     TEST_ASSERT(rc == 0);
 
-    handle_id = ble_att_clt_find_entry_uuid128(conn, uuid128_1);
-    TEST_ASSERT_FATAL(handle_id == 1);
-
     /*** One 16-bit UUID. */
-    /* Ensure attribute mapping is not initially present. */
-    handle_id = ble_att_clt_find_entry_uuid16(conn, 0x000f);
-    TEST_ASSERT_FATAL(handle_id == 0);
-
     /* Receive response with attribute mapping. */
     off = 0;
     rsp.bhafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
     rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     TEST_ASSERT(rc == 0);
-    off += BLE_ATT_FIND_INFO_RSP_MIN_SZ;
+    off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
     htole16(buf + off, 2);
     off += 2;
@@ -128,22 +116,13 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
     TEST_ASSERT(rc == 0);
 
-    handle_id = ble_att_clt_find_entry_uuid16(conn, 0x000f);
-    TEST_ASSERT_FATAL(handle_id == 2);
-
     /*** Two 16-bit UUIDs. */
-    /* Ensure attribute mappings are not initially present. */
-    handle_id = ble_att_clt_find_entry_uuid16(conn, 0x0010);
-    TEST_ASSERT_FATAL(handle_id == 0);
-    handle_id = ble_att_clt_find_entry_uuid16(conn, 0x0011);
-    TEST_ASSERT_FATAL(handle_id == 0);
-
     /* Receive response with attribute mappings. */
     off = 0;
     rsp.bhafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
     rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     TEST_ASSERT(rc == 0);
-    off += BLE_ATT_FIND_INFO_RSP_MIN_SZ;
+    off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
     htole16(buf + off, 3);
     off += 2;
@@ -157,11 +136,6 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
     TEST_ASSERT(rc == 0);
-
-    handle_id = ble_att_clt_find_entry_uuid16(conn, 0x0010);
-    TEST_ASSERT_FATAL(handle_id == 3);
-    handle_id = ble_att_clt_find_entry_uuid16(conn, 0x0011);
-    TEST_ASSERT_FATAL(handle_id == 4);
 }
 
 TEST_SUITE(ble_att_clt_suite)

@@ -79,7 +79,7 @@ struct ble_att_find_info_req {
  * | Format                             | 1                 |
  * | Information Data                   | 4 to (ATT_MTU-2)  |
  */
-#define BLE_ATT_FIND_INFO_RSP_MIN_SZ     2
+#define BLE_ATT_FIND_INFO_RSP_BASE_SZ       2
 struct ble_att_find_info_rsp {
     uint8_t bhafp_format;
     /* Followed by information data. */
@@ -120,7 +120,7 @@ struct ble_att_find_type_value_req {
  * | Ending Handle                      | 2                 |
  * | Attribute Type                     | 2 or 16           |
  */
-#define BLE_ATT_READ_TYPE_REQ_MIN_SZ     7
+#define BLE_ATT_READ_TYPE_REQ_BASE_SZ    5
 #define BLE_ATT_READ_TYPE_REQ_SZ_16      7
 #define BLE_ATT_READ_TYPE_REQ_SZ_128     21
 struct ble_att_read_type_req {

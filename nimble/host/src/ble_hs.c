@@ -324,11 +324,6 @@ ble_hs_init(uint8_t prio)
         goto err;
     }
 
-    rc = ble_att_clt_init();
-    if (rc != 0) {
-        goto err;
-    }
-
     rc = ble_gap_conn_init();
     if (rc != 0) {
         goto err;

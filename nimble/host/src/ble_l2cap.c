@@ -126,7 +126,7 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     assert(chan->blc_rx_buf == NULL);
     chan->blc_rx_buf = om;
 
-    rc = chan->blc_rx_fn(conn, chan, chan->blc_rx_buf);
+    rc = chan->blc_rx_fn(conn, chan, &chan->blc_rx_buf);
     os_mbuf_free_chain(chan->blc_rx_buf);
     chan->blc_rx_buf = NULL;
     if (rc != 0) {

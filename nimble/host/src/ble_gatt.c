@@ -22,9 +22,12 @@
 #include "os/os_mempool.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
+#include "ble_hs_uuid.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"
 #include "ble_att.h"
+
+#define BLE_ATT_UUID_PRIMARY_SERVICE    0x2800
 
 struct ble_gatt_entry {
     STAILQ_ENTRY(ble_gatt_entry) next;
@@ -45,22 +48,31 @@ struct ble_gatt_entry {
             int (*cb)(int status, uint16_t conn_handle, void *arg);
             void *cb_arg;
         } find_info;
+
+        struct {
+            uint16_t prev_handle;
+            ble_gatt_disc_service_fn *cb;
+            void *cb_arg;
+        } disc_all_services;
     };
 };
 
-#define BLE_GATT_OP_NONE           UINT8_MAX
-#define BLE_GATT_OP_MTU            0
-#define BLE_GATT_OP_FIND_INFO      1
-#define BLE_GATT_OP_MAX            2
+#define BLE_GATT_OP_NONE                        UINT8_MAX
+#define BLE_GATT_OP_MTU                         0
+#define BLE_GATT_OP_FIND_INFO                   1
+#define BLE_GATT_OP_DISC_ALL_SERVICES           2
+#define BLE_GATT_OP_MAX                         3
 
 typedef int ble_gatt_kick_fn(struct ble_gatt_entry *entry);
 
 static int ble_gatt_kick_mtu(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_find_info(struct ble_gatt_entry *entry);
+static int ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry);
 
 static ble_gatt_kick_fn *ble_gatt_kick_fns[BLE_GATT_OP_MAX] = {
-    [BLE_GATT_OP_MTU] =        ble_gatt_kick_mtu,
-    [BLE_GATT_OP_FIND_INFO] =  ble_gatt_kick_find_info,
+    [BLE_GATT_OP_MTU] =                 ble_gatt_kick_mtu,
+    [BLE_GATT_OP_FIND_INFO] =           ble_gatt_kick_find_info,
+    [BLE_GATT_OP_DISC_ALL_SERVICES] =   ble_gatt_kick_disc_all_services,
 };
 
 #define BLE_GATT_ENTRY_F_PENDING    0x01
@@ -255,6 +267,32 @@ ble_gatt_kick_find_info(struct ble_gatt_entry *entry)
     return 0;
 }
 
+static int
+ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry)
+{
+    struct ble_att_read_group_type_req req;
+    struct ble_hs_conn *conn;
+    uint8_t uuid128[16];
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        return ENOTCONN;
+    }
+
+    rc = ble_hs_uuid_from_16bit(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
+    assert(rc == 0);
+
+    req.bhagq_start_handle = entry->disc_all_services.prev_handle + 1;
+    req.bhagq_end_handle = 0xffff;
+    rc = ble_att_clt_tx_read_group_type(conn, &req, uuid128);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 void
 ble_gatt_wakeup(void)
 {
@@ -393,6 +431,66 @@ ble_gatt_find_info(uint16_t conn_handle, uint16_t att_start_handle,
 
     return 0;
 }
+
+void
+ble_gatt_rx_read_group_type_adata(struct ble_hs_conn *conn,
+                                  struct ble_att_clt_adata *adata)
+{
+    struct ble_gatt_entry *entry;
+
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_MTU, 1, NULL);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    entry->disc_all_services.prev_handle = adata->end_group_handle;
+
+    /* XXX: Call success callback. */
+}
+
+void
+ble_gatt_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc)
+{
+    struct ble_gatt_entry *entry;
+    struct ble_gatt_entry *prev;
+
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_MTU, 1, &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    if (entry->disc_all_services.prev_handle == 0xffff) {
+        /* All services discovered. */
+        entry->disc_all_services.cb(conn->bhc_handle, NULL,
+                                    entry->disc_all_services.cb_arg);
+        ble_gatt_entry_remove_free(entry, prev);
+    } else {
+        /* Send follow-up request. */
+        ble_gatt_entry_set_pending(entry);
+    }
+}
+
+int
+ble_gatt_disc_all_services(uint16_t conn_handle, ble_gatt_disc_service_fn *cb,
+                           void *cb_arg)
+{
+    struct ble_gatt_entry *entry;
+    int rc;
+
+    rc = ble_gatt_new_entry(conn_handle, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->op = BLE_GATT_OP_DISC_ALL_SERVICES;
+    entry->disc_all_services.prev_handle = 0x0000;
+    entry->disc_all_services.cb = cb;
+    entry->disc_all_services.cb_arg = cb_arg;
+
+    return 0;
+}
+
 
 int
 ble_gatt_init(void)

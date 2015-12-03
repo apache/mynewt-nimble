@@ -27,98 +27,6 @@
 #include "ble_att_cmd.h"
 #include "ble_att.h"
 
-#define BLE_ATT_CLT_NUM_ENTRIES  128
-static void *ble_att_clt_entry_mem;
-static struct os_mempool ble_att_clt_entry_pool;
-
-static struct ble_att_clt_entry *
-ble_att_clt_entry_alloc(void)
-{
-    struct ble_att_clt_entry *entry;
-
-    entry = os_memblock_get(&ble_att_clt_entry_pool);
-    if (entry != NULL) {
-        memset(entry, 0, sizeof *entry);
-    }
-
-    return entry;
-}
-
-static void
-ble_att_clt_entry_free(struct ble_att_clt_entry *entry)
-{
-    int rc;
-
-    rc = os_memblock_put(&ble_att_clt_entry_pool, entry);
-    assert(rc == 0);
-}
-
-void
-ble_att_clt_entry_list_free(struct ble_att_clt_entry_list *list)
-{
-    struct ble_att_clt_entry *entry;
-
-    while ((entry = SLIST_FIRST(list)) != NULL) {
-        SLIST_REMOVE_HEAD(list, bhac_next);
-        ble_att_clt_entry_free(entry);
-    }
-}
-
-int
-ble_att_clt_entry_insert(struct ble_hs_conn *conn, uint16_t handle_id,
-                         uint8_t *uuid)
-{
-    struct ble_att_clt_entry *entry;
-    struct ble_att_clt_entry *prev;
-    struct ble_att_clt_entry *cur;
-
-    /* XXX: Probably need to lock a semaphore here. */
-
-    entry = ble_att_clt_entry_alloc();
-    if (entry == NULL) {
-        return ENOMEM;
-    }
-
-    entry->bhac_handle_id = handle_id;
-    memcpy(entry->bhac_uuid, uuid, sizeof entry->bhac_uuid);
-
-    prev = NULL;
-    SLIST_FOREACH(cur, &conn->bhc_att_clt_list, bhac_next) {
-        if (cur->bhac_handle_id == handle_id) {
-            return EEXIST;
-        }
-        if (cur->bhac_handle_id > handle_id) {
-            break;
-        }
-
-        prev = cur;
-    }
-
-    if (prev == NULL) {
-        SLIST_INSERT_HEAD(&conn->bhc_att_clt_list, entry, bhac_next);
-    } else {
-        SLIST_INSERT_AFTER(prev, entry, bhac_next);
-    }
-
-    return 0;
-}
-
-uint16_t
-ble_att_clt_find_entry_uuid128(struct ble_hs_conn *conn, void *uuid128)
-{
-    struct ble_att_clt_entry *entry;
-    int rc;
-
-    SLIST_FOREACH(entry, &conn->bhc_att_clt_list, bhac_next) {
-        rc = memcmp(entry->bhac_uuid, uuid128, 16);
-        if (rc == 0) {
-            return entry->bhac_handle_id;
-        }
-    }
-
-    return 0;
-}
-
 static int
 ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
                      struct os_mbuf **txom, uint16_t initial_sz)
@@ -150,22 +58,6 @@ err:
     os_mbuf_free_chain(*txom);
     *txom = NULL;
     return rc;
-}
-
-uint16_t
-ble_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
-{
-    uint8_t uuid128[16];
-    uint16_t handle_id;
-    int rc;
-
-    rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
-    if (rc != 0) {
-        return 0;
-    }
-
-    handle_id = ble_att_clt_find_entry_uuid128(conn, uuid128);
-    return handle_id;
 }
 
 int
@@ -207,14 +99,17 @@ err:
 
 int
 ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                   struct os_mbuf *om)
+                   struct os_mbuf **om)
 {
     struct ble_att_mtu_cmd rsp;
     int rc;
 
-    /* XXX: Pull up om */
+    *om = os_mbuf_pullup(*om, BLE_ATT_MTU_CMD_SZ);
+    if (*om == NULL) {
+        return ENOMEM;
+    }
 
-    rc = ble_att_mtu_cmd_parse(om->om_data, om->om_len, &rsp);
+    rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
     if (rc != 0) {
         return rc;
     }
@@ -269,26 +164,31 @@ err:
 
 int
 ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf *om)
+                         struct os_mbuf **om)
 {
     struct ble_att_find_info_rsp rsp;
+    struct os_mbuf *rxom;
     uint16_t handle_id;
     uint16_t uuid16;
     uint8_t uuid128[16];
     int off;
     int rc;
 
-    /* XXX: Pull up om */
+    *om = os_mbuf_pullup(*om, BLE_ATT_FIND_INFO_RSP_BASE_SZ);
+    if (*om == NULL) {
+        return ENOMEM;
+    }
 
-    rc = ble_att_find_info_rsp_parse(om->om_data, om->om_len, &rsp);
+    rc = ble_att_find_info_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
     if (rc != 0) {
         return rc;
     }
+    rxom = *om;
 
     handle_id = 0;
-    off = BLE_ATT_FIND_INFO_RSP_MIN_SZ;
-    while (off < OS_MBUF_PKTHDR(om)->omp_len) {
-        rc = os_mbuf_copydata(om, off, 2, &handle_id);
+    off = BLE_ATT_FIND_INFO_RSP_BASE_SZ;
+    while (off < OS_MBUF_PKTHDR(rxom)->omp_len) {
+        rc = os_mbuf_copydata(rxom, off, 2, &handle_id);
         if (rc != 0) {
             rc = EINVAL;
             goto done;
@@ -298,7 +198,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
         switch (rsp.bhafp_format) {
         case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
-            rc = os_mbuf_copydata(om, off, 2, &uuid16);
+            rc = os_mbuf_copydata(rxom, off, 2, &uuid16);
             if (rc != 0) {
                 rc = EINVAL;
                 goto done;
@@ -314,7 +214,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             break;
 
         case BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT:
-            rc = os_mbuf_copydata(om, off, 16, &uuid128);
+            rc = os_mbuf_copydata(rxom, off, 16, &uuid128);
             if (rc != 0) {
                 rc = EINVAL;
                 goto done;
@@ -325,11 +225,6 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         default:
             rc = EINVAL;
             goto done;
-        }
-
-        rc = ble_att_clt_entry_insert(conn, handle_id, uuid128);
-        if (rc != 0) {
-            return rc;
         }
     }
 
@@ -425,12 +320,6 @@ err:
     return rc;
 }
 
-struct ble_att_clt_adata {
-    uint16_t att_handle;
-    uint16_t end_group_handle;
-    void *value;
-};
-
 static int
 ble_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
                                  struct ble_att_clt_adata *adata)
@@ -447,65 +336,40 @@ ble_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
 int
 ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
                                    struct ble_l2cap_chan *chan,
-                                   struct os_mbuf *om)
+                                   struct os_mbuf **rxom)
 {
     struct ble_att_read_group_type_rsp rsp;
     struct ble_att_clt_adata adata;
     int rc;
 
-    /* XXX: Pull up om */
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+    if (*rxom == NULL) {
+        return ENOMEM;
+    }
 
-    rc = ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
+    rc = ble_att_read_group_type_rsp_parse((*rxom)->om_data, (*rxom)->om_len,
+                                           &rsp);
     if (rc != 0) {
         return rc;
     }
 
+    os_mbuf_adj(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+
     /* XXX: Verify group handle is valid. */
 
-    while (OS_MBUF_PKTHDR(om)->omp_len > 0) {
-        rc = ble_att_clt_parse_attribute_data(om, rsp.bhagp_length, &adata);
+    while (OS_MBUF_PKTLEN(*rxom) > 0) {
+        rc = ble_att_clt_parse_attribute_data(*rxom, rsp.bhagp_length, &adata);
         if (rc != 0) {
             break;
         }
 
-        /* Save attribute mapping? */
+        /* Pass attribute data to GATT callback. */
+        ble_gatt_rx_read_group_type_adata(conn, &adata);
 
-        /* XXX: Pass adata to GATT callback. */
-
-        os_mbuf_adj(om, rsp.bhagp_length);
+        os_mbuf_adj(*rxom, rsp.bhagp_length);
     }
+
+    ble_gatt_rx_read_group_type_complete(conn, rc);
 
     return 0;
-}
-
-int
-ble_att_clt_init(void)
-{
-    int rc;
-
-    free(ble_att_clt_entry_mem);
-    ble_att_clt_entry_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_ATT_CLT_NUM_ENTRIES,
-                         sizeof (struct ble_att_clt_entry)));
-    if (ble_att_clt_entry_mem == NULL) {
-        rc = ENOMEM;
-        goto err;
-    }
-
-    rc = os_mempool_init(&ble_att_clt_entry_pool,
-                         BLE_ATT_CLT_NUM_ENTRIES,
-                         sizeof (struct ble_att_clt_entry),
-                         ble_att_clt_entry_mem,
-                         "ble_att_clt_entry_pool");
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    free(ble_att_clt_entry_mem);
-    ble_att_clt_entry_mem = NULL;
-
-    return rc;
 }

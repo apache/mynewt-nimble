@@ -103,10 +103,10 @@ struct ble_att_svr_entry {
 #define HA_OPCODE_COMMAND_FLAG (1 << 6) 
 #define HA_OPCODE_AUTH_SIG_FLAG (1 << 7) 
 
-struct ble_att_clt_entry {
-    SLIST_ENTRY(ble_att_clt_entry) bhac_next;
-    uint16_t bhac_handle_id;
-    uint8_t bhac_uuid[16];
+struct ble_att_clt_adata {
+    uint16_t att_handle;
+    uint16_t end_group_handle;
+    void *value;
 };
 
 SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
@@ -121,46 +121,38 @@ int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
 
 
 int ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                       struct os_mbuf *om);
+                       struct os_mbuf **om);
 int ble_att_svr_rx_find_info(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
-                             struct os_mbuf *om);
+                             struct os_mbuf **om);
 int ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
                                    struct ble_l2cap_chan *chan,
-                                   struct os_mbuf *om);
+                                   struct os_mbuf **om);
 int ble_att_svr_rx_read_type(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
-                             struct os_mbuf *om);
+                             struct os_mbuf **om);
 int ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                        struct os_mbuf *om);
+                        struct os_mbuf **om);
 int ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf *om);
+                         struct os_mbuf **om);
 int ble_att_svr_init(void);
 
 /*** @clt */
-void ble_att_clt_entry_list_free(struct ble_att_clt_entry_list *list);
-int ble_att_clt_entry_insert(struct ble_hs_conn *conn, uint16_t handle_id,
-                             uint8_t *uuid);
-uint16_t ble_att_clt_find_entry_uuid128(struct ble_hs_conn *conn,
-                                        void *uuid128);
-uint16_t ble_att_clt_find_entry_uuid16(struct ble_hs_conn *conn,
-                                       uint16_t uuid16);
 int ble_att_clt_tx_mtu(struct ble_hs_conn *conn,
                        struct ble_att_mtu_cmd *req);
 int ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                       struct os_mbuf *om);
+                       struct os_mbuf **om);
 int ble_att_clt_tx_read(struct ble_hs_conn *conn,
                         struct ble_att_read_req *req);
 int ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
                              struct ble_att_find_info_req *req);
 int ble_att_clt_rx_find_info(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan, struct os_mbuf *om);
+                             struct ble_l2cap_chan *chan, struct os_mbuf **om);
 int ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
                                    struct ble_att_read_group_type_req *req,
                                    void *uuid128);
 int ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
                                        struct ble_l2cap_chan *chan,
-                                       struct os_mbuf *om);
-int ble_att_clt_init(void);
+                                       struct os_mbuf **om);
 
 #endif

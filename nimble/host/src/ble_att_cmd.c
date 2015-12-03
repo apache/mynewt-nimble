@@ -23,8 +23,7 @@
 #include "ble_att_cmd.h"
 
 int
-ble_att_error_rsp_parse(void *payload, int len,
-                           struct ble_att_error_rsp *rsp)
+ble_att_error_rsp_parse(void *payload, int len, struct ble_att_error_rsp *rsp)
 {
     uint8_t *u8ptr;
 
@@ -46,8 +45,7 @@ ble_att_error_rsp_parse(void *payload, int len,
 }
 
 int
-ble_att_error_rsp_write(void *payload, int len,
-                           struct ble_att_error_rsp *rsp)
+ble_att_error_rsp_write(void *payload, int len, struct ble_att_error_rsp *rsp)
 {
     uint8_t *u8ptr;
 
@@ -66,8 +64,7 @@ ble_att_error_rsp_write(void *payload, int len,
 }
 
 int
-ble_att_mtu_cmd_parse(void *payload, int len,
-                         struct ble_att_mtu_cmd *cmd)
+ble_att_mtu_cmd_parse(void *payload, int len, struct ble_att_mtu_cmd *cmd)
 {
     uint8_t *u8ptr;
 
@@ -90,7 +87,7 @@ ble_att_mtu_cmd_parse(void *payload, int len,
 
 int
 ble_att_mtu_req_write(void *payload, int len,
-                         struct ble_att_mtu_cmd *cmd)
+                      struct ble_att_mtu_cmd *cmd)
 {
     uint8_t *u8ptr;
 
@@ -107,8 +104,7 @@ ble_att_mtu_req_write(void *payload, int len,
 }
 
 int
-ble_att_mtu_rsp_write(void *payload, int len,
-                         struct ble_att_mtu_cmd *cmd)
+ble_att_mtu_rsp_write(void *payload, int len, struct ble_att_mtu_cmd *cmd)
 {
     uint8_t *u8ptr;
 
@@ -126,7 +122,7 @@ ble_att_mtu_rsp_write(void *payload, int len,
 
 int
 ble_att_find_info_req_parse(void *payload, int len,
-                               struct ble_att_find_info_req *req)
+                            struct ble_att_find_info_req *req)
 {
     uint8_t *u8ptr;
 
@@ -148,7 +144,7 @@ ble_att_find_info_req_parse(void *payload, int len,
 
 int
 ble_att_find_info_req_write(void *payload, int len,
-                               struct ble_att_find_info_req *req)
+                            struct ble_att_find_info_req *req)
 {
     uint8_t *u8ptr;
 
@@ -167,11 +163,11 @@ ble_att_find_info_req_write(void *payload, int len,
 
 int
 ble_att_find_info_rsp_parse(void *payload, int len,
-                               struct ble_att_find_info_rsp *rsp)
+                            struct ble_att_find_info_rsp *rsp)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_FIND_INFO_RSP_MIN_SZ) {
+    if (len < BLE_ATT_FIND_INFO_RSP_BASE_SZ) {
         return EMSGSIZE;
     }
 
@@ -188,11 +184,11 @@ ble_att_find_info_rsp_parse(void *payload, int len,
 
 int
 ble_att_find_info_rsp_write(void *payload, int len,
-                               struct ble_att_find_info_rsp *rsp)
+                            struct ble_att_find_info_rsp *rsp)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_FIND_INFO_RSP_MIN_SZ) {
+    if (len < BLE_ATT_FIND_INFO_RSP_BASE_SZ) {
         return EMSGSIZE;
     }
 
@@ -205,8 +201,8 @@ ble_att_find_info_rsp_write(void *payload, int len,
 }
 
 int
-ble_att_find_type_value_req_parse(
-    void *payload, int len, struct ble_att_find_type_value_req *req)
+ble_att_find_type_value_req_parse(void *payload, int len,
+                                  struct ble_att_find_type_value_req *req)
 {
     uint8_t *u8ptr;
 
@@ -228,8 +224,8 @@ ble_att_find_type_value_req_parse(
 }
 
 int
-ble_att_find_type_value_req_write(
-    void *payload, int len, struct ble_att_find_type_value_req *req)
+ble_att_find_type_value_req_write(void *payload, int len,
+                                  struct ble_att_find_type_value_req *req)
 {
     uint8_t *u8ptr;
 
@@ -249,11 +245,11 @@ ble_att_find_type_value_req_write(
 
 int
 ble_att_read_type_req_parse(void *payload, int len,
-                               struct ble_att_read_type_req *req)
+                            struct ble_att_read_type_req *req)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_READ_TYPE_REQ_MIN_SZ) {
+    if (len < BLE_ATT_READ_TYPE_REQ_BASE_SZ) {
         return EMSGSIZE;
     }
 
@@ -271,11 +267,11 @@ ble_att_read_type_req_parse(void *payload, int len,
 
 int
 ble_att_read_type_req_write(void *payload, int len,
-                               struct ble_att_read_type_req *req)
+                            struct ble_att_read_type_req *req)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_READ_TYPE_REQ_MIN_SZ) {
+    if (len < BLE_ATT_READ_TYPE_REQ_BASE_SZ) {
         return EMSGSIZE;
     }
 
@@ -290,7 +286,7 @@ ble_att_read_type_req_write(void *payload, int len,
 
 int
 ble_att_read_type_rsp_parse(void *payload, int len,
-                               struct ble_att_read_type_rsp *rsp)
+                            struct ble_att_read_type_rsp *rsp)
 {
     uint8_t *u8ptr;
 
@@ -307,7 +303,7 @@ ble_att_read_type_rsp_parse(void *payload, int len,
 
 int
 ble_att_read_type_rsp_write(void *payload, int len,
-                               struct ble_att_read_type_rsp *rsp)
+                            struct ble_att_read_type_rsp *rsp)
 {
     uint8_t *u8ptr;
 
@@ -324,8 +320,7 @@ ble_att_read_type_rsp_write(void *payload, int len,
 }
 
 int
-ble_att_read_req_parse(void *payload, int len,
-                          struct ble_att_read_req *req)
+ble_att_read_req_parse(void *payload, int len, struct ble_att_read_req *req)
 {
     uint8_t *u8ptr;
 
@@ -345,8 +340,7 @@ ble_att_read_req_parse(void *payload, int len,
 }
 
 int
-ble_att_read_req_write(void *payload, int len,
-                          struct ble_att_read_req *req)
+ble_att_read_req_write(void *payload, int len, struct ble_att_read_req *req)
 {
     uint8_t *u8ptr;
 
@@ -363,8 +357,8 @@ ble_att_read_req_write(void *payload, int len,
 }
 
 int
-ble_att_read_group_type_req_parse(
-    void *payload, int len, struct ble_att_read_group_type_req *req)
+ble_att_read_group_type_req_parse(void *payload, int len,
+                                  struct ble_att_read_group_type_req *req)
 {
     uint8_t *u8ptr;
 
@@ -385,8 +379,8 @@ ble_att_read_group_type_req_parse(
 }
 
 int
-ble_att_read_group_type_req_write(
-    void *payload, int len, struct ble_att_read_group_type_req *req)
+ble_att_read_group_type_req_write(void *payload, int len,
+                                  struct ble_att_read_group_type_req *req)
 {
     uint8_t *u8ptr;
 
@@ -404,8 +398,8 @@ ble_att_read_group_type_req_write(
 }
 
 int
-ble_att_read_group_type_rsp_parse(
-    void *payload, int len, struct ble_att_read_group_type_rsp *rsp)
+ble_att_read_group_type_rsp_parse(void *payload, int len,
+                                  struct ble_att_read_group_type_rsp *rsp)
 {
     uint8_t *u8ptr;
 
@@ -425,8 +419,8 @@ ble_att_read_group_type_rsp_parse(
 }
 
 int
-ble_att_read_group_type_rsp_write(
-    void *payload, int len, struct ble_att_read_group_type_rsp *rsp)
+ble_att_read_group_type_rsp_write(void *payload, int len,
+                                  struct ble_att_read_group_type_rsp *rsp)
 {
     uint8_t *u8ptr;
 
@@ -443,8 +437,7 @@ ble_att_read_group_type_rsp_write(
 }
 
 int
-ble_att_write_req_parse(void *payload, int len,
-                           struct ble_att_write_req *req)
+ble_att_write_req_parse(void *payload, int len, struct ble_att_write_req *req)
 {
     uint8_t *u8ptr;
 
@@ -464,8 +457,7 @@ ble_att_write_req_parse(void *payload, int len,
 }
 
 int
-ble_att_write_req_write(void *payload, int len,
-                           struct ble_att_write_req *req)
+ble_att_write_req_write(void *payload, int len, struct ble_att_write_req *req)
 {
     uint8_t *u8ptr;
 

@@ -22,8 +22,8 @@
 
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
 typedef int ble_att_rx_fn(struct ble_hs_conn *conn,
-                                 struct ble_l2cap_chan *chan,
-                                 struct os_mbuf *om);
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf **om);
 struct ble_att_rx_dispatch_entry {
     uint8_t bde_op;
     ble_att_rx_fn *bde_fn;
@@ -65,13 +65,13 @@ ble_att_rx_dispatch_entry_find(uint8_t op)
 
 static int
 ble_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-           struct os_mbuf *om)
+           struct os_mbuf **om)
 {
     struct ble_att_rx_dispatch_entry *entry;
     uint8_t op;
     int rc;
 
-    rc = os_mbuf_copydata(om, 0, 1, &op);
+    rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
         return EMSGSIZE;
     }

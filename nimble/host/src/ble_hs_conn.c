@@ -85,8 +85,6 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 
     /* XXX: Free contents of rx and tx queues. */
 
-    ble_att_clt_entry_list_free(&conn->bhc_att_clt_list);
-
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);
 }

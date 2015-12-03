@@ -204,7 +204,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
     struct ble_att_find_info_rsp rsp;
     uint16_t handle;
     uint16_t uuid16;
-    uint8_t buf[BLE_ATT_FIND_INFO_RSP_MIN_SZ];
+    uint8_t buf[BLE_ATT_FIND_INFO_RSP_BASE_SZ];
     uint8_t uuid128[16];
     int off;
     int rc;
