@@ -67,6 +67,44 @@ struct ble_ll_stats g_ble_ll_stats;
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
+/* XXX: temporary logging until we transition to real logging */
+#ifdef BLE_LL_LOG
+struct ble_ll_log
+{
+    uint8_t log_id;
+    uint8_t log_arg8_0;
+    uint8_t log_arg8_1;
+    uint32_t log_arg32_0;
+    uint32_t cputime;
+
+};
+
+#define BLE_LL_LOG_LEN  (128)
+
+static struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
+static uint8_t g_ble_ll_log_index;
+
+void
+ble_ll_log(uint8_t id, uint8_t arg8_0, uint8_t arg8_1, uint32_t arg32_0)
+{
+    os_sr_t sr;
+    struct ble_ll_log *le;
+
+    OS_ENTER_CRITICAL(sr);
+    le = &g_ble_ll_log[g_ble_ll_log_index];
+    le->cputime = cputime_get32();
+    le->log_id = id;
+    le->log_arg8_0 = arg8_0;
+    le->log_arg8_1 = arg8_1;
+    le->log_arg32_0 = arg32_0;
+    ++g_ble_ll_log_index;
+    if (g_ble_ll_log_index == BLE_LL_LOG_LEN) {
+        g_ble_ll_log_index = 0;
+    }
+    OS_EXIT_CRITICAL(sr);
+}
+#endif
+
 /**
  * Counts the number of advertising PDU's by type. 
  * 
@@ -247,7 +285,9 @@ ble_ll_wfr_timer_exp(void *arg)
 }
 
 /**
- * Enable the wait for response timer 
+ * Enable the wait for response timer. 
+ *  
+ * Context: Interrupt. 
  * 
  * @param cputime 
  * @param wfr_cb 
@@ -444,6 +484,8 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
     uint8_t pdu_type;
     uint8_t *rxbuf;
 
+    ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, 0, (uint32_t)rxpdu);
+
     /* Check channel type */
     rxbuf = rxpdu->om_data;
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
@@ -526,6 +568,8 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
     uint8_t len;
     uint16_t mblen;
     uint8_t *rxbuf;
+
+    ble_ll_log(BLE_LL_LOG_ID_RX_END, chan, crcok, (uint32_t)rxpdu);
 
     /* Set the rx buffer pointer to the start of the received data */
     rxbuf = rxpdu->om_data;

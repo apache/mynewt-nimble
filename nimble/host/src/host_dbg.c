@@ -70,9 +70,9 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
                            "latency=%u spvn_tmo=%u mca=%u\n", 
                            le16toh(evdata + 1), evdata[3], evdata[4], 
                            evdata[10], evdata[9], evdata[8], evdata[7],
-                           evdata[6], evdata[5], 
-                           le16toh(evdata + 11), le16toh(evdata + 13), 
-                           evdata[14]);
+                           evdata[6], evdata[5], le16toh(evdata + 11), 
+                           le16toh(evdata + 13), le16toh(evdata + 15), 
+                           evdata[17]);
         } else {
             console_printf("LE connection complete. FAIL (status=%u)\n",status);
         }
@@ -101,7 +101,7 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     if (ogf == BLE_HCI_OGF_LE) {
         switch (ocf) {
         case BLE_HCI_OCF_LE_SET_ADV_DATA:
-            snprintf(parmbuf, 12, "status=%-3d ", evdata[3]);
+            snprintf(parmbuf, 12, "status=%u ", evdata[3]);
             break;
         default:
             break;

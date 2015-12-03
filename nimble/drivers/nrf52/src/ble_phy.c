@@ -137,8 +137,12 @@ ble_phy_isr(void)
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
 
-    /* Check for disabled event. This only happens for transmits now */
+    /* Read irq register to determine which interrupts are enabled */
     irq_en = NRF_RADIO->INTENCLR;
+
+    ble_ll_log(BLE_LL_LOG_ID_PHY_ISR, 0, 0, irq_en);
+
+    /* Check for disabled event. This only happens for transmits now */
     if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO->EVENTS_DISABLED) {
         /* Better be in TX state! */
         assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
@@ -537,11 +541,6 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* If the current channel is set, just return */
-    if (g_ble_phy_data.phy_chan == chan) {
-        return 0;
-    }
-
     /* Get correct nrf52 frequency */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
         if (chan < 11) {
@@ -585,6 +584,8 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     NRF_RADIO->FREQUENCY = freq;
     NRF_RADIO->DATAWHITEIV = chan;
 
+    ble_ll_log(BLE_LL_LOG_ID_PHY_SETCHAN, chan, freq, access_addr);
+
     return 0;
 }
 
@@ -598,10 +599,14 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 void
 ble_phy_disable(void)
 {
+    ble_ll_log(BLE_LL_LOG_ID_PHY_DISABLE, g_ble_phy_data.phy_state, 0, 0);
+
     NRF_RADIO->INTENCLR = NRF52_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
+
+    /* XXX: do I need to clear any pending state in the cortex-M possibly? */
 }
 
 /**

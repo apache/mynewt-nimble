@@ -378,7 +378,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
 
     /* Toggle the LED */
-    gpio_toggle(LED_BLINK_PIN);
+    gpio_clear(LED_BLINK_PIN);
 
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
@@ -984,7 +984,7 @@ ble_ll_adv_tx_done_proc(void *arg)
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
         /* Toggle the LED */
-        gpio_toggle(LED_BLINK_PIN);
+        gpio_set(LED_BLINK_PIN);
     } else {
         /* 
          * Move to next advertising channel. If not in the mask, just

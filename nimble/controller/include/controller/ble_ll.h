@@ -441,4 +441,26 @@ void ble_ll_wfr_enable(uint32_t cputime, ble_ll_wfr_func wfr_cb, void *arg);
 /* Disable wait for response timer */
 void ble_ll_wfr_disable(void);
 
+/* 
+ * XXX: temporary LL debug log. Will get removed once we transition to real
+ * log
+ */ 
+#undef BLE_LL_LOG
+
+#define BLE_LL_LOG_ID_RX_START          (1)
+#define BLE_LL_LOG_ID_RX_END            (2)
+#define BLE_LL_LOG_ID_CONN_EV_START     (4)
+#define BLE_LL_LOG_ID_CONN_EV_END       (5)
+#define BLE_LL_LOG_ID_PHY_SETCHAN       (200)
+#define BLE_LL_LOG_ID_PHY_DISABLE       (201)
+#define BLE_LL_LOG_ID_PHY_ISR           (202)
+#define BLE_LL_LOG_ID_PHY_RX            (220)
+#define BLE_LL_LOG_ID_PHY_TX            (221)
+
+#ifdef BLE_LL_LOG
+void ble_ll_log(uint8_t id, uint8_t arg0_8, uint8_t arg1_8, uint32_t arg0_32);
+#else
+#define ble_ll_log(m,n,o,p)
+#endif
+
 #endif /* H_LL_ */

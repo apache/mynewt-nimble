@@ -29,6 +29,7 @@
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_phy.h"
 #include "hal/hal_cputime.h"
+#include "hal/hal_gpio.h"
 
 /* XXX TODO
  * 1) Add set channel map command and implement channel change procedure.
@@ -48,6 +49,8 @@
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
+ * 14) Look at all places where the conn_txq is accessed and make sure I
+ * am protecting it properly.
  */
 
 /* XXX: this does not belong here! Move to transport? */
@@ -258,8 +261,13 @@ struct ble_ll_conn_stats
     uint32_t rx_resent_pdus;
     uint32_t data_pdu_rx_valid;
     uint32_t data_pdu_rx_invalid;
+    uint32_t data_pdu_rx_bad_llid;
+    uint32_t data_pdu_rx_dup;
+    uint32_t data_pdu_txd;
     uint32_t data_pdu_txg;
     uint32_t data_pdu_txf;
+    uint32_t conn_req_txd;
+    uint32_t ctrl_pdu_rxd;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
 
@@ -596,6 +604,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         ble_hdr = BLE_MBUF_HDR_PTR(m);
         ble_hdr->flags = 0;
         m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+        STAILQ_INSERT_HEAD(&connsm->conn_txq, pkthdr, omp_next);
     }
 
     /* Set SN, MD, NESN in transmit PDU */
@@ -664,6 +673,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
                                        ble_ll_pdu_tx_time_get(m->om_len));
             ble_ll_wfr_enable(wfr_time, ble_ll_conn_wait_txend, connsm);
         }
+
+        ++g_ble_ll_conn_stats.data_pdu_txd;
     }
 
     return rc;
@@ -706,9 +717,14 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     uint32_t wfr_time;
     struct ble_ll_conn_sm *connsm;
 
+    /* set led */
+    gpio_clear(LED_BLINK_PIN);
+
     /* Set current connection state machine */
     connsm = (struct ble_ll_conn_sm *)sch->cb_arg;
     g_ble_ll_conn_cur_sm = connsm;
+
+    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, connsm->data_chan_index, 0, 0);
 
     /* Set LL state */
     ble_ll_state_set(BLE_LL_STATE_CONNECTION);
@@ -988,9 +1004,9 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
                 memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
                 htole16(evbuf + 14, connsm->conn_itvl);
                 htole16(evbuf + 16, connsm->slave_latency);
-                evbuf[18] = connsm->master_sca;
+                htole16(evbuf + 18, connsm->supervision_tmo);
+                evbuf[20] = connsm->master_sca;
             }
-
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -1133,6 +1149,9 @@ ble_ll_conn_event_end(void *arg)
 
     connsm = (struct ble_ll_conn_sm *)arg;
 
+    /* Disable the PHY */
+    ble_phy_disable();
+
     /* Disable the wfr timer */
     ble_ll_wfr_disable();
 
@@ -1148,6 +1167,13 @@ ble_ll_conn_event_end(void *arg)
         connsm->slave_cur_tx_win_usecs = 0;
     }
 
+    /* 
+     * XXX: not quite sure I am interpreting slave latency correctly here.
+     * The spec says if you applied slave latency and you dont hear a packet,
+     * you dont apply slave latency. Does that mean you dont apply slave
+     * latency until you hear a packet or on the next interval if you listen
+     * and dont hear anything, can you apply slave latency?
+     */
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
@@ -1163,7 +1189,8 @@ ble_ll_conn_event_end(void *arg)
     connsm->anchor_point += cputime_usecs_to_ticks(itvl);
 
     /* Calculate data channel index of next connection event */
-    while (latency >= 0) {
+    connsm->last_unmapped_chan = connsm->unmapped_chan;
+    while (latency > 0) {
         --latency;
         connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
     }
@@ -1200,8 +1227,13 @@ ble_ll_conn_event_end(void *arg)
         connsm->slave_cur_window_widening = cur_ww;
     }
 
+    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, 0, 0, connsm->event_cntr);
+
     /* Schedule the next connection event */
     ble_ll_conn_sched_set(connsm);
+
+    /* turn led off */
+    gpio_set(LED_BLINK_PIN);
 }
 
 /**
@@ -1277,9 +1309,9 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 
     /* Access address */
     htole32(dptr, connsm->access_addr);
-    dptr[4] = connsm->crcinit >> 16;
-    dptr[5] = connsm->crcinit >> 8;
-    dptr[6] = (uint8_t)connsm->crcinit;
+    dptr[4] = (uint8_t)connsm->crcinit;
+    dptr[5] = (uint8_t)(connsm->crcinit >> 8);
+    dptr[6] = (uint8_t)(connsm->crcinit >> 16);
     dptr[7] = connsm->tx_win_size;
     htole16(dptr + 8, connsm->tx_win_off);
     htole16(dptr + 10, connsm->conn_itvl);
@@ -1625,6 +1657,7 @@ ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu)
         rc = ble_ll_conn_request_send(addr_type, adv_addr);
         if (!rc) {
             ble_hdr->flags |= BLE_MBUF_HDR_F_CONN_REQ_TXD;
+            ++g_ble_ll_conn_stats.conn_req_txd;
         }
     }
 
@@ -1677,6 +1710,13 @@ ble_ll_conn_rx_pdu_start(void)
 {
     struct ble_ll_conn_sm *connsm;
 
+    /* 
+     * Disable wait for response timer since we receive a response. We dont
+     * care if this is the response we were waiting for or not; the code
+     * called at receive end will deal with ending the connection event
+     * if needed
+     */ 
+    ble_ll_wfr_disable();
     connsm = g_ble_ll_conn_cur_sm;
     if (connsm) {
         connsm->rsp_rxd = 1;
@@ -1726,13 +1766,22 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
             tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
             cputime_timer_relative(&connsm->conn_spvn_timer, tmo);
 
+            rxbuf = rxpdu->om_data;
+            hdr_byte = rxbuf[0];
+            acl_len = rxbuf[1];
+            acl_hdr = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+
+            /* Check that the LLID is reasonable */
+            if ((hdr_byte == 0) || 
+                ((hdr_byte == BLE_LL_LLID_DATA_START) && (acl_len == 0))) {
+                ++g_ble_ll_conn_stats.data_pdu_rx_bad_llid;
+                goto conn_rx_data_pdu_end;
+            }
+
             /* 
              * If we are a slave, we can only start to use slave latency
              * once we have received a NESN of 1 from the master
              */ 
-            rxbuf = rxpdu->om_data;
-            hdr_byte = rxbuf[0];
-            acl_len = rxbuf[1];
             if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 if (hdr_byte & BLE_LL_DATA_HDR_NESN_MASK) {
                     connsm->allow_slave_latency = 1;
@@ -1748,18 +1797,29 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
                 /* Update last rxd sn */
                 connsm->last_rxd_sn = rxd_sn;
 
+                /* No need to do anything if empty pdu */
+                if ((acl_hdr == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
+                    goto conn_rx_data_pdu_end;
+                }
+
+                if (acl_hdr == BLE_LL_LLID_CTRL) {
+                    /* XXX: Process control frame! For now just free */
+                    ++g_ble_ll_conn_stats.ctrl_pdu_rxd;
+                    goto conn_rx_data_pdu_end;
+                }
+
                 /* NOTE: there should be at least two bytes available */
                 assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
                 os_mbuf_prepend(rxpdu, 2);
                 rxbuf = rxpdu->om_data;
 
-                /* Set ACL data packet header and send to host */
-                acl_hdr = (hdr_byte & BLE_LL_DATA_HDR_LLID_MASK);
                 acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
                 htole16(rxbuf, acl_hdr);
                 htole16(rxbuf + 2, acl_len);
                 ble_hs_rx_data(rxpdu);
                 return;
+            } else {
+                ++g_ble_ll_conn_stats.data_pdu_rx_dup;
             }
         } else {
             ++g_ble_ll_conn_stats.no_conn_sm;
@@ -1769,6 +1829,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
     }
 
     /* Free buffer */
+conn_rx_data_pdu_end:
     os_mbuf_free(rxpdu);
 }
 
@@ -1858,6 +1919,10 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
         hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
         conn_sn = connsm->tx_seqnum;
         if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
+            /*
+             * XXX: if we are a slave, our first received data pdu will cause
+             * us to increment failed tx data pdus. This should be fixed.s
+             */
             /* We did not get an ACK. Must retry the PDU */
             ++g_ble_ll_conn_stats.data_pdu_txf;
         } else {
@@ -2022,11 +2087,9 @@ ble_ll_conn_slave_start(uint8_t *rxbuf)
 
     /* Set connection state machine information */
     connsm->access_addr = le32toh(dptr);
-    crcinit = dptr[4];
-    crcinit <<= 16;
-    crcinit |= dptr[5];
-    crcinit <<= 8;
-    crcinit |= dptr[6];
+    crcinit = dptr[6];
+    crcinit = (crcinit << 8) | dptr[5];
+    crcinit = (crcinit << 8) | dptr[4];
     connsm->crcinit = crcinit;
     connsm->tx_win_size = dptr[7];
     connsm->tx_win_off = le16toh(dptr + 8);
@@ -2126,6 +2189,16 @@ ble_ll_conn_init(void)
         assert(connsm != NULL);
         connsm->conn_handle = i;
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
+
+        /* Initialize empty pdu */
+        m = (struct os_mbuf *)&connsm->conn_empty_pdu;
+        m->om_data = (uint8_t *)&connsm->conn_empty_pdu[0];
+        m->om_data += BLE_MBUF_PKT_OVERHEAD;
+        m->om_pkthdr_len = sizeof(struct ble_mbuf_hdr) + 
+            sizeof(struct os_mbuf_pkthdr);
+        m->om_len = 2;
+        OS_MBUF_PKTHDR(m)->omp_len = 2;
+        m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
     }
 
     /* Configure the global LL parameters */
@@ -2141,13 +2214,5 @@ ble_ll_conn_init(void)
     maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MAX_OVERHEAD;
     conn_params->conn_init_max_tx_time = ble_ll_pdu_tx_time_get(maxbytes);
     conn_params->conn_init_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
-
-    /* Initialize empty pdu */
-    m = (struct os_mbuf *)&connsm->conn_empty_pdu;
-    m->om_data = (uint8_t *)&connsm->conn_empty_pdu[0];
-    m->om_data += BLE_MBUF_PKT_OVERHEAD;
-    m->om_len = 2;
-    OS_MBUF_PKTHDR(m)->omp_len = 2;
-    m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
 }
 

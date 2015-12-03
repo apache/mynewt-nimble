@@ -323,15 +323,8 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         break;
     }
 
-    /* Make sure valid error code */
-    assert(rc >= 0);
-    if (rc) {
-        ++g_ble_ll_stats.hci_cmd_errs;
-    } else {
-        ++g_ble_ll_stats.hci_cmds;
-    }
-
     /* If no response is generated, we free the buffers */
+    assert(rc >= 0);
     if (rc <= BLE_ERR_MAX) {
         /* Create a command complete event with status from command */
         cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
@@ -341,11 +334,19 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         cmdbuf[5] = (uint8_t)rc;
     } else {
         /* Create a command complete event with status from command */
+        rc -= (BLE_ERR_MAX + 1);
         cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_STATUS;
         cmdbuf[1] = 4;
-        cmdbuf[2] = (uint8_t)(rc - (BLE_ERR_MAX + 1));
+        cmdbuf[2] = (uint8_t)rc;
         cmdbuf[3] = ble_ll_hci_get_num_cmd_pkts();
         htole16(cmdbuf + 4, opcode);
+    }
+
+    /* Count commands and those in error */
+    if (rc) {
+        ++g_ble_ll_stats.hci_cmd_errs;
+    } else {
+        ++g_ble_ll_stats.hci_cmds;
     }
 
     /* Send the event (events cannot be masked) */
