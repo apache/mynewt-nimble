@@ -17,7 +17,11 @@
 #ifndef H_BLE_HS_UUID_
 #define H_BLE_HS_UUID_
 
-uint16_t ble_hs_uuid_16bit(uint8_t *uuid128);
+struct os_mbuf;
+
+uint16_t ble_hs_uuid_16bit(void *uuid128);
 int ble_hs_uuid_from_16bit(uint16_t uuid16, void *dst);
+int ble_hs_uuid_append(struct os_mbuf *om, void *uuid128);
+int ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
 
 #endif /* _BLE_HOST_UUID_H */

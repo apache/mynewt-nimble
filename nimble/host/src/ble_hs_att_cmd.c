@@ -15,8 +15,10 @@
  */
 
 #include <errno.h>
+#include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "ble_hs_uuid.h"
 #include "ble_l2cap.h"
 #include "ble_hs_att_cmd.h"
 
@@ -356,6 +358,86 @@ ble_hs_att_read_req_write(void *payload, int len,
 
     u8ptr[0] = BLE_HS_ATT_OP_READ_REQ;
     htole16(u8ptr + 1, req->bharq_handle);
+
+    return 0;
+}
+
+int
+ble_hs_att_read_group_type_req_parse(
+    void *payload, int len, struct ble_hs_att_read_group_type_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_READ_GROUP_TYPE_REQ_BASE_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (u8ptr[0] != BLE_HS_ATT_OP_READ_GROUP_TYPE_REQ) {
+        return EINVAL;
+    }
+
+    req->bhagq_start_handle = le16toh(u8ptr + 1);
+    req->bhagq_end_handle = le16toh(u8ptr + 3);
+
+    return 0;
+}
+
+int
+ble_hs_att_read_group_type_req_write(
+    void *payload, int len, struct ble_hs_att_read_group_type_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_READ_GROUP_TYPE_REQ_BASE_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_HS_ATT_OP_READ_GROUP_TYPE_REQ;
+    htole16(u8ptr + 1, req->bhagq_start_handle);
+    htole16(u8ptr + 3, req->bhagq_end_handle);
+
+    return 0;
+}
+
+int
+ble_hs_att_read_group_type_rsp_parse(
+    void *payload, int len, struct ble_hs_att_read_group_type_rsp *rsp)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_READ_GROUP_TYPE_RSP_BASE_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (u8ptr[0] != BLE_HS_ATT_OP_READ_GROUP_TYPE_RSP) {
+        return EINVAL;
+    }
+
+    rsp->bhagp_length = u8ptr[1];
+
+    return 0;
+}
+
+int
+ble_hs_att_read_group_type_rsp_write(
+    void *payload, int len, struct ble_hs_att_read_group_type_rsp *rsp)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_HS_ATT_READ_GROUP_TYPE_RSP_BASE_SZ) {
+        return EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_HS_ATT_OP_READ_GROUP_TYPE_RSP;
+    u8ptr[1] = rsp->bhagp_length;
 
     return 0;
 }

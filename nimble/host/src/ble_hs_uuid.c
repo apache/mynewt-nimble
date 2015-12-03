@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include <inttypes.h>
 #include <string.h>
 #include <errno.h>
+#include "os/os_mbuf.h"
 #include "nimble/ble.h"
 #include "ble_hs_uuid.h"
 
@@ -34,26 +36,29 @@ static uint8_t ble_hs_uuid_base[16] = {
  *                                  0 if the UUID could not be converted.
  */
 uint16_t
-ble_hs_uuid_16bit(uint8_t *uuid128)
+ble_hs_uuid_16bit(void *uuid128)
 {
     uint16_t uuid16;
+    uint8_t *u8ptr;
     int rc;
+
+    u8ptr = uuid128;
 
     /* The UUID can only be converted if its final 96 bits are equal to the
      * base UUID.
      */
-    rc = memcmp(uuid128 + 4, ble_hs_uuid_base + 4,
+    rc = memcmp(u8ptr + 4, ble_hs_uuid_base + 4,
                 sizeof ble_hs_uuid_base - 4);
     if (rc != 0) {
         return 0;
     }
 
-    if (uuid128[0] != 0 || uuid128[1] != 0) {
+    if (u8ptr[0] != 0 || u8ptr[1] != 0) {
         /* This UUID has a 32-bit form, but not a 16-bit form. */
         return 0;
     }
 
-    uuid16 = (uuid128[2] << 8) + uuid128[3];
+    uuid16 = (u8ptr[2] << 8) + u8ptr[3];
     if (uuid16 == 0) {
         return 0;
     }
@@ -76,4 +81,59 @@ ble_hs_uuid_from_16bit(uint16_t uuid16, void *uuid128)
     htole16(u8ptr + 2, uuid16);
 
     return 0;
+}
+
+int
+ble_hs_uuid_append(struct os_mbuf *om, void *uuid128)
+{
+    uint16_t uuid16;
+    void *buf;
+    int rc;
+
+    uuid16 = ble_hs_uuid_16bit(uuid128);
+    if (uuid16 != 0) {
+        buf = os_mbuf_extend(om, 2);
+        if (buf == NULL) {
+            return ENOMEM;
+        }
+
+        htole16(buf, uuid16);
+    } else {
+        rc = os_mbuf_append(om, uuid128, 16);
+        if (rc != 0) {
+            return ENOMEM;
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
+{
+    uint16_t uuid16;
+    int remlen;
+    int rc;
+
+    remlen = OS_MBUF_PKTHDR(om)->omp_len;
+    switch (remlen) {
+    case 2:
+        rc = os_mbuf_copydata(om, off, 2, &uuid16);
+        assert(rc == 0);
+
+        uuid16 = le16toh(&uuid16);
+        rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+        if (rc != 0) {
+            return rc;
+        }
+        return 0;
+
+    case 16:
+        rc = os_mbuf_copydata(om, off, 16, uuid128);
+        assert(rc == 0);
+        return 0;
+
+    default:
+        return EMSGSIZE;
+    }
 }

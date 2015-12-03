@@ -121,17 +121,35 @@ ble_hs_att_clt_find_entry_uuid128(struct ble_hs_conn *conn, void *uuid128)
 
 static int
 ble_hs_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
-                        struct os_mbuf **txom)
+                        struct os_mbuf **txom, uint16_t initial_sz)
 {
+    void *buf;
+    int rc;
+
     *chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     assert(*chan != NULL);
 
     *txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
     if (*txom == NULL) {
-        return ENOMEM;
+        rc = ENOMEM;
+        goto err;
     }
 
+    buf = os_mbuf_extend(*txom, initial_sz);
+    if (buf == NULL) {
+        rc = ENOMEM;
+        goto err;
+    }
+
+    /* The caller expects the initial buffer to be at the start of the mbuf. */
+    assert(buf == (*txom)->om_data);
+
     return 0;
+
+err:
+    os_mbuf_free_chain(*txom);
+    *txom = NULL;
+    return rc;
 }
 
 uint16_t
@@ -155,7 +173,6 @@ ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_hs_att_mtu_cmd *req)
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
-    void *buf;
     int rc;
 
     txom = NULL;
@@ -165,18 +182,12 @@ ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_hs_att_mtu_cmd *req)
         goto err;
     }
 
-    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom);
+    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom, BLE_HS_ATT_MTU_CMD_SZ);
     if (rc != 0) {
         goto err;
     }
 
-    buf = os_mbuf_extend(txom, BLE_HS_ATT_MTU_CMD_SZ);
-    if (buf == NULL) {
-        rc = ENOMEM;
-        goto err;
-    }
-
-    rc = ble_hs_att_mtu_req_write(buf, BLE_HS_ATT_MTU_CMD_SZ, req);
+    rc = ble_hs_att_mtu_req_write(txom->om_data, txom->om_len, req);
     if (rc != 0) {
         goto err;
     }
@@ -187,7 +198,7 @@ ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_hs_att_mtu_cmd *req)
         goto err;
     }
 
-    rc = 0;
+    return 0;
 
 err:
     os_mbuf_free_chain(txom);
@@ -222,7 +233,6 @@ ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
-    void *buf;
     int rc;
 
     txom = NULL;
@@ -234,18 +244,13 @@ ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom);
+    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom,
+                                 BLE_HS_ATT_FIND_INFO_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
 
-    buf = os_mbuf_extend(txom, BLE_HS_ATT_FIND_INFO_REQ_SZ);
-    if (buf == NULL) {
-        rc = ENOMEM;
-        goto err;
-    }
-
-    rc = ble_hs_att_find_info_req_write(buf, BLE_HS_ATT_FIND_INFO_REQ_SZ, req);
+    rc = ble_hs_att_find_info_req_write(txom->om_data, txom->om_len, req);
     if (rc != 0) {
         goto err;
     }
@@ -256,7 +261,7 @@ ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = 0;
+    return 0;
 
 err:
     os_mbuf_free_chain(txom);
@@ -335,6 +340,145 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
 done:
     ble_gatt_rx_find_info(conn, -rc, handle_id);
     return rc;
+}
+
+int
+ble_hs_att_clt_tx_read(struct ble_hs_conn *conn,
+                       struct ble_hs_att_read_req *req)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->bharq_handle == 0) {
+        rc = EINVAL;
+        goto err;
+    }
+
+    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom, BLE_HS_ATT_READ_REQ_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_att_read_req_write(txom->om_data, txom->om_len, req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_hs_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
+                                  struct ble_hs_att_read_group_type_req *req,
+                                  void *uuid128)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->bhagq_start_handle == 0 ||
+        req->bhagq_start_handle > req->bhagq_end_handle) {
+
+        rc = EINVAL;
+        goto err;
+    }
+
+    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom,
+                                 BLE_HS_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_att_read_group_type_req_write(txom->om_data, txom->om_len,
+                                              req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_uuid_append(txom, uuid128);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+struct ble_hs_att_clt_adata {
+    uint16_t att_handle;
+    uint16_t end_group_handle;
+    void *value;
+};
+
+static int
+ble_hs_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
+                                    struct ble_hs_att_clt_adata *adata)
+{
+    /* XXX: Pull up om */
+
+    adata->att_handle = le16toh(om->om_data + 0);
+    adata->end_group_handle = le16toh(om->om_data + 2);
+    adata->value = om->om_data + 6;
+
+    return 0;
+}
+
+int
+ble_hs_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
+                                      struct ble_l2cap_chan *chan,
+                                      struct os_mbuf *om)
+{
+    struct ble_hs_att_read_group_type_rsp rsp;
+    struct ble_hs_att_clt_adata adata;
+    int rc;
+
+    /* XXX: Pull up om */
+
+    rc = ble_hs_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* XXX: Verify group handle is valid. */
+
+    while (OS_MBUF_PKTHDR(om)->omp_len > 0) {
+        rc = ble_hs_att_clt_parse_attribute_data(om, rsp.bhagp_length, &adata);
+        if (rc != 0) {
+            break;
+        }
+
+        /* Save attribute mapping? */
+
+        /* XXX: Pass adata to GATT callback. */
+
+        os_mbuf_adj(om, rsp.bhagp_length);
+    }
+
+    return 0;
 }
 
 int

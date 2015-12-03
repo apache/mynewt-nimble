@@ -314,6 +314,21 @@ ble_gatt_rx_error(struct ble_hs_conn *conn, struct ble_hs_att_error_rsp *rsp)
     }
 }
 
+int
+ble_gatt_exchange_mtu(uint16_t conn_handle)
+{
+    struct ble_gatt_entry *entry;
+    int rc;
+
+    rc = ble_gatt_new_entry(conn_handle, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->op = BLE_GATT_OP_MTU;
+
+    return 0;
+}
+
 void
 ble_gatt_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu)
 {
@@ -328,21 +343,6 @@ ble_gatt_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu)
 
     /* XXX: Call success callback. */
     ble_gatt_entry_remove_free(entry, prev);
-}
-
-int
-ble_gatt_mtu(uint16_t conn_handle)
-{
-    struct ble_gatt_entry *entry;
-    int rc;
-
-    rc = ble_gatt_new_entry(conn_handle, &entry);
-    if (rc != 0) {
-        return rc;
-    }
-    entry->op = BLE_GATT_OP_MTU;
-
-    return 0;
 }
 
 void
