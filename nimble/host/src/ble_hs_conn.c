@@ -23,7 +23,7 @@
 #include "ble_l2cap.h"
 #include "ble_l2cap_sig.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_att.h"
+#include "ble_att.h"
 
 #define BLE_HS_CONN_MAX         16
 
@@ -45,7 +45,7 @@ ble_hs_conn_alloc(void)
 
     SLIST_INIT(&conn->bhc_channels);
 
-    chan = ble_hs_att_create_chan();
+    chan = ble_att_create_chan();
     if (chan == NULL) {
         goto err;
     }
@@ -85,7 +85,7 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 
     /* XXX: Free contents of rx and tx queues. */
 
-    ble_hs_att_clt_entry_list_free(&conn->bhc_att_clt_list);
+    ble_att_clt_entry_list_free(&conn->bhc_att_clt_list);
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);

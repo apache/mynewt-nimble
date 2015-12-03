@@ -23,8 +23,8 @@
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_att_cmd.h"
-#include "ble_hs_att.h"
+#include "ble_att_cmd.h"
+#include "ble_att.h"
 
 struct ble_gatt_entry {
     STAILQ_ENTRY(ble_gatt_entry) next;
@@ -211,7 +211,7 @@ ble_gatt_new_entry(uint16_t conn_handle, struct ble_gatt_entry **entry)
 static int
 ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
 {
-    struct ble_hs_att_mtu_cmd req;
+    struct ble_att_mtu_cmd req;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     int rc;
@@ -225,7 +225,7 @@ ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
     assert(chan != NULL);
 
     req.bhamc_mtu = chan->blc_my_mtu;
-    rc = ble_hs_att_clt_tx_mtu(conn, &req);
+    rc = ble_att_clt_tx_mtu(conn, &req);
     if (rc != 0) {
         return rc;
     }
@@ -236,7 +236,7 @@ ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
 static int
 ble_gatt_kick_find_info(struct ble_gatt_entry *entry)
 {
-    struct ble_hs_att_find_info_req req;
+    struct ble_att_find_info_req req;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -247,7 +247,7 @@ ble_gatt_kick_find_info(struct ble_gatt_entry *entry)
 
     req.bhafq_start_handle = entry->find_info.next_handle;
     req.bhafq_end_handle = entry->find_info.end_handle;
-    rc = ble_hs_att_clt_tx_find_info(conn, &req);
+    rc = ble_att_clt_tx_find_info(conn, &req);
     if (rc != 0) {
         return rc;
     }
@@ -288,7 +288,7 @@ ble_gatt_wakeup(void)
 }
 
 void
-ble_gatt_rx_error(struct ble_hs_conn *conn, struct ble_hs_att_error_rsp *rsp)
+ble_gatt_rx_error(struct ble_hs_conn *conn, struct ble_att_error_rsp *rsp)
 {
     struct ble_gatt_entry *entry;
     struct ble_gatt_entry *prev;

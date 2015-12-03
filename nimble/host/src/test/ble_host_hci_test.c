@@ -24,8 +24,8 @@
 #include "testutil/testutil.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_att.h"
-#include "ble_hs_att_cmd.h"
+#include "ble_att.h"
+#include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
 TEST_CASE(ble_host_hci_test_event_bad)

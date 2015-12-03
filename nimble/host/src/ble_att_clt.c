@@ -24,19 +24,19 @@
 #include "host/ble_hs.h"
 #include "ble_hs_uuid.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_att_cmd.h"
-#include "ble_hs_att.h"
+#include "ble_att_cmd.h"
+#include "ble_att.h"
 
-#define BLE_HS_ATT_CLT_NUM_ENTRIES  128
-static void *ble_hs_att_clt_entry_mem;
-static struct os_mempool ble_hs_att_clt_entry_pool;
+#define BLE_ATT_CLT_NUM_ENTRIES  128
+static void *ble_att_clt_entry_mem;
+static struct os_mempool ble_att_clt_entry_pool;
 
-static struct ble_hs_att_clt_entry *
-ble_hs_att_clt_entry_alloc(void)
+static struct ble_att_clt_entry *
+ble_att_clt_entry_alloc(void)
 {
-    struct ble_hs_att_clt_entry *entry;
+    struct ble_att_clt_entry *entry;
 
-    entry = os_memblock_get(&ble_hs_att_clt_entry_pool);
+    entry = os_memblock_get(&ble_att_clt_entry_pool);
     if (entry != NULL) {
         memset(entry, 0, sizeof *entry);
     }
@@ -45,36 +45,36 @@ ble_hs_att_clt_entry_alloc(void)
 }
 
 static void
-ble_hs_att_clt_entry_free(struct ble_hs_att_clt_entry *entry)
+ble_att_clt_entry_free(struct ble_att_clt_entry *entry)
 {
     int rc;
 
-    rc = os_memblock_put(&ble_hs_att_clt_entry_pool, entry);
+    rc = os_memblock_put(&ble_att_clt_entry_pool, entry);
     assert(rc == 0);
 }
 
 void
-ble_hs_att_clt_entry_list_free(struct ble_hs_att_clt_entry_list *list)
+ble_att_clt_entry_list_free(struct ble_att_clt_entry_list *list)
 {
-    struct ble_hs_att_clt_entry *entry;
+    struct ble_att_clt_entry *entry;
 
     while ((entry = SLIST_FIRST(list)) != NULL) {
         SLIST_REMOVE_HEAD(list, bhac_next);
-        ble_hs_att_clt_entry_free(entry);
+        ble_att_clt_entry_free(entry);
     }
 }
 
 int
-ble_hs_att_clt_entry_insert(struct ble_hs_conn *conn, uint16_t handle_id,
-                            uint8_t *uuid)
+ble_att_clt_entry_insert(struct ble_hs_conn *conn, uint16_t handle_id,
+                         uint8_t *uuid)
 {
-    struct ble_hs_att_clt_entry *entry;
-    struct ble_hs_att_clt_entry *prev;
-    struct ble_hs_att_clt_entry *cur;
+    struct ble_att_clt_entry *entry;
+    struct ble_att_clt_entry *prev;
+    struct ble_att_clt_entry *cur;
 
     /* XXX: Probably need to lock a semaphore here. */
 
-    entry = ble_hs_att_clt_entry_alloc();
+    entry = ble_att_clt_entry_alloc();
     if (entry == NULL) {
         return ENOMEM;
     }
@@ -104,9 +104,9 @@ ble_hs_att_clt_entry_insert(struct ble_hs_conn *conn, uint16_t handle_id,
 }
 
 uint16_t
-ble_hs_att_clt_find_entry_uuid128(struct ble_hs_conn *conn, void *uuid128)
+ble_att_clt_find_entry_uuid128(struct ble_hs_conn *conn, void *uuid128)
 {
-    struct ble_hs_att_clt_entry *entry;
+    struct ble_att_clt_entry *entry;
     int rc;
 
     SLIST_FOREACH(entry, &conn->bhc_att_clt_list, bhac_next) {
@@ -120,8 +120,8 @@ ble_hs_att_clt_find_entry_uuid128(struct ble_hs_conn *conn, void *uuid128)
 }
 
 static int
-ble_hs_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
-                        struct os_mbuf **txom, uint16_t initial_sz)
+ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
+                     struct os_mbuf **txom, uint16_t initial_sz)
 {
     void *buf;
     int rc;
@@ -153,7 +153,7 @@ err:
 }
 
 uint16_t
-ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
+ble_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
 {
     uint8_t uuid128[16];
     uint16_t handle_id;
@@ -164,12 +164,12 @@ ble_hs_att_clt_find_entry_uuid16(struct ble_hs_conn *conn, uint16_t uuid16)
         return 0;
     }
 
-    handle_id = ble_hs_att_clt_find_entry_uuid128(conn, uuid128);
+    handle_id = ble_att_clt_find_entry_uuid128(conn, uuid128);
     return handle_id;
 }
 
 int
-ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_hs_att_mtu_cmd *req)
+ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
@@ -177,17 +177,17 @@ ble_hs_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_hs_att_mtu_cmd *req)
 
     txom = NULL;
 
-    if (req->bhamc_mtu < BLE_HS_ATT_MTU_DFLT) {
+    if (req->bhamc_mtu < BLE_ATT_MTU_DFLT) {
         rc = EINVAL;
         goto err;
     }
 
-    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom, BLE_HS_ATT_MTU_CMD_SZ);
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_MTU_CMD_SZ);
     if (rc != 0) {
         goto err;
     }
 
-    rc = ble_hs_att_mtu_req_write(txom->om_data, txom->om_len, req);
+    rc = ble_att_mtu_req_write(txom->om_data, txom->om_len, req);
     if (rc != 0) {
         goto err;
     }
@@ -206,21 +206,20 @@ err:
 }
 
 int
-ble_hs_att_clt_rx_mtu(struct ble_hs_conn *conn,
-                      struct ble_l2cap_chan *chan,
-                      struct os_mbuf *om)
+ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                   struct os_mbuf *om)
 {
-    struct ble_hs_att_mtu_cmd rsp;
+    struct ble_att_mtu_cmd rsp;
     int rc;
 
     /* XXX: Pull up om */
 
-    rc = ble_hs_att_mtu_cmd_parse(om->om_data, om->om_len, &rsp);
+    rc = ble_att_mtu_cmd_parse(om->om_data, om->om_len, &rsp);
     if (rc != 0) {
         return rc;
     }
 
-    ble_hs_att_set_peer_mtu(chan, rsp.bhamc_mtu);
+    ble_att_set_peer_mtu(chan, rsp.bhamc_mtu);
 
     ble_gatt_rx_mtu(conn, ble_l2cap_chan_mtu(chan));
 
@@ -228,8 +227,8 @@ ble_hs_att_clt_rx_mtu(struct ble_hs_conn *conn,
 }
 
 int
-ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
-                            struct ble_hs_att_find_info_req *req)
+ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
+                         struct ble_att_find_info_req *req)
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
@@ -244,13 +243,13 @@ ble_hs_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom,
-                                 BLE_HS_ATT_FIND_INFO_REQ_SZ);
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                                 BLE_ATT_FIND_INFO_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
 
-    rc = ble_hs_att_find_info_req_write(txom->om_data, txom->om_len, req);
+    rc = ble_att_find_info_req_write(txom->om_data, txom->om_len, req);
     if (rc != 0) {
         goto err;
     }
@@ -269,11 +268,10 @@ err:
 }
 
 int
-ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan,
-                            struct os_mbuf *om)
+ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf *om)
 {
-    struct ble_hs_att_find_info_rsp rsp;
+    struct ble_att_find_info_rsp rsp;
     uint16_t handle_id;
     uint16_t uuid16;
     uint8_t uuid128[16];
@@ -282,13 +280,13 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
 
     /* XXX: Pull up om */
 
-    rc = ble_hs_att_find_info_rsp_parse(om->om_data, om->om_len, &rsp);
+    rc = ble_att_find_info_rsp_parse(om->om_data, om->om_len, &rsp);
     if (rc != 0) {
         return rc;
     }
 
     handle_id = 0;
-    off = BLE_HS_ATT_FIND_INFO_RSP_MIN_SZ;
+    off = BLE_ATT_FIND_INFO_RSP_MIN_SZ;
     while (off < OS_MBUF_PKTHDR(om)->omp_len) {
         rc = os_mbuf_copydata(om, off, 2, &handle_id);
         if (rc != 0) {
@@ -299,7 +297,7 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
         handle_id = le16toh(&handle_id);
 
         switch (rsp.bhafp_format) {
-        case BLE_HS_ATT_FIND_INFO_RSP_FORMAT_16BIT:
+        case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
             rc = os_mbuf_copydata(om, off, 2, &uuid16);
             if (rc != 0) {
                 rc = EINVAL;
@@ -315,7 +313,7 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
             }
             break;
 
-        case BLE_HS_ATT_FIND_INFO_RSP_FORMAT_128BIT:
+        case BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT:
             rc = os_mbuf_copydata(om, off, 16, &uuid128);
             if (rc != 0) {
                 rc = EINVAL;
@@ -329,7 +327,7 @@ ble_hs_att_clt_rx_find_info(struct ble_hs_conn *conn,
             goto done;
         }
 
-        rc = ble_hs_att_clt_entry_insert(conn, handle_id, uuid128);
+        rc = ble_att_clt_entry_insert(conn, handle_id, uuid128);
         if (rc != 0) {
             return rc;
         }
@@ -343,8 +341,7 @@ done:
 }
 
 int
-ble_hs_att_clt_tx_read(struct ble_hs_conn *conn,
-                       struct ble_hs_att_read_req *req)
+ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
@@ -357,12 +354,12 @@ ble_hs_att_clt_tx_read(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom, BLE_HS_ATT_READ_REQ_SZ);
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_READ_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
 
-    rc = ble_hs_att_read_req_write(txom->om_data, txom->om_len, req);
+    rc = ble_att_read_req_write(txom->om_data, txom->om_len, req);
     if (rc != 0) {
         goto err;
     }
@@ -381,9 +378,9 @@ err:
 }
 
 int
-ble_hs_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
-                                  struct ble_hs_att_read_group_type_req *req,
-                                  void *uuid128)
+ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
+                               struct ble_att_read_group_type_req *req,
+                               void *uuid128)
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
@@ -398,13 +395,13 @@ ble_hs_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_hs_att_clt_prep_req(conn, &chan, &txom,
-                                 BLE_HS_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                                 BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
     }
 
-    rc = ble_hs_att_read_group_type_req_write(txom->om_data, txom->om_len,
+    rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len,
                                               req);
     if (rc != 0) {
         goto err;
@@ -428,15 +425,15 @@ err:
     return rc;
 }
 
-struct ble_hs_att_clt_adata {
+struct ble_att_clt_adata {
     uint16_t att_handle;
     uint16_t end_group_handle;
     void *value;
 };
 
 static int
-ble_hs_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
-                                    struct ble_hs_att_clt_adata *adata)
+ble_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
+                                 struct ble_att_clt_adata *adata)
 {
     /* XXX: Pull up om */
 
@@ -448,17 +445,17 @@ ble_hs_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
 }
 
 int
-ble_hs_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
-                                      struct ble_l2cap_chan *chan,
-                                      struct os_mbuf *om)
+ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
+                                   struct ble_l2cap_chan *chan,
+                                   struct os_mbuf *om)
 {
-    struct ble_hs_att_read_group_type_rsp rsp;
-    struct ble_hs_att_clt_adata adata;
+    struct ble_att_read_group_type_rsp rsp;
+    struct ble_att_clt_adata adata;
     int rc;
 
     /* XXX: Pull up om */
 
-    rc = ble_hs_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
+    rc = ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
     if (rc != 0) {
         return rc;
     }
@@ -466,7 +463,7 @@ ble_hs_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
     /* XXX: Verify group handle is valid. */
 
     while (OS_MBUF_PKTHDR(om)->omp_len > 0) {
-        rc = ble_hs_att_clt_parse_attribute_data(om, rsp.bhagp_length, &adata);
+        rc = ble_att_clt_parse_attribute_data(om, rsp.bhagp_length, &adata);
         if (rc != 0) {
             break;
         }
@@ -482,24 +479,24 @@ ble_hs_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
 }
 
 int
-ble_hs_att_clt_init(void)
+ble_att_clt_init(void)
 {
     int rc;
 
-    free(ble_hs_att_clt_entry_mem);
-    ble_hs_att_clt_entry_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_HS_ATT_CLT_NUM_ENTRIES,
-                         sizeof (struct ble_hs_att_clt_entry)));
-    if (ble_hs_att_clt_entry_mem == NULL) {
+    free(ble_att_clt_entry_mem);
+    ble_att_clt_entry_mem = malloc(
+        OS_MEMPOOL_BYTES(BLE_ATT_CLT_NUM_ENTRIES,
+                         sizeof (struct ble_att_clt_entry)));
+    if (ble_att_clt_entry_mem == NULL) {
         rc = ENOMEM;
         goto err;
     }
 
-    rc = os_mempool_init(&ble_hs_att_clt_entry_pool,
-                         BLE_HS_ATT_CLT_NUM_ENTRIES,
-                         sizeof (struct ble_hs_att_clt_entry),
-                         ble_hs_att_clt_entry_mem,
-                         "ble_hs_att_clt_entry_pool");
+    rc = os_mempool_init(&ble_att_clt_entry_pool,
+                         BLE_ATT_CLT_NUM_ENTRIES,
+                         sizeof (struct ble_att_clt_entry),
+                         ble_att_clt_entry_mem,
+                         "ble_att_clt_entry_pool");
     if (rc != 0) {
         goto err;
     }
@@ -507,8 +504,8 @@ ble_hs_att_clt_init(void)
     return 0;
 
 err:
-    free(ble_hs_att_clt_entry_mem);
-    ble_hs_att_clt_entry_mem = NULL;
+    free(ble_att_clt_entry_mem);
+    ble_att_clt_entry_mem = NULL;
 
     return rc;
 }

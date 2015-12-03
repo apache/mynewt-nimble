@@ -19,7 +19,7 @@
 
 #include "os/queue.h"
 #include "ble_l2cap.h"
-#include "ble_hs_att.h"
+#include "ble_att.h"
 struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;
@@ -32,7 +32,7 @@ struct ble_hs_conn {
     struct ble_l2cap_chan_list bhc_channels;
 
     /** Mapping of peer's ATT attributes to handle IDs. */
-    struct ble_hs_att_clt_entry_list bhc_att_clt_list;
+    struct ble_att_clt_entry_list bhc_att_clt_list;
 };
 
 struct ble_hs_conn *ble_hs_conn_alloc(void);

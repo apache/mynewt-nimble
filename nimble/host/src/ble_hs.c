@@ -21,7 +21,7 @@
 #include "host/host_hci.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
-#include "ble_hs_att.h"
+#include "ble_att.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
 #include "ble_hs_hci_batch.h"
@@ -319,12 +319,12 @@ ble_hs_init(uint8_t prio)
         goto err;
     }
 
-    rc = ble_hs_att_svr_init();
+    rc = ble_att_svr_init();
     if (rc != 0) {
         goto err;
     }
 
-    rc = ble_hs_att_clt_init();
+    rc = ble_att_clt_init();
     if (rc != 0) {
         goto err;
     }

@@ -22,7 +22,7 @@
 #include "host/ble_hs_test.h"
 #include "host/host_hci.h"
 #include "ble_l2cap.h"
-#include "ble_hs_att.h"
+#include "ble_att.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
 #include "ble_hs_hci_batch.h"
@@ -73,9 +73,9 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
-    TEST_ASSERT(chan->blc_my_mtu == BLE_HS_ATT_MTU_DFLT);
+    TEST_ASSERT(chan->blc_my_mtu == BLE_ATT_MTU_DFLT);
     TEST_ASSERT(chan->blc_peer_mtu == 0);
-    TEST_ASSERT(chan->blc_default_mtu == BLE_HS_ATT_MTU_DFLT);
+    TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
 }
 
 TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
@@ -172,9 +172,9 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
-    TEST_ASSERT(chan->blc_my_mtu == BLE_HS_ATT_MTU_DFLT);
+    TEST_ASSERT(chan->blc_my_mtu == BLE_ATT_MTU_DFLT);
     TEST_ASSERT(chan->blc_peer_mtu == 0);
-    TEST_ASSERT(chan->blc_default_mtu == BLE_HS_ATT_MTU_DFLT);
+    TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
 }
 
 TEST_SUITE(conn_suite)
