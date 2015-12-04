@@ -875,8 +875,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     /* Allocate space for the respose base, but don't fill in the fields.  They
      * get filled in at the end, when we know the value of the length field.
      */
-    dptr = os_mbuf_extend(txom,
-                          BLE_ATT_READ_TYPE_RSP_MIN_SZ);
+    dptr = os_mbuf_extend(txom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
     if (dptr == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -942,7 +941,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     }
 
     /* Fill the response base. */
-    rsp.batp_len = prev_attr_len;
+    rsp.batp_length = prev_attr_len;
     rc = ble_att_read_type_rsp_write(txom->om_data, txom->om_len, &rsp);
     assert(rc == 0);
 
@@ -959,7 +958,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
 err:
     os_mbuf_free_chain(txom);
     ble_att_svr_tx_error_rsp(chan, BLE_ATT_OP_READ_TYPE_REQ,
-                                req->batq_start_handle, rc);
+                             req->batq_start_handle, rc);
     return rc;
 }
 

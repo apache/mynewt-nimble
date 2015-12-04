@@ -290,13 +290,13 @@ ble_att_read_type_rsp_parse(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_READ_TYPE_RSP_MIN_SZ) {
+    if (len < BLE_ATT_READ_TYPE_RSP_BASE_SZ) {
         return EMSGSIZE;
     }
 
     u8ptr = payload;
 
-    rsp->batp_len = u8ptr[1];
+    rsp->batp_length = u8ptr[1];
 
     return 0;
 }
@@ -307,14 +307,14 @@ ble_att_read_type_rsp_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_READ_TYPE_RSP_MIN_SZ) {
+    if (len < BLE_ATT_READ_TYPE_RSP_BASE_SZ) {
         return EMSGSIZE;
     }
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_READ_TYPE_RSP;
-    u8ptr[1] = rsp->batp_len;
+    u8ptr[1] = rsp->batp_length;
 
     return 0;
 }

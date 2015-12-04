@@ -121,9 +121,9 @@ struct ble_att_find_type_value_req {
  * | Ending Handle                      | 2                 |
  * | Attribute Type                     | 2 or 16           |
  */
-#define BLE_ATT_READ_TYPE_REQ_BASE_SZ    5
-#define BLE_ATT_READ_TYPE_REQ_SZ_16      7
-#define BLE_ATT_READ_TYPE_REQ_SZ_128     21
+#define BLE_ATT_READ_TYPE_REQ_BASE_SZ   5
+#define BLE_ATT_READ_TYPE_REQ_SZ_16     7
+#define BLE_ATT_READ_TYPE_REQ_SZ_128    21
 struct ble_att_read_type_req {
     uint16_t batq_start_handle;
     uint16_t batq_end_handle;
@@ -136,10 +136,12 @@ struct ble_att_read_type_req {
  * | Length                             | 1                 |
  * | Attribute Data List                | 2 to (ATT_MTU-2)  |
  */
-#define BLE_ATT_READ_TYPE_RSP_MIN_SZ     2
+#define BLE_ATT_READ_TYPE_RSP_BASE_SZ       2
 struct ble_att_read_type_rsp {
-    uint8_t batp_len;
+    uint8_t batp_length;
 };
+
+#define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     4
 
 /**
  * | Parameter                          | Size (octets)     |

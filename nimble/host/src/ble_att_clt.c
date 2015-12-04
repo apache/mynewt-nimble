@@ -295,6 +295,112 @@ err:
 }
 
 int
+ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
+                         struct ble_att_read_type_req *req,
+                         void *uuid128)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->batq_start_handle == 0 ||
+        req->batq_start_handle > req->batq_end_handle) {
+
+        rc = EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                              BLE_ATT_READ_TYPE_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_read_type_req_write(txom->om_data, txom->om_len, req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_uuid_append(txom, uuid128);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+static int
+ble_att_clt_parse_type_attribute_data(struct os_mbuf **om, int data_len,
+                                      struct ble_att_clt_adata *adata)
+{
+    *om = os_mbuf_pullup(*om, data_len);
+    if (*om == NULL) {
+        return ENOMEM;
+    }
+
+    adata->att_handle = le16toh((*om)->om_data + 0);
+    adata->end_group_handle = 0;
+    adata->value_len = data_len - BLE_ATT_READ_TYPE_ADATA_BASE_SZ;
+    adata->value = (*om)->om_data + BLE_ATT_READ_TYPE_ADATA_BASE_SZ;
+
+    return 0;
+}
+
+int
+ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom)
+{
+    struct ble_att_read_type_rsp rsp;
+    struct ble_att_clt_adata adata;
+    int rc;
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
+    if (*rxom == NULL) {
+        rc = ENOMEM;
+        goto done;
+    }
+
+    rc = ble_att_read_type_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &rsp);
+    if (rc != 0) {
+        goto done;
+    }
+
+    /* Strip the base from the front of the response. */
+    os_mbuf_adj(*rxom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
+
+    /* Parse the Attribute Data List field, passing each entry to the GATT. */
+    while (OS_MBUF_PKTLEN(*rxom) > 0) {
+        rc = ble_att_clt_parse_type_attribute_data(rxom, rsp.batp_length,
+                                                   &adata);
+        if (rc != 0) {
+            goto done;
+        }
+
+        //ble_gatt_rx_read_type_adata(conn, &adata);
+        os_mbuf_adj(*rxom, rsp.batp_length);
+    }
+
+done:
+    /* Notify GATT that the response is done being parsed. */
+    //ble_gatt_rx_read_type_complete(conn, rc);
+
+    return 0;
+
+}
+
+int
 ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
                                struct ble_att_read_group_type_req *req,
                                void *uuid128)
@@ -343,7 +449,7 @@ err:
 }
 
 static int
-ble_att_clt_parse_attribute_data(struct os_mbuf **om, int data_len,
+ble_att_clt_parse_group_attribute_data(struct os_mbuf **om, int data_len,
                                  struct ble_att_clt_adata *adata)
 {
     *om = os_mbuf_pullup(*om, data_len);
@@ -360,9 +466,9 @@ ble_att_clt_parse_attribute_data(struct os_mbuf **om, int data_len,
 }
 
 int
-ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
-                                   struct ble_l2cap_chan *chan,
-                                   struct os_mbuf **rxom)
+ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
+                               struct ble_l2cap_chan *chan,
+                               struct os_mbuf **rxom)
 {
     struct ble_att_read_group_type_rsp rsp;
     struct ble_att_clt_adata adata;
@@ -385,7 +491,8 @@ ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
 
     /* Parse the Attribute Data List field, passing each entry to the GATT. */
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
-        rc = ble_att_clt_parse_attribute_data(rxom, rsp.bagp_length, &adata);
+        rc = ble_att_clt_parse_group_attribute_data(rxom, rsp.bagp_length,
+                                                    &adata);
         if (rc != 0) {
             goto done;
         }
