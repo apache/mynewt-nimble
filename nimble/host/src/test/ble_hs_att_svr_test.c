@@ -622,7 +622,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     struct ble_att_find_type_value_req req;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    uint8_t buf[BLE_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ + 2];
+    uint8_t buf[BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + 2];
     uint16_t handle1;
     uint16_t handle2;
     uint16_t handle3;
@@ -649,7 +649,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     /* One-time write of the attribute value at the end of the request. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0x99, 0x99};
     ble_att_svr_test_attr_r_1_len = 2;
-    memcpy(buf + BLE_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ,
+    memcpy(buf + BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
            ble_att_svr_test_attr_r_1,
            ble_att_svr_test_attr_r_1_len);
 

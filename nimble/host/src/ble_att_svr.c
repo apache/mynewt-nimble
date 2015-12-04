@@ -734,7 +734,7 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
                     goto done;
                 }
                 rc = os_mbuf_memcmp(rxom,
-                                    BLE_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ,
+                                    BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
                                     arg.aha_read.attr_data,
                                     arg.aha_read.attr_len);
                 if (rc == 0) {
@@ -745,10 +745,10 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
 
         if (match) {
             rc = ble_att_svr_fill_type_value_match(txom, &first, &prev,
-                                                      ha->ha_handle_id, mtu);
+                                                   ha->ha_handle_id, mtu);
         } else {
             rc = ble_att_svr_fill_type_value_no_match(txom, &first, &prev,
-                                                         mtu);
+                                                      mtu);
         }
 
         if (rc == 0) {
@@ -774,7 +774,7 @@ done:
     ble_att_svr_list_unlock();
 
     any_entries = OS_MBUF_PKTHDR(txom)->omp_len >
-                  BLE_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ;
+                  BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
     if (rc == 0 && !any_entries) {
         return BLE_ATT_ERR_ATTR_NOT_FOUND;
     } else {
@@ -820,7 +820,7 @@ ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
     }
 
     /* Write the response base at the start of the buffer. */
-    buf = os_mbuf_extend(txom, BLE_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ);
+    buf = os_mbuf_extend(txom, BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ);
     if (buf == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;

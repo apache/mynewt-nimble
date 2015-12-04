@@ -97,7 +97,7 @@ struct ble_att_find_info_rsp {
  * | Attribute Type                     | 2                 |
  * | Attribute Value                    | 0 to (ATT_MTU-7)  |
  */
-#define BLE_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ   7
+#define BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ   7
 struct ble_att_find_type_value_req {
     uint16_t bhavq_start_handle;
     uint16_t bhavq_end_handle;
@@ -110,7 +110,8 @@ struct ble_att_find_type_value_req {
  * | Attribute Opcode                   | 1                 |
  * | Information Data                   | 4 to (ATT_MTU-1)  |
  */
-#define BLE_ATT_FIND_TYPE_VALUE_RSP_MIN_SZ   1
+#define BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ     1
+#define BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ   4
 
 /**
  * | Parameter                          | Size (octets)     |

@@ -206,7 +206,7 @@ ble_att_find_type_value_req_parse(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ) {
+    if (len < BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ) {
         return EMSGSIZE;
     }
 
@@ -229,7 +229,7 @@ ble_att_find_type_value_req_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_ATT_FIND_TYPE_VALUE_REQ_MIN_SZ) {
+    if (len < BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ) {
         return EMSGSIZE;
     }
 

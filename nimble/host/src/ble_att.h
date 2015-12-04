@@ -28,6 +28,7 @@ struct ble_att_mtu_cmd;
 struct ble_att_read_req;
 struct ble_att_read_group_type_req;
 struct ble_att_read_group_type_rsp;
+struct ble_att_find_type_value_req;
 
 #define BLE_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -139,6 +140,8 @@ int ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 int ble_att_svr_init(void);
 
 /*** @clt */
+int ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **om);
 int ble_att_clt_tx_mtu(struct ble_hs_conn *conn,
                        struct ble_att_mtu_cmd *req);
 int ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
@@ -149,6 +152,12 @@ int ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
                              struct ble_att_find_info_req *req);
 int ble_att_clt_rx_find_info(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan, struct os_mbuf **om);
+int ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
+                                   struct ble_att_find_type_value_req *req,
+                                   void *attribute_value, int value_len);
+int ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
+                                   struct ble_l2cap_chan *chan,
+                                   struct os_mbuf **rxom);
 int ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
                                    struct ble_att_read_group_type_req *req,
                                    void *uuid128);

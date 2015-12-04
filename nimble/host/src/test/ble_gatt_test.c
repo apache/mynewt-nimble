@@ -36,8 +36,17 @@ struct ble_gatt_test_service {
 static struct ble_gatt_service
     ble_gatt_test_services[BLE_GATT_TEST_MAX_SERVICES];
 static int ble_gatt_test_num_services;
+static int ble_gatt_test_rx_complete;
 
-int
+static void
+ble_gatt_test_init(void)
+{
+    ble_hs_test_util_init();
+    ble_gatt_test_num_services = 0;
+    ble_gatt_test_rx_complete = 0;
+}
+
+static int
 ble_gatt_test_misc_service_length(struct ble_gatt_test_service *service)
 {
     if (service->uuid16 != 0) {
@@ -45,6 +54,32 @@ ble_gatt_test_misc_service_length(struct ble_gatt_test_service *service)
     } else {
         return 20;
     }
+}
+
+static void
+ble_gatt_test_misc_rx_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
+                              uint8_t error_code)
+{
+    struct ble_att_error_rsp rsp;
+    struct ble_l2cap_chan *chan;
+    uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
+    int rc;
+
+    /* Send the pending ATT Request. */
+    ble_gatt_wakeup();
+
+    rsp.bhaep_req_op = req_op;
+    rsp.bhaep_handle = conn->bhc_handle;
+    rsp.bhaep_error_code = error_code;
+
+    rc = ble_att_error_rsp_write(buf, sizeof buf, &rsp);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
 }
 
 static int
@@ -116,6 +151,67 @@ ble_gatt_test_misc_rx_disc_services_rsp(struct ble_hs_conn *conn,
                                                              services + idx);
         idx += count;
     }
+
+    if (services[idx - 1].start_handle != 0xffff) {
+        ble_gatt_test_misc_rx_err_rsp(conn, BLE_ATT_OP_READ_GROUP_TYPE_REQ,
+                                      BLE_ATT_ERR_ATTR_NOT_FOUND);
+    }
+}
+
+static int
+ble_gatt_test_misc_rx_disc_uuid_rsp_once(
+    struct ble_hs_conn *conn, struct ble_gatt_test_service *services)
+{
+    struct ble_l2cap_chan *chan;
+    uint8_t buf[1024];
+    int off;
+    int rc;
+    int i;
+
+    /* Send the pending ATT Find By Type Value Request. */
+    ble_gatt_wakeup();
+
+    buf[0] = BLE_ATT_OP_FIND_TYPE_VALUE_RSP;
+    off = BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
+    for (i = 0; ; i++) {
+        if (services[i].start_handle == 0) {
+            /* No more services. */
+            break;
+        }
+
+        htole16(buf + off, services[i].start_handle);
+        off += 2;
+
+        htole16(buf + off, services[i].end_handle);
+        off += 2;
+    }
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    TEST_ASSERT(rc == 0);
+
+    return i;
+}
+
+static void
+ble_gatt_test_misc_rx_disc_uuid_rsp(struct ble_hs_conn *conn,
+                                    struct ble_gatt_test_service *services)
+{
+    int count;
+    int idx;
+
+    idx = 0;
+    while (services[idx].start_handle != 0) {
+        count = ble_gatt_test_misc_rx_disc_uuid_rsp_once(conn, services + idx);
+        idx += count;
+    }
+
+    if (services[idx - 1].start_handle != 0xffff) {
+        ble_gatt_test_misc_rx_err_rsp(conn, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
+                                      BLE_ATT_ERR_ATTR_NOT_FOUND);
+    }
 }
 
 static void
@@ -141,16 +237,21 @@ ble_gatt_test_misc_verify_services(struct ble_gatt_test_service *services)
     }
 
     TEST_ASSERT(i == ble_gatt_test_num_services);
+    TEST_ASSERT(ble_gatt_test_rx_complete);
 }
 
 static int
 ble_gatt_test_misc_disc_cb(uint16_t conn_handle, int status,
                            struct ble_gatt_service *service, void *arg)
 {
-    TEST_ASSERT_FATAL(ble_gatt_test_num_services < BLE_GATT_TEST_MAX_SERVICES);
     TEST_ASSERT(status == 0);
+    TEST_ASSERT(!ble_gatt_test_rx_complete);
 
-    if (status == 0) {
+    if (service == NULL) {
+        ble_gatt_test_rx_complete = 1;
+    } else {
+        TEST_ASSERT_FATAL(ble_gatt_test_num_services <
+                          BLE_GATT_TEST_MAX_SERVICES);
         ble_gatt_test_services[ble_gatt_test_num_services++] = *service;
     }
 
@@ -163,8 +264,7 @@ ble_gatt_test_misc_good_disc_services(struct ble_gatt_test_service *services)
     struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_test_util_init();
-    ble_gatt_test_num_services = 0;
+    ble_gatt_test_init();
 
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
@@ -175,7 +275,29 @@ ble_gatt_test_misc_good_disc_services(struct ble_gatt_test_service *services)
     ble_gatt_test_misc_verify_services(services);
 }
 
-TEST_CASE(ble_gatt_test_1)
+static void
+ble_gatt_test_misc_good_disc_uuid(struct ble_gatt_test_service *services)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_gatt_test_init();
+
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    if (services[0].uuid16 != 0) {
+        rc = ble_hs_uuid_from_16bit(services[0].uuid16, services[0].uuid128);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+    rc = ble_gatt_disc_service_by_uuid(2, services[0].uuid128,
+                                       ble_gatt_test_misc_disc_cb, NULL);
+    TEST_ASSERT(rc == 0);
+
+    ble_gatt_test_misc_rx_disc_uuid_rsp(conn, services);
+    ble_gatt_test_misc_verify_services(services);
+}
+
+TEST_CASE(ble_gatt_test_disc_all_services)
 {
     /*** One 128-bit service. */
     ble_gatt_test_misc_good_disc_services((struct ble_gatt_test_service[]) {
@@ -207,13 +329,80 @@ TEST_CASE(ble_gatt_test_1)
         { 0 }
     });
 
-    /* XXX: Test multiple responses. */
-    /* XXX: Test 16-bit UUIDs. */
+    /*** End with handle 0xffff. */
+    ble_gatt_test_misc_good_disc_services((struct ble_gatt_test_service[]) {
+        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 7, 0xffff, 0, {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+    });
+}
+
+TEST_CASE(ble_gatt_test_disc_service_uuid)
+{
+    /*** 128-bit service; one entry. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 0 }
+    });
+
+    /*** 128-bit service; two entries. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 8, 43, 0,     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 0 }
+    });
+
+    /*** 128-bit service; five entries. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 8, 43, 0,     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 67, 100, 0,   {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 102, 103, 0,  {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 262, 900, 0,  {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 0 }
+    });
+
+    /*** 128-bit service; end with handle 0xffff. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 7, 0xffff, 0, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 0 }
+    });
+
+    /*** 16-bit service; one entry. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0x1234 },
+        { 0 }
+    });
+
+    /*** 16-bit service; two entries. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0x1234 },
+        { 85, 243, 0x1234 },
+        { 0 }
+    });
+
+    /*** 16-bit service; five entries. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0x1234 },
+        { 85, 243, 0x1234 },
+        { 382, 383, 0x1234 },
+        { 562, 898, 0x1234 },
+        { 902, 984, 0x1234 },
+        { 0 }
+    });
+
+    /*** 16-bit service; end with handle 0xffff. */
+    ble_gatt_test_misc_good_disc_uuid((struct ble_gatt_test_service[]) {
+        { 1, 5, 0x1234 },
+        { 9, 0xffff, 0x1234 },
+        { 0 }
+    });
 }
 
 TEST_SUITE(ble_gatt_suite)
 {
-    ble_gatt_test_1();
+    ble_gatt_test_disc_all_services();
+    ble_gatt_test_disc_service_uuid();
 }
 
 int
