@@ -321,14 +321,18 @@ err:
 }
 
 static int
-ble_att_clt_parse_attribute_data(struct os_mbuf *om, int data_len,
+ble_att_clt_parse_attribute_data(struct os_mbuf **om, int data_len,
                                  struct ble_att_clt_adata *adata)
 {
-    /* XXX: Pull up om */
+    *om = os_mbuf_pullup(*om, data_len);
+    if (*om == NULL) {
+        return ENOMEM;
+    }
 
-    adata->att_handle = le16toh(om->om_data + 0);
-    adata->end_group_handle = le16toh(om->om_data + 2);
-    adata->value = om->om_data + 6;
+    adata->att_handle = le16toh((*om)->om_data + 0);
+    adata->end_group_handle = le16toh((*om)->om_data + 2);
+    adata->value_len = data_len - BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ;
+    adata->value = (*om)->om_data + BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ;
 
     return 0;
 }
@@ -342,7 +346,7 @@ ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
     struct ble_att_clt_adata adata;
     int rc;
 
-    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
     if (*rxom == NULL) {
         return ENOMEM;
     }
@@ -353,12 +357,12 @@ ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
         return rc;
     }
 
-    os_mbuf_adj(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+    os_mbuf_adj(*rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
 
     /* XXX: Verify group handle is valid. */
 
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
-        rc = ble_att_clt_parse_attribute_data(*rxom, rsp.bhagp_length, &adata);
+        rc = ble_att_clt_parse_attribute_data(rxom, rsp.bhagp_length, &adata);
         if (rc != 0) {
             break;
         }

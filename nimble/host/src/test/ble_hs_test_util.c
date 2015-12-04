@@ -57,10 +57,11 @@ ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
     htole16(dst + 4, opcode);
 }
 
-void
+struct ble_hs_conn *
 ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
 {
     struct hci_le_conn_complete evt;
+    struct ble_hs_conn *conn;
     int rc;
 
     rc = ble_gap_direct_connection_establishment(0, addr);
@@ -76,6 +77,11 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     evt.connection_handle = 2;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
+
+    conn = ble_hs_conn_find(handle);
+    TEST_ASSERT_FATAL(conn != NULL);
+
+    return conn;
 }
 
 void

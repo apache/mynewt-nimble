@@ -362,6 +362,7 @@ ble_gap_conn_slave_in_progress(void)
 int
 ble_gap_conn_init(void)
 {
+    ble_gap_conn_cb = NULL;
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
     memset(ble_gap_conn_addr_master, 0, sizeof ble_gap_conn_addr_master);

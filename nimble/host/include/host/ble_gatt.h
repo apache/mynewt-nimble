@@ -12,8 +12,8 @@ struct ble_gatt_service {
     uint8_t uuid128[16];
 };
 
-typedef int ble_gatt_disc_service_fn(uint16_t conn_handle,
-                                     struct ble_att_clt_adata *adata,
+typedef int ble_gatt_disc_service_fn(uint16_t conn_handle, int status,
+                                     struct ble_gatt_service *service,
                                      void *arg);
 
 int ble_gatt_disc_all_services(uint16_t conn_handle,

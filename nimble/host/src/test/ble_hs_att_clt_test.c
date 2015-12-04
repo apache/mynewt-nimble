@@ -26,14 +26,11 @@
 
 static void
 ble_att_clt_test_misc_init(struct ble_hs_conn **conn,
-                              struct ble_l2cap_chan **att_chan)
+                           struct ble_l2cap_chan **att_chan)
 {
     ble_hs_test_util_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
-    *conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(*conn != NULL);
-
+    *conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
     *att_chan = ble_hs_conn_chan_find(*conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(*att_chan != NULL);
 }

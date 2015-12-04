@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <string.h>
 #include "os/os_mempool.h"
+#include "nimble/ble.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
 #include "ble_hs_uuid.h"
@@ -174,8 +175,8 @@ static void
 ble_gatt_entry_set_pending(struct ble_gatt_entry *entry)
 {
     assert(!(entry->flags & BLE_GATT_ENTRY_F_PENDING));
-    assert(!(entry->flags & BLE_GATT_ENTRY_F_EXPECTING));
 
+    entry->flags &= ~BLE_GATT_ENTRY_F_EXPECTING;
     entry->flags |= BLE_GATT_ENTRY_F_PENDING;
     ble_hs_kick_gatt();
 }
@@ -184,10 +185,10 @@ static void
 ble_gatt_entry_set_expecting(struct ble_gatt_entry *entry,
                              struct ble_gatt_entry *prev)
 {
-    assert(!(entry->flags & BLE_GATT_ENTRY_F_PENDING));
     assert(!(entry->flags & BLE_GATT_ENTRY_F_EXPECTING));
 
     ble_gatt_entry_remove(entry, prev);
+    entry->flags &= ~BLE_GATT_ENTRY_F_PENDING;
     entry->flags |= BLE_GATT_ENTRY_F_EXPECTING;
     STAILQ_INSERT_TAIL(&ble_gatt_list, entry, next);
 }
@@ -436,17 +437,51 @@ void
 ble_gatt_rx_read_group_type_adata(struct ble_hs_conn *conn,
                                   struct ble_att_clt_adata *adata)
 {
+    struct ble_gatt_service service;
     struct ble_gatt_entry *entry;
+    struct ble_gatt_entry *prev;
+    uint16_t uuid16;
+    int cbrc;
+    int rc;
 
-    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_MTU, 1, NULL);
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_SERVICES, 1,
+                          &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
+    switch (adata->value_len) {
+    case 2:
+        uuid16 = le16toh(adata->value);
+        rc = ble_hs_uuid_from_16bit(uuid16, service.uuid128);
+        if (rc != 0) {
+            goto done;
+        }
+        break;
+
+    case 16:
+        memcpy(service.uuid128, adata->value, 16);
+        break;
+
+    default:
+        rc = EMSGSIZE;
+        goto done;
+    }
+
     entry->disc_all_services.prev_handle = adata->end_group_handle;
 
-    /* XXX: Call success callback. */
+    service.start_handle = adata->att_handle;
+    service.end_handle = adata->end_group_handle;
+
+    rc = 0;
+
+done:
+    cbrc = entry->disc_all_services.cb(conn->bhc_handle, rc, &service,
+                                       entry->disc_all_services.cb_arg);
+    if (rc != 0 || cbrc != 0) {
+        ble_gatt_entry_remove_free(entry, prev);
+    }
 }
 
 void
@@ -455,15 +490,16 @@ ble_gatt_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc)
     struct ble_gatt_entry *entry;
     struct ble_gatt_entry *prev;
 
-    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_MTU, 1, &prev);
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_SERVICES, 1,
+                          &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    if (entry->disc_all_services.prev_handle == 0xffff) {
-        /* All services discovered. */
-        entry->disc_all_services.cb(conn->bhc_handle, NULL,
+    if (rc != 0 || entry->disc_all_services.prev_handle == 0xffff) {
+        /* Error or all services discovered. */
+        entry->disc_all_services.cb(conn->bhc_handle, rc, NULL,
                                     entry->disc_all_services.cb_arg);
         ble_gatt_entry_remove_free(entry, prev);
     } else {

@@ -220,8 +220,8 @@ ble_l2cap_init(void)
     ble_l2cap_free_mem();
 
     ble_l2cap_chan_mem = malloc(
-        OS_MEMPOOL_SIZE(BLE_L2CAP_CHAN_MAX,
-                        sizeof (struct ble_l2cap_chan)));
+        OS_MEMPOOL_BYTES(BLE_L2CAP_CHAN_MAX,
+                         sizeof (struct ble_l2cap_chan)));
     if (ble_l2cap_chan_mem == NULL) {
         rc = ENOMEM;
         goto err;

@@ -155,8 +155,8 @@ ble_hs_conn_init(void)
     ble_hs_conn_free_mem();
 
     ble_hs_conn_elem_mem = malloc(
-        OS_MEMPOOL_SIZE(BLE_HS_CONN_MAX,
-                        sizeof (struct ble_hs_conn)));
+        OS_MEMPOOL_BYTES(BLE_HS_CONN_MAX,
+                         sizeof (struct ble_hs_conn)));
     if (ble_hs_conn_elem_mem == NULL) {
         rc = ENOMEM;
         goto err;
