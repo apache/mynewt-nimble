@@ -37,9 +37,9 @@ ble_att_error_rsp_parse(void *payload, int len, struct ble_att_error_rsp *rsp)
         return EINVAL;
     }
 
-    rsp->bhaep_req_op = u8ptr[1];
-    rsp->bhaep_handle = le16toh(u8ptr + 2);
-    rsp->bhaep_error_code = u8ptr[4];
+    rsp->baep_req_op = u8ptr[1];
+    rsp->baep_handle = le16toh(u8ptr + 2);
+    rsp->baep_error_code = u8ptr[4];
 
     return 0;
 }
@@ -56,9 +56,9 @@ ble_att_error_rsp_write(void *payload, int len, struct ble_att_error_rsp *rsp)
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_ERROR_RSP;
-    u8ptr[1] = rsp->bhaep_req_op;
-    htole16(u8ptr + 2, rsp->bhaep_handle);
-    u8ptr[4] = rsp->bhaep_error_code;
+    u8ptr[1] = rsp->baep_req_op;
+    htole16(u8ptr + 2, rsp->baep_handle);
+    u8ptr[4] = rsp->baep_error_code;
 
     return 0;
 }
@@ -80,7 +80,7 @@ ble_att_mtu_cmd_parse(void *payload, int len, struct ble_att_mtu_cmd *cmd)
         return EINVAL;
     }
 
-    cmd->bhamc_mtu = le16toh(u8ptr + 1);
+    cmd->bamc_mtu = le16toh(u8ptr + 1);
 
     return 0;
 }
@@ -98,7 +98,7 @@ ble_att_mtu_req_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_MTU_REQ;
-    htole16(u8ptr + 1, cmd->bhamc_mtu);
+    htole16(u8ptr + 1, cmd->bamc_mtu);
 
     return 0;
 }
@@ -115,7 +115,7 @@ ble_att_mtu_rsp_write(void *payload, int len, struct ble_att_mtu_cmd *cmd)
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_MTU_RSP;
-    htole16(u8ptr + 1, cmd->bhamc_mtu);
+    htole16(u8ptr + 1, cmd->bamc_mtu);
 
     return 0;
 }
@@ -136,8 +136,8 @@ ble_att_find_info_req_parse(void *payload, int len,
         return EINVAL;
     }
 
-    req->bhafq_start_handle = le16toh(u8ptr + 1);
-    req->bhafq_end_handle = le16toh(u8ptr + 3);
+    req->bafq_start_handle = le16toh(u8ptr + 1);
+    req->bafq_end_handle = le16toh(u8ptr + 3);
 
     return 0;
 }
@@ -155,8 +155,8 @@ ble_att_find_info_req_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_FIND_INFO_REQ;
-    htole16(u8ptr + 1, req->bhafq_start_handle);
-    htole16(u8ptr + 3, req->bhafq_end_handle);
+    htole16(u8ptr + 1, req->bafq_start_handle);
+    htole16(u8ptr + 3, req->bafq_end_handle);
 
     return 0;
 }
@@ -177,7 +177,7 @@ ble_att_find_info_rsp_parse(void *payload, int len,
         return EINVAL;
     }
 
-    rsp->bhafp_format = u8ptr[1];
+    rsp->bafp_format = u8ptr[1];
 
     return 0;
 }
@@ -195,7 +195,7 @@ ble_att_find_info_rsp_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_FIND_INFO_RSP;
-    u8ptr[1] = rsp->bhafp_format;
+    u8ptr[1] = rsp->bafp_format;
 
     return 0;
 }
@@ -216,9 +216,9 @@ ble_att_find_type_value_req_parse(void *payload, int len,
         return EINVAL;
     }
 
-    req->bhavq_start_handle = le16toh(u8ptr + 1);
-    req->bhavq_end_handle = le16toh(u8ptr + 3);
-    req->bhavq_attr_type = le16toh(u8ptr + 5);
+    req->bavq_start_handle = le16toh(u8ptr + 1);
+    req->bavq_end_handle = le16toh(u8ptr + 3);
+    req->bavq_attr_type = le16toh(u8ptr + 5);
 
     return 0;
 }
@@ -236,9 +236,9 @@ ble_att_find_type_value_req_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_FIND_TYPE_VALUE_REQ;
-    htole16(u8ptr + 1, req->bhavq_start_handle);
-    htole16(u8ptr + 3, req->bhavq_end_handle);
-    htole16(u8ptr + 5, req->bhavq_attr_type);
+    htole16(u8ptr + 1, req->bavq_start_handle);
+    htole16(u8ptr + 3, req->bavq_end_handle);
+    htole16(u8ptr + 5, req->bavq_attr_type);
 
     return 0;
 }
@@ -259,8 +259,8 @@ ble_att_read_type_req_parse(void *payload, int len,
         return EINVAL;
     }
 
-    req->bhatq_start_handle = le16toh(u8ptr + 1);
-    req->bhatq_end_handle = le16toh(u8ptr + 3);
+    req->batq_start_handle = le16toh(u8ptr + 1);
+    req->batq_end_handle = le16toh(u8ptr + 3);
 
     return 0;
 }
@@ -278,8 +278,8 @@ ble_att_read_type_req_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_READ_TYPE_REQ;
-    htole16(u8ptr + 1, req->bhatq_start_handle);
-    htole16(u8ptr + 3, req->bhatq_end_handle);
+    htole16(u8ptr + 1, req->batq_start_handle);
+    htole16(u8ptr + 3, req->batq_end_handle);
 
     return 0;
 }
@@ -296,7 +296,7 @@ ble_att_read_type_rsp_parse(void *payload, int len,
 
     u8ptr = payload;
 
-    rsp->bhatp_len = u8ptr[1];
+    rsp->batp_len = u8ptr[1];
 
     return 0;
 }
@@ -314,7 +314,7 @@ ble_att_read_type_rsp_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_READ_TYPE_RSP;
-    u8ptr[1] = rsp->bhatp_len;
+    u8ptr[1] = rsp->batp_len;
 
     return 0;
 }
@@ -334,7 +334,7 @@ ble_att_read_req_parse(void *payload, int len, struct ble_att_read_req *req)
         return EINVAL;
     }
 
-    req->bharq_handle = le16toh(u8ptr + 1);
+    req->barq_handle = le16toh(u8ptr + 1);
 
     return 0;
 }
@@ -351,7 +351,7 @@ ble_att_read_req_write(void *payload, int len, struct ble_att_read_req *req)
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_READ_REQ;
-    htole16(u8ptr + 1, req->bharq_handle);
+    htole16(u8ptr + 1, req->barq_handle);
 
     return 0;
 }
@@ -372,8 +372,8 @@ ble_att_read_group_type_req_parse(void *payload, int len,
         return EINVAL;
     }
 
-    req->bhagq_start_handle = le16toh(u8ptr + 1);
-    req->bhagq_end_handle = le16toh(u8ptr + 3);
+    req->bagq_start_handle = le16toh(u8ptr + 1);
+    req->bagq_end_handle = le16toh(u8ptr + 3);
 
     return 0;
 }
@@ -391,8 +391,8 @@ ble_att_read_group_type_req_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_READ_GROUP_TYPE_REQ;
-    htole16(u8ptr + 1, req->bhagq_start_handle);
-    htole16(u8ptr + 3, req->bhagq_end_handle);
+    htole16(u8ptr + 1, req->bagq_start_handle);
+    htole16(u8ptr + 3, req->bagq_end_handle);
 
     return 0;
 }
@@ -413,7 +413,7 @@ ble_att_read_group_type_rsp_parse(void *payload, int len,
         return EINVAL;
     }
 
-    rsp->bhagp_length = u8ptr[1];
+    rsp->bagp_length = u8ptr[1];
 
     return 0;
 }
@@ -431,7 +431,7 @@ ble_att_read_group_type_rsp_write(void *payload, int len,
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_READ_GROUP_TYPE_RSP;
-    u8ptr[1] = rsp->bhagp_length;
+    u8ptr[1] = rsp->bagp_length;
 
     return 0;
 }
@@ -451,7 +451,7 @@ ble_att_write_req_parse(void *payload, int len, struct ble_att_write_req *req)
         return EINVAL;
     }
 
-    req->bhawq_handle = le16toh(u8ptr + 1);
+    req->bawq_handle = le16toh(u8ptr + 1);
 
     return 0;
 }
@@ -468,7 +468,7 @@ ble_att_write_req_write(void *payload, int len, struct ble_att_write_req *req)
     u8ptr = payload;
 
     u8ptr[0] = BLE_ATT_OP_WRITE_REQ;
-    htole16(u8ptr + 1, req->bhawq_handle);
+    htole16(u8ptr + 1, req->bawq_handle);
 
     return 0;
 }

@@ -45,26 +45,26 @@ TEST_CASE(ble_att_clt_test_tx_find_info)
     ble_att_clt_test_misc_init(&conn, &chan);
 
     /*** Success. */
-    req.bhafq_start_handle = 1;
-    req.bhafq_end_handle = 0xffff;
+    req.bafq_start_handle = 1;
+    req.bafq_end_handle = 0xffff;
     rc = ble_att_clt_tx_find_info(conn, &req);
     TEST_ASSERT(rc == 0);
 
     /*** Error: start handle of 0. */
-    req.bhafq_start_handle = 0;
-    req.bhafq_end_handle = 0xffff;
+    req.bafq_start_handle = 0;
+    req.bafq_end_handle = 0xffff;
     rc = ble_att_clt_tx_find_info(conn, &req);
     TEST_ASSERT(rc == EINVAL);
 
     /*** Error: start handle greater than end handle. */
-    req.bhafq_start_handle = 500;
-    req.bhafq_end_handle = 499;
+    req.bafq_start_handle = 500;
+    req.bafq_end_handle = 499;
     rc = ble_att_clt_tx_find_info(conn, &req);
     TEST_ASSERT(rc == EINVAL);
 
     /*** Success; start and end handles equal. */
-    req.bhafq_start_handle = 500;
-    req.bhafq_end_handle = 500;
+    req.bafq_start_handle = 500;
+    req.bafq_end_handle = 500;
     rc = ble_att_clt_tx_find_info(conn, &req);
     TEST_ASSERT(rc == 0);
 }
@@ -84,7 +84,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     /*** One 128-bit UUID. */
     /* Receive response with attribute mapping. */
     off = 0;
-    rsp.bhafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT;
+    rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT;
     rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     TEST_ASSERT(rc == 0);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
@@ -100,7 +100,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     /*** One 16-bit UUID. */
     /* Receive response with attribute mapping. */
     off = 0;
-    rsp.bhafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
+    rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
     rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     TEST_ASSERT(rc == 0);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
@@ -116,7 +116,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     /*** Two 16-bit UUIDs. */
     /* Receive response with attribute mappings. */
     off = 0;
-    rsp.bhafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
+    rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
     rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     TEST_ASSERT(rc == 0);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;

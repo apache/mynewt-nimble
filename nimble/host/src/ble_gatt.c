@@ -283,7 +283,7 @@ ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     assert(chan != NULL);
 
-    req.bhamc_mtu = chan->blc_my_mtu;
+    req.bamc_mtu = chan->blc_my_mtu;
     rc = ble_att_clt_tx_mtu(conn, &req);
     if (rc != 0) {
         return rc;
@@ -304,8 +304,8 @@ ble_gatt_kick_find_info(struct ble_gatt_entry *entry)
         return ENOTCONN;
     }
 
-    req.bhafq_start_handle = entry->find_info.next_handle;
-    req.bhafq_end_handle = entry->find_info.end_handle;
+    req.bafq_start_handle = entry->find_info.next_handle;
+    req.bafq_end_handle = entry->find_info.end_handle;
     rc = ble_att_clt_tx_find_info(conn, &req);
     if (rc != 0) {
         return rc;
@@ -330,8 +330,8 @@ ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry)
     rc = ble_hs_uuid_from_16bit(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
     assert(rc == 0);
 
-    req.bhagq_start_handle = entry->disc_all_services.prev_handle + 1;
-    req.bhagq_end_handle = 0xffff;
+    req.bagq_start_handle = entry->disc_all_services.prev_handle + 1;
+    req.bagq_end_handle = 0xffff;
     rc = ble_att_clt_tx_read_group_type(conn, &req, uuid128);
     if (rc != 0) {
         return rc;
@@ -352,9 +352,9 @@ ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry)
         return ENOTCONN;
     }
 
-    req.bhavq_start_handle = entry->disc_service_uuid.prev_handle + 1;
-    req.bhavq_end_handle = 0xffff;
-    req.bhavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
+    req.bavq_start_handle = entry->disc_service_uuid.prev_handle + 1;
+    req.bavq_end_handle = 0xffff;
+    req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
 
     rc = ble_att_clt_tx_find_type_value(conn, &req,
                                         entry->disc_service_uuid.service_uuid,
@@ -405,12 +405,12 @@ ble_gatt_rx_err_disc_all_services(struct ble_gatt_entry *entry,
 {
     uint8_t status;
 
-    if (rsp->bhaep_error_code == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+    if (rsp->baep_error_code == BLE_ATT_ERR_ATTR_NOT_FOUND) {
         /* Discovery is complete. */
         status = 0;
     } else {
         /* Discovery failure. */
-        status = rsp->bhaep_error_code;
+        status = rsp->baep_error_code;
     }
 
     entry->disc_all_services.cb(conn->bhc_handle, status, NULL,
@@ -426,12 +426,12 @@ ble_gatt_rx_err_disc_service_uuid(struct ble_gatt_entry *entry,
 {
     uint8_t status;
 
-    if (rsp->bhaep_error_code == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+    if (rsp->baep_error_code == BLE_ATT_ERR_ATTR_NOT_FOUND) {
         /* Discovery is complete. */
         status = 0;
     } else {
         /* Discovery failure. */
-        status = rsp->bhaep_error_code;
+        status = rsp->baep_error_code;
     }
 
     entry->disc_service_uuid.cb(conn->bhc_handle, status, NULL,

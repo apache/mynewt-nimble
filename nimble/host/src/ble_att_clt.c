@@ -91,7 +91,7 @@ ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
 
     txom = NULL;
 
-    if (req->bhamc_mtu < BLE_ATT_MTU_DFLT) {
+    if (req->bamc_mtu < BLE_ATT_MTU_DFLT) {
         rc = EINVAL;
         goto err;
     }
@@ -136,7 +136,7 @@ ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return rc;
     }
 
-    ble_att_set_peer_mtu(chan, rsp.bhamc_mtu);
+    ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
 
     ble_gatt_rx_mtu(conn, ble_l2cap_chan_mtu(chan));
 
@@ -153,8 +153,8 @@ ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
 
     txom = NULL;
 
-    if (req->bhafq_start_handle == 0 ||
-        req->bhafq_start_handle > req->bhafq_end_handle) {
+    if (req->bafq_start_handle == 0 ||
+        req->bafq_start_handle > req->bafq_end_handle) {
 
         rc = EINVAL;
         goto err;
@@ -218,7 +218,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         off += 2;
         handle_id = le16toh(&handle_id);
 
-        switch (rsp.bhafp_format) {
+        switch (rsp.bafp_format) {
         case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
             rc = os_mbuf_copydata(rxom, off, 2, &uuid16);
             if (rc != 0) {
@@ -266,7 +266,7 @@ ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
 
     txom = NULL;
 
-    if (req->bharq_handle == 0) {
+    if (req->barq_handle == 0) {
         rc = EINVAL;
         goto err;
     }
@@ -305,8 +305,8 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
 
     txom = NULL;
 
-    if (req->bhavq_start_handle == 0 ||
-        req->bhavq_start_handle > req->bhavq_end_handle) {
+    if (req->bavq_start_handle == 0 ||
+        req->bavq_start_handle > req->bavq_end_handle) {
 
         rc = EINVAL;
         goto err;
@@ -376,6 +376,7 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
     /* Parse the Handles Information List field, passing each entry to the
      * GATT.
      */
+    rc = 0;
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
         rc = ble_att_clt_parse_handles_info(rxom, &adata);
         if (rc != 0) {
@@ -403,8 +404,8 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
 
     txom = NULL;
 
-    if (req->bhagq_start_handle == 0 ||
-        req->bhagq_start_handle > req->bhagq_end_handle) {
+    if (req->bagq_start_handle == 0 ||
+        req->bagq_start_handle > req->bagq_end_handle) {
 
         rc = EINVAL;
         goto err;
@@ -483,13 +484,13 @@ ble_att_clt_rx_read_group_type_rsp(struct ble_hs_conn *conn,
 
     /* Parse the Attribute Data List field, passing each entry to the GATT. */
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
-        rc = ble_att_clt_parse_attribute_data(rxom, rsp.bhagp_length, &adata);
+        rc = ble_att_clt_parse_attribute_data(rxom, rsp.bagp_length, &adata);
         if (rc != 0) {
             goto done;
         }
 
         ble_gatt_rx_read_group_type_adata(conn, &adata);
-        os_mbuf_adj(*rxom, rsp.bhagp_length);
+        os_mbuf_adj(*rxom, rsp.bagp_length);
     }
 
 done:

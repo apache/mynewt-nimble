@@ -120,9 +120,9 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     rc = ble_att_error_rsp_parse(buf, sizeof buf, &rsp);
     TEST_ASSERT(rc == 0);
 
-    TEST_ASSERT(rsp.bhaep_req_op == req_op);
-    TEST_ASSERT(rsp.bhaep_handle == handle);
-    TEST_ASSERT(rsp.bhaep_error_code == error_code);
+    TEST_ASSERT(rsp.baep_req_op == req_op);
+    TEST_ASSERT(rsp.baep_handle == handle);
+    TEST_ASSERT(rsp.baep_error_code == error_code);
 
     /* Remove the error response from the buffer. */
     os_mbuf_adj(ble_hs_test_util_prev_tx,
@@ -182,7 +182,7 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
     rc = ble_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
     TEST_ASSERT(rc == 0);
 
-    TEST_ASSERT(rsp.bhamc_mtu == chan->blc_my_mtu);
+    TEST_ASSERT(rsp.bamc_mtu == chan->blc_my_mtu);
 
     /* Remove the write response from the buffer. */
     os_mbuf_adj(ble_hs_test_util_prev_tx,
@@ -227,7 +227,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
         TEST_ASSERT(handle == entry->handle);
 
         if (entry->uuid16 != 0) {
-            TEST_ASSERT(rsp.bhafp_format ==
+            TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT);
             rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &uuid16);
             TEST_ASSERT(rc == 0);
@@ -236,7 +236,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
             uuid16 = le16toh((void *)&uuid16);
             TEST_ASSERT(uuid16 == entry->uuid16);
         } else {
-            TEST_ASSERT(rsp.bhafp_format ==
+            TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT);
             rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 16, uuid128);
             TEST_ASSERT(rc == 0);
@@ -312,7 +312,7 @@ ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
 
     chan->blc_my_mtu = my_mtu;
 
-    req.bhamc_mtu = peer_sent;
+    req.bamc_mtu = peer_sent;
     rc = ble_att_mtu_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
 
@@ -355,7 +355,7 @@ TEST_CASE(ble_att_svr_test_read)
     ble_att_svr_test_misc_init(&conn, &chan);
 
     /*** Nonexistent attribute. */
-    req.bharq_handle = 0;
+    req.barq_handle = 0;
     rc = ble_att_read_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
 
@@ -368,7 +368,7 @@ TEST_CASE(ble_att_svr_test_read)
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
     ble_att_svr_test_attr_r_1_len = 8;
-    rc = ble_att_svr_register(uuid, 0, &req.bharq_handle,
+    rc = ble_att_svr_register(uuid, 0, &req.barq_handle,
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
@@ -412,7 +412,7 @@ TEST_CASE(ble_att_svr_test_write)
     ble_att_svr_test_misc_init(&conn, &chan);
 
     /*** Nonexistent attribute. */
-    req.bhawq_handle = 0;
+    req.bawq_handle = 0;
     rc = ble_att_write_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
     memcpy(buf + BLE_ATT_READ_REQ_SZ, ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
@@ -424,7 +424,7 @@ TEST_CASE(ble_att_svr_test_write)
         chan, BLE_ATT_OP_WRITE_REQ, 0, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful write. */
-    rc = ble_att_svr_register(uuid, 0, &req.bhawq_handle,
+    rc = ble_att_svr_register(uuid, 0, &req.bawq_handle,
                                  ble_att_svr_test_misc_attr_fn_w_1);
     TEST_ASSERT(rc == 0);
 
@@ -465,8 +465,8 @@ TEST_CASE(ble_att_svr_test_find_info)
     chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
 
     /*** Start handle of 0. */
-    req.bhafq_start_handle = 0;
-    req.bhafq_end_handle = 0;
+    req.bafq_start_handle = 0;
+    req.bafq_end_handle = 0;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -479,8 +479,8 @@ TEST_CASE(ble_att_svr_test_find_info)
         chan, BLE_ATT_OP_FIND_INFO_REQ, 0, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Start handle > end handle. */
-    req.bhafq_start_handle = 101;
-    req.bhafq_end_handle = 100;
+    req.bafq_start_handle = 101;
+    req.bafq_end_handle = 100;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -493,8 +493,8 @@ TEST_CASE(ble_att_svr_test_find_info)
         chan, BLE_ATT_OP_FIND_INFO_REQ, 101, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** No attributes. */
-    req.bhafq_start_handle = 200;
-    req.bhafq_end_handle = 300;
+    req.bafq_start_handle = 200;
+    req.bafq_end_handle = 300;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -511,8 +511,8 @@ TEST_CASE(ble_att_svr_test_find_info)
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
-    req.bhafq_start_handle = 200;
-    req.bhafq_end_handle = 300;
+    req.bafq_start_handle = 200;
+    req.bafq_end_handle = 300;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -525,8 +525,8 @@ TEST_CASE(ble_att_svr_test_find_info)
         chan, BLE_ATT_OP_FIND_INFO_REQ, 200, BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** One 128-bit entry. */
-    req.bhafq_start_handle = handle1;
-    req.bhafq_end_handle = handle1;
+    req.bafq_start_handle = handle1;
+    req.bafq_end_handle = handle1;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -549,8 +549,8 @@ TEST_CASE(ble_att_svr_test_find_info)
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
-    req.bhafq_start_handle = handle1;
-    req.bhafq_end_handle = handle2;
+    req.bafq_start_handle = handle1;
+    req.bafq_end_handle = handle2;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -576,8 +576,8 @@ TEST_CASE(ble_att_svr_test_find_info)
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
-    req.bhafq_start_handle = handle1;
-    req.bhafq_end_handle = handle3;
+    req.bafq_start_handle = handle1;
+    req.bafq_end_handle = handle3;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -598,8 +598,8 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Remaining 16-bit entry requested. */
-    req.bhafq_start_handle = handle3;
-    req.bhafq_end_handle = handle3;
+    req.bafq_start_handle = handle3;
+    req.bafq_end_handle = handle3;
 
     rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -654,9 +654,9 @@ TEST_CASE(ble_att_svr_test_find_type_value)
            ble_att_svr_test_attr_r_1_len);
 
     /*** Start handle of 0. */
-    req.bhavq_start_handle = 0;
-    req.bhavq_end_handle = 0;
-    req.bhavq_attr_type = 0x0001;
+    req.bavq_start_handle = 0;
+    req.bavq_end_handle = 0;
+    req.bavq_attr_type = 0x0001;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -670,8 +670,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Start handle > end handle. */
-    req.bhavq_start_handle = 101;
-    req.bhavq_end_handle = 100;
+    req.bavq_start_handle = 101;
+    req.bavq_end_handle = 100;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -685,8 +685,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** No attributes. */
-    req.bhavq_start_handle = 200;
-    req.bhavq_end_handle = 300;
+    req.bavq_start_handle = 200;
+    req.bavq_end_handle = 300;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -704,8 +704,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
-    req.bhavq_start_handle = 200;
-    req.bhavq_end_handle = 300;
+    req.bavq_start_handle = 200;
+    req.bavq_end_handle = 300;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -719,8 +719,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** One entry, one attribute. */
-    req.bhavq_start_handle = handle1;
-    req.bhavq_end_handle = handle1;
+    req.bavq_start_handle = handle1;
+    req.bavq_end_handle = handle1;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -742,8 +742,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
-    req.bhavq_start_handle = handle1;
-    req.bhavq_end_handle = handle2;
+    req.bavq_start_handle = handle1;
+    req.bavq_end_handle = handle2;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -769,8 +769,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
                                  ble_att_svr_test_misc_attr_fn_r_1);
     TEST_ASSERT(rc == 0);
 
-    req.bhavq_start_handle = 0x0001;
-    req.bhavq_end_handle = 0xffff;
+    req.bavq_start_handle = 0x0001;
+    req.bavq_end_handle = 0xffff;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -794,8 +794,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     ble_att_svr_test_attr_r_2 = (uint8_t[]){0x00, 0x00};
     ble_att_svr_test_attr_r_2_len = 2;
 
-    req.bhavq_start_handle = 0x0001;
-    req.bhavq_end_handle = 0xffff;
+    req.bavq_start_handle = 0x0001;
+    req.bavq_end_handle = 0xffff;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
@@ -819,8 +819,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     rc = ble_att_svr_register(uuid3, 0, &handle5,
                                  ble_att_svr_test_misc_attr_fn_r_1);
 
-    req.bhavq_start_handle = 0x0001;
-    req.bhavq_end_handle = 0xffff;
+    req.bavq_start_handle = 0x0001;
+    req.bavq_end_handle = 0xffff;
 
     rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);

@@ -43,9 +43,9 @@ struct ble_l2cap_chan;
  */
 #define BLE_ATT_ERROR_RSP_SZ             5
 struct ble_att_error_rsp {
-    uint8_t bhaep_req_op;
-    uint16_t bhaep_handle;
-    uint8_t bhaep_error_code;
+    uint8_t baep_req_op;
+    uint16_t baep_handle;
+    uint8_t baep_error_code;
 };
 
 /**
@@ -56,7 +56,7 @@ struct ble_att_error_rsp {
  */
 #define BLE_ATT_MTU_CMD_SZ               3
 struct ble_att_mtu_cmd {
-    uint16_t bhamc_mtu;
+    uint16_t bamc_mtu;
 };
 
 /**
@@ -68,8 +68,8 @@ struct ble_att_mtu_cmd {
  */
 #define BLE_ATT_FIND_INFO_REQ_SZ         5
 struct ble_att_find_info_req {
-    uint16_t bhafq_start_handle;
-    uint16_t bhafq_end_handle;
+    uint16_t bafq_start_handle;
+    uint16_t bafq_end_handle;
 };
 
 /**
@@ -81,7 +81,7 @@ struct ble_att_find_info_req {
  */
 #define BLE_ATT_FIND_INFO_RSP_BASE_SZ       2
 struct ble_att_find_info_rsp {
-    uint8_t bhafp_format;
+    uint8_t bafp_format;
     /* Followed by information data. */
 };
 
@@ -99,9 +99,9 @@ struct ble_att_find_info_rsp {
  */
 #define BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ   7
 struct ble_att_find_type_value_req {
-    uint16_t bhavq_start_handle;
-    uint16_t bhavq_end_handle;
-    uint16_t bhavq_attr_type;
+    uint16_t bavq_start_handle;
+    uint16_t bavq_end_handle;
+    uint16_t bavq_attr_type;
 };
 
 /**
@@ -125,8 +125,8 @@ struct ble_att_find_type_value_req {
 #define BLE_ATT_READ_TYPE_REQ_SZ_16      7
 #define BLE_ATT_READ_TYPE_REQ_SZ_128     21
 struct ble_att_read_type_req {
-    uint16_t bhatq_start_handle;
-    uint16_t bhatq_end_handle;
+    uint16_t batq_start_handle;
+    uint16_t batq_end_handle;
 };
 
 /**
@@ -138,7 +138,7 @@ struct ble_att_read_type_req {
  */
 #define BLE_ATT_READ_TYPE_RSP_MIN_SZ     2
 struct ble_att_read_type_rsp {
-    uint8_t bhatp_len;
+    uint8_t batp_len;
 };
 
 /**
@@ -149,7 +149,7 @@ struct ble_att_read_type_rsp {
  */
 #define BLE_ATT_READ_REQ_SZ              3
 struct ble_att_read_req {
-    uint16_t bharq_handle;
+    uint16_t barq_handle;
 };
 
 /**
@@ -172,8 +172,8 @@ struct ble_att_read_req {
 #define BLE_ATT_READ_GROUP_TYPE_REQ_SZ_16    7
 #define BLE_ATT_READ_GROUP_TYPE_REQ_SZ_128   21
 struct ble_att_read_group_type_req {
-    uint16_t bhagq_start_handle;
-    uint16_t bhagq_end_handle;
+    uint16_t bagq_start_handle;
+    uint16_t bagq_end_handle;
 };
 
 /**
@@ -185,7 +185,7 @@ struct ble_att_read_group_type_req {
  */
 #define BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ  2
 struct ble_att_read_group_type_rsp {
-    uint8_t bhagp_length;
+    uint8_t bagp_length;
 };
 
 #define BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ   4
@@ -199,7 +199,7 @@ struct ble_att_read_group_type_rsp {
  */
 #define BLE_ATT_WRITE_REQ_MIN_SZ         3
 struct ble_att_write_req {
-    uint16_t bhawq_handle;
+    uint16_t bawq_handle;
 };
 
 #define BLE_ATT_WRITE_RSP_SZ             1
@@ -222,10 +222,10 @@ int ble_att_find_info_rsp_parse(void *payload, int len,
                                 struct ble_att_find_info_rsp *rsp);
 int ble_att_find_info_rsp_write(void *payload, int len,
                                 struct ble_att_find_info_rsp *rsp);
-int ble_att_find_type_value_req_parse(
-    void *payload, int len, struct ble_att_find_type_value_req *req);
-int ble_att_find_type_value_req_write(
-    void *payload, int len, struct ble_att_find_type_value_req *req);
+int ble_att_find_type_value_req_parse(void *payload, int len,
+                                      struct ble_att_find_type_value_req *req);
+int ble_att_find_type_value_req_write(void *payload, int len,
+                                      struct ble_att_find_type_value_req *req);
 int ble_att_read_req_parse(void *payload, int len,
                            struct ble_att_read_req *req);
 int ble_att_read_req_write(void *payload, int len,
@@ -238,14 +238,14 @@ int ble_att_read_type_rsp_parse(void *payload, int len,
                                 struct ble_att_read_type_rsp *rsp);
 int ble_att_read_type_rsp_write(void *payload, int len,
                                 struct ble_att_read_type_rsp *rsp);
-int ble_att_read_group_type_req_parse(
-    void *payload, int len, struct ble_att_read_group_type_req *req);
-int ble_att_read_group_type_req_write(
-    void *payload, int len, struct ble_att_read_group_type_req *req);
-int ble_att_read_group_type_rsp_parse(
-    void *payload, int len, struct ble_att_read_group_type_rsp *rsp);
-int ble_att_read_group_type_rsp_write(
-    void *payload, int len, struct ble_att_read_group_type_rsp *rsp);
+int ble_att_read_group_type_req_parse(void *payload, int len,
+                                      struct ble_att_read_group_type_req *req);
+int ble_att_read_group_type_req_write(void *payload, int len,
+                                      struct ble_att_read_group_type_req *req);
+int ble_att_read_group_type_rsp_parse(void *payload, int len,
+                                      struct ble_att_read_group_type_rsp *rsp);
+int ble_att_read_group_type_rsp_write(void *payload, int len,
+                                      struct ble_att_read_group_type_rsp *rsp);
 int ble_att_write_req_parse(void *payload, int len,
                             struct ble_att_write_req *req);
 int ble_att_write_req_write(void *payload, int len,

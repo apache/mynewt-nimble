@@ -68,9 +68,9 @@ ble_gatt_test_misc_rx_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
     /* Send the pending ATT Request. */
     ble_gatt_wakeup();
 
-    rsp.bhaep_req_op = req_op;
-    rsp.bhaep_handle = conn->bhc_handle;
-    rsp.bhaep_error_code = error_code;
+    rsp.baep_req_op = req_op;
+    rsp.baep_handle = conn->bhc_handle;
+    rsp.baep_error_code = error_code;
 
     rc = ble_att_error_rsp_write(buf, sizeof buf, &rsp);
     TEST_ASSERT_FATAL(rc == 0);
@@ -96,7 +96,7 @@ ble_gatt_test_misc_rx_disc_services_rsp_once(
     /* Send the pending ATT Read By Group Type Request. */
     ble_gatt_wakeup();
 
-    rsp.bhagp_length = ble_gatt_test_misc_service_length(services);
+    rsp.bagp_length = ble_gatt_test_misc_service_length(services);
     rc = ble_att_read_group_type_rsp_write(
         buf, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ, &rsp);
     TEST_ASSERT_FATAL(rc == 0);
@@ -109,7 +109,7 @@ ble_gatt_test_misc_rx_disc_services_rsp_once(
         }
 
         rc = ble_gatt_test_misc_service_length(services + i);
-        if (rc != rsp.bhagp_length) {
+        if (rc != rsp.bagp_length) {
             /* UUID length is changing; Need a separate response. */
             break;
         }
