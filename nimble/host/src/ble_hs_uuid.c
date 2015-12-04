@@ -23,8 +23,8 @@
 #include "ble_hs_uuid.h"
 
 static uint8_t ble_hs_uuid_base[16] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
-    0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB
+    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
+    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 /**
@@ -44,21 +44,20 @@ ble_hs_uuid_16bit(void *uuid128)
 
     u8ptr = uuid128;
 
-    /* The UUID can only be converted if its final 96 bits are equal to the
-     * base UUID.
+    /* The UUID can only be converted if the final 96 bits of its big endian
+     * representation are equal to the base UUID.
      */
-    rc = memcmp(u8ptr + 4, ble_hs_uuid_base + 4,
-                sizeof ble_hs_uuid_base - 4);
+    rc = memcmp(u8ptr, ble_hs_uuid_base, sizeof ble_hs_uuid_base - 4);
     if (rc != 0) {
         return 0;
     }
 
-    if (u8ptr[0] != 0 || u8ptr[1] != 0) {
+    if (u8ptr[14] != 0 || u8ptr[15] != 0) {
         /* This UUID has a 32-bit form, but not a 16-bit form. */
         return 0;
     }
 
-    uuid16 = (u8ptr[2] << 8) + u8ptr[3];
+    uuid16 = le16toh(u8ptr + 12);
     if (uuid16 == 0) {
         return 0;
     }
@@ -78,7 +77,7 @@ ble_hs_uuid_from_16bit(uint16_t uuid16, void *uuid128)
     u8ptr = uuid128;
 
     memcpy(u8ptr, ble_hs_uuid_base, 16);
-    htole16(u8ptr + 2, uuid16);
+    htole16(u8ptr + 12, uuid16);
 
     return 0;
 }
