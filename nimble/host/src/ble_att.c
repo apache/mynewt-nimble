@@ -40,6 +40,7 @@ static struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
     { BLE_ATT_OP_READ_TYPE_REQ,        ble_att_svr_rx_read_type },
     { BLE_ATT_OP_READ_TYPE_RSP,        ble_att_clt_rx_read_type },
     { BLE_ATT_OP_READ_REQ,             ble_att_svr_rx_read },
+    { BLE_ATT_OP_READ_RSP,             ble_att_clt_rx_read },
     { BLE_ATT_OP_READ_GROUP_TYPE_RSP,  ble_att_clt_rx_read_group_type },
     { BLE_ATT_OP_WRITE_REQ,            ble_att_svr_rx_write },
 };

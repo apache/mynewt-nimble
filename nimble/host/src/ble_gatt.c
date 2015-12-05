@@ -62,6 +62,12 @@ struct ble_gatt_entry {
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } disc_all_chars;
+
+        struct {
+            uint16_t handle;
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
+        } read;
     };
 };
 
@@ -70,7 +76,8 @@ struct ble_gatt_entry {
 #define BLE_GATT_OP_DISC_ALL_SERVICES           1
 #define BLE_GATT_OP_DISC_SERVICE_UUID           2
 #define BLE_GATT_OP_DISC_ALL_CHARS              3
-#define BLE_GATT_OP_MAX                         4
+#define BLE_GATT_OP_READ                        4
+#define BLE_GATT_OP_MAX                         5
 
 typedef int ble_gatt_kick_fn(struct ble_gatt_entry *entry);
 typedef int ble_gatt_rx_err_fn(struct ble_gatt_entry *entry,
@@ -81,6 +88,7 @@ static int ble_gatt_kick_mtu(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry);
+static int ble_gatt_kick_read(struct ble_gatt_entry *entry);
 
 static int ble_gatt_rx_err_disc_all_services(struct ble_gatt_entry *entry,
                                              struct ble_hs_conn *conn,
@@ -91,6 +99,9 @@ static int ble_gatt_rx_err_disc_service_uuid(struct ble_gatt_entry *entry,
 static int ble_gatt_rx_err_disc_all_chars(struct ble_gatt_entry *entry,
                                           struct ble_hs_conn *conn,
                                           struct ble_att_error_rsp *rsp);
+static int ble_gatt_rx_err_read(struct ble_gatt_entry *entry,
+                                struct ble_hs_conn *conn,
+                                struct ble_att_error_rsp *rsp);
 
 struct ble_gatt_dispatch_entry {
     ble_gatt_kick_fn *kick_cb;
@@ -102,7 +113,7 @@ static const struct ble_gatt_dispatch_entry
 
     [BLE_GATT_OP_MTU] = {
         .kick_cb = ble_gatt_kick_mtu,
-        .rx_err_cb = NULL,
+        .rx_err_cb = NULL, // XXX
     },
     [BLE_GATT_OP_DISC_ALL_SERVICES] = {
         .kick_cb = ble_gatt_kick_disc_all_services,
@@ -115,6 +126,10 @@ static const struct ble_gatt_dispatch_entry
     [BLE_GATT_OP_DISC_ALL_CHARS] = {
         .kick_cb = ble_gatt_kick_disc_all_chars,
         .rx_err_cb = ble_gatt_rx_err_disc_all_chars,
+    },
+    [BLE_GATT_OP_READ] = {
+        .kick_cb = ble_gatt_kick_read,
+        .rx_err_cb = ble_gatt_rx_err_read,
     },
 };
 
@@ -374,6 +389,27 @@ ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry)
     return 0;
 }
 
+static int
+ble_gatt_kick_read(struct ble_gatt_entry *entry)
+{
+    struct ble_att_read_req req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        return ENOTCONN;
+    }
+
+    req.barq_handle = entry->read.handle;
+    rc = ble_att_clt_tx_read(conn, &req);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 void
 ble_gatt_wakeup(void)
 {
@@ -465,6 +501,17 @@ ble_gatt_rx_err_disc_all_chars(struct ble_gatt_entry *entry,
 
     entry->disc_all_chars.cb(conn->bhc_handle, status, NULL,
                              entry->disc_all_chars.cb_arg);
+
+    return 0;
+}
+
+static int
+ble_gatt_rx_err_read(struct ble_gatt_entry *entry,
+                     struct ble_hs_conn *conn,
+                     struct ble_att_error_rsp *rsp)
+{
+    entry->read.cb(conn->bhc_handle, rsp->baep_error_code, NULL,
+                   entry->disc_all_chars.cb_arg);
 
     return 0;
 }
@@ -699,6 +746,30 @@ ble_gatt_rx_read_type_complete(struct ble_hs_conn *conn, int rc)
     }
 }
 
+void
+ble_gatt_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
+                     int value_len)
+{
+    struct ble_gatt_entry *entry;
+    struct ble_gatt_entry *prev;
+    struct ble_gatt_attr attr;
+
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_READ, 1, &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    attr.handle = entry->read.handle;
+    attr.value_len = value_len;
+    attr.value = value;
+
+    entry->read.cb(conn->bhc_handle, status, &attr, entry->read.cb_arg);
+
+    /* The read operation only has a single request / response exchange. */
+    ble_gatt_entry_remove_free(entry, prev);
+}
+
 int
 ble_gatt_disc_all_services(uint16_t conn_handle, ble_gatt_disc_service_fn *cb,
                            void *cb_arg)
@@ -755,6 +826,25 @@ ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
     entry->disc_all_chars.end_handle = end_handle;
     entry->disc_all_chars.cb = cb;
     entry->disc_all_chars.cb_arg = cb_arg;
+
+    return 0;
+}
+
+int
+ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
+              ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct ble_gatt_entry *entry;
+    int rc;
+
+    rc = ble_gatt_new_entry(conn_handle, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->op = BLE_GATT_OP_READ;
+    entry->read.handle = attr_handle;
+    entry->read.cb = cb;
+    entry->read.cb_arg = cb_arg;
 
     return 0;
 }

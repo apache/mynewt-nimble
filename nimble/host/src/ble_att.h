@@ -124,47 +124,50 @@ int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
 
 
 int ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                       struct os_mbuf **om);
+                       struct os_mbuf **rxom);
 int ble_att_svr_rx_find_info(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
-                             struct os_mbuf **om);
+                             struct os_mbuf **rxom);
 int ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
                                    struct ble_l2cap_chan *chan,
-                                   struct os_mbuf **om);
+                                   struct os_mbuf **rxom);
 int ble_att_svr_rx_read_type(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
-                             struct os_mbuf **om);
+                             struct os_mbuf **rxom);
 int ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                        struct os_mbuf **om);
+                        struct os_mbuf **rxom);
 int ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **om);
+                         struct os_mbuf **rxom);
 int ble_att_svr_init(void);
 
 /*** @clt */
 int ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **om);
+                         struct os_mbuf **rxom);
 int ble_att_clt_tx_mtu(struct ble_hs_conn *conn,
                        struct ble_att_mtu_cmd *req);
 int ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                       struct os_mbuf **om);
+                       struct os_mbuf **rxom);
 int ble_att_clt_tx_read(struct ble_hs_conn *conn,
                         struct ble_att_read_req *req);
+int ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                        struct os_mbuf **rxom);
 int ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
                              struct ble_att_read_type_req *req,
                              void *uuid128);
 int ble_att_clt_rx_read_type(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
-                             struct os_mbuf **om);
+                             struct os_mbuf **rxom);
 int ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
                                    struct ble_att_read_group_type_req *req,
                                    void *uuid128);
 int ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
                                    struct ble_l2cap_chan *chan,
-                                   struct os_mbuf **om);
+                                   struct os_mbuf **rxom);
 int ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
                              struct ble_att_find_info_req *req);
 int ble_att_clt_rx_find_info(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan, struct os_mbuf **om);
+                             struct ble_l2cap_chan *chan,
+                             struct os_mbuf **rxom);
 int ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
                                    struct ble_att_find_type_value_req *req,
                                    void *attribute_value, int value_len);

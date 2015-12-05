@@ -160,7 +160,7 @@ struct ble_att_read_req {
  * | Attribute Opcode                   | 1                 |
  * | Attribute Value                    | 0 to (ATT_MTU-1)  |
  */
-#define BLE_ATT_READ_RSP_MIN_SZ          1
+#define BLE_ATT_READ_RSP_BASE_SZ        1
 
 /**
  * | Parameter                          | Size (octets)     |

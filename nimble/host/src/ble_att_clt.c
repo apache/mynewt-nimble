@@ -249,43 +249,6 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 }
 
 int
-ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
-{
-    struct ble_l2cap_chan *chan;
-    struct os_mbuf *txom;
-    int rc;
-
-    txom = NULL;
-
-    if (req->barq_handle == 0) {
-        rc = EINVAL;
-        goto err;
-    }
-
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_READ_REQ_SZ);
-    if (rc != 0) {
-        goto err;
-    }
-
-    rc = ble_att_read_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
-
-    rc = ble_l2cap_tx(chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
-}
-
-int
 ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
                          struct ble_att_read_type_req *req,
                          void *uuid128)
@@ -436,6 +399,76 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
 
 err:
     os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->barq_handle == 0) {
+        rc = EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_READ_REQ_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_read_req_write(txom->om_data, txom->om_len, req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                    struct os_mbuf **rxom)
+{
+    void *value;
+    int value_len;
+    int rc;
+
+    value = NULL;
+    value_len = 0;
+
+    /* Reponse consists of a one-byte opcode (already verified) and a variable
+     * length Attribute Value field.  Strip the opcode from the response.
+     */
+    os_mbuf_adj(*rxom, BLE_ATT_READ_RSP_BASE_SZ);
+
+    /* Pass the Attribute Value field to the GATT. */
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        rc = EMSGSIZE;
+        goto done;
+    }
+
+    value_len = (*rxom)->om_len;
+    value = (*rxom)->om_data;
+
+    rc = 0;
+
+done:
+    ble_gatt_rx_read_rsp(conn, rc, value, value_len);
     return rc;
 }
 
