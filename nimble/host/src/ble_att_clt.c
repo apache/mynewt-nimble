@@ -388,13 +388,13 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             goto done;
         }
 
-        //ble_gatt_rx_read_type_adata(conn, &adata);
+        ble_gatt_rx_read_type_adata(conn, &adata);
         os_mbuf_adj(*rxom, rsp.batp_length);
     }
 
 done:
     /* Notify GATT that the response is done being parsed. */
-    //ble_gatt_rx_read_type_complete(conn, rc);
+    ble_gatt_rx_read_type_complete(conn, rc);
 
     return 0;
 

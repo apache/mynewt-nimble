@@ -29,6 +29,7 @@
 #include "ble_att.h"
 
 #define BLE_ATT_UUID_PRIMARY_SERVICE    0x2800
+#define BLE_ATT_UUID_CHARACTERISTIC     0x2803
 
 struct ble_gatt_entry {
     STAILQ_ENTRY(ble_gatt_entry) next;
@@ -62,6 +63,13 @@ struct ble_gatt_entry {
             ble_gatt_disc_service_fn *cb;
             void *cb_arg;
         } disc_service_uuid;
+
+        struct {
+            uint16_t prev_handle;
+            uint16_t end_handle;
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
+        } disc_all_chars;
     };
 };
 
@@ -70,7 +78,8 @@ struct ble_gatt_entry {
 #define BLE_GATT_OP_FIND_INFO                   1
 #define BLE_GATT_OP_DISC_ALL_SERVICES           2
 #define BLE_GATT_OP_DISC_SERVICE_UUID           3
-#define BLE_GATT_OP_MAX                         4
+#define BLE_GATT_OP_DISC_ALL_CHARS              4
+#define BLE_GATT_OP_MAX                         5
 
 typedef int ble_gatt_kick_fn(struct ble_gatt_entry *entry);
 typedef int ble_gatt_rx_err_fn(struct ble_gatt_entry *entry,
@@ -81,6 +90,7 @@ static int ble_gatt_kick_mtu(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_find_info(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry);
+static int ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry);
 
 static int ble_gatt_rx_err_disc_all_services(struct ble_gatt_entry *entry,
                                              struct ble_hs_conn *conn,
@@ -88,6 +98,9 @@ static int ble_gatt_rx_err_disc_all_services(struct ble_gatt_entry *entry,
 static int ble_gatt_rx_err_disc_service_uuid(struct ble_gatt_entry *entry,
                                              struct ble_hs_conn *conn,
                                              struct ble_att_error_rsp *rsp);
+static int ble_gatt_rx_err_disc_all_chars(struct ble_gatt_entry *entry,
+                                          struct ble_hs_conn *conn,
+                                          struct ble_att_error_rsp *rsp);
 
 struct ble_gatt_dispatch_entry {
     ble_gatt_kick_fn *kick_cb;
@@ -112,6 +125,10 @@ static const struct ble_gatt_dispatch_entry
     [BLE_GATT_OP_DISC_SERVICE_UUID] = {
         .kick_cb = ble_gatt_kick_disc_service_uuid,
         .rx_err_cb = ble_gatt_rx_err_disc_service_uuid,
+    },
+    [BLE_GATT_OP_DISC_ALL_CHARS] = {
+        .kick_cb = ble_gatt_kick_disc_all_chars,
+        .rx_err_cb = ble_gatt_rx_err_disc_all_chars,
     },
 };
 
@@ -204,7 +221,7 @@ ble_gatt_find(uint16_t conn_handle, uint8_t att_op, int expecting_only,
     prev = NULL;
     STAILQ_FOREACH(entry, &ble_gatt_list, next) {
         if (ble_gatt_entry_matches(entry, conn_handle, att_op,
-                                           expecting_only)) {
+                                   expecting_only)) {
             if (out_prev != NULL) {
                 *out_prev = prev;
             }
@@ -366,6 +383,33 @@ ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry)
     return 0;
 }
 
+static int
+ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry)
+{
+    struct ble_att_read_type_req req;
+    struct ble_hs_conn *conn;
+    uint8_t uuid128[16];
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        return ENOTCONN;
+    }
+
+    rc = ble_hs_uuid_from_16bit(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+    assert(rc == 0);
+
+    req.batq_start_handle = entry->disc_all_chars.prev_handle + 1;
+    req.batq_end_handle = entry->disc_all_chars.end_handle;
+
+    rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 void
 ble_gatt_wakeup(void)
 {
@@ -436,6 +480,27 @@ ble_gatt_rx_err_disc_service_uuid(struct ble_gatt_entry *entry,
 
     entry->disc_service_uuid.cb(conn->bhc_handle, status, NULL,
                                 entry->disc_service_uuid.cb_arg);
+
+    return 0;
+}
+
+static int
+ble_gatt_rx_err_disc_all_chars(struct ble_gatt_entry *entry,
+                               struct ble_hs_conn *conn,
+                               struct ble_att_error_rsp *rsp)
+{
+    uint8_t status;
+
+    if (rsp->baep_error_code == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+        /* Discovery is complete. */
+        status = 0;
+    } else {
+        /* Discovery failure. */
+        status = rsp->baep_error_code;
+    }
+
+    entry->disc_all_chars.cb(conn->bhc_handle, status, NULL,
+                             entry->disc_all_chars.cb_arg);
 
     return 0;
 }
@@ -665,6 +730,58 @@ ble_gatt_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc)
     }
 }
 
+void
+ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
+                            struct ble_att_clt_adata *adata)
+{
+    struct ble_gatt_entry *entry;
+    struct ble_gatt_entry *prev;
+    struct ble_gatt_attr attr;
+    int rc;
+
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_CHARS, 1,
+                          &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    attr.handle = adata->att_handle;
+    attr.value_len = adata->value_len;
+    attr.value = adata->value;
+
+    rc = entry->disc_all_chars.cb(conn->bhc_handle, 0, &attr,
+                                  entry->disc_all_chars.cb_arg);
+    if (rc != 0) {
+        ble_gatt_entry_remove_free(entry, prev);
+    }
+}
+
+void
+ble_gatt_rx_read_type_complete(struct ble_hs_conn *conn, int rc)
+{
+    struct ble_gatt_entry *entry;
+    struct ble_gatt_entry *prev;
+
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_CHARS, 1,
+                          &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    if (rc != 0 || entry->disc_all_chars.prev_handle ==
+                   entry->disc_all_chars.end_handle) {
+        /* Error or all services discovered. */
+        entry->disc_all_chars.cb(conn->bhc_handle, rc, NULL,
+                                 entry->disc_all_chars.cb_arg);
+        ble_gatt_entry_remove_free(entry, prev);
+    } else {
+        /* Send follow-up request. */
+        ble_gatt_entry_set_pending(entry);
+    }
+}
+
 int
 ble_gatt_disc_all_services(uint16_t conn_handle, ble_gatt_disc_service_fn *cb,
                            void *cb_arg)
@@ -700,6 +817,27 @@ ble_gatt_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
     entry->disc_service_uuid.prev_handle = 0x0000;
     entry->disc_service_uuid.cb = cb;
     entry->disc_service_uuid.cb_arg = cb_arg;
+
+    return 0;
+}
+
+int
+ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
+                        uint16_t end_handle, ble_gatt_attr_fn *cb,
+                        void *cb_arg)
+{
+    struct ble_gatt_entry *entry;
+    int rc;
+
+    rc = ble_gatt_new_entry(conn_handle, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->op = BLE_GATT_OP_DISC_ALL_CHARS;
+    entry->disc_all_chars.prev_handle = start_handle - 1;
+    entry->disc_all_chars.end_handle = end_handle;
+    entry->disc_all_chars.cb = cb;
+    entry->disc_all_chars.cb_arg = cb_arg;
 
     return 0;
 }
