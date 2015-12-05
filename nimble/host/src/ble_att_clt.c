@@ -212,8 +212,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     while (off < OS_MBUF_PKTHDR(rxom)->omp_len) {
         rc = os_mbuf_copydata(rxom, off, 2, &handle_id);
         if (rc != 0) {
-            rc = EINVAL;
-            goto done;
+            return EINVAL;
         }
         off += 2;
         handle_id = le16toh(&handle_id);
@@ -222,16 +221,14 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
             rc = os_mbuf_copydata(rxom, off, 2, &uuid16);
             if (rc != 0) {
-                rc = EINVAL;
-                goto done;
+                return EINVAL;
             }
             off += 2;
             uuid16 = le16toh(&uuid16);
 
             rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
             if (rc != 0) {
-                rc = EINVAL;
-                goto done;
+                return EINVAL;
             }
             break;
 
@@ -239,22 +236,16 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             rc = os_mbuf_copydata(rxom, off, 16, &uuid128);
             if (rc != 0) {
                 rc = EINVAL;
-                goto done;
             }
             off += 16;
             break;
 
         default:
-            rc = EINVAL;
-            goto done;
+            return EINVAL;
         }
     }
 
-    rc = 0;
-
-done:
-    ble_gatt_rx_find_info(conn, -rc, handle_id);
-    return rc;
+    return 0;
 }
 
 int

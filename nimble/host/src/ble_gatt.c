@@ -44,14 +44,6 @@ struct ble_gatt_entry {
         } mtu;
 
         struct {
-            uint16_t next_handle;
-            uint16_t end_handle;
-
-            int (*cb)(int status, uint16_t conn_handle, void *arg);
-            void *cb_arg;
-        } find_info;
-
-        struct {
             uint16_t prev_handle;
             ble_gatt_disc_service_fn *cb;
             void *cb_arg;
@@ -75,11 +67,10 @@ struct ble_gatt_entry {
 
 #define BLE_GATT_OP_NONE                        UINT8_MAX
 #define BLE_GATT_OP_MTU                         0
-#define BLE_GATT_OP_FIND_INFO                   1
-#define BLE_GATT_OP_DISC_ALL_SERVICES           2
-#define BLE_GATT_OP_DISC_SERVICE_UUID           3
-#define BLE_GATT_OP_DISC_ALL_CHARS              4
-#define BLE_GATT_OP_MAX                         5
+#define BLE_GATT_OP_DISC_ALL_SERVICES           1
+#define BLE_GATT_OP_DISC_SERVICE_UUID           2
+#define BLE_GATT_OP_DISC_ALL_CHARS              3
+#define BLE_GATT_OP_MAX                         4
 
 typedef int ble_gatt_kick_fn(struct ble_gatt_entry *entry);
 typedef int ble_gatt_rx_err_fn(struct ble_gatt_entry *entry,
@@ -87,7 +78,6 @@ typedef int ble_gatt_rx_err_fn(struct ble_gatt_entry *entry,
                                struct ble_att_error_rsp *rsp);
 
 static int ble_gatt_kick_mtu(struct ble_gatt_entry *entry);
-static int ble_gatt_kick_find_info(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry);
@@ -112,10 +102,6 @@ static const struct ble_gatt_dispatch_entry
 
     [BLE_GATT_OP_MTU] = {
         .kick_cb = ble_gatt_kick_mtu,
-        .rx_err_cb = NULL,
-    },
-    [BLE_GATT_OP_FIND_INFO] = {
-        .kick_cb = ble_gatt_kick_find_info,
         .rx_err_cb = NULL,
     },
     [BLE_GATT_OP_DISC_ALL_SERVICES] = {
@@ -302,28 +288,6 @@ ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
 
     req.bamc_mtu = chan->blc_my_mtu;
     rc = ble_att_clt_tx_mtu(conn, &req);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
-ble_gatt_kick_find_info(struct ble_gatt_entry *entry)
-{
-    struct ble_att_find_info_req req;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    conn = ble_hs_conn_find(entry->conn_handle);
-    if (conn == NULL) {
-        return ENOTCONN;
-    }
-
-    req.bafq_start_handle = entry->find_info.next_handle;
-    req.bafq_end_handle = entry->find_info.end_handle;
-    rc = ble_att_clt_tx_find_info(conn, &req);
     if (rc != 0) {
         return rc;
     }
@@ -553,55 +517,6 @@ ble_gatt_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu)
 
     /* XXX: Call success callback. */
     ble_gatt_entry_remove_free(entry, prev);
-}
-
-void
-ble_gatt_rx_find_info(struct ble_hs_conn *conn, int status,
-                      uint16_t last_handle_id)
-{
-    struct ble_gatt_entry *entry;
-    struct ble_gatt_entry *prev;
-
-    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_FIND_INFO, 1, &prev);
-    if (entry == NULL) {
-        /* Not expecting a response from this device. */
-        return;
-    }
-
-    if (status != 0) {
-        /* XXX: Call failure callback. */
-        ble_gatt_entry_remove_free(entry, prev);
-        return;
-    }
-
-    if (last_handle_id == 0xffff) {
-        /* XXX: Call success callback. */
-        ble_gatt_entry_remove_free(entry, prev);
-        return;
-    }
-
-    /* Send follow-up request. */
-    entry->find_info.next_handle = last_handle_id + 1;
-    ble_gatt_entry_set_pending(entry);
-}
-
-int
-ble_gatt_find_info(uint16_t conn_handle, uint16_t att_start_handle,
-                   uint16_t att_end_handle)
-{
-    struct ble_gatt_entry *entry;
-    int rc;
-
-    rc = ble_gatt_new_entry(conn_handle, &entry);
-    if (rc != 0) {
-        return rc;
-    }
-    entry->op = BLE_GATT_OP_FIND_INFO;
-    entry->conn_handle = conn_handle;
-    entry->find_info.next_handle = att_start_handle;
-    entry->find_info.end_handle = att_end_handle;
-
-    return 0;
 }
 
 void
