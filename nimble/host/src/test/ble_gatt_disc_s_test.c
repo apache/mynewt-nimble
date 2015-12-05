@@ -304,7 +304,7 @@ ble_gatt_disc_s_test_misc_good_uuid(
     ble_gatt_disc_s_test_misc_verify_services(services);
 }
 
-TEST_CASE(ble_gatt_disc_s_test_disc_all_services)
+TEST_CASE(ble_gatt_disc_s_test_disc_all)
 {
     /*** One 128-bit service. */
     ble_gatt_disc_s_test_misc_all((struct ble_gatt_disc_s_test_svc[]) {
@@ -340,6 +340,7 @@ TEST_CASE(ble_gatt_disc_s_test_disc_all_services)
     ble_gatt_disc_s_test_misc_all((struct ble_gatt_disc_s_test_svc[]) {
         { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
         { 7, 0xffff, 0, {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 0 }
     });
 }
 
@@ -406,16 +407,16 @@ TEST_CASE(ble_gatt_disc_s_test_disc_service_uuid)
     });
 }
 
-TEST_SUITE(ble_gatt_suite)
+TEST_SUITE(gle_gatt_disc_s_test_suite)
 {
-    ble_gatt_disc_s_test_disc_all_services();
+    ble_gatt_disc_s_test_disc_all();
     ble_gatt_disc_s_test_disc_service_uuid();
 }
 
 int
 ble_gatt_disc_s_test_all(void)
 {
-    ble_gatt_suite();
+    gle_gatt_disc_s_test_suite();
 
     return tu_any_failed;
 }

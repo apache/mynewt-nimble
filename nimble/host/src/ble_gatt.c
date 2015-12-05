@@ -746,6 +746,8 @@ ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
         return;
     }
 
+    entry->disc_all_chars.prev_handle = adata->att_handle;
+
     attr.handle = adata->att_handle;
     attr.value_len = adata->value_len;
     attr.value = adata->value;

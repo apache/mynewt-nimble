@@ -29,5 +29,6 @@ int ble_hs_conn_test_all(void);
 int ble_gap_test_all(void);
 int ble_hs_uuid_test_all(void);
 int ble_gatt_disc_s_test_all(void);
+int ble_gatt_disc_c_test_all(void);
 
 #endif

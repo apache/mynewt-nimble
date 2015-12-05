@@ -141,7 +141,7 @@ struct ble_att_read_type_rsp {
     uint8_t batp_length;
 };
 
-#define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     4
+#define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     2
 
 /**
  * | Parameter                          | Size (octets)     |
