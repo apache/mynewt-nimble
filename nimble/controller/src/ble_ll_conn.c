@@ -33,24 +33,20 @@
 
 /* XXX TODO
  * 1) Add set channel map command and implement channel change procedure.
- * 6) Make sure we have implemented all ways a connection can die/end. Not
+ * 2) Make sure we have implemented all ways a connection can die/end. Not
  * a connection event; I mean the termination of a connection.
- * 8) Link layer control procedures and timers
- * 9) We also need to check to see if we were asked to create a connection
+ * 3) Link layer control procedures and timers
+ * 4) We also need to check to see if we were asked to create a connection
  * when one already exists (the connection create command) Note that
  * an initiator should only send connection requests to devices it is not
  * already connected to. Make sure this cant happen.
- * 10) Make sure we check incoming data packets for size and all that. You
+ * 5) Make sure we check incoming data packets for size and all that. You
  * know, supported octets and all that. For both rx and tx.
- * 11) What kind of protection do I need on the conn_txq? The LL will need to
- * disable interrupts... not sure about ISR's.
- * 13) Make sure we are setting the schedule end time properly for both slave
+ * 6) Make sure we are setting the schedule end time properly for both slave
  * and master. We should just set this to the end of the connection event.
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
- * 14) Look at all places where the conn_txq is accessed and make sure I
- * am protecting it properly.
  */
 
 /* XXX: this does not belong here! Move to transport? */
@@ -58,13 +54,8 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 
 /* 
  * XXX: Possible improvements
- * 1) Not sure I like the fact that the wait for response timer will still
- * fire off if we get a received packet. I need to look into that. I think
- * I should disable the sucker if we get a reception and not have it fire off.
- * 2) See what connection state machine elements are purely master and
+ * 1) See what connection state machine elements are purely master and
  * purely slave. We can make a union of them.
- * 3) Do I need a memory pool of connection elements? Probably not.
- * 4) Modify mbuf code so that we dont free the mbuf if the pool is NULL.
  */
 
 /* Connection event timing */
@@ -81,9 +72,6 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
  * XXX: move this definition and make it more accurate.
  */
 #define BLE_LL_WFR_USECS                    (100)
-
-/* Channel map size */
-#define BLE_LL_CONN_CHMAP_LEN               (5)
 
 /* Configuration parameters */
 #define BLE_LL_CONN_CFG_TX_WIN_SIZE         (1)
@@ -130,104 +118,7 @@ struct ble_ll_conn_global_params
     uint16_t supp_max_tx_time;
     uint16_t supp_max_rx_time;
 };
-
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
-
-/* 
- * Length of empty pdu mbuf. Each connection state machine contains an
- * empty pdu since we dont want to allocate a full mbuf for an empty pdu
- * and we always want to have one available. The empty pdu length is of
- * type uint32_t so we have 4 byte alignment.
- */ 
-#define BLE_LL_EMPTY_PDU_MBUF_SIZE  (((BLE_MBUF_PKT_OVERHEAD + 4) + 3) / 4)
-
-/* Connection state machine */
-struct ble_ll_conn_sm
-{
-    /* Current connection state and role */
-    uint8_t conn_state;
-    uint8_t conn_role;
-
-    /* Connection data length management */
-    uint8_t max_tx_octets;
-    uint8_t max_rx_octets;
-    uint8_t rem_max_tx_octets;
-    uint8_t rem_max_rx_octets;
-    uint8_t eff_max_tx_octets;
-    uint8_t eff_max_rx_octets;
-    uint16_t max_tx_time;
-    uint16_t max_rx_time;
-    uint16_t rem_max_tx_time;
-    uint16_t rem_max_rx_time;
-    uint16_t eff_max_tx_time;
-    uint16_t eff_max_rx_time;
-
-    /* Used to calculate data channel index for connection */
-    uint8_t chanmap[BLE_LL_CONN_CHMAP_LEN];
-    uint8_t hop_inc;
-    uint8_t data_chan_index;
-    uint8_t unmapped_chan;
-    uint8_t last_unmapped_chan;
-    uint8_t num_used_chans;
-
-    /* Ack/Flow Control */
-    uint8_t tx_seqnum;          /* note: can be 1 bit */
-    uint8_t next_exp_seqnum;    /* note: can be 1 bit */
-    uint8_t last_txd_md;        /* note can be 1 bit */
-    uint8_t cons_rxd_bad_crc;   /* note: can be 1 bit */
-    uint8_t last_rxd_sn;        /* note: cant be 1 bit given current code */
-    uint8_t last_rxd_hdr_byte;  /* note: possibly can make 1 bit since we
-                                   only use the MD bit now */
-
-    /* connection event timing/mgmt */
-    uint8_t rsp_rxd;            /* note: can be 1 bit */
-    uint8_t pkt_rxd;            /* note: can be 1 bit */
-    uint8_t master_sca;
-    uint8_t tx_win_size;
-    uint8_t allow_slave_latency;    /* note: can be 1 bit  */
-    uint8_t slave_set_last_anchor;  /* note: can be 1 bit */
-    uint16_t conn_itvl;
-    uint16_t slave_latency;
-    uint16_t tx_win_off;
-    uint16_t min_ce_len;
-    uint16_t max_ce_len;
-    uint16_t event_cntr;
-    uint16_t supervision_tmo;
-    uint16_t conn_handle;
-    uint32_t access_addr;
-    uint32_t crcinit;           /* only low 24 bits used */
-    uint32_t anchor_point;
-    uint32_t last_anchor_point;
-    uint32_t ce_end_time;   /* cputime at which connection event should end */
-    uint32_t slave_cur_tx_win_usecs;
-    uint32_t slave_cur_window_widening;
-
-    /* address information */
-    uint8_t own_addr_type;
-    uint8_t peer_addr_type;
-    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
-
-    /* connection supervisor timer */
-    struct cpu_timer conn_spvn_timer;
-
-    /* connection supervision timeout event */
-    struct os_event conn_spvn_ev;
-
-    /* Connection end event */
-    struct os_event conn_ev_end;
-
-    /* Packet transmit queue */
-    STAILQ_HEAD(conn_txq_head, os_mbuf_pkthdr) conn_txq;
-
-    /* List entry for active/free connection pools */
-    union {
-        SLIST_ENTRY(ble_ll_conn_sm) act_sle;
-        STAILQ_ENTRY(ble_ll_conn_sm) free_stqe;
-    };
-
-    /* empty pdu for connection */
-    uint32_t conn_empty_pdu[BLE_LL_EMPTY_PDU_MBUF_SIZE];
-};
 
 /* Pointer to connection state machine we are trying to create */
 struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
@@ -235,10 +126,8 @@ struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 /* Pointer to current connection */
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
-/* Connection pool elements */
-struct os_mempool g_ble_ll_conn_pool;
-os_membuf_t g_ble_ll_conn_buf[OS_MEMPOOL_SIZE(BLE_LL_CONN_CFG_MAX_CONNS, 
-                                              sizeof(struct ble_ll_conn_sm))];
+/* Connection state machine array */
+struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CONN_CFG_MAX_CONNS];
 
 /* List of active connections */
 static SLIST_HEAD(, ble_ll_conn_sm) g_ble_ll_conn_active_list;
@@ -268,6 +157,7 @@ struct ble_ll_conn_stats
     uint32_t data_pdu_txf;
     uint32_t conn_req_txd;
     uint32_t ctrl_pdu_rxd;
+    uint32_t l2cap_pdu_rxd;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
 
@@ -604,8 +494,13 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         ble_hdr = BLE_MBUF_HDR_PTR(m);
         ble_hdr->flags = 0;
         m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+        pkthdr = OS_MBUF_PKTHDR(m);
         STAILQ_INSERT_HEAD(&connsm->conn_txq, pkthdr, omp_next);
     }
+
+    /* XXX: how does the master end the connection event if we are getting
+     * too close the end? We do this if we have a data packet but not
+       if we send the empty pdu*/
 
     /* Set SN, MD, NESN in transmit PDU */
     hdr_byte = m->om_data[0];
@@ -652,6 +547,9 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
 
     rc = ble_phy_tx(m, beg_transition, end_transition);
     if (!rc) {
+        /* Set flag denoting we transmitted a pdu */
+        connsm->pdu_txd = 1;
+
         /* Set last transmitted MD bit */
         connsm->last_txd_md = md;
 
@@ -1053,9 +951,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
 
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
-        if (m != (struct os_mbuf *)connsm->conn_empty_pdu) {
-            os_mbuf_free(m);
-        }
+        os_mbuf_free(m);
     }
 
     /* Make sure events off queue */
@@ -1808,6 +1704,9 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
                     goto conn_rx_data_pdu_end;
                 }
 
+                /* Count # of data frames */
+                ++g_ble_ll_conn_stats.l2cap_pdu_rxd;
+
                 /* NOTE: there should be at least two bytes available */
                 assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
                 os_mbuf_prepend(rxpdu, 2);
@@ -1916,31 +1815,27 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
          * Check NESN bit from header. If same as tx seq num, the transmission
          * is acknowledged. Otherwise we need to resend this PDU.
          */
-        hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
-        conn_sn = connsm->tx_seqnum;
-        if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
-            /*
-             * XXX: if we are a slave, our first received data pdu will cause
-             * us to increment failed tx data pdus. This should be fixed.s
-             */
-            /* We did not get an ACK. Must retry the PDU */
-            ++g_ble_ll_conn_stats.data_pdu_txf;
-        } else {
-            /* Transmit success */
-            connsm->tx_seqnum ^= 1;
-            ++g_ble_ll_conn_stats.data_pdu_txg;
-
-            /* We can remove this packet from the queue now */
-            pkthdr = STAILQ_FIRST(&connsm->conn_txq);
-            if (pkthdr) {
-                STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
-                txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-                if (txpdu != (struct os_mbuf *)connsm->conn_empty_pdu) {
-                    os_mbuf_free(txpdu);
-                }
+        if (connsm->pdu_txd) {
+            hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
+            conn_sn = connsm->tx_seqnum;
+            if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
+                /* We did not get an ACK. Must retry the PDU */
+                ++g_ble_ll_conn_stats.data_pdu_txf;
             } else {
-                /* No packet on queue? This is an error! */
-                ++g_ble_ll_conn_stats.no_tx_pdu;
+                /* Transmit success */
+                connsm->tx_seqnum ^= 1;
+                ++g_ble_ll_conn_stats.data_pdu_txg;
+
+                /* We can remove this packet from the queue now */
+                pkthdr = STAILQ_FIRST(&connsm->conn_txq);
+                if (pkthdr) {
+                    STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
+                    txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+                    os_mbuf_free(txpdu);
+                } else {
+                    /* No packet on queue? This is an error! */
+                    ++g_ble_ll_conn_stats.no_tx_pdu;
+                }
             }
         }
 
@@ -2162,18 +2057,11 @@ err_slave_start:
 void
 ble_ll_conn_init(void)
 {
-    int rc;
     uint16_t i;
     uint16_t maxbytes;
     struct os_mbuf *m;
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_conn_global_params *conn_params;
-
-    /* Create connection memory pool */
-    rc = os_mempool_init(&g_ble_ll_conn_pool, BLE_LL_CONN_CFG_MAX_CONNS, 
-                         sizeof(struct ble_ll_conn_sm), &g_ble_ll_conn_buf, 
-                         "LLConnPool");
-    assert(rc == 0);
 
     /* Initialize list of active conections */
     SLIST_INIT(&g_ble_ll_conn_active_list);
@@ -2184,9 +2072,8 @@ ble_ll_conn_init(void)
      * the free connection list, assigning handles in linear order. Note:
      * the specification allows a handle of zero; we just avoid using it.
      */
-    for (i = 1; i <= BLE_LL_CONN_CFG_MAX_CONNS; ++i) {
-        connsm = (struct ble_ll_conn_sm *)os_memblock_get(&g_ble_ll_conn_pool);
-        assert(connsm != NULL);
+    connsm = &g_ble_ll_conn_sm[0];
+    for (i = 0; i < BLE_LL_CONN_CFG_MAX_CONNS; ++i) {
         connsm->conn_handle = i;
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
 
@@ -2199,6 +2086,9 @@ ble_ll_conn_init(void)
         m->om_len = 2;
         OS_MBUF_PKTHDR(m)->omp_len = 2;
         m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+        m->om_omp = NULL;
+        m->om_flags = 0;
+        ++connsm;
     }
 
     /* Configure the global LL parameters */

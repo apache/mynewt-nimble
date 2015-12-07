@@ -303,6 +303,7 @@
 #define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */
 
 #define BLE_HCI_LE_CONN_COMPLETE_LEN        (19)
+#define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
 /*--- Shared data structures ---*/
 
