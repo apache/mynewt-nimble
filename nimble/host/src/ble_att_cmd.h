@@ -17,22 +17,6 @@
 #include <inttypes.h>
 struct ble_l2cap_chan;
 
-#define BLE_ATT_OP_ERROR_RSP             0x01
-#define BLE_ATT_OP_MTU_REQ               0x02
-#define BLE_ATT_OP_MTU_RSP               0x03
-#define BLE_ATT_OP_FIND_INFO_REQ         0x04
-#define BLE_ATT_OP_FIND_INFO_RSP         0x05
-#define BLE_ATT_OP_FIND_TYPE_VALUE_REQ   0x06
-#define BLE_ATT_OP_FIND_TYPE_VALUE_RSP   0x07
-#define BLE_ATT_OP_READ_TYPE_REQ         0x08
-#define BLE_ATT_OP_READ_TYPE_RSP         0x09
-#define BLE_ATT_OP_READ_REQ              0x0a
-#define BLE_ATT_OP_READ_RSP              0x0b
-#define BLE_ATT_OP_READ_GROUP_TYPE_REQ   0x10
-#define BLE_ATT_OP_READ_GROUP_TYPE_RSP   0x11
-#define BLE_ATT_OP_WRITE_REQ             0x12
-#define BLE_ATT_OP_WRITE_RSP             0x13
-
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+

@@ -18,7 +18,8 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "ble_hs_uuid.h"
+#include "host/ble_att.h"
+#include "host/ble_hs_uuid.h"
 #include "ble_l2cap.h"
 #include "ble_att_cmd.h"
 

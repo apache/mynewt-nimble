@@ -24,7 +24,7 @@
 #include "ble_l2cap.h"
 #include "ble_hs_test_util.h"
 #include "ble_hs_conn.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 #include "ble_att_cmd.h"
 
 static uint8_t *ble_att_svr_test_attr_r_1;

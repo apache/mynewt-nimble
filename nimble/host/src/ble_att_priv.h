@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef H_BLE_HS_ATT_
-#define H_BLE_HS_ATT_
+#ifndef H_BLE_ATT_PRIV_
+#define H_BLE_ATT_PRIV_
 
 #include <inttypes.h>
 #include "os/queue.h"
+#include "host/ble_att.h"
 struct os_mbuf;
 struct ble_hs_conn;
 struct ble_l2cap_chan;
@@ -41,20 +42,6 @@ struct ble_att_find_type_value_req;
 #define BLE_ATT_ERR_UNLIKELY             0x0e
 #define BLE_ATT_ERR_INSUFFICIENT_RES     0x11
 
-union ble_att_svr_handle_arg {
-    struct {
-        void *attr_data;
-        int attr_len;
-    } aha_read;
-
-    struct {
-        struct os_mbuf *om;
-        int attr_len;
-    } aha_write;
-};
-
-struct ble_att_svr_entry;
-
 /**
  * Called from ble_att_svr_walk().  Called on each entry in the 
  * ble_att_svr_list.
@@ -67,38 +54,6 @@ struct ble_att_svr_entry;
 typedef int (*ble_att_svr_walk_func_t)(struct ble_att_svr_entry *entry,
                                        void *arg);
 
-/**
- * Handles a host attribute request.
- *
- * @param entry                 The host attribute being requested.
- * @param op                    The operation being performed on the attribute.
- * @param arg                   The request data associated with that host
- *                                  attribute.
- *
- * @return                      0 on success;
- *                              One of the BLE_ATT_ERR_[...] codes on
- *                                  failure.
- */
-typedef int ble_att_svr_handle_func(struct ble_att_svr_entry *entry,
-                                    uint8_t op,
-                                    union ble_att_svr_handle_arg *arg);
-
-#define HA_FLAG_PERM_READ            (1 << 0)
-#define HA_FLAG_PERM_WRITE           (1 << 1) 
-#define HA_FLAG_PERM_RW              (1 << 2)
-#define HA_FLAG_ENC_REQ              (1 << 3)
-#define HA_FLAG_AUTHENTICATION_REQ   (1 << 4)
-#define HA_FLAG_AUTHORIZATION_REQ    (1 << 5)
-
-struct ble_att_svr_entry {
-    STAILQ_ENTRY(ble_att_svr_entry) ha_next;
-
-    uint8_t ha_uuid[16];
-    uint8_t ha_flags;
-    uint8_t ha_pad1;
-    uint16_t ha_handle_id;
-    ble_att_svr_handle_func *ha_fn;
-};
 
 #define HA_OPCODE_METHOD_START (0)
 #define HA_OPCODE_METHOD_END (5)
@@ -119,10 +74,6 @@ struct ble_l2cap_chan *ble_att_create_chan(void);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 
 /*** @svr */
-int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
-                         ble_att_svr_handle_func *fn);
-
-
 int ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                        struct os_mbuf **rxom);
 int ble_att_svr_rx_find_info(struct ble_hs_conn *conn,

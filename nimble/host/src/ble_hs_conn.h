@@ -19,7 +19,7 @@
 
 #include "os/queue.h"
 #include "ble_l2cap.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;

@@ -75,7 +75,8 @@ struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid);
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
                  struct os_mbuf *om);
-int ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om);
+int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                 struct os_mbuf *om);
 
 int ble_l2cap_init(void);
 

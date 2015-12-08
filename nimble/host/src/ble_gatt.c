@@ -23,10 +23,10 @@
 #include "nimble/ble.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
-#include "ble_hs_uuid.h"
+#include "host/ble_hs_uuid.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 
 #define BLE_ATT_UUID_PRIMARY_SERVICE    0x2800
 #define BLE_ATT_UUID_CHARACTERISTIC     0x2803

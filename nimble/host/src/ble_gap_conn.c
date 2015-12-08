@@ -34,6 +34,9 @@
 #define BLE_GAP_CONN_STATE_SLAVE_PARAMS_ACKED       2
 #define BLE_GAP_CONN_STATE_SLAVE_ENABLE_ACKED       3
 
+#define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
+#define BLE_GAP_ADV_FAST_INTERVAL1_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
+
 ble_gap_connect_fn *ble_gap_conn_cb;
 void *ble_gap_conn_arg;
 
@@ -215,9 +218,9 @@ ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr)
         goto err;
     }
 
-    hap.adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
-    hap.adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
-    hap.adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD;
+    hap.adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN;
+    hap.adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX;
+    hap.adv_type = BLE_HCI_ADV_TYPE_ADV_IND;
     hap.own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
     hap.peer_addr_type = addr_type;
     memcpy(hap.peer_addr, addr, sizeof hap.peer_addr);

@@ -18,7 +18,7 @@
 #include <errno.h>
 #include "ble_l2cap.h"
 #include "ble_att_cmd.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
 typedef int ble_att_rx_fn(struct ble_hs_conn *conn,

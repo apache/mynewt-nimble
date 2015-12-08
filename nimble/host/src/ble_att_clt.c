@@ -22,10 +22,10 @@
 #include "nimble/ble.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
-#include "ble_hs_uuid.h"
+#include "host/ble_hs_uuid.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 
 static int
 ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
@@ -42,6 +42,9 @@ ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
         rc = ENOMEM;
         goto err;
     }
+
+    /* Make room in the buffer for various headers.  XXX Check this number. */
+    (*txom)->om_data += 8;
 
     buf = os_mbuf_extend(*txom, initial_sz);
     if (buf == NULL) {
@@ -106,7 +109,7 @@ ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
@@ -171,7 +174,7 @@ ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
@@ -282,7 +285,7 @@ ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
@@ -373,7 +376,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
     }
 
     rc = ble_att_clt_prep_req(conn, &chan, &txom,
-                                 BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+                              BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -389,7 +392,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
@@ -426,7 +429,7 @@ ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
@@ -567,7 +570,7 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;

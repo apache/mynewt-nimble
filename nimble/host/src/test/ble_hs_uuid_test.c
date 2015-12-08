@@ -18,7 +18,7 @@
 #include <string.h>
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
-#include "ble_hs_uuid.h"
+#include "host/ble_hs_uuid.h"
 
 TEST_CASE(ble_hs_uuid_test_128_to_16)
 {

@@ -20,7 +20,7 @@
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_conn.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 #include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 

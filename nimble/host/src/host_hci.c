@@ -482,6 +482,9 @@ host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
 
     memcpy(om->om_data, &hci_hdr, sizeof hci_hdr);
 
+    console_printf("host tx hci data; handle=%d length=%d\n", handle,
+                   le16toh(&hci_hdr.hdh_len));
+
     return om;
 }
 

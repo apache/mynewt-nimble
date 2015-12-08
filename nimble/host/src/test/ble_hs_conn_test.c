@@ -22,7 +22,7 @@
 #include "host/ble_hs_test.h"
 #include "host/host_hci.h"
 #include "ble_l2cap.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
 #include "ble_hs_hci_batch.h"

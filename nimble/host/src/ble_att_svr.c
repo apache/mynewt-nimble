@@ -22,9 +22,9 @@
 #include "host/ble_hs.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_uuid.h"
+#include "host/ble_hs_uuid.h"
 #include "ble_att_cmd.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 
 static STAILQ_HEAD(, ble_att_svr_entry) ble_att_svr_list;
 static uint16_t ble_att_svr_id;
@@ -265,8 +265,8 @@ ble_att_svr_find_by_uuid(uint8_t *uuid,
 }
 
 static int
-ble_att_svr_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
-                         uint16_t handle, uint8_t error_code)
+ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         uint8_t req_op, uint16_t handle, uint8_t error_code)
 {
     struct ble_att_error_rsp rsp;
     struct os_mbuf *txom;
@@ -292,7 +292,7 @@ ble_att_svr_tx_error_rsp(struct ble_l2cap_chan *chan, uint8_t req_op,
     rc = ble_att_error_rsp_write(dst, BLE_ATT_ERROR_RSP_SZ, &rsp);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         rc = BLE_ATT_ERR_UNLIKELY;
@@ -307,7 +307,8 @@ err:
 }
 
 static int
-ble_att_svr_tx_mtu_rsp(struct ble_l2cap_chan *chan, uint8_t op, uint16_t mtu)
+ble_att_svr_tx_mtu_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                       uint8_t op, uint16_t mtu)
 {
     struct ble_att_mtu_cmd cmd;
     struct os_mbuf *txom;
@@ -334,7 +335,7 @@ ble_att_svr_tx_mtu_rsp(struct ble_l2cap_chan *chan, uint8_t op, uint16_t mtu)
     rc = ble_att_mtu_rsp_write(dst, BLE_ATT_MTU_CMD_SZ, &cmd);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         rc = BLE_ATT_ERR_UNLIKELY;
@@ -365,7 +366,8 @@ ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     assert(rc == 0);
 
     ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-    rc = ble_att_svr_tx_mtu_rsp(chan, BLE_ATT_OP_MTU_RSP, chan->blc_my_mtu);
+    rc = ble_att_svr_tx_mtu_rsp(conn, chan, BLE_ATT_OP_MTU_RSP,
+                                chan->blc_my_mtu);
     if (rc != 0) {
         return rc;
     }
@@ -554,7 +556,7 @@ ble_att_svr_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
@@ -564,7 +566,7 @@ ble_att_svr_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
 err:
     os_mbuf_free_chain(txom);
-    ble_att_svr_tx_error_rsp(chan, BLE_ATT_OP_FIND_INFO_REQ,
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_FIND_INFO_REQ,
                              req.bafq_start_handle, rc);
 
     return rc;
@@ -834,7 +836,7 @@ ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         rc = BLE_ATT_ERR_UNLIKELY;
@@ -845,8 +847,8 @@ ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
 
 err:
     os_mbuf_free_chain(txom);
-    ble_att_svr_tx_error_rsp(chan, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
-                            req.bavq_start_handle, rc);
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
+                             req.bavq_start_handle, rc);
     return rc;
 }
 
@@ -946,7 +948,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     assert(rc == 0);
 
     /* Transmit the response. */
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         rc = BLE_ATT_ERR_UNLIKELY;
@@ -957,7 +959,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
 
 err:
     os_mbuf_free_chain(txom);
-    ble_att_svr_tx_error_rsp(chan, BLE_ATT_OP_READ_TYPE_REQ,
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_TYPE_REQ,
                              req->batq_start_handle, rc);
     return rc;
 }
@@ -1041,7 +1043,7 @@ ble_att_svr_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         rc = BLE_ATT_ERR_UNLIKELY;
         goto err;
@@ -1101,7 +1103,7 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return 0;
 
 err:
-    ble_att_svr_tx_error_rsp(chan, BLE_ATT_OP_READ_REQ,
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_REQ,
                              req.barq_handle, rc);
     return rc;
 }
@@ -1126,7 +1128,7 @@ ble_att_svr_tx_write_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     }
 
     *dst = BLE_ATT_OP_WRITE_RSP;
-    rc = ble_l2cap_tx(chan, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         rc = BLE_ATT_ERR_UNLIKELY;
@@ -1189,8 +1191,8 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return 0;
 
 send_err:
-    ble_att_svr_tx_error_rsp(chan, BLE_ATT_OP_WRITE_REQ,
-                                req.bawq_handle, rc);
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_WRITE_REQ,
+                             req.bawq_handle, rc);
     return rc;
 }
 

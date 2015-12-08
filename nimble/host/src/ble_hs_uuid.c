@@ -20,7 +20,7 @@
 #include <errno.h>
 #include "os/os_mbuf.h"
 #include "nimble/ble.h"
-#include "ble_hs_uuid.h"
+#include "host/ble_hs_uuid.h"
 
 static uint8_t ble_hs_uuid_base[16] = {
     0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,

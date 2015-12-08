@@ -21,6 +21,7 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "host/ble_hs.h"
+#include "host/host_hci.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 
@@ -183,7 +184,8 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
  * @return                      0 on success; nonzero on error.
  */
 int
-ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
+ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+             struct os_mbuf *om)
 {
     int rc;
 
@@ -193,7 +195,7 @@ ble_l2cap_tx(struct ble_l2cap_chan *chan, struct os_mbuf *om)
         goto err;
     }
 
-    rc = ble_hs_tx_data(om);
+    rc = host_hci_data_tx(conn, om);
     if (rc != 0) {
         goto err;
     }

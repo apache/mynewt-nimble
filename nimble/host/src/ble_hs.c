@@ -17,10 +17,11 @@
 #include <errno.h>
 #include "util/tpq.h"
 #include "os/os.h"
+#include "nimble/hci_transport.h"
 #include "host/host_hci.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
-#include "ble_att.h"
+#include "ble_att_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"
 #include "ble_hs_hci_batch.h"
@@ -48,7 +49,7 @@ static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_BYTES(HCI_CMD_BUFS,
 #define HCI_NUM_OS_EVENTS       (32)
 #define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
 
-#define BLE_HS_NUM_MBUFS             (16)
+#define BLE_HS_NUM_MBUFS             (8)
 #define BLE_HS_MBUF_BUF_SIZE         (256)
 #define BLE_HS_MBUF_MEMBLOCK_SIZE                                \
     (BLE_HS_MBUF_BUF_SIZE + sizeof(struct os_mbuf) +             \
@@ -93,6 +94,8 @@ ble_hs_process_tx_data_queue(void)
 
 #ifdef PHONY_TRANSPORT
         ble_hs_test_pkt_txed(pkt->bhp_om);
+#else
+        ble_hci_transport_host_acl_data_send(pkt->bhp_om);
 #endif
 
         os_memblock_put(&ble_hs_pkt_pool, pkt);
