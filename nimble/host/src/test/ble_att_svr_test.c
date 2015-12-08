@@ -300,7 +300,7 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
 
 static void
 ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
-                                      uint16_t peer_actual, uint16_t chan_mtu)
+                                   uint16_t peer_actual, uint16_t chan_mtu)
 {
     struct ble_att_mtu_cmd req;
     struct ble_l2cap_chan *chan;

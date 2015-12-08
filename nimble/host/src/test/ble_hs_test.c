@@ -15,6 +15,7 @@
  */
 
 #include "os/os.h"
+#include "nimble/hci_common.h"
 #include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
@@ -27,8 +28,8 @@ ble_hs_test_pkt_txed(struct os_mbuf *om)
     os_mbuf_free_chain(ble_hs_test_util_prev_tx);
     ble_hs_test_util_prev_tx = om;
 
-    /* XXX: For now, just strip the L2CAP header. */
-    os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
+    /* XXX: For now, just strip the HCI ACL data and L2CAP headers. */
+    os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ + BLE_L2CAP_HDR_SZ);
 }
 
 #ifdef PKG_TEST
