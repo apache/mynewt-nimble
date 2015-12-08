@@ -502,7 +502,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     adv_type = cmd[4];
 
     /* Min has to be less than max */
-    if (adv_itvl_min >= adv_itvl_max) {
+    if (adv_itvl_min > adv_itvl_max) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 

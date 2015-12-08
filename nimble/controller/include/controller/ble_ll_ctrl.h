@@ -18,6 +18,22 @@
 #define H_BLE_LL_CTRL_
 
 /* 
+ * LL control procedures. This "enumeration" is not in the specification;
+ * It is used to determine which LL control procedure is currently running
+ * in a connection and which ones may be pending.
+ */
+#define BLE_LL_CTRL_PROC_CONN_UPD       (0)
+#define BLE_LL_CTRL_PROC_CHAN_MAP_UPD   (1)
+#define BLE_LL_CTRL_PROC_ENCRYPT        (2)
+#define BLE_LL_CTRL_PROC_FEATURE_XCHG   (3)
+#define BLE_LL_CTRL_PROC_VERSION_XCHG   (4)
+#define BLE_LL_CTRL_PROC_TERMINATE      (5)
+#define BLE_LL_CTRL_PROC_CONN_PARAM_REQ (6)
+#define BLE_LL_CRTL_PROC_LE_PING        (7)
+#define BLE_LL_CTRL_PROC_DATA_LEN_UPD   (8)
+#define BLE_LL_CTRL_PROC_IDLE           (255)
+
+/* 
  * LL CTRL PDU format
  *  -> Opcode   (1 byte)
  *  -> Data     (0 - 26 bytes)
@@ -186,5 +202,11 @@ struct ble_ll_len_req
 };
 
 #define BLE_LL_CTRL_LENGTH_REQ_LEN      (8)
+
+/* API */
+void ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc);
+void ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc);
+void ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
+
 
 #endif /* H_BLE_LL_CTRL_ */

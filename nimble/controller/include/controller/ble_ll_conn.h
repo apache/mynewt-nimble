@@ -87,6 +87,8 @@ struct ble_ll_conn_sm
     uint8_t tx_win_size;
     uint8_t allow_slave_latency;    /* note: can be 1 bit  */
     uint8_t slave_set_last_anchor;  /* note: can be 1 bit */
+    uint8_t cur_ctrl_proc;
+    uint16_t pending_ctrl_procs;
     uint16_t conn_itvl;
     uint16_t slave_latency;
     uint16_t tx_win_off;
@@ -148,5 +150,7 @@ void ble_ll_conn_rx_pdu_start(void);
 int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
+void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
+void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
 
 #endif /* H_BLE_LL_CONN_ */

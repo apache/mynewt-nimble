@@ -27,6 +27,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_sched.h"
+#include "controller/ble_ll_ctrl.h"
 #include "controller/ble_phy.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
@@ -830,6 +831,10 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->allow_slave_latency = 0;
 
+    /* Reset current control procedure */
+    connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
+    connsm->pending_ctrl_procs = 0;
+
     /* Initialize connection supervision timer */
     cputime_timer_init(&connsm->conn_spvn_timer, ble_ll_conn_spvn_timer_cb, 
                        connsm);
@@ -918,13 +923,11 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
  * @param connsm 
  * @param ble_err 
  */
-static void
+void
 ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 {
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
-
-    /* XXX: stop any connection schedule timers we created */
 
     /* Disable the PHY */
     ble_phy_disable();
@@ -937,6 +940,9 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 
     /* Disable any wait for response interrupt that might be running */
     ble_ll_wfr_disable();
+
+    /* Stop any control procedures that might be running */
+    os_callout_stop(&connsm->ctrl_proc_timer.cf_c);
 
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
@@ -1668,8 +1674,8 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
             acl_hdr = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
 
             /* Check that the LLID is reasonable */
-            if ((hdr_byte == 0) || 
-                ((hdr_byte == BLE_LL_LLID_DATA_START) && (acl_len == 0))) {
+            if ((acl_hdr == 0) || 
+                ((acl_hdr == BLE_LL_LLID_DATA_START) && (acl_len == 0))) {
                 ++g_ble_ll_conn_stats.data_pdu_rx_bad_llid;
                 goto conn_rx_data_pdu_end;
             }
@@ -1701,22 +1707,23 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
                 if (acl_hdr == BLE_LL_LLID_CTRL) {
                     /* XXX: Process control frame! For now just free */
                     ++g_ble_ll_conn_stats.ctrl_pdu_rxd;
-                    goto conn_rx_data_pdu_end;
+                    ble_ll_ctrl_rx_pdu(connsm, rxpdu);
+                } else {
+
+                    /* Count # of data frames */
+                    ++g_ble_ll_conn_stats.l2cap_pdu_rxd;
+
+                    /* NOTE: there should be at least two bytes available */
+                    assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
+                    os_mbuf_prepend(rxpdu, 2);
+                    rxbuf = rxpdu->om_data;
+
+                    acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
+                    htole16(rxbuf, acl_hdr);
+                    htole16(rxbuf + 2, acl_len);
+                    ble_hs_rx_data(rxpdu);
+                    return;
                 }
-
-                /* Count # of data frames */
-                ++g_ble_ll_conn_stats.l2cap_pdu_rxd;
-
-                /* NOTE: there should be at least two bytes available */
-                assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
-                os_mbuf_prepend(rxpdu, 2);
-                rxbuf = rxpdu->om_data;
-
-                acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
-                htole16(rxbuf, acl_hdr);
-                htole16(rxbuf + 2, acl_len);
-                ble_hs_rx_data(rxpdu);
-                return;
             } else {
                 ++g_ble_ll_conn_stats.data_pdu_rx_dup;
             }
@@ -1877,6 +1884,34 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
 }
 
 /**
+ * Called to enqueue a packet on the transmit queue of a connection. Should 
+ * only be called by the controller. 
+ *  
+ * Context: Link Layer 
+ * 
+ * 
+ * @param connsm 
+ * @param om 
+ */
+void 
+ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
+{
+    os_sr_t sr;
+    struct ble_mbuf_hdr *ble_hdr;
+    struct os_mbuf_pkthdr *pkthdr;
+
+    /* Clear flags field in BLE header */
+    ble_hdr = BLE_MBUF_HDR_PTR(om);
+    ble_hdr->flags = 0;
+
+    /* Add to transmit queue for the connection */
+    pkthdr = OS_MBUF_PKTHDR(om);
+    OS_ENTER_CRITICAL(sr);
+    STAILQ_INSERT_TAIL(&connsm->conn_txq, pkthdr, omp_next);
+    OS_EXIT_CRITICAL(sr);
+}
+
+/**
  * Data packet from host. 
  *  
  * Context: Link Layer task 
@@ -1890,9 +1925,6 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
 void
 ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
 {
-    os_sr_t sr;
-    struct ble_mbuf_hdr *ble_hdr;
-    struct os_mbuf_pkthdr *pkthdr;
     struct ble_ll_conn_sm *connsm;
     uint16_t conn_handle;
     uint16_t pb;
@@ -1907,7 +1939,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
             pb = handle & 0x3000;
             if (pb == 0) {
                 om->om_data[0] = BLE_LL_LLID_DATA_START;
-            } else if (pb == 1) {
+            } else if (pb == 0x1000) {
                 om->om_data[0] = BLE_LL_LLID_DATA_FRAG;
             } else {
                 /* This should never happen! */
@@ -1916,14 +1948,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
             om->om_data[1] = (uint8_t)length;
 
             /* Clear flags field in BLE header */
-            ble_hdr = BLE_MBUF_HDR_PTR(om);
-            ble_hdr->flags = 0;
-
-            /* Add to transmit queue for the connection */
-            pkthdr = OS_MBUF_PKTHDR(om);
-            OS_ENTER_CRITICAL(sr);
-            STAILQ_INSERT_TAIL(&connsm->conn_txq, pkthdr, omp_next);
-            OS_EXIT_CRITICAL(sr);
+            ble_ll_conn_enqueue_pkt(connsm, om);
             return;
         }
     }

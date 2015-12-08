@@ -345,6 +345,7 @@ ble_ll_tx_pkt_in_proc(void)
 
         /* XXX: what error checks do I want to perform here? Check valid
            length packet header length, etc? */
+        /* XXX: I might want to check valid PB bits here too */
 
         /* Get handle and length */
         handle = le16toh(om->om_data);
