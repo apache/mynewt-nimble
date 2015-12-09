@@ -16,7 +16,7 @@
 
 #include <stddef.h>
 #include <errno.h>
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "ble_l2cap.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"

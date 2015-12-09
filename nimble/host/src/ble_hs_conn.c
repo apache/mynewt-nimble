@@ -19,7 +19,7 @@
 #include <errno.h>
 #include "os/os.h"
 #include "host/host_hci.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "ble_l2cap.h"
 #include "ble_l2cap_sig.h"
 #include "ble_hs_conn.h"

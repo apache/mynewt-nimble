@@ -19,7 +19,7 @@
 #include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
 #include "host/ble_hs_uuid.h"

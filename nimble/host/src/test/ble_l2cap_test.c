@@ -17,7 +17,7 @@
 #include <stddef.h>
 #include <errno.h>
 #include "nimble/hci_common.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_conn.h"

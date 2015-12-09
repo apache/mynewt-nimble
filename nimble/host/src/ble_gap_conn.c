@@ -18,7 +18,7 @@
 #include <string.h>
 #include <errno.h>
 #include "os/os.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "ble_hs_ack.h"
 #include "ble_hs_conn.h"

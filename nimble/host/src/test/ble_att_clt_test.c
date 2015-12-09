@@ -18,7 +18,7 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_conn.h"
 #include "ble_att_priv.h"

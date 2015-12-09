@@ -17,7 +17,7 @@
 #include <stddef.h>
 #include <errno.h>
 #include <string.h>
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host/ble_gap.h"
 #include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"

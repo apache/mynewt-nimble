@@ -22,7 +22,7 @@
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
 #include "host/ble_gatt.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host/ble_hs_uuid.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"

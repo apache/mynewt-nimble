@@ -23,7 +23,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 #include "host/host_hci.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"

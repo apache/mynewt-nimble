@@ -20,7 +20,7 @@
 #include "nimble/hci_transport.h"
 #include "host/host_hci.h"
 #include "host/ble_gatt.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_ack.h"

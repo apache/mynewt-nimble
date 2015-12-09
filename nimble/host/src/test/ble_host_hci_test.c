@@ -19,7 +19,7 @@
 #include <string.h>
 #include "nimble/hci_common.h"
 #include "host/host_hci.h"
-#include "host/ble_hs.h"
+#include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
 #include "ble_l2cap.h"
