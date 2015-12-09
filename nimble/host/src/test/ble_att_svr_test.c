@@ -220,9 +220,8 @@ ble_att_svr_test_misc_register_group_attrs(void)
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_w_1(struct ble_att_svr_entry *entry,
-                                     uint8_t op,
-                                     union ble_att_svr_handle_arg *arg)
+ble_att_svr_test_misc_attr_fn_w_1(struct ble_att_svr_entry *entry, uint8_t op,
+                                  union ble_att_svr_handle_arg *arg)
 {
     struct os_mbuf_pkthdr *omp;
     int rc;
@@ -245,8 +244,8 @@ ble_att_svr_test_misc_attr_fn_w_1(struct ble_att_svr_entry *entry,
 
 static void
 ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
-                                           uint8_t req_op, uint16_t handle,
-                                           uint8_t error_code)
+                                        uint8_t req_op, uint16_t handle,
+                                        uint8_t error_code)
 {
     struct ble_att_error_rsp rsp;
     uint8_t buf[BLE_ATT_ERROR_RSP_SZ];

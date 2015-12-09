@@ -26,6 +26,7 @@
 #include "ble_gap_conn.h"
 #include "ble_hs_hci_batch.h"
 #include "ble_l2cap.h"
+#include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
 struct os_mbuf *ble_hs_test_util_prev_tx;
@@ -149,6 +150,29 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     rc = ble_l2cap_rx(conn, &hci_hdr, om);
 
     return rc;
+}
+
+void
+ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
+                                uint8_t error_code)
+{
+    struct ble_att_error_rsp rsp;
+    struct ble_l2cap_chan *chan;
+    uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
+    int rc;
+
+    rsp.baep_req_op = req_op;
+    rsp.baep_handle = conn->bhc_handle;
+    rsp.baep_error_code = error_code;
+
+    rc = ble_att_error_rsp_write(buf, sizeof buf, &rsp);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
 }
 
 void

@@ -52,32 +52,6 @@ ble_gatt_disc_c_test_init(void)
     ble_gatt_disc_c_test_rx_complete = 0;
 }
 
-static void
-ble_gatt_disc_c_test_misc_rx_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
-                                     uint8_t error_code)
-{
-    struct ble_att_error_rsp rsp;
-    struct ble_l2cap_chan *chan;
-    uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
-    int rc;
-
-    /* Send the pending ATT Request. */
-    ble_gatt_wakeup();
-
-    rsp.baep_req_op = req_op;
-    rsp.baep_handle = conn->bhc_handle;
-    rsp.baep_error_code = error_code;
-
-    rc = ble_att_error_rsp_write(buf, sizeof buf, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
-}
-
 static int
 ble_gatt_disc_c_test_misc_rx_all_rsp_once(
     struct ble_hs_conn *conn, struct ble_gatt_disc_c_test_char *chars)
@@ -139,9 +113,10 @@ ble_gatt_disc_c_test_misc_rx_all_rsp(struct ble_hs_conn *conn,
     }
 
     if (chars[idx - 1].handle != end_handle) {
-        ble_gatt_disc_c_test_misc_rx_err_rsp(conn,
-                                             BLE_ATT_OP_READ_TYPE_REQ,
-                                             BLE_ATT_ERR_ATTR_NOT_FOUND);
+        /* Send the pending ATT Request. */
+        ble_gatt_wakeup();
+        ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
+                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
     }
 }
 
