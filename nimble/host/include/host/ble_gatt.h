@@ -34,11 +34,13 @@ struct ble_gatt_attr {
     void *value;
 };
 
-typedef int ble_gatt_disc_service_fn(uint16_t conn_handle, int status,
+typedef int ble_gatt_disc_service_fn(uint16_t conn_handle,
+                                     uint8_t ble_hs_status, uint8_t att_status,
                                      struct ble_gatt_service *service,
                                      void *arg);
-typedef int ble_gatt_attr_fn(uint16_t conn_handle, int status,
-                             struct ble_gatt_attr *attr, void *arg);
+typedef int ble_gatt_attr_fn(uint16_t conn_handle, uint8_t ble_hs_status,
+                             uint8_t att_status, struct ble_gatt_attr *attr,
+                             void *arg);
 
 int ble_gatt_disc_all_services(uint16_t conn_handle,
                                ble_gatt_disc_service_fn *cb,
@@ -51,7 +53,7 @@ int ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
 int ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
                   ble_gatt_attr_fn *cb, void *cb_arg);
 
-void ble_gatt_rx_err(struct ble_hs_conn *conn, struct ble_att_error_rsp *rsp);
+void ble_gatt_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
 void ble_gatt_wakeup(void);
 void ble_gatt_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu);
 int ble_gatt_mtu(uint16_t conn_handle);
@@ -66,6 +68,7 @@ void ble_gatt_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc);
 void ble_gatt_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
                                        struct ble_att_clt_adata *adata);
 void ble_gatt_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
+void ble_gatt_connection_broken(uint16_t conn_handle);
 int ble_gatt_init(void);
 
 #endif

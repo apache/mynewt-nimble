@@ -139,12 +139,13 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars)
 }
 
 static int
-ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, int status,
-                             struct ble_gatt_attr *attr, void *arg)
+ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, uint8_t ble_hs_status,
+                             uint8_t att_status, struct ble_gatt_attr *attr,
+                             void *arg)
 {
     struct ble_gatt_attr *dst;
 
-    TEST_ASSERT(status == 0);
+    TEST_ASSERT(ble_hs_status == 0 && att_status == 0);
     TEST_ASSERT(!ble_gatt_disc_c_test_rx_complete);
 
     if (attr == NULL) {

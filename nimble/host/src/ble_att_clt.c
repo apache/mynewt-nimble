@@ -77,7 +77,7 @@ ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return rc;
     }
 
-    ble_gatt_rx_err(conn, &rsp);
+    ble_gatt_rx_err(conn->bhc_handle, &rsp);
 
     return 0;
 }

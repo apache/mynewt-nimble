@@ -29,10 +29,11 @@ static uint8_t ble_gatt_read_test_attr_val[1024];
 static int ble_gatt_read_test_attr_len;
 
 static int
-ble_gatt_read_test_cb(uint16_t conn_handle, int status,
-                      struct ble_gatt_attr *attr, void *arg)
+ble_gatt_read_test_cb(uint16_t conn_handle, uint8_t ble_hs_status,
+                      uint8_t att_status, struct ble_gatt_attr *attr,
+                      void *arg)
 {
-    TEST_ASSERT_FATAL(status == 0);
+    TEST_ASSERT(ble_hs_status == 0 && att_status == 0);
     TEST_ASSERT_FATAL(attr->value_len <= sizeof ble_gatt_read_test_attr_val);
 
     memcpy(ble_gatt_read_test_attr_val, attr->value, attr->value_len);
