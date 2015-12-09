@@ -72,6 +72,7 @@ SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 /*** @gen */
 struct ble_l2cap_chan *ble_att_create_chan(void);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
+struct os_mbuf *ble_att_get_pkthdr(void);
 
 /*** @svr */
 int ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
@@ -85,6 +86,9 @@ int ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
 int ble_att_svr_rx_read_type(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
                              struct os_mbuf **rxom);
+int ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
+                                   struct ble_l2cap_chan *chan,
+                                   struct os_mbuf **rxom);
 int ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                         struct os_mbuf **rxom);
 int ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,

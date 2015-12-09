@@ -147,7 +147,8 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
     int rc;
 
     /* XXX: HCI-fragmentation unsupported. */
-    assert(BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc) == BLE_HCI_PB_FULL);
+    assert(BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc) ==
+                           BLE_HCI_PB_FIRST_FLUSH);
 
     rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
     if (rc != 0) {
@@ -196,6 +197,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     rc = host_hci_data_tx(conn, om);
+    om = NULL;
     if (rc != 0) {
         goto err;
     }

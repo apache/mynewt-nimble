@@ -273,7 +273,7 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     void *dst;
     int rc;
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -318,7 +318,7 @@ ble_att_svr_tx_mtu_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     assert(op == BLE_ATT_OP_MTU_REQ || op == BLE_ATT_OP_MTU_RSP);
     assert(mtu >= BLE_ATT_MTU_DFLT);
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -528,7 +528,7 @@ ble_att_svr_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -815,7 +815,7 @@ ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
         goto err;
     }
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -868,7 +868,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     int attr_len;
     int rc;
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -1017,7 +1017,7 @@ ble_att_svr_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     uint8_t op;
     int rc;
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;
@@ -1109,13 +1109,300 @@ err:
 }
 
 static int
+ble_att_svr_is_valid_group_type(uint8_t *uuid128)
+{
+    uint16_t uuid16;
+
+    uuid16 = ble_hs_uuid_16bit(uuid128);
+
+    return uuid16 == BLE_ATT_UUID_PRIMARY_SERVICE ||
+           uuid16 == BLE_ATT_UUID_SECONDARY_SERVICE;
+}
+
+static int
+ble_att_svr_is_valid_group_member(uint8_t *uuid128)
+{
+    uint16_t uuid16;
+
+    /* Assumes the group type is primary or secondary service. */
+
+    uuid16 = ble_hs_uuid_16bit(uuid128);
+
+    return uuid16 == BLE_ATT_UUID_INCLUDE ||
+           uuid16 == BLE_ATT_UUID_CHARACTERISTIC;
+}
+
+static int
+ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
+                         uint8_t *uuid128)
+{
+    union ble_att_svr_handle_arg arg;
+    int rc;
+
+    rc = entry->ha_fn(entry, BLE_ATT_OP_READ_REQ, &arg);
+    if (rc != 0) {
+        return rc;
+    }
+
+    switch (arg.aha_read.attr_len) {
+    case 16:
+        *uuid16 = 0;
+        memcpy(uuid128, arg.aha_read.attr_data, 16);
+        return 0;
+
+    case 2:
+        *uuid16 = le16toh(arg.aha_read.attr_data);
+        if (*uuid16 == 0) {
+            return EINVAL;
+        }
+        return 0;
+
+    default:
+        return EINVAL;
+    }
+}
+
+static int
+ble_att_svr_read_group_type_entry_write(struct os_mbuf *om, uint16_t mtu,
+                                        uint16_t start_group_handle,
+                                        uint16_t end_group_handle,
+                                        uint16_t service_uuid16,
+                                        uint8_t *service_uuid128)
+{
+    uint8_t *buf;
+    int len;
+
+    if (service_uuid16 != 0) {
+        len = BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16;
+    } else {
+        len = BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128;
+    }
+    if (OS_MBUF_PKTLEN(om) + len > mtu) {
+        return EMSGSIZE;
+    }
+
+    buf = os_mbuf_extend(om, len);
+    if (buf == NULL) {
+        return ENOMEM;
+    }
+
+    htole16(buf + 0, start_group_handle);
+    htole16(buf + 2, end_group_handle);
+    if (service_uuid16 != 0) {
+        htole16(buf + 4, service_uuid16);
+    } else {
+        memcpy(buf + 4, service_uuid128, 16);
+    }
+
+    return 0;
+}
+
+static int
+ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
+                               struct ble_l2cap_chan *chan,
+                               struct ble_att_read_group_type_req *req,
+                               uint8_t *group_uuid128, uint16_t *err_handle)
+{
+    struct ble_att_read_group_type_rsp rsp;
+    struct ble_att_svr_entry *entry;
+    struct os_mbuf *txom;
+    uint16_t start_group_handle;
+    uint16_t end_group_handle;
+    uint16_t service_uuid16;
+    uint8_t service_uuid128[16];
+    void *rsp_buf;
+    int rc;
+
+    *err_handle = req->bagq_start_handle;
+
+    txom = ble_att_get_pkthdr();
+    if (txom == NULL) {
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        goto done;
+    }
+
+    /* Reserve space for the response base. */
+    rsp_buf = os_mbuf_extend(txom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
+    if (rsp_buf == NULL) {
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        goto done;
+    }
+
+    start_group_handle = 0;
+    rsp.bagp_length = 0;
+    STAILQ_FOREACH(entry, &ble_att_svr_list, ha_next) {
+        if (entry->ha_handle_id < req->bagq_start_handle) {
+            continue;
+        }
+        if (entry->ha_handle_id > req->bagq_end_handle) {
+            /* The full input range has been searched. */
+            rc = 0;
+            goto done;
+        }
+
+        if (start_group_handle != 0) {
+            /* We have already found the start of a group. */
+            if (ble_att_svr_is_valid_group_member(entry->ha_uuid)) {
+                /* This attribute is part of the current group. */ 
+                end_group_handle = entry->ha_handle_id;
+            } else {
+                /* This attribute marks the end of the group.  Write an entry
+                 * representing the group to the response.
+                 */
+                rc = ble_att_svr_read_group_type_entry_write(
+                    txom, ble_l2cap_chan_mtu(chan),
+                    start_group_handle, end_group_handle,
+                    service_uuid16, service_uuid128);
+                start_group_handle = 0;
+                end_group_handle = 0;
+                if (rc != 0) {
+                    *err_handle = entry->ha_handle_id;
+                    goto done;
+                }
+            }
+        }
+
+        if (start_group_handle == 0) {
+            /* We are looking for the start of a group. */
+            if (memcmp(entry->ha_uuid, group_uuid128, 16) == 0) {
+                /* Found a group start.  Read the group UUID. */
+                rc = ble_att_svr_service_uuid(entry, &service_uuid16,
+                                              service_uuid128);
+                if (rc != 0) {
+                    *err_handle = entry->ha_handle_id;
+                    rc = BLE_ATT_ERR_UNLIKELY;
+                    goto done;
+                }
+
+                /* Make sure the group UUID lengths are consistent.  If this
+                 * group has a different length UUID, then cut the response
+                 * short.
+                 */
+                switch (rsp.bagp_length) {
+                case 0:
+                    if (service_uuid16 != 0) {
+                        rsp.bagp_length =
+                            BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 2;
+                    } else {
+                        rsp.bagp_length =
+                            BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 16;
+                    }
+                    break;
+
+                case BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 2:
+                    if (service_uuid16 == 0) {
+                        rc = 0;
+                        goto done;
+                    }
+                    break;
+
+                case BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 16:
+                    if (service_uuid16 != 0) {
+                        rc = 0;
+                        goto done;
+                    }
+                    break;
+
+                default:
+                    assert(0);
+                    goto done;
+                }
+
+                start_group_handle = entry->ha_handle_id;
+                end_group_handle = entry->ha_handle_id;
+            }
+        }
+    }
+
+    rc = 0;
+
+done:
+    if (rc == 0) {
+        if (start_group_handle != 0) {
+            /* A group was being processed.  Add its corresponding entry to the
+             * response.
+             */
+            rc = ble_att_svr_read_group_type_entry_write(
+                txom, ble_l2cap_chan_mtu(chan),
+                start_group_handle, end_group_handle,
+                service_uuid16, service_uuid128);
+        } else {
+            rc = BLE_ATT_ERR_ATTR_NOT_FOUND;
+        }
+    }
+
+    if (rc == 0 || rc == EMSGSIZE) {
+        rc = ble_att_read_group_type_rsp_write(
+            rsp_buf, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ, &rsp);
+        assert(rc == 0);
+
+        rc = ble_l2cap_tx(conn, chan, txom);
+    } else {
+        os_mbuf_free_chain(txom);
+    }
+
+    return rc;
+}
+
+
+int
+ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
+                               struct ble_l2cap_chan *chan,
+                               struct os_mbuf **rxom)
+{
+    struct ble_att_read_group_type_req req;
+    uint16_t err_handle;
+    uint8_t uuid128[16];
+    int rc;
+
+    err_handle = 0;
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        rc = ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_read_group_type_req_parse((*rxom)->om_data, (*rxom)->om_len,
+                                           &req);
+    if (rc != 0) {
+        goto err;
+    }
+    err_handle = req.bagq_start_handle;
+
+    rc = ble_hs_uuid_extract(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+                             uuid128);
+    if (rc != 0) {
+        goto err;
+    }
+
+    if (!ble_att_svr_is_valid_group_type(uuid128)) {
+        rc = EINVAL; // XXX
+        goto err;
+    }
+
+    rc = ble_att_svr_tx_read_group_type(conn, chan, &req, uuid128,
+                                        &err_handle);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ,
+                             err_handle, rc);
+    return rc;
+}
+
+static int
 ble_att_svr_tx_write_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
     int rc;
 
-    txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto err;

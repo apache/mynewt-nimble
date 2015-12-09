@@ -175,6 +175,8 @@ struct ble_att_read_group_type_rsp {
 };
 
 #define BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ   4
+#define BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16     6
+#define BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128    20
 
 /**
  * | Parameter                          | Size (octets)     |

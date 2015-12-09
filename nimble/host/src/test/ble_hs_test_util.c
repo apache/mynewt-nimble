@@ -142,7 +142,8 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     TEST_ASSERT_FATAL(om != NULL);
 
     hci_hdr.hdh_handle_pb_bc =
-        host_hci_handle_pb_bc_join(conn->bhc_handle, BLE_HCI_PB_FULL, 0);
+        host_hci_handle_pb_bc_join(conn->bhc_handle,
+                                   BLE_HCI_PB_FIRST_FLUSH, 0);
     hci_hdr.hdh_len = OS_MBUF_PKTHDR(om)->omp_len;
 
     rc = ble_l2cap_rx(conn, &hci_hdr, om);

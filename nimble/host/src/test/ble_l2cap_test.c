@@ -39,7 +39,7 @@ TEST_CASE(l2cap_test_bad_header)
     TEST_ASSERT_FATAL(conn != NULL);
 
     hci_hdr.hdh_handle_pb_bc =
-        host_hci_handle_pb_bc_join(0, BLE_HCI_PB_FULL, 0);
+        host_hci_handle_pb_bc_join(0, BLE_HCI_PB_FIRST_FLUSH, 0);
     hci_hdr.hdh_len = 10;
 
     /*** HCI header indicates a length of 10, but L2CAP header has a length

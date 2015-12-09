@@ -28,9 +28,6 @@
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
 
-#define BLE_ATT_UUID_PRIMARY_SERVICE    0x2800
-#define BLE_ATT_UUID_CHARACTERISTIC     0x2803
-
 struct ble_gatt_entry {
     STAILQ_ENTRY(ble_gatt_entry) next;
 

@@ -413,6 +413,19 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
     return 0;
 }
 
+static void
+host_hci_log_pkt(struct os_mbuf *om)
+{
+    uint8_t u8;
+    int i;
+
+    for (i = 0; i < OS_MBUF_PKTLEN(om); i++) {
+        os_mbuf_copydata(om, i, 1, &u8);
+        console_printf("0x%02x ", u8);
+    }
+    console_printf("\n");
+}
+
 /**
  * Called when a data packet is received from the controller.  This function
  * consumes the supplied mbuf, regardless of the outcome.
@@ -429,6 +442,9 @@ host_hci_data_rx(struct os_mbuf *om)
     struct hci_data_hdr hci_hdr;
     uint16_t handle;
     int rc;
+
+    console_printf("host_hci_data_rx(): ");
+    host_hci_log_pkt(om);
 
     rc = host_hci_data_hdr_strip(om, &hci_hdr);
     if (rc != 0) {
@@ -501,10 +517,13 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
      * requirements.  For now, never fragment.
      */
     om = host_hci_data_hdr_prepend(om, connection->bhc_handle,
-                                   BLE_HCI_PB_FULL);
+                                   BLE_HCI_PB_FIRST_NON_FLUSH);
     if (om == NULL) {
         return ENOMEM;
     }
+
+    console_printf("host_hci_data_tx(): ");
+    host_hci_log_pkt(om);
 
     rc = ble_hs_tx_data(om);
     if (rc != 0) {

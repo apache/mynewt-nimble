@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 #include <errno.h>
+#include "host/ble_hs.h"
 #include "ble_l2cap.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
@@ -41,6 +42,7 @@ static struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
     { BLE_ATT_OP_READ_TYPE_RSP,        ble_att_clt_rx_read_type },
     { BLE_ATT_OP_READ_REQ,             ble_att_svr_rx_read },
     { BLE_ATT_OP_READ_RSP,             ble_att_clt_rx_read },
+    { BLE_ATT_OP_READ_GROUP_TYPE_REQ,  ble_att_svr_rx_read_group_type },
     { BLE_ATT_OP_READ_GROUP_TYPE_RSP,  ble_att_clt_rx_read_group_type },
     { BLE_ATT_OP_WRITE_REQ,            ble_att_svr_rx_write },
 };
@@ -120,4 +122,23 @@ ble_att_create_chan(void)
     chan->blc_rx_fn = ble_att_rx;
 
     return chan;
+}
+
+/**
+ * Allocates an mbuf for use as an ATT request or response.
+ */
+struct os_mbuf *
+ble_att_get_pkthdr(void)
+{
+    struct os_mbuf *om;
+
+    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    if (om == NULL) {
+        return NULL;
+    }
+
+    /* Make room in the buffer for various headers.  XXX Check this number. */
+    om->om_data += 8;
+
+    return om;
 }

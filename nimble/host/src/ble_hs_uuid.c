@@ -114,7 +114,7 @@ ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
     int remlen;
     int rc;
 
-    remlen = OS_MBUF_PKTHDR(om)->omp_len;
+    remlen = OS_MBUF_PKTHDR(om)->omp_len - off;
     switch (remlen) {
     case 2:
         rc = os_mbuf_copydata(om, off, 2, &uuid16);

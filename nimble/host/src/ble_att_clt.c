@@ -37,14 +37,11 @@ ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
     *chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     assert(*chan != NULL);
 
-    *txom = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    *txom = ble_att_get_pkthdr();
     if (*txom == NULL) {
         rc = ENOMEM;
         goto err;
     }
-
-    /* Make room in the buffer for various headers.  XXX Check this number. */
-    (*txom)->om_data += 8;
 
     buf = os_mbuf_extend(*txom, initial_sz);
     if (buf == NULL) {
@@ -358,54 +355,6 @@ done:
 }
 
 int
-ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
-                               struct ble_att_read_group_type_req *req,
-                               void *uuid128)
-{
-    struct ble_l2cap_chan *chan;
-    struct os_mbuf *txom;
-    int rc;
-
-    txom = NULL;
-
-    if (req->bagq_start_handle == 0 ||
-        req->bagq_start_handle > req->bagq_end_handle) {
-
-        rc = EINVAL;
-        goto err;
-    }
-
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
-                              BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
-    if (rc != 0) {
-        goto err;
-    }
-
-    rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len,
-                                              req);
-    if (rc != 0) {
-        goto err;
-    }
-
-    rc = ble_hs_uuid_append(txom, uuid128);
-    if (rc != 0) {
-        goto err;
-    }
-
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
-}
-
-int
 ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
 {
     struct ble_l2cap_chan *chan;
@@ -475,10 +424,62 @@ done:
     return rc;
 }
 
+int
+ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
+                               struct ble_att_read_group_type_req *req,
+                               void *uuid128)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->bagq_start_handle == 0 ||
+        req->bagq_start_handle > req->bagq_end_handle) {
+
+        rc = EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                              BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len,
+                                              req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_uuid_append(txom, uuid128);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
 static int
 ble_att_clt_parse_group_attribute_data(struct os_mbuf **om, int data_len,
-                                 struct ble_att_clt_adata *adata)
+                                       struct ble_att_clt_adata *adata)
 {
+    if (data_len < BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 1) {
+        return EMSGSIZE;
+    }
+
     *om = os_mbuf_pullup(*om, data_len);
     if (*om == NULL) {
         return ENOMEM;
