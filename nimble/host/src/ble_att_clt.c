@@ -448,8 +448,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len,
-                                              req);
+    rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len, req);
     if (rc != 0) {
         goto err;
     }

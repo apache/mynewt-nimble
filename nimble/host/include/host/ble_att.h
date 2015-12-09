@@ -22,6 +22,14 @@
 #define BLE_ATT_UUID_INCLUDE                0x2802
 #define BLE_ATT_UUID_CHARACTERISTIC         0x2803
 
+#define BLE_ATT_ERR_INVALID_HANDLE          0x01
+#define BLE_ATT_ERR_INVALID_PDU             0x04
+#define BLE_ATT_ERR_REQ_NOT_SUPPORTED       0x06
+#define BLE_ATT_ERR_ATTR_NOT_FOUND          0x0a
+#define BLE_ATT_ERR_UNLIKELY                0x0e
+#define BLE_ATT_ERR_UNSUPPORTED_GROUP       0x10
+#define BLE_ATT_ERR_INSUFFICIENT_RES        0x11
+
 #define BLE_ATT_OP_ERROR_RSP                0x01
 #define BLE_ATT_OP_MTU_REQ                  0x02
 #define BLE_ATT_OP_MTU_RSP                  0x03

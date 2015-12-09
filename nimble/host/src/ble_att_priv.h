@@ -35,13 +35,6 @@ struct ble_att_find_type_value_req;
 #define BLE_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
 
-#define BLE_ATT_ERR_INVALID_HANDLE       0x01
-#define BLE_ATT_ERR_INVALID_PDU          0x04
-#define BLE_ATT_ERR_REQ_NOT_SUPPORTED    0x06
-#define BLE_ATT_ERR_ATTR_NOT_FOUND       0x0a
-#define BLE_ATT_ERR_UNLIKELY             0x0e
-#define BLE_ATT_ERR_INSUFFICIENT_RES     0x11
-
 /**
  * Called from ble_att_svr_walk().  Called on each entry in the 
  * ble_att_svr_list.

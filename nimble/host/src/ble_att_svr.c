@@ -1281,22 +1281,20 @@ ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
                 switch (rsp.bagp_length) {
                 case 0:
                     if (service_uuid16 != 0) {
-                        rsp.bagp_length =
-                            BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 2;
+                        rsp.bagp_length = BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16;
                     } else {
-                        rsp.bagp_length =
-                            BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 16;
+                        rsp.bagp_length = BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128;
                     }
                     break;
 
-                case BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 2:
+                case BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16:
                     if (service_uuid16 == 0) {
                         rc = 0;
                         goto done;
                     }
                     break;
 
-                case BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 16:
+                case BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128:
                     if (service_uuid16 != 0) {
                         rc = 0;
                         goto done;
@@ -1326,7 +1324,9 @@ done:
                 txom, ble_l2cap_chan_mtu(chan),
                 start_group_handle, end_group_handle,
                 service_uuid16, service_uuid128);
-        } else {
+        }
+
+        if (OS_MBUF_PKTLEN(txom) <= BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ) {
             rc = BLE_ATT_ERR_ATTR_NOT_FOUND;
         }
     }
@@ -1370,6 +1370,13 @@ ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
     }
     err_handle = req.bagq_start_handle;
 
+    if (req.bagq_start_handle > req.bagq_end_handle ||
+        req.bagq_start_handle == 0) {
+
+        rc = BLE_ATT_ERR_INVALID_HANDLE;
+        goto err;
+    }
+
     rc = ble_hs_uuid_extract(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
                              uuid128);
     if (rc != 0) {
@@ -1377,7 +1384,7 @@ ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
     }
 
     if (!ble_att_svr_is_valid_group_type(uuid128)) {
-        rc = EINVAL; // XXX
+        rc = BLE_ATT_ERR_UNSUPPORTED_GROUP;
         goto err;
     }
 
@@ -1512,6 +1519,8 @@ ble_att_svr_init(void)
     if (rc != 0) {
         goto err;
     }
+
+    ble_att_svr_id = 0;
 
     return 0;
 

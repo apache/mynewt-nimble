@@ -20,6 +20,7 @@
 #include "nimble/hci_common.h"
 #include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
+#include "host/ble_hs_uuid.h"
 #include "testutil/testutil.h"
 #include "ble_l2cap.h"
 #include "ble_hs_test_util.h"
@@ -37,7 +38,7 @@ static int ble_att_svr_test_attr_w_1_len;
 
 static void
 ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
-                              struct ble_l2cap_chan **att_chan)
+                           struct ble_l2cap_chan **att_chan)
 {
     ble_hs_test_util_init();
 
@@ -66,9 +67,8 @@ ble_att_svr_test_misc_attr_fn_r_1(struct ble_att_svr_entry *entry,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_2(struct ble_att_svr_entry *entry,
-                                     uint8_t op,
-                                     union ble_att_svr_handle_arg *arg)
+ble_att_svr_test_misc_attr_fn_r_2(struct ble_att_svr_entry *entry, uint8_t op,
+                                  union ble_att_svr_handle_arg *arg)
 {
     switch (op) {
     case BLE_ATT_OP_READ_REQ:
@@ -78,6 +78,144 @@ ble_att_svr_test_misc_attr_fn_r_2(struct ble_att_svr_entry *entry,
 
     default:
         return -1;
+    }
+}
+
+static int
+ble_att_svr_test_misc_attr_fn_r_group(struct ble_att_svr_entry *entry,
+                                      uint8_t op,
+                                      union ble_att_svr_handle_arg *arg)
+{
+    /* Service 0x1122 from 1 to 5 */
+    /* Service 0x2233 from 6 to 10 */
+    /* Garbage from 11 to 13 */
+    /* Service 1,2,3...16 from 14 to 19 */
+    /* Garbage from 20 to 22 */
+
+    static uint8_t vals[23][16] = {
+        [1] =   { 0x22, 0x11 },
+        [2] =   { 0xdd, 0xdd },
+        [3] =   { 0xdd, 0xdd },
+        [4] =   { 0xdd, 0xdd },
+        [5] =   { 0xdd, 0xdd },
+        [6] =   { 0x33, 0x22 },
+        [7] =   { 0xee, 0xee },
+        [8] =   { 0xee, 0xee },
+        [9] =   { 0xee, 0xee },
+        [10] =  { 0xee, 0xee },
+        [11] =  { 0xbe, 0xff },
+        [12] =  { 0xbe, 0xff },
+        [13] =  { 0xbe, 0xff },
+        [14] =  { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+        [15] =  { 0xdd, 0xdd },
+        [16] =  { 0xdd, 0xdd },
+        [17] =  { 0xdd, 0xdd },
+        [18] =  { 0xdd, 0xdd },
+        [19] =  { 0xdd, 0xdd },
+        [20] =  { 0xbe, 0xff },
+        [21] =  { 0xbe, 0xff },
+        [22] =  { 0xbe, 0xff },
+    };
+
+    static uint8_t zeros[14];
+
+    if (op != BLE_ATT_OP_READ_REQ) {
+        return -1;
+    }
+
+    TEST_ASSERT_FATAL(entry->ha_handle_id >= 1 && entry->ha_handle_id <= 22);
+
+    arg->aha_read.attr_data = vals + entry->ha_handle_id;
+    if (memcmp(arg->aha_read.attr_data + 2, zeros, 14) == 0) {
+        arg->aha_read.attr_len = 2;
+    } else {
+        arg->aha_read.attr_len = 16;
+    }
+
+    return 0;
+}
+
+static void
+ble_att_svr_test_misc_register_uuid128(uint8_t *uuid128, uint8_t flags,
+                                       uint16_t expected_handle,
+                                       ble_att_svr_handle_func *fn)
+{
+    uint16_t handle;
+    int rc;
+
+    rc = ble_att_svr_register(uuid128, flags, &handle, fn);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(handle == expected_handle);
+}
+
+static void
+ble_att_svr_test_misc_register_uuid16(uint16_t uuid16, uint8_t flags,
+                                      uint16_t expected_handle,
+                                      ble_att_svr_handle_func *fn)
+{
+    uint8_t uuid128[16];
+    int rc;
+
+    rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_att_svr_test_misc_register_uuid128(uuid128, flags, expected_handle,
+                                           fn);
+}
+
+static void
+ble_att_svr_test_misc_register_group_attrs(void)
+{
+    /* Service 0x1122 from 1 to 5 */
+    /* Service 0x2233 from 6 to 10 */
+    /* Garbage from 11 to 13 */
+    /* Service 1,2,3...16 from 14 to 19 */
+    /* Garbage from 20 to 22 */
+
+    int i;
+
+    /* Service 0x1122 from 1 to 5 */
+    ble_att_svr_test_misc_register_uuid16(
+        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 1,
+        ble_att_svr_test_misc_attr_fn_r_group);
+    for (i = 2; i <= 5; i++) {
+        ble_att_svr_test_misc_register_uuid16(
+            BLE_ATT_UUID_CHARACTERISTIC, 0, i,
+            ble_att_svr_test_misc_attr_fn_r_group);
+    }
+
+    /* Service 0x2233 from 6 to 10 */
+    ble_att_svr_test_misc_register_uuid16(
+        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 6,
+        ble_att_svr_test_misc_attr_fn_r_group);
+    for (i = 7; i <= 10; i++) {
+        ble_att_svr_test_misc_register_uuid16(
+            BLE_ATT_UUID_INCLUDE, 0, i,
+            ble_att_svr_test_misc_attr_fn_r_group);
+    }
+
+    /* Garbage from 11 to 13 */
+    for (i = 11; i <= 13; i++) {
+        ble_att_svr_test_misc_register_uuid16(
+            0x8797, 0, i,
+            ble_att_svr_test_misc_attr_fn_r_group);
+    }
+
+    /* Service 1,2,3...16 from 14 to 19 */
+    ble_att_svr_test_misc_register_uuid16(
+        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 14,
+        ble_att_svr_test_misc_attr_fn_r_group);
+    for (i = 15; i <= 19; i++) {
+        ble_att_svr_test_misc_register_uuid16(
+            BLE_ATT_UUID_CHARACTERISTIC, 0, i,
+            ble_att_svr_test_misc_attr_fn_r_group);
+    }
+
+    /* Garbage from 20 to 22 */
+    for (i = 20; i <= 22; i++) {
+        ble_att_svr_test_misc_register_uuid16(
+            0xabab, 0, i,
+            ble_att_svr_test_misc_attr_fn_r_group);
     }
 }
 
@@ -296,6 +434,74 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
 
     /* Remove the response from the buffer. */
     os_mbuf_adj(ble_hs_test_util_prev_tx, off);
+}
+
+struct ble_att_svr_test_group_type_entry {
+    uint16_t start_handle;  /* 0 on last entry */
+    uint16_t end_handle;    /* 0 on last entry */
+    uint16_t uuid16;        /* 0 if not present. */
+    uint8_t uuid128[16];
+};
+
+/** Returns the number of entries successfully verified. */
+static void
+ble_att_svr_test_misc_verify_tx_read_group_type_rsp(
+    struct ble_l2cap_chan *chan,
+    struct ble_att_svr_test_group_type_entry *entries)
+{
+    struct ble_att_svr_test_group_type_entry *entry;
+    struct ble_att_read_group_type_rsp rsp;
+    struct os_mbuf *om;
+    uint16_t u16;
+    uint8_t uuid128[16];
+    int off;
+    int rc;
+
+    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
+                        BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
+    TEST_ASSERT(rc == 0);
+
+    off = BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ;
+    for (entry = entries; entry->start_handle != 0; entry++) {
+        if (entry->uuid16 != 0) {
+            TEST_ASSERT(rsp.bagp_length ==
+                        BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16);
+        } else {
+            TEST_ASSERT(rsp.bagp_length ==
+                        BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128);
+        }
+
+        rc = os_mbuf_copydata(om, off, 2, &u16);
+        TEST_ASSERT(rc == 0);
+        htole16(&u16, u16);
+        TEST_ASSERT(u16 == entry->start_handle);
+        off += 2;
+
+        rc = os_mbuf_copydata(om, off, 2, &u16);
+        TEST_ASSERT(rc == 0);
+        htole16(&u16, u16);
+        TEST_ASSERT(u16 == entry->end_handle);
+        off += 2;
+
+        if (entry->uuid16 != 0) {
+            rc = os_mbuf_copydata(om, off, 2, &u16);
+            TEST_ASSERT(rc == 0);
+            htole16(&u16, u16);
+            TEST_ASSERT(u16 == entry->uuid16);
+            off += 2;
+        } else {
+            rc = os_mbuf_copydata(om, off, 16, uuid128);
+            TEST_ASSERT(rc == 0);
+            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
+            off += 16;
+        }
+    }
+
+    /* Ensure there is no extra data in the response. */
+    TEST_ASSERT(off == OS_MBUF_PKTLEN(om));
 }
 
 static void
@@ -817,7 +1023,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Ensure attribute with wrong type is not included. */
     rc = ble_att_svr_register(uuid3, 0, &handle5,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1);
 
     req.bavq_start_handle = 0x0001;
     req.bavq_end_handle = 0xffff;
@@ -841,6 +1047,203 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 }
 
+TEST_CASE(ble_att_svr_test_read_group_type)
+{
+    struct ble_att_read_group_type_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_ATT_READ_GROUP_TYPE_REQ_SZ_16];
+    int rc;
+
+    ble_att_svr_test_misc_init(&conn, &chan);
+
+    /* Increase the MTU to 128 bytes to allow testing of long responses. */
+    chan->blc_my_mtu = 128;
+    chan->blc_peer_mtu = 128;
+    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+
+    /*** Start handle of 0. */
+    req.bagq_start_handle = 0;
+    req.bagq_end_handle = 0;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat( conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_err_rsp(
+        chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ, 0,
+        BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Start handle > end handle. */
+    req.bagq_start_handle = 101;
+    req.bagq_end_handle = 100;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_err_rsp(
+        chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ, 101,
+        BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Invalid group UUID (0x1234). */
+    req.bagq_start_handle = 110;
+    req.bagq_end_handle = 150;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, 0x1234);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_err_rsp(
+        chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ, 110,
+        BLE_ATT_ERR_UNSUPPORTED_GROUP);
+
+    /*** No attributes. */
+    req.bagq_start_handle = 1;
+    req.bagq_end_handle = 0xffff;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_err_rsp(
+        chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ, 1,
+        BLE_ATT_ERR_ATTR_NOT_FOUND);
+
+    /*** Range too late. */
+    ble_att_svr_test_misc_register_group_attrs();
+    req.bagq_start_handle = 200;
+    req.bagq_end_handle = 300;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_err_rsp(
+        chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ, 200,
+        BLE_ATT_ERR_ATTR_NOT_FOUND);
+
+    /*** One 16-bit UUID service. */
+    req.bagq_start_handle = 1;
+    req.bagq_end_handle = 5;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_read_group_type_rsp(chan,
+        ((struct ble_att_svr_test_group_type_entry[]) { {
+            .start_handle = 1,
+            .end_handle = 5,
+            .uuid16 = 0x1122,
+        }, {
+            .start_handle = 0,
+        } }));
+
+    /*** Two 16-bit UUID services. */
+    req.bagq_start_handle = 1;
+    req.bagq_end_handle = 10;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_read_group_type_rsp(chan,
+        ((struct ble_att_svr_test_group_type_entry[]) { {
+            .start_handle = 1,
+            .end_handle = 5,
+            .uuid16 = 0x1122,
+        }, {
+            .start_handle = 6,
+            .end_handle = 10,
+            .uuid16 = 0x2233,
+        }, {
+            .start_handle = 0,
+        } }));
+
+    /*** Two 16-bit UUID services; ensure 128-bit service not returned. */
+    req.bagq_start_handle = 1;
+    req.bagq_end_handle = 100;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_read_group_type_rsp(chan,
+        ((struct ble_att_svr_test_group_type_entry[]) { {
+            .start_handle = 1,
+            .end_handle = 5,
+            .uuid16 = 0x1122,
+        }, {
+            .start_handle = 6,
+            .end_handle = 10,
+            .uuid16 = 0x2233,
+        }, {
+            .start_handle = 0,
+        } }));
+
+    /*** One 128-bit service. */
+    req.bagq_start_handle = 11;
+    req.bagq_end_handle = 100;
+
+    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_PRIMARY_SERVICE);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_hs_process_tx_data_queue();
+
+    ble_att_svr_test_misc_verify_tx_read_group_type_rsp(chan,
+        ((struct ble_att_svr_test_group_type_entry[]) { {
+            .start_handle = 14,
+            .end_handle = 19,
+            .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
+        }, {
+            .start_handle = 0,
+        } }));
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     ble_att_svr_test_mtu();
@@ -848,6 +1251,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_write();
     ble_att_svr_test_find_info();
     ble_att_svr_test_find_type_value();
+    ble_att_svr_test_read_group_type();
 }
 
 int
