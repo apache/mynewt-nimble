@@ -20,6 +20,7 @@
 #include <errno.h>
 #include "os/os_mbuf.h"
 #include "nimble/ble.h"
+#include "host/ble_hs.h"
 #include "host/ble_hs_uuid.h"
 
 static uint8_t ble_hs_uuid_base[16] = {
@@ -71,7 +72,7 @@ ble_hs_uuid_from_16bit(uint16_t uuid16, void *uuid128)
     uint8_t *u8ptr;
 
     if (uuid16 == 0) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     u8ptr = uuid128;
@@ -93,14 +94,14 @@ ble_hs_uuid_append(struct os_mbuf *om, void *uuid128)
     if (uuid16 != 0) {
         buf = os_mbuf_extend(om, 2);
         if (buf == NULL) {
-            return ENOMEM;
+            return BLE_HS_ENOMEM;
         }
 
         htole16(buf, uuid16);
     } else {
         rc = os_mbuf_append(om, uuid128, 16);
         if (rc != 0) {
-            return ENOMEM;
+            return BLE_HS_ENOMEM;
         }
     }
 
@@ -133,6 +134,6 @@ ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
         return 0;
 
     default:
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 }

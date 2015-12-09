@@ -31,7 +31,8 @@ int host_hci_cmd_le_set_event_mask(uint64_t event_mask);
 int host_hci_cmd_le_read_buffer_size(void);
 int host_hci_cmd_le_set_adv_enable(uint8_t enable);
 int host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl, 
-                                    uint16_t scan_window, uint8_t own_addr_type,
+                                    uint16_t scan_window,
+                                    uint8_t own_addr_type,
                                     uint8_t filter_policy);
 int host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups);
 int host_hci_cmd_le_create_connection(struct hci_create_conn *hcc);

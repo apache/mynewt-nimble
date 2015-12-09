@@ -143,7 +143,7 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     int rc;
 
     if (len < BLE_HCI_EVENT_DISCONN_COMPLETE_LEN) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     evt.status = data[0];
@@ -168,7 +168,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
         /* XXX: Increment stat. */
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     num_pkts = data[2];
@@ -182,7 +182,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
         opcode != host_hci_outstanding_opcode) {
 
         ++g_host_hci_stats.bad_acks_rxd;
-        return ENOENT;
+        return BLE_HS_ENOENT;
     }
 
     if (opcode == host_hci_outstanding_opcode) {
@@ -215,7 +215,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
 
     if (len < BLE_HCI_EVENT_CMD_STATUS_LEN) {
         /* XXX: Increment stat. */
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     status = data[2];
@@ -230,7 +230,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
         opcode != host_hci_outstanding_opcode) {
 
         ++g_host_hci_stats.bad_acks_rxd;
-        return ENOENT;
+        return BLE_HS_ENOENT;
     }
 
     if (opcode == host_hci_outstanding_opcode) {
@@ -258,7 +258,7 @@ host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len)
 
     if (len < BLE_HCI_EVENT_HDR_LEN + BLE_HCI_LE_MIN_LEN) {
         /* XXX: Increment stat. */
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     subevent = data[2];
@@ -281,7 +281,7 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     int rc;
 
     if (len < BLE_HCI_LE_CONN_COMPLETE_LEN) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     evt.subevent_code = data[0];
@@ -307,7 +307,7 @@ int
 host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts)
 {
     if (pktlen == 0 || max_pkts == 0) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     host_hci_buffer_sz = pktlen;
@@ -340,7 +340,7 @@ host_hci_event_rx(uint8_t *data)
     entry = host_hci_dispatch_entry_find(event_code);
     if (entry == NULL) {
         ++g_host_hci_stats.unknown_events_rxd;
-        rc = ENOTSUP;
+        rc = BLE_HS_ENOTSUP;
     } else {
         rc = entry->hed_fn(event_code, data, event_len);
     }
@@ -400,7 +400,7 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
 
     rc = os_mbuf_copydata(om, 0, BLE_HCI_DATA_HDR_SZ, hdr);
     if (rc != 0) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     /* Strip HCI ACL data header from the front of the packet. */
@@ -452,14 +452,14 @@ host_hci_data_rx(struct os_mbuf *om)
     }
 
     if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
-        rc = EMSGSIZE;
+        rc = BLE_HS_EMSGSIZE;
         goto done;
     }
 
     handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
     connection = ble_hs_conn_find(handle);
     if (connection == NULL) {
-        rc = ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
         goto done;
     }
 
@@ -519,7 +519,7 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
     om = host_hci_data_hdr_prepend(om, connection->bhc_handle,
                                    BLE_HCI_PB_FIRST_NON_FLUSH);
     if (om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     console_printf("host_hci_data_tx(): ");

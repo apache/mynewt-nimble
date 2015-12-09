@@ -80,12 +80,12 @@ ble_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     entry = ble_att_rx_dispatch_entry_find(op);
     if (entry == NULL) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     rc = entry->bde_fn(conn, chan, om);

@@ -52,7 +52,7 @@ TEST_CASE(l2cap_test_bad_header)
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = ble_l2cap_rx(conn, &hci_hdr, om);
-    TEST_ASSERT(rc == EMSGSIZE);
+    TEST_ASSERT(rc == BLE_HS_EMSGSIZE);
 
     os_mbuf_free_chain(om);
 
@@ -67,7 +67,7 @@ TEST_CASE(l2cap_test_bad_header)
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = ble_l2cap_rx(conn, &hci_hdr, om);
-    TEST_ASSERT(rc == ENOENT);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
 
     os_mbuf_free_chain(om);
 }

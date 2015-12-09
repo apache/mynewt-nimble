@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <errno.h>
 #include <string.h>
+#include "host/ble_hs.h"
 #include "host/ble_gap.h"
 #include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
@@ -56,7 +57,7 @@ ble_gap_direct_connection_establishment(uint8_t addr_type, uint8_t *addr)
 
     entry = ble_hs_hci_batch_entry_alloc();
     if (entry == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_DIRECT_CONNECT;
@@ -89,7 +90,7 @@ ble_gap_directed_connectable(uint8_t addr_type, uint8_t *addr)
 
     entry = ble_hs_hci_batch_entry_alloc();
     if (entry == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_DIRECT_ADVERTISE;

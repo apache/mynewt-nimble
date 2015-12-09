@@ -123,7 +123,7 @@ ble_hs_read_hci_buf_size(void)
 
     entry = ble_hs_hci_batch_entry_alloc();
     if (entry == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_READ_HCI_BUF_SIZE;
@@ -133,7 +133,7 @@ ble_hs_read_hci_buf_size(void)
     return 0;
 }
 
-void
+static void
 ble_hs_task_handler(void *arg)
 {
     struct os_event *ev;
@@ -197,7 +197,7 @@ ble_hs_rx_data(struct os_mbuf *om)
     pkt = os_memblock_get(&ble_hs_pkt_pool);
     if (pkt == NULL) {
         os_mbuf_free_chain(om);
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     pkt->bhp_om = om;
@@ -214,7 +214,7 @@ ble_hs_tx_data(struct os_mbuf *om)
     pkt = os_memblock_get(&ble_hs_pkt_pool);
     if (pkt == NULL) {
         os_mbuf_free_chain(om);
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     pkt->bhp_om = om;
@@ -280,20 +280,20 @@ ble_hs_init(uint8_t prio)
 
     ble_hs_mbuf_mem = malloc(BLE_HS_MBUF_MEMPOOL_SIZE);
     if (ble_hs_mbuf_mem == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
     rc = os_mempool_init(&ble_hs_mbuf_mempool, BLE_HS_NUM_MBUFS,
                          BLE_HS_MBUF_MEMBLOCK_SIZE,
                          ble_hs_mbuf_mem, "ble_hs_mbuf_pool");
     if (rc != 0) {
-        rc = EINVAL; // XXX
+        rc = BLE_HS_EINVAL; // XXX
         goto err;
     }
     rc = os_mbuf_pool_init(&ble_hs_mbuf_pool, &ble_hs_mbuf_mempool,
                            BLE_HS_MBUF_MEMBLOCK_SIZE, BLE_HS_NUM_MBUFS);
     if (rc != 0) {
-        rc = EINVAL; // XXX
+        rc = BLE_HS_EINVAL; // XXX
         goto err;
     }
 
@@ -301,14 +301,14 @@ ble_hs_init(uint8_t prio)
         OS_MEMPOOL_BYTES(BLE_HS_PKT_MAX,
                          sizeof (struct ble_hs_pkt)));
     if (ble_hs_pkt_mem == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
     rc = os_mempool_init(&ble_hs_pkt_pool, BLE_HS_PKT_MAX,
                          sizeof (struct ble_hs_pkt),
                          ble_hs_pkt_mem, "ble_hs_pkt_pool");
     if (rc != 0) {
-        rc = EINVAL; // XXX
+        rc = BLE_HS_EINVAL; // XXX
         goto err;
     }
 

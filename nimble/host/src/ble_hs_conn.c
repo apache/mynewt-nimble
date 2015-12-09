@@ -158,14 +158,14 @@ ble_hs_conn_init(void)
         OS_MEMPOOL_BYTES(BLE_HS_CONN_MAX,
                          sizeof (struct ble_hs_conn)));
     if (ble_hs_conn_elem_mem == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
     rc = os_mempool_init(&ble_hs_conn_pool, BLE_HS_CONN_MAX,
                          sizeof (struct ble_hs_conn),
                          ble_hs_conn_elem_mem, "ble_hs_conn_pool");
     if (rc != 0) {
-        rc = EINVAL; // XXX
+        rc = BLE_HS_EINVAL; // XXX
         goto err;
     }
 

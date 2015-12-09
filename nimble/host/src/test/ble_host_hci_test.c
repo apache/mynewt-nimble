@@ -37,7 +37,7 @@ TEST_CASE(ble_host_hci_test_event_bad)
     buf[0] = 0xff;
     buf[1] = 0;
     rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == ENOTSUP);
+    TEST_ASSERT(rc == BLE_HS_ENOTSUP);
 }
 
 TEST_CASE(ble_host_hci_test_event_cmd_complete)
@@ -50,7 +50,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_complete)
     /*** Unsent OCF. */
     ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 1, 1, 12345);
     rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == ENOENT);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
 
     /*** No error on NOP. */
     ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 1, 1,
@@ -69,7 +69,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_complete)
 
     /*** Duplicate ack is error. */
     rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == ENOENT);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
 }
 
 TEST_CASE(ble_host_hci_test_event_cmd_status)
@@ -82,7 +82,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
     /*** Unsent OCF. */
     ble_hs_test_util_build_cmd_status(buf, sizeof buf, 0, 1, 12345);
     rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == ENOENT);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
 
     /*** No error on NOP. */
     ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 0, 1,
@@ -101,7 +101,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
 
     /*** Duplicate ack is error. */
     rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == ENOENT);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
 }
 
 TEST_SUITE(ble_host_hci_suite)

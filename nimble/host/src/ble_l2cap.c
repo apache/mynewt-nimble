@@ -91,7 +91,7 @@ ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
 
     rc = os_mbuf_copydata(om, off, sizeof *l2cap_hdr, l2cap_hdr);
     if (rc != 0) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     l2cap_hdr->blh_len = le16toh(&l2cap_hdr->blh_len);
@@ -159,12 +159,12 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
     os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
 
     if (l2cap_hdr.blh_len != hci_hdr->hdh_len - BLE_L2CAP_HDR_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
     if (chan == NULL) {
-        return ENOENT;
+        return BLE_HS_ENOENT;
     }
 
     rc = ble_l2cap_rx_payload(conn, chan, om);
@@ -192,7 +192,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     om = ble_l2cap_prepend_hdr(om, chan->blc_cid);
     if (om == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
 
@@ -227,7 +227,7 @@ ble_l2cap_init(void)
         OS_MEMPOOL_BYTES(BLE_L2CAP_CHAN_MAX,
                          sizeof (struct ble_l2cap_chan)));
     if (ble_l2cap_chan_mem == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
 
@@ -235,7 +235,7 @@ ble_l2cap_init(void)
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
-        rc = EINVAL; // XXX
+        rc = BLE_HS_EINVAL; // XXX
         goto err;
     }
 

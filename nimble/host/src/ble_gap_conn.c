@@ -18,6 +18,7 @@
 #include <string.h>
 #include <errno.h>
 #include "os/os.h"
+#include "host/ble_hs.h"
 #include "host/host_hci.h"
 #include "ble_hs_ack.h"
 #include "ble_hs_conn.h"
@@ -167,7 +168,7 @@ ble_gap_conn_direct_connect(int addr_type, uint8_t *addr)
 
     /* Make sure no master connection attempt is already in progress. */
     if (ble_gap_conn_master_in_progress()) {
-        rc = EALREADY;
+        rc = BLE_HS_EALREADY;
         goto err;
     }
 
@@ -214,7 +215,7 @@ ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr)
 
     /* Make sure no slave connection attempt is already in progress. */
     if (ble_gap_conn_slave_in_progress()) {
-        rc = EALREADY;
+        rc = BLE_HS_EALREADY;
         goto err;
     }
 
@@ -264,7 +265,7 @@ ble_gap_conn_accept_new_conn(uint8_t *addr)
         break;
     }
 
-    return ENOENT;
+    return BLE_HS_ENOENT;
 }
 
 /**
@@ -295,7 +296,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     /* This event refers to a new connection. */
     rc = ble_gap_conn_accept_new_conn(evt->peer_addr);
     if (rc != 0) {
-        return ENOENT;
+        return BLE_HS_ENOENT;
     }
 
     if (evt->status != BLE_ERR_SUCCESS) {
@@ -309,7 +310,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     if (conn == NULL) {
         /* XXX: Ensure this never happens. */
         ble_gap_conn_notify_app(BLE_ERR_MEM_CAPACITY, NULL);
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     conn->bhc_handle = evt->connection_handle;
@@ -329,7 +330,7 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
 
     conn = ble_hs_conn_find(evt->connection_handle);
     if (conn == NULL) {
-        return ENOENT;
+        return BLE_HS_ENOENT;
     }
 
     if (evt->status == 0) {

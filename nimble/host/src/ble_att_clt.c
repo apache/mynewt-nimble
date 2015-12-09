@@ -39,13 +39,13 @@ ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
 
     *txom = ble_att_get_pkthdr();
     if (*txom == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
 
     buf = os_mbuf_extend(*txom, initial_sz);
     if (buf == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
 
@@ -69,7 +69,7 @@ ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     *om = os_mbuf_pullup(*om, BLE_ATT_ERROR_RSP_SZ);
     if (*om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     rc = ble_att_error_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
@@ -92,7 +92,7 @@ ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
     txom = NULL;
 
     if (req->bamc_mtu < BLE_ATT_MTU_DFLT) {
-        rc = EINVAL;
+        rc = BLE_HS_EINVAL;
         goto err;
     }
 
@@ -128,7 +128,7 @@ ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     *om = os_mbuf_pullup(*om, BLE_ATT_MTU_CMD_SZ);
     if (*om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
@@ -156,7 +156,7 @@ ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
     if (req->bafq_start_handle == 0 ||
         req->bafq_start_handle > req->bafq_end_handle) {
 
-        rc = EINVAL;
+        rc = BLE_HS_EINVAL;
         goto err;
     }
 
@@ -198,7 +198,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     *om = os_mbuf_pullup(*om, BLE_ATT_FIND_INFO_RSP_BASE_SZ);
     if (*om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     rc = ble_att_find_info_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
@@ -212,7 +212,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     while (off < OS_MBUF_PKTHDR(rxom)->omp_len) {
         rc = os_mbuf_copydata(rxom, off, 2, &handle_id);
         if (rc != 0) {
-            return EINVAL;
+            return BLE_HS_EINVAL;
         }
         off += 2;
         handle_id = le16toh(&handle_id);
@@ -221,27 +221,27 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
             rc = os_mbuf_copydata(rxom, off, 2, &uuid16);
             if (rc != 0) {
-                return EINVAL;
+                return BLE_HS_EINVAL;
             }
             off += 2;
             uuid16 = le16toh(&uuid16);
 
             rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
             if (rc != 0) {
-                return EINVAL;
+                return BLE_HS_EINVAL;
             }
             break;
 
         case BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT:
             rc = os_mbuf_copydata(rxom, off, 16, &uuid128);
             if (rc != 0) {
-                rc = EINVAL;
+                rc = BLE_HS_EINVAL;
             }
             off += 16;
             break;
 
         default:
-            return EINVAL;
+            return BLE_HS_EINVAL;
         }
     }
 
@@ -262,7 +262,7 @@ ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
     if (req->batq_start_handle == 0 ||
         req->batq_start_handle > req->batq_end_handle) {
 
-        rc = EINVAL;
+        rc = BLE_HS_EINVAL;
         goto err;
     }
 
@@ -301,7 +301,7 @@ ble_att_clt_parse_type_attribute_data(struct os_mbuf **om, int data_len,
 {
     *om = os_mbuf_pullup(*om, data_len);
     if (*om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     adata->att_handle = le16toh((*om)->om_data + 0);
@@ -322,7 +322,7 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
     if (*rxom == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto done;
     }
 
@@ -364,7 +364,7 @@ ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
     txom = NULL;
 
     if (req->barq_handle == 0) {
-        rc = EINVAL;
+        rc = BLE_HS_EINVAL;
         goto err;
     }
 
@@ -410,7 +410,7 @@ ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     /* Pass the Attribute Value field to the GATT. */
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
-        rc = EMSGSIZE;
+        rc = BLE_HS_EMSGSIZE;
         goto done;
     }
 
@@ -438,7 +438,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
     if (req->bagq_start_handle == 0 ||
         req->bagq_start_handle > req->bagq_end_handle) {
 
-        rc = EINVAL;
+        rc = BLE_HS_EINVAL;
         goto err;
     }
 
@@ -476,12 +476,12 @@ ble_att_clt_parse_group_attribute_data(struct os_mbuf **om, int data_len,
                                        struct ble_att_clt_adata *adata)
 {
     if (data_len < BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ + 1) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     *om = os_mbuf_pullup(*om, data_len);
     if (*om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     adata->att_handle = le16toh((*om)->om_data + 0);
@@ -503,7 +503,7 @@ ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
     if (*rxom == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto done;
     }
 
@@ -549,7 +549,7 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
     if (req->bavq_start_handle == 0 ||
         req->bavq_start_handle > req->bavq_end_handle) {
 
-        rc = EINVAL;
+        rc = BLE_HS_EINVAL;
         goto err;
     }
 
@@ -566,7 +566,7 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
 
     rc = os_mbuf_append(txom, attribute_value, value_len);
     if (rc != 0) {
-        rc = EMSGSIZE;
+        rc = BLE_HS_EMSGSIZE;
         goto err;
     }
 
@@ -589,7 +589,7 @@ ble_att_clt_parse_handles_info(struct os_mbuf **om,
 {
     *om = os_mbuf_pullup(*om, BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ);
     if (*om == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     adata->att_handle = le16toh((*om)->om_data + 0);

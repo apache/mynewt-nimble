@@ -18,6 +18,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "host/ble_hs.h"
 #include "host/ble_att.h"
 #include "host/ble_hs_uuid.h"
 #include "ble_l2cap.h"
@@ -29,13 +30,13 @@ ble_att_error_rsp_parse(void *payload, int len, struct ble_att_error_rsp *rsp)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_ERROR_RSP_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_ERROR_RSP) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     rsp->baep_req_op = u8ptr[1];
@@ -51,7 +52,7 @@ ble_att_error_rsp_write(void *payload, int len, struct ble_att_error_rsp *rsp)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_ERROR_RSP_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -70,7 +71,7 @@ ble_att_mtu_cmd_parse(void *payload, int len, struct ble_att_mtu_cmd *cmd)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_MTU_CMD_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -78,7 +79,7 @@ ble_att_mtu_cmd_parse(void *payload, int len, struct ble_att_mtu_cmd *cmd)
     if (u8ptr[0] != BLE_ATT_OP_MTU_REQ &&
         u8ptr[0] != BLE_ATT_OP_MTU_RSP) {
 
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     cmd->bamc_mtu = le16toh(u8ptr + 1);
@@ -93,7 +94,7 @@ ble_att_mtu_req_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_MTU_CMD_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -110,7 +111,7 @@ ble_att_mtu_rsp_write(void *payload, int len, struct ble_att_mtu_cmd *cmd)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_MTU_CMD_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -128,13 +129,13 @@ ble_att_find_info_req_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_FIND_INFO_REQ_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_FIND_INFO_REQ) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     req->bafq_start_handle = le16toh(u8ptr + 1);
@@ -150,7 +151,7 @@ ble_att_find_info_req_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_FIND_INFO_REQ_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -169,13 +170,13 @@ ble_att_find_info_rsp_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_FIND_INFO_RSP_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_FIND_INFO_RSP) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     rsp->bafp_format = u8ptr[1];
@@ -190,7 +191,7 @@ ble_att_find_info_rsp_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_FIND_INFO_RSP_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -208,13 +209,13 @@ ble_att_find_type_value_req_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_FIND_TYPE_VALUE_REQ) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     req->bavq_start_handle = le16toh(u8ptr + 1);
@@ -231,7 +232,7 @@ ble_att_find_type_value_req_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -251,13 +252,13 @@ ble_att_read_type_req_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_TYPE_REQ_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_READ_TYPE_REQ) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     req->batq_start_handle = le16toh(u8ptr + 1);
@@ -273,7 +274,7 @@ ble_att_read_type_req_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_TYPE_REQ_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -292,7 +293,7 @@ ble_att_read_type_rsp_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_TYPE_RSP_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -309,7 +310,7 @@ ble_att_read_type_rsp_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_TYPE_RSP_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -326,13 +327,13 @@ ble_att_read_req_parse(void *payload, int len, struct ble_att_read_req *req)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_REQ_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_READ_REQ) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     req->barq_handle = le16toh(u8ptr + 1);
@@ -346,7 +347,7 @@ ble_att_read_req_write(void *payload, int len, struct ble_att_read_req *req)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_REQ_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -364,13 +365,13 @@ ble_att_read_group_type_req_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_READ_GROUP_TYPE_REQ) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     req->bagq_start_handle = le16toh(u8ptr + 1);
@@ -386,7 +387,7 @@ ble_att_read_group_type_req_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -405,13 +406,13 @@ ble_att_read_group_type_rsp_parse(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_READ_GROUP_TYPE_RSP) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     rsp->bagp_length = u8ptr[1];
@@ -426,7 +427,7 @@ ble_att_read_group_type_rsp_write(void *payload, int len,
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
@@ -443,13 +444,13 @@ ble_att_write_req_parse(void *payload, int len, struct ble_att_write_req *req)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_WRITE_REQ_MIN_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;
 
     if (u8ptr[0] != BLE_ATT_OP_WRITE_REQ) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     req->bawq_handle = le16toh(u8ptr + 1);
@@ -463,7 +464,7 @@ ble_att_write_req_write(void *payload, int len, struct ble_att_write_req *req)
     uint8_t *u8ptr;
 
     if (len < BLE_ATT_WRITE_REQ_MIN_SZ) {
-        return EMSGSIZE;
+        return BLE_HS_EMSGSIZE;
     }
 
     u8ptr = payload;

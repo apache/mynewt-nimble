@@ -146,7 +146,7 @@ ble_hs_hci_batch_init(void)
         OS_MEMPOOL_BYTES(BLE_HS_HCI_BATCH_NUM_ENTRIES,
                          sizeof (struct ble_hs_hci_batch_entry)));
     if (ble_hs_hci_batch_entry_mem == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     rc = os_mempool_init(&ble_hs_hci_batch_entry_pool,
@@ -155,7 +155,7 @@ ble_hs_hci_batch_init(void)
                          ble_hs_hci_batch_entry_mem,
                          "ble_hs_hci_batch_entry_pool");
     if (rc != 0) {
-        return EINVAL; // XXX
+        return BLE_HS_EINVAL; // XXX
     }
 
     STAILQ_INIT(&ble_hs_hci_batch_queue);

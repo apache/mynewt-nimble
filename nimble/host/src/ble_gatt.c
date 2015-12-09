@@ -270,12 +270,12 @@ ble_gatt_new_entry(uint16_t conn_handle, struct ble_gatt_entry **entry)
     /* Ensure we have a connection with the specified handle. */
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
-        return ENOTCONN;
+        return BLE_HS_ENOTCONN;
     }
 
     *entry = ble_gatt_entry_alloc();
     if (*entry == NULL) {
-        return ENOMEM;
+        return BLE_HS_ENOMEM;
     }
 
     memset(*entry, 0, sizeof **entry);
@@ -318,7 +318,7 @@ ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
 
     conn = ble_hs_conn_find(entry->conn_handle);
     if (conn == NULL) {
-        rc = ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
         goto err;
     }
 
@@ -408,7 +408,7 @@ ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry)
 
     conn = ble_hs_conn_find(entry->conn_handle);
     if (conn == NULL) {
-        rc = ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
         goto err;
     }
 
@@ -433,7 +433,9 @@ static void
 ble_gatt_err_disc_all_services(struct ble_gatt_entry *entry,
                                uint8_t ble_hs_status, uint8_t att_status)
 {
-    if (ble_hs_status == 255 && att_status == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+    if (ble_hs_status == BLE_HS_EATT &&
+        att_status == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+
         /* Discovery is complete. */
         ble_hs_status = 0;
         att_status = 0;
@@ -474,7 +476,7 @@ ble_gatt_rx_read_group_type_adata(struct ble_hs_conn *conn,
         break;
 
     default:
-        rc = EMSGSIZE;
+        rc = BLE_HS_EMSGSIZE;
         goto done;
     }
 
@@ -565,7 +567,7 @@ ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry)
 
     conn = ble_hs_conn_find(entry->conn_handle);
     if (conn == NULL) {
-        rc = ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
         goto err;
     }
 
@@ -591,7 +593,9 @@ static void
 ble_gatt_err_disc_service_uuid(struct ble_gatt_entry *entry,
                                uint8_t ble_hs_status, uint8_t att_status)
 {
-    if (ble_hs_status == 255 && att_status == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+    if (ble_hs_status == BLE_HS_EATT &&
+        att_status == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+
         /* Discovery is complete. */
         ble_hs_status = 0;
         att_status = 0;
@@ -700,7 +704,7 @@ ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry)
 
     conn = ble_hs_conn_find(entry->conn_handle);
     if (conn == NULL) {
-        rc = ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
         goto err;
     }
 
@@ -726,7 +730,9 @@ static void
 ble_gatt_err_disc_all_chars(struct ble_gatt_entry *entry,
                             uint8_t ble_hs_status, uint8_t att_status)
 {
-    if (ble_hs_status == 255 && att_status == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+    if (ble_hs_status == BLE_HS_EATT &&
+        att_status == BLE_ATT_ERR_ATTR_NOT_FOUND) {
+
         /* Discovery is complete. */
         ble_hs_status = 0;
         att_status = 0;
@@ -837,7 +843,7 @@ ble_gatt_kick_read(struct ble_gatt_entry *entry)
 
     conn = ble_hs_conn_find(entry->conn_handle);
     if (conn == NULL) {
-        rc = ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
         goto err;
     }
 
@@ -954,7 +960,7 @@ ble_gatt_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
     }
 
     dispatch = ble_gatt_dispatch_get(entry->op);
-    dispatch->err_cb(entry, 255, rsp->baep_error_code);
+    dispatch->err_cb(entry, BLE_HS_EATT, rsp->baep_error_code);
 
     ble_gatt_entry_remove_free(entry, prev);
 }
@@ -973,7 +979,7 @@ ble_gatt_connection_broken(uint16_t conn_handle)
         }
 
         dispatch = ble_gatt_dispatch_get(entry->op);
-        dispatch->err_cb(entry, 254, 0);
+        dispatch->err_cb(entry, BLE_HS_ENOTCONN, 0);
 
         ble_gatt_entry_remove_free(entry, prev);
     }
@@ -990,7 +996,7 @@ ble_gatt_init(void)
         OS_MEMPOOL_BYTES(BLE_GATT_NUM_ENTRIES,
                          sizeof (struct ble_gatt_entry)));
     if (ble_gatt_entry_mem == NULL) {
-        rc = ENOMEM;
+        rc = BLE_HS_ENOMEM;
         goto err;
     }
 

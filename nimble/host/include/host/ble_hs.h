@@ -20,6 +20,16 @@
 #include <inttypes.h>
 struct os_mbuf;
 
+#define BLE_HS_EAGAIN                   1
+#define BLE_HS_EALREADY                 2
+#define BLE_HS_EINVAL                   3
+#define BLE_HS_EMSGSIZE                 4
+#define BLE_HS_ENOENT                   5
+#define BLE_HS_ENOMEM                   5
+#define BLE_HS_ENOTCONN                 6
+#define BLE_HS_ENOTSUP                  7
+#define BLE_HS_EATT                     8
+
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
 #define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
 #define BLE_HS_KICK_GATT_EVENT          (OS_EVENT_T_PERUSER + 2)
@@ -30,7 +40,6 @@ extern struct os_mbuf_pool ble_hs_mbuf_pool;
 extern struct os_eventq ble_hs_evq;
 
 void ble_hs_process_tx_data_queue(void);
-void ble_hs_task_handler(void *arg);
 int ble_hs_rx_data(struct os_mbuf *om);
 int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_kick_hci(void);

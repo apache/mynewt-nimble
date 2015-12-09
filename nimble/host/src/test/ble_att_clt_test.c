@@ -18,6 +18,7 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
+#include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_conn.h"
 #include "ble_att_priv.h"
@@ -54,13 +55,13 @@ TEST_CASE(ble_att_clt_test_tx_find_info)
     req.bafq_start_handle = 0;
     req.bafq_end_handle = 0xffff;
     rc = ble_att_clt_tx_find_info(conn, &req);
-    TEST_ASSERT(rc == EINVAL);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Error: start handle greater than end handle. */
     req.bafq_start_handle = 500;
     req.bafq_end_handle = 499;
     rc = ble_att_clt_tx_find_info(conn, &req);
-    TEST_ASSERT(rc == EINVAL);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success; start and end handles equal. */
     req.bafq_start_handle = 500;
