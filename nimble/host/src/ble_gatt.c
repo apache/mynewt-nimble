@@ -788,6 +788,8 @@ ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
 
     entry->disc_all_chars.prev_handle = adata->att_handle;
 
+    rc = 0;
+
 done:
     cbrc = ble_gatt_disc_all_chars_cb(entry, rc, 0, &chr);
     if (rc != 0 || cbrc != 0) {
