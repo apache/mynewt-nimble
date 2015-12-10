@@ -522,15 +522,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
 
     switch (g_ble_ll_data.ll_state) {
     case BLE_LL_STATE_ADV:
-        /* If we get a scan request we must tell the phy to go from rx to tx */
-        if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
-            rc = 1;
-        } else if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
-            rc = 0;
-        } else {
-            /* This is a frame we dont want. Just abort it */
-            rc = -1;
-        }
+        rc = ble_ll_adv_rx_pdu_start(pdu_type, rxpdu);
         break;
     case BLE_LL_STATE_INITIATING:
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||

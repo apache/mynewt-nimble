@@ -895,7 +895,7 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
  * 
  * @param status The BLE error code associated with the event
  */
-static void
+void
 ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
 {
     uint8_t *evbuf;
@@ -1451,7 +1451,7 @@ ble_ll_conn_create_cancel(void)
 }
 
 /* Returns true if the address matches the connection peer address */
-int
+static int
 ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva)
 {
     int rc;
@@ -1477,7 +1477,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva)
  * @param addr_type Address type of advertiser
  * @param adva Address of advertiser
  */
-int
+static int
 ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva)
 {
     int rc;
@@ -2035,7 +2035,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
  *  
  * @param rxbuf Pointer to received PDU 
  *  
- * @return 0: connection started. 
+ * @return 0: connection not started; 1 connecton started 
  */
 int
 ble_ll_conn_slave_start(uint8_t *rxbuf)

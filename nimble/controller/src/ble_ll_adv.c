@@ -35,7 +35,7 @@
  * fixed for now but could be considered "configuration" parameters for either
  * the device or the stack.
  */
-#define BLE_LL_CFG_ADV_PDU_ITVL_HD_USECS    (5000)  /* usecs */
+#define BLE_LL_CFG_ADV_PDU_ITVL_HD_USECS    (1250)  /* usecs */
 #define BLE_LL_CFG_ADV_PDU_ITVL_LD_USECS    (10000) /* usecs */
 #define BLE_LL_CFG_ADV_TXPWR                (0)     /* dBm */
 
@@ -43,8 +43,7 @@
  * 1) Need to look at advertising and scan request PDUs. Do I allocate these
  * once? Do I use a different pool for smaller ones? Do I statically declare
  * them?
- * 2) The random address and initiator address (if doing directed adv) is not
- * set yet. Determine how that is to be done.
+ * 2) Only public device addresses supported right now.
  * 3) How do features get supported? What happens if device does not support
  * advertising? (for example)
  * 4) Correct calculation of schedule start and end times for the various
@@ -53,19 +52,9 @@
  * now, we set it to max.
  * 6) Currently, when we set scheduling events, we dont take into account
  * processor overhead/delays. We will want to do that.
- * 8) For set adv enable command: if we get a connection, or we time out,
- *    we need to send a CONNECTION COMPLETE event. Do this.
- * 9) How does the advertising channel tx power get set? I dont implement
+ * 7) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 10) Deal with whitelisting at LL when pdu is handed up to LL task.
- * 11) What about High duty cycle advertising? Do we exit the advertising state
- * after 1.28 seconds automatically? Seems like we do!!! 4.4.2.4.2 Vol 6 Part B
- * => YES! we have to implement this and set back a CONN COMPLETE event with
- *    error code DIRECTED ADV TIMEOUT.
- * 12) Something to consider: if we are attempting to advertise but dont have
- * any connection state machines available, I dont think we should enable
- * advertising.
- * 13) Implement high duty cycle advertising timeout.
+ * 8) Deal with whitelisting at LL when pdu is handed up to LL task.
  */
 
 /* 
@@ -94,6 +83,7 @@ struct ble_ll_adv_sm
     uint32_t adv_itvl_usecs;
     uint32_t adv_event_start_time;
     uint32_t adv_pdu_start_time;
+    uint32_t adv_dir_hd_end_time;
     uint8_t initiator_addr[BLE_DEV_ADDR_LEN];
     uint8_t adv_data[BLE_ADV_DATA_MAX_LEN];
     uint8_t scan_rsp_data[BLE_SCAN_RSP_DATA_MAX_LEN];
@@ -224,6 +214,10 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
+
+        if (advsm->peer_addr_type == BLE_HCI_ADV_PEER_ADDR_RANDOM) {
+            pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
+        }
         break;
 
         /* Set these to avoid compiler warnings */
@@ -453,6 +447,12 @@ ble_ll_adv_sched_set(struct ble_ll_adv_sm *advsm)
         if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
             max_usecs += BLE_LL_ADV_SCHED_MAX_USECS;
         }
+        /* 
+         * XXX: what exactly is done with the schedule end time here? It
+         * may be off when we initially start advertising since we have
+         * already passed the start time and the pdu will get transmitted
+         * well after adv_pdu_start_time 
+         */
         sch->end_time = advsm->adv_pdu_start_time +
             cputime_usecs_to_ticks(max_usecs);
 
@@ -501,15 +501,23 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     adv_itvl_max = le16toh(cmd + 2);
     adv_type = cmd[4];
 
-    /* Min has to be less than max */
-    if (adv_itvl_min > adv_itvl_max) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
+    /* 
+     * Get the filter policy now since we will ignore it if we are doing
+     * directed advertising
+     */
+    adv_filter_policy = cmd[14];
 
     switch (adv_type) {
-    case BLE_HCI_ADV_TYPE_ADV_IND:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+        adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
+        memcpy(advsm->initiator_addr, cmd + 7, BLE_DEV_ADDR_LEN);
+        /* Ignore min/max interval */
+        min_itvl = 0;
+        adv_itvl_min = 0;
+        adv_itvl_max = 0;
+        break;
+    case BLE_HCI_ADV_TYPE_ADV_IND:
         min_itvl = BLE_LL_ADV_ITVL_MIN;
         break;
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
@@ -522,7 +530,9 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     }
 
     /* Make sure interval minimum is valid for the advertising type */
-    if ((adv_itvl_min < min_itvl) || (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
+    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) || 
+        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) || 
+        (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -542,7 +552,6 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     }
 
     /* Check for valid filter policy */
-    adv_filter_policy = cmd[14];
     if (adv_filter_policy > BLE_HCI_ADV_FILT_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -551,7 +560,6 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
        own address type or peer address type */
     advsm->own_addr_type = own_addr_type;
     advsm->peer_addr_type = peer_addr_type;
-
     advsm->adv_filter_policy = adv_filter_policy;
     advsm->adv_chanmask = adv_chanmask;
     advsm->adv_itvl_min = adv_itvl_min;
@@ -619,7 +627,13 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->enabled = 1;
 
     /* Determine the advertising interval we will use */
-    advsm->adv_itvl_usecs = (uint32_t)advsm->adv_itvl_max * BLE_LL_ADV_ITVL;
+    if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+        /* Set it to max. allowed for high duty cycle advertising */
+        advsm->adv_itvl_usecs = BLE_LL_ADV_PDU_ITVL_HD_MS_MAX;
+    } else {
+        advsm->adv_itvl_usecs = (uint32_t)advsm->adv_itvl_max;
+        advsm->adv_itvl_usecs *= BLE_LL_ADV_ITVL;
+    }
 
     /* Create the advertising PDU */
     ble_ll_adv_pdu_make(advsm);
@@ -648,6 +662,14 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      */ 
     advsm->adv_event_start_time = cputime_get32();
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+
+    /* 
+     * Set the time at which we must end directed, high-duty cycle advertising.
+     * Does not matter that we calculate this value if we are not doing high
+     * duty cycle advertising.
+     */
+    advsm->adv_dir_hd_end_time = advsm->adv_event_start_time +
+        cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
 
     /* Set packet in schedule */
     sch = ble_ll_adv_sched_set(advsm);
@@ -867,6 +889,7 @@ void
 ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
 {
     int valid;
+    uint8_t *inita;
     struct ble_ll_adv_sm *advsm;
 
     /* Check filter policy. */
@@ -880,7 +903,21 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
     } else {
         /* If this is for us? */
         if (!ble_ll_adv_addr_cmp(rxbuf)) {
-            valid = 1;
+            /* 
+             * Only accept connect requests from the desired address if we
+             * are doing directed advertising 
+             */
+            if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) ||
+                (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD)) {
+                /* XXX: not sure if this works if address is random */
+                /* Compare addresses */
+                inita = rxbuf + BLE_LL_PDU_HDR_LEN;
+                if (!memcmp(advsm->initiator_addr, inita, BLE_DEV_ADDR_LEN)) {
+                    valid = 1;
+                }
+            } else {
+                valid = 1;
+            }
         }
     }
 
@@ -938,6 +975,50 @@ ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu)
 }
 
 /**
+ * Called when a receive PDU has started and we are advertising. 
+ *  
+ * Context: interrupt 
+ * 
+ * @param pdu_type 
+ * @param rxpdu 
+ * 
+ * @return int 
+ *   < 0: A frame we dont want to receive.
+ *   = 0: Continue to receive frame. Dont go from rx to tx
+ *   > 0: Continue to receive frame and go from rx to tx when done
+ */
+int
+ble_ll_adv_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
+{
+    int rc;
+    struct ble_ll_adv_sm *advsm;
+
+    /* Assume we will abort the frame */
+    rc = -1;
+
+    /* If we get a scan request we must tell the phy to go from rx to tx */
+    advsm = &g_ble_ll_adv_sm;
+    if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
+        /* Only accept scan requests if we are indirect adv or scan adv */
+        if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND) || 
+            (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
+            rc = 1;
+        } 
+    } else {
+        /* Only accept connect requests if we are indirect ordirect advertising */
+        if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
+            if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) || 
+                (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD) ||
+                (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
+                rc = 0;
+            } 
+        }
+    }
+
+    return rc;
+}
+
+/**
  * Process advertistement tx done event. 
  *  
  * Context: Link Layer task. 
@@ -958,7 +1039,9 @@ ble_ll_adv_tx_done_proc(void *arg)
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
     /* For debug purposes */
+#ifdef BLETEST
     bletest_inc_adv_pkt_num();
+#endif
 
     /* 
      * Check if we have ended our advertising event. If our last advertising
@@ -979,7 +1062,9 @@ ble_ll_adv_tx_done_proc(void *arg)
 
         /* Calculate start time of next advertising event */
         itvl = advsm->adv_itvl_usecs;
-        itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+        if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+            itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+        }
         advsm->adv_event_start_time += cputime_usecs_to_ticks(itvl);
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
@@ -1023,11 +1108,25 @@ ble_ll_adv_tx_done_proc(void *arg)
         /* Calculate start time of next advertising event */
         while (delta_t < 0) {
             itvl = advsm->adv_itvl_usecs;
-            itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+            if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+                itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+            }
             itvl = cputime_usecs_to_ticks(itvl);
             advsm->adv_event_start_time += itvl;
             advsm->adv_pdu_start_time = advsm->adv_event_start_time;
             delta_t += (int32_t)itvl;
+        }
+    }
+
+    /* 
+     * Stop high duty cycle directed advertising if we have been doing
+     * it for more than 1.28 seconds
+     */ 
+    if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+        if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
+            ble_ll_adv_sm_stop(advsm);
+            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO);
+            return;
         }
     }
 
