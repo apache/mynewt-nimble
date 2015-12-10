@@ -1122,19 +1122,6 @@ ble_att_svr_is_valid_group_type(uint8_t *uuid128)
 }
 
 static int
-ble_att_svr_is_valid_group_member(uint8_t *uuid128)
-{
-    uint16_t uuid16;
-
-    /* Assumes the group type is primary or secondary service. */
-
-    uuid16 = ble_hs_uuid_16bit(uuid128);
-
-    return uuid16 == BLE_ATT_UUID_INCLUDE ||
-           uuid16 == BLE_ATT_UUID_CHARACTERISTIC;
-}
-
-static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
                          uint8_t *uuid128)
 {
@@ -1249,7 +1236,7 @@ ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
 
         if (start_group_handle != 0) {
             /* We have already found the start of a group. */
-            if (ble_att_svr_is_valid_group_member(entry->ha_uuid)) {
+            if (!ble_att_svr_is_valid_group_type(entry->ha_uuid)) {
                 /* This attribute is part of the current group. */ 
                 end_group_handle = entry->ha_handle_id;
             } else {

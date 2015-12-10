@@ -88,11 +88,9 @@ ble_att_svr_test_misc_attr_fn_r_group(struct ble_att_svr_entry *entry,
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
-    /* Garbage from 11 to 13 */
-    /* Service 1,2,3...16 from 14 to 19 */
-    /* Garbage from 20 to 22 */
+    /* Service 1,2,3...16 from 11 to 19 */
 
-    static uint8_t vals[23][16] = {
+    static uint8_t vals[20][16] = {
         [1] =   { 0x22, 0x11 },
         [2] =   { 0xdd, 0xdd },
         [3] =   { 0xdd, 0xdd },
@@ -103,18 +101,15 @@ ble_att_svr_test_misc_attr_fn_r_group(struct ble_att_svr_entry *entry,
         [8] =   { 0xee, 0xee },
         [9] =   { 0xee, 0xee },
         [10] =  { 0xee, 0xee },
-        [11] =  { 0xbe, 0xff },
-        [12] =  { 0xbe, 0xff },
-        [13] =  { 0xbe, 0xff },
-        [14] =  { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+        [11] =  { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+        [12] =  { 0xdd, 0xdd },
+        [13] =  { 0xdd, 0xdd },
+        [14] =  { 0xdd, 0xdd },
         [15] =  { 0xdd, 0xdd },
         [16] =  { 0xdd, 0xdd },
         [17] =  { 0xdd, 0xdd },
         [18] =  { 0xdd, 0xdd },
         [19] =  { 0xdd, 0xdd },
-        [20] =  { 0xbe, 0xff },
-        [21] =  { 0xbe, 0xff },
-        [22] =  { 0xbe, 0xff },
     };
 
     static uint8_t zeros[14];
@@ -168,9 +163,7 @@ ble_att_svr_test_misc_register_group_attrs(void)
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
-    /* Garbage from 11 to 13 */
-    /* Service 1,2,3...16 from 14 to 19 */
-    /* Garbage from 20 to 22 */
+    /* Service 1,2,3...16 from 11 to 19 */
 
     int i;
 
@@ -179,9 +172,15 @@ ble_att_svr_test_misc_register_group_attrs(void)
         BLE_ATT_UUID_PRIMARY_SERVICE, 0, 1,
         ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 2; i <= 5; i++) {
-        ble_att_svr_test_misc_register_uuid16(
-            BLE_ATT_UUID_CHARACTERISTIC, 0, i,
-            ble_att_svr_test_misc_attr_fn_r_group);
+        if ((i - 2) % 2 == 0) {
+            ble_att_svr_test_misc_register_uuid16(
+                BLE_ATT_UUID_CHARACTERISTIC, 0, i,
+                ble_att_svr_test_misc_attr_fn_r_group);
+        } else {
+            ble_att_svr_test_misc_register_uuid16(
+                i, 0, i,
+                ble_att_svr_test_misc_attr_fn_r_group);
+        }
     }
 
     /* Service 0x2233 from 6 to 10 */
@@ -194,28 +193,20 @@ ble_att_svr_test_misc_register_group_attrs(void)
             ble_att_svr_test_misc_attr_fn_r_group);
     }
 
-    /* Garbage from 11 to 13 */
-    for (i = 11; i <= 13; i++) {
-        ble_att_svr_test_misc_register_uuid16(
-            0x8797, 0, i,
-            ble_att_svr_test_misc_attr_fn_r_group);
-    }
-
-    /* Service 1,2,3...16 from 14 to 19 */
+    /* Service 1,2,3...16 from 11 to 19 */
     ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 14,
+        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 11,
         ble_att_svr_test_misc_attr_fn_r_group);
-    for (i = 15; i <= 19; i++) {
-        ble_att_svr_test_misc_register_uuid16(
-            BLE_ATT_UUID_CHARACTERISTIC, 0, i,
-            ble_att_svr_test_misc_attr_fn_r_group);
-    }
-
-    /* Garbage from 20 to 22 */
-    for (i = 20; i <= 22; i++) {
-        ble_att_svr_test_misc_register_uuid16(
-            0xabab, 0, i,
-            ble_att_svr_test_misc_attr_fn_r_group);
+    for (i = 12; i <= 19; i++) {
+        if ((i - 12) % 2 == 0) {
+            ble_att_svr_test_misc_register_uuid16(
+                BLE_ATT_UUID_CHARACTERISTIC, 0, i,
+                ble_att_svr_test_misc_attr_fn_r_group);
+        } else {
+            ble_att_svr_test_misc_register_uuid16(
+                i, 0, i,
+                ble_att_svr_test_misc_attr_fn_r_group);
+        }
     }
 }
 
@@ -1235,7 +1226,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
 
     ble_att_svr_test_misc_verify_tx_read_group_type_rsp(chan,
         ((struct ble_att_svr_test_group_type_entry[]) { {
-            .start_handle = 14,
+            .start_handle = 11,
             .end_handle = 19,
             .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
         }, {
