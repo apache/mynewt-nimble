@@ -82,8 +82,8 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CONN_CFG_OUR_SCA             (500)   /* in ppm */
 
 /* LL configuration definitions */
-#define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (27)
-#define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (27)
+#define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (251)
+#define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (251)
 #define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (27)
 
 /* Roles */
@@ -95,10 +95,6 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CONN_STATE_IDLE              (0)
 #define BLE_LL_CONN_STATE_CREATED           (1)
 #define BLE_LL_CONN_STATE_ESTABLISHED       (2)
-
-/* Data Lenth Procedure */
-#define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
-#define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */
 
 /* Connection request */
 #define BLE_LL_CONN_REQ_ADVA_OFF    (BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN)
@@ -149,16 +145,10 @@ struct ble_ll_conn_stats
     uint32_t slave_rxd_bad_conn_req_params;
     uint32_t slave_ce_failures;
     uint32_t rx_resent_pdus;
-    uint32_t data_pdu_rx_valid;
-    uint32_t data_pdu_rx_invalid;
-    uint32_t data_pdu_rx_bad_llid;
     uint32_t data_pdu_rx_dup;
-    uint32_t data_pdu_txd;
     uint32_t data_pdu_txg;
     uint32_t data_pdu_txf;
     uint32_t conn_req_txd;
-    uint32_t ctrl_pdu_rxd;
-    uint32_t l2cap_pdu_rxd;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
 
@@ -573,7 +563,14 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
             ble_ll_wfr_enable(wfr_time, ble_ll_conn_wait_txend, connsm);
         }
 
-        ++g_ble_ll_conn_stats.data_pdu_txd;
+        /* Increment packets transmitted */
+        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+            ++g_ble_ll_stats.tx_ctrl_pdus;
+            g_ble_ll_stats.tx_ctrl_bytes += OS_MBUF_PKTHDR(m)->omp_len;
+        } else {
+            ++g_ble_ll_stats.tx_data_pdus;
+            g_ble_ll_stats.tx_data_bytes += OS_MBUF_PKTHDR(m)->omp_len;
+        }
     }
 
     return rc;
@@ -860,13 +857,11 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
     connsm->cons_rxd_bad_crc = 0;
     connsm->last_rxd_sn = 1;
 
-    /* XXX: Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
-       exceeds the minimum, data length procedure needs to occur */
     /* initialize data length mgmt */
     conn_params = &g_ble_ll_conn_params;
     connsm->max_tx_octets = conn_params->conn_init_max_tx_octets;
     connsm->max_rx_octets = conn_params->supp_max_rx_octets;
-    connsm->max_tx_time = conn_params->conn_init_max_tx_octets;
+    connsm->max_tx_time = conn_params->conn_init_max_tx_time;
     connsm->max_rx_time = conn_params->supp_max_rx_time;
     connsm->rem_max_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;
     connsm->rem_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN;
@@ -877,7 +872,19 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
     connsm->eff_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
 
-    /* XXX: Controller notifies host of changes to effective tx/rx time/bytes*/
+    /* 
+     * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
+     * exceeds the minimum, data length procedure needs to occur
+     */
+    if ((connsm->max_tx_octets > BLE_LL_CONN_SUPP_BYTES_MIN) ||
+        (connsm->max_rx_octets > BLE_LL_CONN_SUPP_BYTES_MIN) ||
+        (connsm->max_tx_time > BLE_LL_CONN_SUPP_TIME_MIN) ||
+        (connsm->max_rx_time > BLE_LL_CONN_SUPP_TIME_MIN)) {
+        /* Start the data length update procedure */
+        if (ble_ll_read_supp_features() & BLE_LL_FEAT_DATA_LEN_EXT) {
+            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
+        }
+    }
 
     /* Add to list of active connections */
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
@@ -916,6 +923,58 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
 }
 
 /**
+ * Called when a remotes data length parameters change. 
+ *  
+ * Context: Link Layer task 
+ *  
+ * @param connsm 
+ * @param req 
+ */
+void
+ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm, 
+                           struct ble_ll_len_req *req)
+{
+    int send_event;
+    uint16_t eff_time;
+    uint16_t eff_bytes;
+
+    /* Update parameters */
+    connsm->rem_max_rx_time = req->max_rx_time;
+    connsm->rem_max_tx_time = req->max_tx_time;
+    connsm->rem_max_rx_octets = req->max_rx_bytes;
+    connsm->rem_max_tx_octets = req->max_tx_bytes;
+
+    /* Assume no event sent */
+    send_event = 0;
+
+    /* See if effective times have changed */
+    eff_time = min(connsm->rem_max_rx_time, connsm->max_rx_time);
+    if (eff_time != connsm->eff_max_rx_time) {
+        connsm->eff_max_rx_time = eff_time;
+        send_event = 1;
+    }
+    eff_time = min(connsm->rem_max_tx_time, connsm->max_tx_time);
+    if (eff_time != connsm->eff_max_tx_time) {
+        connsm->eff_max_tx_time = eff_time;
+        send_event = 1;
+    }
+    eff_bytes = min(connsm->rem_max_rx_octets, connsm->max_rx_octets);
+    if (eff_bytes != connsm->eff_max_rx_octets) {
+        connsm->eff_max_rx_octets = eff_bytes;
+        send_event = 1;
+    }
+    eff_bytes = min(connsm->rem_max_tx_octets, connsm->max_tx_octets);
+    if (eff_bytes != connsm->eff_max_tx_octets) {
+        connsm->eff_max_tx_octets = eff_bytes;
+        send_event = 1;
+    }
+
+    if (send_event) {
+        ble_ll_ctrl_datalen_chg_event(connsm);
+    }
+}
+
+/**
  * Called when a connection is terminated 
  *  
  * Context: Link Layer task. 
@@ -942,7 +1001,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_wfr_disable();
 
     /* Stop any control procedures that might be running */
-    os_callout_stop(&connsm->ctrl_proc_timer.cf_c);
+    os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
 
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
@@ -1129,7 +1188,11 @@ ble_ll_conn_event_end(void *arg)
         connsm->slave_cur_window_widening = cur_ww;
     }
 
+    /* Log event end */
     ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, 0, 0, connsm->event_cntr);
+
+    /* See if we need to start any control procedures */
+    ble_ll_ctrl_chk_proc_start(connsm);
 
     /* Schedule the next connection event */
     ble_ll_conn_sched_set(connsm);
@@ -1225,6 +1288,8 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 
 /**
  * Process the HCI command to create a connection. 
+ *  
+ * Context: Link Layer task (HCI command processing) 
  * 
  * @param cmdbuf 
  * 
@@ -1658,7 +1723,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
 
     if (crcok) {
         /* Count valid received data pdus */
-        ++g_ble_ll_conn_stats.data_pdu_rx_valid;
+        ++g_ble_ll_stats.rx_valid_data_pdus;
 
         /* We better have a connection state machine */
         connsm = g_ble_ll_conn_cur_sm;
@@ -1676,7 +1741,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
             /* Check that the LLID is reasonable */
             if ((acl_hdr == 0) || 
                 ((acl_hdr == BLE_LL_LLID_DATA_START) && (acl_len == 0))) {
-                ++g_ble_ll_conn_stats.data_pdu_rx_bad_llid;
+                ++g_ble_ll_stats.rx_bad_llid;
                 goto conn_rx_data_pdu_end;
             }
 
@@ -1705,13 +1770,12 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
                 }
 
                 if (acl_hdr == BLE_LL_LLID_CTRL) {
-                    /* XXX: Process control frame! For now just free */
-                    ++g_ble_ll_conn_stats.ctrl_pdu_rxd;
+                    /* Process control frame! For now just free */
+                    ++g_ble_ll_stats.rx_ctrl_pdus;
                     ble_ll_ctrl_rx_pdu(connsm, rxpdu);
                 } else {
-
                     /* Count # of data frames */
-                    ++g_ble_ll_conn_stats.l2cap_pdu_rxd;
+                    ++g_ble_ll_stats.rx_l2cap_pdus;
 
                     /* NOTE: there should be at least two bytes available */
                     assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
@@ -1722,8 +1786,10 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
                     htole16(rxbuf, acl_hdr);
                     htole16(rxbuf + 2, acl_len);
                     ble_hs_rx_data(rxpdu);
-                    return;
                 }
+
+                /* NOTE: we dont free the mbuf since we handed it off! */
+                return;
             } else {
                 ++g_ble_ll_conn_stats.data_pdu_rx_dup;
             }
@@ -1731,7 +1797,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok)
             ++g_ble_ll_conn_stats.no_conn_sm;
         }
     } else {
-        ++g_ble_ll_conn_stats.data_pdu_rx_invalid;
+        ++g_ble_ll_stats.rx_invalid_data_pdus;
     }
 
     /* Free buffer */
@@ -2099,7 +2165,7 @@ ble_ll_conn_init(void)
      */
     connsm = &g_ble_ll_conn_sm[0];
     for (i = 0; i < BLE_LL_CONN_CFG_MAX_CONNS; ++i) {
-        connsm->conn_handle = i;
+        connsm->conn_handle = i + 1;
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
 
         /* Initialize empty pdu */
@@ -2128,6 +2194,6 @@ ble_ll_conn_init(void)
 
     maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MAX_OVERHEAD;
     conn_params->conn_init_max_tx_time = ble_ll_pdu_tx_time_get(maxbytes);
-    conn_params->conn_init_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
+    conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
 }
 

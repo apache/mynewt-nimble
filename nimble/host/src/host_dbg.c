@@ -77,7 +77,13 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
             console_printf("LE connection complete. FAIL (status=%u)\n",status);
         }
         break;
-
+    case BLE_HCI_LE_SUBEV_DATA_LEN_CHG:
+        console_printf("Data Length Change. handle=%u max_tx_bytes=%u "
+                       "max_tx_time=%u max_rx_bytes=%u max_rx_time=%u\n",
+                       le16toh(evdata), le16toh(evdata + 2), 
+                       le16toh(evdata + 4), le16toh(evdata + 6),
+                       le16toh(evdata + 8));
+        break;
     default:
         console_printf("\tUnknown LE event\n");
         break;

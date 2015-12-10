@@ -31,6 +31,7 @@
 #define BLE_LL_CTRL_PROC_CONN_PARAM_REQ (6)
 #define BLE_LL_CRTL_PROC_LE_PING        (7)
 #define BLE_LL_CTRL_PROC_DATA_LEN_UPD   (8)
+#define BLE_LL_CTRL_PROC_NUM            (9)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* 
@@ -60,6 +61,9 @@
 #define BLE_LL_CTRL_PING_RSP            (19)
 #define BLE_LL_CTRL_LENGTH_REQ          (20)
 #define BLE_LL_CTRL_LENGTH_RSP          (21)
+
+/* Maximum # of payload bytes in a LL control PDU */
+#define BLE_LL_CTRL_MAX_PAYLOAD         (26)
 
 /* LL control connection update request */
 struct ble_ll_conn_upd_req
@@ -207,6 +211,7 @@ struct ble_ll_len_req
 void ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
-
+void ble_ll_ctrl_datalen_chg_event(struct ble_ll_conn_sm *connsm);
+void ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm);
 
 #endif /* H_BLE_LL_CTRL_ */

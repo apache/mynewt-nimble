@@ -52,8 +52,14 @@
  * 2) Need to figure out what to do with packets that we hand up that did
  * not pass the filter policy for the given state. Currently I count all
  * packets I think. Need to figure out what to do with this.
+ * 3) For the features defined, we need to conditionally compile code.
  * 
  */
+
+/* Configuration for supported features */
+#define BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#undef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#undef BLE_LL_CFG_FEAT_EXT_REJECT_IND
 
 /* The global BLE LL data object */
 struct ble_ll_obj g_ble_ll_data;
@@ -140,7 +146,7 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
         ++g_ble_ll_stats.rx_scan_ind;
         break;
     default:
-        ++g_ble_ll_stats.rx_unk_pdu;
+        ++g_ble_ll_stats.rx_adv_unk_pdu_type;
         break;
     }
 }
@@ -252,13 +258,15 @@ ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
 /**
  * ll pdu tx time get 
  *  
- * Returns the number of usecs it will take to transmit a PDU of length 'len' 
- * bytes. Each byte takes 8 usecs. 
+ * Returns the number of usecs it will take to transmit a PDU of length 'len'
+ * bytes. Each byte takes 8 usecs. This routine includes the LL overhead:
+ * preamble (1), access addr (4) and crc (3) for a total of 8 bytes.
  * 
- * @param len The number of PDU bytes to transmit
+ * @param len The number of PDU bytes to transmit. This includes both header
+ * and payload.
  * 
- * @return uint16_t The number of usecs it will take to transmit a PDU of 
- *                  length 'len' bytes. 
+ * @return uint16_t The number of usecs it will take to transmit a PDU of
+ *                  length 'len' bytes.
  */
 uint16_t
 ble_ll_pdu_tx_time_get(uint16_t len)
@@ -390,15 +398,14 @@ ble_ll_rx_pkt_in_proc(void)
         if (ble_hdr->crcok) {
             /* The total bytes count the PDU header and PDU payload */
             g_ble_ll_stats.rx_bytes += pkthdr->omp_len;
-            ++g_ble_ll_stats.rx_crc_ok;
-        } else {
-            ++g_ble_ll_stats.rx_crc_fail;
         }
 
         if (ble_hdr->channel < BLE_PHY_NUM_DATA_CHANS) {
             ble_ll_conn_rx_data_pdu(m, ble_hdr->crcok);
         } else {
             if (ble_hdr->crcok) {
+                ++g_ble_ll_stats.rx_valid_adv_pdus;
+
                 /* Get advertising PDU type */
                 pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
                 ble_ll_count_rx_adv_pdus(pdu_type);
@@ -429,6 +436,8 @@ ble_ll_rx_pkt_in_proc(void)
                     assert(0);
                     break;
                 }
+            } else {
+                ++g_ble_ll_stats.rx_invalid_adv_pdus;
             }
 
             /* Free the packet buffer */
@@ -638,7 +647,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
 
     /* If this is a malformed packet, just kill it here */
     if (badpkt) {
-        ++g_ble_ll_stats.rx_malformed_pkts;
+        ++g_ble_ll_stats.rx_adv_malformed_pkts;
         os_mbuf_free(rxpdu);
         return -1;
     }
@@ -758,6 +767,17 @@ ble_ll_event_send(struct os_event *ev)
 }
 
 /**
+ * Returns the features supported by the link layer
+ *
+ * @return uint8_t bitmask of supported features.
+ */
+uint8_t
+ble_ll_read_supp_features(void)
+{
+    return g_ble_ll_data.ll_supp_features;
+}
+
+/**
  * Initialize the Link Layer. Should be called only once 
  * 
  * @return int 
@@ -765,6 +785,7 @@ ble_ll_event_send(struct os_event *ev)
 int
 ble_ll_init(void)
 {
+    uint8_t features;
     struct ble_ll_obj *lldata;
 
     /* Get pointer to global data object */
@@ -799,6 +820,13 @@ ble_ll_init(void)
 
     /* Initialize the connection module */
     ble_ll_conn_init();
+
+    /* Set the supported features */
+    features = 0;
+#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+    features |= BLE_LL_FEAT_DATA_LEN_EXT;
+#endif
+    lldata->ll_supp_features = features;
 
     /* Initialize the LL task */
     os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, BLE_LL_TASK_PRI, 

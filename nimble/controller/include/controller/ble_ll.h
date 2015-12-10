@@ -32,6 +32,9 @@ struct ble_ll_obj
     /* Current Link Layer state */
     uint8_t ll_state;
 
+    /* Supported features */
+    uint8_t ll_supp_features;
+
     /* Task event queue */
     struct os_eventq ll_evq;
 
@@ -56,9 +59,11 @@ struct ble_ll_stats
     uint32_t hci_cmd_errs;
     uint32_t hci_events_sent;
     uint32_t bad_ll_state;
-    uint32_t rx_crc_ok;
-    uint32_t rx_crc_fail;
     uint32_t rx_bytes;
+    uint32_t rx_valid_adv_pdus;
+    uint32_t rx_invalid_adv_pdus;
+    uint32_t rx_adv_malformed_pkts;
+    uint32_t rx_adv_unk_pdu_type;
     uint32_t rx_adv_ind;
     uint32_t rx_adv_direct_ind;
     uint32_t rx_adv_nonconn_ind;
@@ -66,8 +71,17 @@ struct ble_ll_stats
     uint32_t rx_scan_rsps;
     uint32_t rx_connect_reqs;
     uint32_t rx_scan_ind;
-    uint32_t rx_unk_pdu;
-    uint32_t rx_malformed_pkts;
+    uint32_t rx_unk_pdus;
+    uint32_t rx_valid_data_pdus;
+    uint32_t rx_invalid_data_pdus;
+    uint32_t rx_ctrl_pdus;
+    uint32_t rx_l2cap_pdus;
+    uint32_t rx_malformed_ctrl_pdus;
+    uint32_t rx_bad_llid;
+    uint32_t tx_ctrl_pdus;
+    uint32_t tx_ctrl_bytes;
+    uint32_t tx_data_pdus;
+    uint32_t tx_data_bytes;
 };
 extern struct ble_ll_stats g_ble_ll_stats;
 
@@ -269,6 +283,9 @@ void ble_ll_wfr_enable(uint32_t cputime, ble_ll_wfr_func wfr_cb, void *arg);
 /* Disable wait for response timer */
 void ble_ll_wfr_disable(void);
 
+/* Read set of features supported by the Link Layer */
+uint8_t ble_ll_read_supp_features(void);
+
 /* 
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
@@ -290,5 +307,6 @@ void ble_ll_log(uint8_t id, uint8_t arg0_8, uint8_t arg1_8, uint32_t arg0_32);
 #else
 #define ble_ll_log(m,n,o,p)
 #endif
+
 
 #endif /* H_LL_ */

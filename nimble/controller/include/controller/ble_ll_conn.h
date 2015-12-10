@@ -33,6 +33,12 @@
 #define BLE_MASTER_SCA_21_30_PPM        (6)
 #define BLE_MASTER_SCA_0_20_PPM         (7)
 
+/* Definitions for max rx/tx time/bytes for connections */
+#define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */
+#define BLE_LL_CONN_SUPP_BYTES_MAX          (251)   /* bytes */
+
 /* 
  * Length of empty pdu mbuf. Each connection state machine contains an
  * empty pdu since we dont want to allocate a full mbuf for an empty pdu
@@ -131,11 +137,12 @@ struct ble_ll_conn_sm
     /* empty pdu for connection */
     uint32_t conn_empty_pdu[BLE_LL_EMPTY_PDU_MBUF_SIZE];
 
-    /* LL control procedure timer */
-    struct os_callout_func ctrl_proc_timer;
+    /* LL control procedure response timer */
+    struct os_callout_func ctrl_proc_rsp_timer;
 };
 
 /* API */
+struct ble_ll_len_req;
 int ble_ll_conn_create(uint8_t *cmdbuf);
 int ble_ll_conn_create_cancel(void);
 int ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva);
@@ -152,5 +159,8 @@ void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
+void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm, 
+                                struct ble_ll_len_req *req);
+
 
 #endif /* H_BLE_LL_CONN_ */

@@ -118,6 +118,7 @@ ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
 {    
     /* Add list of supported features. */
     memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
+    rspbuf[0] = ble_ll_read_supp_features();
     *rsplen = BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
