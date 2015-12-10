@@ -152,27 +152,34 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 
     rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     /* Strip L2CAP header from the front of the mbuf. */
     os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
 
     if (l2cap_hdr.blh_len != hci_hdr->hdh_len - BLE_L2CAP_HDR_SZ) {
-        return BLE_HS_EMSGSIZE;
+        rc = BLE_HS_EMSGSIZE;
+        goto err;
     }
 
     chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
     if (chan == NULL) {
-        return BLE_HS_ENOENT;
+        rc = BLE_HS_ENOENT;
+        goto err;
     }
 
     rc = ble_l2cap_rx_payload(conn, chan, om);
+    om = NULL;
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     return 0;
+
+err:
+    os_mbuf_free_chain(om);
+    return rc;
 }
 
 /**

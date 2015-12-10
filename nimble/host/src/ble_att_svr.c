@@ -945,7 +945,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     }
 
     /* Fill the response base. */
-    rsp.batp_length = prev_attr_len;
+    rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ + prev_attr_len;
     rc = ble_att_read_type_rsp_write(txom->om_data, txom->om_len, &rsp);
     assert(rc == 0);
 

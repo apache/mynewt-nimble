@@ -14,22 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef H_BLE_HS_
-#define H_BLE_HS_
+#ifndef H_BLE_GATT_PRIV_
+#define H_BLE_GATT_PRIV_
 
-#include <inttypes.h>
+#include "host/ble_gatt.h"
 
-#define BLE_HS_EAGAIN                   1
-#define BLE_HS_EALREADY                 2
-#define BLE_HS_EINVAL                   3
-#define BLE_HS_EMSGSIZE                 4
-#define BLE_HS_ENOENT                   5
-#define BLE_HS_ENOMEM                   6
-#define BLE_HS_ENOTCONN                 7
-#define BLE_HS_ENOTSUP                  8
-#define BLE_HS_EATT                     9
-#define BLE_HS_EBADDATA                 10
-
-int ble_hs_init(uint8_t prio);
+#define BLE_GATT_CHR_DECL_SZ_16     5
+#define BLE_GATT_CHR_DECL_SZ_128    19
 
 #endif

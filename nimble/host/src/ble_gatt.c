@@ -21,7 +21,7 @@
 #include <string.h>
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
-#include "host/ble_gatt.h"
+#include "ble_gatt_priv.h"
 #include "ble_hs_priv.h"
 #include "host/ble_hs_uuid.h"
 #include "ble_hs_conn.h"
@@ -58,7 +58,7 @@ struct ble_gatt_entry {
         struct {
             uint16_t prev_handle;
             uint16_t end_handle;
-            ble_gatt_attr_fn *cb;
+            ble_gatt_chr_fn *cb;
             void *cb_arg;
         } disc_all_chars;
 
@@ -182,6 +182,7 @@ ble_gatt_entry_remove(struct ble_gatt_entry *entry,
         assert(STAILQ_FIRST(&ble_gatt_list) == entry);
         STAILQ_REMOVE_HEAD(&ble_gatt_list, next);
     } else {
+        assert(STAILQ_NEXT(prev, next) == entry);
         STAILQ_NEXT(prev, next) = STAILQ_NEXT(entry, next);
     }
 }
@@ -261,7 +262,8 @@ ble_gatt_entry_set_expecting(struct ble_gatt_entry *entry,
 }
 
 static int
-ble_gatt_new_entry(uint16_t conn_handle, struct ble_gatt_entry **entry)
+ble_gatt_new_entry(uint16_t conn_handle, uint8_t op,
+                   struct ble_gatt_entry **entry)
 {
     struct ble_hs_conn *conn;
 
@@ -279,6 +281,7 @@ ble_gatt_new_entry(uint16_t conn_handle, struct ble_gatt_entry **entry)
     }
 
     memset(*entry, 0, sizeof **entry);
+    (*entry)->op = op;
     (*entry)->conn_handle = conn_handle;
 
     STAILQ_INSERT_TAIL(&ble_gatt_list, *entry, next);
@@ -367,11 +370,10 @@ ble_gatt_exchange_mtu(uint16_t conn_handle)
     struct ble_gatt_entry *entry;
     int rc;
 
-    rc = ble_gatt_new_entry(conn_handle, &entry);
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_MTU, &entry);
     if (rc != 0) {
         return rc;
     }
-    entry->op = BLE_GATT_OP_MTU;
 
     return 0;
 }
@@ -524,11 +526,11 @@ ble_gatt_disc_all_services(uint16_t conn_handle, ble_gatt_disc_service_fn *cb,
     struct ble_gatt_entry *entry;
     int rc;
 
-    rc = ble_gatt_new_entry(conn_handle, &entry);
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_DISC_ALL_SERVICES,
+                            &entry);
     if (rc != 0) {
         return rc;
     }
-    entry->op = BLE_GATT_OP_DISC_ALL_SERVICES;
     entry->disc_all_services.prev_handle = 0x0000;
     entry->disc_all_services.cb = cb;
     entry->disc_all_services.cb_arg = cb_arg;
@@ -660,11 +662,11 @@ ble_gatt_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
     struct ble_gatt_entry *entry;
     int rc;
 
-    rc = ble_gatt_new_entry(conn_handle, &entry);
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_DISC_SERVICE_UUID,
+                            &entry);
     if (rc != 0) {
         return rc;
     }
-    entry->op = BLE_GATT_OP_DISC_SERVICE_UUID;
     memcpy(entry->disc_service_uuid.service_uuid, service_uuid128, 16);
     entry->disc_service_uuid.prev_handle = 0x0000;
     entry->disc_service_uuid.cb = cb;
@@ -679,7 +681,7 @@ ble_gatt_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
 
 static int
 ble_gatt_disc_all_chars_cb(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
-                           uint8_t att_status, struct ble_gatt_attr *attr)
+                           uint8_t att_status, struct ble_gatt_chr *chr)
 {
     int rc;
 
@@ -687,7 +689,7 @@ ble_gatt_disc_all_chars_cb(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
         rc = 0;
     } else {
         rc = entry->disc_all_chars.cb(entry->conn_handle, ble_hs_status,
-                                      att_status, attr,
+                                      att_status, chr,
                                       entry->disc_all_chars.cb_arg);
     }
 
@@ -747,7 +749,9 @@ ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
 {
     struct ble_gatt_entry *entry;
     struct ble_gatt_entry *prev;
-    struct ble_gatt_attr attr;
+    struct ble_gatt_chr chr;
+    uint16_t uuid16;
+    int cbrc;
     int rc;
 
     entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_CHARS, 1,
@@ -757,14 +761,36 @@ ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
         return;
     }
 
+    memset(&chr, 0, sizeof chr);
+    chr.decl_handle = adata->att_handle;
+
+    switch (adata->value_len) {
+    case BLE_GATT_CHR_DECL_SZ_16:
+        uuid16 = le16toh(adata->value + 3);
+        rc = ble_hs_uuid_from_16bit(uuid16, chr.uuid128);
+        if (rc != 0) {
+            rc = BLE_HS_EBADDATA;
+            goto done;
+        }
+        break;
+
+    case BLE_GATT_CHR_DECL_SZ_128:
+        memcpy(chr.uuid128, adata->value + 3, 16);
+        break;
+
+    default:
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    chr.properties = adata->value[0];
+    chr.value_handle = le16toh(adata->value + 1);
+
     entry->disc_all_chars.prev_handle = adata->att_handle;
 
-    attr.handle = adata->att_handle;
-    attr.value_len = adata->value_len;
-    attr.value = adata->value;
-
-    rc = ble_gatt_disc_all_chars_cb(entry, 0, 0, &attr);
-    if (rc != 0) {
+done:
+    cbrc = ble_gatt_disc_all_chars_cb(entry, rc, 0, &chr);
+    if (rc != 0 || cbrc != 0) {
         ble_gatt_entry_remove_free(entry, prev);
     }
 }
@@ -795,17 +821,16 @@ ble_gatt_rx_read_type_complete(struct ble_hs_conn *conn, int rc)
 
 int
 ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
-                        uint16_t end_handle, ble_gatt_attr_fn *cb,
+                        uint16_t end_handle, ble_gatt_chr_fn *cb,
                         void *cb_arg)
 {
     struct ble_gatt_entry *entry;
     int rc;
 
-    rc = ble_gatt_new_entry(conn_handle, &entry);
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_DISC_ALL_CHARS, &entry);
     if (rc != 0) {
         return rc;
     }
-    entry->op = BLE_GATT_OP_DISC_ALL_CHARS;
     entry->disc_all_chars.prev_handle = start_handle - 1;
     entry->disc_all_chars.end_handle = end_handle;
     entry->disc_all_chars.cb = cb;
@@ -898,11 +923,10 @@ ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
     struct ble_gatt_entry *entry;
     int rc;
 
-    rc = ble_gatt_new_entry(conn_handle, &entry);
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_READ, &entry);
     if (rc != 0) {
         return rc;
     }
-    entry->op = BLE_GATT_OP_READ;
     entry->read.handle = attr_handle;
     entry->read.cb = cb;
     entry->read.cb_arg = cb_arg;
@@ -921,14 +945,11 @@ ble_gatt_wakeup(void)
     struct ble_gatt_entry *entry;
     struct ble_gatt_entry *prev;
     struct ble_gatt_entry *next;
-    struct ble_gatt_entry *last;
     int rc;
-
-    last = STAILQ_LAST(&ble_gatt_list, ble_gatt_entry, next);
 
     prev = NULL;
     entry = STAILQ_FIRST(&ble_gatt_list);
-    while (prev != last) {
+    while (entry != NULL) {
         next = STAILQ_NEXT(entry, next);
 
         if (entry->flags & BLE_GATT_ENTRY_F_PENDING) {
@@ -936,12 +957,15 @@ ble_gatt_wakeup(void)
             rc = dispatch->kick_cb(entry);
             if (rc == 0) {
                 ble_gatt_entry_set_expecting(entry, prev);
+                /* Current entry got moved to back; old prev still valid. */
             } else {
                 ble_gatt_entry_remove_free(entry, prev);
+                /* Current entry removed; old prev still valid. */
             }
+        } else {
+            prev = entry;
         }
 
-        prev = entry;
         entry = next;
     }
 }

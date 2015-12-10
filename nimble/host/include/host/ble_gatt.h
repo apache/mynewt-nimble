@@ -34,6 +34,13 @@ struct ble_gatt_attr {
     void *value;
 };
 
+struct ble_gatt_chr {
+    uint16_t decl_handle;
+    uint16_t value_handle;
+    uint8_t properties;
+    uint8_t uuid128[16];
+};
+
 typedef int ble_gatt_disc_service_fn(uint16_t conn_handle,
                                      uint8_t ble_hs_status, uint8_t att_status,
                                      struct ble_gatt_service *service,
@@ -42,13 +49,17 @@ typedef int ble_gatt_attr_fn(uint16_t conn_handle, uint8_t ble_hs_status,
                              uint8_t att_status, struct ble_gatt_attr *attr,
                              void *arg);
 
+typedef int ble_gatt_chr_fn(uint16_t conn_handle, uint8_t ble_hs_status,
+                            uint8_t att_status, struct ble_gatt_chr *chr,
+                            void *arg);
+
 int ble_gatt_disc_all_services(uint16_t conn_handle,
                                ble_gatt_disc_service_fn *cb,
                                void *cb_arg);
 int ble_gatt_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
                                   ble_gatt_disc_service_fn *cb, void *cb_arg);
 int ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
-                            uint16_t end_handle, ble_gatt_attr_fn *cb,
+                            uint16_t end_handle, ble_gatt_chr_fn *cb,
                             void *cb_arg);
 int ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
                   ble_gatt_attr_fn *cb, void *cb_arg);

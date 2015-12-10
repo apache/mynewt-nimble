@@ -57,7 +57,7 @@ struct ble_att_clt_adata {
     uint16_t att_handle;
     uint16_t end_group_handle;
     int value_len;
-    void *value;
+    uint8_t *value;
 };
 
 SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);

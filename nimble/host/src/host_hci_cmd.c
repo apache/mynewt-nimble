@@ -19,7 +19,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include "os/os.h"
-#include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 #include "ble_hs_priv.h"

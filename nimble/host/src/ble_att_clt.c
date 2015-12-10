@@ -299,6 +299,10 @@ static int
 ble_att_clt_parse_type_attribute_data(struct os_mbuf **om, int data_len,
                                       struct ble_att_clt_adata *adata)
 {
+    if (data_len <= BLE_ATT_READ_TYPE_ADATA_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
     *om = os_mbuf_pullup(*om, data_len);
     if (*om == NULL) {
         return BLE_HS_ENOMEM;
