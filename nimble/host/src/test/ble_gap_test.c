@@ -24,7 +24,6 @@
 #include "host/ble_gap.h"
 #include "ble_hs_test_util.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 
 #ifdef ARCH_sim
@@ -78,7 +77,7 @@ ble_gap_test_task_handler(void *arg)
     /* Receive the HCI buffer size acknowledgement.  We sent the corresponding
      * request when the host task was started.
      */
-    ble_hs_test_util_rx_hci_buf_size_ack(0xffff);
+    //ble_hs_test_util_rx_hci_buf_size_ack(0xffff);
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.

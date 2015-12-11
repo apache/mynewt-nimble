@@ -21,9 +21,11 @@
 #include "nimble/hci_common.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_conn.h"
+#include "ble_hci_sched.h"
 #include "ble_hci_ack.h"
 
 static ble_hci_ack_fn *ble_hci_ack_cb;
+
 static void *ble_hci_ack_arg;
 
 void
@@ -37,6 +39,8 @@ ble_hci_ack_rx(struct ble_hci_ack *ack)
 
         cb(ack, ble_hci_ack_arg);
     }
+
+    ble_hci_sched_command_complete();
 }
 
 void

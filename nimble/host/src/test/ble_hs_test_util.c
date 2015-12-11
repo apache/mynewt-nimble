@@ -22,9 +22,9 @@
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
 #include "ble_hci_ack.h"
+#include "ble_hci_sched.h"
 #include "ble_hs_conn.h"
 #include "ble_gap_conn.h"
-#include "ble_hs_hci_batch.h"
 #include "ble_l2cap.h"
 #include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
@@ -68,7 +68,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     rc = ble_gap_direct_connection_establishment(0, addr);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_hci_batch_process_next();
+    ble_hci_sched_wakeup();
 
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
 

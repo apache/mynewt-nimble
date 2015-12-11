@@ -24,7 +24,7 @@
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hci_ack.h"
-#include "ble_hs_hci_batch.h"
+#include "ble_hci_sched.h"
 #include "ble_gap_conn.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
@@ -116,6 +116,7 @@ ble_hs_process_rx_data_queue(void)
     }
 }
 
+#if 0
 static int
 ble_hs_read_hci_buf_size(void)
 {
@@ -132,16 +133,17 @@ ble_hs_read_hci_buf_size(void)
 
     return 0;
 }
+#endif
 
 static void
 ble_hs_task_handler(void *arg)
 {
     struct os_event *ev;
     struct os_callout_func *cf;
-    int rc;
+    //int rc;
 
-    rc = ble_hs_read_hci_buf_size();
-    assert(rc == 0);
+    //rc = ble_hs_read_hci_buf_size();
+    //assert(rc == 0);
 
     while (1) {
         ev = os_eventq_get(&ble_hs_evq);
@@ -166,7 +168,7 @@ ble_hs_task_handler(void *arg)
             break;
 
         case BLE_HS_KICK_HCI_EVENT:
-            ble_hs_hci_batch_process_next();
+            ble_hci_sched_wakeup();
             break;
 
         case BLE_HS_KICK_GATT_EVENT:
@@ -326,10 +328,17 @@ ble_hs_init(uint8_t prio)
 
     ble_hci_ack_init();
 
+    rc = ble_hci_sched_init();
+    if (rc != 0) {
+        goto err;
+    }
+
+#if 0
     rc = ble_hs_hci_batch_init();
     if (rc != 0) {
         goto err;
     }
+#endif
 
     rc = ble_gatt_init();
     if (rc != 0) {

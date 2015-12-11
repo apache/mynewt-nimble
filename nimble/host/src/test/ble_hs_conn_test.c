@@ -25,7 +25,7 @@
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hci_ack.h"
-#include "ble_hs_hci_batch.h"
+#include "ble_hci_sched.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_test_util.h"
 #include "testutil/testutil.h"
@@ -48,7 +48,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     rc = ble_gap_direct_connection_establishment(0, addr);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_hci_batch_process_next();
+    ble_hci_sched_wakeup();
 
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
@@ -94,7 +94,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     rc = ble_gap_direct_connection_establishment(0, addr);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_hci_batch_process_next();
+    ble_hci_sched_wakeup();
 
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
@@ -139,7 +139,7 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     rc = ble_gap_directed_connectable(0, addr);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_hci_batch_process_next();
+    ble_hci_sched_wakeup();
 
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
@@ -148,6 +148,8 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS, BLE_ERR_SUCCESS);
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
+
+    ble_hci_sched_wakeup();
 
     /* Receive set-adv-enable ack. */
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE, BLE_ERR_SUCCESS);
