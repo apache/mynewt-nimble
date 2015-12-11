@@ -20,7 +20,7 @@
 #include "os/os.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_hci_batch.h"
 
@@ -63,7 +63,7 @@ ble_hs_hci_batch_done(void)
 }
 
 static void
-ble_hs_hci_read_buf_size_ack(struct ble_hs_ack *ack, void *arg)
+ble_hs_hci_read_buf_size_ack(struct ble_hci_ack *ack, void *arg)
 {
     uint16_t pktlen;
     uint8_t max_pkts;
@@ -119,7 +119,7 @@ ble_hs_hci_batch_process_next(void)
         break;
 
     case BLE_HS_HCI_BATCH_TYPE_READ_HCI_BUF_SIZE:
-        ble_hs_ack_set_callback(ble_hs_hci_read_buf_size_ack, NULL);
+        ble_hci_ack_set_callback(ble_hs_hci_read_buf_size_ack, NULL);
         rc = host_hci_cmd_le_read_buffer_size();
         if (rc != 0) {
             /* XXX: Call callback. */

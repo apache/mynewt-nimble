@@ -23,7 +23,7 @@
 #include "ble_hs_priv.h"
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 #ifdef PHONY_TRANSPORT
@@ -324,7 +324,7 @@ ble_hs_init(uint8_t prio)
         goto err;
     }
 
-    ble_hs_ack_init();
+    ble_hci_ack_init();
 
     rc = ble_hs_hci_batch_init();
     if (rc != 0) {

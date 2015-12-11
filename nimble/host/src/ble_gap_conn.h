@@ -21,7 +21,7 @@
 #include "host/ble_gap.h"
 struct hci_le_conn_complete;
 struct hci_disconn_complete;
-struct ble_hs_ack;
+struct ble_hci_ack;
 
 int ble_gap_conn_general_discovery(void);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);

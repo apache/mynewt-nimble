@@ -21,36 +21,36 @@
 #include "nimble/hci_common.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 
-static ble_hs_ack_fn *ble_hs_ack_cb;
-static void *ble_hs_ack_arg;
+static ble_hci_ack_fn *ble_hci_ack_cb;
+static void *ble_hci_ack_arg;
 
 void
-ble_hs_ack_rx(struct ble_hs_ack *ack)
+ble_hci_ack_rx(struct ble_hci_ack *ack)
 {
-    ble_hs_ack_fn *cb;
+    ble_hci_ack_fn *cb;
 
-    if (ble_hs_ack_cb != NULL) {
-        cb = ble_hs_ack_cb;
-        ble_hs_ack_cb = NULL;
+    if (ble_hci_ack_cb != NULL) {
+        cb = ble_hci_ack_cb;
+        ble_hci_ack_cb = NULL;
 
-        cb(ack, ble_hs_ack_arg);
+        cb(ack, ble_hci_ack_arg);
     }
 }
 
 void
-ble_hs_ack_set_callback(ble_hs_ack_fn *cb, void *arg)
+ble_hci_ack_set_callback(ble_hci_ack_fn *cb, void *arg)
 {
     /* Don't allow the current callback to be replaced with another. */
-    assert(ble_hs_ack_cb == NULL || cb == NULL);
+    assert(ble_hci_ack_cb == NULL || cb == NULL);
 
-    ble_hs_ack_cb = cb;
-    ble_hs_ack_arg = arg;
+    ble_hci_ack_cb = cb;
+    ble_hci_ack_arg = arg;
 }
 
 void
-ble_hs_ack_init(void)
+ble_hci_ack_init(void)
 {
-    ble_hs_ack_set_callback(NULL, NULL);
+    ble_hci_ack_set_callback(NULL, NULL);
 }

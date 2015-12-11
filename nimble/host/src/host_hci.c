@@ -27,7 +27,7 @@
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_gap_conn.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
@@ -147,7 +147,7 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 static int
 host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 {
-    struct ble_hs_ack ack;
+    struct ble_hci_ack ack;
     uint16_t opcode;
     uint8_t num_pkts;
     uint8_t *params;
@@ -186,7 +186,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
         ack.bha_status = 255;
     }
 
-    ble_hs_ack_rx(&ack);
+    ble_hci_ack_rx(&ack);
 
     return 0;
 }
@@ -194,7 +194,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
 static int
 host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
 {
-    struct ble_hs_ack ack;
+    struct ble_hci_ack ack;
     uint16_t opcode;
     uint8_t num_pkts;
     uint8_t status;
@@ -230,7 +230,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     ack.bha_params_len = 0;
     ack.bha_status = status;
 
-    ble_hs_ack_rx(&ack);
+    ble_hci_ack_rx(&ack);
 
     return 0;
 }

@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef H_BLE_HS_ACK_
-#define H_BLE_HS_ACK_
+#ifndef H_BLE_HCI_ACK_
+#define H_BLE_HCI_ACK_
 
 #include <inttypes.h>
 
-struct ble_hs_ack {
+struct ble_hci_ack {
     uint16_t bha_opcode;
     uint8_t bha_status;
     uint8_t *bha_params;
     int bha_params_len;
 };
 
-typedef void ble_hs_ack_fn(struct ble_hs_ack *ack, void *arg);
+typedef void ble_hci_ack_fn(struct ble_hci_ack *ack, void *arg);
 
-void ble_hs_ack_rx(struct ble_hs_ack *ack);
-void ble_hs_ack_set_callback(ble_hs_ack_fn *cb, void *arg);
-void ble_hs_ack_init(void);
+void ble_hci_ack_rx(struct ble_hci_ack *ack);
+void ble_hci_ack_set_callback(ble_hci_ack_fn *cb, void *arg);
+void ble_hci_ack_init(void);
 
 #endif

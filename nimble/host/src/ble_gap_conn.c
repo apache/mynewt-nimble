@@ -20,9 +20,9 @@
 #include "os/os.h"
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 
@@ -94,7 +94,7 @@ static void
 ble_gap_conn_master_failed(uint8_t status)
 {
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
-    ble_hs_ack_set_callback(NULL, NULL);
+    ble_hci_ack_set_callback(NULL, NULL);
     ble_gap_conn_notify_app(status, NULL);
 }
 
@@ -107,7 +107,7 @@ static void
 ble_gap_conn_slave_failed(uint8_t status)
 {
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
-    ble_hs_ack_set_callback(NULL, NULL);
+    ble_hci_ack_set_callback(NULL, NULL);
     ble_gap_conn_notify_app(status, NULL);
 }
 
@@ -116,7 +116,7 @@ ble_gap_conn_slave_failed(uint8_t status)
  * while a master connection is being established.
  */
 static void
-ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
+ble_gap_conn_master_ack(struct ble_hci_ack *ack, void *arg)
 {
     int rc;
 
@@ -130,7 +130,7 @@ ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
     case BLE_GAP_CONN_STATE_MASTER_GEN_DISC_UNACKED:
         ble_gap_conn_master_state =
             BLE_GAP_CONN_STATE_MASTER_GEN_DISC_PARAMS_ACKED;
-        ble_hs_ack_set_callback(ble_gap_conn_master_ack, NULL);
+        ble_hci_ack_set_callback(ble_gap_conn_master_ack, NULL);
         rc = host_hci_cmd_le_set_scan_enable(1, 0);
         if (rc != BLE_ERR_SUCCESS) {
             ble_gap_conn_master_failed(rc);
@@ -160,7 +160,7 @@ ble_gap_conn_master_ack(struct ble_hs_ack *ack, void *arg)
  * while a slave connection is being established.
  */
 static void
-ble_gap_conn_slave_ack(struct ble_hs_ack *ack, void *arg)
+ble_gap_conn_slave_ack(struct ble_hci_ack *ack, void *arg)
 {
     int rc;
 
@@ -172,7 +172,7 @@ ble_gap_conn_slave_ack(struct ble_hs_ack *ack, void *arg)
     switch (ble_gap_conn_slave_state) {
     case BLE_GAP_CONN_STATE_SLAVE_UNACKED:
         ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_SLAVE_PARAMS_ACKED;
-        ble_hs_ack_set_callback(ble_gap_conn_slave_ack, NULL);
+        ble_hci_ack_set_callback(ble_gap_conn_slave_ack, NULL);
         rc = host_hci_cmd_le_set_adv_enable(1);
         if (rc != BLE_ERR_SUCCESS) {
             ble_gap_conn_slave_failed(rc);
@@ -212,7 +212,7 @@ ble_gap_conn_general_discovery(void)
     }
 
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_MASTER_DIRECT_UNACKED;
-    ble_hs_ack_set_callback(ble_gap_conn_master_ack, NULL);
+    ble_hci_ack_set_callback(ble_gap_conn_master_ack, NULL);
 
     return 0;
 
@@ -260,7 +260,7 @@ ble_gap_conn_direct_connect(int addr_type, uint8_t *addr)
     }
 
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_MASTER_DIRECT_UNACKED;
-    ble_hs_ack_set_callback(ble_gap_conn_master_ack, NULL);
+    ble_hci_ack_set_callback(ble_gap_conn_master_ack, NULL);
 
     return 0;
 
@@ -303,7 +303,7 @@ ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr)
     }
 
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_SLAVE_UNACKED;
-    ble_hs_ack_set_callback(ble_gap_conn_slave_ack, NULL);
+    ble_hci_ack_set_callback(ble_gap_conn_slave_ack, NULL);
 
     return 0;
 

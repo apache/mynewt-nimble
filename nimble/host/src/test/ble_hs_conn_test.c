@@ -24,7 +24,7 @@
 #include "ble_l2cap.h"
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_hs_hci_batch.h"
 #include "ble_gap_conn.h"
 #include "ble_hs_test_util.h"

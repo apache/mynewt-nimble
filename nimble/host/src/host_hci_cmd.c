@@ -24,7 +24,7 @@
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "host_dbg.h"
-#include "ble_hs_ack.h"
+#include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 
@@ -62,7 +62,7 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
             host_hci_outstanding_opcode = opcode;
         } else {
             /* Clear the ack callback on send failure. */
-            ble_hs_ack_set_callback(NULL, NULL);
+            ble_hci_ack_set_callback(NULL, NULL);
         }
     }
 
