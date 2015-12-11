@@ -56,7 +56,7 @@ static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_BYTES(HCI_CMD_BUFS,
      sizeof(struct os_mbuf_pkthdr))
 
 #define BLE_HS_MBUF_MEMPOOL_SIZE                                 \
-    OS_MEMPOOL_BYTES(BLE_HS_NUM_MBUFS, BLE_HS_MBUF_MEMBLOCK_SIZE)
+    OS_MEMPOOL_SIZE(BLE_HS_NUM_MBUFS, BLE_HS_MBUF_MEMBLOCK_SIZE)
 
 #define BLE_HS_PKT_MAX              BLE_HS_NUM_MBUFS
 
@@ -64,7 +64,7 @@ struct os_mempool g_hci_os_event_pool;
 static os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_BYTES(HCI_NUM_OS_EVENTS,
                                                        HCI_OS_EVENT_BUF_SIZE)];
 
-static os_membuf_t *ble_hs_mbuf_mem;
+static os_membuf_t ble_hs_mbuf_mem[BLE_HS_MBUF_MEMPOOL_SIZE];
 static struct os_mempool ble_hs_mbuf_mempool;
 struct os_mbuf_pool ble_hs_mbuf_pool;
 
@@ -246,9 +246,6 @@ ble_hs_free_mem(void)
 {
     free(ble_hs_pkt_mem);
     ble_hs_pkt_mem = NULL;
-
-    free(ble_hs_mbuf_mem);
-    ble_hs_mbuf_mem = NULL;
 }
 
 /**
@@ -278,11 +275,6 @@ ble_hs_init(uint8_t prio)
 
     host_hci_init();
 
-    ble_hs_mbuf_mem = malloc(BLE_HS_MBUF_MEMPOOL_SIZE);
-    if (ble_hs_mbuf_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
     rc = os_mempool_init(&ble_hs_mbuf_mempool, BLE_HS_NUM_MBUFS,
                          BLE_HS_MBUF_MEMBLOCK_SIZE,
                          ble_hs_mbuf_mem, "ble_hs_mbuf_pool");
