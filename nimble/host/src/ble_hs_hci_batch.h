@@ -23,7 +23,8 @@
 #define BLE_HS_HCI_BATCH_TYPE_DIRECT_CONNECT     0
 #define BLE_HS_HCI_BATCH_TYPE_DIRECT_ADVERTISE   1
 #define BLE_HS_HCI_BATCH_TYPE_READ_HCI_BUF_SIZE  2
-#define BLE_HS_HCI_BATCH_TYPE_MAX                3
+#define BLE_HS_HCI_BATCH_TYPE_GENERAL_DISCOVERY  3
+#define BLE_HS_HCI_BATCH_TYPE_MAX                4
 
 struct ble_hs_hci_batch_direct_connect {
     uint8_t bwdc_peer_addr[8];

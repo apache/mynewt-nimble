@@ -23,6 +23,7 @@ struct hci_le_conn_complete;
 struct hci_disconn_complete;
 struct ble_hs_ack;
 
+int ble_gap_conn_general_discovery(void);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr);
 int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);

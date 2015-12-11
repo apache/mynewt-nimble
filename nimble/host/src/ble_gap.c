@@ -38,6 +38,30 @@ ble_gap_set_connect_cb(ble_gap_connect_fn *cb, void *arg)
 }
 
 /**
+ * Performs the General Discovery Procedure, as described in
+ * vol. 3, part C, section 9.2.6.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int
+ble_gap_general_discovery(void)
+{
+    struct ble_hs_hci_batch_entry *entry;
+
+    entry = ble_hs_hci_batch_entry_alloc();
+    if (entry == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_GENERAL_DISCOVERY;
+
+    ble_hs_hci_batch_enqueue(entry);
+
+    return 0;
+}
+
+
+/**
  * Performs the Direct Connection Establishment Procedure, as described in
  * vol. 3, part C, section 9.3.8.
  *

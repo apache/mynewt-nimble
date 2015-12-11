@@ -126,6 +126,10 @@ ble_hs_hci_batch_process_next(void)
         }
         break;
 
+    case BLE_HS_HCI_BATCH_TYPE_GENERAL_DISCOVERY:
+        rc = ble_gap_conn_general_discovery();
+        break;
+
     default:
         assert(0);
         break;
