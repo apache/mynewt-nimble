@@ -45,7 +45,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_direct_connection_establishment(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -91,7 +91,7 @@ TEST_CASE(ble_hs_conn_test_master_direct_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_direct_connection_establishment(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -136,7 +136,7 @@ TEST_CASE(ble_hs_conn_test_slave_direct_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_directed_connectable(0, addr);
+    rc = ble_gap_conn_direct_connectable(0, addr);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();

@@ -83,7 +83,7 @@ ble_gap_test_task_handler(void *arg)
      * proper arguments.
      */
     cb_called = 0;
-    ble_gap_set_connect_cb(ble_gap_test_connect_cb, &cb_called);
+    ble_gap_conn_set_cb(ble_gap_test_connect_cb, &cb_called);
 
     /* Make sure there are no created connections and no connections in
      * progress.
@@ -91,7 +91,7 @@ ble_gap_test_task_handler(void *arg)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate a direct connection. */
-    ble_gap_direct_connection_establishment(0, addr);
+    ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(!cb_called);
 

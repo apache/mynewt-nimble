@@ -65,7 +65,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_gap_direct_connection_establishment(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
