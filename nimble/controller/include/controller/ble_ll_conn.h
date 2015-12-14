@@ -20,6 +20,9 @@
 #include "os/os.h"
 #include "hal/hal_cputime.h"
 
+/* Connection handle range */
+#define BLE_LL_CONN_MAX_CONN_HANDLE     (0x0EFF)
+
 /* Channel map size */
 #define BLE_LL_CONN_CHMAP_LEN           (5)
 
@@ -86,14 +89,18 @@ struct ble_ll_conn_sm
                                    only use the MD bit now */
 
     /* connection event timing/mgmt */
-    uint8_t pdu_txd;            /* note: can be 1 bit */
-    uint8_t rsp_rxd;            /* note: can be 1 bit */
-    uint8_t pkt_rxd;            /* note: can be 1 bit */
+    uint8_t pdu_txd;                /* note: can be 1 bit */
+    uint8_t rsp_rxd;                /* note: can be 1 bit */
+    uint8_t pkt_rxd;                /* note: can be 1 bit */
+    uint8_t terminate_ind_txd;      /* note: can be 1 bit */
+    uint8_t terminate_ind_rxd;      /* note: can be 1 bit */
+    uint8_t allow_slave_latency;    /* note: can be 1 bit */
+    uint8_t slave_set_last_anchor;  /* note: can be 1 bit */
     uint8_t master_sca;
     uint8_t tx_win_size;
-    uint8_t allow_slave_latency;    /* note: can be 1 bit  */
-    uint8_t slave_set_last_anchor;  /* note: can be 1 bit */
     uint8_t cur_ctrl_proc;
+    uint8_t disconnect_reason;
+    uint8_t rxd_disconnect_reason;
     uint16_t pending_ctrl_procs;
     uint16_t conn_itvl;
     uint16_t slave_latency;
@@ -108,6 +115,7 @@ struct ble_ll_conn_sm
     uint32_t anchor_point;
     uint32_t last_anchor_point;
     uint32_t ce_end_time;   /* cputime at which connection event should end */
+    uint32_t terminate_timeout;
     uint32_t slave_cur_tx_win_usecs;
     uint32_t slave_cur_window_widening;
 
@@ -142,7 +150,7 @@ struct ble_ll_conn_sm
 };
 
 /* API */
-void ble_ll_conn_init(void);
+void ble_ll_conn_module_init(void);
 int ble_ll_conn_create(uint8_t *cmdbuf);
 int ble_ll_conn_create_cancel(void);
 void ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
@@ -157,9 +165,12 @@ void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
 void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status);
+int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
 
 struct ble_ll_len_req;
 void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm, 
                                 struct ble_ll_len_req *req);
+
+struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 
 #endif /* H_BLE_LL_CONN_ */

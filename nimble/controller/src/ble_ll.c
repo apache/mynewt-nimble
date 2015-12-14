@@ -811,7 +811,7 @@ ble_ll_init(void)
     ble_ll_scan_init();
 
     /* Initialize the connection module */
-    ble_ll_conn_init();
+    ble_ll_conn_module_init();
 
     /* Set the supported features */
     features = 0;

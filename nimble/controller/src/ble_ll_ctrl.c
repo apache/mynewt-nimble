@@ -52,10 +52,6 @@
 /* XXX: Improvements
  * 1) We can inititalize the procedure timer once per connection state machine
  */
-
-/* Checks if a particular control procedure is running */
-#define IS_PENDING_CTRL_PROC_M(sm, proc) (sm->pending_ctrl_procs & (1 << proc))
-
 static int
 ble_ll_ctrl_chk_supp_bytes(uint16_t bytes)
 {
@@ -231,6 +227,11 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             opcode = BLE_LL_CTRL_LENGTH_REQ;
             ble_ll_ctrl_datalen_upd_make(connsm, dptr);
             break;
+        case BLE_LL_CTRL_PROC_TERMINATE:
+            len = BLE_LL_CTRL_TERMINATE_IND_LEN;
+            opcode = BLE_LL_CTRL_TERMINATE_IND;
+            dptr[3] = connsm->disconnect_reason;
+            break;
         default:
             assert(0);
             break;
@@ -246,6 +247,29 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
     }
 
     return om;
+}
+
+/**
+ * Called to determine if the pdu is a TERMINATE_IND 
+ * 
+ * @param pdu 
+ *  
+ * XXX: should we set a BLE header flag instead to denote TERMINATE_IND? 
+ * 
+ * @return int 0: not a terminate. 1: yes
+ */
+int
+ble_ll_ctrl_is_terminate_ind(struct os_mbuf *pdu)
+{
+    int rc;
+
+    rc = 0;
+    if ((pdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+        if (pdu->om_data[BLE_LL_PDU_HDR_LEN] == BLE_LL_CTRL_TERMINATE_IND) {
+            rc = 1;
+        }
+    }
+    return rc;
 }
 
 /**
@@ -270,9 +294,38 @@ ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 }
 
 /**
- * Called to start a LL control procedure. We always set the control 
- * procedure pending bit even if the input control procedure has been 
- * initiated. 
+ * Called to start the terminate procedure. 
+ *  
+ * Context: Link Layer task. 
+ *  
+ * @param connsm 
+ */
+void
+ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
+{
+    int ctrl_proc;
+    uint32_t usecs;
+    struct os_mbuf *om;
+
+    assert(connsm->disconnect_reason != 0);
+
+    ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
+    om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
+    if (om) {
+        ble_ll_conn_enqueue_pkt(connsm, om);
+        connsm->pending_ctrl_procs |= (1 << ctrl_proc);
+
+        /* Set terminate "timeout" */
+        usecs = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
+        connsm->terminate_timeout = cputime_get32() + 
+            cputime_usecs_to_ticks(usecs);
+    }
+}
+
+/**
+ * Called to start a LL control procedure except for the terminate procedure. We
+ * always set the control procedure pending bit even if the control procedure
+ * has been initiated. 
  *  
  * Context: Link Layer task. 
  * 
@@ -282,6 +335,8 @@ void
 ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     struct os_mbuf *om;
+
+    assert(ctrl_proc != BLE_LL_CTRL_PROC_TERMINATE);
 
     om = NULL;
     if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
@@ -322,6 +377,17 @@ void
 ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 {
     int i;
+
+    /* If we are terminating, dont start any new procedures */
+    if (connsm->disconnect_reason) {
+        /* 
+         * If the terminate procedure is not pending it means we were not
+         * able to start it right away (no control pdu was available).
+         * Start it now
+         */ 
+        ble_ll_ctrl_terminate_start(connsm);
+        return;
+    }
 
     /* If there is a running procedure or no pending, do nothing */
     if ((connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) &&

@@ -46,6 +46,13 @@
 /* NOTE: 0x07 not defined in specification  */
 #define BLE_HCI_OGF_LE                      (0x08)
 
+/* List of OCF for Link Control commands (OGF=0x01) */
+#define BLE_HCI_OCF_DISCONNECT_CMD          (0x0006)
+
+/* Command specific definitions */
+/* Disconnect command */
+#define BLE_HCI_DISCONNECT_CMD_LEN          (3)
+
 /* List of OCF for Controller and Baseband commands (OGF=0x03) */
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_CB_RESET                (0x0003)

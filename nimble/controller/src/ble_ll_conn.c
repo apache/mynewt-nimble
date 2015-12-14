@@ -48,6 +48,14 @@
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
+ * 7) Do we need to check the terminate timeout inside the connection event?
+ * I think we do.
+ * 8) Use error code 0x3E correctly! Connection failed to establish. If you
+ * read the LE connection complete event, it says that if the connection
+ * fails to be established that the connection complete event gets sent to
+ * the host that issued the create connection.
+ * 9) How does peer address get set if we are using whitelist? Look at filter
+ * policy and make sure you are doing this correctly.
  */
 
 /* XXX: this does not belong here! Move to transport? */
@@ -139,6 +147,7 @@ struct ble_ll_conn_stats
     uint32_t conn_ev_late;
     uint32_t wfr_expirations;
     uint32_t handle_not_found;
+    uint32_t bad_acl_hdr;
     uint32_t no_tx_pdu;
     uint32_t no_conn_sm;
     uint32_t no_free_conn_sm;
@@ -151,6 +160,26 @@ struct ble_ll_conn_stats
     uint32_t conn_req_txd;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
+
+/**
+ * Given a handle, find an active connection matching the handle
+ * 
+ * @param handle 
+ * 
+ * @return struct ble_ll_conn_sm* 
+ */
+struct ble_ll_conn_sm *
+ble_ll_conn_find_active_conn(uint16_t handle)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if (connsm->conn_handle == handle) {
+            break;
+        }
+    }
+    return connsm;
+}
 
 /**
  * Get a connection state machine.
@@ -460,7 +489,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     if (pkthdr) {
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
         nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
-        if (nextpkthdr) {
+        if (nextpkthdr && !connsm->terminate_ind_rxd) {
             md = 1;
             if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
                 /* 
@@ -529,11 +558,18 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * received a valid frame with the more data bit set to 0 and we dont
      * have more data.
      */
-    end_transition = BLE_PHY_TRANSITION_TX_RX;
-    if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) && (md == 0) && 
-        (connsm->cons_rxd_bad_crc == 0) &&
-        ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0)) {
+    if (connsm->terminate_ind_rxd) {
         end_transition = BLE_PHY_TRANSITION_NONE;
+    } else {
+        /* XXX: what happens if we are sending a terminate ind? Are we sure
+           we are always going to wait for an ack? */
+        end_transition = BLE_PHY_TRANSITION_TX_RX;
+        if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) && (md == 0) && 
+            (connsm->cons_rxd_bad_crc == 0) &&
+            ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
+            !ble_ll_ctrl_is_terminate_ind(m)) {
+            end_transition = BLE_PHY_TRANSITION_NONE;
+        }
     }
 
     rc = ble_phy_tx(m, beg_transition, end_transition);
@@ -827,6 +863,9 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->allow_slave_latency = 0;
+    connsm->disconnect_reason = 0;
+    connsm->terminate_ind_txd = 0;
+    connsm->terminate_ind_rxd = 0;
 
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
@@ -917,6 +956,32 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
                 htole16(evbuf + 18, connsm->supervision_tmo);
                 evbuf[20] = connsm->master_sca;
             }
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+
+/**
+ * Send a disconnection complete event. 
+ *  
+ * NOTE: we currently only send this event when we have a reason to send it; 
+ * not when it fails. 
+ * 
+ * @param reason The BLE error code to send as a disconnect reason
+ */
+void
+ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_DISCONN_CMP - 1)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
+            evbuf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
+            evbuf[2] = BLE_ERR_SUCCESS;
+            htole16(evbuf + 3, connsm->conn_handle);
+            evbuf[5] = reason;
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -1026,14 +1091,31 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     /* Connection state machine is now idle */
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
 
+    /* Set current LL connection to NULL */
+    g_ble_ll_conn_cur_sm = NULL;
+
     /* Set Link Layer state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
-    /* Send connection complete event */
-    ble_ll_conn_comp_event_send(connsm, ble_err);
+    /* 
+     * We need to send a disconnection complete event or a connection complete
+     * event when the connection ends. We send a connection complete event
+     * only when we were told to cancel the connection creation.
+     */ 
+    if (ble_err == BLE_ERR_UNK_CONN_ID) {
+        ble_ll_conn_comp_event_send(connsm, ble_err);
+    } else {
+        ble_ll_disconn_comp_event_send(connsm, ble_err);
+    }
 
     /* Put connection state machine back on free list */
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
+
+    /* Log connection end */
+    ble_ll_log(BLE_LL_LOG_ID_CONN_END,connsm->conn_handle,0,connsm->event_cntr);
+
+    /* turn led off */
+    gpio_set(LED_BLINK_PIN);
 }
 
 /**
@@ -1102,6 +1184,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm)
 void
 ble_ll_conn_event_end(void *arg)
 {
+    uint8_t ble_err;
     uint16_t latency;
     uint32_t itvl;
     uint32_t cur_ww;
@@ -1109,6 +1192,21 @@ ble_ll_conn_event_end(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
+
+    /* If we have transmitted the terminate IND successfully, we are done */
+    if ((connsm->terminate_ind_txd) || (connsm->terminate_ind_rxd)) {
+        if (connsm->terminate_ind_txd) {
+            ble_err = BLE_ERR_CONN_TERM_LOCAL;
+        } else {
+            /* Make sure the disconnect reason is valid! */
+            ble_err = connsm->rxd_disconnect_reason;
+            if (ble_err == 0) {
+                ble_err = BLE_ERR_REM_USER_CONN_TERM;
+            } 
+        }
+        ble_ll_conn_end(connsm, ble_err);
+        return;
+    }
 
     /* Disable the PHY */
     ble_phy_disable();
@@ -1171,11 +1269,17 @@ ble_ll_conn_event_end(void *arg)
     connsm->cons_rxd_bad_crc = 0;
     connsm->pkt_rxd = 0;
 
-    /* Link-layer is in standby state now */
-    ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
-    /* Set current LL connection to NULL */
-    g_ble_ll_conn_cur_sm = NULL;
+    /* 
+     * If we are trying to terminate connection, check if next wake time is
+     * passed the termination timeout. If so, no need to continue with
+     * connection as we will time out anyway.
+     */
+    if (connsm->pending_ctrl_procs & (1 << BLE_LL_CTRL_PROC_TERMINATE)) {
+        if ((int32_t)(connsm->terminate_timeout - connsm->anchor_point) <= 0) {
+            ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+            return;
+        }
+    }
 
     /* Calculate window widening for next event. If too big, end conn */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
@@ -1187,6 +1291,12 @@ ble_ll_conn_event_end(void *arg)
         }
         connsm->slave_cur_window_widening = cur_ww;
     }
+
+    /* Link-layer is in standby state now */
+    ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    /* Set current LL connection to NULL */
+    g_ble_ll_conn_cur_sm = NULL;
 
     /* Log event end */
     ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, 0, 0, connsm->event_cntr);
@@ -1904,6 +2014,14 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 if (pkthdr) {
                     STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
                     txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+
+                    /* Did we transmit a TERMINATE_IND? If so, we are done */
+                    if (ble_ll_ctrl_is_terminate_ind(txpdu)) {
+                        connsm->terminate_ind_txd = 1;
+                        os_mbuf_free(txpdu);
+                        rc = -1;
+                        goto conn_event_done;
+                    }
                     os_mbuf_free(txpdu);
                 } else {
                     /* No packet on queue? This is an error! */
@@ -1913,7 +2031,12 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
         }
 
         /* Should we continue connection event? */
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        /* If this is a TERMINATE_IND, we have to reply */
+        if (ble_ll_ctrl_is_terminate_ind(rxpdu)) {
+            connsm->terminate_ind_rxd = 1;
+            connsm->rxd_disconnect_reason = rxpdu->om_data[3];
+            reply = 1;
+        } else if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             reply = connsm->last_txd_md || (hdr_byte & BLE_LL_DATA_HDR_MD_MASK);
             if (reply) {
                 pkthdr = STAILQ_FIRST(&connsm->conn_txq);
@@ -1939,9 +2062,25 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* If reply flag set, send data pdu and continue connection event */
     rc = -1;
     if (reply) {
+        /* 
+         * While this is not perfect, we will just check to see if the
+         * terminate timer will expire within two packet times. If it will,
+         * no use sending the terminate ind. We need to get an ACK for the
+         * terminate ind (master and/or slave) so that is why it is two packets.
+         */ 
+        if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
+            ticks = ble_ll_pdu_tx_time_get(BLE_LL_PDU_HDR_LEN) +
+                ble_ll_pdu_tx_time_get(BLE_LL_CTRL_TERMINATE_IND_LEN + 3) + 
+                BLE_LL_IFS;
+            ticks = cputime_usecs_to_ticks(ticks) + cputime_get32();
+            if ((int32_t)(connsm->terminate_timeout - ticks) < 0) {
+                goto conn_event_done;
+            }
+        }
         rc = ble_ll_conn_tx_data_pdu(connsm, BLE_PHY_TRANSITION_RX_TX);
     }
 
+conn_event_done:
     if (rc) {
         ble_ll_event_send(&connsm->conn_ev_end);
     }
@@ -1997,31 +2136,31 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
 
     /* See if we have an active matching connection handle */
     conn_handle = handle & 0x0FFF;
-    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
-        if (connsm->conn_handle == conn_handle) {
-            /* Construct LL header in buffer */
-            /* XXX: deal with length later */
-            assert(length <= 251);
-            pb = handle & 0x3000;
-            if (pb == 0) {
-                om->om_data[0] = BLE_LL_LLID_DATA_START;
-            } else if (pb == 0x1000) {
-                om->om_data[0] = BLE_LL_LLID_DATA_FRAG;
-            } else {
-                /* This should never happen! */
-                break;
-            }
-            om->om_data[1] = (uint8_t)length;
-
-            /* Clear flags field in BLE header */
-            ble_ll_conn_enqueue_pkt(connsm, om);
+    connsm = ble_ll_conn_find_active_conn(conn_handle);
+    if (connsm) {
+        /* Construct LL header in buffer */
+        /* XXX: deal with length later */
+        assert(length <= 251);
+        pb = handle & 0x3000;
+        if (pb == 0) {
+            om->om_data[0] = BLE_LL_LLID_DATA_START;
+        } else if (pb == 0x1000) {
+            om->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+        } else {
+            /* This should never happen! */
+            ++g_ble_ll_conn_stats.bad_acl_hdr;
+            os_mbuf_free(om);
             return;
         }
-    }
+        om->om_data[1] = (uint8_t)length;
 
-    /* No connection found! */
-    ++g_ble_ll_conn_stats.handle_not_found;
-    os_mbuf_free(om);
+        /* Clear flags field in BLE header */
+        ble_ll_conn_enqueue_pkt(connsm, om);
+    } else {
+        /* No connection found! */
+        ++g_ble_ll_conn_stats.handle_not_found;
+        os_mbuf_free(om);
+    }
 }
 
 /**
@@ -2144,9 +2283,71 @@ err_slave_start:
     return 0;
 }
 
+/**
+ * Called to process a HCI disconnect command 
+ *  
+ * Context: Link Layer task (HCI command parser). 
+ * 
+ * @param cmdbuf 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
+{
+    int rc;
+    uint8_t reason;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    /* Check for valid parameters */
+    handle = le16toh(cmdbuf);
+    reason = cmdbuf[2];
+
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    if (handle <= BLE_LL_CONN_MAX_CONN_HANDLE) {
+        /* Make sure reason is valid */
+        switch (reason) {
+        case BLE_ERR_AUTH_FAIL:
+        case BLE_ERR_REM_USER_CONN_TERM:
+        case BLE_ERR_RD_CONN_TERM_RESRCS:
+        case BLE_ERR_RD_CONN_TERM_PWROFF:
+        case BLE_ERR_UNSUPP_FEATURE:
+        case BLE_ERR_UNIT_KEY_PAIRING:
+        case BLE_ERR_CONN_PARMS:
+            connsm = ble_ll_conn_find_active_conn(handle);
+            if (connsm) {
+                /* Do not allow command if we are in process of disconnecting */
+                if (connsm->disconnect_reason) {
+                    rc = BLE_ERR_CMD_DISALLOWED;
+                } else {
+                    /* This control procedure better not be pending! */
+                    assert(!IS_PENDING_CTRL_PROC_M(connsm,
+                                                   BLE_LL_CTRL_PROC_TERMINATE));
+
+                    /* Record the disconnect reason */
+                    connsm->disconnect_reason = reason;
+
+                    /* Start this control procedure */
+                    ble_ll_ctrl_terminate_start(connsm);
+
+                    rc = BLE_ERR_SUCCESS;
+                }
+            } else {
+                rc = BLE_ERR_UNK_CONN_ID;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    return rc;
+}
+
 /* Initialize the connection module */
 void
-ble_ll_conn_init(void)
+ble_ll_conn_module_init(void)
 {
     uint16_t i;
     uint16_t maxbytes;

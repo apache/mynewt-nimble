@@ -23,6 +23,8 @@ struct os_mbuf;
 
 int host_hci_os_event_proc(struct os_event *ev);
 int host_hci_event_rx(uint8_t *data);
+int host_hci_cmd_set_event_mask(uint64_t event_mask);
+int host_hci_cmd_disconnect(uint16_t handle, uint8_t reason);
 int host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len);
 int host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len);
 int host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv);

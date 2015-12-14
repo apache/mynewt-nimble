@@ -296,6 +296,7 @@ uint8_t ble_ll_read_supp_features(void);
 #define BLE_LL_LOG_ID_RX_END            (2)
 #define BLE_LL_LOG_ID_CONN_EV_START     (4)
 #define BLE_LL_LOG_ID_CONN_EV_END       (5)
+#define BLE_LL_LOG_ID_CONN_END          (6)
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (200)
 #define BLE_LL_LOG_ID_PHY_DISABLE       (201)
 #define BLE_LL_LOG_ID_PHY_ISR           (202)

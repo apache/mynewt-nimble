@@ -138,9 +138,35 @@ ble_ll_hci_is_le_event_enabled(int bitpos)
     uint8_t bytenum;
     uint8_t bitmask;
 
+    /* The LE meta event must be enabled for any LE event to be enabled */
+    enabled = 0;
+    if (g_ble_ll_hci_event_mask[7] & 0x20) {
+        bytenum = bitpos / 8;
+        bitmask = 1 << (bitpos & 0x7);
+        enabled = g_ble_ll_hci_le_event_mask[bytenum] & bitmask;
+    }
+
+    return enabled;
+}
+
+/**
+ * Checks to see if an event has been disabled by the host. 
+ * 
+ * @param bitpos This is the bit position of the event. Note that this can 
+ * be a value from 0 to 63, inclusive. 
+ * 
+ * @return uint8_t 0: event is not enabled; otherwise event is enabled.
+ */
+uint8_t
+ble_ll_hci_is_event_enabled(int bitpos)
+{
+    uint8_t enabled;
+    uint8_t bytenum;
+    uint8_t bitmask;
+
     bytenum = bitpos / 8;
     bitmask = 1 << (bitpos & 0x7);
-    enabled = g_ble_ll_hci_le_event_mask[bytenum] & bitmask;
+    enabled = g_ble_ll_hci_event_mask[bytenum] & bitmask;
 
     return enabled;
 }
@@ -283,6 +309,101 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     return rc;
 }
 
+/**
+ * Process a link control command sent from the host to the controller. The HCI 
+ * command has a 3 byte command header followed by data. The header is: 
+ *  -> opcode (2 bytes)
+ *  -> Length of parameters (1 byte; does include command header bytes).
+ * 
+ * @param cmdbuf Pointer to command buffer. Points to start of command header.
+ * @param ocf    Opcode command field.
+ * @param *rsplen Pointer to length of response
+ *  
+ * @return int  This function returns a BLE error code. If a command status 
+ *              event should be returned as opposed to command complete,
+ *              256 gets added to the return value.
+ */
+static int
+ble_ll_hci_link_ctrl_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+{
+    int rc;
+    uint8_t len;
+    /* XXX: use this? */
+    //uint8_t *rspbuf;
+
+    /* Assume error; if all pass rc gets set to 0 */
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+
+    /* Get length from command */
+    len = cmdbuf[sizeof(uint16_t)];
+
+    /* 
+     * The command response pointer points into the same buffer as the
+     * command data itself. That is fine, as each command reads all the data
+     * before crafting a response.
+     */ 
+    /* XXX */
+    //rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
+
+    /* Move past HCI command header */
+    cmdbuf += BLE_HCI_CMD_HDR_LEN;
+
+    switch (ocf) {
+    case BLE_HCI_OCF_DISCONNECT_CMD:
+        if (len == BLE_HCI_DISCONNECT_CMD_LEN) {
+            rc = ble_ll_conn_hci_disconnect_cmd(cmdbuf);
+        }
+        /* Send command status instead of command complete */
+        rc += (BLE_ERR_MAX + 1);
+        break;
+    default:
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
+    }
+
+    return rc;
+}
+
+static int
+ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+{
+    int rc;
+    uint8_t len;
+    /* XXX: use this? */
+    //uint8_t *rspbuf;
+
+    /* Assume error; if all pass rc gets set to 0 */
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+
+    /* Get length from command */
+    len = cmdbuf[sizeof(uint16_t)];
+
+    /* 
+     * The command response pointer points into the same buffer as the
+     * command data itself. That is fine, as each command reads all the data
+     * before crafting a response.
+     */ 
+    /* XXX */
+    //rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
+
+    /* Move past HCI command header */
+    cmdbuf += BLE_HCI_CMD_HDR_LEN;
+
+    switch (ocf) {
+    case BLE_HCI_OCF_CB_SET_EVENT_MASK:
+        if (len == BLE_HCI_SET_EVENT_MASK_LEN) {
+            memcpy(g_ble_ll_hci_event_mask, cmdbuf, len);
+            rc = BLE_ERR_SUCCESS;
+        }
+        break;
+    default:
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
+    }
+
+    return rc;
+}
+
 void
 ble_ll_hci_cmd_proc(struct os_event *ev)
 {
@@ -314,9 +435,11 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     case BLE_HCI_OGF_LE:
         rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
+    case BLE_HCI_OGF_LINK_CTRL:
+        rc = ble_ll_hci_link_ctrl_cmd_proc(cmdbuf, ocf, &rsplen);
+        break;
     case BLE_HCI_OGF_CTLR_BASEBAND:
-        /* XXX: Implement  */
-        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        rc = ble_ll_hci_ctlr_bb_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
     default:
         /* XXX: Need to support other OGF. For now, return unsupported */

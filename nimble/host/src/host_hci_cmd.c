@@ -29,7 +29,7 @@
 #include "ble_l2cap.h"
 
 static int
-host_hci_cmd_send(uint8_t *cmdbuf)
+host_hci_cmd_transport(uint8_t *cmdbuf)
 {
 #ifdef ARCH_sim
     return 0;
@@ -39,7 +39,7 @@ host_hci_cmd_send(uint8_t *cmdbuf)
 }
 
 static int
-host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
+host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
 {
     int rc;
     uint8_t *cmd;
@@ -51,13 +51,13 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
     rc = -1;
     cmd = os_memblock_get(&g_hci_cmd_pool);
     if (cmd) {
-        opcode = (BLE_HCI_OGF_LE << 10) | ocf;
+        opcode = (ogf << 10) | ocf;
         htole16(cmd, opcode);
         cmd[2] = len;
         if (len) {
             memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
         }
-        rc = host_hci_cmd_send(cmd);
+        rc = host_hci_cmd_transport(cmd);
         if (rc == 0) {
             host_hci_outstanding_opcode = opcode;
         } else {
@@ -66,6 +66,23 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
         }
     }
 
+    return rc;
+}
+
+/**
+ * Send a LE command from the host to the controller.
+ * 
+ * @param ocf 
+ * @param len 
+ * @param cmddata 
+ * 
+ * @return int 
+ */
+static int
+host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
+{
+    int rc;
+    rc = host_hci_cmd_send(BLE_HCI_OGF_LE, ocf, len, cmddata);
     return rc;
 }
 
@@ -197,6 +214,35 @@ host_hci_cmd_le_set_rand_addr(uint8_t *addr)
                                   BLE_DEV_ADDR_LEN, cmd);
     }
 
+    return rc;
+}
+
+int
+host_hci_cmd_set_event_mask(uint64_t event_mask)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_SET_EVENT_MASK_LEN];
+
+    htole64(cmd, event_mask);
+    rc = host_hci_cmd_send(BLE_HCI_OGF_CTLR_BASEBAND,
+                           BLE_HCI_OCF_CB_SET_EVENT_MASK,
+                           BLE_HCI_SET_EVENT_MASK_LEN,
+                           cmd);
+    return rc;
+}
+
+int
+host_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_DISCONNECT_CMD_LEN];
+
+    htole16(cmd, handle);
+    cmd[2] = reason;
+    rc = host_hci_cmd_send(BLE_HCI_OGF_LINK_CTRL,
+                           BLE_HCI_OCF_DISCONNECT_CMD,
+                           BLE_HCI_DISCONNECT_CMD_LEN,
+                           cmd);
     return rc;
 }
 

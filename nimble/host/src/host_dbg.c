@@ -90,6 +90,32 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
     }
 }
 
+/**
+ * Display a disconnection complete command.
+ * 
+ * 
+ * @param evdata 
+ * @param len 
+ */
+void
+host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
+{
+    uint8_t status;
+    uint8_t reason;
+    uint16_t handle;
+
+    status = evdata[0];
+    handle = le16toh(evdata + 1);
+    /* Ignore reason if status is not success */
+    if (status != BLE_ERR_SUCCESS) {
+        reason = 0;
+    } else {
+        reason = evdata[3];
+    }
+    console_printf("Disconnection Complete: status=%u handle=%u reason=%u\n",
+                   status, handle, reason);
+}
+
 void
 host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
 {
@@ -145,6 +171,9 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     evdata = evbuf + 2;
 
     switch (evcode) {
+    case BLE_HCI_EVCODE_DISCONN_CMP:
+        host_hci_dbg_disconn_comp_disp(evdata, len);
+        break;
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
         host_hci_dbg_cmd_complete_disp(evdata, len);
         break;

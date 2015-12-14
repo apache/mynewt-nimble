@@ -35,8 +35,11 @@ void ble_ll_hci_init(void);
 /* HCI command processing function */
 void ble_ll_hci_cmd_proc(struct os_event *ev);
 
-/* Used to determine if the LE event is enabled or disabled */
+/* Used to determine if the LE event is enabled/disabled */
 uint8_t ble_ll_hci_is_le_event_enabled(int bitpos);
+
+/* Used to determine if event is enabled/disabled */
+uint8_t ble_ll_hci_is_event_enabled(int bitpos);
 
 /* Send event from controller to host */
 int ble_ll_hci_event_send(uint8_t *evbuf);

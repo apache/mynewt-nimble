@@ -34,6 +34,9 @@
 #define BLE_LL_CTRL_PROC_NUM            (9)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
+/* Checks if a particular control procedure is running */
+#define IS_PENDING_CTRL_PROC_M(sm, proc) (sm->pending_ctrl_procs & (1 << proc))
+
 /* 
  * LL CTRL PDU format
  *  -> Opcode   (1 byte)
@@ -213,5 +216,7 @@ void ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
 void ble_ll_ctrl_datalen_chg_event(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm);
+void ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm);
+int ble_ll_ctrl_is_terminate_ind(struct os_mbuf *pdu);
 
 #endif /* H_BLE_LL_CTRL_ */

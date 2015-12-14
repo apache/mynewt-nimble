@@ -41,20 +41,6 @@ static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
 static int host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len);
 static int host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data,
                                         int len);
-
-#define HCI_CMD_BUFS        (8)
-#define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
-struct os_mempool g_hci_cmd_pool;
-os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS, HCI_CMD_BUF_SIZE)];
-
-/* XXX: this might be transport layer*/
-#define HCI_NUM_OS_EVENTS       (32)
-#define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
-
-struct os_mempool g_hci_os_event_pool;
-os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS, 
-                                               HCI_OS_EVENT_BUF_SIZE)];
-
 static uint16_t host_hci_buffer_sz;
 static uint8_t host_hci_max_pkts;
 
