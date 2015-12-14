@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <assert.h>
 #include <errno.h>
 #include "util/tpq.h"
@@ -23,6 +24,7 @@
 #include "ble_hs_priv.h"
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_startup.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_gap_conn.h"
@@ -116,34 +118,15 @@ ble_hs_process_rx_data_queue(void)
     }
 }
 
-#if 0
-static int
-ble_hs_read_hci_buf_size(void)
-{
-    struct ble_hs_hci_batch_entry *entry;
-
-    entry = ble_hs_hci_batch_entry_alloc();
-    if (entry == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    entry->bhb_type = BLE_HS_HCI_BATCH_TYPE_READ_HCI_BUF_SIZE;
-
-    ble_hs_hci_batch_enqueue(entry);
-
-    return 0;
-}
-#endif
-
 static void
 ble_hs_task_handler(void *arg)
 {
     struct os_event *ev;
     struct os_callout_func *cf;
-    //int rc;
+    int rc;
 
-    //rc = ble_hs_read_hci_buf_size();
-    //assert(rc == 0);
+    rc = ble_hs_startup_go();
+    assert(rc == 0);
 
     while (1) {
         ev = os_eventq_get(&ble_hs_evq);
