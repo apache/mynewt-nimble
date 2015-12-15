@@ -69,10 +69,8 @@ struct ble_gatt_entry {
         } read;
 
         struct {
-            uint16_t handle;
-            void *value;
-            uint16_t value_len;
-            ble_gatt_write_fn *cb;
+            struct ble_gatt_attr attr;
+            ble_gatt_attr_fn *cb;
             void *cb_arg;
         } write;
     };
@@ -964,7 +962,7 @@ ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 ble_gatt_write_cb(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
-                  uint8_t att_status, uint16_t attr_handle)
+                  uint8_t att_status)
 {
     int rc;
 
@@ -972,7 +970,7 @@ ble_gatt_write_cb(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
         rc = 0;
     } else {
         rc = entry->write.cb(entry->conn_handle, ble_hs_status, att_status,
-                             attr_handle, entry->write.cb_arg);
+                             &entry->write.attr, entry->write.cb_arg);
     }
 
     return rc;
@@ -991,9 +989,9 @@ ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry)
         goto err;
     }
 
-    req.bawq_handle = entry->write.handle;
-    rc = ble_att_clt_tx_write_cmd(conn, &req, entry->write.value,
-                                  entry->write.value_len);
+    req.bawq_handle = entry->write.attr.handle;
+    rc = ble_att_clt_tx_write_cmd(conn, &req, entry->write.attr.value,
+                                  entry->write.attr.value_len);
     if (rc != 0) {
         goto err;
     }
@@ -1001,18 +999,18 @@ ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry)
     /* No response expected; call callback immediately and return nonzero to
      * indicate the entry should be freed.
      */
-    ble_gatt_write_cb(entry, 0, 0, entry->write.handle);
+    ble_gatt_write_cb(entry, 0, 0);
 
     return 1;
 
 err:
-    ble_gatt_write_cb(entry, rc, 0, entry->write.handle);
+    ble_gatt_write_cb(entry, rc, 0);
     return rc;
 }
 
 int
 ble_gatt_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                      uint16_t value_len, ble_gatt_write_fn *cb, void *cb_arg)
+                      uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct ble_gatt_entry *entry;
     int rc;
@@ -1022,9 +1020,9 @@ ble_gatt_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, void *value,
         return rc;
     }
 
-    entry->write.handle = attr_handle;
-    entry->write.value = value;
-    entry->write.value_len = value_len;
+    entry->write.attr.handle = attr_handle;
+    entry->write.attr.value = value;
+    entry->write.attr.value_len = value_len;
     entry->write.cb = cb;
     entry->write.cb_arg = cb_arg;
 
@@ -1048,9 +1046,9 @@ ble_gatt_kick_write(struct ble_gatt_entry *entry)
         goto err;
     }
 
-    req.bawq_handle = entry->write.handle;
-    rc = ble_att_clt_tx_write_req(conn, &req, entry->write.value,
-                                  entry->write.value_len);
+    req.bawq_handle = entry->write.attr.handle;
+    rc = ble_att_clt_tx_write_req(conn, &req, entry->write.attr.value,
+                                  entry->write.attr.value_len);
     if (rc != 0) {
         goto err;
     }
@@ -1058,7 +1056,7 @@ ble_gatt_kick_write(struct ble_gatt_entry *entry)
     return 0;
 
 err:
-    ble_gatt_write_cb(entry, rc, 0, entry->write.handle);
+    ble_gatt_write_cb(entry, rc, 0);
     return rc;
 }
 
@@ -1066,7 +1064,7 @@ static void
 ble_gatt_err_write(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
                    uint8_t att_status)
 {
-    ble_gatt_write_cb(entry, ble_hs_status, att_status, 0);
+    ble_gatt_write_cb(entry, ble_hs_status, att_status);
 }
 
 void
@@ -1081,7 +1079,7 @@ ble_gatt_rx_write_rsp(struct ble_hs_conn *conn)
         return;
     }
 
-    ble_gatt_write_cb(entry, 0, 0, entry->write.handle);
+    ble_gatt_write_cb(entry, 0, 0);
 
     /* The write operation only has a single request / response exchange. */
     ble_gatt_entry_remove_free(entry, prev);
@@ -1089,7 +1087,7 @@ ble_gatt_rx_write_rsp(struct ble_hs_conn *conn)
 
 int
 ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
-               uint16_t value_len, ble_gatt_write_fn *cb, void *cb_arg)
+               uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct ble_gatt_entry *entry;
     int rc;
@@ -1099,9 +1097,9 @@ ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
         return rc;
     }
 
-    entry->write.handle = attr_handle;
-    entry->write.value = value;
-    entry->write.value_len = value_len;
+    entry->write.attr.handle = attr_handle;
+    entry->write.attr.value = value;
+    entry->write.attr.value_len = value_len;
     entry->write.cb = cb;
     entry->write.cb_arg = cb_arg;
 

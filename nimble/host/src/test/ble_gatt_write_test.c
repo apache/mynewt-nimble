@@ -29,6 +29,8 @@
 
 static int ble_gatt_write_test_cb_called;
 
+static uint8_t ble_gatt_write_test_attr_value[] = { 1, 2, 3, 4 };
+
 static void
 ble_gatt_write_test_init(void)
 {
@@ -38,13 +40,15 @@ ble_gatt_write_test_init(void)
 
 static int
 ble_gatt_write_test_cb(uint16_t conn_handle, uint8_t ble_hs_status,
-                       uint8_t att_status, uint16_t attr_handle,
+                       uint8_t att_status, struct ble_gatt_attr *attr,
                        void *arg)
 {
     TEST_ASSERT(conn_handle == 2);
     TEST_ASSERT(ble_hs_status == 0);
     TEST_ASSERT(att_status == 0);
-    TEST_ASSERT(attr_handle == 100);
+    TEST_ASSERT(attr->handle == 100);
+    TEST_ASSERT(attr->value_len == sizeof ble_gatt_write_test_attr_value);
+    TEST_ASSERT(attr->value == ble_gatt_write_test_attr_value);
     TEST_ASSERT(arg == NULL);
 
     ble_gatt_write_test_cb_called = 1;
@@ -75,7 +79,8 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_write_no_rsp(2, 100, ((uint8_t[]){1,2,3,4}), 4,
+    rc = ble_gatt_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
+                               sizeof ble_gatt_write_test_attr_value,
                                ble_gatt_write_test_cb, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -96,7 +101,8 @@ TEST_CASE(ble_gatt_write_test_rsp)
 
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_write(2, 100, ((uint8_t[]){1,2,3,4}), 4,
+    rc = ble_gatt_write(2, 100, ble_gatt_write_test_attr_value,
+                        sizeof ble_gatt_write_test_attr_value,
                         ble_gatt_write_test_cb, NULL);
     TEST_ASSERT(rc == 0);
 
