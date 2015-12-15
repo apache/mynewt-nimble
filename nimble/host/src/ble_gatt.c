@@ -261,25 +261,6 @@ ble_gatt_find(uint16_t conn_handle, uint8_t att_op, int expecting_only,
     return NULL;
 }
 
-static struct ble_gatt_entry *
-ble_gatt_find_prev(struct ble_gatt_entry *entry)
-{
-    struct ble_gatt_entry *prev;
-    struct ble_gatt_entry *cur;
-
-    prev = NULL;
-    STAILQ_FOREACH(cur, &ble_gatt_list, next) {
-        if (cur == entry) {
-            return prev;
-        }
-
-        prev = cur;
-    }
-
-    assert(0);
-    return NULL;
-}
-
 static void
 ble_gatt_entry_set_pending(struct ble_gatt_entry *entry)
 {
@@ -1001,7 +982,6 @@ static int
 ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry)
 {
     struct ble_att_write_req req;
-    struct ble_gatt_entry *prev;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -1018,31 +998,26 @@ ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry)
         goto err;
     }
 
-    /* No response expected; call callback and free entry. */
+    /* No response expected; call callback immediately and return nonzero to
+     * indicate the entry should be freed.
+     */
     ble_gatt_write_cb(entry, 0, 0, entry->write.handle);
 
-    prev = ble_gatt_find_prev(entry);
-    ble_gatt_entry_remove_free(entry, prev);
-
-    return 0;
+    return 1;
 
 err:
     ble_gatt_write_cb(entry, rc, 0, entry->write.handle);
     return rc;
 }
 
-/*****************************************************************************
- * @write                                                                    *
- *****************************************************************************/
-
 int
-ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
-               uint16_t value_len, ble_gatt_write_fn *cb, void *cb_arg)
+ble_gatt_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, void *value,
+                      uint16_t value_len, ble_gatt_write_fn *cb, void *cb_arg)
 {
     struct ble_gatt_entry *entry;
     int rc;
 
-    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_WRITE, &entry);
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_WRITE_NO_RSP, &entry);
     if (rc != 0) {
         return rc;
     }
@@ -1055,6 +1030,10 @@ ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
 
     return 0;
 }
+
+/*****************************************************************************
+ * @write                                                                    *
+ *****************************************************************************/
 
 static int
 ble_gatt_kick_write(struct ble_gatt_entry *entry)
@@ -1106,6 +1085,27 @@ ble_gatt_rx_write_rsp(struct ble_hs_conn *conn)
 
     /* The write operation only has a single request / response exchange. */
     ble_gatt_entry_remove_free(entry, prev);
+}
+
+int
+ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
+               uint16_t value_len, ble_gatt_write_fn *cb, void *cb_arg)
+{
+    struct ble_gatt_entry *entry;
+    int rc;
+
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_WRITE, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+
+    entry->write.handle = attr_handle;
+    entry->write.value = value;
+    entry->write.value_len = value_len;
+    entry->write.cb = cb;
+    entry->write.cb_arg = cb_arg;
+
+    return 0;
 }
 
 /*****************************************************************************

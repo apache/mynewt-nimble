@@ -50,6 +50,7 @@ main(void)
     ble_gatt_disc_s_test_all();
     ble_gatt_disc_c_test_all();
     ble_gatt_read_test_all();
+    ble_gatt_write_test_all();
 
     return tu_any_failed;
 }

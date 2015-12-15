@@ -31,5 +31,6 @@ int ble_hs_uuid_test_all(void);
 int ble_gatt_disc_s_test_all(void);
 int ble_gatt_disc_c_test_all(void);
 int ble_gatt_read_test_all(void);
+int ble_gatt_write_test_all(void);
 
 #endif
