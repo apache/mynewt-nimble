@@ -29,7 +29,7 @@ struct ble_gap_connect_desc {
 typedef void ble_gap_connect_fn(struct ble_gap_connect_desc *desc, void *arg);
 
 void ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg);
-int ble_gap_conn_gen_disc(void);
+int ble_gap_conn_gen_disc(uint32_t duration_ms);
 int ble_gap_conn_direct_connectable(int addr_type, uint8_t *addr);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 

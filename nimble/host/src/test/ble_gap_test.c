@@ -54,7 +54,8 @@ ble_gap_test_misc_rx_ack(uint16_t ocf, uint8_t status)
 }
 
 static void
-ble_gap_test_connect_cb(struct ble_gap_connect_desc *desc, void *arg)
+ble_gap_direct_connect_test_connect_cb(struct ble_gap_connect_desc *desc,
+                                       void *arg)
 {
     int *cb_called;
 
@@ -66,8 +67,8 @@ ble_gap_test_connect_cb(struct ble_gap_connect_desc *desc, void *arg)
     TEST_ASSERT(memcmp(desc->peer_addr, ble_gap_test_peer_addr, 6) == 0);
 }
 
-static void 
-ble_gap_test_task_handler(void *arg) 
+static void
+ble_gap_direct_connect_test_task_handler(void *arg)
 {
     struct hci_le_conn_complete evt;
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
@@ -77,16 +78,13 @@ ble_gap_test_task_handler(void *arg)
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_rx_hci_buf_size_ack(0xffff);
-    ble_hs_test_util_rx_ack(
-        (BLE_HCI_OGF_CTLR_BASEBAND << 10) | BLE_HCI_OCF_CB_SET_EVENT_MASK,
-        0);
+    ble_hs_test_util_rx_startup_acks();
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.
      */
     cb_called = 0;
-    ble_gap_conn_set_cb(ble_gap_test_connect_cb, &cb_called);
+    ble_gap_conn_set_cb(ble_gap_direct_connect_test_connect_cb, &cb_called);
 
     /* Make sure there are no created connections and no connections in
      * progress.
@@ -119,14 +117,92 @@ ble_gap_test_task_handler(void *arg)
     tu_restart();
 }
 
-TEST_CASE(ble_gap_test_case)
+TEST_CASE(ble_gap_direct_connect_test_case)
 {
     os_init();
 
     ble_hs_test_util_init();
 
-    os_task_init(&ble_gap_test_task, "ble_gap_test_task",
-                 ble_gap_test_task_handler, NULL,
+    os_task_init(&ble_gap_test_task,
+                 "ble_gap_direct_connect_test_task",
+                 ble_gap_direct_connect_test_task_handler, NULL,
+                 BLE_GAP_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_gap_test_stack,
+                 OS_STACK_ALIGN(BLE_GAP_TEST_STACK_SIZE));
+
+    os_start();
+}
+
+static void
+ble_gap_gen_disc_test_connect_cb(struct ble_gap_connect_desc *desc, void *arg)
+{
+    int *cb_called;
+
+    cb_called = arg;
+    *cb_called = 1;
+
+    TEST_ASSERT(desc->status == 0);
+    TEST_ASSERT(desc->handle == 0);
+}
+
+static void
+ble_gap_gen_disc_test_task_handler(void *arg)
+{
+    int cb_called;
+
+    /* Receive acknowledgements for the startup sequence.  We sent the
+     * corresponding requests when the host task was started.
+     */
+    ble_hs_test_util_rx_startup_acks();
+
+    /* Set the connect callback so we can verify that it gets called with the
+     * proper arguments.
+     */
+    cb_called = 0;
+    ble_gap_conn_set_cb(ble_gap_gen_disc_test_connect_cb, &cb_called);
+
+    /* Make sure there are no created connections and no connections in
+     * progress.
+     */
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+
+    /* Initiate the general discovery procedure with a 200 ms timeout. */
+    ble_gap_conn_gen_disc(200);
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!cb_called);
+
+    /* Receive acks from the controller. */
+    ble_gap_test_misc_rx_ack(BLE_HCI_OCF_LE_SET_SCAN_PARAMS, 0);
+    ble_gap_test_misc_rx_ack(BLE_HCI_OCF_LE_SET_SCAN_ENABLE, 0);
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!cb_called);
+
+    /* Wait 100 ms; verify scan still in progress. */
+    os_time_delay(100 * OS_TICKS_PER_SEC / 1000);
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!cb_called);
+
+    /* Wait 150 more ms; verify scan completed. */
+    os_time_delay(150 * OS_TICKS_PER_SEC / 1000);
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(cb_called);
+
+    tu_restart();
+}
+
+TEST_CASE(ble_gap_gen_disc_test_case)
+{
+    os_init();
+
+    ble_hs_test_util_init();
+
+    os_task_init(&ble_gap_test_task,
+                 "ble_gap_gen_disc_test_task",
+                 ble_gap_gen_disc_test_task_handler, NULL,
                  BLE_GAP_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_gap_test_stack,
                  OS_STACK_ALIGN(BLE_GAP_TEST_STACK_SIZE));
 
@@ -135,7 +211,8 @@ TEST_CASE(ble_gap_test_case)
 
 TEST_SUITE(ble_gap_test_suite)
 {
-    ble_gap_test_case();
+    ble_gap_gen_disc_test_case();
+    ble_gap_direct_connect_test_case();
 }
 
 int
