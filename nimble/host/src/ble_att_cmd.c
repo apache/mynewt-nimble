@@ -459,6 +459,26 @@ ble_att_write_req_parse(void *payload, int len, struct ble_att_write_req *req)
 }
 
 int
+ble_att_write_cmd_parse(void *payload, int len, struct ble_att_write_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_WRITE_REQ_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (u8ptr[0] != BLE_ATT_OP_WRITE_CMD) {
+        return BLE_HS_EINVAL;
+    }
+
+    req->bawq_handle = le16toh(u8ptr + 1);
+
+    return 0;
+}
+
+int
 ble_att_write_req_write(void *payload, int len, struct ble_att_write_req *req)
 {
     uint8_t *u8ptr;

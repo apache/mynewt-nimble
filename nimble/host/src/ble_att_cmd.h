@@ -238,5 +238,7 @@ int ble_att_write_req_parse(void *payload, int len,
                             struct ble_att_write_req *req);
 int ble_att_write_req_write(void *payload, int len,
                             struct ble_att_write_req *req);
+int ble_att_write_cmd_parse(void *payload, int len,
+                            struct ble_att_write_req *req);
 int ble_att_write_cmd_write(void *payload, int len,
                             struct ble_att_write_req *req);
