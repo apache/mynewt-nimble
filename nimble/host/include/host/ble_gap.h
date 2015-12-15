@@ -20,13 +20,35 @@
 #include <inttypes.h>
 struct hci_le_conn_complete;
 
-struct ble_gap_connect_desc {
+#define BLE_GAP_CONN_EVENT_TYPE_CONNECT     1
+#define BLE_GAP_CONN_EVENT_TYPE_ADV_RPT     2
+#define BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE   3
+
+struct ble_gap_conn_connect_report {
     uint16_t handle;
     uint8_t status;
     uint8_t peer_addr[6];
 };
 
-typedef void ble_gap_connect_fn(struct ble_gap_connect_desc *desc, void *arg);
+struct ble_gap_conn_adv_rpt {
+    uint8_t event_type;
+    uint8_t addr_type;
+    uint8_t length_data;
+    int8_t rssi;
+    uint8_t addr[6];
+    uint8_t *data;
+};
+
+struct ble_gap_conn_event {
+    uint8_t type;
+
+    union {
+        struct ble_gap_conn_connect_report connect;
+        struct ble_gap_conn_adv_rpt adv_rpt;
+    };
+};
+
+typedef void ble_gap_connect_fn(struct ble_gap_conn_event *event, void *arg);
 
 void ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg);
 int ble_gap_conn_gen_disc(uint32_t duration_ms);

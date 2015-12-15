@@ -41,6 +41,7 @@ static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
 static int host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len);
 static int host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data,
                                         int len);
+static int host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len);
 static uint16_t host_hci_buffer_sz;
 static uint8_t host_hci_max_pkts;
 
@@ -85,6 +86,7 @@ struct host_hci_le_event_dispatch_entry {
 static const struct host_hci_le_event_dispatch_entry
         host_hci_le_event_dispatch[] = {
     { BLE_HCI_LE_SUBEV_CONN_COMPLETE, host_hci_rx_le_conn_complete },
+    { BLE_HCI_LE_SUBEV_ADV_RPT, host_hci_rx_le_adv_rpt },
 };
 
 #define HOST_HCI_LE_EVENT_DISPATCH_SZ \
@@ -284,6 +286,97 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     rc = ble_gap_conn_rx_conn_complete(&evt);
     if (rc != 0) {
         return rc;
+    }
+
+    return 0;
+}
+
+static int
+host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
+                               uint8_t *out_num_reports, int *out_rssi_off)
+{
+    uint8_t num_reports;
+    int data_len;
+    int off;
+    int i;
+
+    if (len < BLE_HCI_LE_ADV_RPT_MIN_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    num_reports = data[1];
+    if (num_reports < BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN ||
+        num_reports > BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX) {
+
+        return BLE_HS_EBADDATA;
+    }
+
+    off = 2 +       /* Subevent code and num reports. */
+          (1 +      /* Event type. */
+           1 +      /* Address type. */
+           6        /* Address. */
+          ) * num_reports;
+    if (off + num_reports >= len) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    data_len = 0;
+    for (i = 0; i < num_reports; i++) {
+        data_len += data[off];
+        off++;
+    }
+
+    off += data_len;
+
+    /* Check if RSSI fields fit in the packet. */
+    if (off + num_reports > len) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    *out_num_reports = num_reports;
+    *out_rssi_off = off;
+
+    return 0;
+}
+
+static int
+host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
+{
+    struct ble_gap_conn_adv_rpt rpt;
+    uint8_t num_reports;
+    int rssi_off;
+    int data_off;
+    int off;
+    int rc;
+    int i;
+
+    rc = host_hci_le_adv_rpt_first_pass(data, len, &num_reports, &rssi_off);
+    if (rc != 0) {
+        return rc;
+    }
+
+    data_off = 0;
+    for (i = 0; i < num_reports; i++) {
+        off = 2 + 0 * num_reports + i;
+        rpt.event_type = data[2 + 0 * num_reports + i];
+
+        off = 2 + 1 * num_reports + i;
+        rpt.addr_type = data[2 + 1 * num_reports + i];
+
+        off = 2 + 2 * num_reports + i * 6;
+        memcpy(rpt.addr, data + off, 6);
+
+        off = 2 + 8 * num_reports + i;
+        rpt.length_data = data[off];
+
+        off = 2 + 9 * num_reports + data_off;
+        rpt.data = data + off;
+        data_off += rpt.length_data;
+
+        off = rssi_off + 1 * i;
+        rpt.rssi = data[off];
+
+        ble_gap_conn_rx_adv_report(&rpt);
     }
 
     return 0;

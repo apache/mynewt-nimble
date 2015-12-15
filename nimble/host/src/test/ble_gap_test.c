@@ -54,7 +54,7 @@ ble_gap_test_misc_rx_ack(uint16_t ocf, uint8_t status)
 }
 
 static void
-ble_gap_direct_connect_test_connect_cb(struct ble_gap_connect_desc *desc,
+ble_gap_direct_connect_test_connect_cb(struct ble_gap_conn_event *event,
                                        void *arg)
 {
     int *cb_called;
@@ -62,9 +62,11 @@ ble_gap_direct_connect_test_connect_cb(struct ble_gap_connect_desc *desc,
     cb_called = arg;
     *cb_called = 1;
 
-    TEST_ASSERT(desc->status == BLE_ERR_SUCCESS);
-    TEST_ASSERT(desc->handle == 2);
-    TEST_ASSERT(memcmp(desc->peer_addr, ble_gap_test_peer_addr, 6) == 0);
+    TEST_ASSERT(event->type == BLE_GAP_CONN_EVENT_TYPE_CONNECT);
+    TEST_ASSERT(event->connect.status == BLE_ERR_SUCCESS);
+    TEST_ASSERT(event->connect.handle == 2);
+    TEST_ASSERT(memcmp(event->connect.peer_addr, ble_gap_test_peer_addr, 6) ==
+                0);
 }
 
 static void
@@ -133,15 +135,14 @@ TEST_CASE(ble_gap_direct_connect_test_case)
 }
 
 static void
-ble_gap_gen_disc_test_connect_cb(struct ble_gap_connect_desc *desc, void *arg)
+ble_gap_gen_disc_test_connect_cb(struct ble_gap_conn_event *event, void *arg)
 {
     int *cb_called;
 
     cb_called = arg;
     *cb_called = 1;
 
-    TEST_ASSERT(desc->status == 0);
-    TEST_ASSERT(desc->handle == 0);
+    TEST_ASSERT(event->type == BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE);
 }
 
 static void

@@ -309,7 +309,14 @@
 /* LE sub-event specific definitions */
 #define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */
 
+/* LE connection complete event */
 #define BLE_HCI_LE_CONN_COMPLETE_LEN        (19)
+
+/* LE advertising report event. */
+#define BLE_HCI_LE_ADV_RPT_MIN_LEN          (12)
+#define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN     (1)
+#define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX     (0x19)
+
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
 /*--- Shared data structures ---*/

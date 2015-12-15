@@ -59,8 +59,8 @@
 /** 10.24 seconds. */
 #define BLE_GAP_GEN_DISC_SCAN_MIN           (10.24 * 1000)
 
-ble_gap_connect_fn *ble_gap_conn_cb;
-void *ble_gap_conn_arg;
+static ble_gap_connect_fn *ble_gap_conn_cb;
+static void *ble_gap_conn_arg;
 
 static int ble_gap_conn_master_state;
 static int ble_gap_conn_slave_state;
@@ -88,30 +88,39 @@ ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg)
     ble_gap_conn_arg = arg;
 }
 
+static void
+ble_gap_conn_call_cb(struct ble_gap_conn_event *event)
+{
+    if (ble_gap_conn_cb != NULL) {
+        ble_gap_conn_cb(event, ble_gap_conn_arg);
+    }
+}
+
 /**
- * Calls the connect callback if one is configured.
+ * Notifies the application of a connection event if a callback is configured.
  *
  * @param status                The HCI status of the connection attempt.
  * @param conn                  The connection this notification concerns;
  *                                  null if a connection was never created.
  */
 static void
-ble_gap_conn_notify_app(uint8_t status, struct ble_hs_conn *conn)
+ble_gap_conn_notify_connect(uint8_t status, struct ble_hs_conn *conn)
 {
-    struct ble_gap_connect_desc desc;
+    struct ble_gap_conn_event event;
 
-    if (ble_gap_conn_cb != NULL) {
-        desc.status = status;
-        if (conn != NULL) {
-            desc.handle = conn->bhc_handle;
-            memcpy(desc.peer_addr, conn->bhc_addr, sizeof desc.peer_addr);
-        } else {
-            desc.handle = 0;
-            memset(&desc.peer_addr, 0, sizeof desc.peer_addr);
-        }
-
-        ble_gap_conn_cb(&desc, ble_gap_conn_arg);
+    event.type = BLE_GAP_CONN_EVENT_TYPE_CONNECT;
+    event.connect.status = status;
+    if (conn != NULL) {
+        event.connect.handle = conn->bhc_handle;
+        memcpy(event.connect.peer_addr, conn->bhc_addr,
+               sizeof event.connect.peer_addr);
+    } else {
+        event.connect.handle = 0;
+        memset(&event.connect.peer_addr, 0,
+               sizeof event.connect.peer_addr);
     }
+
+    ble_gap_conn_call_cb(&event);
 }
 
 /**
@@ -122,11 +131,35 @@ ble_gap_conn_notify_app(uint8_t status, struct ble_hs_conn *conn)
 static void
 ble_gap_conn_master_failed(uint8_t status)
 {
+    struct ble_gap_conn_event event;
+
+    uint8_t old_state;
+
     os_callout_stop(&ble_gap_conn_master_timer.cf_c);
 
+    old_state = ble_gap_conn_master_state;
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
     ble_hci_ack_set_callback(NULL, NULL);
-    ble_gap_conn_notify_app(status, NULL);
+
+    switch (old_state) {
+    case BLE_GAP_CONN_STATE_M_GEN_DISC_PENDING:
+    case BLE_GAP_CONN_STATE_M_GEN_DISC_PARAMS:
+    case BLE_GAP_CONN_STATE_M_GEN_DISC_PARAMS_ACKED:
+    case BLE_GAP_CONN_STATE_M_GEN_DISC_ENABLE:
+    case BLE_GAP_CONN_STATE_M_GEN_DISC_ENABLE_ACKED:
+        event.type = BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE;
+        ble_gap_conn_call_cb(&event);
+        break;
+
+    case BLE_GAP_CONN_STATE_M_DIRECT_PENDING:
+    case BLE_GAP_CONN_STATE_M_DIRECT_UNACKED:
+    case BLE_GAP_CONN_STATE_M_DIRECT_ACKED:
+        ble_gap_conn_notify_connect(status, NULL);
+        break;
+
+    default:
+        break;
+    }
 }
 
 /**
@@ -141,7 +174,7 @@ ble_gap_conn_slave_failed(uint8_t status)
 
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
     ble_hci_ack_set_callback(NULL, NULL);
-    ble_gap_conn_notify_app(status, NULL);
+    ble_gap_conn_notify_connect(status, NULL);
 }
 
 int
@@ -156,11 +189,11 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
 
     if (evt->status == 0) {
         ble_hs_conn_remove(conn);
-        ble_gap_conn_notify_app(evt->reason, conn);
+        ble_gap_conn_notify_connect(evt->reason, conn);
         ble_hs_conn_free(conn);
     } else {
         /* XXX: Ensure we have a disconnect operation in progress. */
-        ble_gap_conn_notify_app(evt->status, conn);
+        ble_gap_conn_notify_connect(evt->status, conn);
     }
 
     return 0;
@@ -209,6 +242,23 @@ ble_gap_conn_accept_new_conn(uint8_t *addr)
     return BLE_HS_ENOENT;
 }
 
+void
+ble_gap_conn_rx_adv_report(struct ble_gap_conn_adv_rpt *rpt)
+{
+    struct ble_gap_conn_event event;
+
+    switch (ble_gap_conn_master_state) {
+    case BLE_GAP_CONN_STATE_M_GEN_DISC_ENABLE_ACKED:
+        event.type = BLE_GAP_CONN_EVENT_TYPE_ADV_RPT;
+        event.adv_rpt = *rpt;
+        ble_gap_conn_call_cb(&event);
+        break;
+
+    default:
+        break;
+    }
+}
+
 /**
  * Processes an incoming connection-complete HCI event.
  */
@@ -227,7 +277,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     if (conn != NULL) {
         if (evt->status != 0) {
             ble_hs_conn_remove(conn);
-            ble_gap_conn_notify_app(evt->status, conn);
+            ble_gap_conn_notify_connect(evt->status, conn);
             ble_hs_conn_free(conn);
         }
 
@@ -250,7 +300,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     conn = ble_hs_conn_alloc();
     if (conn == NULL) {
         /* XXX: Ensure this never happens. */
-        ble_gap_conn_notify_app(BLE_ERR_MEM_CAPACITY, NULL);
+        ble_gap_conn_notify_connect(BLE_ERR_MEM_CAPACITY, NULL);
         return BLE_HS_ENOMEM;
     }
 
@@ -259,7 +309,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     ble_hs_conn_insert(conn);
 
-    ble_gap_conn_notify_app(0, conn);
+    ble_gap_conn_notify_connect(0, conn);
 
     return 0;
 }
