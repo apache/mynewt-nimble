@@ -22,4 +22,21 @@
 #define BLE_GATT_CHR_DECL_SZ_16     5
 #define BLE_GATT_CHR_DECL_SZ_128    19
 
+void ble_gatt_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
+void ble_gatt_wakeup(void);
+void ble_gatt_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu);
+void ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
+                                 struct ble_att_clt_adata *adata);
+void ble_gatt_rx_read_type_complete(struct ble_hs_conn *conn, int rc);
+void ble_gatt_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
+                          int value_len);
+void ble_gatt_rx_read_group_type_adata(struct ble_hs_conn *conn,
+                                       struct ble_att_clt_adata *adata);
+void ble_gatt_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc);
+void ble_gatt_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
+                                       struct ble_att_clt_adata *adata);
+void ble_gatt_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
+void ble_gatt_rx_write_rsp(struct ble_hs_conn *conn);
+void ble_gatt_connection_broken(uint16_t conn_handle);
+
 #endif

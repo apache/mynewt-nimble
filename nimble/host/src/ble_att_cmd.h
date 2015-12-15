@@ -185,7 +185,7 @@ struct ble_att_read_group_type_rsp {
  * | Attribute Handle                   | 2                 |
  * | Attribute Value                    | 0 to (ATT_MTU-3)  |
  */
-#define BLE_ATT_WRITE_REQ_MIN_SZ         3
+#define BLE_ATT_WRITE_REQ_BASE_SZ        3
 struct ble_att_write_req {
     uint16_t bawq_handle;
 };
@@ -237,4 +237,6 @@ int ble_att_read_group_type_rsp_write(void *payload, int len,
 int ble_att_write_req_parse(void *payload, int len,
                             struct ble_att_write_req *req);
 int ble_att_write_req_write(void *payload, int len,
+                            struct ble_att_write_req *req);
+int ble_att_write_cmd_write(void *payload, int len,
                             struct ble_att_write_req *req);

@@ -45,6 +45,7 @@
 #define BLE_ATT_OP_READ_GROUP_TYPE_RSP      0x11
 #define BLE_ATT_OP_WRITE_REQ                0x12
 #define BLE_ATT_OP_WRITE_RSP                0x13
+#define BLE_ATT_OP_WRITE_CMD                0x52
 
 union ble_att_svr_handle_arg {
     struct {

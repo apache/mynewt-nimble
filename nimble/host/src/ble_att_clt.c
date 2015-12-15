@@ -20,9 +20,9 @@
 #include <assert.h>
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
-#include "host/ble_gatt.h"
-#include "ble_hs_priv.h"
 #include "host/ble_hs_uuid.h"
+#include "ble_gatt_priv.h"
+#include "ble_hs_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
@@ -634,6 +634,99 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
 
     /* Notify GATT that the full response has been parsed. */
     ble_gatt_rx_find_type_value_complete(conn, rc);
+
+    return 0;
+}
+
+static int
+ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
+                                struct ble_att_write_req *req,
+                                void *value, uint16_t value_len,
+                                int is_req)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    uint16_t mtu;
+    int extra_len;
+    int rc;
+
+    txom = NULL;
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_WRITE_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    if (is_req) {
+        rc = ble_att_write_req_write(txom->om_data, txom->om_len, req);
+    } else {
+        rc = ble_att_write_cmd_write(txom->om_data, txom->om_len, req);
+    }
+    if (rc != 0) {
+        goto err;
+    }
+
+    mtu = ble_l2cap_chan_mtu(chan);
+    extra_len = BLE_ATT_WRITE_REQ_BASE_SZ + value_len - mtu;
+    if (extra_len > 0) {
+        value_len -= extra_len;
+    }
+
+    rc = os_mbuf_append(txom, value, value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
+                         struct ble_att_write_req *req,
+                         void *value, uint16_t value_len)
+{
+    int rc;
+
+    rc = ble_att_clt_tx_write_req_or_cmd(conn, req, value, value_len, 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
+                         struct ble_att_write_req *req,
+                         void *value, uint16_t value_len)
+{
+    int rc;
+
+    rc = ble_att_clt_tx_write_req_or_cmd(conn, req, value, value_len, 0);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+ble_att_clt_rx_write(struct ble_hs_conn *conn,
+                     struct ble_l2cap_chan *chan,
+                     struct os_mbuf **rxom)
+{
+    /* No payload. */
+    ble_gatt_rx_write_rsp(conn);
 
     return 0;
 }

@@ -1439,7 +1439,7 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     struct ble_att_write_req req;
     int rc;
 
-    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_WRITE_REQ_MIN_SZ);
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
     if (*rxom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto send_err;
@@ -1450,7 +1450,7 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto send_err;
     }
 
-    os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_MIN_SZ);
+    os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
     entry = NULL;
     rc = ble_att_svr_find_by_handle(req.bawq_handle, &entry);

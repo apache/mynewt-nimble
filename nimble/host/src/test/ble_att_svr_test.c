@@ -626,7 +626,7 @@ TEST_CASE(ble_att_svr_test_write)
 
     rc = ble_att_write_req_write(buf, sizeof buf, &req);
     TEST_ASSERT(rc == 0);
-    memcpy(buf + BLE_ATT_WRITE_REQ_MIN_SZ,
+    memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ,
            ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);

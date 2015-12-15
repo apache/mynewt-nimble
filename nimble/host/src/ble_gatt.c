@@ -67,6 +67,14 @@ struct ble_gatt_entry {
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } read;
+
+        struct {
+            uint16_t handle;
+            void *value;
+            uint16_t value_len;
+            ble_gatt_write_fn *cb;
+            void *cb_arg;
+        } write;
     };
 };
 
@@ -76,7 +84,9 @@ struct ble_gatt_entry {
 #define BLE_GATT_OP_DISC_SERVICE_UUID           2
 #define BLE_GATT_OP_DISC_ALL_CHARS              3
 #define BLE_GATT_OP_READ                        4
-#define BLE_GATT_OP_MAX                         5
+#define BLE_GATT_OP_WRITE_NO_RSP                5
+#define BLE_GATT_OP_WRITE                       6
+#define BLE_GATT_OP_MAX                         7
 
 typedef int ble_gatt_kick_fn(struct ble_gatt_entry *entry);
 typedef void ble_gatt_err_fn(struct ble_gatt_entry *entry,
@@ -87,6 +97,8 @@ static int ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry);
 static int ble_gatt_kick_read(struct ble_gatt_entry *entry);
+static int ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry);
+static int ble_gatt_kick_write(struct ble_gatt_entry *entry);
 
 static void ble_gatt_err_mtu(struct ble_gatt_entry *entry,
                              uint8_t ble_hs_status, uint8_t att_status);
@@ -101,6 +113,8 @@ static void ble_gatt_err_disc_all_chars(struct ble_gatt_entry *entry,
                                         uint8_t att_status);
 static void ble_gatt_err_read(struct ble_gatt_entry *entry,
                               uint8_t ble_hs_status, uint8_t att_status);
+static void ble_gatt_err_write(struct ble_gatt_entry *entry,
+                               uint8_t ble_hs_status, uint8_t att_status);
 
 struct ble_gatt_dispatch_entry {
     ble_gatt_kick_fn *kick_cb;
@@ -129,6 +143,14 @@ static const struct ble_gatt_dispatch_entry
     [BLE_GATT_OP_READ] = {
         .kick_cb = ble_gatt_kick_read,
         .err_cb = ble_gatt_err_read,
+    },
+    [BLE_GATT_OP_WRITE_NO_RSP] = {
+        .kick_cb = ble_gatt_kick_write_no_rsp,
+        .err_cb = NULL,
+    },
+    [BLE_GATT_OP_WRITE] = {
+        .kick_cb = ble_gatt_kick_write,
+        .err_cb = ble_gatt_err_write,
     },
 };
 
@@ -236,6 +258,25 @@ ble_gatt_find(uint16_t conn_handle, uint8_t att_op, int expecting_only,
         prev = entry;
     }
 
+    return NULL;
+}
+
+static struct ble_gatt_entry *
+ble_gatt_find_prev(struct ble_gatt_entry *entry)
+{
+    struct ble_gatt_entry *prev;
+    struct ble_gatt_entry *cur;
+
+    prev = NULL;
+    STAILQ_FOREACH(cur, &ble_gatt_list, next) {
+        if (cur == entry) {
+            return prev;
+        }
+
+        prev = cur;
+    }
+
+    assert(0);
     return NULL;
 }
 
@@ -937,6 +978,137 @@ ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 /*****************************************************************************
+ * @write no response                                                        *
+ *****************************************************************************/
+
+static int
+ble_gatt_write_cb(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
+                  uint8_t att_status, uint16_t attr_handle)
+{
+    int rc;
+
+    if (entry->write.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = entry->write.cb(entry->conn_handle, ble_hs_status, att_status,
+                             attr_handle, entry->write.cb_arg);
+    }
+
+    return rc;
+}
+
+static int
+ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry)
+{
+    struct ble_att_write_req req;
+    struct ble_gatt_entry *prev;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    req.bawq_handle = entry->write.handle;
+    rc = ble_att_clt_tx_write_cmd(conn, &req, entry->write.value,
+                                  entry->write.value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    /* No response expected; call callback and free entry. */
+    ble_gatt_write_cb(entry, 0, 0, entry->write.handle);
+
+    prev = ble_gatt_find_prev(entry);
+    ble_gatt_entry_remove_free(entry, prev);
+
+    return 0;
+
+err:
+    ble_gatt_write_cb(entry, rc, 0, entry->write.handle);
+    return rc;
+}
+
+/*****************************************************************************
+ * @write                                                                    *
+ *****************************************************************************/
+
+int
+ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
+               uint16_t value_len, ble_gatt_write_fn *cb, void *cb_arg)
+{
+    struct ble_gatt_entry *entry;
+    int rc;
+
+    rc = ble_gatt_new_entry(conn_handle, BLE_GATT_OP_WRITE, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+
+    entry->write.handle = attr_handle;
+    entry->write.value = value;
+    entry->write.value_len = value_len;
+    entry->write.cb = cb;
+    entry->write.cb_arg = cb_arg;
+
+    return 0;
+}
+
+static int
+ble_gatt_kick_write(struct ble_gatt_entry *entry)
+{
+    struct ble_att_write_req req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    req.bawq_handle = entry->write.handle;
+    rc = ble_att_clt_tx_write_req(conn, &req, entry->write.value,
+                                  entry->write.value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    ble_gatt_write_cb(entry, rc, 0, entry->write.handle);
+    return rc;
+}
+
+static void
+ble_gatt_err_write(struct ble_gatt_entry *entry, uint8_t ble_hs_status,
+                   uint8_t att_status)
+{
+    ble_gatt_write_cb(entry, ble_hs_status, att_status, 0);
+}
+
+void
+ble_gatt_rx_write_rsp(struct ble_hs_conn *conn)
+{
+    struct ble_gatt_entry *entry;
+    struct ble_gatt_entry *prev;
+
+    entry = ble_gatt_find(conn->bhc_handle, BLE_GATT_OP_WRITE, 1, &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    ble_gatt_write_cb(entry, 0, 0, entry->write.handle);
+
+    /* The write operation only has a single request / response exchange. */
+    ble_gatt_entry_remove_free(entry, prev);
+}
+
+/*****************************************************************************
  * @misc                                                                     *
  *****************************************************************************/
 
@@ -986,7 +1158,9 @@ ble_gatt_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
     }
 
     dispatch = ble_gatt_dispatch_get(entry->op);
-    dispatch->err_cb(entry, BLE_HS_EATT, rsp->baep_error_code);
+    if (dispatch->err_cb != NULL) {
+        dispatch->err_cb(entry, BLE_HS_EATT, rsp->baep_error_code);
+    }
 
     ble_gatt_entry_remove_free(entry, prev);
 }

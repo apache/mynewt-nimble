@@ -53,6 +53,10 @@ typedef int ble_gatt_chr_fn(uint16_t conn_handle, uint8_t ble_hs_status,
                             uint8_t att_status, struct ble_gatt_chr *chr,
                             void *arg);
 
+typedef int ble_gatt_write_fn(uint16_t conn_handle, uint8_t ble_hs_status,
+                              uint8_t att_status, uint16_t attr_handle,
+                              void *arg);
+
 int ble_gatt_disc_all_services(uint16_t conn_handle,
                                ble_gatt_disc_service_fn *cb,
                                void *cb_arg);
@@ -63,23 +67,11 @@ int ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
                             void *cb_arg);
 int ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
                   ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gatt_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
+                          void *value, uint16_t value_len,
+                          ble_gatt_write_fn *cb, void *cb_arg);
 
-void ble_gatt_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
-void ble_gatt_wakeup(void);
-void ble_gatt_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu);
 int ble_gatt_mtu(uint16_t conn_handle);
-void ble_gatt_rx_read_type_adata(struct ble_hs_conn *conn,
-                                 struct ble_att_clt_adata *adata);
-void ble_gatt_rx_read_type_complete(struct ble_hs_conn *conn, int rc);
-void ble_gatt_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
-                          int value_len);
-void ble_gatt_rx_read_group_type_adata(struct ble_hs_conn *conn,
-                                       struct ble_att_clt_adata *adata);
-void ble_gatt_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc);
-void ble_gatt_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
-                                       struct ble_att_clt_adata *adata);
-void ble_gatt_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
-void ble_gatt_connection_broken(uint16_t conn_handle);
 int ble_gatt_init(void);
 
 #endif

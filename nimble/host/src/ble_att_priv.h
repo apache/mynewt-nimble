@@ -31,6 +31,7 @@ struct ble_att_read_type_req;
 struct ble_att_read_group_type_req;
 struct ble_att_read_group_type_rsp;
 struct ble_att_find_type_value_req;
+struct ble_att_write_req;
 
 #define BLE_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -122,5 +123,14 @@ int ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
 int ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
                                    struct ble_l2cap_chan *chan,
                                    struct os_mbuf **rxom);
+int ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
+                             struct ble_att_write_req *req,
+                             void *value, uint16_t value_len);
+int ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
+                             struct ble_att_write_req *req,
+                             void *value, uint16_t value_len);
+int ble_att_clt_rx_write(struct ble_hs_conn *conn,
+                         struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom);
 
 #endif
