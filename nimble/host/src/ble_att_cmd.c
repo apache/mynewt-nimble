@@ -511,3 +511,135 @@ ble_att_write_cmd_write(void *payload, int len, struct ble_att_write_req *req)
 
     return 0;
 }
+
+static int
+ble_att_prep_write_cmd_parse(void *payload, int len,
+                             struct ble_att_prep_write_cmd *cmd, int is_req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (is_req) {
+        if (u8ptr[0] != BLE_ATT_OP_PREP_WRITE_REQ) {
+            return BLE_HS_EINVAL;
+        }
+    } else {
+        if (u8ptr[0] != BLE_ATT_OP_PREP_WRITE_RSP) {
+            return BLE_HS_EINVAL;
+        }
+    }
+
+    cmd->bapc_handle = le16toh(u8ptr + 1);
+    cmd->bapc_offset = le16toh(u8ptr + 3);
+
+    return 0;
+}
+
+static int
+ble_att_prep_write_cmd_write(void *payload, int len,
+                             struct ble_att_prep_write_cmd *cmd, int is_req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (is_req) {
+        u8ptr[0] = BLE_ATT_OP_PREP_WRITE_REQ;
+    } else {
+        u8ptr[0] = BLE_ATT_OP_PREP_WRITE_RSP;
+    }
+    htole16(u8ptr + 1, cmd->bapc_handle);
+    htole16(u8ptr + 3, cmd->bapc_offset);
+
+    return 0;
+}
+
+int
+ble_att_prep_write_req_parse(void *payload, int len,
+                             struct ble_att_prep_write_cmd *cmd)
+{
+    return ble_att_prep_write_cmd_parse(payload, len, cmd, 1);
+}
+
+int
+ble_att_prep_write_req_write(void *payload, int len,
+                             struct ble_att_prep_write_cmd *cmd)
+{
+    return ble_att_prep_write_cmd_write(payload, len, cmd, 1);
+}
+
+int
+ble_att_prep_write_rsp_parse(void *payload, int len,
+                             struct ble_att_prep_write_cmd *cmd)
+{
+    return ble_att_prep_write_cmd_parse(payload, len, cmd, 0);
+}
+
+int
+ble_att_prep_write_rsp_write(void *payload, int len,
+                             struct ble_att_prep_write_cmd *cmd)
+{
+    return ble_att_prep_write_cmd_write(payload, len, cmd, 0);
+}
+
+int
+ble_att_exec_write_req_parse(void *payload, int len,
+                             struct ble_att_exec_write_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_EXEC_WRITE_REQ_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (u8ptr[0] != BLE_ATT_OP_EXEC_WRITE_REQ) {
+        return BLE_HS_EINVAL;
+    }
+
+    req->baeq_flags = u8ptr[1];
+
+    return 0;
+}
+
+int
+ble_att_exec_write_req_write(void *payload, int len,
+                             struct ble_att_exec_write_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_EXEC_WRITE_REQ_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    u8ptr[0] = BLE_ATT_OP_EXEC_WRITE_REQ;
+    u8ptr[1] = req->baeq_flags;
+
+    return 0;
+}
+
+int
+ble_att_exec_write_rsp_write(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_EXEC_WRITE_RSP_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    u8ptr[0] = BLE_ATT_OP_EXEC_WRITE_REQ;
+
+    return 0;
+}

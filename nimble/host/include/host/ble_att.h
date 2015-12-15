@@ -25,7 +25,10 @@
 #define BLE_ATT_ERR_INVALID_HANDLE          0x01
 #define BLE_ATT_ERR_INVALID_PDU             0x04
 #define BLE_ATT_ERR_REQ_NOT_SUPPORTED       0x06
+#define BLE_ATT_ERR_INVALID_OFFSET          0x07
+#define BLE_ATT_ERR_PREPARE_QUEUE_FULL      0x09
 #define BLE_ATT_ERR_ATTR_NOT_FOUND          0x0a
+#define BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN  0x0d
 #define BLE_ATT_ERR_UNLIKELY                0x0e
 #define BLE_ATT_ERR_UNSUPPORTED_GROUP       0x10
 #define BLE_ATT_ERR_INSUFFICIENT_RES        0x11
@@ -45,7 +48,13 @@
 #define BLE_ATT_OP_READ_GROUP_TYPE_RSP      0x11
 #define BLE_ATT_OP_WRITE_REQ                0x12
 #define BLE_ATT_OP_WRITE_RSP                0x13
+#define BLE_ATT_OP_PREP_WRITE_REQ           0x16
+#define BLE_ATT_OP_PREP_WRITE_RSP           0x17
+#define BLE_ATT_OP_EXEC_WRITE_REQ           0x18
+#define BLE_ATT_OP_EXEC_WRITE_RSP           0x19
 #define BLE_ATT_OP_WRITE_CMD                0x52
+
+#define BLE_ATT_ATTR_MAX_LEN                512
 
 union ble_att_svr_handle_arg {
     struct {
@@ -54,7 +63,7 @@ union ble_att_svr_handle_arg {
     } aha_read;
 
     struct {
-        struct os_mbuf *om;
+        void *attr_data;
         int attr_len;
     } aha_write;
 };

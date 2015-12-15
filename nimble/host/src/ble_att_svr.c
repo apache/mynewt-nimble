@@ -19,10 +19,11 @@
 #include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "host/ble_hs_uuid.h"
+#include "ble_hs_priv.h"
 #include "ble_hs_priv.h"
 #include "ble_l2cap.h"
 #include "ble_hs_conn.h"
-#include "host/ble_hs_uuid.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
 
@@ -34,6 +35,22 @@ static struct os_mutex ble_att_svr_list_mutex;
 #define BLE_ATT_SVR_NUM_ENTRIES          32
 static void *ble_att_svr_entry_mem;
 static struct os_mempool ble_att_svr_entry_pool;
+
+
+#define BLE_ATT_SVR_PREP_MBUF_BUF_SIZE         (128)
+#define BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE                     \
+    (BLE_ATT_SVR_PREP_MBUF_BUF_SIZE + sizeof(struct os_mbuf) +  \
+     sizeof(struct os_mbuf_pkthdr))
+
+#define BLE_ATT_SVR_NUM_PREP_ENTRIES     8
+#define BLE_ATT_SVR_NUM_PREP_MBUFS       12
+static void *ble_att_svr_prep_entry_mem;
+static struct os_mempool ble_att_svr_prep_entry_pool;
+static void *ble_att_svr_prep_mbuf_mem;
+static struct os_mempool ble_att_svr_prep_mbuf_mempool;
+static struct os_mbuf_pool ble_att_svr_prep_mbuf_pool;
+
+static uint8_t ble_att_svr_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 
 /**
  * Locks the host attribute list.
@@ -1464,8 +1481,10 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto send_err;
     }
 
-    arg.aha_write.om = *rxom;
+    arg.aha_write.attr_data = ble_att_svr_flat_buf;
     arg.aha_write.attr_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, arg.aha_write.attr_len,
+                     arg.aha_write.attr_data);
     rc = entry->ha_fn(entry, BLE_ATT_OP_WRITE_REQ, &arg);
     if (rc != 0) {
         goto send_err;
@@ -1484,10 +1503,374 @@ send_err:
     return rc;
 }
 
+static void
+ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
+{
+    os_mbuf_free_chain(entry->bape_value);
+    os_memblock_put(&ble_att_svr_prep_entry_pool, entry);
+}
+
+static struct ble_att_prep_entry *
+ble_att_svr_prep_alloc(void)
+{
+    struct ble_att_prep_entry *entry;
+
+    entry = os_memblock_get(&ble_att_svr_prep_entry_pool);
+    if (entry == NULL) {
+        return NULL;
+    }
+
+    memset(entry, 0, sizeof *entry);
+    entry->bape_value = os_mbuf_get_pkthdr(&ble_att_svr_prep_mbuf_pool, 0);
+    if (entry->bape_value == NULL) {
+        ble_att_svr_prep_free(entry);
+        return NULL;
+    }
+
+    return entry;
+}
+
+static struct ble_att_prep_entry *
+ble_att_svr_prep_find_prev(struct ble_att_svr_conn *basc, uint16_t handle,
+                           uint16_t offset)
+{
+    struct ble_att_prep_entry *entry;
+    struct ble_att_prep_entry *prev;
+
+    prev = NULL;
+    SLIST_FOREACH(entry, &basc->basc_prep_list, bape_next) {
+        if (entry->bape_handle > handle) {
+            break;
+        }
+
+        if (entry->bape_handle == handle && entry->bape_offset > offset) {
+            break;
+        }
+
+        prev = entry;
+    }
+
+    return prev;
+}
+
+static void
+ble_att_svr_prep_clear(struct ble_att_svr_conn *basc)
+{
+    struct ble_att_prep_entry *entry;
+
+    while ((entry = SLIST_FIRST(&basc->basc_prep_list)) != NULL) {
+        SLIST_REMOVE_HEAD(&basc->basc_prep_list, bape_next);
+        ble_att_svr_prep_free(entry);
+    }
+}
+
+static int
+ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
+{
+    struct ble_att_prep_entry *entry;
+    struct ble_att_prep_entry *prev;
+    int cur_len;
+
+    prev = NULL;
+    SLIST_FOREACH(entry, &basc->basc_prep_list, bape_next) {
+        if (prev == NULL || prev->bape_handle != entry->bape_handle) {
+            /* Ensure attribute write starts at offset 0. */
+            if (entry->bape_offset != 0) {
+                *err_handle = entry->bape_handle;
+                return BLE_ATT_ERR_INVALID_OFFSET;
+            }
+        } else {
+            /* Ensure entry continues where previous left off. */
+            if (prev->bape_offset + OS_MBUF_PKTLEN(prev->bape_value) !=
+                entry->bape_offset) {
+
+                *err_handle = entry->bape_handle;
+                return BLE_ATT_ERR_INVALID_OFFSET;
+            }
+        }
+
+        cur_len = entry->bape_offset + OS_MBUF_PKTLEN(prev->bape_value);
+        if (cur_len > BLE_ATT_ATTR_MAX_LEN) {
+            *err_handle = entry->bape_handle;
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        }
+
+        prev = entry;
+    }
+
+    return 0;
+}
+
+static int
+ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
+{
+    union ble_att_svr_handle_arg arg;
+    struct ble_att_prep_entry *entry;
+    struct ble_att_prep_entry *next;
+    struct ble_att_svr_entry *attr;
+    int buf_off;
+    int rc;
+
+    /* First, validate the contents of the prepare queue. */
+    rc = ble_att_svr_prep_validate(basc, err_handle);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* Contents are valid; perform the writes. */
+    buf_off = 0;
+    entry = SLIST_FIRST(&basc->basc_prep_list);
+    while (entry != NULL) {
+        next = SLIST_NEXT(entry, bape_next);
+
+        rc = os_mbuf_copydata(entry->bape_value, 0,
+                              OS_MBUF_PKTLEN(entry->bape_value),
+                              ble_att_svr_flat_buf + buf_off);
+        assert(rc == 0);
+        buf_off += OS_MBUF_PKTLEN(entry->bape_value);
+
+        /* If this is the last entry for this attribute, perform the write. */
+        if (next == NULL || entry->bape_handle != next->bape_handle) {
+            attr = NULL;
+            rc = ble_att_svr_find_by_handle(entry->bape_handle, &attr);
+            if (rc != 0) {
+                *err_handle = entry->bape_handle;
+                return BLE_ATT_ERR_INVALID_HANDLE;
+            }
+
+            arg.aha_write.attr_data = ble_att_svr_flat_buf;
+            arg.aha_write.attr_len = buf_off;
+            rc = attr->ha_fn(attr, BLE_ATT_OP_WRITE_REQ, &arg);
+            if (rc != 0) {
+                *err_handle = entry->bape_handle;
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            buf_off = 0;
+        }
+
+        entry = next;
+    }
+
+    return 0;
+}
+
+int
+ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf **rxom)
+{
+    struct ble_att_prep_write_cmd req;
+    struct ble_att_prep_entry *prep_entry;
+    struct ble_att_prep_entry *prep_prev;
+    struct ble_att_svr_entry *attr_entry;
+    struct os_mbuf *srcom;
+    struct os_mbuf *txom;
+    int rc;
+
+    /* Initialize some values in case of early error. */
+    prep_entry = NULL;
+    req.bapc_handle = 0;
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    if (*rxom == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_prep_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    os_mbuf_adj(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+
+    attr_entry = NULL;
+    rc = ble_att_svr_find_by_handle(req.bapc_handle, &attr_entry);
+    if (rc != 0) {
+        rc = BLE_ATT_ERR_INVALID_HANDLE;
+        goto err;
+    }
+
+    prep_entry = ble_att_svr_prep_alloc();
+    if (prep_entry == NULL) {
+        rc = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
+        goto err;
+    }
+
+    prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr, req.bapc_handle,
+                                           req.bapc_offset);
+    if (prep_prev == NULL) {
+        SLIST_INSERT_HEAD(&conn->bhc_att_svr.basc_prep_list, prep_entry,
+                          bape_next);
+    } else {
+        SLIST_INSERT_AFTER(prep_prev, prep_entry, bape_next);
+    }
+
+    /* Append attribute value from request onto prep mbuf. */
+    for (srcom = *rxom; srcom != NULL; srcom = SLIST_NEXT(srcom, om_next)) {
+        rc = os_mbuf_append(prep_entry->bape_value, srcom->om_data,
+                            srcom->om_len);
+        if (rc != 0) {
+            rc = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
+            goto err;
+        }
+    }
+
+    /* The receive buffer now contains the attribute value.  Repurpose this
+     * buffer for the response.  Prepend a response header.
+     */
+    *rxom = os_mbuf_prepend(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    if (*rxom == NULL) {
+        goto err;
+    }
+    txom = *rxom;
+
+    rc = ble_att_prep_write_rsp_write(txom->om_data,
+                                      BLE_ATT_PREP_WRITE_CMD_BASE_SZ, &req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    if (rc != 0) {
+        rc = BLE_ATT_ERR_UNLIKELY;
+        goto err;
+    }
+
+    /* Make sure the receive buffer doesn't get freed since we are using it for
+     * the response.
+     */
+    *rxom = NULL;
+
+    return 0;
+
+err:
+    if (prep_entry != NULL) {
+        if (prep_prev == NULL) {
+            SLIST_REMOVE_HEAD(&conn->bhc_att_svr.basc_prep_list, bape_next);
+        } else {
+            SLIST_NEXT(prep_prev, bape_next) =
+                SLIST_NEXT(prep_entry, bape_next);
+        }
+
+        ble_att_svr_prep_free(prep_entry);
+    }
+
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_PREP_WRITE_REQ,
+                             req.bapc_handle, rc);
+    return rc;
+}
+
+static int
+ble_att_svr_tx_exec_write_rsp(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan)
+{
+    struct os_mbuf *txom;
+    uint8_t *dst;
+    int rc;
+
+    txom = ble_att_get_pkthdr();
+    if (txom == NULL) {
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
+    }
+
+    dst = os_mbuf_extend(txom, BLE_ATT_EXEC_WRITE_RSP_SZ);
+    if (dst == NULL) {
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        goto err;
+    }
+
+    rc = ble_att_exec_write_rsp_write(dst, BLE_ATT_EXEC_WRITE_RSP_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        rc = BLE_ATT_ERR_UNLIKELY;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_svr_rx_exec_write(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf **rxom)
+{
+    struct ble_att_exec_write_req req;
+    uint16_t err_handle;
+    int rc;
+
+    /* Initialize some values in case of early error. */
+    err_handle = 0;
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_EXEC_WRITE_REQ_SZ);
+    if (*rxom == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_exec_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
+        /* Perform attribute writes. */
+        rc = ble_att_svr_prep_write(&conn->bhc_att_svr, &err_handle);
+    } else {
+        rc = 0;
+    }
+
+    /* Erase all prep entries. */
+    ble_att_svr_prep_clear(&conn->bhc_att_svr);
+
+    if (rc != 0) {
+        goto err;
+    }
+
+    /* Send response. */
+    rc = ble_att_svr_tx_exec_write_rsp(conn, chan);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_EXEC_WRITE_REQ,
+                             err_handle, rc);
+    return rc;
+}
+
+static void
+ble_att_svr_free_mem(void)
+{
+    free(ble_att_svr_entry_mem);
+    ble_att_svr_entry_mem = NULL;
+
+    free(ble_att_svr_prep_entry_mem);
+    ble_att_svr_prep_entry_mem = NULL;
+
+    free(ble_att_svr_prep_mbuf_mem);
+    ble_att_svr_prep_mbuf_mem = NULL;
+}
+
 int
 ble_att_svr_init(void)
 {
     int rc;
+
+    ble_att_svr_free_mem();
 
     STAILQ_INIT(&ble_att_svr_list);
 
@@ -1496,21 +1879,39 @@ ble_att_svr_init(void)
         goto err;
     }
 
-    free(ble_att_svr_entry_mem);
-    ble_att_svr_entry_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_ATT_SVR_NUM_ENTRIES,
-                         sizeof (struct ble_att_svr_entry)));
-    if (ble_att_svr_entry_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
+    rc = ble_hs_misc_malloc_mempool(&ble_att_svr_entry_mem,
+                                    &ble_att_svr_entry_pool,
+                                    BLE_ATT_SVR_NUM_ENTRIES,
+                                    sizeof (struct ble_att_svr_entry),
+                                    "ble_att_svr_entry_pool");
+    if (rc != 0) {
         goto err;
     }
 
-    rc = os_mempool_init(&ble_att_svr_entry_pool,
-                         BLE_ATT_SVR_NUM_ENTRIES,
-                         sizeof (struct ble_att_svr_entry),
-                         ble_att_svr_entry_mem,
-                         "ble_att_svr_entry_pool");
+    rc = ble_hs_misc_malloc_mempool(&ble_att_svr_prep_entry_mem,
+                                    &ble_att_svr_prep_entry_pool,
+                                    BLE_ATT_SVR_NUM_PREP_ENTRIES,
+                                    sizeof (struct ble_att_prep_entry),
+                                    "ble_att_prep_entry_pool");
     if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_hs_misc_malloc_mempool(&ble_att_svr_prep_mbuf_mem,
+                                    &ble_att_svr_prep_mbuf_mempool,
+                                    BLE_ATT_SVR_NUM_PREP_MBUFS,
+                                    BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
+                                    "ble_att_prep_mbuf_mempool");
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = os_mbuf_pool_init(&ble_att_svr_prep_mbuf_pool,
+                           &ble_att_svr_prep_mbuf_mempool,
+                           BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
+                           BLE_ATT_SVR_NUM_PREP_MBUFS);
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
         goto err;
     }
 
@@ -1519,8 +1920,6 @@ ble_att_svr_init(void)
     return 0;
 
 err:
-    free(ble_att_svr_entry_mem);
-    ble_att_svr_entry_mem = NULL;
-
+    ble_att_svr_free_mem();
     return rc;
 }

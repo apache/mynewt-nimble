@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include "host/ble_hs.h"
 struct os_mbuf;
+struct os_mempool;
 
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
 #define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
@@ -35,5 +36,8 @@ int ble_hs_rx_data(struct os_mbuf *om);
 int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_kick_hci(void);
 void ble_hs_kick_gatt(void);
+
+int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
+                               int num_entries, int entry_size, char *name);
 
 #endif

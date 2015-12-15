@@ -79,7 +79,7 @@ struct ble_hs_pkt {
     struct tpq_elem bhp_tpq_elem;
     struct os_mbuf *bhp_om;
 };
-static os_membuf_t *ble_hs_pkt_mem;
+static void *ble_hs_pkt_mem;
 static struct os_mempool ble_hs_pkt_pool;
 
 static struct tpq ble_hs_rx_q;
@@ -264,28 +264,20 @@ ble_hs_init(uint8_t prio)
                          BLE_HS_MBUF_MEMBLOCK_SIZE,
                          ble_hs_mbuf_mem, "ble_hs_mbuf_pool");
     if (rc != 0) {
-        rc = BLE_HS_EINVAL; // XXX
+        rc = BLE_HS_EOS;
         goto err;
     }
     rc = os_mbuf_pool_init(&ble_hs_mbuf_pool, &ble_hs_mbuf_mempool,
                            BLE_HS_MBUF_MEMBLOCK_SIZE, BLE_HS_NUM_MBUFS);
     if (rc != 0) {
-        rc = BLE_HS_EINVAL; // XXX
+        rc = BLE_HS_EOS;
         goto err;
     }
 
-    ble_hs_pkt_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_HS_PKT_MAX,
-                         sizeof (struct ble_hs_pkt)));
-    if (ble_hs_pkt_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-    rc = os_mempool_init(&ble_hs_pkt_pool, BLE_HS_PKT_MAX,
-                         sizeof (struct ble_hs_pkt),
-                         ble_hs_pkt_mem, "ble_hs_pkt_pool");
+    rc = ble_hs_misc_malloc_mempool(&ble_hs_pkt_mem, &ble_hs_pkt_pool,
+                                    BLE_HS_PKT_MAX, sizeof (struct ble_hs_pkt),
+                                    "ble_hs_pkt_pool");
     if (rc != 0) {
-        rc = BLE_HS_EINVAL; // XXX
         goto err;
     }
 
@@ -315,13 +307,6 @@ ble_hs_init(uint8_t prio)
     if (rc != 0) {
         goto err;
     }
-
-#if 0
-    rc = ble_hs_hci_batch_init();
-    if (rc != 0) {
-        goto err;
-    }
-#endif
 
     rc = ble_gatt_init();
     if (rc != 0) {

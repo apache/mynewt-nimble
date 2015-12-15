@@ -31,8 +31,7 @@ struct ble_hs_conn {
 
     struct ble_l2cap_chan_list bhc_channels;
 
-    /** Mapping of peer's ATT attributes to handle IDs. */
-    struct ble_att_clt_entry_list bhc_att_clt_list;
+    struct ble_att_svr_conn bhc_att_svr;
 };
 
 struct ble_hs_conn *ble_hs_conn_alloc(void);

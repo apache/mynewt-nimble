@@ -185,12 +185,47 @@ struct ble_att_read_group_type_rsp {
  * | Attribute Handle                   | 2                 |
  * | Attribute Value                    | 0 to (ATT_MTU-3)  |
  */
-#define BLE_ATT_WRITE_REQ_BASE_SZ        3
+#define BLE_ATT_WRITE_REQ_BASE_SZ       3
 struct ble_att_write_req {
     uint16_t bawq_handle;
 };
 
-#define BLE_ATT_WRITE_RSP_SZ             1
+#define BLE_ATT_WRITE_RSP_SZ            1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Handle                   | 2                 |
+ * | Value Offset                       | 2                 |
+ * | Part Attribute Value               | 0 to (ATT_MTU-5)  |
+ */
+#define BLE_ATT_PREP_WRITE_CMD_BASE_SZ  5
+struct ble_att_prep_write_cmd {
+    uint16_t bapc_handle;
+    uint16_t bapc_offset;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Flags                              | 1                 |
+ */
+#define BLE_ATT_EXEC_WRITE_REQ_SZ       2
+struct ble_att_exec_write_req {
+    uint8_t baeq_flags;
+};
+
+#define BLE_ATT_EXEC_WRITE_F_CONFIRM    0x01
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ */
+#define BLE_ATT_EXEC_WRITE_RSP_SZ       1
+
 
 int ble_att_error_rsp_parse(void *payload, int len,
                             struct ble_att_error_rsp *rsp);
@@ -242,3 +277,16 @@ int ble_att_write_cmd_parse(void *payload, int len,
                             struct ble_att_write_req *req);
 int ble_att_write_cmd_write(void *payload, int len,
                             struct ble_att_write_req *req);
+int ble_att_prep_write_req_parse(void *payload, int len,
+                                 struct ble_att_prep_write_cmd *cmd);
+int ble_att_prep_write_req_write(void *payload, int len,
+                                 struct ble_att_prep_write_cmd *cmd);
+int ble_att_prep_write_rsp_parse(void *payload, int len,
+                                 struct ble_att_prep_write_cmd *cmd);
+int ble_att_prep_write_rsp_write(void *payload, int len,
+                                 struct ble_att_prep_write_cmd *cmd);
+int ble_att_exec_write_req_parse(void *payload, int len,
+                                 struct ble_att_exec_write_req *req);
+int ble_att_exec_write_req_write(void *payload, int len,
+                                 struct ble_att_exec_write_req *req);
+int ble_att_exec_write_rsp_write(void *payload, int len);

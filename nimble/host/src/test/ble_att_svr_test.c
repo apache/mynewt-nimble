@@ -214,23 +214,16 @@ static int
 ble_att_svr_test_misc_attr_fn_w_1(struct ble_att_svr_entry *entry, uint8_t op,
                                   union ble_att_svr_handle_arg *arg)
 {
-    struct os_mbuf_pkthdr *omp;
-    int rc;
-
     switch (op) {
     case BLE_ATT_OP_WRITE_REQ:
-        omp = OS_MBUF_PKTHDR(arg->aha_write.om);
-        rc = os_mbuf_copydata(arg->aha_write.om, 0, arg->aha_write.attr_len,
-                              ble_att_svr_test_attr_w_1);
-        TEST_ASSERT(rc == 0);
+        memcpy(ble_att_svr_test_attr_w_1, arg->aha_write.attr_data,
+               arg->aha_write.attr_len);
         ble_att_svr_test_attr_w_1_len = arg->aha_write.attr_len;
         return 0;
 
     default:
         return -1;
     }
-
-    (void)omp;
 }
 
 static void

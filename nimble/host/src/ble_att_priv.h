@@ -36,6 +36,19 @@ struct ble_att_write_req;
 #define BLE_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
 
+struct ble_att_prep_entry {
+    SLIST_ENTRY(ble_att_prep_entry) bape_next;
+    uint16_t bape_handle;
+    uint16_t bape_offset;
+    struct os_mbuf *bape_value;
+};
+
+struct ble_att_svr_conn {
+    /** This list is sorted by attribute handle ID. */
+    SLIST_HEAD(, ble_att_prep_entry) basc_prep_list;
+    uint32_t basc_prep_write_rx_time;
+};
+
 /**
  * Called from ble_att_svr_walk().  Called on each entry in the 
  * ble_att_svr_list.
@@ -87,6 +100,12 @@ int ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                         struct os_mbuf **rxom);
 int ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          struct os_mbuf **rxom);
+int ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan,
+                              struct os_mbuf **rxom);
+int ble_att_svr_rx_exec_write(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan,
+                              struct os_mbuf **rxom);
 int ble_att_svr_init(void);
 
 /*** @clt */

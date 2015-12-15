@@ -57,8 +57,6 @@ ble_hs_conn_alloc(void)
     }
     SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
 
-    SLIST_INIT(&conn->bhc_att_clt_list);
-
     return conn;
 
 err:
