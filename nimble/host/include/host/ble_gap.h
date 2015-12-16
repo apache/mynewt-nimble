@@ -23,8 +23,9 @@ struct hci_le_conn_complete;
 #define BLE_GAP_CONN_EVENT_TYPE_CONNECT     1
 #define BLE_GAP_CONN_EVENT_TYPE_ADV_RPT     2
 #define BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE   3
+#define BLE_GAP_CONN_EVENT_TYPE_TERMINATE   4
 
-struct ble_gap_conn_connect_report {
+struct ble_gap_conn_connect_rpt {
     uint16_t handle;
     uint8_t status;
     uint8_t peer_addr[6];
@@ -39,12 +40,19 @@ struct ble_gap_conn_adv_rpt {
     uint8_t *data;
 };
 
+struct ble_gap_conn_terminate_rpt {
+    uint16_t handle;
+    uint8_t status;
+    uint8_t reason;
+};
+
 struct ble_gap_conn_event {
     uint8_t type;
 
     union {
-        struct ble_gap_conn_connect_report connect;
-        struct ble_gap_conn_adv_rpt adv_rpt;
+        struct ble_gap_conn_connect_rpt conn;
+        struct ble_gap_conn_adv_rpt adv;
+        struct ble_gap_conn_terminate_rpt term;
     };
 };
 
@@ -54,5 +62,6 @@ void ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg);
 int ble_gap_conn_gen_disc(uint32_t duration_ms);
 int ble_gap_conn_direct_connectable(int addr_type, uint8_t *addr);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
+int ble_gap_conn_terminate(uint16_t handle);
 
 #endif

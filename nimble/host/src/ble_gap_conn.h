@@ -28,7 +28,7 @@ int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_direct_advertise(int addr_type, uint8_t *addr);
 void ble_gap_conn_rx_adv_report(struct ble_gap_conn_adv_rpt *rpt);
 int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);
-int ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt);
+void ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt);
 int ble_gap_conn_master_in_progress(void);
 int ble_gap_conn_slave_in_progress(void);
 int ble_gap_conn_init(void);

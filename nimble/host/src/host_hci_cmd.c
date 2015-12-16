@@ -60,9 +60,6 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
         rc = host_hci_cmd_transport(cmd);
         if (rc == 0) {
             host_hci_outstanding_opcode = opcode;
-        } else {
-            /* Clear the ack callback on send failure. */
-            ble_hci_ack_set_callback(NULL, NULL);
         }
     }
 

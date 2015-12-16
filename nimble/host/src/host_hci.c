@@ -128,7 +128,6 @@ static int
 host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 {
     struct hci_disconn_complete evt;
-    int rc;
 
     if (len < BLE_HCI_EVENT_DISCONN_COMPLETE_LEN) {
         return BLE_HS_EMSGSIZE;
@@ -138,10 +137,7 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     evt.connection_handle = le16toh(data + 1);
     evt.reason = data[3];
 
-    rc = ble_gap_conn_rx_disconn_complete(&evt);
-    if (rc != 0) {
-        return rc;
-    }
+    ble_gap_conn_rx_disconn_complete(&evt);
 
     return 0;
 }

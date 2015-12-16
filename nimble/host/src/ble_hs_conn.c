@@ -74,8 +74,6 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
         return;
     }
 
-    SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
-
     while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
         SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
         ble_l2cap_chan_free(chan);
