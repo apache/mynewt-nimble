@@ -1589,7 +1589,7 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
             }
         }
 
-        cur_len = entry->bape_offset + OS_MBUF_PKTLEN(prev->bape_value);
+        cur_len = entry->bape_offset + OS_MBUF_PKTLEN(entry->bape_value);
         if (cur_len > BLE_ATT_ATTR_MAX_LEN) {
             *err_handle = entry->bape_handle;
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
@@ -1697,6 +1697,8 @@ ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
         rc = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         goto err;
     }
+    prep_entry->bape_handle = req.bapc_handle;
+    prep_entry->bape_offset = req.bapc_offset;
 
     prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr, req.bapc_handle,
                                            req.bapc_offset);

@@ -289,4 +289,5 @@ int ble_att_exec_write_req_parse(void *payload, int len,
                                  struct ble_att_exec_write_req *req);
 int ble_att_exec_write_req_write(void *payload, int len,
                                  struct ble_att_exec_write_req *req);
+int ble_att_exec_write_rsp_parse(void *payload, int len);
 int ble_att_exec_write_rsp_write(void *payload, int len);
