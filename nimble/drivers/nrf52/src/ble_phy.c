@@ -26,7 +26,7 @@
 /* 
  * XXX: TODO
  * 1) make phy rx start and end function pointers to call?
- * 2) How to set access address for data channel pdu's and crcinit
+ * 2) Deal with rx start/end and tx start/end events I think.
  */
 
 /* To disable all radio interrupts */
@@ -54,6 +54,7 @@ struct ble_phy_obj
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
+    uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
 };
 struct ble_phy_obj g_ble_phy_data;
@@ -553,6 +554,9 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
                    (BLE_PHY_CHAN_SPACING_MHZ * (chan + 1));
         }
 
+        /* Set current access address */
+        g_ble_phy_data.phy_access_address = access_addr;
+
         /* Configure logical address 1 and crcinit */
         prefix = NRF_RADIO->PREFIX0;
         prefix &= 0xffff00ff;
@@ -577,6 +581,9 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         NRF_RADIO->TXADDRESS = 0;
         NRF_RADIO->RXADDRESSES = (1 << 0);
         NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
+
+        /* Set current access address */
+        g_ble_phy_data.phy_access_address = BLE_ACCESS_ADDR_ADV;
     }
 
     /* Set the frequency and the data whitening initial value */
@@ -608,6 +615,13 @@ ble_phy_disable(void)
 
     /* XXX: do I need to clear any pending state in the cortex-M possibly? */
 }
+
+/* Gets the current access address */
+uint32_t ble_phy_access_addr_get(void)
+{
+    return g_ble_phy_data.phy_access_address;
+}
+
 
 /**
  * Return the phy state

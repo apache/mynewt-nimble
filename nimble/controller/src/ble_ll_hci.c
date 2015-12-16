@@ -25,7 +25,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
-#include "controller/ble_ll_conn.h"
+#include "ble_ll_conn_priv.h"
 
 /* LE event mask */
 uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
@@ -65,6 +65,37 @@ ble_ll_hci_event_send(uint8_t *evbuf)
 
     return rc;
 }
+
+/**
+ * Created and sends a command complete event with the no-op opcode to the 
+ * host. 
+ * 
+ * @return int 0: ok, ble error code otherwise.
+ */
+int
+ble_ll_hci_send_noop(void)
+{
+    int rc;
+    uint8_t *evbuf;
+    uint16_t opcode;
+
+    evbuf = os_memblock_get(&g_hci_cmd_pool);
+    if (evbuf) {
+        /* Create a command complete event with a NO-OP opcode */
+        opcode = 0;
+        evbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
+        evbuf[1] = 3;
+        evbuf[2] = ble_ll_hci_get_num_cmd_pkts();
+        htole16(evbuf + 3, opcode);
+        ble_ll_hci_event_send(evbuf);
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        rc = BLE_ERR_MEM_CAPACITY;
+    }
+
+    return rc;
+}
+
 
 /**
  * ll hci set le event mask

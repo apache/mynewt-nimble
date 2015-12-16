@@ -17,17 +17,22 @@
 #ifndef H_BLE_LL_HCI_
 #define H_BLE_LL_HCI_
 
-/* XXX: I think the data packet length should be 251 for now. Not sure
-   how to set num data packets. */
 /* Define the number of data packets that the controller can store */
 #define BLE_LL_CFG_NUM_ACL_DATA_PKTS    (4)
-#define BLE_LL_CFG_ACL_DATA_PKT_LEN     (256)
+#define BLE_LL_CFG_ACL_DATA_PKT_LEN     (251)
 
 /* 
  * This determines the number of outstanding commands allowed from the
  * host to the controller.
  */
 #define BLE_LL_CFG_NUM_HCI_CMD_PKTS     (1)
+
+/* 
+ * Determines the maximum rate at which the controller will send the
+ * number of completed packets event to the host. This number is in
+ * milliseconds.
+ */
+#define BLE_LL_CFG_NUM_COMP_PKT_RATE    (1000)  /* msecs */
 
 /* Initialize LL HCI */
 void ble_ll_hci_init(void);
@@ -43,5 +48,9 @@ uint8_t ble_ll_hci_is_event_enabled(int bitpos);
 
 /* Send event from controller to host */
 int ble_ll_hci_event_send(uint8_t *evbuf);
+
+/* Sends a command complete with a no-op opcode to host */
+int ble_ll_hci_send_noop(void);
+
 
 #endif /* H_BLE_LL_HCI_ */

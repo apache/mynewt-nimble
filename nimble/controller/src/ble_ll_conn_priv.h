@@ -1,0 +1,87 @@
+/**
+ * Copyright (c) 2015 Runtime Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef H_BLE_LL_CONN_PRIV_
+#define H_BLE_LL_CONN_PRIV_
+
+#include "controller/ble_ll_conn.h"
+
+/* Definitions for max rx/tx time/bytes for connections */
+#define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */
+#define BLE_LL_CONN_SUPP_BYTES_MAX          (251)   /* bytes */
+
+/* Connection event timing */
+#define BLE_LL_CONN_ITVL_USECS              (1250)
+#define BLE_LL_CONN_TX_WIN_USECS            (1250)
+#define BLE_LL_CONN_CE_USECS                (625)
+#define BLE_LL_CONN_TX_WIN_MIN              (1)         /* in tx win units */
+#define BLE_LL_CONN_SLAVE_LATENCY_MAX       (499)
+
+/* Connection handle range */
+#define BLE_LL_CONN_MAX_CONN_HANDLE         (0x0EFF)
+
+/* Offset (in bytes) of advertising address in connect request */
+#define BLE_LL_CONN_REQ_ADVA_OFF    (BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN)
+
+/* Some data structures used by other LL routines */
+SLIST_HEAD(ble_ll_conn_active_list, ble_ll_conn_sm);
+STAILQ_HEAD(ble_ll_conn_free_list, ble_ll_conn_sm);
+extern struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
+extern struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
+
+/* Pointer to connection state machine we are trying to create */
+extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
+
+/* Generic interface */
+struct ble_ll_len_req;
+struct hci_create_conn;
+void ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm);
+void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
+void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
+struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
+void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm, 
+                             struct hci_create_conn *hcc);
+struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
+void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm, 
+                                struct ble_ll_len_req *req);
+
+/* Advertising interface */
+int ble_ll_conn_slave_start(uint8_t *rxbuf);
+
+/* Link Layer interface */
+void ble_ll_conn_module_init(void);
+void ble_ll_conn_event_end(void *arg);
+void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
+void ble_ll_conn_spvn_timeout(void *arg);
+void ble_ll_conn_rx_pdu_start(void);
+int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok);
+void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
+void ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
+int ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu);
+
+/* HCI */
+void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, 
+                                    uint8_t reason);
+
+int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
+int ble_ll_conn_create(uint8_t *cmdbuf);
+int ble_ll_conn_create_cancel(void);
+void ble_ll_conn_num_comp_pkts_event_send(void);
+void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status);
+
+#endif /* H_BLE_LL_CONN_PRIV_ */

@@ -25,8 +25,8 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
-#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_whitelist.h"
+#include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
@@ -54,7 +54,7 @@
  * processor overhead/delays. We will want to do that.
  * 7) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 8) Deal with whitelisting at LL when pdu is handed up to LL task.
+ * 8) Getting late_adv_tx_done errors when doing direct advertising. Fix that.
  */
 
 /* 
@@ -147,8 +147,8 @@ ble_ll_adv_first_chan(struct ble_ll_adv_sm *advsm)
 
 
 /**
- * Compares the advertiser address in an advertising PDU with our
- * address to see if there is a match
+ * Compares the advertiser address in an advertising PDU (scan request or 
+ * connect request) with our address to see if there is a match
  * 
  * @param rxbuf Pointer to received PDU
  * 
@@ -507,18 +507,23 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
      */
     adv_filter_policy = cmd[14];
 
+    /* Assume min interval based on low duty cycle/indirect advertising */
+    min_itvl = BLE_LL_ADV_ITVL_MIN;
+
     switch (adv_type) {
+    /* Fall through intentional */
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
-        adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
-        memcpy(advsm->initiator_addr, cmd + 7, BLE_DEV_ADDR_LEN);
         /* Ignore min/max interval */
         min_itvl = 0;
         adv_itvl_min = 0;
         adv_itvl_max = 0;
+
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+        adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
+        memcpy(advsm->initiator_addr, cmd + 7, BLE_DEV_ADDR_LEN);
         break;
     case BLE_HCI_ADV_TYPE_ADV_IND:
-        min_itvl = BLE_LL_ADV_ITVL_MIN;
+        /* Nothing to do */
         break;
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
     case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:

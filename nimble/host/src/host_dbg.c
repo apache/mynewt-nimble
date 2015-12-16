@@ -116,6 +116,44 @@ host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
                    status, handle, reason);
 }
 
+/**
+ * Display the number of completed packets event
+ * 
+ * @param evdata 
+ * @param len 
+ */
+void
+host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
+{
+    uint8_t handles;
+    uint8_t *handle_ptr;
+    uint8_t *pkt_ptr;
+    uint16_t handle;
+    uint16_t pkts;
+
+    handles = evdata[0];
+    if (len != ((handles * 4) + 1)) {
+        console_printf("ERR: Number of Completed Packets bad length: "
+                       "num_handles=%u len=%u\n", handles, len);
+        return;
+
+    }
+
+    console_printf("Number of Completed Packets: num_handles=%u\n", handles);
+    if (handles) {
+        handle_ptr = evdata + 1;
+        pkt_ptr = handle_ptr + (2 * handles);
+        while (handles) {
+            handle = le16toh(handle_ptr);
+            handle_ptr += 2;
+            pkts = le16toh(pkt_ptr);
+            pkt_ptr += 2;
+            console_printf("handle:%u pkts:%u\n", handle, pkts);
+            --handles;
+        }
+    }
+}
+
 void
 host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
 {
@@ -179,6 +217,9 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
         break;
     case BLE_HCI_EVCODE_COMMAND_STATUS:
         host_hci_dbg_cmd_status_disp(evdata, len);
+        break;
+    case BLE_HCI_EVCODE_NUM_COMP_PKTS:
+        host_hci_dbg_num_comp_pkts_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_LE_META:
         host_hci_dbg_le_event_disp(evdata[0], len, evdata + 1);

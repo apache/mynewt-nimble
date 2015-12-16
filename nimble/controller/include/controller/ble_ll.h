@@ -59,6 +59,8 @@ struct ble_ll_stats
     uint32_t hci_cmd_errs;
     uint32_t hci_events_sent;
     uint32_t bad_ll_state;
+    uint32_t bad_acl_hdr;
+    uint32_t bad_acl_datalen;
     uint32_t rx_bytes;
     uint32_t rx_valid_adv_pdus;
     uint32_t rx_invalid_adv_pdus;
@@ -80,8 +82,10 @@ struct ble_ll_stats
     uint32_t rx_bad_llid;
     uint32_t tx_ctrl_pdus;
     uint32_t tx_ctrl_bytes;
-    uint32_t tx_data_pdus;
-    uint32_t tx_data_bytes;
+    uint32_t tx_l2cap_pdus;
+    uint32_t tx_l2cap_bytes;
+    uint32_t tx_empty_pdus;
+    uint32_t tx_empty_bytes;
 };
 extern struct ble_ll_stats g_ble_ll_stats;
 

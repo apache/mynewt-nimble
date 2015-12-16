@@ -28,6 +28,7 @@ struct ble_phy_obj
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
+    uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
 };
 struct ble_phy_obj g_ble_phy_data;
@@ -358,9 +359,11 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* If the current channel is set, just return */
-    if (g_ble_phy_data.phy_chan == chan) {
-        return 0;
+    /* Set current access address */
+    if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        g_ble_phy_data.phy_access_address = access_addr;
+    } else {
+        g_ble_phy_data.phy_access_address = BLE_ACCESS_ADDR_ADV;
     }
     g_ble_phy_data.phy_chan = chan;
 
@@ -379,6 +382,13 @@ ble_phy_disable(void)
 {
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
 }
+
+/* Gets the current access address */
+uint32_t ble_phy_access_addr_get(void)
+{
+    return g_ble_phy_data.phy_access_address;
+}
+
 
 /**
  * Return the phy state

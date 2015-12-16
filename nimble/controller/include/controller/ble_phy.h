@@ -105,4 +105,7 @@ void ble_phy_disable(void);
 /* Gets the current state of the PHY */
 int ble_phy_state_get(void);
 
+/* Gets the current access address */
+uint32_t ble_phy_access_addr_get(void);
+
 #endif /* H_BLE_PHY_ */

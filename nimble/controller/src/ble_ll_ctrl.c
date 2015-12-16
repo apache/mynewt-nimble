@@ -20,8 +20,8 @@
 #include "nimble/hci_common.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
-#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_ctrl.h"
+#include "ble_ll_conn_priv.h"
 
 /* 
  * XXX: TODO

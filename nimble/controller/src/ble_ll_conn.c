@@ -23,12 +23,12 @@
 #include "nimble/hci_common.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
-#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_phy.h"
+#include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
@@ -67,13 +67,6 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
  * purely slave. We can make a union of them.
  */
 
-/* Connection event timing */
-#define BLE_LL_CONN_ITVL_USECS              (1250)
-#define BLE_LL_CONN_TX_WIN_USECS            (1250)
-#define BLE_LL_CONN_CE_USECS                (625)
-#define BLE_LL_CONN_TX_WIN_MIN              (1)         /* in tx win units */
-#define BLE_LL_CONN_SLAVE_LATENCY_MAX       (499)
-
 /* 
  * The amount of time that we will wait to hear the start of a receive
  * packet in a connection event.
@@ -93,19 +86,6 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (251)
 #define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (251)
 #define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (27)
-
-/* Roles */
-#define BLE_LL_CONN_ROLE_NONE               (0)
-#define BLE_LL_CONN_ROLE_MASTER             (1)
-#define BLE_LL_CONN_ROLE_SLAVE              (2)
-
-/* Connection states */
-#define BLE_LL_CONN_STATE_IDLE              (0)
-#define BLE_LL_CONN_STATE_CREATED           (1)
-#define BLE_LL_CONN_STATE_ESTABLISHED       (2)
-
-/* Connection request */
-#define BLE_LL_CONN_REQ_ADVA_OFF    (BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN)
 
 /* Sleep clock accuracy table (in ppm) */
 static const uint16_t g_ble_sca_ppm_tbl[8] =
@@ -135,10 +115,10 @@ struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CONN_CFG_MAX_CONNS];
 
 /* List of active connections */
-static SLIST_HEAD(, ble_ll_conn_sm) g_ble_ll_conn_active_list;
+struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
 
 /* List of free connections */
-static STAILQ_HEAD(, ble_ll_conn_sm) g_ble_ll_conn_free_list;
+struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 
 /* Statistics */
 struct ble_ll_conn_stats
@@ -147,10 +127,11 @@ struct ble_ll_conn_stats
     uint32_t conn_ev_late;
     uint32_t wfr_expirations;
     uint32_t handle_not_found;
-    uint32_t bad_acl_hdr;
     uint32_t no_tx_pdu;
     uint32_t no_conn_sm;
     uint32_t no_free_conn_sm;
+    uint32_t rx_data_pdu_no_conn;
+    uint32_t rx_data_pdu_bad_aa;
     uint32_t slave_rxd_bad_conn_req_params;
     uint32_t slave_ce_failures;
     uint32_t rx_resent_pdus;
@@ -160,6 +141,26 @@ struct ble_ll_conn_stats
     uint32_t conn_req_txd;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
+
+/**
+ * Checks if pdu is a data pdu, meaning it is not a control pdu nor an empty 
+ * pdu. 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_conn_is_data_pdu(struct os_mbuf *pdu)
+{
+    int rc;
+
+    rc = 0;
+    if (((pdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK) != BLE_LL_LLID_CTRL) &&
+        (pdu->om_data[1] != 0)) {
+        rc = 1;
+    }
+    return rc;
+}
+
 
 /**
  * Given a handle, find an active connection matching the handle
@@ -466,6 +467,7 @@ static int
 ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
 {
     int rc;
+    int tx_empty_pdu;
     uint8_t md;
     uint8_t hdr_byte;
     uint8_t end_transition;
@@ -485,6 +487,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * a response and send the next packet and get a response.
      */
     md = 0;
+    tx_empty_pdu = 0;
     pkthdr = STAILQ_FIRST(&connsm->conn_txq);
     if (pkthdr) {
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
@@ -514,8 +517,10 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         ble_hdr = BLE_MBUF_HDR_PTR(m);
         ble_hdr->flags = 0;
         m->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+        m->om_data[1] = 0;
         pkthdr = OS_MBUF_PKTHDR(m);
         STAILQ_INSERT_HEAD(&connsm->conn_txq, pkthdr, omp_next);
+        tx_empty_pdu = 1;
     }
 
     /* XXX: how does the master end the connection event if we are getting
@@ -600,12 +605,15 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         }
 
         /* Increment packets transmitted */
-        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+        if (tx_empty_pdu) {
+            ++g_ble_ll_stats.tx_empty_pdus;
+            g_ble_ll_stats.tx_empty_bytes += OS_MBUF_PKTHDR(m)->omp_len;
+        } else if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
             ++g_ble_ll_stats.tx_ctrl_pdus;
             g_ble_ll_stats.tx_ctrl_bytes += OS_MBUF_PKTHDR(m)->omp_len;
         } else {
-            ++g_ble_ll_stats.tx_data_pdus;
-            g_ble_ll_stats.tx_data_bytes += OS_MBUF_PKTHDR(m)->omp_len;
+            ++g_ble_ll_stats.tx_l2cap_pdus;
+            g_ble_ll_stats.tx_l2cap_bytes += OS_MBUF_PKTHDR(m)->omp_len;
         }
     }
 
@@ -793,7 +801,7 @@ ble_ll_conn_spvn_timer_cb(void *arg)
  * @param connsm 
  * @param hcc 
  */
-static void
+void
 ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm, 
                         struct hci_create_conn *hcc)
 {
@@ -853,7 +861,7 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
  * 
  * @param connsm 
  */
-static void
+void
 ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_conn_global_params *conn_params;
@@ -895,6 +903,8 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
     connsm->last_txd_md = 0;
     connsm->cons_rxd_bad_crc = 0;
     connsm->last_rxd_sn = 1;
+    connsm->completed_pkts = 0;
+    connsm->last_completed_pkts = 0;
 
     /* initialize data length mgmt */
     conn_params = &g_ble_ll_conn_params;
@@ -927,64 +937,6 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
 
     /* Add to list of active connections */
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
-}
-
-/**
- * Send a connection complete event 
- * 
- * @param status The BLE error code associated with the event
- */
-void
-ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
-{
-    uint8_t *evbuf;
-
-    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_COMPLETE - 1)) {
-        evbuf = os_memblock_get(&g_hci_cmd_pool);
-        if (evbuf) {
-            evbuf[0] = BLE_HCI_EVCODE_LE_META;
-            evbuf[1] = BLE_HCI_LE_CONN_COMPLETE_LEN;
-            evbuf[2] = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-            evbuf[3] = status;
-            if (status == BLE_ERR_SUCCESS) {
-                htole16(evbuf + 4, connsm->conn_handle);
-                evbuf[6] = connsm->conn_role;
-                evbuf[7] = connsm->peer_addr_type;
-                memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
-                htole16(evbuf + 14, connsm->conn_itvl);
-                htole16(evbuf + 16, connsm->slave_latency);
-                htole16(evbuf + 18, connsm->supervision_tmo);
-                evbuf[20] = connsm->master_sca;
-            }
-            ble_ll_hci_event_send(evbuf);
-        }
-    }
-}
-
-/**
- * Send a disconnection complete event. 
- *  
- * NOTE: we currently only send this event when we have a reason to send it; 
- * not when it fails. 
- * 
- * @param reason The BLE error code to send as a disconnect reason
- */
-void
-ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
-{
-    uint8_t *evbuf;
-
-    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_DISCONN_CMP - 1)) {
-        evbuf = os_memblock_get(&g_hci_cmd_pool);
-        if (evbuf) {
-            evbuf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
-            evbuf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
-            evbuf[2] = BLE_ERR_SUCCESS;
-            htole16(evbuf + 3, connsm->conn_handle);
-            evbuf[5] = reason;
-            ble_ll_hci_event_send(evbuf);
-        }
-    }
 }
 
 /**
@@ -1307,6 +1259,11 @@ ble_ll_conn_event_end(void *arg)
     /* Schedule the next connection event */
     ble_ll_conn_sched_set(connsm);
 
+    /* If we have completed packets, send an event */
+    if (connsm->completed_pkts != connsm->last_completed_pkts) {
+        ble_ll_conn_num_comp_pkts_event_send();
+    }
+
     /* turn led off */
     gpio_set(LED_BLINK_PIN);
 }
@@ -1338,226 +1295,6 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type)
     }
     dptr[0] = pdu_type;
     memcpy(dptr + BLE_LL_CONN_REQ_ADVA_OFF, adva, BLE_DEV_ADDR_LEN); 
-}
-
-/**
- * Make a connect request PDU 
- * 
- * @param connsm 
- */
-void
-ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
-{
-    uint8_t pdu_type;
-    uint8_t *addr;
-    uint8_t *dptr;
-    struct os_mbuf *m;
-
-    m = ble_ll_scan_get_pdu();
-    assert(m != NULL);
-    m->om_len = BLE_CONNECT_REQ_LEN + BLE_LL_PDU_HDR_LEN;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
-
-    /* Construct first PDU header byte */
-    pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
-
-    /* Get pointer to our device address */
-    if (connsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
-        addr = g_dev_addr;
-    } else if (connsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        addr = g_random_addr;
-    } else {
-        /* XXX: unsupported for now  */
-        addr = NULL;
-        assert(0);
-    }
-
-    /* Construct the connect request */
-    dptr = m->om_data;
-    dptr[0] = pdu_type;
-    dptr[1] = BLE_CONNECT_REQ_LEN;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
-
-    /* Skip the advertiser's address as we dont know that yet */
-    dptr += (BLE_LL_CONN_REQ_ADVA_OFF + BLE_DEV_ADDR_LEN);
-
-    /* Access address */
-    htole32(dptr, connsm->access_addr);
-    dptr[4] = (uint8_t)connsm->crcinit;
-    dptr[5] = (uint8_t)(connsm->crcinit >> 8);
-    dptr[6] = (uint8_t)(connsm->crcinit >> 16);
-    dptr[7] = connsm->tx_win_size;
-    htole16(dptr + 8, connsm->tx_win_off);
-    htole16(dptr + 10, connsm->conn_itvl);
-    htole16(dptr + 12, connsm->slave_latency);
-    htole16(dptr + 14, connsm->supervision_tmo);
-    memcpy(dptr + 16, &connsm->chanmap, BLE_LL_CONN_CHMAP_LEN);
-    dptr[21] = connsm->hop_inc | connsm->master_sca;
-}
-
-/**
- * Process the HCI command to create a connection. 
- *  
- * Context: Link Layer task (HCI command processing) 
- * 
- * @param cmdbuf 
- * 
- * @return int 
- */
-int
-ble_ll_conn_create(uint8_t *cmdbuf)
-{
-    int rc;
-    uint32_t spvn_tmo_usecs;
-    uint32_t min_spvn_tmo_usecs;
-    struct hci_create_conn ccdata;
-    struct hci_create_conn *hcc;
-    struct ble_ll_conn_sm *connsm;
-
-    /* If we are already creating a connection we should leave */
-    if (g_ble_ll_conn_create_sm) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
-    /* If already enabled, we return an error */
-    if (ble_ll_scan_enabled()) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
-    /* Retrieve command data */
-    hcc = &ccdata;
-    hcc->scan_itvl = le16toh(cmdbuf);
-    hcc->scan_window = le16toh(cmdbuf + 2);
-
-    /* Check interval and window */
-    if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) || 
-        (hcc->scan_itvl > BLE_HCI_SCAN_ITVL_MAX) ||
-        (hcc->scan_window < BLE_HCI_SCAN_WINDOW_MIN) ||
-        (hcc->scan_window > BLE_HCI_SCAN_WINDOW_MAX) ||
-        (hcc->scan_itvl < hcc->scan_window)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Check filter policy */
-    hcc->filter_policy = cmdbuf[4];
-    if (hcc->filter_policy > BLE_HCI_INITIATOR_FILT_POLICY_MAX) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Get peer address type and address only if no whitelist used */
-    if (hcc->filter_policy == 0) {
-        hcc->peer_addr_type = cmdbuf[5];
-        if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_MAX) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        }
-        memcpy(&hcc->peer_addr, cmdbuf + 6, BLE_DEV_ADDR_LEN);
-    }
-
-    /* Get own address type (used in connection request) */
-    hcc->own_addr_type = cmdbuf[12];
-    if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Check connection interval */
-    hcc->conn_itvl_min = le16toh(cmdbuf + 13);
-    hcc->conn_itvl_max = le16toh(cmdbuf + 15);
-    hcc->conn_latency = le16toh(cmdbuf + 17);
-    if ((hcc->conn_itvl_min > hcc->conn_itvl_max)       ||
-        (hcc->conn_itvl_min < BLE_HCI_CONN_ITVL_MIN)    ||
-        (hcc->conn_itvl_min > BLE_HCI_CONN_ITVL_MAX)    ||
-        (hcc->conn_latency > BLE_HCI_CONN_LATENCY_MAX)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Check supervision timeout */
-    hcc->supervision_timeout = le16toh(cmdbuf + 19);
-    if ((hcc->supervision_timeout < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
-        (hcc->supervision_timeout > BLE_HCI_CONN_SPVN_TIMEOUT_MAX))
-    {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* 
-     * Supervision timeout (in msecs) must be more than:
-     *  (1 + connLatency) * connIntervalMax * 1.25 msecs * 2.
-     */
-    spvn_tmo_usecs = hcc->supervision_timeout;
-    spvn_tmo_usecs *= (BLE_HCI_CONN_SPVN_TMO_UNITS * 1000);
-    min_spvn_tmo_usecs = (uint32_t)hcc->conn_itvl_max * 2 * 
-        BLE_LL_CONN_ITVL_USECS;
-    min_spvn_tmo_usecs *= (1 + hcc->conn_latency);
-    if (spvn_tmo_usecs <= min_spvn_tmo_usecs) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Min/max connection event lengths */
-    hcc->min_ce_len = le16toh(cmdbuf + 21);
-    hcc->max_ce_len = le16toh(cmdbuf + 23);
-    if (hcc->min_ce_len > hcc->max_ce_len) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Make sure we can accept a connection! */
-    connsm = ble_ll_conn_sm_get();
-    if (connsm == NULL) {
-        return BLE_ERR_CONN_LIMIT;
-    }
-
-    /* Initialize state machine in master role and start state machine */
-    ble_ll_conn_master_init(connsm, hcc);
-    ble_ll_conn_sm_start(connsm);
-
-    /* Create the connection request */
-    ble_ll_conn_req_pdu_make(connsm);
-
-    /* Start scanning */
-    rc = ble_ll_scan_initiator_start(hcc);
-    if (rc) {
-        SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
-        STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
-    } else {
-        /* Set the connection state machine we are trying to create. */
-        g_ble_ll_conn_create_sm = connsm;
-    }
-
-    return rc;
-}
-
-/**
- * Called when HCI command to cancel a create connection command has been 
- * received. 
- *  
- * Context: Link Layer (HCI command parser) 
- * 
- * @return int 
- */
-int
-ble_ll_conn_create_cancel(void)
-{
-    int rc;
-    struct ble_ll_conn_sm *connsm;
-
-    /* 
-     * If we receive this command and we have not got a connection
-     * create command, we have to return disallowed. The spec does not say
-     * what happens if the connection has already been established. We
-     * return disallowed as well
-     */
-    connsm = g_ble_ll_conn_create_sm;
-    if (connsm && (connsm->conn_state == BLE_LL_CONN_STATE_IDLE)) {
-        /* stop scanning and end the connection event */
-        g_ble_ll_conn_create_sm = NULL;
-        ble_ll_scan_sm_stop(ble_ll_scan_sm_get());
-        ble_ll_conn_end(connsm, BLE_ERR_UNK_CONN_ID);
-        rc = BLE_ERR_SUCCESS;
-    } else {
-        /* If we are not attempting to create a connection*/
-        rc = BLE_ERR_CMD_DISALLOWED;
-    }
-
-    return rc;
 }
 
 /* Returns true if the address matches the connection peer address */
@@ -1929,7 +1666,7 @@ conn_rx_data_pdu_end:
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
+ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
 {
     int rc;
     uint8_t hdr_byte;
@@ -1949,6 +1686,13 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
      */
     connsm = g_ble_ll_conn_cur_sm;
     if (!connsm) {
+        ++g_ble_ll_conn_stats.rx_data_pdu_no_conn;
+        return -1;
+    }
+
+    /* Double check access address. Better match connection state machine! */
+    if (aa != connsm->access_addr) {
+        ++g_ble_ll_conn_stats.rx_data_pdu_bad_aa;
         return -1;
     }
 
@@ -2021,6 +1765,14 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok)
                         os_mbuf_free(txpdu);
                         rc = -1;
                         goto conn_event_done;
+                    } else {
+                        /* 
+                         * If this is a data pdu, we have to increment the
+                         * number of completed packets
+                         */
+                        if (ble_ll_conn_is_data_pdu(txpdu)) {
+                            ++connsm->completed_pkts;
+                        }
                     }
                     os_mbuf_free(txpdu);
                 } else {
@@ -2138,20 +1890,19 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
     conn_handle = handle & 0x0FFF;
     connsm = ble_ll_conn_find_active_conn(conn_handle);
     if (connsm) {
-        /* Construct LL header in buffer */
-        /* XXX: deal with length later */
+        /* Prepend LL DATA PDU header */
+        om = os_mbuf_prepend(om, BLE_LL_PDU_HDR_LEN);
+        assert(om);
+
+        /* Construct LL header in buffer (NOTE: pb already checked) */
+        /* XXX: Currently length is less <= 251. Fix later */
         assert(length <= 251);
         pb = handle & 0x3000;
         if (pb == 0) {
             om->om_data[0] = BLE_LL_LLID_DATA_START;
-        } else if (pb == 0x1000) {
-            om->om_data[0] = BLE_LL_LLID_DATA_FRAG;
         } else {
-            /* This should never happen! */
-            ++g_ble_ll_conn_stats.bad_acl_hdr;
-            os_mbuf_free(om);
-            return;
-        }
+            om->om_data[0] = BLE_LL_LLID_DATA_FRAG;
+        } 
         om->om_data[1] = (uint8_t)length;
 
         /* Clear flags field in BLE header */
@@ -2281,68 +2032,6 @@ err_slave_start:
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
     ++g_ble_ll_conn_stats.slave_rxd_bad_conn_req_params;
     return 0;
-}
-
-/**
- * Called to process a HCI disconnect command 
- *  
- * Context: Link Layer task (HCI command parser). 
- * 
- * @param cmdbuf 
- * 
- * @return int 
- */
-int
-ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
-{
-    int rc;
-    uint8_t reason;
-    uint16_t handle;
-    struct ble_ll_conn_sm *connsm;
-
-    /* Check for valid parameters */
-    handle = le16toh(cmdbuf);
-    reason = cmdbuf[2];
-
-    rc = BLE_ERR_INV_HCI_CMD_PARMS;
-    if (handle <= BLE_LL_CONN_MAX_CONN_HANDLE) {
-        /* Make sure reason is valid */
-        switch (reason) {
-        case BLE_ERR_AUTH_FAIL:
-        case BLE_ERR_REM_USER_CONN_TERM:
-        case BLE_ERR_RD_CONN_TERM_RESRCS:
-        case BLE_ERR_RD_CONN_TERM_PWROFF:
-        case BLE_ERR_UNSUPP_FEATURE:
-        case BLE_ERR_UNIT_KEY_PAIRING:
-        case BLE_ERR_CONN_PARMS:
-            connsm = ble_ll_conn_find_active_conn(handle);
-            if (connsm) {
-                /* Do not allow command if we are in process of disconnecting */
-                if (connsm->disconnect_reason) {
-                    rc = BLE_ERR_CMD_DISALLOWED;
-                } else {
-                    /* This control procedure better not be pending! */
-                    assert(!IS_PENDING_CTRL_PROC_M(connsm,
-                                                   BLE_LL_CTRL_PROC_TERMINATE));
-
-                    /* Record the disconnect reason */
-                    connsm->disconnect_reason = reason;
-
-                    /* Start this control procedure */
-                    ble_ll_ctrl_terminate_start(connsm);
-
-                    rc = BLE_ERR_SUCCESS;
-                }
-            } else {
-                rc = BLE_ERR_UNK_CONN_ID;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    return rc;
 }
 
 /* Initialize the connection module */

@@ -20,8 +20,15 @@
 #include "os/os.h"
 #include "hal/hal_cputime.h"
 
-/* Connection handle range */
-#define BLE_LL_CONN_MAX_CONN_HANDLE     (0x0EFF)
+/* Roles */
+#define BLE_LL_CONN_ROLE_NONE           (0)
+#define BLE_LL_CONN_ROLE_MASTER         (1)
+#define BLE_LL_CONN_ROLE_SLAVE          (2)
+
+/* Connection states */
+#define BLE_LL_CONN_STATE_IDLE          (0)
+#define BLE_LL_CONN_STATE_CREATED       (1)
+#define BLE_LL_CONN_STATE_ESTABLISHED   (2)
 
 /* Channel map size */
 #define BLE_LL_CONN_CHMAP_LEN           (5)
@@ -35,12 +42,6 @@
 #define BLE_MASTER_SCA_31_50_PPM        (5)
 #define BLE_MASTER_SCA_21_30_PPM        (6)
 #define BLE_MASTER_SCA_0_20_PPM         (7)
-
-/* Definitions for max rx/tx time/bytes for connections */
-#define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
-#define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
-#define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */
-#define BLE_LL_CONN_SUPP_BYTES_MAX          (251)   /* bytes */
 
 /* 
  * Length of empty pdu mbuf. Each connection state machine contains an
@@ -110,6 +111,8 @@ struct ble_ll_conn_sm
     uint16_t event_cntr;
     uint16_t supervision_tmo;
     uint16_t conn_handle;
+    uint16_t completed_pkts;
+    uint16_t last_completed_pkts;
     uint32_t access_addr;
     uint32_t crcinit;           /* only low 24 bits used */
     uint32_t anchor_point;
@@ -149,28 +152,11 @@ struct ble_ll_conn_sm
     struct os_callout_func ctrl_proc_rsp_timer;
 };
 
-/* API */
-void ble_ll_conn_module_init(void);
-int ble_ll_conn_create(uint8_t *cmdbuf);
-int ble_ll_conn_create_cancel(void);
-void ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
-int ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu);
-int ble_ll_conn_slave_start(uint8_t *rxbuf);
-void ble_ll_conn_spvn_timeout(void *arg);
-void ble_ll_conn_event_end(void *arg);
-void ble_ll_conn_rx_pdu_start(void);
-int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint8_t crcok);
-void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
-void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
-void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
-void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
-void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status);
-int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
-
-struct ble_ll_len_req;
-void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm, 
-                                struct ble_ll_len_req *req);
-
+/* 
+ * Given a handle, returns an active connection state machine (or NULL if the
+ * handle does not exist
+ * 
+ */
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 
 #endif /* H_BLE_LL_CONN_ */

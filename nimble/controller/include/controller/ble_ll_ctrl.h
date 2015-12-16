@@ -211,6 +211,7 @@ struct ble_ll_len_req
 #define BLE_LL_CTRL_LENGTH_REQ_LEN      (8)
 
 /* API */
+struct ble_ll_conn_sm;
 void ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);

@@ -19,13 +19,14 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/hci_common.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
-#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
+#include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 
 /* 
@@ -112,7 +113,9 @@ ble_ll_log(uint8_t id, uint8_t arg8_0, uint8_t arg8_1, uint32_t arg32_0)
 #endif
 
 /**
- * Counts the number of advertising PDU's by type. 
+ * Counts the number of advertising PDU's received, by type. For advertising 
+ * PDU's that contain a destination address, we still count these packets even 
+ * if they are not for us. 
  * 
  * @param pdu_type 
  */
@@ -125,21 +128,18 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
         ++g_ble_ll_stats.rx_adv_ind;
         break;
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        /* XXX: Do I want to count these if they are not for me? */
         ++g_ble_ll_stats.rx_adv_direct_ind;
         break;
     case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
         ++g_ble_ll_stats.rx_adv_nonconn_ind;
         break;
     case BLE_ADV_PDU_TYPE_SCAN_REQ:
-        /* XXX: Do I want to count these if they are not for me? */
         ++g_ble_ll_stats.rx_scan_reqs;
         break;
     case BLE_ADV_PDU_TYPE_SCAN_RSP:
         ++g_ble_ll_stats.rx_scan_rsps;
         break;
     case BLE_ADV_PDU_TYPE_CONNECT_REQ:
-        /* XXX: Do I want to count these if they are not for me? */
         ++g_ble_ll_stats.rx_connect_reqs;
         break;
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
@@ -304,8 +304,6 @@ ble_ll_wfr_timer_exp(void *arg)
 void
 ble_ll_wfr_enable(uint32_t cputime, ble_ll_wfr_func wfr_cb, void *arg)
 {
-    /* XXX: should I reset func callback here too? Not use a global
-       ble_ll_wfr_timer expiration? */
     g_ble_ll_data.ll_wfr_func = wfr_cb;
     g_ble_ll_data.ll_wfr_timer.arg = arg;
     cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
@@ -328,11 +326,12 @@ ble_ll_wfr_disable(void)
  * Context: Link layer task
  *  
  */
-void
-ble_ll_tx_pkt_in_proc(void)
+static void
+ble_ll_tx_pkt_in(void)
 {
     uint16_t handle;
     uint16_t length;
+    uint16_t pb;
     struct os_mbuf_pkthdr *pkthdr;
     struct os_mbuf *om;
 
@@ -345,34 +344,48 @@ ble_ll_tx_pkt_in_proc(void)
         /* Remove from queue */
         STAILQ_REMOVE_HEAD(&g_ble_ll_data.ll_tx_pkt_q, omp_next);
 
-        /* XXX: regarding protecting the queue insert. Do I need to do that?
-         * I think I do since it will be a lower priority task. I am
-           talking about ll_tx_pkt_q here */
-
-        /* XXX: do I set ble header flags to zero here? */
-
-        /* XXX: what error checks do I want to perform here? Check valid
-           length packet header length, etc? */
-        /* XXX: I might want to check valid PB bits here too */
-
-        /* Get handle and length */
+        /* Strip HCI ACL header to get handle and length */
         handle = le16toh(om->om_data);
         length = le16toh(om->om_data + 2);
-        os_mbuf_adj(om, 2);
+        os_mbuf_adj(om, sizeof(struct hci_data_hdr));
+
+        /* Do some basic error checking */
+        pb = handle & 0x3000;
+        if ((pkthdr->omp_len != length) || (pb > 0x1000) || (length == 0)) {
+            /* This is a bad ACL packet. Count a stat and free it */
+            ++g_ble_ll_stats.bad_acl_hdr;
+            os_mbuf_free(om);
+            continue;
+        }
+
+        /* 
+         * XXX: fix this later: right now I need it all to be contiguous. If
+         * I cant make it contiguous, I will just free it here.
+         */
+        if (length > BLE_LL_CFG_ACL_DATA_PKT_LEN) {
+            /* Count these for noe */
+            ++g_ble_ll_stats.bad_acl_datalen;
+            os_mbuf_free(om);
+            continue;
+        }
+        om = os_mbuf_pullup(om, length);
+        assert(om);
+
+        /* Hand to connection state machine */
         ble_ll_conn_tx_pkt_in(om, handle, length);
     }
 }
 
 /**
- * ll rx pkt in proc
+ * ll rx pkt in
  *  
  * Process received packet from PHY.
  *  
  * Context: Link layer task
  *  
  */
-void
-ble_ll_rx_pkt_in_proc(void)
+static void
+ble_ll_rx_pkt_in(void)
 {
     os_sr_t sr;
     uint8_t pdu_type;
@@ -469,10 +482,13 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
 void
 ble_ll_acl_data_in(struct os_mbuf *txpkt)
 {
+    os_sr_t sr;
     struct os_mbuf_pkthdr *pkthdr;
 
     pkthdr = OS_MBUF_PKTHDR(txpkt);
+    OS_ENTER_CRITICAL(sr);
     STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_tx_pkt_q, pkthdr, omp_next);
+    OS_EXIT_CRITICAL(sr);
     os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_tx_pkt_ev);
 }
 
@@ -536,7 +552,8 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
         rc = ble_ll_scan_rx_pdu_start(pdu_type, rxpdu);
         break;
     case BLE_LL_STATE_CONNECTION:
-        /* XXX: This should not happen. What to do? */
+        /* Should not occur */
+        assert(0);
         rc = 0;
         break;
     default:
@@ -578,9 +595,6 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
 
     /* Check channel type */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        /* Better be in connection state */
-        assert(g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION);
-
         /* Set length in the received PDU */
         mblen = rxbuf[1] + BLE_LL_PDU_HDR_LEN;
         OS_MBUF_PKTHDR(rxpdu)->omp_len = mblen;
@@ -598,8 +612,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
          * Data channel pdu. We should be in CONNECTION state with an
          * ongoing connection.
          */
-        /* XXX: check access address for surety? What to do... */
-        rc = ble_ll_conn_rx_pdu_end(rxpdu, crcok);
+        rc = ble_ll_conn_rx_pdu_end(rxpdu, ble_phy_access_addr_get(), crcok);
         return rc;
     } 
 
@@ -607,10 +620,9 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
 
-    /* XXX: Should I do this at LL task context? */
     /* If the CRC checks, make sure lengths check! */
-    badpkt = 0;
     if (crcok) {
+        badpkt = 0;
         switch (pdu_type) {
         case BLE_ADV_PDU_TYPE_SCAN_REQ:
         case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
@@ -635,52 +647,54 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
             badpkt = 1;
             break;
         }
+
+        /* If this is a malformed packet, just kill it here */
+        if (badpkt) {
+            ++g_ble_ll_stats.rx_adv_malformed_pkts;
+            os_mbuf_free(rxpdu);
+            return -1;
+        }
     }
 
-    /* If this is a malformed packet, just kill it here */
-    if (badpkt) {
-        ++g_ble_ll_stats.rx_adv_malformed_pkts;
-        os_mbuf_free(rxpdu);
-        return -1;
-    }
-
-    /* Setup the mbuf */
+    /* Setup the mbuf lengths */
     mblen = len + BLE_LL_PDU_HDR_LEN;
     OS_MBUF_PKTHDR(rxpdu)->omp_len = mblen;
     rxpdu->om_len = mblen;
 
+    /* Hand packet to the appropriate state machine (if crc ok) */
     rc = -1;
-    switch (g_ble_ll_data.ll_state) {
-    case BLE_LL_STATE_ADV:
-        if (crcok) {
+    if (crcok) {
+        switch (g_ble_ll_data.ll_state) {
+        case BLE_LL_STATE_ADV:
             rc = ble_ll_adv_rx_pdu_end(pdu_type, rxpdu);
-        }
-        break;
-    case BLE_LL_STATE_SCANNING:
-        if (crcok) {
+            break;
+        case BLE_LL_STATE_SCANNING:
             rc = ble_ll_scan_rx_pdu_end(rxpdu);
-        }
-        break;
-    case BLE_LL_STATE_INITIATING:
-        if (crcok) {
+            break;
+        case BLE_LL_STATE_INITIATING:
             rc = ble_ll_init_rx_pdu_end(rxpdu);
+            break;
+        /* Invalid states */
+        case BLE_LL_STATE_CONNECTION:
+        default:
+            assert(0);
+            break;
         }
-        break;
-    case BLE_LL_STATE_CONNECTION:
-        /* XXX: we should never get here! What to do??? */
-        break;
-    default:
-        /* This is an invalid state. */
-        assert(0);
-        break;
     }
 
-    /* Hand packet up to higher layer */
+    /* Hand packet up to higher layer (regardless of CRC failure) */
     ble_ll_rx_pdu_in(rxpdu);
 
     return rc;
 }
 
+/**
+ * Link Layer task. 
+ *  
+ * This is the task that runs the Link Layer. 
+ * 
+ * @param arg 
+ */
 void
 ble_ll_task(void *arg)
 {
@@ -691,6 +705,9 @@ ble_ll_task(void *arg)
 
     /* Set output power to 1mW (0 dBm) */
     ble_phy_txpwr_set(0);
+
+    /* Tell the host that we are ready to receive packets */
+    ble_ll_hci_send_noop();
 
     /* Wait for an event */
     while (1) {
@@ -709,10 +726,10 @@ ble_ll_task(void *arg)
             ble_ll_scan_win_end_proc(ev->ev_arg);
             break;
         case BLE_LL_EVENT_RX_PKT_IN:
-            ble_ll_rx_pkt_in_proc();
+            ble_ll_rx_pkt_in();
             break;
         case BLE_LL_EVENT_TX_PKT_IN:
-            ble_ll_tx_pkt_in_proc();
+            ble_ll_tx_pkt_in();
             break;
         case BLE_LL_EVENT_CONN_SPVN_TMO:
             ble_ll_conn_spvn_timeout(ev->ev_arg);
