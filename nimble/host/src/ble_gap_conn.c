@@ -176,8 +176,7 @@ ble_gap_conn_master_failed(uint8_t status)
 
 /**
  * Called when an error is encountered while the slave-connection-fsm is
- * active.  Resets the state machine, clears the HCI ack callback, and notifies
- * the host task that the next hci_batch item can be processed.
+ * active.
  */
 static void
 ble_gap_conn_slave_failed(uint8_t status)

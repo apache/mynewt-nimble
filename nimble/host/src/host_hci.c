@@ -59,6 +59,10 @@ struct host_hci_stats g_host_hci_stats;
 /** The opcode of the current unacked HCI command; 0 if none. */
 uint16_t host_hci_outstanding_opcode;
 
+#define HOST_HCI_TIMEOUT        50      /* Milliseconds. */
+
+static struct os_callout_func host_hci_timer;
+
 /** Dispatch table for incoming HCI events.  Sorted by event code field. */
 typedef int host_hci_event_fn(uint8_t event_code, uint8_t *data, int len);
 struct host_hci_event_dispatch_entry {
@@ -124,6 +128,39 @@ host_hci_le_dispatch_entry_find(uint8_t event_code)
     return NULL;
 }
 
+void
+host_hci_timer_set(void)
+{
+    int rc;
+
+    rc = os_callout_reset(&host_hci_timer.cf_c,
+                          HOST_HCI_TIMEOUT * OS_TICKS_PER_SEC / 1000);
+    assert(rc == 0);
+}
+
+static void
+host_hci_timer_stop(void)
+{
+    os_callout_stop(&host_hci_timer.cf_c);
+}
+
+static void
+host_hci_timer_exp(void *arg)
+{
+    struct ble_hci_ack ack;
+
+    assert(host_hci_outstanding_opcode != 0);
+
+    ack.bha_opcode = host_hci_outstanding_opcode;
+    ack.bha_status = 0xff; /* XXX */
+    ack.bha_params = NULL;
+    ack.bha_params_len = 0;
+
+    host_hci_outstanding_opcode = 0;
+    ble_hci_ack_rx(&ack);
+}
+
+
 static int
 host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 {
@@ -172,7 +209,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     if (opcode == host_hci_outstanding_opcode) {
         /* Mark the outstanding command as acked. */
         host_hci_outstanding_opcode = 0;
-        /* XXX: Stop timer. */
+        host_hci_timer_stop();
     }
 
     ack.bha_opcode = opcode;
@@ -220,7 +257,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     if (opcode == host_hci_outstanding_opcode) {
         /* Mark the outstanding command as acked. */
         host_hci_outstanding_opcode = 0;
-        /* XXX: Stop timer. */
+        host_hci_timer_stop();
     }
 
     ack.bha_opcode = opcode;
@@ -612,4 +649,7 @@ void
 host_hci_init(void)
 {
     host_hci_outstanding_opcode = 0;
+
+    os_callout_func_init(&host_hci_timer, &ble_hs_evq,
+                         host_hci_timer_exp, NULL);
 }
