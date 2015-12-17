@@ -42,6 +42,7 @@ ble_hs_conn_alloc(void)
     if (conn == NULL) {
         goto err;
     }
+    memset(conn, 0, sizeof *conn);
 
     SLIST_INIT(&conn->bhc_channels);
 
@@ -134,6 +135,22 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
     }
 
     return NULL;
+}
+
+void
+ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(handle);
+    if (conn == NULL) {
+        return;
+    }
+
+    if (num_pkts > conn->bhc_outstanding_pkts) {
+        num_pkts = conn->bhc_outstanding_pkts;
+    }
+    conn->bhc_outstanding_pkts -= num_pkts;
 }
 
 static void

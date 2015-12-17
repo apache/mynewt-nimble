@@ -358,6 +358,10 @@
 /* Event command status */
 #define BLE_HCI_EVENT_CMD_STATUS_LEN        (6)
 
+/* Number of completed packets */
+#define BLE_HCI_EVENT_NUM_COMP_PKTS_HDR_LEN (1)
+#define BLE_HCI_EVENT_NUM_COMP_PKTS_ENT_LEN (4)
+
 /* Advertising report */
 #define BLE_HCI_ADV_RPT_EVTYPE_ADV_IND      (0)
 #define BLE_HCI_ADV_RPT_EVTYPE_DIR_IND      (1)

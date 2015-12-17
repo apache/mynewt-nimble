@@ -30,6 +30,7 @@ struct ble_hs_conn {
     uint8_t bhc_addr[6];
 
     struct ble_l2cap_chan_list bhc_channels;
+    uint16_t bhc_outstanding_pkts;
 
     struct ble_att_svr_conn bhc_att_svr;
 };
@@ -42,6 +43,7 @@ struct ble_hs_conn *ble_hs_conn_find(uint16_t con_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
 struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);
+void ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts);
 int ble_hs_conn_init(void);
 
 #endif

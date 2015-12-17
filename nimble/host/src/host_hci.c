@@ -38,6 +38,8 @@ static int host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data,
 static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
                                     int len);
 static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
+static int host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data,
+                                          int len);
 static int host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len);
 static int host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data,
                                         int len);
@@ -71,9 +73,10 @@ struct host_hci_event_dispatch_entry {
 };
 
 static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
+    { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
     { BLE_HCI_EVCODE_COMMAND_COMPLETE, host_hci_rx_cmd_complete },
     { BLE_HCI_EVCODE_COMMAND_STATUS, host_hci_rx_cmd_status },
-    { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
+    { BLE_HCI_EVCODE_NUM_COMP_PKTS, host_hci_rx_num_completed_pkts },
     { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
 };
 
@@ -266,6 +269,37 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     ack.bha_status = status;
 
     ble_hci_ack_rx(&ack);
+
+    return 0;
+}
+
+static int
+host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
+{
+    uint16_t num_pkts;
+    uint16_t handle;
+    uint8_t num_handles;
+    int off;
+    int i;
+
+    if (len < BLE_HCI_EVENT_HDR_LEN + BLE_HCI_EVENT_NUM_COMP_PKTS_HDR_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    off = BLE_HCI_EVENT_HDR_LEN;
+    num_handles = data[off];
+    if (len < BLE_HCI_EVENT_NUM_COMP_PKTS_HDR_LEN +
+              num_handles * BLE_HCI_EVENT_NUM_COMP_PKTS_ENT_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+    off++;
+
+    for (i = 0; i < num_handles; i++) {
+        handle = le16toh(data + off + 2 * i);
+        num_pkts = le16toh(data + off + 2 * num_handles + 2 * i);
+
+        ble_hs_conn_rx_num_completed_pkts(handle, num_pkts);
+    }
 
     return 0;
 }
@@ -641,6 +675,8 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
     if (rc != 0) {
         return rc;
     }
+
+    connection->bhc_outstanding_pkts++;
 
     return 0;
 }

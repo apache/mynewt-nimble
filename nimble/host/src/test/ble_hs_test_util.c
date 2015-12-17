@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "testutil/testutil.h"
@@ -75,7 +76,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
-    evt.connection_handle = 2;
+    evt.connection_handle = handle;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
 
@@ -185,6 +186,43 @@ ble_hs_test_util_rx_startup_acks(void)
     ble_hs_test_util_rx_ack(
         (BLE_HCI_OGF_CTLR_BASEBAND << 10) | BLE_HCI_OCF_CB_SET_EVENT_MASK,
         0);
+}
+
+void
+ble_hs_test_util_rx_num_completed_pkts_event(
+    struct ble_hs_test_util_num_completed_pkts_entry *entries)
+{
+    struct ble_hs_test_util_num_completed_pkts_entry *entry;
+    uint8_t buf[1024];
+    int num_entries;
+    int off;
+    int rc;
+    int i;
+
+    /* Count number of entries. */
+    num_entries = 0;
+    for (entry = entries; entry->handle_id != 0; entry++) {
+        num_entries++;
+    }
+    assert(num_entries <= UINT8_MAX);
+
+    buf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
+    buf[2] = num_entries;
+
+    off = 3;
+    for (i = 0; i < num_entries; i++) {
+        htole16(buf + off, entries[i].handle_id);
+        off += 2;
+    }
+    for (i = 0; i < num_entries; i++) {
+        htole16(buf + off, entries[i].num_pkts);
+        off += 2;
+    }
+
+    buf[1] = off - 2;
+
+    rc = host_hci_event_rx(buf);
+    TEST_ASSERT(rc == 0);
 }
 
 void

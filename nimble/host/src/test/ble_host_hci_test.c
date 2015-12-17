@@ -86,7 +86,7 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
 
     /*** No error on NOP. */
     ble_hs_test_util_build_cmd_complete(buf, sizeof buf, 0, 1,
-                                              BLE_HCI_OPCODE_NOP);
+                                        BLE_HCI_OPCODE_NOP);
     rc = host_hci_event_rx(buf);
     TEST_ASSERT(rc == 0);
 
