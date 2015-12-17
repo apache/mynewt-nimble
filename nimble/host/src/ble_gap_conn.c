@@ -24,6 +24,7 @@
 #include "ble_hs_conn.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
+#include "ble_gatt_priv.h"
 #include "ble_gap_conn.h"
 
 #define BLE_GAP_CONN_STATE_IDLE                             0
@@ -205,6 +206,7 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
 
     ble_gap_conn_notify_terminate(evt->connection_handle, evt->status,
                                   evt->reason);
+    ble_gatt_connection_broken(evt->connection_handle);
 }
 
 /**
