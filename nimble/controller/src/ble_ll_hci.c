@@ -427,6 +427,11 @@ ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = BLE_ERR_SUCCESS;
         }
         break;
+    case BLE_HCI_OCF_CB_RESET:
+        if (len == 0) {
+            rc = ble_ll_reset();
+        }
+        break;
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
@@ -541,7 +546,21 @@ ble_hci_transport_host_acl_data_send(struct os_mbuf *om)
 }
 
 /**
- * Initalize the LL HCI.
+ * Reset the LL HCI interface.
+ * 
+ */
+void
+ble_ll_hci_reset(void)
+{
+    /* Only need to call the init function again */
+    ble_ll_hci_init();
+}
+
+/**
+ * Initalize the LL HCI. 
+ *  
+ * NOTE: This function is called by the HCI RESET command so if any code 
+ * is added here it must be OK to be executed when the reset command is used. 
  */
 void
 ble_ll_hci_init(void)

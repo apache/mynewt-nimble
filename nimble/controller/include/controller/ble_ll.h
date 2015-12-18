@@ -22,6 +22,9 @@
 /* Wait for response timer */
 typedef void (*ble_ll_wfr_func)(void *arg);
 
+/* Packet queue header definition */
+STAILQ_HEAD(ble_ll_pkt_q, os_mbuf_pkthdr);
+
 /* 
  * Global Link Layer data object. There is only one Link Layer data object
  * per controller although there may be many instances of the link layer state
@@ -44,11 +47,11 @@ struct ble_ll_obj
 
     /* Packet receive queue (and event). Holds received packets from PHY */
     struct os_event ll_rx_pkt_ev;
-    STAILQ_HEAD(ll_rxpkt_qh, os_mbuf_pkthdr) ll_rx_pkt_q;
+    struct ble_ll_pkt_q ll_rx_pkt_q;
 
     /* Packet transmit queue */
     struct os_event ll_tx_pkt_ev;
-    STAILQ_HEAD(ll_txpkt_qh, os_mbuf_pkthdr) ll_tx_pkt_q;
+    struct ble_ll_pkt_q ll_tx_pkt_q;
 };
 extern struct ble_ll_obj g_ble_ll_data;
 
@@ -244,6 +247,9 @@ struct ble_dev_addr
 /*--- External API ---*/
 /* Initialize the Link Layer */
 int ble_ll_init(void);
+
+/* Reset the Link Layer */
+int ble_ll_reset(void);
 
 /* 'Boolean' function returning true if address is a valid random address */
 int ble_ll_is_valid_random_addr(uint8_t *addr);

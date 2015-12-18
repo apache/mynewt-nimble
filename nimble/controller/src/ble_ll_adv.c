@@ -584,6 +584,9 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 {
     /* XXX: Stop any timers we may have started */
 
+    /* XXX: what happens if we are transmitting a packet here? An advertising
+       one? Does it matter? Do we need to disable the PHY? */
+
     /* Disable whitelisting (just in case) */
     ble_ll_whitelist_disable();
 
@@ -1162,6 +1165,32 @@ ble_ll_adv_can_chg_whitelist(void)
     }
 
     return rc;
+}
+
+/**
+ * Reset the advertising state machine.
+ * 
+ */
+void
+ble_ll_adv_reset(void)
+{
+    struct ble_ll_adv_sm *advsm;
+    advsm = &g_ble_ll_adv_sm;
+
+    /* If enabled, stop it */
+    if (advsm->enabled) {
+        ble_ll_adv_sm_stop(advsm);
+    }
+
+    /* Free advertiser pdu's */
+    os_mbuf_free(advsm->adv_pdu);
+    os_mbuf_free(advsm->scan_rsp_pdu);
+
+    /* Reset advertising state */
+    memset(&g_ble_ll_adv_stats, 0, sizeof(struct ble_ll_adv_stats));
+
+    /* re-initialize the advertiser state machine */
+    ble_ll_adv_init();
 }
 
 /**

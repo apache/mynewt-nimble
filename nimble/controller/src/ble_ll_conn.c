@@ -143,13 +143,13 @@ struct ble_ll_conn_stats
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
 
 /**
- * Checks if pdu is a data pdu, meaning it is not a control pdu nor an empty 
- * pdu. 
+ * Checks if pdu is a L2CAP pdu, meaning it is not a control pdu nor an empty 
+ * pdu. This is only called for PDU's received on data channels.
  * 
  * @return int 
  */
 static int
-ble_ll_conn_is_data_pdu(struct os_mbuf *pdu)
+ble_ll_conn_is_l2cap_pdu(struct os_mbuf *pdu)
 {
     int rc;
 
@@ -161,6 +161,37 @@ ble_ll_conn_is_data_pdu(struct os_mbuf *pdu)
     return rc;
 }
 
+/**
+ * Called when the current connection state machine is no longer being used. 
+ * This function will: 
+ *  -> Disable the PHY, which will prevent any transmit/receive interrupts.
+ *  -> Disable the wait for response timer, if running.
+ *  -> Remove the connection state machine from the scheduler.
+ *  -> Sets the Link Layer state to standby.
+ *  -> Sets the current state machine to NULL.
+ *  
+ *  NOTE: the ordering of these function calls is important! We have to stop
+ *  the PHY and remove the schedule item before we can set the state to
+ *  standby and set the current state machine pointer to NULL.
+ */
+static void
+ble_ll_conn_current_sm_over(void)
+{
+    /* Disable the PHY */
+    ble_phy_disable();
+
+    /* Disable the wfr timer */
+    ble_ll_wfr_disable();
+
+    /* Remove any scheduled items for this connection */
+    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_CONN, g_ble_ll_conn_cur_sm);
+
+    /* Link-layer is in standby state now */
+    ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    /* Set current LL connection to NULL */
+    g_ble_ll_conn_cur_sm = NULL;
+}
 
 /**
  * Given a handle, find an active connection matching the handle
@@ -904,7 +935,6 @@ ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm)
     connsm->cons_rxd_bad_crc = 0;
     connsm->last_rxd_sn = 1;
     connsm->completed_pkts = 0;
-    connsm->last_completed_pkts = 0;
 
     /* initialize data length mgmt */
     conn_params = &g_ble_ll_conn_params;
@@ -1005,17 +1035,16 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
 
-    /* Disable the PHY */
-    ble_phy_disable();
-
-    /* Remove scheduler events just in case */
-    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_CONN, connsm);
+    /* If this is the current state machine, we need to end it */
+    if (connsm == g_ble_ll_conn_cur_sm) {
+        ble_ll_conn_current_sm_over();
+    } else {
+        /* Remove scheduler events just in case */
+        ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_CONN, connsm);
+    }
 
     /* Stop supervision timer */
     cputime_timer_stop(&connsm->conn_spvn_timer);
-
-    /* Disable any wait for response interrupt that might be running */
-    ble_ll_wfr_disable();
 
     /* Stop any control procedures that might be running */
     os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
@@ -1043,21 +1072,19 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     /* Connection state machine is now idle */
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
 
-    /* Set current LL connection to NULL */
-    g_ble_ll_conn_cur_sm = NULL;
-
-    /* Set Link Layer state to standby */
-    ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
     /* 
      * We need to send a disconnection complete event or a connection complete
      * event when the connection ends. We send a connection complete event
-     * only when we were told to cancel the connection creation.
+     * only when we were told to cancel the connection creation. If the
+     * ble error is "success" it means that the reset command was received
+     * and we should not send an event 
      */ 
-    if (ble_err == BLE_ERR_UNK_CONN_ID) {
-        ble_ll_conn_comp_event_send(connsm, ble_err);
-    } else {
-        ble_ll_disconn_comp_event_send(connsm, ble_err);
+    if (ble_err) {
+        if (ble_err == BLE_ERR_UNK_CONN_ID) {
+            ble_ll_conn_comp_event_send(connsm, ble_err);
+        } else {
+            ble_ll_disconn_comp_event_send(connsm, ble_err);
+        }
     }
 
     /* Put connection state machine back on free list */
@@ -1065,9 +1092,6 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 
     /* Log connection end */
     ble_ll_log(BLE_LL_LOG_ID_CONN_END,connsm->conn_handle,0,connsm->event_cntr);
-
-    /* turn led off */
-    gpio_set(LED_BLINK_PIN);
 }
 
 /**
@@ -1144,6 +1168,10 @@ ble_ll_conn_event_end(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
+    assert(connsm && (connsm == g_ble_ll_conn_cur_sm));
+
+    /* The current state machine is over */
+    ble_ll_conn_current_sm_over();
 
     /* If we have transmitted the terminate IND successfully, we are done */
     if ((connsm->terminate_ind_txd) || (connsm->terminate_ind_rxd)) {
@@ -1160,14 +1188,7 @@ ble_ll_conn_event_end(void *arg)
         return;
     }
 
-    /* Disable the PHY */
-    ble_phy_disable();
-
-    /* Disable the wfr timer */
-    ble_ll_wfr_disable();
-
-    /* Remove any scheduled items for this connection */
-    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_CONN, connsm);
+    /* Remove any connection end events that might be enqueued */
     os_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
 
     /* 
@@ -1244,12 +1265,6 @@ ble_ll_conn_event_end(void *arg)
         connsm->slave_cur_window_widening = cur_ww;
     }
 
-    /* Link-layer is in standby state now */
-    ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
-    /* Set current LL connection to NULL */
-    g_ble_ll_conn_cur_sm = NULL;
-
     /* Log event end */
     ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, 0, 0, connsm->event_cntr);
 
@@ -1260,12 +1275,9 @@ ble_ll_conn_event_end(void *arg)
     ble_ll_conn_sched_set(connsm);
 
     /* If we have completed packets, send an event */
-    if (connsm->completed_pkts != connsm->last_completed_pkts) {
+    if (connsm->completed_pkts) {
         ble_ll_conn_num_comp_pkts_event_send();
     }
-
-    /* turn led off */
-    gpio_set(LED_BLINK_PIN);
 }
 
 /**
@@ -1690,6 +1702,9 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
         return -1;
     }
 
+    /* XXX: what happens in this case? When will the connection event end?
+     * Should it end as this is a data pdu received on a different access
+       address? Not sure what to do here. */
     /* Double check access address. Better match connection state machine! */
     if (aa != connsm->access_addr) {
         ++g_ble_ll_conn_stats.rx_data_pdu_bad_aa;
@@ -1767,10 +1782,10 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
                         goto conn_event_done;
                     } else {
                         /* 
-                         * If this is a data pdu, we have to increment the
+                         * If this is a l2cap pdu, we have to increment the
                          * number of completed packets
                          */
-                        if (ble_ll_conn_is_data_pdu(txpdu)) {
+                        if (ble_ll_conn_is_l2cap_pdu(txpdu)) {
                             ++connsm->completed_pkts;
                         }
                     }
@@ -2032,6 +2047,32 @@ err_slave_start:
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
     ++g_ble_ll_conn_stats.slave_rxd_bad_conn_req_params;
     return 0;
+}
+
+/**
+ * Called the reset the connection module.
+ * 
+ */
+void
+ble_ll_conn_reset(void)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    /* Kill the current one first (if one is running) */
+    if (g_ble_ll_conn_cur_sm) {
+        connsm = g_ble_ll_conn_cur_sm;
+        ble_ll_conn_current_sm_over();
+        ble_ll_conn_end(connsm, BLE_ERR_SUCCESS);
+    }
+
+    /* Now go through and end all the connections */
+    while (1) {
+        connsm = SLIST_FIRST(&g_ble_ll_conn_active_list);
+        if (!connsm) {
+            break;
+        }
+        ble_ll_conn_end(connsm, BLE_ERR_SUCCESS);
+    }
 }
 
 /* Initialize the connection module */

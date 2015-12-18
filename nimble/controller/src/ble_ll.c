@@ -787,6 +787,84 @@ ble_ll_read_supp_features(void)
 }
 
 /**
+ * Flush a link layer packet queue.
+ * 
+ * @param pktq 
+ */
+static void
+ble_ll_flush_pkt_queue(struct ble_ll_pkt_q *pktq)
+{
+    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf *om;
+
+    /* FLush all packets from Link layer queues */
+    while (STAILQ_FIRST(pktq)) {
+        /* Get mbuf pointer from packet header pointer */
+        pkthdr = STAILQ_FIRST(pktq);
+        om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+
+        /* Remove from queue and free the mbuf */
+        STAILQ_REMOVE_HEAD(pktq, omp_next);
+        os_mbuf_free(om);
+    }
+}
+
+/**
+ * Called to reset the controller. This performs a "software reset" of the link 
+ * layer; it does not perform a HW reset of the controller nor does it reset 
+ * the HCI interface. 
+ * 
+ * 
+ * @return int The ble error code to place in the command complete event that 
+ * is returned when this command is issued. 
+ */
+int
+ble_ll_reset(void)
+{
+    int rc;
+
+    /* XXX: what happens if we are transmitting and we call disable? */
+    /* XXX: what should we do to the transceiver/radio? Reset it? */
+    /* Stop the phy */
+    ble_phy_disable();
+
+    /* Stop any wait for response timer */
+    ble_ll_wfr_disable();
+
+    /* Stop any scanning */
+    ble_ll_scan_reset();
+
+    /* Stop any advertising */
+    ble_ll_adv_reset();
+
+    /* FLush all packets from Link layer queues */
+    ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_tx_pkt_q);
+    ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_rx_pkt_q);
+
+    /* Reset LL stats */
+    memset(&g_ble_ll_stats, 0, sizeof(struct ble_ll_stats));
+
+#ifdef BLE_LL_LOG
+    g_ble_ll_log_index = 0;
+    memset(&g_ble_ll_log, 0, sizeof(g_ble_ll_log));
+#endif
+
+    /* End all connections */
+    ble_ll_conn_reset();
+
+    /* All this does is re-initialize the event masks so call the hci init */
+    ble_ll_hci_init();
+
+    /* Set state to standby */
+    ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    /* Re-initialize the PHY */
+    rc = ble_phy_init();
+
+    return rc;
+}
+
+/**
  * Initialize the Link Layer. Should be called only once 
  * 
  * @return int 

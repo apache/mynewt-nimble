@@ -1143,9 +1143,44 @@ ble_ll_scan_whitelist_enabled(void)
 }
 
 /**
+ * Called when the controller receives the reset command. Resets the 
+ * scanning state machine to its initial state. 
+ * 
+ * @return int 
+ */
+void
+ble_ll_scan_reset(void)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    /* If enabled, stop it. */
+    scansm = &g_ble_ll_scan_sm;
+    if (scansm->scan_enabled) {
+        ble_ll_scan_sm_stop(scansm);
+    }
+
+    /* Reset all statistics */
+    memset(&g_ble_ll_scan_stats, 0, sizeof(struct ble_ll_scan_stats));
+
+    /* Free the scan request pdu */
+    os_mbuf_free(scansm->scan_req_pdu);
+
+    /* Reset duplicate advertisers and those from which we rxd a response */
+    g_ble_ll_scan_num_rsp_advs = 0;
+    memset(&g_ble_ll_scan_rsp_advs[0], 0, sizeof(g_ble_ll_scan_rsp_advs));
+
+    g_ble_ll_scan_num_dup_advs = 0;
+    memset(&g_ble_ll_scan_dup_advs[0], 0, sizeof(g_ble_ll_scan_dup_advs));
+
+    /* Call the init function again */
+    ble_ll_scan_init();
+}
+
+/**
  * ble ll scan init 
  *  
- * Initialize a scanner. 
+ * Initialize a scanner. Must be called before scanning can be started. 
+ * Expected to be called with a un-initialized or reset scanning state machine. 
  */
 void
 ble_ll_scan_init(void)

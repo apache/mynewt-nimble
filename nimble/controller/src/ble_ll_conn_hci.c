@@ -166,8 +166,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
          * event and that either has packets enqueued or has completed packets.
          */ 
         if ((connsm->conn_state != BLE_LL_CONN_STATE_IDLE) &&
-            ((connsm->completed_pkts != connsm->last_completed_pkts) ||
-             !STAILQ_EMPTY(&connsm->conn_txq))) {
+            (connsm->completed_pkts || !STAILQ_EMPTY(&connsm->conn_txq))) {
             /* If no buffer, get one, If cant get one, leave. */
             if (!evbuf) {
                 evbuf = os_memblock_get(&g_hci_cmd_pool);
@@ -182,7 +181,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
             /* Add handle and complete packets */
             htole16(handle_ptr, connsm->conn_handle);
             htole16(comp_pkt_ptr, connsm->completed_pkts);
-            connsm->last_completed_pkts = connsm->completed_pkts;
+            connsm->completed_pkts = 0;
             handle_ptr += sizeof(uint16_t);
             comp_pkt_ptr += sizeof(uint16_t);
             ++handles;

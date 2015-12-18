@@ -101,6 +101,9 @@ void ble_ll_scan_win_end_proc(void *arg);
 /* Initialize the scanner */
 void ble_ll_scan_init(void);
 
+/* Reset the scanner */
+void ble_ll_scan_reset(void);
+
 /* Called when Link Layer starts to receive a PDU and is in scanning state */
 int ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 

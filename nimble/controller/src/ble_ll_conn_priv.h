@@ -65,6 +65,7 @@ int ble_ll_conn_slave_start(uint8_t *rxbuf);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
+void ble_ll_conn_reset(void);
 void ble_ll_conn_event_end(void *arg);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 void ble_ll_conn_spvn_timeout(void *arg);

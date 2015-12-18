@@ -38,7 +38,7 @@ host_hci_cmd_transport(uint8_t *cmdbuf)
 #endif
 }
 
-static int
+int
 host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
 {
     int rc;

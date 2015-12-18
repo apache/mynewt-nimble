@@ -112,7 +112,6 @@ struct ble_ll_conn_sm
     uint16_t supervision_tmo;
     uint16_t conn_handle;
     uint16_t completed_pkts;
-    uint16_t last_completed_pkts;
     uint32_t access_addr;
     uint32_t crcinit;           /* only low 24 bits used */
     uint32_t anchor_point;

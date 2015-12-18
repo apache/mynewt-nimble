@@ -76,11 +76,33 @@ struct ble_phy_statistics
 
 struct ble_phy_statistics g_ble_phy_stats;
 
-/* XXX: TODO:
- 
- * 1) Test the following to make sure it works: suppose an event is already
- * set to 1 and the interrupt is not enabled. What happens if you enable the
- * interrupt with the event bit already set to 1  
+/* 
+ * NOTE: 
+ * Tested the following to see what would happen:
+ *  -> NVIC has radio irq enabled (interrupt # 1, mask 0x2).
+ *  -> Set up nrf52 to receive. Clear ADDRESS event register.
+ *  -> Enable ADDRESS interrupt on nrf52 by writing to INTENSET.
+ *  -> Enable RX.
+ *  -> Disable interrupts globally using OS_ENTER_CRITICAL().
+ *  -> Wait until a packet is received and the ADDRESS event occurs.
+ *  -> Call ble_phy_disable().
+ * 
+ *  At this point I wanted to see the state of the cortex NVIC. The IRQ
+ *  pending bit was TRUE for the radio interrupt (as expected) as we never
+ *  serviced the radio interrupt (interrupts were disabled).
+ * 
+ *  What was unexpected was this: without clearing the pending IRQ in the NVIC,
+ *  when radio interrupts were re-enabled (address event bit in INTENSET set to
+ *  1) and the radio ADDRESS event register read 1 (it was never cleared after
+ *  the first address event), the radio did not enter the ISR! I would have
+ *  expected that if the following were true, an interrupt would occur:
+ *      -> NVIC ISER bit set to TRUE
+ *      -> NVIC ISPR bit reads TRUE, meaning interrupt is pending.
+ *      -> Radio peripheral interrupts are enabled for some event (or events).
+ *      -> Corresponding event register(s) in radio peripheral read 1.
+ * 
+ *  Not sure what the end result of all this is. We will clear the pending
+ *  bit in the NVIC just to be sure when we disable the PHY.
  */
 
 /**
@@ -602,6 +624,8 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
  *  -> Disable internal shortcuts.
  *  -> Disable the radio.
  *  -> Sets phy state to idle.
+ *  -> Clears any pending irqs in the NVIC. Might not be necessary but we do
+ *  it as a precaution.
  */
 void
 ble_phy_disable(void)
@@ -611,17 +635,16 @@ ble_phy_disable(void)
     NRF_RADIO->INTENCLR = NRF52_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
+    NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
-
-    /* XXX: do I need to clear any pending state in the cortex-M possibly? */
 }
 
 /* Gets the current access address */
 uint32_t ble_phy_access_addr_get(void)
 {
+    /* XXX: Read real address from chip? */
     return g_ble_phy_data.phy_access_address;
 }
-
 
 /**
  * Return the phy state
@@ -631,6 +654,6 @@ uint32_t ble_phy_access_addr_get(void)
 int 
 ble_phy_state_get(void)
 {
+    /* XXX: should we read actual hardware */
     return g_ble_phy_data.phy_state;
 }
-

@@ -119,6 +119,12 @@ void ble_ll_adv_tx_done_proc(void *arg);
 /* Called to initialize advertising functionality. */
 void ble_ll_adv_init(void);
 
+/* Called to initialize advertising functionality. */
+void ble_ll_adv_init(void);
+
+/* Called to reset the advertiser. */
+void ble_ll_adv_reset(void);
+
 /* Called on rx pdu start when in advertising state */
 int ble_ll_adv_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 
