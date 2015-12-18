@@ -168,9 +168,57 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_called == 1);
 }
 
+TEST_CASE(ble_gatt_conn_test_congestion)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_test_util_init();
+
+    /* Allow only one outstanding packet per connection. */
+    ble_hs_cfg.max_outstanding_pkts_per_conn = 1;
+
+    /* Create a connection. */
+    conn = ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}));
+
+    /* Try to send two data packets. */
+    rc = ble_gatt_write(1, 0x1234, ble_gatt_conn_test_write_value,
+                        sizeof ble_gatt_conn_test_write_value, NULL, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_gatt_write(1, 0x1234, ble_gatt_conn_test_write_value,
+                        sizeof ble_gatt_conn_test_write_value, NULL, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_gatt_wakeup();
+    ble_hs_process_tx_data_queue();
+
+    /* Ensure only one packet got sent. */
+    TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
+
+    /* Additional wakeups should not trigger the second send. */
+    ble_gatt_wakeup();
+    ble_hs_process_tx_data_queue();
+    TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
+
+    /* Receive a num-packets-completed event. */
+    ble_hs_test_util_rx_num_completed_pkts_event(
+        (struct ble_hs_test_util_num_completed_pkts_entry []) {
+            { 1, 1 },
+            { 0 }});
+
+    /* Outstanding packet count should have been reduced to 0. */
+    TEST_ASSERT(conn->bhc_outstanding_pkts == 0);
+
+    /* Now the second write should get sent. */
+    ble_gatt_wakeup();
+    ble_hs_process_tx_data_queue();
+    TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
+}
+
 TEST_SUITE(ble_gatt_break_suite)
 {
     ble_gatt_conn_test_disconnect();
+    ble_gatt_conn_test_congestion();
 }
 
 int

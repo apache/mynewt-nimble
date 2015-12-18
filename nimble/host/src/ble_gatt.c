@@ -1224,12 +1224,16 @@ ble_gatt_wakeup(void)
 
             case BLE_HS_EAGAIN:
                 /* Transmit failed due to resource shortage.  Reschedule. */
+                entry->flags &= ~BLE_GATT_ENTRY_F_PENDING;
+                /* Current entry remains; reseat prev. */
+                prev = entry;
                 break;
 
             default:
                 /* Transmit failed.  Abort procedure. */
                 ble_gatt_entry_remove_free(entry, prev);
                 /* Current entry removed; old prev still valid. */
+                break;
             }
         } else {
             prev = entry;
