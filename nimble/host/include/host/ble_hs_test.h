@@ -32,6 +32,6 @@ int ble_gatt_disc_s_test_all(void);
 int ble_gatt_disc_c_test_all(void);
 int ble_gatt_read_test_all(void);
 int ble_gatt_write_test_all(void);
-int ble_gatt_break_test_all(void);
+int ble_gatt_conn_test_all(void);
 
 #endif

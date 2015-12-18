@@ -31,10 +31,10 @@
 #define BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE        0x9383
 #define BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE       0x1234
 
-static uint8_t ble_gatt_break_test_write_value[] = { 1, 3, 64, 21, 6 };
+static uint8_t ble_gatt_conn_test_write_value[] = { 1, 3, 64, 21, 6 };
 
 static int
-ble_gatt_break_test_disc_service_cb(uint16_t conn_handle,
+ble_gatt_conn_test_disc_service_cb(uint16_t conn_handle,
                                     uint8_t ble_hs_status, uint8_t att_status,
                                     struct ble_gatt_service *service,
                                     void *arg)
@@ -53,7 +53,7 @@ ble_gatt_break_test_disc_service_cb(uint16_t conn_handle,
 }
 
 static int
-ble_gatt_break_test_disc_chr_cb(uint16_t conn_handle, uint8_t ble_hs_status,
+ble_gatt_conn_test_disc_chr_cb(uint16_t conn_handle, uint8_t ble_hs_status,
                                 uint8_t att_status, struct ble_gatt_chr *chr,
                                 void *arg)
 {
@@ -71,7 +71,7 @@ ble_gatt_break_test_disc_chr_cb(uint16_t conn_handle, uint8_t ble_hs_status,
 }
 
 static int
-ble_gatt_break_test_write_cb(uint16_t conn_handle, uint8_t ble_hs_status,
+ble_gatt_conn_test_write_cb(uint16_t conn_handle, uint8_t ble_hs_status,
                              uint8_t att_status, struct ble_gatt_attr *attr,
                              void *arg)
 {
@@ -85,15 +85,15 @@ ble_gatt_break_test_write_cb(uint16_t conn_handle, uint8_t ble_hs_status,
     TEST_ASSERT(att_status == 0);
     TEST_ASSERT(attr != NULL);
     TEST_ASSERT(attr->handle == BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE);
-    TEST_ASSERT(attr->value_len == sizeof ble_gatt_break_test_write_value);
-    TEST_ASSERT(memcmp(attr->value, ble_gatt_break_test_write_value,
-                       sizeof ble_gatt_break_test_write_value) == 0);
+    TEST_ASSERT(attr->value_len == sizeof ble_gatt_conn_test_write_value);
+    TEST_ASSERT(memcmp(attr->value, ble_gatt_conn_test_write_value,
+                       sizeof ble_gatt_conn_test_write_value) == 0);
 
     return 0;
 }
 
 static int
-ble_gatt_break_test_read_cb(uint16_t conn_handle, uint8_t ble_hs_status,
+ble_gatt_conn_test_read_cb(uint16_t conn_handle, uint8_t ble_hs_status,
                             uint8_t att_status, struct ble_gatt_attr *attr,
                             void *arg)
 {
@@ -110,7 +110,7 @@ ble_gatt_break_test_read_cb(uint16_t conn_handle, uint8_t ble_hs_status,
     return 0;
 }
 
-TEST_CASE(ble_gatt_break_test_disconnect)
+TEST_CASE(ble_gatt_conn_test_disconnect)
 {
     int disc_s_called;
     int disc_c_called;
@@ -132,25 +132,25 @@ TEST_CASE(ble_gatt_break_test_disconnect)
 
     /* Schedule some GATT procedures. */
     rc = ble_gatt_disc_all_services(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE,
-                                    ble_gatt_break_test_disc_service_cb,
+                                    ble_gatt_conn_test_disc_service_cb,
                                     &disc_s_called);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_gatt_disc_all_chars(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE,
-                                 1, 0xffff, ble_gatt_break_test_disc_chr_cb,
+                                 1, 0xffff, ble_gatt_conn_test_disc_chr_cb,
                                  &disc_c_called);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_gatt_read(BLE_GATT_BREAK_TEST_READ_HANDLE,
                        BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
-                       ble_gatt_break_test_read_cb, &read_called);
+                       ble_gatt_conn_test_read_cb, &read_called);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_gatt_write(BLE_GATT_BREAK_TEST_WRITE_HANDLE,
                         BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
-                        ble_gatt_break_test_write_value,
-                        sizeof ble_gatt_break_test_write_value,
-                        ble_gatt_break_test_write_cb, &write_called);
+                        ble_gatt_conn_test_write_value,
+                        sizeof ble_gatt_conn_test_write_value,
+                        ble_gatt_conn_test_write_cb, &write_called);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Start the procedures. */
@@ -170,11 +170,11 @@ TEST_CASE(ble_gatt_break_test_disconnect)
 
 TEST_SUITE(ble_gatt_break_suite)
 {
-    ble_gatt_break_test_disconnect();
+    ble_gatt_conn_test_disconnect();
 }
 
 int
-ble_gatt_break_test_all(void)
+ble_gatt_conn_test_all(void)
 {
     ble_gatt_break_suite();
 
