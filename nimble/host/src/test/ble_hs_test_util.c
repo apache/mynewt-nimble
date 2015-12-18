@@ -233,5 +233,8 @@ ble_hs_test_util_init(void)
     rc = ble_hs_init(10);
     TEST_ASSERT_FATAL(rc == 0);
 
+    /* Don't limit a connection's ability to transmit; simplify tests. */
+    ble_hs_cfg.max_outstanding_pkts_per_conn = 0;
+
     ble_hs_test_util_prev_tx = NULL;
 }

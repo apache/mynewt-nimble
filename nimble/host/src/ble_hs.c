@@ -243,6 +243,8 @@ ble_hs_init(uint8_t prio)
 
     ble_hs_free_mem();
 
+    ble_hs_cfg_init();
+
     /* Create memory pool of command buffers */
     rc = os_mempool_init(&g_hci_cmd_pool, HCI_CMD_BUFS, HCI_CMD_BUF_SIZE,
                          &g_hci_cmd_buf, "HCICmdPool");

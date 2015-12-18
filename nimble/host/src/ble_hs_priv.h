@@ -40,4 +40,6 @@ void ble_hs_kick_gatt(void);
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
 
+void ble_hs_cfg_init(void);
+
 #endif

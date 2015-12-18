@@ -32,6 +32,11 @@
 #define BLE_HS_EOS                      11
 #define BLE_HS_ECONGESTED               12
 
+struct ble_hs_cfg {
+    uint16_t max_outstanding_pkts_per_conn;
+};
+extern struct ble_hs_cfg ble_hs_cfg;
+
 int ble_hs_init(uint8_t prio);
 
 #endif

@@ -175,7 +175,9 @@ ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
 int
 ble_hs_conn_can_tx(struct ble_hs_conn *conn)
 {
-    return conn->bhc_outstanding_pkts < BLE_HS_CONN_MAX_OUTSTANDING_PKTS;
+    return ble_hs_cfg.max_outstanding_pkts_per_conn == 0 ||
+           conn->bhc_outstanding_pkts <
+                ble_hs_cfg.max_outstanding_pkts_per_conn;
 }
 
 static void
