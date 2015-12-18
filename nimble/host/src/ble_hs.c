@@ -63,8 +63,8 @@ static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS,
 #define BLE_HS_PKT_MAX              BLE_HS_NUM_MBUFS
 
 struct os_mempool g_hci_os_event_pool;
-static os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_BYTES(HCI_NUM_OS_EVENTS,
-                                                       HCI_OS_EVENT_BUF_SIZE)];
+static os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
+                                                      HCI_OS_EVENT_BUF_SIZE)];
 
 static os_membuf_t ble_hs_mbuf_mem[BLE_HS_MBUF_MEMPOOL_SIZE];
 static struct os_mempool ble_hs_mbuf_mempool;
