@@ -32,6 +32,7 @@ static int
 host_hci_cmd_transport(uint8_t *cmdbuf)
 {
 #ifdef ARCH_sim
+    os_memblock_put(&g_hci_cmd_pool, cmdbuf);
     return 0;
 #else
     return ble_hci_transport_host_cmd_send(cmdbuf);
@@ -477,5 +478,20 @@ host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type)
 
     rc = host_hci_cmd_le_whitelist_chg(addr, addr_type, 
                                        BLE_HCI_OCF_LE_RMV_WHITE_LIST);
+    return rc;
+}
+
+/**
+ * Reset the controller and link manager.
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_reset(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_RESET, 0,
+                           NULL);
     return rc;
 }
