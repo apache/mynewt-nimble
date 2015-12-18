@@ -37,6 +37,7 @@ void ble_gatt_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
                                        struct ble_att_clt_adata *adata);
 void ble_gatt_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
 void ble_gatt_rx_write_rsp(struct ble_hs_conn *conn);
+void ble_gatt_connection_txable(uint16_t conn_handle);
 void ble_gatt_connection_broken(uint16_t conn_handle);
 
 #endif

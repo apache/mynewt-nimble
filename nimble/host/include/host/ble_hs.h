@@ -30,6 +30,7 @@
 #define BLE_HS_EATT                     9
 #define BLE_HS_EBADDATA                 10
 #define BLE_HS_EOS                      11
+#define BLE_HS_ECONGESTED               12
 
 int ble_hs_init(uint8_t prio);
 

@@ -76,6 +76,8 @@ struct ble_gatt_entry {
     };
 };
 
+#define BLE_GATT_RETX_PERIOD                    1000 /* Milliseconds. */
+
 #define BLE_GATT_OP_NONE                        UINT8_MAX
 #define BLE_GATT_OP_MTU                         0
 #define BLE_GATT_OP_DISC_ALL_SERVICES           1
@@ -85,6 +87,8 @@ struct ble_gatt_entry {
 #define BLE_GATT_OP_WRITE_NO_RSP                5
 #define BLE_GATT_OP_WRITE                       6
 #define BLE_GATT_OP_MAX                         7
+
+static struct os_callout_func ble_gatt_retx_timer;
 
 typedef int ble_gatt_kick_fn(struct ble_gatt_entry *entry);
 typedef void ble_gatt_err_fn(struct ble_gatt_entry *entry,
@@ -154,6 +158,8 @@ static const struct ble_gatt_dispatch_entry
 
 #define BLE_GATT_ENTRY_F_PENDING    0x01
 #define BLE_GATT_ENTRY_F_EXPECTING  0x02
+#define BLE_GATT_ENTRY_F_CONGESTED  0x04
+#define BLE_GATT_ENTRY_F_NO_MEM     0x08
 
 #define BLE_GATT_NUM_ENTRIES          4
 static void *ble_gatt_entry_mem;
@@ -311,6 +317,60 @@ ble_gatt_new_entry(uint16_t conn_handle, uint8_t op,
     return 0;
 }
 
+static int
+ble_gatt_entry_can_pend(struct ble_gatt_entry *entry)
+{
+    return !(entry->flags & (BLE_GATT_ENTRY_F_CONGESTED |
+                             BLE_GATT_ENTRY_F_NO_MEM |
+                             BLE_GATT_ENTRY_F_EXPECTING));
+}
+
+static void
+ble_gatt_retx_timer_ensure(void)
+{
+    int rc;
+
+    rc = os_callout_reset(&ble_gatt_retx_timer.cf_c,
+                          BLE_GATT_RETX_PERIOD * OS_TICKS_PER_SEC / 1000);
+    assert(rc == 0);
+}
+
+static void
+ble_gatt_retx_timer_exp(void *arg)
+{
+    struct ble_gatt_entry *entry;
+
+    STAILQ_FOREACH(entry, &ble_gatt_list, next) {
+        if (entry->flags & BLE_GATT_ENTRY_F_NO_MEM) {
+            entry->flags &= ~BLE_GATT_ENTRY_F_NO_MEM;
+            if (ble_gatt_entry_can_pend(entry)) {
+                ble_gatt_entry_set_pending(entry);
+            }
+        }
+    }
+}
+
+/**
+ * @return                      1 if the transmit should be postponed; else 0.
+ */
+static int
+ble_gatt_tx_postpone_chk(struct ble_gatt_entry *entry, int rc)
+{
+    switch (rc) {
+    case BLE_HS_ECONGESTED:
+        entry->flags |= BLE_GATT_ENTRY_F_CONGESTED;
+        return 1;
+
+    case BLE_HS_ENOMEM:
+        entry->flags |= BLE_GATT_ENTRY_F_NO_MEM;
+        ble_gatt_retx_timer_ensure();
+        return 1;
+
+    default:
+        return 0;
+    }
+}
+
 /*****************************************************************************
  * @mtu                                                                      *
  *****************************************************************************/
@@ -357,6 +417,10 @@ ble_gatt_kick_mtu(struct ble_gatt_entry *entry)
     return 0;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_mtu_cb(entry, rc, 0, 0);
     return rc;
 }
@@ -447,6 +511,10 @@ ble_gatt_kick_disc_all_services(struct ble_gatt_entry *entry)
     return 0;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_disc_all_services_cb(entry, rc, 0, NULL);
     return rc;
 }
@@ -607,6 +675,10 @@ ble_gatt_kick_disc_service_uuid(struct ble_gatt_entry *entry)
     return 0;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_disc_service_uuid_cb(entry, rc, 0, NULL);
     return rc;
 }
@@ -744,6 +816,10 @@ ble_gatt_kick_disc_all_chars(struct ble_gatt_entry *entry)
     return 0;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_disc_all_chars_cb(entry, rc, 0, NULL);
     return rc;
 }
@@ -903,6 +979,10 @@ ble_gatt_kick_read(struct ble_gatt_entry *entry)
     return 0;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_read_cb(entry, rc, 0, NULL);
     return rc;
 }
@@ -1004,6 +1084,10 @@ ble_gatt_kick_write_no_rsp(struct ble_gatt_entry *entry)
     return 1;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_write_cb(entry, rc, 0);
     return rc;
 }
@@ -1056,6 +1140,10 @@ ble_gatt_kick_write(struct ble_gatt_entry *entry)
     return 0;
 
 err:
+    if (ble_gatt_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
     ble_gatt_write_cb(entry, rc, 0);
     return rc;
 }
@@ -1127,10 +1215,19 @@ ble_gatt_wakeup(void)
         if (entry->flags & BLE_GATT_ENTRY_F_PENDING) {
             dispatch = ble_gatt_dispatch_get(entry->op);
             rc = dispatch->kick_cb(entry);
-            if (rc == 0) {
+            switch (rc) {
+            case 0:
+                /* Transmit succeeded.  Response expected. */
                 ble_gatt_entry_set_expecting(entry, prev);
                 /* Current entry got moved to back; old prev still valid. */
-            } else {
+                break;
+
+            case BLE_HS_EAGAIN:
+                /* Transmit failed due to resource shortage.  Reschedule. */
+                break;
+
+            default:
+                /* Transmit failed.  Abort procedure. */
                 ble_gatt_entry_remove_free(entry, prev);
                 /* Current entry removed; old prev still valid. */
             }
@@ -1163,6 +1260,11 @@ ble_gatt_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
     ble_gatt_entry_remove_free(entry, prev);
 }
 
+/**
+ * Called when a BLE connection ends.  Frees all GATT resources associated with
+ * the connection and cancels all relevant pending and in-progress GATT
+ * procedures.
+ */
 void
 ble_gatt_connection_broken(uint16_t conn_handle)
 {
@@ -1180,6 +1282,27 @@ ble_gatt_connection_broken(uint16_t conn_handle)
         dispatch->err_cb(entry, BLE_HS_ENOTCONN, 0);
 
         ble_gatt_entry_remove_free(entry, prev);
+    }
+}
+
+/**
+ * Called when a BLE connection transitions into a transmittable state.  Wakes
+ * up all congested GATT procedures associated with the connection.
+ */
+void
+ble_gatt_connection_txable(uint16_t conn_handle)
+{
+    struct ble_gatt_entry *entry;
+
+    STAILQ_FOREACH(entry, &ble_gatt_list, next) {
+        if (entry->conn_handle == conn_handle &&
+            entry->flags & BLE_GATT_ENTRY_F_CONGESTED) {
+
+            entry->flags &= ~BLE_GATT_ENTRY_F_CONGESTED;
+            if (ble_gatt_entry_can_pend(entry)) {
+                ble_gatt_entry_set_pending(entry);
+            }
+        }
     }
 }
 
@@ -1208,6 +1331,9 @@ ble_gatt_init(void)
     }
 
     STAILQ_INIT(&ble_gatt_list);
+
+    os_callout_func_init(&ble_gatt_retx_timer, &ble_hs_evq,
+                         ble_gatt_retx_timer_exp, NULL);
 
     return 0;
 

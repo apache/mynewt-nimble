@@ -153,6 +153,13 @@ ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
     conn->bhc_outstanding_pkts -= num_pkts;
 }
 
+int
+ble_hs_conn_can_tx(struct ble_hs_conn *conn)
+{
+    /* XXX: Ensure number of outstanding packets isn't too great. */
+    return 1;
+}
+
 static void
 ble_hs_conn_free_mem(void)
 {

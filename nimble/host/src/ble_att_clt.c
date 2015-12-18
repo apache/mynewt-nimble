@@ -34,8 +34,15 @@ ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
     void *buf;
     int rc;
 
+    *txom = NULL;
+
     *chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     assert(*chan != NULL);
+
+    if (!ble_hs_conn_can_tx(conn)) {
+        rc = BLE_HS_ECONGESTED;
+        goto err;
+    }
 
     *txom = ble_att_get_pkthdr();
     if (*txom == NULL) {
