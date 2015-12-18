@@ -22,10 +22,13 @@
 #include "ble_hs_priv.h"
 #include "ble_l2cap.h"
 #include "ble_l2cap_sig.h"
-#include "ble_hs_conn.h"
 #include "ble_att_priv.h"
+#include "ble_gatt_priv.h"
+#include "ble_hs_conn.h"
 
 #define BLE_HS_CONN_MAX         16
+
+#define BLE_HS_CONN_MAX_OUTSTANDING_PKTS    10
 
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
@@ -137,27 +140,42 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
     return NULL;
 }
 
+static void
+ble_hs_conn_txable_transition(struct ble_hs_conn *conn)
+{
+    ble_gatt_connection_txable(conn->bhc_handle);
+}
+
 void
 ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
 {
     struct ble_hs_conn *conn;
+    int could_tx;
+    int can_tx;
 
     conn = ble_hs_conn_find(handle);
     if (conn == NULL) {
         return;
     }
 
+    could_tx = ble_hs_conn_can_tx(conn);
+
     if (num_pkts > conn->bhc_outstanding_pkts) {
         num_pkts = conn->bhc_outstanding_pkts;
     }
     conn->bhc_outstanding_pkts -= num_pkts;
+
+    can_tx = ble_hs_conn_can_tx(conn);
+
+    if (!could_tx && can_tx) {
+        ble_hs_conn_txable_transition(conn);
+    }
 }
 
 int
 ble_hs_conn_can_tx(struct ble_hs_conn *conn)
 {
-    /* XXX: Ensure number of outstanding packets isn't too great. */
-    return 1;
+    return conn->bhc_outstanding_pkts < BLE_HS_CONN_MAX_OUTSTANDING_PKTS;
 }
 
 static void

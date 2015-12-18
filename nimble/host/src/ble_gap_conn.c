@@ -51,10 +51,22 @@
 /** 60 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
 
-/** 1.28 seconds. */
+/** 30 ms; active scanning. */
+#define BLE_GAP_SCAN_FAST_INTERVAL_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 60 ms; active scanning. */
+#define BLE_GAP_SCAN_FAST_INTERVAL_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 30 ms; active scanning. */
+#define BLE_GAP_SCAN_FAST_WINDOW            (30 * 1000 / BLE_HCI_SCAN_ITVL)
+
+/* 30.72 seconds; active scanning. */
+#define BLE_GAP_SCAN_FAST_PERIOD            (30.72 * 1000)
+
+/** 1.28 seconds; background scanning. */
 #define BLE_GAP_SCAN_SLOW_INTERVAL1         (1280 * 1000 / BLE_HCI_SCAN_ITVL)
 
-/** 11.25 ms. */
+/** 11.25 ms; background scanning. */
 #define BLE_GAP_SCAN_SLOW_WINDOW1           (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
 
 /** 10.24 seconds. */
@@ -420,8 +432,8 @@ ble_gap_conn_gen_disc_tx_params(void *arg)
     ble_hci_ack_set_callback(ble_gap_conn_gen_disc_ack_params, NULL);
 
     rc = host_hci_cmd_le_set_scan_params(BLE_HCI_SCAN_TYPE_ACTIVE,
-                                         BLE_GAP_SCAN_SLOW_INTERVAL1,
-                                         BLE_GAP_SCAN_SLOW_WINDOW1,
+                                         BLE_GAP_SCAN_FAST_INTERVAL_MIN,
+                                         BLE_GAP_SCAN_FAST_WINDOW,
                                          BLE_HCI_ADV_OWN_ADDR_PUBLIC,
                                          BLE_HCI_SCAN_FILT_NO_WL);
     if (rc != 0) {
