@@ -59,8 +59,13 @@ struct ble_gap_conn_event {
 typedef void ble_gap_connect_fn(struct ble_gap_conn_event *event, void *arg);
 
 void ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg);
-int ble_gap_conn_gen_disc(uint32_t duration_ms);
+int ble_gap_conn_non_discoverable(void);
+int ble_gap_conn_limited_discoverable(void);
+int ble_gap_conn_general_discoverable(void);
+int ble_gap_conn_non_connectable(void);
 int ble_gap_conn_direct_connectable(int addr_type, uint8_t *addr);
+int ble_gap_conn_undirect_connectable(void);
+int ble_gap_conn_gen_disc(uint32_t duration_ms);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_terminate(uint16_t handle);
 
