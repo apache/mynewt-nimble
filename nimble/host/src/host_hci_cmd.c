@@ -495,3 +495,18 @@ host_hci_cmd_reset(void)
                            NULL);
     return rc;
 }
+
+/**
+ * Read the transmit power level used for LE advertising channel packets.
+ *
+ * @return int
+ */
+int
+host_hci_cmd_read_adv_pwr(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR, 0,
+                           NULL);
+    return rc;
+}

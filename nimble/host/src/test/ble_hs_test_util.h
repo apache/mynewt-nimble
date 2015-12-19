@@ -37,7 +37,11 @@ void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
 struct ble_hs_conn *ble_hs_test_util_create_conn(uint16_t handle,
                                                  uint8_t *addr);
 void ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status);
+void ble_hs_test_util_rx_ack_param(uint16_t opcode, uint8_t status,
+                                   void *param, int param_len);
 void ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status);
+void ble_hs_test_util_rx_le_ack_param(uint16_t ocf, uint8_t status, void *param,
+                                      int param_len);
 int ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                            struct ble_l2cap_chan *chan,
                                            const void *data, int len);
@@ -47,6 +51,7 @@ void ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
 void ble_hs_test_util_rx_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);
+void ble_hs_test_util_rx_adv_acks(void);
 void ble_hs_test_util_init(void);
 
 #endif

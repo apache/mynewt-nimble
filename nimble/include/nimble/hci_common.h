@@ -112,29 +112,17 @@
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
 /* Command Specific Definitions */
-/*--- BLE_HCI_OCF_LE_SET_EVENT_MASK OCF 0x0001 ---*/
+/* --- LE set event mask (OCF 0x0001) --- */
 #define BLE_HCI_SET_LE_EVENT_MASK_LEN   (8)
 
-/*--- BLE_HCI_OCF_LE_RD_BUF_SIZE  OCF 0x0002  ---*/
+/* --- LE read buffer size (OCF 0x0002) --- */
 #define BLE_HCI_RD_BUF_SIZE_LEN         (0)
 #define BLE_HCI_RD_BUF_SIZE_RSPLEN      (3)
 
-/* Read local supported features*/
+/* --- LE read local supported features (OCF 0x0003) --- */
 #define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN (8)
 
-/* Set scan response data */
-#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN   (31)
-
-/* Set advertising data */
-#define BLE_HCI_MAX_ADV_DATA_LEN        (31)
-
-/* Set advertising enable */
-#define BLE_HCI_SET_ADV_ENABLE_LEN      (1)
-
-/* Set scan enable */
-#define BLE_HCI_SET_SCAN_ENABLE_LEN     (2)
-
-/* Set advertising parameters */
+/* --- LE set advertising parameters (OCF 0x0006) */
 #define BLE_HCI_SET_ADV_PARAM_LEN       (15)
 
 /* Advertising types */
@@ -156,6 +144,23 @@
 #define BLE_HCI_ADV_PEER_ADDR_PUBLIC        (0)
 #define BLE_HCI_ADV_PEER_ADDR_RANDOM        (1)
 #define BLE_HCI_ADV_PEER_ADDR_MAX           (1)
+
+/* --- LE advertising channel tx power (OCF 0x0007) */
+#define BLE_HCI_ADV_CHAN_TXPWR_ACK_PARAM_LEN   (2)  /* Includes status byte. */
+#define BLE_HCI_ADV_CHAN_TXPWR_MIN             (-20)
+#define BLE_HCI_ADV_CHAN_TXPWR_MAX             (10)
+
+/* --- LE set advertising data (OCF 0x0008) */
+#define BLE_HCI_MAX_ADV_DATA_LEN        (31)
+
+/* --- LE set scan response data (OCF 0x0009) */
+#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN   (31)
+
+/* --- LE set advertising enable (OCF 0x000a) */
+#define BLE_HCI_SET_ADV_ENABLE_LEN      (1)
+
+/* --- LE set scan enable (OCF 0x000c) */
+#define BLE_HCI_SET_SCAN_ENABLE_LEN     (2)
 
 /* Connect peer address type */
 #define BLE_HCI_CONN_PEER_ADDR_PUBLIC        (0)
