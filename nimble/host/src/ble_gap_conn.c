@@ -91,6 +91,9 @@
 #define BLE_GAP_CONN_S_MODE_UND_CONN                        5
 #define BLE_GAP_CONN_S_MODE_MAX                             6
 
+#define BLE_GAP_CONN_MODE_MAX                        4
+#define BLE_GAP_DISC_MODE_MAX                        4
+
 static int ble_gap_conn_adv_params_tx(void *arg);
 static int ble_gap_conn_adv_power_tx(void *arg);
 static int ble_gap_conn_adv_data_tx(void *arg);
@@ -109,16 +112,18 @@ static ble_hci_sched_tx_fn * const
     [BLE_GAP_CONN_S_STATE_DIR_ENABLE]   = ble_gap_conn_adv_enable_tx,
 };
 
-static int ble_gap_conn_slave_mode;
+static uint8_t ble_gap_conn_s_conn_mode;
+static uint8_t ble_gap_conn_s_disc_mode;
 
-static struct hci_adv_params
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_MAX];
+static struct hci_adv_params ble_gap_conn_adv_params;
 
 static ble_gap_connect_fn *ble_gap_conn_cb;
 static void *ble_gap_conn_arg;
 
 static int ble_gap_conn_master_state;
 static int ble_gap_conn_slave_state;
+static uint8_t ble_gap_conn_master_addr_type;
+static uint8_t ble_gap_conn_slave_addr_type;
 static uint8_t ble_gap_conn_master_addr[BLE_DEV_ADDR_LEN];
 static uint8_t ble_gap_conn_slave_addr[BLE_DEV_ADDR_LEN];
 static struct os_callout_func ble_gap_conn_master_timer;
@@ -203,7 +208,8 @@ static void
 ble_gap_conn_slave_reset_state(void)
 {
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_NONE;
+    ble_gap_conn_s_conn_mode = BLE_GAP_CONN_MODE_NULL;
+    ble_gap_conn_s_disc_mode = BLE_GAP_DISC_MODE_NULL;
 }
 
 /**
@@ -296,26 +302,6 @@ ble_gap_conn_slave_in_progress(void)
     return ble_gap_conn_slave_state != BLE_GAP_CONN_STATE_IDLE;
 }
 
-static int
-ble_gap_conn_adv_is_directed(int mode)
-{
-    switch (mode) {
-    case BLE_GAP_CONN_S_MODE_NON_DISC:
-    case BLE_GAP_CONN_S_MODE_LTD_DISC:
-    case BLE_GAP_CONN_S_MODE_GEN_DISC:
-    case BLE_GAP_CONN_S_MODE_NON_CONN:
-    case BLE_GAP_CONN_S_MODE_UND_CONN:
-        return 0;
-
-    case BLE_GAP_CONN_S_MODE_DIR_CONN:
-        return 1;
-
-    default:
-        assert(0);
-        return 0;
-    }
-}
-
 /**
  * Attempts to complete the master connection process in response to a
  * "connection complete" event from the controller.  If the master connection
@@ -370,7 +356,7 @@ ble_gap_conn_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
     switch (ble_gap_conn_slave_state) {
     case BLE_GAP_CONN_S_STATE_MAX:
         /* XXX: Check address type. */
-        if (!ble_gap_conn_adv_is_directed(ble_gap_conn_slave_mode) ||
+        if (ble_gap_conn_s_conn_mode != BLE_GAP_CONN_MODE_DIR ||
             memcmp(ble_gap_conn_slave_addr, addr, BLE_DEV_ADDR_LEN) == 0) {
 
             os_callout_stop(&ble_gap_conn_master_timer.cf_c);
@@ -651,8 +637,26 @@ ble_gap_conn_adv_params_tx(void *arg)
     struct hci_adv_params hap;
     int rc;
 
-    hap = ble_gap_conn_adv_params[ble_gap_conn_slave_mode];
-    memcpy(hap.peer_addr, ble_gap_conn_slave_addr, sizeof hap.peer_addr);
+    hap = ble_gap_conn_adv_params;
+
+    switch (ble_gap_conn_s_conn_mode) {
+    case BLE_GAP_CONN_MODE_NON:
+        hap.adv_type = BLE_HCI_ADV_TYPE_ADV_NONCONN_IND;
+        break;
+
+    case BLE_GAP_CONN_MODE_DIR:
+        hap.adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD;
+        memcpy(hap.peer_addr, ble_gap_conn_slave_addr, sizeof hap.peer_addr);
+        break;
+
+    case BLE_GAP_CONN_MODE_UND:
+        hap.adv_type = BLE_HCI_ADV_TYPE_ADV_IND;
+        break;
+
+    default:
+        assert(0);
+        break;
+    }
 
     ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_params(&hap);
@@ -671,13 +675,13 @@ ble_gap_conn_adv_initiate(void)
 
     assert(!ble_gap_conn_slave_in_progress());
 
-    if (ble_gap_conn_adv_is_directed(ble_gap_conn_slave_mode)) {
+    if (ble_gap_conn_s_conn_mode == BLE_GAP_CONN_MODE_DIR) {
         ble_gap_conn_slave_state = BLE_GAP_CONN_S_STATE_DIR_PARAMS;
-        rc = ble_hci_sched_enqueue(ble_gap_conn_adv_params_tx, NULL);
     } else {
         ble_gap_conn_slave_state = BLE_GAP_CONN_S_STATE_UND_PARAMS;
-        rc = ble_hci_sched_enqueue(ble_gap_conn_adv_params_tx, NULL);
     }
+
+    rc = ble_hci_sched_enqueue(ble_gap_conn_adv_params_tx, NULL);
     if (rc != 0) {
         ble_gap_conn_slave_reset_state();
         return rc;
@@ -686,167 +690,79 @@ ble_gap_conn_adv_initiate(void)
     return 0;
 }
 
-/*****************************************************************************
- * $non-discoverable mode                                                    *
- *****************************************************************************/
-
 /**
- * Enables Non-Discoverable Mode, as described in vol. 3, part C, section
- * 9.2.2.
+ * Enables the specified discoverable mode and connectable mode, and initiates
+ * the advertising process.
  *
- * @return                      0 on success; nonzero on failure.
- */
-int
-ble_gap_conn_non_discoverable(void)
-{
-    int rc;
-
-    /* Make sure no slave connection attempt is already in progress. */
-    if (ble_gap_conn_slave_in_progress()) {
-        return BLE_HS_EALREADY;
-    }
-
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_NON_DISC;
-
-    rc = ble_gap_conn_adv_initiate();
-    return rc;
-}
-
-/*****************************************************************************
- * $limited-discoverable mode                                                *
- *****************************************************************************/
-
-/**
- * Enables Limited-Discoverable Mode, as described in vol. 3, part C, section
- * 9.2.3.
- *
- * @return                      0 on success; nonzero on failure.
- */
-int
-ble_gap_conn_limited_discoverable(void)
-{
-    int rc;
-
-    /* Make sure no slave connection attempt is already in progress. */
-    if (ble_gap_conn_slave_in_progress()) {
-        return BLE_HS_EALREADY;
-    }
-
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_LTD_DISC;
-
-    rc = ble_gap_conn_adv_initiate();
-    return rc;
-}
-
-/*****************************************************************************
- * $general-discoverable mode                                                *
- *****************************************************************************/
-
-/**
- * Enables General-Discoverable Mode, as described in vol. 3, part C, section
- * 9.2.4.
- *
- * @return                      0 on success; nonzero on failure.
- */
-int
-ble_gap_conn_general_discoverable(void)
-{
-    int rc;
-
-    /* Make sure no slave connection attempt is already in progress. */
-    if (ble_gap_conn_slave_in_progress()) {
-        return BLE_HS_EALREADY;
-    }
-
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_GEN_DISC;
-
-    rc = ble_gap_conn_adv_initiate();
-    return rc;
-}
-
-/*****************************************************************************
- * $non-connectable mode                                                     *
- *****************************************************************************/
-
-/**
- * Enables Non-Connectable Mode, as described in vol. 3, part C, section 9.3.2.
- *
- * @return                      0 on success; nonzero on failure.
- */
-int
-ble_gap_conn_non_connectable(void)
-{
-    int rc;
-
-    /* Make sure no slave connection attempt is already in progress. */
-    if (ble_gap_conn_slave_in_progress()) {
-        return BLE_HS_EALREADY;
-    }
-
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_NON_CONN;
-
-    rc = ble_gap_conn_adv_initiate();
-    return rc;
-}
-
-/*****************************************************************************
- * $directed connectable mode                                                *
- *****************************************************************************/
-
-/**
- * Enables Directed Connectable Mode, as described in vol. 3, part C, section
- * 9.3.3.
- *
- * @param addr_type             The peer's address type; one of:
+ * @param discoverable_mode     One of the following constants:
+ *                                  o BLE_GAP_DISC_MODE_NON
+ *                                      (non-discoverable; 3.C.9.2.2).
+ *                                  o BLE_GAP_DISC_MODE_LTD
+ *                                      (limited-discoverable; 3.C.9.2.3).
+ *                                  o BLE_GAP_DISC_MODE_GEN
+ *                                      (general-discoverable; 3.C.9.2.4).
+ * @param connectable_mode      One of the following constants:
+ *                                  o BLE_GAP_CONN_MODE_NON
+ *                                      (non-connectable; 3.C.9.3.2).
+ *                                  o BLE_GAP_CONN_MODE_DIR
+ *                                      (directed-connectable; 3.C.9.3.3).
+ *                                  o BLE_GAP_CONN_MODE_UND
+ *                                      (undirected-connectable; 3.C.9.3.4).
+ * @param peer_addr             The address of the peer who is allowed to
+ *                                  connect; only meaningful for directed
+ *                                  connectable mode.  For other modes, specify
+ *                                  NULL.
+ * @param peer_addr_type        The type of address specified for the
+ *                                  "peer_addr" parameter; only meaningful for
+ *                                  directed connectable mode.  For other
+ *                                  modes, specify 0.  For directed connectable
+ *                                  mode, this should be one of the following
+ *                                  constants:
  *                                  o BLE_HCI_ADV_PEER_ADDR_PUBLIC
  *                                  o BLE_HCI_ADV_PEER_ADDR_RANDOM
- *                                  o BLE_HCI_ADV_PEER_ADDR_PUBLIC_IDENT
- *                                  o BLE_HCI_ADV_PEER_ADDR_RANDOM_IDENT
- * @param addr                  The address of the peer to connect to.
  *
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_conn_direct_connectable(int addr_type, uint8_t *addr)
+ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
+                       uint8_t *peer_addr, uint8_t peer_addr_type)
 {
     int rc;
+
+    if (discoverable_mode >= BLE_GAP_DISC_MODE_MAX ||
+        connectable_mode >= BLE_GAP_CONN_MODE_MAX) {
+
+        return BLE_HS_EINVAL;
+    }
 
     /* Make sure no slave connection attempt is already in progress. */
     if (ble_gap_conn_slave_in_progress()) {
         return BLE_HS_EALREADY;
     }
 
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_DIR_CONN;
-    memcpy(ble_gap_conn_slave_addr, addr, BLE_DEV_ADDR_LEN);
+    /* Don't initiate a connection procedure if we won't be able to allocate a
+     * connection object on completion.
+     */
+    if (connectable_mode != BLE_GAP_CONN_MODE_NON &&
+        !ble_hs_conn_can_alloc()) {
 
-    rc = ble_gap_conn_adv_initiate();
-    return rc;
-}
-
-/*****************************************************************************
- * $undirected connectable mode                                              *
- *****************************************************************************/
-
-/**
- * Enables Undirected Connectable Mode, as described in vol. 3, part C, section
- * 9.3.4.
- *
- * @return                      0 on success; nonzero on failure.
- */
-int
-ble_gap_conn_undirect_connectable(void)
-{
-    int rc;
-
-    /* Make sure no slave connection attempt is already in progress. */
-    if (ble_gap_conn_slave_in_progress()) {
-        return BLE_HS_EALREADY;
+        return BLE_HS_ENOMEM;
     }
 
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_UND_CONN;
+    if (connectable_mode == BLE_GAP_CONN_MODE_DIR) {
+        ble_gap_conn_slave_addr_type = peer_addr_type;
+        memcpy(ble_gap_conn_slave_addr, peer_addr, 6);
+    }
+
+    ble_gap_conn_s_conn_mode = connectable_mode;
+    ble_gap_conn_s_disc_mode = discoverable_mode;
 
     rc = ble_gap_conn_adv_initiate();
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 /*****************************************************************************
@@ -1043,6 +959,7 @@ ble_gap_conn_direct_connect(int addr_type, uint8_t *addr)
     }
 
     ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_DIRECT_PENDING;
+    ble_gap_conn_master_addr_type = addr_type;
     memcpy(ble_gap_conn_master_addr, addr, BLE_DEV_ADDR_LEN);
 
     rc = ble_hci_sched_enqueue(ble_gap_conn_direct_connect_tx, NULL);
@@ -1113,69 +1030,7 @@ ble_gap_conn_terminate(uint16_t handle)
 static void
 ble_gap_conn_init_slave_params(void)
 {
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_NON_DISC] =
-        (struct hci_adv_params) {
-
-        .adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
-        .adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX,
-        .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
-        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
-        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
-        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
-    };
-
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_LTD_DISC] =
-        (struct hci_adv_params) {
-
-        .adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
-        .adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX,
-        .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
-        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
-        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
-        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
-    };
-
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_GEN_DISC] =
-        (struct hci_adv_params) {
-
-        .adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
-        .adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX,
-        .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
-        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
-        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
-        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
-    };
-
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_NON_CONN] =
-        (struct hci_adv_params) {
-
-        .adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
-        .adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX,
-        .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
-        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
-        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
-        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
-    };
-
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_DIR_CONN] =
-        (struct hci_adv_params) {
-
-        .adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
-        .adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX,
-        .adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD,
-        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
-        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
-        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
-    };
-
-    ble_gap_conn_adv_params[BLE_GAP_CONN_S_MODE_UND_CONN] =
-        (struct hci_adv_params) {
-
+    ble_gap_conn_adv_params = (struct hci_adv_params) {
         .adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
         .adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX,
         .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
@@ -1190,7 +1045,8 @@ int
 ble_gap_conn_init(void)
 {
     ble_gap_conn_cb = NULL;
-    ble_gap_conn_slave_mode = BLE_GAP_CONN_S_MODE_NONE;
+    ble_gap_conn_s_conn_mode = BLE_GAP_CONN_MODE_NULL;
+    ble_gap_conn_s_disc_mode = BLE_GAP_DISC_MODE_NULL;
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
     ble_gap_conn_slave_state = BLE_GAP_CONN_STATE_IDLE;
     memset(ble_gap_conn_master_addr, 0, sizeof ble_gap_conn_master_addr);

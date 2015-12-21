@@ -138,7 +138,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_conn_direct_connectable(0, addr);
+    rc = ble_gap_conn_advertise(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
+                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -185,7 +186,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_direct_connectable(0, addr);
+    rc = ble_gap_conn_advertise(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
+                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -230,7 +232,8 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_conn_undirect_connectable();
+    rc = ble_gap_conn_advertise(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_UND,
+                                NULL, 0);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
