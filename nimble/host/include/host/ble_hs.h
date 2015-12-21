@@ -34,6 +34,7 @@
 
 struct ble_hs_cfg {
     uint16_t max_outstanding_pkts_per_conn;
+    uint8_t max_connections;
 };
 extern struct ble_hs_cfg ble_hs_cfg;
 

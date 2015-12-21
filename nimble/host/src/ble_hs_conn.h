@@ -35,6 +35,7 @@ struct ble_hs_conn {
     struct ble_att_svr_conn bhc_att_svr;
 };
 
+int ble_hs_conn_can_alloc(void);
 struct ble_hs_conn *ble_hs_conn_alloc(void);
 void ble_hs_conn_free(struct ble_hs_conn *conn);
 void ble_hs_conn_insert(struct ble_hs_conn *conn);

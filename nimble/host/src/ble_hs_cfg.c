@@ -1,6 +1,7 @@
 #include "ble_hs_priv.h"
 
 static struct ble_hs_cfg ble_hs_cfg_dflt = {
+    .max_connections = 16,
     .max_outstanding_pkts_per_conn = 5,
 };
 

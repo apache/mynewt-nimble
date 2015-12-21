@@ -26,14 +26,16 @@
 #include "ble_gatt_priv.h"
 #include "ble_hs_conn.h"
 
-#define BLE_HS_CONN_MAX         16
-
-#define BLE_HS_CONN_MAX_OUTSTANDING_PKTS    10
-
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
 
 static os_membuf_t *ble_hs_conn_elem_mem;
+
+int
+ble_hs_conn_can_alloc(void)
+{
+    return ble_hs_conn_pool.mp_num_free >= 1;
+}
 
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
@@ -195,13 +197,13 @@ ble_hs_conn_init(void)
     ble_hs_conn_free_mem();
 
     ble_hs_conn_elem_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_HS_CONN_MAX,
+        OS_MEMPOOL_BYTES(ble_hs_cfg.max_connections,
                          sizeof (struct ble_hs_conn)));
     if (ble_hs_conn_elem_mem == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
-    rc = os_mempool_init(&ble_hs_conn_pool, BLE_HS_CONN_MAX,
+    rc = os_mempool_init(&ble_hs_conn_pool, ble_hs_cfg.max_connections,
                          sizeof (struct ble_hs_conn),
                          ble_hs_conn_elem_mem, "ble_hs_conn_pool");
     if (rc != 0) {
