@@ -68,9 +68,15 @@ typedef void ble_gap_connect_fn(struct ble_gap_conn_event *event, void *arg);
 #define BLE_GAP_DISC_MODE_LTD               2
 #define BLE_GAP_DISC_MODE_GEN               3
 
+struct ble_gap_conn_adv_fields {
+    char *name;
+    unsigned name_is_complete:1;
+};
+
 void ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg);
 int ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type);
+int ble_gap_conn_set_adv_fields(struct ble_gap_conn_adv_fields *adv_fields);
 int ble_gap_conn_gen_disc(uint32_t duration_ms);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_terminate(uint16_t handle);

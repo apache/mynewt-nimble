@@ -82,17 +82,15 @@
 /** 10.24 seconds. */
 #define BLE_GAP_GEN_DISC_SCAN_MIN           (10.24 * 1000)
 
-#define BLE_GAP_CONN_S_MODE_NONE                            (-1)
-#define BLE_GAP_CONN_S_MODE_NON_DISC                        0
-#define BLE_GAP_CONN_S_MODE_LTD_DISC                        1
-#define BLE_GAP_CONN_S_MODE_GEN_DISC                        2
-#define BLE_GAP_CONN_S_MODE_NON_CONN                        3
-#define BLE_GAP_CONN_S_MODE_DIR_CONN                        4
-#define BLE_GAP_CONN_S_MODE_UND_CONN                        5
-#define BLE_GAP_CONN_S_MODE_MAX                             6
-
 #define BLE_GAP_CONN_MODE_MAX                        4
 #define BLE_GAP_DISC_MODE_MAX                        4
+
+/**
+ * The maximum amount of user data that can be put into the advertising data.
+ * Six bytes are reserved at the end for the flags field and the transmit power
+ * field.
+ */
+#define BLE_GAP_CONN_ADV_DATA_LIMIT         (BLE_HCI_MAX_ADV_DATA_LEN - 6)
 
 static int ble_gap_conn_adv_params_tx(void *arg);
 static int ble_gap_conn_adv_power_tx(void *arg);
@@ -126,6 +124,9 @@ static uint8_t ble_gap_conn_master_addr_type;
 static uint8_t ble_gap_conn_slave_addr_type;
 static uint8_t ble_gap_conn_master_addr[BLE_DEV_ADDR_LEN];
 static uint8_t ble_gap_conn_slave_addr[BLE_DEV_ADDR_LEN];
+static uint8_t ble_gap_conn_adv_data_len;
+static uint8_t ble_gap_conn_adv_data[BLE_HCI_MAX_ADV_DATA_LEN];
+static int8_t ble_gap_conn_tx_pwr_lvl;
 static struct os_callout_func ble_gap_conn_master_timer;
 static struct os_callout_func ble_gap_conn_slave_timer;
 
@@ -572,11 +573,53 @@ ble_gap_conn_adv_rsp_data_tx(void *arg)
 static int
 ble_gap_conn_adv_data_tx(void *arg)
 {
-    uint8_t adv_data[BLE_HCI_MAX_ADV_DATA_LEN] = { 0 }; /* XXX */
+    uint8_t flags;
+    int adv_data_len;
     int rc;
 
+    /* Calculate the value of the flags field from the discoverable mode. */
+    flags = 0;
+    switch (ble_gap_conn_s_disc_mode) {
+    case BLE_GAP_DISC_MODE_NON:
+        break;
+
+    case BLE_GAP_DISC_MODE_LTD:
+        flags |= BLE_GAP_CONN_AD_F_DISC_LTD;
+        break;
+
+    case BLE_GAP_DISC_MODE_GEN:
+        flags |= BLE_GAP_CONN_AD_F_DISC_GEN;
+        break;
+
+    default:
+        assert(0);
+        break;
+    }
+
+    /* Encode the flags AD field if it is nonzero. */
+    if (flags != 0) {
+        adv_data_len = ble_gap_conn_adv_data_len + 3;
+        assert(adv_data_len <= BLE_HCI_MAX_ADV_DATA_LEN);
+
+        ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = 2;
+        ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] =
+            BLE_GAP_CONN_AD_TYPE_FLAGS;
+        ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 2] = flags;
+    } else {
+        adv_data_len = ble_gap_conn_adv_data_len;
+    }
+
+    /* Encode the transmit power AD field. */
+    adv_data_len = ble_gap_conn_adv_data_len + 3;
+    assert(adv_data_len <= BLE_HCI_MAX_ADV_DATA_LEN);
+    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = 2;
+    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] =
+        BLE_GAP_CONN_AD_TYPE_TX_PWR_LEVEL;
+    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 2] =
+        ble_gap_conn_tx_pwr_lvl;
+
     ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);
-    rc = host_hci_cmd_le_set_adv_data(adv_data, sizeof adv_data);
+    rc = host_hci_cmd_le_set_adv_data(ble_gap_conn_adv_data, adv_data_len);
     if (rc != 0) {
         ble_gap_conn_slave_failed(rc);
         return 1;
@@ -611,7 +654,8 @@ ble_gap_conn_adv_power_ack(struct ble_hci_ack *ack, void *arg)
         return;
     }
 
-    /* XXX: Save power level value so it can be put in the adv. data. */
+    /* Save power level value so it can be put in the advertising data. */
+    ble_gap_conn_tx_pwr_lvl = power_level;
 
     ble_gap_conn_adv_next_state();
 }
@@ -760,6 +804,61 @@ ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
     rc = ble_gap_conn_adv_initiate();
     if (rc != 0) {
         return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_gap_conn_set_adv_field(uint8_t type, uint8_t data_len, void *data)
+{
+    int new_len;
+
+    new_len = ble_gap_conn_adv_data_len + 2 + data_len;
+    if (new_len > BLE_GAP_CONN_ADV_DATA_LIMIT) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = data_len + 1;
+    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] = type;
+    memcpy(ble_gap_conn_adv_data + ble_gap_conn_adv_data_len + 2,
+           data, data_len);
+
+    ble_gap_conn_adv_data_len = new_len;
+
+    return 0;
+}
+
+/**
+ * Sets the significant part of the data in outgoing advertisements.
+ *
+ * @return                      0 on success;  on failure.
+ */
+int
+ble_gap_conn_set_adv_fields(struct ble_gap_conn_adv_fields *adv_fields)
+{
+    uint8_t type;
+    int name_len;
+    int rc;
+
+    ble_gap_conn_adv_data_len = 0;
+
+    if (adv_fields->name != NULL) {
+        name_len = strlen(adv_fields->name);
+        if (name_len > UINT8_MAX) {
+            return BLE_HS_EINVAL;
+        }
+
+        if (adv_fields->name_is_complete) {
+            type = BLE_GAP_CONN_AD_TYPE_COMP_NAME;
+        } else {
+            type = BLE_GAP_CONN_AD_TYPE_INCOMP_NAME;
+        }
+
+        rc = ble_gap_conn_set_adv_field(type, name_len, adv_fields->name);
+        if (rc != 0) {
+            return rc;
+        }
     }
 
     return 0;
