@@ -51,7 +51,8 @@ void ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
 void ble_hs_test_util_rx_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);
-void ble_hs_test_util_rx_adv_acks(void);
+void ble_hs_test_util_rx_und_adv_acks(void);
+void ble_hs_test_util_rx_dir_adv_acks(void);
 void ble_hs_test_util_init(void);
 
 #endif

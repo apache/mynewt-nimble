@@ -350,6 +350,12 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     evt.supervision_timeout = le16toh(data + 16);
     evt.master_clk_acc = data[18];
 
+    if (evt.role != BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER &&
+        evt.role != BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
+
+        return BLE_HS_EBADDATA;
+    }
+
     rc = ble_gap_conn_rx_conn_complete(&evt);
     if (rc != 0) {
         return rc;

@@ -29,22 +29,31 @@
 
 #define BLE_GAP_CONN_STATE_IDLE                             UINT8_MAX
 
+/** General discovery master states. */
 #define BLE_GAP_CONN_M_STATE_GEN_DISC_PENDING               0
 #define BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS                1
 #define BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS_ACKED          2
 #define BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE                3
 #define BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE_ACKED          4
 
+/** General discovery master states. */
 #define BLE_GAP_CONN_M_STATE_DIRECT_PENDING                 5
 #define BLE_GAP_CONN_M_STATE_DIRECT_UNACKED                 6
 #define BLE_GAP_CONN_M_STATE_DIRECT_ACKED                   7
 
-#define BLE_GAP_CONN_S_STATE_PARAMS                         0
-#define BLE_GAP_CONN_S_STATE_POWER                          1
-#define BLE_GAP_CONN_S_STATE_ADV_DATA                       2
-#define BLE_GAP_CONN_S_STATE_RSP_DATA                       3
-#define BLE_GAP_CONN_S_STATE_ENABLE                         4
-#define BLE_GAP_CONN_S_STATE_MAX                            5
+/** Undirected slave states. */
+#define BLE_GAP_CONN_S_STATE_UND_PARAMS                     0
+#define BLE_GAP_CONN_S_STATE_UND_POWER                      1
+#define BLE_GAP_CONN_S_STATE_UND_ADV_DATA                   2
+#define BLE_GAP_CONN_S_STATE_UND_RSP_DATA                   3
+#define BLE_GAP_CONN_S_STATE_UND_ENABLE                     4
+
+/** Directed slave states. */
+#define BLE_GAP_CONN_S_STATE_DIR_PARAMS                     5
+#define BLE_GAP_CONN_S_STATE_DIR_ENABLE                     6
+
+/** State machine rests on this state when advertising is in progress. */
+#define BLE_GAP_CONN_S_STATE_MAX                            7
 
 /** 30 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
@@ -91,11 +100,13 @@ static int ble_gap_conn_adv_enable_tx(void *arg);
 static ble_hci_sched_tx_fn * const
     ble_gap_conn_slave_dispatch[BLE_GAP_CONN_S_STATE_MAX] = {
 
-    [BLE_GAP_CONN_S_STATE_PARAMS]   = ble_gap_conn_adv_params_tx,
-    [BLE_GAP_CONN_S_STATE_POWER]    = ble_gap_conn_adv_power_tx,
-    [BLE_GAP_CONN_S_STATE_ADV_DATA] = ble_gap_conn_adv_data_tx,
-    [BLE_GAP_CONN_S_STATE_RSP_DATA] = ble_gap_conn_adv_rsp_data_tx,
-    [BLE_GAP_CONN_S_STATE_ENABLE]   = ble_gap_conn_adv_enable_tx,
+    [BLE_GAP_CONN_S_STATE_UND_PARAMS]   = ble_gap_conn_adv_params_tx,
+    [BLE_GAP_CONN_S_STATE_UND_POWER]    = ble_gap_conn_adv_power_tx,
+    [BLE_GAP_CONN_S_STATE_UND_ADV_DATA] = ble_gap_conn_adv_data_tx,
+    [BLE_GAP_CONN_S_STATE_UND_RSP_DATA] = ble_gap_conn_adv_rsp_data_tx,
+    [BLE_GAP_CONN_S_STATE_UND_ENABLE]   = ble_gap_conn_adv_enable_tx,
+    [BLE_GAP_CONN_S_STATE_DIR_PARAMS]   = ble_gap_conn_adv_params_tx,
+    [BLE_GAP_CONN_S_STATE_DIR_ENABLE]   = ble_gap_conn_adv_enable_tx,
 };
 
 static int ble_gap_conn_slave_mode;
@@ -286,10 +297,47 @@ ble_gap_conn_slave_in_progress(void)
 }
 
 static int
-ble_gap_conn_accept_new_conn(uint8_t *addr)
+ble_gap_conn_adv_is_directed(int mode)
+{
+    switch (mode) {
+    case BLE_GAP_CONN_S_MODE_NON_DISC:
+    case BLE_GAP_CONN_S_MODE_LTD_DISC:
+    case BLE_GAP_CONN_S_MODE_GEN_DISC:
+    case BLE_GAP_CONN_S_MODE_NON_CONN:
+    case BLE_GAP_CONN_S_MODE_UND_CONN:
+        return 0;
+
+    case BLE_GAP_CONN_S_MODE_DIR_CONN:
+        return 1;
+
+    default:
+        assert(0);
+        return 0;
+    }
+}
+
+/**
+ * Attempts to complete the master connection process in response to a
+ * "connection complete" event from the controller.  If the master connection
+ * FSM is in a state that can accept this event, and the peer device address is
+ * valid, the master FSM is reset and success is returned.
+ *
+ * @param addr_type             The address type of the peer; one of the
+ *                                  following values:
+ *                                  o    BLE_HCI_ADV_PEER_ADDR_PUBLIC
+ *                                  o    BLE_HCI_ADV_PEER_ADDR_RANDOM
+ * @param addr                  The six-byte address of the connection peer.
+ *
+ * @return                      0 if the connection complete event was
+ *                                  accepted;
+ *                              BLE_HS_ENOENT if the event does not apply.
+ */
+static int
+ble_gap_conn_accept_master_conn(uint8_t addr_type, uint8_t *addr)
 {
     switch (ble_gap_conn_master_state) {
     case BLE_GAP_CONN_M_STATE_DIRECT_ACKED:
+        /* XXX: Check address type. */
         if (memcmp(ble_gap_conn_master_addr, addr, BLE_DEV_ADDR_LEN) == 0) {
             os_callout_stop(&ble_gap_conn_master_timer.cf_c);
             ble_gap_conn_master_reset_state();
@@ -297,9 +345,34 @@ ble_gap_conn_accept_new_conn(uint8_t *addr)
         }
     }
 
+    return BLE_HS_ENOENT;
+}
+
+/**
+ * Attempts to complete the slave connection process in response to a
+ * "connection complete" event from the controller.  If the slave connection
+ * FSM is in a state that can accept this event, and the peer device address is
+ * valid, the master FSM is reset and success is returned.
+ *
+ * @param addr_type             The address type of the peer; one of the
+ *                                  following values:
+ *                                  o    BLE_HCI_ADV_PEER_ADDR_PUBLIC
+ *                                  o    BLE_HCI_ADV_PEER_ADDR_RANDOM
+ * @param addr                  The six-byte address of the connection peer.
+ *
+ * @return                      0 if the connection complete event was
+ *                                  accepted;
+ *                              BLE_HS_ENOENT if the event does not apply.
+ */
+static int
+ble_gap_conn_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
+{
     switch (ble_gap_conn_slave_state) {
     case BLE_GAP_CONN_S_STATE_MAX:
-        if (memcmp(ble_gap_conn_slave_addr, addr, BLE_DEV_ADDR_LEN) == 0) {
+        /* XXX: Check address type. */
+        if (!ble_gap_conn_adv_is_directed(ble_gap_conn_slave_mode) ||
+            memcmp(ble_gap_conn_slave_addr, addr, BLE_DEV_ADDR_LEN) == 0) {
+
             os_callout_stop(&ble_gap_conn_master_timer.cf_c);
             ble_gap_conn_slave_reset_state();
             return 0;
@@ -353,17 +426,43 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     }
 
     /* This event refers to a new connection. */
-    rc = ble_gap_conn_accept_new_conn(evt->peer_addr);
+    switch (evt->role) {
+    case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
+        rc = ble_gap_conn_accept_master_conn(evt->peer_addr_type,
+                                             evt->peer_addr);
+        break;
+
+    case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
+        rc = ble_gap_conn_accept_slave_conn(evt->peer_addr_type,
+                                            evt->peer_addr);
+        break;
+
+    default:
+        assert(0);
+        rc = -1;
+        break;
+    }
     if (rc != 0) {
         return BLE_HS_ENOENT;
     }
 
     if (evt->status != BLE_ERR_SUCCESS) {
+        switch (evt->role) {
+        case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
+            ble_gap_conn_master_failed(evt->status);
+            break;
+
+        case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
+            ble_gap_conn_slave_failed(evt->status);
+            break;
+
+        default:
+            assert(0);
+            break;
+        }
+
         return 0;
     }
-
-    /* XXX: Ensure device address is expected. */
-    /* XXX: Ensure event fields are acceptable. */
 
     conn = ble_hs_conn_alloc();
     if (conn == NULL) {
@@ -442,14 +541,23 @@ ble_gap_conn_adv_ack(struct ble_hci_ack *ack, void *arg)
     }
 }
 
+static void
+ble_gap_conn_adv_ack_enable(struct ble_hci_ack *ack, void *arg)
+{
+    if (ack->bha_status != BLE_ERR_SUCCESS) {
+        ble_gap_conn_slave_failed(ack->bha_status);
+    } else {
+        /* Advertising should now be active; put the FSM in the final state. */
+        ble_gap_conn_slave_state = BLE_GAP_CONN_S_STATE_MAX;
+    }
+}
+
 static int
 ble_gap_conn_adv_enable_tx(void *arg)
 {
     int rc;
 
-    assert(ble_gap_conn_slave_state == BLE_GAP_CONN_S_STATE_ENABLE);
-
-    ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);
+    ble_hci_ack_set_callback(ble_gap_conn_adv_ack_enable, NULL);
     rc = host_hci_cmd_le_set_adv_enable(1);
     if (rc != BLE_ERR_SUCCESS) {
         ble_gap_conn_slave_failed(rc);
@@ -464,8 +572,6 @@ ble_gap_conn_adv_rsp_data_tx(void *arg)
 {
     uint8_t rsp_data[BLE_HCI_MAX_SCAN_RSP_DATA_LEN] = { 0 }; /* XXX */
     int rc;
-
-    assert(ble_gap_conn_slave_state == BLE_GAP_CONN_S_STATE_RSP_DATA);
 
     ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);
     rc = host_hci_cmd_le_set_scan_rsp_data(rsp_data, sizeof rsp_data);
@@ -482,8 +588,6 @@ ble_gap_conn_adv_data_tx(void *arg)
 {
     uint8_t adv_data[BLE_HCI_MAX_ADV_DATA_LEN] = { 0 }; /* XXX */
     int rc;
-
-    assert(ble_gap_conn_slave_state == BLE_GAP_CONN_S_STATE_ADV_DATA);
 
     ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_data(adv_data, sizeof adv_data);
@@ -547,8 +651,6 @@ ble_gap_conn_adv_params_tx(void *arg)
     struct hci_adv_params hap;
     int rc;
 
-    assert(ble_gap_conn_slave_state == BLE_GAP_CONN_S_STATE_PARAMS);
-
     hap = ble_gap_conn_adv_params[ble_gap_conn_slave_mode];
     memcpy(hap.peer_addr, ble_gap_conn_slave_addr, sizeof hap.peer_addr);
 
@@ -569,9 +671,13 @@ ble_gap_conn_adv_initiate(void)
 
     assert(!ble_gap_conn_slave_in_progress());
 
-    ble_gap_conn_slave_state = BLE_GAP_CONN_S_STATE_PARAMS;
-
-    rc = ble_hci_sched_enqueue(ble_gap_conn_adv_params_tx, NULL);
+    if (ble_gap_conn_adv_is_directed(ble_gap_conn_slave_mode)) {
+        ble_gap_conn_slave_state = BLE_GAP_CONN_S_STATE_DIR_PARAMS;
+        rc = ble_hci_sched_enqueue(ble_gap_conn_adv_params_tx, NULL);
+    } else {
+        ble_gap_conn_slave_state = BLE_GAP_CONN_S_STATE_UND_PARAMS;
+        rc = ble_hci_sched_enqueue(ble_gap_conn_adv_params_tx, NULL);
+    }
     if (rc != 0) {
         ble_gap_conn_slave_reset_state();
         return rc;

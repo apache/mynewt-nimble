@@ -61,6 +61,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
@@ -103,6 +104,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc != 0);
@@ -144,13 +146,14 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
-    ble_hs_test_util_rx_adv_acks();
+    ble_hs_test_util_rx_dir_adv_acks();
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
@@ -194,13 +197,14 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc != 0);
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
     /* Receive necessary ack events. */
-    ble_hs_test_util_rx_adv_acks();
+    ble_hs_test_util_rx_dir_adv_acks();
 
     /* Receive failure connection complete event. */
     evt.status = BLE_ERR_UNSPECIFIED;
@@ -210,6 +214,55 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 }
 
+TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
+{
+    struct hci_le_conn_complete evt;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    ble_hs_test_util_init();
+
+    /* Ensure no current or pending connections. */
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_hs_conn_first() == NULL);
+
+    /* Initiate advertising. */
+    rc = ble_gap_conn_undirect_connectable();
+    TEST_ASSERT(rc == 0);
+
+    ble_hci_sched_wakeup();
+
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+
+    ble_hs_test_util_rx_und_adv_acks();
+
+    /* Receive successful connection complete event. */
+    memset(&evt, 0, sizeof evt);
+    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+    evt.status = BLE_ERR_SUCCESS;
+    evt.connection_handle = 2;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
+    memcpy(evt.peer_addr, addr, 6);
+    rc = ble_gap_conn_rx_conn_complete(&evt);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+
+    conn = ble_hs_conn_first();
+    TEST_ASSERT_FATAL(conn != NULL);
+    TEST_ASSERT(conn->bhc_handle == 2);
+    TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+    TEST_ASSERT(chan->blc_my_mtu == BLE_ATT_MTU_DFLT);
+    TEST_ASSERT(chan->blc_peer_mtu == 0);
+    TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
+}
 TEST_CASE(ble_hs_conn_test_completed_pkts)
 {
     struct ble_hs_conn *conn1;
@@ -281,6 +334,7 @@ TEST_SUITE(conn_suite)
     ble_hs_conn_test_direct_connect_hci_errors();
     ble_hs_conn_test_direct_connectable_success();
     ble_hs_conn_test_direct_connectable_hci_errors();
+    ble_hs_conn_test_undirect_connectable_success();
     ble_hs_conn_test_completed_pkts();
 }
 
