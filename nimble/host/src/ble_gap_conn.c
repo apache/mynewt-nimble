@@ -438,25 +438,6 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     }
 
     /* This event refers to a new connection. */
-    switch (evt->role) {
-    case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
-        rc = ble_gap_conn_accept_master_conn(evt->peer_addr_type,
-                                             evt->peer_addr);
-        break;
-
-    case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
-        rc = ble_gap_conn_accept_slave_conn(evt->peer_addr_type,
-                                            evt->peer_addr);
-        break;
-
-    default:
-        assert(0);
-        rc = -1;
-        break;
-    }
-    if (rc != 0) {
-        return BLE_HS_ENOENT;
-    }
 
     if (evt->status != BLE_ERR_SUCCESS) {
         switch (evt->role) {
@@ -474,6 +455,32 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
         }
 
         return 0;
+    }
+
+    switch (evt->role) {
+    case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
+        rc = ble_gap_conn_accept_master_conn(evt->peer_addr_type,
+                                             evt->peer_addr);
+        if (rc == 0) {
+            ble_gap_conn_master_reset_state();
+        } else {
+            return BLE_HS_ENOENT;
+        }
+        break;
+
+    case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
+        rc = ble_gap_conn_accept_slave_conn(evt->peer_addr_type,
+                                            evt->peer_addr);
+        if (rc == 0) {
+            ble_gap_conn_slave_reset_state();
+        } else {
+            return BLE_HS_ENOENT;
+        }
+        break;
+
+    default:
+        assert(0);
+        break;
     }
 
     conn = ble_hs_conn_alloc();
