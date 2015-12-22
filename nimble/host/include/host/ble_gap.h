@@ -84,5 +84,6 @@ int ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_conn_disc(uint32_t duration_ms, uint8_t discovery_mode);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_terminate(uint16_t handle);
+int ble_gap_conn_cancel(void);
 
 #endif

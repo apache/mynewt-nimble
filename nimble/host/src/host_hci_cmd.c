@@ -510,3 +510,13 @@ host_hci_cmd_read_adv_pwr(void)
                            NULL);
     return rc;
 }
+
+int
+host_hci_cmd_le_create_conn_cancel(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN_CANCEL,
+                           0, NULL);
+    return rc;
+}

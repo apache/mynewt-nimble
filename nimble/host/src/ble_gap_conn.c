@@ -1173,6 +1173,51 @@ ble_gap_conn_terminate(uint16_t handle)
 }
 
 /*****************************************************************************
+ * $cancel                                                                   *
+ *****************************************************************************/
+
+static void
+ble_gap_conn_cancel_ack(struct ble_hci_ack *ack, void *arg)
+{
+    if (ack->bha_status != 0) {
+        /* XXX: This may be ambiguous to the application. */
+        ble_gap_conn_notify_connect(BLE_HS_ECONTROLLER, NULL);
+    }
+}
+
+static int
+ble_gap_conn_cancel_tx(void *arg)
+{
+    int rc;
+
+    ble_hci_ack_set_callback(ble_gap_conn_cancel_ack, arg);
+
+    rc = host_hci_cmd_le_create_conn_cancel();
+    if (rc != 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int
+ble_gap_conn_cancel(void)
+{
+    int rc;
+
+    if (!ble_gap_conn_master_in_progress()) {
+        return BLE_HS_EALREADY;
+    }
+
+    rc = ble_hci_sched_enqueue(ble_gap_conn_cancel_tx, NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+/*****************************************************************************
  * $init                                                                     *
  *****************************************************************************/
 
