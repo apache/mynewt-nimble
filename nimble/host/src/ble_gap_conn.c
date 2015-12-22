@@ -680,17 +680,16 @@ ble_gap_conn_adv_data_tx(void *arg)
     /* Encode the flags AD field if it is nonzero. */
     adv_data_len = ble_gap_conn_adv_data_len;
     if (flags != 0) {
-        rc = ble_hs_adv_set_one_field(BLE_HS_ADV_TYPE_FLAGS, 1,
-                                      &flags, ble_gap_conn_adv_data,
-                                      &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
+                                 ble_gap_conn_adv_data, &adv_data_len,
+                                 BLE_HCI_MAX_ADV_DATA_LEN);
         assert(rc == 0);
     }
 
     /* Encode the transmit power AD field. */
-    rc = ble_hs_adv_set_one_field(BLE_HS_ADV_TYPE_TX_PWR_LEVEL, 1,
-                                  &ble_gap_conn_tx_pwr_lvl,
-                                  ble_gap_conn_adv_data,
-                                  &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
+    rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LEVEL, 1,
+                             &ble_gap_conn_tx_pwr_lvl, ble_gap_conn_adv_data,
+                             &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
     assert(rc == 0);
 
     ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);

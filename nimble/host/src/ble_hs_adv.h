@@ -30,23 +30,24 @@ struct ble_hs_adv {
 };
 
 #define BLE_HS_ADV_TYPE_FLAGS                   0x01
-#define BLE_HS_ADV_TYPE_INCOMP_16BIT_UUIDS      0x02
-#define BLE_HS_ADV_TYPE_COMP_16BIT_UUIDS        0x03
-#define BLE_HS_ADV_TYPE_INCOMP_32BIT_UUIDS      0x04
-#define BLE_HS_ADV_TYPE_COMP_32BIT_UUIDS        0x05
-#define BLE_HS_ADV_TYPE_INCOMP_128BIT_UUIDS     0x06
-#define BLE_HS_ADV_TYPE_COMP_128BIT_UUIDS       0x07
+#define BLE_HS_ADV_TYPE_INCOMP_UUIDS16          0x02
+#define BLE_HS_ADV_TYPE_COMP_UUIDS16            0x03
+#define BLE_HS_ADV_TYPE_INCOMP_UUIDS32          0x04
+#define BLE_HS_ADV_TYPE_COMP_UUIDS32            0x05
+#define BLE_HS_ADV_TYPE_INCOMP_UUIDS128         0x06
+#define BLE_HS_ADV_TYPE_COMP_UUIDS128           0x07
 #define BLE_HS_ADV_TYPE_INCOMP_NAME             0x08
 #define BLE_HS_ADV_TYPE_COMP_NAME               0x09
 #define BLE_HS_ADV_TYPE_TX_PWR_LEVEL            0x0a
 #define BLE_HS_ADV_TYPE_DEVICE_CLASS            0x0b
+#define BLE_HS_ADV_TYPE_LE_ROLE                 0x1c
 
 #define BLE_HS_ADV_FLAGS_LEN                    1
 #define BLE_HS_ADV_F_DISC_LTD                   0x01
 #define BLE_HS_ADV_F_DISC_GEN                   0x02
 
-int ble_hs_adv_set_one_field(uint8_t type, uint8_t data_len, void *data,
-                             uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
+int ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
+                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
 int ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
                           uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
 int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
