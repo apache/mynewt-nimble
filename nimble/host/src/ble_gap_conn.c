@@ -200,6 +200,17 @@ ble_gap_conn_notify_terminate(uint16_t handle, uint8_t status, uint8_t reason)
 }
 
 static void
+ble_gap_conn_notify_adv_done(uint8_t status)
+{
+    struct ble_gap_conn_event event;
+
+    event.type = BLE_GAP_CONN_EVENT_TYPE_ADV_DONE;
+    event.adv_done.status = status;
+
+    ble_gap_conn_call_cb(&event);
+}
+
+static void
 ble_gap_conn_master_reset_state(void)
 {
     ble_gap_conn_master_state = BLE_GAP_CONN_STATE_IDLE;
@@ -511,6 +522,55 @@ ble_gap_conn_slave_timer_exp(void *arg)
 }
 
 /*****************************************************************************
+ * $stop advertise                                                           *
+ *****************************************************************************/
+
+static void
+ble_gap_conn_adv_ack_disable(struct ble_hci_ack *ack, void *arg)
+{
+    if (ack->bha_status == BLE_ERR_SUCCESS) {
+        /* Advertising should now be aborted. */
+        ble_gap_conn_slave_reset_state();
+        ble_gap_conn_notify_adv_done(0);
+    }
+}
+
+static int
+ble_gap_conn_adv_disable_tx(void *arg)
+{
+    int rc;
+
+    ble_hci_ack_set_callback(ble_gap_conn_adv_ack_disable, NULL);
+    rc = host_hci_cmd_le_set_adv_enable(0);
+    if (rc != BLE_ERR_SUCCESS) {
+        ble_gap_conn_notify_adv_done(BLE_HS_ECONTROLLER);
+        return 1;
+    }
+
+    return 0;
+}
+
+static int
+ble_gap_conn_adv_stop(void)
+{
+    int rc;
+
+    /* Do nothing if advertising is already disabled. */
+    if (ble_gap_conn_s_conn_mode == BLE_GAP_CONN_MODE_NULL &&
+        ble_gap_conn_s_disc_mode == BLE_GAP_DISC_MODE_NULL) {
+
+        return BLE_HS_EALREADY;
+    }
+
+    rc = ble_hci_sched_enqueue(ble_gap_conn_adv_disable_tx, NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+/*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
 
@@ -786,6 +846,13 @@ ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
                        uint8_t *peer_addr, uint8_t peer_addr_type)
 {
     int rc;
+
+    if (discoverable_mode == BLE_GAP_DISC_MODE_NULL ||
+        connectable_mode == BLE_GAP_DISC_MODE_NULL) {
+
+        rc = ble_gap_conn_adv_stop();
+        return rc;
+    }
 
     if (discoverable_mode >= BLE_GAP_DISC_MODE_MAX ||
         connectable_mode >= BLE_GAP_CONN_MODE_MAX) {

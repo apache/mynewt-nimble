@@ -25,6 +25,7 @@ struct hci_le_conn_complete;
 #define BLE_GAP_CONN_EVENT_TYPE_ADV_RPT     2
 #define BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE   3
 #define BLE_GAP_CONN_EVENT_TYPE_TERMINATE   4
+#define BLE_GAP_CONN_EVENT_TYPE_ADV_DONE    5
 
 struct ble_gap_conn_connect_rpt {
     uint16_t handle;
@@ -49,6 +50,10 @@ struct ble_gap_conn_terminate_rpt {
     uint8_t reason;
 };
 
+struct ble_gap_conn_adv_done {
+    uint8_t status;
+};
+
 struct ble_gap_conn_event {
     uint8_t type;
 
@@ -56,6 +61,7 @@ struct ble_gap_conn_event {
         struct ble_gap_conn_connect_rpt conn;
         struct ble_gap_conn_adv_rpt adv;
         struct ble_gap_conn_terminate_rpt term;
+        struct ble_gap_conn_adv_done adv_done;
     };
 };
 

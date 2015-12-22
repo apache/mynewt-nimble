@@ -31,6 +31,7 @@
 #define BLE_HS_EBADDATA                 10
 #define BLE_HS_EOS                      11
 #define BLE_HS_ECONGESTED               12
+#define BLE_HS_ECONTROLLER              13
 
 struct ble_hs_cfg {
     uint16_t max_outstanding_pkts_per_conn;
