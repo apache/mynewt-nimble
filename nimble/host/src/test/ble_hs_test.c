@@ -32,6 +32,15 @@ ble_hs_test_pkt_txed(struct os_mbuf *om)
     os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ + BLE_L2CAP_HDR_SZ);
 }
 
+void
+ble_hs_test_hci_txed(uint8_t *cmdbuf)
+{
+    if (ble_hs_test_util_prev_hci_tx != NULL) {
+        os_memblock_put(&g_hci_cmd_pool, ble_hs_test_util_prev_hci_tx);
+    }
+    ble_hs_test_util_prev_hci_tx = cmdbuf;
+}
+
 #ifdef PKG_TEST
 
 int
@@ -52,6 +61,7 @@ main(void)
     ble_gatt_read_test_all();
     ble_gatt_write_test_all();
     ble_gatt_conn_test_all();
+    ble_hs_adv_test_all();
 
     return tu_any_failed;
 }

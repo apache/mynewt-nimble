@@ -17,9 +17,11 @@
 #ifndef H_HOST_TEST_
 #define H_HOST_TEST_
 
+#include <inttypes.h>
 struct os_mbuf;
 
 void ble_hs_test_pkt_txed(struct os_mbuf *om);
+void ble_hs_test_hci_txed(uint8_t *cmdbuf);
 
 int l2cap_test_all(void);
 int ble_att_svr_test_all(void);
@@ -33,5 +35,6 @@ int ble_gatt_disc_c_test_all(void);
 int ble_gatt_read_test_all(void);
 int ble_gatt_write_test_all(void);
 int ble_gatt_conn_test_all(void);
+int ble_hs_adv_test_all(void);
 
 #endif

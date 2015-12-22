@@ -236,8 +236,6 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
                                 NULL, 0);
     TEST_ASSERT(rc == 0);
 
-    ble_hci_sched_wakeup();
-
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 

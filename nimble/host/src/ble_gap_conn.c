@@ -654,8 +654,8 @@ ble_gap_conn_adv_rsp_data_tx(void *arg)
 static int
 ble_gap_conn_adv_data_tx(void *arg)
 {
+    uint8_t adv_data_len;
     uint8_t flags;
-    int adv_data_len;
     int rc;
 
     /* Calculate the value of the flags field from the discoverable mode. */
@@ -678,26 +678,20 @@ ble_gap_conn_adv_data_tx(void *arg)
     }
 
     /* Encode the flags AD field if it is nonzero. */
+    adv_data_len = ble_gap_conn_adv_data_len;
     if (flags != 0) {
-        adv_data_len = ble_gap_conn_adv_data_len + 3;
-        assert(adv_data_len <= BLE_HCI_MAX_ADV_DATA_LEN);
-
-        ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = 2;
-        ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] =
-            BLE_HS_ADV_TYPE_FLAGS;
-        ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 2] = flags;
-    } else {
-        adv_data_len = ble_gap_conn_adv_data_len;
+        rc = ble_hs_adv_set_one_field(BLE_HS_ADV_TYPE_FLAGS, 1,
+                                      &flags, ble_gap_conn_adv_data,
+                                      &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
+        assert(rc == 0);
     }
 
     /* Encode the transmit power AD field. */
-    adv_data_len = ble_gap_conn_adv_data_len + 3;
-    assert(adv_data_len <= BLE_HCI_MAX_ADV_DATA_LEN);
-    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = 2;
-    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] =
-        BLE_HS_ADV_TYPE_TX_PWR_LEVEL;
-    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 2] =
-        ble_gap_conn_tx_pwr_lvl;
+    rc = ble_hs_adv_set_one_field(BLE_HS_ADV_TYPE_TX_PWR_LEVEL, 1,
+                                  &ble_gap_conn_tx_pwr_lvl,
+                                  ble_gap_conn_adv_data,
+                                  &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
+    assert(rc == 0);
 
     ble_hci_ack_set_callback(ble_gap_conn_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_data(ble_gap_conn_adv_data, adv_data_len);

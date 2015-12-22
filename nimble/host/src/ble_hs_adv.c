@@ -20,7 +20,7 @@
 #include "ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
-static int
+int
 ble_hs_adv_set_one_field(uint8_t type, uint8_t data_len, void *data,
                          uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {

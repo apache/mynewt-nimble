@@ -45,6 +45,8 @@ struct ble_hs_adv {
 #define BLE_HS_ADV_F_DISC_LTD                   0x01
 #define BLE_HS_ADV_F_DISC_GEN                   0x02
 
+int ble_hs_adv_set_one_field(uint8_t type, uint8_t data_len, void *data,
+                             uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
 int ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
                           uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
 int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,

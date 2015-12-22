@@ -27,12 +27,15 @@
 #include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
+#ifdef PHONY_TRANSPORT
+#include "host/ble_hs_test.h"
+#endif
 
 static int
 host_hci_cmd_transport(uint8_t *cmdbuf)
 {
-#ifdef ARCH_sim
-    os_memblock_put(&g_hci_cmd_pool, cmdbuf);
+#ifdef PHONY_TRANSPORT
+    ble_hs_test_hci_txed(cmdbuf);
     return 0;
 #else
     return ble_hci_transport_host_cmd_send(cmdbuf);

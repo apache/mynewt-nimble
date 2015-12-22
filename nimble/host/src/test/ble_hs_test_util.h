@@ -22,6 +22,7 @@ struct ble_hs_conn;
 struct ble_l2cap_chan;
 
 extern struct os_mbuf *ble_hs_test_util_prev_tx;
+extern uint8_t *ble_hs_test_util_prev_hci_tx;
 
 struct ble_hs_test_util_num_completed_pkts_entry {
     uint16_t handle_id; /* 0 for terminating entry in array. */
@@ -52,6 +53,7 @@ void ble_hs_test_util_rx_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);
 void ble_hs_test_util_rx_und_adv_acks(void);
+void ble_hs_test_util_rx_und_adv_acks_count(int count);
 void ble_hs_test_util_rx_dir_adv_acks(void);
 void ble_hs_test_util_init(void);
 
