@@ -20,6 +20,15 @@
 #include <inttypes.h>
 struct ble_hs_adv_fields;
 
+struct ble_hs_adv {
+    uint8_t event_type;
+    uint8_t addr_type;
+    uint8_t length_data;
+    int8_t rssi;
+    uint8_t addr[6];
+    uint8_t *data;
+};
+
 #define BLE_HS_ADV_TYPE_FLAGS                   0x01
 #define BLE_HS_ADV_TYPE_INCOMP_16BIT_UUIDS      0x02
 #define BLE_HS_ADV_TYPE_COMP_16BIT_UUIDS        0x03
@@ -32,6 +41,7 @@ struct ble_hs_adv_fields;
 #define BLE_HS_ADV_TYPE_TX_PWR_LEVEL            0x0a
 #define BLE_HS_ADV_TYPE_DEVICE_CLASS            0x0b
 
+#define BLE_HS_ADV_FLAGS_LEN                    1
 #define BLE_HS_ADV_F_DISC_LTD                   0x01
 #define BLE_HS_ADV_F_DISC_GEN                   0x02
 

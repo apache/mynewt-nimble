@@ -71,11 +71,72 @@ ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
     return 0;
 }
 
+static int
+ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
+                           uint8_t *total_len, uint8_t *src, uint8_t src_len)
+{
+    uint8_t data_len;
+    uint8_t type;
+    uint8_t *data;
+
+    if (src_len < 1) {
+        return BLE_HS_EMSGSIZE;
+    }
+    *total_len = src[0] + 1;
+
+    if (src_len < *total_len) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    type = src[1];
+    data = src + 2;
+    data_len = *total_len - 2;
+
+    switch (type) {
+    case BLE_HS_ADV_TYPE_FLAGS:
+        if (data_len != BLE_HS_ADV_FLAGS_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->flags = *data;
+        break;
+
+    case BLE_HS_ADV_TYPE_INCOMP_NAME:
+        adv_fields->name = data;
+        adv_fields->name_len = data_len;
+        adv_fields->name_is_complete = 0;
+        break;
+
+    case BLE_HS_ADV_TYPE_COMP_NAME:
+        adv_fields->name = data;
+        adv_fields->name_len = data_len;
+        adv_fields->name_is_complete = 1;
+        break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
 int
 ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
                         uint8_t src_len)
 {
+    uint8_t field_len;
+    int rc;
+
     memset(adv_fields, 0, sizeof *adv_fields);
+
+    while (src_len > 0) {
+        rc = ble_hs_adv_parse_one_field(adv_fields, &field_len, src, src_len);
+        if (rc != 0) {
+            return rc;
+        }
+
+        src += field_len;
+        src_len -= field_len;
+    }
 
     return 0;
 }

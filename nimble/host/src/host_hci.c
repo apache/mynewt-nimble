@@ -29,6 +29,7 @@
 #include "ble_l2cap.h"
 #include "ble_hci_ack.h"
 #include "ble_gap_conn.h"
+#include "ble_hs_adv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
@@ -415,7 +416,7 @@ host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
 static int
 host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 {
-    struct ble_gap_conn_adv_rpt rpt;
+    struct ble_hs_adv adv;
     uint8_t num_reports;
     int rssi_off;
     int data_off;
@@ -431,25 +432,25 @@ host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
     data_off = 0;
     for (i = 0; i < num_reports; i++) {
         off = 2 + 0 * num_reports + i;
-        rpt.event_type = data[2 + 0 * num_reports + i];
+        adv.event_type = data[2 + 0 * num_reports + i];
 
         off = 2 + 1 * num_reports + i;
-        rpt.addr_type = data[2 + 1 * num_reports + i];
+        adv.addr_type = data[2 + 1 * num_reports + i];
 
         off = 2 + 2 * num_reports + i * 6;
-        memcpy(rpt.addr, data + off, 6);
+        memcpy(adv.addr, data + off, 6);
 
         off = 2 + 8 * num_reports + i;
-        rpt.length_data = data[off];
+        adv.length_data = data[off];
 
         off = 2 + 9 * num_reports + data_off;
-        rpt.data = data + off;
-        data_off += rpt.length_data;
+        adv.data = data + off;
+        data_off += adv.length_data;
 
         off = rssi_off + 1 * i;
-        rpt.rssi = data[off];
+        adv.rssi = data[off];
 
-        ble_gap_conn_rx_adv_report(&rpt);
+        ble_gap_conn_rx_adv_report(&adv);
     }
 
     return 0;

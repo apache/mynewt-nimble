@@ -18,8 +18,8 @@
 #define H_BLE_GAP_
 
 #include <inttypes.h>
+#include "host/ble_hs.h"
 struct hci_le_conn_complete;
-struct ble_hs_adv_fields;
 
 #define BLE_GAP_CONN_EVENT_TYPE_CONNECT     1
 #define BLE_GAP_CONN_EVENT_TYPE_ADV_RPT     2
@@ -39,6 +39,8 @@ struct ble_gap_conn_adv_rpt {
     int8_t rssi;
     uint8_t addr[6];
     uint8_t *data;
+
+    struct ble_hs_adv_fields fields;
 };
 
 struct ble_gap_conn_terminate_rpt {

@@ -39,7 +39,9 @@ struct ble_hs_cfg {
 extern struct ble_hs_cfg ble_hs_cfg;
 
 struct ble_hs_adv_fields {
-    char *name;
+    uint8_t flags;
+
+    uint8_t *name;
     uint8_t name_len;
     unsigned name_is_complete:1;
 };

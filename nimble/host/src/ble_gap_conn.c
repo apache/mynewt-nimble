@@ -368,20 +368,37 @@ ble_gap_conn_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
 }
 
 void
-ble_gap_conn_rx_adv_report(struct ble_gap_conn_adv_rpt *rpt)
+ble_gap_conn_rx_adv_report(struct ble_hs_adv *adv)
 {
     struct ble_gap_conn_event event;
+    int rc;
 
-    switch (ble_gap_conn_master_state) {
-    case BLE_GAP_CONN_M_STATE_DISC_ACKED:
-        event.type = BLE_GAP_CONN_EVENT_TYPE_ADV_RPT;
-        event.adv = *rpt;
-        ble_gap_conn_call_cb(&event);
-        break;
-
-    default:
-        break;
+    if (ble_gap_conn_master_state != BLE_GAP_CONN_M_STATE_DISC_ACKED) {
+        return;
     }
+
+    rc = ble_hs_adv_parse_fields(&event.adv.fields, adv->data,
+                                 adv->length_data);
+    if (rc != 0) {
+        /* XXX: Increment stat. */
+        return;
+    }
+
+    if (ble_gap_conn_m_disc_mode == BLE_GAP_DISC_MODE_LTD &&
+        !(event.adv.fields.flags & BLE_HS_ADV_F_DISC_LTD)) {
+
+        return;
+    }
+
+    event.type = BLE_GAP_CONN_EVENT_TYPE_ADV_RPT;
+    event.adv.event_type = adv->event_type;
+    event.adv.addr_type = adv->addr_type;
+    event.adv.length_data = adv->length_data;
+    event.adv.rssi = adv->rssi;
+    memcpy(event.adv.addr, adv->addr, sizeof event.adv.addr);
+    event.adv.data = adv->data;
+
+    ble_gap_conn_call_cb(&event);
 }
 
 /**
