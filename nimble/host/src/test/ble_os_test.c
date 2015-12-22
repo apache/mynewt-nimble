@@ -178,7 +178,7 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
 
     /* Initiate the general discovery procedure with a 200 ms timeout. */
-    ble_gap_conn_disc(200);
+    ble_gap_conn_disc(200, BLE_GAP_DISC_MODE_GEN);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
     TEST_ASSERT(!cb_called);

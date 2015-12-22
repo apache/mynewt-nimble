@@ -22,6 +22,7 @@
 #include "host/host_hci.h"
 #include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_adv.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_gatt_priv.h"
@@ -110,6 +111,7 @@ static ble_hci_sched_tx_fn * const
 
 static uint8_t ble_gap_conn_s_conn_mode;
 static uint8_t ble_gap_conn_s_disc_mode;
+static uint8_t ble_gap_conn_m_disc_mode;
 
 static struct hci_adv_params ble_gap_conn_adv_params;
 
@@ -579,11 +581,11 @@ ble_gap_conn_adv_data_tx(void *arg)
         break;
 
     case BLE_GAP_DISC_MODE_LTD:
-        flags |= BLE_GAP_CONN_AD_F_DISC_LTD;
+        flags |= BLE_HS_ADV_F_DISC_LTD;
         break;
 
     case BLE_GAP_DISC_MODE_GEN:
-        flags |= BLE_GAP_CONN_AD_F_DISC_GEN;
+        flags |= BLE_HS_ADV_F_DISC_GEN;
         break;
 
     default:
@@ -598,7 +600,7 @@ ble_gap_conn_adv_data_tx(void *arg)
 
         ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = 2;
         ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] =
-            BLE_GAP_CONN_AD_TYPE_FLAGS;
+            BLE_HS_ADV_TYPE_FLAGS;
         ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 2] = flags;
     } else {
         adv_data_len = ble_gap_conn_adv_data_len;
@@ -609,7 +611,7 @@ ble_gap_conn_adv_data_tx(void *arg)
     assert(adv_data_len <= BLE_HCI_MAX_ADV_DATA_LEN);
     ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = 2;
     ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] =
-        BLE_GAP_CONN_AD_TYPE_TX_PWR_LEVEL;
+        BLE_HS_ADV_TYPE_TX_PWR_LEVEL;
     ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 2] =
         ble_gap_conn_tx_pwr_lvl;
 
@@ -804,56 +806,16 @@ ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
     return 0;
 }
 
-static int
-ble_gap_conn_set_adv_field(uint8_t type, uint8_t data_len, void *data)
-{
-    int new_len;
-
-    new_len = ble_gap_conn_adv_data_len + 2 + data_len;
-    if (new_len > BLE_GAP_CONN_ADV_DATA_LIMIT) {
-        return BLE_HS_EMSGSIZE;
-    }
-
-    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len] = data_len + 1;
-    ble_gap_conn_adv_data[ble_gap_conn_adv_data_len + 1] = type;
-    memcpy(ble_gap_conn_adv_data + ble_gap_conn_adv_data_len + 2,
-           data, data_len);
-
-    ble_gap_conn_adv_data_len = new_len;
-
-    return 0;
-}
-
-/**
- * Sets the significant part of the data in outgoing advertisements.
- *
- * @return                      0 on success;  on failure.
- */
 int
-ble_gap_conn_set_adv_fields(struct ble_gap_conn_adv_fields *adv_fields)
+ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields)
 {
-    uint8_t type;
-    int name_len;
     int rc;
 
-    ble_gap_conn_adv_data_len = 0;
-
-    if (adv_fields->name != NULL) {
-        name_len = strlen(adv_fields->name);
-        if (name_len > UINT8_MAX) {
-            return BLE_HS_EINVAL;
-        }
-
-        if (adv_fields->name_is_complete) {
-            type = BLE_GAP_CONN_AD_TYPE_COMP_NAME;
-        } else {
-            type = BLE_GAP_CONN_AD_TYPE_INCOMP_NAME;
-        }
-
-        rc = ble_gap_conn_set_adv_field(type, name_len, adv_fields->name);
-        if (rc != 0) {
-            return rc;
-        }
+    rc = ble_hs_adv_set_fields(adv_fields, ble_gap_conn_adv_data,
+                               &ble_gap_conn_adv_data_len,
+                               BLE_GAP_CONN_ADV_DATA_LIMIT);
+    if (rc != 0) {
+        return rc;
     }
 
     return 0;
@@ -934,15 +896,21 @@ ble_gap_conn_disc_tx_params(void *arg)
 }
 
 /**
- * Performs the General Discovery Procedure, as described in
- * vol. 3, part C, section 9.2.6.
+ * Performs the Limited or General Discovery Procedures, as described in
+ * vol. 3, part C, section 9.2.5 / 9.2.6.
  *
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_conn_disc(uint32_t duration_ms)
+ble_gap_conn_disc(uint32_t duration_ms, uint8_t discovery_mode)
 {
     int rc;
+
+    if (discovery_mode != BLE_GAP_DISC_MODE_LTD &&
+        discovery_mode != BLE_GAP_DISC_MODE_GEN) {
+
+        return BLE_HS_EINVAL;
+    }
 
     /* Make sure no master connection attempt is already in progress. */
     if (ble_gap_conn_master_in_progress()) {
@@ -955,6 +923,8 @@ ble_gap_conn_disc(uint32_t duration_ms)
 
     ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_DISC_PARAMS;
     memset(ble_gap_conn_master_addr, 0, BLE_DEV_ADDR_LEN);
+
+    ble_gap_conn_m_disc_mode = discovery_mode;
 
     rc = ble_hci_sched_enqueue(ble_gap_conn_disc_tx_params, NULL);
     if (rc != 0) {
