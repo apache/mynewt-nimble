@@ -77,7 +77,7 @@ void ble_gap_conn_set_cb(ble_gap_connect_fn *cb, void *arg);
 int ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type);
 int ble_gap_conn_set_adv_fields(struct ble_gap_conn_adv_fields *adv_fields);
-int ble_gap_conn_gen_disc(uint32_t duration_ms);
+int ble_gap_conn_disc(uint32_t duration_ms);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_terminate(uint16_t handle);
 

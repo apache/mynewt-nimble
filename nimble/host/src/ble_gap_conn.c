@@ -30,16 +30,14 @@
 #define BLE_GAP_CONN_STATE_IDLE                             UINT8_MAX
 
 /** General discovery master states. */
-#define BLE_GAP_CONN_M_STATE_GEN_DISC_PENDING               0
-#define BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS                1
-#define BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS_ACKED          2
-#define BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE                3
-#define BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE_ACKED          4
+#define BLE_GAP_CONN_M_STATE_DISC_PARAMS                    0
+#define BLE_GAP_CONN_M_STATE_DISC_ENABLE                    1
+#define BLE_GAP_CONN_M_STATE_DISC_ACKED                     2
 
 /** General discovery master states. */
-#define BLE_GAP_CONN_M_STATE_DIRECT_PENDING                 5
-#define BLE_GAP_CONN_M_STATE_DIRECT_UNACKED                 6
-#define BLE_GAP_CONN_M_STATE_DIRECT_ACKED                   7
+#define BLE_GAP_CONN_M_STATE_DIRECT_PENDING                 3
+#define BLE_GAP_CONN_M_STATE_DIRECT_UNACKED                 4
+#define BLE_GAP_CONN_M_STATE_DIRECT_ACKED                   5
 
 /** Undirected slave states. */
 #define BLE_GAP_CONN_S_STATE_UND_PARAMS                     0
@@ -231,11 +229,8 @@ ble_gap_conn_master_failed(uint8_t status)
     ble_gap_conn_master_reset_state();
 
     switch (old_state) {
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_PENDING:
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS:
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS_ACKED:
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE:
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE_ACKED:
+    case BLE_GAP_CONN_M_STATE_DISC_PARAMS:
+    case BLE_GAP_CONN_M_STATE_DISC_ACKED:
         event.type = BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE;
         ble_gap_conn_call_cb(&event);
         break;
@@ -376,7 +371,7 @@ ble_gap_conn_rx_adv_report(struct ble_gap_conn_adv_rpt *rpt)
     struct ble_gap_conn_event event;
 
     switch (ble_gap_conn_master_state) {
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE_ACKED:
+    case BLE_GAP_CONN_M_STATE_DISC_ACKED:
         event.type = BLE_GAP_CONN_EVENT_TYPE_ADV_RPT;
         event.adv = *rpt;
         ble_gap_conn_call_cb(&event);
@@ -476,7 +471,7 @@ ble_gap_conn_master_timer_exp(void *arg)
     assert(ble_gap_conn_master_in_progress());
 
     switch (ble_gap_conn_master_state) {
-    case BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE_ACKED:
+    case BLE_GAP_CONN_M_STATE_DISC_ACKED:
         /* When a discovery procedure times out, it is not a failure. */
         status = 0;
         break;
@@ -869,28 +864,25 @@ ble_gap_conn_set_adv_fields(struct ble_gap_conn_adv_fields *adv_fields)
  *****************************************************************************/
 
 static void
-ble_gap_conn_gen_disc_ack_enable(struct ble_hci_ack *ack, void *arg)
+ble_gap_conn_disc_ack_enable(struct ble_hci_ack *ack, void *arg)
 {
-    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE);
+    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_DISC_ENABLE);
 
     if (ack->bha_status != 0) {
         ble_gap_conn_master_failed(ack->bha_status);
     } else {
-        ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE_ACKED;
+        ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_DISC_ACKED;
     }
 }
 
 static int
-ble_gap_conn_gen_disc_tx_enable(void *arg)
+ble_gap_conn_disc_tx_enable(void *arg)
 {
     int rc;
 
-    assert(ble_gap_conn_master_state ==
-           BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS_ACKED);
+    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_DISC_ENABLE);
 
-    ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_GEN_DISC_ENABLE;
-    ble_hci_ack_set_callback(ble_gap_conn_gen_disc_ack_enable, NULL);
-
+    ble_hci_ack_set_callback(ble_gap_conn_disc_ack_enable, NULL);
     rc = host_hci_cmd_le_set_scan_enable(1, 0);
     if (rc != 0) {
         ble_gap_conn_master_failed(rc);
@@ -901,20 +893,19 @@ ble_gap_conn_gen_disc_tx_enable(void *arg)
 }
 
 static void
-ble_gap_conn_gen_disc_ack_params(struct ble_hci_ack *ack, void *arg)
+ble_gap_conn_disc_ack_params(struct ble_hci_ack *ack, void *arg)
 {
     int rc;
 
-    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS);
+    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_DISC_PARAMS);
 
     if (ack->bha_status != 0) {
         ble_gap_conn_master_failed(ack->bha_status);
         return;
     }
 
-    ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS_ACKED;
-
-    rc = ble_hci_sched_enqueue(ble_gap_conn_gen_disc_tx_enable, NULL);
+    ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_DISC_ENABLE;
+    rc = ble_hci_sched_enqueue(ble_gap_conn_disc_tx_enable, NULL);
     if (rc != 0) {
         ble_gap_conn_master_failed(rc);
         return;
@@ -922,15 +913,13 @@ ble_gap_conn_gen_disc_ack_params(struct ble_hci_ack *ack, void *arg)
 }
 
 static int
-ble_gap_conn_gen_disc_tx_params(void *arg)
+ble_gap_conn_disc_tx_params(void *arg)
 {
     int rc;
 
-    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_GEN_DISC_PENDING);
+    assert(ble_gap_conn_master_state == BLE_GAP_CONN_M_STATE_DISC_PARAMS);
 
-    ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_GEN_DISC_PARAMS;
-    ble_hci_ack_set_callback(ble_gap_conn_gen_disc_ack_params, NULL);
-
+    ble_hci_ack_set_callback(ble_gap_conn_disc_ack_params, NULL);
     rc = host_hci_cmd_le_set_scan_params(BLE_HCI_SCAN_TYPE_ACTIVE,
                                          BLE_GAP_SCAN_FAST_INTERVAL_MIN,
                                          BLE_GAP_SCAN_FAST_WINDOW,
@@ -951,7 +940,7 @@ ble_gap_conn_gen_disc_tx_params(void *arg)
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_conn_gen_disc(uint32_t duration_ms)
+ble_gap_conn_disc(uint32_t duration_ms)
 {
     int rc;
 
@@ -964,10 +953,10 @@ ble_gap_conn_gen_disc(uint32_t duration_ms)
         duration_ms = BLE_GAP_GEN_DISC_SCAN_MIN;
     }
 
-    ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_GEN_DISC_PENDING;
+    ble_gap_conn_master_state = BLE_GAP_CONN_M_STATE_DISC_PARAMS;
     memset(ble_gap_conn_master_addr, 0, BLE_DEV_ADDR_LEN);
 
-    rc = ble_hci_sched_enqueue(ble_gap_conn_gen_disc_tx_params, NULL);
+    rc = ble_hci_sched_enqueue(ble_gap_conn_disc_tx_params, NULL);
     if (rc != 0) {
         ble_gap_conn_master_reset_state();
         return rc;
