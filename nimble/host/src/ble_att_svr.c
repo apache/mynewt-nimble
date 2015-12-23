@@ -961,14 +961,16 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint8_t *dptr;
+    int entry_written;
     int txomlen;
     int prev_attr_len;
     int attr_len;
     int rc;
 
     *att_err = 0;    /* Silence unnecessary warning. */
-    *err_handle = 0; /* Silence unnecessary warning. */
 
+    *err_handle = req->batq_start_handle;
+    entry_written = 0;
     prev_attr_len = 0;
 
     txom = ble_att_get_pkthdr();
@@ -1006,9 +1008,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             break;
         }
 
-        if (entry->ha_handle_id >= req->batq_start_handle &&
-            entry->ha_handle_id <= req->batq_end_handle) {
-
+        if (entry->ha_handle_id >= req->batq_start_handle) {
             rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
                               BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
             if (rc != 0) {
@@ -1044,11 +1044,12 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
 
             htole16(dptr + 0, entry->ha_handle_id);
             memcpy(dptr + 2, arg.ahc_read.attr_data, attr_len);
+            entry_written = 1;
         }
     }
 
 done:
-    if (OS_MBUF_PKTLEN(txom) == 0) {
+    if (!entry_written) {
         /* No matching attributes. */
         if (*att_err == 0) {
             *att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
@@ -1097,6 +1098,15 @@ ble_att_svr_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     rc = ble_att_read_type_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     assert(rc == 0);
+
+    if (req.batq_start_handle > req.batq_end_handle ||
+        req.batq_start_handle == 0) {
+
+        att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        err_handle = req.batq_start_handle;
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
 
     switch ((*rxom)->om_len) {
     case BLE_ATT_READ_TYPE_REQ_SZ_16:
