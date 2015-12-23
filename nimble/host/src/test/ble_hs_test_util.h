@@ -48,7 +48,7 @@ int ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                            const void *data, int len);
 void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 void ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
-                                     uint8_t error_code);
+                                     uint8_t error_code, uint16_t err_handle);
 void ble_hs_test_util_rx_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);

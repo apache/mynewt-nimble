@@ -180,7 +180,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
 
 void
 ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
-                                uint8_t error_code)
+                                uint8_t error_code, uint16_t err_handle)
 {
     struct ble_att_error_rsp rsp;
     struct ble_l2cap_chan *chan;
@@ -188,7 +188,7 @@ ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
     int rc;
 
     rsp.baep_req_op = req_op;
-    rsp.baep_handle = conn->bhc_handle;
+    rsp.baep_handle = err_handle;
     rsp.baep_error_code = error_code;
 
     rc = ble_att_error_rsp_write(buf, sizeof buf, &rsp);

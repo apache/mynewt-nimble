@@ -41,17 +41,14 @@ struct ble_gatt_chr {
     uint8_t uuid128[16];
 };
 
-typedef int ble_gatt_disc_service_fn(uint16_t conn_handle,
-                                     uint8_t ble_hs_status, uint8_t att_status,
+typedef int ble_gatt_disc_service_fn(uint16_t conn_handle, int status,
                                      struct ble_gatt_service *service,
                                      void *arg);
-typedef int ble_gatt_attr_fn(uint16_t conn_handle, uint8_t ble_hs_status,
-                             uint8_t att_status, struct ble_gatt_attr *attr,
-                             void *arg);
+typedef int ble_gatt_attr_fn(uint16_t conn_handle, int status,
+                             struct ble_gatt_attr *attr, void *arg);
 
-typedef int ble_gatt_chr_fn(uint16_t conn_handle, uint8_t ble_hs_status,
-                            uint8_t att_status, struct ble_gatt_chr *chr,
-                            void *arg);
+typedef int ble_gatt_chr_fn(uint16_t conn_handle, int status,
+                            struct ble_gatt_chr *chr, void *arg);
 
 int ble_gatt_disc_all_services(uint16_t conn_handle,
                                ble_gatt_disc_service_fn *cb,

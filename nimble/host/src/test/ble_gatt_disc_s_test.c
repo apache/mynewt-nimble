@@ -126,11 +126,12 @@ ble_gatt_disc_s_test_misc_rx_all_rsp(
         idx += count;
     }
 
-    if (services[idx - 1].start_handle != 0xffff) {
+    if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
         ble_gatt_wakeup();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_GROUP_TYPE_REQ,
-                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
+                                        BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                        services[idx - 1].start_handle);
     }
 }
 
@@ -185,11 +186,12 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp(
         idx += count;
     }
 
-    if (services[idx - 1].start_handle != 0xffff) {
+    if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
         ble_gatt_wakeup();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
-                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
+                                        BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                        services[idx - 1].start_handle);
     }
 }
 
@@ -221,11 +223,10 @@ ble_gatt_disc_s_test_misc_verify_services(
 }
 
 static int
-ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle, uint8_t ble_hs_status,
-                                  uint8_t att_status,
+ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle, int status,
                                   struct ble_gatt_service *service, void *arg)
 {
-    TEST_ASSERT(ble_hs_status == 0 && att_status == 0);
+    TEST_ASSERT(status == 0);
     TEST_ASSERT(!ble_gatt_disc_s_test_rx_complete);
 
     if (service == NULL) {

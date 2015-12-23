@@ -18,6 +18,7 @@
 #define H_BLE_HS_
 
 #include <inttypes.h>
+#include "host/ble_att.h"
 
 #define BLE_HS_EAGAIN                   1
 #define BLE_HS_EALREADY                 2
@@ -27,11 +28,25 @@
 #define BLE_HS_ENOMEM                   6
 #define BLE_HS_ENOTCONN                 7
 #define BLE_HS_ENOTSUP                  8
-#define BLE_HS_EATT                     9
+#define BLE_HS_EAPP                     9
 #define BLE_HS_EBADDATA                 10
 #define BLE_HS_EOS                      11
 #define BLE_HS_ECONGESTED               12
 #define BLE_HS_ECONTROLLER              13
+
+#define BLE_HS_ERR_ATT_BASE             0x100   /* 256 */
+#define ATT_ERR(att_code)               (BLE_HS_ERR_ATT_BASE + (att_code))
+
+#define BLE_HS_EATT_INVALID_HANDLE      ATT_ERR(BLE_ATT_ERR_INVALID_HANDLE)
+#define BLE_HS_EATT_INVALID_PDU         ATT_ERR(BLE_ATT_ERR_INVALID_PDU)
+#define BLE_HS_EATT_REQ_NOT_SUPPORTED   ATT_ERR(BLE_ATT_ERR_REQ_NOT_SUPPORTED)
+#define BLE_HS_EATT_INVALID_OFFSET      ATT_ERR(BLE_ATT_ERR_INVALID_OFFSET)
+#define BLE_HS_EATT_PREPARE_QUEUE_FULL  ATT_ERR(BLE_ATT_ERR_PREPARE_QUEUE_FULL)
+#define BLE_HS_EATT_ATTR_NOT_FOUND      ATT_ERR(BLE_ATT_ERR_ATTR_NOT_FOUND)
+#define BLE_HS_EATT_ATTR_VALUE_LEN      ATT_ERR(BLE_ATT_ERR_ATTR_LEN)
+#define BLE_HS_EATT_UNLIKELY            ATT_ERR(BLE_ATT_ERR_UNLIKELY)
+#define BLE_HS_EATT_UNSUPPORTED_GROUP   ATT_ERR(BLE_ATT_ERR_UNSUPPORTED_GROUP)
+#define BLE_HS_EATT_INSUFFICIENT_RES    ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_RES)
 
 struct ble_hs_cfg {
     uint16_t max_outstanding_pkts_per_conn;

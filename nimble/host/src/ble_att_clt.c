@@ -109,9 +109,7 @@ ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
     }
 
     rc = ble_att_mtu_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
@@ -139,9 +137,7 @@ ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
-    if (rc != 0) {
-        return rc;
-    }
+    assert(rc == 0);
 
     ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
 
@@ -167,16 +163,13 @@ ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
-                                 BLE_ATT_FIND_INFO_REQ_SZ);
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_FIND_INFO_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
 
     rc = ble_att_find_info_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
@@ -208,15 +201,15 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return BLE_HS_ENOMEM;
     }
 
-    rc = ble_att_find_info_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
-    if (rc != 0) {
-        return rc;
-    }
+    /* Double indirection is unwieldy; use rxom for remainder of function. */
     rxom = *om;
+
+    rc = ble_att_find_info_rsp_parse(rxom->om_data, rxom->om_len, &rsp);
+    assert(rc == 0);
 
     handle_id = 0;
     off = BLE_ATT_FIND_INFO_RSP_BASE_SZ;
-    while (off < OS_MBUF_PKTHDR(rxom)->omp_len) {
+    while (off < OS_MBUF_PKTLEN(rxom)) {
         rc = os_mbuf_copydata(rxom, off, 2, &handle_id);
         if (rc != 0) {
             return BLE_HS_EINVAL;
@@ -250,6 +243,8 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         default:
             return BLE_HS_EINVAL;
         }
+
+        /* XXX: Notify GATT of handle-uuid pair. */
     }
 
     return 0;
@@ -280,9 +275,7 @@ ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
     }
 
     rc = ble_att_read_type_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     rc = ble_hs_uuid_append(txom, uuid128);
     if (rc != 0) {
@@ -338,9 +331,7 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     rc = ble_att_read_type_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &rsp);
-    if (rc != 0) {
-        goto done;
-    }
+    assert(rc == 0);
 
     /* Strip the base from the front of the response. */
     os_mbuf_adj(*rxom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
@@ -385,9 +376,7 @@ ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
     }
 
     rc = ble_att_read_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
@@ -421,7 +410,7 @@ ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     /* Pass the Attribute Value field to the GATT. */
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
-        rc = BLE_HS_EMSGSIZE;
+        rc = BLE_HS_EBADDATA;
         goto done;
     }
 
@@ -460,9 +449,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
     }
 
     rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     rc = ble_hs_uuid_append(txom, uuid128);
     if (rc != 0) {
@@ -520,14 +507,12 @@ ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
 
     rc = ble_att_read_group_type_rsp_parse((*rxom)->om_data, (*rxom)->om_len,
                                            &rsp);
-    if (rc != 0) {
-        goto done;
-    }
+    assert(rc == 0);
 
     /* Strip the base from the front of the response. */
     os_mbuf_adj(*rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
 
-    /* Parse the Attribute Data List field, passing each entry to the GATT. */
+    /* Parse the Attribute Data List field, passing each entry to GATT. */
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
         rc = ble_att_clt_parse_group_attribute_data(rxom, rsp.bagp_length,
                                                     &adata);
@@ -571,9 +556,7 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
     }
 
     rc = ble_att_find_type_value_req_write(txom->om_data, txom->om_len, req);
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     rc = os_mbuf_append(txom, attribute_value, value_len);
     if (rc != 0) {
@@ -625,9 +608,7 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
      */
     os_mbuf_adj(*rxom, BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ);
 
-    /* Parse the Handles Information List field, passing each entry to the
-     * GATT.
-     */
+    /* Parse the Handles Information List field, passing each entry to GATT. */
     rc = 0;
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
         rc = ble_att_clt_parse_handles_info(rxom, &adata);
@@ -669,9 +650,7 @@ ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
     } else {
         rc = ble_att_write_cmd_write(txom->om_data, txom->om_len, req);
     }
-    if (rc != 0) {
-        goto err;
-    }
+    assert(rc == 0);
 
     mtu = ble_l2cap_chan_mtu(chan);
     extra_len = BLE_ATT_WRITE_REQ_BASE_SZ + value_len - mtu;

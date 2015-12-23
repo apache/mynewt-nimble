@@ -39,13 +39,11 @@ ble_gatt_write_test_init(void)
 }
 
 static int
-ble_gatt_write_test_cb(uint16_t conn_handle, uint8_t ble_hs_status,
-                       uint8_t att_status, struct ble_gatt_attr *attr,
-                       void *arg)
+ble_gatt_write_test_cb(uint16_t conn_handle, int status,
+                       struct ble_gatt_attr *attr, void *arg)
 {
     TEST_ASSERT(conn_handle == 2);
-    TEST_ASSERT(ble_hs_status == 0);
-    TEST_ASSERT(att_status == 0);
+    TEST_ASSERT(status == 0);
     TEST_ASSERT(attr->handle == 100);
     TEST_ASSERT(attr->value_len == sizeof ble_gatt_write_test_attr_value);
     TEST_ASSERT(attr->value == ble_gatt_write_test_attr_value);

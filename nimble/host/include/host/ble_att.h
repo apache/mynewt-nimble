@@ -17,6 +17,8 @@
 #ifndef H_BLE_ATT_
 #define H_BLE_ATT_
 
+#include "os/queue.h"
+
 #define BLE_ATT_UUID_PRIMARY_SERVICE        0x2800
 #define BLE_ATT_UUID_SECONDARY_SERVICE      0x2801
 #define BLE_ATT_UUID_INCLUDE                0x2802

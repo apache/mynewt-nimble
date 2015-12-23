@@ -136,7 +136,8 @@ ble_gatt_disc_c_test_misc_rx_all_rsp(struct ble_hs_conn *conn,
         /* Send the pending ATT Request. */
         ble_gatt_wakeup();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
-                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
+                                        BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                        chars[idx - 1].decl_handle);
     }
 }
 
@@ -166,13 +167,12 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars)
 }
 
 static int
-ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, uint8_t ble_hs_status,
-                             uint8_t att_status, struct ble_gatt_chr *chr,
-                             void *arg)
+ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, int status,
+                             struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_chr *dst;
 
-    TEST_ASSERT(ble_hs_status == 0 && att_status == 0);
+    TEST_ASSERT(status == 0);
     TEST_ASSERT(!ble_gatt_disc_c_test_rx_complete);
 
     if (chr == NULL) {
