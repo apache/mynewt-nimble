@@ -54,8 +54,11 @@ struct ble_phy_obj
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
+    uint8_t phy_rx_started;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
+    void *txend_arg;
+    ble_phy_tx_end_func txend_cb;
 };
 struct ble_phy_obj g_ble_phy_data;
 
@@ -156,6 +159,7 @@ ble_phy_isr(void)
     uint8_t transition;
     uint32_t irq_en;
     uint32_t state;
+    uint32_t wfr_time;
     uint32_t shortcuts;
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
@@ -181,6 +185,9 @@ ble_phy_isr(void)
             /* Debug check to make sure we go from tx to rx */
             assert((shortcuts & RADIO_SHORTS_DISABLED_RXEN_Msk) != 0);
 
+            /* Clear the rx started flag */
+            g_ble_phy_data.phy_rx_started = 0;
+
             /* Packet pointer needs to be reset. */
             if (g_ble_phy_data.rxpdu != NULL) {
                 NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
@@ -201,12 +208,26 @@ ble_phy_isr(void)
                 g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
             } else {
                 /* Disable the phy */
-                /* XXX: count no bufs? */
+                ++g_ble_phy_stats.no_bufs;
                 ble_phy_disable();
             }
+
+            /* 
+             * Enable the wait for response timer. Note that cc #2 on
+             * timer 0 contains the transmit end time
+             */ 
+            wfr_time = NRF_TIMER0->CC[2];
+            wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
+            ble_ll_wfr_enable(wfr_time);
+
         } else {
             /* Better not be going from rx to tx! */
             assert(transition == BLE_PHY_TRANSITION_NONE);
+        }
+
+        /* Call transmit end callback */
+        if (g_ble_phy_data.txend_cb) {
+            g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
         }
     }
 
@@ -236,9 +257,15 @@ ble_phy_isr(void)
             }
         }
 
+        /* Initialize flags and channel in ble header at rx start */
+        ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
+        ble_hdr->flags = 0;
+        ble_hdr->channel = g_ble_phy_data.phy_chan;
+
         /* Call Link Layer receive start function */
         rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
         if (rc >= 0) {
+            g_ble_phy_data.phy_rx_started = 1;
             if (rc > 0) {
                 /* We need to go from disabled to TXEN */
                 NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
@@ -268,13 +295,12 @@ ble_phy_isr(void)
         NRF_RADIO->EVENTS_END = 0;
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_END_Msk;
 
-        /* Construct BLE header before handing up */
+        /* Set RSSI and CRC status flag in header */
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
-        ble_hdr->flags = 0;
         assert(NRF_RADIO->EVENTS_RSSIEND != 0);
         ble_hdr->rssi = -1 * NRF_RADIO->RSSISAMPLE;
-        ble_hdr->channel = g_ble_phy_data.phy_chan;
         ble_hdr->crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
+        ble_hdr->end_cputime = NRF_TIMER0->CC[2];
 
         /* Count PHY crc errors and valid packets */
         if (ble_hdr->crcok == 0) {
@@ -359,6 +385,12 @@ ble_phy_init(void)
     /* Configure IFS */
     NRF_RADIO->TIFS = BLE_LL_IFS;
 
+    /* 
+     * Enable the pre-programmed PPI to capture the time when a receive
+     * or transmit ends
+     */ 
+    NRF_PPI->CHENSET = PPI_CHEN_CH27_Msk;
+
     /* Set isr in vector table and enable interrupt */
     NVIC_SetPriority(RADIO_IRQn, 0);
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
@@ -407,6 +439,9 @@ ble_phy_rx(void)
 
     NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
 
+    /* Reset the rx started flag. Used for the wait for response */
+    g_ble_phy_data.phy_rx_started = 0;
+
     /* Start the receive task in the radio */
     NRF_RADIO->TASKS_RXEN = 1;
 
@@ -416,7 +451,8 @@ ble_phy_rx(void)
 }
 
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
+ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
+           ble_phy_tx_end_func txend_cb, void *arg)
 {
     int rc;
     uint32_t state;
@@ -460,9 +496,13 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
         if (ble_phy_rxpdu_get()) {
             shortcuts |= RADIO_SHORTS_DISABLED_RXEN_Msk;
         }
-        NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     }
+    NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     NRF_RADIO->SHORTS = shortcuts;
+
+    /* Set transmit end callback and arg */
+    g_ble_phy_data.txend_cb = txend_cb;
+    g_ble_phy_data.txend_arg = arg;
 
     /* Trigger transmit if our state was disabled */
     if (state == RADIO_STATE_STATE_Disabled) {
@@ -657,3 +697,15 @@ ble_phy_state_get(void)
     /* XXX: should we read actual hardware */
     return g_ble_phy_data.phy_state;
 }
+
+/**
+ * Called to see if a reception has started 
+ * 
+ * @return int 
+ */
+int
+ble_phy_rx_started(void)
+{
+    return g_ble_phy_data.phy_rx_started;
+}
+

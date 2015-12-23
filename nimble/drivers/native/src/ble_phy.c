@@ -28,8 +28,11 @@ struct ble_phy_obj
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
+    uint8_t phy_rx_started;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
+    void *txend_arg;
+    ble_phy_tx_end_func txend_cb;
 };
 struct ble_phy_obj g_ble_phy_data;
 
@@ -240,7 +243,8 @@ ble_phy_rx(void)
 }
 
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
+ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
+           ble_phy_tx_end_func txend_cb, void *arg)
 {
     int rc;
     uint32_t state;
@@ -401,3 +405,13 @@ ble_phy_state_get(void)
     return g_ble_phy_data.phy_state;
 }
 
+/**
+ * Called to see if a reception has started 
+ * 
+ * @return int 
+ */
+int
+ble_phy_rx_started(void)
+{
+    return g_ble_phy_data.phy_rx_started;
+}

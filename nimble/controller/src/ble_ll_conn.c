@@ -69,11 +69,14 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 
 /* 
  * The amount of time that we will wait to hear the start of a receive
- * packet in a connection event.
+ * packet after we have transmitted a packet. This time is at least
+ * an IFS time plus the time to receive the preamble and access address. We
+ * add an additional 32 usecs just to be safe.
  * 
- * XXX: move this definition and make it more accurate.
+ * XXX: move this definition and figure out how we determine the worst-case
+ * jitter (spec. should have this).
  */
-#define BLE_LL_WFR_USECS                    (100)
+#define BLE_LL_WFR_USECS    (BLE_LL_IFS + 40 + 32)
 
 /* Configuration parameters */
 #define BLE_LL_CONN_CFG_TX_WIN_SIZE         (1)
@@ -448,20 +451,18 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
 }
 
 /**
- * Callback for connection wait for response timer. 
+ * Called when we are in the connection state and the wait for response timer
+ * fires off.
  *  
  * Context: Interrupt 
- *
- * @param sch 
- * 
  */
-static void
-ble_ll_conn_wfr_timer_exp(void *arg)
+void
+ble_ll_conn_wfr_timer_exp(void)
 {
     struct ble_ll_conn_sm *connsm;
 
-    connsm = (struct ble_ll_conn_sm *)arg;
-    if (connsm->rsp_rxd == 0) {
+    connsm = g_ble_ll_conn_cur_sm;
+    if (connsm) {
         ble_ll_event_send(&connsm->conn_ev_end);
         ++g_ble_ll_conn_stats.wfr_expirations;
     }
@@ -502,12 +503,12 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     uint8_t md;
     uint8_t hdr_byte;
     uint8_t end_transition;
-    uint32_t wfr_time;
     uint32_t ticks;
     struct os_mbuf *m;
     struct ble_mbuf_hdr *ble_hdr;
     struct os_mbuf_pkthdr *pkthdr;
     struct os_mbuf_pkthdr *nextpkthdr;
+    ble_phy_tx_end_func txend_func;
 
     /*
      * Get packet off transmit queue. If not available, send empty PDU. Set
@@ -533,8 +534,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
                  * received a frame and we are replying to it.
                  */ 
                 ticks = (BLE_LL_IFS * 4) + (2 * connsm->eff_max_rx_time) +
-                    ble_ll_pdu_tx_time_get(pkthdr->omp_len) + 
-                    ble_ll_pdu_tx_time_get(nextpkthdr->omp_len);
+                    BLE_TX_DUR_USECS_M(pkthdr->omp_len) + 
+                    BLE_TX_DUR_USECS_M(nextpkthdr->omp_len);
                 ticks = cputime_usecs_to_ticks(ticks);
                 if ((cputime_get32() + ticks) >= connsm->ce_end_time) {
                     md = 0;
@@ -594,46 +595,27 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * received a valid frame with the more data bit set to 0 and we dont
      * have more data.
      */
-    if (connsm->terminate_ind_rxd) {
+    if ((connsm->terminate_ind_rxd) ||
+        ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) && (md == 0) &&
+         (connsm->cons_rxd_bad_crc == 0) &&
+         ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
+         !ble_ll_ctrl_is_terminate_ind(m))) {
+        /* We will end the connection event */
         end_transition = BLE_PHY_TRANSITION_NONE;
+        txend_func = ble_ll_conn_wait_txend;
     } else {
-        /* XXX: what happens if we are sending a terminate ind? Are we sure
-           we are always going to wait for an ack? */
+        /* Wait for a response here */
         end_transition = BLE_PHY_TRANSITION_TX_RX;
-        if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) && (md == 0) && 
-            (connsm->cons_rxd_bad_crc == 0) &&
-            ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
-            !ble_ll_ctrl_is_terminate_ind(m)) {
-            end_transition = BLE_PHY_TRANSITION_NONE;
-        }
+        txend_func = NULL;
     }
 
-    rc = ble_phy_tx(m, beg_transition, end_transition);
+    rc = ble_phy_tx(m, beg_transition, end_transition, txend_func, connsm);
     if (!rc) {
         /* Set flag denoting we transmitted a pdu */
         connsm->pdu_txd = 1;
 
         /* Set last transmitted MD bit */
         connsm->last_txd_md = md;
-
-        /* Reset response received flag */
-        connsm->rsp_rxd = 0;
-
-        /* XXX: at some point I should implement the transmit end interrupt
-           from the PHY. When I do that I will change this code */
-        /* Set wait for response timer */
-        wfr_time = cputime_get32();
-        if (end_transition == BLE_PHY_TRANSITION_TX_RX) {
-            wfr_time += cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS +
-                                       ble_ll_pdu_tx_time_get(m->om_len) +
-                                       BLE_LL_IFS +
-                                       BLE_LL_WFR_USECS);
-            ble_ll_wfr_enable(wfr_time, ble_ll_conn_wfr_timer_exp, connsm);
-        } else {
-            wfr_time += cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS +
-                                       ble_ll_pdu_tx_time_get(m->om_len));
-            ble_ll_wfr_enable(wfr_time, ble_ll_conn_wait_txend, connsm);
-        }
 
         /* Increment packets transmitted */
         if (tx_empty_pdu) {
@@ -695,10 +677,11 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     connsm = (struct ble_ll_conn_sm *)sch->cb_arg;
     g_ble_ll_conn_cur_sm = connsm;
 
-    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, connsm->data_chan_index, 0, 0);
-
     /* Set LL state */
     ble_ll_state_set(BLE_LL_STATE_CONNECTION);
+
+    /* Log connection event start */
+    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, connsm->data_chan_index, 0, 0);
 
     /* Set channel */
     rc = ble_phy_setchan(connsm->data_chan_index, connsm->access_addr, 
@@ -725,7 +708,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
             rc = BLE_LL_SCHED_STATE_DONE;
         } else {
             /* 
-             * Set flag that tell slave to set last anchor point if a packet
+             * Set flag that tells slave to set last anchor point if a packet
              * has been received.
              */ 
             connsm->slave_set_last_anchor = 1;
@@ -733,7 +716,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
             usecs = connsm->slave_cur_tx_win_usecs + BLE_LL_WFR_USECS +
                 connsm->slave_cur_window_widening;
             wfr_time = connsm->anchor_point + cputime_usecs_to_ticks(usecs);
-            ble_ll_wfr_enable(wfr_time, ble_ll_conn_wfr_timer_exp, connsm);
+            ble_ll_wfr_enable(wfr_time);
 
             /* Set next wakeup time to connection event end time */
             sch->next_wakeup = sch->end_time;
@@ -776,7 +759,13 @@ ble_ll_conn_sched_set(struct ble_ll_conn_sm *connsm)
             usecs = connsm->max_ce_len * BLE_LL_CONN_CE_USECS;
         } else {
             /* Include window widening and scheduling delay */
-            usecs = connsm->slave_cur_window_widening+XCVR_RX_SCHED_DELAY_USECS;
+            usecs = connsm->slave_cur_window_widening +
+                XCVR_RX_SCHED_DELAY_USECS;
+
+            /* XXX: just to make sure we receive we wake up early. Fix
+               this later */
+            usecs += 32;
+
             sch->start_time = connsm->anchor_point - 
                 cputime_usecs_to_ticks(usecs);
 
@@ -1108,7 +1097,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
  * @param connsm 
  */
 static void
-ble_ll_conn_created(struct ble_ll_conn_sm *connsm)
+ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
 {
     uint32_t usecs;
 
@@ -1119,28 +1108,31 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm)
     usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6;
     cputime_timer_relative(&connsm->conn_spvn_timer, usecs);
 
-    /* Clear packet received flag and response rcvd flag*/
-    connsm->rsp_rxd = 0;
+    /* Clear packet received flag */
     connsm->pkt_rxd = 0;
 
-    /* XXX: get real end timing. By this I mean the real packet rx end time
-     * For now, we will just use time we got here as the start and hope we hit
-       the tx window */
-
-    /* Set first connection event time */
-    usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
+    /* 
+     * Set first connection event time. If we are a master, the endtime
+     * represents the end of the advertisement that we are transmitting the
+     * connect request to. If a slave, it is the end time of connect request.
+     * Thus, for the master, we need to add an IFS time plus the time it takes
+     * to transmit the connection request. For both master and slave, the
+     * actual connection starts 1.25 msecs plus the transmit window offset
+     * from the end of the connection request.
+     */
+    connsm->last_anchor_point = endtime;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-        /* XXX: move this into the phy transmit pdu end callback for the
-           connect request */
-        /* We have yet to transmit the connect request so add that time */
-        usecs += ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_PDU_LEN) + BLE_LL_IFS;
+        usecs = BLE_LL_CONN_REQ_DURATION + BLE_LL_IFS;
+        connsm->last_anchor_point += cputime_usecs_to_ticks(usecs);
+
     } else {
         connsm->slave_cur_tx_win_usecs = 
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
+        usecs = 0;
     }
-    connsm->last_anchor_point = cputime_get32();
-    connsm->anchor_point = connsm->last_anchor_point + 
-        cputime_usecs_to_ticks(usecs);
+    usecs += 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
+    connsm->anchor_point = endtime + cputime_usecs_to_ticks(usecs);
+    connsm->slave_cur_window_widening = 0;
 
     /* Send connection complete event to inform host of connection */
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS);
@@ -1344,7 +1336,8 @@ ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva)
 
     m = ble_ll_scan_get_pdu();
     ble_ll_conn_req_pdu_update(m, adva, addr_type);
-    rc = ble_phy_tx(m, BLE_PHY_TRANSITION_RX_TX, BLE_PHY_TRANSITION_NONE);
+    rc = ble_phy_tx(m, BLE_PHY_TRANSITION_RX_TX, BLE_PHY_TRANSITION_NONE,
+                    NULL, NULL);
     return rc;
 }
 
@@ -1357,7 +1350,7 @@ ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva)
  * @param rxbuf 
  */
 void
-ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
+ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
 {
     uint8_t addr_type;
     struct ble_ll_conn_sm *connsm;
@@ -1369,7 +1362,7 @@ ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
     }
 
     /* If we have sent a connect request, we need to enter CONNECTION state*/
-    if (ble_hdr->flags & BLE_MBUF_HDR_F_CONN_REQ_TXD) {
+    if (ble_hdr->crcok && (ble_hdr->flags & BLE_MBUF_HDR_F_CONN_REQ_TXD)) {
         /* Set address of advertiser to which we are connecting. */
         if (!ble_ll_scan_whitelist_enabled()) {
             /* 
@@ -1391,15 +1384,10 @@ ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
 
         /* Connection has been created. Stop scanning */
         g_ble_ll_conn_create_sm = NULL;
-        ble_ll_scan_sm_stop(ble_ll_scan_sm_get());
-        ble_ll_conn_created(connsm);
+        ble_ll_scan_sm_stop(ble_ll_scan_sm_get(), 1);
+        ble_ll_conn_created(connsm, ble_hdr->end_cputime);
     } else {
-        /* We need to re-enable the PHY if we are in idle state */
-        if (ble_phy_state_get() == BLE_PHY_STATE_IDLE) {
-            /* XXX: If this returns error, we will need to attempt to
-               re-start scanning! */
-            ble_phy_rx();
-        }
+        ble_ll_scan_resume();
     }
 }
 
@@ -1491,28 +1479,6 @@ ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu)
 }
 
 /**
- * Called on pdu start (by link layer) when in initiating state. 
- * 
- * @param pdu_type 
- * 
- * @return int 
- */
-int
-ble_ll_init_rx_pdu_start(uint8_t pdu_type)
-{
-    int rc;
-
-    /* We might respond to adv ind or adv direct ind only */
-    rc = 0;
-    if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
-        (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND)) {
-        rc = 1;
-    }
-
-    return rc;
-}
-
-/**
  * Connection supervision timeout. When called, it means that the connection 
  * supervision timeout has been reached. If reached, we end the connection. 
  *  
@@ -1545,20 +1511,8 @@ ble_ll_conn_rx_pdu_start(void)
     ble_ll_wfr_disable();
     connsm = g_ble_ll_conn_cur_sm;
     if (connsm) {
-        connsm->rsp_rxd = 1;
         connsm->pkt_rxd = 1;
 
-        /* Set last anchor point if 1st received frame in connection event */
-        if (connsm->slave_set_last_anchor) {
-            connsm->slave_set_last_anchor = 0;
-            /* 
-             * XXX: for now, just use the current time. Make more accurate.
-             * We subtract 40 usecs since we get the start 5 bytes after
-             * actual start. We add another 10 just in case.
-             */
-            connsm->last_anchor_point = cputime_get32() - 
-                cputime_usecs_to_ticks(50);
-        }
     }
 }
 
@@ -1678,7 +1632,7 @@ conn_rx_data_pdu_end:
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
+ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
 {
     int rc;
     uint8_t hdr_byte;
@@ -1691,6 +1645,7 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
     struct os_mbuf *txpdu;
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_ll_conn_sm *connsm;
+    struct ble_mbuf_hdr *hdr;
 
     /* 
      * We should have a current connection state machine. If we dont, we just
@@ -1716,7 +1671,8 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
      * received PDU does not pass the CRC check. If we receive two consecutive
      * CRC errors we end the conection event.
      */
-    if (!crcok) {
+    hdr = BLE_MBUF_HDR_PTR(rxpdu);
+    if (!hdr->crcok) {
         /* 
          * Increment # of consecutively received CRC errors. If more than
          * one we will end the connection event.
@@ -1779,7 +1735,7 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
                         connsm->terminate_ind_txd = 1;
                         os_mbuf_free(txpdu);
                         rc = -1;
-                        goto conn_event_done;
+                        goto conn_rx_pdu_end;
                     } else {
                         /* 
                          * If this is a l2cap pdu, we have to increment the
@@ -1808,15 +1764,14 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
             if (reply) {
                 pkthdr = STAILQ_FIRST(&connsm->conn_txq);
                 if (pkthdr) {
-                    ticks = ble_ll_pdu_tx_time_get(pkthdr->omp_len);
+                    ticks = BLE_TX_DUR_USECS_M(pkthdr->omp_len);
                 } else {
                     /* We will send empty pdu (just a LL header) */
-                    ticks = ble_ll_pdu_tx_time_get(BLE_LL_PDU_HDR_LEN);
+                    ticks = BLE_TX_DUR_USECS_M(BLE_LL_PDU_HDR_LEN);
                 }
                 ticks += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
                 ticks = cputime_usecs_to_ticks(ticks);
-                /* XXX: should really use packet receive end time here */
-                if ((cputime_get32() + ticks) >= connsm->ce_end_time) {
+                if ((hdr->end_cputime + ticks) >= connsm->ce_end_time) {
                     reply = 0;
                 }
             }
@@ -1836,18 +1791,26 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok)
          * terminate ind (master and/or slave) so that is why it is two packets.
          */ 
         if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
-            ticks = ble_ll_pdu_tx_time_get(BLE_LL_PDU_HDR_LEN) +
-                ble_ll_pdu_tx_time_get(BLE_LL_CTRL_TERMINATE_IND_LEN + 3) + 
+            ticks = BLE_TX_DUR_USECS_M(BLE_LL_PDU_HDR_LEN) +
+                BLE_TX_DUR_USECS_M(BLE_LL_CTRL_TERMINATE_IND_LEN + 3) + 
                 BLE_LL_IFS;
             ticks = cputime_usecs_to_ticks(ticks) + cputime_get32();
             if ((int32_t)(connsm->terminate_timeout - ticks) < 0) {
-                goto conn_event_done;
+                goto conn_rx_pdu_end;
             }
         }
         rc = ble_ll_conn_tx_data_pdu(connsm, BLE_PHY_TRANSITION_RX_TX);
     }
 
-conn_event_done:
+conn_rx_pdu_end:
+    /* Set last anchor point if 1st received frame in connection event */
+    if (connsm->slave_set_last_anchor) {
+        connsm->slave_set_last_anchor = 0;
+        connsm->last_anchor_point = hdr->end_cputime - 
+            BLE_TX_DUR_USECS_M(rxpdu->om_data[1] + BLE_LL_PDU_HDR_LEN);
+    }
+
+    /* If rc not 0, */
     if (rc) {
         ble_ll_event_send(&connsm->conn_ev_end);
     }
@@ -1943,7 +1906,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
  * @return 0: connection not started; 1 connecton started 
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end)
 {
     uint32_t temp;
     uint32_t crcinit;
@@ -2039,8 +2002,7 @@ ble_ll_conn_slave_start(uint8_t *rxbuf)
     ble_ll_conn_sm_start(connsm);
 
     /* The connection has been created. */
-    ble_ll_conn_created(connsm);
-
+    ble_ll_conn_created(connsm, conn_req_end);
     return 1;
 
 err_slave_start:
@@ -2050,8 +2012,9 @@ err_slave_start:
 }
 
 /**
- * Called the reset the connection module.
- * 
+ * Called to reset the connection module.
+ *  
+ * Context: Link Layer task 
  */
 void
 ble_ll_conn_reset(void)
@@ -2116,15 +2079,15 @@ ble_ll_conn_module_init(void)
     /* Configure the global LL parameters */
     conn_params = &g_ble_ll_conn_params;
     maxbytes = BLE_LL_CFG_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MAX_OVERHEAD;
-    conn_params->supp_max_rx_time = ble_ll_pdu_tx_time_get(maxbytes);
+    conn_params->supp_max_rx_time = BLE_TX_DUR_USECS_M(maxbytes);
     conn_params->supp_max_rx_octets = BLE_LL_CFG_SUPP_MAX_RX_BYTES;
 
     maxbytes = BLE_LL_CFG_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MAX_OVERHEAD;
-    conn_params->supp_max_tx_time = ble_ll_pdu_tx_time_get(maxbytes);
+    conn_params->supp_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
     conn_params->supp_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
 
     maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MAX_OVERHEAD;
-    conn_params->conn_init_max_tx_time = ble_ll_pdu_tx_time_get(maxbytes);
+    conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
     conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
 }
 

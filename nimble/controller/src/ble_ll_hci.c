@@ -359,22 +359,12 @@ ble_ll_hci_link_ctrl_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 {
     int rc;
     uint8_t len;
-    /* XXX: use this? */
-    //uint8_t *rspbuf;
 
     /* Assume error; if all pass rc gets set to 0 */
     rc = BLE_ERR_INV_HCI_CMD_PARMS;
 
     /* Get length from command */
     len = cmdbuf[sizeof(uint16_t)];
-
-    /* 
-     * The command response pointer points into the same buffer as the
-     * command data itself. That is fine, as each command reads all the data
-     * before crafting a response.
-     */ 
-    /* XXX */
-    //rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 
     /* Move past HCI command header */
     cmdbuf += BLE_HCI_CMD_HDR_LEN;
@@ -400,22 +390,12 @@ ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 {
     int rc;
     uint8_t len;
-    /* XXX: use this? */
-    //uint8_t *rspbuf;
 
     /* Assume error; if all pass rc gets set to 0 */
     rc = BLE_ERR_INV_HCI_CMD_PARMS;
 
     /* Get length from command */
     len = cmdbuf[sizeof(uint16_t)];
-
-    /* 
-     * The command response pointer points into the same buffer as the
-     * command data itself. That is fine, as each command reads all the data
-     * before crafting a response.
-     */ 
-    /* XXX */
-    //rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 
     /* Move past HCI command header */
     cmdbuf += BLE_HCI_CMD_HDR_LEN;

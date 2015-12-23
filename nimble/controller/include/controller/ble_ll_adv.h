@@ -113,11 +113,14 @@ int ble_ll_adv_set_adv_params(uint8_t *cmd);
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
 
 /*---- API used by BLE LL ----*/
-/* Called when advertising tx done event posted to LL task */
-void ble_ll_adv_tx_done_proc(void *arg);
+/* Called when advertising event done posted to LL task */
+void ble_ll_adv_event_done(void *arg);
 
 /* Called to initialize advertising functionality. */
 void ble_ll_adv_init(void);
+
+/* Called when LL wait for response timer expires in advertising state */
+void ble_ll_adv_wfr_timer_exp(void);
 
 /* Called to initialize advertising functionality. */
 void ble_ll_adv_init(void);
@@ -131,10 +134,14 @@ int ble_ll_adv_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 /* Called on rx pdu end when in advertising state */
 int ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu);
 
+/* Processes received packets at the link layer task */
+void ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf,
+                          struct ble_mbuf_hdr *hdr);
+
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);
 
 /* Called when a connection request has been received at the link layer */
-void ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags);
+int ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr);
 
 #endif /* H_BLE_LL_ADV_ */

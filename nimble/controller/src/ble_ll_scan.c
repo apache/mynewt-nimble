@@ -31,15 +31,6 @@
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
- /* 
- * XXX:
- * 2) Need to look at packets for us and those not for us. Probably some of
- * this code needs to go into the link layer (in ll.c).
- * 3) Interleave sending scan requests to different advertisers? I guess I need 
- *    a list of advertisers to which I sent a scan request and have yet to
- *    receive a scan response from? Implement this.
- */
-
 /* 
  * XXX:
  * 1) Do I need to know if the address is random or public? Or
@@ -50,6 +41,10 @@
  * 2) I think I can guarantee that we dont process things out of order if
  * I send an event when a scan request is sent. The scan_rsp_pending flag
  * code might be made simpler.
+ * 
+ * 3) Interleave sending scan requests to different advertisers? I guess I need 
+ * a list of advertisers to which I sent a scan request and have yet to
+ * receive a scan response from? Implement this.
  */
 
 /* The scanning state machine global object */
@@ -553,15 +548,10 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
  * Stop the scanning state machine 
  */
 void
-ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
+ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm, int conn_created)
 {
-    /* XXX: Stop any timers we may have started */
-
     /* Remove any scheduled advertising items */
     ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN, NULL);
-
-    /* Disable whitelisting (just in case) */
-    ble_ll_whitelist_disable();
 
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
@@ -569,9 +559,20 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm)
     /* Count # of times stopped */
     ++g_ble_ll_scan_stats.scan_stops;
 
-    /* XXX: Not sure this is correct. The LL might not actually be scanning */
-    /* Set LL state to standby */
-    ble_ll_state_set(BLE_LL_STATE_STANDBY);
+    /* Only set state if we are current in a scan window */
+    if ((g_ble_ll_data.ll_state == BLE_LL_STATE_SCANNING) ||
+        (g_ble_ll_data.ll_state == BLE_LL_STATE_INITIATING)) {
+        /* Disable the PHY */
+        if (!conn_created) {
+            ble_phy_disable();
+        }
+
+        /* Disable whitelisting  */
+        ble_ll_whitelist_disable();
+
+        /* Set LL state to standby */
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+    }
 }
 
 static struct ble_ll_sched_item *
@@ -737,6 +738,7 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
+    struct ble_mbuf_hdr *ble_hdr;
 
     rc = 0;
     scansm = &g_ble_ll_scan_sm;
@@ -750,14 +752,15 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
         }
 
         /* 
-         * If there is a scan response pending, it means that we did
-         * not receive a scan response to our previous request unless
-         * this is a scan response pdu.
-         */
-        if (pdu_type != BLE_ADV_PDU_TYPE_SCAN_RSP) {
-            if (scansm->scan_rsp_pending) {
-                ble_ll_scan_req_backoff(scansm, 0);
-            }
+         * If this is the first PDU after we sent the scan response (as
+         * denoted by the scan rsp pending flag, we set a bit in the ble
+         * header so the link layer can check to see if the scan request
+         * was successful. We do it this way to let the Link Layer do the
+         * work for successful scan requests.
+         */ 
+        if (scansm->scan_rsp_pending) {
+            ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+            ble_hdr->flags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
         }
         break;
     case BLE_SCAN_TYPE_PASSIVE:
@@ -765,23 +768,8 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
         break;
     }
 
-    /* 
-     * XXX:  
-     * Since we are scanning, there really is no need to abort the frame and
-     * stay on the same channel, as there will most likely be a collision.
-     * We could abort it though as a stronger signal might come in and be
-     * received. Of course we would only abort frames we did not care about
-     * (scan requests and connect requests)
-     */ 
-
     return rc;
 }
-
-/* 
- * NOTE: If this returns a positive number there was an error but
- * there is no need to disable the PHY on return as that was
- * done already.
- */
 
 /**
  * Called when a receive PDU has ended. 
@@ -845,10 +833,9 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
         /* Check if device is on whitelist. If not, leave */
         if (!ble_ll_whitelist_match(adv_addr, addr_type)) {
             return -1;
-        } else {
-            ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-            ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
         }
+        ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+        ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
     }
 
     /* Should we send a scan request? */
@@ -871,17 +858,54 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
             /* Setup to transmit the scan request */
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
             rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_RX_TX,
-                            BLE_PHY_TRANSITION_TX_RX);
+                            BLE_PHY_TRANSITION_TX_RX, NULL, NULL);
 
-            /* XXX: I still may want to post an event to the LL task
-             * instead of setting the scan response flag here. For now,
-               just do it here. */
             /* Set "waiting for scan response" flag */
             scansm->scan_rsp_pending = 1;
         }
     }
 
     return rc;
+}
+
+/**
+ * Called to resume scanning, usually after a packet has been received 
+ * while in the scanning or inititating state.
+ */
+void
+ble_ll_scan_resume(void)
+{
+    /* We need to re-enable the PHY if we are in idle state */
+    if (ble_phy_state_get() == BLE_PHY_STATE_IDLE) {
+        if (ble_phy_rx()) {
+            /* If we fail, we will end the current scan window. */
+            ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN, NULL);
+            ble_ll_event_send(&g_ble_ll_scan_sm.scan_win_end_ev);
+        }
+    }
+}
+
+/**
+ * Called when the wait for response timer expires while in the scanning 
+ * state. 
+ */
+void
+ble_ll_scan_wfr_timer_exp(void)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    ble_phy_disable();
+
+    /* 
+     * If we timed out waiting for a response, the scan response pending
+     * flag should be set. Deal with scan backoff.
+     */ 
+    scansm = &g_ble_ll_scan_sm;
+    if (scansm->scan_rsp_pending) {
+        ble_ll_scan_req_backoff(scansm, 0);
+    }
+    
+    ble_ll_scan_resume();
 }
 
 /**
@@ -893,24 +917,27 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
  * @param rxbuf 
  */
 void
-ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
-                        uint8_t flags)
+ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     uint8_t *adv_addr;
     uint8_t *adva;
     uint8_t txadd;
     uint8_t rxadd;
     struct ble_ll_scan_sm *scansm;
+    uint8_t scan_rsp_chk;
+
+    /* Set scan response check flag */
+    scan_rsp_chk = hdr->flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK;
 
     /* We dont care about scan requests or connect requests */
-    if ((pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) || 
-        (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
-        return;
+    if ((!hdr->crcok) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) || 
+        (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
+        goto scan_continue;
     }
 
     /* Check the scanner filter policy */
-    if (ble_ll_scan_chk_filter_policy(pdu_type, rxbuf, flags)) {
-        return;
+    if (ble_ll_scan_chk_filter_policy(ptype, rxbuf, hdr->flags)) {
+        goto scan_continue;
     }
 
     /* Get advertisers address type and a pointer to the address */
@@ -924,12 +951,12 @@ ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
      * that we have heard a scan response from?
      */
     scansm = &g_ble_ll_scan_sm;
-    if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
+    if (ptype == BLE_ADV_PDU_TYPE_SCAN_RSP) {
         /* 
          * If this is a scan response in reply to a request we sent we need
          * to store this advertiser's address so we dont send a request to it.
          */
-        if (scansm->scan_rsp_pending) {
+        if (scansm->scan_rsp_pending && scan_rsp_chk) {
             /* 
              * We could also check the timing of the scan reponse; make sure
              * that it is relatively close to the end of the scan request but
@@ -947,24 +974,30 @@ ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
                 /* Perform scan request backoff procedure */
                 ble_ll_scan_req_backoff(scansm, 1);
             }
-
-            /* XXX: I am not sure if I should clear the scan pending
-             * bit here as there is probably no way we will ever get the
-             * scan response we were expecting. I should probably treat it
-             * as a failure and deal with the backoff.
-             */ 
         }
     }
 
     /* Filter duplicates */
     if (scansm->scan_filt_dups) {
-        if (ble_ll_scan_is_dup_adv(pdu_type, txadd, adv_addr)) {
-            return;
+        if (ble_ll_scan_is_dup_adv(ptype, txadd, adv_addr)) {
+            goto scan_continue;
         }
     }
 
     /* Send the advertising report */
-    ble_ll_hci_send_adv_report(pdu_type, txadd, rxbuf, rssi);
+    ble_ll_hci_send_adv_report(ptype, txadd, rxbuf, hdr->rssi);
+
+scan_continue:
+    /* 
+     * If the scan response check bit is set and we are pending a response,
+     * we have failed the scan request (as we would have reset the scan rsp
+     * pending flag if we received a valid response
+     */
+    if (scansm->scan_rsp_pending && scan_rsp_chk) {
+        ble_ll_scan_req_backoff(scansm, 1);
+    }
+    ble_ll_scan_resume();
+    return;
 }
 
 int
@@ -1062,12 +1095,7 @@ ble_ll_scan_set_enable(uint8_t *cmd)
         }
     } else {
         if (scansm->scan_enabled) {
-            /* XXX: what happens if a receive has started? What about
-             * the phy pdu? Do we need to do anything with it? The rx pdu
-               at the phy??? Keep it there? */
-            /* Disable the PHY */
-            ble_phy_disable();
-            ble_ll_scan_sm_stop(scansm);
+            ble_ll_scan_sm_stop(scansm, 0);
         }
     }
 
@@ -1156,7 +1184,7 @@ ble_ll_scan_reset(void)
     /* If enabled, stop it. */
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_enabled) {
-        ble_ll_scan_sm_stop(scansm);
+        ble_ll_scan_sm_stop(scansm, 0);
     }
 
     /* Reset all statistics */

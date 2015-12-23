@@ -91,7 +91,6 @@ struct ble_ll_conn_sm
 
     /* connection event timing/mgmt */
     uint8_t pdu_txd;                /* note: can be 1 bit */
-    uint8_t rsp_rxd;                /* note: can be 1 bit */
     uint8_t pkt_rxd;                /* note: can be 1 bit */
     uint8_t terminate_ind_txd;      /* note: can be 1 bit */
     uint8_t terminate_ind_rxd;      /* note: can be 1 bit */

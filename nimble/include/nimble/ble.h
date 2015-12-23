@@ -49,12 +49,15 @@ struct ble_mbuf_hdr
     uint8_t channel;
     uint8_t crcok;
     int8_t rssi;
+    uint32_t end_cputime;
 };
 
 /* Flag definitions */
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x01)
 #define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x02)
 #define BLE_MBUF_HDR_F_TXD              (0x04)
+#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x08)
+#define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x10)
 
 #define BLE_MBUF_HDR_PTR(om)    \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
@@ -153,7 +156,7 @@ enum ble_error_codes
     BLE_ERR_SEC_SIMPLE_PAIR     = 55,
     BLE_ERR_HOST_BUSY_PAIR      = 56,
     BLE_ERR_CONN_REJ_CHANNEL    = 57,
-    BLE_ERR_CTRLR_BUSY          = 58,
+    BLE_ERR_CTLR_BUSY           = 58,
     BLE_ERR_CONN_PARMS          = 59,
     BLE_ERR_DIR_ADV_TMO         = 60,
     BLE_ERR_CONN_TERM_MIC       = 61,

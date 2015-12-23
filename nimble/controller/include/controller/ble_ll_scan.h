@@ -111,8 +111,8 @@ int ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 int ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu);
 
 /* Process a scan response PDU */
-void ble_ll_scan_rx_pdu_proc(uint8_t pdu_type, uint8_t *rxbuf, int8_t rssi,
-                             uint8_t flags);
+void ble_ll_scan_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, 
+                           struct ble_mbuf_hdr *hdr);
 
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_scan_can_chg_whitelist(void);
@@ -131,7 +131,13 @@ int ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
 struct os_mbuf *ble_ll_scan_get_pdu(void);
 
 /* Stop the scanning state machine */
-void ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm);
+void ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm, int conn_created);
+
+/* Resume scanning */
+void ble_ll_scan_resume(void);
+
+/* Called when wait for response timer expires in scanning mode */
+void ble_ll_scan_wfr_timer_exp(void);
 
 /* Returns the global scanning state machine */
 struct ble_ll_scan_sm *ble_ll_scan_sm_get(void);

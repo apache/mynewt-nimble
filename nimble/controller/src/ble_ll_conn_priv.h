@@ -32,6 +32,9 @@
 #define BLE_LL_CONN_TX_WIN_MIN              (1)         /* in tx win units */
 #define BLE_LL_CONN_SLAVE_LATENCY_MAX       (499)
 
+/* Connection request duration (in usecs) */
+#define BLE_LL_CONN_REQ_DURATION            (352)
+
 /* Connection handle range */
 #define BLE_LL_CONN_MAX_CONN_HANDLE         (0x0EFF)
 
@@ -50,6 +53,7 @@ extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 /* Generic interface */
 struct ble_ll_len_req;
 struct hci_create_conn;
+struct ble_mbuf_hdr;
 void ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
@@ -61,7 +65,7 @@ void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_len_req *req);
 
 /* Advertising interface */
-int ble_ll_conn_slave_start(uint8_t *rxbuf);
+int ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
@@ -70,10 +74,11 @@ void ble_ll_conn_event_end(void *arg);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 void ble_ll_conn_spvn_timeout(void *arg);
 void ble_ll_conn_rx_pdu_start(void);
-int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa, uint8_t crcok);
+int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
-void ble_ll_init_rx_pdu_proc(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
+void ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
 int ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu);
+void ble_ll_conn_wfr_timer_exp(void);
 
 /* HCI */
 void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, 

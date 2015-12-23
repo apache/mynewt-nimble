@@ -75,6 +75,9 @@ struct os_mbuf;
 #define BLE_PHY_ERR_INV_PARAM       (3)
 #define BLE_PHY_ERR_NO_BUFS         (4)
 
+/* Wait for response timer */
+typedef void (*ble_phy_tx_end_func)(void *arg);
+
 /* Initialize the PHY */
 int ble_phy_init(void);
 
@@ -85,7 +88,8 @@ int ble_phy_reset(void);
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
 /* Place the PHY into transmit mode */
-int ble_phy_tx(struct os_mbuf *, uint8_t beg_trans, uint8_t end_trans);
+int ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
+               ble_phy_tx_end_func txend_cb, void *arg);
 
 /* Place the PHY into receive mode */
 int ble_phy_rx(void);
@@ -104,6 +108,9 @@ void ble_phy_disable(void);
 
 /* Gets the current state of the PHY */
 int ble_phy_state_get(void);
+
+/* Returns 'true' if a reception has started */
+int ble_phy_rx_started(void);
 
 /* Gets the current access address */
 uint32_t ble_phy_access_addr_get(void);

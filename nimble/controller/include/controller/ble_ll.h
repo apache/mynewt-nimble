@@ -19,8 +19,16 @@
 
 #include "hal/hal_cputime.h"
 
-/* Wait for response timer */
-typedef void (*ble_ll_wfr_func)(void *arg);
+/* 
+ * The amount of time that we will wait to hear the start of a receive
+ * packet after we have transmitted a packet. This time is at least
+ * an IFS time plus the time to receive the preamble and access address. We
+ * add an additional 32 usecs just to be safe.
+ * 
+ * XXX: move this definition and figure out how we determine the worst-case
+ * jitter (spec. should have this).
+ */
+#define BLE_LL_WFR_USECS    (BLE_LL_IFS + 40 + 32)
 
 /* Packet queue header definition */
 STAILQ_HEAD(ble_ll_pkt_q, os_mbuf_pkthdr);
@@ -43,7 +51,6 @@ struct ble_ll_obj
 
     /* Wait for response timer */
     struct cpu_timer ll_wfr_timer;
-    ble_ll_wfr_func ll_wfr_func;
 
     /* Packet receive queue (and event). Holds received packets from PHY */
     struct os_event ll_rx_pkt_ev;
@@ -101,7 +108,7 @@ extern struct ble_ll_stats g_ble_ll_stats;
 
 /* BLE LL Task Events */
 #define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
-#define BLE_LL_EVENT_ADV_TXDONE     (OS_EVENT_T_PERUSER + 1)
+#define BLE_LL_EVENT_ADV_EV_DONE    (OS_EVENT_T_PERUSER + 1)
 #define BLE_LL_EVENT_RX_PKT_IN      (OS_EVENT_T_PERUSER + 2)
 #define BLE_LL_EVENT_SCAN_WIN_END   (OS_EVENT_T_PERUSER + 3)
 #define BLE_LL_EVENT_CONN_SPVN_TMO  (OS_EVENT_T_PERUSER + 4)
@@ -156,6 +163,21 @@ struct ble_dev_addr
 #define BLE_LL_MIN_PDU_LEN      (BLE_LL_PDU_HDR_LEN)
 #define BLE_LL_MAX_PDU_LEN      (257)
 #define BLE_LL_CRCINIT_ADV      (0x555555)
+
+/**
+ * ll pdu tx time get 
+ *  
+ * Returns the number of usecs it will take to transmit a PDU of length 'len'
+ * bytes. Each byte takes 8 usecs. This routine includes the LL overhead:
+ * preamble (1), access addr (4) and crc (3) for a total of 8 bytes.
+ * 
+ * @param len The number of PDU bytes to transmit. This includes both header
+ * and payload.
+ * 
+ * @return uint16_t The number of usecs it will take to transmit a PDU of
+ *                  length 'len' bytes.
+ */
+#define BLE_TX_DUR_USECS_M(len)     (((len) + BLE_LL_OVERHEAD_LEN) << 3)
 
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)
@@ -279,7 +301,10 @@ int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok);
 
 /*--- Controller API ---*/
 /* Set the link layer state */
-void ble_ll_state_set(int ll_state);
+void ble_ll_state_set(uint8_t ll_state);
+
+/* Get the link layer state */
+uint8_t ble_ll_state_get(void);
 
 /* Send an event to LL task */
 void ble_ll_event_send(struct os_event *ev);
@@ -288,7 +313,7 @@ void ble_ll_event_send(struct os_event *ev);
 int ble_ll_set_random_addr(uint8_t *addr);
 
 /* Enable wait for response timer */
-void ble_ll_wfr_enable(uint32_t cputime, ble_ll_wfr_func wfr_cb, void *arg);
+void ble_ll_wfr_enable(uint32_t cputime);
 
 /* Disable wait for response timer */
 void ble_ll_wfr_disable(void);
@@ -300,7 +325,7 @@ uint8_t ble_ll_read_supp_features(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */ 
-#undef BLE_LL_LOG
+#define BLE_LL_LOG
 
 #define BLE_LL_LOG_ID_RX_START          (1)
 #define BLE_LL_LOG_ID_RX_END            (2)

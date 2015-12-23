@@ -112,7 +112,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[3] = status;
             if (status == BLE_ERR_SUCCESS) {
                 htole16(evbuf + 4, connsm->conn_handle);
-                evbuf[6] = connsm->conn_role;
+                evbuf[6] = connsm->conn_role - 1;
                 evbuf[7] = connsm->peer_addr_type;
                 memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
                 htole16(evbuf + 14, connsm->conn_itvl);
@@ -401,7 +401,7 @@ ble_ll_conn_create_cancel(void)
     if (connsm && (connsm->conn_state == BLE_LL_CONN_STATE_IDLE)) {
         /* stop scanning and end the connection event */
         g_ble_ll_conn_create_sm = NULL;
-        ble_ll_scan_sm_stop(ble_ll_scan_sm_get());
+        ble_ll_scan_sm_stop(ble_ll_scan_sm_get(), 0);
         ble_ll_conn_end(connsm, BLE_ERR_UNK_CONN_ID);
         rc = BLE_ERR_SUCCESS;
     } else {

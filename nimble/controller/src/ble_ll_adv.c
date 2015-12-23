@@ -54,7 +54,6 @@
  * processor overhead/delays. We will want to do that.
  * 7) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 8) Getting late_adv_tx_done errors when doing direct advertising. Fix that.
  */
 
 /* 
@@ -97,6 +96,7 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm;
 
 struct ble_ll_adv_stats
 {
+    uint32_t late_starts;
     uint32_t late_tx_done;
     uint32_t cant_set_sched;
     uint32_t scan_rsp_txg;
@@ -105,17 +105,21 @@ struct ble_ll_adv_stats
 
 struct ble_ll_adv_stats g_ble_ll_adv_stats;
 
-/* XXX: We can calculate scan response time as well. */
 /* 
  * Worst case time needed for scheduled advertising item. This is the longest
  * possible time to receive a scan request and send a scan response (with the
  * appropriate IFS time between them). This number is calculated using the
  * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
  * 
+ * For directed, connectable advertising events no scan request is allowed. In
+ * this case we just need to receive a connect request PDU. Formula is:
+ *  IFS + CONNECT_REQ = 150 + 352
+ * 
  * NOTE: The advertising PDU transmit time is NOT included here since we know
  * how long that will take.
  */
-#define BLE_LL_ADV_SCHED_MAX_USECS  (852)
+#define BLE_LL_ADV_SCHED_MAX_USECS          (852)
+#define BLE_LL_ADV_DIRECT_SCHED_MAX_USECS   (502)
 
 /* For debug purposes */
 extern void bletest_inc_adv_pkt_num(void);
@@ -326,20 +330,6 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 }
 
 /**
- * Scheduler callback used after advertising PDU sent. 
- * 
- * @param arg 
- */
-static int
-ble_ll_adv_rx_cb(struct ble_ll_sched_item *sch)
-{
-    /* Disable the PHY as we might be receiving */
-    ble_phy_disable();
-    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_adv_sm.adv_txdone_ev);
-    return BLE_LL_SCHED_STATE_DONE;
-}
-
-/**
  * Scheduler callback when an advertising PDU has been sent. 
  * 
  * @param arg 
@@ -366,13 +356,11 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 {
     int rc;
     uint8_t end_trans;
+    uint32_t start_time;
     struct ble_ll_adv_sm *advsm;
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
-
-    /* Toggle the LED */
-    gpio_clear(LED_BLINK_PIN);
 
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
@@ -385,35 +373,31 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         end_trans = BLE_PHY_TRANSITION_TX_RX;
     }
 
+    /* This is for debug */
+    start_time = cputime_get32();
+
     /* Transmit advertisement */
-    rc = ble_phy_tx(advsm->adv_pdu, BLE_PHY_TRANSITION_NONE, end_trans);
+    rc = ble_phy_tx(advsm->adv_pdu, BLE_PHY_TRANSITION_NONE, end_trans, NULL,
+                    NULL);
     if (rc) {
         /* Transmit failed. */
         rc = ble_ll_adv_tx_done_cb(sch);
     } else {
+        /* Check if we were late getting here */
+        if ((int32_t)(start_time - (advsm->adv_pdu_start_time -
+               cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS))) > 0) {
+            ++g_ble_ll_adv_stats.late_starts;
+        }
+
         /* Set link layer state to advertising */
         ble_ll_state_set(BLE_LL_STATE_ADV);
 
         /* Count # of adv. sent */
         ++g_ble_ll_adv_stats.adv_txg;
 
-        /* Set schedule item next wakeup time */
-        if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
-            sch->next_wakeup = sch->end_time;
-            sch->sched_cb = ble_ll_adv_tx_done_cb;
-        } else {
-            /* XXX: set next wakeup time. We have to look for either a
-             * connect request or scan request or both, depending on
-             * advertising type. For now, we will just wait until the
-             * end of the scheduled event, which was set to the worst case
-             * time to send a scan response PDU. Note that I use the time
-             * now to insure the callback occurs after we are dont transmitting
-             * the scan response, as we may have been late starting the tx.
-             */
-            sch->next_wakeup = cputime_get32() +
-                (sch->end_time - sch->start_time);
-            sch->sched_cb = ble_ll_adv_rx_cb;
-        }
+        /* Set next schedule wakeup time */
+        sch->next_wakeup = sch->end_time;
+        sch->sched_cb = ble_ll_adv_tx_done_cb;
 
         rc = BLE_LL_SCHED_STATE_RUNNING;
     }
@@ -443,16 +427,24 @@ ble_ll_adv_sched_set(struct ble_ll_adv_sm *advsm)
         sch->sched_cb = ble_ll_adv_tx_start_cb;
 
         /* Set end time to maximum time this schedule item may take */
-        max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len);
-        if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
+        max_usecs = BLE_TX_DUR_USECS_M(advsm->adv_pdu_len);
+        switch (advsm->adv_type) {
+        case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+        case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
+            max_usecs += BLE_LL_ADV_DIRECT_SCHED_MAX_USECS;
+            break;
+        case BLE_HCI_ADV_TYPE_ADV_IND:
+        case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
             max_usecs += BLE_LL_ADV_SCHED_MAX_USECS;
+            break;
+        default:
+            break;
         }
+
         /* 
-         * XXX: what exactly is done with the schedule end time here? It
-         * may be off when we initially start advertising since we have
-         * already passed the start time and the pdu will get transmitted
-         * well after adv_pdu_start_time 
-         */
+         * We dont really care if this is super accurate; it really is only
+         * used to block time in the scheduler.
+         */ 
         sch->end_time = advsm->adv_pdu_start_time +
             cputime_usecs_to_ticks(max_usecs);
 
@@ -576,25 +568,31 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
 
 /**
  * Stop advertising state machine 
+ *  
+ * Context: Link Layer task.
  * 
  * @param advsm 
  */
 static void
 ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 {
-    /* XXX: Stop any timers we may have started */
+    if (advsm->enabled) {
+        /* Disable whitelisting (just in case) */
+        ble_ll_whitelist_disable();
 
-    /* XXX: what happens if we are transmitting a packet here? An advertising
-       one? Does it matter? Do we need to disable the PHY? */
+        /* Remove any scheduled advertising items */
+        ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV, NULL);
+        os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
-    /* Disable whitelisting (just in case) */
-    ble_ll_whitelist_disable();
+        /* Set to standby if we are no longer advertising */
+        if (ble_ll_state_get() == BLE_LL_STATE_ADV) {
+            ble_ll_wfr_disable();
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        }
 
-    /* Remove any scheduled advertising items */
-    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV, NULL);
-
-    /* Disable advertising */
-    advsm->enabled = 0;
+        /* Disable advertising */
+        advsm->enabled = 0;
+    }
 }
 
 /**
@@ -611,6 +609,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 static int
 ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 {
+    int rc;
     uint8_t adv_chan;
     struct ble_ll_sched_item *sch;
 
@@ -665,10 +664,11 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     /* 
      * Set start time for the advertising event. This time is the same
      * as the time we will send the first PDU. Since there does not seem
-     * to be any requirements as to when we start, we just set the time to
-     * now.
+     * to be any requirements as to when we start, we do it asap.
      */ 
-    advsm->adv_event_start_time = cputime_get32();
+    advsm->adv_event_start_time = cputime_get32() +
+        cputime_usecs_to_ticks(BLE_LL_IFS + XCVR_PROC_DELAY_USECS);
+
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
     /* 
@@ -679,14 +679,16 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->adv_dir_hd_end_time = advsm->adv_event_start_time +
         cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
 
-    /* Set packet in schedule */
+    /* Add to schedule. If we cant, we will just inform host we are too busy */
+    rc = BLE_ERR_SUCCESS;
     sch = ble_ll_adv_sched_set(advsm);
     if (!sch) {
-        /* XXX: set a wakeup timer to deal with this. For now, assert */
-        assert(0);
+        advsm->enabled = 0;
+        ble_ll_whitelist_disable();
+        rc = BLE_ERR_CTLR_BUSY;
     }
 
-    return 0;
+    return rc;
 }
 
 /**
@@ -730,9 +732,7 @@ ble_ll_adv_set_enable(uint8_t *cmd)
             rc = ble_ll_adv_sm_start(advsm);
         }
     } else if (enable == 0) {
-        if (advsm->enabled) {
-            ble_ll_adv_sm_stop(advsm);
-        }
+        ble_ll_adv_sm_stop(advsm);
     } else {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -855,6 +855,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     }
 
     /* Set device match bit if we are whitelisting */
+    ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
     if (chk_whitelist) {
         /* Get the scanners address type */
         if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
@@ -866,18 +867,17 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
         /* Check for whitelist match */
         if (!ble_ll_whitelist_match(rxbuf + BLE_LL_PDU_HDR_LEN, txadd)) {
             return -1;
-        } else {
-            ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-            ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
         }
+        ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
     }
 
     /* Setup to transmit the scan response if appropriate */
     rc = -1;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
-                        BLE_PHY_TRANSITION_NONE);
+                        BLE_PHY_TRANSITION_NONE, NULL, NULL);
         if (!rc) {
+            ble_hdr->flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
             ++g_ble_ll_adv_stats.scan_rsp_txg;
         }
     }
@@ -892,9 +892,11 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
  * 
  * @param rxbuf 
  * @param flags 
+ *  
+ * @return 0: no connection started. 1: connection started 
  */
-void
-ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
+int
+ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int valid;
     uint8_t *inita;
@@ -904,7 +906,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
     valid = 0;
     advsm = &g_ble_ll_adv_sm;
     if (advsm->adv_filter_policy & 2) {
-        if (flags & BLE_MBUF_HDR_F_DEVMATCH) {
+        if (hdr->flags & BLE_MBUF_HDR_F_DEVMATCH) {
             /* valid connection request received */
             valid = 1;
         }
@@ -931,10 +933,13 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, uint8_t flags)
 
     if (valid) {
         /* Try to start slave connection. If successful, stop advertising */
-        if (ble_ll_conn_slave_start(rxbuf)) {
+        valid = ble_ll_conn_slave_start(rxbuf, hdr->end_cputime);
+        if (valid) {
             ble_ll_adv_sm_stop(advsm);
         }
     }
+
+    return valid;
 }
 
 /**
@@ -968,18 +973,51 @@ ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu)
         (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
         /* Process request */
         rc = ble_ll_adv_rx_req(pdu_type, rxpdu);
-        if (rc) {
-            /* XXX: One thing left to reconcile here. We have
-             * the advertisement schedule element still running.
-             * How to deal with the end of the advertising event?
-             * Need to figure that out.
-             * 
-             * XXX: This applies to connection requests as well.
-             */
-        }
     }
 
     return rc;
+}
+
+/**
+ * Process a received packet at the link layer task when in the advertising 
+ * state 
+ *  
+ * Context: Link Layer 
+ * 
+ * 
+ * @param ptype 
+ * @param rxbuf 
+ * @param hdr 
+ * 
+ * @return int 
+ */
+void
+ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
+{
+    int adv_event_over;
+
+    /* 
+     * We should remove the schedule item in all cases except when we
+     * are sending a scan response or we have stopped advertising due to
+     * receiving a connect request
+     */
+    adv_event_over = 1;
+    if (hdr->crcok) {
+        if (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
+            if (ble_ll_adv_conn_req_rxd(rxbuf, hdr)) {
+                adv_event_over = 0;
+            }
+        } else {
+            if ((ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) &&
+                (hdr->flags & BLE_MBUF_HDR_F_SCAN_RSP_TXD)) {
+                adv_event_over = 0;
+            }
+        }
+    }
+
+    if (adv_event_over) {
+        ble_ll_adv_event_done(&g_ble_ll_adv_sm);
+    }
 }
 
 /**
@@ -1013,7 +1051,7 @@ ble_ll_adv_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
             rc = 1;
         } 
     } else {
-        /* Only accept connect requests if we are indirect ordirect advertising */
+        /* Only accept connect requests if connectable advertising event */
         if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
             if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) || 
                 (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD) ||
@@ -1027,14 +1065,14 @@ ble_ll_adv_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
 }
 
 /**
- * Process advertistement tx done event. 
+ * Called when an advertising event is over.
  *  
  * Context: Link Layer task. 
  * 
  * @param arg Pointer to advertising state machine.
  */
 void
-ble_ll_adv_tx_done_proc(void *arg)
+ble_ll_adv_event_done(void *arg)
 {
     uint8_t mask;
     uint8_t final_adv_chan;
@@ -1042,8 +1080,12 @@ ble_ll_adv_tx_done_proc(void *arg)
     uint32_t itvl;
     struct ble_ll_adv_sm *advsm;
 
-    /* Free the advertising packet */
+    /* Stop advertising event */
     advsm = (struct ble_ll_adv_sm *)arg;
+    assert(advsm->enabled);
+
+    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_ADV, NULL);
+    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
     /* For debug purposes */
@@ -1075,9 +1117,6 @@ ble_ll_adv_tx_done_proc(void *arg)
         }
         advsm->adv_event_start_time += cputime_usecs_to_ticks(itvl);
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
-
-        /* Toggle the LED */
-        gpio_set(LED_BLINK_PIN);
     } else {
         /* 
          * Move to next advertising channel. If not in the mask, just
@@ -1132,7 +1171,9 @@ ble_ll_adv_tx_done_proc(void *arg)
      */ 
     if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
         if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
-            ble_ll_adv_sm_stop(advsm);
+            /* Disable advertising */
+            advsm->enabled = 0;
+            ble_ll_whitelist_disable();
             ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO);
             return;
         }
@@ -1168,7 +1209,21 @@ ble_ll_adv_can_chg_whitelist(void)
 }
 
 /**
- * Reset the advertising state machine.
+ * Called when the LL wait for response timer expires while in the advertising 
+ * state. Disables the phy and 
+ * 
+ */
+void
+ble_ll_adv_wfr_timer_exp(void)
+{
+    ble_phy_disable();
+    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_adv_sm.adv_txdone_ev);
+}
+
+/**
+ * Reset the advertising state machine. 
+ *  
+ * Context: Link Layer task 
  * 
  */
 void
@@ -1177,10 +1232,8 @@ ble_ll_adv_reset(void)
     struct ble_ll_adv_sm *advsm;
     advsm = &g_ble_ll_adv_sm;
 
-    /* If enabled, stop it */
-    if (advsm->enabled) {
-        ble_ll_adv_sm_stop(advsm);
-    }
+    /* Stop advertising state machine */
+    ble_ll_adv_sm_stop(advsm);
 
     /* Free advertiser pdu's */
     os_mbuf_free(advsm->adv_pdu);
@@ -1211,7 +1264,7 @@ ble_ll_adv_init(void)
     advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
 
     /* Initialize advertising tx done event */
-    advsm->adv_txdone_ev.ev_type = BLE_LL_EVENT_ADV_TXDONE;
+    advsm->adv_txdone_ev.ev_type = BLE_LL_EVENT_ADV_EV_DONE;
     advsm->adv_txdone_ev.ev_arg = advsm;
 
     /* Get an advertising mbuf (packet header) and attach to state machine */
