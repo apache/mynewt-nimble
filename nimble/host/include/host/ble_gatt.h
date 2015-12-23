@@ -18,10 +18,12 @@
 #define H_BLE_GATT_
 
 #include <inttypes.h>
+#include "host/ble_att.h"
 struct ble_hs_conn;
 struct ble_att_error_rsp;
 struct ble_att_clt_adata;
 
+/*** @client. */
 struct ble_gatt_service {
     uint16_t start_handle;
     uint16_t end_handle;
@@ -68,5 +70,30 @@ int ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
 
 int ble_gatt_exchange_mtu(uint16_t conn_handle);
 int ble_gatt_init(void);
+
+/*** @server. */
+struct ble_gatt_desc_def {
+    uint8_t *uuid128;
+    ble_att_svr_handle_func *access_cb;
+};
+
+struct ble_gatt_char_def {
+    uint8_t properties;
+    uint8_t *uuid128;
+    ble_att_svr_handle_func *access_cb;
+};
+
+#define BLE_GATT_SVC_TYPE_END       0
+#define BLE_GATT_SVC_TYPE_PRIMARY   1
+#define BLE_GATT_SVC_TYPE_SECONDAY  2
+
+struct ble_gatt_svc_def {
+    uint8_t type;
+    uint8_t *uuid128;
+    struct ble_gatt_svc_def **includes; /* Terminated with null. */
+    struct ble_gatt_char_def *characteristics;
+};
+
+int ble_gatt_register_services(const struct ble_gatt_svc_def *svcs);
 
 #endif

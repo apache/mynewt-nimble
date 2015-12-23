@@ -22,10 +22,10 @@
 #define BLE_GATT_CHR_DECL_SZ_16     5
 #define BLE_GATT_CHR_DECL_SZ_128    19
 
-/*** @gen */
+/*** @gen. */
 void ble_gatt_connection_broken(uint16_t conn_handle);
 
-/*** @client */
+/*** @client. */
 int ble_gattc_disc_all_services(uint16_t conn_handle,
                                ble_gatt_disc_service_fn *cb,
                                void *cb_arg);
@@ -63,5 +63,8 @@ void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
 
 int ble_gattc_init(void);
+
+/*** @server. */
+int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs);
 
 #endif
