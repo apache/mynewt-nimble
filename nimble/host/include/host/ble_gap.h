@@ -28,8 +28,8 @@ struct hci_le_conn_complete;
 #define BLE_GAP_CONN_EVENT_TYPE_ADV_DONE    5
 
 struct ble_gap_conn_connect_rpt {
+    int status;
     uint16_t handle;
-    uint8_t status;
     uint8_t peer_addr[6];
 };
 
@@ -45,13 +45,13 @@ struct ble_gap_conn_adv_rpt {
 };
 
 struct ble_gap_conn_terminate_rpt {
+    int status;
     uint16_t handle;
-    uint8_t status;
     uint8_t reason;
 };
 
 struct ble_gap_conn_adv_done {
-    uint8_t status;
+    int status;
 };
 
 struct ble_gap_conn_event {

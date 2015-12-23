@@ -167,7 +167,7 @@ ble_gap_conn_call_cb(struct ble_gap_conn_event *event)
  *                                  null if a connection was never created.
  */
 static void
-ble_gap_conn_notify_connect(uint8_t status, struct ble_hs_conn *conn)
+ble_gap_conn_notify_connect(int status, struct ble_hs_conn *conn)
 {
     struct ble_gap_conn_event event;
 
@@ -187,7 +187,7 @@ ble_gap_conn_notify_connect(uint8_t status, struct ble_hs_conn *conn)
 }
 
 static void
-ble_gap_conn_notify_terminate(uint16_t handle, uint8_t status, uint8_t reason)
+ble_gap_conn_notify_terminate(uint16_t handle, int status, uint8_t reason)
 {
     struct ble_gap_conn_event event;
 
@@ -200,7 +200,7 @@ ble_gap_conn_notify_terminate(uint16_t handle, uint8_t status, uint8_t reason)
 }
 
 static void
-ble_gap_conn_notify_adv_done(uint8_t status)
+ble_gap_conn_notify_adv_done(int status)
 {
     struct ble_gap_conn_event event;
 
@@ -230,7 +230,7 @@ ble_gap_conn_slave_reset_state(void)
  * the host task that the next hci_batch item can be processed.
  */
 static void
-ble_gap_conn_master_failed(uint8_t status)
+ble_gap_conn_master_failed(int status)
 {
     struct ble_gap_conn_event event;
 
@@ -264,7 +264,7 @@ ble_gap_conn_master_failed(uint8_t status)
  * active.
  */
 static void
-ble_gap_conn_slave_failed(uint8_t status)
+ble_gap_conn_slave_failed(int status)
 {
     os_callout_stop(&ble_gap_conn_slave_timer.cf_c);
 
@@ -483,12 +483,9 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
         break;
     }
 
+    /* We verified that there is a free connection when the procedure began. */
     conn = ble_hs_conn_alloc();
-    if (conn == NULL) {
-        /* XXX: Ensure this never happens. */
-        ble_gap_conn_notify_connect(BLE_ERR_MEM_CAPACITY, NULL);
-        return BLE_HS_ENOMEM;
-    }
+    assert(conn != NULL);
 
     conn->bhc_handle = evt->connection_handle;
     memcpy(conn->bhc_addr, evt->peer_addr, sizeof conn->bhc_addr);
@@ -503,7 +500,7 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
 static void
 ble_gap_conn_master_timer_exp(void *arg)
 {
-    uint8_t status;
+    int status;
 
     assert(ble_gap_conn_master_in_progress());
 
@@ -514,7 +511,7 @@ ble_gap_conn_master_timer_exp(void *arg)
         break;
 
     default:
-        status = 1; /* XXX */
+        status = BLE_HS_ETIMEOUT;
         break;
     }
 
@@ -525,7 +522,7 @@ static void
 ble_gap_conn_slave_timer_exp(void *arg)
 {
     assert(ble_gap_conn_slave_in_progress());
-    ble_gap_conn_slave_failed(1 /*XXX*/);
+    ble_gap_conn_slave_failed(BLE_HS_ETIMEOUT);
 }
 
 /*****************************************************************************
@@ -535,7 +532,7 @@ ble_gap_conn_slave_timer_exp(void *arg)
 static void
 ble_gap_conn_adv_ack_disable(struct ble_hci_ack *ack, void *arg)
 {
-    if (ack->bha_status == BLE_ERR_SUCCESS) {
+    if (ack->bha_status == 0) {
         /* Advertising should now be aborted. */
         ble_gap_conn_slave_reset_state();
         ble_gap_conn_notify_adv_done(0);
@@ -602,7 +599,7 @@ ble_gap_conn_adv_next_state(void)
 static void
 ble_gap_conn_adv_ack(struct ble_hci_ack *ack, void *arg)
 {
-    if (ack->bha_status != BLE_ERR_SUCCESS) {
+    if (ack->bha_status != 0) {
         ble_gap_conn_slave_failed(ack->bha_status);
     } else {
         ble_gap_conn_adv_next_state();
@@ -612,7 +609,7 @@ ble_gap_conn_adv_ack(struct ble_hci_ack *ack, void *arg)
 static void
 ble_gap_conn_adv_ack_enable(struct ble_hci_ack *ack, void *arg)
 {
-    if (ack->bha_status != BLE_ERR_SUCCESS) {
+    if (ack->bha_status != 0) {
         ble_gap_conn_slave_failed(ack->bha_status);
     } else {
         /* Advertising should now be active; put the FSM in the final state. */
@@ -707,13 +704,13 @@ ble_gap_conn_adv_power_ack(struct ble_hci_ack *ack, void *arg)
 {
     int8_t power_level;
 
-    if (ack->bha_status != BLE_ERR_SUCCESS) {
+    if (ack->bha_status != 0) {
         ble_gap_conn_slave_failed(ack->bha_status);
         return;
     }
 
     if (ack->bha_params_len != BLE_HCI_ADV_CHAN_TXPWR_ACK_PARAM_LEN) {
-        ble_gap_conn_slave_failed(1 /*XXX*/);
+        ble_gap_conn_slave_failed(BLE_HS_ECONTROLLER);
         return;
     }
 
@@ -724,7 +721,7 @@ ble_gap_conn_adv_power_ack(struct ble_hci_ack *ack, void *arg)
         /* XXX: Probably can do something nicer than abort the entire
          * procedure.
          */
-        ble_gap_conn_slave_failed(1 /*XXX*/);
+        ble_gap_conn_slave_failed(BLE_HS_ECONTROLLER);
         return;
     }
 

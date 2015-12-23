@@ -156,7 +156,7 @@ host_hci_timer_exp(void *arg)
     assert(host_hci_outstanding_opcode != 0);
 
     ack.bha_opcode = host_hci_outstanding_opcode;
-    ack.bha_status = 0xff; /* XXX */
+    ack.bha_status = BLE_HS_ETIMEOUT;
     ack.bha_params = NULL;
     ack.bha_params_len = 0;
 
@@ -220,9 +220,9 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     ack.bha_params = params;
     ack.bha_params_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
     if (ack.bha_params_len > 0) {
-        ack.bha_status = params[0];
+        ack.bha_status = BLE_HS_HCI_ERR(params[0]);
     } else {
-        ack.bha_status = 255;
+        ack.bha_status = BLE_HS_ECONTROLLER;
     }
 
     ble_hci_ack_rx(&ack);
@@ -557,7 +557,6 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
     }
 
     /* Strip HCI ACL data header from the front of the packet. */
-    /* XXX: This is probably the wrong mbuf pool. */
     os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ);
 
     hdr->hdh_handle_pb_bc = le16toh(&hdr->hdh_handle_pb_bc);
@@ -620,7 +619,7 @@ host_hci_data_rx(struct os_mbuf *om)
     om = NULL;
 
 done:
-    os_mbuf_free_chain(om); /* XXX: Wrong pool. */
+    os_mbuf_free_chain(om);
     return rc;
 }
 

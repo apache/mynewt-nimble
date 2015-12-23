@@ -106,6 +106,7 @@ int ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
 int ble_att_svr_rx_exec_write(struct ble_hs_conn *conn,
                               struct ble_l2cap_chan *chan,
                               struct os_mbuf **rxom);
+void ble_att_svr_prep_clear(struct ble_att_svr_conn *basc);
 int ble_att_svr_init(void);
 
 /*** @clt */

@@ -1716,7 +1716,7 @@ ble_att_svr_prep_find_prev(struct ble_att_svr_conn *basc, uint16_t handle,
     return prev;
 }
 
-static void
+void
 ble_att_svr_prep_clear(struct ble_att_svr_conn *basc)
 {
     struct ble_att_prep_entry *entry;

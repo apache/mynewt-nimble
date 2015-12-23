@@ -509,7 +509,7 @@ err:
 static void
 ble_gatt_err_disc_all_services(struct ble_gatt_entry *entry, int status)
 {
-    if (status == BLE_HS_EATT_ATTR_NOT_FOUND) {
+    if (status == BLE_HS_ATT_ERR(BLE_ATT_ERR_ATTR_NOT_FOUND)) {
         /* Discovery is complete. */
         status = 0;
     }
@@ -667,7 +667,7 @@ err:
 static void
 ble_gatt_err_disc_service_uuid(struct ble_gatt_entry *entry, int status)
 {
-    if (status == BLE_HS_EATT_ATTR_NOT_FOUND) {
+    if (status == BLE_HS_ATT_ERR(BLE_ATT_ERR_ATTR_NOT_FOUND)) {
         /* Discovery is complete. */
         status = 0;
     }
@@ -805,7 +805,7 @@ err:
 static void
 ble_gatt_err_disc_all_chars(struct ble_gatt_entry *entry, int status)
 {
-    if (status == BLE_HS_EATT_ATTR_NOT_FOUND) {
+    if (status == BLE_HS_ATT_ERR(BLE_ATT_ERR_ATTR_NOT_FOUND)) {
         /* Discovery is complete. */
         status = 0;
     }

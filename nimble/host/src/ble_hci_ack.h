@@ -20,10 +20,10 @@
 #include <inttypes.h>
 
 struct ble_hci_ack {
-    uint16_t bha_opcode;
-    uint8_t bha_status;
+    int bha_status;
     uint8_t *bha_params;
     int bha_params_len;
+    uint16_t bha_opcode;
 };
 
 typedef void ble_hci_ack_fn(struct ble_hci_ack *ack, void *arg);

@@ -85,7 +85,7 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
         ble_l2cap_chan_free(chan);
     }
 
-    /* XXX: Free contents of rx and tx queues. */
+    ble_att_svr_prep_clear(&conn->bhc_att_svr);
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);
@@ -207,7 +207,7 @@ ble_hs_conn_init(void)
                          sizeof (struct ble_hs_conn),
                          ble_hs_conn_elem_mem, "ble_hs_conn_pool");
     if (rc != 0) {
-        rc = BLE_HS_EINVAL; // XXX
+        rc = BLE_HS_EOS;
         goto err;
     }
 

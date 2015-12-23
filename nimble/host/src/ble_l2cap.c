@@ -242,7 +242,7 @@ ble_l2cap_init(void)
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
-        rc = BLE_HS_EINVAL; // XXX
+        rc = BLE_HS_EOS;
         goto err;
     }
 
