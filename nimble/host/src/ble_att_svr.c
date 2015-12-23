@@ -131,7 +131,7 @@ ble_att_svr_next_id(void)
  */
 int
 ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
-                     ble_att_svr_handle_func *fn)
+                     ble_att_svr_access_fn *cb, void *cb_arg)
 {
     struct ble_att_svr_entry *entry;
 
@@ -143,7 +143,8 @@ ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
     memcpy(&entry->ha_uuid, uuid, sizeof entry->ha_uuid);
     entry->ha_flags = flags;
     entry->ha_handle_id = ble_att_svr_next_id();
-    entry->ha_fn = fn;
+    entry->ha_cb = cb;
+    entry->ha_cb_arg = cb_arg;
 
     ble_att_svr_list_lock();
     STAILQ_INSERT_TAIL(&ble_att_svr_list, entry, ha_next);
@@ -751,7 +752,7 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
                             struct os_mbuf *rxom, struct os_mbuf *txom,
                             uint16_t mtu)
 {
-    union ble_att_svr_handle_arg arg;
+    union ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *ha;
     uint16_t uuid16;
     uint16_t first;
@@ -783,15 +784,16 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
              */
             uuid16 = ble_hs_uuid_16bit(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
-                rc = ha->ha_fn(ha, BLE_ATT_OP_READ_REQ, &arg);
+                rc = ha->ha_cb(ha->ha_handle_id, ha->ha_uuid,
+                               BLE_ATT_OP_READ_REQ, &arg, ha->ha_cb_arg);
                 if (rc != 0) {
                     rc = BLE_HS_EAPP;
                     goto done;
                 }
                 rc = os_mbuf_memcmp(rxom,
                                     BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                    arg.aha_read.attr_data,
-                                    arg.aha_read.attr_len);
+                                    arg.ahc_read.attr_data,
+                                    arg.ahc_read.attr_len);
                 if (rc == 0) {
                     match = 1;
                 }
@@ -955,7 +957,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
                              uint16_t *err_handle)
 {
     struct ble_att_read_type_rsp rsp;
-    union ble_att_svr_handle_arg arg;
+    union ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint8_t *dptr;
@@ -1007,17 +1009,18 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
         if (entry->ha_handle_id >= req->batq_start_handle &&
             entry->ha_handle_id <= req->batq_end_handle) {
 
-            rc = entry->ha_fn(entry, BLE_ATT_OP_READ_REQ, &arg);
+            rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
+                              BLE_ATT_OP_READ_REQ, &arg, entry->ha_cb_arg);
             if (rc != 0) {
                 *att_err = BLE_ATT_ERR_UNLIKELY;
                 *err_handle = entry->ha_handle_id;
                 goto done;
             }
 
-            if (arg.aha_read.attr_len > ble_l2cap_chan_mtu(chan) - 4) {
+            if (arg.ahc_read.attr_len > ble_l2cap_chan_mtu(chan) - 4) {
                 attr_len = ble_l2cap_chan_mtu(chan) - 4;
             } else {
-                attr_len = arg.aha_read.attr_len;
+                attr_len = arg.ahc_read.attr_len;
             }
 
             if (prev_attr_len == 0) {
@@ -1040,7 +1043,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             }
 
             htole16(dptr + 0, entry->ha_handle_id);
-            memcpy(dptr + 2, arg.aha_read.attr_data, attr_len);
+            memcpy(dptr + 2, arg.ahc_read.attr_data, attr_len);
         }
     }
 
@@ -1190,7 +1193,7 @@ int
 ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                     struct os_mbuf **rxom)
 {
-    union ble_att_svr_handle_arg arg;
+    union ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *entry;
     struct ble_att_read_req req;
     uint16_t err_handle;
@@ -1222,14 +1225,15 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    if (entry->ha_fn == NULL) {
+    if (entry->ha_cb == NULL) {
         att_err = BLE_ATT_ERR_UNLIKELY;
         err_handle = req.barq_handle;
         rc = BLE_HS_ENOTSUP;
         goto err;
     }
 
-    rc = entry->ha_fn(entry, BLE_ATT_OP_READ_REQ, &arg);
+    rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
+                      BLE_ATT_OP_READ_REQ, &arg, entry->ha_cb_arg);
     if (rc != 0) {
         att_err = BLE_ATT_ERR_UNLIKELY;
         err_handle = req.barq_handle;
@@ -1237,8 +1241,8 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.aha_read.attr_data,
-                                 arg.aha_read.attr_len, &att_err);
+    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.ahc_read.attr_data,
+                                 arg.ahc_read.attr_len, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
         goto err;
@@ -1267,22 +1271,23 @@ static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
                          uint8_t *uuid128)
 {
-    union ble_att_svr_handle_arg arg;
+    union ble_att_svr_access_ctxt arg;
     int rc;
 
-    rc = entry->ha_fn(entry, BLE_ATT_OP_READ_REQ, &arg);
+    rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
+                      BLE_ATT_OP_READ_REQ, &arg, entry->ha_cb_arg);
     if (rc != 0) {
         return rc;
     }
 
-    switch (arg.aha_read.attr_len) {
+    switch (arg.ahc_read.attr_len) {
     case 16:
         *uuid16 = 0;
-        memcpy(uuid128, arg.aha_read.attr_data, 16);
+        memcpy(uuid128, arg.ahc_read.attr_data, 16);
         return 0;
 
     case 2:
-        *uuid16 = le16toh(arg.aha_read.attr_data);
+        *uuid16 = le16toh(arg.ahc_read.attr_data);
         if (*uuid16 == 0) {
             return BLE_HS_EINVAL;
         }
@@ -1605,7 +1610,7 @@ int
 ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf **rxom)
 {
-    union ble_att_svr_handle_arg arg;
+    union ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *entry;
     struct ble_att_write_req req;
     uint16_t err_handle;
@@ -1634,18 +1639,19 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    if (entry->ha_fn == NULL) {
+    if (entry->ha_cb == NULL) {
         att_err = BLE_ATT_ERR_UNLIKELY;
         err_handle = req.bawq_handle;
         rc = BLE_HS_ENOTSUP;
         goto err;
     }
 
-    arg.aha_write.attr_data = ble_att_svr_flat_buf;
-    arg.aha_write.attr_len = OS_MBUF_PKTLEN(*rxom);
-    os_mbuf_copydata(*rxom, 0, arg.aha_write.attr_len,
-                     arg.aha_write.attr_data);
-    att_err = entry->ha_fn(entry, BLE_ATT_OP_WRITE_REQ, &arg);
+    arg.ahc_write.attr_data = ble_att_svr_flat_buf;
+    arg.ahc_write.attr_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, arg.ahc_write.attr_len,
+                     arg.ahc_write.attr_data);
+    att_err = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
+                           BLE_ATT_OP_WRITE_REQ, &arg, entry->ha_cb_arg);
     if (att_err != 0) {
         err_handle = req.bawq_handle;
         rc = BLE_HS_EAPP;
@@ -1773,7 +1779,7 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 static int
 ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 {
-    union ble_att_svr_handle_arg arg;
+    union ble_att_svr_access_ctxt arg;
     struct ble_att_prep_entry *entry;
     struct ble_att_prep_entry *next;
     struct ble_att_svr_entry *attr;
@@ -1809,9 +1815,10 @@ ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
                 return BLE_ATT_ERR_INVALID_HANDLE;
             }
 
-            arg.aha_write.attr_data = ble_att_svr_flat_buf;
-            arg.aha_write.attr_len = buf_off;
-            rc = attr->ha_fn(attr, BLE_ATT_OP_WRITE_REQ, &arg);
+            arg.ahc_write.attr_data = ble_att_svr_flat_buf;
+            arg.ahc_write.attr_len = buf_off;
+            rc = attr->ha_cb(attr->ha_handle_id, attr->ha_uuid,
+                             BLE_ATT_OP_WRITE_REQ, &arg, attr->ha_cb_arg);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;
                 return BLE_ATT_ERR_UNLIKELY;

@@ -57,14 +57,15 @@ ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_1(struct ble_att_svr_entry *entry,
-                                     uint8_t op,
-                                     union ble_att_svr_handle_arg *arg)
+ble_att_svr_test_misc_attr_fn_r_1(uint16_t handle_id, uint8_t *uuid128,
+                                  uint8_t op,
+                                  union ble_att_svr_access_ctxt *ctxt,
+                                  void *arg)
 {
     switch (op) {
     case BLE_ATT_OP_READ_REQ:
-        arg->aha_read.attr_data = ble_att_svr_test_attr_r_1;
-        arg->aha_read.attr_len = ble_att_svr_test_attr_r_1_len;
+        ctxt->ahc_read.attr_data = ble_att_svr_test_attr_r_1;
+        ctxt->ahc_read.attr_len = ble_att_svr_test_attr_r_1_len;
         return 0;
 
     default:
@@ -73,13 +74,15 @@ ble_att_svr_test_misc_attr_fn_r_1(struct ble_att_svr_entry *entry,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_2(struct ble_att_svr_entry *entry, uint8_t op,
-                                  union ble_att_svr_handle_arg *arg)
+ble_att_svr_test_misc_attr_fn_r_2(uint16_t handle_id, uint8_t *uuid128,
+                                  uint8_t op,
+                                  union ble_att_svr_access_ctxt *ctxt,
+                                  void *arg)
 {
     switch (op) {
     case BLE_ATT_OP_READ_REQ:
-        arg->aha_read.attr_data = ble_att_svr_test_attr_r_2;
-        arg->aha_read.attr_len = ble_att_svr_test_attr_r_2_len;
+        ctxt->ahc_read.attr_data = ble_att_svr_test_attr_r_2;
+        ctxt->ahc_read.attr_len = ble_att_svr_test_attr_r_2_len;
         return 0;
 
     default:
@@ -88,9 +91,10 @@ ble_att_svr_test_misc_attr_fn_r_2(struct ble_att_svr_entry *entry, uint8_t op,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_group(struct ble_att_svr_entry *entry,
+ble_att_svr_test_misc_attr_fn_r_group(uint16_t handle_id, uint8_t *uuid128,
                                       uint8_t op,
-                                      union ble_att_svr_handle_arg *arg)
+                                      union ble_att_svr_access_ctxt *ctxt,
+                                      void *arg)
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
@@ -124,13 +128,13 @@ ble_att_svr_test_misc_attr_fn_r_group(struct ble_att_svr_entry *entry,
         return -1;
     }
 
-    TEST_ASSERT_FATAL(entry->ha_handle_id >= 1 && entry->ha_handle_id <= 22);
+    TEST_ASSERT_FATAL(handle_id >= 1 && handle_id <= 22);
 
-    arg->aha_read.attr_data = vals + entry->ha_handle_id;
-    if (memcmp(arg->aha_read.attr_data + 2, zeros, 14) == 0) {
-        arg->aha_read.attr_len = 2;
+    ctxt->ahc_read.attr_data = vals + handle_id;
+    if (memcmp(ctxt->ahc_read.attr_data + 2, zeros, 14) == 0) {
+        ctxt->ahc_read.attr_len = 2;
     } else {
-        arg->aha_read.attr_len = 16;
+        ctxt->ahc_read.attr_len = 16;
     }
 
     return 0;
@@ -139,12 +143,12 @@ ble_att_svr_test_misc_attr_fn_r_group(struct ble_att_svr_entry *entry,
 static void
 ble_att_svr_test_misc_register_uuid128(uint8_t *uuid128, uint8_t flags,
                                        uint16_t expected_handle,
-                                       ble_att_svr_handle_func *fn)
+                                       ble_att_svr_access_fn *fn)
 {
     uint16_t handle;
     int rc;
 
-    rc = ble_att_svr_register(uuid128, flags, &handle, fn);
+    rc = ble_att_svr_register(uuid128, flags, &handle, fn, NULL);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(handle == expected_handle);
 }
@@ -152,7 +156,7 @@ ble_att_svr_test_misc_register_uuid128(uint8_t *uuid128, uint8_t flags,
 static void
 ble_att_svr_test_misc_register_uuid16(uint16_t uuid16, uint8_t flags,
                                       uint16_t expected_handle,
-                                      ble_att_svr_handle_func *fn)
+                                      ble_att_svr_access_fn *fn)
 {
     uint8_t uuid128[16];
     int rc;
@@ -217,14 +221,16 @@ ble_att_svr_test_misc_register_group_attrs(void)
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_w_1(struct ble_att_svr_entry *entry, uint8_t op,
-                                  union ble_att_svr_handle_arg *arg)
+ble_att_svr_test_misc_attr_fn_w_1(uint16_t handle_id, uint8_t *uuid128,
+                                  uint8_t op,
+                                  union ble_att_svr_access_ctxt *ctxt,
+                                  void *arg)
 {
     switch (op) {
     case BLE_ATT_OP_WRITE_REQ:
-        memcpy(ble_att_svr_test_attr_w_1, arg->aha_write.attr_data,
-               arg->aha_write.attr_len);
-        ble_att_svr_test_attr_w_1_len = arg->aha_write.attr_len;
+        memcpy(ble_att_svr_test_attr_w_1, ctxt->ahc_write.attr_data,
+               ctxt->ahc_write.attr_len);
+        ble_att_svr_test_attr_w_1_len = ctxt->ahc_write.attr_len;
         return 0;
 
     default:
@@ -233,14 +239,16 @@ ble_att_svr_test_misc_attr_fn_w_1(struct ble_att_svr_entry *entry, uint8_t op,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_w_2(struct ble_att_svr_entry *entry, uint8_t op,
-                                  union ble_att_svr_handle_arg *arg)
+ble_att_svr_test_misc_attr_fn_w_2(uint16_t handle_id, uint8_t *uuid128,
+                                  uint8_t op,
+                                  union ble_att_svr_access_ctxt *ctxt,
+                                  void *arg)
 {
     switch (op) {
     case BLE_ATT_OP_WRITE_REQ:
-        memcpy(ble_att_svr_test_attr_w_2, arg->aha_write.attr_data,
-               arg->aha_write.attr_len);
-        ble_att_svr_test_attr_w_2_len = arg->aha_write.attr_len;
+        memcpy(ble_att_svr_test_attr_w_2, ctxt->ahc_write.attr_data,
+               ctxt->ahc_write.attr_len);
+        ble_att_svr_test_attr_w_2_len = ctxt->ahc_write.attr_len;
         return 0;
 
     default:
@@ -705,7 +713,7 @@ TEST_CASE(ble_att_svr_test_read)
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
     ble_att_svr_test_attr_r_1_len = 8;
     rc = ble_att_svr_register(uuid, 0, &req.barq_handle,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_att_read_req_write(buf, sizeof buf, &req);
@@ -727,9 +735,8 @@ TEST_CASE(ble_att_svr_test_read)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(chan,
-                                                ble_att_svr_test_attr_r_1,
-                                                BLE_ATT_MTU_DFLT - 1);
+    ble_att_svr_test_misc_verify_tx_read_rsp(chan, ble_att_svr_test_attr_r_1,
+                                             BLE_ATT_MTU_DFLT - 1);
 }
 
 TEST_CASE(ble_att_svr_test_write)
@@ -756,7 +763,7 @@ TEST_CASE(ble_att_svr_test_write)
 
     /*** Successful write. */
     rc = ble_att_svr_register(uuid, 0, &req.bawq_handle,
-                                 ble_att_svr_test_misc_attr_fn_w_1);
+                              ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_att_write_req_write(buf, sizeof buf, &req);
@@ -831,7 +838,7 @@ TEST_CASE(ble_att_svr_test_find_info)
 
     /*** Range too late. */
     rc = ble_att_svr_register(uuid1, 0, &handle1,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     req.bafq_start_handle = 200;
@@ -863,9 +870,8 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Two 128-bit entries. */
-    rc = ble_att_svr_register(uuid2, 0,
-                                 &handle2,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+    rc = ble_att_svr_register(uuid2, 0, &handle2,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     req.bafq_start_handle = handle1;
@@ -888,9 +894,8 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Two 128-bit entries; 16-bit entry doesn't get sent. */
-    rc = ble_att_svr_register(uuid3, 0,
-                                 &handle3,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+    rc = ble_att_svr_register(uuid3, 0, &handle3,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     req.bafq_start_handle = handle1;
@@ -1008,7 +1013,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Range too late. */
     rc = ble_att_svr_register(uuid1, 0, &handle1,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     req.bavq_start_handle = 200;
@@ -1042,7 +1047,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** One entry, two attributes. */
     rc = ble_att_svr_register(uuid1, 0, &handle2,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     req.bavq_start_handle = handle1;
@@ -1063,11 +1068,11 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Entry 1: two attributes; entry 2: one attribute. */
     rc = ble_att_svr_register(uuid2, 0, &handle3,
-                                 ble_att_svr_test_misc_attr_fn_r_2);
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_att_svr_register(uuid1, 0, &handle4,
-                                 ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     req.bavq_start_handle = 0x0001;
@@ -1114,7 +1119,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Ensure attribute with wrong type is not included. */
     rc = ble_att_svr_register(uuid3, 0, &handle5,
-                              ble_att_svr_test_misc_attr_fn_r_1);
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
 
     req.bavq_start_handle = 0x0001;
     req.bavq_end_handle = 0xffff;

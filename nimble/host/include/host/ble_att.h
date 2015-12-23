@@ -58,16 +58,16 @@
 
 #define BLE_ATT_ATTR_MAX_LEN                512
 
-union ble_att_svr_handle_arg {
+union ble_att_svr_access_ctxt {
     struct {
         void *attr_data;
         int attr_len;
-    } aha_read;
+    } ahc_read;
 
     struct {
         void *attr_data;
         int attr_len;
-    } aha_write;
+    } ahc_write;
 };
 
 #define HA_FLAG_PERM_READ                   (1 << 0)
@@ -76,8 +76,6 @@ union ble_att_svr_handle_arg {
 #define HA_FLAG_ENC_REQ                     (1 << 3)
 #define HA_FLAG_AUTHENTICATION_REQ          (1 << 4)
 #define HA_FLAG_AUTHORIZATION_REQ           (1 << 5)
-
-struct ble_att_svr_entry;
 
 /**
  * Handles a host attribute request.
@@ -91,21 +89,12 @@ struct ble_att_svr_entry;
  *                              One of the BLE_ATT_ERR_[...] codes on
  *                                  failure.
  */
-typedef int ble_att_svr_handle_func(struct ble_att_svr_entry *entry,
+typedef int ble_att_svr_access_fn(uint16_t handle_id, uint8_t *uuid128,
                                     uint8_t op,
-                                    union ble_att_svr_handle_arg *arg);
-
-struct ble_att_svr_entry {
-    STAILQ_ENTRY(ble_att_svr_entry) ha_next;
-
-    uint8_t ha_uuid[16];
-    uint8_t ha_flags;
-    uint8_t ha_pad1;
-    uint16_t ha_handle_id;
-    ble_att_svr_handle_func *ha_fn;
-};
+                                    union ble_att_svr_access_ctxt *ctxt,
+                                    void *arg);
 
 int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
-                         ble_att_svr_handle_func *fn);
+                         ble_att_svr_access_fn *cb, void *cb_arg);
 
 #endif

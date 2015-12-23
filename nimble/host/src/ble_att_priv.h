@@ -49,6 +49,17 @@ struct ble_att_svr_conn {
     uint32_t basc_prep_write_rx_time;
 };
 
+struct ble_att_svr_entry {
+    STAILQ_ENTRY(ble_att_svr_entry) ha_next;
+
+    uint8_t ha_uuid[16];
+    uint8_t ha_flags;
+    uint8_t ha_pad1;
+    uint16_t ha_handle_id;
+    ble_att_svr_access_fn *ha_cb;
+    void *ha_cb_arg;
+};
+
 /**
  * Called from ble_att_svr_walk().  Called on each entry in the 
  * ble_att_svr_list.

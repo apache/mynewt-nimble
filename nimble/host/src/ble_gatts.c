@@ -15,6 +15,7 @@
  */
 
 #include <stddef.h>
+#include <assert.h>
 #include "ble_hs_priv.h"
 #include "ble_gatt_priv.h"
 
@@ -30,9 +31,17 @@ static struct ble_gatts_svc_entry
 static int ble_gatts_num_svc_entries;
 
 static int
-ble_gatts_svc_access(struct ble_att_svr_entry *entry, uint8_t op,
-                     union ble_att_svr_handle_arg *arg)
+ble_gatts_svc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
+                     union ble_att_svr_access_ctxt *ctxt, void *arg)
 {
+    const struct ble_gatt_svc_def *svc;
+
+    assert(op == BLE_ATT_OP_READ_REQ);
+
+    svc = arg;
+    ctxt->ahc_read.attr_data = svc->uuid128;
+    ctxt->ahc_read.attr_len = 16;
+
     return 0;
 }
 
@@ -70,8 +79,11 @@ ble_gatts_register_service(const struct ble_gatt_svc_def *svc,
         return BLE_HS_EAGAIN;
     }
 
+    /* Register service definition attribute (cast away const on callback
+     * arg).
+     */
     rc = ble_att_svr_register(svc->uuid128, HA_FLAG_PERM_READ, out_handle,
-                              ble_gatts_svc_access);
+                              ble_gatts_svc_access, (void *)svc);
     if (rc != 0) {
         return rc;
     }

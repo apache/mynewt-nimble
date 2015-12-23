@@ -74,13 +74,13 @@ int ble_gatt_init(void);
 /*** @server. */
 struct ble_gatt_desc_def {
     uint8_t *uuid128;
-    ble_att_svr_handle_func *access_cb;
+    ble_att_svr_access_fn *access_cb;
 };
 
 struct ble_gatt_char_def {
     uint8_t properties;
     uint8_t *uuid128;
-    ble_att_svr_handle_func *access_cb;
+    ble_att_svr_access_fn *access_cb;
 };
 
 #define BLE_GATT_SVC_TYPE_END       0
