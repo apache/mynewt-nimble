@@ -134,7 +134,7 @@ ble_hs_task_handler(void *arg)
             break;
 
         case BLE_HS_KICK_GATT_EVENT:
-            ble_gatt_wakeup();
+            ble_gattc_wakeup();
             break;
 
         default:
@@ -263,7 +263,7 @@ ble_hs_init(uint8_t prio)
         return rc;
     }
 
-    rc = ble_gatt_init();
+    rc = ble_gattc_init();
     if (rc != 0) {
         return rc;
     }

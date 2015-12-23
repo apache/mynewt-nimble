@@ -60,7 +60,7 @@ ble_gatt_read_test_misc_rx_rsp_good(struct ble_hs_conn *conn,
     TEST_ASSERT_FATAL(attr->value_len <= sizeof buf);
 
     /* Send the pending ATT Read Request. */
-    ble_gatt_wakeup();
+    ble_gattc_wakeup();
 
     buf[0] = BLE_ATT_OP_READ_RSP;
     memcpy(buf + 1, attr->value, attr->value_len);
@@ -79,7 +79,7 @@ ble_gatt_read_test_misc_rx_rsp_bad(struct ble_hs_conn *conn,
                                    uint8_t att_error)
 {
     /* Send the pending ATT Read Request. */
-    ble_gatt_wakeup();
+    ble_gattc_wakeup();
 
     ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_REQ, att_error,
                                     attr->handle);
@@ -168,7 +168,7 @@ TEST_CASE(ble_gatt_read_test_by_handle)
         } });
 }
 
-TEST_SUITE(gle_gatt_read_test_suite)
+TEST_SUITE(ble_gatt_read_test_suite)
 {
     ble_gatt_read_test_by_handle();
 }
@@ -176,7 +176,7 @@ TEST_SUITE(gle_gatt_read_test_suite)
 int
 ble_gatt_read_test_all(void)
 {
-    gle_gatt_read_test_suite();
+    ble_gatt_read_test_suite();
 
     return tu_any_failed;
 }

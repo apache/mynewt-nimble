@@ -62,7 +62,7 @@ ble_gatt_disc_c_test_misc_rx_all_rsp_once(
     int i;
 
     /* Send the pending ATT Read By Type Request. */
-    ble_gatt_wakeup();
+    ble_gattc_wakeup();
     ble_hs_process_tx_data_queue();
 
     if (chars[0].uuid16 != 0) {
@@ -134,7 +134,7 @@ ble_gatt_disc_c_test_misc_rx_all_rsp(struct ble_hs_conn *conn,
 
     if (chars[idx - 1].decl_handle != end_handle) {
         /* Send the pending ATT Request. */
-        ble_gatt_wakeup();
+        ble_gattc_wakeup();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         chars[idx - 1].decl_handle);
@@ -200,7 +200,7 @@ ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
     rc = ble_gatt_disc_all_chars(2, start_handle, end_handle,
-                                 ble_gatt_disc_c_test_misc_cb, NULL);
+                                  ble_gatt_disc_c_test_misc_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_gatt_disc_c_test_misc_rx_all_rsp(conn, end_handle, chars);

@@ -145,7 +145,7 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 static void
 ble_hs_conn_txable_transition(struct ble_hs_conn *conn)
 {
-    ble_gatt_connection_txable(conn->bhc_handle);
+    ble_gattc_connection_txable(conn->bhc_handle);
 }
 
 void

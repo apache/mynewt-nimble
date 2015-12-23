@@ -290,7 +290,7 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
 
     ble_gap_conn_notify_terminate(evt->connection_handle, evt->status,
                                   evt->reason);
-    ble_gatt_connection_broken(evt->connection_handle);
+    ble_gattc_connection_broken(evt->connection_handle);
 }
 
 /**

@@ -84,7 +84,7 @@ ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return rc;
     }
 
-    ble_gatt_rx_err(conn->bhc_handle, &rsp);
+    ble_gattc_rx_err(conn->bhc_handle, &rsp);
 
     return 0;
 }
@@ -141,7 +141,7 @@ ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
 
-    ble_gatt_rx_mtu(conn, ble_l2cap_chan_mtu(chan));
+    ble_gattc_rx_mtu(conn, ble_l2cap_chan_mtu(chan));
 
     return 0;
 }
@@ -344,13 +344,13 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             goto done;
         }
 
-        ble_gatt_rx_read_type_adata(conn, &adata);
+        ble_gattc_rx_read_type_adata(conn, &adata);
         os_mbuf_adj(*rxom, rsp.batp_length);
     }
 
 done:
     /* Notify GATT that the response is done being parsed. */
-    ble_gatt_rx_read_type_complete(conn, rc);
+    ble_gattc_rx_read_type_complete(conn, rc);
 
     return 0;
 
@@ -420,7 +420,7 @@ ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     rc = 0;
 
 done:
-    ble_gatt_rx_read_rsp(conn, rc, value, value_len);
+    ble_gattc_rx_read_rsp(conn, rc, value, value_len);
     return rc;
 }
 
@@ -520,13 +520,13 @@ ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
             goto done;
         }
 
-        ble_gatt_rx_read_group_type_adata(conn, &adata);
+        ble_gattc_rx_read_group_type_adata(conn, &adata);
         os_mbuf_adj(*rxom, rsp.bagp_length);
     }
 
 done:
     /* Notify GATT that the response is done being parsed. */
-    ble_gatt_rx_read_group_type_complete(conn, rc);
+    ble_gattc_rx_read_group_type_complete(conn, rc);
 
     return 0;
 }
@@ -616,12 +616,12 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
             break;
         }
 
-        ble_gatt_rx_find_type_value_hinfo(conn, &adata);
+        ble_gattc_rx_find_type_value_hinfo(conn, &adata);
         os_mbuf_adj(*rxom, BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ);
     }
 
-    /* Notify GATT that the full response has been parsed. */
-    ble_gatt_rx_find_type_value_complete(conn, rc);
+    /* Notify GATT client that the full response has been parsed. */
+    ble_gattc_rx_find_type_value_complete(conn, rc);
 
     return 0;
 }
@@ -712,7 +712,7 @@ ble_att_clt_rx_write(struct ble_hs_conn *conn,
                      struct os_mbuf **rxom)
 {
     /* No payload. */
-    ble_gatt_rx_write_rsp(conn);
+    ble_gattc_rx_write_rsp(conn);
 
     return 0;
 }

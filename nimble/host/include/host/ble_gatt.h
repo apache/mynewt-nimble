@@ -66,7 +66,7 @@ int ble_gatt_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
 int ble_gatt_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                    uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 
-int ble_gatt_mtu(uint16_t conn_handle);
+int ble_gatt_exchange_mtu(uint16_t conn_handle);
 int ble_gatt_init(void);
 
 #endif
