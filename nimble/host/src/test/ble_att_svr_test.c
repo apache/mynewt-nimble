@@ -63,7 +63,7 @@ ble_att_svr_test_misc_attr_fn_r_1(uint16_t handle_id, uint8_t *uuid128,
                                   void *arg)
 {
     switch (op) {
-    case BLE_ATT_OP_READ_REQ:
+    case BLE_ATT_ACCESS_OP_READ:
         ctxt->ahc_read.attr_data = ble_att_svr_test_attr_r_1;
         ctxt->ahc_read.attr_len = ble_att_svr_test_attr_r_1_len;
         return 0;
@@ -80,7 +80,7 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t handle_id, uint8_t *uuid128,
                                   void *arg)
 {
     switch (op) {
-    case BLE_ATT_OP_READ_REQ:
+    case BLE_ATT_ACCESS_OP_READ:
         ctxt->ahc_read.attr_data = ble_att_svr_test_attr_r_2;
         ctxt->ahc_read.attr_len = ble_att_svr_test_attr_r_2_len;
         return 0;
@@ -124,7 +124,7 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t handle_id, uint8_t *uuid128,
 
     static uint8_t zeros[14];
 
-    if (op != BLE_ATT_OP_READ_REQ) {
+    if (op != BLE_ATT_ACCESS_OP_READ) {
         return -1;
     }
 
@@ -227,7 +227,7 @@ ble_att_svr_test_misc_attr_fn_w_1(uint16_t handle_id, uint8_t *uuid128,
                                   void *arg)
 {
     switch (op) {
-    case BLE_ATT_OP_WRITE_REQ:
+    case BLE_ATT_ACCESS_OP_WRITE:
         memcpy(ble_att_svr_test_attr_w_1, ctxt->ahc_write.attr_data,
                ctxt->ahc_write.attr_len);
         ble_att_svr_test_attr_w_1_len = ctxt->ahc_write.attr_len;
@@ -245,7 +245,7 @@ ble_att_svr_test_misc_attr_fn_w_2(uint16_t handle_id, uint8_t *uuid128,
                                   void *arg)
 {
     switch (op) {
-    case BLE_ATT_OP_WRITE_REQ:
+    case BLE_ATT_ACCESS_OP_WRITE:
         memcpy(ble_att_svr_test_attr_w_2, ctxt->ahc_write.attr_data,
                ctxt->ahc_write.attr_len);
         ble_att_svr_test_attr_w_2_len = ctxt->ahc_write.attr_len;
@@ -292,8 +292,7 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(rsp.baep_error_code == error_code);
 
     /* Remove the error response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx,
-                BLE_ATT_ERROR_RSP_SZ);
+    os_mbuf_adj(ble_hs_test_util_prev_tx, BLE_ATT_ERROR_RSP_SZ);
 }
 
 static void

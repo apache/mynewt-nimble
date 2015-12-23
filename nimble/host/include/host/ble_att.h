@@ -77,6 +77,9 @@ union ble_att_svr_access_ctxt {
 #define HA_FLAG_AUTHENTICATION_REQ          (1 << 4)
 #define HA_FLAG_AUTHORIZATION_REQ           (1 << 5)
 
+#define BLE_ATT_ACCESS_OP_READ              1
+#define BLE_ATT_ACCESS_OP_WRITE             2
+
 /**
  * Handles a host attribute request.
  *

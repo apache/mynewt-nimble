@@ -36,7 +36,7 @@ ble_gatts_svc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
 {
     const struct ble_gatt_svc_def *svc;
 
-    assert(op == BLE_ATT_OP_READ_REQ);
+    assert(op == BLE_ATT_ACCESS_OP_READ);
 
     svc = arg;
     ctxt->ahc_read.attr_data = svc->uuid128;

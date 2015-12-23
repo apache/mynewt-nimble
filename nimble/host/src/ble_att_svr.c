@@ -785,7 +785,7 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
             uuid16 = ble_hs_uuid_16bit(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
                 rc = ha->ha_cb(ha->ha_handle_id, ha->ha_uuid,
-                               BLE_ATT_OP_READ_REQ, &arg, ha->ha_cb_arg);
+                               BLE_ATT_ACCESS_OP_READ, &arg, ha->ha_cb_arg);
                 if (rc != 0) {
                     rc = BLE_HS_EAPP;
                     goto done;
@@ -1010,7 +1010,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             entry->ha_handle_id <= req->batq_end_handle) {
 
             rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
-                              BLE_ATT_OP_READ_REQ, &arg, entry->ha_cb_arg);
+                              BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
             if (rc != 0) {
                 *att_err = BLE_ATT_ERR_UNLIKELY;
                 *err_handle = entry->ha_handle_id;
@@ -1233,7 +1233,7 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     }
 
     rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
-                      BLE_ATT_OP_READ_REQ, &arg, entry->ha_cb_arg);
+                      BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
     if (rc != 0) {
         att_err = BLE_ATT_ERR_UNLIKELY;
         err_handle = req.barq_handle;
@@ -1275,7 +1275,7 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     int rc;
 
     rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
-                      BLE_ATT_OP_READ_REQ, &arg, entry->ha_cb_arg);
+                      BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
     if (rc != 0) {
         return rc;
     }
@@ -1651,7 +1651,7 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     os_mbuf_copydata(*rxom, 0, arg.ahc_write.attr_len,
                      arg.ahc_write.attr_data);
     att_err = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
-                           BLE_ATT_OP_WRITE_REQ, &arg, entry->ha_cb_arg);
+                           BLE_ATT_ACCESS_OP_WRITE, &arg, entry->ha_cb_arg);
     if (att_err != 0) {
         err_handle = req.bawq_handle;
         rc = BLE_HS_EAPP;
@@ -1818,7 +1818,7 @@ ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
             arg.ahc_write.attr_data = ble_att_svr_flat_buf;
             arg.ahc_write.attr_len = buf_off;
             rc = attr->ha_cb(attr->ha_handle_id, attr->ha_uuid,
-                             BLE_ATT_OP_WRITE_REQ, &arg, attr->ha_cb_arg);
+                             BLE_ATT_ACCESS_OP_WRITE, &arg, attr->ha_cb_arg);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;
                 return BLE_ATT_ERR_UNLIKELY;
