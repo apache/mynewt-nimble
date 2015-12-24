@@ -72,15 +72,18 @@ int ble_gatt_exchange_mtu(uint16_t conn_handle);
 int ble_gatt_init(void);
 
 /*** @server. */
-struct ble_gatt_desc_def {
+struct ble_gatt_dsc_def {
     uint8_t *uuid128;
+    uint8_t att_flags;
     ble_att_svr_access_fn *access_cb;
+    void *arg;
 };
 
-struct ble_gatt_char_def {
-    uint8_t properties;
+struct ble_gatt_chr_def {
     uint8_t *uuid128;
     ble_att_svr_access_fn *access_cb;
+    struct ble_gatt_dsc_def *descriptors;
+    uint8_t properties;
 };
 
 #define BLE_GATT_SVC_TYPE_END       0
@@ -91,7 +94,7 @@ struct ble_gatt_svc_def {
     uint8_t type;
     uint8_t *uuid128;
     struct ble_gatt_svc_def **includes; /* Terminated with null. */
-    struct ble_gatt_char_def *characteristics;
+    struct ble_gatt_chr_def *characteristics;
 };
 
 int ble_gatt_register_services(const struct ble_gatt_svc_def *svcs);
