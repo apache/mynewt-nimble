@@ -210,7 +210,7 @@ ble_gatts_register_characteristic(const struct ble_gatt_chr_def *chr)
 
 static int
 ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
-                           uint16_t *out_handle)
+                       uint16_t *out_handle)
 {
     const struct ble_gatt_svc_def *incl;
     const struct ble_gatt_chr_def *chr;
