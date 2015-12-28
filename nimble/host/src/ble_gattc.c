@@ -23,7 +23,7 @@
 #include "nimble/ble.h"
 #include "ble_gatt_priv.h"
 #include "ble_hs_priv.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
@@ -485,7 +485,7 @@ ble_gattc_kick_disc_all_services(struct ble_gattc_entry *entry)
         goto err;
     }
 
-    rc = ble_hs_uuid_from_16bit(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
     assert(rc == 0);
 
     req.bagq_start_handle = entry->disc_all_services.prev_handle + 1;
@@ -538,7 +538,7 @@ ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
     switch (adata->value_len) {
     case 2:
         uuid16 = le16toh(adata->value);
-        rc = ble_hs_uuid_from_16bit(uuid16, service.uuid128);
+        rc = ble_uuid_16_to_128(uuid16, service.uuid128);
         if (rc != 0) {
             goto done;
         }
@@ -780,7 +780,7 @@ ble_gattc_kick_disc_all_chars(struct ble_gattc_entry *entry)
         goto err;
     }
 
-    rc = ble_hs_uuid_from_16bit(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
     assert(rc == 0);
 
     req.batq_start_handle = entry->disc_all_chars.prev_handle + 1;
@@ -837,7 +837,7 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
     switch (adata->value_len) {
     case BLE_GATT_CHR_DECL_SZ_16:
         uuid16 = le16toh(adata->value + 3);
-        rc = ble_hs_uuid_from_16bit(uuid16, chr.uuid128);
+        rc = ble_uuid_16_to_128(uuid16, chr.uuid128);
         if (rc != 0) {
             rc = BLE_HS_EBADDATA;
             goto done;

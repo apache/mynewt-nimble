@@ -20,7 +20,7 @@
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_gatt.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 #include "ble_att_cmd.h"
 #include "ble_gatt_priv.h"
@@ -153,7 +153,7 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars)
         TEST_ASSERT(chars[i].value_handle ==
                     ble_gatt_disc_c_test_chars[i].value_handle);
         if (chars[i].uuid16 != 0) {
-            uuid16 = ble_hs_uuid_16bit(ble_gatt_disc_c_test_chars[i].uuid128);
+            uuid16 = ble_uuid_128_to_16(ble_gatt_disc_c_test_chars[i].uuid128);
             TEST_ASSERT(chars[i].uuid16 == uuid16);
         } else {
             TEST_ASSERT(memcmp(chars[i].uuid128,

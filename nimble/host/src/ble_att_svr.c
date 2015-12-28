@@ -19,7 +19,7 @@
 #include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_priv.h"
 #include "ble_l2cap.h"
@@ -165,7 +165,7 @@ ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
     uint8_t uuid128[16];
     int rc;
 
-    rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+    rc = ble_uuid_16_to_128(uuid16, uuid128);
     if (rc != 0) {
         return rc;
     }
@@ -463,7 +463,7 @@ ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
             goto done;
         }
         if (ha->ha_handle_id >= req->bafq_start_handle) {
-            uuid16 = ble_hs_uuid_16bit(ha->ha_uuid);
+            uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
 
             if (*format == 0) {
                 if (uuid16 != 0) {
@@ -803,7 +803,7 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
             /* Compare the attribute type and value to the request fields to
              * determine if this attribute matches.
              */
-            uuid16 = ble_hs_uuid_16bit(ha->ha_uuid);
+            uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
                 rc = ha->ha_cb(ha->ha_handle_id, ha->ha_uuid,
                                BLE_ATT_ACCESS_OP_READ, &arg, ha->ha_cb_arg);
@@ -1132,7 +1132,7 @@ ble_att_svr_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     switch ((*rxom)->om_len) {
     case BLE_ATT_READ_TYPE_REQ_SZ_16:
         uuid16 = le16toh((*rxom)->om_data + 5);
-        rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+        rc = ble_uuid_16_to_128(uuid16, uuid128);
         if (rc != 0) {
             att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
             err_handle = 0;
@@ -1292,7 +1292,7 @@ ble_att_svr_is_valid_group_type(uint8_t *uuid128)
 {
     uint16_t uuid16;
 
-    uuid16 = ble_hs_uuid_16bit(uuid128);
+    uuid16 = ble_uuid_128_to_16(uuid128);
 
     return uuid16 == BLE_ATT_UUID_PRIMARY_SERVICE ||
            uuid16 == BLE_ATT_UUID_SECONDARY_SERVICE;
@@ -1570,8 +1570,8 @@ ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_hs_uuid_extract(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
-                             uuid128);
+    rc = ble_uuid_extract(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
+                          uuid128);
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = req.bagq_start_handle;

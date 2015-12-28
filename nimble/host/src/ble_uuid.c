@@ -21,9 +21,9 @@
 #include "os/os_mbuf.h"
 #include "nimble/ble.h"
 #include "ble_hs_priv.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 
-static uint8_t ble_hs_uuid_base[16] = {
+static uint8_t ble_uuid_base[16] = {
     0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
     0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
@@ -37,7 +37,7 @@ static uint8_t ble_hs_uuid_base[16] = {
  *                                  0 if the UUID could not be converted.
  */
 uint16_t
-ble_hs_uuid_16bit(void *uuid128)
+ble_uuid_128_to_16(void *uuid128)
 {
     uint16_t uuid16;
     uint8_t *u8ptr;
@@ -48,7 +48,7 @@ ble_hs_uuid_16bit(void *uuid128)
     /* The UUID can only be converted if the final 96 bits of its big endian
      * representation are equal to the base UUID.
      */
-    rc = memcmp(u8ptr, ble_hs_uuid_base, sizeof ble_hs_uuid_base - 4);
+    rc = memcmp(u8ptr, ble_uuid_base, sizeof ble_uuid_base - 4);
     if (rc != 0) {
         return 0;
     }
@@ -67,7 +67,7 @@ ble_hs_uuid_16bit(void *uuid128)
 }
 
 int
-ble_hs_uuid_from_16bit(uint16_t uuid16, void *uuid128)
+ble_uuid_16_to_128(uint16_t uuid16, void *uuid128)
 {
     uint8_t *u8ptr;
 
@@ -77,20 +77,20 @@ ble_hs_uuid_from_16bit(uint16_t uuid16, void *uuid128)
 
     u8ptr = uuid128;
 
-    memcpy(u8ptr, ble_hs_uuid_base, 16);
+    memcpy(u8ptr, ble_uuid_base, 16);
     htole16(u8ptr + 12, uuid16);
 
     return 0;
 }
 
 int
-ble_hs_uuid_append(struct os_mbuf *om, void *uuid128)
+ble_uuid_append(struct os_mbuf *om, void *uuid128)
 {
     uint16_t uuid16;
     void *buf;
     int rc;
 
-    uuid16 = ble_hs_uuid_16bit(uuid128);
+    uuid16 = ble_uuid_128_to_16(uuid128);
     if (uuid16 != 0) {
         buf = os_mbuf_extend(om, 2);
         if (buf == NULL) {
@@ -109,7 +109,7 @@ ble_hs_uuid_append(struct os_mbuf *om, void *uuid128)
 }
 
 int
-ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
+ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
 {
     uint16_t uuid16;
     int remlen;
@@ -122,7 +122,7 @@ ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
         assert(rc == 0);
 
         uuid16 = le16toh(&uuid16);
-        rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+        rc = ble_uuid_16_to_128(uuid16, uuid128);
         if (rc != 0) {
             return rc;
         }

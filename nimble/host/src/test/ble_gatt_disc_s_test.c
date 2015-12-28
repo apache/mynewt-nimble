@@ -19,7 +19,7 @@
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "ble_gatt_priv.h"
 #include "ble_att_cmd.h"
 #include "ble_hs_conn.h"
@@ -210,7 +210,7 @@ ble_gatt_disc_s_test_misc_verify_services(
                     ble_gatt_disc_s_test_svcs[i].end_handle);
 
         uuid128 = ble_gatt_disc_s_test_svcs[i].uuid128;
-        uuid16 = ble_hs_uuid_16bit(uuid128);
+        uuid16 = ble_uuid_128_to_16(uuid128);
         if (uuid16 != 0) {
             TEST_ASSERT(services[i].uuid16 == uuid16);
         } else {
@@ -270,7 +270,7 @@ ble_gatt_disc_s_test_misc_good_uuid(
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
     if (services[0].uuid16 != 0) {
-        rc = ble_hs_uuid_from_16bit(services[0].uuid16, services[0].uuid128);
+        rc = ble_uuid_16_to_128(services[0].uuid16, services[0].uuid128);
         TEST_ASSERT_FATAL(rc == 0);
     }
     rc = ble_gatt_disc_service_by_uuid(2, services[0].uuid128,

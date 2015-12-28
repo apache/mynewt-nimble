@@ -18,70 +18,70 @@
 #include <string.h>
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 
-TEST_CASE(ble_hs_uuid_test_128_to_16)
+TEST_CASE(ble_uuid_test_128_to_16)
 {
     uint16_t uuid16;
 
     /*** RFCOMM */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00
     }));
     TEST_ASSERT(uuid16 == 0x0003);
 
     /*** BNEP */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00
     }));
     TEST_ASSERT(uuid16 == 0x000f);
 
     /*** L2CAP */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00
     }));
     TEST_ASSERT(uuid16 == 0x0100);
 
     /*** ObEXObjectPush */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x05, 0x11, 0x00, 0x00
     }));
     TEST_ASSERT(uuid16 == 0x1105);
 
     /*** Invalid base. */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9c, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00
     }));
     TEST_ASSERT(uuid16 == 0);
 
     /*** Invalid prefix. */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x03, 0x00, 0x00, 0x01
     }));
     TEST_ASSERT(uuid16 == 0);
 
     /*** 16-bit UUID of 0. */
-    uuid16 = ble_hs_uuid_16bit(((uint8_t[]) {
+    uuid16 = ble_uuid_128_to_16(((uint8_t[]) {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
         0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     }));
 }
 
-TEST_SUITE(ble_hs_uuid_test_suite)
+TEST_SUITE(ble_uuid_test_suite)
 {
-    ble_hs_uuid_test_128_to_16();
+    ble_uuid_test_128_to_16();
 }
 
 int
-ble_hs_uuid_test_all(void)
+ble_uuid_test_all(void)
 {
-    ble_hs_uuid_test_suite();
+    ble_uuid_test_suite();
 
     return tu_any_failed;
 }

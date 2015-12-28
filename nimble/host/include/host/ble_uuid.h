@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef H_BLE_HS_UUID_
-#define H_BLE_HS_UUID_
+#ifndef H_BLE_UUID_
+#define H_BLE_UUID_
 
 struct os_mbuf;
 
-uint16_t ble_hs_uuid_16bit(void *uuid128);
-int ble_hs_uuid_from_16bit(uint16_t uuid16, void *dst);
-int ble_hs_uuid_append(struct os_mbuf *om, void *uuid128);
-int ble_hs_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
+uint16_t ble_uuid_128_to_16(void *uuid128);
+int ble_uuid_16_to_128(uint16_t uuid16, void *dst);
+int ble_uuid_append(struct os_mbuf *om, void *uuid128);
+int ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
 
 /**
  * Expands to a designated initializer byte array containing the 128-bit

@@ -20,7 +20,7 @@
 #include "nimble/hci_common.h"
 #include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "testutil/testutil.h"
 #include "ble_l2cap.h"
 #include "ble_hs_test_util.h"
@@ -161,7 +161,7 @@ ble_att_svr_test_misc_register_uuid16(uint16_t uuid16, uint8_t flags,
     uint8_t uuid128[16];
     int rc;
 
-    rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+    rc = ble_uuid_16_to_128(uuid16, uuid128);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_att_svr_test_misc_register_uuid128(uuid128, flags, expected_handle,

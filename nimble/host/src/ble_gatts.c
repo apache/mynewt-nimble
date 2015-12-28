@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <string.h>
 #include "nimble/ble.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 #include "ble_gatt_priv.h"
 
@@ -69,7 +69,7 @@ ble_gatts_inc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
     htole16(buf + 2, entry->end_group_handle);
 
     /* Only include the service UUID if it has a 16-bit representation. */
-    uuid16 = ble_hs_uuid_16bit(entry->svc->uuid128);
+    uuid16 = ble_uuid_128_to_16(entry->svc->uuid128);
     if (uuid16 != 0) {
         htole16(buf + 4, uuid16);
         ctxt->ahc_read.attr_len = 6;
@@ -98,7 +98,7 @@ ble_gatts_chr_def_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
     /* The value attribute is always immediately after the declaration. */
     htole16(buf + 1, handle_id + 1);
 
-    uuid16 = ble_hs_uuid_16bit(chr->uuid128);
+    uuid16 = ble_uuid_128_to_16(chr->uuid128);
     if (uuid16 != 0) {
         htole16(buf + 3, uuid16);
         ctxt->ahc_read.attr_len = 5;

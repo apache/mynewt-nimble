@@ -20,7 +20,7 @@
 #include <assert.h>
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
-#include "host/ble_hs_uuid.h"
+#include "host/ble_uuid.h"
 #include "ble_gatt_priv.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_conn.h"
@@ -226,7 +226,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             off += 2;
             uuid16 = le16toh(&uuid16);
 
-            rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+            rc = ble_uuid_16_to_128(uuid16, uuid128);
             if (rc != 0) {
                 return BLE_HS_EINVAL;
             }
@@ -277,7 +277,7 @@ ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
     rc = ble_att_read_type_req_write(txom->om_data, txom->om_len, req);
     assert(rc == 0);
 
-    rc = ble_hs_uuid_append(txom, uuid128);
+    rc = ble_uuid_append(txom, uuid128);
     if (rc != 0) {
         goto err;
     }
@@ -451,7 +451,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
     rc = ble_att_read_group_type_req_write(txom->om_data, txom->om_len, req);
     assert(rc == 0);
 
-    rc = ble_hs_uuid_append(txom, uuid128);
+    rc = ble_uuid_append(txom, uuid128);
     if (rc != 0) {
         goto err;
     }
