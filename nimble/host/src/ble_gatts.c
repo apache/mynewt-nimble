@@ -106,6 +106,7 @@ ble_gatts_chr_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
         memcpy(buf + 3, chr->uuid128, 16);
         ctxt->ahc_read.attr_len = 19;
     }
+    ctxt->ahc_read.attr_data = buf;
 
     return 0;
 }
@@ -180,7 +181,7 @@ ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc)
 }
 
 static int
-ble_gatts_register_characteristic(const struct ble_gatt_chr_def *chr)
+ble_gatts_register_chr(const struct ble_gatt_chr_def *chr)
 {
     struct ble_gatt_dsc_def *dsc;
     uint16_t handle;
@@ -189,8 +190,18 @@ ble_gatts_register_characteristic(const struct ble_gatt_chr_def *chr)
     /* Register characteristic declaration attribute (cast away const on
      * callback arg).
      */
-    rc = ble_att_svr_register(chr->uuid128, HA_FLAG_PERM_READ, &handle,
-                              ble_gatts_chr_access, (void *)chr);
+    rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_CHARACTERISTIC,
+                                     HA_FLAG_PERM_READ, &handle,
+                                     ble_gatts_chr_access, (void *)chr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* Register characteristic value attribute  (cast away const on callback
+     * arg).
+     */
+    rc = ble_att_svr_register(chr->uuid128, HA_FLAG_PERM_READ /*XXX*/, &handle,
+                              chr->access_cb, (void *)chr->arg);
     if (rc != 0) {
         return rc;
     }
@@ -214,6 +225,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
 {
     const struct ble_gatt_svc_def *incl;
     const struct ble_gatt_chr_def *chr;
+    uint16_t uuid16;
     int idx;
     int rc;
 
@@ -224,8 +236,21 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     /* Register service definition attribute (cast away const on callback
      * arg).
      */
-    rc = ble_att_svr_register(svc->uuid128, HA_FLAG_PERM_READ, out_handle,
-                              ble_gatts_svc_access, (void *)svc);
+    switch (svc->type) {
+    case BLE_GATT_SVC_TYPE_PRIMARY:
+        uuid16 = BLE_ATT_UUID_PRIMARY_SERVICE;
+        break;
+
+    case BLE_GATT_SVC_TYPE_SECONDARY:
+        uuid16 = BLE_ATT_UUID_SECONDARY_SERVICE;
+        break;
+
+    default:
+        return BLE_HS_EINVAL;
+    }
+
+    rc = ble_att_svr_register_uuid16(uuid16, HA_FLAG_PERM_READ, out_handle,
+                                     ble_gatts_svc_access, (void *)svc);
     if (rc != 0) {
         return rc;
     }
@@ -246,7 +271,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     /* Register each characteristic. */
     if (svc->characteristics != NULL) {
         for (chr = svc->characteristics; chr->uuid128 != NULL; chr++) {
-            rc = ble_gatts_register_characteristic(chr);
+            rc = ble_gatts_register_chr(chr);
             if (rc != 0) {
                 return rc;
             }

@@ -157,6 +157,27 @@ ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
     return 0;
 }
 
+int
+ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
+                            uint16_t *handle_id, ble_att_svr_access_fn *cb,
+                            void *cb_arg)
+{
+    uint8_t uuid128[16];
+    int rc;
+
+    rc = ble_hs_uuid_from_16bit(uuid16, uuid128);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_att_svr_register(uuid128, flags, handle_id, cb, cb_arg);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 /**
  * Walk the host attribute list, calling walk_func on each entry with argument.
  * If walk_func wants to stop iteration, it returns 1.  To continue iteration

@@ -80,15 +80,16 @@ struct ble_gatt_dsc_def {
 };
 
 struct ble_gatt_chr_def {
-    uint8_t *uuid128;
+    uint8_t *uuid128;   /* NULL if no more characteristics. */
     ble_att_svr_access_fn *access_cb;
+    void *arg;
     struct ble_gatt_dsc_def *descriptors;
     uint8_t properties;
 };
 
 #define BLE_GATT_SVC_TYPE_END       0
 #define BLE_GATT_SVC_TYPE_PRIMARY   1
-#define BLE_GATT_SVC_TYPE_SECONDAY  2
+#define BLE_GATT_SVC_TYPE_SECONDARY 2
 
 struct ble_gatt_svc_def {
     uint8_t type;
