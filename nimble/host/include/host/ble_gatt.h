@@ -72,16 +72,18 @@ int ble_gatt_exchange_mtu(uint16_t conn_handle);
 int ble_gatt_init(void);
 
 /*** @server. */
-struct ble_gatt_dsc_def {
-    uint8_t *uuid128;
-    uint8_t att_flags;
-    ble_att_svr_access_fn *access_cb;
-    void *arg;
-};
+
+#define BLE_GATT_ACCESS_OP_READ_CHR         0
+#define BLE_GATT_ACCESS_OP_WRITE_CHR        1
+/* XXX: Notify, listen. */
+
+union ble_gatt_access_ctxt;
+typedef int ble_gatt_access_fn(uint16_t handle_id, uint8_t op,
+                               union ble_gatt_access_ctxt *ctxt, void *arg);
 
 struct ble_gatt_chr_def {
     uint8_t *uuid128;   /* NULL if no more characteristics. */
-    ble_att_svr_access_fn *access_cb;
+    ble_gatt_access_fn *access_cb;
     void *arg;
     struct ble_gatt_dsc_def *descriptors;
     uint8_t properties;
@@ -98,6 +100,56 @@ struct ble_gatt_svc_def {
     struct ble_gatt_chr_def *characteristics;
 };
 
-int ble_gatt_register_services(const struct ble_gatt_svc_def *svcs);
+union ble_gatt_access_ctxt {
+    struct {
+        const struct ble_gatt_chr_def *chr;
+        void *chr_data;
+        int chr_len;
+    } bgc_read;
+
+    struct {
+        const struct ble_gatt_chr_def *chr;
+        void *chr_data;
+        int chr_len;
+    } bgc_write;
+};
+
+struct ble_gatt_dsc_def {
+    uint8_t *uuid128;
+    uint8_t att_flags;
+    ble_att_svr_access_fn *access_cb;
+    void *arg;
+};
+
+#define BLE_GATT_REGISTER_OP_SVC    0
+#define BLE_GATT_REGISTER_OP_CHR    1
+#define BLE_GATT_REGISTER_OP_DSC    2
+
+union ble_gatt_register_ctxt;
+typedef void ble_gatt_register_fn(uint8_t op,
+                                  union ble_gatt_register_ctxt *ctxt);
+
+int ble_gatt_register_services(const struct ble_gatt_svc_def *svcs,
+                               ble_gatt_register_fn *register_cb);
+
+union ble_gatt_register_ctxt {
+    struct {
+        uint16_t handle;
+        const struct ble_gatt_svc_def *svc;
+    } bgr_svc;
+
+    struct {
+        uint16_t def_handle;
+        uint16_t val_handle;
+        const struct ble_gatt_chr_def *chr;
+    } bgr_chr;
+
+    struct {
+        uint16_t dsc_handle;
+        const struct ble_gatt_dsc_def *dsc;
+        uint16_t chr_def_handle;
+        const struct ble_gatt_chr_def *chr;
+    } bgr_dsc;
+};
 
 #endif

@@ -153,7 +153,7 @@ static const struct ble_gattc_dispatch_entry
 #define BLE_GATT_ENTRY_F_CONGESTED  0x04
 #define BLE_GATT_ENTRY_F_NO_MEM     0x08
 
-#define BLE_GATT_NUM_ENTRIES          4
+#define BLE_GATT_NUM_ENTRIES        16
 static void *ble_gattc_entry_mem;
 static struct os_mempool ble_gattc_entry_pool;
 

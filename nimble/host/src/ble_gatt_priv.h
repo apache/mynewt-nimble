@@ -65,6 +65,7 @@ void ble_gattc_connection_broken(uint16_t conn_handle);
 int ble_gattc_init(void);
 
 /*** @server. */
-int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs);
+int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
+                                ble_gatt_register_fn *register_cb);
 
 #endif

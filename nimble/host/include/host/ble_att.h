@@ -93,9 +93,9 @@ union ble_att_svr_access_ctxt {
  *                                  failure.
  */
 typedef int ble_att_svr_access_fn(uint16_t handle_id, uint8_t *uuid128,
-                                    uint8_t op,
-                                    union ble_att_svr_access_ctxt *ctxt,
-                                    void *arg);
+                                  uint8_t op,
+                                  union ble_att_svr_access_ctxt *ctxt,
+                                  void *arg);
 
 int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
                          ble_att_svr_access_fn *cb, void *cb_arg);
