@@ -36,7 +36,6 @@ static struct os_mutex ble_att_svr_list_mutex;
 static void *ble_att_svr_entry_mem;
 static struct os_mempool ble_att_svr_entry_pool;
 
-
 #define BLE_ATT_SVR_PREP_MBUF_BUF_SIZE         (128)
 #define BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE                     \
     (BLE_ATT_SVR_PREP_MBUF_BUF_SIZE + sizeof(struct os_mbuf) +  \
@@ -176,6 +175,12 @@ ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
     }
 
     return 0;
+}
+
+uint16_t
+ble_att_svr_prev_handle(void)
+{
+    return ble_att_svr_id - 1;
 }
 
 /**
@@ -813,8 +818,8 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
                 }
                 rc = os_mbuf_memcmp(rxom,
                                     BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                    arg.ahc_read.attr_data,
-                                    arg.ahc_read.attr_len);
+                                    arg.rw.attr_data,
+                                    arg.rw.attr_len);
                 if (rc == 0) {
                     match = 1;
                 }
@@ -1038,10 +1043,10 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
                 goto done;
             }
 
-            if (arg.ahc_read.attr_len > ble_l2cap_chan_mtu(chan) - 4) {
+            if (arg.rw.attr_len > ble_l2cap_chan_mtu(chan) - 4) {
                 attr_len = ble_l2cap_chan_mtu(chan) - 4;
             } else {
-                attr_len = arg.ahc_read.attr_len;
+                attr_len = arg.rw.attr_len;
             }
 
             if (prev_attr_len == 0) {
@@ -1064,7 +1069,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             }
 
             htole16(dptr + 0, entry->ha_handle_id);
-            memcpy(dptr + 2, arg.ahc_read.attr_data, attr_len);
+            memcpy(dptr + 2, arg.rw.attr_data, attr_len);
             entry_written = 1;
         }
     }
@@ -1272,8 +1277,8 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.ahc_read.attr_data,
-                                 arg.ahc_read.attr_len, &att_err);
+    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.rw.attr_data,
+                                 arg.rw.attr_len, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
         goto err;
@@ -1311,14 +1316,14 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
         return rc;
     }
 
-    switch (arg.ahc_read.attr_len) {
+    switch (arg.rw.attr_len) {
     case 16:
         *uuid16 = 0;
-        memcpy(uuid128, arg.ahc_read.attr_data, 16);
+        memcpy(uuid128, arg.rw.attr_data, 16);
         return 0;
 
     case 2:
-        *uuid16 = le16toh(arg.ahc_read.attr_data);
+        *uuid16 = le16toh(arg.rw.attr_data);
         if (*uuid16 == 0) {
             return BLE_HS_EINVAL;
         }
@@ -1677,10 +1682,10 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    arg.ahc_write.attr_data = ble_att_svr_flat_buf;
-    arg.ahc_write.attr_len = OS_MBUF_PKTLEN(*rxom);
-    os_mbuf_copydata(*rxom, 0, arg.ahc_write.attr_len,
-                     arg.ahc_write.attr_data);
+    arg.rw.attr_data = ble_att_svr_flat_buf;
+    arg.rw.attr_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, arg.rw.attr_len,
+                     arg.rw.attr_data);
     att_err = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
                            BLE_ATT_ACCESS_OP_WRITE, &arg, entry->ha_cb_arg);
     if (att_err != 0) {
@@ -1846,8 +1851,8 @@ ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
                 return BLE_ATT_ERR_INVALID_HANDLE;
             }
 
-            arg.ahc_write.attr_data = ble_att_svr_flat_buf;
-            arg.ahc_write.attr_len = buf_off;
+            arg.rw.attr_data = ble_att_svr_flat_buf;
+            arg.rw.attr_len = buf_off;
             rc = attr->ha_cb(attr->ha_handle_id, attr->ha_uuid,
                              BLE_ATT_ACCESS_OP_WRITE, &arg, attr->ha_cb_arg);
             if (rc != 0) {

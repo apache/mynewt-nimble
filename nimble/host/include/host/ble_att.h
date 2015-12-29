@@ -62,12 +62,7 @@ union ble_att_svr_access_ctxt {
     struct {
         void *attr_data;
         int attr_len;
-    } ahc_read;
-
-    struct {
-        void *attr_data;
-        int attr_len;
-    } ahc_write;
+    } rw;
 };
 
 #define HA_FLAG_PERM_READ                   (1 << 0)

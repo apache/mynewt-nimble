@@ -62,6 +62,7 @@ main(void)
     ble_gatt_write_test_all();
     ble_gatt_conn_test_all();
     ble_hs_adv_test_all();
+    ble_gatts_reg_test_all();
 
     return tu_any_failed;
 }

@@ -66,6 +66,7 @@ int ble_gattc_init(void);
 
 /*** @server. */
 int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
-                                ble_gatt_register_fn *register_cb);
+                                ble_gatt_register_fn *register_cb,
+                                void *cb_arg);
 
 #endif

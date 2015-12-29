@@ -64,8 +64,8 @@ ble_att_svr_test_misc_attr_fn_r_1(uint16_t handle_id, uint8_t *uuid128,
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->ahc_read.attr_data = ble_att_svr_test_attr_r_1;
-        ctxt->ahc_read.attr_len = ble_att_svr_test_attr_r_1_len;
+        ctxt->rw.attr_data = ble_att_svr_test_attr_r_1;
+        ctxt->rw.attr_len = ble_att_svr_test_attr_r_1_len;
         return 0;
 
     default:
@@ -81,8 +81,8 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t handle_id, uint8_t *uuid128,
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->ahc_read.attr_data = ble_att_svr_test_attr_r_2;
-        ctxt->ahc_read.attr_len = ble_att_svr_test_attr_r_2_len;
+        ctxt->rw.attr_data = ble_att_svr_test_attr_r_2;
+        ctxt->rw.attr_len = ble_att_svr_test_attr_r_2_len;
         return 0;
 
     default:
@@ -130,11 +130,11 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t handle_id, uint8_t *uuid128,
 
     TEST_ASSERT_FATAL(handle_id >= 1 && handle_id <= 22);
 
-    ctxt->ahc_read.attr_data = vals + handle_id;
-    if (memcmp(ctxt->ahc_read.attr_data + 2, zeros, 14) == 0) {
-        ctxt->ahc_read.attr_len = 2;
+    ctxt->rw.attr_data = vals + handle_id;
+    if (memcmp(ctxt->rw.attr_data + 2, zeros, 14) == 0) {
+        ctxt->rw.attr_len = 2;
     } else {
-        ctxt->ahc_read.attr_len = 16;
+        ctxt->rw.attr_len = 16;
     }
 
     return 0;
@@ -228,9 +228,9 @@ ble_att_svr_test_misc_attr_fn_w_1(uint16_t handle_id, uint8_t *uuid128,
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        memcpy(ble_att_svr_test_attr_w_1, ctxt->ahc_write.attr_data,
-               ctxt->ahc_write.attr_len);
-        ble_att_svr_test_attr_w_1_len = ctxt->ahc_write.attr_len;
+        memcpy(ble_att_svr_test_attr_w_1, ctxt->rw.attr_data,
+               ctxt->rw.attr_len);
+        ble_att_svr_test_attr_w_1_len = ctxt->rw.attr_len;
         return 0;
 
     default:
@@ -246,9 +246,9 @@ ble_att_svr_test_misc_attr_fn_w_2(uint16_t handle_id, uint8_t *uuid128,
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        memcpy(ble_att_svr_test_attr_w_2, ctxt->ahc_write.attr_data,
-               ctxt->ahc_write.attr_len);
-        ble_att_svr_test_attr_w_2_len = ctxt->ahc_write.attr_len;
+        memcpy(ble_att_svr_test_attr_w_2, ctxt->rw.attr_data,
+               ctxt->rw.attr_len);
+        ble_att_svr_test_attr_w_2_len = ctxt->rw.attr_len;
         return 0;
 
     default:

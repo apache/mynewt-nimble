@@ -73,8 +73,19 @@ int ble_gatt_init(void);
 
 /*** @server. */
 
+#define BLE_GATT_CHR_PROP_BROADCAST         0x01
+#define BLE_GATT_CHR_PROP_READ              0x02
+#define BLE_GATT_CHR_PROP_WRITE_NO_RSP      0x04
+#define BLE_GATT_CHR_PROP_WRITE             0x08
+#define BLE_GATT_CHR_PROP_NOTIFY            0x10
+#define BLE_GATT_CHR_PROP_INDICATE          0x20
+#define BLE_GATT_CHR_PROP_AUTH_SIGN_WRITE   0x40
+#define BLE_GATT_CHR_PROP_EXTENDED          0x80
+
 #define BLE_GATT_ACCESS_OP_READ_CHR         0
 #define BLE_GATT_ACCESS_OP_WRITE_CHR        1
+#define BLE_GATT_ACCESS_OP_READ_DSC         2
+#define BLE_GATT_ACCESS_OP_WRITE_DSC        3
 /* XXX: Notify, listen. */
 
 union ble_gatt_access_ctxt;
@@ -89,9 +100,9 @@ struct ble_gatt_chr_def {
     uint8_t properties;
 };
 
-#define BLE_GATT_SVC_TYPE_END       0
 #define BLE_GATT_SVC_TYPE_PRIMARY   1
 #define BLE_GATT_SVC_TYPE_SECONDARY 2
+#define BLE_GATT_SVC_TYPE_END       3
 
 struct ble_gatt_svc_def {
     uint8_t type;
@@ -103,53 +114,55 @@ struct ble_gatt_svc_def {
 union ble_gatt_access_ctxt {
     struct {
         const struct ble_gatt_chr_def *chr;
-        void *chr_data;
-        int chr_len;
-    } bgc_read;
+        void *data;
+        int len;
+    } chr_access;
 
     struct {
-        const struct ble_gatt_chr_def *chr;
-        void *chr_data;
-        int chr_len;
-    } bgc_write;
+        const struct ble_gatt_dsc_def *dsc;
+        void *data;
+        int len;
+    } dsc_access;
 };
 
 struct ble_gatt_dsc_def {
     uint8_t *uuid128;
     uint8_t att_flags;
-    ble_att_svr_access_fn *access_cb;
+    ble_gatt_access_fn *access_cb;
     void *arg;
 };
 
-#define BLE_GATT_REGISTER_OP_SVC    0
-#define BLE_GATT_REGISTER_OP_CHR    1
-#define BLE_GATT_REGISTER_OP_DSC    2
+#define BLE_GATT_REGISTER_OP_SVC    1
+#define BLE_GATT_REGISTER_OP_CHR    2
+#define BLE_GATT_REGISTER_OP_DSC    3
 
 union ble_gatt_register_ctxt;
 typedef void ble_gatt_register_fn(uint8_t op,
-                                  union ble_gatt_register_ctxt *ctxt);
+                                  union ble_gatt_register_ctxt *ctxt,
+                                  void *arg);
 
 int ble_gatt_register_services(const struct ble_gatt_svc_def *svcs,
-                               ble_gatt_register_fn *register_cb);
+                               ble_gatt_register_fn *register_cb,
+                               void *cb_arg);
 
 union ble_gatt_register_ctxt {
     struct {
         uint16_t handle;
         const struct ble_gatt_svc_def *svc;
-    } bgr_svc;
+    } svc_reg;
 
     struct {
         uint16_t def_handle;
         uint16_t val_handle;
         const struct ble_gatt_chr_def *chr;
-    } bgr_chr;
+    } chr_reg;
 
     struct {
         uint16_t dsc_handle;
         const struct ble_gatt_dsc_def *dsc;
         uint16_t chr_def_handle;
         const struct ble_gatt_chr_def *chr;
-    } bgr_dsc;
+    } dsc_reg;
 };
 
 #endif

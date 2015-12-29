@@ -93,6 +93,7 @@ void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 struct os_mbuf *ble_att_get_pkthdr(void);
 
 /*** @svr */
+uint16_t ble_att_svr_prev_handle(void);
 int ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                        struct os_mbuf **rxom);
 int ble_att_svr_rx_find_info(struct ble_hs_conn *conn,

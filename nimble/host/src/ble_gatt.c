@@ -63,9 +63,9 @@ ble_gatt_connection_broken(uint16_t conn_handle)
 
 int
 ble_gatt_register_services(const struct ble_gatt_svc_def *svcs,
-                           ble_gatt_register_fn *register_cb)
+                           ble_gatt_register_fn *register_cb, void *cb_arg)
 {
-    return ble_gatts_register_services(svcs, register_cb);
+    return ble_gatts_register_services(svcs, register_cb, cb_arg);
 }
 
 int
