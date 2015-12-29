@@ -309,6 +309,88 @@ ble_att_svr_find_by_uuid(uint8_t *uuid,
 }
 
 static int
+ble_att_svr_read(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
+                 struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
+{
+    uint16_t conn_handle;
+    uint8_t att_err;
+    int rc;
+
+    if (!(entry->ha_flags & HA_FLAG_PERM_READ)) {
+        att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
+    }
+
+    /* XXX: Check security. */
+
+    if (conn == NULL) {
+        conn_handle = 0xffff; /* XXX */
+    } else {
+        conn_handle = conn->bhc_handle;
+    }
+
+    assert(entry->ha_cb != NULL);
+    rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
+                      entry->ha_uuid, BLE_ATT_ACCESS_OP_READ, ctxt,
+                      entry->ha_cb_arg);
+    if (rc != 0) {
+        att_err = rc;
+        rc = BLE_HS_EAPP;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (out_att_err != NULL) {
+        *out_att_err = att_err;
+    }
+    return rc;
+}
+
+static int
+ble_att_svr_write(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
+                  struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
+{
+    uint16_t conn_handle;
+    uint8_t att_err;
+    int rc;
+
+    if (!(entry->ha_flags & HA_FLAG_PERM_WRITE)) {
+        att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
+    }
+
+    /* XXX: Check security. */
+
+    if (conn == NULL) {
+        conn_handle = 0xffff; /* XXX */
+    } else {
+        conn_handle = conn->bhc_handle;
+    }
+
+    assert(entry->ha_cb != NULL);
+    rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
+                      entry->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, ctxt,
+                      entry->ha_cb_arg);
+    if (rc != 0) {
+        att_err = rc;
+        rc = BLE_HS_EAPP;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (out_att_err != NULL) {
+        *out_att_err = att_err;
+    }
+    return rc;
+}
+
+static int
 ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          uint8_t req_op, uint16_t handle, uint8_t error_code)
 {
@@ -669,7 +751,8 @@ err:
  */
 static int
 ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
-                                     uint16_t *prev, int mtu)
+                                     uint16_t *prev, int mtu,
+                                     uint8_t *out_att_err)
 {
     uint16_t u16;
     int rsp_sz;
@@ -689,6 +772,7 @@ ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
     htole16(&u16, u16);
     rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         return BLE_HS_ENOMEM;
     }
 
@@ -696,6 +780,7 @@ ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
     htole16(&u16, u16);
     rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         return BLE_HS_ENOMEM;
     }
 
@@ -728,7 +813,7 @@ ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
 static int
 ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
                                   uint16_t *prev, uint16_t handle_id,
-                                  int mtu)
+                                  int mtu, uint8_t *out_att_err)
 {
     int rc;
 
@@ -751,7 +836,8 @@ ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
      * previous group to the response, and remember this ID as the start of the
      * next group.
      */
-    rc = ble_att_svr_fill_type_value_no_match(om, first, prev, mtu);
+    rc = ble_att_svr_fill_type_value_no_match(om, first, prev, mtu,
+                                              out_att_err);
     *first = handle_id;
     *prev = handle_id;
     return rc;
@@ -774,11 +860,12 @@ ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
  *                              BLE_HS_EAPP on other error.
  */
 static int
-ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
+ble_att_svr_fill_type_value(struct ble_hs_conn *conn,
+                            struct ble_att_find_type_value_req *req,
                             struct os_mbuf *rxom, struct os_mbuf *txom,
-                            uint16_t mtu)
+                            uint16_t mtu, uint8_t *out_att_err)
 {
-    struct ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *ha;
     uint16_t uuid16;
     uint16_t first;
@@ -810,16 +897,14 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
              */
             uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
-                rc = ha->ha_cb(0, ha->ha_handle_id, ha->ha_uuid,
-                               BLE_ATT_ACCESS_OP_READ, &arg, ha->ha_cb_arg);
+                rc = ble_att_svr_read(conn, ha, &ctxt, out_att_err);
                 if (rc != 0) {
-                    rc = BLE_HS_EAPP;
                     goto done;
                 }
                 rc = os_mbuf_memcmp(rxom,
                                     BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                    arg.attr_data,
-                                    arg.attr_len);
+                                    ctxt.attr_data,
+                                    ctxt.attr_len);
                 if (rc == 0) {
                     match = 1;
                 }
@@ -828,17 +913,17 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
 
         if (match) {
             rc = ble_att_svr_fill_type_value_match(txom, &first, &prev,
-                                                   ha->ha_handle_id, mtu);
+                                                   ha->ha_handle_id, mtu,
+                                                   out_att_err);
         } else {
             rc = ble_att_svr_fill_type_value_no_match(txom, &first, &prev,
-                                                      mtu);
+                                                      mtu, out_att_err);
         }
 
         if (rc == 0) {
             goto done;
         }
         if (rc != BLE_HS_EAGAIN) {
-            rc = BLE_HS_EAPP;
             goto done;
         }
     }
@@ -846,11 +931,10 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
     /* Process one last non-matching ID in case a group was in progress when
      * the end of the attribute list was reached.
      */
-    rc = ble_att_svr_fill_type_value_no_match(txom, &first, &prev, mtu);
+    rc = ble_att_svr_fill_type_value_no_match(txom, &first, &prev, mtu,
+                                              out_att_err);
     if (rc == BLE_HS_EAGAIN) {
         rc = 0;
-    } else if (rc != 0) {
-        rc = BLE_HS_EAPP;
     }
 
 done:
@@ -859,6 +943,7 @@ done:
     any_entries = OS_MBUF_PKTHDR(txom)->omp_len >
                   BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
     if (rc == 0 && !any_entries) {
+        *out_att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
         return BLE_HS_ENOENT;
     } else {
         return rc;
@@ -870,7 +955,7 @@ ble_att_svr_tx_find_type_value(struct ble_hs_conn *conn,
                                struct ble_l2cap_chan *chan,
                                struct ble_att_find_type_value_req *req,
                                struct os_mbuf *rxom,
-                               uint8_t *att_err)
+                               uint8_t *out_att_err)
 {
     struct os_mbuf *txom;
     uint8_t *buf;
@@ -878,7 +963,7 @@ ble_att_svr_tx_find_type_value(struct ble_hs_conn *conn,
 
     txom = ble_att_get_pkthdr();
     if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto err;
     }
@@ -886,37 +971,23 @@ ble_att_svr_tx_find_type_value(struct ble_hs_conn *conn,
     /* Write the response base at the start of the buffer. */
     buf = os_mbuf_extend(txom, BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ);
     if (buf == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto err;
     }
     buf[0] = BLE_ATT_OP_FIND_TYPE_VALUE_RSP;
 
     /* Write the variable length Information Data field. */
-    rc = ble_att_svr_fill_type_value(req, rxom, txom,
-                                     ble_l2cap_chan_mtu(chan));
-    switch (rc) {
-    case 0:
-        break;
-
-    case BLE_HS_ENOENT:
-        *att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
-        goto err;
-
-    case BLE_HS_EAPP:
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-
-    default:
-        assert(0);
-        *att_err = BLE_ATT_ERR_UNLIKELY;
+    rc = ble_att_svr_fill_type_value(conn, req, rxom, txom,
+                                     ble_l2cap_chan_mtu(chan), out_att_err);
+    if (rc != 0) {
         goto err;
     }
 
     rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
+        *out_att_err = BLE_ATT_ERR_UNLIKELY;
         goto err;
     }
 
@@ -1035,11 +1106,8 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
         }
 
         if (entry->ha_handle_id >= req->batq_start_handle) {
-            rc = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id,
-                              entry->ha_uuid, BLE_ATT_ACCESS_OP_READ, &arg,
-                              entry->ha_cb_arg);
+            rc = ble_att_svr_read(conn, entry, &arg, att_err);
             if (rc != 0) {
-                *att_err = BLE_ATT_ERR_UNLIKELY;
                 *err_handle = entry->ha_handle_id;
                 goto done;
             }
@@ -1269,10 +1337,8 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id, entry->ha_uuid,
-                      BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
+    rc = ble_att_svr_read(conn, entry, &arg, &att_err);
     if (rc != 0) {
-        att_err = BLE_ATT_ERR_UNLIKELY;
         err_handle = req.barq_handle;
         rc = BLE_HS_ENOTSUP;
         goto err;
@@ -1311,8 +1377,7 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     struct ble_att_svr_access_ctxt arg;
     int rc;
 
-    rc = entry->ha_cb(0, entry->ha_handle_id, entry->ha_uuid,
-                      BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
+    rc = ble_att_svr_read(NULL, entry, &arg, NULL);
     if (rc != 0) {
         return rc;
     }
@@ -1686,12 +1751,9 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     arg.attr_data = ble_att_svr_flat_buf;
     arg.attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, arg.attr_len, arg.attr_data);
-    att_err = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id,
-                           entry->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, &arg,
-                           entry->ha_cb_arg);
-    if (att_err != 0) {
+    rc = ble_att_svr_write(conn, entry, &arg, &att_err);
+    if (rc != 0) {
         err_handle = req.bawq_handle;
-        rc = BLE_HS_EAPP;
         goto err;
     }
 
@@ -1820,6 +1882,7 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
     struct ble_att_prep_entry *entry;
     struct ble_att_prep_entry *next;
     struct ble_att_svr_entry *attr;
+    uint8_t att_err;
     int buf_off;
     int rc;
 
@@ -1854,12 +1917,10 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 
             arg.attr_data = ble_att_svr_flat_buf;
             arg.attr_len = buf_off;
-            rc = attr->ha_cb(conn->bhc_handle, attr->ha_handle_id,
-                             attr->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, &arg,
-                             attr->ha_cb_arg);
+            rc = ble_att_svr_write(conn, attr, &arg, &att_err);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;
-                return BLE_ATT_ERR_UNLIKELY;
+                return att_err;
             }
 
             buf_off = 0;

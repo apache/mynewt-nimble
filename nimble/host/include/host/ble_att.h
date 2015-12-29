@@ -25,6 +25,8 @@
 #define BLE_ATT_UUID_CHARACTERISTIC         0x2803
 
 #define BLE_ATT_ERR_INVALID_HANDLE          0x01
+#define BLE_ATT_ERR_READ_NOT_PERMITTED      0x02
+#define BLE_ATT_ERR_WRITE_NOT_PERMITTED     0x03
 #define BLE_ATT_ERR_INVALID_PDU             0x04
 #define BLE_ATT_ERR_REQ_NOT_SUPPORTED       0x06
 #define BLE_ATT_ERR_INVALID_OFFSET          0x07
@@ -65,10 +67,11 @@ struct ble_att_svr_access_ctxt {
 
 #define HA_FLAG_PERM_READ                   (1 << 0)
 #define HA_FLAG_PERM_WRITE                  (1 << 1)
-#define HA_FLAG_PERM_RW                     (1 << 2)
-#define HA_FLAG_ENC_REQ                     (1 << 3)
-#define HA_FLAG_AUTHENTICATION_REQ          (1 << 4)
-#define HA_FLAG_AUTHORIZATION_REQ           (1 << 5)
+#define HA_FLAG_ENC_REQ                     (1 << 2)
+#define HA_FLAG_AUTHENTICATION_REQ          (1 << 3)
+#define HA_FLAG_AUTHORIZATION_REQ           (1 << 4)
+
+#define HA_FLAG_PERM_RW             (HA_FLAG_PERM_READ | HA_FLAG_PERM_WRITE)
 
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2

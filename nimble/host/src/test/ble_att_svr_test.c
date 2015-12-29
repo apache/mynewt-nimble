@@ -180,42 +180,42 @@ ble_att_svr_test_misc_register_group_attrs(void)
 
     /* Service 0x1122 from 1 to 5 */
     ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 1,
+        BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 1,
         ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 2; i <= 5; i++) {
         if ((i - 2) % 2 == 0) {
             ble_att_svr_test_misc_register_uuid16(
-                BLE_ATT_UUID_CHARACTERISTIC, 0, i,
+                BLE_ATT_UUID_CHARACTERISTIC, HA_FLAG_PERM_RW, i,
                 ble_att_svr_test_misc_attr_fn_r_group);
         } else {
             ble_att_svr_test_misc_register_uuid16(
-                i, 0, i,
+                i, HA_FLAG_PERM_RW, i,
                 ble_att_svr_test_misc_attr_fn_r_group);
         }
     }
 
     /* Service 0x2233 from 6 to 10 */
     ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 6,
+        BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 6,
         ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 7; i <= 10; i++) {
         ble_att_svr_test_misc_register_uuid16(
-            BLE_ATT_UUID_INCLUDE, 0, i,
+            BLE_ATT_UUID_INCLUDE, HA_FLAG_PERM_RW, i,
             ble_att_svr_test_misc_attr_fn_r_group);
     }
 
     /* Service 1,2,3...16 from 11 to 19 */
     ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, 0, 11,
+        BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 11,
         ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 12; i <= 19; i++) {
         if ((i - 12) % 2 == 0) {
             ble_att_svr_test_misc_register_uuid16(
-                BLE_ATT_UUID_CHARACTERISTIC, 0, i,
+                BLE_ATT_UUID_CHARACTERISTIC, HA_FLAG_PERM_RW, i,
                 ble_att_svr_test_misc_attr_fn_r_group);
         } else {
             ble_att_svr_test_misc_register_uuid16(
-                i, 0, i,
+                i, HA_FLAG_PERM_RW, i,
                 ble_att_svr_test_misc_attr_fn_r_group);
         }
     }
@@ -760,7 +760,7 @@ TEST_CASE(ble_att_svr_test_read)
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
     ble_att_svr_test_attr_r_1_len = 8;
-    rc = ble_att_svr_register(uuid, 0, &req.barq_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &req.barq_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -810,7 +810,7 @@ TEST_CASE(ble_att_svr_test_write)
         chan, BLE_ATT_OP_WRITE_REQ, 0, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful write. */
-    rc = ble_att_svr_register(uuid, 0, &req.bawq_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &req.bawq_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -885,7 +885,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         chan, BLE_ATT_OP_FIND_INFO_REQ, 200, BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
-    rc = ble_att_svr_register(uuid1, 0, &handle1,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle1,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -918,7 +918,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Two 128-bit entries. */
-    rc = ble_att_svr_register(uuid2, 0, &handle2,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -942,7 +942,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Two 128-bit entries; 16-bit entry doesn't get sent. */
-    rc = ble_att_svr_register(uuid3, 0, &handle3,
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle3,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1060,7 +1060,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
-    rc = ble_att_svr_register(uuid1, 0, &handle1,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle1,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1094,7 +1094,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 
     /*** One entry, two attributes. */
-    rc = ble_att_svr_register(uuid1, 0, &handle2,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1115,11 +1115,11 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 
     /*** Entry 1: two attributes; entry 2: one attribute. */
-    rc = ble_att_svr_register(uuid2, 0, &handle3,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle3,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_svr_register(uuid1, 0, &handle4,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle4,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1166,7 +1166,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 
     /*** Ensure attribute with wrong type is not included. */
-    rc = ble_att_svr_register(uuid3, 0, &handle5,
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle5,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
 
     req.bavq_start_handle = 0x0001;
@@ -1563,9 +1563,9 @@ TEST_CASE(ble_att_svr_test_prep_write)
     }
 
     /* Register two attributes. */
-    ble_att_svr_test_misc_register_uuid16(0x1234, 0, 1,
+    ble_att_svr_test_misc_register_uuid16(0x1234, HA_FLAG_PERM_RW, 1,
                                           ble_att_svr_test_misc_attr_fn_w_1);
-    ble_att_svr_test_misc_register_uuid16(0x8989, 0, 2,
+    ble_att_svr_test_misc_register_uuid16(0x8989, HA_FLAG_PERM_RW, 2,
                                           ble_att_svr_test_misc_attr_fn_w_2);
 
     /* Increase the MTU to 200 bytes to allow testing of long requests and
