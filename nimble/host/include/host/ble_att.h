@@ -87,8 +87,8 @@ union ble_att_svr_access_ctxt {
  *                              One of the BLE_ATT_ERR_[...] codes on
  *                                  failure.
  */
-typedef int ble_att_svr_access_fn(uint16_t handle_id, uint8_t *uuid128,
-                                  uint8_t op,
+typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *uuid128, uint8_t op,
                                   union ble_att_svr_access_ctxt *ctxt,
                                   void *arg);
 

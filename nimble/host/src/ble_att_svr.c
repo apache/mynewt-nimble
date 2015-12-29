@@ -810,7 +810,7 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
              */
             uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
-                rc = ha->ha_cb(ha->ha_handle_id, ha->ha_uuid,
+                rc = ha->ha_cb(0, ha->ha_handle_id, ha->ha_uuid,
                                BLE_ATT_ACCESS_OP_READ, &arg, ha->ha_cb_arg);
                 if (rc != 0) {
                     rc = BLE_HS_EAPP;
@@ -1035,8 +1035,9 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
         }
 
         if (entry->ha_handle_id >= req->batq_start_handle) {
-            rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
-                              BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
+            rc = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id,
+                              entry->ha_uuid, BLE_ATT_ACCESS_OP_READ, &arg,
+                              entry->ha_cb_arg);
             if (rc != 0) {
                 *att_err = BLE_ATT_ERR_UNLIKELY;
                 *err_handle = entry->ha_handle_id;
@@ -1268,7 +1269,7 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
+    rc = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id, entry->ha_uuid,
                       BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
     if (rc != 0) {
         att_err = BLE_ATT_ERR_UNLIKELY;
@@ -1310,7 +1311,7 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     union ble_att_svr_access_ctxt arg;
     int rc;
 
-    rc = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
+    rc = entry->ha_cb(0, entry->ha_handle_id, entry->ha_uuid,
                       BLE_ATT_ACCESS_OP_READ, &arg, entry->ha_cb_arg);
     if (rc != 0) {
         return rc;
@@ -1686,8 +1687,9 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     arg.rw.attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, arg.rw.attr_len,
                      arg.rw.attr_data);
-    att_err = entry->ha_cb(entry->ha_handle_id, entry->ha_uuid,
-                           BLE_ATT_ACCESS_OP_WRITE, &arg, entry->ha_cb_arg);
+    att_err = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id,
+                           entry->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, &arg,
+                           entry->ha_cb_arg);
     if (att_err != 0) {
         err_handle = req.bawq_handle;
         rc = BLE_HS_EAPP;
@@ -1813,7 +1815,7 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
  * @return                      0 on success; ATT error code on failure.
  */
 static int
-ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
+ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 {
     union ble_att_svr_access_ctxt arg;
     struct ble_att_prep_entry *entry;
@@ -1825,14 +1827,14 @@ ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
     *err_handle = 0; /* Silence unnecessary warning. */
 
     /* First, validate the contents of the prepare queue. */
-    rc = ble_att_svr_prep_validate(basc, err_handle);
+    rc = ble_att_svr_prep_validate(&conn->bhc_att_svr, err_handle);
     if (rc != 0) {
         return rc;
     }
 
     /* Contents are valid; perform the writes. */
     buf_off = 0;
-    entry = SLIST_FIRST(&basc->basc_prep_list);
+    entry = SLIST_FIRST(&conn->bhc_att_svr.basc_prep_list);
     while (entry != NULL) {
         next = SLIST_NEXT(entry, bape_next);
 
@@ -1853,8 +1855,9 @@ ble_att_svr_prep_write(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 
             arg.rw.attr_data = ble_att_svr_flat_buf;
             arg.rw.attr_len = buf_off;
-            rc = attr->ha_cb(attr->ha_handle_id, attr->ha_uuid,
-                             BLE_ATT_ACCESS_OP_WRITE, &arg, attr->ha_cb_arg);
+            rc = attr->ha_cb(conn->bhc_handle, attr->ha_handle_id,
+                             attr->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, &arg,
+                             attr->ha_cb_arg);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;
                 return BLE_ATT_ERR_UNLIKELY;
@@ -2050,7 +2053,7 @@ ble_att_svr_rx_exec_write(struct ble_hs_conn *conn,
 
     if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
         /* Perform attribute writes. */
-        att_err = ble_att_svr_prep_write(&conn->bhc_att_svr, &err_handle);
+        att_err = ble_att_svr_prep_write(conn, &err_handle);
     } else {
         att_err = 0;
         err_handle = 0;

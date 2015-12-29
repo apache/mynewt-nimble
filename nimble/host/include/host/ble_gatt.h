@@ -89,8 +89,9 @@ int ble_gatt_init(void);
 /* XXX: Notify, listen. */
 
 union ble_gatt_access_ctxt;
-typedef int ble_gatt_access_fn(uint16_t handle_id, uint8_t op,
-                               union ble_gatt_access_ctxt *ctxt, void *arg);
+typedef int ble_gatt_access_fn(uint16_t conn_handle, uint16_t attr_handle,
+                               uint8_t op, union ble_gatt_access_ctxt *ctxt,
+                               void *arg);
 
 struct ble_gatt_chr_def {
     uint8_t *uuid128;   /* NULL if no more characteristics. */

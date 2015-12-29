@@ -39,7 +39,8 @@ static struct ble_gatts_svc_entry
 static int ble_gatts_num_svc_entries;
 
 static int
-ble_gatts_svc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
+ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
+                     uint8_t *uuid128, uint8_t op,
                      union ble_att_svr_access_ctxt *ctxt, void *arg)
 {
     const struct ble_gatt_svc_def *svc;
@@ -54,8 +55,9 @@ ble_gatts_svc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
 }
 
 static int
-ble_gatts_inc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
-                         union ble_att_svr_access_ctxt *ctxt, void *arg)
+ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
+                     uint8_t *uuid128, uint8_t op,
+                     union ble_att_svr_access_ctxt *ctxt, void *arg)
 {
     static uint8_t buf[BLE_GATTS_INCLUDE_SZ];
 
@@ -83,7 +85,8 @@ ble_gatts_inc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
 }
 
 static int
-ble_gatts_chr_def_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
+ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
+                         uint8_t *uuid128, uint8_t op,
                          union ble_att_svr_access_ctxt *ctxt, void *arg)
 {
     static uint8_t buf[BLE_GATTS_CHR_MAX_SZ];
@@ -97,7 +100,7 @@ ble_gatts_chr_def_access(uint16_t handle_id, uint8_t *uuid128, uint8_t op,
     buf[0] = chr->properties;
 
     /* The value attribute is always immediately after the declaration. */
-    htole16(buf + 1, handle_id + 1);
+    htole16(buf + 1, attr_handle + 1);
 
     uuid16 = ble_uuid_128_to_16(chr->uuid128);
     if (uuid16 != 0) {
@@ -145,7 +148,8 @@ ble_gatts_chr_op(uint8_t att_op)
 }
 
 static int
-ble_gatts_chr_val_access(uint16_t handle_id, uint8_t *uuid128, uint8_t att_op,
+ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
+                         uint8_t *uuid128, uint8_t att_op,
                          union ble_att_svr_access_ctxt *att_ctxt, void *arg)
 {
     const struct ble_gatt_chr_def *chr;
@@ -161,7 +165,8 @@ ble_gatts_chr_val_access(uint16_t handle_id, uint8_t *uuid128, uint8_t att_op,
     gatt_ctxt.chr_access.data = att_ctxt->rw.attr_data;
     gatt_ctxt.chr_access.len = att_ctxt->rw.attr_len;
 
-    rc = chr->access_cb(handle_id, gatt_op, &gatt_ctxt, chr->arg);
+    rc = chr->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
+                        chr->arg);
     if (rc != 0) {
         return rc;
     }
@@ -242,7 +247,8 @@ ble_gatts_dsc_op(uint8_t att_op)
 }
 
 static int
-ble_gatts_dsc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t att_op,
+ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
+                     uint8_t *uuid128, uint8_t att_op,
                      union ble_att_svr_access_ctxt *att_ctxt, void *arg)
 {
     const struct ble_gatt_dsc_def *dsc;
@@ -258,17 +264,13 @@ ble_gatts_dsc_access(uint16_t handle_id, uint8_t *uuid128, uint8_t att_op,
     gatt_ctxt.dsc_access.data = att_ctxt->rw.attr_data;
     gatt_ctxt.dsc_access.len = att_ctxt->rw.attr_len;
 
-    rc = dsc->access_cb(handle_id, gatt_op, &gatt_ctxt, dsc->arg);
+    rc = dsc->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
+                        dsc->arg);
     if (rc != 0) {
         return rc;
     }
 
     att_ctxt->rw.attr_len = gatt_ctxt.dsc_access.len;
-
-    rc = dsc->access_cb(handle_id, gatt_op, &gatt_ctxt, dsc->arg);
-    if (rc != 0) {
-        return rc;
-    }
 
     return 0;
 }

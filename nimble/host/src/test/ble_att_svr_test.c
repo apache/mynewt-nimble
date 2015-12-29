@@ -57,8 +57,8 @@ ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_1(uint16_t handle_id, uint8_t *uuid128,
-                                  uint8_t op,
+ble_att_svr_test_misc_attr_fn_r_1(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *uuid128, uint8_t op,
                                   union ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
@@ -74,8 +74,8 @@ ble_att_svr_test_misc_attr_fn_r_1(uint16_t handle_id, uint8_t *uuid128,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_2(uint16_t handle_id, uint8_t *uuid128,
-                                  uint8_t op,
+ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *uuid128, uint8_t op,
                                   union ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
@@ -91,7 +91,8 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t handle_id, uint8_t *uuid128,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_r_group(uint16_t handle_id, uint8_t *uuid128,
+ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
+                                      uint16_t attr_handle, uint8_t *uuid128,
                                       uint8_t op,
                                       union ble_att_svr_access_ctxt *ctxt,
                                       void *arg)
@@ -128,9 +129,9 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t handle_id, uint8_t *uuid128,
         return -1;
     }
 
-    TEST_ASSERT_FATAL(handle_id >= 1 && handle_id <= 22);
+    TEST_ASSERT_FATAL(attr_handle >= 1 && attr_handle <= 22);
 
-    ctxt->rw.attr_data = vals + handle_id;
+    ctxt->rw.attr_data = vals + attr_handle;
     if (memcmp(ctxt->rw.attr_data + 2, zeros, 14) == 0) {
         ctxt->rw.attr_len = 2;
     } else {
@@ -221,8 +222,8 @@ ble_att_svr_test_misc_register_group_attrs(void)
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_w_1(uint16_t handle_id, uint8_t *uuid128,
-                                  uint8_t op,
+ble_att_svr_test_misc_attr_fn_w_1(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *uuid128, uint8_t op,
                                   union ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
@@ -239,8 +240,8 @@ ble_att_svr_test_misc_attr_fn_w_1(uint16_t handle_id, uint8_t *uuid128,
 }
 
 static int
-ble_att_svr_test_misc_attr_fn_w_2(uint16_t handle_id, uint8_t *uuid128,
-                                  uint8_t op,
+ble_att_svr_test_misc_attr_fn_w_2(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *uuid128, uint8_t op,
                                   union ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
