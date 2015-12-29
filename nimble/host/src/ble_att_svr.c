@@ -778,7 +778,7 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
                             struct os_mbuf *rxom, struct os_mbuf *txom,
                             uint16_t mtu)
 {
-    union ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *ha;
     uint16_t uuid16;
     uint16_t first;
@@ -818,8 +818,8 @@ ble_att_svr_fill_type_value(struct ble_att_find_type_value_req *req,
                 }
                 rc = os_mbuf_memcmp(rxom,
                                     BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                    arg.rw.attr_data,
-                                    arg.rw.attr_len);
+                                    arg.attr_data,
+                                    arg.attr_len);
                 if (rc == 0) {
                     match = 1;
                 }
@@ -983,7 +983,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
                              uint16_t *err_handle)
 {
     struct ble_att_read_type_rsp rsp;
-    union ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint8_t *dptr;
@@ -1044,10 +1044,10 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
                 goto done;
             }
 
-            if (arg.rw.attr_len > ble_l2cap_chan_mtu(chan) - 4) {
+            if (arg.attr_len > ble_l2cap_chan_mtu(chan) - 4) {
                 attr_len = ble_l2cap_chan_mtu(chan) - 4;
             } else {
-                attr_len = arg.rw.attr_len;
+                attr_len = arg.attr_len;
             }
 
             if (prev_attr_len == 0) {
@@ -1070,7 +1070,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             }
 
             htole16(dptr + 0, entry->ha_handle_id);
-            memcpy(dptr + 2, arg.rw.attr_data, attr_len);
+            memcpy(dptr + 2, arg.attr_data, attr_len);
             entry_written = 1;
         }
     }
@@ -1230,7 +1230,7 @@ int
 ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                     struct os_mbuf **rxom)
 {
-    union ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *entry;
     struct ble_att_read_req req;
     uint16_t err_handle;
@@ -1278,8 +1278,8 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.rw.attr_data,
-                                 arg.rw.attr_len, &att_err);
+    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.attr_data,
+                                 arg.attr_len, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
         goto err;
@@ -1308,7 +1308,7 @@ static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
                          uint8_t *uuid128)
 {
-    union ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt arg;
     int rc;
 
     rc = entry->ha_cb(0, entry->ha_handle_id, entry->ha_uuid,
@@ -1317,14 +1317,14 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
         return rc;
     }
 
-    switch (arg.rw.attr_len) {
+    switch (arg.attr_len) {
     case 16:
         *uuid16 = 0;
-        memcpy(uuid128, arg.rw.attr_data, 16);
+        memcpy(uuid128, arg.attr_data, 16);
         return 0;
 
     case 2:
-        *uuid16 = le16toh(arg.rw.attr_data);
+        *uuid16 = le16toh(arg.attr_data);
         if (*uuid16 == 0) {
             return BLE_HS_EINVAL;
         }
@@ -1647,7 +1647,7 @@ int
 ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf **rxom)
 {
-    union ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt arg;
     struct ble_att_svr_entry *entry;
     struct ble_att_write_req req;
     uint16_t err_handle;
@@ -1683,10 +1683,9 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    arg.rw.attr_data = ble_att_svr_flat_buf;
-    arg.rw.attr_len = OS_MBUF_PKTLEN(*rxom);
-    os_mbuf_copydata(*rxom, 0, arg.rw.attr_len,
-                     arg.rw.attr_data);
+    arg.attr_data = ble_att_svr_flat_buf;
+    arg.attr_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, arg.attr_len, arg.attr_data);
     att_err = entry->ha_cb(conn->bhc_handle, entry->ha_handle_id,
                            entry->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, &arg,
                            entry->ha_cb_arg);
@@ -1705,8 +1704,8 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return 0;
 
 err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_WRITE_REQ,
-                             err_handle, att_err);
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_WRITE_REQ, err_handle,
+                             att_err);
     return rc;
 }
 
@@ -1817,7 +1816,7 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 static int
 ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 {
-    union ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt arg;
     struct ble_att_prep_entry *entry;
     struct ble_att_prep_entry *next;
     struct ble_att_svr_entry *attr;
@@ -1853,8 +1852,8 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
                 return BLE_ATT_ERR_INVALID_HANDLE;
             }
 
-            arg.rw.attr_data = ble_att_svr_flat_buf;
-            arg.rw.attr_len = buf_off;
+            arg.attr_data = ble_att_svr_flat_buf;
+            arg.attr_len = buf_off;
             rc = attr->ha_cb(conn->bhc_handle, attr->ha_handle_id,
                              attr->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, &arg,
                              attr->ha_cb_arg);

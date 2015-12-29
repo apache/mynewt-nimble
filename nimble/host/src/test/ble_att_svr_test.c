@@ -59,13 +59,13 @@ ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
 static int
 ble_att_svr_test_misc_attr_fn_r_1(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *uuid128, uint8_t op,
-                                  union ble_att_svr_access_ctxt *ctxt,
+                                  struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->rw.attr_data = ble_att_svr_test_attr_r_1;
-        ctxt->rw.attr_len = ble_att_svr_test_attr_r_1_len;
+        ctxt->attr_data = ble_att_svr_test_attr_r_1;
+        ctxt->attr_len = ble_att_svr_test_attr_r_1_len;
         return 0;
 
     default:
@@ -76,13 +76,13 @@ ble_att_svr_test_misc_attr_fn_r_1(uint16_t conn_handle, uint16_t attr_handle,
 static int
 ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *uuid128, uint8_t op,
-                                  union ble_att_svr_access_ctxt *ctxt,
+                                  struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->rw.attr_data = ble_att_svr_test_attr_r_2;
-        ctxt->rw.attr_len = ble_att_svr_test_attr_r_2_len;
+        ctxt->attr_data = ble_att_svr_test_attr_r_2;
+        ctxt->attr_len = ble_att_svr_test_attr_r_2_len;
         return 0;
 
     default:
@@ -94,7 +94,7 @@ static int
 ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
                                       uint16_t attr_handle, uint8_t *uuid128,
                                       uint8_t op,
-                                      union ble_att_svr_access_ctxt *ctxt,
+                                      struct ble_att_svr_access_ctxt *ctxt,
                                       void *arg)
 {
     /* Service 0x1122 from 1 to 5 */
@@ -131,11 +131,11 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
 
     TEST_ASSERT_FATAL(attr_handle >= 1 && attr_handle <= 22);
 
-    ctxt->rw.attr_data = vals + attr_handle;
-    if (memcmp(ctxt->rw.attr_data + 2, zeros, 14) == 0) {
-        ctxt->rw.attr_len = 2;
+    ctxt->attr_data = vals + attr_handle;
+    if (memcmp(ctxt->attr_data + 2, zeros, 14) == 0) {
+        ctxt->attr_len = 2;
     } else {
-        ctxt->rw.attr_len = 16;
+        ctxt->attr_len = 16;
     }
 
     return 0;
@@ -224,14 +224,13 @@ ble_att_svr_test_misc_register_group_attrs(void)
 static int
 ble_att_svr_test_misc_attr_fn_w_1(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *uuid128, uint8_t op,
-                                  union ble_att_svr_access_ctxt *ctxt,
+                                  struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        memcpy(ble_att_svr_test_attr_w_1, ctxt->rw.attr_data,
-               ctxt->rw.attr_len);
-        ble_att_svr_test_attr_w_1_len = ctxt->rw.attr_len;
+        memcpy(ble_att_svr_test_attr_w_1, ctxt->attr_data, ctxt->attr_len);
+        ble_att_svr_test_attr_w_1_len = ctxt->attr_len;
         return 0;
 
     default:
@@ -242,14 +241,13 @@ ble_att_svr_test_misc_attr_fn_w_1(uint16_t conn_handle, uint16_t attr_handle,
 static int
 ble_att_svr_test_misc_attr_fn_w_2(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *uuid128, uint8_t op,
-                                  union ble_att_svr_access_ctxt *ctxt,
+                                  struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        memcpy(ble_att_svr_test_attr_w_2, ctxt->rw.attr_data,
-               ctxt->rw.attr_len);
-        ble_att_svr_test_attr_w_2_len = ctxt->rw.attr_len;
+        memcpy(ble_att_svr_test_attr_w_2, ctxt->attr_data, ctxt->attr_len);
+        ble_att_svr_test_attr_w_2_len = ctxt->attr_len;
         return 0;
 
     default:

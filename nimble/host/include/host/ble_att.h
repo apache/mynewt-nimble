@@ -58,11 +58,9 @@
 
 #define BLE_ATT_ATTR_MAX_LEN                512
 
-union ble_att_svr_access_ctxt {
-    struct {
-        void *attr_data;
-        int attr_len;
-    } rw;
+struct ble_att_svr_access_ctxt {
+    void *attr_data;
+    int attr_len;
 };
 
 #define HA_FLAG_PERM_READ                   (1 << 0)
@@ -89,7 +87,7 @@ union ble_att_svr_access_ctxt {
  */
 typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *uuid128, uint8_t op,
-                                  union ble_att_svr_access_ctxt *ctxt,
+                                  struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg);
 
 int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
