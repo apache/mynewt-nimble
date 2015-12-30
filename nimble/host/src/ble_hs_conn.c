@@ -42,6 +42,7 @@ ble_hs_conn_alloc(void)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    int rc;
 
     conn = os_memblock_get(&ble_hs_conn_pool);
     if (conn == NULL) {
@@ -63,6 +64,11 @@ ble_hs_conn_alloc(void)
     }
     SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
 
+    rc = ble_gatts_conn_init(&conn->bhc_gatt_svr);
+    if (rc != 0) {
+        goto err;
+    }
+
     return conn;
 
 err:
@@ -80,12 +86,14 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
         return;
     }
 
+    ble_gatts_conn_deinit(&conn->bhc_gatt_svr);
+
+    ble_att_svr_prep_clear(&conn->bhc_att_svr);
+
     while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
         SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
         ble_l2cap_chan_free(chan);
     }
-
-    ble_att_svr_prep_clear(&conn->bhc_att_svr);
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);
@@ -210,7 +218,6 @@ ble_hs_conn_init(void)
         rc = BLE_HS_EOS;
         goto err;
     }
-
 
     SLIST_INIT(&ble_hs_conns);
 

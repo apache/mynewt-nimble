@@ -188,14 +188,16 @@ ble_att_svr_prev_handle(void)
  * If walk_func wants to stop iteration, it returns 1.  To continue iteration
  * it returns 0.
  *
- * @param walk_func The function to call for each element in the host attribute
- *                  list.
- * @param arg       The argument to provide to walk_func
- * @param ha_ptr    On input: Indicates the starting point of the walk;
- *                      null means start at the beginning of the list,
- *                      non-null means start at the following entry.
- *                  On output: Indicates the last ble_att element processed,
- *                      or NULL if the entire list has been processed.
+ * @param walk_func             The function to call for each element in the
+ *                                  host attribute list.
+ * @param arg                   The argument to provide to walk_func
+ * @param ha_ptr                On input: Indicates the starting point of the
+ *                                  walk; null means start at the beginning of
+ *                                  the list, non-null means start at the
+ *                                  following entry.
+ *                              On output: Indicates the last ble_att element
+ *                                  processed, or NULL if the entire list has
+ *                                  been processed.
  *
  * @return 1 on stopped, 0 on fully processed and an error code otherwise.
  */
@@ -248,8 +250,13 @@ ble_att_svr_match_handle(struct ble_att_svr_entry *ha, void *arg)
  * Find a host attribute by handle id.
  *
  * @param handle_id             The handle_id to search for
- * @param ha_ptr                A pointer to a pointer to put the matching host
- *                                  attr into.
+ * @param ha_ptr                On input: Indicates the starting point of the
+ *                                  walk; null means start at the beginning of
+ *                                  the list, non-null means start at the
+ *                                  following entry.
+ *                              On output: Indicates the last ble_att element
+ *                                  processed, or NULL if the entire list has
+ *                                  been processed.
  *
  * @return                      0 on success; BLE_HS_ENOENT on not found.
  */
@@ -287,14 +294,18 @@ ble_att_svr_match_uuid(struct ble_att_svr_entry *ha, void *arg)
  * Find a host attribute by UUID.
  *
  * @param uuid                  The ble_uuid_t to search for
- * @param ha_ptr                A pointer to a pointer to put the matching host
- *                                  attr into.
+ * @param ha_ptr                On input: Indicates the starting point of the
+ *                                  walk; null means start at the beginning of
+ *                                  the list, non-null means start at the
+ *                                  following entry.
+ *                              On output: Indicates the last ble_att element
+ *                                  processed, or NULL if the entire list has
+ *                                  been processed.
  *
  * @return                      0 on success; BLE_HS_ENOENT on not found.
  */
 int
-ble_att_svr_find_by_uuid(uint8_t *uuid,
-                         struct ble_att_svr_entry **ha_ptr)
+ble_att_svr_find_by_uuid(uint8_t *uuid, struct ble_att_svr_entry **ha_ptr)
 {
     int rc;
 
@@ -604,8 +615,7 @@ ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
                     goto done;
                 }
 
-                rc = os_mbuf_append(om, &ha->ha_uuid,
-                                    16);
+                rc = os_mbuf_append(om, &ha->ha_uuid, 16);
                 if (rc != 0) {
                     goto done;
                 }

@@ -268,6 +268,11 @@ ble_hs_init(uint8_t prio)
         return rc;
     }
 
+    rc = ble_gatts_init();
+    if (rc != 0) {
+        return rc;
+    }
+
     ble_hs_kick_hci_ev.ev_queued = 0;
     ble_hs_kick_hci_ev.ev_type = BLE_HS_KICK_HCI_EVENT;
     ble_hs_kick_hci_ev.ev_arg = NULL;

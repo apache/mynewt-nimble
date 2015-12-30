@@ -169,7 +169,7 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
         .uuid128 = BLE_UUID16(0x1234),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
         }, {
             .uuid128 = NULL,
         } },
@@ -187,7 +187,7 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
         }, {
             .uuid128 = NULL,
         } },
@@ -212,7 +212,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
             .descriptors = (struct ble_gatt_dsc_def[]) { {
                 .uuid128 = BLE_UUID16(0x8888),
                 .att_flags = 5,
@@ -236,7 +236,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
             .descriptors = (struct ble_gatt_dsc_def[]) { {
                 .uuid128 = BLE_UUID16(0x8888),
                 .access_cb = ble_gatts_reg_test_misc_dummy_access,
@@ -353,7 +353,7 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
         }, {
             .uuid128 = NULL,
         } },
@@ -368,11 +368,11 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
         }, {
             .uuid128 = BLE_UUID16(0x2222),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_WRITE,
+            .flags = BLE_GATT_CHR_F_WRITE,
         }, {
             .uuid128 = NULL,
         } },
@@ -382,7 +382,7 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x3333),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
         }, {
             .uuid128 = NULL,
         } },
@@ -400,7 +400,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
             .descriptors = (struct ble_gatt_dsc_def[]) { {
                 .uuid128 = BLE_UUID16(0xaaaa),
                 .att_flags = 5,
@@ -422,7 +422,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x1111),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
             .descriptors = (struct ble_gatt_dsc_def[]) { {
                 .uuid128 = BLE_UUID16(0xaaaa),
                 .att_flags = 5,
@@ -433,7 +433,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
         }, {
             .uuid128 = BLE_UUID16(0x2222),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_WRITE,
+            .flags = BLE_GATT_CHR_F_WRITE,
         }, {
             .uuid128 = NULL,
         } },
@@ -443,7 +443,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
         .characteristics = (struct ble_gatt_chr_def[]) { {
             .uuid128 = BLE_UUID16(0x3333),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
-            .properties = BLE_GATT_CHR_PROP_READ,
+            .flags = BLE_GATT_CHR_F_READ,
             .descriptors = (struct ble_gatt_dsc_def[]) { {
                 .uuid128 = BLE_UUID16(0xaaab),
                 .att_flags = 5,

@@ -22,25 +22,35 @@
 #define BLE_GATT_CHR_DECL_SZ_16     5
 #define BLE_GATT_CHR_DECL_SZ_128    19
 
+struct ble_gatts_clt_cfg {
+    uint16_t chr_def_handle;
+    uint16_t flags;
+};
+
+struct ble_gatts_conn {
+    struct ble_gatts_clt_cfg *clt_cfgs;
+    int num_clt_cfgs;
+};
+
 /*** @gen. */
 void ble_gatt_connection_broken(uint16_t conn_handle);
 
 /*** @client. */
 int ble_gattc_disc_all_services(uint16_t conn_handle,
-                               ble_gatt_disc_service_fn *cb,
-                               void *cb_arg);
+                                ble_gatt_disc_service_fn *cb,
+                                void *cb_arg);
 int ble_gattc_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
-                                  ble_gatt_disc_service_fn *cb, void *cb_arg);
+                                   ble_gatt_disc_service_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
-                            uint16_t end_handle, ble_gatt_chr_fn *cb,
-                            void *cb_arg);
+                             uint16_t end_handle, ble_gatt_chr_fn *cb,
+                             void *cb_arg);
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
-                  ble_gatt_attr_fn *cb, void *cb_arg);
+                   ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                          void *value, uint16_t value_len,
-                          ble_gatt_attr_fn *cb, void *cb_arg);
+                           void *value, uint16_t value_len,
+                           ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                   uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
+                    uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 
 int ble_gattc_exchange_mtu(uint16_t conn_handle);
 
@@ -68,5 +78,10 @@ int ble_gattc_init(void);
 int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
                                 ble_gatt_register_fn *register_cb,
                                 void *cb_arg);
+
+/*** @misc. */
+void ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn);
+int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
+int ble_gatts_init(void);
 
 #endif

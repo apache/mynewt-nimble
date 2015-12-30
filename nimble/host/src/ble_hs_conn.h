@@ -20,6 +20,7 @@
 #include "os/queue.h"
 #include "ble_l2cap.h"
 #include "ble_att_priv.h"
+#include "ble_gatt_priv.h"
 struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;
@@ -33,6 +34,7 @@ struct ble_hs_conn {
     uint16_t bhc_outstanding_pkts;
 
     struct ble_att_svr_conn bhc_att_svr;
+    struct ble_gatts_conn bhc_gatt_svr;
 };
 
 int ble_hs_conn_can_alloc(void);

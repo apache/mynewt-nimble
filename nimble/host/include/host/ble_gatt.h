@@ -93,12 +93,24 @@ typedef int ble_gatt_access_fn(uint16_t conn_handle, uint16_t attr_handle,
                                uint8_t op, union ble_gatt_access_ctxt *ctxt,
                                void *arg);
 
+typedef uint16_t ble_gatt_chr_flags;
+
+#define BLE_GATT_CHR_F_BROADCAST            0x0001
+#define BLE_GATT_CHR_F_READ                 0x0002
+#define BLE_GATT_CHR_F_WRITE_NO_RSP         0x0004
+#define BLE_GATT_CHR_F_WRITE                0x0008
+#define BLE_GATT_CHR_F_NOTIFY               0x0010
+#define BLE_GATT_CHR_F_INDICATE             0x0020
+#define BLE_GATT_CHR_F_AUTH_SIGN_WRITE      0x0040
+#define BLE_GATT_CHR_F_RELIABLE_WRITE       0x0080
+#define BLE_GATT_CHR_F_AUX_WRITE            0x0100
+
 struct ble_gatt_chr_def {
     uint8_t *uuid128;   /* NULL if no more characteristics. */
     ble_gatt_access_fn *access_cb;
     void *arg;
     struct ble_gatt_dsc_def *descriptors;
-    uint8_t properties;
+    ble_gatt_chr_flags flags;
 };
 
 #define BLE_GATT_SVC_TYPE_PRIMARY   1

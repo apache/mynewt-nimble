@@ -27,6 +27,7 @@
 #define BLE_GATTS_CHR_MAX_SZ    19
 
 #define BLE_GATTS_MAX_SERVICES  32 /* XXX: Make this configurable. */
+#define BLE_GATTS_MAX_CLT_CFGS  256 /* XXX: Make this configurable. */
 
 struct ble_gatts_svc_entry {
     const struct ble_gatt_svc_def *svc;
@@ -37,6 +38,14 @@ struct ble_gatts_svc_entry {
 static struct ble_gatts_svc_entry
     ble_gatts_svc_entries[BLE_GATTS_MAX_SERVICES];
 static int ble_gatts_num_svc_entries;
+
+static os_membuf_t *ble_gatts_clt_cfg_mem;
+static struct os_mempool ble_gatts_clt_cfg_pool;
+static uint8_t ble_gatts_clt_cfg_inited;
+
+/** A cached array of handles for the configurable characteristics. */
+static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
+static int ble_gatts_num_cfgable_chrs;
 
 static int
 ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -84,6 +93,43 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+static uint8_t
+ble_gatts_chr_properties(const struct ble_gatt_chr_def *chr)
+{
+    uint8_t properties;
+
+    properties = 0;
+
+    if (chr->flags & BLE_GATT_CHR_F_BROADCAST) {
+        properties |= BLE_GATT_CHR_PROP_BROADCAST;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_READ) {
+        properties |= BLE_GATT_CHR_PROP_READ;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_WRITE_NO_RSP) {
+        properties |= BLE_GATT_CHR_PROP_WRITE_NO_RSP;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_WRITE) {
+        properties |= BLE_GATT_CHR_PROP_WRITE;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_NOTIFY) {
+        properties |= BLE_GATT_CHR_PROP_NOTIFY;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_INDICATE) {
+        properties |= BLE_GATT_CHR_PROP_INDICATE;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_AUTH_SIGN_WRITE) {
+        properties |= BLE_GATT_CHR_PROP_AUTH_SIGN_WRITE;
+    }
+    if (chr->flags &
+        (BLE_GATT_CHR_F_RELIABLE_WRITE | BLE_GATT_CHR_F_AUX_WRITE)) {
+
+        properties |= BLE_GATT_CHR_PROP_EXTENDED;
+    }
+
+    return properties;
+}
+
 static int
 ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t *uuid128, uint8_t op,
@@ -97,7 +143,7 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
 
     chr = arg;
 
-    buf[0] = chr->properties;
+    buf[0] = ble_gatts_chr_properties(chr);
 
     /* The value attribute is always immediately after the declaration. */
     htole16(buf + 1, attr_handle + 1);
@@ -543,4 +589,149 @@ ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
     }
 
     return 0;
+}
+
+void
+ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn)
+{
+    int rc;
+
+    if (gatts_conn->clt_cfgs != NULL) {
+        rc = os_memblock_put(&ble_gatts_clt_cfg_pool, gatts_conn->clt_cfgs);
+        assert(rc == 0);
+
+        gatts_conn->clt_cfgs = NULL;
+    }
+}
+
+static int
+ble_gatts_chr_has_clt_cfg(struct ble_gatt_chr_def *chr)
+{
+    return chr->flags & (BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_INDICATE);
+}
+
+static int
+ble_gatts_clt_cfg_size(void)
+{
+    return ble_gatts_num_cfgable_chrs * sizeof (struct ble_gatts_clt_cfg);
+}
+
+static int
+ble_gatts_clt_cfg_init(void)
+{
+    struct ble_gatt_chr_def *chr;
+    struct ble_att_svr_entry *ha;
+    uint8_t uuid128[16];
+    int num_elems;
+    int idx;
+    int rc;
+
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+    assert(rc == 0);
+
+    /* Count the number of client-configurable characteristics. */
+    ble_gatts_num_cfgable_chrs = 0;
+    ha = NULL;
+    while (ble_att_svr_find_by_uuid(uuid128, &ha) == 0) {
+        chr = ha->ha_cb_arg;
+        if (ble_gatts_chr_has_clt_cfg(chr)) {
+            ble_gatts_num_cfgable_chrs++;
+        }
+    }
+    if (ble_gatts_num_cfgable_chrs == 0) {
+        return 0;
+    }
+
+    /* Initialize client-configuration memory pool. */
+    num_elems = BLE_GATTS_MAX_CLT_CFGS / ble_gatts_num_cfgable_chrs;
+    rc = os_mempool_init(&ble_gatts_clt_cfg_pool, num_elems,
+                         ble_gatts_clt_cfg_size(), ble_gatts_clt_cfg_mem,
+                         "ble_gatts_clt_cfg_pool");
+    if (rc != 0) {
+        return BLE_HS_EOS;
+    }
+
+    /* Allocate the cached array of handles for the configuration
+     * characteristics.
+     */
+    ble_gatts_clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
+    if (ble_gatts_clt_cfgs == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    /* Fill the cache. */
+    idx = 0;
+    ha = NULL;
+    while (ble_att_svr_find_by_uuid(uuid128, &ha) == 0) {
+        chr = ha->ha_cb_arg;
+        if (ble_gatts_chr_has_clt_cfg(chr)) {
+            assert(idx < ble_gatts_num_cfgable_chrs);
+
+            ble_gatts_clt_cfgs[idx].chr_def_handle = ha->ha_handle_id;
+            ble_gatts_clt_cfgs[idx].flags = 0;
+            idx++;
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
+{
+    int rc;
+
+    /* Initialize the client configuration memory pool if necessary. */
+    if (!ble_gatts_clt_cfg_inited) {
+        rc = ble_gatts_clt_cfg_init();
+        if (rc != 0) {
+            return rc;
+        }
+        ble_gatts_clt_cfg_inited = 1;
+    }
+
+    if (ble_gatts_num_cfgable_chrs) {
+        ble_gatts_conn_deinit(gatts_conn);
+        gatts_conn->clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
+        if (gatts_conn->clt_cfgs == NULL) {
+            return BLE_HS_ENOMEM;
+        }
+    }
+
+    /* Initialize the client configuration with a copy of the cache. */
+    memcpy(gatts_conn->clt_cfgs, ble_gatts_clt_cfgs, ble_gatts_clt_cfg_size());
+    gatts_conn->num_clt_cfgs = ble_gatts_num_cfgable_chrs;
+
+    return 0;
+}
+
+static void
+ble_gatts_free_mem(void)
+{
+    free(ble_gatts_clt_cfg_mem);
+}
+
+int
+ble_gatts_init(void)
+{
+    int rc;
+
+    ble_gatts_free_mem();
+    ble_gatts_num_cfgable_chrs = 0;
+    ble_gatts_clt_cfgs = NULL;
+    ble_gatts_clt_cfg_inited = 0;
+
+    ble_gatts_clt_cfg_mem = malloc(
+        OS_MEMPOOL_BYTES(BLE_GATTS_MAX_CLT_CFGS,
+                         sizeof (struct ble_gatts_clt_cfg)));
+    if (ble_gatts_clt_cfg_mem == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    ble_gatts_free_mem();
+    return rc;
 }
