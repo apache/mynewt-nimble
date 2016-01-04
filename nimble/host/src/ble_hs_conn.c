@@ -113,12 +113,12 @@ ble_hs_conn_remove(struct ble_hs_conn *conn)
 }
 
 struct ble_hs_conn *
-ble_hs_conn_find(uint16_t con_handle)
+ble_hs_conn_find(uint16_t conn_handle)
 {
     struct ble_hs_conn *conn;
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
-        if (conn->bhc_handle == con_handle) {
+        if (conn->bhc_handle == conn_handle) {
             return conn;
         }
     }

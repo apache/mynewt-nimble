@@ -22,9 +22,12 @@
 #define BLE_GATT_CHR_DECL_SZ_16     5
 #define BLE_GATT_CHR_DECL_SZ_128    19
 
+#define BLE_GATT_DSC_CLT_CFG_UUID16 0x2902
+
 struct ble_gatts_clt_cfg {
     uint16_t chr_def_handle;
-    uint16_t flags;
+    uint8_t flags;
+    uint8_t allowed;
 };
 
 struct ble_gatts_conn {
@@ -75,6 +78,10 @@ void ble_gattc_connection_broken(uint16_t conn_handle);
 int ble_gattc_init(void);
 
 /*** @server. */
+#define BLE_GATTS_CLT_CFG_F_NOTIFY              0x0001
+#define BLE_GATTS_CLT_CFG_F_INDICATE            0x0002
+#define BLE_GATTS_CLT_CFG_F_RESERVED            0xfffc
+
 int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
                                 ble_gatt_register_fn *register_cb,
                                 void *cb_arg);
