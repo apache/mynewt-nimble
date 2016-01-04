@@ -56,7 +56,8 @@ struct hci_create_conn;
 struct ble_mbuf_hdr;
 void ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
-void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
+void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
+                             uint8_t hdr_byte, uint8_t length);
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
 void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm, 
                              struct hci_create_conn *hcc);

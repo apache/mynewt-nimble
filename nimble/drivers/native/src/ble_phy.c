@@ -177,13 +177,13 @@ ble_phy_isr(void)
 
         /* Construct BLE header before handing up */
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
-        ble_hdr->flags = 0;
-        ble_hdr->rssi = -77;    /* XXX: dummy rssi */
-        ble_hdr->channel = g_ble_phy_data.phy_chan;
-        ble_hdr->crcok = 1;
+        ble_hdr->rxinfo.flags = 0;
+        ble_hdr->rxinfo.rssi = -77;    /* XXX: dummy rssi */
+        ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
+        ble_hdr->rxinfo.crcok = 1;
 
         /* Count PHY crc errors and valid packets */
-        if (ble_hdr->crcok == 0) {
+        if (ble_hdr->rxinfo.crcok == 0) {
             ++g_ble_phy_stats.rx_crc_err;
         } else {
             ++g_ble_phy_stats.rx_valid;
@@ -192,7 +192,7 @@ ble_phy_isr(void)
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu, ble_hdr->channel, ble_hdr->crcok);
+        rc = ble_ll_rx_end(rxpdu,ble_hdr->rxinfo.channel,ble_hdr->rxinfo.crcok);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
@@ -242,9 +242,16 @@ ble_phy_rx(void)
     return 0;
 }
 
+void
+ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
+{
+    /* Set transmit end callback and arg */
+    g_ble_phy_data.txend_cb = txend_cb;
+    g_ble_phy_data.txend_arg = arg;
+}
+
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
-           ble_phy_tx_end_func txend_cb, void *arg)
+ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
 {
     int rc;
     uint32_t state;
@@ -281,7 +288,8 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
         ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len;
+        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len + 
+            BLE_LL_PDU_HDR_LEN;
         rc = BLE_ERR_SUCCESS;
     } else {
         /* Frame failed to transmit */

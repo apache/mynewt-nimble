@@ -178,10 +178,10 @@ ble_ll_ctrl_datalen_chg_event(struct ble_ll_conn_sm *connsm)
 static void
 ble_ll_ctrl_datalen_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
-    htole16(dptr + 3, connsm->max_rx_octets);
-    htole16(dptr + 5, connsm->max_rx_time);
-    htole16(dptr + 7, connsm->max_tx_octets);
-    htole16(dptr + 9, connsm->max_tx_time);
+    htole16(dptr + 1, connsm->max_rx_octets);
+    htole16(dptr + 3, connsm->max_rx_time);
+    htole16(dptr + 5, connsm->max_tx_octets);
+    htole16(dptr + 7, connsm->max_tx_time);
 }
 
 /**
@@ -221,6 +221,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 
     if (om) {
         dptr = om->om_data;
+
         switch (ctrl_proc) {
         case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
             len = BLE_LL_CTRL_LENGTH_REQ_LEN;
@@ -230,7 +231,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         case BLE_LL_CTRL_PROC_TERMINATE:
             len = BLE_LL_CTRL_TERMINATE_IND_LEN;
             opcode = BLE_LL_CTRL_TERMINATE_IND;
-            dptr[3] = connsm->disconnect_reason;
+            dptr[1] = connsm->disconnect_reason;
             break;
         default:
             assert(0);
@@ -238,12 +239,11 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         }
 
         /* Set llid, length and opcode */
+        dptr[0] = opcode;
         ++len;
-        dptr[0] = BLE_LL_LLID_CTRL;
-        dptr[1] = len;
-        dptr[2] = opcode;
-        om->om_len = len + BLE_LL_PDU_HDR_LEN;
-        OS_MBUF_PKTHDR(om)->omp_len = om->om_len;
+
+        /* Add packet to transmit queue of connection */
+        ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
     }
 
     return om;
@@ -252,20 +252,19 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 /**
  * Called to determine if the pdu is a TERMINATE_IND 
  * 
- * @param pdu 
- *  
- * XXX: should we set a BLE header flag instead to denote TERMINATE_IND? 
+ * @param hdr 
+ * @param opcode 
  * 
- * @return int 0: not a terminate. 1: yes
+ * @return int 
  */
 int
-ble_ll_ctrl_is_terminate_ind(struct os_mbuf *pdu)
+ble_ll_ctrl_is_terminate_ind(uint8_t hdr, uint8_t opcode)
 {
     int rc;
 
     rc = 0;
-    if ((pdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
-        if (pdu->om_data[BLE_LL_PDU_HDR_LEN] == BLE_LL_CTRL_TERMINATE_IND) {
+    if ((hdr & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+        if (opcode == BLE_LL_CTRL_TERMINATE_IND) {
             rc = 1;
         }
     }
@@ -312,7 +311,6 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
     ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
     om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
     if (om) {
-        ble_ll_conn_enqueue_pkt(connsm, om);
         connsm->pending_ctrl_procs |= (1 << ctrl_proc);
 
         /* Set terminate "timeout" */
@@ -345,9 +343,6 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         if (om) {
             /* Set the current control procedure */
             connsm->cur_ctrl_proc = ctrl_proc;
-
-            /* Add packet to transmit queue of connection */
-            ble_ll_conn_enqueue_pkt(connsm, om);
 
             /* Initialize the procedure response timeout */
             os_callout_func_init(&connsm->ctrl_proc_rsp_timer, 
@@ -472,7 +467,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
             /* XXX: construct unknown pdu */
             opcode = BLE_LL_CTRL_UNKNOWN_RSP;
             len = BLE_LL_CTRL_UNK_RSP_LEN;
-            dptr[3] = BLE_LL_CTRL_LENGTH_REQ;
+            dptr[1] = BLE_LL_CTRL_LENGTH_REQ;
         }
         break;
     case BLE_LL_CTRL_LENGTH_RSP:
@@ -516,12 +511,8 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         os_mbuf_free(om);
     } else {
         ++len;
-        dptr[0] = BLE_LL_LLID_CTRL;
-        dptr[1] = len;
-        dptr[2] = opcode;
-        om->om_len = len + BLE_LL_PDU_HDR_LEN;
-        OS_MBUF_PKTHDR(om)->omp_len = om->om_len;
-        ble_ll_conn_enqueue_pkt(connsm, om);
+        dptr[0] = opcode;
+        ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
     }
     return;
 

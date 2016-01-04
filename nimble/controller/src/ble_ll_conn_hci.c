@@ -52,8 +52,6 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 
     m = ble_ll_scan_get_pdu();
     assert(m != NULL);
-    m->om_len = BLE_CONNECT_REQ_LEN + BLE_LL_PDU_HDR_LEN;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
@@ -70,14 +68,15 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
         assert(0);
     }
 
+    /* Set BLE transmit header */
+    ble_ll_mbuf_init(m, BLE_CONNECT_REQ_LEN, pdu_type);
+
     /* Construct the connect request */
     dptr = m->om_data;
-    dptr[0] = pdu_type;
-    dptr[1] = BLE_CONNECT_REQ_LEN;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
+    memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
 
     /* Skip the advertiser's address as we dont know that yet */
-    dptr += (BLE_LL_CONN_REQ_ADVA_OFF + BLE_DEV_ADDR_LEN);
+    dptr += (2 * BLE_DEV_ADDR_LEN);
 
     /* Access address */
     htole32(dptr, connsm->access_addr);

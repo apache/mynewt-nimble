@@ -235,14 +235,9 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     /* An invalid advertising data length indicates a memory overwrite */
     assert(adv_data_len <= BLE_ADV_DATA_MAX_LEN);
 
-    /* Set the PDU length in the state machine */
+    /* Set the PDU length in the state machine (includes header) */
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
-    /* Get the advertising PDU */
-    m = advsm->adv_pdu;
-    assert(m != NULL);
-    m->om_len = advsm->adv_pdu_len;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Construct scan response */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
@@ -256,12 +251,16 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
         assert(0);
     }
 
+    /* Get the advertising PDU and initialize it*/
+    m = advsm->adv_pdu;
+    assert(m != NULL);
+
+    ble_ll_mbuf_init(m, pdulen, pdu_type);
+
     /* Construct advertisement */
     dptr = m->om_data;
-    dptr[0] = pdu_type;
-    dptr[1] = (uint8_t)pdulen;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
-    dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+    memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+    dptr += BLE_DEV_ADDR_LEN;
 
     /* For ADV_DIRECT_IND, we need to put initiators address in there */
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
@@ -299,8 +298,6 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     /* Get the advertising PDU */
     m = advsm->scan_rsp_pdu;
     assert(m != NULL);
-    m->om_len = BLE_LL_PDU_HDR_LEN + pdulen;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Construct scan response */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
@@ -316,16 +313,16 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
         assert(0);
     }
 
-    /* Write into the pdu buffer */
+    /* Set BLE transmit header */
+    ble_ll_mbuf_init(m, pdulen, hdr);
+
+    /* Put our address into buffer */
     dptr = m->om_data;
-    dptr[0] = hdr;
-    dptr[1] = pdulen;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
+    memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
 
     /* Copy in scan response data, if any */
     if (scan_rsp_len != 0) {
-        dptr += BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;  
-        memcpy(dptr, advsm->scan_rsp_data, scan_rsp_len);
+        memcpy(dptr + BLE_DEV_ADDR_LEN, advsm->scan_rsp_data, scan_rsp_len);
     }
 }
 
@@ -366,6 +363,9 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
     assert(rc == 0);
 
+    /* Set the callbacks */
+    ble_phy_set_txend_cb(NULL, NULL);
+
     /* Set phy mode based on type of advertisement */
     if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
         end_trans = BLE_PHY_TRANSITION_NONE;
@@ -377,8 +377,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     start_time = cputime_get32();
 
     /* Transmit advertisement */
-    rc = ble_phy_tx(advsm->adv_pdu, BLE_PHY_TRANSITION_NONE, end_trans, NULL,
-                    NULL);
+    rc = ble_phy_tx(advsm->adv_pdu, BLE_PHY_TRANSITION_NONE, end_trans);
     if (rc) {
         /* Transmit failed. */
         rc = ble_ll_adv_tx_done_cb(sch);
@@ -868,16 +867,17 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
         if (!ble_ll_whitelist_match(rxbuf + BLE_LL_PDU_HDR_LEN, txadd)) {
             return -1;
         }
-        ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
     }
 
     /* Setup to transmit the scan response if appropriate */
     rc = -1;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
+        /* NOTE: no callback nneds to be set as it should be NULL already */
         rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
-                        BLE_PHY_TRANSITION_NONE, NULL, NULL);
+                        BLE_PHY_TRANSITION_NONE);
         if (!rc) {
-            ble_hdr->flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
             ++g_ble_ll_adv_stats.scan_rsp_txg;
         }
     }
@@ -906,7 +906,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     valid = 0;
     advsm = &g_ble_ll_adv_sm;
     if (advsm->adv_filter_policy & 2) {
-        if (hdr->flags & BLE_MBUF_HDR_F_DEVMATCH) {
+        if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_DEVMATCH) {
             /* valid connection request received */
             valid = 1;
         }
@@ -1002,14 +1002,14 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
      * receiving a connect request
      */
     adv_event_over = 1;
-    if (hdr->crcok) {
+    if (hdr->rxinfo.crcok) {
         if (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
             if (ble_ll_adv_conn_req_rxd(rxbuf, hdr)) {
                 adv_event_over = 0;
             }
         } else {
             if ((ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) &&
-                (hdr->flags & BLE_MBUF_HDR_F_SCAN_RSP_TXD)) {
+                (hdr->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_TXD)) {
                 adv_event_over = 0;
             }
         }

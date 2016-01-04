@@ -75,6 +75,9 @@ struct os_mbuf;
 #define BLE_PHY_ERR_INV_PARAM       (3)
 #define BLE_PHY_ERR_NO_BUFS         (4)
 
+/* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
+#define BLE_PHY_MAX_PDU_LEN         (257)
+
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);
 
@@ -87,9 +90,11 @@ int ble_phy_reset(void);
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
+/* Set the transmit end callback and argument */
+void ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg);
+
 /* Place the PHY into transmit mode */
-int ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
-               ble_phy_tx_end_func txend_cb, void *arg);
+int ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans);
 
 /* Place the PHY into receive mode */
 int ble_phy_rx(void);

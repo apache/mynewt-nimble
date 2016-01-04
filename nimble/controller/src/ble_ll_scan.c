@@ -146,8 +146,6 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     /* Get the advertising PDU */
     m = scansm->scan_req_pdu;
     assert(m != NULL);
-    m->om_len = BLE_SCAN_REQ_LEN + BLE_LL_PDU_HDR_LEN;
-    OS_MBUF_PKTHDR(m)->omp_len = m->om_len;
 
     /* Get pointer to our device address */
     if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
@@ -161,13 +159,12 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
         assert(0);
     }
 
+    ble_ll_mbuf_init(m, BLE_SCAN_REQ_LEN, pdu_type);
+
     /* Construct the scan request */
     dptr = m->om_data;
-    dptr[0] = pdu_type;
-    dptr[1] = BLE_SCAN_REQ_LEN;
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN, addr, BLE_DEV_ADDR_LEN);
-    memcpy(dptr + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN, adv_addr, 
-           BLE_DEV_ADDR_LEN);
+    memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+    memcpy(dptr + BLE_DEV_ADDR_LEN, adv_addr, BLE_DEV_ADDR_LEN);
 }
 
 /**
@@ -521,6 +518,9 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(scansm->scan_chan, 0, 0);
     assert(rc == 0);
 
+    /* Set callbacks in case we transmit scan request or connect request */
+    ble_phy_set_txend_cb(NULL, NULL);
+
     /* Start receiving */
     rc = ble_phy_rx();
     if (rc) {
@@ -760,7 +760,7 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
          */ 
         if (scansm->scan_rsp_pending) {
             ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-            ble_hdr->flags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
         }
         break;
     case BLE_SCAN_TYPE_PASSIVE:
@@ -835,7 +835,7 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
             return -1;
         }
         ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-        ble_hdr->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
     }
 
     /* Should we send a scan request? */
@@ -858,7 +858,7 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
             /* Setup to transmit the scan request */
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
             rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_RX_TX,
-                            BLE_PHY_TRANSITION_TX_RX, NULL, NULL);
+                            BLE_PHY_TRANSITION_TX_RX);
 
             /* Set "waiting for scan response" flag */
             scansm->scan_rsp_pending = 1;
@@ -923,20 +923,21 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     uint8_t *adva;
     uint8_t txadd;
     uint8_t rxadd;
-    struct ble_ll_scan_sm *scansm;
     uint8_t scan_rsp_chk;
+    struct ble_ll_scan_sm *scansm;
+    struct ble_mbuf_hdr *ble_hdr;
 
     /* Set scan response check flag */
-    scan_rsp_chk = hdr->flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+    scan_rsp_chk = hdr->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK;
 
     /* We dont care about scan requests or connect requests */
-    if ((!hdr->crcok) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) || 
+    if ((!hdr->rxinfo.crcok) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) || 
         (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
         goto scan_continue;
     }
 
     /* Check the scanner filter policy */
-    if (ble_ll_scan_chk_filter_policy(ptype, rxbuf, hdr->flags)) {
+    if (ble_ll_scan_chk_filter_policy(ptype, rxbuf, hdr->rxinfo.flags)) {
         goto scan_continue;
     }
 
@@ -962,10 +963,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
              * that it is relatively close to the end of the scan request but
              * we wont for now.
              */
-            adva = scansm->scan_req_pdu->om_data + BLE_LL_PDU_HDR_LEN +
-                   BLE_DEV_ADDR_LEN;
-            rxadd = scansm->scan_req_pdu->om_data[0] & 
-                    BLE_ADV_PDU_HDR_RXADD_MASK;
+            ble_hdr = BLE_MBUF_HDR_PTR(scansm->scan_req_pdu);
+            rxadd = ble_hdr->txinfo.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK;
+            adva = scansm->scan_req_pdu->om_data + BLE_DEV_ADDR_LEN;
             if (((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
                 !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
                 /* We have received a scan response. Add to list */
@@ -985,7 +985,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     /* Send the advertising report */
-    ble_ll_hci_send_adv_report(ptype, txadd, rxbuf, hdr->rssi);
+    ble_ll_hci_send_adv_report(ptype, txadd, rxbuf, hdr->rxinfo.rssi);
 
 scan_continue:
     /* 

@@ -62,11 +62,15 @@ struct ble_phy_obj
 };
 struct ble_phy_obj g_ble_phy_data;
 
+/* Global transmit/receive buffer */
+static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+
 /* Statistics */
 struct ble_phy_statistics
 {
     uint32_t tx_good;
     uint32_t tx_fail;
+    uint32_t tx_late;
     uint32_t tx_bytes;
     uint32_t rx_starts;
     uint32_t rx_aborts;
@@ -259,8 +263,8 @@ ble_phy_isr(void)
 
         /* Initialize flags and channel in ble header at rx start */
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
-        ble_hdr->flags = 0;
-        ble_hdr->channel = g_ble_phy_data.phy_chan;
+        ble_hdr->rxinfo.flags = 0;
+        ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
 
         /* Call Link Layer receive start function */
         rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
@@ -298,12 +302,12 @@ ble_phy_isr(void)
         /* Set RSSI and CRC status flag in header */
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
         assert(NRF_RADIO->EVENTS_RSSIEND != 0);
-        ble_hdr->rssi = -1 * NRF_RADIO->RSSISAMPLE;
-        ble_hdr->crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
+        ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
+        ble_hdr->rxinfo.crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
         ble_hdr->end_cputime = NRF_TIMER0->CC[2];
 
         /* Count PHY crc errors and valid packets */
-        if (ble_hdr->crcok == 0) {
+        if (ble_hdr->rxinfo.crcok == 0) {
             ++g_ble_phy_stats.rx_crc_err;
         } else {
             ++g_ble_phy_stats.rx_valid;
@@ -312,7 +316,8 @@ ble_phy_isr(void)
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu, ble_hdr->channel, ble_hdr->crcok);
+        rc = ble_ll_rx_end(rxpdu, ble_hdr->rxinfo.channel, 
+                           ble_hdr->rxinfo.crcok);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
@@ -450,13 +455,22 @@ ble_phy_rx(void)
     return 0;
 }
 
+void
+ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
+{
+    /* Set transmit end callback and arg */
+    g_ble_phy_data.txend_cb = txend_cb;
+    g_ble_phy_data.txend_arg = arg;
+}
+
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
-           ble_phy_tx_end_func txend_cb, void *arg)
+ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
 {
     int rc;
+    uint8_t *dptr;
     uint32_t state;
     uint32_t shortcuts;
+    struct ble_mbuf_hdr *ble_hdr;
 
     /* Better have a pdu! */
     assert(txpdu != NULL);
@@ -481,8 +495,15 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
         return BLE_PHY_ERR_RADIO_STATE;
     }
 
+    /* Write LL header first */
+    ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
+    dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
+    dptr[0] = ble_hdr->txinfo.hdr_byte;
+    dptr[1] = ble_hdr->txinfo.pyld_len;
+    dptr += 2;
+
     /* Set radio transmit data pointer */
-    NRF_RADIO->PACKETPTR = (uint32_t)txpdu->om_data;
+    NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
 
     /* Clear the ready, end and disabled events */
     NRF_RADIO->EVENTS_READY = 0;
@@ -500,10 +521,6 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     NRF_RADIO->SHORTS = shortcuts;
 
-    /* Set transmit end callback and arg */
-    g_ble_phy_data.txend_cb = txend_cb;
-    g_ble_phy_data.txend_arg = arg;
-
     /* Trigger transmit if our state was disabled */
     if (state == RADIO_STATE_STATE_Disabled) {
         NRF_RADIO->TASKS_TXEN = 1;
@@ -514,15 +531,25 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans,
 
     /* Read back radio state. If in TXRU, we are fine */
     state = NRF_RADIO->STATE;
-    if ((state == RADIO_STATE_STATE_TxRu) || (state == RADIO_STATE_STATE_Tx)) {
+    if (state == RADIO_STATE_STATE_TxRu) {
+        /* Copy data from mbuf into transmit buffer */
+        os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset, 
+                         ble_hdr->txinfo.pyld_len, dptr);
+
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
         ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len;
+        g_ble_phy_stats.tx_bytes += ble_hdr->txinfo.pyld_len + 
+            BLE_LL_PDU_HDR_LEN;
         rc = BLE_ERR_SUCCESS;
     } else {
+        if (state == RADIO_STATE_STATE_Tx) {
+            ++g_ble_phy_stats.tx_late;
+        } else {
+            ++g_ble_phy_stats.tx_fail;
+        }
+
         /* Frame failed to transmit */
-        ++g_ble_phy_stats.tx_fail;
         ble_phy_disable();
         rc = BLE_PHY_ERR_RADIO_STATE;
     }

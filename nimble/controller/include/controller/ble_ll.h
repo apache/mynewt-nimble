@@ -163,21 +163,22 @@ struct ble_dev_addr
 #define BLE_LL_MIN_PDU_LEN      (BLE_LL_PDU_HDR_LEN)
 #define BLE_LL_MAX_PDU_LEN      (257)
 #define BLE_LL_CRCINIT_ADV      (0x555555)
+#define BLE_LL_PDU_OVERHEAD     (BLE_LL_OVERHEAD_LEN + BLE_LL_PDU_HDR_LEN)
 
 /**
  * ll pdu tx time get 
  *  
- * Returns the number of usecs it will take to transmit a PDU of length 'len'
- * bytes. Each byte takes 8 usecs. This routine includes the LL overhead:
- * preamble (1), access addr (4) and crc (3) for a total of 8 bytes.
+ * Returns the number of usecs it will take to transmit a PDU of payload
+ * length 'len' bytes. Each byte takes 8 usecs. This routine includes the LL 
+ * overhead: preamble (1), access addr (4) and crc (3) and the PDU header (2) 
+ * for a total of 10 bytes. 
  * 
- * @param len The number of PDU bytes to transmit. This includes both header
- * and payload.
+ * @param len The length of the PDU payload (does not include include header). 
  * 
  * @return uint16_t The number of usecs it will take to transmit a PDU of
  *                  length 'len' bytes.
  */
-#define BLE_TX_DUR_USECS_M(len)     (((len) + BLE_LL_OVERHEAD_LEN) << 3)
+#define BLE_TX_DUR_USECS_M(len)     (((len) + BLE_LL_PDU_OVERHEAD) << 3)
 
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)
@@ -186,7 +187,8 @@ struct ble_dev_addr
  * Advertising PDU format:
  * -> 2 byte header
  *      -> LSB contains pdu type, txadd and rxadd bits.
- *      -> MSB contains length (6 bits).
+ *      -> MSB contains length (6 bits). Length is length of payload. Does
+ *         not include the header length itself. 
  * -> Payload
  */
 #define BLE_ADV_PDU_HDR_TYPE_MASK           (0x0F)
@@ -224,7 +226,7 @@ struct ble_dev_addr
 #define BLE_LL_DATA_HDR_SN_MASK         (0x08)
 #define BLE_LL_DATA_HDR_MD_MASK         (0x10)
 #define BLE_LL_DATA_HDR_RSRVD_MASK      (0xE0)
-#define BLE_LL_DATA_MAX_OVERHEAD        (6)
+#define BLE_LL_DATA_MIC_LEN             (4)
 
 /* LLID definitions */
 #define BLE_LL_LLID_RSRVD               (0)
@@ -300,6 +302,8 @@ int ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan);
 int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok);
 
 /*--- Controller API ---*/
+void ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr);
+
 /* Set the link layer state */
 void ble_ll_state_set(uint8_t ll_state);
 

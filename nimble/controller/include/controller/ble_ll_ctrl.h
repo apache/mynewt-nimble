@@ -218,6 +218,6 @@ void ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
 void ble_ll_ctrl_datalen_chg_event(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm);
-int ble_ll_ctrl_is_terminate_ind(struct os_mbuf *pdu);
+int ble_ll_ctrl_is_terminate_ind(uint8_t hdr, uint8_t opcode);
 
 #endif /* H_BLE_LL_CTRL_ */

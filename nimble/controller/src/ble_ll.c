@@ -405,17 +405,17 @@ ble_ll_rx_pkt_in(void)
         /* Count statistics */
         rxbuf = m->om_data;
         ble_hdr = BLE_MBUF_HDR_PTR(m); 
-        if (ble_hdr->crcok) {
+        if (ble_hdr->rxinfo.crcok) {
             /* The total bytes count the PDU header and PDU payload */
             g_ble_ll_stats.rx_bytes += pkthdr->omp_len;
         }
 
-        if (ble_hdr->channel < BLE_PHY_NUM_DATA_CHANS) {
-            ble_ll_conn_rx_data_pdu(m, ble_hdr->crcok);
+        if (ble_hdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
+            ble_ll_conn_rx_data_pdu(m, ble_hdr->rxinfo.crcok);
         } else {
             /* Get advertising PDU type */
             pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-            if (ble_hdr->crcok) {
+            if (ble_hdr->rxinfo.crcok) {
                 /* Count by type only with valid crc */
                 ++g_ble_ll_stats.rx_valid_adv_pdus;
                 ble_ll_count_rx_adv_pdus(pdu_type);
@@ -815,6 +815,31 @@ ble_ll_flush_pkt_queue(struct ble_ll_pkt_q *pktq)
         os_mbuf_free(om);
     }
 }
+
+/**
+ * Called to initialize a mbuf used by the controller
+ * 
+ * @param m 
+ * @param pdulen 
+ * @param hdr 
+ */
+void
+ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
+{
+    struct ble_mbuf_hdr *ble_hdr;
+
+    /* Set mbuf length and packet length */
+    m->om_len = pdulen;
+    OS_MBUF_PKTHDR(m)->omp_len = pdulen;
+
+    /* Set BLE transmit header */
+    ble_hdr = BLE_MBUF_HDR_PTR(m);
+    ble_hdr->txinfo.flags = 0;
+    ble_hdr->txinfo.offset = 0;
+    ble_hdr->txinfo.pyld_len = pdulen;
+    ble_hdr->txinfo.hdr_byte = hdr;
+}
+
 
 /**
  * Called to reset the controller. This performs a "software reset" of the link 

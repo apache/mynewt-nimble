@@ -43,12 +43,28 @@ extern struct os_mempool g_hci_os_event_pool;
  *  crcok: flag denoting CRC check passed (1) or failed (0).
  *  rssi: RSSI, in dBm.
  */
-struct ble_mbuf_hdr
+struct ble_mbuf_hdr_rxinfo
 {
     uint8_t flags;
     uint8_t channel;
     uint8_t crcok;
     int8_t rssi;
+};
+
+struct ble_mbuf_hdr_txinfo
+{
+    uint8_t flags;
+    uint8_t offset;
+    uint8_t pyld_len;
+    uint8_t hdr_byte;
+};
+
+struct ble_mbuf_hdr
+{
+    union {
+        struct ble_mbuf_hdr_rxinfo rxinfo;
+        struct ble_mbuf_hdr_txinfo txinfo;
+    };
     uint32_t end_cputime;
 };
 
