@@ -354,7 +354,7 @@
 
 /* Event specific definitions */
 /* Event disconnect complete */
-#define BLE_HCI_EVENT_DISCONN_COMPLETE_LEN  (4)
+#define BLE_HCI_EVENT_DISCONN_COMPLETE_LEN  (6)
 
 /* Event command complete */
 #define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (5)

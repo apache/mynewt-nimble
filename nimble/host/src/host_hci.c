@@ -174,9 +174,9 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
         return BLE_HS_EMSGSIZE;
     }
 
-    evt.status = data[0];
-    evt.connection_handle = le16toh(data + 1);
-    evt.reason = data[3];
+    evt.status = data[2];
+    evt.connection_handle = le16toh(data + 3);
+    evt.reason = data[5];
 
     ble_gap_conn_rx_disconn_complete(&evt);
 
