@@ -279,6 +279,7 @@ ble_gattc_entry_set_expecting(struct ble_gattc_entry *entry,
     ble_gattc_entry_remove(entry, prev);
     entry->flags &= ~BLE_GATT_ENTRY_F_PENDING;
     entry->flags |= BLE_GATT_ENTRY_F_EXPECTING;
+    entry->tx_time = os_time_get();
     STAILQ_INSERT_TAIL(&ble_gattc_list, entry, next);
 }
 
@@ -337,7 +338,6 @@ ble_gattc_heartbeat(void *arg)
             }
         } else if (entry->flags & BLE_GATT_ENTRY_F_EXPECTING) {
             if (now - entry->tx_time >= BLE_GATT_UNRESPONSIVE_TIMEOUT) {
-                /* XXX: Disconnect. */
                 rc = ble_gap_conn_terminate(entry->conn_handle);
                 assert(rc == 0); /* XXX */
             }
