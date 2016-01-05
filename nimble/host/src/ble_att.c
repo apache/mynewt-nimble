@@ -103,6 +103,13 @@ ble_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 }
 
 void
+ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg)
+{
+    ble_att_svr_notify_cb = cb;
+    ble_att_svr_notify_cb_arg = cb_arg;
+}
+
+void
 ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
 {
     if (peer_mtu < BLE_ATT_MTU_DFLT) {

@@ -694,7 +694,7 @@ ble_att_notify_req_write(void *payload, int len,
     }
 
     u8ptr = payload;
-    u8ptr[0] = BLE_ATT_OP_EXEC_WRITE_RSP;
+    u8ptr[0] = BLE_ATT_OP_NOTIFY_REQ;
     htole16(u8ptr + 1, req->banq_handle);
 
     return 0;
@@ -733,7 +733,7 @@ ble_att_indicate_req_write(void *payload, int len,
     }
 
     u8ptr = payload;
-    u8ptr[0] = BLE_ATT_OP_EXEC_WRITE_RSP;
+    u8ptr[0] = BLE_ATT_OP_INDICATE_REQ;
     htole16(u8ptr + 1, req->baiq_handle);
 
     return 0;

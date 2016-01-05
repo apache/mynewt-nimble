@@ -2200,6 +2200,10 @@ ble_att_svr_rx_notify(struct ble_hs_conn *conn,
     rc = ble_att_notify_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     assert(rc == 0);
 
+    if (req.banq_handle == 0) {
+        return BLE_HS_EBADDATA;
+    }
+
     os_mbuf_adj(*rxom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
 
     attr_data = ble_att_svr_flat_buf;
