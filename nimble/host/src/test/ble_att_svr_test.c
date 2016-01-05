@@ -752,6 +752,7 @@ ble_att_svr_test_misc_rx_notify(struct ble_hs_conn *conn,
     }
 }
 
+static int ble_att_svr_test_misc_notify_cb_arg;
 static int
 ble_att_svr_test_misc_notify_cb(uint16_t conn_handle, uint16_t attr_handle,
                                 uint8_t *attr_val, uint16_t attr_len,
@@ -760,6 +761,7 @@ ble_att_svr_test_misc_notify_cb(uint16_t conn_handle, uint16_t attr_handle,
     int *iarg;
 
     iarg = arg;
+    TEST_ASSERT(iarg == &ble_att_svr_test_misc_notify_cb_arg);
 
     ble_att_svr_test_n_conn_handle = conn_handle;
     ble_att_svr_test_n_attr_handle = attr_handle;
@@ -776,10 +778,9 @@ ble_att_svr_test_misc_verify_notify(struct ble_hs_conn *conn,
                                     uint16_t attr_handle,
                                     void *attr_val, int attr_len, int good)
 {
-    int cbrc;
-
-    cbrc = 0;
-    ble_att_set_notify_cb(ble_att_svr_test_misc_notify_cb, &cbrc);
+    ble_att_svr_test_misc_notify_cb_arg = 0;
+    ble_att_set_notify_cb(ble_att_svr_test_misc_notify_cb,
+                          &ble_att_svr_test_misc_notify_cb_arg);
 
     ble_att_svr_test_n_conn_handle = 0xffff;
     ble_att_svr_test_n_attr_handle = 0;
@@ -798,6 +799,79 @@ ble_att_svr_test_misc_verify_notify(struct ble_hs_conn *conn,
         TEST_ASSERT(ble_att_svr_test_n_attr_handle == 0);
         TEST_ASSERT(ble_att_svr_test_attr_n_len == 0);
     }
+}
+
+static void
+ble_att_svr_test_misc_verify_tx_indicate_rsp(struct ble_l2cap_chan *chan)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    ble_hs_process_tx_data_queue();
+
+    om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_INDICATE_RSP_SZ);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_att_indicate_rsp_parse(om->om_data, om->om_len);
+    TEST_ASSERT(rc == 0);
+}
+
+static void
+ble_att_svr_test_misc_rx_indicate(struct ble_hs_conn *conn,
+                                  struct ble_l2cap_chan *chan,
+                                  uint16_t attr_handle,
+                                  void *attr_val, int attr_len, int good)
+{
+    struct ble_att_indicate_req req;
+    uint8_t buf[1024];
+    int off;
+    int rc;
+
+    req.baiq_handle = attr_handle;
+    rc = ble_att_indicate_req_write(buf, sizeof buf, &req);
+    TEST_ASSERT_FATAL(rc == 0);
+    off = BLE_ATT_INDICATE_REQ_BASE_SZ;
+
+    memcpy(buf + off, attr_val, attr_len);
+    off += attr_len;
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    if (good) {
+        TEST_ASSERT(rc == 0);
+    } else {
+        TEST_ASSERT(rc == BLE_HS_EBADDATA);
+    }
+}
+
+static void
+ble_att_svr_test_misc_verify_indicate(struct ble_hs_conn *conn,
+                                      struct ble_l2cap_chan *chan,
+                                      uint16_t attr_handle,
+                                      void *attr_val, int attr_len, int good)
+{
+    ble_att_svr_test_misc_notify_cb_arg = 0;
+    ble_att_set_notify_cb(ble_att_svr_test_misc_notify_cb,
+                          &ble_att_svr_test_misc_notify_cb_arg);
+
+    ble_att_svr_test_n_conn_handle = 0xffff;
+    ble_att_svr_test_n_attr_handle = 0;
+    ble_att_svr_test_attr_n_len = 0;
+
+    ble_att_svr_test_misc_rx_indicate(conn, chan, attr_handle, attr_val,
+                                      attr_len, good);
+
+    if (good) {
+        TEST_ASSERT(ble_att_svr_test_n_conn_handle == conn->bhc_handle);
+        TEST_ASSERT(ble_att_svr_test_n_attr_handle == attr_handle);
+        TEST_ASSERT(ble_att_svr_test_attr_n_len == attr_len);
+        TEST_ASSERT(memcmp(ble_att_svr_test_attr_n, attr_val, attr_len) == 0);
+    } else {
+        TEST_ASSERT(ble_att_svr_test_n_conn_handle == 0xffff);
+        TEST_ASSERT(ble_att_svr_test_n_attr_handle == 0);
+        TEST_ASSERT(ble_att_svr_test_attr_n_len == 0);
+    }
+
+    ble_att_svr_test_misc_verify_tx_indicate_rsp(chan);
 }
 
 TEST_CASE(ble_att_svr_test_mtu)
@@ -1767,6 +1841,29 @@ TEST_CASE(ble_att_svr_test_notify)
                                         (uint8_t[]) { 1, 2, 3 }, 3, 0);
 }
 
+TEST_CASE(ble_att_svr_test_indicate)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+
+    ble_att_svr_test_misc_init(&conn, &chan);
+
+    /*** Successful indicates; verify callback is executed. */
+    /* 3-length attribute. */
+    ble_att_svr_test_misc_verify_indicate(conn, chan, 10,
+                                          (uint8_t[]) { 1, 2, 3 }, 3, 1);
+    /* 1-length attribute. */
+    ble_att_svr_test_misc_verify_indicate(conn, chan, 1,
+                                          (uint8_t[]) { 0xff }, 1, 1);
+    /* 0-length attribute. */
+    ble_att_svr_test_misc_verify_indicate(conn, chan, 43, NULL, 0, 1);
+
+    /*** Bad indicates; verify callback is not executed. */
+    /* Attribute handle of 0. */
+    ble_att_svr_test_misc_verify_indicate(conn, chan, 0,
+                                          (uint8_t[]) { 1, 2, 3 }, 3, 0);
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     ble_att_svr_test_mtu();
@@ -1778,6 +1875,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_read_group_type();
     ble_att_svr_test_prep_write();
     ble_att_svr_test_notify();
+    ble_att_svr_test_indicate();
 }
 
 int

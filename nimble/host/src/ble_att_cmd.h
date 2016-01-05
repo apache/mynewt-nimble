@@ -248,10 +248,17 @@ struct ble_att_notify_req {
  * | Attribute Handle                   | 2                 |
  * | Attribute Value                    | 0 to (ATT_MTU-3)  |
  */
-#define BLE_ATT_INDICATE_REQ_BASE_SZ      3
+#define BLE_ATT_INDICATE_REQ_BASE_SZ    3
 struct ble_att_indicate_req {
     uint16_t baiq_handle;
 };
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ */
+#define BLE_ATT_INDICATE_RSP_SZ         1
 
 int ble_att_error_rsp_parse(void *payload, int len,
                             struct ble_att_error_rsp *rsp);
@@ -325,5 +332,7 @@ int ble_att_indicate_req_parse(void *payload, int len,
                                struct ble_att_indicate_req *req);
 int ble_att_indicate_req_write(void *payload, int len,
                                struct ble_att_indicate_req *req);
+int ble_att_indicate_rsp_parse(void *payload, int len);
+int ble_att_indicate_rsp_write(void *payload, int len);
 
 #endif

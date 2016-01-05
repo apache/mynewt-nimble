@@ -738,3 +738,35 @@ ble_att_indicate_req_write(void *payload, int len,
 
     return 0;
 }
+
+int
+ble_att_indicate_rsp_parse(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_INDICATE_RSP_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    if (u8ptr[0] != BLE_ATT_OP_INDICATE_RSP) {
+        return BLE_HS_EINVAL;
+    }
+
+    return 0;
+}
+
+int
+ble_att_indicate_rsp_write(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_INDICATE_RSP_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    u8ptr[0] = BLE_ATT_OP_INDICATE_RSP;
+
+    return 0;
+}
