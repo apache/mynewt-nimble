@@ -107,6 +107,8 @@ ble_hs_task_handler(void *arg)
     struct os_callout_func *cf;
     int rc;
 
+    ble_gattc_started();
+
     rc = ble_hs_startup_go();
     assert(rc == 0);
 
@@ -207,6 +209,9 @@ ble_hs_init(uint8_t prio)
 
     ble_hs_cfg_init();
 
+    os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
+                 OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
+
     /* Create memory pool of command buffers */
     rc = os_mempool_init(&g_hci_cmd_pool, HCI_CMD_BUFS, HCI_CMD_BUF_SIZE,
                          &g_hci_cmd_buf, "HCICmdPool");
@@ -280,9 +285,6 @@ ble_hs_init(uint8_t prio)
     ble_hs_kick_gatt_ev.ev_queued = 0;
     ble_hs_kick_gatt_ev.ev_type = BLE_HS_KICK_GATT_EVENT;
     ble_hs_kick_gatt_ev.ev_arg = NULL;
-
-    os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
-                 OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
 
     os_mqueue_init(&ble_hs_rx_q, NULL);
     os_mqueue_init(&ble_hs_tx_q, NULL);

@@ -21,12 +21,13 @@
 #include <string.h>
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
-#include "ble_gatt_priv.h"
 #include "ble_hs_priv.h"
 #include "host/ble_uuid.h"
+#include "host/ble_gap.h"
 #include "ble_hs_conn.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
+#include "ble_gatt_priv.h"
 
 struct ble_gattc_entry {
     STAILQ_ENTRY(ble_gattc_entry) next;
@@ -34,6 +35,7 @@ struct ble_gattc_entry {
     uint8_t op;
     uint8_t flags;
     uint16_t conn_handle;
+    uint32_t tx_time; /* OS ticks. */
     union {
         struct {
             int (*cb)(int status, uint16_t conn_handle, uint16_t mtu,
@@ -75,7 +77,8 @@ struct ble_gattc_entry {
     };
 };
 
-#define BLE_GATT_RETX_PERIOD                    1000 /* Milliseconds. */
+#define BLE_GATT_HEARTBEAT_PERIOD               1000 /* Milliseconds. */
+#define BLE_GATT_UNRESPONSIVE_TIMEOUT           5000 /* Milliseconds. */
 
 #define BLE_GATT_OP_NONE                        UINT8_MAX
 #define BLE_GATT_OP_MTU                         0
@@ -87,7 +90,7 @@ struct ble_gattc_entry {
 #define BLE_GATT_OP_WRITE                       6
 #define BLE_GATT_OP_MAX                         7
 
-static struct os_callout_func ble_gattc_retx_timer;
+static struct os_callout_func ble_gattc_heartbeat_timer;
 
 typedef int ble_gattc_kick_fn(struct ble_gattc_entry *entry);
 typedef void ble_gattc_err_fn(struct ble_gattc_entry *entry, int status);
@@ -318,19 +321,13 @@ ble_gattc_entry_can_pend(struct ble_gattc_entry *entry)
 }
 
 static void
-ble_gattc_retx_timer_ensure(void)
-{
-    int rc;
-
-    rc = os_callout_reset(&ble_gattc_retx_timer.cf_c,
-                          BLE_GATT_RETX_PERIOD * OS_TICKS_PER_SEC / 1000);
-    assert(rc == 0);
-}
-
-static void
-ble_gattc_retx_timer_exp(void *arg)
+ble_gattc_heartbeat(void *arg)
 {
     struct ble_gattc_entry *entry;
+    uint32_t now;
+    int rc;
+
+    now = os_time_get();
 
     STAILQ_FOREACH(entry, &ble_gattc_list, next) {
         if (entry->flags & BLE_GATT_ENTRY_F_NO_MEM) {
@@ -338,8 +335,18 @@ ble_gattc_retx_timer_exp(void *arg)
             if (ble_gattc_entry_can_pend(entry)) {
                 ble_gattc_entry_set_pending(entry);
             }
+        } else if (entry->flags & BLE_GATT_ENTRY_F_EXPECTING) {
+            if (now - entry->tx_time >= BLE_GATT_UNRESPONSIVE_TIMEOUT) {
+                /* XXX: Disconnect. */
+                rc = ble_gap_conn_terminate(entry->conn_handle);
+                assert(rc == 0); /* XXX */
+            }
         }
     }
+
+    rc = os_callout_reset(&ble_gattc_heartbeat_timer.cf_c,
+                          BLE_GATT_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000);
+    assert(rc == 0);
 }
 
 /**
@@ -355,7 +362,6 @@ ble_gattc_tx_postpone_chk(struct ble_gattc_entry *entry, int rc)
 
     case BLE_HS_ENOMEM:
         entry->flags |= BLE_GATT_ENTRY_F_NO_MEM;
-        ble_gattc_retx_timer_ensure();
         return 1;
 
     default:
@@ -457,7 +463,7 @@ ble_gattc_exchange_mtu(uint16_t conn_handle)
 
 static int
 ble_gattc_disc_all_services_cb(struct ble_gattc_entry *entry,
-                              int status, struct ble_gatt_service *service)
+                               int status, struct ble_gatt_service *service)
 {
     int rc;
 
@@ -1281,6 +1287,20 @@ ble_gattc_connection_txable(uint16_t conn_handle)
     }
 }
 
+/**
+ * XXX This function only exists because we can't set a timer before the OS
+ * starts.  Maybe the OS issue can be fixed.
+ */
+void
+ble_gattc_started(void)
+{
+    int rc;
+
+    rc = os_callout_reset(&ble_gattc_heartbeat_timer.cf_c,
+                          BLE_GATT_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000);
+    assert(rc == 0);
+}
+
 int
 ble_gattc_init(void)
 {
@@ -1307,8 +1327,8 @@ ble_gattc_init(void)
 
     STAILQ_INIT(&ble_gattc_list);
 
-    os_callout_func_init(&ble_gattc_retx_timer, &ble_hs_evq,
-                         ble_gattc_retx_timer_exp, NULL);
+    os_callout_func_init(&ble_gattc_heartbeat_timer, &ble_hs_evq,
+                         ble_gattc_heartbeat, NULL);
 
     return 0;
 

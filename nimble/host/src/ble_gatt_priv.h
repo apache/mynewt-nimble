@@ -75,6 +75,7 @@ void ble_gattc_rx_write_rsp(struct ble_hs_conn *conn);
 void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
 
+void ble_gattc_started(void);
 int ble_gattc_init(void);
 
 /*** @server. */
