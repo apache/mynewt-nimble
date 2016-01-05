@@ -51,6 +51,9 @@ static struct os_mbuf_pool ble_att_svr_prep_mbuf_pool;
 
 static uint8_t ble_att_svr_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 
+ble_att_svr_notify_fn *ble_att_svr_notify_cb;
+void *ble_att_svr_notify_cb_arg;
+
 /**
  * Locks the host attribute list.
  *
@@ -327,19 +330,19 @@ ble_att_svr_read(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
     uint8_t att_err;
     int rc;
 
-    if (!(entry->ha_flags & HA_FLAG_PERM_READ)) {
-        att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
-    }
-
-    /* XXX: Check security. */
-
     if (conn == NULL) {
         conn_handle = 0xffff; /* XXX */
     } else {
         conn_handle = conn->bhc_handle;
+
+        if (!(entry->ha_flags & HA_FLAG_PERM_READ)) {
+            att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
+            rc = BLE_HS_ENOTSUP;
+            goto err;
+        }
     }
+
+    /* XXX: Check security. */
 
     assert(entry->ha_cb != NULL);
     rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
@@ -359,6 +362,29 @@ err:
     }
     return rc;
 }
+
+int
+ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
+                        struct ble_att_svr_access_ctxt *ctxt,
+                        uint8_t *out_att_err)
+{
+    struct ble_att_svr_entry *entry;
+    int rc;
+
+    entry = NULL;
+    rc = ble_att_svr_find_by_handle(attr_handle, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_att_svr_read(conn, entry, ctxt, out_att_err);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 
 static int
 ble_att_svr_write(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
@@ -2152,6 +2178,101 @@ err:
     return rc;
 }
 
+int
+ble_att_svr_rx_notify(struct ble_hs_conn *conn,
+                      struct ble_l2cap_chan *chan,
+                      struct os_mbuf **rxom)
+{
+    struct ble_att_notify_req req;
+    uint16_t attr_len;
+    void *attr_data;
+    int rc;
+
+    if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_NOTIFY_REQ_BASE_SZ) {
+        return BLE_HS_EBADDATA;
+    }
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
+    if (*rxom == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    rc = ble_att_notify_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    assert(rc == 0);
+
+    os_mbuf_adj(*rxom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
+
+    attr_data = ble_att_svr_flat_buf;
+    attr_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
+
+    if (ble_att_svr_notify_cb != NULL) {
+        rc = ble_att_svr_notify_cb(conn->bhc_handle, req.banq_handle,
+                                   attr_data, attr_len,
+                                   ble_att_svr_notify_cb_arg);
+        if (rc != 0) {
+            return BLE_HS_EAPP;
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_att_svr_rx_indicate(struct ble_hs_conn *conn,
+                        struct ble_l2cap_chan *chan,
+                        struct os_mbuf **rxom)
+{
+    struct ble_att_indicate_req req;
+    uint16_t err_handle;
+    uint16_t attr_len;
+    uint8_t att_err;
+    void *attr_data;
+    int rc;
+
+    if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_INDICATE_REQ_BASE_SZ) {
+        att_err = BLE_ATT_ERR_INVALID_PDU;
+        err_handle = 0;
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_INDICATE_REQ_BASE_SZ);
+    if (*rxom == NULL) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_indicate_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    assert(rc == 0);
+
+    os_mbuf_adj(*rxom, BLE_ATT_INDICATE_REQ_BASE_SZ);
+
+    attr_data = ble_att_svr_flat_buf;
+    attr_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
+
+    if (ble_att_svr_notify_cb != NULL) {
+        att_err = ble_att_svr_notify_cb(conn->bhc_handle, req.baiq_handle,
+                                        attr_data, attr_len,
+                                        ble_att_svr_notify_cb_arg);
+        if (att_err != 0) {
+            err_handle = req.baiq_handle;
+            rc = BLE_HS_EAPP;
+            goto err;
+        }
+    }
+
+    return 0;
+
+err:
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_INDICATE_REQ, err_handle,
+                             att_err);
+    return rc;
+}
+
 static void
 ble_att_svr_free_mem(void)
 {
@@ -2216,6 +2337,7 @@ ble_att_svr_init(void)
     }
 
     ble_att_svr_id = 0;
+    ble_att_svr_notify_cb = NULL;
 
     return 0;
 

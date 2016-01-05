@@ -54,6 +54,10 @@ int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
                            ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
+                       ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle,
+                     ble_gatt_attr_fn *cb, void *cb_arg);
 
 int ble_gattc_exchange_mtu(uint16_t conn_handle);
 
@@ -72,6 +76,7 @@ void ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
                                         struct ble_att_clt_adata *adata);
 void ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
 void ble_gattc_rx_write_rsp(struct ble_hs_conn *conn);
+void ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn);
 void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
 

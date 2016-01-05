@@ -48,6 +48,9 @@ static struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
     { BLE_ATT_OP_WRITE_RSP,            ble_att_clt_rx_write },
     { BLE_ATT_OP_PREP_WRITE_REQ,       ble_att_svr_rx_prep_write },
     { BLE_ATT_OP_EXEC_WRITE_REQ,       ble_att_svr_rx_exec_write },
+    { BLE_ATT_OP_NOTIFY_REQ,           ble_att_svr_rx_notify },
+    { BLE_ATT_OP_INDICATE_REQ,         ble_att_svr_rx_indicate },
+    { BLE_ATT_OP_INDICATE_RSP,         ble_att_clt_rx_indicate },
 };
 
 #define BLE_ATT_RX_DISPATCH_SZ \

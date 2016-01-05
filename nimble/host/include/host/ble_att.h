@@ -56,6 +56,9 @@
 #define BLE_ATT_OP_PREP_WRITE_RSP           0x17
 #define BLE_ATT_OP_EXEC_WRITE_REQ           0x18
 #define BLE_ATT_OP_EXEC_WRITE_RSP           0x19
+#define BLE_ATT_OP_NOTIFY_REQ               0x1b
+#define BLE_ATT_OP_INDICATE_REQ             0x1d
+#define BLE_ATT_OP_INDICATE_RSP             0x1e
 #define BLE_ATT_OP_WRITE_CMD                0x52
 
 #define BLE_ATT_ATTR_MAX_LEN                512
@@ -98,5 +101,11 @@ int ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
 int ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
                                 uint16_t *handle_id, ble_att_svr_access_fn *cb,
                                 void *cb_arg);
+
+typedef int ble_att_svr_notify_fn(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *attr_val, uint16_t attr_len,
+                                  void *arg);
+
+void ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg);
 
 #endif

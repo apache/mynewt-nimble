@@ -86,7 +86,6 @@ int ble_gatt_init(void);
 #define BLE_GATT_ACCESS_OP_WRITE_CHR        1
 #define BLE_GATT_ACCESS_OP_READ_DSC         2
 #define BLE_GATT_ACCESS_OP_WRITE_DSC        3
-/* XXX: Notify, listen. */
 
 union ble_gatt_access_ctxt;
 typedef int ble_gatt_access_fn(uint16_t conn_handle, uint16_t attr_handle,
@@ -157,6 +156,7 @@ typedef void ble_gatt_register_fn(uint8_t op,
 int ble_gatt_register_services(const struct ble_gatt_svc_def *svcs,
                                ble_gatt_register_fn *register_cb,
                                void *cb_arg);
+void ble_gatts_chr_updated(uint16_t chr_def_handle);
 
 union ble_gatt_register_ctxt {
     struct {

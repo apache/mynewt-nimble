@@ -32,6 +32,8 @@ struct ble_att_read_group_type_req;
 struct ble_att_read_group_type_rsp;
 struct ble_att_find_type_value_req;
 struct ble_att_write_req;
+struct ble_att_notify_req;
+struct ble_att_indicate_req;
 
 #define BLE_ATT_MTU_DFLT         23  /* Also the minimum. */
 #define BLE_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
@@ -119,7 +121,16 @@ int ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
 int ble_att_svr_rx_exec_write(struct ble_hs_conn *conn,
                               struct ble_l2cap_chan *chan,
                               struct os_mbuf **rxom);
+int ble_att_svr_rx_notify(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf **rxom);
+int ble_att_svr_rx_indicate(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan,
+                            struct os_mbuf **rxom);
 void ble_att_svr_prep_clear(struct ble_att_svr_conn *basc);
+int ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
+                            struct ble_att_svr_access_ctxt *ctxt,
+                            uint8_t *out_att_err);
 int ble_att_svr_init(void);
 
 /*** @clt */
@@ -165,5 +176,14 @@ int ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
 int ble_att_clt_rx_write(struct ble_hs_conn *conn,
                          struct ble_l2cap_chan *chan,
                          struct os_mbuf **rxom);
+int ble_att_clt_tx_notify(struct ble_hs_conn *conn,
+                          struct ble_att_notify_req *req,
+                          void *value, uint16_t value_len);
+int ble_att_clt_tx_indicate(struct ble_hs_conn *conn,
+                            struct ble_att_indicate_req *req,
+                            void *value, uint16_t value_len);
+int ble_att_clt_rx_indicate(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan,
+                            struct os_mbuf **rxom);
 
 #endif

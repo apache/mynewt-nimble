@@ -627,6 +627,33 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
 }
 
 static int
+ble_att_clt_append_blob(struct ble_l2cap_chan *chan, struct os_mbuf *txom,
+                        void *blob, int blob_len)
+{
+    uint16_t mtu;
+    int extra_len;
+    int cmd_len;
+    int rc;
+
+    mtu = ble_l2cap_chan_mtu(chan);
+    cmd_len = OS_MBUF_PKTLEN(txom) + blob_len;
+    extra_len = cmd_len - mtu;
+    if (extra_len > 0) {
+        blob_len -= extra_len;
+    }
+    if (blob_len <= 0) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    rc = os_mbuf_append(txom, blob, blob_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
 ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
                                 struct ble_att_write_req *req,
                                 void *value, uint16_t value_len,
@@ -634,8 +661,6 @@ ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
 {
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
-    uint16_t mtu;
-    int extra_len;
     int rc;
 
     txom = NULL;
@@ -652,13 +677,7 @@ ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
     }
     assert(rc == 0);
 
-    mtu = ble_l2cap_chan_mtu(chan);
-    extra_len = BLE_ATT_WRITE_REQ_BASE_SZ + value_len - mtu;
-    if (extra_len > 0) {
-        value_len -= extra_len;
-    }
-
-    rc = os_mbuf_append(txom, value, value_len);
+    rc = ble_att_clt_append_blob(chan, txom, value, value_len);
     if (rc != 0) {
         goto err;
     }
@@ -713,6 +732,101 @@ ble_att_clt_rx_write(struct ble_hs_conn *conn,
 {
     /* No payload. */
     ble_gattc_rx_write_rsp(conn);
+
+    return 0;
+}
+
+int
+ble_att_clt_tx_notify(struct ble_hs_conn *conn, struct ble_att_notify_req *req,
+                      void *value, uint16_t value_len)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->banq_handle == 0) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_notify_req_write(txom->om_data, txom->om_len, req);
+    assert(rc == 0);
+
+    rc = ble_att_clt_append_blob(chan, txom, value, value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_tx_indicate(struct ble_hs_conn *conn,
+                        struct ble_att_indicate_req *req,
+                        void *value, uint16_t value_len)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->baiq_handle == 0) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                              BLE_ATT_INDICATE_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_indicate_req_write(txom->om_data, txom->om_len, req);
+    assert(rc == 0);
+
+    rc = ble_att_clt_append_blob(chan, txom, value, value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_rx_indicate(struct ble_hs_conn *conn,
+                        struct ble_l2cap_chan *chan,
+                        struct os_mbuf **rxom)
+{
+    /* No payload. */
+    ble_gattc_rx_indicate_rsp(conn);
 
     return 0;
 }

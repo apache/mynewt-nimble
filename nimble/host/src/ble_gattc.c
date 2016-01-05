@@ -74,6 +74,18 @@ struct ble_gattc_entry {
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } write;
+
+        struct {
+            struct ble_gatt_attr attr;
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
+        } notify;
+
+        struct {
+            struct ble_gatt_attr attr;
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
+        } indicate;
     };
 };
 
@@ -88,7 +100,9 @@ struct ble_gattc_entry {
 #define BLE_GATT_OP_READ                        4
 #define BLE_GATT_OP_WRITE_NO_RSP                5
 #define BLE_GATT_OP_WRITE                       6
-#define BLE_GATT_OP_MAX                         7
+#define BLE_GATT_OP_NOTIFY                      7
+#define BLE_GATT_OP_INDICATE                    8
+#define BLE_GATT_OP_MAX                         9
 
 static struct os_callout_func ble_gattc_heartbeat_timer;
 
@@ -102,6 +116,8 @@ static int ble_gattc_kick_disc_all_chars(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_read(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_write_no_rsp(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_write(struct ble_gattc_entry *entry);
+static int ble_gattc_kick_notify(struct ble_gattc_entry *entry);
+static int ble_gattc_kick_indicate(struct ble_gattc_entry *entry);
 
 static void ble_gattc_err_mtu(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_disc_all_services(struct ble_gattc_entry *entry,
@@ -112,6 +128,7 @@ static void ble_gattc_err_disc_all_chars(struct ble_gattc_entry *entry,
                                         int status);
 static void ble_gattc_err_read(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_write(struct ble_gattc_entry *entry, int status);
+static void ble_gattc_err_indicate(struct ble_gattc_entry *entry, int status);
 
 struct ble_gattc_dispatch_entry {
     ble_gattc_kick_fn *kick_cb;
@@ -148,6 +165,14 @@ static const struct ble_gattc_dispatch_entry
     [BLE_GATT_OP_WRITE] = {
         .kick_cb = ble_gattc_kick_write,
         .err_cb = ble_gattc_err_write,
+    },
+    [BLE_GATT_OP_NOTIFY] = {
+        .kick_cb = ble_gattc_kick_notify,
+        .err_cb = NULL,
+    },
+    [BLE_GATT_OP_INDICATE] = {
+        .kick_cb = ble_gattc_kick_indicate,
+        .err_cb = ble_gattc_err_indicate,
     },
 };
 
@@ -1152,7 +1177,7 @@ ble_gattc_rx_write_rsp(struct ble_hs_conn *conn)
 
 int
 ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
-               uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
+                uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct ble_gattc_entry *entry;
     int rc;
@@ -1167,6 +1192,191 @@ ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
     entry->write.attr.value_len = value_len;
     entry->write.cb = cb;
     entry->write.cb_arg = cb_arg;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $notify                                                                   *
+ *****************************************************************************/
+
+static int
+ble_gattc_notify_cb(struct ble_gattc_entry *entry, int status)
+{
+    int rc;
+
+    if (entry->notify.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = entry->notify.cb(entry->conn_handle, status, &entry->notify.attr,
+                              entry->notify.cb_arg);
+    }
+
+    return rc;
+}
+
+static int
+ble_gattc_kick_notify(struct ble_gattc_entry *entry)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_notify_req req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    rc = ble_att_svr_read_handle(NULL, entry->notify.attr.handle, &ctxt,
+                                 NULL);
+    if (rc != 0) {
+        goto err;
+    }
+    entry->notify.attr.value = ctxt.attr_data;
+    entry->notify.attr.value_len = ctxt.attr_len;
+
+    req.banq_handle = entry->notify.attr.handle;
+    rc = ble_att_clt_tx_notify(conn, &req, entry->notify.attr.value,
+                               entry->notify.attr.value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    /* No response expected; call callback immediately and return nonzero to
+     * indicate the entry should be freed.
+     */
+    ble_gattc_notify_cb(entry, 0);
+
+    return 1;
+
+err:
+    if (ble_gattc_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ble_gattc_notify_cb(entry, rc);
+    return rc;
+}
+
+int
+ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle,
+                 ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct ble_gattc_entry *entry;
+    int rc;
+
+    rc = ble_gattc_new_entry(conn_handle, BLE_GATT_OP_NOTIFY, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+
+    entry->notify.attr.handle = chr_val_handle;
+    entry->notify.cb = cb;
+    entry->notify.cb_arg = cb_arg;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $indicate                                                                   *
+ *****************************************************************************/
+
+static int
+ble_gattc_indicate_cb(struct ble_gattc_entry *entry, int status)
+{
+    int rc;
+
+    if (entry->indicate.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = entry->indicate.cb(entry->conn_handle, status,
+                                &entry->indicate.attr, entry->indicate.cb_arg);
+    }
+
+    return rc;
+}
+
+static int
+ble_gattc_kick_indicate(struct ble_gattc_entry *entry)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_indicate_req req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    rc = ble_att_svr_read_handle(NULL, entry->indicate.attr.handle, &ctxt,
+                                 NULL);
+    if (rc != 0) {
+        goto err;
+    }
+    entry->indicate.attr.value = ctxt.attr_data;
+    entry->indicate.attr.value_len = ctxt.attr_len;
+
+    req.baiq_handle = entry->indicate.attr.handle;
+    rc = ble_att_clt_tx_indicate(conn, &req, entry->indicate.attr.value,
+                                 entry->indicate.attr.value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (ble_gattc_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ble_gattc_indicate_cb(entry, rc);
+    return rc;
+}
+
+static void
+ble_gattc_err_indicate(struct ble_gattc_entry *entry, int status)
+{
+    ble_gattc_indicate_cb(entry, status);
+}
+
+void
+ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn)
+{
+    struct ble_gattc_entry *entry;
+    struct ble_gattc_entry *prev;
+
+    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_INDICATE, 1, &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    ble_gattc_indicate_cb(entry, 0);
+
+    /* The indicate operation only has a single request / response exchange. */
+    ble_gattc_entry_remove_free(entry, prev);
+}
+
+int
+ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
+                   ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct ble_gattc_entry *entry;
+    int rc;
+
+    rc = ble_gattc_new_entry(conn_handle, BLE_GATT_OP_INDICATE, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+
+    entry->indicate.attr.handle = chr_val_handle;
+    entry->indicate.cb = cb;
+    entry->indicate.cb_arg = cb_arg;
 
     return 0;
 }

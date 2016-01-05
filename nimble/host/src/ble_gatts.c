@@ -293,21 +293,35 @@ ble_gatts_chr_clt_cfg_allowed(const struct ble_gatt_chr_def *chr)
     return flags;
 }
 
-static struct ble_gatts_clt_cfg *
-ble_gatts_clt_cfg_find(struct ble_gatts_conn *gatts_conn,
-                       uint16_t chr_def_handle)
+static int
+ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
+                           uint16_t chr_def_handle)
 {
     struct ble_gatts_clt_cfg *cfg;
     int i;
 
-    for (i = 0; i < gatts_conn->num_clt_cfgs; i++) {
-        cfg = gatts_conn->clt_cfgs + i;
+    for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
+        cfg = cfgs + i;
         if (cfg->chr_def_handle == chr_def_handle) {
-            return cfg;
+            return i;
         }
     }
 
-    return NULL;
+    return -1;
+}
+
+static struct ble_gatts_clt_cfg *
+ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
+                       uint16_t chr_def_handle)
+{
+    int idx;
+
+    idx = ble_gatts_clt_cfg_find_idx(cfgs, chr_def_handle);
+    if (idx == -1) {
+        return NULL;
+    } else {
+        return cfgs + idx;
+    }
 }
 
 static int
@@ -338,7 +352,8 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    clt_cfg = ble_gatts_clt_cfg_find(&conn->bhc_gatt_svr, attr_handle - 2);
+    clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
+                                     attr_handle - 2);
     if (clt_cfg == 0) {
         assert(0); // XXX temporary.
         return BLE_ATT_ERR_UNLIKELY;
@@ -825,6 +840,38 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
     gatts_conn->num_clt_cfgs = ble_gatts_num_cfgable_chrs;
 
     return 0;
+}
+
+void
+ble_gatts_chr_updated(uint16_t chr_def_handle)
+{
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+    int idx;
+
+    /* Determine if notifications / indications are enabled for this
+     * characteristic, and remember the client config offset.
+     */
+    idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs, chr_def_handle);
+    if (idx == -1) {
+        return;
+    }
+
+    /* XXX: Lock connection list. */
+    for (conn = ble_hs_conn_first();
+         conn != NULL;
+         conn = SLIST_NEXT(conn, bhc_next)) {
+
+        assert(conn->bhc_gatt_svr.num_clt_cfgs > idx);
+        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + idx;
+        assert(clt_cfg->chr_def_handle == chr_def_handle);
+
+        if (clt_cfg->flags & BLE_GATT_CHR_F_INDICATE) {
+            /* XXX: Schedule indication. */
+        } else if (clt_cfg->flags & BLE_GATT_CHR_F_NOTIFY) {
+            /* XXX: Schedule notification. */
+        }
+    }
 }
 
 static void
