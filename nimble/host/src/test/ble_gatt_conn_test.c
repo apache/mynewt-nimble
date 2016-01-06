@@ -123,36 +123,36 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
                                  ((uint8_t[]){4,5,6,7,8,9,10,11}));
 
     /* Schedule some GATT procedures. */
-    rc = ble_gatt_disc_all_services(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE,
-                                    ble_gatt_conn_test_disc_service_cb,
-                                    &disc_s_called);
+    rc = ble_gattc_disc_all_svcs(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE,
+                                 ble_gatt_conn_test_disc_service_cb,
+                                 &disc_s_called);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gatt_disc_all_chars(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE,
-                                 1, 0xffff, ble_gatt_conn_test_disc_chr_cb,
-                                 &disc_c_called);
+    rc = ble_gattc_disc_all_chrs(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE,
+                                1, 0xffff, ble_gatt_conn_test_disc_chr_cb,
+                                &disc_c_called);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gatt_read(BLE_GATT_BREAK_TEST_READ_HANDLE,
-                       BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
-                       ble_gatt_conn_test_read_cb, &read_called);
+    rc = ble_gattc_read(BLE_GATT_BREAK_TEST_READ_HANDLE,
+                        BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
+                        ble_gatt_conn_test_read_cb, &read_called);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gatt_write(BLE_GATT_BREAK_TEST_WRITE_HANDLE,
-                        BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
-                        ble_gatt_conn_test_write_value,
-                        sizeof ble_gatt_conn_test_write_value,
-                        ble_gatt_conn_test_write_cb, &write_called);
+    rc = ble_gattc_write(BLE_GATT_BREAK_TEST_WRITE_HANDLE,
+                         BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
+                         ble_gatt_conn_test_write_value,
+                         sizeof ble_gatt_conn_test_write_value,
+                         ble_gatt_conn_test_write_cb, &write_called);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Start the procedures. */
     ble_gattc_wakeup();
 
     /* Break the connections; verify callbacks got called. */
-    ble_gatt_connection_broken(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE);
-    ble_gatt_connection_broken(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE);
-    ble_gatt_connection_broken(BLE_GATT_BREAK_TEST_READ_HANDLE);
-    ble_gatt_connection_broken(BLE_GATT_BREAK_TEST_WRITE_HANDLE);
+    ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE);
+    ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE);
+    ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_READ_HANDLE);
+    ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_WRITE_HANDLE);
 
     TEST_ASSERT(disc_s_called == 1);
     TEST_ASSERT(disc_c_called == 1);
@@ -174,11 +174,11 @@ TEST_CASE(ble_gatt_conn_test_congestion)
     conn = ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}));
 
     /* Try to send two data packets. */
-    rc = ble_gatt_write(1, 0x1234, ble_gatt_conn_test_write_value,
+    rc = ble_gattc_write(1, 0x1234, ble_gatt_conn_test_write_value,
                         sizeof ble_gatt_conn_test_write_value, NULL, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gatt_write(1, 0x1234, ble_gatt_conn_test_write_value,
+    rc = ble_gattc_write(1, 0x1234, ble_gatt_conn_test_write_value,
                         sizeof ble_gatt_conn_test_write_value, NULL, NULL);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gattc_wakeup();

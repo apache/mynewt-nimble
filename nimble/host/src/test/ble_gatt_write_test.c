@@ -77,9 +77,9 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
-                               sizeof ble_gatt_write_test_attr_value,
-                               ble_gatt_write_test_cb, NULL);
+    rc = ble_gattc_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
+                                sizeof ble_gatt_write_test_attr_value,
+                                ble_gatt_write_test_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
@@ -99,9 +99,9 @@ TEST_CASE(ble_gatt_write_test_rsp)
 
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_write(2, 100, ble_gatt_write_test_attr_value,
-                        sizeof ble_gatt_write_test_attr_value,
-                        ble_gatt_write_test_cb, NULL);
+    rc = ble_gattc_write(2, 100, ble_gatt_write_test_attr_value,
+                         sizeof ble_gatt_write_test_attr_value,
+                         ble_gatt_write_test_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */

@@ -24,6 +24,12 @@ int ble_uuid_16_to_128(uint16_t uuid16, void *dst);
 int ble_uuid_append(struct os_mbuf *om, void *uuid128);
 int ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
 
+#define BLE_UUID16_ARR(uuid16) {                                            \
+    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,                         \
+    0x00, 0x10, 0x00, 0x00, (uuid16) & 0xff, (((uuid16) & 0xff00) >> 8),    \
+    0x00, 0x00                                                              \
+}
+
 /**
  * Expands to a designated initializer byte array containing the 128-bit
  * representation of the specified 16-bit UUID.

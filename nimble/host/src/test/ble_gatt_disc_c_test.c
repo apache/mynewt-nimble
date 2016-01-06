@@ -219,8 +219,8 @@ ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
     num_left = stop_after;
-    rc = ble_gatt_disc_all_chars(2, start_handle, end_handle,
-                                  ble_gatt_disc_c_test_misc_cb, &num_left);
+    rc = ble_gattc_disc_all_chrs(2, start_handle, end_handle,
+                                 ble_gatt_disc_c_test_misc_cb, &num_left);
     TEST_ASSERT(rc == 0);
 
     ble_gatt_disc_c_test_misc_rx_rsp(conn, end_handle, chars);
@@ -240,7 +240,7 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
 
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_disc_chars_by_uuid(2, start_handle, end_handle,
+    rc = ble_gattc_disc_chrs_by_uuid(2, start_handle, end_handle,
                                      uuid128,
                                      ble_gatt_disc_c_test_misc_cb,
                                      &stop_after);

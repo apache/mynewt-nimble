@@ -250,8 +250,7 @@ ble_gatt_disc_s_test_misc_good_all(struct ble_gatt_disc_s_test_svc *services)
 
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_disc_all_services(2, ble_gatt_disc_s_test_misc_disc_cb,
-                                     NULL);
+    rc = ble_gattc_disc_all_svcs(2, ble_gatt_disc_s_test_misc_disc_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_gatt_disc_s_test_misc_rx_all_rsp(conn, services);
@@ -273,9 +272,8 @@ ble_gatt_disc_s_test_misc_good_uuid(
         rc = ble_uuid_16_to_128(services[0].uuid16, services[0].uuid128);
         TEST_ASSERT_FATAL(rc == 0);
     }
-    rc = ble_gatt_disc_service_by_uuid(2, services[0].uuid128,
-                                       ble_gatt_disc_s_test_misc_disc_cb,
-                                       NULL);
+    rc = ble_gattc_disc_svc_by_uuid(2, services[0].uuid128,
+                                    ble_gatt_disc_s_test_misc_disc_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_gatt_disc_s_test_misc_rx_uuid_rsp(conn, services);

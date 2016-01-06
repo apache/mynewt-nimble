@@ -64,6 +64,7 @@ main(void)
     ble_hs_adv_test_all();
     ble_gatts_reg_test_all();
     ble_gatts_notify_test_all();
+    ble_gatt_find_s_test_all();
 
     return tu_any_failed;
 }

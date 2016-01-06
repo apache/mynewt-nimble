@@ -38,5 +38,6 @@ int ble_gatt_conn_test_all(void);
 int ble_hs_adv_test_all(void);
 int ble_gatts_reg_test_all(void);
 int ble_gatts_notify_test_all(void);
+int ble_gatt_find_s_test_all(void);
 
 #endif

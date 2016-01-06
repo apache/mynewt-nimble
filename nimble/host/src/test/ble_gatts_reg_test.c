@@ -112,7 +112,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_no_type, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_no_type, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Missing UUID. */
@@ -122,7 +122,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_no_uuid, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_no_uuid, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Circular dependency. */
@@ -138,7 +138,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_circ, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_circ, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success. */
@@ -153,7 +153,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_good, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
     TEST_ASSERT(rc == 0);
 }
 
@@ -177,7 +177,7 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_no_chr_cb, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_no_chr_cb, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success. */
@@ -195,7 +195,7 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_good, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
     TEST_ASSERT(rc == 0);
 }
 
@@ -226,7 +226,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_no_dsc_cb, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_no_dsc_cb, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success. */
@@ -251,7 +251,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
         .type = BLE_GATT_SVC_TYPE_END,
     } };
 
-    rc = ble_gatts_register_services(svcs_good, NULL, NULL);
+    rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
     TEST_ASSERT(rc == 0);
 }
 
@@ -266,8 +266,8 @@ ble_gatts_reg_test_misc_svcs(struct ble_gatt_svc_def *svcs)
     ble_gatts_reg_test_init();
 
     /* Register all the attributes. */
-    rc = ble_gatts_register_services(svcs, ble_gatts_reg_test_misc_reg_cb,
-                                     NULL);
+    rc = ble_gatts_register_svcs(svcs, ble_gatts_reg_test_misc_reg_cb,
+                                 NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Verify that the appropriate callbacks were executed. */

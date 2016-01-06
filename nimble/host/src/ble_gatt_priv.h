@@ -34,33 +34,12 @@ struct ble_gatts_conn {
 
 #define BLE_GATTS_CONN_F_INDICATION_TXED        0x01
 
-/*** @gen. */
-void ble_gatt_connection_broken(uint16_t conn_handle);
-
 /*** @client. */
-int ble_gattc_disc_all_services(uint16_t conn_handle,
-                                ble_gatt_disc_service_fn *cb,
-                                void *cb_arg);
-int ble_gattc_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
-                                   ble_gatt_disc_service_fn *cb, void *cb_arg);
-int ble_gattc_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
-                             uint16_t end_handle, ble_gatt_chr_fn *cb,
-                             void *cb_arg);
-int ble_gattc_disc_chars_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                                 uint16_t end_handle, void *uuid128,
-                                 ble_gatt_chr_fn *cb, void *cb_arg);
-int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
-                   ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                           void *value, uint16_t value_len,
-                           ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
                        ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle);
-
-int ble_gattc_exchange_mtu(uint16_t conn_handle);
 
 void ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
 void ble_gattc_wakeup(void);
@@ -91,10 +70,10 @@ int ble_gattc_init(void);
 #define BLE_GATTS_CLT_CFG_F_UPDATED             0x0080 /* Internal only. */
 #define BLE_GATTS_CLT_CFG_F_RESERVED            0xfffc
 
+#define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
+#define BLE_GATTS_INC_SVC_LEN_UUID              6
+
 void ble_gatts_send_notifications(struct ble_hs_conn *conn);
-int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
-                                ble_gatt_register_fn *register_cb,
-                                void *cb_arg);
 
 /*** @misc. */
 void ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn);

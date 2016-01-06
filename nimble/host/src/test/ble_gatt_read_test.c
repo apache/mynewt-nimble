@@ -91,8 +91,8 @@ ble_gatt_read_test_misc_verify_good(struct ble_hs_conn *conn,
 {
     int rc;
 
-    rc = ble_gatt_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
-                       NULL);
+    rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
+                        NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_gatt_read_test_misc_rx_rsp_good(conn, attr);
@@ -112,8 +112,8 @@ ble_gatt_read_test_misc_verify_bad(struct ble_hs_conn *conn,
 {
     int rc;
 
-    rc = ble_gatt_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
-                       NULL);
+    rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
+                        NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_gatt_read_test_misc_rx_rsp_bad(conn, attr, att_status);
