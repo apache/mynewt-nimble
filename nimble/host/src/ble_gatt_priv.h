@@ -46,6 +46,9 @@ int ble_gattc_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
 int ble_gattc_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
                              uint16_t end_handle, ble_gatt_chr_fn *cb,
                              void *cb_arg);
+int ble_gattc_disc_chars_by_uuid(uint16_t conn_handle, uint16_t start_handle,
+                                 uint16_t end_handle, void *uuid128,
+                                 ble_gatt_chr_fn *cb, void *cb_arg);
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,

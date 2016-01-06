@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
@@ -51,7 +52,7 @@ ble_gatt_disc_c_test_init(void)
 }
 
 static int
-ble_gatt_disc_c_test_misc_rx_all_rsp_once(
+ble_gatt_disc_c_test_misc_rx_rsp_once(
     struct ble_hs_conn *conn, struct ble_gatt_disc_c_test_char *chars)
 {
     struct ble_att_read_type_rsp rsp;
@@ -116,7 +117,7 @@ ble_gatt_disc_c_test_misc_rx_all_rsp_once(
 }
 
 static void
-ble_gatt_disc_c_test_misc_rx_all_rsp(struct ble_hs_conn *conn,
+ble_gatt_disc_c_test_misc_rx_rsp(struct ble_hs_conn *conn,
                                      uint16_t end_handle,
                                      struct ble_gatt_disc_c_test_char *chars)
 {
@@ -125,7 +126,7 @@ ble_gatt_disc_c_test_misc_rx_all_rsp(struct ble_hs_conn *conn,
 
     idx = 0;
     while (chars[idx].decl_handle != 0) {
-        count = ble_gatt_disc_c_test_misc_rx_all_rsp_once(conn, chars + idx);
+        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn, chars + idx);
         if (count == 0) {
             break;
         }
@@ -142,12 +143,17 @@ ble_gatt_disc_c_test_misc_rx_all_rsp(struct ble_hs_conn *conn,
 }
 
 static void
-ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars)
+ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
+                                       int stop_after)
 {
     uint16_t uuid16;
     int i;
 
-    for (i = 0; chars[i].decl_handle != 0; i++) {
+    if (stop_after == 0) {
+        stop_after = INT_MAX;
+    }
+
+    for (i = 0; i < stop_after && chars[i].decl_handle != 0; i++) {
         TEST_ASSERT(chars[i].decl_handle ==
                     ble_gatt_disc_c_test_chars[i].decl_handle);
         TEST_ASSERT(chars[i].value_handle ==
@@ -171,9 +177,12 @@ ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, int status,
                              struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_chr *dst;
+    int *stop_after;
 
     TEST_ASSERT(status == 0);
     TEST_ASSERT(!ble_gatt_disc_c_test_rx_complete);
+
+    stop_after = arg;
 
     if (chr == NULL) {
         ble_gatt_disc_c_test_rx_complete = 1;
@@ -185,12 +194,44 @@ ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, int status,
         *dst = *chr;
     }
 
+    if (*stop_after > 0) {
+        (*stop_after)--;
+        if (*stop_after == 0) {
+            ble_gatt_disc_c_test_rx_complete = 1;
+            return 1;
+        }
+    }
+
     return 0;
 }
 
 static void
 ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
+                              int stop_after,
                               struct ble_gatt_disc_c_test_char *chars)
+{
+    struct ble_hs_conn *conn;
+    int num_left;
+    int rc;
+
+    ble_gatt_disc_c_test_init();
+
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    num_left = stop_after;
+    rc = ble_gatt_disc_all_chars(2, start_handle, end_handle,
+                                  ble_gatt_disc_c_test_misc_cb, &num_left);
+    TEST_ASSERT(rc == 0);
+
+    ble_gatt_disc_c_test_misc_rx_rsp(conn, end_handle, chars);
+    ble_gatt_disc_c_test_misc_verify_chars(chars, stop_after);
+}
+
+static void
+ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
+                               int stop_after, uint8_t *uuid128,
+                               struct ble_gatt_disc_c_test_char *rsp_chars,
+                               struct ble_gatt_disc_c_test_char *ret_chars)
 {
     struct ble_hs_conn *conn;
     int rc;
@@ -199,18 +240,20 @@ ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
 
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
-    rc = ble_gatt_disc_all_chars(2, start_handle, end_handle,
-                                  ble_gatt_disc_c_test_misc_cb, NULL);
+    rc = ble_gatt_disc_chars_by_uuid(2, start_handle, end_handle,
+                                     uuid128,
+                                     ble_gatt_disc_c_test_misc_cb,
+                                     &stop_after);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_c_test_misc_rx_all_rsp(conn, end_handle, chars);
-    ble_gatt_disc_c_test_misc_verify_chars(chars);
+    ble_gatt_disc_c_test_misc_rx_rsp(conn, end_handle, rsp_chars);
+    ble_gatt_disc_c_test_misc_verify_chars(ret_chars, 0);
 }
 
 TEST_CASE(ble_gatt_disc_c_test_disc_all)
 {
     /*** One 16-bit characteristic. */
-    ble_gatt_disc_c_test_misc_all(50, 100,
+    ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
             .decl_handle = 55,
@@ -220,7 +263,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     });
 
     /*** Two 16-bit characteristics. */
-    ble_gatt_disc_c_test_misc_all(50, 100,
+    ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
             .decl_handle = 55,
@@ -234,7 +277,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     });
 
     /*** Five 16-bit characteristics. */
-    ble_gatt_disc_c_test_misc_all(50, 100,
+    ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
             .decl_handle = 55,
@@ -260,7 +303,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     });
 
     /*** Interleaved 16-bit and 128-bit characteristics. */
-    ble_gatt_disc_c_test_misc_all(50, 100,
+    ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
             .decl_handle = 83,
@@ -286,7 +329,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     });
 
     /*** Ends with final handle ID. */
-    ble_gatt_disc_c_test_misc_all(50, 100,
+    ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
             .decl_handle = 55,
@@ -298,11 +341,195 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
             .uuid16 = 0x64ba,
         }, { 0 }
     });
+
+    /*** Stop after two characteristics. */
+    ble_gatt_disc_c_test_misc_all(50, 100, 2,
+                                  (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 57,
+            .value_handle = 58,
+            .uuid16 = 0x64ba,
+        }, {
+            .decl_handle = 59,
+            .value_handle = 60,
+            .uuid16 = 0x5372,
+        }, {
+            .decl_handle = 61,
+            .value_handle = 62,
+            .uuid16 = 0xab93,
+        }, {
+            .decl_handle = 63,
+            .value_handle = 64,
+            .uuid16 = 0x0023,
+        }, { 0 }
+    });
+}
+
+TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
+{
+    /*** One 16-bit characteristic. */
+    ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x2010),
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, { 0 } },
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, { 0 } }
+    );
+
+    /*** No matching characteristics. */
+    ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x2010),
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x1234,
+        }, { 0 } },
+        (struct ble_gatt_disc_c_test_char[]) {
+        { 0 } }
+    );
+
+    /*** 2/5 16-bit characteristics. */
+    ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x2010),
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 57,
+            .value_handle = 58,
+            .uuid16 = 0x64ba,
+        }, {
+            .decl_handle = 59,
+            .value_handle = 60,
+            .uuid16 = 0x5372,
+        }, {
+            .decl_handle = 61,
+            .value_handle = 62,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 63,
+            .value_handle = 64,
+            .uuid16 = 0x0023,
+        }, { 0 } },
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 61,
+            .value_handle = 62,
+            .uuid16 = 0x2010,
+        }, { 0 } }
+    );
+
+    /*** Interleaved 16-bit and 128-bit characteristics. */
+    ble_gatt_disc_c_test_misc_uuid(
+        50, 100, 0,
+        ((uint8_t[]){ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 }),
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 83,
+            .value_handle = 84,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 87,
+            .value_handle = 88,
+            .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+        }, {
+            .decl_handle = 91,
+            .value_handle = 92,
+            .uuid16 = 0x0003,
+        }, {
+            .decl_handle = 93,
+            .value_handle = 94,
+            .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+        }, {
+            .decl_handle = 98,
+            .value_handle = 99,
+            .uuid16 = 0xabfa,
+        }, { 0 } },
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 87,
+            .value_handle = 88,
+            .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+        }, {
+            .decl_handle = 93,
+            .value_handle = 94,
+            .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+        }, { 0 } }
+    );
+
+    /*** Ends with final handle ID. */
+    ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x64ba),
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 99,
+            .value_handle = 100,
+            .uuid16 = 0x64ba,
+        }, { 0 } },
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 99,
+            .value_handle = 100,
+            .uuid16 = 0x64ba,
+        }, { 0 } }
+    );
+
+    /*** Stop after first characteristic. */
+    ble_gatt_disc_c_test_misc_uuid(50, 100, 1, BLE_UUID16(0x2010),
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 57,
+            .value_handle = 58,
+            .uuid16 = 0x64ba,
+        }, {
+            .decl_handle = 59,
+            .value_handle = 60,
+            .uuid16 = 0x5372,
+        }, {
+            .decl_handle = 61,
+            .value_handle = 62,
+            .uuid16 = 0x2010,
+        }, {
+            .decl_handle = 63,
+            .value_handle = 64,
+            .uuid16 = 0x0023,
+        }, { 0 } },
+        (struct ble_gatt_disc_c_test_char[]) {
+        {
+            .decl_handle = 55,
+            .value_handle = 56,
+            .uuid16 = 0x2010,
+        }, { 0 } }
+    );
 }
 
 TEST_SUITE(ble_gatt_disc_c_test_suite)
 {
     ble_gatt_disc_c_test_disc_all();
+    ble_gatt_disc_c_test_disc_uuid();
 }
 
 int

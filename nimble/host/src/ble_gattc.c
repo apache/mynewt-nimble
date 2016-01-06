@@ -57,6 +57,7 @@ struct ble_gattc_entry {
         } disc_service_uuid;
 
         struct {
+            uint8_t chr_uuid[16];
             uint16_t prev_handle;
             uint16_t end_handle;
             ble_gatt_chr_fn *cb;
@@ -91,11 +92,12 @@ struct ble_gattc_entry {
 #define BLE_GATT_OP_DISC_ALL_SERVICES           1
 #define BLE_GATT_OP_DISC_SERVICE_UUID           2
 #define BLE_GATT_OP_DISC_ALL_CHARS              3
-#define BLE_GATT_OP_READ                        4
-#define BLE_GATT_OP_WRITE_NO_RSP                5
-#define BLE_GATT_OP_WRITE                       6
-#define BLE_GATT_OP_INDICATE                    7
-#define BLE_GATT_OP_MAX                         8
+#define BLE_GATT_OP_DISC_CHARS_UUID             4
+#define BLE_GATT_OP_READ                        5
+#define BLE_GATT_OP_WRITE_NO_RSP                6
+#define BLE_GATT_OP_WRITE                       7
+#define BLE_GATT_OP_INDICATE                    8
+#define BLE_GATT_OP_MAX                         9
 
 static struct os_callout_func ble_gattc_heartbeat_timer;
 
@@ -113,11 +115,11 @@ static int ble_gattc_kick_indicate(struct ble_gattc_entry *entry);
 
 static void ble_gattc_err_mtu(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_disc_all_services(struct ble_gattc_entry *entry,
-                                           int status);
+                                            int status);
 static void ble_gattc_err_disc_service_uuid(struct ble_gattc_entry *entry,
-                                           int status);
+                                            int status);
 static void ble_gattc_err_disc_all_chars(struct ble_gattc_entry *entry,
-                                        int status);
+                                         int status);
 static void ble_gattc_err_read(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_write(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_indicate(struct ble_gattc_entry *entry, int status);
@@ -143,6 +145,10 @@ static const struct ble_gattc_dispatch_entry
         .err_cb = ble_gattc_err_disc_service_uuid,
     },
     [BLE_GATT_OP_DISC_ALL_CHARS] = {
+        .kick_cb = ble_gattc_kick_disc_all_chars,
+        .err_cb = ble_gattc_err_disc_all_chars,
+    },
+    [BLE_GATT_OP_DISC_CHARS_UUID] = {
         .kick_cb = ble_gattc_kick_disc_all_chars,
         .err_cb = ble_gattc_err_disc_all_chars,
     },
@@ -252,7 +258,7 @@ ble_gattc_entry_matches(struct ble_gattc_entry *entry, uint16_t conn_handle,
 
 static struct ble_gattc_entry *
 ble_gattc_find(uint16_t conn_handle, uint8_t att_op, int expecting_only,
-              struct ble_gattc_entry **out_prev)
+               struct ble_gattc_entry **out_prev)
 {
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
@@ -260,7 +266,7 @@ ble_gattc_find(uint16_t conn_handle, uint8_t att_op, int expecting_only,
     prev = NULL;
     STAILQ_FOREACH(entry, &ble_gattc_list, next) {
         if (ble_gattc_entry_matches(entry, conn_handle, att_op,
-                                   expecting_only)) {
+                                    expecting_only)) {
             if (out_prev != NULL) {
                 *out_prev = prev;
             }
@@ -766,7 +772,7 @@ ble_gattc_disc_service_by_uuid(uint16_t conn_handle, void *service_uuid128,
 }
 
 /*****************************************************************************
- * @discover all characteristics                                             *
+ * $discover all characteristics                                             *
  *****************************************************************************/
 
 static int
@@ -834,7 +840,7 @@ ble_gattc_err_disc_all_chars(struct ble_gattc_entry *entry, int status)
 
 void
 ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
-                            struct ble_att_clt_adata *adata)
+                             struct ble_att_clt_adata *adata)
 {
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
@@ -843,9 +849,11 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
     int cbrc;
     int rc;
 
-    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_CHARS, 1,
-                          &prev);
-    if (entry == NULL) {
+    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    if (entry == NULL ||
+        (entry->op != BLE_GATT_OP_DISC_ALL_CHARS &&
+         entry->op != BLE_GATT_OP_DISC_CHARS_UUID)) {
+
         /* Not expecting a response from this device. */
         return;
     }
@@ -880,8 +888,16 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
     rc = 0;
 
 done:
-    cbrc = ble_gattc_disc_all_chars_cb(entry, rc, &chr);
-    if (rc != 0 || cbrc != 0) {
+    if (entry->op == BLE_GATT_OP_DISC_ALL_CHARS ||
+        memcmp(chr.uuid128, entry->disc_all_chars.chr_uuid, 16) == 0) {
+
+        cbrc = ble_gattc_disc_all_chars_cb(entry, rc, &chr);
+        if (rc == 0) {
+            rc = cbrc;
+        }
+    }
+
+    if (rc != 0) {
         ble_gattc_entry_remove_free(entry, prev);
     }
 }
@@ -892,9 +908,11 @@ ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int rc)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
 
-    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_CHARS, 1,
-                          &prev);
-    if (entry == NULL) {
+    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    if (entry == NULL ||
+        (entry->op != BLE_GATT_OP_DISC_ALL_CHARS &&
+         entry->op != BLE_GATT_OP_DISC_CHARS_UUID)) {
+
         /* Not expecting a response from this device. */
         return;
     }
@@ -922,6 +940,31 @@ ble_gattc_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
     if (rc != 0) {
         return rc;
     }
+    entry->disc_all_chars.prev_handle = start_handle - 1;
+    entry->disc_all_chars.end_handle = end_handle;
+    entry->disc_all_chars.cb = cb;
+    entry->disc_all_chars.cb_arg = cb_arg;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $discover characteristic by uuid                                          *
+ *****************************************************************************/
+
+int
+ble_gattc_disc_chars_by_uuid(uint16_t conn_handle, uint16_t start_handle,
+                             uint16_t end_handle, void *uuid128,
+                             ble_gatt_chr_fn *cb, void *cb_arg)
+{
+    struct ble_gattc_entry *entry;
+    int rc;
+
+    rc = ble_gattc_new_entry(conn_handle, BLE_GATT_OP_DISC_CHARS_UUID, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    memcpy(entry->disc_all_chars.chr_uuid, uuid128, 16);
     entry->disc_all_chars.prev_handle = start_handle - 1;
     entry->disc_all_chars.end_handle = end_handle;
     entry->disc_all_chars.cb = cb;

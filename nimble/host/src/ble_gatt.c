@@ -41,6 +41,15 @@ ble_gatt_disc_all_chars(uint16_t conn_handle, uint16_t start_handle,
 }
 
 int
+ble_gatt_disc_chars_by_uuid(uint16_t conn_handle, uint16_t start_handle,
+                            uint16_t end_handle, void *uuid128,
+                            ble_gatt_chr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_disc_chars_by_uuid(conn_handle, start_handle, end_handle,
+                                        uuid128, cb, cb_arg);
+}
+
+int
 ble_gatt_read(uint16_t conn_handle, uint16_t attr_handle,
               ble_gatt_attr_fn *cb, void *cb_arg)
 {
