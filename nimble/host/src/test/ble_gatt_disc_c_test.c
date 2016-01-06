@@ -300,7 +300,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     });
 }
 
-TEST_SUITE(gle_gatt_disc_c_test_suite)
+TEST_SUITE(ble_gatt_disc_c_test_suite)
 {
     ble_gatt_disc_c_test_disc_all();
 }
@@ -308,7 +308,7 @@ TEST_SUITE(gle_gatt_disc_c_test_suite)
 int
 ble_gatt_disc_c_test_all(void)
 {
-    gle_gatt_disc_c_test_suite();
+    ble_gatt_disc_c_test_suite();
 
     return tu_any_failed;
 }

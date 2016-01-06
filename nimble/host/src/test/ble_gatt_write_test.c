@@ -118,7 +118,7 @@ TEST_CASE(ble_gatt_write_test_rsp)
     TEST_ASSERT(ble_gatt_write_test_cb_called);
 }
 
-TEST_SUITE(gle_gatt_write_test_suite)
+TEST_SUITE(ble_gatt_write_test_suite)
 {
     ble_gatt_write_test_no_rsp();
     ble_gatt_write_test_rsp();
@@ -127,7 +127,7 @@ TEST_SUITE(gle_gatt_write_test_suite)
 int
 ble_gatt_write_test_all(void)
 {
-    gle_gatt_write_test_suite();
+    ble_gatt_write_test_suite();
 
     return tu_any_failed;
 }
