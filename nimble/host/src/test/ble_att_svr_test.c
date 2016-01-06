@@ -301,7 +301,7 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
 
 static void
 ble_att_svr_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
-                                            uint8_t *attr_data, int attr_len)
+                                         uint8_t *attr_data, int attr_len)
 {
     uint8_t u8;
     int rc;
@@ -946,7 +946,7 @@ TEST_CASE(ble_att_svr_test_write)
     struct ble_att_write_req req;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    uint8_t buf[BLE_ATT_READ_REQ_SZ + 8];
+    uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + 8];
     uint8_t uuid[16] = {0};
     int rc;
 

@@ -471,7 +471,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
     } });
 }
 
-TEST_SUITE(ble_gatts_suite)
+TEST_SUITE(ble_gatts_reg_suite)
 {
     ble_gatts_reg_test_svc_return();
     ble_gatts_reg_test_chr_return();
@@ -485,7 +485,7 @@ TEST_SUITE(ble_gatts_suite)
 int
 ble_gatts_reg_test_all(void)
 {
-    ble_gatts_suite();
+    ble_gatts_reg_suite();
 
     return tu_any_failed;
 }

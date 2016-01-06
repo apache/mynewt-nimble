@@ -24,16 +24,15 @@
 
 #define BLE_GATT_DSC_CLT_CFG_UUID16 0x2902
 
-struct ble_gatts_clt_cfg {
-    uint16_t chr_def_handle;
-    uint8_t flags;
-    uint8_t allowed;
-};
+typedef uint8_t ble_gatts_conn_flags;
 
 struct ble_gatts_conn {
     struct ble_gatts_clt_cfg *clt_cfgs;
     int num_clt_cfgs;
+    ble_gatts_conn_flags flags;
 };
+
+#define BLE_GATTS_CONN_F_INDICATION_TXED        0x01
 
 /*** @gen. */
 void ble_gatt_connection_broken(uint16_t conn_handle);
@@ -56,8 +55,7 @@ int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
                        ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle,
-                     ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle);
 
 int ble_gattc_exchange_mtu(uint16_t conn_handle);
 
@@ -80,14 +78,17 @@ void ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn);
 void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
 
+int ble_gattc_any_jobs(void);
 void ble_gattc_started(void);
 int ble_gattc_init(void);
 
 /*** @server. */
 #define BLE_GATTS_CLT_CFG_F_NOTIFY              0x0001
 #define BLE_GATTS_CLT_CFG_F_INDICATE            0x0002
+#define BLE_GATTS_CLT_CFG_F_UPDATED             0x0080 /* Internal only. */
 #define BLE_GATTS_CLT_CFG_F_RESERVED            0xfffc
 
+void ble_gatts_send_notifications(struct ble_hs_conn *conn);
 int ble_gatts_register_services(const struct ble_gatt_svc_def *svcs,
                                 ble_gatt_register_fn *register_cb,
                                 void *cb_arg);

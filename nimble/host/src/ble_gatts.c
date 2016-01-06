@@ -44,6 +44,12 @@ static os_membuf_t *ble_gatts_clt_cfg_mem;
 static struct os_mempool ble_gatts_clt_cfg_pool;
 static uint8_t ble_gatts_clt_cfg_inited;
 
+struct ble_gatts_clt_cfg {
+    uint16_t chr_def_handle;
+    uint8_t flags;
+    uint8_t allowed;
+};
+
 /** A cached array of handles for the configurable characteristics. */
 static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
@@ -218,6 +224,7 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc;
     }
 
+    att_ctxt->attr_data = gatt_ctxt.chr_access.data;
     att_ctxt->attr_len = gatt_ctxt.chr_access.len;
 
     return 0;
@@ -360,13 +367,13 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     switch (op) {
-    case BLE_GATT_ACCESS_OP_READ_DSC:
-        htole16(buf, clt_cfg->flags);
+    case BLE_ATT_ACCESS_OP_READ:
+        htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
         ctxt->attr_data = buf;
         ctxt->attr_len = sizeof buf;
         break;
 
-    case BLE_GATT_ACCESS_OP_WRITE_DSC:
+    case BLE_ATT_ACCESS_OP_WRITE:
         if (ctxt->attr_len != 2) {
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
@@ -427,6 +434,7 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc;
     }
 
+    att_ctxt->attr_data = gatt_ctxt.dsc_access.data;
     att_ctxt->attr_len = gatt_ctxt.dsc_access.len;
 
     return 0;
@@ -843,6 +851,45 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
 }
 
 void
+ble_gatts_send_notifications(struct ble_hs_conn *conn)
+{
+    struct ble_gatts_clt_cfg *clt_cfg;
+    int rc;
+    int i;
+
+
+    /* Iterate through each configurable characteristic.  If a characteristic
+     * has been updated, try to send an indication or notification
+     * (never both).
+     */
+    for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
+        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
+
+        if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED) {
+            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
+                if (!(conn->bhc_gatt_svr.flags &
+                      BLE_GATTS_CONN_F_INDICATION_TXED)) {
+
+                    rc = ble_gattc_indicate(conn->bhc_handle,
+                                            clt_cfg->chr_def_handle + 1,
+                                            NULL, NULL);
+                    if (rc == 0) {
+                        conn->bhc_gatt_svr.flags |=
+                            BLE_GATTS_CONN_F_INDICATION_TXED;
+                        clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
+                    }
+                }
+            } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
+                rc = ble_gattc_notify(conn, clt_cfg->chr_def_handle + 1);
+                if (rc == 0) {
+                    clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
+                }
+            }
+        }
+    }
+}
+
+void
 ble_gatts_chr_updated(uint16_t chr_def_handle)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
@@ -866,10 +913,11 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
         clt_cfg = conn->bhc_gatt_svr.clt_cfgs + idx;
         assert(clt_cfg->chr_def_handle == chr_def_handle);
 
-        if (clt_cfg->flags & BLE_GATT_CHR_F_INDICATE) {
-            /* XXX: Schedule indication. */
-        } else if (clt_cfg->flags & BLE_GATT_CHR_F_NOTIFY) {
-            /* XXX: Schedule notification. */
+        if (clt_cfg->flags &
+            (BLE_GATTS_CLT_CFG_F_NOTIFY | BLE_GATTS_CLT_CFG_F_INDICATE)) {
+
+            clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_UPDATED;
+            ble_gatts_send_notifications(conn);
         }
     }
 }
