@@ -70,7 +70,6 @@ struct ble_ll_stats
     uint32_t hci_events_sent;
     uint32_t bad_ll_state;
     uint32_t bad_acl_hdr;
-    uint32_t bad_acl_datalen;
     uint32_t rx_bytes;
     uint32_t rx_valid_adv_pdus;
     uint32_t rx_invalid_adv_pdus;
@@ -95,7 +94,6 @@ struct ble_ll_stats
     uint32_t tx_l2cap_pdus;
     uint32_t tx_l2cap_bytes;
     uint32_t tx_empty_pdus;
-    uint32_t tx_empty_bytes;
 };
 extern struct ble_ll_stats g_ble_ll_stats;
 
@@ -329,13 +327,17 @@ uint8_t ble_ll_read_supp_features(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */ 
-#define BLE_LL_LOG
+#undef BLE_LL_LOG
 
 #define BLE_LL_LOG_ID_RX_START          (1)
 #define BLE_LL_LOG_ID_RX_END            (2)
-#define BLE_LL_LOG_ID_CONN_EV_START     (4)
-#define BLE_LL_LOG_ID_CONN_EV_END       (5)
-#define BLE_LL_LOG_ID_CONN_END          (6)
+#define BLE_LL_LOG_ID_CONN_EV_START     (10)
+#define BLE_LL_LOG_ID_CONN_TX           (15)
+#define BLE_LL_LOG_ID_CONN_RX           (16)
+#define BLE_LL_LOG_ID_CONN_TX_RETRY     (17)
+#define BLE_LL_LOG_ID_CONN_RX_ACK       (18)
+#define BLE_LL_LOG_ID_CONN_EV_END       (20)
+#define BLE_LL_LOG_ID_CONN_END          (30)
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (200)
 #define BLE_LL_LOG_ID_PHY_DISABLE       (201)
 #define BLE_LL_LOG_ID_PHY_ISR           (202)
@@ -343,7 +345,7 @@ uint8_t ble_ll_read_supp_features(void);
 #define BLE_LL_LOG_ID_PHY_TX            (221)
 
 #ifdef BLE_LL_LOG
-void ble_ll_log(uint8_t id, uint8_t arg0_8, uint8_t arg1_8, uint32_t arg0_32);
+void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
 #else
 #define ble_ll_log(m,n,o,p)
 #endif

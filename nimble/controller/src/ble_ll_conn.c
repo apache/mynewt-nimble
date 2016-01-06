@@ -88,7 +88,7 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 /* LL configuration definitions */
 #define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (251)
 #define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (251)
-#define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (27)
+#define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (251)
 
 /* Sleep clock accuracy table (in ppm) */
 static const uint16_t g_ble_sca_ppm_tbl[8] =
@@ -142,8 +142,12 @@ struct ble_ll_conn_stats
     uint32_t data_pdu_txg;
     uint32_t data_pdu_txf;
     uint32_t conn_req_txd;
+    uint32_t l2cap_enqueued;
 };
 struct ble_ll_conn_stats g_ble_ll_conn_stats;
+
+/* Some helpful macros */
+#define BLE_IS_RETRY_M(ble_hdr) ((ble_hdr)->txinfo.flags & BLE_MBUF_HDR_F_TXD)
 
 /**
  * Checks if pdu is a L2CAP pdu, meaning it is not a control pdu nor an empty 
@@ -505,6 +509,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     uint8_t md;
     uint8_t hdr_byte;
     uint8_t end_transition;
+    uint8_t cur_txlen;
+    uint8_t rem_bytes;
     uint32_t ticks;
     struct os_mbuf *m;
     struct ble_mbuf_hdr *ble_hdr;
@@ -526,25 +532,68 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     if (pkthdr) {
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
         nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
-        if (nextpkthdr && !connsm->terminate_ind_rxd) {
+        ble_hdr = BLE_MBUF_HDR_PTR(m);
+
+        /* 
+         * This piece of code is trying to determine if there are more bytes
+         * to send in the current packet AFTER the current fragment gets sent.
+         * If this is a retry we cant change the size and we use the 
+         * current tx size. If not, we use effective max transmit bytes for the
+         * connection.
+         */
+        if (BLE_IS_RETRY_M(ble_hdr)) {
+            cur_txlen = ble_hdr->txinfo.pyld_len;
+            hdr_byte = ble_hdr->txinfo.hdr_byte;
+            hdr_byte &= ~(BLE_LL_DATA_HDR_MD_MASK | BLE_LL_DATA_HDR_NESN_MASK);
+        } else {
+            /* Determine packet length we will transmit */
+            cur_txlen = connsm->eff_max_tx_octets;
+            rem_bytes = pkthdr->omp_len - ble_hdr->txinfo.offset;
+            if (cur_txlen > rem_bytes) {
+                cur_txlen = rem_bytes;
+            }
+
+            /* 
+             * Need to set LLID correctly if this is a fragment. Note
+             * that the LLID is already set the first time it is enqueued.
+             */ 
+            if (ble_hdr->txinfo.offset != 0) {
+                hdr_byte = BLE_LL_LLID_DATA_FRAG;
+            } else {
+                hdr_byte = ble_hdr->txinfo.hdr_byte;
+            }
+            if (connsm->tx_seqnum) {
+                hdr_byte |= BLE_LL_DATA_HDR_SN_MASK;
+            }
+            ble_hdr->txinfo.pyld_len = cur_txlen;
+        }
+
+        if ((nextpkthdr || 
+             ((ble_hdr->txinfo.offset + cur_txlen) < pkthdr->omp_len)) && 
+             !connsm->terminate_ind_rxd) {
             md = 1;
             if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                /* 
+                 * Dont bother to set the MD bit if we cannot do the following:
+                 *  -> wait IFS, send the current frame.
+                 *  -> wait IFS, receive a mininim size frame.
+                 *  -> wait IFS, send a mininim size frame.
+                 *  -> wait IFS, receive a mininim size frame.
+                 */
                 /* 
                  * XXX: this calculation is based on using the current time
                  * and assuming the transmission will occur an IFS time from
                  * now. This is not the most accurate especially if we have
                  * received a frame and we are replying to it.
                  */ 
-                ticks = (BLE_LL_IFS * 4) + (2 * connsm->eff_max_rx_time) +
-                    BLE_TX_DUR_USECS_M(pkthdr->omp_len) + 
-                    BLE_TX_DUR_USECS_M(nextpkthdr->omp_len);
+                ticks = (BLE_LL_IFS * 4) + (3 * BLE_LL_CONN_SUPP_TIME_MIN) +
+                    BLE_TX_DUR_USECS_M(cur_txlen);
                 ticks = cputime_usecs_to_ticks(ticks);
                 if ((cputime_get32() + ticks) >= connsm->ce_end_time) {
                     md = 0;
                 }
             }
         }
-        ble_hdr = BLE_MBUF_HDR_PTR(m);
     } else {
         /* 
          * Send empty pdu. Need to reset some items in the empty pdu since
@@ -553,9 +602,14 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         m = (struct os_mbuf *)&connsm->conn_empty_pdu;
         ble_hdr = BLE_MBUF_HDR_PTR(m);
         ble_hdr->txinfo.flags = 0;
-        ble_hdr->txinfo.hdr_byte = BLE_LL_LLID_DATA_FRAG;
         pkthdr = OS_MBUF_PKTHDR(m);
         STAILQ_INSERT_HEAD(&connsm->conn_txq, pkthdr, omp_next);
+
+        /* Set header of empty pdu */
+        hdr_byte = BLE_LL_LLID_DATA_FRAG;
+        if (connsm->tx_seqnum) {
+            hdr_byte |= BLE_LL_DATA_HDR_SN_MASK;
+        }
         tx_empty_pdu = 1;
     }
 
@@ -563,22 +617,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * too close the end? We do this if we have a data packet but not
        if we send the empty pdu*/
 
-    /* Set SN, MD, NESN in transmit PDU */
-    hdr_byte = ble_hdr->txinfo.hdr_byte;
-
-    /* 
-     * If this is a retry, we keep the LLID and SN. If not, we presume
-     * that the LLID is set and all other bits are 0 in the first header
-     * byte.
-     */
-    if (ble_hdr->txinfo.flags & BLE_MBUF_HDR_F_TXD) {
-        hdr_byte &= ~(BLE_LL_DATA_HDR_MD_MASK | BLE_LL_DATA_HDR_NESN_MASK);
-    } else {
-        if (connsm->tx_seqnum) {
-            hdr_byte |= BLE_LL_DATA_HDR_SN_MASK;
-        }
-        ble_hdr->txinfo.flags |= BLE_MBUF_HDR_F_TXD;
-    }
+    /* Set transmitted flag */
+    ble_hdr->txinfo.flags |= BLE_MBUF_HDR_F_TXD;
 
     /* If we have more data, set the bit */
     if (md) {
@@ -615,9 +655,15 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
 
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
-
     rc = ble_phy_tx(m, beg_transition, end_transition);
     if (!rc) {
+        /* Log transmit on connection state */
+        ble_ll_log(BLE_LL_LOG_ID_CONN_TX, 
+                   hdr_byte, 
+                   ((uint16_t)ble_hdr->txinfo.offset << 8) | 
+                              ble_hdr->txinfo.pyld_len,
+                   (uint32_t)m);
+
         /* Set flag denoting we transmitted a pdu */
         connsm->pdu_txd = 1;
 
@@ -627,15 +673,12 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         /* Increment packets transmitted */
         if (tx_empty_pdu) {
             ++g_ble_ll_stats.tx_empty_pdus;
-            g_ble_ll_stats.tx_empty_bytes += BLE_LL_PDU_HDR_LEN;
         } else if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
             ++g_ble_ll_stats.tx_ctrl_pdus;
-            g_ble_ll_stats.tx_ctrl_bytes += OS_MBUF_PKTHDR(m)->omp_len + 
-                BLE_LL_PDU_HDR_LEN;
+            g_ble_ll_stats.tx_ctrl_bytes += ble_hdr->txinfo.pyld_len; 
         } else {
             ++g_ble_ll_stats.tx_l2cap_pdus;
-            g_ble_ll_stats.tx_l2cap_bytes += OS_MBUF_PKTHDR(m)->omp_len + 
-                BLE_LL_PDU_HDR_LEN;
+            g_ble_ll_stats.tx_l2cap_bytes += ble_hdr->txinfo.pyld_len;
         }
     }
 
@@ -993,22 +1036,22 @@ ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
     send_event = 0;
 
     /* See if effective times have changed */
-    eff_time = min(connsm->rem_max_rx_time, connsm->max_rx_time);
+    eff_time = min(connsm->rem_max_tx_time, connsm->max_rx_time);
     if (eff_time != connsm->eff_max_rx_time) {
         connsm->eff_max_rx_time = eff_time;
         send_event = 1;
     }
-    eff_time = min(connsm->rem_max_tx_time, connsm->max_tx_time);
+    eff_time = min(connsm->rem_max_rx_time, connsm->max_tx_time);
     if (eff_time != connsm->eff_max_tx_time) {
         connsm->eff_max_tx_time = eff_time;
         send_event = 1;
     }
-    eff_bytes = min(connsm->rem_max_rx_octets, connsm->max_rx_octets);
+    eff_bytes = min(connsm->rem_max_tx_octets, connsm->max_rx_octets);
     if (eff_bytes != connsm->eff_max_rx_octets) {
         connsm->eff_max_rx_octets = eff_bytes;
         send_event = 1;
     }
-    eff_bytes = min(connsm->rem_max_tx_octets, connsm->max_tx_octets);
+    eff_bytes = min(connsm->rem_max_rx_octets, connsm->max_tx_octets);
     if (eff_bytes != connsm->eff_max_tx_octets) {
         connsm->eff_max_tx_octets = eff_bytes;
         send_event = 1;
@@ -1655,6 +1698,7 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
     uint8_t conn_sn;
     uint8_t conn_nesn;
     uint8_t reply;
+    uint8_t rem_bytes;
     uint32_t ticks;
     struct os_mbuf *txpdu;
     struct os_mbuf_pkthdr *pkthdr;
@@ -1711,6 +1755,9 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
         hdr_byte = rxpdu->om_data[0];
         connsm->last_rxd_hdr_byte = hdr_byte;
 
+        ble_ll_log(BLE_LL_LOG_ID_CONN_RX, hdr_byte, connsm->tx_seqnum,
+                   connsm->next_exp_seqnum);
+
         /* 
          * If SN bit from header does not match NESN in connection, this is
          * a resent PDU and should be ignored.
@@ -1739,30 +1786,39 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
                 connsm->tx_seqnum ^= 1;
                 ++g_ble_ll_conn_stats.data_pdu_txg;
 
-                /* We can remove this packet from the queue now */
+                /* 
+                 * Determine if we should remove packet from queue or if there
+                 * are more fragments to send.
+                 */
                 pkthdr = STAILQ_FIRST(&connsm->conn_txq);
                 if (pkthdr) {
-                    STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
                     txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+                    txhdr = BLE_MBUF_HDR_PTR(txpdu);
 
                     /* Did we transmit a TERMINATE_IND? If so, we are done */
-                    txhdr = BLE_MBUF_HDR_PTR(txpdu);
                     if (ble_ll_ctrl_is_terminate_ind(txhdr->txinfo.hdr_byte, 
                                                      txpdu->om_data[0])) {
                         connsm->terminate_ind_txd = 1;
+                        STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
                         os_mbuf_free(txpdu);
                         rc = -1;
                         goto conn_rx_pdu_end;
-                    } else {
-                        /* 
-                         * If this is a l2cap pdu, we have to increment the
-                         * number of completed packets
-                         */
+                    }
+
+                    /* Increment offset based on number of bytes sent */
+                    txhdr->txinfo.offset += txhdr->txinfo.pyld_len;
+                    if (txhdr->txinfo.offset >= pkthdr->omp_len) {
+                        STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
+
+                        /* If l2cap pdu, increment # of completed packets */
                         if (ble_ll_conn_is_l2cap_pdu(txhdr)) {
                             ++connsm->completed_pkts;
                         }
+                        os_mbuf_free(txpdu);
+                    } else {
+                        /* More to go. Clear the TXD flag */
+                        txhdr->txinfo.flags &= ~BLE_MBUF_HDR_F_TXD;
                     }
-                    os_mbuf_free(txpdu);
                 } else {
                     /* No packet on queue? This is an error! */
                     ++g_ble_ll_conn_stats.no_tx_pdu;
@@ -1781,12 +1837,18 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
             if (reply) {
                 pkthdr = STAILQ_FIRST(&connsm->conn_txq);
                 if (pkthdr) {
-                    ticks = BLE_TX_DUR_USECS_M(pkthdr->omp_len);
+                    txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+                    txhdr = BLE_MBUF_HDR_PTR(txpdu);
+                    rem_bytes = pkthdr->omp_len - txhdr->txinfo.offset;
+                    if (rem_bytes > connsm->eff_max_tx_octets) {
+                        rem_bytes = connsm->eff_max_tx_octets;
+                    }
+                    ticks = BLE_TX_DUR_USECS_M(rem_bytes);
                 } else {
                     /* We will send empty pdu (just a LL header) */
                     ticks = BLE_TX_DUR_USECS_M(0);
                 }
-                ticks += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
+                ticks += (BLE_LL_IFS * 2) + BLE_LL_CONN_SUPP_TIME_MIN;
                 ticks = cputime_usecs_to_ticks(ticks);
                 if ((rxhdr->end_cputime + ticks) >= connsm->ce_end_time) {
                     reply = 0;
@@ -1827,7 +1889,7 @@ conn_rx_pdu_end:
             BLE_TX_DUR_USECS_M(rxpdu->om_data[1]);
     }
 
-    /* If rc not 0, */
+    /* Send link layer a connection end event if over */
     if (rc) {
         ble_ll_event_send(&connsm->conn_ev_end);
     }
@@ -1851,9 +1913,19 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
 {
     os_sr_t sr;
     struct os_mbuf_pkthdr *pkthdr;
+    struct ble_mbuf_hdr *ble_hdr;
 
     /* Initialize the mbuf */
     ble_ll_mbuf_init(om, length, hdr_byte);
+
+    /* 
+     * We need to set the initial payload length if the total length of the
+     * PDU exceeds the maximum allowed for the connection for any single tx.
+     */
+    if (length > connsm->eff_max_tx_octets) {
+        ble_hdr = BLE_MBUF_HDR_PTR(om);
+        ble_hdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
+    }
 
     /* Add to transmit queue for the connection */
     pkthdr = OS_MBUF_PKTHDR(om);
@@ -1886,14 +1958,15 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
     connsm = ble_ll_conn_find_active_conn(conn_handle);
     if (connsm) {
         /* Construct LL header in buffer (NOTE: pb already checked) */
-        /* XXX: Currently length is less <= 251. Fix later */
-        assert(length <= 251);
         pb = handle & 0x3000;
         if (pb == 0) {
             hdr_byte = BLE_LL_LLID_DATA_START;
         } else {
             hdr_byte = BLE_LL_LLID_DATA_FRAG;
-        } 
+        }
+
+        /* Add to total l2cap pdus enqueue */
+        ++g_ble_ll_conn_stats.l2cap_enqueued;
 
         /* Clear flags field in BLE header */
         ble_ll_conn_enqueue_pkt(connsm, om, hdr_byte, length);

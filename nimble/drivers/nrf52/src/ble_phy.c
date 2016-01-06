@@ -164,7 +164,6 @@ ble_phy_isr(void)
     uint32_t irq_en;
     uint32_t state;
     uint32_t wfr_time;
-    uint32_t shortcuts;
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
 
@@ -182,13 +181,10 @@ ble_phy_isr(void)
         NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
         NRF_RADIO->EVENTS_END = 0;
-        shortcuts = NRF_RADIO->SHORTS;
+        state = NRF_RADIO->SHORTS;
 
         transition = g_ble_phy_data.phy_transition;
         if (transition == BLE_PHY_TRANSITION_TX_RX) {
-            /* Debug check to make sure we go from tx to rx */
-            assert((shortcuts & RADIO_SHORTS_DISABLED_RXEN_Msk) != 0);
-
             /* Clear the rx started flag */
             g_ble_phy_data.phy_rx_started = 0;
 
@@ -223,7 +219,6 @@ ble_phy_isr(void)
             wfr_time = NRF_TIMER0->CC[2];
             wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
             ble_ll_wfr_enable(wfr_time);
-
         } else {
             /* Better not be going from rx to tx! */
             assert(transition == BLE_PHY_TRANSITION_NONE);
@@ -326,7 +321,7 @@ ble_phy_isr(void)
 
 phy_isr_exit:
     /* Ensures IRQ is cleared */
-    shortcuts = NRF_RADIO->SHORTS;
+    state = NRF_RADIO->SHORTS;
 
     /* Count # of interrupts */
     ++g_ble_phy_stats.phy_isrs;

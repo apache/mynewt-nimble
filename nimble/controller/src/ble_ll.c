@@ -82,20 +82,20 @@ os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 struct ble_ll_log
 {
     uint8_t log_id;
-    uint8_t log_arg8_0;
-    uint8_t log_arg8_1;
-    uint32_t log_arg32_0;
+    uint8_t log_a8;
+    uint16_t log_a16;
+    uint32_t log_a32;
     uint32_t cputime;
 
 };
 
-#define BLE_LL_LOG_LEN  (128)
+#define BLE_LL_LOG_LEN  (256)
 
 static struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
 static uint8_t g_ble_ll_log_index;
 
 void
-ble_ll_log(uint8_t id, uint8_t arg8_0, uint8_t arg8_1, uint32_t arg32_0)
+ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32)
 {
     os_sr_t sr;
     struct ble_ll_log *le;
@@ -104,9 +104,9 @@ ble_ll_log(uint8_t id, uint8_t arg8_0, uint8_t arg8_1, uint32_t arg32_0)
     le = &g_ble_ll_log[g_ble_ll_log_index];
     le->cputime = cputime_get32();
     le->log_id = id;
-    le->log_arg8_0 = arg8_0;
-    le->log_arg8_1 = arg8_1;
-    le->log_arg32_0 = arg32_0;
+    le->log_a8 = arg8;
+    le->log_a16 = arg16;
+    le->log_a32 = arg32;
     ++g_ble_ll_log_index;
     if (g_ble_ll_log_index == BLE_LL_LOG_LEN) {
         g_ble_ll_log_index = 0;
@@ -355,19 +355,6 @@ ble_ll_tx_pkt_in(void)
             continue;
         }
 
-        /* 
-         * XXX: fix this later: right now I need it all to be contiguous. If
-         * I cant make it contiguous, I will just free it here.
-         */
-        if (length > BLE_LL_CFG_ACL_DATA_PKT_LEN) {
-            /* Count these for noe */
-            ++g_ble_ll_stats.bad_acl_datalen;
-            os_mbuf_free(om);
-            continue;
-        }
-        om = os_mbuf_pullup(om, length);
-        assert(om);
-
         /* Hand to connection state machine */
         ble_ll_conn_tx_pkt_in(om, handle, length);
     }
@@ -577,12 +564,13 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok)
     uint16_t mblen;
     uint8_t *rxbuf;
 
-    ;
-    ble_ll_log(BLE_LL_LOG_ID_RX_END, chan, crcok, 
-               (BLE_MBUF_HDR_PTR(rxpdu))->end_cputime);
-
     /* Set the rx buffer pointer to the start of the received data */
     rxbuf = rxpdu->om_data;
+
+    ble_ll_log(BLE_LL_LOG_ID_RX_END, 
+               chan, 
+               ((uint16_t)crcok << 8) | rxbuf[1], 
+               (BLE_MBUF_HDR_PTR(rxpdu))->end_cputime);
 
     /* Check channel type */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {

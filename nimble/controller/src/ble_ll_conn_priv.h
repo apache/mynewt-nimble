@@ -19,7 +19,13 @@
 
 #include "controller/ble_ll_conn.h"
 
-/* Definitions for max rx/tx time/bytes for connections */
+/* 
+ * Definitions for max rx/tx time/bytes for connections
+ *  NOTE: you get 327 usecs from 27 bytes of payload by:
+ *      -> adding 4 bytes for MIC
+ *      -> adding 2 bytes for PDU header
+ *      -> adding 8 bytes for preamble (1), access address (4) and crc (3).
+ */
 #define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
 #define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
 #define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */

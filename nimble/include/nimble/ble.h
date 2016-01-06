@@ -68,7 +68,7 @@ struct ble_mbuf_hdr
     uint32_t end_cputime;
 };
 
-/* Flag definitions */
+/* Flag definitions. Apply to both txinfo and rxinfo */
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x01)
 #define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x02)
 #define BLE_MBUF_HDR_F_TXD              (0x04)

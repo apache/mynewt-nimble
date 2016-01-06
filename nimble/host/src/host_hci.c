@@ -595,13 +595,16 @@ host_hci_data_rx(struct os_mbuf *om)
     uint16_t handle;
     int rc;
 
-    console_printf("host_hci_data_rx(): ");
-    host_hci_log_pkt(om);
-
     rc = host_hci_data_hdr_strip(om, &hci_hdr);
     if (rc != 0) {
         goto done;
     }
+
+    console_printf("host_hci_data_rx(): handle=%u pb=%x len=%u data=",
+                   BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
+                   BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
+                   hci_hdr.hdh_len);
+    host_hci_log_pkt(om);
 
     if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
         rc = BLE_HS_EMSGSIZE;
