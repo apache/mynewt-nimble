@@ -595,10 +595,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
             }
         }
     } else {
-        /* 
-         * Send empty pdu. Need to reset some items in the empty pdu since
-         * we re-use it.
-         */
+        /* Send empty pdu. Need to reset some items since we re-use it. */
         m = (struct os_mbuf *)&connsm->conn_empty_pdu;
         ble_hdr = BLE_MBUF_HDR_PTR(m);
         ble_hdr->txinfo.flags = 0;
@@ -612,10 +609,6 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
         }
         tx_empty_pdu = 1;
     }
-
-    /* XXX: how does the master end the connection event if we are getting
-     * too close the end? We do this if we have a data packet but not
-       if we send the empty pdu*/
 
     /* Set transmitted flag */
     ble_hdr->txinfo.flags |= BLE_MBUF_HDR_F_TXD;
@@ -780,6 +773,54 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
 }
 
 /**
+ * Called to determine if the device is allowed to send the next pdu in the 
+ * connection event. This will always return 'true' if we are a slave. If we 
+ * are a master, we must be able to send the next fragment and get a minimum 
+ * sized response from the slave. 
+ *  
+ * Context: Interrupt context (rx end isr). 
+ * 
+ * @param connsm 
+ * @param begtime   Time at which IFS before pdu transmission starts 
+ * 
+ * @return int 0: not allowed to send 1: allowed to send
+ */
+static int
+ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime)
+{
+    int rc;
+    uint8_t rem_bytes;
+    uint32_t ticks;
+    struct os_mbuf *txpdu;
+    struct os_mbuf_pkthdr *pkthdr;
+    struct ble_mbuf_hdr *txhdr;
+
+    rc = 1;
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        pkthdr = STAILQ_FIRST(&connsm->conn_txq);
+        if (pkthdr) {
+            txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+            txhdr = BLE_MBUF_HDR_PTR(txpdu);
+            rem_bytes = pkthdr->omp_len - txhdr->txinfo.offset;
+            if (rem_bytes > connsm->eff_max_tx_octets) {
+                rem_bytes = connsm->eff_max_tx_octets;
+            }
+            ticks = BLE_TX_DUR_USECS_M(rem_bytes);
+        } else {
+            /* We will send empty pdu (just a LL header) */
+            ticks = BLE_TX_DUR_USECS_M(0);
+        }
+        ticks += (BLE_LL_IFS * 2) + BLE_LL_CONN_SUPP_TIME_MIN;
+        ticks = cputime_usecs_to_ticks(ticks);
+        if ((begtime + ticks) >= connsm->ce_end_time) {
+            rc = 0;
+        }
+    }
+
+    return rc;
+}
+
+/**
  * Set the schedule for connection events
  *  
  * Context: Link Layer task 
@@ -814,10 +855,6 @@ ble_ll_conn_sched_set(struct ble_ll_conn_sm *connsm)
             usecs = connsm->slave_cur_window_widening +
                 XCVR_RX_SCHED_DELAY_USECS;
 
-            /* XXX: just to make sure we receive we wake up early. Fix
-               this later */
-            usecs += 32;
-
             sch->start_time = connsm->anchor_point - 
                 cputime_usecs_to_ticks(usecs);
 
@@ -825,10 +862,11 @@ ble_ll_conn_sched_set(struct ble_ll_conn_sm *connsm)
             usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
         }
 
-        /* XXX: we will need to subtract more than just the IFS since we need
-         * some time to deal with stuff. Gotta make sure we dont miss
-           next connection event. */
-        usecs -= BLE_LL_IFS;
+        /* 
+         * We must end at least an IFS before the next scheduled event to
+         * insure the minimum time between frames.
+         */
+        usecs -= (BLE_LL_IFS + BLE_LL_PROC_DELAY);
         sch->end_time = connsm->anchor_point + cputime_usecs_to_ticks(usecs);
         connsm->ce_end_time = sch->end_time;
 
@@ -1271,8 +1309,6 @@ ble_ll_conn_event_end(void *arg)
         connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
     }
 
-    /* XXX: we will need more time here for a slave I bet. IFS time is not
-       enough to re-schedule. End before it a bit.*/
     /* We better not be late for the anchor point. If so, skip events */
     while ((int32_t)(connsm->anchor_point - cputime_get32()) <= 0) {
         ++connsm->event_cntr;
@@ -1569,7 +1605,6 @@ ble_ll_conn_rx_pdu_start(void)
     connsm = g_ble_ll_conn_cur_sm;
     if (connsm) {
         connsm->pkt_rxd = 1;
-
     }
 }
 
@@ -1698,7 +1733,6 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
     uint8_t conn_sn;
     uint8_t conn_nesn;
     uint8_t reply;
-    uint8_t rem_bytes;
     uint32_t ticks;
     struct os_mbuf *txpdu;
     struct os_mbuf_pkthdr *pkthdr;
@@ -1716,12 +1750,10 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
         return -1;
     }
 
-    /* XXX: what happens in this case? When will the connection event end?
-     * Should it end as this is a data pdu received on a different access
-       address? Not sure what to do here. */
     /* Double check access address. Better match connection state machine! */
     if (aa != connsm->access_addr) {
         ++g_ble_ll_conn_stats.rx_data_pdu_bad_aa;
+        ble_ll_event_send(&connsm->conn_ev_end);
         return -1;
     }
 
@@ -1834,26 +1866,6 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
             reply = 1;
         } else if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             reply = connsm->last_txd_md || (hdr_byte & BLE_LL_DATA_HDR_MD_MASK);
-            if (reply) {
-                pkthdr = STAILQ_FIRST(&connsm->conn_txq);
-                if (pkthdr) {
-                    txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-                    txhdr = BLE_MBUF_HDR_PTR(txpdu);
-                    rem_bytes = pkthdr->omp_len - txhdr->txinfo.offset;
-                    if (rem_bytes > connsm->eff_max_tx_octets) {
-                        rem_bytes = connsm->eff_max_tx_octets;
-                    }
-                    ticks = BLE_TX_DUR_USECS_M(rem_bytes);
-                } else {
-                    /* We will send empty pdu (just a LL header) */
-                    ticks = BLE_TX_DUR_USECS_M(0);
-                }
-                ticks += (BLE_LL_IFS * 2) + BLE_LL_CONN_SUPP_TIME_MIN;
-                ticks = cputime_usecs_to_ticks(ticks);
-                if ((rxhdr->end_cputime + ticks) >= connsm->ce_end_time) {
-                    reply = 0;
-                }
-            }
         } else {
             /* A slave always replies */
             reply = 1;
@@ -1862,7 +1874,7 @@ ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa)
 
     /* If reply flag set, send data pdu and continue connection event */
     rc = -1;
-    if (reply) {
+    if (reply && ble_ll_conn_can_send_next_pdu(connsm, rxhdr->end_cputime)) {
         /* 
          * While this is not perfect, we will just check to see if the
          * terminate timer will expire within two packet times. If it will,

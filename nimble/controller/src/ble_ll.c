@@ -30,15 +30,6 @@
 #include "hal/hal_cputime.h"
 
 /* 
- * XXX: Just thought of something! Can I always set the DEVMATCH bit at
- * the lower layer? This way the LL just looks at devmatch when it wants
- * to see if a packet is "for us". I am referring to packets that pass
- * whitelisting but also need to be "for us" (connect requests, scan requests,
- * scan responses, etc). Look into this. This way I would not need to do
- * additional whitelist checks at the upper layer.
- */
-
-/* 
  * XXX: I need to re-think the whoele LL state code and how I deal with it.
  * I dont think I am handling it very well. The LL state should only change
  * at the LL task I think. I am also not sure how to make sure that any packets
@@ -495,7 +486,6 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
          * Data channel pdu. We should be in CONNECTION state with an
          * ongoing connection
          */
-        /* XXX: check access address for surety? What to do... */
         if (g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION) {
             /* Call conection pdu rx start function */
             ble_ll_conn_rx_pdu_start();
@@ -721,9 +711,6 @@ ble_ll_task(void *arg)
             assert(0);
             break;
         }
-
-        /* XXX: we can possibly take any finished schedule items and
-           free them here. Have a queue for them. */
     }
 }
 
@@ -843,8 +830,6 @@ ble_ll_reset(void)
 {
     int rc;
 
-    /* XXX: what happens if we are transmitting and we call disable? */
-    /* XXX: what should we do to the transceiver/radio? Reset it? */
     /* Stop the phy */
     ble_phy_disable();
 

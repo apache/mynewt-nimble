@@ -401,7 +401,6 @@ uint32_t ble_phy_access_addr_get(void)
     return g_ble_phy_data.phy_access_address;
 }
 
-
 /**
  * Return the phy state
  * 

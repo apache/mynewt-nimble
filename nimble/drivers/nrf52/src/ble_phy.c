@@ -18,16 +18,10 @@
 #include <assert.h>
 #include "os/os.h"
 #include "bsp/cmsis_nvic.h"
-#include "nimble/ble.h"             /* XXX: needed for ble mbuf header.*/
+#include "nimble/ble.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "mcu/nrf52_bitfields.h"
-
-/* 
- * XXX: TODO
- * 1) make phy rx start and end function pointers to call?
- * 2) Deal with rx start/end and tx start/end events I think.
- */
 
 /* To disable all radio interrupts */
 #define NRF52_RADIO_IRQ_MASK_ALL    (0x34FF)
@@ -150,7 +144,6 @@ nrf52_wait_disabled(void)
             while (NRF_RADIO->STATE == state) {
                 /* If this fails, something is really wrong. Should last
                  * no more than 6 usecs */
-                /* XXX: should I have a way to bail out? */
             }
         }
     }
@@ -704,7 +697,6 @@ ble_phy_disable(void)
 /* Gets the current access address */
 uint32_t ble_phy_access_addr_get(void)
 {
-    /* XXX: Read real address from chip? */
     return g_ble_phy_data.phy_access_address;
 }
 
@@ -716,7 +708,6 @@ uint32_t ble_phy_access_addr_get(void)
 int 
 ble_phy_state_get(void)
 {
-    /* XXX: should we read actual hardware */
     return g_ble_phy_data.phy_state;
 }
 

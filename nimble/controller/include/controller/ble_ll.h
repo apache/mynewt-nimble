@@ -22,8 +22,8 @@
 /* 
  * The amount of time that we will wait to hear the start of a receive
  * packet after we have transmitted a packet. This time is at least
- * an IFS time plus the time to receive the preamble and access address. We
- * add an additional 32 usecs just to be safe.
+ * an IFS time plus the time to receive the preamble and access address (which 
+ * is 40 usecs). We add an additional 32 usecs just to be safe.
  * 
  * XXX: move this definition and figure out how we determine the worst-case
  * jitter (spec. should have this).
@@ -127,6 +127,15 @@ extern struct ble_ll_stats g_ble_ll_stats;
 #define BLE_LL_IFS              (150)       /* usecs */
 #define BLE_CLOCK_DRIFT_ACTIVE  (50)        /* +/- ppm */
 #define BLE_CLOCK_DRIFT_SLEEP   (500)       /* +/- ppm */
+
+/* 
+ * Link Layer processing delay. This number is simply made up for now. We
+ * use it to insure that we have enough time to do some processing before
+ * the LL needs to do something. I made it one IFS time for now. It is used:
+ *  -> When determining how much time we leave before the end of a connection
+ *  event.
+ */
+#define BLE_LL_PROC_DELAY       (150)
 
 /* 
  * BLE LL device address. Note that element 0 of the array is the LSB and
