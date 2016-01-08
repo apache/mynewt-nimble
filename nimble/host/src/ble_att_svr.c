@@ -1277,7 +1277,7 @@ err:
 }
 
 /**
- * @return                      0 on success; ATT error code on failure.
+ * @return                      0 on success; nonzero on failure.
  */
 static int
 ble_att_svr_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
@@ -1330,11 +1330,66 @@ err:
     return rc;
 }
 
+/**
+ * @return                      0 on success; nonzero on failure.
+ */
+static int
+ble_att_svr_tx_read_blob_rsp(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan, void *attr_data,
+                             int attr_len, uint8_t *att_err)
+{
+    struct os_mbuf *txom;
+    uint16_t data_len;
+    uint8_t op;
+    int rc;
+
+    txom = ble_att_get_pkthdr();
+    if (txom == NULL) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    op = BLE_ATT_OP_READ_BLOB_RSP;
+    rc = os_mbuf_append(txom, &op, 1);
+    if (rc != 0) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    /* Vol. 3, part F, 3.2.9; don't send more than ATT_MTU-1 bytes of data. */
+    if (attr_len > ble_l2cap_chan_mtu(chan) - 1) {
+        data_len = ble_l2cap_chan_mtu(chan) - 1;
+    } else {
+        data_len = attr_len;
+    }
+
+    rc = os_mbuf_append(txom, attr_data, data_len);
+    if (rc != 0) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    if (rc != 0) {
+        *att_err = BLE_ATT_ERR_UNLIKELY;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
 int
 ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                     struct os_mbuf **rxom)
 {
-    struct ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
     struct ble_att_read_req req;
     uint16_t err_handle;
@@ -1373,15 +1428,15 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = ble_att_svr_read(conn, entry, &arg, &att_err);
+    rc = ble_att_svr_read(conn, entry, &ctxt, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
         rc = BLE_HS_ENOTSUP;
         goto err;
     }
 
-    rc = ble_att_svr_tx_read_rsp(conn, chan, arg.attr_data,
-                                 arg.data_len, &att_err);
+    rc = ble_att_svr_tx_read_rsp(conn, chan, ctxt.attr_data,
+                                 ctxt.data_len, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
         goto err;
@@ -1391,6 +1446,72 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_REQ,
+                             err_handle, att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_svr_entry *entry;
+    struct ble_att_read_blob_req req;
+    uint16_t err_handle;
+    uint8_t att_err;
+    int rc;
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_read_blob_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    if (rc != 0) {
+        att_err = BLE_ATT_ERR_INVALID_PDU;
+        err_handle = 0;
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+
+    entry = NULL;
+    rc = ble_att_svr_find_by_handle(req.babq_handle, &entry);
+    if (rc != 0) {
+        att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        err_handle = req.babq_handle;
+        rc = BLE_HS_ENOENT;
+        goto err;
+    }
+
+    if (entry->ha_cb == NULL) {
+        att_err = BLE_ATT_ERR_UNLIKELY;
+        err_handle = req.babq_handle;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
+    }
+
+    ctxt.offset = req.babq_offset;
+    rc = ble_att_svr_read(conn, entry, &ctxt, &att_err);
+    if (rc != 0) {
+        err_handle = req.babq_handle;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
+    }
+
+    rc = ble_att_svr_tx_read_blob_rsp(conn, chan, ctxt.attr_data,
+                                      ctxt.data_len, &att_err);
+    if (rc != 0) {
+        err_handle = req.babq_handle;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_BLOB_REQ,
                              err_handle, att_err);
     return rc;
 }

@@ -113,6 +113,9 @@ int ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
                                    struct os_mbuf **rxom);
 int ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                         struct os_mbuf **rxom);
+int ble_att_svr_rx_read_blob(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan,
+                             struct os_mbuf **rxom);
 int ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          struct os_mbuf **rxom);
 int ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
