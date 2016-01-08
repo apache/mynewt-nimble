@@ -21,7 +21,6 @@
 #include "host/ble_att.h"
 struct ble_hs_conn;
 struct ble_att_error_rsp;
-struct ble_att_clt_adata;
 
 /*** @client. */
 struct ble_gatt_service {

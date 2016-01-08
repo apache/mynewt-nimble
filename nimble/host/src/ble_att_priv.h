@@ -80,21 +80,17 @@ typedef int (*ble_att_svr_walk_func_t)(struct ble_att_svr_entry *entry,
 #define HA_OPCODE_COMMAND_FLAG (1 << 6) 
 #define HA_OPCODE_AUTH_SIG_FLAG (1 << 7) 
 
-struct ble_att_clt_adata {
-    uint16_t att_handle;
-    uint16_t end_group_handle;
-    int value_len;
-    uint8_t *value;
-};
-
 SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 
 /*** @gen */
+
 struct ble_l2cap_chan *ble_att_create_chan(void);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 struct os_mbuf *ble_att_get_pkthdr(void);
 
+
 /*** @svr */
+
 extern ble_att_svr_notify_fn *ble_att_svr_notify_cb;
 extern void *ble_att_svr_notify_cb_arg;
 
@@ -136,7 +132,36 @@ int ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
                             uint8_t *out_att_err);
 int ble_att_svr_init(void);
 
-/*** @clt */
+
+/*** $clt */
+
+/** An information-data entry in a find information response. */
+struct ble_att_find_info_idata {
+    uint16_t attr_handle;
+    uint8_t uuid128[16];
+};
+
+/** A handles-information entry in a find by type value response. */
+struct ble_att_find_type_value_hinfo {
+    uint16_t attr_handle;
+    uint16_t group_end_handle;
+};
+
+/** An attribute-data entry in a read by type response. */
+struct ble_att_read_type_adata {
+    uint16_t att_handle;
+    int value_len;
+    uint8_t *value;
+};
+
+/** An attribute-data entry in a read by group type response. */
+struct ble_att_read_group_type_adata {
+    uint16_t att_handle;
+    uint16_t end_group_handle;
+    int value_len;
+    uint8_t *value;
+};
+
 int ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          struct os_mbuf **rxom);
 int ble_att_clt_tx_mtu(struct ble_hs_conn *conn,

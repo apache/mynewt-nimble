@@ -163,19 +163,19 @@ static void ble_gattc_err_indicate(struct ble_gattc_entry *entry, int status);
 
 static int ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
                                             struct ble_hs_conn *conn,
-                                            struct ble_att_clt_adata *adata);
+                                            struct ble_att_read_type_adata *adata);
 static int ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status);
 static int ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_entry *entry,
                                             struct ble_hs_conn *conn,
-                                            struct ble_att_clt_adata *adata);
+                                            struct ble_att_read_type_adata *adata);
 static int ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status);
 static int ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_entry *entry,
                                             struct ble_hs_conn *conn,
-                                            struct ble_att_clt_adata *adata);
+                                            struct ble_att_read_type_adata *adata);
 static int ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status);
@@ -242,7 +242,7 @@ static const struct ble_gattc_dispatch_entry
 
 typedef int ble_gattc_rx_adata_fn(struct ble_gattc_entry *entry,
                                   struct ble_hs_conn *conn, 
-                                  struct ble_att_clt_adata *adata);
+                                  struct ble_att_read_type_adata *adata);
 struct ble_gattc_rx_adata_entry {
     uint8_t op;
     ble_gattc_rx_adata_fn *cb;
@@ -678,8 +678,8 @@ ble_gattc_err_disc_all_svcs(struct ble_gattc_entry *entry, int status)
 }
 
 void
-ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
-                                   struct ble_att_clt_adata *adata)
+ble_gattc_rx_read_group_type_entry(struct ble_hs_conn *conn,
+                                   struct ble_att_read_group_type_adata *adata)
 {
     struct ble_gatt_service service;
     struct ble_gattc_entry *entry;
@@ -836,7 +836,7 @@ ble_gattc_err_disc_svc_uuid(struct ble_gattc_entry *entry, int status)
 
 void
 ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
-                                   struct ble_att_clt_adata *adata)
+                                   struct ble_att_find_type_value_hinfo *hinfo)
 {
     struct ble_gatt_service service;
     struct ble_gattc_entry *entry;
@@ -850,10 +850,10 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
         return;
     }
 
-    entry->disc_svc_uuid.prev_handle = adata->end_group_handle;
+    entry->disc_svc_uuid.prev_handle = hinfo->group_end_handle;
 
-    service.start_handle = adata->att_handle;
-    service.end_handle = adata->end_group_handle;
+    service.start_handle = hinfo->attr_handle;
+    service.end_handle = hinfo->group_end_handle;
     memcpy(service.uuid128, entry->disc_svc_uuid.service_uuid, 16);
 
     rc = ble_gattc_disc_svc_uuid_cb(entry, 0, &service);
@@ -1025,7 +1025,7 @@ done:
 static int
 ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
                                  struct ble_hs_conn *conn,
-                                 struct ble_att_clt_adata *adata)
+                                 struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_service service;
     uint16_t uuid16;
@@ -1173,7 +1173,7 @@ ble_gattc_err_disc_all_chrs(struct ble_gattc_entry *entry, int status)
 static int
 ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_entry *entry,
                                  struct ble_hs_conn *conn,
-                                 struct ble_att_clt_adata *adata)
+                                 struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_chr chr;
     uint16_t uuid16;
@@ -1324,7 +1324,7 @@ ble_gattc_err_disc_chr_uuid(struct ble_gattc_entry *entry, int status)
 static int
 ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_entry *entry,
                                  struct ble_hs_conn *conn,
-                                 struct ble_att_clt_adata *adata)
+                                 struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_chr chr;
     uint16_t uuid16;
@@ -1474,8 +1474,8 @@ ble_gattc_err_disc_all_dscs(struct ble_gattc_entry *entry, int status)
 }
 
 void
-ble_gattc_rx_find_info_entry(struct ble_hs_conn *conn, int status,
-                             uint16_t handle, uint8_t *uuid128)
+ble_gattc_rx_find_info_entry(struct ble_hs_conn *conn,
+                             struct ble_att_find_info_idata *idata)
 {
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
@@ -1488,15 +1488,12 @@ ble_gattc_rx_find_info_entry(struct ble_hs_conn *conn, int status,
         return;
     }
 
-    rc = ble_gattc_disc_all_dscs_cb(entry, status, handle, uuid128);
+    rc = ble_gattc_disc_all_dscs_cb(entry, 0, idata->attr_handle,
+                                    idata->uuid128);
     if (rc != 0) {
         ble_gattc_entry_remove_free(entry, prev);
-    } else if (status != 0) {
-        /* Error. */
-        ble_gattc_disc_all_dscs_cb(entry, status, 0, NULL);
-        ble_gattc_entry_remove_free(entry, prev);
     } else {
-        entry->disc_all_dscs.prev_handle = handle;
+        entry->disc_all_dscs.prev_handle = idata->attr_handle;
     }
 }
 
@@ -1954,7 +1951,7 @@ ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
 
 void
 ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
-                             struct ble_att_clt_adata *adata)
+                             struct ble_att_read_type_adata *adata)
 {
     const struct ble_gattc_rx_adata_entry *rx_entry;
     struct ble_gattc_entry *entry;
