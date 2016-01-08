@@ -359,6 +359,47 @@ ble_att_read_req_write(void *payload, int len, struct ble_att_read_req *req)
 }
 
 int
+ble_att_read_blob_req_parse(void *payload, int len,
+                            struct ble_att_read_blob_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_READ_BLOB_REQ_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    if (u8ptr[0] != BLE_ATT_OP_READ_BLOB_REQ) {
+        return BLE_HS_EINVAL;
+    }
+
+    req->babq_handle = le16toh(u8ptr + 1);
+    req->babq_offset = le16toh(u8ptr + 3);
+
+    return 0;
+}
+
+int
+ble_att_read_blob_req_write(void *payload, int len,
+                            struct ble_att_read_blob_req *req)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_READ_BLOB_REQ_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_ATT_OP_READ_BLOB_REQ;
+    htole16(u8ptr + 1, req->babq_handle);
+    htole16(u8ptr + 3, req->babq_offset);
+
+    return 0;
+}
+
+int
 ble_att_read_group_type_req_parse(void *payload, int len,
                                   struct ble_att_read_group_type_req *req)
 {

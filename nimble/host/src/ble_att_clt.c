@@ -578,6 +578,79 @@ done:
 }
 
 /*****************************************************************************
+ * $read blob                                                                *
+ *****************************************************************************/
+
+int
+ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
+                         struct ble_att_read_blob_req *req)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->babq_handle == 0) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_READ_BLOB_REQ_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_read_blob_req_write(txom->om_data, txom->om_len, req);
+    assert(rc == 0);
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom)
+{
+    //void *value;
+    //int value_len;
+    int rc;
+
+    //value = NULL;
+    //value_len = 0;
+
+    /* Reponse consists of a one-byte opcode (already verified) and a variable
+     * length Attribute Value field.  Strip the opcode from the response.
+     */
+    os_mbuf_adj(*rxom, BLE_ATT_READ_BLOB_RSP_BASE_SZ);
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    //value_len = (*rxom)->om_len;
+    //value = (*rxom)->om_data;
+
+    rc = 0;
+
+done:
+    /* Pass the Attribute Value field to GATT. */
+    //ble_gattc_rx_read_blob_rsp(conn, rc, value, value_len);
+    return rc;
+}
+
+/*****************************************************************************
  * $read by group type                                                       *
  *****************************************************************************/
 

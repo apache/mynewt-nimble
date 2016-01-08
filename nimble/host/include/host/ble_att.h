@@ -48,6 +48,8 @@
 #define BLE_ATT_OP_READ_TYPE_RSP            0x09
 #define BLE_ATT_OP_READ_REQ                 0x0a
 #define BLE_ATT_OP_READ_RSP                 0x0b
+#define BLE_ATT_OP_READ_BLOB_REQ            0x0c
+#define BLE_ATT_OP_READ_BLOB_RSP            0x0d
 #define BLE_ATT_OP_READ_GROUP_TYPE_REQ      0x10
 #define BLE_ATT_OP_READ_GROUP_TYPE_RSP      0x11
 #define BLE_ATT_OP_WRITE_REQ                0x12

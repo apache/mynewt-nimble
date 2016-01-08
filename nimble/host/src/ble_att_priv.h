@@ -27,6 +27,7 @@ struct ble_att_find_info_req;
 struct ble_att_error_rsp;
 struct ble_att_mtu_cmd;
 struct ble_att_read_req;
+struct ble_att_read_blob_req;
 struct ble_att_read_type_req;
 struct ble_att_read_group_type_req;
 struct ble_att_read_group_type_rsp;
@@ -172,6 +173,11 @@ int ble_att_clt_tx_read(struct ble_hs_conn *conn,
                         struct ble_att_read_req *req);
 int ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                         struct os_mbuf **rxom);
+int ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
+                             struct ble_att_read_blob_req *req);
+int ble_att_clt_rx_read_blob(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan,
+                             struct os_mbuf **rxom);
 int ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
                              struct ble_att_read_type_req *req,
                              void *uuid128);

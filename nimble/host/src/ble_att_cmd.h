@@ -156,6 +156,27 @@ struct ble_att_read_req {
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |
+ * | Attribute Handle                   | 2                 |
+ * | Value Offset                       | 2                 |
+ */
+#define BLE_ATT_READ_BLOB_REQ_SZ        5
+struct ble_att_read_blob_req {
+    uint16_t babq_handle;
+    uint16_t babq_offset;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Value                    | 0 to (ATT_MTU-1)  |
+ */
+#define BLE_ATT_READ_BLOB_RSP_BASE_SZ   1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
  * | Starting Handle                    | 2                 |
  * | Ending Handle                      | 2                 |
  * | Attribute Group Type               | 2 or 16           |
@@ -289,6 +310,10 @@ int ble_att_read_req_parse(void *payload, int len,
                            struct ble_att_read_req *req);
 int ble_att_read_req_write(void *payload, int len,
                            struct ble_att_read_req *req);
+int ble_att_read_blob_req_parse(void *payload, int len,
+                                struct ble_att_read_blob_req *req);
+int ble_att_read_blob_req_write(void *payload, int len,
+                                struct ble_att_read_blob_req *req);
 int ble_att_read_type_req_parse(void *payload, int len,
                                 struct ble_att_read_type_req *req);
 int ble_att_read_type_req_write(void *payload, int len,
