@@ -331,7 +331,7 @@ ble_att_svr_read(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
     int rc;
 
     if (conn == NULL) {
-        conn_handle = 0xffff; /* XXX */
+        conn_handle = BLE_HS_CONN_HANDLE_NONE;
     } else {
         conn_handle = conn->bhc_handle;
 
@@ -403,7 +403,7 @@ ble_att_svr_write(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
     /* XXX: Check security. */
 
     if (conn == NULL) {
-        conn_handle = 0xffff; /* XXX */
+        conn_handle = BLE_HS_CONN_HANDLE_NONE;
     } else {
         conn_handle = conn->bhc_handle;
     }
