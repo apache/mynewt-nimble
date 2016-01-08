@@ -97,6 +97,14 @@ struct ble_gattc_entry {
         } read;
 
         struct {
+            uint16_t prev_handle;
+            uint16_t end_handle;
+            uint8_t uuid128[16];
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
+        } read_uuid;
+
+        struct {
             struct ble_gatt_attr attr;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
@@ -122,10 +130,11 @@ struct ble_gattc_entry {
 #define BLE_GATT_OP_DISC_CHRS_UUID              5
 #define BLE_GATT_OP_DISC_ALL_DSCS               6
 #define BLE_GATT_OP_READ                        7
-#define BLE_GATT_OP_WRITE_NO_RSP                8
-#define BLE_GATT_OP_WRITE                       9
-#define BLE_GATT_OP_INDICATE                    10
-#define BLE_GATT_OP_MAX                         11
+#define BLE_GATT_OP_READ_UUID                   8
+#define BLE_GATT_OP_WRITE_NO_RSP                9
+#define BLE_GATT_OP_WRITE                       10
+#define BLE_GATT_OP_INDICATE                    11
+#define BLE_GATT_OP_MAX                         12
 
 static struct os_callout_func ble_gattc_heartbeat_timer;
 
@@ -140,6 +149,7 @@ static int ble_gattc_kick_disc_all_chrs(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_disc_chr_uuid(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_disc_all_dscs(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_read(struct ble_gattc_entry *entry);
+static int ble_gattc_kick_read_uuid(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_write_no_rsp(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_write(struct ble_gattc_entry *entry);
 static int ble_gattc_kick_indicate(struct ble_gattc_entry *entry);
@@ -158,34 +168,46 @@ static void ble_gattc_err_disc_chr_uuid(struct ble_gattc_entry *entry,
 static void ble_gattc_err_disc_all_dscs(struct ble_gattc_entry *entry,
                                         int status);
 static void ble_gattc_err_read(struct ble_gattc_entry *entry, int status);
+static void ble_gattc_err_read_uuid(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_write(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_err_indicate(struct ble_gattc_entry *entry, int status);
 
-static int ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
-                                            struct ble_hs_conn *conn,
-                                            struct ble_att_read_type_adata *adata);
+static int
+ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
+                                 struct ble_hs_conn *conn,
+                                 struct ble_att_read_type_adata *adata);
 static int ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status);
-static int ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_entry *entry,
-                                            struct ble_hs_conn *conn,
-                                            struct ble_att_read_type_adata *adata);
+static int ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_entry *entry,
+                                               struct ble_hs_conn *conn,
+                                               int status,
+                                               void *value, int value_len);
+static int
+ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_entry *entry,
+                                 struct ble_hs_conn *conn,
+                                 struct ble_att_read_type_adata *adata);
 static int ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status);
-static int ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_entry *entry,
-                                            struct ble_hs_conn *conn,
-                                            struct ble_att_read_type_adata *adata);
+static int
+ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_entry *entry,
+                                 struct ble_hs_conn *conn,
+                                 struct ble_att_read_type_adata *adata);
 static int ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status);
 static int ble_gattc_read_rx_read_rsp(struct ble_gattc_entry *entry,
                                       struct ble_hs_conn *conn, int status,
                                       void *value, int value_len);
-static int ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_entry *entry,
-                                               struct ble_hs_conn *conn,
-                                               int status,
-                                               void *value, int value_len);
+static int
+ble_gattc_read_uuid_rx_adata(struct ble_gattc_entry *entry,
+                             struct ble_hs_conn *conn,
+                             struct ble_att_read_type_adata *adata);
+static int ble_gattc_read_uuid_rx_complete(struct ble_gattc_entry *entry,
+                                           struct ble_hs_conn *conn,
+                                           int status);
+
 struct ble_gattc_dispatch_entry {
     ble_gattc_kick_fn *kick_cb;
     ble_gattc_err_fn *err_cb;
@@ -225,6 +247,10 @@ static const struct ble_gattc_dispatch_entry
     [BLE_GATT_OP_READ] = {
         .kick_cb = ble_gattc_kick_read,
         .err_cb = ble_gattc_err_read,
+    },
+    [BLE_GATT_OP_READ_UUID] = {
+        .kick_cb = ble_gattc_kick_read_uuid,
+        .err_cb = ble_gattc_err_read_uuid,
     },
     [BLE_GATT_OP_WRITE_NO_RSP] = {
         .kick_cb = ble_gattc_kick_write_no_rsp,
@@ -267,17 +293,19 @@ struct ble_gattc_rx_attr_entry {
 static const struct ble_gattc_rx_adata_entry
     ble_gattc_rx_read_type_elem_entries[] = {
 
-    { BLE_GATT_OP_FIND_INC_SVCS, ble_gattc_find_inc_svcs_rx_adata },
-    { BLE_GATT_OP_DISC_ALL_CHRS, ble_gattc_disc_all_chrs_rx_adata },
-    { BLE_GATT_OP_DISC_CHRS_UUID, ble_gattc_disc_chr_uuid_rx_adata },
+    { BLE_GATT_OP_FIND_INC_SVCS,    ble_gattc_find_inc_svcs_rx_adata },
+    { BLE_GATT_OP_DISC_ALL_CHRS,    ble_gattc_disc_all_chrs_rx_adata },
+    { BLE_GATT_OP_DISC_CHRS_UUID,   ble_gattc_disc_chr_uuid_rx_adata },
+    { BLE_GATT_OP_READ_UUID,        ble_gattc_read_uuid_rx_adata },
 };
 
 static const struct ble_gattc_rx_complete_entry
     ble_gattc_rx_read_type_complete_entries[] = {
 
-    { BLE_GATT_OP_FIND_INC_SVCS, ble_gattc_find_inc_svcs_rx_complete },
-    { BLE_GATT_OP_DISC_ALL_CHRS, ble_gattc_disc_all_chrs_rx_complete },
-    { BLE_GATT_OP_DISC_CHRS_UUID, ble_gattc_disc_chr_uuid_rx_complete },
+    { BLE_GATT_OP_FIND_INC_SVCS,    ble_gattc_find_inc_svcs_rx_complete },
+    { BLE_GATT_OP_DISC_ALL_CHRS,    ble_gattc_disc_all_chrs_rx_complete },
+    { BLE_GATT_OP_DISC_CHRS_UUID,   ble_gattc_disc_chr_uuid_rx_complete },
+    { BLE_GATT_OP_READ_UUID,        ble_gattc_read_uuid_rx_complete },
 };
 
 static const struct ble_gattc_rx_attr_entry ble_gattc_rx_read_rsp_entries[] = {
@@ -919,7 +947,7 @@ ble_gattc_find_inc_svcs_cb(struct ble_gattc_entry *entry, int status,
         rc = 0;
     } else {
         rc = entry->find_inc_svcs.cb(entry->conn_handle, status, service,
-                                    entry->find_inc_svcs.cb_arg);
+                                     entry->find_inc_svcs.cb_arg);
     }
 
     return rc;
@@ -1629,6 +1657,128 @@ ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
     entry->read.handle = attr_handle;
     entry->read.cb = cb;
     entry->read.cb_arg = cb_arg;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $read                                                                     *
+ *****************************************************************************/
+
+static int
+ble_gattc_read_uuid_cb(struct ble_gattc_entry *entry, int status,
+                       struct ble_gatt_attr *attr)
+{
+    int rc;
+
+    if (entry->read_uuid.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = entry->read_uuid.cb(entry->conn_handle, status, attr,
+                                 entry->read_uuid.cb_arg);
+    }
+
+    return rc;
+}
+
+static int
+ble_gattc_kick_read_uuid(struct ble_gattc_entry *entry)
+{
+    struct ble_att_read_type_req req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    req.batq_start_handle = entry->read_uuid.prev_handle + 1;
+    req.batq_end_handle = entry->read_uuid.end_handle;
+    rc = ble_att_clt_tx_read_type(conn, &req, entry->read_uuid.uuid128);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (ble_gattc_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ble_gattc_read_uuid_cb(entry, rc, NULL);
+    return rc;
+}
+
+static void
+ble_gattc_err_read_uuid(struct ble_gattc_entry *entry, int status)
+{
+    if (status == BLE_HS_ATT_ERR(BLE_ATT_ERR_ATTR_NOT_FOUND)) {
+        /* Read is complete. */
+        status = 0;
+    }
+    ble_gattc_read_uuid_cb(entry, status, NULL);
+}
+
+static int
+ble_gattc_read_uuid_rx_adata(struct ble_gattc_entry *entry,
+                             struct ble_hs_conn *conn,
+                             struct ble_att_read_type_adata *adata)
+{
+    struct ble_gatt_attr attr;
+    int rc;
+
+    attr.handle = adata->att_handle;
+    attr.value_len = adata->value_len;
+    attr.value = adata->value;
+
+    rc = ble_gattc_read_uuid_cb(entry, 0, &attr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    entry->read_uuid.prev_handle = adata->att_handle;
+
+    return 0;
+}
+
+static int
+ble_gattc_read_uuid_rx_complete(struct ble_gattc_entry *entry,
+                                struct ble_hs_conn *conn,
+                                int status)
+{
+    if (status != 0 ||
+        entry->read_uuid.prev_handle == entry->read_uuid.end_handle) {
+
+        /* Error or entire range read. */
+        ble_gattc_read_uuid_cb(entry, status, NULL);
+        return 1;
+    } else {
+        /* Send follow-up request. */
+        ble_gattc_entry_set_pending(entry);
+        return 0;
+    }
+}
+
+int
+ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
+                    uint16_t end_handle, void *uuid128,
+                    ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct ble_gattc_entry *entry;
+    int rc;
+
+    rc = ble_gattc_new_entry(conn_handle, BLE_GATT_OP_READ_UUID, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->read_uuid.prev_handle = start_handle - 1;
+    entry->read_uuid.end_handle = end_handle;
+    memcpy(entry->read_uuid.uuid128, uuid128, 16);
+    entry->read_uuid.cb = cb;
+    entry->read_uuid.cb_arg = cb_arg;
 
     return 0;
 }
