@@ -63,8 +63,7 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
     int i;
 
     /* Send the pending ATT Read By Type Request. */
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     if (chars[0].uuid16 != 0) {
        rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ +
@@ -135,7 +134,7 @@ ble_gatt_disc_c_test_misc_rx_rsp(struct ble_hs_conn *conn,
 
     if (chars[idx - 1].decl_handle != end_handle) {
         /* Send the pending ATT Request. */
-        ble_gattc_wakeup();
+        ble_hs_test_util_tx_all();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         chars[idx - 1].decl_handle);

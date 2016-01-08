@@ -146,7 +146,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Start the procedures. */
-    ble_gattc_wakeup();
+    ble_hs_test_util_tx_all();
 
     /* Break the connections; verify callbacks got called. */
     ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE);
@@ -181,15 +181,13 @@ TEST_CASE(ble_gatt_conn_test_congestion)
     rc = ble_gattc_write(1, 0x1234, ble_gatt_conn_test_write_value,
                         sizeof ble_gatt_conn_test_write_value, NULL, NULL);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     /* Ensure only one packet got sent. */
     TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
 
     /* Additional wakeups should not trigger the second send. */
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
     TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
 
     /* Receive a num-packets-completed event. */
@@ -202,8 +200,7 @@ TEST_CASE(ble_gatt_conn_test_congestion)
     TEST_ASSERT(conn->bhc_outstanding_pkts == 0);
 
     /* Now the second write should get sent. */
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
     TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
 }
 

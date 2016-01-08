@@ -184,8 +184,7 @@ ble_gatts_notify_test_misc_verify_tx_n(struct ble_l2cap_chan *chan,
     int rc;
     int i;
 
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     req_len = OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx);
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, req_len, buf);
@@ -209,8 +208,7 @@ ble_gatts_notify_test_misc_verify_tx_i(struct ble_l2cap_chan *chan,
     int rc;
     int i;
 
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     req_len = OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx);
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, req_len, buf);

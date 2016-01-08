@@ -153,8 +153,7 @@ ble_gatt_find_s_test_misc_verify_tx_read_type(uint16_t start_handle,
     uint16_t uuid16;
     int rc;
 
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
 
@@ -179,8 +178,7 @@ ble_gatt_find_s_test_misc_verify_tx_read(uint16_t handle)
     struct os_mbuf *om;
     int rc;
 
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
 

@@ -283,7 +283,7 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
@@ -307,7 +307,7 @@ ble_att_svr_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
     int rc;
     int i;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
@@ -332,7 +332,7 @@ ble_att_svr_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
     uint8_t u8;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
@@ -350,7 +350,7 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
     uint8_t buf[BLE_ATT_MTU_CMD_SZ];
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
@@ -385,7 +385,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
     int off;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     off = 0;
 
@@ -447,7 +447,7 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
     int off;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     off = 0;
 
@@ -499,7 +499,7 @@ ble_att_svr_test_misc_verify_tx_read_group_type_rsp(
     int off;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
                         BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
@@ -568,7 +568,7 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
     int off;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
                         BLE_ATT_READ_TYPE_RSP_BASE_SZ);
@@ -608,7 +608,7 @@ ble_att_svr_test_misc_verify_tx_prep_write_rsp(struct ble_l2cap_chan *chan,
     uint8_t buf[1024];
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0,
                           OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx), buf);
@@ -632,7 +632,7 @@ ble_att_svr_test_misc_verify_tx_exec_write_rsp(struct ble_l2cap_chan *chan)
     struct os_mbuf *om;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_EXEC_WRITE_RSP_SZ);
     TEST_ASSERT_FATAL(om != NULL);
@@ -807,7 +807,7 @@ ble_att_svr_test_misc_verify_tx_indicate_rsp(struct ble_l2cap_chan *chan)
     struct os_mbuf *om;
     int rc;
 
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_INDICATE_RSP_SZ);
     TEST_ASSERT_FATAL(om != NULL);

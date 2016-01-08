@@ -83,8 +83,7 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     /* No response expected; verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
@@ -105,8 +104,7 @@ TEST_CASE(ble_gatt_write_test_rsp)
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
-    ble_gattc_wakeup();
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
 
     /* Response not received yet; verify callback not called. */
     TEST_ASSERT(!ble_gatt_write_test_cb_called);

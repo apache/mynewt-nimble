@@ -68,7 +68,7 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
     int i;
 
     /* Send the pending ATT Read By Group Type Request. */
-    ble_gattc_wakeup();
+    ble_hs_test_util_tx_all();
 
     rsp.bagp_length = ble_gatt_disc_s_test_misc_svc_length(services);
     rc = ble_att_read_group_type_rsp_write(
@@ -128,7 +128,7 @@ ble_gatt_disc_s_test_misc_rx_all_rsp(
 
     if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
-        ble_gattc_wakeup();
+        ble_hs_test_util_tx_all();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_GROUP_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         services[idx - 1].start_handle);
@@ -146,7 +146,7 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
     int i;
 
     /* Send the pending ATT Find By Type Value Request. */
-    ble_gattc_wakeup();
+    ble_hs_test_util_tx_all();
 
     buf[0] = BLE_ATT_OP_FIND_TYPE_VALUE_RSP;
     off = BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
@@ -188,7 +188,7 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp(
 
     if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
-        ble_gattc_wakeup();
+        ble_hs_test_util_tx_all();
         ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         services[idx - 1].start_handle);

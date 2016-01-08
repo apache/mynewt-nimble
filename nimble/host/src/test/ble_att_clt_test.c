@@ -193,7 +193,7 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
     req.bawq_handle = 0x1234;
     ble_att_clt_test_tx_write_req_or_cmd(conn, &req, value5, sizeof value5,
                                          is_req);
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0x1234, value5, sizeof value5,
                                           is_req);
 
@@ -201,7 +201,7 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
     req.bawq_handle = 0xab83;
     ble_att_clt_test_tx_write_req_or_cmd(conn, &req, value300, sizeof value300,
                                          is_req);
-    ble_hs_process_tx_data_queue();
+    ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0xab83, value300,
                                           BLE_ATT_MTU_DFLT - 3, is_req);
 }
