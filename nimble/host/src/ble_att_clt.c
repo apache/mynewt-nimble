@@ -287,7 +287,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             goto done;
         }
 
-        ble_gattc_rx_find_info_entry(conn, &idata);
+        ble_gattc_rx_find_info_idata(conn, &idata);
     }
 
     rc = 0;
@@ -678,7 +678,7 @@ ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
             goto done;
         }
 
-        ble_gattc_rx_read_group_type_entry(conn, &adata);
+        ble_gattc_rx_read_group_type_adata(conn, &adata);
         os_mbuf_adj(*rxom, rsp.bagp_length);
     }
 
