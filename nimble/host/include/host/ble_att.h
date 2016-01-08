@@ -67,7 +67,8 @@
 
 struct ble_att_svr_access_ctxt {
     void *attr_data;
-    int attr_len;
+    uint16_t data_len;
+    uint16_t offset;
 };
 
 #define HA_FLAG_PERM_READ                   (1 << 0)

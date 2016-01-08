@@ -65,7 +65,7 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     svc = arg;
     ctxt->attr_data = svc->uuid128;
-    ctxt->attr_len = 16;
+    ctxt->data_len = 16;
 
     return 0;
 }
@@ -91,9 +91,9 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
     uuid16 = ble_uuid_128_to_16(entry->svc->uuid128);
     if (uuid16 != 0) {
         htole16(buf + 4, uuid16);
-        ctxt->attr_len = 6;
+        ctxt->data_len = 6;
     } else {
-        ctxt->attr_len = 4;
+        ctxt->data_len = 4;
     }
     ctxt->attr_data = buf;
 
@@ -158,10 +158,10 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
     uuid16 = ble_uuid_128_to_16(chr->uuid128);
     if (uuid16 != 0) {
         htole16(buf + 3, uuid16);
-        ctxt->attr_len = 5;
+        ctxt->data_len = 5;
     } else {
         memcpy(buf + 3, chr->uuid128, 16);
-        ctxt->attr_len = 19;
+        ctxt->data_len = 19;
     }
     ctxt->attr_data = buf;
 
@@ -216,7 +216,7 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     gatt_op = ble_gatts_chr_op(att_op);
     gatt_ctxt.chr_access.chr = chr;
     gatt_ctxt.chr_access.data = att_ctxt->attr_data;
-    gatt_ctxt.chr_access.len = att_ctxt->attr_len;
+    gatt_ctxt.chr_access.len = att_ctxt->data_len;
 
     rc = chr->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
                         chr->arg);
@@ -225,7 +225,7 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     att_ctxt->attr_data = gatt_ctxt.chr_access.data;
-    att_ctxt->attr_len = gatt_ctxt.chr_access.len;
+    att_ctxt->data_len = gatt_ctxt.chr_access.len;
 
     return 0;
 }
@@ -370,11 +370,11 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     case BLE_ATT_ACCESS_OP_READ:
         htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
         ctxt->attr_data = buf;
-        ctxt->attr_len = sizeof buf;
+        ctxt->data_len = sizeof buf;
         break;
 
     case BLE_ATT_ACCESS_OP_WRITE:
-        if (ctxt->attr_len != 2) {
+        if (ctxt->data_len != 2) {
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
 
@@ -426,7 +426,7 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
     gatt_op = ble_gatts_dsc_op(att_op);
     gatt_ctxt.dsc_access.dsc = dsc;
     gatt_ctxt.dsc_access.data = att_ctxt->attr_data;
-    gatt_ctxt.dsc_access.len = att_ctxt->attr_len;
+    gatt_ctxt.dsc_access.len = att_ctxt->data_len;
 
     rc = dsc->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
                         dsc->arg);
@@ -435,7 +435,7 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     att_ctxt->attr_data = gatt_ctxt.dsc_access.data;
-    att_ctxt->attr_len = gatt_ctxt.dsc_access.len;
+    att_ctxt->data_len = gatt_ctxt.dsc_access.len;
 
     return 0;
 }

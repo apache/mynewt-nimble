@@ -1965,7 +1965,7 @@ ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle)
     }
 
     req.banq_handle = chr_val_handle;
-    rc = ble_att_clt_tx_notify(conn, &req, ctxt.attr_data, ctxt.attr_len);
+    rc = ble_att_clt_tx_notify(conn, &req, ctxt.attr_data, ctxt.data_len);
     if (rc != 0) {
         return rc;
     }
@@ -2012,7 +2012,7 @@ ble_gattc_indicate_kick(struct ble_gattc_entry *entry)
         goto err;
     }
     entry->indicate.attr.value = ctxt.attr_data;
-    entry->indicate.attr.value_len = ctxt.attr_len;
+    entry->indicate.attr.value_len = ctxt.data_len;
 
     req.baiq_handle = entry->indicate.attr.handle;
     rc = ble_att_clt_tx_indicate(conn, &req, entry->indicate.attr.value,
