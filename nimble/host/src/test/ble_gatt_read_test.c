@@ -39,12 +39,19 @@ struct ble_gatt_read_test_attr {
 struct ble_gatt_read_test_attr
     ble_gatt_read_test_attrs[BLE_GATT_READ_TEST_MAX_ATTRS];
 int ble_gatt_read_test_num_attrs;
+int ble_gatt_read_test_complete;
+
+uint16_t ble_gatt_read_test_bad_conn_handle;
+int ble_gatt_read_test_bad_status;
 
 static void
 ble_gatt_read_test_misc_init(void)
 {
     ble_hs_test_util_init();
     ble_gatt_read_test_num_attrs = 0;
+    ble_gatt_read_test_complete = 0;
+    ble_gatt_read_test_bad_conn_handle = 0;
+    ble_gatt_read_test_bad_status = 0;
 }
 
 static int
@@ -52,6 +59,16 @@ ble_gatt_read_test_cb(uint16_t conn_handle, int status,
                       struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_read_test_attr *dst;
+    int *stop_after;
+
+    stop_after = arg;
+
+    if (attr == NULL) {
+        ble_gatt_read_test_bad_conn_handle = conn_handle;
+        ble_gatt_read_test_bad_status = status;
+        ble_gatt_read_test_complete = 1;
+        return 0;
+    }
 
     TEST_ASSERT_FATAL(ble_gatt_read_test_num_attrs <
                       BLE_GATT_READ_TEST_MAX_ATTRS);
@@ -67,6 +84,14 @@ ble_gatt_read_test_cb(uint16_t conn_handle, int status,
         dst->handle = attr->handle;
         dst->value_len = attr->value_len;
         memcpy(dst->value, attr->value, attr->value_len);
+    }
+
+    if (stop_after != NULL && *stop_after > 0) {
+        (*stop_after)--;
+        if (*stop_after == 0) {
+            ble_gatt_read_test_complete = 1;
+            return 1;
+        }
     }
 
     return 0;
@@ -106,6 +131,53 @@ ble_gatt_read_test_misc_rx_rsp_bad(struct ble_hs_conn *conn,
 
     ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_REQ, att_error,
                                     attr->handle);
+}
+
+static int
+ble_gatt_read_test_misc_uuid_rx_rsp_good(struct ble_hs_conn *conn,
+                                         struct ble_gatt_attr *attrs)
+{
+    struct ble_att_read_type_rsp rsp;
+    struct ble_l2cap_chan *chan;
+    uint8_t buf[1024];
+    int prev_len;
+    int off;
+    int rc;
+    int i;
+
+    if (ble_gatt_read_test_complete || attrs[0].handle == 0) {
+        return 0;
+    }
+
+    /* Send the pending ATT Read By Type Request. */
+    ble_hs_test_util_tx_all();
+
+    rsp.batp_length = 2 + attrs[0].value_len;
+    rc = ble_att_read_type_rsp_write(buf, sizeof buf, &rsp);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    prev_len = 0;
+    off = BLE_ATT_READ_TYPE_RSP_BASE_SZ;
+    for (i = 0; attrs[i].handle != 0; i++) {
+        if (prev_len != 0 && prev_len != attrs[i].value_len) {
+            break;
+        }
+        prev_len = attrs[i].value_len;
+
+        htole16(buf + off, attrs[i].handle);
+        off += 2;
+
+        memcpy(buf + off, attrs[i].value, attrs[i].value_len);
+        off += attrs[i].value_len;
+    }
+
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    TEST_ASSERT(rc == 0);
+
+    return i;
 }
 
 static void
@@ -148,37 +220,62 @@ ble_gatt_read_test_misc_verify_bad(uint8_t att_status,
 
     ble_gatt_read_test_misc_rx_rsp_bad(conn, attr, att_status);
 
-    TEST_ASSERT(ble_gatt_read_test_num_attrs == 1);
-    TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == conn->bhc_handle);
-    TEST_ASSERT(ble_gatt_read_test_attrs[0].status ==
+    TEST_ASSERT(ble_gatt_read_test_num_attrs == 0);
+    TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == conn->bhc_handle);
+    TEST_ASSERT(ble_gatt_read_test_bad_status ==
                 BLE_HS_ERR_ATT_BASE + att_status);
 }
 
-#if 0
 static void
-ble_gatt_read_test_misc_uuid_verify_good(struct ble_hs_conn *conn,
+ble_gatt_read_test_misc_uuid_verify_good(uint16_t start_handle,
+                                         uint16_t end_handle, void *uuid128,
+                                         int stop_after,
                                          struct ble_gatt_attr *attrs)
 {
+    struct ble_hs_conn *conn;
+    int num_read;
+    int idx;
     int rc;
+    int i;
 
-    rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
-                        NULL);
+    ble_gatt_read_test_misc_init();
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    rc = ble_gattc_read_uuid(conn->bhc_handle, start_handle, end_handle,
+                             uuid128, ble_gatt_read_test_cb, &stop_after);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_good(conn, attr);
+    idx = 0;
+    while (1) {
+        num_read = ble_gatt_read_test_misc_uuid_rx_rsp_good(conn, attrs + idx);
+        if (num_read == 0) {
+            ble_hs_test_util_tx_all();
+            ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
+                                            BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                            start_handle);
+            break;
+        }
 
-    TEST_ASSERT(ble_gatt_read_test_conn_handle == conn->bhc_handle);
-    TEST_ASSERT(ble_gatt_read_test_status == 0);
-    TEST_ASSERT(ble_gatt_read_test_attr.handle == attr->handle);
-    TEST_ASSERT(ble_gatt_read_test_attr.value_len == attr->value_len);
-    TEST_ASSERT(memcmp(ble_gatt_read_test_attr_val, attr->value,
-                       attr->value_len) == 0);
+        idx += num_read;
+    }
+
+    TEST_ASSERT(ble_gatt_read_test_complete);
+    TEST_ASSERT(idx == ble_gatt_read_test_num_attrs);
+
+    for (i = 0; i < idx; i++) {
+        TEST_ASSERT(ble_gatt_read_test_attrs[i].conn_handle ==
+                    conn->bhc_handle);
+        TEST_ASSERT(ble_gatt_read_test_attrs[i].status == 0);
+        TEST_ASSERT(ble_gatt_read_test_attrs[i].handle == attrs[i].handle);
+        TEST_ASSERT(ble_gatt_read_test_attrs[i].value_len ==
+                    attrs[i].value_len);
+        TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[i].value, attrs[i].value,
+                           attrs[i].value_len) == 0);
+    }
 }
-#endif
 
 TEST_CASE(ble_gatt_read_test_by_handle)
 {
-
     /* Read a seven-byte attribute. */
     ble_gatt_read_test_misc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 43,
@@ -217,9 +314,77 @@ TEST_CASE(ble_gatt_read_test_by_handle)
         } });
 }
 
+TEST_CASE(ble_gatt_read_test_by_uuid)
+{
+    /* Read a single seven-byte attribute. */
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 0,
+        (struct ble_gatt_attr[]) { {
+            .handle = 43,
+            .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
+            .value_len = 7
+        }, {
+            0,
+        } });
+
+    /* Read two seven-byte attributes; one response. */
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 0,
+        (struct ble_gatt_attr[]) { {
+            .handle = 43,
+            .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
+            .value_len = 7
+        }, {
+            .handle = 44,
+            .value = (uint8_t[]){ 2,3,4,5,6,7,8 },
+            .value_len = 7
+        }, {
+            0,
+        } });
+
+    /* Read two attributes; two responses. */
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 0,
+        (struct ble_gatt_attr[]) { {
+            .handle = 43,
+            .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
+            .value_len = 7
+        }, {
+            .handle = 44,
+            .value = (uint8_t[]){ 2,3,4 },
+            .value_len = 3
+        }, {
+            0,
+        } });
+
+    /* Stop after three reads. */
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 3,
+        (struct ble_gatt_attr[]) { {
+            .handle = 43,
+            .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
+            .value_len = 7
+        }, {
+            .handle = 44,
+            .value = (uint8_t[]){ 2,3,4 },
+            .value_len = 3
+        }, {
+            .handle = 45,
+            .value = (uint8_t[]){ 2,3,4 },
+            .value_len = 3
+        }, {
+            .handle = 46,
+            .value = (uint8_t[]){ 3,4,5,6 },
+            .value_len = 4
+        }, {
+            .handle = 47,
+            .value = (uint8_t[]){ 2,3,4 },
+            .value_len = 3
+        }, {
+            0,
+        } });
+}
+
 TEST_SUITE(ble_gatt_read_test_suite)
 {
     ble_gatt_read_test_by_handle();
+    ble_gatt_read_test_by_uuid();
 }
 
 int
