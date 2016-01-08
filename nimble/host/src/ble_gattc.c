@@ -750,6 +750,12 @@ ble_gattc_rx_read_group_type_entry(struct ble_hs_conn *conn,
         goto done;
     }
 
+    if (adata->end_group_handle <= entry->disc_all_svcs.prev_handle) {
+        /* Peer sent services out of order; terminate procedure. */
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
     entry->disc_all_svcs.prev_handle = adata->end_group_handle;
 
     service.start_handle = adata->att_handle;
@@ -878,6 +884,7 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
     struct ble_gatt_service service;
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
+    int cbrc;
     int rc;
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
@@ -887,14 +894,23 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
         return;
     }
 
+    if (hinfo->group_end_handle <= entry->disc_svc_uuid.prev_handle) {
+        /* Peer sent services out of order; terminate procedure. */
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
     entry->disc_svc_uuid.prev_handle = hinfo->group_end_handle;
 
     service.start_handle = hinfo->attr_handle;
     service.end_handle = hinfo->group_end_handle;
     memcpy(service.uuid128, entry->disc_svc_uuid.service_uuid, 16);
 
-    rc = ble_gattc_disc_svc_uuid_cb(entry, 0, &service);
-    if (rc != 0) {
+    rc = 0;
+
+done:
+    cbrc = ble_gattc_disc_svc_uuid_cb(entry, rc, &service);
+    if (rc != 0 || cbrc != 0) {
         ble_gattc_entry_remove_free(entry, prev);
     }
 }
@@ -1025,11 +1041,12 @@ ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_entry *entry,
                                     void *value, int value_len)
 {
     struct ble_gatt_service service;
+    int cbrc;
     int rc;
 
     if (entry->find_inc_svcs.cur_start == 0) {
         /* Unexpected read response; terminate procedure. */
-        rc = BLE_HS_EBADDATA; // XXX
+        rc = BLE_HS_EBADDATA;
         goto done;
     }
 
@@ -1041,6 +1058,7 @@ ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_entry *entry,
     if (value_len != 16) {
         /* Invalid UUID. */
         rc = BLE_HS_EBADDATA;
+        goto done;
     }
 
     service.start_handle = entry->find_inc_svcs.cur_start;
@@ -1055,7 +1073,10 @@ ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_entry *entry,
     rc = 0;
 
 done:
-    ble_gattc_find_inc_svcs_cb(entry, rc, &service);
+    cbrc = ble_gattc_find_inc_svcs_cb(entry, rc, &service);
+    if (rc == 0) {
+        rc = cbrc;
+    }
     return rc;
 }
 
@@ -1066,6 +1087,8 @@ ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
 {
     struct ble_gatt_service service;
     uint16_t uuid16;
+    int call_cb;
+    int cbrc;
     int rc;
 
     if (entry->find_inc_svcs.cur_start != 0) {
@@ -1075,12 +1098,21 @@ ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
         return 0;
     }
 
+    call_cb = 1;
+
+    if (adata->att_handle <= entry->find_inc_svcs.prev_handle) {
+        /* Peer sent services out of order; terminate procedure. */
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
     entry->find_inc_svcs.prev_handle = adata->att_handle;
 
     switch (adata->value_len) {
     case BLE_GATTS_INC_SVC_LEN_NO_UUID:
         entry->find_inc_svcs.cur_start = le16toh(adata->value + 0);
         entry->find_inc_svcs.cur_end = le16toh(adata->value + 2);
+        call_cb = 0;
         break;
 
     case BLE_GATTS_INC_SVC_LEN_UUID:
@@ -1089,20 +1121,27 @@ ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_entry *entry,
         uuid16 = le16toh(adata->value + 4);
         rc = ble_uuid_16_to_128(uuid16, service.uuid128);
         if (rc != 0) {
-            return BLE_HS_EBADDATA;
+            rc = BLE_HS_EBADDATA;
+            goto done;
         }
 
-        rc = ble_gattc_find_inc_svcs_cb(entry, 0, &service);
-        if (rc != 0) {
-            return rc;
-        }
         break;
 
     default:
         return BLE_HS_EBADDATA;
     }
 
-    return 0;
+    rc = 0;
+
+done:
+    if (call_cb) {
+        cbrc = ble_gattc_find_inc_svcs_cb(entry, 0, &service);
+        if (rc != 0) {
+            rc = cbrc;
+        }
+    }
+
+    return rc;
 }
 
 static int
@@ -1239,10 +1278,15 @@ ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_entry *entry,
         goto done;
     }
 
-    entry->disc_all_chrs.prev_handle = adata->att_handle;
-
     chr.properties = adata->value[0];
     chr.value_handle = le16toh(adata->value + 1);
+
+    if (adata->att_handle <= entry->disc_all_chrs.prev_handle) {
+        /* Peer sent characteristics out of order; terminate procedure. */
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+    entry->disc_all_chrs.prev_handle = adata->att_handle;
 
     rc = 0;
 
@@ -1390,15 +1434,23 @@ ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_entry *entry,
         goto done;
     }
 
-    entry->disc_chr_uuid.prev_handle = adata->att_handle;
-
     chr.properties = adata->value[0];
     chr.value_handle = le16toh(adata->value + 1);
+
+    if (adata->att_handle <= entry->disc_chr_uuid.prev_handle) {
+        /* Peer sent characteristics out of order; terminate procedure. */
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    entry->disc_chr_uuid.prev_handle = adata->att_handle;
 
     rc = 0;
 
 done:
-    if (memcmp(chr.uuid128, entry->disc_chr_uuid.chr_uuid, 16) == 0) {
+    if (rc != 0 ||
+        memcmp(chr.uuid128, entry->disc_chr_uuid.chr_uuid, 16) == 0) {
+
         cbrc = ble_gattc_disc_chr_uuid_cb(entry, rc, &chr);
         if (rc == 0) {
             rc = cbrc;
@@ -1516,6 +1568,7 @@ ble_gattc_rx_find_info_entry(struct ble_hs_conn *conn,
 {
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
+    int cbrc;
     int rc;
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
@@ -1525,12 +1578,23 @@ ble_gattc_rx_find_info_entry(struct ble_hs_conn *conn,
         return;
     }
 
-    rc = ble_gattc_disc_all_dscs_cb(entry, 0, idata->attr_handle,
-                                    idata->uuid128);
+    if (idata->attr_handle <= entry->disc_all_dscs.prev_handle) {
+        /* Peer sent descriptors out of order; terminate procedure. */
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+    entry->disc_all_dscs.prev_handle = idata->attr_handle;
+
+    rc = 0;
+
+done:
+    cbrc = ble_gattc_disc_all_dscs_cb(entry, 0, idata->attr_handle,
+                                      idata->uuid128);
+    if (rc == 0) {
+        rc = cbrc;
+    }
     if (rc != 0) {
         ble_gattc_entry_remove_free(entry, prev);
-    } else {
-        entry->disc_all_dscs.prev_handle = idata->attr_handle;
     }
 }
 
