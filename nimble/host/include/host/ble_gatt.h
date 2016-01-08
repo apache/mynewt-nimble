@@ -52,9 +52,12 @@ typedef int ble_gatt_attr_fn(uint16_t conn_handle, int status,
 typedef int ble_gatt_chr_fn(uint16_t conn_handle, int status,
                             struct ble_gatt_chr *chr, void *arg);
 
+typedef int ble_gatt_dsc_fn(uint16_t conn_handle, int status,
+                            uint16_t chr_val_handle, uint16_t dsc_handle,
+                            uint8_t *dsc_uuid128, void *arg);
+
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
-                                ble_gatt_disc_svc_fn *cb,
-                                void *cb_arg);
+                            ble_gatt_disc_svc_fn *cb, void *cb_arg);
 int ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
                                ble_gatt_disc_svc_fn *cb, void *cb_arg);
 int ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
@@ -66,6 +69,9 @@ int ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
 int ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                                uint16_t end_handle, void *uuid128,
                                ble_gatt_chr_fn *cb, void *cb_arg);
+int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
+                            uint16_t chr_end_handle,
+                            ble_gatt_dsc_fn *cb, void *cb_arg);
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,

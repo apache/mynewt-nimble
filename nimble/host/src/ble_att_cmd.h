@@ -75,6 +75,9 @@ struct ble_att_find_info_rsp {
 #define BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT   1
 #define BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT  2
 
+#define BLE_ATT_FIND_INFO_IDATA_16_SZ           4
+#define BLE_ATT_FIND_INFO_IDATA_128_SZ          18
+
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+

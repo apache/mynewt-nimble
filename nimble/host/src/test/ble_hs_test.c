@@ -58,6 +58,7 @@ main(void)
     ble_uuid_test_all();
     ble_gatt_disc_s_test_all();
     ble_gatt_disc_c_test_all();
+    ble_gatt_disc_d_test_all();
     ble_gatt_read_test_all();
     ble_gatt_write_test_all();
     ble_gatt_conn_test_all();

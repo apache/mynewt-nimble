@@ -329,6 +329,13 @@ ble_hs_test_util_rx_dir_adv_acks(void)
 }
 
 void
+ble_hs_test_util_tx_all(void)
+{
+    ble_gattc_wakeup();
+    ble_hs_process_tx_data_queue();
+}
+
+void
 ble_hs_test_util_init(void)
 {
     int rc;

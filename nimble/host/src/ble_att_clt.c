@@ -212,7 +212,8 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     while (off < OS_MBUF_PKTLEN(rxom)) {
         rc = os_mbuf_copydata(rxom, off, 2, &handle_id);
         if (rc != 0) {
-            return BLE_HS_EINVAL;
+            rc = BLE_HS_EBADDATA;
+            goto done;
         }
         off += 2;
         handle_id = le16toh(&handle_id);
@@ -221,33 +222,41 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
             rc = os_mbuf_copydata(rxom, off, 2, &uuid16);
             if (rc != 0) {
-                return BLE_HS_EINVAL;
+                rc = BLE_HS_EBADDATA;
+                goto done;
             }
             off += 2;
             uuid16 = le16toh(&uuid16);
 
             rc = ble_uuid_16_to_128(uuid16, uuid128);
             if (rc != 0) {
-                return BLE_HS_EINVAL;
+                rc = BLE_HS_EBADDATA;
+                goto done;
             }
             break;
 
         case BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT:
             rc = os_mbuf_copydata(rxom, off, 16, &uuid128);
             if (rc != 0) {
-                rc = BLE_HS_EINVAL;
+                rc = BLE_HS_EBADDATA;
+                goto done;
             }
             off += 16;
             break;
 
         default:
-            return BLE_HS_EINVAL;
+            rc = BLE_HS_EBADDATA;
+            goto done;
         }
 
-        /* XXX: Notify GATT of handle-uuid pair. */
+        ble_gattc_rx_find_info_entry(conn, 0, handle_id, uuid128);
     }
 
-    return 0;
+    rc = 0;
+
+done:
+    ble_gattc_rx_find_info_complete(conn, rc);
+    return rc;
 }
 
 int

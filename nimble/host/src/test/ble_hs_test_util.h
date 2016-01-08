@@ -55,6 +55,7 @@ void ble_hs_test_util_rx_num_completed_pkts_event(
 void ble_hs_test_util_rx_und_adv_acks(void);
 void ble_hs_test_util_rx_und_adv_acks_count(int count);
 void ble_hs_test_util_rx_dir_adv_acks(void);
+void ble_hs_test_util_tx_all(void);
 void ble_hs_test_util_init(void);
 
 #endif
