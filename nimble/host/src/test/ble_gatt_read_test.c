@@ -26,24 +26,47 @@
 #include "ble_hs_conn.h"
 #include "ble_hs_test_util.h"
 
-static uint16_t ble_gatt_read_test_conn_handle;
-static int ble_gatt_read_test_status;
-struct ble_gatt_attr ble_gatt_read_test_attr;
-static uint8_t ble_gatt_read_test_attr_val[1024];
+struct ble_gatt_read_test_attr {
+    uint16_t conn_handle;
+    int status;
+    uint16_t handle;
+    uint8_t value_len;
+    uint8_t value[256];
+};
+
+#define BLE_GATT_READ_TEST_MAX_ATTRS    256
+
+struct ble_gatt_read_test_attr
+    ble_gatt_read_test_attrs[BLE_GATT_READ_TEST_MAX_ATTRS];
+int ble_gatt_read_test_num_attrs;
+
+static void
+ble_gatt_read_test_misc_init(void)
+{
+    ble_hs_test_util_init();
+    ble_gatt_read_test_num_attrs = 0;
+}
 
 static int
 ble_gatt_read_test_cb(uint16_t conn_handle, int status,
                       struct ble_gatt_attr *attr, void *arg)
 {
-    TEST_ASSERT_FATAL(attr->value_len <= sizeof ble_gatt_read_test_attr_val);
+    struct ble_gatt_read_test_attr *dst;
 
-    ble_gatt_read_test_conn_handle = conn_handle;
-    ble_gatt_read_test_status = status;
+    TEST_ASSERT_FATAL(ble_gatt_read_test_num_attrs <
+                      BLE_GATT_READ_TEST_MAX_ATTRS);
+    dst = ble_gatt_read_test_attrs + ble_gatt_read_test_num_attrs++;
+
+    TEST_ASSERT_FATAL(attr->value_len <= sizeof dst->value);
+
+    dst->conn_handle = conn_handle;
+    dst->status = status;
 
     if (status == 0) {
         TEST_ASSERT_FATAL(attr != NULL);
-        ble_gatt_read_test_attr = *attr;
-        memcpy(ble_gatt_read_test_attr_val, attr->value, attr->value_len);
+        dst->handle = attr->handle;
+        dst->value_len = attr->value_len;
+        memcpy(dst->value, attr->value, attr->value_len);
     }
 
     return 0;
@@ -86,8 +109,55 @@ ble_gatt_read_test_misc_rx_rsp_bad(struct ble_hs_conn *conn,
 }
 
 static void
-ble_gatt_read_test_misc_verify_good(struct ble_hs_conn *conn,
-                                    struct ble_gatt_attr *attr)
+ble_gatt_read_test_misc_verify_good(struct ble_gatt_attr *attr)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_gatt_read_test_misc_init();
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
+                        NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatt_read_test_misc_rx_rsp_good(conn, attr);
+
+    TEST_ASSERT(ble_gatt_read_test_num_attrs == 1);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == conn->bhc_handle);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].status == 0);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].handle == attr->handle);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].value_len == attr->value_len);
+    TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[0].value, attr->value,
+                       attr->value_len) == 0);
+}
+
+static void
+ble_gatt_read_test_misc_verify_bad(uint8_t att_status,
+                                   struct ble_gatt_attr *attr)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_gatt_read_test_misc_init();
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
+                        NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatt_read_test_misc_rx_rsp_bad(conn, attr, att_status);
+
+    TEST_ASSERT(ble_gatt_read_test_num_attrs == 1);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == conn->bhc_handle);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].status ==
+                BLE_HS_ERR_ATT_BASE + att_status);
+}
+
+#if 0
+static void
+ble_gatt_read_test_misc_uuid_verify_good(struct ble_hs_conn *conn,
+                                         struct ble_gatt_attr *attrs)
 {
     int rc;
 
@@ -104,55 +174,34 @@ ble_gatt_read_test_misc_verify_good(struct ble_hs_conn *conn,
     TEST_ASSERT(memcmp(ble_gatt_read_test_attr_val, attr->value,
                        attr->value_len) == 0);
 }
-
-static void
-ble_gatt_read_test_misc_verify_bad(struct ble_hs_conn *conn,
-                                   uint8_t att_status,
-                                   struct ble_gatt_attr *attr)
-{
-    int rc;
-
-    rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
-                        NULL);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    ble_gatt_read_test_misc_rx_rsp_bad(conn, attr, att_status);
-
-    TEST_ASSERT(ble_gatt_read_test_conn_handle == conn->bhc_handle);
-    TEST_ASSERT(ble_gatt_read_test_status == BLE_HS_ERR_ATT_BASE + att_status);
-}
+#endif
 
 TEST_CASE(ble_gatt_read_test_by_handle)
 {
-    struct ble_hs_conn *conn;
-
-    ble_hs_test_util_init();
-
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
 
     /* Read a seven-byte attribute. */
-    ble_gatt_read_test_misc_verify_good(conn, (struct ble_gatt_attr[]) { {
+    ble_gatt_read_test_misc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 43,
         .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
         .value_len = 7
     } });
 
     /* Read a one-byte attribute. */
-    ble_gatt_read_test_misc_verify_good(conn, (struct ble_gatt_attr[]) { {
+    ble_gatt_read_test_misc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 0x5432,
         .value = (uint8_t[]){ 0xff },
         .value_len = 7
     } });
 
     /* Read a 200-byte attribute. */
-    ble_gatt_read_test_misc_verify_good(conn, (struct ble_gatt_attr[]) { {
+    ble_gatt_read_test_misc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 815,
         .value = (uint8_t[200]){ 0 },
         .value_len = 200,
     } });
 
     /* Fail due to attribute not found. */
-    ble_gatt_read_test_misc_verify_bad(conn, BLE_ATT_ERR_ATTR_NOT_FOUND,
+    ble_gatt_read_test_misc_verify_bad(BLE_ATT_ERR_ATTR_NOT_FOUND,
         (struct ble_gatt_attr[]) { {
             .handle = 719,
             .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
@@ -160,7 +209,7 @@ TEST_CASE(ble_gatt_read_test_by_handle)
         } });
 
     /* Fail due to invalid PDU. */
-    ble_gatt_read_test_misc_verify_bad(conn, BLE_ATT_ERR_INVALID_PDU,
+    ble_gatt_read_test_misc_verify_bad(BLE_ATT_ERR_INVALID_PDU,
         (struct ble_gatt_attr[]) { {
             .handle = 65,
             .value = (uint8_t[]){ 0xfa, 0x4c },
