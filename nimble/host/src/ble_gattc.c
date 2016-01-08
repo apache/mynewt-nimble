@@ -328,21 +328,30 @@ static STAILQ_HEAD(, ble_gattc_entry) ble_gattc_list;
  * $rx entry                                                                 *
  *****************************************************************************/
 
-#define BLE_GATTC_RX_ENTRY_FIND(op_arg, rx_entries, result) do              \
-{                                                                           \
-    int BGREF_i;                                                            \
-                                                                            \
-    (result) = NULL;                                                        \
-    for (BGREF_i = 0;                                                       \
-         BGREF_i < sizeof (rx_entries) / sizeof (rx_entries)[0];            \
-         BGREF_i++) {                                                       \
-                                                                            \
-        if ((rx_entries)[BGREF_i].op == (op_arg)) {                         \
-            (result) = (rx_entries) + BGREF_i;                              \
-            break;                                                          \
-        }                                                                   \
-    }                                                                       \
-} while (0)
+static const void *
+ble_gattc_rx_entry_find_(uint8_t op, const void *rx_entries, int num_entries)
+{
+    struct gen_entry {
+        uint8_t op;
+        void (*cb)(void);
+    };
+
+    const struct gen_entry *entries;
+    int i;
+
+    entries = rx_entries;
+    for (i = 0; i < num_entries; i++) {
+        if (entries[i].op == op) {
+            return entries + i;
+        }
+    }
+
+    return NULL;
+}
+
+#define BLE_GATTC_RX_ENTRY_FIND(op_arg, rx_entries)                         \
+    ble_gattc_rx_entry_find_((op_arg), (rx_entries),                        \
+                             sizeof (rx_entries) / sizeof (rx_entries[0]))  \
 
 /*****************************************************************************
  * @entry                                                                    *
@@ -2114,8 +2123,8 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
         return;
     }
 
-    BLE_GATTC_RX_ENTRY_FIND(entry->op, ble_gattc_rx_read_type_elem_entries,
-                            rx_entry);
+    rx_entry = BLE_GATTC_RX_ENTRY_FIND(entry->op,
+                                       ble_gattc_rx_read_type_elem_entries);
     if (rx_entry == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -2141,8 +2150,8 @@ ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status)
         return;
     }
 
-    BLE_GATTC_RX_ENTRY_FIND(entry->op, ble_gattc_rx_read_type_complete_entries,
-                            rx_entry);
+    rx_entry = BLE_GATTC_RX_ENTRY_FIND(
+                entry->op, ble_gattc_rx_read_type_complete_entries);
     if (rx_entry == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -2168,8 +2177,8 @@ ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
         /* Not expecting a response from this device. */
         return;
     }
-    BLE_GATTC_RX_ENTRY_FIND(entry->op, ble_gattc_rx_read_rsp_entries,
-                            rx_entry);
+    rx_entry = BLE_GATTC_RX_ENTRY_FIND(entry->op,
+                                       ble_gattc_rx_read_rsp_entries);
     if (rx_entry == NULL) {
         /* Not expecting a response from this device. */
         return;
