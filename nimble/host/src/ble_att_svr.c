@@ -933,6 +933,7 @@ ble_att_svr_fill_type_value(struct ble_hs_conn *conn,
              */
             uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
+                ctxt.offset = 0;
                 rc = ble_att_svr_read(conn, ha, &ctxt, out_att_err);
                 if (rc != 0) {
                     goto done;
@@ -1090,7 +1091,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
                              uint16_t *err_handle)
 {
     struct ble_att_read_type_rsp rsp;
-    struct ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint8_t *dptr;
@@ -1142,16 +1143,17 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
         }
 
         if (entry->ha_handle_id >= req->batq_start_handle) {
-            rc = ble_att_svr_read(conn, entry, &arg, att_err);
+            ctxt.offset = 0;
+            rc = ble_att_svr_read(conn, entry, &ctxt, att_err);
             if (rc != 0) {
                 *err_handle = entry->ha_handle_id;
                 goto done;
             }
 
-            if (arg.data_len > ble_l2cap_chan_mtu(chan) - 4) {
+            if (ctxt.data_len > ble_l2cap_chan_mtu(chan) - 4) {
                 attr_len = ble_l2cap_chan_mtu(chan) - 4;
             } else {
-                attr_len = arg.data_len;
+                attr_len = ctxt.data_len;
             }
 
             if (prev_attr_len == 0) {
@@ -1174,7 +1176,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             }
 
             htole16(dptr + 0, entry->ha_handle_id);
-            memcpy(dptr + 2, arg.attr_data, attr_len);
+            memcpy(dptr + 2, ctxt.attr_data, attr_len);
             entry_written = 1;
         }
     }
@@ -1428,6 +1430,7 @@ ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
+    ctxt.offset = 0;
     rc = ble_att_svr_read(conn, entry, &ctxt, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
@@ -1501,6 +1504,13 @@ ble_att_svr_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
+    if (ctxt.offset + ctxt.data_len <= ble_l2cap_chan_mtu(chan) - 3) {
+        att_err = BLE_ATT_ERR_ATTR_NOT_LONG;
+        err_handle = req.babq_handle;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
+    }
+
     rc = ble_att_svr_tx_read_blob_rsp(conn, chan, ctxt.attr_data,
                                       ctxt.data_len, &att_err);
     if (rc != 0) {
@@ -1531,22 +1541,23 @@ static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
                          uint8_t *uuid128)
 {
-    struct ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt ctxt;
     int rc;
 
-    rc = ble_att_svr_read(NULL, entry, &arg, NULL);
+    ctxt.offset = 0;
+    rc = ble_att_svr_read(NULL, entry, &ctxt, NULL);
     if (rc != 0) {
         return rc;
     }
 
-    switch (arg.data_len) {
+    switch (ctxt.data_len) {
     case 16:
         *uuid16 = 0;
-        memcpy(uuid128, arg.attr_data, 16);
+        memcpy(uuid128, ctxt.attr_data, 16);
         return 0;
 
     case 2:
-        *uuid16 = le16toh(arg.attr_data);
+        *uuid16 = le16toh(ctxt.attr_data);
         if (*uuid16 == 0) {
             return BLE_HS_EINVAL;
         }
@@ -1869,7 +1880,7 @@ int
 ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf **rxom)
 {
-    struct ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
     struct ble_att_write_req req;
     uint16_t err_handle;
@@ -1905,10 +1916,10 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    arg.attr_data = ble_att_svr_flat_buf;
-    arg.data_len = OS_MBUF_PKTLEN(*rxom);
-    os_mbuf_copydata(*rxom, 0, arg.data_len, arg.attr_data);
-    rc = ble_att_svr_write(conn, entry, &arg, &att_err);
+    ctxt.attr_data = ble_att_svr_flat_buf;
+    ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
+    rc = ble_att_svr_write(conn, entry, &ctxt, &att_err);
     if (rc != 0) {
         err_handle = req.bawq_handle;
         goto err;
@@ -2035,7 +2046,7 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 static int
 ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 {
-    struct ble_att_svr_access_ctxt arg;
+    struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_prep_entry *entry;
     struct ble_att_prep_entry *next;
     struct ble_att_svr_entry *attr;
@@ -2072,9 +2083,9 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
                 return BLE_ATT_ERR_INVALID_HANDLE;
             }
 
-            arg.attr_data = ble_att_svr_flat_buf;
-            arg.data_len = buf_off;
-            rc = ble_att_svr_write(conn, attr, &arg, &att_err);
+            ctxt.attr_data = ble_att_svr_flat_buf;
+            ctxt.data_len = buf_off;
+            rc = ble_att_svr_write(conn, attr, &ctxt, &att_err);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;
                 return att_err;

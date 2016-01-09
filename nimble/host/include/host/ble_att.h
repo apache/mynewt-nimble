@@ -32,6 +32,7 @@
 #define BLE_ATT_ERR_INVALID_OFFSET          0x07
 #define BLE_ATT_ERR_PREPARE_QUEUE_FULL      0x09
 #define BLE_ATT_ERR_ATTR_NOT_FOUND          0x0a
+#define BLE_ATT_ERR_ATTR_NOT_LONG           0x0b
 #define BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN  0x0d
 #define BLE_ATT_ERR_UNLIKELY                0x0e
 #define BLE_ATT_ERR_UNSUPPORTED_GROUP       0x10
