@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
@@ -28,10 +29,9 @@
 
 struct ble_gatt_read_test_attr {
     uint16_t conn_handle;
-    int status;
     uint16_t handle;
     uint8_t value_len;
-    uint8_t value[256];
+    uint8_t value[BLE_ATT_ATTR_MAX_LEN];
 };
 
 #define BLE_GATT_READ_TEST_MAX_ATTRS    256
@@ -52,6 +52,9 @@ ble_gatt_read_test_misc_init(void)
     ble_gatt_read_test_complete = 0;
     ble_gatt_read_test_bad_conn_handle = 0;
     ble_gatt_read_test_bad_status = 0;
+
+    memset(&ble_gatt_read_test_attrs[0], 0,
+           sizeof ble_gatt_read_test_attrs[0]);
 }
 
 static int
@@ -63,9 +66,14 @@ ble_gatt_read_test_cb(uint16_t conn_handle, int status,
 
     stop_after = arg;
 
-    if (attr == NULL) {
+    if (status != 0) {
         ble_gatt_read_test_bad_conn_handle = conn_handle;
         ble_gatt_read_test_bad_status = status;
+        ble_gatt_read_test_complete = 1;
+        return 0;
+    }
+
+    if (attr == NULL) {
         ble_gatt_read_test_complete = 1;
         return 0;
     }
@@ -77,14 +85,9 @@ ble_gatt_read_test_cb(uint16_t conn_handle, int status,
     TEST_ASSERT_FATAL(attr->value_len <= sizeof dst->value);
 
     dst->conn_handle = conn_handle;
-    dst->status = status;
-
-    if (status == 0) {
-        TEST_ASSERT_FATAL(attr != NULL);
-        dst->handle = attr->handle;
-        dst->value_len = attr->value_len;
-        memcpy(dst->value, attr->value, attr->value_len);
-    }
+    dst->handle = attr->handle;
+    dst->value_len = attr->value_len;
+    memcpy(dst->value, attr->value, attr->value_len);
 
     if (stop_after != NULL && *stop_after > 0) {
         (*stop_after)--;
@@ -97,28 +100,85 @@ ble_gatt_read_test_cb(uint16_t conn_handle, int status,
     return 0;
 }
 
+static int
+ble_gatt_read_test_long_cb(uint16_t conn_handle, int status,
+                           struct ble_gatt_attr *attr, void *arg)
+{
+    struct ble_gatt_read_test_attr *dst;
+    int *reads_left;
+
+    reads_left = arg;
+
+    if (status != 0) {
+        ble_gatt_read_test_bad_conn_handle = conn_handle;
+        ble_gatt_read_test_bad_status = status;
+        ble_gatt_read_test_complete = 1;
+        return 0;
+    }
+
+    if (attr == NULL) {
+        ble_gatt_read_test_complete = 1;
+        return 0;
+    }
+
+    dst = ble_gatt_read_test_attrs + 0;
+
+    TEST_ASSERT_FATAL(attr->value_len <= dst->value_len + sizeof dst->value);
+    TEST_ASSERT(attr->offset == dst->value_len);
+
+    if (attr->offset == 0) {
+        dst->conn_handle = conn_handle;
+        dst->handle = attr->handle;
+    } else {
+        TEST_ASSERT(conn_handle == dst->conn_handle);
+        TEST_ASSERT(attr->handle == dst->handle);
+    }
+    memcpy(dst->value + dst->value_len, attr->value, attr->value_len);
+    dst->value_len += attr->value_len;
+
+    if (reads_left != NULL && *reads_left > 0) {
+        (*reads_left)--;
+        if (*reads_left == 0) {
+            ble_gatt_read_test_complete = 1;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static void
-ble_gatt_read_test_misc_rx_rsp_good(struct ble_hs_conn *conn,
-                                    struct ble_gatt_attr *attr)
+ble_gatt_read_test_misc_rx_rsp_good_raw(struct ble_hs_conn *conn,
+                                        uint8_t att_op,
+                                        void *data, int data_len)
 {
     struct ble_l2cap_chan *chan;
     uint8_t buf[1024];
     int rc;
 
-    TEST_ASSERT_FATAL(attr->value_len <= sizeof buf);
+    TEST_ASSERT_FATAL(data_len <= sizeof buf);
 
     /* Send the pending ATT Read Request. */
     ble_hs_test_util_tx_all();
 
-    buf[0] = BLE_ATT_OP_READ_RSP;
-    memcpy(buf + 1, attr->value, attr->value_len);
+    buf[0] = att_op;
+    memcpy(buf + 1, data, data_len);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf,
-                                                1 + attr->value_len);
+                                                1 + data_len);
     TEST_ASSERT(rc == 0);
+}
+
+static void
+ble_gatt_read_test_misc_rx_rsp_good(struct ble_hs_conn *conn,
+                                    struct ble_gatt_attr *attr)
+{
+    ble_gatt_read_test_misc_rx_rsp_good_raw(conn, BLE_ATT_OP_READ_RSP,
+                                            attr->value,
+                                            attr->value_len);
 }
 
 static void
@@ -197,7 +257,6 @@ ble_gatt_read_test_misc_verify_good(struct ble_gatt_attr *attr)
 
     TEST_ASSERT(ble_gatt_read_test_num_attrs == 1);
     TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == conn->bhc_handle);
-    TEST_ASSERT(ble_gatt_read_test_attrs[0].status == 0);
     TEST_ASSERT(ble_gatt_read_test_attrs[0].handle == attr->handle);
     TEST_ASSERT(ble_gatt_read_test_attrs[0].value_len == attr->value_len);
     TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[0].value, attr->value,
@@ -265,13 +324,87 @@ ble_gatt_read_test_misc_uuid_verify_good(uint16_t start_handle,
     for (i = 0; i < idx; i++) {
         TEST_ASSERT(ble_gatt_read_test_attrs[i].conn_handle ==
                     conn->bhc_handle);
-        TEST_ASSERT(ble_gatt_read_test_attrs[i].status == 0);
         TEST_ASSERT(ble_gatt_read_test_attrs[i].handle == attrs[i].handle);
         TEST_ASSERT(ble_gatt_read_test_attrs[i].value_len ==
                     attrs[i].value_len);
         TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[i].value, attrs[i].value,
                            attrs[i].value_len) == 0);
     }
+}
+
+static void
+ble_gatt_read_test_misc_long_verify_good(int max_reads,
+                                         struct ble_gatt_attr *attr)
+{
+    struct ble_hs_conn *conn;
+    int reads_left;
+    int chunk_sz;
+    int rem_len;
+    int att_op;
+    int off;
+    int rc;
+
+    ble_gatt_read_test_misc_init();
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    if (max_reads == 0) {
+        max_reads = INT_MAX;
+    }
+    reads_left = max_reads;
+    rc = ble_gattc_read_long(conn->bhc_handle, attr->handle,
+                             ble_gatt_read_test_long_cb, &reads_left);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    off = 0;
+    rem_len = attr->value_len;
+    do {
+        if (rem_len > BLE_ATT_MTU_DFLT - 1) {
+            chunk_sz = BLE_ATT_MTU_DFLT - 1;
+        } else {
+            chunk_sz = rem_len;
+        }
+        if (off == 0) {
+            att_op = BLE_ATT_OP_READ_RSP;
+        } else {
+            att_op = BLE_ATT_OP_READ_BLOB_RSP;
+        }
+        ble_gatt_read_test_misc_rx_rsp_good_raw(conn, att_op,
+                                                attr->value + off, chunk_sz);
+        rem_len -= chunk_sz;
+        off += chunk_sz;
+    } while (rem_len > 0 && reads_left > 0);
+
+    TEST_ASSERT(ble_gatt_read_test_complete);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == conn->bhc_handle);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].handle == attr->handle);
+    if (reads_left > 0) {
+        TEST_ASSERT(ble_gatt_read_test_attrs[0].value_len == attr->value_len);
+    }
+    TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[0].value, attr->value,
+                       ble_gatt_read_test_attrs[0].value_len) == 0);
+}
+
+static void
+ble_gatt_read_test_misc_long_verify_bad(uint8_t att_status,
+                                        struct ble_gatt_attr *attr)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_gatt_read_test_misc_init();
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    rc = ble_gattc_read_long(conn->bhc_handle, attr->handle,
+                             ble_gatt_read_test_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatt_read_test_misc_rx_rsp_bad(conn, attr, att_status);
+
+    TEST_ASSERT(ble_gatt_read_test_num_attrs == 0);
+    TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == conn->bhc_handle);
+    TEST_ASSERT(ble_gatt_read_test_bad_status ==
+                BLE_HS_ERR_ATT_BASE + att_status);
 }
 
 TEST_CASE(ble_gatt_read_test_by_handle)
@@ -381,10 +514,57 @@ TEST_CASE(ble_gatt_read_test_by_uuid)
         } });
 }
 
+TEST_CASE(ble_gatt_read_test_long)
+{
+    uint8_t data512[512];
+    int i;
+
+    for (i = 0; i < sizeof data512; i++) {
+        data512[i] = i;
+    }
+
+    /* Read a seven-byte attribute. */
+    ble_gatt_read_test_misc_long_verify_good(0, (struct ble_gatt_attr[]) { {
+        .handle = 43,
+        .value = data512,
+        .value_len = 7
+    } });
+
+    /* Read a zero-byte attribute. */
+    ble_gatt_read_test_misc_long_verify_good(0, (struct ble_gatt_attr[]) { {
+        .handle = 43,
+        .value = NULL,
+        .value_len = 0
+    } });
+
+    /* Read a 60-byte attribute; three requests. */
+    ble_gatt_read_test_misc_long_verify_good(0, (struct ble_gatt_attr[]) { {
+        .handle = 34,
+        .value = data512,
+        .value_len = 60
+    } });
+
+    /* Stop after two reads. */
+    ble_gatt_read_test_misc_long_verify_good(2, (struct ble_gatt_attr[]) { {
+        .handle = 34,
+        .value = data512,
+        .value_len = 60
+    } });
+
+    /* Fail due to attribute not found. */
+    ble_gatt_read_test_misc_long_verify_bad(BLE_ATT_ERR_ATTR_NOT_FOUND,
+        (struct ble_gatt_attr[]) { {
+            .handle = 719,
+            .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
+            .value_len = 7
+        } });
+}
+
 TEST_SUITE(ble_gatt_read_test_suite)
 {
     ble_gatt_read_test_by_handle();
     ble_gatt_read_test_by_uuid();
+    ble_gatt_read_test_long();
 }
 
 int

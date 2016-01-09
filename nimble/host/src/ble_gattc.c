@@ -1884,10 +1884,7 @@ err:
 static void
 ble_gattc_read_long_err(struct ble_gattc_entry *entry, int status)
 {
-    struct ble_gatt_attr attr;
-
-    memset(&attr, 0, sizeof attr);
-    ble_gattc_read_long_cb(entry, status, &attr);
+    ble_gattc_read_long_cb(entry, status, NULL);
 }
 
 static int
@@ -1914,9 +1911,7 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_entry *entry,
     assert(chan != NULL);
 
     if (value_len < ble_l2cap_chan_mtu(chan) - 1) {
-        attr.value_len = 0;
-        attr.value = NULL;
-        ble_gattc_read_long_cb(entry, 0, &attr);
+        ble_gattc_read_long_cb(entry, 0, NULL);
         return 1;
     } else {
         entry->read_long.offset += value_len;
