@@ -212,10 +212,104 @@ TEST_CASE(ble_att_clt_test_tx_write)
     ble_att_clt_test_case_tx_write_req_or_cmd(1);
 }
 
+TEST_CASE(ble_att_clt_test_tx_read)
+{
+    struct ble_att_read_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Success. */
+    req.barq_handle = 1;
+    rc = ble_att_clt_tx_read(conn, &req);
+    TEST_ASSERT(rc == 0);
+
+    /*** Error: handle of 0. */
+    req.barq_handle = 0;
+    rc = ble_att_clt_tx_read(conn, &req);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
+}
+
+TEST_CASE(ble_att_clt_test_rx_read)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[1024];
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Basic success. */
+    buf[0] = BLE_ATT_OP_READ_RSP;
+    buf[1] = 0;
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 2);
+    TEST_ASSERT(rc == 0);
+
+    /*** Larger response. */
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 20);
+    TEST_ASSERT(rc == 0);
+
+    /*** Zero-length response. */
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 1);
+    TEST_ASSERT(rc == 0);
+}
+
+TEST_CASE(ble_att_clt_test_tx_read_blob)
+{
+    struct ble_att_read_blob_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Success. */
+    req.babq_handle = 1;
+    req.babq_offset = 0;
+    rc = ble_att_clt_tx_read_blob(conn, &req);
+    TEST_ASSERT(rc == 0);
+
+    /*** Error: handle of 0. */
+    req.babq_handle = 0;
+    req.babq_offset = 0;
+    rc = ble_att_clt_tx_read_blob(conn, &req);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
+}
+
+TEST_CASE(ble_att_clt_test_rx_read_blob)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[1024];
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Basic success. */
+    buf[0] = BLE_ATT_OP_READ_BLOB_RSP;
+    buf[1] = 0;
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 2);
+    TEST_ASSERT(rc == 0);
+
+    /*** Larger response. */
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 20);
+    TEST_ASSERT(rc == 0);
+
+    /*** Zero-length response. */
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 1);
+    TEST_ASSERT(rc == 0);
+}
+
 TEST_SUITE(ble_att_clt_suite)
 {
     ble_att_clt_test_tx_find_info();
     ble_att_clt_test_rx_find_info();
+    ble_att_clt_test_tx_read();
+    ble_att_clt_test_rx_read();
+    ble_att_clt_test_tx_read_blob();
+    ble_att_clt_test_rx_read_blob();
     ble_att_clt_test_tx_write();
 }
 
