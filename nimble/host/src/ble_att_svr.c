@@ -1614,6 +1614,8 @@ ble_att_svr_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     uint8_t att_err;
     int rc;
 
+    err_handle = 0;     /* Silence warning. */
+
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
