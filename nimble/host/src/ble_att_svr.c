@@ -1527,6 +1527,126 @@ err:
 }
 
 static int
+ble_att_svr_tx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom, uint8_t *att_err,
+                         uint16_t *err_handle)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_svr_entry *entry;
+    struct os_mbuf *txom;
+    uint16_t chunk_sz;
+    uint16_t tx_space;
+    uint16_t handle;
+    int rc;
+
+    txom = ble_att_get_pkthdr();
+
+    tx_space = ble_l2cap_chan_mtu(chan) - OS_MBUF_PKTLEN(txom);
+
+    /* Iterate through requested handles, reading the corresponding attribute
+     * for each.  Stop when there are no more handles to process, or the
+     * response is full.
+     */
+    while (OS_MBUF_PKTLEN(*rxom) >= 2 && tx_space > 0) {
+        handle = le16toh((*rxom)->om_data);
+        os_mbuf_adj(*rxom, 2);
+
+        entry = NULL;
+        rc = ble_att_svr_find_by_handle(handle, &entry);
+        if (rc != 0) {
+            *att_err = BLE_ATT_ERR_INVALID_HANDLE;
+            *err_handle = handle;
+            rc = BLE_HS_ENOENT;
+            goto err;
+        }
+
+        if (entry->ha_cb == NULL) {
+            *att_err = BLE_ATT_ERR_UNLIKELY;
+            *err_handle = handle;
+            rc = BLE_HS_ENOTSUP;
+            goto err;
+        }
+
+        ctxt.offset = 0;
+        rc = ble_att_svr_read(conn, entry, &ctxt, att_err);
+        if (rc != 0) {
+            *err_handle = handle;
+            rc = BLE_HS_ENOTSUP;
+            goto err;
+        }
+
+        if (ctxt.data_len > tx_space) {
+            chunk_sz = tx_space;
+        } else {
+            chunk_sz = ctxt.data_len;
+        }
+
+        rc = os_mbuf_append(txom, ctxt.attr_data, chunk_sz);
+        if (rc != 0) {
+            *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+            *err_handle = handle;
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+
+        tx_space -= chunk_sz;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    if (rc != 0) {
+        *att_err = BLE_ATT_ERR_UNLIKELY;
+        *err_handle = 0;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_svr_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom)
+{
+    uint16_t err_handle;
+    uint8_t att_err;
+    int rc;
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_read_mult_req_parse((*rxom)->om_data, (*rxom)->om_len);
+    if (rc != 0) {
+        att_err = BLE_ATT_ERR_INVALID_PDU;
+        err_handle = 0;
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+
+    /* Strip opcode from request. */
+    os_mbuf_adj(*rxom, BLE_ATT_READ_MULT_REQ_BASE_SZ);
+
+    rc = ble_att_svr_tx_read_mult(conn, chan, rxom, &att_err, &err_handle);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_MULT_REQ,
+                             err_handle, att_err);
+    return rc;
+}
+
+static int
 ble_att_svr_is_valid_group_type(uint8_t *uuid128)
 {
     uint16_t uuid16;
