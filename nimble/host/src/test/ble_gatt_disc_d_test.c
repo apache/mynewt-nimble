@@ -161,10 +161,10 @@ ble_gatt_disc_d_test_misc_verify_dscs(struct ble_gatt_disc_d_test_dsc *dscs,
 
 static int
 ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle, int status,
-                             uint16_t chr_val_handle, uint16_t dsc_handle,
-                             uint8_t *dsc_uuid128, void *arg)
+                             uint16_t chr_val_handle, struct ble_gatt_dsc *dsc,
+                             void *arg)
 {
-    struct ble_gatt_disc_d_test_dsc *dsc;
+    struct ble_gatt_disc_d_test_dsc *dst;
     int *stop_after;
 
     TEST_ASSERT(status == 0);
@@ -172,16 +172,16 @@ ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle, int status,
 
     stop_after = arg;
 
-    if (dsc_handle == 0) {
+    if (dsc == NULL) {
         ble_gatt_disc_d_test_rx_complete = 1;
     } else {
         TEST_ASSERT_FATAL(ble_gatt_disc_d_test_num_dscs <
                           BLE_GATT_DISC_D_TEST_MAX_DSCS);
 
-        dsc = ble_gatt_disc_d_test_dscs + ble_gatt_disc_d_test_num_dscs++;
-        dsc->chr_val_handle = chr_val_handle;
-        dsc->dsc_handle = dsc_handle;
-        memcpy(dsc->dsc_uuid128, dsc_uuid128, 16);
+        dst = ble_gatt_disc_d_test_dscs + ble_gatt_disc_d_test_num_dscs++;
+        dst->chr_val_handle = chr_val_handle;
+        dst->dsc_handle = dsc->handle;
+        memcpy(dst->dsc_uuid128, dsc->uuid128, 16);
     }
 
     if (*stop_after > 0) {

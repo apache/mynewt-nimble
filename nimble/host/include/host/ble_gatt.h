@@ -43,6 +43,11 @@ struct ble_gatt_chr {
     uint8_t uuid128[16];
 };
 
+struct ble_gatt_dsc {
+    uint16_t handle;
+    uint8_t uuid128[16];
+};
+
 typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle, int status,
                                  struct ble_gatt_service *service,
                                  void *arg);
@@ -53,8 +58,8 @@ typedef int ble_gatt_chr_fn(uint16_t conn_handle, int status,
                             struct ble_gatt_chr *chr, void *arg);
 
 typedef int ble_gatt_dsc_fn(uint16_t conn_handle, int status,
-                            uint16_t chr_val_handle, uint16_t dsc_handle,
-                            uint8_t *dsc_uuid128, void *arg);
+                            uint16_t chr_val_handle, struct ble_gatt_dsc *dsc,
+                            void *arg);
 
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
                             ble_gatt_disc_svc_fn *cb, void *cb_arg);

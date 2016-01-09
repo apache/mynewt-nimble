@@ -580,7 +580,7 @@ ble_gattc_tx_postpone_chk(struct ble_gattc_entry *entry, int rc)
 }
 
 /*****************************************************************************
- * @mtu                                                                      *
+ * $mtu                                                                      *
  *****************************************************************************/
 
 static int
@@ -815,7 +815,7 @@ ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
 
 static int
 ble_gattc_disc_svc_uuid_cb(struct ble_gattc_entry *entry, int status,
-                              struct ble_gatt_service *service)
+                           struct ble_gatt_service *service)
 {
     int rc;
 
@@ -1485,7 +1485,7 @@ ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
 
 static int
 ble_gattc_disc_all_dscs_cb(struct ble_gattc_entry *entry, int status,
-                           uint16_t dsc_handle, uint8_t *dsc_uuid128)
+                           struct ble_gatt_dsc *dsc)
 {
     int rc;
 
@@ -1494,8 +1494,7 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_entry *entry, int status,
     } else {
         rc = entry->disc_all_dscs.cb(entry->conn_handle, status,
                                      entry->disc_all_dscs.chr_val_handle,
-                                     dsc_handle, dsc_uuid128,
-                                     entry->disc_all_dscs.cb_arg);
+                                     dsc, entry->disc_all_dscs.cb_arg);
     }
 
     return rc;
@@ -1529,7 +1528,7 @@ err:
         return BLE_HS_EAGAIN;
     }
 
-    ble_gattc_disc_all_dscs_cb(entry, rc, 0, NULL);
+    ble_gattc_disc_all_dscs_cb(entry, rc, NULL);
     return rc;
 }
 
@@ -1541,7 +1540,7 @@ ble_gattc_disc_all_dscs_err(struct ble_gattc_entry *entry, int status)
         status = 0;
     }
 
-    ble_gattc_disc_all_dscs_cb(entry, status, 0, NULL);
+    ble_gattc_disc_all_dscs_cb(entry, status, NULL);
 }
 
 static int
@@ -1549,6 +1548,7 @@ ble_gattc_disc_all_dscs_rx_idata(struct ble_gattc_entry *entry,
                                  struct ble_hs_conn *conn,
                                  struct ble_att_find_info_idata *idata)
 {
+    struct ble_gatt_dsc dsc;
     int cbrc;
     int rc;
 
@@ -1562,8 +1562,10 @@ ble_gattc_disc_all_dscs_rx_idata(struct ble_gattc_entry *entry,
     rc = 0;
 
 done:
-    cbrc = ble_gattc_disc_all_dscs_cb(entry, rc, idata->attr_handle,
-                                      idata->uuid128);
+    dsc.handle = idata->attr_handle;
+    memcpy(dsc.uuid128, idata->uuid128, 16);
+
+    cbrc = ble_gattc_disc_all_dscs_cb(entry, rc, &dsc);
     if (rc == 0) {
         rc = cbrc;
     }
@@ -1577,7 +1579,7 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_entry *entry,
     if (status != 0 || entry->disc_all_dscs.prev_handle ==
                        entry->disc_all_dscs.end_handle) {
         /* Error or all descriptors discovered. */
-        ble_gattc_disc_all_dscs_cb(entry, status, 0, NULL);
+        ble_gattc_disc_all_dscs_cb(entry, status, NULL);
         return 1;
     } else {
         /* Send follow-up request. */
