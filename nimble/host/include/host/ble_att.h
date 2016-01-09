@@ -66,12 +66,6 @@
 
 #define BLE_ATT_ATTR_MAX_LEN                512
 
-struct ble_att_svr_access_ctxt {
-    void *attr_data;
-    uint16_t data_len;
-    uint16_t offset;
-};
-
 #define HA_FLAG_PERM_READ                   (1 << 0)
 #define HA_FLAG_PERM_WRITE                  (1 << 1)
 #define HA_FLAG_ENC_REQ                     (1 << 2)
@@ -82,6 +76,12 @@ struct ble_att_svr_access_ctxt {
 
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2
+
+struct ble_att_svr_access_ctxt {
+    void *attr_data;
+    uint16_t data_len;
+    uint16_t offset; /* Only used for read-blob requests. */
+};
 
 /**
  * Handles a host attribute request.

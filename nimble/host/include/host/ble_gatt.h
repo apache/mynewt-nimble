@@ -31,6 +31,7 @@ struct ble_gatt_service {
 
 struct ble_gatt_attr {
     uint16_t handle;
+    uint16_t offset;
     uint8_t value_len;
     void *value;
 };
@@ -75,6 +76,8 @@ int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
                         uint16_t end_handle, void *uuid128,
+                        ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
                            void *value, uint16_t value_len,

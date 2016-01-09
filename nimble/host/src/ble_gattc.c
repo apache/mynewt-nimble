@@ -97,6 +97,13 @@ struct ble_gattc_entry {
         } read;
 
         struct {
+            uint16_t handle;
+            uint16_t offset;
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
+        } read_long;
+
+        struct {
             uint16_t prev_handle;
             uint16_t end_handle;
             uint8_t uuid128[16];
@@ -131,10 +138,11 @@ struct ble_gattc_entry {
 #define BLE_GATT_OP_DISC_ALL_DSCS               6
 #define BLE_GATT_OP_READ                        7
 #define BLE_GATT_OP_READ_UUID                   8
-#define BLE_GATT_OP_WRITE_NO_RSP                9
-#define BLE_GATT_OP_WRITE                       10
-#define BLE_GATT_OP_INDICATE                    11
-#define BLE_GATT_OP_MAX                         12
+#define BLE_GATT_OP_READ_LONG                   9
+#define BLE_GATT_OP_WRITE_NO_RSP                10
+#define BLE_GATT_OP_WRITE                       11
+#define BLE_GATT_OP_INDICATE                    12
+#define BLE_GATT_OP_MAX                         13
 
 static struct os_callout_func ble_gattc_heartbeat_timer;
 
@@ -150,6 +158,7 @@ static int ble_gattc_disc_chr_uuid_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_disc_all_dscs_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_read_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_read_uuid_kick(struct ble_gattc_entry *entry);
+static int ble_gattc_read_long_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_write_no_rsp_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_write_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_indicate_kick(struct ble_gattc_entry *entry);
@@ -169,6 +178,7 @@ static void ble_gattc_disc_all_dscs_err(struct ble_gattc_entry *entry,
                                         int status);
 static void ble_gattc_read_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_read_uuid_err(struct ble_gattc_entry *entry, int status);
+static void ble_gattc_read_long_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_write_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_indicate_err(struct ble_gattc_entry *entry, int status);
 
@@ -200,6 +210,10 @@ static int ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_entry *entry,
 static int ble_gattc_read_rx_read_rsp(struct ble_gattc_entry *entry,
                                       struct ble_hs_conn *conn, int status,
                                       void *value, int value_len);
+static int ble_gattc_read_long_rx_read_rsp(struct ble_gattc_entry *entry,
+                                           struct ble_hs_conn *conn,
+                                           int status, void *value,
+                                           int value_len);
 static int
 ble_gattc_read_uuid_rx_adata(struct ble_gattc_entry *entry,
                              struct ble_hs_conn *conn,
@@ -251,6 +265,10 @@ static const struct ble_gattc_dispatch_entry
     [BLE_GATT_OP_READ_UUID] = {
         .kick_cb = ble_gattc_read_uuid_kick,
         .err_cb = ble_gattc_read_uuid_err,
+    },
+    [BLE_GATT_OP_READ_LONG] = {
+        .kick_cb = ble_gattc_read_long_kick,
+        .err_cb = ble_gattc_read_long_err,
     },
     [BLE_GATT_OP_WRITE_NO_RSP] = {
         .kick_cb = ble_gattc_write_no_rsp_kick,
@@ -309,8 +327,9 @@ static const struct ble_gattc_rx_complete_entry
 };
 
 static const struct ble_gattc_rx_attr_entry ble_gattc_rx_read_rsp_entries[] = {
-    { BLE_GATT_OP_READ, ble_gattc_read_rx_read_rsp },
-    { BLE_GATT_OP_FIND_INC_SVCS, ble_gattc_find_inc_svcs_rx_read_rsp },
+    { BLE_GATT_OP_READ,             ble_gattc_read_rx_read_rsp },
+    { BLE_GATT_OP_READ_LONG,        ble_gattc_read_long_rx_read_rsp },
+    { BLE_GATT_OP_FIND_INC_SVCS,    ble_gattc_find_inc_svcs_rx_read_rsp },
 };
 
 #define BLE_GATT_ENTRY_F_PENDING    0x01
@@ -1652,6 +1671,7 @@ ble_gattc_read_rx_read_rsp(struct ble_gattc_entry *entry,
     struct ble_gatt_attr attr;
 
     attr.handle = entry->read.handle;
+    attr.offset = 0;
     attr.value_len = value_len;
     attr.value = value;
 
@@ -1663,7 +1683,7 @@ ble_gattc_read_rx_read_rsp(struct ble_gattc_entry *entry,
 
 int
 ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
-              ble_gatt_attr_fn *cb, void *cb_arg)
+               ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct ble_gattc_entry *entry;
     int rc;
@@ -1749,6 +1769,7 @@ ble_gattc_read_uuid_rx_adata(struct ble_gattc_entry *entry,
     int rc;
 
     attr.handle = adata->att_handle;
+    attr.offset = 0;
     attr.value_len = adata->value_len;
     attr.value = adata->value;
 
@@ -1797,6 +1818,125 @@ ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
     memcpy(entry->read_uuid.uuid128, uuid128, 16);
     entry->read_uuid.cb = cb;
     entry->read_uuid.cb_arg = cb_arg;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $read long                                                                *
+ *****************************************************************************/
+
+static int
+ble_gattc_read_long_cb(struct ble_gattc_entry *entry, int status,
+                       struct ble_gatt_attr *attr)
+{
+    int rc;
+
+    if (entry->read_long.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = entry->read_long.cb(entry->conn_handle, status, attr,
+                                 entry->read_long.cb_arg);
+    }
+
+    return rc;
+}
+
+static int
+ble_gattc_read_long_kick(struct ble_gattc_entry *entry)
+{
+    struct ble_att_read_blob_req blob_req;
+    struct ble_att_read_req read_req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    if (entry->read_long.offset == 0) {
+        read_req.barq_handle = entry->read_long.handle;
+        rc = ble_att_clt_tx_read(conn, &read_req);
+    } else {
+        blob_req.babq_handle = entry->read_long.handle;
+        blob_req.babq_offset = entry->read_long.offset;
+        rc = ble_att_clt_tx_read_blob(conn, &blob_req);
+    }
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (ble_gattc_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ble_gattc_read_long_cb(entry, rc, NULL);
+    return rc;
+}
+
+static void
+ble_gattc_read_long_err(struct ble_gattc_entry *entry, int status)
+{
+    struct ble_gatt_attr attr;
+
+    memset(&attr, 0, sizeof attr);
+    ble_gattc_read_long_cb(entry, status, &attr);
+}
+
+static int
+ble_gattc_read_long_rx_read_rsp(struct ble_gattc_entry *entry,
+                                struct ble_hs_conn *conn, int status,
+                                void *value, int value_len)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_gatt_attr attr;
+    int rc;
+
+    attr.handle = entry->read_long.handle;
+    attr.offset = entry->read_long.offset;
+    attr.value_len = value_len;
+    attr.value = value;
+
+    rc = ble_gattc_read_long_cb(entry, status, &attr);
+    if (rc != 0 || status != 0) {
+        return 1;
+    }
+
+    /* Determine if this is the end of the attribute value. */
+    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+    assert(chan != NULL);
+
+    if (value_len < ble_l2cap_chan_mtu(chan) - 1) {
+        attr.value_len = 0;
+        attr.value = NULL;
+        ble_gattc_read_long_cb(entry, 0, &attr);
+        return 1;
+    } else {
+        entry->read_long.offset += value_len;
+        return 0;
+    }
+}
+
+int
+ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
+                    ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct ble_gattc_entry *entry;
+    int rc;
+
+    rc = ble_gattc_new_entry(conn_handle, BLE_GATT_OP_READ_LONG, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->read_long.handle = handle;
+    entry->read_long.offset = 0;
+    entry->read_long.cb = cb;
+    entry->read_long.cb_arg = cb_arg;
 
     return 0;
 }
@@ -2319,6 +2459,27 @@ ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
     }
 
     rc = rx_entry->cb(entry, conn, status, value, value_len);
+    if (rc != 0) {
+        ble_gattc_entry_remove_free(entry, prev);
+    }
+}
+
+void
+ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
+                           void *value, int value_len)
+{
+    struct ble_gattc_entry *entry;
+    struct ble_gattc_entry *prev;
+    int rc;
+
+    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_READ_LONG, 1, &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    rc = ble_gattc_read_long_rx_read_rsp(entry, conn, status, value,
+                                         value_len);
     if (rc != 0) {
         ble_gattc_entry_remove_free(entry, prev);
     }
