@@ -651,6 +651,87 @@ done:
 }
 
 /*****************************************************************************
+ * $read multiple                                                            *
+ *****************************************************************************/
+
+int
+ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
+                         uint16_t *handles, int num_handles)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    void *buf;
+    int rc;
+    int i;
+
+    txom = NULL;
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                              BLE_ATT_READ_MULT_REQ_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_read_mult_req_write(txom->om_data, txom->om_len);
+    assert(rc == 0);
+
+    for (i = 0; i < num_handles; i++) {
+        buf = os_mbuf_extend(txom, 2);
+        if (buf == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+
+        htole16(buf, handles[i]);
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf **rxom)
+{
+    //void *value;
+    //int value_len;
+    int rc;
+
+    //value = NULL;
+    //value_len = 0;
+
+    /* Reponse consists of a one-byte opcode (already verified) and a variable
+     * length Attribute Value field.  Strip the opcode from the response.
+     */
+    os_mbuf_adj(*rxom, BLE_ATT_READ_MULT_RSP_BASE_SZ);
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    //value_len = (*rxom)->om_len;
+    //value = (*rxom)->om_data;
+
+    rc = 0;
+
+done:
+    /* Pass the Attribute Value field to GATT. */
+    //ble_gattc_rx_read_mult_rsp(conn, rc, value, value_len);
+    return rc;
+}
+
+/*****************************************************************************
  * $read by group type                                                       *
  *****************************************************************************/
 

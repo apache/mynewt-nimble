@@ -400,6 +400,70 @@ ble_att_read_blob_req_write(void *payload, int len,
 }
 
 int
+ble_att_read_mult_req_parse(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_READ_MULT_REQ_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    if (u8ptr[0] != BLE_ATT_OP_READ_MULT_REQ) {
+        return BLE_HS_EINVAL;
+    }
+
+    return 0;
+}
+
+int
+ble_att_read_mult_req_write(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_READ_MULT_REQ_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    u8ptr[0] = BLE_ATT_OP_READ_MULT_REQ;
+
+    return 0;
+}
+
+int
+ble_att_read_mult_rsp_parse(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_READ_MULT_RSP_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    if (u8ptr[0] != BLE_ATT_OP_READ_MULT_RSP) {
+        return BLE_HS_EINVAL;
+    }
+
+    return 0;
+}
+
+int
+ble_att_read_mult_rsp_write(void *payload, int len)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_ATT_READ_MULT_RSP_BASE_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+    u8ptr[0] = BLE_ATT_OP_READ_MULT_RSP;
+
+    return 0;
+}
+
+int
 ble_att_read_group_type_req_parse(void *payload, int len,
                                   struct ble_att_read_group_type_req *req)
 {

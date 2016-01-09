@@ -177,6 +177,22 @@ struct ble_att_read_blob_req {
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |
+ * | Set Of Handles                     | 4 to (ATT_MTU-1)  |
+ */
+#define BLE_ATT_READ_MULT_REQ_BASE_SZ   1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Set Of Values                      | 4 to (ATT_MTU-1)  |
+ */
+#define BLE_ATT_READ_MULT_RSP_BASE_SZ   1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
  * | Starting Handle                    | 2                 |
  * | Ending Handle                      | 2                 |
  * | Attribute Group Type               | 2 or 16           |
@@ -306,14 +322,6 @@ int ble_att_find_type_value_req_parse(void *payload, int len,
                                       struct ble_att_find_type_value_req *req);
 int ble_att_find_type_value_req_write(void *payload, int len,
                                       struct ble_att_find_type_value_req *req);
-int ble_att_read_req_parse(void *payload, int len,
-                           struct ble_att_read_req *req);
-int ble_att_read_req_write(void *payload, int len,
-                           struct ble_att_read_req *req);
-int ble_att_read_blob_req_parse(void *payload, int len,
-                                struct ble_att_read_blob_req *req);
-int ble_att_read_blob_req_write(void *payload, int len,
-                                struct ble_att_read_blob_req *req);
 int ble_att_read_type_req_parse(void *payload, int len,
                                 struct ble_att_read_type_req *req);
 int ble_att_read_type_req_write(void *payload, int len,
@@ -322,6 +330,18 @@ int ble_att_read_type_rsp_parse(void *payload, int len,
                                 struct ble_att_read_type_rsp *rsp);
 int ble_att_read_type_rsp_write(void *payload, int len,
                                 struct ble_att_read_type_rsp *rsp);
+int ble_att_read_req_parse(void *payload, int len,
+                           struct ble_att_read_req *req);
+int ble_att_read_req_write(void *payload, int len,
+                           struct ble_att_read_req *req);
+int ble_att_read_blob_req_parse(void *payload, int len,
+                                struct ble_att_read_blob_req *req);
+int ble_att_read_blob_req_write(void *payload, int len,
+                                struct ble_att_read_blob_req *req);
+int ble_att_read_mult_req_parse(void *payload, int len);
+int ble_att_read_mult_req_write(void *payload, int len);
+int ble_att_read_mult_rsp_parse(void *payload, int len);
+int ble_att_read_mult_rsp_write(void *payload, int len);
 int ble_att_read_group_type_req_parse(void *payload, int len,
                                       struct ble_att_read_group_type_req *req);
 int ble_att_read_group_type_req_write(void *payload, int len,

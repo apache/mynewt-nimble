@@ -181,6 +181,11 @@ int ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
 int ble_att_clt_rx_read_blob(struct ble_hs_conn *conn,
                              struct ble_l2cap_chan *chan,
                              struct os_mbuf **rxom);
+int ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
+                             uint16_t *handles, int num_handles);
+int ble_att_clt_rx_read_mult(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan,
+                             struct os_mbuf **rxom);
 int ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
                              struct ble_att_read_type_req *req,
                              void *uuid128);
