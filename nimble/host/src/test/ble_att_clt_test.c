@@ -302,6 +302,69 @@ TEST_CASE(ble_att_clt_test_rx_read_blob)
     TEST_ASSERT(rc == 0);
 }
 
+TEST_CASE(ble_att_clt_test_tx_read_mult)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *om;
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Success. */
+    rc = ble_att_clt_tx_read_mult(conn, ((uint16_t[]){ 1, 2 }), 2);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
+
+    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
+                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    TEST_ASSERT_FATAL(om != NULL);
+    TEST_ASSERT(om->om_len == BLE_ATT_READ_MULT_REQ_BASE_SZ + 4);
+
+    rc = ble_att_read_mult_req_parse(om->om_data, om->om_len);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ) == 1);
+    TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ + 2) == 2);
+
+    /*** Error: no handles. */
+    rc = ble_att_clt_tx_read_mult(conn, NULL, 0);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
+}
+
+TEST_CASE(ble_att_clt_test_rx_read_mult)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[1024];
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Basic success. */
+    rc = ble_att_read_mult_rsp_write(buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn, chan, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 2);
+    TEST_ASSERT(rc == 0);
+
+    /*** Larger response. */
+    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
+    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 2, 43);
+    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 4, 91);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn, chan, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 6);
+    TEST_ASSERT(rc == 0);
+
+    /*** Zero-length response. */
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn, chan, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 0);
+    TEST_ASSERT(rc == 0);
+}
+
 TEST_SUITE(ble_att_clt_suite)
 {
     ble_att_clt_test_tx_find_info();
@@ -310,6 +373,8 @@ TEST_SUITE(ble_att_clt_suite)
     ble_att_clt_test_rx_read();
     ble_att_clt_test_tx_read_blob();
     ble_att_clt_test_rx_read_blob();
+    ble_att_clt_test_tx_read_mult();
+    ble_att_clt_test_rx_read_mult();
     ble_att_clt_test_tx_write();
 }
 

@@ -666,6 +666,11 @@ ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
 
     txom = NULL;
 
+    if (num_handles < 1) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
     rc = ble_att_clt_prep_req(conn, &chan, &txom,
                               BLE_ATT_READ_MULT_REQ_BASE_SZ);
     if (rc != 0) {
