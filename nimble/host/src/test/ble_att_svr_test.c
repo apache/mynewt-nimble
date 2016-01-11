@@ -362,6 +362,92 @@ ble_att_svr_test_misc_verify_tx_read_blob_rsp(struct ble_l2cap_chan *chan,
 }
 
 static void
+ble_att_svr_test_misc_rx_read_mult_req(struct ble_hs_conn *conn,
+                                       struct ble_l2cap_chan *chan,
+                                       uint16_t *handles, int num_handles,
+                                       int success)
+{
+    uint8_t buf[256];
+    int off;
+    int rc;
+    int i;
+
+    rc = ble_att_read_mult_req_write(buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    off = BLE_ATT_READ_MULT_REQ_BASE_SZ;
+    for (i = 0; i < num_handles; i++) {
+        htole16(buf + off, handles[i]);
+        off += 2;
+    }
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    if (success) {
+        TEST_ASSERT(rc == 0);
+    } else {
+        TEST_ASSERT(rc != 0);
+    }
+}
+
+static void
+ble_att_svr_test_misc_verify_tx_read_mult_rsp(struct ble_l2cap_chan *chan,
+                                              struct ble_gatt_attr *attrs,
+                                              int num_attrs)
+{
+    uint8_t *attr_value;
+    uint8_t u8;
+    int rc;
+    int off;
+    int ii;
+    int i;
+
+    ble_hs_test_util_tx_all();
+
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(u8 == BLE_ATT_OP_READ_MULT_RSP);
+
+    off = 1;
+    for (i = 0; i < num_attrs; i++) {
+        attr_value = attrs[i].value;
+
+        for (ii = 0;
+             ii < attrs[i].value_len && off < ble_l2cap_chan_mtu(chan);
+             ii++) {
+
+            rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 1, &u8);
+            TEST_ASSERT(rc == 0);
+            TEST_ASSERT(u8 == attr_value[ii]);
+
+            off++;
+        }
+    }
+
+    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 1, &u8);
+    TEST_ASSERT(rc != 0);
+}
+
+static void
+ble_att_svr_test_misc_verify_all_read_mult(struct ble_hs_conn *conn,
+                                           struct ble_l2cap_chan *chan,
+                                           struct ble_gatt_attr *attrs,
+                                           int num_attrs)
+{
+    uint16_t handles[256];
+    int i;
+
+    TEST_ASSERT_FATAL(num_attrs <= sizeof handles / sizeof handles[0]);
+
+    for (i = 0; i < num_attrs; i++) {
+        handles[i] = attrs[i].handle;
+    }
+
+    ble_att_svr_test_misc_rx_read_mult_req(conn, chan, handles, num_attrs, 1);
+    ble_att_svr_test_misc_verify_tx_read_mult_rsp(chan, attrs, num_attrs);
+}
+
+
+static void
 ble_att_svr_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
 {
     uint8_t u8;
@@ -1049,6 +1135,74 @@ TEST_CASE(ble_att_svr_test_read_blob)
     ble_att_svr_test_misc_verify_tx_read_blob_rsp(chan,
                                                   ble_att_svr_test_attr_r_1,
                                                   0);
+}
+
+TEST_CASE(ble_att_svr_test_read_mult)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct ble_gatt_attr attr1;
+    struct ble_gatt_attr attr2;
+    int rc;
+
+    ble_att_svr_test_misc_init(&conn, &chan);
+
+    attr1.value = (uint8_t[]){ 1, 2, 3, 4 };
+    attr1.value_len = 4;
+    ble_att_svr_test_attr_r_1 = attr1.value;
+    ble_att_svr_test_attr_r_1_len = attr1.value_len;
+    rc = ble_att_svr_register(BLE_UUID16(0x1111), HA_FLAG_PERM_RW,
+                              &attr1.handle,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    attr2.value = (uint8_t[]){ 2, 3, 4, 5, 6 };
+    attr2.value_len = 5;
+    ble_att_svr_test_attr_r_2 = attr2.value;
+    ble_att_svr_test_attr_r_2_len = attr2.value_len;
+    rc = ble_att_svr_register(BLE_UUID16(0x2222), HA_FLAG_PERM_RW,
+                              &attr2.handle,
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
+    TEST_ASSERT(rc == 0);
+
+    /*** Single nonexistent attribute. */
+    ble_att_svr_test_misc_rx_read_mult_req(
+        conn, chan, ((uint16_t[]){ 100 }), 1, 0);
+    ble_att_svr_test_misc_verify_tx_err_rsp(chan, BLE_ATT_OP_READ_MULT_REQ,
+                                            100, BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Single attribute. */
+    ble_att_svr_test_misc_verify_all_read_mult(conn, chan, &attr1, 1);
+
+    /*** Two attributes. */
+    ble_att_svr_test_misc_verify_all_read_mult(
+        conn, chan, ((struct ble_gatt_attr[]) { attr1, attr2 }), 2);
+
+    /*** Reverse order. */
+    ble_att_svr_test_misc_verify_all_read_mult(
+        conn, chan, ((struct ble_gatt_attr[]) { attr2, attr1 }), 2);
+
+    /*** Second attribute nonexistent; verify only error txed. */
+    ble_att_svr_test_misc_rx_read_mult_req(
+        conn, chan, ((uint16_t[]){ attr1.handle, 100 }), 2, 0);
+    ble_att_svr_test_misc_verify_tx_err_rsp(chan, BLE_ATT_OP_READ_MULT_REQ,
+                                            100, BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Response too long; verify only MTU bytes sent. */
+    attr1.value =
+        (uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
+    attr1.value_len = 20;
+    ble_att_svr_test_attr_r_1 = attr1.value;
+    ble_att_svr_test_attr_r_1_len = attr1.value_len;
+
+    attr2.value =
+        (uint8_t[]){22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
+    attr2.value_len = 20;
+    ble_att_svr_test_attr_r_2 = attr2.value;
+    ble_att_svr_test_attr_r_2_len = attr2.value_len;
+
+    ble_att_svr_test_misc_verify_all_read_mult(
+        conn, chan, ((struct ble_gatt_attr[]) { attr1, attr2 }), 2);
 }
 
 TEST_CASE(ble_att_svr_test_write)
@@ -1979,6 +2133,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_mtu();
     ble_att_svr_test_read();
     ble_att_svr_test_read_blob();
+    ble_att_svr_test_read_mult();
     ble_att_svr_test_write();
     ble_att_svr_test_find_info();
     ble_att_svr_test_find_type_value();

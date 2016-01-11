@@ -1537,9 +1537,20 @@ ble_att_svr_tx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     uint16_t chunk_sz;
     uint16_t tx_space;
     uint16_t handle;
+    uint8_t *dptr;
     int rc;
 
     txom = ble_att_get_pkthdr();
+
+    dptr = os_mbuf_extend(txom, BLE_ATT_READ_MULT_RSP_BASE_SZ);
+    if (dptr == NULL) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+    rc = ble_att_read_mult_rsp_write(dptr, BLE_ATT_READ_MULT_RSP_BASE_SZ);
+    assert(rc == 0);
 
     tx_space = ble_l2cap_chan_mtu(chan) - OS_MBUF_PKTLEN(txom);
 
