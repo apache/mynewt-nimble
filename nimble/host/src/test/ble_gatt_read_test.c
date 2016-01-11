@@ -44,6 +44,9 @@ int ble_gatt_read_test_complete;
 uint16_t ble_gatt_read_test_bad_conn_handle;
 int ble_gatt_read_test_bad_status;
 
+uint16_t ble_gatt_read_test_mult_handles[BLE_GATT_READ_TEST_MAX_ATTRS];
+uint8_t ble_gatt_read_test_mult_num_handles;
+
 static void
 ble_gatt_read_test_misc_init(void)
 {
@@ -143,6 +146,48 @@ ble_gatt_read_test_long_cb(uint16_t conn_handle, int status,
             return 1;
         }
     }
+
+    return 0;
+}
+
+static int
+ble_gatt_read_test_mult_cb(uint16_t conn_handle, int status,
+                           uint16_t *attr_handles, uint8_t num_attr_handles,
+                           uint8_t *attr_data, uint16_t attr_data_len,
+                           void *arg)
+{
+    struct ble_gatt_read_test_attr *dst;
+    int i;
+
+    if (status != 0) {
+#if 0
+        ble_gatt_read_test_bad_conn_handle = conn_handle;
+#endif
+        ble_gatt_read_test_bad_status = status;
+        ble_gatt_read_test_complete = 1;
+        return 0;
+    }
+
+    if (attr_data == NULL) {
+        ble_gatt_read_test_complete = 1;
+        return 0;
+    }
+
+    dst = ble_gatt_read_test_attrs + ble_gatt_read_test_num_attrs++;
+
+    TEST_ASSERT_FATAL(attr_data_len <= sizeof dst->value);
+
+    dst->conn_handle = conn_handle;
+    dst->handle = 0;
+    dst->value_len = attr_data_len;
+    memcpy(dst->value, attr_data, attr_data_len);
+
+    ble_gatt_read_test_mult_num_handles = num_attr_handles;
+    for (i = 0; i < num_attr_handles; i++) {
+        ble_gatt_read_test_mult_handles[i] = attr_handles[i];
+    }
+
+    ble_gatt_read_test_complete = 1;
 
     return 0;
 }
@@ -283,6 +328,7 @@ ble_gatt_read_test_misc_verify_bad(uint8_t att_status,
     TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == conn->bhc_handle);
     TEST_ASSERT(ble_gatt_read_test_bad_status ==
                 BLE_HS_ERR_ATT_BASE + att_status);
+    TEST_ASSERT(!ble_gattc_any_jobs());
 }
 
 static void
@@ -330,6 +376,7 @@ ble_gatt_read_test_misc_uuid_verify_good(uint16_t start_handle,
         TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[i].value, attrs[i].value,
                            attrs[i].value_len) == 0);
     }
+    TEST_ASSERT(!ble_gattc_any_jobs());
 }
 
 static void
@@ -405,6 +452,57 @@ ble_gatt_read_test_misc_long_verify_bad(uint8_t att_status,
     TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == conn->bhc_handle);
     TEST_ASSERT(ble_gatt_read_test_bad_status ==
                 BLE_HS_ERR_ATT_BASE + att_status);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+}
+
+static void
+ble_gatt_read_test_misc_mult_verify_good(struct ble_gatt_attr *attrs)
+{
+    uint8_t expected_value[512];
+    struct ble_hs_conn *conn;
+    uint16_t handles[256];
+    int num_attrs;
+    int chunk_sz;
+    int off;
+    int rc;
+    int i;
+
+    ble_gatt_read_test_misc_init();
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+
+    off = 0;
+    for (i = 0; attrs[i].handle != 0; i++) {
+        handles[i] = attrs[i].handle;
+
+        if (attrs[i].value_len > BLE_ATT_MTU_DFLT - 1 - off) {
+            chunk_sz = BLE_ATT_MTU_DFLT - 1 - off;
+        } else {
+            chunk_sz = attrs[i].value_len;
+        }
+
+        if (chunk_sz > 0) {
+            memcpy(expected_value + off, attrs[i].value, chunk_sz);
+            off += chunk_sz;
+        }
+    }
+    num_attrs = i;
+
+    rc = ble_gattc_read_mult(conn->bhc_handle, handles, num_attrs,
+                             ble_gatt_read_test_mult_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatt_read_test_misc_rx_rsp_good_raw(conn, BLE_ATT_OP_READ_MULT_RSP,
+                                            expected_value, off);
+
+    TEST_ASSERT(ble_gatt_read_test_complete);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == conn->bhc_handle);
+    TEST_ASSERT(ble_gatt_read_test_mult_num_handles == num_attrs);
+    TEST_ASSERT(memcmp(ble_gatt_read_test_mult_handles, handles,
+                       num_attrs * 2) == 0);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].value_len == off);
+    TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[0].value, expected_value,
+                       off) == 0);
 }
 
 TEST_CASE(ble_gatt_read_test_by_handle)
@@ -560,11 +658,82 @@ TEST_CASE(ble_gatt_read_test_long)
         } });
 }
 
+TEST_CASE(ble_gatt_read_test_mult)
+{
+    uint8_t data512[512];
+    int i;
+
+    for (i = 0; i < sizeof data512; i++) {
+        data512[i] = i;
+    }
+
+    /* Read one attribute. */
+    ble_gatt_read_test_misc_mult_verify_good((struct ble_gatt_attr[]) { {
+        .handle = 43,
+        .value = data512,
+        .value_len = 7
+    }, {
+        0
+    } });
+
+    /* Read two attributes. */
+    ble_gatt_read_test_misc_mult_verify_good((struct ble_gatt_attr[]) { {
+        .handle = 43,
+        .value = data512,
+        .value_len = 7,
+    }, {
+        .handle = 44,
+        .value = data512 + 7,
+        .value_len = 4,
+    }, {
+        0
+    } });
+
+    /* Read two attributes (swap order). */
+    ble_gatt_read_test_misc_mult_verify_good((struct ble_gatt_attr[]) { {
+        .handle = 44,
+        .value = data512 + 7,
+        .value_len = 4,
+    }, {
+        .handle = 43,
+        .value = data512,
+        .value_len = 7,
+    }, {
+        0
+    } });
+
+    /* Read five attributes. */
+    ble_gatt_read_test_misc_mult_verify_good((struct ble_gatt_attr[]) { {
+        .handle = 43,
+        .value = data512,
+        .value_len = 7,
+    }, {
+        .handle = 44,
+        .value = data512 + 7,
+        .value_len = 4,
+    }, {
+        .handle = 145,
+        .value = data512 + 11,
+        .value_len = 2,
+    }, {
+        .handle = 191,
+        .value = data512 + 13,
+        .value_len = 3,
+    }, {
+        .handle = 352,
+        .value = data512 + 16,
+        .value_len = 4,
+    }, {
+        0
+    } });
+}
+
 TEST_SUITE(ble_gatt_read_test_suite)
 {
     ble_gatt_read_test_by_handle();
     ble_gatt_read_test_by_uuid();
     ble_gatt_read_test_long();
+    ble_gatt_read_test_mult();
 }
 
 int

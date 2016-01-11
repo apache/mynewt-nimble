@@ -55,6 +55,8 @@ void ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
                            int value_len);
 void ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
                                 void *value, int value_len);
+void ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
+                                void *value, int value_len);
 void ble_gattc_rx_read_group_type_adata(
     struct ble_hs_conn *conn, struct ble_att_read_group_type_adata *adata);
 void ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc);

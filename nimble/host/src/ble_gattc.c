@@ -104,6 +104,13 @@ struct ble_gattc_entry {
         } read_long;
 
         struct {
+            uint16_t *handles;
+            uint8_t num_handles;
+            ble_gatt_mult_attr_fn *cb;
+            void *cb_arg;
+        } read_mult;
+
+        struct {
             uint16_t prev_handle;
             uint16_t end_handle;
             uint8_t uuid128[16];
@@ -139,10 +146,11 @@ struct ble_gattc_entry {
 #define BLE_GATT_OP_READ                        7
 #define BLE_GATT_OP_READ_UUID                   8
 #define BLE_GATT_OP_READ_LONG                   9
-#define BLE_GATT_OP_WRITE_NO_RSP                10
-#define BLE_GATT_OP_WRITE                       11
-#define BLE_GATT_OP_INDICATE                    12
-#define BLE_GATT_OP_MAX                         13
+#define BLE_GATT_OP_READ_MULT                   10
+#define BLE_GATT_OP_WRITE_NO_RSP                11
+#define BLE_GATT_OP_WRITE                       12
+#define BLE_GATT_OP_INDICATE                    13
+#define BLE_GATT_OP_MAX                         14
 
 static struct os_callout_func ble_gattc_heartbeat_timer;
 
@@ -159,6 +167,7 @@ static int ble_gattc_disc_all_dscs_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_read_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_read_uuid_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_read_long_kick(struct ble_gattc_entry *entry);
+static int ble_gattc_read_mult_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_write_no_rsp_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_write_kick(struct ble_gattc_entry *entry);
 static int ble_gattc_indicate_kick(struct ble_gattc_entry *entry);
@@ -179,6 +188,7 @@ static void ble_gattc_disc_all_dscs_err(struct ble_gattc_entry *entry,
 static void ble_gattc_read_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_read_uuid_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_read_long_err(struct ble_gattc_entry *entry, int status);
+static void ble_gattc_read_mult_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_write_err(struct ble_gattc_entry *entry, int status);
 static void ble_gattc_indicate_err(struct ble_gattc_entry *entry, int status);
 
@@ -269,6 +279,10 @@ static const struct ble_gattc_dispatch_entry
     [BLE_GATT_OP_READ_LONG] = {
         .kick_cb = ble_gattc_read_long_kick,
         .err_cb = ble_gattc_read_long_err,
+    },
+    [BLE_GATT_OP_READ_MULT] = {
+        .kick_cb = ble_gattc_read_mult_kick,
+        .err_cb = ble_gattc_read_mult_err,
     },
     [BLE_GATT_OP_WRITE_NO_RSP] = {
         .kick_cb = ble_gattc_write_no_rsp_kick,
@@ -1939,6 +1953,97 @@ ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
 }
 
 /*****************************************************************************
+ * $read multiple                                                            *
+ *****************************************************************************/
+
+static int
+ble_gattc_read_mult_cb(struct ble_gattc_entry *entry, int status,
+                       uint8_t *attr_data, uint16_t attr_data_len)
+{
+    int rc;
+
+    if (entry->read_mult.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = entry->read_mult.cb(entry->conn_handle, status,
+                                 entry->read_mult.handles,
+                                 entry->read_mult.num_handles,
+                                 attr_data, attr_data_len,
+                                 entry->read_mult.cb_arg);
+    }
+
+    return rc;
+}
+
+static int
+ble_gattc_read_mult_kick(struct ble_gattc_entry *entry)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    rc = ble_att_clt_tx_read_mult(conn, entry->read_mult.handles,
+                                  entry->read_mult.num_handles);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (ble_gattc_tx_postpone_chk(entry, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ble_gattc_read_mult_cb(entry, rc, NULL, 0);
+    return rc;
+}
+
+static void
+ble_gattc_read_mult_err(struct ble_gattc_entry *entry, int status)
+{
+    ble_gattc_read_mult_cb(entry, status, NULL, 0);
+}
+
+static int
+ble_gattc_read_mult_rx_read_mult_rsp(struct ble_gattc_entry *entry,
+                                     struct ble_hs_conn *conn, int status,
+                                     void *value, int value_len)
+{
+    ble_gattc_read_mult_cb(entry, status, value, value_len);
+
+    /* The read multiple operation only has a single request / response
+     * exchange.
+     */
+    return 1;
+}
+
+int
+ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
+                    uint8_t num_handles, ble_gatt_mult_attr_fn *cb,
+                    void *cb_arg)
+{
+    struct ble_gattc_entry *entry;
+    int rc;
+
+    rc = ble_gattc_new_entry(conn_handle, BLE_GATT_OP_READ_MULT, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+    entry->read_mult.handles = handles;
+    entry->read_mult.num_handles = num_handles;
+    entry->read_mult.cb = cb;
+    entry->read_mult.cb_arg = cb_arg;
+
+    return 0;
+}
+
+/*****************************************************************************
  * $write no response                                                        *
  *****************************************************************************/
 
@@ -2477,6 +2582,27 @@ ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
 
     rc = ble_gattc_read_long_rx_read_rsp(entry, conn, status, value,
                                          value_len);
+    if (rc != 0) {
+        ble_gattc_entry_remove_free(entry, prev);
+    }
+}
+
+void
+ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
+                           void *value, int value_len)
+{
+    struct ble_gattc_entry *entry;
+    struct ble_gattc_entry *prev;
+    int rc;
+
+    entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_READ_MULT, 1, &prev);
+    if (entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
+
+    rc = ble_gattc_read_mult_rx_read_mult_rsp(entry, conn, status,
+                                              value, value_len);
     if (rc != 0) {
         ble_gattc_entry_remove_free(entry, prev);
     }

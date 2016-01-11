@@ -707,12 +707,12 @@ int
 ble_att_clt_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          struct os_mbuf **rxom)
 {
-    //void *value;
-    //int value_len;
+    void *value;
+    int value_len;
     int rc;
 
-    //value = NULL;
-    //value_len = 0;
+    value = NULL;
+    value_len = 0;
 
     /* Reponse consists of a one-byte opcode (already verified) and a variable
      * length Attribute Value field.  Strip the opcode from the response.
@@ -725,14 +725,14 @@ ble_att_clt_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto done;
     }
 
-    //value_len = (*rxom)->om_len;
-    //value = (*rxom)->om_data;
+    value_len = (*rxom)->om_len;
+    value = (*rxom)->om_data;
 
     rc = 0;
 
 done:
     /* Pass the Attribute Value field to GATT. */
-    //ble_gattc_rx_read_mult_rsp(conn, rc, value, value_len);
+    ble_gattc_rx_read_mult_rsp(conn, rc, value, value_len);
     return rc;
 }
 

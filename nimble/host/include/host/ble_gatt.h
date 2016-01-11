@@ -53,6 +53,11 @@ typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle, int status,
                                  void *arg);
 typedef int ble_gatt_attr_fn(uint16_t conn_handle, int status,
                              struct ble_gatt_attr *attr, void *arg);
+typedef int ble_gatt_mult_attr_fn(uint16_t conn_handle, int status,
+                                  uint16_t *attr_handles,
+                                  uint8_t num_attr_handles,
+                                  uint8_t *attr_data, uint16_t attr_data_len,
+                                  void *arg);
 
 typedef int ble_gatt_chr_fn(uint16_t conn_handle, int status,
                             struct ble_gatt_chr *chr, void *arg);
@@ -84,6 +89,9 @@ int ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
                         ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
+                        uint8_t num_handles, ble_gatt_mult_attr_fn *cb,
+                        void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
                            void *value, uint16_t value_len,
                            ble_gatt_attr_fn *cb, void *cb_arg);
