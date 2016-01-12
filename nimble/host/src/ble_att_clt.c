@@ -970,7 +970,9 @@ ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
         goto err;
     }
 
-    if (value_len > ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
+    if (value_len >
+        ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
+
         rc = BLE_HS_EINVAL;
         goto err;
     }

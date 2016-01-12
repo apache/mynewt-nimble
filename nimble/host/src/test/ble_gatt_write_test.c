@@ -103,7 +103,7 @@ ble_gatt_write_test_rx_prep_rsp(struct ble_hs_conn *conn, uint16_t attr_handle,
     TEST_ASSERT_FATAL(rc == 0);
 
     memcpy(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, attr_data, attr_data_len);
-    
+
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
         conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
     TEST_ASSERT(rc == 0);
@@ -138,7 +138,8 @@ ble_gatt_write_test_misc_long_good(int attr_len)
 
     rc = ble_gattc_write_long(conn->bhc_handle, 100,
                               ble_gatt_write_test_attr_value,
-                              attr_len, ble_gatt_write_test_cb_good, &attr_len);
+                              attr_len, ble_gatt_write_test_cb_good,
+                              &attr_len);
     TEST_ASSERT(rc == 0);
 
     off = 0;
@@ -271,7 +272,8 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
 
     attr_len = 4;
     rc = ble_gattc_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
-                                attr_len, ble_gatt_write_test_cb_good, &attr_len);
+                                attr_len, ble_gatt_write_test_cb_good,
+                                &attr_len);
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
