@@ -936,6 +936,161 @@ ble_att_clt_rx_write(struct ble_hs_conn *conn,
 }
 
 /*****************************************************************************
+ * $prepare write request                                                    *
+ *****************************************************************************/
+
+int
+ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
+                          struct ble_att_prep_write_cmd *req,
+                          void *value, uint16_t value_len)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if (req->bapc_handle == 0) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    if (req->bapc_offset >= BLE_ATT_ATTR_MAX_LEN) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+                              BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    if (value_len > ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_prep_write_req_write(txom->om_data, txom->om_len, req);
+    assert(rc == 0);
+
+    rc = ble_att_clt_append_blob(chan, txom, value, value_len);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_rx_prep_write(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf **rxom)
+{
+    struct ble_att_prep_write_cmd rsp;
+    int rc;
+
+    if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    rc = ble_att_prep_write_rsp_parse((*rxom)->om_data, (*rxom)->om_len,
+                                      &rsp);
+    assert(rc == 0);
+
+    /* Strip the base from the front of the response. */
+    os_mbuf_adj(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+
+    ble_gattc_rx_prep_write_rsp(conn, 0, &rsp, (*rxom)->om_data,
+                                (*rxom)->om_len);
+    return 0;
+
+err:
+    ble_gattc_rx_prep_write_rsp(conn, rc, NULL, NULL, 0);
+    return rc;
+}
+
+/*****************************************************************************
+ * $execute write request                                                    *
+ *****************************************************************************/
+
+int
+ble_att_clt_tx_exec_write(struct ble_hs_conn *conn,
+                          struct ble_att_exec_write_req *req)
+{
+    struct ble_l2cap_chan *chan;
+    struct os_mbuf *txom;
+    int rc;
+
+    txom = NULL;
+
+    if ((req->baeq_flags & BLE_ATT_EXEC_WRITE_F_RESERVED) != 0) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+
+    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_EXEC_WRITE_REQ_SZ);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_exec_write_req_write(txom->om_data, txom->om_len, req);
+    assert(rc == 0);
+
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_att_clt_rx_exec_write(struct ble_hs_conn *conn,
+                          struct ble_l2cap_chan *chan,
+                          struct os_mbuf **rxom)
+{
+    int rc;
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_EXEC_WRITE_RSP_SZ);
+    if (*rxom == NULL) {
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    rc = ble_att_exec_write_rsp_parse((*rxom)->om_data, (*rxom)->om_len);
+    assert(rc == 0);
+
+    rc = 0;
+
+done:
+    ble_gattc_rx_exec_write_rsp(conn, rc);
+    return rc;
+}
+
+/*****************************************************************************
  * $handle value notification                                                *
  *****************************************************************************/
 

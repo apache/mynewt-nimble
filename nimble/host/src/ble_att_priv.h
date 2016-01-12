@@ -33,6 +33,8 @@ struct ble_att_read_group_type_req;
 struct ble_att_read_group_type_rsp;
 struct ble_att_find_type_value_req;
 struct ble_att_write_req;
+struct ble_att_prep_write_cmd;
+struct ble_att_exec_write_req;
 struct ble_att_notify_req;
 struct ble_att_indicate_req;
 
@@ -218,6 +220,17 @@ int ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
 int ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
                              struct ble_att_write_req *req,
                              void *value, uint16_t value_len);
+int ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
+                              struct ble_att_prep_write_cmd *req,
+                              void *value, uint16_t value_len);
+int ble_att_clt_rx_prep_write(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan,
+                              struct os_mbuf **rxom);
+int ble_att_clt_tx_exec_write(struct ble_hs_conn *conn,
+                              struct ble_att_exec_write_req *req);
+int ble_att_clt_rx_exec_write(struct ble_hs_conn *conn,
+                              struct ble_l2cap_chan *chan,
+                              struct os_mbuf **rxom);
 int ble_att_clt_rx_write(struct ble_hs_conn *conn,
                          struct ble_l2cap_chan *chan,
                          struct os_mbuf **rxom);

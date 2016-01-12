@@ -22,6 +22,7 @@ struct ble_att_read_type_adata;
 struct ble_att_find_type_value_hinfo;
 struct ble_att_find_info_idata;
 struct ble_att_read_group_type_adata;
+struct ble_att_prep_write_cmd;
 
 #define BLE_GATT_CHR_DECL_SZ_16     5
 #define BLE_GATT_CHR_DECL_SZ_128    19
@@ -64,6 +65,10 @@ void ble_gattc_rx_find_type_value_hinfo(
     struct ble_hs_conn *conn, struct ble_att_find_type_value_hinfo *hinfo);
 void ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
 void ble_gattc_rx_write_rsp(struct ble_hs_conn *conn);
+void ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
+                                 struct ble_att_prep_write_cmd *rsp,
+                                 void *attr_data, uint16_t attr_data_len);
+void ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status);
 void ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn);
 void ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
                                   struct ble_att_find_info_idata *idata);

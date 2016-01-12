@@ -261,6 +261,7 @@ struct ble_att_exec_write_req {
 };
 
 #define BLE_ATT_EXEC_WRITE_F_CONFIRM    0x01
+#define BLE_ATT_EXEC_WRITE_F_RESERVED   0xfe
 
 /**
  * | Parameter                          | Size (octets)     |
