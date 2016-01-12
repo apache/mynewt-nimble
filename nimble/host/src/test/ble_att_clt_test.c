@@ -206,6 +206,88 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
                                           BLE_ATT_MTU_DFLT - 3, is_req);
 }
 
+static void
+ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
+                                uint8_t *attr_data, uint16_t attr_data_len)
+{
+    struct ble_att_prep_write_cmd req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *om;
+    int rc;
+    int i;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    req.bapc_handle = handle;
+    req.bapc_offset = offset;
+    rc = ble_att_clt_tx_prep_write(conn, &req, attr_data, attr_data_len);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
+
+    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
+                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    TEST_ASSERT_FATAL(om != NULL);
+    TEST_ASSERT(om->om_len == BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
+
+    rc = ble_att_prep_write_req_parse(om->om_data, om->om_len, &req);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(req.bapc_handle == handle);
+    TEST_ASSERT(req.bapc_offset == offset);
+    for (i = 0; i < attr_data_len; i++) {
+        TEST_ASSERT(om->om_data[BLE_ATT_PREP_WRITE_CMD_BASE_SZ + i] ==
+                    attr_data[i]);
+    }
+}
+
+static void
+ble_att_clt_test_misc_exec_good(uint8_t flags)
+{
+    struct ble_att_exec_write_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *om;
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    req.baeq_flags = flags;
+    rc = ble_att_clt_tx_exec_write(conn, &req);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
+
+    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
+                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    TEST_ASSERT_FATAL(om != NULL);
+    TEST_ASSERT(om->om_len == BLE_ATT_EXEC_WRITE_REQ_SZ);
+
+    rc = ble_att_exec_write_req_parse(om->om_data, om->om_len, &req);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(req.baeq_flags == flags);
+}
+
+static void
+ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
+                               uint8_t *attr_data, uint16_t attr_data_len,
+                               int status)
+{
+    struct ble_att_prep_write_cmd req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    req.bapc_handle = handle;
+    req.bapc_offset = offset;
+    rc = ble_att_clt_tx_prep_write(conn, &req, attr_data, attr_data_len);
+    TEST_ASSERT(rc == status);
+}
+
 TEST_CASE(ble_att_clt_test_tx_write)
 {
     ble_att_clt_test_case_tx_write_req_or_cmd(0);
@@ -365,6 +447,85 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
     TEST_ASSERT(rc == 0);
 }
 
+TEST_CASE(ble_att_clt_test_tx_prep_write)
+{
+    uint8_t attr_data[512];
+    int i;
+
+    for (i = 0; i < sizeof attr_data; i++) {
+        attr_data[i] = i;
+    }
+
+    /*** Success. */
+    ble_att_clt_test_misc_prep_good(123, 0, attr_data, 16);
+    ble_att_clt_test_misc_prep_good(5432, 100, attr_data, 2);
+    ble_att_clt_test_misc_prep_good(0x1234, 400, attr_data, 0);
+    ble_att_clt_test_misc_prep_good(5432, 0, attr_data,
+                                    BLE_ATT_MTU_DFLT -
+                                        BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    ble_att_clt_test_misc_prep_good(0x1234, 507, attr_data, 5);
+
+    /*** Error: handle of 0. */
+    ble_att_clt_test_misc_prep_bad(0, 0, attr_data, 16, BLE_HS_EINVAL);
+
+    /*** Error: offset + length greater than maximum attribute size. */
+    ble_att_clt_test_misc_prep_bad(1, 507, attr_data, 6, BLE_HS_EINVAL);
+
+    /*** Error: packet larger than MTU. */
+    ble_att_clt_test_misc_prep_bad(1, 0, attr_data,
+                                   BLE_ATT_MTU_DFLT -
+                                       BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 1,
+                                   BLE_HS_EINVAL);
+}
+
+TEST_CASE(ble_att_clt_test_rx_prep_write)
+{
+    struct ble_att_prep_write_cmd rsp;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t buf[1024];
+    int rc;
+
+    ble_att_clt_test_misc_init(&conn, &chan);
+
+    /*** Basic success. */
+    rsp.bapc_handle = 0x1234;
+    rsp.bapc_offset = 0;
+    rc = ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
+    TEST_ASSERT(rc == 0);
+    memset(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, 1, 5);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 5);
+    TEST_ASSERT(rc == 0);
+
+    /*** 0-length write. */
+    rsp.bapc_handle = 0x1234;
+    rsp.bapc_offset = 0;
+    rc = ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
+    TEST_ASSERT(rc == 0);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    TEST_ASSERT(rc == 0);
+}
+
+TEST_CASE(ble_att_clt_test_tx_exec_write)
+{
+    struct ble_att_exec_write_req req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    /*** Success. */
+    ble_att_clt_test_misc_exec_good(0);
+    ble_att_clt_test_misc_exec_good(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+
+    /*** Error: invalid flags value. */
+    ble_att_clt_test_misc_init(&conn, &chan);
+    req.baeq_flags = 0x02;
+    rc = ble_att_clt_tx_exec_write(conn, &req);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
+}
+
 TEST_SUITE(ble_att_clt_suite)
 {
     ble_att_clt_test_tx_find_info();
@@ -376,6 +537,9 @@ TEST_SUITE(ble_att_clt_suite)
     ble_att_clt_test_tx_read_mult();
     ble_att_clt_test_rx_read_mult();
     ble_att_clt_test_tx_write();
+    ble_att_clt_test_tx_prep_write();
+    ble_att_clt_test_rx_prep_write();
+    ble_att_clt_test_tx_exec_write();
 }
 
 int

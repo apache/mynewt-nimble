@@ -76,14 +76,18 @@ ble_att_clt_append_blob(struct ble_l2cap_chan *chan, struct os_mbuf *txom,
     int cmd_len;
     int rc;
 
+    if (blob_len < 0) {
+        return BLE_HS_EINVAL;
+    }
+    if (blob_len == 0) {
+        return 0;
+    }
+
     mtu = ble_l2cap_chan_mtu(chan);
     cmd_len = OS_MBUF_PKTLEN(txom) + blob_len;
     extra_len = cmd_len - mtu;
     if (extra_len > 0) {
         blob_len -= extra_len;
-    }
-    if (blob_len <= 0) {
-        return BLE_HS_EMSGSIZE;
     }
 
     rc = os_mbuf_append(txom, blob, blob_len);
@@ -955,7 +959,7 @@ ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
         goto err;
     }
 
-    if (req->bapc_offset >= BLE_ATT_ATTR_MAX_LEN) {
+    if (req->bapc_offset + value_len > BLE_ATT_ATTR_MAX_LEN) {
         rc = BLE_HS_EINVAL;
         goto err;
     }
