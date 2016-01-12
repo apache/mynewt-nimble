@@ -220,6 +220,7 @@ static int ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_entry *entry,
                                                struct ble_hs_conn *conn,
                                                int status,
                                                void *value, int value_len);
+
 static int ble_gattc_disc_all_chrs_rx_adata(
     struct ble_gattc_entry *entry, struct ble_hs_conn *conn,
     struct ble_att_read_type_adata *adata);
@@ -2583,6 +2584,54 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
     entry->indicate.cb_arg = cb_arg;
 
     return 0;
+}
+
+/*****************************************************************************
+ * $read descriptor                                                          *
+ *****************************************************************************/
+
+int
+ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                   ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_read(conn_handle, attr_handle, cb, cb_arg);
+}
+
+/*****************************************************************************
+ * $read long descriptor                                                     *
+ *****************************************************************************/
+
+int
+ble_gattc_read_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                        ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_read_long(conn_handle, attr_handle, cb, cb_arg);
+}
+
+/*****************************************************************************
+ * $write descriptor                                                         *
+ *****************************************************************************/
+
+int
+ble_gattc_write_dsc(uint16_t conn_handle, uint16_t attr_handle, void *value,
+                    uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_write(conn_handle, attr_handle, value, value_len,
+                           cb, cb_arg);
+
+}
+
+/*****************************************************************************
+ * $write long descriptor                                                    *
+ *****************************************************************************/
+
+int
+ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                         void *value, uint16_t value_len,
+                         ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_write_long(conn_handle, attr_handle, value, value_len,
+                                cb, cb_arg);
 }
 
 /*****************************************************************************

@@ -109,8 +109,19 @@ int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
                            ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                         uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
+                         void *value, uint16_t value_len, ble_gatt_attr_fn *cb,
+                         void *cb_arg);
+int ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                       ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_read_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                            ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_write_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                        void *value, uint16_t value_len,
+                        ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
+                             void *value, uint16_t value_len,
+                             ble_gatt_attr_fn *cb, void *cb_arg);
 
 int ble_gattc_init(void);
 
