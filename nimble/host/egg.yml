@@ -10,3 +10,4 @@ egg.req_caps:
 # Satisfy capability dependencies for the self-contained test executable.
 egg.deps.selftest: libs/console/stub
 egg.cflags.selftest: -DPHONY_TRANSPORT
+egg.cflags.test: -DBLE_HS_DEBUG

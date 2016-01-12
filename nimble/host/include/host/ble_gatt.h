@@ -37,7 +37,7 @@ struct ble_gatt_service {
 struct ble_gatt_attr {
     uint16_t handle;
     uint16_t offset;
-    uint8_t value_len;
+    uint16_t value_len;
     void *value;
 };
 

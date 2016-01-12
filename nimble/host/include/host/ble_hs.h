@@ -36,6 +36,7 @@
 #define BLE_HS_ECONGESTED               12
 #define BLE_HS_ECONTROLLER              13
 #define BLE_HS_ETIMEOUT                 14
+#define BLE_HS_EDONE                    15
 
 #define BLE_HS_ERR_ATT_BASE             0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)               ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)

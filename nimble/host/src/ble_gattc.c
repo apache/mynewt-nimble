@@ -125,6 +125,7 @@ struct ble_gattc_entry {
 
         struct {
             struct ble_gatt_attr attr;
+            uint16_t length;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } write_long;
@@ -382,6 +383,34 @@ static void *ble_gattc_entry_mem;
 static struct os_mempool ble_gattc_entry_pool;
 
 static STAILQ_HEAD(, ble_gattc_entry) ble_gattc_list;
+
+/*****************************************************************************
+ * $debug                                                                    *
+ *****************************************************************************/
+
+static void
+ble_gattc_assert_sanity(void)
+{
+#ifdef BLE_HS_DEBUG
+    struct ble_gattc_entry *entry;
+    unsigned mask;
+    int num_set;
+
+    STAILQ_FOREACH(entry, &ble_gattc_list, next) {
+        /* Ensure exactly one flag is set. */
+        num_set = 0;
+        mask = 0x01;
+        while (mask <= UINT8_MAX) {
+            if (entry->flags & mask) {
+                num_set++;
+            }
+            mask <<= 1;
+        }
+
+        assert(num_set == 1);
+    }
+#endif
+}
 
 /*****************************************************************************
  * $rx entry                                                                 *
@@ -2156,12 +2185,11 @@ ble_gattc_write_no_rsp_kick(struct ble_gattc_entry *entry)
         goto err;
     }
 
-    /* No response expected; call callback immediately and return nonzero to
+    /* No response expected; call callback immediately and return 'done' to
      * indicate the entry should be freed.
      */
     ble_gattc_write_cb(entry, 0, 0);
-
-    return 1;
+    return BLE_HS_EDONE;
 
 err:
     if (ble_gattc_tx_postpone_chk(entry, rc)) {
@@ -2292,7 +2320,9 @@ ble_gattc_write_long_kick(struct ble_gattc_entry *entry)
 {
     struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
+    struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    int max_sz;
     int rc;
 
     conn = ble_hs_conn_find(entry->conn_handle);
@@ -2302,11 +2332,25 @@ ble_gattc_write_long_kick(struct ble_gattc_entry *entry)
     }
 
     if (entry->write_long.attr.offset < entry->write_long.attr.value_len) {
+        chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+        assert(chan != NULL);
+
+        max_sz = ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+        if (entry->write_long.attr.offset + max_sz >
+            entry->write_long.attr.value_len) {
+
+            entry->write_long.length = entry->write_long.attr.value_len -
+                                       entry->write_long.attr.offset;
+        } else {
+            entry->write_long.length = max_sz;
+        }
+
         prep_req.bapc_handle = entry->write_long.attr.handle;
         prep_req.bapc_offset = entry->write_long.attr.offset;
         rc = ble_att_clt_tx_prep_write(conn, &prep_req,
-                                       entry->write_long.attr.value,
-                                       entry->write_long.attr.value_len);
+                                       entry->write_long.attr.value +
+                                           entry->write_long.attr.offset,
+                                       entry->write_long.length);
     } else {
         exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
         rc = ble_att_clt_tx_exec_write(conn, &exec_req);
@@ -2359,12 +2403,18 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_entry *entry,
         rc = BLE_HS_EBADDATA;
         goto err;
     }
-    if (memcmp(attr_data, entry->write_long.attr.value, attr_len) != 0) {
+    if (attr_len != entry->write_long.length) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+    if (memcmp(attr_data, entry->write_long.attr.value + rsp->bapc_offset,
+               attr_len) != 0) {
         rc = BLE_HS_EBADDATA;
         goto err;
     }
 
     entry->write_long.attr.offset += attr_len;
+    ble_gattc_entry_set_pending(entry);
 
     return 0;
 
@@ -2379,7 +2429,7 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_entry *entry,
                              struct ble_hs_conn *conn,
                              int status)
 {
-    ble_gattc_write_cb(entry, status, 0);
+    ble_gattc_write_long_cb(entry, status, 0);
     return 1;
 }
 
@@ -2396,6 +2446,7 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle, void *value,
     }
 
     entry->write_long.attr.handle = attr_handle;
+    entry->write_long.attr.offset = 0;
     entry->write_long.attr.value = value;
     entry->write_long.attr.value_len = value_len;
     entry->write_long.cb = cb;
@@ -2545,6 +2596,8 @@ ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2567,6 +2620,8 @@ ble_gattc_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu)
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_MTU, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2587,6 +2642,8 @@ ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
                            &prev);
     if (entry == NULL) {
@@ -2606,6 +2663,8 @@ ble_gattc_rx_find_info_complete(struct ble_hs_conn *conn, int status)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
                            &prev);
@@ -2628,6 +2687,8 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
                            &prev);
     if (entry == NULL) {
@@ -2647,6 +2708,8 @@ ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int status)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
                            &prev);
@@ -2669,6 +2732,8 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (entry == NULL) {
@@ -2697,6 +2762,8 @@ ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status)
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2724,6 +2791,8 @@ ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_SVCS, 1,
                            &prev);
     if (entry == NULL) {
@@ -2743,6 +2812,8 @@ ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int status)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_SVCS, 1,
                            &prev);
@@ -2765,6 +2836,8 @@ ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (entry == NULL) {
@@ -2792,6 +2865,8 @@ ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_READ_LONG, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2813,6 +2888,8 @@ ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_READ_MULT, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2832,6 +2909,8 @@ ble_gattc_rx_write_rsp(struct ble_hs_conn *conn)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_WRITE, 1, &prev);
     if (entry == NULL) {
@@ -2854,6 +2933,8 @@ ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_WRITE_LONG, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2874,6 +2955,8 @@ ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status)
     struct ble_gattc_entry *prev;
     int rc;
 
+    ble_gattc_assert_sanity();
+
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_WRITE_LONG, 1, &prev);
     if (entry == NULL) {
         /* Not expecting a response from this device. */
@@ -2892,6 +2975,8 @@ ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn)
     struct ble_gattc_entry *entry;
     struct ble_gattc_entry *prev;
     int rc;
+
+    ble_gattc_assert_sanity();
 
     entry = ble_gattc_find(conn->bhc_handle, BLE_GATT_OP_INDICATE, 1, &prev);
     if (entry == NULL) {
@@ -2940,10 +3025,14 @@ ble_gattc_wakeup(void)
                 prev = entry;
                 break;
 
-            default:
-                /* Transmit failed.  Abort procedure. */
+            case BLE_HS_EDONE:
+                /* Procedure complete. */
                 ble_gattc_entry_remove_free(entry, prev);
                 /* Current entry removed; old prev still valid. */
+                break;
+
+            default:
+                assert(0);
                 break;
             }
         } else {
@@ -2952,6 +3041,8 @@ ble_gattc_wakeup(void)
 
         entry = next;
     }
+
+    ble_gattc_assert_sanity();
 }
 
 /**
