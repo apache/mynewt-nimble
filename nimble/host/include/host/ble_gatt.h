@@ -76,7 +76,7 @@ typedef int ble_gatt_dsc_fn(uint16_t conn_handle, struct ble_gatt_error *error,
                             uint16_t chr_val_handle, struct ble_gatt_dsc *dsc,
                             void *arg);
 
-int ble_gattc_exchange_mtu(uint16_t conn_handle, uint16_t att_mtu,
+int ble_gattc_exchange_mtu(uint16_t conn_handle,
                            ble_gatt_mtu_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
                             ble_gatt_disc_svc_fn *cb, void *cb_arg);

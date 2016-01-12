@@ -38,7 +38,6 @@ struct ble_gattc_entry {
     uint32_t tx_time; /* OS ticks. */
     union {
         struct {
-            uint16_t my_mtu;
             ble_gatt_mtu_fn *cb;
             void *cb_arg;
         } mtu;
@@ -649,7 +648,7 @@ ble_gattc_mtu_kick(struct ble_gattc_entry *entry)
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     assert(chan != NULL);
 
-    req.bamc_mtu = entry->mtu.my_mtu;
+    req.bamc_mtu = chan->blc_my_mtu;
     rc = ble_att_clt_tx_mtu(conn, &req);
     if (rc != 0) {
         goto err;
@@ -683,8 +682,7 @@ ble_gattc_mtu_rx_rsp(struct ble_gattc_entry *entry,
 }
 
 int
-ble_gattc_exchange_mtu(uint16_t conn_handle, uint16_t att_mtu,
-                       ble_gatt_mtu_fn *cb, void *cb_arg)
+ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
 {
     struct ble_gattc_entry *entry;
     int rc;
@@ -694,7 +692,6 @@ ble_gattc_exchange_mtu(uint16_t conn_handle, uint16_t att_mtu,
         return rc;
     }
 
-    entry->mtu.my_mtu = att_mtu;
     entry->mtu.cb = cb;
     entry->mtu.cb_arg = cb_arg;
 
