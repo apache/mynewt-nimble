@@ -23,6 +23,11 @@ struct ble_hs_conn;
 struct ble_att_error_rsp;
 
 /*** @client. */
+struct ble_gatt_error {
+    uint16_t status;
+    uint16_t att_handle;
+};
+
 struct ble_gatt_service {
     uint16_t start_handle;
     uint16_t end_handle;
@@ -48,24 +53,31 @@ struct ble_gatt_dsc {
     uint8_t uuid128[16];
 };
 
-typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle, int status,
+typedef int ble_gatt_mtu_fn(uint16_t conn_handle, struct ble_gatt_error *error,
+                            uint16_t mtu, void *arg);
+typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
+                                 struct ble_gatt_error *error,
                                  struct ble_gatt_service *service,
                                  void *arg);
-typedef int ble_gatt_attr_fn(uint16_t conn_handle, int status,
+typedef int ble_gatt_attr_fn(uint16_t conn_handle,
+                             struct ble_gatt_error *error,
                              struct ble_gatt_attr *attr, void *arg);
-typedef int ble_gatt_mult_attr_fn(uint16_t conn_handle, int status,
+typedef int ble_gatt_mult_attr_fn(uint16_t conn_handle,
+                                  struct ble_gatt_error *error,
                                   uint16_t *attr_handles,
                                   uint8_t num_attr_handles,
                                   uint8_t *attr_data, uint16_t attr_data_len,
                                   void *arg);
 
-typedef int ble_gatt_chr_fn(uint16_t conn_handle, int status,
+typedef int ble_gatt_chr_fn(uint16_t conn_handle, struct ble_gatt_error *error,
                             struct ble_gatt_chr *chr, void *arg);
 
-typedef int ble_gatt_dsc_fn(uint16_t conn_handle, int status,
+typedef int ble_gatt_dsc_fn(uint16_t conn_handle, struct ble_gatt_error *error,
                             uint16_t chr_val_handle, struct ble_gatt_dsc *dsc,
                             void *arg);
 
+int ble_gattc_exchange_mtu(uint16_t conn_handle, uint16_t att_mtu,
+                           ble_gatt_mtu_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
                             ble_gatt_disc_svc_fn *cb, void *cb_arg);
 int ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
@@ -98,7 +110,6 @@ int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 
-int ble_gattc_exchange_mtu(uint16_t conn_handle);
 int ble_gattc_init(void);
 
 /*** @server. */

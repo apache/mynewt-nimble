@@ -41,8 +41,8 @@ void ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status);
 void ble_hs_test_util_rx_ack_param(uint16_t opcode, uint8_t status,
                                    void *param, int param_len);
 void ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status);
-void ble_hs_test_util_rx_le_ack_param(uint16_t ocf, uint8_t status, void *param,
-                                      int param_len);
+void ble_hs_test_util_rx_le_ack_param(uint16_t ocf, uint8_t status,
+                                      void *param, int param_len);
 int ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                            struct ble_l2cap_chan *chan,
                                            const void *data, int len);

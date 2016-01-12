@@ -34,7 +34,8 @@
 static uint8_t ble_gatt_conn_test_write_value[] = { 1, 3, 64, 21, 6 };
 
 static int
-ble_gatt_conn_test_disc_service_cb(uint16_t conn_handle, int status,
+ble_gatt_conn_test_disc_service_cb(uint16_t conn_handle,
+                                   struct ble_gatt_error *error,
                                    struct ble_gatt_service *service,
                                    void *arg)
 {
@@ -44,14 +45,16 @@ ble_gatt_conn_test_disc_service_cb(uint16_t conn_handle, int status,
     *called = 1;
 
     TEST_ASSERT(conn_handle == BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE);
-    TEST_ASSERT(status == BLE_HS_ENOTCONN);
+    TEST_ASSERT_FATAL(error != NULL);
+    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
     TEST_ASSERT(service == NULL);
 
     return 0;
 }
 
 static int
-ble_gatt_conn_test_disc_chr_cb(uint16_t conn_handle, int status,
+ble_gatt_conn_test_disc_chr_cb(uint16_t conn_handle,
+                               struct ble_gatt_error *error,
                                struct ble_gatt_chr *chr, void *arg)
 {
     int *called;
@@ -60,14 +63,15 @@ ble_gatt_conn_test_disc_chr_cb(uint16_t conn_handle, int status,
     *called = 1;
 
     TEST_ASSERT(conn_handle == BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE);
-    TEST_ASSERT(status == BLE_HS_ENOTCONN);
+    TEST_ASSERT_FATAL(error != NULL);
+    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
     TEST_ASSERT(chr == NULL);
 
     return 0;
 }
 
 static int
-ble_gatt_conn_test_write_cb(uint16_t conn_handle, int status,
+ble_gatt_conn_test_write_cb(uint16_t conn_handle, struct ble_gatt_error *error,
                             struct ble_gatt_attr *attr, void *arg)
 {
     int *called;
@@ -76,7 +80,8 @@ ble_gatt_conn_test_write_cb(uint16_t conn_handle, int status,
     *called = 1;
 
     TEST_ASSERT(conn_handle == BLE_GATT_BREAK_TEST_WRITE_HANDLE);
-    TEST_ASSERT(status == BLE_HS_ENOTCONN);
+    TEST_ASSERT_FATAL(error != NULL);
+    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
     TEST_ASSERT(attr != NULL);
     TEST_ASSERT(attr->handle == BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE);
     TEST_ASSERT(attr->value_len == sizeof ble_gatt_conn_test_write_value);
@@ -87,7 +92,7 @@ ble_gatt_conn_test_write_cb(uint16_t conn_handle, int status,
 }
 
 static int
-ble_gatt_conn_test_read_cb(uint16_t conn_handle, int status,
+ble_gatt_conn_test_read_cb(uint16_t conn_handle, struct ble_gatt_error *error,
                            struct ble_gatt_attr *attr, void *arg)
 {
     int *called;
@@ -96,7 +101,8 @@ ble_gatt_conn_test_read_cb(uint16_t conn_handle, int status,
     *called = 1;
 
     TEST_ASSERT(conn_handle == BLE_GATT_BREAK_TEST_READ_HANDLE);
-    TEST_ASSERT(status == BLE_HS_ENOTCONN);
+    TEST_ASSERT_FATAL(error != NULL);
+    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
     TEST_ASSERT(attr == NULL);
 
     return 0;

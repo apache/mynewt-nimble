@@ -172,13 +172,14 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
 }
 
 static int
-ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, int status,
+ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle,
+                             struct ble_gatt_error *error,
                              struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_chr *dst;
     int *stop_after;
 
-    TEST_ASSERT(status == 0);
+    TEST_ASSERT(error == NULL);
     TEST_ASSERT(!ble_gatt_disc_c_test_rx_complete);
 
     stop_after = arg;

@@ -223,10 +223,11 @@ ble_gatt_disc_s_test_misc_verify_services(
 }
 
 static int
-ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle, int status,
+ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle,
+                                  struct ble_gatt_error *error,
                                   struct ble_gatt_service *service, void *arg)
 {
-    TEST_ASSERT(status == 0);
+    TEST_ASSERT(error == NULL);
     TEST_ASSERT(!ble_gatt_disc_s_test_rx_complete);
 
     if (service == NULL) {

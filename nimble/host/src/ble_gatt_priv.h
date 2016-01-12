@@ -60,8 +60,8 @@ void ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
 void ble_gattc_rx_read_group_type_adata(
     struct ble_hs_conn *conn, struct ble_att_read_group_type_adata *adata);
 void ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc);
-void ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
-                                        struct ble_att_find_type_value_hinfo *hinfo);
+void ble_gattc_rx_find_type_value_hinfo(
+    struct ble_hs_conn *conn, struct ble_att_find_type_value_hinfo *hinfo);
 void ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
 void ble_gattc_rx_write_rsp(struct ble_hs_conn *conn);
 void ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn);
