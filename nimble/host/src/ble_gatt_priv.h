@@ -48,7 +48,7 @@ int ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle);
 
 void ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
 void ble_gattc_wakeup(void);
-void ble_gattc_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu);
+void ble_gattc_rx_mtu(struct ble_hs_conn *conn, int status, uint16_t chan_mtu);
 void ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
                                   struct ble_att_read_type_adata *adata);
 void ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status);

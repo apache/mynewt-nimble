@@ -28,7 +28,7 @@
 #include "ble_att_priv.h"
 
 static int
-ble_att_clt_prep_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
+ble_att_clt_init_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
                      struct os_mbuf **txom, uint16_t initial_sz)
 {
     void *buf;
@@ -142,7 +142,7 @@ ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_MTU_CMD_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_MTU_CMD_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -172,7 +172,8 @@ ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     *om = os_mbuf_pullup(*om, BLE_ATT_MTU_CMD_SZ);
     if (*om == NULL) {
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        goto done;
     }
 
     rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
@@ -180,9 +181,11 @@ ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
 
-    ble_gattc_rx_mtu(conn, ble_l2cap_chan_mtu(chan));
+    rc = 0;
 
-    return 0;
+done:
+    ble_gattc_rx_mtu(conn, rc, ble_l2cap_chan_mtu(chan));
+    return rc;
 }
 
 /*****************************************************************************
@@ -206,7 +209,7 @@ ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_FIND_INFO_REQ_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_FIND_INFO_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -237,9 +240,12 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     uint16_t uuid16;
     int rc;
 
+    rxom = NULL;
+
     *om = os_mbuf_pullup(*om, BLE_ATT_FIND_INFO_RSP_BASE_SZ);
     if (*om == NULL) {
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        goto done;
     }
 
     /* Double indirection is unwieldy; use rxom for remainder of function. */
@@ -325,7 +331,7 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+    rc = ble_att_clt_init_req(conn, &chan, &txom,
                               BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
@@ -422,7 +428,7 @@ ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+    rc = ble_att_clt_init_req(conn, &chan, &txom,
                               BLE_ATT_READ_TYPE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
@@ -491,8 +497,7 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     /* Parse the Attribute Data List field, passing each entry to the GATT. */
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
-        rc = ble_att_clt_parse_read_type_adata(rxom, rsp.batp_length,
-                                                   &adata);
+        rc = ble_att_clt_parse_read_type_adata(rxom, rsp.batp_length, &adata);
         if (rc != 0) {
             goto done;
         }
@@ -504,8 +509,7 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 done:
     /* Notify GATT that the response is done being parsed. */
     ble_gattc_rx_read_type_complete(conn, rc);
-
-    return 0;
+    return rc;
 
 }
 
@@ -527,7 +531,7 @@ ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_READ_REQ_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_READ_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -600,7 +604,7 @@ ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_READ_BLOB_REQ_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_READ_BLOB_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -675,7 +679,7 @@ ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+    rc = ble_att_clt_init_req(conn, &chan, &txom,
                               BLE_ATT_READ_MULT_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
@@ -762,7 +766,7 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+    rc = ble_att_clt_init_req(conn, &chan, &txom,
                               BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
@@ -848,8 +852,7 @@ ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
 done:
     /* Notify GATT that the response is done being parsed. */
     ble_gattc_rx_read_group_type_complete(conn, rc);
-
-    return 0;
+    return rc;
 }
 
 /*****************************************************************************
@@ -868,7 +871,7 @@ ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
 
     txom = NULL;
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_WRITE_REQ_BASE_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_WRITE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -935,7 +938,6 @@ ble_att_clt_rx_write(struct ble_hs_conn *conn,
 {
     /* No payload. */
     ble_gattc_rx_write_rsp(conn);
-
     return 0;
 }
 
@@ -964,7 +966,7 @@ ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+    rc = ble_att_clt_init_req(conn, &chan, &txom,
                               BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
     if (rc != 0) {
         goto err;
@@ -1052,7 +1054,7 @@ ble_att_clt_tx_exec_write(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_EXEC_WRITE_REQ_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_EXEC_WRITE_REQ_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -1115,7 +1117,7 @@ ble_att_clt_tx_notify(struct ble_hs_conn *conn, struct ble_att_notify_req *req,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
+    rc = ble_att_clt_init_req(conn, &chan, &txom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
     }
@@ -1161,7 +1163,7 @@ ble_att_clt_tx_indicate(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_att_clt_prep_req(conn, &chan, &txom,
+    rc = ble_att_clt_init_req(conn, &chan, &txom,
                               BLE_ATT_INDICATE_REQ_BASE_SZ);
     if (rc != 0) {
         goto err;
@@ -1195,6 +1197,5 @@ ble_att_clt_rx_indicate(struct ble_hs_conn *conn,
 {
     /* No payload. */
     ble_gattc_rx_indicate_rsp(conn);
-
     return 0;
 }

@@ -897,9 +897,9 @@ ble_gattc_mtu_err(struct ble_gattc_proc *proc, int status, uint16_t att_handle)
  */
 static int
 ble_gattc_mtu_rx_rsp(struct ble_gattc_proc *proc, struct ble_hs_conn *conn,
-                     uint16_t chan_mtu)
+                     int status, uint16_t chan_mtu)
 {
-    ble_gattc_mtu_cb(proc, 0, 0, chan_mtu);
+    ble_gattc_mtu_cb(proc, status, 0, chan_mtu);
     return 1;
 }
 
@@ -3333,7 +3333,7 @@ ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
  * GATT procedure.
  */
 void
-ble_gattc_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu)
+ble_gattc_rx_mtu(struct ble_hs_conn *conn, int status, uint16_t chan_mtu)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -3347,7 +3347,7 @@ ble_gattc_rx_mtu(struct ble_hs_conn *conn, uint16_t chan_mtu)
         return;
     }
 
-    rc = ble_gattc_mtu_rx_rsp(proc, conn, chan_mtu);
+    rc = ble_gattc_mtu_rx_rsp(proc, conn, status, chan_mtu);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
