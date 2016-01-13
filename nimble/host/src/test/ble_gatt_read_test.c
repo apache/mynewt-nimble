@@ -679,7 +679,7 @@ TEST_CASE(ble_gatt_read_test_by_handle)
     ble_gatt_read_test_misc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 0x5432,
         .value = (uint8_t[]){ 0xff },
-        .value_len = 7
+        .value_len = 1
     } });
 
     /* Read a 200-byte attribute. */
@@ -905,14 +905,14 @@ TEST_CASE(ble_gatt_read_test_dsc)
     ble_gatt_read_test_misc_dsc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 43,
         .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
-        .value_len = 7
+        .value_len = 7,
     } });
 
     /* Read a one-byte attribute. */
     ble_gatt_read_test_misc_dsc_verify_good((struct ble_gatt_attr[]) { {
         .handle = 0x5432,
         .value = (uint8_t[]){ 0xff },
-        .value_len = 7
+        .value_len = 1,
     } });
 
     /* Read a 200-byte attribute. */
@@ -927,7 +927,7 @@ TEST_CASE(ble_gatt_read_test_dsc)
         (struct ble_gatt_attr[]) { {
             .handle = 719,
             .value = (uint8_t[]){ 1,2,3,4,5,6,7 },
-            .value_len = 7
+            .value_len = 7,
         } });
 
     /* Fail due to invalid PDU. */
@@ -935,7 +935,7 @@ TEST_CASE(ble_gatt_read_test_dsc)
         (struct ble_gatt_attr[]) { {
             .handle = 65,
             .value = (uint8_t[]){ 0xfa, 0x4c },
-            .value_len = 2
+            .value_len = 2,
         } });
 }
 

@@ -80,6 +80,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
     evt.connection_handle = handle;
     memcpy(evt.peer_addr, addr, 6);
     rc = ble_gap_conn_rx_conn_complete(&evt);
+    TEST_ASSERT(rc == 0);
 
     conn = ble_hs_conn_find(handle);
     TEST_ASSERT_FATAL(conn != NULL);
@@ -326,6 +327,25 @@ ble_hs_test_util_rx_dir_adv_acks(void)
     /* Receive set-adv-enable ack. */
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE, BLE_ERR_SUCCESS);
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
+}
+
+uint8_t *
+ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
+                               uint8_t *out_param_len)
+{
+    uint16_t opcode;
+
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_hci_tx != NULL);
+
+    opcode = le16toh(ble_hs_test_util_prev_hci_tx);
+    TEST_ASSERT(BLE_HCI_OGF(opcode) == ogf);
+    TEST_ASSERT(BLE_HCI_OCF(opcode) == ocf);
+
+    if (out_param_len != NULL) {
+        *out_param_len = ble_hs_test_util_prev_hci_tx[2];
+    }
+
+    return ble_hs_test_util_prev_hci_tx + 3;
 }
 
 void
