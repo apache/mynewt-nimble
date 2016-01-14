@@ -134,7 +134,8 @@ ble_gatt_write_test_misc_long_good(int attr_len)
 
     ble_gatt_write_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_write_long(conn->bhc_handle, 100,
                               ble_gatt_write_test_attr_value,
@@ -185,7 +186,8 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
 
     ble_gatt_write_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_write_long(conn->bhc_handle, 100,
                               ble_gatt_write_test_attr_value,
@@ -268,7 +270,8 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
 
     ble_gatt_write_test_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     attr_len = 4;
     rc = ble_gattc_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
@@ -291,7 +294,8 @@ TEST_CASE(ble_gatt_write_test_rsp)
 
     ble_gatt_write_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     attr_len = 4;
     rc = ble_gattc_write(2, 100, ble_gatt_write_test_attr_value,

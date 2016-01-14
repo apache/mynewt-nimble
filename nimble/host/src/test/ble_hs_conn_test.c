@@ -26,7 +26,7 @@
 #include "ble_hs_conn.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
-#include "ble_gap_conn.h"
+#include "ble_gap_priv.h"
 #include "ble_hs_test_util.h"
 #include "testutil/testutil.h"
 
@@ -45,7 +45,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_direct_connect(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -92,7 +92,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_direct_connect(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -139,7 +139,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
 
     /* Initiate advertising. */
     rc = ble_gap_conn_advertise(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
-                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC);
+                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC,
+                                NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -187,7 +188,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
 
     /* Initiate connection. */
     rc = ble_gap_conn_advertise(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
-                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC);
+                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC,
+                                NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -212,7 +214,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
     evt.status = BLE_ERR_UNSPECIFIED;
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_gap_conn_slave_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 }
 
@@ -233,7 +235,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
     /* Initiate advertising. */
     rc = ble_gap_conn_advertise(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_UND,
-                                NULL, 0);
+                                NULL, 0, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
@@ -271,8 +273,10 @@ TEST_CASE(ble_hs_conn_test_completed_pkts)
 
     ble_hs_test_util_init();
 
-    conn1 = ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}));
-    conn2 = ble_hs_test_util_create_conn(2, ((uint8_t[]){3,4,5,6,7,8,9,10}));
+    conn1 = ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                         NULL, NULL);
+    conn2 = ble_hs_test_util_create_conn(2, ((uint8_t[]){3,4,5,6,7,8,9,10}),
+                                         NULL, NULL);
 
     conn1->bhc_outstanding_pkts = 5;
     conn2->bhc_outstanding_pkts = 5;

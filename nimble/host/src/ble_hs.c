@@ -27,7 +27,7 @@
 #include "ble_hs_startup.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
-#include "ble_gap_conn.h"
+#include "ble_gap_priv.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
 #endif

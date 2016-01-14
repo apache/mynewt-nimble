@@ -120,13 +120,13 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
 
     /* Create three connections. */
     ble_hs_test_util_create_conn(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE,
-                                 ((uint8_t[]){1,2,3,4,5,6,7,8}));
+                                 ((uint8_t[]){1,2,3,4,5,6,7,8}), NULL, NULL);
     ble_hs_test_util_create_conn(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE,
-                                 ((uint8_t[]){2,3,4,5,6,7,8,9}));
+                                 ((uint8_t[]){2,3,4,5,6,7,8,9}), NULL, NULL);
     ble_hs_test_util_create_conn(BLE_GATT_BREAK_TEST_READ_HANDLE,
-                                 ((uint8_t[]){3,4,5,6,7,8,9,10}));
+                                 ((uint8_t[]){3,4,5,6,7,8,9,10}), NULL, NULL);
     ble_hs_test_util_create_conn(BLE_GATT_BREAK_TEST_WRITE_HANDLE,
-                                 ((uint8_t[]){4,5,6,7,8,9,10,11}));
+                                 ((uint8_t[]){4,5,6,7,8,9,10,11}), NULL, NULL);
 
     /* Schedule some GATT procedures. */
     rc = ble_gattc_disc_all_svcs(BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE,
@@ -177,7 +177,8 @@ TEST_CASE(ble_gatt_conn_test_congestion)
     ble_hs_cfg.max_outstanding_pkts_per_conn = 1;
 
     /* Create a connection. */
-    conn = ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}));
+    conn = ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}),
+                                        NULL, NULL);
 
     /* Try to send two data packets. */
     rc = ble_gattc_write(1, 0x1234, ble_gatt_conn_test_write_value,

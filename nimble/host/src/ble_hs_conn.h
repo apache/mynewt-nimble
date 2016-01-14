@@ -18,6 +18,7 @@
 #define H_BLE_HS_CONN_
 
 #include "os/queue.h"
+#include "host/ble_gap.h"
 #include "ble_l2cap.h"
 #include "ble_att_priv.h"
 #include "ble_gatt_priv.h"
@@ -28,6 +29,7 @@ struct ble_l2cap_chan;
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
+    uint8_t bhc_addr_type;
     uint8_t bhc_addr[6];
 
     struct ble_l2cap_chan_list bhc_channels;
@@ -35,6 +37,9 @@ struct ble_hs_conn {
 
     struct ble_att_svr_conn bhc_att_svr;
     struct ble_gatts_conn bhc_gatt_svr;
+
+    ble_gap_conn_fn *bhc_cb;
+    void *bhc_cb_arg;
 };
 
 int ble_hs_conn_can_alloc(void);

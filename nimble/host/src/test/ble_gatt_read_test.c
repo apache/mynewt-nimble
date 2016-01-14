@@ -289,7 +289,8 @@ ble_gatt_read_test_misc_verify_good(struct ble_gatt_attr *attr)
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
                         NULL);
@@ -313,7 +314,8 @@ ble_gatt_read_test_misc_verify_bad(uint8_t att_status,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read(conn->bhc_handle, attr->handle, ble_gatt_read_test_cb,
                         NULL);
@@ -341,7 +343,8 @@ ble_gatt_read_test_misc_uuid_verify_good(uint16_t start_handle,
     int i;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read_uuid(conn->bhc_handle, start_handle, end_handle,
                              uuid128, ble_gatt_read_test_cb, &stop_after);
@@ -389,7 +392,8 @@ ble_gatt_read_test_misc_long_verify_good(int max_reads,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     if (max_reads == 0) {
         max_reads = INT_MAX;
@@ -437,7 +441,8 @@ ble_gatt_read_test_misc_long_verify_bad(uint8_t att_status,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read_long(conn->bhc_handle, attr->handle,
                              ble_gatt_read_test_long_cb, NULL);
@@ -477,7 +482,8 @@ ble_gatt_read_test_misc_mult_verify_good(struct ble_gatt_attr *attrs)
     int i;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     num_attrs = ble_gatt_read_test_misc_extract_handles(attrs, handles);
 
@@ -524,7 +530,8 @@ ble_gatt_read_test_misc_mult_verify_bad(uint8_t att_status,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     num_attrs = ble_gatt_read_test_misc_extract_handles(attrs, handles);
 
@@ -551,7 +558,8 @@ ble_gatt_read_test_misc_dsc_verify_good(struct ble_gatt_attr *attr)
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read_dsc(conn->bhc_handle, attr->handle,
                             ble_gatt_read_test_cb, NULL);
@@ -575,7 +583,8 @@ ble_gatt_read_test_misc_dsc_verify_bad(uint8_t att_status,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read_dsc(conn->bhc_handle, attr->handle,
                             ble_gatt_read_test_cb, NULL);
@@ -603,7 +612,8 @@ ble_gatt_read_test_misc_dsc_long_verify_good(int max_reads,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     if (max_reads == 0) {
         max_reads = INT_MAX;
@@ -651,7 +661,8 @@ ble_gatt_read_test_misc_dsc_long_verify_bad(uint8_t att_status,
     int rc;
 
     ble_gatt_read_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_read_long_dsc(conn->bhc_handle, attr->handle,
                                  ble_gatt_read_test_long_cb, NULL);

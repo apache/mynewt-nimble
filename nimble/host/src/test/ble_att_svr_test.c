@@ -49,7 +49,8 @@ ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
 {
     ble_hs_test_util_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
     *conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(*conn != NULL);
 

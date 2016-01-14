@@ -28,7 +28,7 @@
 #include "ble_hs_conn.h"
 #include "ble_l2cap.h"
 #include "ble_hci_ack.h"
-#include "ble_gap_conn.h"
+#include "ble_gap_priv.h"
 #include "ble_hs_adv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,

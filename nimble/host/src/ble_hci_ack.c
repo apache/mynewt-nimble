@@ -19,7 +19,7 @@
 #include <stddef.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "ble_gap_conn.h"
+#include "ble_gap_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hci_sched.h"
 #include "ble_hci_ack.h"

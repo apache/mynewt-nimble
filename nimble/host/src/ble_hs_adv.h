@@ -27,6 +27,7 @@ struct ble_hs_adv {
     int8_t rssi;
     uint8_t addr[6];
     uint8_t *data;
+    struct ble_hs_adv_fields *fields;
 };
 
 #define BLE_HS_ADV_TYPE_FLAGS                   0x01

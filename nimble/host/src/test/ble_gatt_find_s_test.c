@@ -249,7 +249,8 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* Two 16-bit UUID services; one response. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
     ble_gatt_find_s_test_misc_find_inc(conn, 5, 10,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 6,
@@ -268,7 +269,8 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* One 128-bit UUID service; two responses. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
     ble_gatt_find_s_test_misc_find_inc(conn, 34, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
@@ -282,7 +284,8 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* Two 128-bit UUID service; four responses. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
     ble_gatt_find_s_test_misc_find_inc(conn, 34, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
@@ -301,7 +304,8 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* Two 16-bit UUID; three 128-bit UUID; seven responses. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
     ble_gatt_find_s_test_misc_find_inc(conn, 1, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,

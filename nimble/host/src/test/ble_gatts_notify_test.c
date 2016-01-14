@@ -81,7 +81,8 @@ ble_gatts_notify_test_misc_init(struct ble_hs_conn **conn,
     TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_1_def_handle != 0);
     TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_2_def_handle != 0);
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
     *conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(*conn != NULL);
 

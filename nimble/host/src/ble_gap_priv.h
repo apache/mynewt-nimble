@@ -29,6 +29,7 @@ int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);
 void ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt);
 int ble_gap_conn_master_in_progress(void);
 int ble_gap_conn_slave_in_progress(void);
+int ble_gap_conn_wl_busy(void);
 int ble_gap_conn_init(void);
 
 #endif

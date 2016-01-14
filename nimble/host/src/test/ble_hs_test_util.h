@@ -18,6 +18,7 @@
 #define H_BLE_HS_TEST_UTIL_
 
 #include <inttypes.h>
+#include "host/ble_gap.h"
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 
@@ -36,7 +37,9 @@ void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
                                        uint8_t status, uint8_t num_pkts,
                                        uint16_t opcode);
 struct ble_hs_conn *ble_hs_test_util_create_conn(uint16_t handle,
-                                                 uint8_t *addr);
+                                                 uint8_t *addr,
+                                                 ble_gap_conn_fn *cb,
+                                                 void *cb_arg);
 void ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status);
 void ble_hs_test_util_rx_ack_param(uint16_t opcode, uint8_t status,
                                    void *param, int param_len);

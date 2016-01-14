@@ -25,7 +25,7 @@
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_hs_conn.h"
-#include "ble_gap_conn.h"
+#include "ble_gap_priv.h"
 #include "ble_l2cap.h"
 #include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
@@ -61,13 +61,14 @@ ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
 }
 
 struct ble_hs_conn *
-ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr)
+ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
+                             ble_gap_conn_fn *cb, void *cb_arg)
 {
     struct hci_le_conn_complete evt;
     struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_gap_conn_direct_connect(0, addr);
+    rc = ble_gap_conn_direct_connect(0, addr, cb, cb_arg);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();

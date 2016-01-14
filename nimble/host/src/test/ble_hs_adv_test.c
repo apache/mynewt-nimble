@@ -27,7 +27,7 @@
 #include "ble_hs_adv.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
-#include "ble_gap_conn.h"
+#include "ble_gap_priv.h"
 #include "ble_hs_test_util.h"
 #include "testutil/testutil.h"
 
@@ -117,7 +117,8 @@ ble_hs_adv_test_misc_tx_and_verify_data(uint8_t disc_mode,
 
     ble_hs_test_util_init();
 
-    rc = ble_gap_conn_advertise(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0);
+    rc = ble_gap_conn_advertise(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0,
+                                NULL, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_rx_und_adv_acks_count(3);

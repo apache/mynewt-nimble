@@ -216,7 +216,8 @@ ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
 
     ble_gatt_disc_c_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     num_left = stop_after;
     rc = ble_gattc_disc_all_chrs(2, start_handle, end_handle,
@@ -238,7 +239,8 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
 
     ble_gatt_disc_c_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}));
+    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                        NULL, NULL);
 
     rc = ble_gattc_disc_chrs_by_uuid(2, start_handle, end_handle,
                                      uuid128,
