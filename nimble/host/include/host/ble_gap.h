@@ -21,11 +21,17 @@
 #include "host/ble_hs.h"
 struct hci_le_conn_complete;
 
+/*** XXX: Move to private header. */
 #define BLE_GAP_CONN_EVENT_TYPE_CONNECT     1
 #define BLE_GAP_CONN_EVENT_TYPE_ADV_RPT     2
 #define BLE_GAP_CONN_EVENT_TYPE_SCAN_DONE   3
 #define BLE_GAP_CONN_EVENT_TYPE_TERMINATE   4
 #define BLE_GAP_CONN_EVENT_TYPE_ADV_DONE    5
+#define BLE_GAP_CONN_EVENT_TYPE_WL          6
+int ble_gap_conn_wl_busy(void);
+/**********************************/
+
+#define BLE_GAP_ADDR_TYPE_WL                0xff
 
 struct ble_gap_conn_connect_rpt {
     int status;
@@ -54,6 +60,10 @@ struct ble_gap_conn_adv_done {
     int status;
 };
 
+struct ble_gap_conn_wl {
+    int status;
+};
+
 struct ble_gap_conn_event {
     uint8_t type;
 
@@ -62,6 +72,7 @@ struct ble_gap_conn_event {
         struct ble_gap_conn_adv_rpt adv;
         struct ble_gap_conn_terminate_rpt term;
         struct ble_gap_conn_adv_done adv_done;
+        struct ble_gap_conn_wl wl;
     };
 };
 
@@ -87,10 +98,10 @@ int ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type);
 int ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_conn_disc(uint32_t duration_ms, uint8_t discovery_mode);
-int ble_gap_conn_auto_connect(struct ble_gap_white_entry *white_list,
-                              int white_list_count);
 int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr);
 int ble_gap_conn_terminate(uint16_t handle);
 int ble_gap_conn_cancel(void);
+int ble_gap_conn_wl_set(struct ble_gap_white_entry *white_list,
+                        uint8_t white_list_count);
 
 #endif

@@ -93,21 +93,19 @@ ble_gap_test_misc_verify_tx_create_conn(uint8_t filter_policy)
 }
 
 static void
-ble_gap_test_misc_conn_auto_good_once(struct ble_gap_white_entry *white_list,
-                                      int white_list_count, int dev_idx)
+ble_gap_test_misc_conn_wl_good_once(struct ble_gap_white_entry *white_list,
+                                    int white_list_count)
 {
-    struct hci_le_conn_complete evt;
     int rc;
     int i;
 
     ble_gap_test_misc_init();
 
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_wl_busy());
 
-    rc = ble_gap_conn_auto_connect(white_list, white_list_count);
+    rc = ble_gap_conn_wl_set(white_list, white_list_count);
     TEST_ASSERT(rc == 0);
-
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_wl_busy());
 
     /* Verify tx of clear white list command. */
     ble_hci_sched_wakeup();
@@ -116,96 +114,16 @@ ble_gap_test_misc_conn_auto_good_once(struct ble_gap_white_entry *white_list,
 
     /* Verify tx of add white list commands. */
     for (i = 0; i < white_list_count; i++) {
+        TEST_ASSERT(ble_gap_conn_wl_busy());
         ble_hci_sched_wakeup();
         ble_gap_test_misc_verify_tx_add_wl(white_list + i);
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_ADD_WHITE_LIST, 0);
     }
 
-    /* Verify tx of create connection command. */
-    ble_hci_sched_wakeup();
-    ble_gap_test_misc_verify_tx_create_conn(BLE_HCI_CONN_FILT_USE_WL);
-    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
-
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
-    TEST_ASSERT(ble_hs_conn_find(2) == NULL);
-
-    /* Receive connection complete event. */
-    memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-    evt.status = BLE_ERR_SUCCESS;
-    evt.connection_handle = 2;
-    memcpy(evt.peer_addr, white_list[dev_idx].addr, 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
-    TEST_ASSERT(rc == 0);
-
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-
-    TEST_ASSERT(ble_gap_test_conn_event.type ==
-                BLE_GAP_CONN_EVENT_TYPE_CONNECT);
-    TEST_ASSERT(ble_gap_test_conn_event.conn.status == 0);
-    TEST_ASSERT(ble_gap_test_conn_event.conn.handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_event.conn.peer_addr,
-                       white_list[dev_idx].addr, 6) == 0);
-
-    TEST_ASSERT(ble_hs_conn_find(2) != NULL);
+    TEST_ASSERT(!ble_gap_conn_wl_busy());
 }
 
-static void
-ble_gap_test_misc_conn_auto_bad_addr(struct ble_gap_white_entry *white_list,
-                                     int white_list_count)
-{
-    struct hci_le_conn_complete evt;
-    int rc;
-    int i;
-
-    ble_gap_test_misc_init();
-
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-
-    rc = ble_gap_conn_auto_connect(white_list, white_list_count);
-    TEST_ASSERT(rc == 0);
-
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
-
-    /* Verify tx of clear white list command. */
-    ble_hci_sched_wakeup();
-    ble_gap_test_misc_verify_tx_clear_wl();
-    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CLEAR_WHITE_LIST, 0);
-
-    /* Verify tx of add white list commands. */
-    for (i = 0; i < white_list_count; i++) {
-        ble_hci_sched_wakeup();
-        ble_gap_test_misc_verify_tx_add_wl(white_list + i);
-        ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_ADD_WHITE_LIST, 0);
-    }
-
-    /* Verify tx of create connection command. */
-    ble_hci_sched_wakeup();
-    ble_gap_test_misc_verify_tx_create_conn(BLE_HCI_CONN_FILT_USE_WL);
-    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
-
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
-    TEST_ASSERT(ble_hs_conn_find(2) == NULL);
-
-    /* Receive connection complete event with unknown address. */
-    memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-    evt.status = BLE_ERR_SUCCESS;
-    evt.connection_handle = 2;
-    memcpy(evt.peer_addr, ((uint8_t[]){ 1,1,1,1,1,1 }), 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
-    TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
-
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-
-    TEST_ASSERT(ble_gap_test_conn_event.type ==
-                BLE_GAP_CONN_EVENT_TYPE_CONNECT);
-    TEST_ASSERT(ble_gap_test_conn_event.conn.status == BLE_HS_ECONTROLLER);
-
-    TEST_ASSERT(ble_hs_conn_find(2) == NULL);
-}
-
-TEST_CASE(ble_gap_test_case_conn_auto_good)
+TEST_CASE(ble_gap_test_case_conn_wl_good)
 {
     struct ble_gap_white_entry white_list[] = {
         { BLE_ADDR_TYPE_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
@@ -215,61 +133,41 @@ TEST_CASE(ble_gap_test_case_conn_auto_good)
     };
     int white_list_count = sizeof white_list / sizeof white_list[0];
 
-    int i;
-
-    for (i = 0; i < white_list_count; i++) {
-        ble_gap_test_misc_conn_auto_good_once(white_list, white_list_count, i);
-    }
+    ble_gap_test_misc_conn_wl_good_once(white_list, white_list_count);
 }
 
-TEST_CASE(ble_gap_test_case_conn_auto_bad_args)
+TEST_CASE(ble_gap_test_case_conn_wl_bad_args)
 {
     int rc;
 
     ble_gap_test_misc_init();
 
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_wl_busy());
 
     /*** 0 white list entries. */
-    rc = ble_gap_conn_auto_connect(NULL, 0);
+    rc = ble_gap_conn_wl_set(NULL, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_wl_busy());
 
     /*** Invalid address type. */
-    rc = ble_gap_conn_auto_connect(
+    rc = ble_gap_conn_wl_set(
         ((struct ble_gap_white_entry[]) { {
             5, { 1, 2, 3, 4, 5, 6 }
         }, }), 1);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_wl_busy());
 
-    /*** Connection already in progress. */
-    rc = ble_gap_conn_auto_connect(
-        ((struct ble_gap_white_entry[]) { {
-            BLE_ADDR_TYPE_PUBLIC, { 1, 2, 3, 4, 5, 6 }
-        }, }), 1);
+    /*** White-list-using connection in progress. */
+    rc = ble_gap_conn_direct_connect(BLE_GAP_ADDR_TYPE_WL, NULL);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_wl_busy());
 
-    rc = ble_gap_conn_auto_connect(
-        ((struct ble_gap_white_entry[]) { {
-            BLE_ADDR_TYPE_PUBLIC, { 2, 3, 4, 5, 6, 7 }
-        }, }), 1);
-    TEST_ASSERT(rc == BLE_HS_EALREADY);
-}
-
-TEST_CASE(ble_gap_test_case_conn_auto_bad_addr)
-{
-    ble_gap_test_misc_conn_auto_bad_addr(
+    rc = ble_gap_conn_wl_set(
         ((struct ble_gap_white_entry[]) { {
             BLE_ADDR_TYPE_PUBLIC, { 1, 2, 3, 4, 5, 6 }
-        }, {
-            BLE_ADDR_TYPE_PUBLIC, { 2, 3, 4, 5, 6, 7 }
-        }, {
-            BLE_ADDR_TYPE_PUBLIC, { 3, 4, 5, 6, 7, 8 }
-        }, {
-            BLE_ADDR_TYPE_PUBLIC, { 4, 5, 6, 7, 8, 9 }
-        } }), 4);
+        }, }), 1);
+    TEST_ASSERT(rc == BLE_HS_EBUSY);
+    TEST_ASSERT(ble_gap_conn_wl_busy());
 }
 
 TEST_CASE(ble_gap_test_case_conn_dir_good)
@@ -383,11 +281,10 @@ TEST_CASE(ble_gap_test_case_conn_dir_bad_addr)
     TEST_ASSERT(ble_hs_conn_find(2) == NULL);
 }
 
-TEST_SUITE(ble_gap_suite_conn_auto)
+TEST_SUITE(ble_gap_suite_conn_wl)
 {
-    ble_gap_test_case_conn_auto_good();
-    ble_gap_test_case_conn_auto_bad_args();
-    ble_gap_test_case_conn_auto_bad_addr();
+    ble_gap_test_case_conn_wl_good();
+    ble_gap_test_case_conn_wl_bad_args();
 }
 
 TEST_SUITE(ble_gap_suite_conn_dir)
@@ -400,7 +297,7 @@ TEST_SUITE(ble_gap_suite_conn_dir)
 int
 ble_gap_test_all(void)
 {
-    ble_gap_suite_conn_auto();
+    ble_gap_suite_conn_wl();
     ble_gap_suite_conn_dir();
 
     return tu_any_failed;
