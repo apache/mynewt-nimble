@@ -39,12 +39,12 @@
 
 #define BLE_GAP_CONN_OP_W_SET                               1
 
-/** General discovery master states. */
+/** Discovery master states. */
 #define BLE_GAP_CONN_M_STATE_DISC_PARAMS                    0
 #define BLE_GAP_CONN_M_STATE_DISC_ENABLE                    1
 #define BLE_GAP_CONN_M_STATE_DISC_ACKED                     2
 
-/** General discovery master states. */
+/** Connect master states. */
 #define BLE_GAP_CONN_STATE_M_PENDING                        0
 #define BLE_GAP_CONN_STATE_M_UNACKED                        1
 #define BLE_GAP_CONN_STATE_M_ACKED                          2
@@ -62,6 +62,7 @@
 #define BLE_GAP_CONN_S_STATE_DIR_ENABLE                     1
 #define BLE_GAP_CONN_S_STATE_DIR_ADV                        2
 
+/** White list states. */
 #define BLE_GAP_CONN_STATE_W_CLEAR                          0
 #define BLE_GAP_CONN_STATE_W_ADD                            1
 
@@ -583,7 +584,7 @@ ble_gap_conn_rx_adv_report(struct ble_hs_adv *adv)
     struct ble_hs_adv_fields fields;
     int rc;
 
-    if (ble_gap_conn_master.op      != BLE_GAP_CONN_OP_M_DISC &&
+    if (ble_gap_conn_master.op      != BLE_GAP_CONN_OP_M_DISC ||
         ble_gap_conn_master.state   != BLE_GAP_CONN_M_STATE_DISC_ACKED) {
 
         return;
