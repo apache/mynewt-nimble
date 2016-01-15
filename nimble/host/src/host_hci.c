@@ -267,7 +267,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     ack.bha_opcode = opcode;
     ack.bha_params = NULL;
     ack.bha_params_len = 0;
-    ack.bha_status = status;
+    ack.bha_status = BLE_HS_HCI_ERR(status);
 
     ble_hci_ack_rx(&ack);
 

@@ -20,7 +20,7 @@
 #include <inttypes.h>
 
 struct ble_hci_ack {
-    int bha_status;
+    int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
     uint8_t *bha_params;
     int bha_params_len;
     uint16_t bha_opcode;
