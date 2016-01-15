@@ -24,8 +24,8 @@ struct hci_disconn_complete;
 struct ble_hci_ack;
 struct ble_hs_adv;
 
-#define BLE_GAP_CONN_MODE_MAX               4
-#define BLE_GAP_DISC_MODE_MAX               4
+#define BLE_GAP_CONN_MODE_MAX               3
+#define BLE_GAP_DISC_MODE_MAX               3
 
 void ble_gap_conn_rx_adv_report(struct ble_hs_adv *adv);
 int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);

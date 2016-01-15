@@ -329,7 +329,7 @@ ble_gap_conn_notify_adv_finished(void)
 static void
 ble_gap_conn_notify_slave_adv_cancel_failure(int status)
 {
-    ble_gap_conn_call_slave_cb(BLE_GAP_EVENT_ADV_CANCEL_FAILURE, status);
+    ble_gap_conn_call_slave_cb(BLE_GAP_EVENT_ADV_STOP_FAILURE, status);
 }
 
 static void
@@ -914,8 +914,8 @@ ble_gap_conn_adv_disable_tx(void *arg)
     return 0;
 }
 
-static int
-ble_gap_conn_adv_stop(ble_gap_conn_fn *cb, void *cb_arg)
+int
+ble_gap_conn_adv_stop(void)
 {
     int rc;
 
@@ -923,9 +923,6 @@ ble_gap_conn_adv_stop(ble_gap_conn_fn *cb, void *cb_arg)
     if (!ble_gap_conn_currently_advertising()) {
         return BLE_HS_EALREADY;
     }
-
-    ble_gap_conn_slave.cb = cb;
-    ble_gap_conn_slave.cb_arg = cb_arg;
 
     rc = ble_hci_sched_enqueue(ble_gap_conn_adv_disable_tx, NULL);
     if (rc != 0) {
@@ -1238,7 +1235,7 @@ ble_gap_conn_adv_initiate(void)
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
+ble_gap_conn_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                        uint8_t *peer_addr, uint8_t peer_addr_type,
                        ble_gap_conn_fn *cb, void *cb_arg)
 {
@@ -1248,14 +1245,6 @@ ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
         connectable_mode >= BLE_GAP_CONN_MODE_MAX) {
 
         return BLE_HS_EINVAL;
-    }
-
-    /* Process a request to stop advertising separately. */
-    if (discoverable_mode == BLE_GAP_DISC_MODE_NULL ||
-        connectable_mode == BLE_GAP_DISC_MODE_NULL) {
-
-        rc = ble_gap_conn_adv_stop(cb, cb_arg);
-        return rc;
     }
 
     /* Make sure no slave connection attempt is already in progress. */

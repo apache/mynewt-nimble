@@ -30,7 +30,7 @@ struct hci_le_conn_complete;
 #define BLE_GAP_EVENT_DISC_FINISHED         4
 #define BLE_GAP_EVENT_ADV_FINISHED          5
 #define BLE_GAP_EVENT_ADV_FAILURE           6
-#define BLE_GAP_EVENT_ADV_CANCEL_FAILURE    7
+#define BLE_GAP_EVENT_ADV_STOP_FAILURE      7
 
 struct ble_gap_conn_desc {
     uint16_t conn_handle;
@@ -56,24 +56,23 @@ typedef void ble_gap_disc_fn(int event, int status,
 
 typedef void ble_gap_wl_fn(int status, void *arg);
 
-#define BLE_GAP_CONN_MODE_NULL              0
-#define BLE_GAP_CONN_MODE_NON               1
-#define BLE_GAP_CONN_MODE_DIR               2
-#define BLE_GAP_CONN_MODE_UND               3
+#define BLE_GAP_CONN_MODE_NON               0
+#define BLE_GAP_CONN_MODE_DIR               1
+#define BLE_GAP_CONN_MODE_UND               2
 
-#define BLE_GAP_DISC_MODE_NULL              0
-#define BLE_GAP_DISC_MODE_NON               1
-#define BLE_GAP_DISC_MODE_LTD               2
-#define BLE_GAP_DISC_MODE_GEN               3
+#define BLE_GAP_DISC_MODE_NON               0
+#define BLE_GAP_DISC_MODE_LTD               1
+#define BLE_GAP_DISC_MODE_GEN               2
 
 struct ble_gap_white_entry {
     uint8_t addr_type;
     uint8_t addr[6];
 };
 
-int ble_gap_conn_advertise(uint8_t discoverable_mode, uint8_t connectable_mode,
+int ble_gap_conn_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type,
                            ble_gap_conn_fn *cb, void *cb_arg);
+int ble_gap_conn_adv_stop(void);
 int ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_conn_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
