@@ -24,10 +24,15 @@
 
 #define BLE_HS_STARTUP_STATE_IDLE                       0
 #define BLE_HS_STARTUP_STATE_RESET                      1
+/* XXX: Read local supported commands. */
+/* XXX: Read local supported features. */
 #define BLE_HS_STARTUP_STATE_SET_EVMASK                 2
 #define BLE_HS_STARTUP_STATE_LE_SET_EVMASK              3
 #define BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ             4
-#define BLE_HS_STARTUP_STATE_MAX                        5
+/* XXX: Read buffer size. */
+#define BLE_HS_STARTUP_STATE_LE_READ_SUP_F              5
+/* XXX: Read BD_ADDR. */
+#define BLE_HS_STARTUP_STATE_MAX                        6
 
 static uint8_t ble_hs_startup_state;
 
@@ -35,6 +40,7 @@ static int ble_hs_startup_reset_tx(void *arg);
 static int ble_hs_startup_set_evmask_tx(void *arg);
 static int ble_hs_startup_le_set_evmask_tx(void *arg);
 static int ble_hs_startup_le_read_buf_sz_tx(void *arg);
+static int ble_hs_startup_le_read_sup_f_tx(void *arg);
 
 static ble_hci_sched_tx_fn * const
     ble_hs_startup_dispatch[BLE_HS_STARTUP_STATE_MAX] = {
@@ -44,6 +50,7 @@ static ble_hci_sched_tx_fn * const
     [BLE_HS_STARTUP_STATE_SET_EVMASK]       = ble_hs_startup_set_evmask_tx,
     [BLE_HS_STARTUP_STATE_LE_SET_EVMASK]    = ble_hs_startup_le_set_evmask_tx,
     [BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ]   = ble_hs_startup_le_read_buf_sz_tx,
+    [BLE_HS_STARTUP_STATE_LE_READ_SUP_F]    = ble_hs_startup_le_read_sup_f_tx,
 };
 
 static void
@@ -90,7 +97,41 @@ ble_hs_startup_gen_ack(struct ble_hci_ack *ack, void *arg)
 }
 
 static void
-ble_hs_startup_read_buf_size_ack(struct ble_hci_ack *ack, void *arg)
+ble_hs_startup_le_read_sup_f_ack(struct ble_hci_ack *ack, void *arg)
+{
+    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
+
+    if (ack->bha_status != 0) {
+        ble_hs_startup_failure(ack->bha_status);
+        return;
+    }
+
+    if (ack->bha_params_len != BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN) {
+        ble_hs_startup_failure(BLE_HS_ECONTROLLER);
+        return;
+    }
+
+    /* XXX: Do something with the supported features bit map. */
+}
+
+static int
+ble_hs_startup_le_read_sup_f_tx(void *arg)
+{
+    int rc;
+
+    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
+
+    ble_hci_ack_set_callback(ble_hs_startup_le_read_sup_f_ack, NULL);
+    rc = host_hci_cmd_le_read_loc_supp_feat();
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static void
+ble_hs_startup_le_read_buf_size_ack(struct ble_hci_ack *ack, void *arg)
 {
     uint16_t pktlen;
     uint8_t max_pkts;
@@ -104,7 +145,7 @@ ble_hs_startup_read_buf_size_ack(struct ble_hci_ack *ack, void *arg)
     }
 
     if (ack->bha_params_len != BLE_HCI_RD_BUF_SIZE_RSPLEN + 1) {
-        ble_hs_startup_failure(BLE_HS_EBADDATA);
+        ble_hs_startup_failure(BLE_HS_ECONTROLLER);
         return;
     }
 
@@ -128,7 +169,7 @@ ble_hs_startup_le_read_buf_sz_tx(void *arg)
 
     assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
 
-    ble_hci_ack_set_callback(ble_hs_startup_read_buf_size_ack, NULL);
+    ble_hci_ack_set_callback(ble_hs_startup_le_read_buf_size_ack, NULL);
     rc = host_hci_cmd_le_read_buffer_size();
     if (rc != 0) {
         return rc;

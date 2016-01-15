@@ -206,6 +206,10 @@ ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
 void
 ble_hs_test_util_rx_startup_acks(void)
 {
+    uint8_t supp_feat[8];
+
+    memset(supp_feat, 0, sizeof supp_feat);
+
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
@@ -214,10 +218,10 @@ ble_hs_test_util_rx_startup_acks(void)
     ble_hs_test_util_rx_ack(
         (BLE_HCI_OGF_CTLR_BASEBAND << 10) | BLE_HCI_OCF_CB_SET_EVENT_MASK,
         0);
-    ble_hs_test_util_rx_ack(
-        (BLE_HCI_OGF_LE << 10) | BLE_HCI_OCF_LE_SET_EVENT_MASK,
-        0);
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_EVENT_MASK, 0);
     ble_hs_test_util_rx_hci_buf_size_ack(0xffff);
+    ble_hs_test_util_rx_le_ack_param(BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT, 0,
+                                     supp_feat, sizeof supp_feat);
 }
 
 void

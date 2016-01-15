@@ -272,6 +272,18 @@ host_hci_cmd_le_read_buffer_size(void)
     return rc;
 }
 
+/**
+ * OGF=LE, OCF=0x0003
+ */
+int
+host_hci_cmd_le_read_loc_supp_feat(void)
+{
+    int rc;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT, 0, NULL);
+    return rc;
+}
+
 int
 host_hci_cmd_le_set_adv_enable(uint8_t enable)
 {
