@@ -104,7 +104,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate a direct connection. */
-    ble_gap_conn_direct_connect(0, addr,
+    ble_gap_conn_initiate(0, addr,
                                 ble_gap_direct_connect_test_connect_cb,
                                 &cb_called);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
@@ -230,11 +230,10 @@ ble_gap_terminate_cb(int event, int status,
 {
     int *disconn_handle;
 
-    if (event == BLE_GAP_EVENT_CONN) {
+    TEST_ASSERT_FATAL(event == BLE_GAP_EVENT_CONN);
+    if (status == 0) {
         return;
     }
-    TEST_ASSERT_FATAL(event == BLE_GAP_EVENT_TERM);
-    TEST_ASSERT_FATAL(status == 0);
 
     disconn_handle = arg;
     *disconn_handle = desc->conn_handle;
@@ -268,7 +267,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
 
     /* Create two direct connections. */
-    ble_gap_conn_direct_connect(0, addr1, ble_gap_terminate_cb,
+    ble_gap_conn_initiate(0, addr1, ble_gap_terminate_cb,
                                 &disconn_handle);
     ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
     memset(&conn_evt, 0, sizeof conn_evt);
@@ -279,7 +278,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     rc = ble_gap_conn_rx_conn_complete(&conn_evt);
     TEST_ASSERT(rc == 0);
 
-    ble_gap_conn_direct_connect(0, addr2, ble_gap_terminate_cb,
+    ble_gap_conn_initiate(0, addr2, ble_gap_terminate_cb,
                                 &disconn_handle);
     ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
     memset(&conn_evt, 0, sizeof conn_evt);

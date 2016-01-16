@@ -46,6 +46,7 @@ struct ble_hs_adv {
 #define BLE_HS_ADV_FLAGS_LEN                    1
 #define BLE_HS_ADV_F_DISC_LTD                   0x01
 #define BLE_HS_ADV_F_DISC_GEN                   0x02
+#define BLE_HS_ADV_F_BREDR_UNSUP                0x04
 
 int ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
                         uint8_t *dst, uint8_t *dst_len, uint8_t max_len);

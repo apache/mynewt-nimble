@@ -127,9 +127,14 @@ ble_hs_adv_test_misc_tx_and_verify_data(uint8_t disc_mode,
 
 TEST_CASE(ble_hs_adv_test_case_flags)
 {
-    /* No flags. */
+    /* Default flags. */
     ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
         (struct ble_hs_adv_test_field[]) {
+            {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
+            },
             {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
                 .val = (uint8_t[]){ 0x00 },
@@ -138,12 +143,14 @@ TEST_CASE(ble_hs_adv_test_case_flags)
             { 0 },
         });
 
-    /* Flags = limited discoverable. */
+    /* Flags |= limited discoverable. */
     ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_LTD,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_FLAGS,
-                .val = (uint8_t[]){ BLE_HS_ADV_F_DISC_LTD },
+                .val = (uint8_t[]) {
+                    BLE_HS_ADV_F_DISC_LTD | BLE_HS_ADV_F_BREDR_UNSUP
+                 },
                 .val_len = 1,
             }, {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
@@ -158,7 +165,9 @@ TEST_CASE(ble_hs_adv_test_case_flags)
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_FLAGS,
-                .val = (uint8_t[]){ BLE_HS_ADV_F_DISC_GEN },
+                .val = (uint8_t[]) {
+                    BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP
+                 },
                 .val_len = 1,
             }, {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
@@ -190,6 +199,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .val_len = 6,
             },
             {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
+            },
+            {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
                 .val = (uint8_t[]){ 0x00 },
                 .val_len = 1,
@@ -211,6 +225,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .type = BLE_HS_ADV_TYPE_INCOMP_UUIDS16,
                 .val = (uint8_t[]) { 0x01, 0x00, 0x34, 0x12, 0xab, 0x54 },
                 .val_len = 6,
+            },
+            {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
             },
             {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
@@ -236,6 +255,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .val_len = 8,
             },
             {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
+            },
+            {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
                 .val = (uint8_t[]){ 0x00 },
                 .val_len = 1,
@@ -257,6 +281,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .type = BLE_HS_ADV_TYPE_INCOMP_UUIDS32,
                 .val = (uint8_t[]) { 0x78,0x56,0x34,0x12,0xae,0xad,0xac,0xab },
                 .val_len = 8,
+            },
+            {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
             },
             {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
@@ -288,6 +317,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .val_len = 16,
             },
             {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
+            },
+            {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
                 .val = (uint8_t[]){ 0x00 },
                 .val_len = 1,
@@ -317,6 +351,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .val_len = 16,
             },
             {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
+            },
+            {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
                 .val = (uint8_t[]){ 0x00 },
                 .val_len = 1,
@@ -338,6 +377,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .type = BLE_HS_ADV_TYPE_COMP_NAME,
                 .val = (uint8_t*)"myname",
                 .val_len = 6,
+            },
+            {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
             },
             {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
@@ -363,6 +407,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
                 .val_len = 6,
             },
             {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+                .val_len = 1,
+            },
+            {
                 .type = BLE_HS_ADV_TYPE_TX_PWR_LEVEL,
                 .val = (uint8_t[]){ 0x00 },
                 .val_len = 1,
@@ -382,6 +431,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
             {
                 .type = BLE_HS_ADV_TYPE_LE_ROLE,
                 .val = (uint8_t[]) { BLE_HS_ADV_LE_ROLE_BOTH_PERIPH_PREF },
+                .val_len = 1,
+            },
+            {
+                .type = BLE_HS_ADV_TYPE_FLAGS,
+                .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
                 .val_len = 1,
             },
             {

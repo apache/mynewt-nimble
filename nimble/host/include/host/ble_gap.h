@@ -25,7 +25,7 @@ struct hci_le_conn_complete;
 
 #define BLE_GAP_EVENT_CONN                  0
 #define BLE_GAP_EVENT_CANCEL_FAILURE        1
-#define BLE_GAP_EVENT_TERM                  2
+#define BLE_GAP_EVENT_TERM_FAILURE          2
 #define BLE_GAP_EVENT_DISC_SUCCESS          3
 #define BLE_GAP_EVENT_DISC_FINISHED         4
 #define BLE_GAP_EVENT_ADV_FINISHED          5
@@ -76,8 +76,8 @@ int ble_gap_conn_adv_stop(void);
 int ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_conn_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
-int ble_gap_conn_direct_connect(int addr_type, uint8_t *addr,
-                                ble_gap_conn_fn *cb, void *cb_arg);
+int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
+                          ble_gap_conn_fn *cb, void *cb_arg);
 int ble_gap_conn_terminate(uint16_t handle);
 int ble_gap_conn_cancel(void);
 int ble_gap_conn_wl_set(struct ble_gap_white_entry *white_list,
