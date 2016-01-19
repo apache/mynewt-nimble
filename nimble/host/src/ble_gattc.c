@@ -699,8 +699,6 @@ ble_gattc_new_proc(uint16_t conn_handle, uint8_t op,
 
     STAILQ_INSERT_TAIL(&ble_gattc_list, *out_proc, next);
 
-    ble_gattc_proc_set_pending(*out_proc);
-
     return 0;
 }
 
@@ -879,7 +877,7 @@ err:
     }
 
     ble_gattc_mtu_cb(proc, rc, 0, 0);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -925,6 +923,7 @@ ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
 
     proc->mtu.cb = cb;
     proc->mtu.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -993,7 +992,7 @@ err:
     }
 
     ble_gattc_disc_all_svcs_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -1107,6 +1106,7 @@ ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
     proc->disc_all_svcs.prev_handle = 0x0000;
     proc->disc_all_svcs.cb = cb;
     proc->disc_all_svcs.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -1174,7 +1174,7 @@ err:
     }
 
     ble_gattc_disc_svc_uuid_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -1272,6 +1272,7 @@ ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
     proc->disc_svc_uuid.prev_handle = 0x0000;
     proc->disc_svc_uuid.cb = cb;
     proc->disc_svc_uuid.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -1349,7 +1350,7 @@ err:
     }
 
     ble_gattc_find_inc_svcs_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -1535,6 +1536,7 @@ ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
     proc->find_inc_svcs.end_handle = end_handle;
     proc->find_inc_svcs.cb = cb;
     proc->find_inc_svcs.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -1604,7 +1606,7 @@ err:
     }
 
     ble_gattc_disc_all_chrs_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -1730,6 +1732,7 @@ ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
     proc->disc_all_chrs.end_handle = end_handle;
     proc->disc_all_chrs.cb = cb;
     proc->disc_all_chrs.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -1799,7 +1802,7 @@ err:
     }
 
     ble_gattc_disc_chr_uuid_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -1933,6 +1936,7 @@ ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
     proc->disc_chr_uuid.end_handle = end_handle;
     proc->disc_chr_uuid.cb = cb;
     proc->disc_chr_uuid.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -1998,7 +2002,7 @@ err:
     }
 
     ble_gattc_disc_all_dscs_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2101,6 +2105,7 @@ ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
     proc->disc_all_dscs.end_handle = chr_end_handle;
     proc->disc_all_dscs.cb = cb;
     proc->disc_all_dscs.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2164,7 +2169,7 @@ err:
     }
 
     ble_gattc_read_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2224,6 +2229,7 @@ ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
     proc->read.handle = attr_handle;
     proc->read.cb = cb;
     proc->read.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2288,7 +2294,7 @@ err:
     }
 
     ble_gattc_read_uuid_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2385,6 +2391,7 @@ ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
     memcpy(proc->read_uuid.uuid128, uuid128, 16);
     proc->read_uuid.cb = cb;
     proc->read_uuid.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2454,7 +2461,7 @@ err:
     }
 
     ble_gattc_read_long_cb(proc, rc, 0, NULL);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2529,6 +2536,7 @@ ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
     proc->read_long.offset = 0;
     proc->read_long.cb = cb;
     proc->read_long.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2595,7 +2603,7 @@ err:
     }
 
     ble_gattc_read_mult_cb(proc, rc, 0, NULL, 0);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2653,6 +2661,7 @@ ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
     proc->read_mult.num_handles = num_handles;
     proc->read_mult.cb = cb;
     proc->read_mult.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2720,7 +2729,7 @@ err:
     }
 
     ble_gattc_write_cb(proc, rc, 0);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2753,6 +2762,7 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, void *value,
     proc->write.attr.value_len = value_len;
     proc->write.cb = cb;
     proc->write.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2793,7 +2803,7 @@ err:
     }
 
     ble_gattc_write_cb(proc, rc, 0);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -2850,6 +2860,7 @@ ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
     proc->write.attr.value_len = value_len;
     proc->write.cb = cb;
     proc->write.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -2939,7 +2950,7 @@ err:
     }
 
     ble_gattc_write_long_cb(proc, rc, 0);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -3047,6 +3058,7 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle, void *value,
     proc->write_long.attr.value_len = value_len;
     proc->write_long.cb = cb;
     proc->write_long.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
@@ -3147,7 +3159,7 @@ err:
     }
 
     ble_gattc_indicate_cb(proc, rc, 0);
-    return rc;
+    return BLE_HS_EDONE;
 }
 
 /**
@@ -3200,6 +3212,7 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
     proc->indicate.attr.handle = chr_val_handle;
     proc->indicate.cb = cb;
     proc->indicate.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
 
     return 0;
 }
