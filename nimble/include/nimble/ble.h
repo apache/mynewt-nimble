@@ -47,7 +47,7 @@ struct ble_mbuf_hdr_rxinfo
 {
     uint8_t flags;
     uint8_t channel;
-    uint8_t crcok;
+    uint8_t handle;
     int8_t rssi;
 };
 
@@ -68,14 +68,24 @@ struct ble_mbuf_hdr
     uint32_t end_cputime;
 };
 
-/* Flag definitions. Apply to both txinfo and rxinfo */
-#define BLE_MBUF_HDR_F_DEVMATCH         (0x01)
-#define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x02)
-#define BLE_MBUF_HDR_F_TXD              (0x04)
-#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x08)
-#define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x10)
+/* Flag definitions for rxinfo  */
+#define BLE_MBUF_HDR_F_CRC_OK           (0x80)
+#define BLE_MBUF_HDR_F_DEVMATCH         (0x40)
+#define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x20)
+#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x10)
+#define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x08)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)      
 
-#define BLE_MBUF_HDR_PTR(om)    \
+/* Flag definitions for txinfo */
+#define BLE_MBUF_HDR_F_TXD              (0x01)
+
+#define BLE_MBUF_HDR_CRC_OK(hdr)    \
+    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_CRC_OK)
+
+#define BLE_MBUF_HDR_RX_STATE(hdr)  \
+    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK)
+
+#define BLE_MBUF_HDR_PTR(om)        \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
                             sizeof(struct os_mbuf_pkthdr))
 

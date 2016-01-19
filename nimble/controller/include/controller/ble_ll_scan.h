@@ -17,6 +17,8 @@
 #ifndef H_BLE_LL_SCAN_
 #define H_BLE_LL_SCAN_
 
+#include "controller/ble_ll_sched.h"
+
 /* 
  * Configuration items for the number of duplicate advertisers and the
  * number of advertisers from which we have heard a scan response 
@@ -77,9 +79,11 @@ struct ble_ll_scan_sm
     uint16_t backoff_count;
     uint16_t scan_itvl;
     uint16_t scan_window;
+    uint32_t last_sched_time;
     uint32_t scan_win_start_time;
     struct os_mbuf *scan_req_pdu;
-    struct os_event scan_win_end_ev;
+    struct os_event scan_sched_ev;
+    struct ble_ll_sched_item scan_sch;
 };
 
 /* Scan types */
@@ -96,7 +100,7 @@ int ble_ll_scan_set_enable(uint8_t *cmd);
 
 /*--- Controller Internal API ---*/
 /* Process scan window end event */
-void ble_ll_scan_win_end_proc(void *arg);
+void ble_ll_scan_event_proc(void *arg);
 
 /* Initialize the scanner */
 void ble_ll_scan_init(void);
@@ -105,10 +109,10 @@ void ble_ll_scan_init(void);
 void ble_ll_scan_reset(void);
 
 /* Called when Link Layer starts to receive a PDU and is in scanning state */
-int ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
+int ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 
 /* Called when Link Layer has finished receiving a PDU while scanning */
-int ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu);
+int ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
 
 /* Process a scan response PDU */
 void ble_ll_scan_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, 
@@ -131,10 +135,10 @@ int ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
 struct os_mbuf *ble_ll_scan_get_pdu(void);
 
 /* Stop the scanning state machine */
-void ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm, int conn_created);
+void ble_ll_scan_sm_stop(int chk_disable);
 
 /* Resume scanning */
-void ble_ll_scan_resume(void);
+void ble_ll_scan_chk_resume(void);
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);

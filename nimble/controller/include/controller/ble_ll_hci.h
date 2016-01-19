@@ -32,7 +32,7 @@
  * number of completed packets event to the host. This number is in
  * milliseconds.
  */
-#define BLE_LL_CFG_NUM_COMP_PKT_RATE    (1000)  /* msecs */
+#define BLE_LL_CFG_NUM_COMP_PKT_RATE    (2000)  /* msecs */
 
 /* Initialize LL HCI */
 void ble_ll_hci_init(void);

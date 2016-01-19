@@ -41,6 +41,7 @@ struct ble_phy_statistics
 {
     uint32_t tx_good;
     uint32_t tx_fail;
+    uint32_t tx_late;
     uint32_t tx_bytes;
     uint32_t rx_starts;
     uint32_t rx_aborts;
@@ -118,6 +119,7 @@ void
 ble_phy_isr(void)
 {
     int rc;
+    uint8_t crcok;
     uint8_t transition;
     uint32_t irq_en;
     struct os_mbuf *rxpdu;
@@ -180,19 +182,20 @@ ble_phy_isr(void)
         ble_hdr->rxinfo.flags = 0;
         ble_hdr->rxinfo.rssi = -77;    /* XXX: dummy rssi */
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
-        ble_hdr->rxinfo.crcok = 1;
 
         /* Count PHY crc errors and valid packets */
-        if (ble_hdr->rxinfo.crcok == 0) {
+        crcok = 1;
+        if (!crcok) {
             ++g_ble_phy_stats.rx_crc_err;
         } else {
             ++g_ble_phy_stats.rx_valid;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
         }
 
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu,ble_hdr->rxinfo.channel,ble_hdr->rxinfo.crcok);
+        rc = ble_ll_rx_end(rxpdu, ble_hdr);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();

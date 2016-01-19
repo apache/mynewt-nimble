@@ -129,10 +129,10 @@ void ble_ll_adv_init(void);
 void ble_ll_adv_reset(void);
 
 /* Called on rx pdu start when in advertising state */
-int ble_ll_adv_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
+int ble_ll_adv_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 
 /* Called on rx pdu end when in advertising state */
-int ble_ll_adv_rx_pdu_end(uint8_t pdu_type, struct os_mbuf *rxpdu);
+int ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok);
 
 /* Processes received packets at the link layer task */
 void ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf,
@@ -143,5 +143,14 @@ int ble_ll_adv_can_chg_whitelist(void);
 
 /* Called when a connection request has been received at the link layer */
 int ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr);
+
+/* Called when an advertising event has been scheduled */
+void ble_ll_adv_scheduled(uint32_t sch_start);
+
+/* Called to halt currently running advertising event */
+void ble_ll_adv_halt(void);
+
+/* Called to determine if advertising is enabled */
+uint8_t ble_ll_adv_enabled(void);
 
 #endif /* H_BLE_LL_ADV_ */

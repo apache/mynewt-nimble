@@ -17,15 +17,16 @@
 #ifndef H_BLE_LL_SCHED_
 #define H_BLE_LL_SCHED_
 
+/* Time per BLE scheduler slot */
+#define BLE_LL_SCHED_USECS_PER_SLOT (1250)
+
 /* BLE scheduler errors */
 #define BLE_LL_SCHED_ERR_OVERLAP    (1)
 
 /* Types of scheduler events */
-#define BLE_LL_SCHED_TYPE_ADV       (0)
-#define BLE_LL_SCHED_TYPE_SCAN      (1)
-#define BLE_LL_SCHED_TYPE_TX        (2)
-#define BLE_LL_SCHED_TYPE_RX        (3)
-#define BLE_LL_SCHED_TYPE_CONN      (4)
+#define BLE_LL_SCHED_TYPE_ADV       (1)
+#define BLE_LL_SCHED_TYPE_SCAN      (2)
+#define BLE_LL_SCHED_TYPE_CONN      (3)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -37,28 +38,48 @@ typedef int (*sched_cb_func)(struct ble_ll_sched_item *sch);
 
 struct ble_ll_sched_item
 {
-    int             sched_type;
+    uint8_t         sched_type;
+    uint8_t         enqueued;
     uint32_t        start_time;
     uint32_t        end_time;
-    uint32_t        next_wakeup;
     void            *cb_arg;
     sched_cb_func   sched_cb;
     TAILQ_ENTRY(ble_ll_sched_item) link;
 };
 
-/* Add an item to the schedule */
-int ble_ll_sched_add(struct ble_ll_sched_item *sch);
-
-/* Remove item(s) from schedule */
-int ble_ll_sched_rmv(uint8_t sched_type, void *cb_arg);
-
 /* Initialize the scheduler */
 int ble_ll_sched_init(void);
+
+/* Remove item(s) from schedule */
+void ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch);
 
 /* Get a schedule item */
 struct ble_ll_sched_item *ble_ll_sched_get_item(void);
 
 /* Free a schedule item */
 void ble_ll_sched_free_item(struct ble_ll_sched_item *sch);
+
+/* Schedule a new master connection */
+struct ble_ll_conn_sm;
+int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend, 
+                            uint8_t req_slots);
+
+/* Schedule a new slave connection */
+int ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm);
+
+/* Schedule a new advertising event */
+int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch);
+
+/* Reschedule an advertising event */
+int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch);
+
+/* Reschedule a connection that had previously been scheduled or that is over */
+int ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm * connsm);
+
+/* Schedule a scanning schedule item (start or stop) */
+void ble_ll_sched_scan(struct ble_ll_sched_item *sch);
+
+/* Stop the scheduler */
+void ble_ll_sched_stop(void);
 
 #endif /* H_LL_SCHED_ */

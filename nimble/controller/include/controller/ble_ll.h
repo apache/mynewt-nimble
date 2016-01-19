@@ -70,6 +70,8 @@ struct ble_ll_stats
     uint32_t hci_events_sent;
     uint32_t bad_ll_state;
     uint32_t bad_acl_hdr;
+    uint32_t sched_state_conn_errs;
+    uint32_t sched_state_adv_errs;
     uint32_t rx_bytes;
     uint32_t rx_valid_adv_pdus;
     uint32_t rx_invalid_adv_pdus;
@@ -108,7 +110,7 @@ extern struct ble_ll_stats g_ble_ll_stats;
 #define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
 #define BLE_LL_EVENT_ADV_EV_DONE    (OS_EVENT_T_PERUSER + 1)
 #define BLE_LL_EVENT_RX_PKT_IN      (OS_EVENT_T_PERUSER + 2)
-#define BLE_LL_EVENT_SCAN_WIN_END   (OS_EVENT_T_PERUSER + 3)
+#define BLE_LL_EVENT_SCAN           (OS_EVENT_T_PERUSER + 3)
 #define BLE_LL_EVENT_CONN_SPVN_TMO  (OS_EVENT_T_PERUSER + 4)
 #define BLE_LL_EVENT_CONN_EV_END    (OS_EVENT_T_PERUSER + 5)
 #define BLE_LL_EVENT_TX_PKT_IN      (OS_EVENT_T_PERUSER + 6)
@@ -306,7 +308,8 @@ void ble_ll_acl_data_in(struct os_mbuf *txpkt);
 int ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan);
 
 /* Called by the PHY when a packet reception ends */
-int ble_ll_rx_end(struct os_mbuf *rxpdu, uint8_t chan, uint8_t crcok);
+struct ble_mbuf_hdr;
+int ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr);
 
 /*--- Controller API ---*/
 void ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr);
@@ -336,10 +339,14 @@ uint8_t ble_ll_read_supp_features(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */ 
-#undef BLE_LL_LOG
+#define BLE_LL_LOG
 
-#define BLE_LL_LOG_ID_RX_START          (1)
-#define BLE_LL_LOG_ID_RX_END            (2)
+#define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
+#define BLE_LL_LOG_ID_RX_START          (2)
+#define BLE_LL_LOG_ID_RX_END            (3)
+#define BLE_LL_LOG_ID_WFR_EXP           (4)
+#define BLE_LL_LOG_ID_PHY_TXEND         (5)
+#define BLE_LL_LOG_ID_PHY_DISABLE       (9)
 #define BLE_LL_LOG_ID_CONN_EV_START     (10)
 #define BLE_LL_LOG_ID_CONN_TX           (15)
 #define BLE_LL_LOG_ID_CONN_RX           (16)
@@ -347,11 +354,8 @@ uint8_t ble_ll_read_supp_features(void);
 #define BLE_LL_LOG_ID_CONN_RX_ACK       (18)
 #define BLE_LL_LOG_ID_CONN_EV_END       (20)
 #define BLE_LL_LOG_ID_CONN_END          (30)
-#define BLE_LL_LOG_ID_PHY_SETCHAN       (200)
-#define BLE_LL_LOG_ID_PHY_DISABLE       (201)
-#define BLE_LL_LOG_ID_PHY_ISR           (202)
-#define BLE_LL_LOG_ID_PHY_RX            (220)
-#define BLE_LL_LOG_ID_PHY_TX            (221)
+#define BLE_LL_LOG_ID_ADV_TXBEG         (50)
+#define BLE_LL_LOG_ID_ADV_TXDONE        (60)
 
 #ifdef BLE_LL_LOG
 void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);

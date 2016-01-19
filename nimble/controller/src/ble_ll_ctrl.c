@@ -197,7 +197,7 @@ void
 ble_ll_ctrl_proc_rsp_timer_cb(void *arg)
 {
     /* Control procedure has timed out. Kill the connection */
-    ble_ll_conn_end((struct ble_ll_conn_sm *)arg, BLE_ERR_LMP_LL_RSP_TMO);
+    ble_ll_conn_timeout((struct ble_ll_conn_sm *)arg, BLE_ERR_LMP_LL_RSP_TMO);
 }
 
 /**

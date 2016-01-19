@@ -23,6 +23,8 @@
 #include "controller/ble_ll.h"
 #include "mcu/nrf52_bitfields.h"
 
+/* XXX: 4) Make sure RF is higher priority interrupt than schedule */
+
 /* To disable all radio interrupts */
 #define NRF52_RADIO_IRQ_MASK_ALL    (0x34FF)
 
@@ -154,6 +156,7 @@ ble_phy_isr(void)
 {
     int rc;
     uint8_t transition;
+    uint8_t crcok;
     uint32_t irq_en;
     uint32_t state;
     uint32_t wfr_time;
@@ -163,12 +166,13 @@ ble_phy_isr(void)
     /* Read irq register to determine which interrupts are enabled */
     irq_en = NRF_RADIO->INTENCLR;
 
-    ble_ll_log(BLE_LL_LOG_ID_PHY_ISR, 0, 0, irq_en);
-
     /* Check for disabled event. This only happens for transmits now */
     if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO->EVENTS_DISABLED) {
         /* Better be in TX state! */
         assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
+
+        ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_txrx_buf[1], 0, 
+                   NRF_TIMER0->CC[2]);
 
         /* Clear events and clear interrupt on disabled event */
         NRF_RADIO->EVENTS_DISABLED = 0;
@@ -249,10 +253,11 @@ ble_phy_isr(void)
             }
         }
 
-        /* Initialize flags and channel in ble header at rx start */
+        /* Initialize flags, channel and state in ble header at rx start */
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
-        ble_hdr->rxinfo.flags = 0;
+        ble_hdr->rxinfo.flags = ble_ll_state_get();
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
+        ble_hdr->rxinfo.handle = 0;
 
         /* Call Link Layer receive start function */
         rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
@@ -291,21 +296,21 @@ ble_phy_isr(void)
         ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
         assert(NRF_RADIO->EVENTS_RSSIEND != 0);
         ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
-        ble_hdr->rxinfo.crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
         ble_hdr->end_cputime = NRF_TIMER0->CC[2];
 
         /* Count PHY crc errors and valid packets */
-        if (ble_hdr->rxinfo.crcok == 0) {
+        crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
+        if (!crcok) {
             ++g_ble_phy_stats.rx_crc_err;
         } else {
             ++g_ble_phy_stats.rx_valid;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
         }
 
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu, ble_hdr->rxinfo.channel, 
-                           ble_hdr->rxinfo.crcok);
+        rc = ble_ll_rx_end(rxpdu, ble_hdr);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();

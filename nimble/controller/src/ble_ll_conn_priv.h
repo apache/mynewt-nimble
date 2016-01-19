@@ -32,6 +32,7 @@
 #define BLE_LL_CONN_SUPP_BYTES_MAX          (251)   /* bytes */
 
 /* Connection event timing */
+#define BLE_LL_CONN_INITIAL_OFFSET          (1250)
 #define BLE_LL_CONN_ITVL_USECS              (1250)
 #define BLE_LL_CONN_TX_WIN_USECS            (1250)
 #define BLE_LL_CONN_CE_USECS                (625)
@@ -60,7 +61,7 @@ extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 struct ble_ll_len_req;
 struct hci_create_conn;
 struct ble_mbuf_hdr;
-void ble_ll_conn_sm_start(struct ble_ll_conn_sm *connsm);
+void ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
                              uint8_t hdr_byte, uint8_t length);
@@ -80,12 +81,15 @@ void ble_ll_conn_reset(void);
 void ble_ll_conn_event_end(void *arg);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 void ble_ll_conn_spvn_timeout(void *arg);
-void ble_ll_conn_rx_pdu_start(void);
-int ble_ll_conn_rx_pdu_end(struct os_mbuf *rxpdu, uint32_t aa);
-void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, uint8_t crcok);
+void ble_ll_conn_rx_isr_start(void);
+int ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa);
+void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
 void ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
-int ble_ll_init_rx_pdu_end(struct os_mbuf *rxpdu);
+int ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
 void ble_ll_conn_wfr_timer_exp(void);
+int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
+uint32_t ble_ll_conn_get_ce_end_time(void);
+void ble_ll_conn_event_halt(void);
 
 /* HCI */
 void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, 
@@ -96,5 +100,7 @@ int ble_ll_conn_create(uint8_t *cmdbuf);
 int ble_ll_conn_create_cancel(void);
 void ble_ll_conn_num_comp_pkts_event_send(void);
 void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status);
+void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
+
 
 #endif /* H_BLE_LL_CONN_PRIV_ */

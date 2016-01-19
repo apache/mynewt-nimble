@@ -20,116 +20,372 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_sched.h"
+#include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_scan.h"
+#include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 
 /* XXX: this is temporary. Not sure what I want to do here */
 struct cpu_timer g_ble_ll_sched_timer;
 
 /* XXX: TODO:
- *  1) Add a "priority" scheme possibly. This would allow items to be
- *  added if they overlapped.
- *  2) Add some accounting to the schedule code to see how late we are
+ *  1) Add some accounting to the schedule code to see how late we are
  *  (min/max?)
+ * 
+ *  2) Need to determine how we really want to handle the case when we execute
+ *  a schedule item but there is a current event. We could:
+ *      -> Reschedule the schedule item and let current event finish
+ *      -> Kill the current event and run the scheduled item.
+ *      -> Disable schedule timer while in an event; could cause us to be late.
+ *      -> Wait for current event to finish hoping it does before schedule item. 
  */
-#define BLE_LL_CFG_SCHED_ITEMS      (8)
-#define BLE_LL_SCHED_POOL_SIZE      \
-    OS_MEMPOOL_SIZE(BLE_LL_CFG_SCHED_ITEMS, sizeof(struct ble_ll_sched_item))
-
-struct os_mempool g_ble_ll_sched_pool;
-os_membuf_t g_ble_ll_sched_mem[BLE_LL_SCHED_POOL_SIZE];
 
 /* Queue for timers */
 TAILQ_HEAD(ll_sched_qhead, ble_ll_sched_item) g_ble_ll_sched_q;
 
 /**
- * Executes a schedule item by calling the schedule callback function.
+ * Checks if two events in the schedule will overlap in time. NOTE: consecutive 
+ * schedule items can end and start at the same time. 
  * 
- * @param sch Pointer to schedule item
- * 
- * @return int 0: schedule item is not over; otherwise schedule item is done.
- */
-int
-ble_ll_sched_execute(struct ble_ll_sched_item *sch)
-{
-    int rc;
-
-    assert(sch->sched_cb);
-    rc = sch->sched_cb(sch);
-    return rc;
-}
-
-
-/**
- * Allocate a schedule item
- * 
- * @return struct ble_ll_sched_item* 
- */
-struct ble_ll_sched_item *
-ble_ll_sched_get_item(void)
-{
-    struct ble_ll_sched_item *sch;
-
-    sch = os_memblock_get(&g_ble_ll_sched_pool);
-    if (sch) {
-        memset(sch, 0, sizeof(struct ble_ll_sched_item));
-    }
-    return sch;
-}
-
-/**
- * Free a schedule item
- * 
- * @param sch 
- */
-void
-ble_ll_sched_free_item(struct ble_ll_sched_item *sch)
-{
-    os_error_t err;
-    err = os_memblock_put(&g_ble_ll_sched_pool, sch);
-    assert(err == OS_OK);
-}
-
-/**
- * Add a schedule item to the schedule list
- * 
- * @param sch 
+ * @param s1 
+ * @param s2 
  * 
  * @return int 
  */
+static int
+ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1, 
+                        struct ble_ll_sched_item *s2)
+{
+    int rc;
+
+    rc = 1;
+    if ((int32_t)(s1->start_time - s2->start_time) < 0) {
+        /* Make sure this event does not overlap current event */
+        if ((int32_t)(s1->end_time - s2->start_time) <= 0) {
+            rc = 0;
+        }
+    } else {
+        /* Check for overlap */
+        if ((int32_t)(s1->start_time - s2->end_time) >= 0) {
+            rc = 0;
+        }
+    }
+
+    return rc;
+}
+
+/**
+ * Checks if the scheduled item 'sch' overlaps the scanning schedule item 
+ * 'scan'. If so, the scanning scheduled item is removed and we post the 
+ * scan event so that we can reschedule the next scanning opportunity. 
+ * 
+ * 
+ * @param scan 
+ * @param sch 
+ */
+static void
+ble_ll_sched_chk_scan_overlap(struct ble_ll_sched_item *scan, 
+                              struct ble_ll_sched_item *sch)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    if (ble_ll_sched_is_overlap(scan, sch)) {
+        scansm = (struct ble_ll_scan_sm *)scan->cb_arg;
+        ble_ll_event_send(&scansm->scan_sched_ev);
+        TAILQ_REMOVE(&g_ble_ll_sched_q, scan, link);
+        scan->enqueued = 0;
+    }
+}
+
+/* 
+ * Determines if the schedule item overlaps the currently running schedule
+ * item. We only care about connection schedule items
+ */
 int
-ble_ll_sched_add(struct ble_ll_sched_item *sch)
+ble_ll_sched_overlaps_current(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    uint32_t ce_end_time;
+
+    rc = 0;
+    if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
+        ce_end_time = ble_ll_conn_get_ce_end_time();
+        if ((int32_t)(ce_end_time - sch->start_time) > 0) {
+            rc = 1;
+        }
+    }
+    return rc;
+}
+
+static int
+ble_ll_sched_conn_overlap(struct ble_ll_sched_item *entry)
+{
+    int rc;
+    struct ble_ll_conn_sm *connsm;
+
+    /* Should only be advertising or a connection here */
+    if (entry->sched_type == BLE_LL_SCHED_TYPE_CONN) {
+        connsm = (struct ble_ll_conn_sm *)entry->cb_arg;
+        entry->enqueued = 0;
+        TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
+        ble_ll_event_send(&connsm->conn_ev_end);
+        rc = 0;
+    } else {
+        rc = -1;
+    }
+
+    return rc;
+}
+
+struct ble_ll_sched_item *
+ble_ll_sched_insert_if_empty(struct ble_ll_sched_item *sch)
+{
+    struct ble_ll_sched_item *entry;
+
+    entry = TAILQ_FIRST(&g_ble_ll_sched_q);
+    if (!entry) {
+        TAILQ_INSERT_HEAD(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 1;
+    }
+    return entry;
+}
+
+int
+ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
 {
     int rc;
     os_sr_t sr;
+    uint32_t usecs;
+    struct ble_ll_sched_item *sch;
+    struct ble_ll_sched_item *start_overlap;
+    struct ble_ll_sched_item *end_overlap;
     struct ble_ll_sched_item *entry;
+    struct ble_ll_conn_sm *tmp;
+    struct ble_ll_scan_sm *scansm;
 
-    /* Determine if we are able to add this to the schedule */
+    /* Get schedule element from connection */
+    sch = &connsm->conn_sch;
+
+    /* Set schedule start and end times */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        usecs = XCVR_RX_SCHED_DELAY_USECS;
+        usecs += connsm->slave_cur_window_widening;
+    } else {
+        usecs = XCVR_TX_SCHED_DELAY_USECS; 
+    }
+    sch->start_time = connsm->anchor_point - cputime_usecs_to_ticks(usecs);
+    sch->end_time = connsm->ce_end_time;
+
+    /* Better be past current time or we just leave */
+    if ((int32_t)(sch->start_time - cputime_get32()) < 0) {
+        return -1;
+    }
+
+    /* We have to find a place for this schedule */
     OS_ENTER_CRITICAL(sr);
 
+    if (ble_ll_sched_overlaps_current(sch)) {
+        OS_EXIT_CRITICAL(sr);
+        return -1;
+    }
+
+    /* Stop timer since we will add an element */
+    cputime_timer_stop(&g_ble_ll_sched_timer);
+
+    start_overlap = NULL;
+    end_overlap = NULL;
     rc = 0;
-    if (TAILQ_EMPTY(&g_ble_ll_sched_q)) {
-        TAILQ_INSERT_HEAD(&g_ble_ll_sched_q, sch, link);
+    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+        if (ble_ll_sched_is_overlap(sch, entry)) {
+            /* Only insert if this element is older than all that we overlap */
+            if ((entry->sched_type != BLE_LL_SCHED_TYPE_SCAN) &&
+                ((entry->sched_type == BLE_LL_SCHED_TYPE_ADV) ||
+                 !ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg, 
+                                     (struct ble_ll_conn_sm *)entry->cb_arg))) {
+                start_overlap = NULL;
+                rc = -1;
+                break;
+            }
+            if (start_overlap == NULL) {
+                start_overlap = entry;
+                end_overlap = entry;
+            } else {
+                end_overlap = entry;
+            }
+        } else {
+            if ((int32_t)(sch->end_time - entry->start_time) < 0) {
+                rc = 0;
+                TAILQ_INSERT_BEFORE(entry, sch, link);
+                break;
+            }
+        }
+    }
+
+    if (!rc) {
+        if (!entry) {
+            TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        }
+        sch->enqueued = 1;
+    }
+
+    /* Remove first to last scheduled elements */
+    entry = start_overlap;
+    while (entry) {
+        start_overlap = TAILQ_NEXT(entry,link);
+        if (entry->sched_type == BLE_LL_SCHED_TYPE_CONN) {
+            tmp = (struct ble_ll_conn_sm *)entry->cb_arg;
+            ble_ll_event_send(&tmp->conn_ev_end);
+        } else {
+            scansm = (struct ble_ll_scan_sm *)entry->cb_arg;
+            ble_ll_event_send(&scansm->scan_sched_ev);
+        }
+
+        TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
+        entry->enqueued = 0;
+
+        if (entry == end_overlap) {
+            break;
+        }
+        entry = start_overlap;
+    }
+
+    /* Get first on list */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+    OS_EXIT_CRITICAL(sr);
+
+    /* Restart timer */
+    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+
+int
+ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend, 
+                        uint8_t req_slots)
+{
+    int rc;
+    os_sr_t sr;
+    uint32_t initial_start;
+    uint32_t earliest_start;
+    uint32_t earliest_end;
+    uint32_t dur;
+    uint32_t itvl_t;
+    uint32_t ce_end_time;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *sch;
+    struct ble_ll_sched_item *scan;
+
+    /* Better have a connsm */
+    assert(connsm != NULL);
+
+    /* Assume no scheduled item is a scanning item */
+    scan = NULL;
+
+    /* Get schedule element from connection */
+    rc = -1;
+    sch = &connsm->conn_sch;
+
+    /* 
+     * The earliest start time is 1.25 msecs from the end of the connect
+     * request transmission. Note that adv_rxend is the end of the received
+     * advertisement, so we need to add an IFS plus the time it takes to send
+     * the connection request
+     */
+    dur = cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
+    earliest_start = adv_rxend + 
+        cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
+                               BLE_LL_CONN_INITIAL_OFFSET);
+    earliest_end = earliest_start + dur;
+
+    itvl_t = cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
+
+    /* We have to find a place for this schedule */
+    OS_ENTER_CRITICAL(sr);
+
+    /* The schedule item must occur after current running item (if any) */
+    sch->start_time = earliest_start;
+
+    /*
+     * If we are currently in a connection, we add one slot time to the
+     * earliest start so we can end the connection reasonably.
+     */
+    if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
+        ce_end_time = ble_ll_conn_get_ce_end_time();
+        if ((int32_t)(ce_end_time - sch->start_time) >= 0) {
+            earliest_start = ce_end_time;
+            earliest_end = earliest_start + dur;
+        }
+    }
+    initial_start = earliest_start;
+
+    if (!ble_ll_sched_insert_if_empty(sch)) {
+        /* Nothing in schedule. Schedule as soon as possible */
+        rc = 0;
+        connsm->tx_win_off = 0;
     } else {
         cputime_timer_stop(&g_ble_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
-            if ((int32_t)(sch->start_time - entry->start_time) < 0) {
-                /* Make sure this event does not overlap current event */
-                if ((int32_t)(sch->end_time - entry->start_time) < 0) {
-                    TAILQ_INSERT_BEFORE(entry, sch, link);   
-                } else {
-                    rc = BLE_LL_SCHED_ERR_OVERLAP;
-                }
-                break;
+            /* Ignore scan/initiate types */
+            if (entry->sched_type == BLE_LL_SCHED_TYPE_SCAN) {
+                scan = entry;
+                continue;
+            }
+
+            /* Set these because the overlap function needs them to be set */
+            sch->start_time = earliest_start;
+            sch->end_time = earliest_end;
+
+            /* Check for overlapping events */
+            if (ble_ll_sched_is_overlap(sch, entry)) {
+                /* Earliest start is end of this event since we overlap */
+                earliest_start = entry->end_time;
+                earliest_end = earliest_start + dur;
             } else {
-                /* Check for overlap */
-                if ((int32_t)(sch->start_time - entry->end_time) < 0) {
-                    rc = BLE_LL_SCHED_ERR_OVERLAP;
+                /* We can insert if before entry in list */
+                if ((int32_t)(sch->end_time - entry->start_time) < 0) {
+                    if ((earliest_start - initial_start) <= itvl_t) {
+                        rc = 0;
+                        TAILQ_INSERT_BEFORE(entry, sch, link);
+                    }
                     break;
                 }
             }
         }
+
         if (!entry) {
-            TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+            if ((earliest_start - initial_start) <= itvl_t) {
+                rc = 0;
+                TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+            }
+        }
+
+        if (!rc) {
+            /* calculate number of connection intervals before start */
+            sch->enqueued = 1;
+            connsm->tx_win_off = (earliest_start - initial_start) /
+                cputime_usecs_to_ticks(BLE_LL_CONN_ITVL_USECS);
+        }
+
+        /* Restart with head of list */
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+
+    if (!rc) {
+        sch->start_time = earliest_start;
+        sch->end_time = earliest_end;
+        connsm->anchor_point = earliest_start +
+            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+        connsm->ce_end_time = earliest_end; 
+
+        /* 
+         * If there was a scanning item it is possible that the order of the
+         * scanning item and the newly added connection are incorrect. So,
+         * we check for overlap and if there is one, we reschedule the
+         * scanning item
+         */
+        if (scan) {
+            ble_ll_sched_chk_scan_overlap(scan, sch);
         }
     }
 
@@ -140,49 +396,365 @@ ble_ll_sched_add(struct ble_ll_sched_item *sch)
     return rc;
 }
 
+int
+ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
+{
+    int rc;
+    os_sr_t sr;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *next_sch;
+    struct ble_ll_sched_item *sch;
+    struct ble_ll_sched_item *scan;
+
+    /* Get schedule element from connection */
+    rc = -1;
+    sch = &connsm->conn_sch;
+
+    /* Set schedule start and end times */
+    sch->start_time = connsm->anchor_point -  
+        cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS + 
+                               connsm->slave_cur_window_widening);
+    sch->end_time = connsm->ce_end_time;
+
+    /* We have to find a place for this schedule */
+    OS_ENTER_CRITICAL(sr);
+
+    /* The schedule item must occur after current running item (if any) */
+    if (ble_ll_sched_overlaps_current(sch)) {
+        OS_EXIT_CRITICAL(sr);
+        return rc;
+    }
+
+    entry = ble_ll_sched_insert_if_empty(sch);
+    if (!entry) {
+        /* Nothing in schedule. Schedule as soon as possible */
+        rc = 0;
+    } else {
+        scan = NULL;
+        cputime_timer_stop(&g_ble_ll_sched_timer);
+        while (1) {
+            /* Skip scanning schedule items */
+            if (entry->sched_type == BLE_LL_SCHED_TYPE_SCAN) {
+                scan = entry;
+                continue;
+            }
+
+            next_sch = entry->link.tqe_next;
+            if (ble_ll_sched_is_overlap(sch, entry)) {
+                if (ble_ll_sched_conn_overlap(entry)) {
+                    break;
+                }
+            } else {
+                if ((int32_t)(sch->end_time - entry->start_time) < 0) {
+                    rc = 0;
+                    TAILQ_INSERT_BEFORE(entry, sch, link);
+                    break;
+                }
+            }
+
+            /* Move to next entry */
+            entry = next_sch;
+
+            /* Insert at tail if none left to check */
+            if (!entry) {
+                rc = 0;
+                TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+                break;
+            }
+        }
+
+        if (!rc) {
+            sch->enqueued = 1;
+            if (scan) {
+                ble_ll_sched_chk_scan_overlap(scan, sch);
+            }
+        }
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+
+int
+ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    os_sr_t sr;
+    uint32_t ce_end_time;
+    uint32_t adv_start;
+    uint32_t duration;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *scan;
+
+    /* Get length of schedule item */
+    duration = sch->end_time - sch->start_time;
+
+    OS_ENTER_CRITICAL(sr);
+
+    /*
+     * If we are currently in a connection, we add one slot time to the
+     * earliest start so we can end the connection reasonably.
+     */
+    if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
+        sch->start_time += cputime_usecs_to_ticks(BLE_LL_SCHED_USECS_PER_SLOT);
+        ce_end_time = ble_ll_conn_get_ce_end_time();
+        if ((int32_t)(ce_end_time - sch->start_time) >= 0) {
+            sch->start_time = ce_end_time;
+        }
+        sch->end_time = sch->start_time + duration;
+    }
+
+    entry = ble_ll_sched_insert_if_empty(sch);
+    if (!entry) {
+        rc = 0;
+        adv_start = sch->start_time;
+    } else {
+        scan = NULL;
+        cputime_timer_stop(&g_ble_ll_sched_timer);
+        TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+            /* Ignore scan/initiate types */
+            if (entry->sched_type == BLE_LL_SCHED_TYPE_SCAN) {
+                scan = entry;
+                continue;
+            }
+
+            /* Check for overlapping events */
+            if (ble_ll_sched_is_overlap(sch, entry)) {
+                /* Earliest start is end of this event since we overlap */
+                sch->start_time = entry->end_time;
+                sch->end_time = sch->start_time + duration;
+            } else {
+                /* We can insert if before entry in list */
+                if ((int32_t)(sch->end_time - entry->start_time) < 0) {
+                    rc = 0;
+                    TAILQ_INSERT_BEFORE(entry, sch, link);
+                    break;
+                }
+            }
+        }
+
+        if (!entry) {
+            rc = 0;
+            TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        }
+        adv_start = sch->start_time;
+
+        if (!rc) {
+            sch->enqueued = 1;
+            if (scan) {
+                ble_ll_sched_chk_scan_overlap(scan, sch);
+            }
+        }
+
+        /* Restart with head of list */
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+
+    ble_ll_adv_scheduled(adv_start);
+
+    OS_EXIT_CRITICAL(sr);
+
+    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+
+int
+ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    os_sr_t sr;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *next_sch;
+    struct ble_ll_sched_item *scan;
+
+    OS_ENTER_CRITICAL(sr);
+
+    /* The schedule item must occur after current running item (if any) */
+    if (ble_ll_sched_overlaps_current(sch)) {
+        OS_EXIT_CRITICAL(sr);
+        return -1;
+    }
+
+    entry = ble_ll_sched_insert_if_empty(sch);
+    if (!entry) {
+        /* Nothing in schedule. Schedule as soon as possible */
+        rc = 0;
+    } else {
+        scan = NULL;
+        cputime_timer_stop(&g_ble_ll_sched_timer);
+        while (1) {
+            /* Skip scanning schedule items */
+            if (entry->sched_type == BLE_LL_SCHED_TYPE_SCAN) {
+                scan = entry;
+                continue;
+            }
+
+            next_sch = entry->link.tqe_next;
+            if (ble_ll_sched_is_overlap(sch, entry)) {
+                if (ble_ll_sched_conn_overlap(entry)) {
+                    assert(0);
+                }
+            } else {
+                if ((int32_t)(sch->end_time - entry->start_time) < 0) {
+                    rc = 0;
+                    TAILQ_INSERT_BEFORE(entry, sch, link);
+                    break;
+                }
+            }
+
+            /* Move to next entry */
+            entry = next_sch;
+
+            /* Insert at tail if none left to check */
+            if (!entry) {
+                rc = 0;
+                TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+                break;
+            }
+        }
+
+        if (!rc) {
+            sch->enqueued = 1;
+            if (scan) {
+                ble_ll_sched_chk_scan_overlap(scan, sch);
+            }
+        }
+
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+
+void
+ble_ll_sched_scan(struct ble_ll_sched_item *sch)
+{
+    int insert_head;
+    os_sr_t sr;
+    struct ble_ll_sched_item *entry;
+
+    OS_ENTER_CRITICAL(sr);
+
+    entry = ble_ll_sched_insert_if_empty(sch);
+    if (!entry) {
+        insert_head = 1;
+    } else {
+        TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+            /* No need to worry about overlap. */
+            if ((int32_t)(sch->start_time - entry->start_time) < 0) {
+                TAILQ_INSERT_BEFORE(entry, sch, link);
+                break;
+            }
+        }
+
+        insert_head = 0;
+        if (!entry) {
+            TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        } else {
+            if (sch == TAILQ_FIRST(&g_ble_ll_sched_q)) {
+                cputime_timer_stop(&g_ble_ll_sched_timer);
+                insert_head = 1;
+            }
+        }
+        sch->enqueued = 1;
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    if (insert_head) {
+        cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    }
+}
+
 /**
- * Remove a schedule item. You can use this function to: 
- *  1) Remove all schedule items of type 'sched_type' (cb_arg = NULL)
- *  2) Remove schedule items of type 'sched_type' and matching callback args
- * 
+ * Remove a schedule element
  * 
  * @param sched_type 
  * 
  * @return int 
  */
-int
-ble_ll_sched_rmv(uint8_t sched_type, void *cb_arg)
+void
+ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
 {
     os_sr_t sr;
-    struct ble_ll_sched_item *entry;
-    struct ble_ll_sched_item *next;
+    struct ble_ll_sched_item *first;
+
+    if (!sch) {
+        return;
+    }
 
     OS_ENTER_CRITICAL(sr);
-
-    entry = TAILQ_FIRST(&g_ble_ll_sched_q);
-    if (entry) {
-        cputime_timer_stop(&g_ble_ll_sched_timer);
-        while (entry) {
-            next = TAILQ_NEXT(entry, link);
-            if (entry->sched_type == sched_type) {
-                if ((cb_arg == NULL) || (cb_arg == entry->cb_arg)) {
-                    TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
-                    os_memblock_put(&g_ble_ll_sched_pool, entry);
-                }
-            } 
-            entry = next;
+    if (sch->enqueued) {
+        first = TAILQ_FIRST(&g_ble_ll_sched_q);
+        if (first == sch) {
+            cputime_timer_stop(&g_ble_ll_sched_timer);
         }
 
-        /* Start the timer if there is an item */
-        entry = TAILQ_FIRST(&g_ble_ll_sched_q);
-        if (entry) {
-            cputime_timer_start(&g_ble_ll_sched_timer, entry->start_time);
+        TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 0;
+
+        if (first == sch) {
+            first = TAILQ_FIRST(&g_ble_ll_sched_q);
+            if (first) {
+                cputime_timer_start(&g_ble_ll_sched_timer, first->start_time);
+            }
+        }
+    }
+    OS_EXIT_CRITICAL(sr);
+}
+
+/**
+ * Executes a schedule item by calling the schedule callback function.
+ * 
+ * @param sch Pointer to schedule item
+ * 
+ * @return int 0: schedule item is not over; otherwise schedule item is done.
+ */
+static int
+ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    uint8_t lls;
+
+    /* 
+     * Scanning items are special. If this is one, just call the callback.
+     * If we are doing something else the callback will handle it.
+     */ 
+    if (sch->sched_type != BLE_LL_SCHED_TYPE_SCAN) {
+        /* 
+         * This is either an advertising event or connection event start. If
+         * we are scanning or initiating just stop it.
+         */
+        lls = ble_ll_state_get();
+        if (lls != BLE_LL_STATE_STANDBY) {
+            /* We have to disable the PHY no matter what */
+            ble_phy_disable();
+            ble_ll_wfr_disable();
+            if ((lls == BLE_LL_STATE_SCANNING) || 
+                (lls == BLE_LL_STATE_INITIATING)) {
+                ble_ll_state_set(BLE_LL_STATE_STANDBY);
+            } else if (lls == BLE_LL_STATE_ADV) {
+                ++g_ble_ll_stats.sched_state_adv_errs;
+                ble_ll_adv_halt();
+            } else {
+                ble_ll_conn_event_halt();
+                ++g_ble_ll_stats.sched_state_conn_errs;
+            }
         }
     }
 
-    OS_EXIT_CRITICAL(sr);
-
-    return 0;
+    assert(sch->sched_cb);
+    rc = sch->sched_cb(sch);
+    return rc;
 }
 
 /**
@@ -195,28 +767,32 @@ ble_ll_sched_rmv(uint8_t sched_type, void *cb_arg)
 void
 ble_ll_sched_run(void *arg)
 {
-    int rc;
     struct ble_ll_sched_item *sch;
 
     /* Look through schedule queue */
     while ((sch = TAILQ_FIRST(&g_ble_ll_sched_q)) != NULL) {
         /* Make sure we have passed the start time of the first event */
         if ((int32_t)(cputime_get32() - sch->start_time) >= 0) {
-            /* Execute the schedule item */
-            rc = ble_ll_sched_execute(sch);
-            if (rc) {
-                TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
-                os_memblock_put(&g_ble_ll_sched_pool, sch);
-            } else {
-                /* Event is not over; schedule next wakeup time */
-                cputime_timer_start(&g_ble_ll_sched_timer, sch->next_wakeup);
-                break;
-            }
+            /* Execute the schedule item and remove it when done */
+            ble_ll_sched_execute_item(sch);
+            TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
+            sch->enqueued = 0;
         } else {
             cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
             break;
         }
     }
+}
+
+/**
+ * Stop the scheduler
+ *  
+ * Context: Link Layer task 
+ */
+void
+ble_ll_sched_stop(void)
+{
+    cputime_timer_stop(&g_ble_ll_sched_timer);
 }
 
 /**
@@ -228,15 +804,7 @@ ble_ll_sched_run(void *arg)
 int
 ble_ll_sched_init(void)
 {
-    os_error_t err;
-
-    err = os_mempool_init(&g_ble_ll_sched_pool, BLE_LL_CFG_SCHED_ITEMS, 
-                          sizeof(struct ble_ll_sched_item), 
-                          g_ble_ll_sched_mem, "ll_sched");
-    assert(err == OS_OK);
-
     /* Initialize cputimer for the scheduler */
     cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
-
-    return err;
+    return 0;
 }

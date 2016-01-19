@@ -18,6 +18,8 @@
 #define H_BLE_LL_CONN_
 
 #include "os/os.h"
+#include "nimble/ble.h"
+#include "controller/ble_ll_sched.h"
 #include "hal/hal_cputime.h"
 
 /* Roles */
@@ -114,11 +116,12 @@ struct ble_ll_conn_sm
     uint32_t access_addr;
     uint32_t crcinit;           /* only low 24 bits used */
     uint32_t anchor_point;
-    uint32_t last_anchor_point;
+    uint32_t last_anchor_point; /* slave only */
     uint32_t ce_end_time;   /* cputime at which connection event should end */
     uint32_t terminate_timeout;
     uint32_t slave_cur_tx_win_usecs;
     uint32_t slave_cur_window_widening;
+    uint32_t last_scheduled;
 
     /* address information */
     uint8_t own_addr_type;
@@ -148,6 +151,9 @@ struct ble_ll_conn_sm
 
     /* LL control procedure response timer */
     struct os_callout_func ctrl_proc_rsp_timer;
+
+    /* For scheduling connections */
+    struct ble_ll_sched_item conn_sch;
 };
 
 /* 

@@ -45,6 +45,11 @@
  * 3) Interleave sending scan requests to different advertisers? I guess I need 
  * a list of advertisers to which I sent a scan request and have yet to
  * receive a scan response from? Implement this.
+ * 
+ * 4) The current way I do things, it is possible that keep rescheduling the
+ * scanning item but never get a chance to execute it. This means that the
+ * last scan win start time could get really old. If we keep the current
+ * way of doing things we will need to address this issue.
  */
 
 /* The scanning state machine global object */
@@ -55,8 +60,7 @@ struct ble_ll_scan_stats
 {
     uint32_t scan_starts;
     uint32_t scan_stops;
-    uint32_t scan_win_misses;
-    uint32_t cant_set_sched;
+    uint32_t scan_event_misses;
     uint32_t scan_req_txf;
     uint32_t scan_req_txg;
 };
@@ -117,6 +121,46 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
     scansm->backoff_count = rand() & (scansm->upper_limit - 1);
     ++scansm->backoff_count;
     assert(scansm->backoff_count <= 256);
+}
+
+/**
+ * Called to determine if we are inside or outside the scan window. If we 
+ * are inside the scan window it means that the device should be receiving 
+ * on the scan channel. 
+ * 
+ * Context: Interrupt and Link Layer
+ *  
+ * @param scansm 
+ * 
+ * @return int 0: inside scan window 1: outside scan window
+ */
+int
+ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm)
+{
+    int rc;
+    uint32_t now;
+    uint32_t itvl;
+
+    rc = 0;
+    itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
+    now = cputime_get32();
+    while ((int32_t)(now - scansm->scan_win_start_time) >= itvl) {
+        scansm->scan_win_start_time += itvl;
+        ++scansm->scan_chan;
+        if (scansm->scan_chan == BLE_PHY_NUM_CHANS) {
+            scansm->scan_chan = BLE_PHY_ADV_CHAN_START;
+        }
+    }
+
+    if (scansm->scan_window != scansm->scan_itvl) {
+        itvl = cputime_usecs_to_ticks(scansm->scan_window * 
+                                      BLE_HCI_SCAN_ITVL);
+        if ((now - scansm->scan_win_start_time) >= itvl) {
+            rc = 1;
+        }
+    }
+
+    return rc;
 }
 
 /**
@@ -485,14 +529,6 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
     return 0;
 }
 
-static int
-ble_ll_scan_win_end_cb(struct ble_ll_sched_item *sch)
-{
-    ble_phy_disable();
-    ble_ll_event_send(&g_ble_ll_scan_sm.scan_win_end_ev);
-    return BLE_LL_SCHED_STATE_DONE;
-}
-
 /**
  * Schedule callback for the start of a scan window 
  *  
@@ -503,43 +539,105 @@ ble_ll_scan_win_end_cb(struct ble_ll_sched_item *sch)
  * @return int 
  */
 static int
-ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
+ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 {
     int rc;
-    struct ble_ll_scan_sm *scansm;
-
-    /* Toggle the LED */
-    gpio_toggle(LED_BLINK_PIN);
-
-    /* Get the state machine for the event */
-    scansm = (struct ble_ll_scan_sm *)sch->cb_arg;
-
+    
     /* Set channel */
     rc = ble_phy_setchan(scansm->scan_chan, 0, 0);
     assert(rc == 0);
 
-    /* Set callbacks in case we transmit scan request or connect request */
+    /* 
+     * Set transmit end callback to NULL in case we transmit a scan request.
+     * There is a callback for the connect request.
+     */
     ble_phy_set_txend_cb(NULL, NULL);
 
     /* Start receiving */
     rc = ble_phy_rx();
     if (rc) {
-        /* Failure to go into receive. Just call the window end function */
-        ble_ll_event_send(&g_ble_ll_scan_sm.scan_win_end_ev);
         rc =  BLE_LL_SCHED_STATE_DONE;
     } else {
         /* Set link layer state to scanning */
-        if (g_ble_ll_scan_sm.scan_type == BLE_SCAN_TYPE_INITIATE) {
+        if (scansm->scan_type == BLE_SCAN_TYPE_INITIATE) {
             ble_ll_state_set(BLE_LL_STATE_INITIATING);
         } else {
             ble_ll_state_set(BLE_LL_STATE_SCANNING);
         }
 
         /* Set end time to end of scan window */
-        sch->next_wakeup = sch->end_time;
-        sch->sched_cb = ble_ll_scan_win_end_cb;
         rc = BLE_LL_SCHED_STATE_RUNNING;
     }
+    scansm->last_sched_time = cputime_get32();
+
+    /* If there is a still a scan response pending, we have failed! */
+    if (scansm->scan_rsp_pending) {
+        ble_ll_scan_req_backoff(scansm, 0);
+    }
+
+    return rc;
+}
+
+/**
+ * Called when the scanning schedule item executes
+ *  
+ * Context: Interrupt 
+ * 
+ * @param sch 
+ * 
+ * @return int 
+ */
+int
+ble_ll_scan_sched_cb(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    struct ble_ll_scan_sm *scansm;
+
+    /* 
+     * If we are not in the standby state it means that the scheduled
+     * scanning event was overlapped in the schedule. In this case all we do
+     * is post the scan schedule end event.
+     */
+    switch (ble_ll_state_get()) {
+    case BLE_LL_STATE_ADV:
+    case BLE_LL_STATE_CONNECTION:
+        rc = -1;
+        break;
+    case BLE_LL_STATE_INITIATING:
+    case BLE_LL_STATE_SCANNING:
+        /* Must disable PHY since we will move to a new channel */
+        ble_phy_disable();
+        rc = 0;
+        break;
+    case BLE_LL_STATE_STANDBY:
+        rc = 0;
+        break;
+    default:
+        rc = 0;
+        assert(0);
+        break;
+    }
+
+    scansm = (struct ble_ll_scan_sm *)sch->cb_arg;
+    if (rc) {
+        rc =  BLE_LL_SCHED_STATE_DONE;
+    } else {
+        /* Determine if we should be off or receiving */
+        rc = ble_ll_scan_window_chk(scansm);
+        if (!rc) {
+            ble_ll_scan_start(scansm);
+            rc = BLE_LL_SCHED_STATE_RUNNING;
+        } else {
+            rc =  BLE_LL_SCHED_STATE_DONE;
+        }
+    }
+
+    if (rc == BLE_LL_SCHED_STATE_DONE) {
+        scansm->last_sched_time = cputime_get32();
+    }
+
+    /* Post scanning scheduled done event */
+    ble_ll_event_send(&scansm->scan_sched_ev);
 
     return rc;
 }
@@ -548,10 +646,15 @@ ble_ll_scan_start_cb(struct ble_ll_sched_item *sch)
  * Stop the scanning state machine 
  */
 void
-ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm, int conn_created)
+ble_ll_scan_sm_stop(int chk_disable)
 {
+    os_sr_t sr;
+    uint8_t lls;
+    struct ble_ll_scan_sm *scansm;
+
     /* Remove any scheduled advertising items */
-    ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN, NULL);
+    scansm = &g_ble_ll_scan_sm;
+    ble_ll_sched_rmv_elem(&scansm->scan_sch);
 
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
@@ -559,57 +662,28 @@ ble_ll_scan_sm_stop(struct ble_ll_scan_sm *scansm, int conn_created)
     /* Count # of times stopped */
     ++g_ble_ll_scan_stats.scan_stops;
 
-    /* Only set state if we are current in a scan window */
-    if ((g_ble_ll_data.ll_state == BLE_LL_STATE_SCANNING) ||
-        (g_ble_ll_data.ll_state == BLE_LL_STATE_INITIATING)) {
-        /* Disable the PHY */
-        if (!conn_created) {
+    /* Only set state if we are currently in a scan window */
+    if (chk_disable) {
+        OS_ENTER_CRITICAL(sr);
+        lls = ble_ll_state_get();
+        if ((lls == BLE_LL_STATE_SCANNING) || (lls == BLE_LL_STATE_INITIATING)) {
+            /* Disable phy */
             ble_phy_disable();
+
+            /* Disable whitelisting  */
+            ble_ll_whitelist_disable();
+
+            /* Set LL state to standby */
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
         }
-
-        /* Disable whitelisting  */
-        ble_ll_whitelist_disable();
-
-        /* Set LL state to standby */
-        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        OS_EXIT_CRITICAL(sr);
     }
-}
-
-static struct ble_ll_sched_item *
-ble_ll_scan_sched_set(struct ble_ll_scan_sm *scansm)
-{
-    int rc;
-    struct ble_ll_sched_item *sch;
-
-    sch = ble_ll_sched_get_item();
-    if (sch) {
-        /* Set sched type */
-        sch->sched_type = BLE_LL_SCHED_TYPE_SCAN;
-
-        /* Set the start time of the event */
-        sch->start_time = scansm->scan_win_start_time - 
-            cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS);
-
-        /* Set the callback, arg, start and end time */
-        sch->cb_arg = scansm;
-        sch->sched_cb = ble_ll_scan_start_cb;
-        sch->end_time = scansm->scan_win_start_time + 
-            cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
-
-        /* XXX: for now, we cant get an overlap so assert on error. */
-        /* Add the item to the scheduler */
-        rc = ble_ll_sched_add(sch);
-        assert(rc == 0);
-    } else {
-        ++g_ble_ll_scan_stats.cant_set_sched;
-    }
-
-    return sch;
 }
 
 static int
 ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 {
+    os_sr_t sr;
     struct ble_ll_sched_item *sch;
 
     /* 
@@ -650,73 +724,74 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     scansm->backoff_count = 1;
     scansm->scan_rsp_pending = 0;
 
+    /* Set schedule elements */
+    sch = &scansm->scan_sch;
+    sch->sched_type = BLE_LL_SCHED_TYPE_SCAN;
+    sch->cb_arg = scansm;
+    sch->sched_cb = ble_ll_scan_sched_cb;
+
+    /* XXX: align to current or next slot???. */
     /* Schedule start time now */
     scansm->scan_win_start_time = cputime_get32();
 
-    /* Set packet in schedule */
-    sch = ble_ll_scan_sched_set(scansm);
-    if (!sch) {
-        /* XXX: set a wakeup timer to deal with this. For now, assert */
-        assert(0);
+    /* 
+     * If we are in standby, start scanning. Otherwise, scanning will resume
+     * when the currently scheduled event ends.
+     */ 
+    OS_ENTER_CRITICAL(sr);
+    if (ble_ll_state_get() == BLE_LL_STATE_STANDBY) {
+        ble_ll_scan_start(scansm);
     }
+    OS_EXIT_CRITICAL(sr);
+
+    /* Post scanning scheduled done event */
+    ble_ll_event_send(&scansm->scan_sched_ev);
 
     return BLE_ERR_SUCCESS;
 }
 
 void
-ble_ll_scan_win_end_proc(void *arg)
+ble_ll_scan_event_proc(void *arg)
 {
-    int32_t delta_t;
+    uint32_t now;
+    uint32_t scan_win_start;
     uint32_t itvl;
     uint32_t win_ticks;
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_sched_item *sch;
 
-    /* Toggle the LED */
-    gpio_toggle(LED_BLINK_PIN);
-
-    /* We are no longer scanning  */
     scansm = (struct ble_ll_scan_sm *)arg;
-    ble_ll_state_set(BLE_LL_STATE_STANDBY);
+    sch = &scansm->scan_sch;
 
-    /* Move to next channel */
-    ++scansm->scan_chan;
-    if (scansm->scan_chan == BLE_PHY_NUM_CHANS) {
-        scansm->scan_chan = BLE_PHY_ADV_CHAN_START;
-    }
+    assert((int32_t)(scansm->last_sched_time-scansm->scan_win_start_time) >= 0);
 
-    /* If there is a scan response pending, it means we failed a scan req */
-    if (scansm->scan_rsp_pending) {
-        ble_ll_scan_req_backoff(scansm, 0);
-    }
-
-    /* Calculate # of ticks per scan window */
-    win_ticks = cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
-
-    /* Set next scan window start time */
     itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
-    scansm->scan_win_start_time += itvl;
-      
-    /* Set next scanning window start. */        
-    delta_t = (int32_t)(cputime_get32() - scansm->scan_win_start_time);
-    while (delta_t >= (int32_t)win_ticks) {
-        /* 
-         * Since it is possible to scan continuously, it is possible
-         * that we will be late here if the scan window is equal to the
-         * scan interval (or very close). So what we will do here is only
-         * increment a stat if we missed a scan window
-         */
-        /* Count times we were late */
-        ++g_ble_ll_scan_stats.scan_win_misses;
-
-        /* Calculate start time of next scan windowe */
-        scansm->scan_win_start_time += itvl;
-        delta_t -= (int32_t)itvl;
+    scan_win_start = scansm->scan_win_start_time;
+    while ((int32_t)(scansm->last_sched_time - scan_win_start) >= itvl) {
+        scan_win_start += itvl;
     }
 
-    if (!ble_ll_scan_sched_set(scansm)) {
-        /* XXX: we will need to set a timer here to wake us up */
-        assert(0);
+    /* Determine what the next scheduled scanning item should be. */
+    if (scansm->scan_window == scansm->scan_itvl) {
+        scan_win_start += itvl;
+    } else {
+        win_ticks = cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+        if ((scansm->last_sched_time - scansm->scan_win_start_time) < win_ticks) {
+            scan_win_start += win_ticks;
+        } else {
+            scan_win_start += itvl;
+        }
     }
+
+    now = cputime_get32();
+    if ((int32_t)(now - scan_win_start) <= 0) {
+        sch->start_time = scan_win_start;
+    } else {
+        ++g_ble_ll_scan_stats.scan_event_misses;
+        sch->start_time = now;
+    }
+    sch->end_time = sch->start_time;
+    ble_ll_sched_scan(sch);
 }
 
 /**
@@ -734,7 +809,7 @@ ble_ll_scan_win_end_proc(void *arg)
  *  1: we may send a response to this frame.
  */
 int
-ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
+ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
@@ -762,6 +837,9 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
             ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
         }
+
+        /* Disable wfr if running */
+        ble_ll_wfr_disable();
         break;
     case BLE_SCAN_TYPE_PASSIVE:
     default:
@@ -784,7 +862,7 @@ ble_ll_scan_rx_pdu_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
+ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 {
     int rc;
     int chk_send_req;
@@ -796,8 +874,28 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_scan_sm *scansm;
 
-    /* If passively scanning return (with -1) since no scan request is sent */
+    /* Get scanning state machine */
     scansm = &g_ble_ll_scan_sm;
+
+    /* 
+     * The reason we do something different here (as opposed to failed CRC) is
+     * that the received PDU will not be handed up in this case. So we have
+     * to restart scanning and handle a failed scan request. Note that we
+     * return 0 in this case because we dont want the phy disabled.
+     */
+    if (rxpdu == NULL) {
+        if (scansm->scan_rsp_pending) {
+            ble_ll_scan_req_backoff(scansm, 0);
+        }
+        ble_phy_rx();
+        return 0;
+    }
+
+    /* Just leave if the CRC is not OK. */
+    rc = -1;
+    if (!crcok) {
+        goto scan_rx_isr_exit;
+    }
 
     /* Get pdu type, pointer to address and address "type"  */
     rxbuf = rxpdu->om_data;
@@ -839,7 +937,6 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
     }
 
     /* Should we send a scan request? */
-    rc = -1;
     if (chk_send_req) {
         /* 
          * Check to see if we have received a scan response from this
@@ -865,29 +962,44 @@ ble_ll_scan_rx_pdu_end(struct os_mbuf *rxpdu)
         }
     }
 
+scan_rx_isr_exit:
+    if (rc) {
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+    }
     return rc;
 }
 
 /**
- * Called to resume scanning, usually after a packet has been received 
- * while in the scanning or inititating state.
+ * Called to resume scanning. This is called after an advertising event or 
+ * connection event has ended. It is also called if we receive a packet while 
+ * in the initiating or scanning state. 
+ *  
+ * Context: Link Layer task 
  */
 void
-ble_ll_scan_resume(void)
+ble_ll_scan_chk_resume(void)
 {
-    /* We need to re-enable the PHY if we are in idle state */
-    if (ble_phy_state_get() == BLE_PHY_STATE_IDLE) {
-        if (ble_phy_rx()) {
-            /* If we fail, we will end the current scan window. */
-            ble_ll_sched_rmv(BLE_LL_SCHED_TYPE_SCAN, NULL);
-            ble_ll_event_send(&g_ble_ll_scan_sm.scan_win_end_ev);
+    os_sr_t sr;
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = &g_ble_ll_scan_sm;
+    if (scansm->scan_enabled) {
+        OS_ENTER_CRITICAL(sr);
+        if (ble_ll_state_get() == BLE_LL_STATE_STANDBY) {
+            if (!ble_ll_scan_window_chk(scansm)) {
+                /* Turn on the receiver and set state */
+                ble_ll_scan_start(scansm);
+            }
         }
+        OS_EXIT_CRITICAL(sr);
     }
 }
 
 /**
  * Called when the wait for response timer expires while in the scanning 
  * state. 
+ *  
+ * Context: Interrupt. 
  */
 void
 ble_ll_scan_wfr_timer_exp(void)
@@ -898,14 +1010,13 @@ ble_ll_scan_wfr_timer_exp(void)
 
     /* 
      * If we timed out waiting for a response, the scan response pending
-     * flag should be set. Deal with scan backoff.
+     * flag should be set. Deal with scan backoff. Put device back into rx.
      */ 
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_rsp_pending) {
         ble_ll_scan_req_backoff(scansm, 0);
     }
-    
-    ble_ll_scan_resume();
+    ble_phy_rx();
 }
 
 /**
@@ -931,7 +1042,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     scan_rsp_chk = hdr->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK;
 
     /* We dont care about scan requests or connect requests */
-    if ((!hdr->rxinfo.crcok) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) || 
+    if (!BLE_MBUF_HDR_CRC_OK(hdr) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
         (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
         goto scan_continue;
     }
@@ -994,9 +1105,10 @@ scan_continue:
      * pending flag if we received a valid response
      */
     if (scansm->scan_rsp_pending && scan_rsp_chk) {
-        ble_ll_scan_req_backoff(scansm, 1);
+        ble_ll_scan_req_backoff(scansm, 0);
     }
-    ble_ll_scan_resume();
+
+    ble_ll_scan_chk_resume();
     return;
 }
 
@@ -1095,7 +1207,7 @@ ble_ll_scan_set_enable(uint8_t *cmd)
         }
     } else {
         if (scansm->scan_enabled) {
-            ble_ll_scan_sm_stop(scansm, 0);
+            ble_ll_scan_sm_stop(1);
         }
     }
 
@@ -1184,7 +1296,7 @@ ble_ll_scan_reset(void)
     /* If enabled, stop it. */
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_enabled) {
-        ble_ll_scan_sm_stop(scansm, 0);
+        ble_ll_scan_sm_stop(0);
     }
 
     /* Reset all statistics */
@@ -1220,8 +1332,8 @@ ble_ll_scan_init(void)
     memset(scansm, 0, sizeof(struct ble_ll_scan_sm));
 
     /* Initialize scanning window end event */
-    scansm->scan_win_end_ev.ev_type = BLE_LL_EVENT_SCAN_WIN_END;
-    scansm->scan_win_end_ev.ev_arg = scansm;
+    scansm->scan_sched_ev.ev_type = BLE_LL_EVENT_SCAN;
+    scansm->scan_sched_ev.ev_arg = scansm;
 
     /* Set all non-zero default parameters */
     scansm->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;

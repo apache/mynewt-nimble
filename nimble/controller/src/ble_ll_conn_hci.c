@@ -358,7 +358,7 @@ ble_ll_conn_create(uint8_t *cmdbuf)
 
     /* Initialize state machine in master role and start state machine */
     ble_ll_conn_master_init(connsm, hcc);
-    ble_ll_conn_sm_start(connsm);
+    ble_ll_conn_sm_new(connsm);
 
     /* Create the connection request */
     ble_ll_conn_req_pdu_make(connsm);
@@ -400,7 +400,7 @@ ble_ll_conn_create_cancel(void)
     if (connsm && (connsm->conn_state == BLE_LL_CONN_STATE_IDLE)) {
         /* stop scanning and end the connection event */
         g_ble_ll_conn_create_sm = NULL;
-        ble_ll_scan_sm_stop(ble_ll_scan_sm_get(), 0);
+        ble_ll_scan_sm_stop(1);
         ble_ll_conn_end(connsm, BLE_ERR_UNK_CONN_ID);
         rc = BLE_ERR_SUCCESS;
     } else {
