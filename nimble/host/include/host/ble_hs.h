@@ -19,6 +19,12 @@
 
 #include <inttypes.h>
 #include "host/ble_att.h"
+#include "host/ble_gap.h"
+#include "host/ble_gatt.h"
+#include "host/ble_hs.h"
+#include "host/ble_hs_test.h"
+#include "host/ble_uuid.h"
+#include "host/host_hci.h"
 
 #define BLE_HS_CONN_HANDLE_NONE         0xffff
 

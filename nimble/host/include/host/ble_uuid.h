@@ -17,6 +17,7 @@
 #ifndef H_BLE_UUID_
 #define H_BLE_UUID_
 
+#include <inttypes.h>
 struct os_mbuf;
 
 uint16_t ble_uuid_128_to_16(void *uuid128);
