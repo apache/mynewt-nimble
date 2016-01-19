@@ -173,7 +173,7 @@ struct ble_gatt_chr_def {
 struct ble_gatt_svc_def {
     uint8_t type;
     uint8_t *uuid128;
-    struct ble_gatt_svc_def **includes; /* Terminated with null. */
+    const struct ble_gatt_svc_def **includes; /* Terminated with null. */
     struct ble_gatt_chr_def *characteristics;
 };
 
