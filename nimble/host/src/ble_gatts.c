@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <assert.h>
 #include <string.h>
+#include "console/console.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
@@ -27,8 +28,8 @@
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
 
-#define BLE_GATTS_MAX_SERVICES  32 /* XXX: Make this configurable. */
-#define BLE_GATTS_MAX_CLT_CFGS  256 /* XXX: Make this configurable. */
+#define BLE_GATTS_MAX_SERVICES  16 /* XXX: Make this configurable. */
+#define BLE_GATTS_MAX_CLT_CFGS  32 /* XXX: Make this configurable. */
 
 struct ble_gatts_svc_entry {
     const struct ble_gatt_svc_def *svc;
@@ -98,6 +99,38 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
     ctxt->attr_data = buf;
 
     return 0;
+}
+
+static uint16_t
+ble_gatts_chr_clt_cfg_allowed(const struct ble_gatt_chr_def *chr)
+{
+    uint16_t flags;
+
+    flags = 0;
+    if (chr->flags & BLE_GATT_CHR_F_NOTIFY) {
+        flags |= BLE_GATTS_CLT_CFG_F_NOTIFY;
+    }
+    if (chr->flags & BLE_GATT_CHR_F_INDICATE) {
+        flags |= BLE_GATTS_CLT_CFG_F_INDICATE;
+    }
+
+    return flags;
+}
+
+static uint8_t
+ble_gatts_att_flags_from_chr_flags(ble_gatt_chr_flags chr_flags)
+{
+    uint8_t att_flags;
+
+    att_flags = 0;
+    if (chr_flags & BLE_GATT_CHR_F_READ) {
+        att_flags |= HA_FLAG_PERM_READ;
+    }
+    if (chr_flags & (BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_WRITE)) {
+        att_flags |= HA_FLAG_PERM_WRITE;
+    }
+
+    return att_flags;
 }
 
 static uint8_t
@@ -224,6 +257,12 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc;
     }
 
+    if (att_op == BLE_ATT_ACCESS_OP_WRITE &&
+        ble_gatts_chr_clt_cfg_allowed(chr)) {
+
+        ble_gatts_chr_updated(attr_handle - 1);
+    }
+
     att_ctxt->attr_data = gatt_ctxt.chr_access.data;
     att_ctxt->data_len = gatt_ctxt.chr_access.len;
 
@@ -275,29 +314,13 @@ ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
     assert(entry->handle != 0);
     assert(entry->end_group_handle != 0xffff);
 
-    rc = ble_att_svr_register(entry->svc->uuid128, HA_FLAG_PERM_READ,
-                              &handle, ble_gatts_inc_access, entry);
+    rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_INCLUDE, HA_FLAG_PERM_READ,
+                                     &handle, ble_gatts_inc_access, entry);
     if (rc != 0) {
         return rc;
     }
 
     return 0;
-}
-
-static uint16_t
-ble_gatts_chr_clt_cfg_allowed(const struct ble_gatt_chr_def *chr)
-{
-    uint16_t flags;
-
-    flags = 0;
-    if (chr->flags & BLE_GATT_CHR_F_NOTIFY) {
-        flags |= BLE_GATTS_CLT_CFG_F_NOTIFY;
-    }
-    if (chr->flags & BLE_GATT_CHR_F_INDICATE) {
-        flags |= BLE_GATTS_CLT_CFG_F_INDICATE;
-    }
-
-    return flags;
 }
 
 static int
@@ -515,6 +538,7 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
     uint16_t def_handle;
     uint16_t val_handle;
     uint16_t dsc_handle;
+    uint8_t att_flags;
     int rc;
 
     if (!ble_gatts_chr_is_sane(chr)) {
@@ -534,8 +558,8 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
     /* Register characteristic value attribute  (cast away const on callback
      * arg).
      */
-    rc = ble_att_svr_register(chr->uuid128, HA_FLAG_PERM_READ /*XXX*/,
-                              &val_handle,
+    att_flags = ble_gatts_att_flags_from_chr_flags(chr->flags);
+    rc = ble_att_svr_register(chr->uuid128, att_flags, &val_handle,
                               ble_gatts_chr_val_access, (void *)chr);
     if (rc != 0) {
         return rc;
