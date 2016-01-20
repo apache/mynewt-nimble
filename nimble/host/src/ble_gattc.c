@@ -109,7 +109,7 @@ struct ble_gattc_proc {
         } disc_chr_uuid;
 
         struct {
-            uint16_t chr_val_handle;
+            uint16_t chr_def_handle;
             uint16_t prev_handle;
             uint16_t end_handle;
             ble_gatt_dsc_fn *cb;
@@ -1963,7 +1963,7 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
     } else {
         rc = proc->disc_all_dscs.cb(proc->conn_handle,
                                     ble_gattc_error(status, att_handle),
-                                    proc->disc_all_dscs.chr_val_handle,
+                                    proc->disc_all_dscs.chr_def_handle,
                                     dsc, proc->disc_all_dscs.cb_arg);
     }
 
@@ -2080,7 +2080,7 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc,
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
- * @param chr_val_handle        The handle of the characteristic value
+ * @param chr_def_handle        The handle of the characteristic definition
  *                                  attribute.
  * @param chr_end_handle        The last handle in the characteristic
  *                                  definition.
@@ -2089,7 +2089,7 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc,
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
+ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_def_handle,
                         uint16_t chr_end_handle,
                         ble_gatt_dsc_fn *cb, void *cb_arg)
 {
@@ -2100,8 +2100,8 @@ ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
     if (rc != 0) {
         return rc;
     }
-    proc->disc_all_dscs.chr_val_handle = chr_val_handle;
-    proc->disc_all_dscs.prev_handle = chr_val_handle;
+    proc->disc_all_dscs.chr_def_handle = chr_def_handle;
+    proc->disc_all_dscs.prev_handle = chr_def_handle + 1;
     proc->disc_all_dscs.end_handle = chr_end_handle;
     proc->disc_all_dscs.cb = cb;
     proc->disc_all_dscs.cb_arg = cb_arg;

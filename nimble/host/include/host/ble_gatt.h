@@ -73,7 +73,7 @@ typedef int ble_gatt_chr_fn(uint16_t conn_handle, struct ble_gatt_error *error,
                             struct ble_gatt_chr *chr, void *arg);
 
 typedef int ble_gatt_dsc_fn(uint16_t conn_handle, struct ble_gatt_error *error,
-                            uint16_t chr_val_handle, struct ble_gatt_dsc *dsc,
+                            uint16_t chr_def_handle, struct ble_gatt_dsc *dsc,
                             void *arg);
 
 int ble_gattc_exchange_mtu(uint16_t conn_handle,
