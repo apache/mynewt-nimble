@@ -129,11 +129,11 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
     struct ble_gatt_svc_def svcs_circ[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
-        .includes = (struct ble_gatt_svc_def*[]) { svcs_circ + 1, NULL },
+        .includes = (const struct ble_gatt_svc_def*[]) { svcs_circ + 1, NULL },
     }, {
         .type = BLE_GATT_SVC_TYPE_SECONDARY,
         .uuid128 = BLE_UUID16(0x1234),
-        .includes = (struct ble_gatt_svc_def*[]) { svcs_circ + 0, NULL },
+        .includes = (const struct ble_gatt_svc_def*[]) { svcs_circ + 0, NULL },
     }, {
         .type = BLE_GATT_SVC_TYPE_END,
     } };
@@ -145,7 +145,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
     struct ble_gatt_svc_def svcs_good[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
-        .includes = (struct ble_gatt_svc_def*[]) { svcs_good + 1, NULL },
+        .includes = (const struct ble_gatt_svc_def*[]) { svcs_good + 1, NULL },
     }, {
         .type = BLE_GATT_SVC_TYPE_SECONDARY,
         .uuid128 = BLE_UUID16(0x1234),
@@ -332,7 +332,7 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
         [0] = {
             .type = BLE_GATT_SVC_TYPE_PRIMARY,
             .uuid128 = BLE_UUID16(0x1234),
-            .includes = (struct ble_gatt_svc_def*[]) { svcs + 1, NULL, },
+            .includes = (const struct ble_gatt_svc_def*[]) { svcs + 1, NULL, },
         },
         [1] = {
             .type = BLE_GATT_SVC_TYPE_SECONDARY,
