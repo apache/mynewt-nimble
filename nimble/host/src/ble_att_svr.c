@@ -2072,6 +2072,28 @@ err:
     return rc;
 }
 
+int
+ble_att_svr_write_local(uint16_t attr_handle, void *data, uint16_t data_len)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_svr_entry *entry;
+    int rc;
+
+    entry = NULL;
+    rc = ble_att_svr_find_by_handle(attr_handle, &entry);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ctxt.attr_data = data;
+    ctxt.data_len = data_len;
+    ctxt.offset = 0;
+
+    rc = ble_att_svr_write(NULL, entry, &ctxt, NULL);
+
+    return rc;
+}
+
 static void
 ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
 {
