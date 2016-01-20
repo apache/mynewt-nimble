@@ -47,6 +47,7 @@ int host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type);
 int host_hci_cmd_reset(void);
 int host_hci_cmd_read_adv_pwr(void);
 int host_hci_cmd_le_create_conn_cancel(void);
+int host_hci_cmd_le_conn_update(struct hci_conn_update *hcu);
 
 int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 

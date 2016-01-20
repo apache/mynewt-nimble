@@ -538,3 +538,24 @@ host_hci_cmd_le_create_conn_cancel(void)
                            0, NULL);
     return rc;
 }
+
+int
+host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_CONN_UPDATE_LEN];
+
+    /* XXX: add parameter checking later */
+    htole16(cmd + 0, hcu->handle);
+    htole16(cmd + 2, hcu->conn_itvl_min);
+    htole16(cmd + 4, hcu->conn_itvl_max);
+    htole16(cmd + 6, hcu->conn_latency);
+    htole16(cmd + 8, hcu->supervision_timeout);
+    htole16(cmd + 10, hcu->min_ce_len);
+    htole16(cmd + 12, hcu->max_ce_len);
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CONN_UPDATE,
+                              BLE_HCI_CONN_UPDATE_LEN, cmd);
+    return rc;
+}
+

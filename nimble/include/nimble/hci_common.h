@@ -257,6 +257,9 @@
 #define BLE_HCI_CONN_PEER_ADDR_RAND_ID      (3)
 #define BLE_HCI_CONN_PEER_ADDR_MAX          (3)
 
+/* --- LE connection update (OCF 0x0013) */
+#define BLE_HCI_CONN_UPDATE_LEN             (14)
+
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
 #define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
@@ -377,16 +380,23 @@
 /* LE sub-event specific definitions */
 #define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */
 
-/* LE connection complete event */
+/* LE connection complete event (sub event 0x01) */
 #define BLE_HCI_LE_CONN_COMPLETE_LEN            (19)
 #define BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER    (0x00)
 #define BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE     (0x01)
 
-/* LE advertising report event. */
+/* LE advertising report event. (sub event 0x02) */
 #define BLE_HCI_LE_ADV_RPT_MIN_LEN          (12)
 #define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN     (1)
 #define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX     (0x19)
 
+/* LE connection update complete event (sub event 0x03) */
+#define BLE_HCI_LE_CONN_UPD_LEN             (10)
+
+/* LE remote connection parameter request event (sub event 0x06) */
+#define BLE_HCI_LE_REM_CONN_PARM_REQ_LEN    (11)
+
+/* LE data length change event (sub event 0x07) */
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
 /*--- Shared data structures ---*/
@@ -413,6 +423,18 @@ struct hci_create_conn
     uint8_t peer_addr_type;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
     uint8_t own_addr_type;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+/* Connection update command */
+struct hci_conn_update
+{
+    uint16_t handle;
     uint16_t conn_itvl_min;
     uint16_t conn_itvl_max;
     uint16_t conn_latency;

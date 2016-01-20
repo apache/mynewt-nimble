@@ -35,6 +35,21 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
     char adv_data_buf[32];
 
     switch (subev) {
+    case BLE_HCI_LE_SUBEV_CONN_COMPLETE:
+        status = evdata[0];
+        if (status == BLE_ERR_SUCCESS) {
+            console_printf("LE connection complete. handle=%u role=%u "
+                           "paddrtype=%u addr=%x.%x.%x.%x.%x.%x itvl=%u "
+                           "latency=%u spvn_tmo=%u mca=%u\n", 
+                           le16toh(evdata + 1), evdata[3], evdata[4], 
+                           evdata[10], evdata[9], evdata[8], evdata[7],
+                           evdata[6], evdata[5], le16toh(evdata + 11), 
+                           le16toh(evdata + 13), le16toh(evdata + 15), 
+                           evdata[17]);
+        } else {
+            console_printf("LE connection complete. FAIL (status=%u)\n",status);
+        }
+        break;
     case BLE_HCI_LE_SUBEV_ADV_RPT:
         advlen = evdata[9];
         rssi = evdata[10 + advlen];
@@ -62,24 +77,29 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
             }
         }
         break;
-    case BLE_HCI_LE_SUBEV_CONN_COMPLETE:
+    case BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE:
         status = evdata[0];
         if (status == BLE_ERR_SUCCESS) {
-            console_printf("LE connection complete. handle=%u role=%u "
-                           "paddrtype=%u addr=%x.%x.%x.%x.%x.%x itvl=%u "
-                           "latency=%u spvn_tmo=%u mca=%u\n", 
-                           le16toh(evdata + 1), evdata[3], evdata[4], 
-                           evdata[10], evdata[9], evdata[8], evdata[7],
-                           evdata[6], evdata[5], le16toh(evdata + 11), 
-                           le16toh(evdata + 13), le16toh(evdata + 15), 
-                           evdata[17]);
+            console_printf("LE Connection Update Complete. handle=%u "
+                           "itvl=%u latency=%u timeout=%u\n",
+                           le16toh(evdata + 1), le16toh(evdata + 3), 
+                           le16toh(evdata + 5), le16toh(evdata + 7));
         } else {
-            console_printf("LE connection complete. FAIL (status=%u)\n",status);
+            console_printf("LE Connection Update Complete. FAIL (status=%u)\n",
+                           status);
         }
         break;
+
     case BLE_HCI_LE_SUBEV_DATA_LEN_CHG:
-        console_printf("Data Length Change. handle=%u max_tx_bytes=%u "
+        console_printf("LE Data Length Change. handle=%u max_tx_bytes=%u "
                        "max_tx_time=%u max_rx_bytes=%u max_rx_time=%u\n",
+                       le16toh(evdata), le16toh(evdata + 2), 
+                       le16toh(evdata + 4), le16toh(evdata + 6),
+                       le16toh(evdata + 8));
+        break;
+    case BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ:
+        console_printf("LE Remote Connection Parameter Request. handle=%u "
+                       "min_itvl=%u max_itvl=%u latency=%u timeout=%u\n",
                        le16toh(evdata), le16toh(evdata + 2), 
                        le16toh(evdata + 4), le16toh(evdata + 6),
                        le16toh(evdata + 8));
