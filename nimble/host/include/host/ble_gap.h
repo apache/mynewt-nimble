@@ -22,6 +22,60 @@
 struct hci_le_conn_complete;
 struct hci_conn_update;
 
+/** 30 ms. */
+#define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 60 ms. */
+#define BLE_GAP_ADV_FAST_INTERVAL1_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 100 ms. */
+#define BLE_GAP_ADV_FAST_INTERVAL2_MIN      (100 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 150 ms. */
+#define BLE_GAP_ADV_FAST_INTERVAL2_MAX      (150 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 30 ms; active scanning. */
+#define BLE_GAP_SCAN_FAST_INTERVAL_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 60 ms; active scanning. */
+#define BLE_GAP_SCAN_FAST_INTERVAL_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
+
+/** 30 ms; active scanning. */
+#define BLE_GAP_SCAN_FAST_WINDOW            (30 * 1000 / BLE_HCI_SCAN_ITVL)
+
+/* 30.72 seconds; active scanning. */
+#define BLE_GAP_SCAN_FAST_PERIOD            (30.72 * 1000)
+
+/** 1.28 seconds; background scanning. */
+#define BLE_GAP_SCAN_SLOW_INTERVAL1         (1280 * 1000 / BLE_HCI_SCAN_ITVL)
+
+/** 11.25 ms; background scanning. */
+#define BLE_GAP_SCAN_SLOW_WINDOW1           (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
+
+/** 10.24 seconds. */
+#define BLE_GAP_GEN_DISC_SCAN_MIN           (10.24 * 1000)
+
+/** 1 second. */
+#define BLE_GAP_CONN_PAUSE_CENTRAL          (1 * 1000)
+
+/** 5 seconds. */
+#define BLE_GAP_CONN_PAUSE_PERIPHERAL       (5 * 1000)
+
+/* 30 ms. */
+#define BLE_GAP_INITIAL_CONN_ITVL_MIN       (30 * 1000 / BLE_HCI_CONN_ITVL)
+
+/* 50 ms. */
+#define BLE_GAP_INITIAL_CONN_ITVL_MAX       (50 * 1000 / BLE_HCI_CONN_ITVL)
+
+#define BLE_GAP_SVC_UUID16                              0x1800
+#define BLE_GAP_CHR_UUID16_DEVICE_NAME                  0x2a00
+#define BLE_GAP_CHR_UUID16_APPEARANCE                   0x2a01
+#define BLE_GAP_CHR_UUID16_PERIPH_PRIV_FLAG             0x2a02
+#define BLE_GAP_CHR_UUID16_RECONNECT_ADDR               0x2a03
+#define BLE_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS      0x2a04
+
+#define BLE_GAP_APPEARANCE_GEN_COMPUTER                 128
+
 #define BLE_GAP_ADDR_TYPE_WL                0xff
 
 #define BLE_GAP_EVENT_CONN                  0

@@ -238,6 +238,7 @@
 
 /* Create Connection */
 #define BLE_HCI_CREATE_CONN_LEN             (25)             
+#define BLE_HCI_CONN_ITVL                   (1250)  /* usecs */
 #define BLE_HCI_CONN_FILT_NO_WL             (0)
 #define BLE_HCI_CONN_FILT_USE_WL            (1)
 #define BLE_HCI_CONN_FILT_MAX               (1)

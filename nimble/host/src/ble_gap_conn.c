@@ -74,45 +74,6 @@
 #define BLE_GAP_CONN_STATE_U_REPLY_ACKED                    3
 #define BLE_GAP_CONN_STATE_U_NEG_REPLY                      4
 
-/** 30 ms. */
-#define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
-
-/** 60 ms. */
-#define BLE_GAP_ADV_FAST_INTERVAL1_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
-
-/** 100 ms. */
-#define BLE_GAP_ADV_FAST_INTERVAL2_MIN      (100 * 1000 / BLE_HCI_ADV_ITVL)
-
-/** 150 ms. */
-#define BLE_GAP_ADV_FAST_INTERVAL2_MAX      (150 * 1000 / BLE_HCI_ADV_ITVL)
-
-/** 30 ms; active scanning. */
-#define BLE_GAP_SCAN_FAST_INTERVAL_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
-
-/** 60 ms; active scanning. */
-#define BLE_GAP_SCAN_FAST_INTERVAL_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
-
-/** 30 ms; active scanning. */
-#define BLE_GAP_SCAN_FAST_WINDOW            (30 * 1000 / BLE_HCI_SCAN_ITVL)
-
-/* 30.72 seconds; active scanning. */
-#define BLE_GAP_SCAN_FAST_PERIOD            (30.72 * 1000)
-
-/** 1.28 seconds; background scanning. */
-#define BLE_GAP_SCAN_SLOW_INTERVAL1         (1280 * 1000 / BLE_HCI_SCAN_ITVL)
-
-/** 11.25 ms; background scanning. */
-#define BLE_GAP_SCAN_SLOW_WINDOW1           (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
-
-/** 10.24 seconds. */
-#define BLE_GAP_GEN_DISC_SCAN_MIN           (10.24 * 1000)
-
-/** 1 second. */
-#define BLE_GAP_CONN_PAUSE_CENTRAL          (1 * 1000)
-
-/** 5 seconds. */
-#define BLE_GAP_CONN_PAUSE_PERIPHERAL       (5 * 1000)
-
 /**
  * The maximum amount of user data that can be put into the advertising data.
  * Six bytes are reserved at the end for the flags field and the transmit power
@@ -1638,8 +1599,8 @@ ble_gap_conn_create_tx(void *arg)
                sizeof hcc.peer_addr);
     }
     hcc.own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-    hcc.conn_itvl_min = 24;
-    hcc.conn_itvl_max = 40;
+    hcc.conn_itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN;
+    hcc.conn_itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX;
     hcc.conn_latency = 0;
     hcc.supervision_timeout = 0x0100; // XXX
     hcc.min_ce_len = 0x0010; // XXX
