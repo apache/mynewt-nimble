@@ -21,6 +21,8 @@
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
 
+static uint16_t ble_att_preferred_mtu;
+
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
 typedef int ble_att_rx_fn(struct ble_hs_conn *conn,
                           struct ble_l2cap_chan *chan,
@@ -125,6 +127,20 @@ ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
     chan->blc_peer_mtu = peer_mtu;
 }
 
+int
+ble_att_set_preferred_mtu(uint16_t mtu)
+{
+    if (mtu < BLE_ATT_MTU_DFLT) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_att_preferred_mtu = mtu;
+
+    /* XXX: Set my_mtu for established connections that haven't exchanged. */
+
+    return 0;
+}
+
 struct ble_l2cap_chan *
 ble_att_create_chan(void)
 {
@@ -136,7 +152,7 @@ ble_att_create_chan(void)
     }
 
     chan->blc_cid = BLE_L2CAP_CID_ATT;
-    chan->blc_my_mtu = BLE_ATT_MTU_DFLT;
+    chan->blc_my_mtu = ble_att_preferred_mtu;
     chan->blc_default_mtu = BLE_ATT_MTU_DFLT;
     chan->blc_rx_fn = ble_att_rx;
 
@@ -160,4 +176,10 @@ ble_att_get_pkthdr(void)
     om->om_data += 8;
 
     return om;
+}
+
+void
+ble_att_init(void)
+{
+    ble_att_preferred_mtu = BLE_ATT_MTU_DFLT;
 }

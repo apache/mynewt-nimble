@@ -156,6 +156,8 @@ ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
         goto err;
     }
 
+    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+
     return 0;
 
 err:

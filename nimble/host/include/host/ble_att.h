@@ -115,6 +115,8 @@ typedef int ble_att_svr_notify_fn(uint16_t conn_handle, uint16_t attr_handle,
 int ble_att_svr_write_local(uint16_t attr_handle, void *data,
                             uint16_t data_len);
 
+int ble_att_set_preferred_mtu(uint16_t mtu);
+
 void ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg);
 
 #endif

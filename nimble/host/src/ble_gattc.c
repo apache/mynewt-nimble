@@ -863,6 +863,11 @@ ble_gattc_mtu_kick(struct ble_gattc_proc *proc)
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     assert(chan != NULL);
 
+    if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
+        rc = BLE_HS_EALREADY;
+        goto err;
+    }
+
     req.bamc_mtu = chan->blc_my_mtu;
     rc = ble_att_clt_tx_mtu(conn, &req);
     if (rc != 0) {
