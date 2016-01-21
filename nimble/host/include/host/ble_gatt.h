@@ -166,9 +166,9 @@ struct ble_gatt_chr_def {
     ble_gatt_chr_flags flags;
 };
 
+#define BLE_GATT_SVC_TYPE_END       0
 #define BLE_GATT_SVC_TYPE_PRIMARY   1
 #define BLE_GATT_SVC_TYPE_SECONDARY 2
-#define BLE_GATT_SVC_TYPE_END       3
 
 struct ble_gatt_svc_def {
     uint8_t type;

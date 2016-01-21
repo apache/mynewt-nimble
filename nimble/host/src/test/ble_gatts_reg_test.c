@@ -105,21 +105,11 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
 
     ble_gatts_reg_test_init();
 
-    /*** Missing type. */
-    struct ble_gatt_svc_def svcs_no_type[] = { {
-        .uuid128 = BLE_UUID16(0x1234),
-    }, {
-        .type = BLE_GATT_SVC_TYPE_END,
-    } };
-
-    rc = ble_gatts_register_svcs(svcs_no_type, NULL, NULL);
-    TEST_ASSERT(rc == BLE_HS_EINVAL);
-
     /*** Missing UUID. */
     struct ble_gatt_svc_def svcs_no_uuid[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_no_uuid, NULL, NULL);
@@ -135,7 +125,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
         .uuid128 = BLE_UUID16(0x1234),
         .includes = (const struct ble_gatt_svc_def*[]) { svcs_circ + 0, NULL },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_circ, NULL, NULL);
@@ -150,7 +140,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
         .type = BLE_GATT_SVC_TYPE_SECONDARY,
         .uuid128 = BLE_UUID16(0x1234),
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
@@ -171,10 +161,10 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
             .uuid128 = BLE_UUID16(0x1111),
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_no_chr_cb, NULL, NULL);
@@ -189,10 +179,10 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
@@ -217,13 +207,13 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
                 .uuid128 = BLE_UUID16(0x8888),
                 .att_flags = 5,
             }, {
-                .uuid128 = NULL,
+                0
             } },
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_no_dsc_cb, NULL, NULL);
@@ -242,13 +232,13 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
                 .access_cb = ble_gatts_reg_test_misc_dummy_access,
                 .att_flags = 5,
             }, {
-                .uuid128 = NULL,
+                0
             } },
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } };
 
     rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
@@ -298,7 +288,7 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 
     /*** 3 primary. */
@@ -312,7 +302,7 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x3234),
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 
 
@@ -324,7 +314,7 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
         .type = BLE_GATT_SVC_TYPE_SECONDARY,
         .uuid128 = BLE_UUID16(0x2222),
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 
     /*** 1 primary, 1 secondary, 1 include. */
@@ -338,7 +328,7 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
             .type = BLE_GATT_SVC_TYPE_SECONDARY,
             .uuid128 = BLE_UUID16(0x2222),
         }, {
-            .type = BLE_GATT_SVC_TYPE_END,
+            0
         }
     };
     ble_gatts_reg_test_misc_svcs(svcs);
@@ -355,10 +345,10 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 
     /*** 3 characteristics. */
@@ -374,7 +364,7 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
             .flags = BLE_GATT_CHR_F_WRITE,
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
         .type = BLE_GATT_SVC_TYPE_SECONDARY,
@@ -384,10 +374,10 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 }
 
@@ -406,13 +396,13 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
                 .att_flags = 5,
                 .access_cb = ble_gatts_reg_test_misc_dummy_access,
             }, {
-                .uuid128 = NULL,
+                0
             } },
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 
     /*** 5 descriptors. */
@@ -428,14 +418,14 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
                 .att_flags = 5,
                 .access_cb = ble_gatts_reg_test_misc_dummy_access,
             }, {
-                .uuid128 = NULL,
+                0
             } },
         }, {
             .uuid128 = BLE_UUID16(0x2222),
             .access_cb = ble_gatts_reg_test_misc_dummy_access,
             .flags = BLE_GATT_CHR_F_WRITE,
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
         .type = BLE_GATT_SVC_TYPE_SECONDARY,
@@ -461,13 +451,13 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
                 .att_flags = 5,
                 .access_cb = ble_gatts_reg_test_misc_dummy_access,
             }, {
-                .uuid128 = NULL,
+                0
             } },
         }, {
-            .uuid128 = NULL,
+            0
         } },
     }, {
-        .type = BLE_GATT_SVC_TYPE_END,
+        0
     } });
 }
 

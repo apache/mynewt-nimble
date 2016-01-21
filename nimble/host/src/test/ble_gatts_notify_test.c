@@ -53,10 +53,10 @@ static const struct ble_gatt_svc_def ble_gatts_notify_test_svcs[] = { {
         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
                  BLE_GATT_CHR_F_INDICATE,
     }, {
-        .uuid128 = NULL,
+        0
     } },
 }, {
-    .type = BLE_GATT_SVC_TYPE_END,
+    0
 } };
 
 
