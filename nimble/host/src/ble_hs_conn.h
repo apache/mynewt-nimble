@@ -26,11 +26,21 @@ struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;
 
+typedef uint8_t ble_hs_conn_flags;
+
+#define BLE_HS_CONN_F_MASTER        0x01
+
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
     uint8_t bhc_addr_type;
     uint8_t bhc_addr[6];
+
+    uint16_t bhc_itvl;
+    uint16_t bhc_latency;
+    uint16_t bhc_supervision_timeout;
+
+    ble_hs_conn_flags bhc_flags;
 
     struct ble_l2cap_chan_list bhc_channels;
     uint16_t bhc_outstanding_pkts;

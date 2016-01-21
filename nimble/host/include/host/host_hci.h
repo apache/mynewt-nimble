@@ -48,6 +48,8 @@ int host_hci_cmd_reset(void);
 int host_hci_cmd_read_adv_pwr(void);
 int host_hci_cmd_le_create_conn_cancel(void);
 int host_hci_cmd_le_conn_update(struct hci_conn_update *hcu);
+int host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr);
+int host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn);
 
 int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 

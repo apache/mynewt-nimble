@@ -29,6 +29,7 @@
 #include "ble_gap_priv.h"
 
 #define BLE_GAP_CONN_OP_NULL                                0
+#define BLE_GAP_CONN_STATE_NULL                             255
 
 #define BLE_GAP_CONN_OP_M_DISC                              1
 #define BLE_GAP_CONN_OP_M_CONN                              2
@@ -66,6 +67,13 @@
 #define BLE_GAP_CONN_STATE_W_CLEAR                          0
 #define BLE_GAP_CONN_STATE_W_ADD                            1
 
+/** Connection update states. */
+#define BLE_GAP_CONN_STATE_U_UPDATE                         0
+#define BLE_GAP_CONN_STATE_U_UPDATE_ACKED                   1
+#define BLE_GAP_CONN_STATE_U_REPLY                          2
+#define BLE_GAP_CONN_STATE_U_REPLY_ACKED                    3
+#define BLE_GAP_CONN_STATE_U_NEG_REPLY                      4
+
 /** 30 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
 
@@ -99,12 +107,20 @@
 /** 10.24 seconds. */
 #define BLE_GAP_GEN_DISC_SCAN_MIN           (10.24 * 1000)
 
+/** 1 second. */
+#define BLE_GAP_CONN_PAUSE_CENTRAL          (1 * 1000)
+
+/** 5 seconds. */
+#define BLE_GAP_CONN_PAUSE_PERIPHERAL       (5 * 1000)
+
 /**
  * The maximum amount of user data that can be put into the advertising data.
  * Six bytes are reserved at the end for the flags field and the transmit power
  * field.
  */
 #define BLE_GAP_CONN_ADV_DATA_LIMIT         (BLE_HCI_MAX_ADV_DATA_LEN - 6)
+
+#define BLE_GAP_CONN_MAX_UPDATES            4
 
 /**
  * The state of the in-progress master connection.  If no master connection is
@@ -161,6 +177,17 @@ static struct {
     uint8_t cur;
 } ble_gap_conn_wl;
 
+struct ble_gap_conn_update_entry {
+    SLIST_ENTRY(ble_gap_conn_update_entry) next;
+    struct ble_gap_conn_params params;
+    uint16_t conn_handle;
+    uint8_t state;
+};
+static SLIST_HEAD(, ble_gap_conn_update_entry) ble_gap_conn_update_entries;
+
+static os_membuf_t *ble_gap_conn_update_mem;
+static struct os_mempool ble_gap_conn_update_pool;
+
 static int ble_gap_conn_adv_params_tx(void *arg);
 static int ble_gap_conn_adv_power_tx(void *arg);
 static int ble_gap_conn_adv_data_tx(void *arg);
@@ -190,48 +217,105 @@ static struct os_callout_func ble_gap_conn_slave_timer;
  * $misc                                                                     *
  *****************************************************************************/
 
-static void
-ble_gap_conn_call_conn_cb(struct ble_hs_conn *conn, int event, int status)
+static struct ble_gap_conn_update_entry *
+ble_gap_conn_update_entry_alloc(void)
 {
-    struct ble_gap_conn_desc desc;
+    struct ble_gap_conn_update_entry *entry;
+
+    entry = os_memblock_get(&ble_gap_conn_update_pool);
+    if (entry == NULL) {
+        return NULL;
+    }
+
+    memset(entry, 0, sizeof *entry);
+    SLIST_INSERT_HEAD(&ble_gap_conn_update_entries, entry, next);
+
+    return entry;
+}
+
+static void
+ble_gap_conn_update_entry_free(struct ble_gap_conn_update_entry *entry)
+{
+    int rc;
+
+    rc = os_memblock_put(&ble_gap_conn_update_pool, entry);
+    assert(rc == 0);
+}
+
+static struct ble_gap_conn_update_entry *
+ble_gap_conn_update_find(uint16_t conn_handle)
+{
+    struct ble_gap_conn_update_entry *entry;
+
+    SLIST_FOREACH(entry, &ble_gap_conn_update_entries, next) {
+        if (entry->conn_handle == conn_handle) {
+            return entry;
+        }
+    }
+
+    return NULL;
+}
+
+static int
+ble_gap_conn_call_conn_cb(int event, int status, struct ble_hs_conn *conn,
+                          struct ble_gap_conn_params *self_params,
+                          struct ble_gap_conn_params *peer_params)
+{
+    struct ble_gap_conn_ctxt ctxt;
     ble_gap_conn_fn *cb;
     void *cb_arg;
+    int rc;
+
+    memset(&ctxt, 0, sizeof ctxt);
 
     if (conn != NULL) {
-        desc.conn_handle = conn->bhc_handle;
-        desc.peer_addr_type = conn->bhc_addr_type;
-        memcpy(desc.peer_addr, conn->bhc_addr, sizeof desc.peer_addr);
+        ctxt.desc.conn_handle = conn->bhc_handle;
+        ctxt.desc.peer_addr_type = conn->bhc_addr_type;
+        memcpy(ctxt.desc.peer_addr, conn->bhc_addr,
+               sizeof ctxt.desc.peer_addr);
+        ctxt.desc.conn_itvl = conn->bhc_itvl;
+        ctxt.desc.conn_latency = conn->bhc_latency;
+        ctxt.desc.supervision_timeout = conn->bhc_supervision_timeout;
+
         cb = conn->bhc_cb;
         cb_arg = conn->bhc_cb_arg;
     } else {
-        desc.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-        desc.peer_addr_type = ble_gap_conn_master.conn.addr_type;
-        memcpy(desc.peer_addr, ble_gap_conn_master.conn.addr,
-               sizeof desc.peer_addr);
+        ctxt.desc.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        ctxt.desc.peer_addr_type = ble_gap_conn_master.conn.addr_type;
+        memcpy(ctxt.desc.peer_addr, ble_gap_conn_master.conn.addr,
+               sizeof ctxt.desc.peer_addr);
         cb = ble_gap_conn_master.conn.cb;
         cb_arg = ble_gap_conn_master.conn.cb_arg;
     }
 
+    ctxt.self_params = self_params;
+    ctxt.peer_params = peer_params;
+
     if (cb != NULL) {
-        cb(event, status, &desc, cb_arg);
+        rc = cb(event, status, &ctxt, cb_arg);
+    } else {
+        rc = 0;
     }
+
+    return rc;
 }
 
 static void
 ble_gap_conn_call_slave_cb(int event, int status)
 {
-    struct ble_gap_conn_desc desc;
+    struct ble_gap_conn_ctxt ctxt;
 
     if (ble_gap_conn_slave.cb == NULL) {
         return;
     }
 
-    desc.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-    desc.peer_addr_type = ble_gap_conn_slave.dir_addr_type;
-    memcpy(desc.peer_addr, ble_gap_conn_slave.dir_addr,
-           sizeof desc.peer_addr);
+    memset(&ctxt, 0, sizeof ctxt);
+    ctxt.desc.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    ctxt.desc.peer_addr_type = ble_gap_conn_slave.dir_addr_type;
+    memcpy(ctxt.desc.peer_addr, ble_gap_conn_slave.dir_addr,
+           sizeof ctxt.desc.peer_addr);
 
-    ble_gap_conn_slave.cb(event, status, &desc, ble_gap_conn_slave.cb_arg);
+    ble_gap_conn_slave.cb(event, status, &ctxt, ble_gap_conn_slave.cb_arg);
 }
 
 /**
@@ -244,13 +328,14 @@ ble_gap_conn_call_slave_cb(int event, int status)
 static void
 ble_gap_conn_notify_connect(int status, struct ble_hs_conn *conn)
 {
-    ble_gap_conn_call_conn_cb(conn, BLE_GAP_EVENT_CONN, status);
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN, status, conn, NULL, NULL);
 }
 
 static void
 ble_gap_conn_notify_term_failure(int status, struct ble_hs_conn *conn)
 {
-    ble_gap_conn_call_conn_cb(conn, BLE_GAP_EVENT_TERM_FAILURE, status);
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_TERM_FAILURE, status, conn,
+                              NULL, NULL);
 }
 
 static void
@@ -278,13 +363,14 @@ ble_gap_conn_notify_disc(struct ble_hs_adv *adv,
 static void
 ble_gap_conn_notify_master_conn_failure(int status)
 {
-    ble_gap_conn_call_conn_cb(NULL, BLE_GAP_EVENT_CONN, status);
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN, status, NULL, NULL, NULL);
 }
 
 static void
 ble_gap_conn_notify_master_cancel_failure(int status)
 {
-    ble_gap_conn_call_conn_cb(NULL, BLE_GAP_EVENT_CANCEL_FAILURE, status);
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CANCEL_FAILURE, status, NULL,
+                              NULL, NULL);
 }
 
 static void
@@ -341,6 +427,20 @@ ble_gap_conn_notify_wl(int status)
     }
 
     ble_gap_conn_wl.cb(status, ble_gap_conn_wl.cb_arg);
+}
+
+static void
+ble_gap_conn_notify_update(struct ble_gap_conn_update_entry *entry, int status)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(entry->conn_handle);
+    if (conn == NULL) {
+        return;
+    }
+
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN_UPDATED, status, NULL, NULL,
+                              NULL);
 }
 
 static void
@@ -406,6 +506,21 @@ ble_gap_conn_wl_failed(int status)
     ble_gap_conn_notify_wl(status);
 }
 
+static void
+ble_gap_conn_update_entry_remove_free(struct ble_gap_conn_update_entry *entry)
+{
+    SLIST_REMOVE(&ble_gap_conn_update_entries, entry,
+                 ble_gap_conn_update_entry, next);
+    ble_gap_conn_update_entry_free(entry);
+}
+
+static void
+ble_gap_conn_update_failed(struct ble_gap_conn_update_entry *entry, int status)
+{
+    ble_gap_conn_notify_update(entry, status);
+    ble_gap_conn_update_entry_remove_free(entry);
+}
+
 void
 ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
 {
@@ -417,7 +532,8 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
         if (conn == NULL) {
             return;
         }
-        ble_gap_conn_call_conn_cb(conn, BLE_GAP_EVENT_CONN, BLE_HS_ENOTCONN);
+        ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN, BLE_HS_ENOTCONN, conn,
+                                  NULL, NULL);
         ble_hs_conn_remove(conn);
         ble_hs_conn_free(conn);
     } else {
@@ -426,6 +542,26 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
     }
 
     ble_gattc_connection_broken(evt->connection_handle);
+}
+
+void
+ble_gap_conn_rx_update_complete(struct hci_le_conn_upd_complete *evt)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(evt->connection_handle);
+    if (conn == NULL) {
+        return;
+    }
+
+    if (evt->status == 0) {
+        conn->bhc_itvl = evt->conn_itvl;
+        conn->bhc_latency = evt->conn_latency;
+        conn->bhc_supervision_timeout = evt->supervision_timeout;
+    }
+
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN_UPDATED,
+                              BLE_HS_HCI_ERR(evt->status), conn, NULL, NULL);
 }
 
 /**
@@ -698,7 +834,11 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     conn->bhc_handle = evt->connection_handle;
     memcpy(conn->bhc_addr, evt->peer_addr, sizeof conn->bhc_addr);
+    conn->bhc_itvl = evt->conn_itvl;
+    conn->bhc_latency = evt->conn_latency;
+    conn->bhc_supervision_timeout = evt->supervision_timeout;
     if (evt->role == BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER) {
+        conn->bhc_flags |= BLE_HS_CONN_F_MASTER;
         conn->bhc_cb = ble_gap_conn_master.conn.cb;
         conn->bhc_cb_arg = ble_gap_conn_master.conn.cb_arg;
         ble_gap_conn_master_reset_state();
@@ -1663,6 +1803,189 @@ ble_gap_conn_cancel(void)
 }
 
 /*****************************************************************************
+ * $update connection parameters                                             *
+ *****************************************************************************/
+
+static void
+ble_gap_conn_param_neg_reply_ack(struct ble_hci_ack *ack, void *arg)
+{
+    struct ble_gap_conn_update_entry *entry;
+
+    entry = arg;
+
+    assert(entry->state == BLE_GAP_CONN_STATE_U_NEG_REPLY);
+    ble_gap_conn_update_entry_remove_free(entry);
+}
+
+static void
+ble_gap_conn_param_reply_ack(struct ble_hci_ack *ack, void *arg)
+{
+    struct ble_gap_conn_update_entry *entry;
+
+    entry = arg;
+
+    assert(entry->state == BLE_GAP_CONN_STATE_U_REPLY);
+
+    if (ack->bha_status != 0) {
+        ble_gap_conn_update_failed(entry, ack->bha_status);
+    } else {
+        entry->state = BLE_GAP_CONN_STATE_U_REPLY_ACKED;
+    }
+}
+
+void
+ble_gap_conn_rx_param_req(struct hci_le_conn_param_req *evt)
+{
+    struct ble_gap_conn_update_entry *entry;
+    struct hci_conn_param_neg_reply neg_reply;
+    struct hci_conn_param_reply pos_reply;
+    struct ble_gap_conn_params peer_params;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    entry = ble_gap_conn_update_find(evt->connection_handle);
+    if (entry != NULL) {
+        /* Parameter update already in progress; reject peer's attempt. */
+        /* XXX: Is this antisocial? */
+        rc = BLE_ERR_UNSPECIFIED;
+        goto err;
+    }
+
+    conn = ble_hs_conn_find(evt->connection_handle);
+    if (conn == NULL) {
+        return;
+    }
+
+    entry = ble_gap_conn_update_entry_alloc();
+    if (entry == NULL) {
+        /* Out of memory; reject. */
+        rc = BLE_ERR_MEM_CAPACITY;
+        goto err;
+    }
+
+    peer_params.itvl_min = evt->itvl_min;
+    peer_params.itvl_max = evt->itvl_max;
+    peer_params.latency = evt->latency;
+    peer_params.supervision_timeout = evt->timeout;
+    peer_params.min_ce_len = 0;
+    peer_params.max_ce_len = 0;
+
+    rc = ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN_UPDATE_REQ, 0, conn,
+                                   &entry->params, &peer_params);
+    if (rc != 0) {
+        goto err;
+    }
+
+    pos_reply.handle = entry->conn_handle;
+    pos_reply.conn_itvl_min = entry->params.itvl_min;
+    pos_reply.conn_itvl_max = entry->params.itvl_max;
+    pos_reply.conn_latency = entry->params.latency;
+    pos_reply.supervision_timeout = entry->params.supervision_timeout;
+    pos_reply.min_ce_len = entry->params.min_ce_len;
+    pos_reply.max_ce_len = entry->params.max_ce_len;
+
+    ble_hci_ack_set_callback(ble_gap_conn_param_reply_ack, entry);
+
+    rc = host_hci_cmd_le_conn_param_reply(&pos_reply);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return;
+
+err:
+    ble_gap_conn_update_failed(entry, rc);
+
+    neg_reply.handle = evt->connection_handle;
+    neg_reply.reason = rc;
+
+    ble_hci_ack_set_callback(ble_gap_conn_param_neg_reply_ack, entry);
+
+    host_hci_cmd_le_conn_param_neg_reply(&neg_reply);
+}
+
+static void
+ble_gap_conn_update_ack(struct ble_hci_ack *ack, void *arg)
+{
+    struct ble_gap_conn_update_entry *entry;
+
+    entry = arg;
+
+    assert(entry->state == BLE_GAP_CONN_STATE_U_UPDATE);
+
+    if (ack->bha_status != 0) {
+        ble_gap_conn_update_failed(entry, ack->bha_status);
+        return;
+    }
+
+    entry->state = BLE_GAP_CONN_STATE_U_UPDATE_ACKED;
+}
+
+static int
+ble_gap_conn_update_tx(void *arg)
+{
+    struct ble_gap_conn_update_entry *entry;
+    struct hci_conn_update cmd;
+    int rc;
+
+    entry = arg;
+
+    assert(entry->state == BLE_GAP_CONN_STATE_U_UPDATE);
+
+    cmd.handle = entry->conn_handle;
+    cmd.conn_itvl_min = entry->params.itvl_min;
+    cmd.conn_itvl_max = entry->params.itvl_max;
+    cmd.conn_latency = entry->params.latency;
+    cmd.supervision_timeout = entry->params.supervision_timeout;
+    cmd.min_ce_len = entry->params.min_ce_len;
+    cmd.max_ce_len = entry->params.max_ce_len;
+
+    ble_hci_ack_set_callback(ble_gap_conn_update_ack, entry);
+
+    rc = host_hci_cmd_le_conn_update(&cmd);
+    if (rc != 0) {
+        ble_gap_conn_update_failed(entry, rc);
+    }
+
+    return 0;
+}
+
+int
+ble_gap_conn_update_params(uint16_t conn_handle,
+                           struct ble_gap_conn_params *params)
+{
+    struct ble_gap_conn_update_entry *entry;
+    int rc;
+
+    entry = ble_gap_conn_update_find(conn_handle);
+    if (entry != NULL) {
+        return BLE_HS_EALREADY;
+    }
+
+    if (ble_hs_conn_find(conn_handle) == NULL) {
+        return BLE_HS_ENOENT;
+    }
+
+    entry = ble_gap_conn_update_entry_alloc();
+    if (entry == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    entry->conn_handle = conn_handle;
+    entry->params = *params;
+    entry->state = BLE_GAP_CONN_STATE_U_UPDATE;
+
+    rc = ble_hci_sched_enqueue(ble_gap_conn_update_tx, entry);
+    if (rc != 0) {
+        SLIST_REMOVE(&ble_gap_conn_update_entries, entry,
+                     ble_gap_conn_update_entry, next);
+        return rc;
+    }
+
+    return 0;
+}
+
+/*****************************************************************************
  * $init                                                                     *
  *****************************************************************************/
 
@@ -1680,9 +2003,20 @@ ble_gap_conn_init_slave_params(void)
     };
 }
 
+static void
+ble_gap_conn_free_mem(void)
+{
+    free(ble_gap_conn_update_mem);
+    ble_gap_conn_update_mem = NULL;
+}
+
 int
 ble_gap_conn_init(void)
 {
+    int rc;
+
+    ble_gap_conn_free_mem();
+
     ble_gap_conn_master.op = BLE_GAP_CONN_OP_NULL;
     ble_gap_conn_slave.op = BLE_GAP_CONN_OP_NULL;
     ble_gap_conn_wl.op = BLE_GAP_CONN_OP_NULL;
@@ -1693,5 +2027,26 @@ ble_gap_conn_init(void)
                          ble_gap_conn_master_timer_exp, NULL);
     os_callout_func_init(&ble_gap_conn_slave_timer, &ble_hs_evq,
                          ble_gap_conn_slave_timer_exp, NULL);
+
+    ble_gap_conn_update_mem = malloc(
+        OS_MEMPOOL_BYTES(BLE_GAP_CONN_MAX_UPDATES,
+                         sizeof (struct ble_gap_conn_update_entry)));
+    if (ble_gap_conn_update_mem == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+    rc = os_mempool_init(&ble_gap_conn_update_pool, BLE_GAP_CONN_MAX_UPDATES,
+                         sizeof (struct ble_gap_conn_update_entry),
+                         ble_gap_conn_update_mem, "ble_gap_conn_update_pool");
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
+
+    SLIST_INIT(&ble_gap_conn_update_entries);
     return 0;
+
+err:
+    ble_gap_conn_free_mem();
+    return rc;
 }

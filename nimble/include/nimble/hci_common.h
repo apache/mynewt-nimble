@@ -260,6 +260,12 @@
 /* --- LE connection update (OCF 0x0013) */
 #define BLE_HCI_CONN_UPDATE_LEN             (14)
 
+/* --- LE remote connection parameter request reply (OCF 0x0020) */
+#define BLE_HCI_CONN_PARAM_REPLY_LEN        (14)
+
+/* --- LE remote connection parameter request negative reply (OCF 0x0021) */
+#define BLE_HCI_CONN_PARAM_NEG_REPLY_LEN    (3)
+
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
 #define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
@@ -414,7 +420,7 @@ struct hci_adv_params
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 };
 
-/* Create connection command */
+/* LE create connection command */
 struct hci_create_conn
 {
     uint16_t scan_itvl;
@@ -431,7 +437,7 @@ struct hci_create_conn
     uint16_t max_ce_len;
 };
 
-/* Connection update command */
+/* LE connection update command */
 struct hci_conn_update
 {
     uint16_t handle;
@@ -441,6 +447,25 @@ struct hci_conn_update
     uint16_t supervision_timeout;
     uint16_t min_ce_len;
     uint16_t max_ce_len;
+};
+
+/* LE Remote connection parameter request reply command */
+struct hci_conn_param_reply
+{
+    uint16_t handle;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+/* LE Remote connection parameter request negative reply command */
+struct hci_conn_param_neg_reply
+{
+    uint16_t handle;
+    uint8_t reason;
 };
 
 /* Connection complete LE meta subevent */
@@ -456,6 +481,28 @@ struct hci_le_conn_complete
     uint16_t conn_latency;
     uint16_t supervision_timeout;
     uint8_t master_clk_acc;
+};
+
+/* Connection update complete LE meta subevent */
+struct hci_le_conn_upd_complete
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint16_t connection_handle;
+    uint16_t conn_itvl;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+};
+
+/* Remote connection parameter request LE meta subevent */
+struct hci_le_conn_param_req
+{
+    uint8_t subevent_code;
+    uint16_t connection_handle;
+    uint16_t itvl_min;
+    uint16_t itvl_max;
+    uint16_t latency;
+    uint16_t timeout;
 };
 
 /* Disconnection complete event (note: fields out of order). */

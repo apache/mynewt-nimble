@@ -559,3 +559,36 @@ host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
     return rc;
 }
 
+int
+host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr)
+{
+    uint8_t cmd[BLE_HCI_CONN_PARAM_REPLY_LEN];
+    int rc;
+
+    htole16(cmd + 0, hcr->handle);
+    htole16(cmd + 2, hcr->conn_itvl_min);
+    htole16(cmd + 4, hcr->conn_itvl_max);
+    htole16(cmd + 6, hcr->conn_latency);
+    htole16(cmd + 8, hcr->supervision_timeout);
+    htole16(cmd + 10, hcr->min_ce_len);
+    htole16(cmd + 12, hcr->max_ce_len);
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_REM_CONN_PARAM_RR,
+                              BLE_HCI_CONN_PARAM_REPLY_LEN, cmd);
+    return rc;
+}
+
+int
+host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn)
+{
+    uint8_t cmd[BLE_HCI_CONN_PARAM_NEG_REPLY_LEN];
+    int rc;
+
+    htole16(cmd + 0, hcn->handle);
+    cmd[2] = hcn->reason;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR,
+                              BLE_HCI_CONN_PARAM_NEG_REPLY_LEN, cmd);
+    return rc;
+}
+

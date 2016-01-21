@@ -90,6 +90,7 @@ SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 struct ble_l2cap_chan *ble_att_create_chan(void);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 struct os_mbuf *ble_att_get_pkthdr(void);
+void ble_att_init(void);
 
 
 /*** @svr */

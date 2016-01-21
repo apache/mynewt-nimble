@@ -81,14 +81,16 @@ ble_gap_test_util_disc_cb(int event, int status,
     ble_gap_test_disc_arg = arg;
 }
 
-static void
+static int
 ble_gap_test_util_connect_cb(int event, int status,
-                             struct ble_gap_conn_desc *desc, void *arg)
+                             struct ble_gap_conn_ctxt *ctxt, void *arg)
 {
     ble_gap_test_conn_event = event;
     ble_gap_test_conn_status = status;
-    ble_gap_test_conn_desc = *desc;
+    ble_gap_test_conn_desc = ctxt->desc;
     ble_gap_test_conn_arg = arg;
+
+    return 0;
 }
 
 static int
@@ -395,7 +397,7 @@ TEST_CASE(ble_gap_test_case_conn_wl_bad_args)
 
     /*** White-list-using connection in progress. */
     rc = ble_gap_conn_initiate(BLE_GAP_ADDR_TYPE_WL, NULL,
-                                     ble_gap_test_util_connect_cb, NULL);
+                               ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_conn_wl_busy());
 

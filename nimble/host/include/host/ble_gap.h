@@ -20,26 +20,47 @@
 #include <inttypes.h>
 #include "host/ble_hs.h"
 struct hci_le_conn_complete;
+struct hci_conn_update;
 
 #define BLE_GAP_ADDR_TYPE_WL                0xff
 
 #define BLE_GAP_EVENT_CONN                  0
-#define BLE_GAP_EVENT_CANCEL_FAILURE        1
-#define BLE_GAP_EVENT_TERM_FAILURE          2
-#define BLE_GAP_EVENT_DISC_SUCCESS          3
-#define BLE_GAP_EVENT_DISC_FINISHED         4
-#define BLE_GAP_EVENT_ADV_FINISHED          5
-#define BLE_GAP_EVENT_ADV_FAILURE           6
-#define BLE_GAP_EVENT_ADV_STOP_FAILURE      7
+#define BLE_GAP_EVENT_CONN_UPDATED          1
+#define BLE_GAP_EVENT_CONN_UPDATE_REQ       2
+#define BLE_GAP_EVENT_CANCEL_FAILURE        3
+#define BLE_GAP_EVENT_TERM_FAILURE          4
+#define BLE_GAP_EVENT_DISC_SUCCESS          5
+#define BLE_GAP_EVENT_DISC_FINISHED         6
+#define BLE_GAP_EVENT_ADV_FINISHED          7
+#define BLE_GAP_EVENT_ADV_FAILURE           8
+#define BLE_GAP_EVENT_ADV_STOP_FAILURE      9
 
 struct ble_gap_conn_desc {
-    uint16_t conn_handle;
-    uint8_t peer_addr_type;
     uint8_t peer_addr[6];
+    uint16_t conn_handle;
+    uint16_t conn_itvl;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint8_t peer_addr_type;
 };
 
-typedef void ble_gap_conn_fn(int event, int status,
-                             struct ble_gap_conn_desc *desc, void *arg);
+struct ble_gap_conn_params {
+    uint16_t itvl_min;
+    uint16_t itvl_max;
+    uint16_t latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+struct ble_gap_conn_ctxt {
+    struct ble_gap_conn_desc desc;
+    struct ble_gap_conn_params *peer_params;
+    struct ble_gap_conn_params *self_params;
+};
+
+typedef int ble_gap_conn_fn(int event, int status,
+                            struct ble_gap_conn_ctxt *ctxt, void *arg);
 
 struct ble_gap_disc_desc {
     uint8_t event_type;
@@ -83,5 +104,7 @@ int ble_gap_conn_cancel(void);
 int ble_gap_conn_wl_set(struct ble_gap_white_entry *white_list,
                         uint8_t white_list_count, ble_gap_wl_fn *cb,
                         void *cb_arg);
+int ble_gap_conn_update_params(uint16_t conn_handle,
+                               struct ble_gap_conn_params *params);
 
 #endif
