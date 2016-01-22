@@ -164,6 +164,7 @@ static void
 ble_gap_gen_disc_test_task_handler(void *arg)
 {
     int cb_called;
+    int rc;
 
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
@@ -182,8 +183,10 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
 
     /* Initiate the general discovery procedure with a 200 ms timeout. */
-    ble_gap_conn_disc(200, BLE_GAP_DISC_MODE_GEN,
-                      ble_gap_gen_disc_test_connect_cb, &cb_called);
+    rc = ble_gap_conn_disc(200, BLE_GAP_DISC_MODE_GEN, BLE_HCI_SCAN_TYPE_ACTIVE,
+                           BLE_HCI_SCAN_FILT_NO_WL,
+                           ble_gap_gen_disc_test_connect_cb, &cb_called);
+    TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
     TEST_ASSERT(!cb_called);
@@ -203,6 +206,7 @@ ble_gap_gen_disc_test_task_handler(void *arg)
 
     /* Wait 150 more ms; verify scan completed. */
     os_time_delay(150 * OS_TICKS_PER_SEC / 1000);
+    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_SET_SCAN_ENABLE, 0);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
     TEST_ASSERT(cb_called);

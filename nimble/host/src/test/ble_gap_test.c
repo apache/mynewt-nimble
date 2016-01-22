@@ -468,7 +468,9 @@ ble_gap_test_util_disc(uint8_t disc_mode, uint8_t *peer_addr,
     cmd_idx = 0;
 
     /* Begin the discovery procedure. */
-    rc = ble_gap_conn_disc(0, disc_mode, ble_gap_test_util_disc_cb, NULL);
+    rc = ble_gap_conn_disc(0, disc_mode, BLE_HCI_SCAN_TYPE_ACTIVE,
+                           BLE_HCI_SCAN_FILT_NO_WL, ble_gap_test_util_disc_cb,
+                           NULL);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_conn_master_in_progress());
 
@@ -512,15 +514,17 @@ TEST_CASE(ble_gap_test_case_conn_disc_bad_args)
     ble_gap_test_util_init();
 
     /*** Invalid discovery mode. */
-    rc = ble_gap_conn_disc(0, BLE_GAP_DISC_MODE_NON,
-                           ble_gap_test_util_disc_cb, NULL);
+    rc = ble_gap_conn_disc(0, BLE_GAP_DISC_MODE_NON, BLE_HCI_SCAN_TYPE_ACTIVE,
+                           BLE_HCI_SCAN_FILT_NO_WL, ble_gap_test_util_disc_cb,
+                           NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Master operation already in progress. */
     rc = ble_gap_conn_initiate(BLE_GAP_ADDR_TYPE_WL, NULL,
                                      ble_gap_test_util_connect_cb, NULL);
-    rc = ble_gap_conn_disc(0, BLE_GAP_DISC_MODE_GEN,
-                           ble_gap_test_util_disc_cb, NULL);
+    rc = ble_gap_conn_disc(0, BLE_GAP_DISC_MODE_GEN, BLE_HCI_SCAN_TYPE_ACTIVE,
+                           BLE_HCI_SCAN_FILT_NO_WL, ble_gap_test_util_disc_cb,
+                           NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
