@@ -2380,9 +2380,9 @@ ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc,
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
-                    uint16_t end_handle, void *uuid128,
-                    ble_gatt_attr_fn *cb, void *cb_arg)
+ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
+                       uint16_t end_handle, void *uuid128,
+                       ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct ble_gattc_proc *proc;
     int rc;

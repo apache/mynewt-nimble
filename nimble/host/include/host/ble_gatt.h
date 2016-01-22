@@ -99,9 +99,9 @@ int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
                             ble_gatt_dsc_fn *cb, void *cb_arg);
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_read_uuid(uint16_t conn_handle, uint16_t start_handle,
-                        uint16_t end_handle, void *uuid128,
-                        ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
+                           uint16_t end_handle, void *uuid128,
+                           ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,

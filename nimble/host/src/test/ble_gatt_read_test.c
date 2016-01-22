@@ -346,8 +346,8 @@ ble_gatt_read_test_misc_uuid_verify_good(uint16_t start_handle,
     conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                         NULL, NULL);
 
-    rc = ble_gattc_read_uuid(conn->bhc_handle, start_handle, end_handle,
-                             uuid128, ble_gatt_read_test_cb, &stop_after);
+    rc = ble_gattc_read_by_uuid(conn->bhc_handle, start_handle, end_handle,
+                                uuid128, ble_gatt_read_test_cb, &stop_after);
     TEST_ASSERT_FATAL(rc == 0);
 
     idx = 0;
