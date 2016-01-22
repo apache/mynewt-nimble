@@ -22,6 +22,9 @@
 struct ble_hs_conn;
 struct ble_att_error_rsp;
 
+#define BLE_GATT_SVC_UUID16                             0x1801
+#define BLE_GATT_CHR_SERVICE_CHANGED_UUID16             0x2a05
+
 /*** @client. */
 struct ble_gatt_error {
     uint16_t status;
