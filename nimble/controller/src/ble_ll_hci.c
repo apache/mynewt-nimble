@@ -157,20 +157,22 @@ ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
 /**
  * Checks to see if a LE event has been disabled by the host. 
  * 
- * @param bitpos This is the bit position of the LE event. Note that this can 
+ * @param subev Sub-event code of the LE Meta event. Note that this can 
  * be a value from 0 to 63, inclusive. 
  * 
  * @return uint8_t 0: event is not enabled; otherwise event is enabled.
  */
 uint8_t
-ble_ll_hci_is_le_event_enabled(int bitpos)
+ble_ll_hci_is_le_event_enabled(int subev)
 {
     uint8_t enabled;
     uint8_t bytenum;
     uint8_t bitmask;
+    int bitpos;
 
     /* The LE meta event must be enabled for any LE event to be enabled */
     enabled = 0;
+    bitpos = subev - 1;
     if (g_ble_ll_hci_event_mask[7] & 0x20) {
         bytenum = bitpos / 8;
         bitmask = 1 << (bitpos & 0x7);
@@ -332,6 +334,26 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = ble_ll_whitelist_rmv(cmdbuf + 1, cmdbuf[0]);
         }
         break;
+    case BLE_HCI_OCF_LE_CONN_UPDATE:
+        if (len == BLE_HCI_CONN_UPDATE_LEN) {
+            rc = ble_ll_conn_update(cmdbuf);
+        }
+        /* This is a hack; command status gets sent instead of cmd complete */
+        rc += (BLE_ERR_MAX + 1);
+        break;
+
+    case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
+        if (len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN) {
+            rc = ble_ll_conn_param_reply(cmdbuf, 0);
+        }
+        break;
+
+    case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
+        if (len == BLE_HCI_CONN_PARAM_REPLY_LEN) {
+            rc = ble_ll_conn_param_reply(cmdbuf, 1);
+        }
+        break;
+
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;

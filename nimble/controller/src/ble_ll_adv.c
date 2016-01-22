@@ -1136,7 +1136,7 @@ ble_ll_adv_event_done(void *arg)
     os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
     /* For debug purposes */
-#ifdef BLETEST
+#ifdef BLETEST_ADV_PKT_NUM
     bletest_inc_adv_pkt_num();
 #endif
 

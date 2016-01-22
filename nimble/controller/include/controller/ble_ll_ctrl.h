@@ -22,7 +22,7 @@
  * It is used to determine which LL control procedure is currently running
  * in a connection and which ones may be pending.
  */
-#define BLE_LL_CTRL_PROC_CONN_UPD       (0)
+#define BLE_LL_CTRL_PROC_CONN_UPDATE    (0)
 #define BLE_LL_CTRL_PROC_CHAN_MAP_UPD   (1)
 #define BLE_LL_CTRL_PROC_ENCRYPT        (2)
 #define BLE_LL_CTRL_PROC_FEATURE_XCHG   (3)
@@ -36,6 +36,9 @@
 
 /* Checks if a particular control procedure is running */
 #define IS_PENDING_CTRL_PROC_M(sm, proc) (sm->pending_ctrl_procs & (1 << proc))
+
+/* LL control procedure timeout */
+#define BLE_LL_CTRL_PROC_TIMEOUT        (40)    /* in secs */
 
 /* 
  * LL CTRL PDU format
@@ -64,6 +67,11 @@
 #define BLE_LL_CTRL_PING_RSP            (19)
 #define BLE_LL_CTRL_LENGTH_REQ          (20)
 #define BLE_LL_CTRL_LENGTH_RSP          (21)
+
+/* Maximum opcode value */
+#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_LENGTH_RSP + 1)
+
+extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
 /* Maximum # of payload bytes in a LL control PDU */
 #define BLE_LL_CTRL_MAX_PAYLOAD         (26)
@@ -169,7 +177,7 @@ struct ble_ll_conn_params
     uint16_t interval_max;
     uint16_t latency;
     uint16_t timeout;
-    uint16_t pref_periodicity;
+    uint8_t pref_periodicity;
     uint16_t ref_conn_event_cnt;
     uint16_t offset0;
     uint16_t offset1;
@@ -215,9 +223,19 @@ struct ble_ll_conn_sm;
 void ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc);
 void ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
-void ble_ll_ctrl_datalen_chg_event(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm);
 int ble_ll_ctrl_is_terminate_ind(uint8_t hdr, uint8_t opcode);
+int ble_ll_ctrl_is_reject_ind_ext(uint8_t hdr, uint8_t opcode);
+uint8_t ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, 
+                                     uint8_t *rsp,
+                                     struct ble_ll_conn_params *req);
+int ble_ll_ctrl_reject_ind_ext_send(struct ble_ll_conn_sm *connsm,
+                                    uint8_t rej_opcode, uint8_t err);
+
+void ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm);
+void ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
+                                     struct ble_ll_conn_params *cp);
+void ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status);
 
 #endif /* H_BLE_LL_CTRL_ */

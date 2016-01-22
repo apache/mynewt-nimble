@@ -103,9 +103,9 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
 #define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_251_500_PPM << 5)
-#define BLE_LL_CFG_CONN_MAX_CONNS           (8)
+#define BLE_LL_CFG_CONN_MAX_CONNS           (32)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
-#define BLE_LL_CFG_CONN_INIT_SLOTS          (8)
+#define BLE_LL_CFG_CONN_INIT_SLOTS          (2)
 
 /* We cannot have more than 254 connections given our current implementation */
 #if (BLE_LL_CFG_CONN_MAX_CONNS >= 255)
@@ -142,7 +142,10 @@ struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
 /* Connection state machine array */
-struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
+#if !defined(nzbss_t)
+#define nzbss_t
+#endif
+nzbss_t struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
 
 /* List of active connections */
 struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
@@ -928,6 +931,8 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     }
 
     /* XXX: for now, just make connection interval equal to max */
+    connsm->conn_itvl_min = hcc->conn_itvl_min;
+    connsm->conn_itvl_max = hcc->conn_itvl_max;
     connsm->conn_itvl = hcc->conn_itvl_max;
 
     /* Check the min/max CE lengths are less than connection interval */
@@ -973,24 +978,35 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_conn_global_params *conn_params;
 
-    /* Reset event counter and last unmapped channel */
-    connsm->last_unmapped_chan = 0;
+    /* Reset following elements */
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->allow_slave_latency = 0;
     connsm->disconnect_reason = 0;
     connsm->terminate_ind_txd = 0;
     connsm->terminate_ind_rxd = 0;
+    connsm->awaiting_host_reply = 0;
+    connsm->send_conn_upd_event = 0;
+    connsm->conn_update_scheduled = 0;
+    connsm->host_expects_upd_event = 0;
 
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
     connsm->pending_ctrl_procs = 0;
+
+    /* 
+     * Set handle in connection update procedure to 0. If the handle
+     * is non-zero it means that the host initiated the connection
+     * parameter update request and the rest of the parameters are valid.
+     */
+    connsm->conn_param_req.handle = 0;
 
     /* Initialize connection supervision timer */
     cputime_timer_init(&connsm->conn_spvn_timer, ble_ll_conn_spvn_timer_cb, 
                        connsm);
 
     /* Calculate the next data channel */
+    connsm->last_unmapped_chan = 0;
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
 
     /* Initialize event */
@@ -1079,7 +1095,7 @@ ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
     }
 
     if (send_event) {
-        ble_ll_ctrl_datalen_chg_event(connsm);
+        ble_ll_hci_ev_datalen_chg(connsm);
     }
 }
 
@@ -1151,13 +1167,52 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_log(BLE_LL_LOG_ID_CONN_END,connsm->conn_handle,0,connsm->event_cntr);
 }
 
+/**
+ * Called to move to the next connection event. 
+ * 
+ * @param connsm 
+ * 
+ * @return int 
+ */
 static int
 ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 {
+    uint8_t update_status;
     uint16_t latency;
     uint32_t itvl;
+    uint32_t tmo;
     uint32_t cur_ww;
     uint32_t max_ww;
+    struct ble_ll_conn_upd_req *upd;
+
+    /* 
+     * XXX: we could send the connection update event a bit earlier. The
+     * way this is coded is that we will generally send it when the
+     * connection event corresponding to the instant ends. We can send
+     * it when it begins if we want.
+     */
+
+    /* XXX: deal with connection request procedure here as well */
+
+    /* 
+     * There are two cases where this flag gets set:
+     * 1) A connection update procedure was started and the event counter
+     * has passed the instant.
+     * 2) We successfully sent the reject reason.
+     */
+    if (connsm->host_expects_upd_event) {
+        update_status = BLE_ERR_SUCCESS;
+        if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
+        } else {
+            if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
+                ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+                update_status = connsm->reject_reason;
+            }
+        }
+        ble_ll_hci_ev_conn_update(connsm, update_status);
+        connsm->host_expects_upd_event = 0;
+    }
 
     /* 
      * XXX: not quite sure I am interpreting slave latency correctly here.
@@ -1169,7 +1224,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
-    if (connsm->allow_slave_latency) {
+    if (connsm->allow_slave_latency && !connsm->conn_update_scheduled) {
         if (connsm->pkt_rxd) {
             latency += connsm->slave_latency;
             itvl = itvl * latency;
@@ -1179,6 +1234,43 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
     /* Set next connection event start time */
     connsm->anchor_point += cputime_usecs_to_ticks(itvl);
+
+    /* 
+     * If a connection update has been scheduled and the event counter
+     * is now equal to the instant, we need to adjust the start of the
+     * connection by the the transmit window offset. We also copy in the
+     * update parameters as they now should take effect.
+     */
+    if (connsm->conn_update_scheduled && 
+        (connsm->event_cntr == connsm->conn_update_req.instant)) {
+
+        /* Set flag so we send connection update event */
+        upd = &connsm->conn_update_req;
+        if ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER)  ||
+            (connsm->conn_itvl != upd->interval)            ||
+            (connsm->slave_latency != upd->latency)         || 
+            (connsm->supervision_tmo != upd->timeout)) {
+            connsm->host_expects_upd_event = 1;
+        }
+
+        connsm->conn_itvl = upd->interval;
+        connsm->supervision_tmo = upd->timeout;
+        connsm->slave_latency = upd->latency;
+        connsm->tx_win_size = upd->winsize;
+        connsm->slave_cur_tx_win_usecs =  
+            connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
+        connsm->tx_win_off = upd->winoffset;
+        connsm->anchor_point += 
+            cputime_usecs_to_ticks(upd->winoffset * BLE_LL_CONN_ITVL_USECS);
+
+        /* Reset the connection supervision timeout */
+        cputime_timer_stop(&connsm->conn_spvn_timer);
+        tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
+        cputime_timer_start(&connsm->conn_spvn_timer, connsm->anchor_point+tmo);
+
+        /* Reset update scheduled flag */
+        connsm->conn_update_scheduled = 0;
+    }
 
     /* Calculate data channel index of next connection event */
     connsm->last_unmapped_chan = connsm->unmapped_chan;
@@ -1370,6 +1462,8 @@ ble_ll_conn_event_end(void *arg)
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
 
+    /* XXX: I think all this fine for when we do connection updates, but
+       we may want to force the first event to be scheduled. Not sure */
     /* Schedule the next connection event */
     while (ble_ll_sched_conn_reschedule(connsm)) {
         if (ble_ll_conn_next_event(connsm)) {
@@ -1514,7 +1608,7 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
     if (connsm && BLE_MBUF_HDR_CRC_OK(ble_hdr) && 
         (ble_hdr->rxinfo.flags & BLE_MBUF_HDR_F_CONN_REQ_TXD)) {
         /* Set address of advertiser to which we are connecting. */
-        if (!ble_ll_scan_whitelist_enabled()) {
+        if (ble_ll_scan_whitelist_enabled()) {
             /* 
              * XXX: need to see if the whitelist tells us exactly what peer
              * addr type we should use? Not sure it matters. If whitelisting
@@ -1960,6 +2054,19 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                         goto conn_rx_pdu_end;
                     }
 
+                    /* 
+                     * Did we transmit a REJECT_IND_EXT? If so we need
+                     * to make sure we send the connection update event
+                     */
+                    if (ble_ll_ctrl_is_reject_ind_ext(txhdr->txinfo.hdr_byte,
+                                                      txpdu->om_data[0])) {
+                        if (connsm->cur_ctrl_proc == 
+                            BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
+                            connsm->reject_reason = txpdu->om_data[2];
+                            connsm->host_expects_upd_event = 1; 
+                        }
+                    }
+
                     /* Increment offset based on number of bytes sent */
                     txhdr->txinfo.offset += txhdr->txinfo.pyld_len;
                     if (txhdr->txinfo.offset >= pkthdr->omp_len) {
@@ -2126,7 +2233,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
  *  
  * Context: Link Layer 
  *  
- * @param rxbuf Pointer to received PDU 
+ * @param rxbuf Pointer to received Connect Request PDU
  * @param conn_req_end receive end time of connect request 
  *  
  * @return 0: connection not started; 1 connecton started 
@@ -2294,6 +2401,8 @@ ble_ll_conn_module_init(void)
      */
     connsm = &g_ble_ll_conn_sm[0];
     for (i = 0; i < BLE_LL_CFG_CONN_MAX_CONNS; ++i) {
+        memset(connsm, 0, sizeof(struct ble_ll_conn_sm));
+
         connsm->conn_handle = i + 1;
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
 

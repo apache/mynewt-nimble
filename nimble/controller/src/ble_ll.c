@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "bsp/bsp.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_phy.h"
@@ -49,6 +50,7 @@
 
 /* Configuration for supported features */
 #define BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#undef BLE_LL_CFG_FEAT_CONN_PARAM_REQ
 #undef BLE_LL_CFG_FEAT_LE_ENCRYPTION
 #undef BLE_LL_CFG_FEAT_EXT_REJECT_IND
 
@@ -78,7 +80,10 @@ struct ble_ll_log
 
 #define BLE_LL_LOG_LEN  (256)
 
-static struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
+#if !defined(nzbss_t)
+#define nzbss_t
+#endif
+static nzbss_t struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
 static uint8_t g_ble_ll_log_index;
 
 void
@@ -939,6 +944,13 @@ ble_ll_init(void)
 #ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
     features |= BLE_LL_FEAT_DATA_LEN_EXT;
 #endif
+#ifdef BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+    features |= BLE_LL_FEAT_CONN_PARM_REQ;
+#endif
+#ifdef BLE_LL_CFG_FEAT_EXT_REJECT_IND
+    features |= BLE_LL_FEAT_EXTENDED_REJ;
+#endif
+
     lldata->ll_supp_features = features;
 
     /* Initialize the LL task */

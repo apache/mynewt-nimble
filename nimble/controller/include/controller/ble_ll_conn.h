@@ -19,7 +19,9 @@
 
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/hci_common.h"
 #include "controller/ble_ll_sched.h"
+#include "controller/ble_ll_ctrl.h"
 #include "hal/hal_cputime.h"
 
 /* Roles */
@@ -58,7 +60,7 @@ struct ble_ll_conn_sm
 {
     /* Current connection state and role */
     uint8_t conn_state;
-    uint8_t conn_role;
+    uint8_t conn_role;          /* Can possibly be 1 bit */
 
     /* Connection data length management */
     uint8_t max_tx_octets;
@@ -91,37 +93,47 @@ struct ble_ll_conn_sm
     uint8_t last_rxd_hdr_byte;  /* note: possibly can make 1 bit since we
                                    only use the MD bit now */
 
-    /* connection event timing/mgmt */
+    /* connection event mgmt */
     uint8_t pdu_txd;                /* note: can be 1 bit */
     uint8_t pkt_rxd;                /* note: can be 1 bit */
     uint8_t terminate_ind_txd;      /* note: can be 1 bit */
     uint8_t terminate_ind_rxd;      /* note: can be 1 bit */
     uint8_t allow_slave_latency;    /* note: can be 1 bit */
     uint8_t slave_set_last_anchor;  /* note: can be 1 bit */
+    uint8_t awaiting_host_reply;    /* note: can be 1 bit */
+    uint8_t send_conn_upd_event;    /* note: can be 1 bit */
+    uint8_t conn_update_scheduled;  /* note: can be 1 bit */
+    uint8_t host_expects_upd_event;  /* note: can be 1 bit */
+    uint8_t reject_reason;
+    uint8_t host_reply_opcode;
     uint8_t master_sca;
     uint8_t tx_win_size;
     uint8_t cur_ctrl_proc;
     uint8_t disconnect_reason;
     uint8_t rxd_disconnect_reason;
     uint16_t pending_ctrl_procs;
-    uint16_t conn_itvl;
-    uint16_t slave_latency;
-    uint16_t tx_win_off;
-    uint16_t min_ce_len;
-    uint16_t max_ce_len;
     uint16_t event_cntr;
-    uint16_t supervision_tmo;
     uint16_t conn_handle;
     uint16_t completed_pkts;
     uint32_t access_addr;
-    uint32_t crcinit;           /* only low 24 bits used */
-    uint32_t anchor_point;
-    uint32_t last_anchor_point; /* slave only */
+    uint32_t crcinit;               /* only low 24 bits used */
     uint32_t ce_end_time;   /* cputime at which connection event should end */
     uint32_t terminate_timeout;
+    uint32_t last_scheduled;
+
+    /* Connection timing */
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_itvl;
+    uint16_t slave_latency;
+    uint16_t supervision_tmo;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+    uint16_t tx_win_off;
+    uint32_t anchor_point;
+    uint32_t last_anchor_point;
     uint32_t slave_cur_tx_win_usecs;
     uint32_t slave_cur_window_widening;
-    uint32_t last_scheduled;
 
     /* address information */
     uint8_t own_addr_type;
@@ -154,6 +166,16 @@ struct ble_ll_conn_sm
 
     /* For scheduling connections */
     struct ble_ll_sched_item conn_sch;
+
+    /* XXX: ifdef this by feature? */
+    /* 
+     * For connection update procedure. XXX: can make this a pointer and
+     * malloc it if we want to save space.
+     */ 
+    struct hci_conn_update conn_param_req;
+
+    /* For connection update procedure */
+    struct ble_ll_conn_upd_req conn_update_req;
 };
 
 /* 

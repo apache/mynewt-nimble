@@ -38,6 +38,47 @@ static uint32_t g_ble_ll_next_num_comp_pkt_evt;
     ((BLE_LL_CFG_NUM_COMP_PKT_RATE * OS_TICKS_PER_SEC) / 1000)
 
 /**
+ * Called to check that the connection parameters are within range 
+ * 
+ * @param itvl_min 
+ * @param itvl_max 
+ * @param latency 
+ * @param spvn_tmo 
+ * 
+ * @return int BLE_ERR_INV_HCI_CMD_PARMS if invalid parameters, 0 otherwise
+ */
+int
+ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
+                                uint16_t latency, uint16_t spvn_tmo)
+{
+    uint32_t spvn_tmo_usecs;
+    uint32_t min_spvn_tmo_usecs;
+
+    if ((itvl_min > itvl_max) || 
+        (itvl_min < BLE_HCI_CONN_ITVL_MIN) ||
+        (itvl_min > BLE_HCI_CONN_ITVL_MAX) ||
+        (latency > BLE_HCI_CONN_LATENCY_MAX) ||
+        (spvn_tmo < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
+        (spvn_tmo > BLE_HCI_CONN_SPVN_TIMEOUT_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* 
+    * Supervision timeout (in msecs) must be more than:
+    *  (1 + connLatency) * connIntervalMax * 1.25 msecs * 2.
+    */
+    spvn_tmo_usecs = spvn_tmo;
+    spvn_tmo_usecs *= (BLE_HCI_CONN_SPVN_TMO_UNITS * 1000);
+    min_spvn_tmo_usecs = (uint32_t)itvl_max * 2 * BLE_LL_CONN_ITVL_USECS;
+    min_spvn_tmo_usecs *= (1 + latency);
+    if (spvn_tmo_usecs <= min_spvn_tmo_usecs) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return BLE_ERR_SUCCESS;
+}
+
+/**
  * Make a connect request PDU 
  * 
  * @param connsm 
@@ -102,7 +143,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
 {
     uint8_t *evbuf;
 
-    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_COMPLETE - 1)) {
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_COMPLETE)) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
@@ -260,8 +301,6 @@ int
 ble_ll_conn_create(uint8_t *cmdbuf)
 {
     int rc;
-    uint32_t spvn_tmo_usecs;
-    uint32_t min_spvn_tmo_usecs;
     struct hci_create_conn ccdata;
     struct hci_create_conn *hcc;
     struct ble_ll_conn_sm *connsm;
@@ -311,36 +350,17 @@ ble_ll_conn_create(uint8_t *cmdbuf)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Check connection interval */
+    /* Check connection interval, latency and supervision timeoout */
     hcc->conn_itvl_min = le16toh(cmdbuf + 13);
     hcc->conn_itvl_max = le16toh(cmdbuf + 15);
     hcc->conn_latency = le16toh(cmdbuf + 17);
-    if ((hcc->conn_itvl_min > hcc->conn_itvl_max)       ||
-        (hcc->conn_itvl_min < BLE_HCI_CONN_ITVL_MIN)    ||
-        (hcc->conn_itvl_min > BLE_HCI_CONN_ITVL_MAX)    ||
-        (hcc->conn_latency > BLE_HCI_CONN_LATENCY_MAX)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Check supervision timeout */
     hcc->supervision_timeout = le16toh(cmdbuf + 19);
-    if ((hcc->supervision_timeout < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
-        (hcc->supervision_timeout > BLE_HCI_CONN_SPVN_TIMEOUT_MAX))
-    {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* 
-     * Supervision timeout (in msecs) must be more than:
-     *  (1 + connLatency) * connIntervalMax * 1.25 msecs * 2.
-     */
-    spvn_tmo_usecs = hcc->supervision_timeout;
-    spvn_tmo_usecs *= (BLE_HCI_CONN_SPVN_TMO_UNITS * 1000);
-    min_spvn_tmo_usecs = (uint32_t)hcc->conn_itvl_max * 2 * 
-        BLE_LL_CONN_ITVL_USECS;
-    min_spvn_tmo_usecs *= (1 + hcc->conn_latency);
-    if (spvn_tmo_usecs <= min_spvn_tmo_usecs) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    rc = ble_ll_conn_hci_chk_conn_params(hcc->conn_itvl_min,
+                                         hcc->conn_itvl_max,
+                                         hcc->conn_latency, 
+                                         hcc->supervision_timeout);
+    if (rc) {
+        return rc;
     }
 
     /* Min/max connection event lengths */
@@ -371,6 +391,184 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     } else {
         /* Set the connection state machine we are trying to create. */
         g_ble_ll_conn_create_sm = connsm;
+    }
+
+    return rc;
+}
+
+static int
+ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
+{
+    int rc;
+    struct hci_conn_update *hcu;
+
+    /* Retrieve command data */
+    hcu = &connsm->conn_param_req;
+    hcu->handle = connsm->conn_handle;
+    hcu->conn_itvl_min = le16toh(cmdbuf + 2);
+    hcu->conn_itvl_max = le16toh(cmdbuf + 4);
+    hcu->conn_latency = le16toh(cmdbuf + 6);
+    hcu->supervision_timeout = le16toh(cmdbuf + 8);
+    hcu->min_ce_len = le16toh(cmdbuf + 10);
+    hcu->max_ce_len = le16toh(cmdbuf + 12);
+
+    /* Check that parameter values are in range */
+    rc = ble_ll_conn_hci_chk_conn_params(hcu->conn_itvl_min,
+                                         hcu->conn_itvl_max,
+                                         hcu->conn_latency, 
+                                         hcu->supervision_timeout);
+
+    /* Check valid min/max ce length */
+    if (rc || (hcu->min_ce_len > hcu->max_ce_len)) {
+        hcu->handle = 0;
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    return rc;
+}
+
+/**
+ * Called to process a connection update command.
+ * 
+ * @param cmdbuf 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_update(uint8_t *cmdbuf)
+{
+    int rc;
+    uint8_t ctrl_proc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+    struct hci_conn_update *hcu;
+
+    /* XXX: must deal with slave not supporting this feature and using
+       conn update */
+
+    /* If no connection handle exit with error */
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* Better not have this procedure ongoing! */
+    if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ) ||
+        IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* See if we support this feature */
+    if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+        ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
+    } else {
+        ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
+    }
+
+    /* 
+     * If we are a slave and the master has initiated the procedure already
+     * we should deny the slave request for now. If we are a master and the
+     * slave has initiated the procedure, we need to send a reject to the
+     * slave.
+     */
+    if (connsm->awaiting_host_reply) {
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            return BLE_ERR_LMP_COLLISION;
+        } else {
+            connsm->awaiting_host_reply = 0;
+
+            /* XXX: If this fails no reject ind will be sent! */
+            ble_ll_ctrl_reject_ind_ext_send(connsm,
+                                            connsm->host_reply_opcode, 
+                                            BLE_ERR_LMP_COLLISION);
+        }
+    }
+
+    /* Retrieve command data */
+    hcu = &connsm->conn_param_req;
+    hcu->handle = handle;
+    hcu->conn_itvl_min = le16toh(cmdbuf + 2);
+    hcu->conn_itvl_max = le16toh(cmdbuf + 4);
+    hcu->conn_latency = le16toh(cmdbuf + 6);
+    hcu->supervision_timeout = le16toh(cmdbuf + 8);
+    hcu->min_ce_len = le16toh(cmdbuf + 10);
+    hcu->max_ce_len = le16toh(cmdbuf + 12);
+    if (hcu->min_ce_len > hcu->max_ce_len) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check that parameter values are in range */
+    rc = ble_ll_conn_hci_chk_conn_params(hcu->conn_itvl_min,
+                                         hcu->conn_itvl_max,
+                                         hcu->conn_latency, 
+                                         hcu->supervision_timeout);
+    if (!rc) {
+        /* Start the control procedure */
+        ble_ll_ctrl_proc_start(connsm, ctrl_proc);
+    }
+
+    return rc;
+}
+
+int
+ble_ll_conn_param_reply(uint8_t *cmdbuf, int positive_reply)
+{
+    int rc;
+    uint8_t ble_err;
+    uint8_t *dptr;
+    uint8_t rsp_opcode;
+    uint8_t len;
+    uint16_t handle;
+    struct os_mbuf *om;
+    struct ble_ll_conn_sm *connsm;
+
+    /* See if we support this feature */
+    if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+        return BLE_ERR_UNSUPP_FEATURE;
+    }
+
+    /* If no connection handle exit with error */
+    handle = le16toh(cmdbuf);
+
+    /* If we dont have a handle we cant do anything */
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* Make sure connection parameters are valid if this is a positive reply */
+    rc = BLE_ERR_SUCCESS;
+    ble_err = cmdbuf[2];
+    if (positive_reply) {
+        rc = ble_ll_conn_process_conn_params(cmdbuf, connsm);
+        if (rc) {
+            ble_err = BLE_ERR_CONN_PARMS;
+        }
+    }
+
+    /* The connection should be awaiting a reply. If not, just discard */
+    if (connsm->awaiting_host_reply) {
+        /* Get a control packet buffer */
+        if (positive_reply && (rc == BLE_ERR_SUCCESS)) {
+            om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+            if (om) {
+                dptr = om->om_data;
+                rsp_opcode = ble_ll_ctrl_conn_param_reply(connsm, dptr, NULL);
+                dptr[0] = rsp_opcode;
+                len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
+                ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
+            }
+        } else {
+            /* XXX: check return code and deal */
+            ble_ll_ctrl_reject_ind_ext_send(connsm, 
+                                            connsm->host_reply_opcode,
+                                            ble_err);
+        }
+        connsm->awaiting_host_reply = 0;
+
+        /* XXX: if we cant get a buffer, what do we do? We need to remember
+         * reason if it was a negative reply. We also would need to have
+           some state to tell us this happened */
     }
 
     return rc;
