@@ -223,7 +223,7 @@
  *      connectable, directed advertisement shall not be ignored if the InitA
  *      is a resolvable private address.
  *  USE_WL_INITA:
- *      Scanner process advertisements from white list ony. A connectable,
+ *      Scanner process advertisements from white list only. A connectable,
  *      directed advertisement shall not be ignored if the InitA is a
  *      resolvable private address.
  */
@@ -274,7 +274,7 @@
 #define BLE_HCI_EVCODE_CONN_REQUEST         (0x04)
 #define BLE_HCI_EVCODE_DISCONN_CMP          (0x05)
 #define BLE_HCI_EVCODE_AUTH_CMP             (0x06)
-#define BLE_HCI_EVCODE_REM_NAME_REQ_CM P    (0x07)
+#define BLE_HCI_EVCODE_REM_NAME_REQ_CMP     (0x07)
 #define BLE_HCI_EVCODE_ENCRYPT_CHG          (0x08)
 #define BLE_HCI_EVCODE_CHG_LINK_KEY_CMP     (0x09)
 #define BLE_HCI_EVCODE_MASTER_LINK_KEY_CMP  (0x0A)
