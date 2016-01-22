@@ -52,8 +52,9 @@
 #define BLE_GATT_OP_WRITE_NO_RSP                11
 #define BLE_GATT_OP_WRITE                       12
 #define BLE_GATT_OP_WRITE_LONG                  13
-#define BLE_GATT_OP_INDICATE                    14
-#define BLE_GATT_OP_MAX                         15
+#define BLE_GATT_OP_WRITE_RELIABLE              14
+#define BLE_GATT_OP_INDICATE                    15
+#define BLE_GATT_OP_MAX                         16
 
 /** Represents an in-progress GATT procedure. */
 struct ble_gattc_proc {
@@ -158,6 +159,14 @@ struct ble_gattc_proc {
         } write_long;
 
         struct {
+            struct ble_gatt_attr *attrs;
+            int num_attrs;
+            int cur_attr;
+            ble_gatt_reliable_attr_fn *cb;
+            void *cb_arg;
+        } write_reliable;
+
+        struct {
             struct ble_gatt_attr attr;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
@@ -205,6 +214,7 @@ static int ble_gattc_read_mult_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_write_no_rsp_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_write_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_write_long_kick(struct ble_gattc_proc *proc);
+static int ble_gattc_write_reliable_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_indicate_kick(struct ble_gattc_proc *proc);
 
 /**
@@ -237,6 +247,8 @@ static void ble_gattc_write_err(struct ble_gattc_proc *proc, int status,
                                 uint16_t att_handle);
 static void ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
                                      uint16_t att_handle);
+static void ble_gattc_write_reliable_err(struct ble_gattc_proc *proc,
+                                         int status, uint16_t att_handle);
 static void ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
                                    uint16_t att_handle);
 
@@ -297,6 +309,16 @@ static int
 ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc,
                              struct ble_hs_conn *conn, int status);
 
+static int
+ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
+                                 struct ble_hs_conn *conn,
+                                 int status,
+                                 struct ble_att_prep_write_cmd *rsp,
+                                 void *attr_data, uint16_t attr_len);
+static int
+ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc,
+                                 struct ble_hs_conn *conn, int status);
+
 
 typedef int ble_gattc_rx_adata_fn(struct ble_gattc_proc *proc,
                                   struct ble_hs_conn *conn,
@@ -322,6 +344,25 @@ struct ble_gattc_rx_attr_entry {
     ble_gattc_rx_attr_fn *cb;
 };
 
+typedef int ble_gattc_rx_prep_fn(struct ble_gattc_proc *proc,
+                                 struct ble_hs_conn *conn,
+                                 int status,
+                                 struct ble_att_prep_write_cmd *rsp,
+                                 void *attr_data, uint16_t attr_len);
+
+struct ble_gattc_rx_prep_entry {
+    uint8_t op;
+    ble_gattc_rx_prep_fn *cb;
+};
+
+typedef int ble_gattc_rx_exec_fn(struct ble_gattc_proc *proc,
+                                 struct ble_hs_conn *conn, int status);
+
+struct ble_gattc_rx_exec_entry {
+    uint8_t op;
+    ble_gattc_rx_exec_fn *cb;
+};
+
 static const struct ble_gattc_rx_adata_entry
     ble_gattc_rx_read_type_elem_entries[] = {
 
@@ -344,6 +385,16 @@ static const struct ble_gattc_rx_attr_entry ble_gattc_rx_read_rsp_entries[] = {
     { BLE_GATT_OP_READ,             ble_gattc_read_rx_read_rsp },
     { BLE_GATT_OP_READ_LONG,        ble_gattc_read_long_rx_read_rsp },
     { BLE_GATT_OP_FIND_INC_SVCS,    ble_gattc_find_inc_svcs_rx_read_rsp },
+};
+
+static const struct ble_gattc_rx_prep_entry ble_gattc_rx_prep_entries[] = {
+    { BLE_GATT_OP_WRITE_LONG,       ble_gattc_write_long_rx_prep },
+    { BLE_GATT_OP_WRITE_RELIABLE,   ble_gattc_write_reliable_rx_prep },
+};
+
+static const struct ble_gattc_rx_exec_entry ble_gattc_rx_exec_entries[] = {
+    { BLE_GATT_OP_WRITE_LONG,       ble_gattc_write_long_rx_exec },
+    { BLE_GATT_OP_WRITE_RELIABLE,   ble_gattc_write_reliable_rx_exec },
 };
 
 /**
@@ -409,6 +460,10 @@ static const struct ble_gattc_dispatch_entry {
     [BLE_GATT_OP_WRITE_LONG] = {
         .kick_cb = ble_gattc_write_long_kick,
         .err_cb = ble_gattc_write_long_err,
+    },
+    [BLE_GATT_OP_WRITE_RELIABLE] = {
+        .kick_cb = ble_gattc_write_reliable_kick,
+        .err_cb = ble_gattc_write_reliable_err,
     },
     [BLE_GATT_OP_INDICATE] = {
         .kick_cb = ble_gattc_indicate_kick,
@@ -3022,7 +3077,7 @@ err:
 
 /**
  * Handles an incoming execute-write-response for the specified
- * write-long-cahracteristic-values proc.
+ * write-long-characteristic-values proc.
  */
 static int
 ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc,
@@ -3063,6 +3118,195 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle, void *value,
     proc->write_long.attr.value_len = value_len;
     proc->write_long.cb = cb;
     proc->write_long.cb_arg = cb_arg;
+    ble_gattc_proc_set_pending(proc);
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $write reliable                                                           *
+ *****************************************************************************/
+
+/**
+ * Calls a write-long-characteristic-value proc's callback with the specified
+ * parameters.  If the proc has no callback, this function is a no-op.
+ *
+ * @return                      The return code of the callback (or 0 if there
+ *                                  is no callback).
+ */
+static int
+ble_gattc_write_reliable_cb(struct ble_gattc_proc *proc, int status,
+                            uint16_t att_handle)
+{
+    int rc;
+
+    if (proc->write_reliable.cb == NULL) {
+        rc = 0;
+    } else {
+        rc = proc->write_reliable.cb(proc->conn_handle,
+                                     ble_gattc_error(status, att_handle),
+                                     proc->write_reliable.attrs,
+                                     proc->write_reliable.num_attrs,
+                                     proc->write_reliable.cb_arg);
+    }
+
+    return rc;
+}
+
+/**
+ * Triggers a pending transmit for the specified
+ * write-reliable-characteristic-value proc.
+ */
+static int
+ble_gattc_write_reliable_kick(struct ble_gattc_proc *proc)
+{
+    struct ble_att_prep_write_cmd prep_req;
+    struct ble_att_exec_write_req exec_req;
+    struct ble_gatt_attr *attr;
+    struct ble_hs_conn *conn;
+    int attr_idx;
+    int rc;
+
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto err;
+    }
+
+    attr_idx = proc->write_reliable.cur_attr;
+    if (attr_idx < proc->write_reliable.num_attrs) {
+        attr = proc->write_reliable.attrs + attr_idx;
+        prep_req.bapc_handle = attr->handle;
+        prep_req.bapc_offset = 0;
+        rc = ble_att_clt_tx_prep_write(conn, &prep_req, attr->value,
+                                       attr->value_len);
+    } else {
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        rc = ble_att_clt_tx_exec_write(conn, &exec_req);
+    }
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (ble_gattc_tx_postpone_chk(proc, rc)) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ble_gattc_write_reliable_cb(proc, rc, 0);
+    return BLE_HS_EDONE;
+}
+
+/**
+ * Handles an incoming ATT error response for the specified
+ * write-reliable-characteristic-value proc.
+ */
+static void
+ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
+                             uint16_t att_handle)
+{
+    ble_gattc_write_reliable_cb(proc, status, att_handle);
+}
+
+/**
+ * Handles an incoming prepare-write-response for the specified
+ * write-reliable-cahracteristic-values proc.
+ */
+static int
+ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
+                                 struct ble_hs_conn *conn,
+                                 int status,
+                                 struct ble_att_prep_write_cmd *rsp,
+                                 void *attr_data, uint16_t attr_len)
+{
+    struct ble_gatt_attr *attr;
+    int rc;
+
+    if (status != 0) {
+        rc = status;
+        goto err;
+    }
+
+    if (proc->write_reliable.cur_attr >= proc->write_reliable.num_attrs) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+    attr = proc->write_reliable.attrs + proc->write_reliable.cur_attr;
+
+    /* Verify the response. */
+    if (rsp->bapc_handle != attr->handle) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+    if (rsp->bapc_offset != 0) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+    if (attr_len != attr->value_len) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+    if (memcmp(attr_data, attr->value, attr_len) != 0) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+
+    proc->write_reliable.cur_attr++;
+    ble_gattc_proc_set_pending(proc);
+
+    return 0;
+
+err:
+    /* XXX: Might need to cancel pending writes. */
+    ble_gattc_write_reliable_cb(proc, rc, 0);
+    return 1;
+}
+
+/**
+ * Handles an incoming execute-write-response for the specified
+ * write-reliable-characteristic-values proc.
+ */
+static int
+ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc,
+                                 struct ble_hs_conn *conn, int status)
+{
+    ble_gattc_write_reliable_cb(proc, status, 0);
+    return 1;
+}
+
+/**
+ * Initiates GATT procedure: Write Long Characteristic Values.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param attr_handle           The handle of the characteristic value to write
+ *                                  to.
+ * @param value                 The value to write to the characteristic.
+ * @param value_len             The number of bytes to write.
+ * @param cb                    The function to call to report procedure status
+ *                                  updates; null for no callback.
+ * @param cb_arg                The argument to pass to the callback function.
+ */
+int
+ble_gattc_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
+                         int num_attrs, ble_gatt_reliable_attr_fn *cb,
+                         void *cb_arg)
+{
+    struct ble_gattc_proc *proc;
+    int rc;
+
+    rc = ble_gattc_new_proc(conn_handle, BLE_GATT_OP_WRITE_RELIABLE, &proc);
+    if (rc != 0) {
+        return rc;
+    }
+
+    proc->write_reliable.attrs = attrs;
+    proc->write_reliable.num_attrs = num_attrs;
+    proc->write_reliable.cur_attr = 0;
+    proc->write_reliable.cb = cb;
+    proc->write_reliable.cb_arg = cb_arg;
     ble_gattc_proc_set_pending(proc);
 
     return 0;
@@ -3720,21 +3964,25 @@ ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
                             struct ble_att_prep_write_cmd *rsp,
                             void *attr_data, uint16_t attr_data_len)
 {
+    const struct ble_gattc_rx_prep_entry *rx_entry;
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
     int rc;
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_WRITE_LONG, 1,
-                               &prev);
+    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
+    rx_entry = BLE_GATTC_RX_ENTRY_FIND(proc->op, ble_gattc_rx_prep_entries);
+    if (rx_entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
 
-    rc = ble_gattc_write_long_rx_prep(proc, conn, status, rsp, attr_data,
-                                      attr_data_len);
+    rc = rx_entry->cb(proc, conn, status, rsp, attr_data, attr_data_len);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3747,20 +3995,25 @@ ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
 void
 ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status)
 {
+    const struct ble_gattc_rx_exec_entry *rx_entry;
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
     int rc;
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_WRITE_LONG, 1,
-                               &prev);
+    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
+    rx_entry = BLE_GATTC_RX_ENTRY_FIND(proc->op, ble_gattc_rx_exec_entries);
+    if (rx_entry == NULL) {
+        /* Not expecting a response from this device. */
+        return;
+    }
 
-    rc = ble_gattc_write_long_rx_exec(proc, conn, status);
+    rc = rx_entry->cb(proc, conn, status);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }

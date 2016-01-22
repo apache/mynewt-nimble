@@ -71,6 +71,10 @@ typedef int ble_gatt_mult_attr_fn(uint16_t conn_handle,
                                   uint8_t num_attr_handles,
                                   uint8_t *attr_data, uint16_t attr_data_len,
                                   void *arg);
+typedef int ble_gatt_reliable_attr_fn(uint16_t conn_handle,
+                                      struct ble_gatt_error *error,
+                                      struct ble_gatt_attr *attrs,
+                                      uint8_t num_attrs, void *arg);
 
 typedef int ble_gatt_chr_fn(uint16_t conn_handle, struct ble_gatt_error *error,
                             struct ble_gatt_chr *chr, void *arg);
@@ -115,6 +119,9 @@ int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
                          void *value, uint16_t value_len, ble_gatt_attr_fn *cb,
                          void *cb_arg);
+int ble_gattc_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
+                             int num_attrs, ble_gatt_reliable_attr_fn *cb,
+                             void *cb_arg);
 int ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
                        ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
