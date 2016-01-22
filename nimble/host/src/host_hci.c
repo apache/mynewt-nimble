@@ -45,6 +45,10 @@ static int host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len);
 static int host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data,
                                         int len);
 static int host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len);
+static int host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data,
+                                            int len);
+static int host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data,
+                                        int len);
 static uint16_t host_hci_buffer_sz;
 static uint8_t host_hci_max_pkts;
 
@@ -95,6 +99,8 @@ static const struct host_hci_le_event_dispatch_entry
         host_hci_le_event_dispatch[] = {
     { BLE_HCI_LE_SUBEV_CONN_COMPLETE, host_hci_rx_le_conn_complete },
     { BLE_HCI_LE_SUBEV_ADV_RPT, host_hci_rx_le_adv_rpt },
+    { BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE, host_hci_rx_le_conn_upd_complete },
+    { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, host_hci_rx_le_conn_parm_req },
 };
 
 #define HOST_HCI_LE_EVENT_DISPATCH_SZ \
@@ -452,6 +458,83 @@ host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 
         ble_gap_conn_rx_adv_report(&adv);
     }
+
+    return 0;
+}
+
+static int
+host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
+{
+    struct hci_le_conn_upd_complete evt;
+
+    if (len < BLE_HCI_LE_CONN_UPD_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    evt.subevent_code = data[0];
+    evt.status = data[1];
+    evt.connection_handle = le16toh(data + 2);
+    evt.conn_itvl = le16toh(data + 4);
+    evt.conn_latency = le16toh(data + 6);
+    evt.supervision_timeout = le16toh(data + 8);
+
+    if (evt.status == 0) {
+        if (evt.conn_itvl < BLE_HCI_CONN_ITVL_MIN ||
+            evt.conn_itvl > BLE_HCI_CONN_ITVL_MAX) {
+
+            return BLE_HS_EBADDATA;
+        }
+        if (evt.conn_latency < BLE_HCI_CONN_LATENCY_MIN ||
+            evt.conn_latency > BLE_HCI_CONN_LATENCY_MAX) {
+
+            return BLE_HS_EBADDATA;
+        }
+        if (evt.supervision_timeout < BLE_HCI_CONN_SPVN_TIMEOUT_MIN ||
+            evt.supervision_timeout > BLE_HCI_CONN_SPVN_TIMEOUT_MAX) {
+
+            return BLE_HS_EBADDATA;
+        }
+    }
+
+    ble_gap_conn_rx_update_complete(&evt);
+
+    return 0;
+}
+
+static int
+host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
+{
+    struct hci_le_conn_param_req evt;
+
+    if (len < BLE_HCI_LE_REM_CONN_PARM_REQ_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    evt.subevent_code = data[0];
+    evt.connection_handle = le16toh(data + 1);
+    evt.itvl_min = le16toh(data + 3);
+    evt.itvl_max = le16toh(data + 5);
+    evt.latency = le16toh(data + 7);
+    evt.timeout = le16toh(data + 9);
+
+    if (evt.itvl_min < BLE_HCI_CONN_ITVL_MIN ||
+        evt.itvl_max > BLE_HCI_CONN_ITVL_MAX ||
+        evt.itvl_min > evt.itvl_max) {
+
+        return BLE_HS_EBADDATA;
+    }
+    if (evt.latency < BLE_HCI_CONN_LATENCY_MIN ||
+        evt.latency > BLE_HCI_CONN_LATENCY_MAX) {
+
+        return BLE_HS_EBADDATA;
+    }
+    if (evt.timeout < BLE_HCI_CONN_SPVN_TIMEOUT_MIN ||
+        evt.timeout > BLE_HCI_CONN_SPVN_TIMEOUT_MAX) {
+
+        return BLE_HS_EBADDATA;
+    }
+
+    ble_gap_conn_rx_param_req(&evt);
 
     return 0;
 }

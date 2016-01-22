@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include "host/ble_gap.h"
 struct hci_le_conn_upd_complete;
+struct hci_le_conn_param_req;
 struct hci_le_conn_complete;
 struct hci_disconn_complete;
 struct ble_hci_ack;
@@ -32,6 +33,7 @@ void ble_gap_conn_rx_adv_report(struct ble_hs_adv *adv);
 int ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt);
 void ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt);
 void ble_gap_conn_rx_update_complete(struct hci_le_conn_upd_complete *evt);
+void ble_gap_conn_rx_param_req(struct hci_le_conn_param_req *evt);
 int ble_gap_conn_master_in_progress(void);
 int ble_gap_conn_slave_in_progress(void);
 int ble_gap_conn_wl_busy(void);

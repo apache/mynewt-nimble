@@ -255,6 +255,10 @@ ble_gap_conn_call_conn_cb(int event, int status, struct ble_hs_conn *conn,
     if (cb != NULL) {
         rc = cb(event, status, &ctxt, cb_arg);
     } else {
+        if (event == BLE_GAP_EVENT_CONN_UPDATE_REQ) {
+            /* Just copy peer parameters back into reply. */
+            *self_params = *peer_params;
+        }
         rc = 0;
     }
 
@@ -508,11 +512,17 @@ ble_gap_conn_rx_disconn_complete(struct hci_disconn_complete *evt)
 void
 ble_gap_conn_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 {
+    struct ble_gap_conn_update_entry *entry;
     struct ble_hs_conn *conn;
 
     conn = ble_hs_conn_find(evt->connection_handle);
     if (conn == NULL) {
         return;
+    }
+
+    entry = ble_gap_conn_update_find(evt->connection_handle);
+    if (entry != NULL) {
+        ble_gap_conn_update_entry_remove_free(entry);
     }
 
     if (evt->status == 0) {
