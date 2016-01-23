@@ -110,25 +110,33 @@ ble_hs_adv_test_misc_verify_tx_data(struct ble_hs_adv_test_field *fields)
 }
 
 static void
-ble_hs_adv_test_misc_tx_and_verify_data(uint8_t disc_mode,
-                                        struct ble_hs_adv_test_field *fields)
+ble_hs_adv_test_misc_tx_and_verify_data(
+    uint8_t disc_mode, struct ble_hs_adv_fields *adv_fields,
+    struct ble_hs_adv_test_field *test_fields)
 {
     int rc;
 
     ble_hs_test_util_init();
+
+    rc = ble_gap_conn_set_adv_fields(adv_fields);
+    TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_gap_conn_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0,
                                 NULL, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_rx_und_adv_acks_count(3);
-    ble_hs_adv_test_misc_verify_tx_data(fields);
+    ble_hs_adv_test_misc_verify_tx_data(test_fields);
 }
 
 TEST_CASE(ble_hs_adv_test_case_flags)
 {
+    struct ble_hs_adv_fields fields;
+
+    memset(&fields, 0, sizeof fields);
+
     /* Default flags. */
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_FLAGS,
@@ -144,7 +152,7 @@ TEST_CASE(ble_hs_adv_test_case_flags)
         });
 
     /* Flags |= limited discoverable. */
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_LTD,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_LTD, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_FLAGS,
@@ -161,7 +169,7 @@ TEST_CASE(ble_hs_adv_test_case_flags)
         });
 
     /* Flags = general discoverable. */
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_GEN,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_GEN, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_FLAGS,
@@ -181,17 +189,14 @@ TEST_CASE(ble_hs_adv_test_case_flags)
 TEST_CASE(ble_hs_adv_test_case_user)
 {
     struct ble_hs_adv_fields fields;
-    int rc;
 
     /*** Complete 16-bit service class UUIDs. */
     memset(&fields, 0, sizeof fields);
     fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
     fields.num_uuids16 = 3;
     fields.uuids16_is_complete = 1;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_COMP_UUIDS16,
@@ -216,10 +221,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
     fields.num_uuids16 = 3;
     fields.uuids16_is_complete = 0;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_INCOMP_UUIDS16,
@@ -244,10 +247,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
     fields.num_uuids32 = 2;
     fields.uuids32_is_complete = 1;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_COMP_UUIDS32,
@@ -272,10 +273,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
     fields.num_uuids32 = 2;
     fields.uuids32_is_complete = 0;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_INCOMP_UUIDS32,
@@ -303,10 +302,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     };
     fields.num_uuids128 = 1;
     fields.uuids128_is_complete = 1;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_COMP_UUIDS128,
@@ -337,10 +334,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     };
     fields.num_uuids128 = 1;
     fields.uuids128_is_complete = 0;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_INCOMP_UUIDS128,
@@ -368,10 +363,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     fields.name = (uint8_t *)"myname";
     fields.name_len = 6;
     fields.name_is_complete = 1;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_COMP_NAME,
@@ -396,10 +389,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     fields.name = (uint8_t *)"myname";
     fields.name_len = 6;
     fields.name_is_complete = 0;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_INCOMP_NAME,
@@ -423,10 +414,8 @@ TEST_CASE(ble_hs_adv_test_case_user)
     memset(&fields, 0, sizeof fields);
     fields.le_role = BLE_HS_ADV_LE_ROLE_BOTH_PERIPH_PREF;
     fields.le_role_is_present = 1;
-    rc = ble_gap_conn_set_adv_fields(&fields);
-    TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
+    ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &fields,
         (struct ble_hs_adv_test_field[]) {
             {
                 .type = BLE_HS_ADV_TYPE_LE_ROLE,
