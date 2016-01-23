@@ -39,7 +39,7 @@ struct ble_att_notify_req;
 struct ble_att_indicate_req;
 
 #define BLE_ATT_MTU_DFLT         23  /* Also the minimum. */
-#define BLE_ATT_MTU_MAX          256 /* XXX: I'm making this up! */
+#define BLE_ATT_MTU_MAX          240 /* XXX: Temporary to prevent mbuf bugs. */
 
 struct ble_att_prep_entry {
     SLIST_ENTRY(ble_att_prep_entry) bape_next;

@@ -133,6 +133,9 @@ ble_att_set_preferred_mtu(uint16_t mtu)
     if (mtu < BLE_ATT_MTU_DFLT) {
         return BLE_HS_EINVAL;
     }
+    if (mtu > BLE_ATT_MTU_MAX) {
+        return BLE_HS_EINVAL;
+    }
 
     ble_att_preferred_mtu = mtu;
 
