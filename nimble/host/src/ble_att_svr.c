@@ -17,6 +17,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
@@ -49,7 +50,7 @@ static void *ble_att_svr_prep_mbuf_mem;
 static struct os_mempool ble_att_svr_prep_mbuf_mempool;
 static struct os_mbuf_pool ble_att_svr_prep_mbuf_pool;
 
-static uint8_t ble_att_svr_flat_buf[BLE_ATT_ATTR_MAX_LEN];
+static bssnz_t uint8_t ble_att_svr_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 
 ble_att_svr_notify_fn *ble_att_svr_notify_cb;
 void *ble_att_svr_notify_cb_arg;

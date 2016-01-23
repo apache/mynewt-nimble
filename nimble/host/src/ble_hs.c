@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include "bsp/bsp.h"
 #include "util/tpq.h"
 #include "os/os.h"
 #include "nimble/hci_transport.h"
@@ -39,13 +40,13 @@
 #endif
 
 static struct os_task ble_hs_task;
-static os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE];
+static os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE] bssnz_t;
 
 #define HCI_CMD_BUFS        (8)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
 static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS,
-                                                 HCI_CMD_BUF_SIZE)];
+                                                 HCI_CMD_BUF_SIZE)] bssnz_t;
 
 /* XXX: this might be transport layer*/
 #define HCI_NUM_OS_EVENTS       (32)
@@ -61,8 +62,9 @@ static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS,
     OS_MEMPOOL_SIZE(BLE_HS_NUM_MBUFS, BLE_HS_MBUF_MEMBLOCK_SIZE)
 
 struct os_mempool g_hci_os_event_pool;
-static os_membuf_t g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
-                                                      HCI_OS_EVENT_BUF_SIZE)];
+static os_membuf_t
+    g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
+                                       HCI_OS_EVENT_BUF_SIZE)] bssnz_t;
 
 static os_membuf_t ble_hs_mbuf_mem[BLE_HS_MBUF_MEMPOOL_SIZE];
 static struct os_mempool ble_hs_mbuf_mempool;
