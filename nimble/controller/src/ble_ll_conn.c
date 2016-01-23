@@ -1273,8 +1273,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
 
     /* Calculate data channel index of next connection event */
-    connsm->last_unmapped_chan = connsm->unmapped_chan;
     while (latency > 0) {
+        connsm->last_unmapped_chan = connsm->unmapped_chan;
         --latency;
         connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
     }
