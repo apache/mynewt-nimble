@@ -34,7 +34,9 @@ static uint16_t ble_att_svr_id;
 static struct os_mutex ble_att_svr_list_mutex;
 
 #define BLE_ATT_SVR_NUM_ENTRIES          128
-static void *ble_att_svr_entry_mem;
+static bssnz_t os_membuf_t
+ble_att_svr_entry_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_ENTRIES,
+                                      sizeof (struct ble_att_svr_entry))];
 static struct os_mempool ble_att_svr_entry_pool;
 
 #define BLE_ATT_SVR_PREP_MBUF_BUF_SIZE         (128)
@@ -43,10 +45,14 @@ static struct os_mempool ble_att_svr_entry_pool;
      sizeof(struct os_mbuf_pkthdr))
 
 #define BLE_ATT_SVR_NUM_PREP_ENTRIES     8
-#define BLE_ATT_SVR_NUM_PREP_MBUFS       12
-static void *ble_att_svr_prep_entry_mem;
+#define BLE_ATT_SVR_NUM_PREP_MBUFS       8
+static bssnz_t os_membuf_t
+ble_att_svr_prep_entry_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_PREP_ENTRIES,
+                           sizeof (struct ble_att_prep_entry))];
 static struct os_mempool ble_att_svr_prep_entry_pool;
-static void *ble_att_svr_prep_mbuf_mem;
+static bssnz_t os_membuf_t
+ble_att_svr_prep_mbuf_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_PREP_MBUFS,
+                          BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE)];
 static struct os_mempool ble_att_svr_prep_mbuf_mempool;
 static struct os_mbuf_pool ble_att_svr_prep_mbuf_pool;
 
@@ -2607,14 +2613,6 @@ done:
 static void
 ble_att_svr_free_mem(void)
 {
-    free(ble_att_svr_entry_mem);
-    ble_att_svr_entry_mem = NULL;
-
-    free(ble_att_svr_prep_entry_mem);
-    ble_att_svr_prep_entry_mem = NULL;
-
-    free(ble_att_svr_prep_mbuf_mem);
-    ble_att_svr_prep_mbuf_mem = NULL;
 }
 
 int
@@ -2631,30 +2629,31 @@ ble_att_svr_init(void)
         goto err;
     }
 
-    rc = ble_hs_misc_malloc_mempool(&ble_att_svr_entry_mem,
-                                    &ble_att_svr_entry_pool,
-                                    BLE_ATT_SVR_NUM_ENTRIES,
-                                    sizeof (struct ble_att_svr_entry),
-                                    "ble_att_svr_entry_pool");
+    rc = os_mempool_init(&ble_att_svr_entry_pool, BLE_ATT_SVR_NUM_ENTRIES,
+                         sizeof (struct ble_att_svr_entry),
+                         ble_att_svr_entry_mem, "ble_att_svr_entry_pool");
     if (rc != 0) {
+        rc = BLE_HS_EOS;
         goto err;
     }
 
-    rc = ble_hs_misc_malloc_mempool(&ble_att_svr_prep_entry_mem,
-                                    &ble_att_svr_prep_entry_pool,
-                                    BLE_ATT_SVR_NUM_PREP_ENTRIES,
-                                    sizeof (struct ble_att_prep_entry),
-                                    "ble_att_prep_entry_pool");
+    rc = os_mempool_init(&ble_att_svr_prep_entry_pool,
+                         BLE_ATT_SVR_NUM_PREP_ENTRIES,
+                         sizeof (struct ble_att_prep_entry),
+                         ble_att_svr_prep_entry_mem,
+                         "ble_att_svr_prep_entry_pool");
     if (rc != 0) {
+        rc = BLE_HS_EOS;
         goto err;
     }
 
-    rc = ble_hs_misc_malloc_mempool(&ble_att_svr_prep_mbuf_mem,
-                                    &ble_att_svr_prep_mbuf_mempool,
-                                    BLE_ATT_SVR_NUM_PREP_MBUFS,
-                                    BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
-                                    "ble_att_prep_mbuf_mempool");
+    rc = os_mempool_init(&ble_att_svr_prep_mbuf_mempool,
+                         BLE_ATT_SVR_NUM_PREP_MBUFS,
+                         BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
+                         ble_att_svr_prep_mbuf_mem,
+                         "ble_att_svr_prep_mbuf_pool");
     if (rc != 0) {
+        rc = BLE_HS_EOS;
         goto err;
     }
 

@@ -162,7 +162,9 @@ struct ble_gap_conn_update_entry {
 };
 static SLIST_HEAD(, ble_gap_conn_update_entry) ble_gap_conn_update_entries;
 
-static os_membuf_t *ble_gap_conn_update_mem;
+static bssnz_t os_membuf_t 
+ble_gap_conn_update_mem[OS_MEMPOOL_SIZE(BLE_GAP_CONN_MAX_UPDATES,
+                         sizeof (struct ble_gap_conn_update_entry))];
 static struct os_mempool ble_gap_conn_update_pool;
 
 static int ble_gap_conn_adv_params_tx(void *arg);
@@ -2047,8 +2049,6 @@ ble_gap_conn_init_slave_params(void)
 static void
 ble_gap_conn_free_mem(void)
 {
-    free(ble_gap_conn_update_mem);
-    ble_gap_conn_update_mem = NULL;
 }
 
 int
@@ -2069,13 +2069,6 @@ ble_gap_conn_init(void)
     os_callout_func_init(&ble_gap_conn_slave_timer, &ble_hs_evq,
                          ble_gap_conn_slave_timer_exp, NULL);
 
-    ble_gap_conn_update_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_GAP_CONN_MAX_UPDATES,
-                         sizeof (struct ble_gap_conn_update_entry)));
-    if (ble_gap_conn_update_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
     rc = os_mempool_init(&ble_gap_conn_update_pool, BLE_GAP_CONN_MAX_UPDATES,
                          sizeof (struct ble_gap_conn_update_entry),
                          ble_gap_conn_update_mem, "ble_gap_conn_update_pool");
