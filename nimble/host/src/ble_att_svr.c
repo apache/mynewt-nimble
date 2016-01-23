@@ -33,7 +33,7 @@ static uint16_t ble_att_svr_id;
 
 static struct os_mutex ble_att_svr_list_mutex;
 
-#define BLE_ATT_SVR_NUM_ENTRIES          32
+#define BLE_ATT_SVR_NUM_ENTRIES          128
 static void *ble_att_svr_entry_mem;
 static struct os_mempool ble_att_svr_entry_pool;
 
@@ -184,7 +184,7 @@ ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
 uint16_t
 ble_att_svr_prev_handle(void)
 {
-    return ble_att_svr_id - 1;
+    return ble_att_svr_id;
 }
 
 /**
