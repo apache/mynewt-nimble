@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include "bsp/bsp.h"
 #include "os/os.h"
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
@@ -84,11 +85,22 @@
 
 #define BLE_GAP_CONN_MAX_UPDATES            4
 
+static const struct ble_gap_conn_crt_params ble_gap_conn_params_dflt = {
+    .scan_itvl = 0x0010,
+    .scan_window = 0x0010,
+    .itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN,
+    .itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX,
+    .latency = 0,
+    .supervision_timeout = 0x0100,
+    .min_ce_len = 0x0010,
+    .max_ce_len = 0x0300,
+};
+
 /**
  * The state of the in-progress master connection.  If no master connection is
  * currently in progress, then the op field is set to BLE_GAP_CONN_OP_NULL.
  */
-static struct {
+static bssnz_t struct {
     uint8_t op;
     uint8_t state;
 
@@ -96,6 +108,7 @@ static struct {
         struct {
             uint8_t addr_type;
             uint8_t addr[6];
+            struct ble_gap_conn_crt_params params;
             ble_gap_conn_fn *cb;
             void *cb_arg;
         } conn;
@@ -114,7 +127,7 @@ static struct {
  * The state of the in-progress slave connection.  If no slave connection is
  * currently in progress, then the op field is set to BLE_GAP_CONN_OP_NULL.
  */
-static struct {
+static bssnz_t struct {
     uint8_t op;
     uint8_t state;
     uint8_t disc_mode;
@@ -130,7 +143,7 @@ static struct {
     uint8_t adv_data[BLE_HCI_MAX_ADV_DATA_LEN];
 } ble_gap_conn_slave;
 
-static struct {
+static bssnz_t struct {
     ble_gap_wl_fn *cb;
     void *cb_arg;
 
@@ -143,7 +156,7 @@ static struct {
 
 struct ble_gap_conn_update_entry {
     SLIST_ENTRY(ble_gap_conn_update_entry) next;
-    struct ble_gap_conn_params params;
+    struct ble_gap_conn_upd_params params;
     uint16_t conn_handle;
     uint8_t state;
 };
@@ -223,8 +236,8 @@ ble_gap_conn_update_find(uint16_t conn_handle)
 
 static int
 ble_gap_conn_call_conn_cb(int event, int status, struct ble_hs_conn *conn,
-                          struct ble_gap_conn_params *self_params,
-                          struct ble_gap_conn_params *peer_params)
+                          struct ble_gap_conn_upd_params *self_params,
+                          struct ble_gap_conn_upd_params *peer_params)
 {
     struct ble_gap_conn_ctxt ctxt;
     ble_gap_conn_fn *cb;
@@ -1643,8 +1656,8 @@ ble_gap_conn_create_tx(void *arg)
     assert(ble_gap_conn_master.op == BLE_GAP_CONN_OP_M_CONN);
     assert(ble_gap_conn_master.state == BLE_GAP_CONN_STATE_M_PENDING);
 
-    hcc.scan_itvl = 0x0010;
-    hcc.scan_window = 0x0010;
+    hcc.scan_itvl = ble_gap_conn_master.conn.params.scan_itvl;
+    hcc.scan_window = ble_gap_conn_master.conn.params.scan_window;
 
     if (ble_gap_conn_master.conn.addr_type == BLE_GAP_ADDR_TYPE_WL) {
         hcc.filter_policy = BLE_HCI_CONN_FILT_USE_WL;
@@ -1657,12 +1670,13 @@ ble_gap_conn_create_tx(void *arg)
                sizeof hcc.peer_addr);
     }
     hcc.own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-    hcc.conn_itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN;
-    hcc.conn_itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX;
-    hcc.conn_latency = 0;
-    hcc.supervision_timeout = 0x0100; // XXX
-    hcc.min_ce_len = 0x0010; // XXX
-    hcc.max_ce_len = 0x0300; // XXX
+    hcc.conn_itvl_min = ble_gap_conn_master.conn.params.itvl_min;
+    hcc.conn_itvl_max = ble_gap_conn_master.conn.params.itvl_max;
+    hcc.conn_latency = ble_gap_conn_master.conn.params.latency;
+    hcc.supervision_timeout =
+        ble_gap_conn_master.conn.params.supervision_timeout;
+    hcc.min_ce_len = ble_gap_conn_master.conn.params.min_ce_len;
+    hcc.max_ce_len = ble_gap_conn_master.conn.params.max_ce_len;
 
     ble_gap_conn_master.state = BLE_GAP_CONN_STATE_M_UNACKED;
     ble_hci_ack_set_callback(ble_gap_conn_create_ack, NULL);
@@ -1692,6 +1706,7 @@ ble_gap_conn_create_tx(void *arg)
  */
 int
 ble_gap_conn_initiate(int addr_type, uint8_t *addr,
+                      struct ble_gap_conn_crt_params *params,
                       ble_gap_conn_fn *cb, void *cb_arg)
 {
     int rc;
@@ -1706,6 +1721,13 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
     /* Make sure no master connection attempt is already in progress. */
     if (ble_gap_conn_master_in_progress()) {
         return BLE_HS_EALREADY;
+    }
+
+    if (params == NULL) {
+        ble_gap_conn_master.conn.params = ble_gap_conn_params_dflt;
+    } else {
+        /* XXX: Verify params. */
+        ble_gap_conn_master.conn.params = *params;
     }
 
     ble_gap_conn_master.op = BLE_GAP_CONN_OP_M_CONN;
@@ -1858,7 +1880,7 @@ ble_gap_conn_rx_param_req(struct hci_le_conn_param_req *evt)
     struct ble_gap_conn_update_entry *entry;
     struct hci_conn_param_neg_reply neg_reply;
     struct hci_conn_param_reply pos_reply;
-    struct ble_gap_conn_params peer_params;
+    struct ble_gap_conn_upd_params peer_params;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -1971,7 +1993,7 @@ ble_gap_conn_update_tx(void *arg)
 
 int
 ble_gap_conn_update_params(uint16_t conn_handle,
-                           struct ble_gap_conn_params *params)
+                           struct ble_gap_conn_upd_params *params)
 {
     struct ble_gap_conn_update_entry *entry;
     int rc;
@@ -2036,9 +2058,9 @@ ble_gap_conn_init(void)
 
     ble_gap_conn_free_mem();
 
-    ble_gap_conn_master.op = BLE_GAP_CONN_OP_NULL;
-    ble_gap_conn_slave.op = BLE_GAP_CONN_OP_NULL;
-    ble_gap_conn_wl.op = BLE_GAP_CONN_OP_NULL;
+    memset(&ble_gap_conn_master, 0, sizeof ble_gap_conn_master);
+    memset(&ble_gap_conn_slave, 0, sizeof ble_gap_conn_slave);
+    memset(&ble_gap_conn_wl, 0, sizeof ble_gap_conn_wl);
 
     ble_gap_conn_init_slave_params();
 

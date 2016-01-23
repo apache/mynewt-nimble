@@ -45,7 +45,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_initiate(0, addr, NULL, NULL);
+    rc = ble_gap_conn_initiate(0, addr, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
@@ -92,7 +92,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_initiate(0, addr, NULL, NULL);
+    rc = ble_gap_conn_initiate(0, addr, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
