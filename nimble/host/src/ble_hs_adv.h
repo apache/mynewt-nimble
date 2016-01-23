@@ -40,8 +40,33 @@ struct ble_hs_adv {
 #define BLE_HS_ADV_TYPE_INCOMP_NAME             0x08
 #define BLE_HS_ADV_TYPE_COMP_NAME               0x09
 #define BLE_HS_ADV_TYPE_TX_PWR_LEVEL            0x0a
-#define BLE_HS_ADV_TYPE_DEVICE_CLASS            0x0b
+#define BLE_HS_ADV_TYPE_DEVICE_CLASS            0x0d
+#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_HASH192     0x0e
+#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_RAND192     0x0f
+#define BLE_HS_ADV_TYPE_SM_TK_VALUE             0x10
+#define BLE_HS_ADV_TYPE_SM_OOB_FLAGS            0x11
+#define BLE_HS_ADV_TYPE_SLAVE_CONN_ITVL_RANGE   0x12
+#define BLE_HS_ADV_TYPE_SOL_UUIDS16             0x14
+#define BLE_HS_ADV_TYPE_SOL_UUIDS128            0x15
+#define BLE_HS_ADV_TYPE_SVC_DATA_UUID16         0x16
+#define BLE_HS_ADV_TYPE_PUBLIC_TGT_ADDRESS      0x17
+#define BLE_HS_ADV_TYPE_RANDOM_TGT_ADDRESS      0x18
+#define BLE_HS_ADV_TYPE_APPEARANCE              0x19
+#define BLE_HS_ADV_TYPE_ADV_ITVL                0x1a
+#define BLE_HS_ADV_TYPE_LE_ADDRESS              0x1b
 #define BLE_HS_ADV_TYPE_LE_ROLE                 0x1c
+#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_HASH256     0x1d
+#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_RAND256     0x1e
+#define BLE_HS_ADV_TYPE_SVC_DATA_UUID32         0x20
+#define BLE_HS_ADV_TYPE_SVC_DATA_UUID128        0x21
+#define BLE_HS_ADV_TYPE_LE_SECURE_CONFIRM       0x22
+#define BLE_HS_ADV_TYPE_LE_SECURE_RANDOM        0x23
+#define BLE_HS_ADV_TYPE_URI                     0x24
+#define BLE_HS_ADV_TYPE_INDOOR_POS              0x25
+#define BLE_HS_ADV_TYPE_TRANS_DISC_DATA         0x26
+#define BLE_HS_ADV_TYPE_3D_INFO_DATA            0x3d
+#define BLE_HS_ADV_TYPE_MFG_DATA                0xff
+
 
 #define BLE_HS_ADV_FLAGS_LEN                    1
 #define BLE_HS_ADV_F_DISC_LTD                   0x01
