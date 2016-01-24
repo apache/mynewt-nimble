@@ -18,7 +18,7 @@
 #include <string.h>
 #include <errno.h>
 #include "nimble/ble.h"
-#include "ble_hs_adv.h"
+#include "ble_hs_adv_priv.h"
 #include "ble_hs_priv.h"
 
 static int
@@ -42,6 +42,8 @@ ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
                     uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
     int rc;
+
+    assert(data_len > 0);
 
     rc = ble_hs_adv_set_hdr(type, data_len, max_len, dst, dst_len);
     if (rc != 0) {
@@ -176,10 +178,131 @@ ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
 
     /*** 0x0a - Tx power level (written automatically by GAP). */
 
+    /*** 0x0d - Class of device. */
+    if (adv_fields->device_class != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_DEVICE_CLASS,
+                                 BLE_HS_ADV_DEVICE_CLASS_LEN,
+                                 adv_fields->device_class, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x12 - Slave connection interval range. */
+    if (adv_fields->slave_itvl_range != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_SLAVE_ITVL_RANGE,
+                                 BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN,
+                                 adv_fields->slave_itvl_range, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x16 - Service data - 16-bit UUID. */
+    if (adv_fields->svc_data_uuid16 != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_SVC_DATA_UUID16,
+                                 adv_fields->svc_data_uuid16_len,
+                                 adv_fields->svc_data_uuid16, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x17 - Public target address. */
+    if (adv_fields->public_tgt_addr != NULL &&
+        adv_fields->num_public_tgt_addrs != 0) {
+
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_PUBLIC_TGT_ADDR,
+                                 BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN *
+                                     adv_fields->num_public_tgt_addrs,
+                                 adv_fields->public_tgt_addr, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x19 - Appearance. */
+    if (adv_fields->appearance_is_present) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_APPEARANCE,
+                                 BLE_HS_ADV_APPEARANCE_LEN,
+                                 &adv_fields->appearance, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x1a - Advertising interval. */
+    if (adv_fields->adv_itvl_is_present) {
+        rc = ble_hs_adv_set_array16(BLE_HS_ADV_TYPE_ADV_ITVL, 1,
+                                    &adv_fields->adv_itvl, dst, dst_len,
+                                    max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x1b - LE bluetooth device address. */
+    if (adv_fields->le_addr != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ADDR,
+                                 BLE_HS_ADV_LE_ADDR_LEN,
+                                 adv_fields->le_addr, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
     /*** 0x1c - LE role. */
     if (adv_fields->le_role_is_present) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ROLE, 1,
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ROLE,
+                                 BLE_HS_ADV_LE_ROLE_LEN,
                                  &adv_fields->le_role, dst, dst_len, max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x20 - Service data - 32-bit UUID. */
+    if (adv_fields->svc_data_uuid32 != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_SVC_DATA_UUID32,
+                                 adv_fields->svc_data_uuid32_len,
+                                 adv_fields->svc_data_uuid32, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x21 - Service data - 128-bit UUID. */
+    if (adv_fields->svc_data_uuid128 != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_SVC_DATA_UUID128,
+                                 adv_fields->svc_data_uuid128_len,
+                                 adv_fields->svc_data_uuid128, dst, dst_len,
+                                 max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0x24 - URI. */
+    if (adv_fields->uri != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_URI, adv_fields->uri_len,
+                                 adv_fields->uri, dst, dst_len, max_len);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /*** 0xff - Manufacturer specific data. */
+    if (adv_fields->mfg_data != NULL) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_MFG_DATA,
+                                 adv_fields->mfg_data_len,
+                                 adv_fields->mfg_data, dst, dst_len, max_len);
         if (rc != 0) {
             return rc;
         }
@@ -215,6 +338,61 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
             return BLE_HS_EBADDATA;
         }
         adv_fields->flags = *data;
+        adv_fields->flags_is_present = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_INCOMP_UUIDS16:
+        if (data_len % 2 != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->uuids16 = data;
+        adv_fields->num_uuids16 = data_len / 2;
+        adv_fields->uuids16_is_complete = 0;
+        break;
+
+    case BLE_HS_ADV_TYPE_COMP_UUIDS16:
+        if (data_len % 2 != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->uuids16 = data;
+        adv_fields->num_uuids16 = data_len / 2;
+        adv_fields->uuids16_is_complete = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_INCOMP_UUIDS32:
+        if (data_len % 4 != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->uuids32 = data;
+        adv_fields->num_uuids32 = data_len / 4;
+        adv_fields->uuids32_is_complete = 0;
+        break;
+
+    case BLE_HS_ADV_TYPE_COMP_UUIDS32:
+        if (data_len % 4 != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->uuids32 = data;
+        adv_fields->num_uuids32 = data_len / 4;
+        adv_fields->uuids32_is_complete = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_INCOMP_UUIDS128:
+        if (data_len % 16 != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->uuids128 = data;
+        adv_fields->num_uuids128 = data_len / 16;
+        adv_fields->uuids128_is_complete = 0;
+        break;
+
+    case BLE_HS_ADV_TYPE_COMP_UUIDS128:
+        if (data_len % 16 != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->uuids128 = data;
+        adv_fields->num_uuids128 = data_len / 16;
+        adv_fields->uuids128_is_complete = 1;
         break;
 
     case BLE_HS_ADV_TYPE_INCOMP_NAME:
@@ -227,6 +405,99 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         adv_fields->name = data;
         adv_fields->name_len = data_len;
         adv_fields->name_is_complete = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_TX_PWR_LVL:
+        if (data_len != BLE_HS_ADV_TX_PWR_LVL_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->tx_pwr_lvl = *data;
+        adv_fields->tx_pwr_lvl_is_present = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_DEVICE_CLASS:
+        if (data_len != BLE_HS_ADV_DEVICE_CLASS_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->device_class = data;
+        break;
+
+    case BLE_HS_ADV_TYPE_SLAVE_ITVL_RANGE:
+        if (data_len != BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->slave_itvl_range = data;
+        break;
+
+    case BLE_HS_ADV_TYPE_SVC_DATA_UUID16:
+        if (data_len < BLE_HS_ADV_SVC_DATA_UUID16_MIN_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->svc_data_uuid16 = data;
+        break;
+
+    case BLE_HS_ADV_TYPE_PUBLIC_TGT_ADDR:
+        if (data_len % BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN != 0) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->public_tgt_addr = data;
+        adv_fields->num_public_tgt_addrs =
+            data_len / BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN;
+        break;
+
+    case BLE_HS_ADV_TYPE_APPEARANCE:
+        if (data_len != BLE_HS_ADV_APPEARANCE_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->appearance = le16toh(data);
+        adv_fields->appearance_is_present = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_ADV_ITVL:
+        if (data_len != BLE_HS_ADV_ADV_ITVL_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->adv_itvl = le16toh(data);
+        adv_fields->adv_itvl_is_present = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_LE_ADDR:
+        if (data_len != BLE_HS_ADV_LE_ADDR_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->le_addr = data;
+        break;
+
+    case BLE_HS_ADV_TYPE_LE_ROLE:
+        if (data_len != BLE_HS_ADV_LE_ROLE_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->le_role = *data;
+        adv_fields->le_role_is_present = 1;
+        break;
+
+    case BLE_HS_ADV_TYPE_SVC_DATA_UUID32:
+        if (data_len < BLE_HS_ADV_SVC_DATA_UUID32_MIN_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->svc_data_uuid32 = data;
+        break;
+
+    case BLE_HS_ADV_TYPE_SVC_DATA_UUID128:
+        if (data_len < BLE_HS_ADV_SVC_DATA_UUID128_MIN_LEN) {
+            return BLE_HS_EBADDATA;
+        }
+        adv_fields->svc_data_uuid128 = data;
+        break;
+
+    case BLE_HS_ADV_TYPE_URI:
+        adv_fields->uri = data;
+        adv_fields->uri_len = data_len;
+        break;
+
+    case BLE_HS_ADV_TYPE_MFG_DATA:
+        adv_fields->mfg_data = data;
+        adv_fields->mfg_data_len = data_len;
         break;
 
     default:

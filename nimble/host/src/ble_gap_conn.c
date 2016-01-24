@@ -21,9 +21,9 @@
 #include "os/os.h"
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
+#include "ble_hs_adv_priv.h"
 #include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_adv.h"
 #include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_gatt_priv.h"
@@ -1227,7 +1227,7 @@ ble_gap_conn_adv_data_tx(void *arg)
     }
 
     /* Encode the transmit power AD field. */
-    rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LEVEL, 1,
+    rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LVL, 1,
                              &ble_gap_conn_slave.tx_pwr_lvl,
                              ble_gap_conn_slave.adv_data,
                              &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);

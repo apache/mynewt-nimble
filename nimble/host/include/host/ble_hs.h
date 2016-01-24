@@ -57,45 +57,6 @@ struct ble_hs_cfg {
 };
 extern struct ble_hs_cfg ble_hs_cfg;
 
-
-#define BLE_HS_ADV_LE_ROLE_PERIPH               0x00
-#define BLE_HS_ADV_LE_ROLE_CENTRAL              0x01
-#define BLE_HS_ADV_LE_ROLE_BOTH_PERIPH_PREF     0x02
-#define BLE_HS_ADV_LE_ROLE_BOTH_CENTRAL_PREF    0x03
-
-struct ble_hs_adv_fields {
-    /*** 0x01 - Flags. */
-    uint8_t flags;
-
-    /*** 0x02,0x03 - 16-bit service class UUIDs. */
-    uint16_t *uuids16;
-    uint8_t num_uuids16;
-    unsigned uuids16_is_complete:1;
-
-    /*** 0x04,0x05 - 32-bit service class UUIDs. */
-    uint32_t *uuids32;
-    uint8_t num_uuids32;
-    unsigned uuids32_is_complete:1;
-
-    /*** 0x06,0x07 - 128-bit service class UUIDs. */
-    void *uuids128;
-    uint8_t num_uuids128;
-    unsigned uuids128_is_complete:1;
-
-    /*** 0x08,0x09 - Local name. */
-    uint8_t *name;
-    uint8_t name_len;
-    unsigned name_is_complete:1;
-
-    /*** 0x0a - Tx power level. */
-    uint8_t tx_pwr_lvl;
-    unsigned tx_pwr_lvl_is_present:1;
-
-    /*** 0x1c - LE role. */
-    uint8_t le_role;
-    unsigned le_role_is_present:1;
-};
-
 int ble_hs_init(uint8_t prio);
 
 #endif

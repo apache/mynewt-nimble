@@ -22,7 +22,7 @@
 #include "host/ble_hs_test.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_conn.h"
-#include "ble_hs_adv.h"
+#include "ble_hs_adv_priv.h"
 #include "ble_hci_sched.h"
 #include "ble_gatt_priv.h"
 #include "ble_gap_priv.h"

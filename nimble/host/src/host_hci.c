@@ -29,7 +29,7 @@
 #include "ble_l2cap.h"
 #include "ble_hci_ack.h"
 #include "ble_gap_priv.h"
-#include "ble_hs_adv.h"
+#include "ble_hs_adv_priv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
