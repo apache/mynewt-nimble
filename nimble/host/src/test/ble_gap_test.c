@@ -1153,8 +1153,8 @@ ble_gap_test_util_adv(uint8_t disc_mode, uint8_t conn_mode,
     TEST_ASSERT(!ble_gap_conn_slave_in_progress());
 
     rc = ble_gap_conn_adv_start(disc_mode, conn_mode, peer_addr,
-                                peer_addr_type, ble_gap_test_util_connect_cb,
-                                NULL);
+                                peer_addr_type, NULL,
+                                ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
@@ -1237,34 +1237,34 @@ TEST_CASE(ble_gap_test_case_conn_adv_bad_args)
 
     /*** Invalid discoverable mode. */
     rc = ble_gap_conn_adv_start(-1, BLE_GAP_CONN_MODE_DIR, peer_addr,
-                                BLE_ADDR_TYPE_PUBLIC,
+                                BLE_ADDR_TYPE_PUBLIC, NULL,
                                 ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_conn_slave_in_progress());
 
     /*** Invalid connectable mode. */
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_GEN, -1, peer_addr,
-                                BLE_ADDR_TYPE_PUBLIC,
+                                BLE_ADDR_TYPE_PUBLIC, NULL,
                                 ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_conn_slave_in_progress());
 
     /*** Invalid peer address type with directed advertisable mode. */
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_GEN, BLE_GAP_CONN_MODE_DIR,
-                                peer_addr, -1,
+                                peer_addr, -1, NULL,
                                 ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_conn_slave_in_progress());
 
     /*** Advertising already in progress. */
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_GEN, BLE_GAP_CONN_MODE_DIR,
-                                peer_addr, BLE_ADDR_TYPE_PUBLIC,
+                                peer_addr, BLE_ADDR_TYPE_PUBLIC, NULL,
                                 ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_conn_slave_in_progress());
 
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_GEN, BLE_GAP_CONN_MODE_DIR,
-                                peer_addr, BLE_ADDR_TYPE_PUBLIC,
+                                peer_addr, BLE_ADDR_TYPE_PUBLIC, NULL,
                                 ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
     TEST_ASSERT(ble_gap_conn_slave_in_progress());

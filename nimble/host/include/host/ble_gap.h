@@ -21,6 +21,7 @@
 #include "host/ble_hs.h"
 struct hci_le_conn_complete;
 struct hci_conn_update;
+struct hci_adv_params;
 
 /** 30 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
@@ -162,6 +163,7 @@ struct ble_gap_white_entry {
 
 int ble_gap_conn_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type,
+                           struct hci_adv_params *adv_params,
                            ble_gap_conn_fn *cb, void *cb_arg);
 int ble_gap_conn_adv_stop(void);
 int ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields);

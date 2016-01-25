@@ -96,6 +96,16 @@ static const struct ble_gap_conn_crt_params ble_gap_conn_params_dflt = {
     .max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN,
 };
 
+static const struct hci_adv_params ble_gap_adv_params_dflt = {
+        .adv_itvl_min = 0,
+        .adv_itvl_max = 0,
+        .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
+        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
+        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
+        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
+        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
+};
+
 /**
  * The state of the in-progress master connection.  If no master connection is
  * currently in progress, then the op field is set to BLE_GAP_CONN_OP_NULL.
@@ -1417,6 +1427,7 @@ ble_gap_conn_adv_initiate(void)
 int
 ble_gap_conn_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                        uint8_t *peer_addr, uint8_t peer_addr_type,
+                       struct hci_adv_params *adv_params,
                        ble_gap_conn_fn *cb, void *cb_arg)
 {
     int rc;
@@ -1471,6 +1482,12 @@ ble_gap_conn_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     ble_gap_conn_slave.cb_arg = cb_arg;
     ble_gap_conn_slave.state = 0;
     ble_gap_conn_slave.disc_mode = discoverable_mode;
+
+    if (adv_params != NULL) {
+        ble_gap_conn_slave.adv_params = *adv_params;
+    } else {
+        ble_gap_conn_slave.adv_params = ble_gap_adv_params_dflt;
+    }
 
     ble_gap_conn_adv_itvls(discoverable_mode, connectable_mode,
                            &ble_gap_conn_slave.adv_params.adv_itvl_min,
@@ -2068,20 +2085,6 @@ ble_gap_conn_update_params(uint16_t conn_handle,
  *****************************************************************************/
 
 static void
-ble_gap_conn_init_slave_params(void)
-{
-    ble_gap_conn_slave.adv_params = (struct hci_adv_params) {
-        .adv_itvl_min = 0,
-        .adv_itvl_max = 0,
-        .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
-        .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
-        .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
-        .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
-    };
-}
-
-static void
 ble_gap_conn_free_mem(void)
 {
 }
@@ -2096,8 +2099,6 @@ ble_gap_conn_init(void)
     memset(&ble_gap_conn_master, 0, sizeof ble_gap_conn_master);
     memset(&ble_gap_conn_slave, 0, sizeof ble_gap_conn_slave);
     memset(&ble_gap_conn_wl, 0, sizeof ble_gap_conn_wl);
-
-    ble_gap_conn_init_slave_params();
 
     os_callout_func_init(&ble_gap_conn_master_timer, &ble_hs_evq,
                          ble_gap_conn_master_timer_exp, NULL);

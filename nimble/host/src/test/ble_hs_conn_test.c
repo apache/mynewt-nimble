@@ -139,7 +139,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
 
     /* Initiate advertising. */
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
-                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC,
+                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC, NULL,
                                 NULL, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -188,7 +188,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
 
     /* Initiate connection. */
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
-                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC,
+                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC, NULL,
                                 NULL, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -235,7 +235,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
     /* Initiate advertising. */
     rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_UND,
-                                NULL, 0, NULL, NULL);
+                                NULL, 0, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_conn_master_in_progress());
