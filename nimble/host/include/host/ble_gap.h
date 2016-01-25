@@ -67,6 +67,11 @@ struct hci_conn_update;
 /* 50 ms. */
 #define BLE_GAP_INITIAL_CONN_ITVL_MAX       (50 * 1000 / BLE_HCI_CONN_ITVL)
 
+#define BLE_GAP_INITIAL_CONN_LATENCY        0
+#define BLE_GAP_INITIAL_SUPERVISION_TIMEOUT 0x0100
+#define BLE_GAP_INITIAL_CONN_MIN_CE_LEN     0x0010
+#define BLE_GAP_INITIAL_CONN_MAX_CE_LEN     0x0300
+
 #define BLE_GAP_SVC_UUID16                              0x1800
 #define BLE_GAP_CHR_UUID16_DEVICE_NAME                  0x2a00
 #define BLE_GAP_CHR_UUID16_APPEARANCE                   0x2a01

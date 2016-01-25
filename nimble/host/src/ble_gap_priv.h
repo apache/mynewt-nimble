@@ -36,6 +36,7 @@ void ble_gap_conn_rx_update_complete(struct hci_le_conn_upd_complete *evt);
 void ble_gap_conn_rx_param_req(struct hci_le_conn_param_req *evt);
 int ble_gap_conn_master_in_progress(void);
 int ble_gap_conn_slave_in_progress(void);
+int ble_gap_conn_update_in_progress(uint16_t conn_handle);
 int ble_gap_conn_wl_busy(void);
 int ble_gap_conn_init(void);
 

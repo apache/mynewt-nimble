@@ -90,10 +90,10 @@ static const struct ble_gap_conn_crt_params ble_gap_conn_params_dflt = {
     .scan_window = 0x0010,
     .itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN,
     .itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX,
-    .latency = 0,
-    .supervision_timeout = 0x0100,
-    .min_ce_len = 0x0010,
-    .max_ce_len = 0x0300,
+    .latency = BLE_GAP_INITIAL_CONN_LATENCY,
+    .supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT,
+    .min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN,
+    .max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN,
 };
 
 /**
@@ -213,7 +213,8 @@ ble_gap_conn_update_find(uint16_t conn_handle)
 
 static struct ble_gap_conn_update_entry *
 ble_gap_conn_update_entry_alloc(uint16_t conn_handle,
-                                struct ble_gap_conn_upd_params *params)
+                                struct ble_gap_conn_upd_params *params,
+                                int state)
 {
     struct ble_gap_conn_update_entry *entry;
 
@@ -229,7 +230,7 @@ ble_gap_conn_update_entry_alloc(uint16_t conn_handle,
     memset(entry, 0, sizeof *entry);
     entry->conn_handle = conn_handle;
     entry->params = *params;
-    entry->state = BLE_GAP_CONN_STATE_U_UPDATE;
+    entry->state = state;
 
     SLIST_INSERT_HEAD(&ble_gap_conn_update_entries, entry, next);
 
@@ -432,7 +433,7 @@ ble_gap_conn_notify_update(struct ble_gap_conn_update_entry *entry, int status)
         return;
     }
 
-    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN_UPDATED, status, NULL, NULL,
+    ble_gap_conn_call_conn_cb(BLE_GAP_EVENT_CONN_UPDATED, status, conn, NULL,
                               NULL);
 }
 
@@ -579,6 +580,29 @@ int
 ble_gap_conn_slave_in_progress(void)
 {
     return ble_gap_conn_slave.op != BLE_GAP_CONN_OP_NULL;
+}
+
+/**
+ * Tells you if the BLE host is in the process of updating a connection.
+ *
+ * @param conn_handle           The connection to test, or
+ *                                  BLE_HS_CONN_HANDLE_NONE to check all
+ *                                  connections.
+ *
+ * @return                      0=connection not being updated;
+ *                              1=connection being updated.
+ */
+int
+ble_gap_conn_update_in_progress(uint16_t conn_handle)
+{
+    struct ble_gap_conn_update_entry *entry;
+
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        entry = ble_gap_conn_update_find(conn_handle);
+    } else {
+        entry = SLIST_FIRST(&ble_gap_conn_update_entries);
+    }
+    return entry != NULL;
 }
 
 static int
@@ -1916,7 +1940,8 @@ ble_gap_conn_rx_param_req(struct hci_le_conn_param_req *evt)
     peer_params.max_ce_len = 0;
 
     entry = ble_gap_conn_update_entry_alloc(evt->connection_handle,
-                                            &peer_params);
+                                            &peer_params,
+                                            BLE_GAP_CONN_STATE_U_REPLY);
     if (entry == NULL) {
         /* Out of memory; reject. */
         rc = BLE_ERR_MEM_CAPACITY;
@@ -1947,11 +1972,10 @@ ble_gap_conn_rx_param_req(struct hci_le_conn_param_req *evt)
     return;
 
 err:
-    ble_gap_conn_update_failed(entry, rc);
-
     neg_reply.handle = evt->connection_handle;
     neg_reply.reason = rc;
 
+    entry->state = BLE_GAP_CONN_STATE_U_NEG_REPLY;
     ble_hci_ack_set_callback(ble_gap_conn_param_neg_reply_ack, entry);
 
     host_hci_cmd_le_conn_param_neg_reply(&neg_reply);
@@ -2019,7 +2043,8 @@ ble_gap_conn_update_params(uint16_t conn_handle,
         return BLE_HS_ENOENT;
     }
 
-    entry = ble_gap_conn_update_entry_alloc(conn_handle, params);
+    entry = ble_gap_conn_update_entry_alloc(conn_handle, params,
+                                            BLE_GAP_CONN_STATE_U_UPDATE);
     if (entry == NULL) {
         return BLE_HS_ENOMEM;
     }

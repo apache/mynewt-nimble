@@ -79,7 +79,12 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = handle;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
+    evt.peer_addr_type = BLE_ADDR_TYPE_PUBLIC;
     memcpy(evt.peer_addr, addr, 6);
+    evt.conn_itvl = BLE_GAP_INITIAL_CONN_ITVL_MAX;
+    evt.conn_latency = BLE_GAP_INITIAL_CONN_LATENCY;
+    evt.supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT;
     rc = ble_gap_conn_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
 
