@@ -406,12 +406,6 @@ ble_gap_conn_notify_master_term_failure(int status, uint16_t conn_handle)
 }
 
 static void
-ble_gap_conn_notify_slave_conn_failure(int status)
-{
-    ble_gap_conn_call_slave_cb(BLE_GAP_EVENT_CONN, status);
-}
-
-static void
 ble_gap_conn_notify_adv_finished(void)
 {
     ble_gap_conn_call_slave_cb(BLE_GAP_EVENT_ADV_FINISHED, 0);
@@ -806,33 +800,18 @@ ble_gap_conn_rx_conn_complete(struct hci_le_conn_complete *evt)
     if (evt->status != BLE_ERR_SUCCESS) {
         status = BLE_HS_HCI_ERR(evt->status);
 
-        /* Some error codes need special handling. */
+        /* Determine the role from the status code. */
         switch (evt->status) {
         case BLE_ERR_DIR_ADV_TMO:
             if (ble_gap_conn_slave_in_progress()) {
                 ble_gap_conn_slave_failed(BLE_GAP_EVENT_ADV_FINISHED, 0);
             }
-            return 0;
+            break;
 
         default:
-            break;
-        }
-
-        switch (evt->role) {
-        case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
             if (ble_gap_conn_master_in_progress()) {
                 ble_gap_conn_master_failed(status);
             }
-            break;
-
-        case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
-            if (ble_gap_conn_slave_in_progress()) {
-                ble_gap_conn_notify_slave_conn_failure(status);
-            }
-            break;
-
-        default:
-            assert(0);
             break;
         }
 
