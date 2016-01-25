@@ -237,5 +237,7 @@ void ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm);
 void ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
                                      struct ble_ll_conn_params *cp);
 void ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status);
+void ble_ll_hci_ev_read_rem_used_feat(struct ble_ll_conn_sm *connsm, 
+                                      uint8_t status);
 
 #endif /* H_BLE_LL_CTRL_ */

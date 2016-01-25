@@ -37,7 +37,8 @@ uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
  * Returns the number of command packets that the host is allowed to send 
  * to the controller. 
  *  
- * @return uint8_t 
+ *  
+ * wOPCODE = opcode;@return uint8_t 
  */
 static uint8_t
 ble_ll_hci_get_num_cmd_pkts(void)
@@ -337,6 +338,15 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_CONN_UPDATE:
         if (len == BLE_HCI_CONN_UPDATE_LEN) {
             rc = ble_ll_conn_update(cmdbuf);
+        }
+        /* This is a hack; command status gets sent instead of cmd complete */
+        rc += (BLE_ERR_MAX + 1);
+        break;
+
+        /* XXX: implement */
+    case BLE_HCI_OCF_LE_RD_REM_FEAT:
+        if (len == BLE_HCI_CONN_RD_REM_FEAT_LEN) {
+            rc = ble_ll_conn_read_rem_features(cmdbuf);
         }
         /* This is a hack; command status gets sent instead of cmd complete */
         rc += (BLE_ERR_MAX + 1);

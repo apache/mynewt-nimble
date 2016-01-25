@@ -427,6 +427,39 @@ ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
 }
 
 /**
+ * Called when the host issues the read remote features command 
+ * 
+ * @param cmdbuf 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_read_rem_features(uint8_t *cmdbuf)
+{
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    /* If no connection handle exit with error */
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* See if we support this feature */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        if ((ble_ll_read_supp_features() & BLE_LL_FEAT_SLAVE_INIT) == 0) {
+            return BLE_ERR_UNSUPP_FEATURE;
+        }
+    }
+
+    /* Start the control procedure */
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+
+    return BLE_ERR_SUCCESS;
+}
+
+/**
  * Called to process a connection update command.
  * 
  * @param cmdbuf 
@@ -588,6 +621,7 @@ ble_ll_conn_create_cancel(void)
     int rc;
     struct ble_ll_conn_sm *connsm;
 
+    /* WWW: BUG! I send the event before the command complete. Not good. */
     /* 
      * If we receive this command and we have not got a connection
      * create command, we have to return disallowed. The spec does not say

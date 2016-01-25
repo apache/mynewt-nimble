@@ -142,10 +142,7 @@ struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
 /* Connection state machine array */
-#if !defined(nzbss_t)
-#define nzbss_t
-#endif
-nzbss_t struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
+sec_bss_nz_core struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
 
 /* List of active connections */
 struct ble_ll_conn_active_list g_ble_ll_conn_active_list;

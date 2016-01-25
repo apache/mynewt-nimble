@@ -104,6 +104,22 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
                        le16toh(evdata + 4), le16toh(evdata + 6),
                        le16toh(evdata + 8));
         break;
+
+    case BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT:
+        status = evdata[0];
+        if (status == BLE_ERR_SUCCESS) {
+            console_printf("LE Remote Used Features. handle=%u feat=",
+                           le16toh(evdata + 1));
+            for (i = 0; i < BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN; ++i) {
+                console_printf("%02x ", evdata[3 + i]);
+            }
+            console_printf("\n");
+        } else {
+            console_printf("LE Remote Used Features. FAIL (status=%u)\n",
+                           status);
+        }
+        break;
+
     default:
         console_printf("\tUnknown LE event\n");
         break;

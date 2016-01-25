@@ -77,7 +77,7 @@ ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
 }
 
 /**
- * Send a data length change event for a connection to the host.
+ * Send a connection update event.
  * 
  * @param connsm Pointer to connection state machine 
  * @param status The error code. 
@@ -99,6 +99,28 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
                 htole16(evbuf + 6, connsm->conn_itvl);
                 htole16(evbuf + 8, connsm->slave_latency);
                 htole16(evbuf + 10, connsm->supervision_tmo);
+            }
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+
+void
+ble_ll_hci_ev_read_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = BLE_HCI_LE_RD_REM_USED_FEAT_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT;
+            evbuf[3] = status;
+            if (status == BLE_ERR_SUCCESS) {
+                htole16(evbuf + 4, connsm->conn_handle);
+                memset(evbuf + 6, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
+                evbuf[6] = connsm->common_features;
             }
             ble_ll_hci_event_send(evbuf);
         }

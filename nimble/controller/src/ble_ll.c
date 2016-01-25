@@ -53,6 +53,7 @@
 #undef BLE_LL_CFG_FEAT_CONN_PARAM_REQ
 #undef BLE_LL_CFG_FEAT_LE_ENCRYPTION
 #undef BLE_LL_CFG_FEAT_EXT_REJECT_IND
+#define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
 
 /* The global BLE LL data object */
 struct ble_ll_obj g_ble_ll_data;
@@ -80,10 +81,7 @@ struct ble_ll_log
 
 #define BLE_LL_LOG_LEN  (256)
 
-#if !defined(nzbss_t)
-#define nzbss_t
-#endif
-static nzbss_t struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
+static sec_bss_nz_core struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
 static uint8_t g_ble_ll_log_index;
 
 void
@@ -949,6 +947,9 @@ ble_ll_init(void)
 #endif
 #ifdef BLE_LL_CFG_FEAT_EXT_REJECT_IND
     features |= BLE_LL_FEAT_EXTENDED_REJ;
+#endif
+#ifdef BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
+    features |= BLE_LL_FEAT_SLAVE_INIT;
 #endif
 
     lldata->ll_supp_features = features;

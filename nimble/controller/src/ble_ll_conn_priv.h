@@ -105,6 +105,7 @@ void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status);
 void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);
+int ble_ll_conn_read_rem_features(uint8_t *cmdbuf);
 
 
 #endif /* H_BLE_LL_CONN_PRIV_ */

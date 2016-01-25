@@ -261,6 +261,9 @@
 /* --- LE connection update (OCF 0x0013) */
 #define BLE_HCI_CONN_UPDATE_LEN             (14)
 
+/* --- LE read remote features (OCF 0x0016) */
+#define BLE_HCI_CONN_RD_REM_FEAT_LEN        (2)
+
 /* --- LE remote connection parameter request reply (OCF 0x0020) */
 #define BLE_HCI_CONN_PARAM_REPLY_LEN        (14)
 
@@ -399,6 +402,9 @@
 
 /* LE connection update complete event (sub event 0x03) */
 #define BLE_HCI_LE_CONN_UPD_LEN             (10)
+
+/* LE connection update complete event (sub event 0x03) */
+#define BLE_HCI_LE_RD_REM_USED_FEAT_LEN     (12)
 
 /* LE remote connection parameter request event (sub event 0x06) */
 #define BLE_HCI_LE_REM_CONN_PARM_REQ_LEN    (11)

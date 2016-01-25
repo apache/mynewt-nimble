@@ -297,6 +297,9 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         ble_ll_ctrl_proc_stop(connsm, ctrl_proc);
         if (ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_FEATURE);
+        } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
+            /* XXX: should only get this if a slave initiated this */
+            ble_ll_hci_ev_read_rem_used_feat(connsm, BLE_ERR_UNSUPP_FEATURE);
         }
     }
 }
@@ -505,6 +508,34 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     return rsp_opcode;
 }
 
+/**
+ * Called when we receive a feature request or a slave initiated feature 
+ * request. 
+ * 
+ * 
+ * @param connsm 
+ * @param dptr 
+ * @param rspbuf 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                              uint8_t *rspbuf)
+{
+    uint8_t rsp_opcode;
+
+    /* Add put logical AND of their features and our features*/
+    /* XXX: right now, there is only one byte of supported features */
+    /* XXX: Used proper macros later */
+    rsp_opcode = BLE_LL_CTRL_FEATURE_RSP;
+    connsm->common_features = dptr[0] & ble_ll_read_supp_features();
+    memset(rspbuf + 1, 0, 8);
+    rspbuf[1] = connsm->common_features;
+
+    return rsp_opcode;
+}
+
 static int
 ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                               uint8_t *rspbuf)
@@ -640,6 +671,14 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
             opcode = BLE_LL_CTRL_LENGTH_REQ;
             ble_ll_ctrl_datalen_upd_make(connsm, dptr);
+            break;
+        case BLE_LL_CTRL_PROC_FEATURE_XCHG:
+            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                opcode = BLE_LL_CTRL_FEATURE_REQ;
+            } else {
+                opcode = BLE_LL_CTRL_SLAVE_FEATURE_REQ;
+            }
+            dptr[1] = ble_ll_read_supp_features();
             break;
         case BLE_LL_CTRL_PROC_TERMINATE:
             opcode = BLE_LL_CTRL_TERMINATE_IND;
@@ -895,6 +934,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_LENGTH_REQ:
         feature = BLE_LL_FEAT_DATA_LEN_EXT;
         break;
+    case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
+        feature = BLE_LL_FEAT_SLAVE_INIT;
+        break;
     case BLE_LL_CTRL_CONN_PARM_REQ:
     case BLE_LL_CTRL_CONN_PARM_RSP:
         feature = BLE_LL_FEAT_CONN_PARM_REQ;
@@ -958,13 +1000,42 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         ble_ll_ctrl_proc_unk_rsp(connsm, dptr);
         break;
 
+    case BLE_LL_CTRL_FEATURE_REQ:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf);
+        } else {
+            /* XXX: not sure this is correct but do it anyway */
+            /* Construct unknown pdu */
+            rspbuf[1] = opcode;
+            rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
+        }
+        break;
+
+    /* XXX: check to see if ctrl procedure was running? Do we care? */
+    case BLE_LL_CTRL_FEATURE_RSP:
+        /* Stop the control procedure */
+        connsm->common_features = dptr[0];
+        if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+            ble_ll_hci_ev_read_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        }
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+        break;
+
+    case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+            rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf);
+        } else {
+            /* Construct unknown pdu */
+            rspbuf[1] = opcode;
+            rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
+        }
+        break;
+
     /* XXX: remember to check if feature supported */
     case BLE_LL_CTRL_CHANNEL_MAP_REQ:
     case BLE_LL_CTRL_ENC_REQ:
     case BLE_LL_CTRL_START_ENC_REQ:
-    case BLE_LL_CTRL_FEATURE_REQ:
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
-    case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         /* Construct unknown pdu */
         rspbuf[1] = opcode;
         rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
