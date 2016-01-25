@@ -769,8 +769,8 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_state_set(BLE_LL_STATE_CONNECTION);
 
     /* Log connection event start */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, connsm->data_chan_index, 0, 
-               connsm->ce_end_time);
+    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, connsm->data_chan_index, 
+               connsm->conn_handle, connsm->ce_end_time);
 
     /* Set channel */
     rc = ble_phy_setchan(connsm->data_chan_index, connsm->access_addr, 
