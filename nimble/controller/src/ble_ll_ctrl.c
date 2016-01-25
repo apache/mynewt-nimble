@@ -280,6 +280,9 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     case BLE_LL_CTRL_CONN_UPDATE_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
         break;
+    case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
+        ctrl_proc = BLE_LL_CTRL_PROC_FEATURE_XCHG;
+        break;
     case BLE_LL_CTRL_CONN_PARM_RSP:
     case BLE_LL_CTRL_CONN_PARM_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
@@ -1031,11 +1034,13 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         }
         break;
 
-    /* XXX: remember to check if feature supported */
+    /* XXX: remember to check if feature supported. Implement! */
     case BLE_LL_CTRL_CHANNEL_MAP_REQ:
     case BLE_LL_CTRL_ENC_REQ:
     case BLE_LL_CTRL_START_ENC_REQ:
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
+    case BLE_LL_CTRL_PING_REQ:
+    case BLE_LL_CTRL_VERSION_IND:
         /* Construct unknown pdu */
         rspbuf[1] = opcode;
         rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
