@@ -78,6 +78,17 @@ err:
     return NULL;
 }
 
+static void
+ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+    if (conn->bhc_rx_chan == chan) {
+        conn->bhc_rx_chan = NULL;
+    }
+
+    SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
+    ble_l2cap_chan_free(chan);
+}
+
 void
 ble_hs_conn_free(struct ble_hs_conn *conn)
 {
@@ -93,8 +104,7 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
     ble_att_svr_prep_clear(&conn->bhc_att_svr);
 
     while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
-        SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
-        ble_l2cap_chan_free(chan);
+        ble_hs_conn_delete_chan(conn, chan);
     }
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
