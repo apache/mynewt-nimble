@@ -101,11 +101,11 @@ ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
 }
 
 struct os_mbuf *
-ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid)
+ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
 {
     struct ble_l2cap_hdr hdr;
 
-    htole16(&hdr.blh_len, OS_MBUF_PKTHDR(om)->omp_len);
+    htole16(&hdr.blh_len, len);
     htole16(&hdr.blh_cid, cid);
 
     om = os_mbuf_prepend(om, sizeof hdr);
@@ -118,23 +118,45 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid)
     return om;
 }
 
+static void
+ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+    conn->bhc_rx_chan = NULL;
+
+    os_mbuf_free_chain(chan->blc_rx_buf);
+    chan->blc_rx_buf = NULL;
+    chan->blc_rx_len = 0;
+}
+
 static int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf *om)
 {
+    int len_diff;
     int rc;
 
-    assert(chan->blc_rx_buf == NULL);
-    chan->blc_rx_buf = om;
-
-    rc = chan->blc_rx_fn(conn, chan, &chan->blc_rx_buf);
-    os_mbuf_free_chain(chan->blc_rx_buf);
-    chan->blc_rx_buf = NULL;
-    if (rc != 0) {
-        return rc;
+    if (chan->blc_rx_buf == NULL) {
+        chan->blc_rx_buf = om;
+    } else {
+        os_mbuf_concat(chan->blc_rx_buf, om);
     }
 
-    return 0;
+    /* Determine if packet is fully reassembled. */
+    len_diff = OS_MBUF_PKTLEN(chan->blc_rx_buf) - chan->blc_rx_len;
+    if (len_diff > 0) {
+        /* More data than expected; data corruption. */
+        ble_l2cap_discard_rx(conn, chan);
+        rc = BLE_HS_EBADDATA;
+    } else if (len_diff == 0) {
+        /* All fragments received. */
+        rc = chan->blc_rx_fn(conn, chan, &chan->blc_rx_buf);
+        ble_l2cap_discard_rx(conn, chan);
+    } else {
+        /* More fragments remain. */
+        rc = 0;
+    }
+
+    return rc;
 }
 
 int
@@ -144,28 +166,48 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 {
     struct ble_l2cap_chan *chan;
     struct ble_l2cap_hdr l2cap_hdr;
+    uint8_t pb;
     int rc;
 
-    /* XXX: HCI-fragmentation unsupported. */
-    assert(BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc) ==
-                           BLE_HCI_PB_FIRST_FLUSH);
+    pb = BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc);
+    switch (pb) {
+    case BLE_HCI_PB_FIRST_FLUSH:
+        /* First fragment. */
+        rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
+        if (rc != 0) {
+            goto err;
+        }
 
-    rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
-    if (rc != 0) {
-        goto err;
-    }
+        /* Strip L2CAP header from the front of the mbuf. */
+        os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
 
-    /* Strip L2CAP header from the front of the mbuf. */
-    os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
+        chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
+        if (chan == NULL) {
+            rc = BLE_HS_ENOENT;
+            goto err;
+        }
 
-    if (l2cap_hdr.blh_len != hci_hdr->hdh_len - BLE_L2CAP_HDR_SZ) {
-        rc = BLE_HS_EMSGSIZE;
-        goto err;
-    }
+        if (chan->blc_rx_buf != NULL) {
+            /* Previous data packet never completed.  Discard old packet. */
+            ble_l2cap_discard_rx(conn, chan);
+        }
 
-    chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
-    if (chan == NULL) {
-        rc = BLE_HS_ENOENT;
+        /* Remember channel and length of L2CAP data for reassembly. */
+        conn->bhc_rx_chan = chan;
+        chan->blc_rx_len = l2cap_hdr.blh_len;
+        break;
+
+    case BLE_HCI_PB_MIDDLE:
+        chan = conn->bhc_rx_chan;
+        if (chan == NULL || chan->blc_rx_buf == NULL) {
+            /* Middle fragment without the start.  Discard new packet. */
+            rc = BLE_HS_EBADDATA;
+            goto err;
+        }
+        break;
+
+    default:
+        rc = BLE_HS_EBADDATA;
         goto err;
     }
 
@@ -197,7 +239,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 {
     int rc;
 
-    om = ble_l2cap_prepend_hdr(om, chan->blc_cid);
+    om = ble_l2cap_prepend_hdr(om, chan->blc_cid, OS_MBUF_PKTLEN(om));
     if (om == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;

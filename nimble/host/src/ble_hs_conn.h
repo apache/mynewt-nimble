@@ -43,6 +43,7 @@ struct ble_hs_conn {
     ble_hs_conn_flags bhc_flags;
 
     struct ble_l2cap_chan_list bhc_channels;
+    struct ble_l2cap_chan *bhc_rx_chan; /* Channel rxing current packet. */
     uint16_t bhc_outstanding_pkts;
 
     struct ble_att_svr_conn bhc_att_svr;

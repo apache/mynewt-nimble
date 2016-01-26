@@ -172,7 +172,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     rc = os_mbuf_append(om, data, len);
     TEST_ASSERT_FATAL(rc == 0);
 
-    om = ble_l2cap_prepend_hdr(om, chan->blc_cid);
+    om = ble_l2cap_prepend_hdr(om, chan->blc_cid, OS_MBUF_PKTLEN(om));
     TEST_ASSERT_FATAL(om != NULL);
 
     hci_hdr.hdh_handle_pb_bc =

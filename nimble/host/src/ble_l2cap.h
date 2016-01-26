@@ -56,6 +56,7 @@ struct ble_l2cap_chan
     ble_l2cap_chan_flags blc_flags;
 
     struct os_mbuf *blc_rx_buf;
+    uint16_t blc_rx_len;        /* Length of current reassembled rx packet. */
 
     ble_l2cap_rx_fn *blc_rx_fn;
 };
@@ -70,7 +71,8 @@ uint16_t ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan);
 
 int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
                         struct ble_l2cap_hdr *l2cap_hdr);
-struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid);
+struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
+                                      uint16_t len);
 
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,

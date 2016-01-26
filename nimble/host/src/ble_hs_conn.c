@@ -69,6 +69,8 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
+    /* XXX: Sort channels by cid. */
+
     return conn;
 
 err:
