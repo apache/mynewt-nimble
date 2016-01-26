@@ -2553,6 +2553,7 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc,
     attr.value_len = value_len;
     attr.value = value;
 
+    /* Report partial payload to application. */
     rc = ble_gattc_read_long_cb(proc, status, 0, &attr);
     if (rc != 0 || status != 0) {
         return 1;
@@ -2567,6 +2568,9 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc,
         return 1;
     } else {
         proc->read_long.offset += value_len;
+
+        /* Send follow-up request. */
+        ble_gattc_proc_set_pending(proc);
         return 0;
     }
 }
