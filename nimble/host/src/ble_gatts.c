@@ -60,13 +60,23 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint8_t *uuid128, uint8_t op,
                      struct ble_att_svr_access_ctxt *ctxt, void *arg)
 {
+    static uint16_t uuid16;
+
     const struct ble_gatt_svc_def *svc;
 
     assert(op == BLE_ATT_ACCESS_OP_READ);
 
     svc = arg;
-    ctxt->attr_data = svc->uuid128;
-    ctxt->data_len = 16;
+
+    uuid16 = ble_uuid_128_to_16(svc->uuid128);
+    if (uuid16 != 0) {
+        htole16(&uuid16, uuid16);
+        ctxt->attr_data = &uuid16;
+        ctxt->data_len = 2;
+    } else {
+        ctxt->attr_data = svc->uuid128;
+        ctxt->data_len = 16;
+    }
 
     return 0;
 }
