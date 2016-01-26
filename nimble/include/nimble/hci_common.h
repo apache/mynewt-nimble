@@ -62,6 +62,34 @@
 /* Set event mask */
 #define BLE_HCI_SET_EVENT_MASK_LEN          (8)
 
+/* List of OCF for Info Param commands (OGF=0x04) */
+#define BLE_HCI_OCF_IP_RD_LOCAL_VER         (0x0001)
+
+/* Command specific definitions */
+/* NOTE: does not include status field in command complete event! */
+#define BLE_HCI_RD_LOC_VER_INFO_RSPLEN      (8)
+
+/* Bluetooth Assigned numbers for version information.*/
+#define BLE_HCI_VER_BCS_1_0b                (0)
+#define BLE_HCI_VER_BCS_1_1                 (1)
+#define BLE_HCI_VER_BCS_1_2                 (2)
+#define BLE_HCI_VER_BCS_2_0_EDR             (3)
+#define BLE_HCI_VER_BCS_2_1_EDR             (4)
+#define BLE_HCI_VER_BCS_3_0_HCS             (5)
+#define BLE_HCI_VER_BCS_4_0                 (6)
+#define BLE_HCI_VER_BCS_4_1                 (7)
+#define BLE_HCI_VER_BCS_4_2                 (8)
+
+#define BLE_LMP_VER_BCS_1_0b                (0)
+#define BLE_LMP_VER_BCS_1_1                 (1)
+#define BLE_LMP_VER_BCS_1_2                 (2)
+#define BLE_LMP_VER_BCS_2_0_EDR             (3)
+#define BLE_LMP_VER_BCS_2_1_EDR             (4)
+#define BLE_LMP_VER_BCS_3_0_HCS             (5)
+#define BLE_LMP_VER_BCS_4_0                 (6)
+#define BLE_LMP_VER_BCS_4_1                 (7)
+#define BLE_LMP_VER_BCS_4_2                 (8)
+
 /* List of OCF for LE commands (OGF = 0x08) */
 #define BLE_HCI_OCF_LE_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_LE_RD_BUF_SIZE          (0x0002)
@@ -413,6 +441,16 @@
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
 /*--- Shared data structures ---*/
+/* Read local version information (OGF=0x0004, OCF=0x0001) */
+struct hci_loc_ver_info
+{
+   uint8_t status;
+   uint8_t hci_version;
+   uint16_t hci_revision;
+   uint8_t lmp_pal_version;
+   uint16_t mfrg_name;
+   uint8_t lmp_pal_subversion;
+};
 
 /* set advertising parameters command (ocf = 0x0006) */
 struct hci_adv_params

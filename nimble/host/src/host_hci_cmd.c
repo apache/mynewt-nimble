@@ -222,6 +222,16 @@ host_hci_cmd_le_set_rand_addr(uint8_t *addr)
 }
 
 int
+host_hci_cmd_rd_local_version(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
+                           BLE_HCI_OCF_IP_RD_LOCAL_VER, 0, NULL);
+    return rc;
+}
+
+int
 host_hci_cmd_set_event_mask(uint64_t event_mask)
 {
     int rc;
