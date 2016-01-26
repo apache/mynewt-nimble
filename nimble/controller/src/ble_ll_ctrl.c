@@ -302,7 +302,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_FEATURE);
         } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
             /* XXX: should only get this if a slave initiated this */
-            ble_ll_hci_ev_read_rem_used_feat(connsm, BLE_ERR_UNSUPP_FEATURE);
+            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNSUPP_FEATURE);
         }
     }
 }
@@ -374,6 +374,18 @@ ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     htole16(dptr + 17, invalid_offset);
     htole16(dptr + 19, invalid_offset);
     htole16(dptr + 21, invalid_offset);
+}
+
+static void
+ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
+{
+    /* Set flag to denote we have sent/received this */
+    connsm->version_ind_sent = 1;
+
+    /* Fill out response */
+    pyld[0] = BLE_HCI_VER_BCS_4_2;
+    htole16(pyld + 1, BLE_LL_MFRG_ID);
+    htole16(pyld + 3, BLE_LL_SUB_VERS_NR);
 }
 
 /**
@@ -539,6 +551,17 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     return rsp_opcode;
 }
 
+/**
+ * 
+ * 
+ * Context: Link Layer task 
+ *  
+ * @param connsm 
+ * @param dptr 
+ * @param rspbuf 
+ * 
+ * @return int 
+ */
 static int
 ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                               uint8_t *rspbuf)
@@ -575,15 +598,9 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * If a master, we send reject with a
      * transaction collision error code.
      */
-    if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
-                ble_ll_ctrl_proc_stop(connsm,
-                                      BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
-            } else {
-                connsm->pending_ctrl_procs &= 
-                    ~BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
-            }
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_LMP_COLLISION);
         } else {
             /* The master sends reject ind ext w/error code 0x23 */
@@ -622,13 +639,50 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     }
 
     /* If we receive a response and no procedure is pending, just leave */
-    if (!IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
+    if (!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
         return BLE_ERR_MAX;
     }
 
     /* Process the received connection parameter response */
     rsp_opcode = ble_ll_ctrl_conn_param_pdu_proc(connsm, dptr, rspbuf,
                                                  BLE_LL_CTRL_CONN_PARM_RSP);
+    return rsp_opcode;
+}
+
+/**
+ * Called to process the LL control PDU VERSION_IND
+ *  
+ * Context: Link Layer task 
+ * 
+ * @param connsm 
+ * @param dptr 
+ * @param rspbuf 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr, 
+                           uint8_t *rspbuf)
+{
+    uint8_t rsp_opcode;
+
+    /* Process the packet */
+    connsm->vers_nr = dptr[0];
+    connsm->comp_id = le16toh(dptr + 1);
+    connsm->sub_vers_nr = le16toh(dptr + 3);
+    connsm->rxd_version_ind = 1;
+
+    rsp_opcode = BLE_ERR_MAX;
+    if (!connsm->version_ind_sent) {
+        rsp_opcode = BLE_LL_CTRL_VERSION_IND;
+        ble_ll_ctrl_version_ind_make(connsm, rspbuf);
+    }
+
+    /* Stop the control procedure */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG)) {
+        ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG);
+    }
     return rsp_opcode;
 }
 
@@ -671,9 +725,9 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         dptr = om->om_data;
 
         switch (ctrl_proc) {
-        case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
-            opcode = BLE_LL_CTRL_LENGTH_REQ;
-            ble_ll_ctrl_datalen_upd_make(connsm, dptr);
+        case BLE_LL_CTRL_PROC_CONN_UPDATE:
+            opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
+            ble_ll_ctrl_conn_upd_make(connsm, dptr + 1);
             break;
         case BLE_LL_CTRL_PROC_FEATURE_XCHG:
             if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
@@ -683,6 +737,10 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             }
             dptr[1] = ble_ll_read_supp_features();
             break;
+        case BLE_LL_CTRL_PROC_VERSION_XCHG:
+            opcode = BLE_LL_CTRL_VERSION_IND;
+            ble_ll_ctrl_version_ind_make(connsm, dptr + 1);
+            break;
         case BLE_LL_CTRL_PROC_TERMINATE:
             opcode = BLE_LL_CTRL_TERMINATE_IND;
             dptr[1] = connsm->disconnect_reason;
@@ -691,9 +749,9 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             opcode = BLE_LL_CTRL_CONN_PARM_REQ;
             ble_ll_ctrl_conn_param_pdu_make(connsm, dptr + 1, NULL);
             break;
-        case BLE_LL_CTRL_PROC_CONN_UPDATE:
-            opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
-            ble_ll_ctrl_conn_upd_make(connsm, dptr + 1);
+        case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
+            opcode = BLE_LL_CTRL_LENGTH_REQ;
+            ble_ll_ctrl_datalen_upd_make(connsm, dptr);
             break;
         default:
             assert(0);
@@ -767,11 +825,11 @@ ble_ll_ctrl_is_reject_ind_ext(uint8_t hdr, uint8_t opcode)
 void
 ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
-    assert(connsm->cur_ctrl_proc == ctrl_proc);
-    
-    os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
-    connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
-    connsm->pending_ctrl_procs &= ~(1 << ctrl_proc);
+    if (connsm->cur_ctrl_proc == ctrl_proc) {
+        os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
+        connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
+    }
+    CLR_PENDING_CTRL_PROC(connsm, ctrl_proc);
 
     /* If there are others, start them */
     ble_ll_ctrl_chk_proc_start(connsm);
@@ -877,7 +935,18 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
          * so just start from the first one for now.
          */
         for (i = 0; i < BLE_LL_CTRL_PROC_NUM; ++i) {
-            if (IS_PENDING_CTRL_PROC_M(connsm, i)) {
+            if (IS_PENDING_CTRL_PROC(connsm, i)) {
+                /* 
+                 * The version exchange is a special case. If we have already
+                 * received the information dont start it.
+                 */ 
+                if (i == BLE_LL_CTRL_PROC_VERSION_XCHG) {
+                    if (connsm->rxd_version_ind) {
+                        ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
+                        CLR_PENDING_CTRL_PROC(connsm, i);
+                    }
+                }
+
                 ble_ll_ctrl_proc_start(connsm, i);
                 break;
             }
@@ -976,8 +1045,8 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
          * pending, no need to perform it.
          */
         if ((connsm->cur_ctrl_proc != BLE_LL_CTRL_PROC_DATA_LEN_UPD) &&
-            IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD)) {
-            connsm->pending_ctrl_procs &= ~BLE_LL_CTRL_PROC_DATA_LEN_UPD;
+            IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD)) {
+            CLR_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
         }
 
         /* Send a response */
@@ -1018,10 +1087,14 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_FEATURE_RSP:
         /* Stop the control procedure */
         connsm->common_features = dptr[0];
-        if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
-            ble_ll_hci_ev_read_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
         }
-        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+        break;
+
+    case BLE_LL_CTRL_VERSION_IND:
+        rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspbuf + 1);
         break;
 
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
@@ -1040,7 +1113,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_START_ENC_REQ:
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
     case BLE_LL_CTRL_PING_REQ:
-    case BLE_LL_CTRL_VERSION_IND:
         /* Construct unknown pdu */
         rspbuf[1] = opcode;
         rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;

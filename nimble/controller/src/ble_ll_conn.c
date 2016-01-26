@@ -986,6 +986,12 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->send_conn_upd_event = 0;
     connsm->conn_update_scheduled = 0;
     connsm->host_expects_upd_event = 0;
+    connsm->version_ind_sent = 0;
+    connsm->common_features = 0;
+    connsm->vers_nr = 0;
+    connsm->comp_id = 0;
+    connsm->sub_vers_nr = 0;
+    connsm->rxd_version_ind = 0;
 
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
@@ -1199,10 +1205,10 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      */
     if (connsm->host_expects_upd_event) {
         update_status = BLE_ERR_SUCCESS;
-        if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
         } else {
-            if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
+            if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
                 ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
                 update_status = connsm->reject_reason;
             }
@@ -2108,7 +2114,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
          * no use sending the terminate ind. We need to get an ACK for the
          * terminate ind (master and/or slave) so that is why it is two packets.
          */ 
-        if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
+        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
             ticks = BLE_TX_DUR_USECS_M(0) +
                 BLE_TX_DUR_USECS_M(BLE_LL_CTRL_TERMINATE_IND_LEN + 1) + 
                 BLE_LL_IFS;

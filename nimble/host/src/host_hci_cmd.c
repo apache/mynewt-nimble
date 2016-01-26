@@ -261,6 +261,18 @@ host_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
 }
 
 int
+host_hci_cmd_rd_rem_version(uint16_t handle)
+{
+    int rc;
+    uint8_t cmd[sizeof(uint16_t)];
+
+    htole16(cmd, handle);
+    rc = host_hci_cmd_send(BLE_HCI_OGF_LINK_CTRL,
+                           BLE_HCI_OCF_RD_REM_VER_INFO, sizeof(uint16_t), cmd);
+    return rc;
+}
+
+int
 host_hci_cmd_le_set_event_mask(uint64_t event_mask)
 {
     int rc;

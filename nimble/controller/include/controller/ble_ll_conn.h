@@ -104,6 +104,8 @@ struct ble_ll_conn_sm
     uint8_t send_conn_upd_event;    /* note: can be 1 bit */
     uint8_t conn_update_scheduled;  /* note: can be 1 bit */
     uint8_t host_expects_upd_event;  /* note: can be 1 bit */
+    uint8_t version_ind_sent;       /* note: can be 1 bit */
+    uint8_t rxd_version_ind;        /* not can be 1 bit */
     uint8_t reject_reason;
     uint8_t host_reply_opcode;
     uint8_t master_sca;
@@ -112,10 +114,14 @@ struct ble_ll_conn_sm
     uint8_t disconnect_reason;
     uint8_t rxd_disconnect_reason;
     uint8_t common_features;        /* Just a uint8 for now */
+    uint8_t vers_nr;
     uint16_t pending_ctrl_procs;
     uint16_t event_cntr;
     uint16_t conn_handle;
     uint16_t completed_pkts;
+    uint16_t comp_id;
+    uint16_t sub_vers_nr;
+
     uint32_t access_addr;
     uint32_t crcinit;               /* only low 24 bits used */
     uint32_t ce_end_time;   /* cputime at which connection event should end */

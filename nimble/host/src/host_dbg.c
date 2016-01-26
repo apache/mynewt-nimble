@@ -153,6 +153,21 @@ host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
 }
 
 /**
+ * Display a version information event 
+ * 
+ * @param evdata 
+ * @param len 
+ */
+static void
+host_hci_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
+{
+    console_printf("Remote Version Info: status=%u handle=%u vers_nr=%u "
+                   "compid=%u subver=%u\n",
+                   evdata[0], le16toh(evdata + 1), evdata[3],
+                   le16toh(evdata + 4), le16toh(evdata + 6));
+}
+
+/**
  * Display the number of completed packets event
  * 
  * @param evdata 
@@ -261,6 +276,9 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     switch (evcode) {
     case BLE_HCI_EVCODE_DISCONN_CMP:
         host_hci_dbg_disconn_comp_disp(evdata, len);
+        break;
+    case BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP:
+        host_hci_dbg_rd_rem_ver_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
         host_hci_dbg_cmd_complete_disp(evdata, len);

@@ -48,6 +48,7 @@
 
 /* List of OCF for Link Control commands (OGF=0x01) */
 #define BLE_HCI_OCF_DISCONNECT_CMD          (0x0006)
+#define BLE_HCI_OCF_RD_REM_VER_INFO         (0x001D)
 
 /* Command specific definitions */
 /* Disconnect command */
@@ -395,7 +396,7 @@
 
 /* Event specific definitions */
 /* Event disconnect complete */
-#define BLE_HCI_EVENT_DISCONN_COMPLETE_LEN  (6)
+#define BLE_HCI_EVENT_DISCONN_COMPLETE_LEN  (4)
 
 /* Event command complete */
 #define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (5)
@@ -407,6 +408,9 @@
 /* Number of completed packets */
 #define BLE_HCI_EVENT_NUM_COMP_PKTS_HDR_LEN (1)
 #define BLE_HCI_EVENT_NUM_COMP_PKTS_ENT_LEN (4)
+
+/* Read remote version informaton */
+#define BLE_HCI_EVENT_RD_RM_VER_LEN         (8)
 
 /* Advertising report */
 #define BLE_HCI_ADV_RPT_EVTYPE_ADV_IND      (0)

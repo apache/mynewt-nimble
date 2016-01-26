@@ -106,11 +106,11 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
 }
 
 void
-ble_ll_hci_ev_read_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
+ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
 {
     uint8_t *evbuf;
 
-    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE)) {
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT)) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
@@ -122,6 +122,26 @@ ble_ll_hci_ev_read_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
                 memset(evbuf + 6, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
                 evbuf[6] = connsm->common_features;
             }
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+
+void
+ble_ll_hci_ev_rd_rem_ver(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP;
+            evbuf[1] = BLE_HCI_EVENT_RD_RM_VER_LEN;
+            evbuf[2] = status;
+            htole16(evbuf + 3, connsm->conn_handle);
+            evbuf[5] = connsm->vers_nr;
+            htole16(evbuf + 6, connsm->comp_id);
+            htole16(evbuf + 8, connsm->sub_vers_nr);
             ble_ll_hci_event_send(evbuf);
         }
     }

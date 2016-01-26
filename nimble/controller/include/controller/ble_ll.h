@@ -19,6 +19,10 @@
 
 #include "hal/hal_cputime.h"
 
+/* Controller revision. */
+#define BLE_LL_SUB_VERS_NR      (0x0000)
+#define BLE_LL_MFRG_ID          (0xFFFF)    /* XXX: replace with real one */
+
 /* 
  * The amount of time that we will wait to hear the start of a receive
  * packet after we have transmitted a packet. This time is at least

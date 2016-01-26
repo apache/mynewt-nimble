@@ -106,7 +106,7 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 
     hci_rev = 0;
     lmp_subver = 0;
-    mfrg = 0xFFFF;  /* XXXX: to be replaced by actual MFRG */
+    mfrg = BLE_LL_MFRG_ID;
 
     /* Place the data packet length and number of packets in the buffer */
     rspbuf[0] = BLE_HCI_VER_BCS_4_2;
@@ -429,6 +429,15 @@ ble_ll_hci_link_ctrl_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         /* Send command status instead of command complete */
         rc += (BLE_ERR_MAX + 1);
         break;
+
+    case BLE_HCI_OCF_RD_REM_VER_INFO:
+        if (len == sizeof(uint16_t)) {
+            rc = ble_ll_conn_hci_rd_rem_ver_cmd(cmdbuf);
+        }
+        /* Send command status instead of command complete */
+        rc += (BLE_ERR_MAX + 1);
+        break;
+
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;

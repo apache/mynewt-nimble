@@ -486,8 +486,8 @@ ble_ll_conn_update(uint8_t *cmdbuf)
     }
 
     /* Better not have this procedure ongoing! */
-    if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ) ||
-        IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ) ||
+        IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -682,8 +682,7 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
                     rc = BLE_ERR_CMD_DISALLOWED;
                 } else {
                     /* This control procedure better not be pending! */
-                    assert(!IS_PENDING_CTRL_PROC_M(connsm,
-                                                   BLE_LL_CTRL_PROC_TERMINATE));
+                    assert(!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_TERMINATE));
 
                     /* Record the disconnect reason */
                     connsm->disconnect_reason = reason;
@@ -703,4 +702,47 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
     }
 
     return rc;
+}
+
+/**
+ * Called to process a HCI disconnect command 
+ *  
+ * Context: Link Layer task (HCI command parser). 
+ * 
+ * @param cmdbuf 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
+{
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    /* Check for valid parameters */
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* Return error if in progress */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* 
+     * Start this control procedure. If we have already done this control
+     * procedure we set the pending bit so that the host gets an event because
+     * it is obviously expecting one (or would not have sent the command).
+     * NOTE: we cant just send the event here. That would cause the event to
+     * be queued before the command status.
+     */
+    if (!connsm->version_ind_sent) {
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG);
+    } else {
+        connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_VERSION_XCHG);
+    }
+
+    return BLE_ERR_SUCCESS;
 }

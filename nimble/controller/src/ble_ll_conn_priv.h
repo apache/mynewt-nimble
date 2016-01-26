@@ -96,6 +96,7 @@ void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
                                     uint8_t reason);
 
 int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
+int ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf);
 int ble_ll_conn_create(uint8_t *cmdbuf);
 int ble_ll_conn_update(uint8_t *cmdbuf);
 int ble_ll_conn_param_reply(uint8_t *cmdbuf, int negative_reply);
