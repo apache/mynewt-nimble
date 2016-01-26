@@ -17,6 +17,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include "console/console.h"
 #include "nimble/ble.h"
 #include "ble_l2cap.h"
 #include "ble_l2cap_sig.h"
@@ -25,6 +26,15 @@ static int
 ble_l2cap_sig_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf **om)
 {
+    uint8_t u8;
+    int i;
+
+    console_printf("L2CAP - rxed signalling msg: ");
+    for (i = 0; i < OS_MBUF_PKTLEN(*om); i++) {
+        os_mbuf_copydata(*om, i, 1, &u8);
+        console_printf("0x%02x ", u8);
+    }
+    console_printf("\n");
     return BLE_ERR_UNSUPPORTED;
 }
 
