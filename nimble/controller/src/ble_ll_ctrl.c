@@ -940,15 +940,13 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
                  * The version exchange is a special case. If we have already
                  * received the information dont start it.
                  */ 
-                if (i == BLE_LL_CTRL_PROC_VERSION_XCHG) {
-                    if (connsm->rxd_version_ind) {
-                        ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
-                        CLR_PENDING_CTRL_PROC(connsm, i);
-                    }
+                if ((i == BLE_LL_CTRL_PROC_VERSION_XCHG) && (connsm->rxd_version_ind)) {
+                    ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
+                    CLR_PENDING_CTRL_PROC(connsm, i);
+                } else {
+                    ble_ll_ctrl_proc_start(connsm, i);
+                    break;
                 }
-
-                ble_ll_ctrl_proc_start(connsm, i);
-                break;
             }
         }
     }
