@@ -369,7 +369,6 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
-        assert(0); // XXX temporary.
         return BLE_ATT_ERR_UNLIKELY;
     }
 
@@ -378,14 +377,12 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
      */
     chr_def_handle = attr_handle - 2;
     if (chr_def_handle > attr_handle) {
-        assert(0); // XXX temporary.
         return BLE_ATT_ERR_UNLIKELY;
     }
 
     clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
                                      attr_handle - 2);
     if (clt_cfg == 0) {
-        assert(0); // XXX temporary.
         return BLE_ATT_ERR_UNLIKELY;
     }
 
