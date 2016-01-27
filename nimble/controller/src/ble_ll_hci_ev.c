@@ -94,12 +94,10 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[1] = BLE_HCI_LE_CONN_UPD_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE;
             evbuf[3] = status;
-            if (status == BLE_ERR_SUCCESS) {
-                htole16(evbuf + 4, connsm->conn_handle);
-                htole16(evbuf + 6, connsm->conn_itvl);
-                htole16(evbuf + 8, connsm->slave_latency);
-                htole16(evbuf + 10, connsm->supervision_tmo);
-            }
+            htole16(evbuf + 4, connsm->conn_handle);
+            htole16(evbuf + 6, connsm->conn_itvl);
+            htole16(evbuf + 8, connsm->slave_latency);
+            htole16(evbuf + 10, connsm->supervision_tmo);
             ble_ll_hci_event_send(evbuf);
         }
     }

@@ -50,7 +50,7 @@
 
 /* Configuration for supported features */
 #define BLE_LL_CFG_FEAT_DATA_LEN_EXT
-#undef BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+#define BLE_LL_CFG_FEAT_CONN_PARAM_REQ
 #undef BLE_LL_CFG_FEAT_LE_ENCRYPTION
 #undef BLE_LL_CFG_FEAT_EXT_REJECT_IND
 #define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
@@ -702,7 +702,7 @@ ble_ll_task(void *arg)
         case OS_EVENT_T_TIMER:
             cf = (struct os_callout_func *)ev;
             assert(cf->cf_func);
-            cf->cf_func(cf->cf_arg);
+            cf->cf_func(ev->ev_arg);
             break;
         case BLE_LL_EVENT_HCI_CMD:
             /* Process HCI command */

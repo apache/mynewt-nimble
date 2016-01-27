@@ -139,6 +139,16 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     return rc;
 }
 
+/**
+ * Called when we receive either a connection parameter request or response. 
+ * 
+ * @param connsm 
+ * @param dptr 
+ * @param rspbuf 
+ * @param opcode 
+ * 
+ * @return int 
+ */
 static int
 ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                                 uint8_t *rspbuf, uint8_t opcode)
@@ -147,30 +157,30 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     int indicate;
     uint8_t rsp_opcode;
     uint8_t ble_err;
-    struct ble_ll_conn_params cp;
     struct ble_ll_conn_params *req;
     struct hci_conn_update *hcu;
 
     /* Extract parameters and check if valid */
-    cp.interval_min = le16toh(dptr);
-    cp.interval_max = le16toh(dptr + 2);
-    cp.latency = le16toh(dptr + 4);
-    cp.timeout = le16toh(dptr + 6);
-    cp.pref_periodicity = dptr[8];
-    cp.ref_conn_event_cnt  = le16toh(dptr + 9);
-    cp.offset0 = le16toh(dptr + 11);
-    cp.offset1 = le16toh(dptr + 13);
-    cp.offset2 = le16toh(dptr + 15);
-    cp.offset3 = le16toh(dptr + 17);
-    cp.offset4 = le16toh(dptr + 19);
-    cp.offset5 = le16toh(dptr + 21);
+    req = &connsm->conn_cp;
+    req->interval_min = le16toh(dptr);
+    req->interval_max = le16toh(dptr + 2);
+    req->latency = le16toh(dptr + 4);
+    req->timeout = le16toh(dptr + 6);
+    req->pref_periodicity = dptr[8];
+    req->ref_conn_event_cnt  = le16toh(dptr + 9);
+    req->offset0 = le16toh(dptr + 11);
+    req->offset1 = le16toh(dptr + 13);
+    req->offset2 = le16toh(dptr + 15);
+    req->offset3 = le16toh(dptr + 17);
+    req->offset4 = le16toh(dptr + 19);
+    req->offset5 = le16toh(dptr + 21);
 
     /* Check if parameters are valid */
     ble_err = BLE_ERR_SUCCESS;
-    rc = ble_ll_conn_hci_chk_conn_params(cp.interval_min, 
-                                         cp.interval_max,
-                                         cp.latency, 
-                                         cp.timeout);
+    rc = ble_ll_conn_hci_chk_conn_params(req->interval_min, 
+                                         req->interval_max,
+                                         req->latency, 
+                                         req->timeout);
     if (rc) {
         ble_err = BLE_ERR_INV_LMP_LL_PARM;
         goto conn_param_pdu_exit;
@@ -182,20 +192,15 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * not have to notify the host.
      *  XXX: what if we dont like the parameters? When do we check that out?
      */ 
-    req = NULL;
     indicate = 1;
-    if ((connsm->conn_itvl >= cp.interval_min) && 
-        (connsm->conn_itvl <= cp.interval_max) &&
-        (connsm->supervision_tmo == cp.timeout) &&
-        (connsm->slave_latency == cp.latency)) {
-        indicate = 0;
-        /* XXX: For now, if we are a master, we wont send a response that
-         * needs to remember the request. That might change with connection
-           update pdu. Not sure. */
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            req = &cp;
+    if (opcode == BLE_LL_CTRL_CONN_PARM_REQ) {
+        if ((connsm->conn_itvl >= req->interval_min) &&
+            (connsm->conn_itvl <= req->interval_max) &&
+            (connsm->supervision_tmo == req->timeout) &&
+            (connsm->slave_latency == req->latency)) {
+            indicate = 0;
+            goto conn_parm_req_do_indicate;
         }
-        goto conn_parm_req_do_indicate;
     }
 
     /* 
@@ -216,12 +221,12 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
          */
         hcu = &connsm->conn_param_req;
         if (hcu->handle != 0) {
-            if (!((cp.interval_min < hcu->conn_itvl_min) ||
-                  (cp.interval_min > hcu->conn_itvl_max) ||
-                  (cp.interval_max < hcu->conn_itvl_min) ||
-                  (cp.interval_max > hcu->conn_itvl_max) ||
-                  (cp.latency != hcu->conn_latency) ||
-                  (cp.timeout != hcu->supervision_timeout))) {
+            if (!((req->interval_min < hcu->conn_itvl_min) ||
+                  (req->interval_min > hcu->conn_itvl_max) ||
+                  (req->interval_max < hcu->conn_itvl_min) ||
+                  (req->interval_max > hcu->conn_itvl_max) ||
+                  (req->latency != hcu->conn_latency) ||
+                  (req->timeout != hcu->supervision_timeout))) {
                 indicate = 0;
             }
         }
@@ -237,7 +242,8 @@ conn_parm_req_do_indicate:
          * Send event to host. At this point we leave and wait to get
          * an answer.
          */ 
-        ble_ll_hci_ev_rem_conn_parm_req(connsm, &cp);
+        /* XXX: what about masked out event? */
+        ble_ll_hci_ev_rem_conn_parm_req(connsm, req);
         connsm->host_reply_opcode = opcode;
         connsm->awaiting_host_reply = 1;
         rsp_opcode = 255;
@@ -336,10 +342,9 @@ static void
 ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                                 struct ble_ll_conn_params *req)
 {
-    uint16_t invalid_offset;
+    uint16_t offset;
     struct hci_conn_update *hcu;
 
-    invalid_offset = 0xFFFF;
     /* If we were passed in a request, we use the parameters from the request */
     if (req) {
         htole16(dptr, req->interval_min);
@@ -368,12 +373,13 @@ ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     htole16(dptr + 9, connsm->event_cntr);
 
     /* XXX: For now, dont use offsets */
-    htole16(dptr + 11, invalid_offset);
-    htole16(dptr + 13, invalid_offset);
-    htole16(dptr + 15, invalid_offset);
-    htole16(dptr + 17, invalid_offset);
-    htole16(dptr + 19, invalid_offset);
-    htole16(dptr + 21, invalid_offset);
+    offset = 0xFFFF;
+    htole16(dptr + 11, offset);
+    htole16(dptr + 13, offset);
+    htole16(dptr + 15, offset);
+    htole16(dptr + 17, offset);
+    htole16(dptr + 19, offset);
+    htole16(dptr + 21, offset);
 }
 
 static void
@@ -397,15 +403,16 @@ ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
  * @param rsp 
  */
 static void
-ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
+ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
+                          struct ble_ll_conn_params *cp)
 {
     uint16_t instant;
+    uint32_t dt;
+    uint32_t num_old_ce;
+    uint32_t new_itvl_usecs;
+    uint32_t old_itvl_usecs;
     struct hci_conn_update *hcu;
     struct ble_ll_conn_upd_req *req;
-
-    /* Make sure we have the parameters! */
-    assert(connsm->conn_param_req.handle != 0);
-
 
     /* 
      * Set instant. We set the instant to the current event counter plus
@@ -423,11 +430,41 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
     /* Copy parameters in connection update structure */
     hcu = &connsm->conn_param_req;
     req = &connsm->conn_update_req;
-    req->winsize = connsm->tx_win_size;
-    req->winoffset = 0;
-    req->interval = hcu->conn_itvl_max;
-    req->timeout = hcu->supervision_timeout;
-    req->latency = hcu->conn_latency;
+    if (cp) {
+        /* XXX: so we need to make the new anchor point some time away
+         * from txwinoffset by some amount of msecs. Not sure how to do
+           that here. We dont need to, but we should. */
+        /* Calculate offset from requested offsets (if any) */
+        if (cp->offset0 != 0xFFFF) {
+            new_itvl_usecs = cp->interval_max * BLE_LL_CONN_ITVL_USECS;
+            old_itvl_usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+            if ((int16_t)(cp->ref_conn_event_cnt - instant) >= 0) {
+                num_old_ce = cp->ref_conn_event_cnt - instant;
+                dt = old_itvl_usecs * num_old_ce;
+                dt += (cp->offset0 * BLE_LL_CONN_ITVL_USECS);
+                dt = dt % new_itvl_usecs;
+            } else {
+                num_old_ce = instant - cp->ref_conn_event_cnt;
+                dt = old_itvl_usecs * num_old_ce;
+                dt -= (cp->offset0 * BLE_LL_CONN_ITVL_USECS);
+                dt = dt % new_itvl_usecs;
+                dt = new_itvl_usecs - dt;
+            }
+            req->winoffset = dt / BLE_LL_CONN_TX_WIN_USECS;
+        } else {
+            req->winoffset = 0;
+        }
+        req->interval = cp->interval_max;
+        req->timeout = cp->timeout;
+        req->latency = cp->latency;
+        req->winsize = 1;
+    } else {
+        req->interval = hcu->conn_itvl_max;
+        req->timeout = hcu->supervision_timeout;
+        req->latency = hcu->conn_latency;
+        req->winoffset = 0;
+        req->winsize = connsm->tx_win_size;
+    }
     req->instant = instant;
 
     /* XXX: make sure this works for the connection parameter request proc. */
@@ -464,7 +501,7 @@ ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, uint8_t *rsp,
         rsp_opcode = BLE_LL_CTRL_CONN_PARM_RSP;
     } else {
         /* Create a connection update pdu */
-        ble_ll_ctrl_conn_upd_make(connsm, rsp + 1);
+        ble_ll_ctrl_conn_upd_make(connsm, rsp + 1, req);
         rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
     }
 
@@ -492,12 +529,6 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         return BLE_ERR_MAX;
     }
-
-#if 0
-    /* Deal with receiving this when in this state. I think we are done */
-    if (IS_PENDING_CTRL_PROC_M(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
-    }
-#endif
 
     /* Retrieve parameters */
     reqdata = &connsm->conn_update_req;
@@ -727,7 +758,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         switch (ctrl_proc) {
         case BLE_LL_CTRL_PROC_CONN_UPDATE:
             opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
-            ble_ll_ctrl_conn_upd_make(connsm, dptr + 1);
+            ble_ll_ctrl_conn_upd_make(connsm, dptr + 1, NULL);
             break;
         case BLE_LL_CTRL_PROC_FEATURE_XCHG:
             if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {

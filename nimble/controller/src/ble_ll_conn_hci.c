@@ -467,7 +467,7 @@ ble_ll_conn_read_rem_features(uint8_t *cmdbuf)
  * @return int 
  */
 int
-ble_ll_conn_update(uint8_t *cmdbuf)
+ble_ll_conn_hci_update(uint8_t *cmdbuf)
 {
     int rc;
     uint8_t ctrl_proc;
@@ -493,6 +493,9 @@ ble_ll_conn_update(uint8_t *cmdbuf)
 
     /* See if we support this feature */
     if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            return BLE_ERR_UNSUPP_FEATURE;
+        } 
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
@@ -544,7 +547,7 @@ ble_ll_conn_update(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_conn_param_reply(uint8_t *cmdbuf, int positive_reply)
+ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
 {
     int rc;
     uint8_t ble_err;
@@ -586,7 +589,8 @@ ble_ll_conn_param_reply(uint8_t *cmdbuf, int positive_reply)
             om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
             if (om) {
                 dptr = om->om_data;
-                rsp_opcode = ble_ll_ctrl_conn_param_reply(connsm, dptr, NULL);
+                rsp_opcode = ble_ll_ctrl_conn_param_reply(connsm, dptr, 
+                                                          &connsm->conn_cp);
                 dptr[0] = rsp_opcode;
                 len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
                 ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
@@ -621,7 +625,7 @@ ble_ll_conn_create_cancel(void)
     int rc;
     struct ble_ll_conn_sm *connsm;
 
-    /* WWW: BUG! I send the event before the command complete. Not good. */
+    /* XXX: BUG! I send the event before the command complete. Not good. */
     /* 
      * If we receive this command and we have not got a connection
      * create command, we have to return disallowed. The spec does not say

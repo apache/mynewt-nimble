@@ -102,10 +102,10 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 /* Configuration parameters */
 #define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
-#define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_251_500_PPM << 5)
+#define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
 #define BLE_LL_CFG_CONN_MAX_CONNS           (32)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
-#define BLE_LL_CFG_CONN_INIT_SLOTS          (2)
+#define BLE_LL_CFG_CONN_INIT_SLOTS          (4)
 
 /* We cannot have more than 254 connections given our current implementation */
 #if (BLE_LL_CFG_CONN_MAX_CONNS >= 255)
@@ -114,8 +114,8 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 
 /* LL configuration definitions */
 #define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (251)
-#define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (27)
-#define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (27)
+#define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (251)
+#define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (251)
 
 /* Sleep clock accuracy table (in ppm) */
 static const uint16_t g_ble_sca_ppm_tbl[8] =
@@ -992,6 +992,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->comp_id = 0;
     connsm->sub_vers_nr = 0;
     connsm->rxd_version_ind = 0;
+    connsm->reject_reason = BLE_ERR_SUCCESS;
 
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
@@ -1268,7 +1269,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         /* Reset the connection supervision timeout */
         cputime_timer_stop(&connsm->conn_spvn_timer);
-        tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
+        tmo = connsm->supervision_tmo;
+        tmo = tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
+        tmo = cputime_usecs_to_ticks(tmo);
         cputime_timer_start(&connsm->conn_spvn_timer, connsm->anchor_point+tmo);
 
         /* Reset update scheduled flag */
@@ -1278,8 +1281,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     /* Calculate data channel index of next connection event */
     while (latency > 0) {
         connsm->last_unmapped_chan = connsm->unmapped_chan;
-        --latency;
         connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
+        --latency;
     }
 
     /* 
@@ -1727,6 +1730,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
         }
 
+        /* XXX: note: this crashed during interop testing! conn_create_sm=NULL*/
         /* Attempt to schedule new connection. Possible that this might fail */
         if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, 
                                    ble_hdr->end_cputime,
@@ -2131,7 +2135,7 @@ conn_rx_pdu_end:
     if (connsm->slave_set_last_anchor) {
         connsm->slave_set_last_anchor = 0;
         connsm->last_anchor_point = rxhdr->end_cputime - 
-            BLE_TX_DUR_USECS_M(rxpdu->om_data[1]);
+            cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rxpdu->om_data[1]));
         connsm->anchor_point = connsm->last_anchor_point;
     }
 

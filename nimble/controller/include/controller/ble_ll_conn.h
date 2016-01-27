@@ -183,6 +183,9 @@ struct ble_ll_conn_sm
 
     /* For connection update procedure */
     struct ble_ll_conn_upd_req conn_update_req;
+
+    /* XXX: for now, just store them all */
+    struct ble_ll_conn_params conn_cp;
 };
 
 /* 

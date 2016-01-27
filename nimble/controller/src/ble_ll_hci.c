@@ -357,7 +357,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
     case BLE_HCI_OCF_LE_CONN_UPDATE:
         if (len == BLE_HCI_CONN_UPDATE_LEN) {
-            rc = ble_ll_conn_update(cmdbuf);
+            rc = ble_ll_conn_hci_update(cmdbuf);
         }
         /* This is a hack; command status gets sent instead of cmd complete */
         rc += (BLE_ERR_MAX + 1);
@@ -374,13 +374,13 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
         if (len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN) {
-            rc = ble_ll_conn_param_reply(cmdbuf, 0);
+            rc = ble_ll_conn_hci_param_reply(cmdbuf, 0);
         }
         break;
 
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         if (len == BLE_HCI_CONN_PARAM_REPLY_LEN) {
-            rc = ble_ll_conn_param_reply(cmdbuf, 1);
+            rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
         }
         break;
 
@@ -517,7 +517,6 @@ ble_ll_hci_info_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     return rc;
 }
-
 
 void
 ble_ll_hci_cmd_proc(struct os_event *ev)
