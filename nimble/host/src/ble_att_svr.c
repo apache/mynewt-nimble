@@ -1883,6 +1883,15 @@ done:
             /* A group was being processed.  Add its corresponding entry to the
              * response.
              */
+
+            if (entry == NULL) {
+                /* We have reached the end of the attribute list.  Indicate an
+                 * end handle of 0xffff so that the client knows there are no
+                 * more attributes without needing to send a follow-up request.
+                 */
+                end_group_handle = 0xffff;
+            }
+
             rc = ble_att_svr_read_group_type_entry_write(
                 txom, ble_l2cap_chan_mtu(chan),
                 start_group_handle, end_group_handle,

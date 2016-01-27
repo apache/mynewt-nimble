@@ -104,6 +104,8 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
     }
 }
 
+#define BLE_ATT_SVR_TEST_LAST_SVC  11
+
 static int
 ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
                                       uint16_t attr_handle, uint8_t *uuid128,
@@ -113,7 +115,7 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
-    /* Service 1,2,3...16 from 11 to 19 */
+    /* Service 010203...0f from 11 to 19 */
 
     static uint8_t vals[20][16] = {
         [1] =   { 0x22, 0x11 },
@@ -188,7 +190,7 @@ ble_att_svr_test_misc_register_group_attrs(void)
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
-    /* Service 1,2,3...16 from 11 to 19 */
+    /* Service 010203...0f from 11 to 19 */
 
     int i;
 
@@ -218,7 +220,7 @@ ble_att_svr_test_misc_register_group_attrs(void)
             ble_att_svr_test_misc_attr_fn_r_group);
     }
 
-    /* Service 1,2,3...16 from 11 to 19 */
+    /* Service 010203...0f from 11 to 19 */
     ble_att_svr_test_misc_register_uuid16(
         BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 11,
         ble_att_svr_test_misc_attr_fn_r_group);
@@ -649,7 +651,11 @@ ble_att_svr_test_misc_verify_tx_read_group_type_rsp(
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
         htole16(&u16, u16);
-        TEST_ASSERT(u16 == entry->end_handle);
+        if (entry->start_handle == BLE_ATT_SVR_TEST_LAST_SVC) {
+            TEST_ASSERT(u16 == 0xffff);
+        } else {
+            TEST_ASSERT(u16 == entry->end_handle);
+        }
         off += 2;
 
         if (entry->uuid16 != 0) {
