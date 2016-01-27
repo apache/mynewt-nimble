@@ -184,5 +184,5 @@ ble_att_get_pkthdr(void)
 void
 ble_att_init(void)
 {
-    ble_att_preferred_mtu = BLE_ATT_MTU_DFLT;
+    ble_att_preferred_mtu = BLE_ATT_MTU_PREFERRED_DFLT;
 }
