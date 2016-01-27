@@ -150,16 +150,14 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[1] = BLE_HCI_LE_CONN_COMPLETE_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
             evbuf[3] = status;
-            if (status == BLE_ERR_SUCCESS) {
-                htole16(evbuf + 4, connsm->conn_handle);
-                evbuf[6] = connsm->conn_role - 1;
-                evbuf[7] = connsm->peer_addr_type;
-                memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
-                htole16(evbuf + 14, connsm->conn_itvl);
-                htole16(evbuf + 16, connsm->slave_latency);
-                htole16(evbuf + 18, connsm->supervision_tmo);
-                evbuf[20] = connsm->master_sca;
-            }
+            htole16(evbuf + 4, connsm->conn_handle);
+            evbuf[6] = connsm->conn_role - 1;
+            evbuf[7] = connsm->peer_addr_type;
+            memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
+            htole16(evbuf + 14, connsm->conn_itvl);
+            htole16(evbuf + 16, connsm->slave_latency);
+            htole16(evbuf + 18, connsm->supervision_tmo);
+            evbuf[20] = connsm->master_sca;
             ble_ll_hci_event_send(evbuf);
         }
     }

@@ -115,11 +115,9 @@ ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[1] = BLE_HCI_LE_RD_REM_USED_FEAT_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT;
             evbuf[3] = status;
-            if (status == BLE_ERR_SUCCESS) {
-                htole16(evbuf + 4, connsm->conn_handle);
-                memset(evbuf + 6, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
-                evbuf[6] = connsm->common_features;
-            }
+            htole16(evbuf + 4, connsm->conn_handle);
+            memset(evbuf + 6, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
+            evbuf[6] = connsm->common_features;
             ble_ll_hci_event_send(evbuf);
         }
     }
