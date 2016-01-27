@@ -37,6 +37,50 @@ ble_hs_conn_can_alloc(void)
     return ble_hs_conn_pool.mp_num_free >= 1;
 }
 
+struct ble_l2cap_chan *
+ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
+{
+    struct ble_l2cap_chan *chan;
+
+    SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
+        if (chan->blc_cid == cid) {
+            return chan;
+        }
+        if (chan->blc_cid > cid) {
+            return NULL;
+        }
+    }
+
+    return NULL;
+}
+
+int
+ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+    struct ble_l2cap_chan *prev;
+    struct ble_l2cap_chan *cur;
+
+    prev = NULL;
+    SLIST_FOREACH(cur, &conn->bhc_channels, blc_next) {
+        if (cur->blc_cid == chan->blc_cid) {
+            return BLE_HS_EALREADY;
+        }
+        if (cur->blc_cid > chan->blc_cid) {
+            break;
+        }
+
+        prev = cur;
+    }
+
+    if (prev == NULL) {
+        SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
+    } else {
+        SLIST_INSERT_AFTER(prev, chan, blc_next);
+    }
+
+    return 0;
+}
+
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
 {
@@ -56,13 +100,19 @@ ble_hs_conn_alloc(void)
     if (chan == NULL) {
         goto err;
     }
-    SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
+    rc = ble_hs_conn_chan_insert(conn, chan);
+    if (rc != 0) {
+        goto err;
+    }
 
     chan = ble_l2cap_sig_create_chan();
     if (chan == NULL) {
         goto err;
     }
-    SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
+    rc = ble_hs_conn_chan_insert(conn, chan);
+    if (rc != 0) {
+        goto err;
+    }
 
     rc = ble_gatts_conn_init(&conn->bhc_gatt_svr);
     if (rc != 0) {
@@ -146,20 +196,6 @@ struct ble_hs_conn *
 ble_hs_conn_first(void)
 {
     return SLIST_FIRST(&ble_hs_conns);
-}
-
-struct ble_l2cap_chan *
-ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
-{
-    struct ble_l2cap_chan *chan;
-
-    SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
-        if (chan->blc_cid == cid) {
-            return chan;
-        }
-    }
-
-    return NULL;
 }
 
 static void

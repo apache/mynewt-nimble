@@ -62,6 +62,8 @@ struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
 struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);
+int ble_hs_conn_chan_insert(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan);
 void ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts);
 int ble_hs_conn_can_tx(struct ble_hs_conn *conn);
 int ble_hs_conn_init(void);

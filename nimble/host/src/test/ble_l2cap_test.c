@@ -58,7 +58,7 @@ ble_l2cap_test_create_conn(uint16_t handle, uint8_t *addr)
     chan->blc_default_mtu = 240;
     chan->blc_rx_fn = ble_l2cap_test_util_rx;
 
-    SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
+    ble_hs_conn_chan_insert(conn, chan);
 
     return conn;
 }
