@@ -1971,8 +1971,10 @@ err:
     neg_reply.handle = evt->connection_handle;
     neg_reply.reason = rc;
 
-    entry->state = BLE_GAP_CONN_STATE_U_NEG_REPLY;
-    ble_hci_ack_set_callback(ble_gap_conn_param_neg_reply_ack, entry);
+    if (entry != NULL) {
+        entry->state = BLE_GAP_CONN_STATE_U_NEG_REPLY;
+        ble_hci_ack_set_callback(ble_gap_conn_param_neg_reply_ack, entry);
+    }
 
     host_hci_cmd_le_conn_param_neg_reply(&neg_reply);
 }
