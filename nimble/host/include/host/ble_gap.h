@@ -87,13 +87,14 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_CONN                  0
 #define BLE_GAP_EVENT_CONN_UPDATED          1
 #define BLE_GAP_EVENT_CONN_UPDATE_REQ       2
-#define BLE_GAP_EVENT_CANCEL_FAILURE        3
-#define BLE_GAP_EVENT_TERM_FAILURE          4
-#define BLE_GAP_EVENT_DISC_SUCCESS          5
-#define BLE_GAP_EVENT_DISC_FINISHED         6
-#define BLE_GAP_EVENT_ADV_FINISHED          7
-#define BLE_GAP_EVENT_ADV_FAILURE           8
-#define BLE_GAP_EVENT_ADV_STOP_FAILURE      9
+#define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      3
+#define BLE_GAP_EVENT_CANCEL_FAILURE        4
+#define BLE_GAP_EVENT_TERM_FAILURE          5
+#define BLE_GAP_EVENT_DISC_SUCCESS          6
+#define BLE_GAP_EVENT_DISC_FINISHED         7
+#define BLE_GAP_EVENT_ADV_FINISHED          8
+#define BLE_GAP_EVENT_ADV_FAILURE           9
+#define BLE_GAP_EVENT_ADV_STOP_FAILURE      10
 
 struct ble_gap_conn_desc {
     uint8_t peer_addr[6];

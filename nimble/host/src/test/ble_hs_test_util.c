@@ -26,7 +26,7 @@
 #include "ble_hci_sched.h"
 #include "ble_hs_conn.h"
 #include "ble_gap_priv.h"
-#include "ble_l2cap.h"
+#include "ble_l2cap_priv.h"
 #include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
@@ -362,6 +362,7 @@ void
 ble_hs_test_util_tx_all(void)
 {
     ble_gattc_wakeup();
+    ble_l2cap_sig_wakeup();
     ble_hs_process_tx_data_queue();
 }
 

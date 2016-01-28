@@ -23,7 +23,7 @@
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "ble_hs_conn.h"
-#include "ble_l2cap.h"
+#include "ble_l2cap_priv.h"
 
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
                "struct ble_l2cap_hdr must be 4 bytes");
@@ -285,6 +285,11 @@ ble_l2cap_init(void)
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
         rc = BLE_HS_EOS;
+        goto err;
+    }
+
+    rc = ble_l2cap_sig_init();
+    if (rc != 0) {
         goto err;
     }
 

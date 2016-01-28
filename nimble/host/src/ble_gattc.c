@@ -33,9 +33,9 @@
  * $definitions / declarations                                               *
  *****************************************************************************/
 
-#define BLE_GATT_NUM_ENTRIES                    16      /* XXX Configurable. */
+#define BLE_GATT_NUM_PROCS                      16      /* XXX Configurable. */
 #define BLE_GATT_HEARTBEAT_PERIOD               1000    /* Milliseconds. */
-#define BLE_GATT_UNRESPONSIVE_TIMEOUT           5000    /* Milliseconds. */
+#define BLE_GATT_UNRESPONSIVE_TIMEOUT           30000   /* Milliseconds. */
 
 #define BLE_GATT_OP_NONE                        UINT8_MAX
 #define BLE_GATT_OP_MTU                         0
@@ -175,16 +175,16 @@ struct ble_gattc_proc {
 };
 
 /** Procedure has a tx pending. */
-#define BLE_GATT_ENTRY_F_PENDING    0x01
+#define BLE_GATT_PROC_F_PENDING     0x01
 
 /** Procedure currently expects an ATT response. */
-#define BLE_GATT_ENTRY_F_EXPECTING  0x02
+#define BLE_GATT_PROC_F_EXPECTING   0x02
 
 /** Procedure failed to tx due to too many outstanding txes. */
-#define BLE_GATT_ENTRY_F_CONGESTED  0x04
+#define BLE_GATT_PROC_F_CONGESTED   0x04
 
 /** Procedure failed to tx due to memory exhaustion. */
-#define BLE_GATT_ENTRY_F_NO_MEM     0x08
+#define BLE_GATT_PROC_F_NO_MEM      0x08
 
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource
@@ -640,7 +640,7 @@ ble_gattc_proc_matches(struct ble_gattc_proc *proc, uint16_t conn_handle,
     }
 
     if (expecting_only &&
-        !(proc->flags & BLE_GATT_ENTRY_F_EXPECTING)) {
+        !(proc->flags & BLE_GATT_PROC_F_EXPECTING)) {
 
         return 0;
     }
@@ -691,10 +691,10 @@ ble_gattc_proc_find(uint16_t conn_handle, uint8_t op, int expecting_only,
 static void
 ble_gattc_proc_set_pending(struct ble_gattc_proc *proc)
 {
-    assert(!(proc->flags & BLE_GATT_ENTRY_F_PENDING));
+    assert(!(proc->flags & BLE_GATT_PROC_F_PENDING));
 
-    proc->flags &= ~BLE_GATT_ENTRY_F_EXPECTING;
-    proc->flags |= BLE_GATT_ENTRY_F_PENDING;
+    proc->flags &= ~BLE_GATT_PROC_F_EXPECTING;
+    proc->flags |= BLE_GATT_PROC_F_PENDING;
     ble_hs_kick_gatt();
 }
 
@@ -706,11 +706,11 @@ static void
 ble_gattc_proc_set_expecting(struct ble_gattc_proc *proc,
                              struct ble_gattc_proc *prev)
 {
-    assert(!(proc->flags & BLE_GATT_ENTRY_F_EXPECTING));
+    assert(!(proc->flags & BLE_GATT_PROC_F_EXPECTING));
 
     ble_gattc_proc_remove(proc, prev);
-    proc->flags &= ~BLE_GATT_ENTRY_F_PENDING;
-    proc->flags |= BLE_GATT_ENTRY_F_EXPECTING;
+    proc->flags &= ~BLE_GATT_PROC_F_PENDING;
+    proc->flags |= BLE_GATT_PROC_F_EXPECTING;
     proc->tx_time = os_time_get();
     STAILQ_INSERT_TAIL(&ble_gattc_list, proc, next);
 }
@@ -763,9 +763,9 @@ ble_gattc_new_proc(uint16_t conn_handle, uint8_t op,
 static int
 ble_gattc_proc_can_pend(struct ble_gattc_proc *proc)
 {
-    return !(proc->flags & (BLE_GATT_ENTRY_F_CONGESTED |
-                            BLE_GATT_ENTRY_F_NO_MEM |
-                            BLE_GATT_ENTRY_F_EXPECTING));
+    return !(proc->flags & (BLE_GATT_PROC_F_CONGESTED |
+                            BLE_GATT_PROC_F_NO_MEM |
+                            BLE_GATT_PROC_F_EXPECTING));
 }
 
 /**
@@ -786,11 +786,11 @@ ble_gattc_tx_postpone_chk(struct ble_gattc_proc *proc, int rc)
 {
     switch (rc) {
     case BLE_HS_ECONGESTED:
-        proc->flags |= BLE_GATT_ENTRY_F_CONGESTED;
+        proc->flags |= BLE_GATT_PROC_F_CONGESTED;
         return 1;
 
     case BLE_HS_ENOMEM:
-        proc->flags |= BLE_GATT_ENTRY_F_NO_MEM;
+        proc->flags |= BLE_GATT_PROC_F_NO_MEM;
         return 1;
 
     default:
@@ -833,12 +833,12 @@ ble_gattc_heartbeat(void *unused)
     now = os_time_get();
 
     STAILQ_FOREACH(proc, &ble_gattc_list, next) {
-        if (proc->flags & BLE_GATT_ENTRY_F_NO_MEM) {
-            proc->flags &= ~BLE_GATT_ENTRY_F_NO_MEM;
+        if (proc->flags & BLE_GATT_PROC_F_NO_MEM) {
+            proc->flags &= ~BLE_GATT_PROC_F_NO_MEM;
             if (ble_gattc_proc_can_pend(proc)) {
                 ble_gattc_proc_set_pending(proc);
             }
-        } else if (proc->flags & BLE_GATT_ENTRY_F_EXPECTING) {
+        } else if (proc->flags & BLE_GATT_PROC_F_EXPECTING) {
             if (now - proc->tx_time >= BLE_GATT_UNRESPONSIVE_TIMEOUT) {
                 rc = ble_gap_conn_terminate(proc->conn_handle);
                 assert(rc == 0); /* XXX */
@@ -4070,7 +4070,7 @@ ble_gattc_wakeup(void)
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
 
-        if (proc->flags & BLE_GATT_ENTRY_F_PENDING) {
+        if (proc->flags & BLE_GATT_PROC_F_PENDING) {
             dispatch = ble_gattc_dispatch_get(proc->op);
             rc = dispatch->kick_cb(proc);
             switch (rc) {
@@ -4082,7 +4082,7 @@ ble_gattc_wakeup(void)
 
             case BLE_HS_EAGAIN:
                 /* Transmit failed due to resource shortage.  Reschedule. */
-                proc->flags &= ~BLE_GATT_ENTRY_F_PENDING;
+                proc->flags &= ~BLE_GATT_PROC_F_PENDING;
                 /* Current proc remains; reseat prev. */
                 prev = proc;
                 break;
@@ -4148,9 +4148,9 @@ ble_gattc_connection_txable(uint16_t conn_handle)
 
     STAILQ_FOREACH(proc, &ble_gattc_list, next) {
         if (proc->conn_handle == conn_handle &&
-            proc->flags & BLE_GATT_ENTRY_F_CONGESTED) {
+            proc->flags & BLE_GATT_PROC_F_CONGESTED) {
 
-            proc->flags &= ~BLE_GATT_ENTRY_F_CONGESTED;
+            proc->flags &= ~BLE_GATT_PROC_F_CONGESTED;
             if (ble_gattc_proc_can_pend(proc)) {
                 ble_gattc_proc_set_pending(proc);
             }
@@ -4189,7 +4189,7 @@ ble_gattc_init(void)
     free(ble_gattc_proc_mem);
 
     ble_gattc_proc_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_GATT_NUM_ENTRIES,
+        OS_MEMPOOL_BYTES(BLE_GATT_NUM_PROCS,
                          sizeof (struct ble_gattc_proc)));
     if (ble_gattc_proc_mem == NULL) {
         rc = BLE_HS_ENOMEM;
@@ -4197,7 +4197,7 @@ ble_gattc_init(void)
     }
 
     rc = os_mempool_init(&ble_gattc_proc_pool,
-                         BLE_GATT_NUM_ENTRIES,
+                         BLE_GATT_NUM_PROCS,
                          sizeof (struct ble_gattc_proc),
                          ble_gattc_proc_mem,
                          "ble_gattc_proc_pool");

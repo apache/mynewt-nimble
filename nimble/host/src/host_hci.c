@@ -26,7 +26,7 @@
 #include "ble_hs_priv.h"
 #include "host_dbg.h"
 #include "ble_hs_conn.h"
-#include "ble_l2cap.h"
+#include "ble_l2cap_priv.h"
 #include "ble_hci_ack.h"
 #include "ble_gap_priv.h"
 #include "ble_hs_adv_priv.h"
@@ -650,19 +650,6 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
     return 0;
 }
 
-static void
-host_hci_log_pkt(struct os_mbuf *om)
-{
-    uint8_t u8;
-    int i;
-
-    for (i = 0; i < OS_MBUF_PKTLEN(om); i++) {
-        os_mbuf_copydata(om, i, 1, &u8);
-        console_printf("0x%02x ", u8);
-    }
-    console_printf("\n");
-}
-
 /**
  * Called when a data packet is received from the controller.  This function
  * consumes the supplied mbuf, regardless of the outcome.
@@ -689,7 +676,7 @@ host_hci_data_rx(struct os_mbuf *om)
                    BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
                    BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
                    hci_hdr.hdh_len);
-    host_hci_log_pkt(om);
+    ble_hs_misc_log_mbuf(om);
 
     if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
         rc = BLE_HS_EMSGSIZE;
@@ -763,7 +750,7 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
     }
 
     console_printf("host_hci_data_tx(): ");
-    host_hci_log_pkt(om);
+    ble_hs_misc_log_mbuf(om);
 
     rc = ble_hs_tx_data(om);
     if (rc != 0) {

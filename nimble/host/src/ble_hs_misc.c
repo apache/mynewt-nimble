@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include "os/os.h"
+#include "console/console.h"
 #include "ble_hs_priv.h"
 
 int
@@ -36,4 +37,28 @@ ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
     }
 
     return 0;
+}
+
+void
+ble_hs_misc_log_mbuf(struct os_mbuf *om)
+{
+    uint8_t u8;
+    int i;
+
+    for (i = 0; i < OS_MBUF_PKTLEN(om); i++) {
+        os_mbuf_copydata(om, i, 1, &u8);
+        console_printf("0x%02x ", u8);
+    }
+}
+
+void
+ble_hs_misc_log_flat_buf(void *data, int len)
+{
+    uint8_t *u8ptr;
+    int i;
+
+    u8ptr = data;
+    for (i = 0; i < len; i++) {
+        console_printf("0x%02x ", u8ptr[i]);
+    }
 }

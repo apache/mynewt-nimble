@@ -19,7 +19,7 @@
 
 #include "os/queue.h"
 #include "host/ble_gap.h"
-#include "ble_l2cap.h"
+#include "ble_l2cap_priv.h"
 #include "ble_att_priv.h"
 #include "ble_gatt_priv.h"
 struct hci_le_conn_complete;

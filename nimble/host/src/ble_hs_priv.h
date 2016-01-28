@@ -25,6 +25,7 @@ struct os_mempool;
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
 #define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
 #define BLE_HS_KICK_GATT_EVENT          (OS_EVENT_T_PERUSER + 2)
+#define BLE_HS_KICK_L2CAP_SIG_EVENT     (OS_EVENT_T_PERUSER + 3)
 
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
 extern struct os_eventq ble_hs_evq;
@@ -34,9 +35,12 @@ int ble_hs_rx_data(struct os_mbuf *om);
 int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_kick_hci(void);
 void ble_hs_kick_gatt(void);
+void ble_hs_kick_l2cap_sig(void);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
+void ble_hs_misc_log_mbuf(struct os_mbuf *om);
+void ble_hs_misc_log_flat_buf(void *data, int len);
 
 void ble_hs_cfg_init(void);
 

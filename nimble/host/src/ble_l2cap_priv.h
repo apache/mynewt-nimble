@@ -49,6 +49,9 @@ struct ble_l2cap_sig_update_rsp {
     uint16_t result;
 };
 
+#define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT  0x0000
+#define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT  0x0001
+
 
 #define BLE_L2CAP_CID_ATT   4
 #define BLE_L2CAP_CID_SIG   5
@@ -91,15 +94,44 @@ struct ble_l2cap_chan
 
 SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 
+int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
+                        struct ble_l2cap_hdr *l2cap_hdr);
+struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
+                                      uint16_t len);
+
+int ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
+                            struct ble_l2cap_sig_hdr *hdr);
+int ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
+                            struct ble_l2cap_sig_hdr *hdr);
+int ble_l2cap_sig_reject_write(void *payload, uint16_t len,
+                               struct ble_l2cap_sig_hdr *hdr,
+                               struct ble_l2cap_sig_reject *cmd);
+int ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan,
+                            uint8_t id, uint16_t reason);
+int ble_l2cap_sig_update_req_parse(void *payload, int len,
+                                   struct ble_l2cap_sig_update_req *req);
+int ble_l2cap_sig_update_req_write(void *payload, int len,
+                                   struct ble_l2cap_sig_hdr *hdr,
+                                   struct ble_l2cap_sig_update_req *req);
+int ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan, uint8_t id,
+                                struct ble_l2cap_sig_update_req *req);
+int ble_l2cap_sig_update_rsp_parse(void *payload, int len,
+                                   struct ble_l2cap_sig_update_rsp *cmd);
+int ble_l2cap_sig_update_rsp_write(void *payload, int len,
+                                   struct ble_l2cap_sig_hdr *hdr,
+                                   struct ble_l2cap_sig_update_rsp *cmd);
+int ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan, uint8_t id,
+                                uint16_t result);
+
+
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
 uint16_t ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan);
 
-int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
-                        struct ble_l2cap_hdr *l2cap_hdr);
-struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
-                                      uint16_t len);
 
 int ble_l2cap_rx(struct ble_hs_conn *connection,
                  struct hci_data_hdr *hci_hdr,
@@ -107,8 +139,8 @@ int ble_l2cap_rx(struct ble_hs_conn *connection,
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *om);
 
+void ble_l2cap_sig_wakeup(void);
+int ble_l2cap_sig_init(void);
 int ble_l2cap_init(void);
-
-extern struct os_mbuf_pool ble_l2cap_mbuf_pool;
 
 #endif
