@@ -3643,6 +3643,13 @@ ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
     rc = ble_gattc_disc_all_dscs_rx_idata(proc, conn, idata);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
+    } else {
+        /* There is probably more data left in the packet.  Move this proc to
+         * the front of the list to save us from having to iterate the full
+         * list when the next entry is processed.
+         */
+        ble_gattc_proc_remove(proc, prev);
+        STAILQ_INSERT_HEAD(&ble_gattc_list, proc, next);
     }
 }
 
@@ -3696,6 +3703,13 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
     rc = ble_gattc_disc_svc_uuid_rx_hinfo(proc, conn, hinfo);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
+    } else {
+        /* There is probably more data left in the packet.  Move this proc to
+         * the front of the list to save us from having to iterate the full
+         * list when the next entry is processed.
+         */
+        ble_gattc_proc_remove(proc, prev);
+        STAILQ_INSERT_HEAD(&ble_gattc_list, proc, next);
     }
 }
 
@@ -3756,6 +3770,13 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
     rc = rx_entry->cb(proc, conn, adata);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
+    } else {
+        /* There is probably more data left in the packet.  Move this proc to
+         * the front of the list to save us from having to iterate the full
+         * list when the next entry is processed.
+         */
+        ble_gattc_proc_remove(proc, prev);
+        STAILQ_INSERT_HEAD(&ble_gattc_list, proc, next);
     }
 }
 
@@ -3816,6 +3837,13 @@ ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
     rc = ble_gattc_disc_all_svcs_rx_adata(proc, conn, adata);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
+    } else {
+        /* There is probably more data left in the packet.  Move this proc to
+         * the front of the list to save us from having to iterate the full
+         * list when the next entry is processed.
+         */
+        ble_gattc_proc_remove(proc, prev);
+        STAILQ_INSERT_HEAD(&ble_gattc_list, proc, next);
     }
 }
 
