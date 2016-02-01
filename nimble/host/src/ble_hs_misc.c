@@ -49,6 +49,7 @@ ble_hs_misc_log_mbuf(struct os_mbuf *om)
         os_mbuf_copydata(om, i, 1, &u8);
         console_printf("0x%02x ", u8);
     }
+    console_printf("\n");
 }
 
 void

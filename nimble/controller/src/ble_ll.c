@@ -81,7 +81,7 @@ struct ble_ll_log
 
 #define BLE_LL_LOG_LEN  (256)
 
-static sec_bss_nz_core struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
+static bssnz_t struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
 static uint8_t g_ble_ll_log_index;
 
 void
