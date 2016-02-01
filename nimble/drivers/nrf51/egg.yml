@@ -1,0 +1,6 @@
+egg.name: net/nimble/drivers/nrf51
+egg.vers: 0.1 
+egg.caps: ble_driver
+egg.deps:
+    - net/nimble
+    - net/nimble/controller
