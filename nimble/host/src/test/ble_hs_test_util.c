@@ -156,6 +156,29 @@ ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
 }
 
 int
+ble_hs_test_util_l2cap_rx(struct ble_hs_conn *conn,
+                          struct hci_data_hdr *hci_hdr,
+                          struct os_mbuf *om)
+{
+    ble_l2cap_rx_fn *rx_cb;
+    struct os_mbuf *rx_buf;
+    int rc;
+
+    rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf);
+    if (rc == 0) {
+        assert(rx_cb != NULL);
+        assert(rx_buf != NULL);
+        rc = rx_cb(conn->bhc_handle, &rx_buf);
+        os_mbuf_free_chain(rx_buf);
+    } else if (rc == BLE_HS_EAGAIN) {
+        /* More fragments on the way. */
+        rc = 0;
+    }
+
+    return rc;
+}
+
+int
 ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                        struct ble_l2cap_chan *chan,
                                        const void *data, int len)
@@ -180,8 +203,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                    BLE_HCI_PB_FIRST_FLUSH, 0);
     hci_hdr.hdh_len = OS_MBUF_PKTHDR(om)->omp_len;
 
-    rc = ble_l2cap_rx(conn, &hci_hdr, om);
-
+    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     return rc;
 }
 

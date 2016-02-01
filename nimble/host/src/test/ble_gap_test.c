@@ -99,7 +99,7 @@ ble_gap_test_util_connect_cb(int event, int status,
     case BLE_GAP_EVENT_ADV_STOP_FAILURE:
         ble_gap_test_conn_event = event;
         ble_gap_test_conn_status = status;
-        ble_gap_test_conn_desc = ctxt->desc;
+        ble_gap_test_conn_desc = *ctxt->desc;
         ble_gap_test_conn_arg = arg;
         break;
 

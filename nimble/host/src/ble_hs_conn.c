@@ -31,12 +31,53 @@ static struct os_mempool ble_hs_conn_pool;
 
 static os_membuf_t *ble_hs_conn_elem_mem;
 
+static struct os_mutex ble_hs_conn_mutex;
+
+void
+ble_hs_conn_lock(void)
+{
+    struct os_task *owner;
+    int rc;
+
+    owner = ble_hs_conn_mutex.mu_owner;
+    if (owner != NULL) {
+        assert(owner != os_sched_get_current_task());
+    }
+
+    rc = os_mutex_pend(&ble_hs_conn_mutex, 0xffffffff);
+    assert(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+void
+ble_hs_conn_unlock(void)
+{
+    int rc;
+
+    rc = os_mutex_release(&ble_hs_conn_mutex);
+    assert(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+int
+ble_hs_conn_locked_by_cur_task(void)
+{
+    struct os_task *owner;
+
+    owner = ble_hs_conn_mutex.mu_owner;
+    return owner != NULL && owner == os_sched_get_current_task();
+}
+
+/**
+ * Lock restrictions: none.
+ */
 int
 ble_hs_conn_can_alloc(void)
 {
     return ble_hs_conn_pool.mp_num_free >= 1;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 struct ble_l2cap_chan *
 ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 {
@@ -54,6 +95,10 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
     return NULL;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex if connection has been
+ * inserted.
+ */
 int
 ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
@@ -81,6 +126,9 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     return 0;
 }
 
+/**
+ * Lock restrictions: none.
+ */
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
 {
@@ -128,6 +176,9 @@ err:
     return NULL;
 }
 
+/**
+ * Lock restrictions: none.
+ */
 static void
 ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
@@ -139,6 +190,9 @@ ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     ble_l2cap_chan_free(chan);
 }
 
+/**
+ * Lock restrictions: none.
+ */
 void
 ble_hs_conn_free(struct ble_hs_conn *conn)
 {
@@ -161,19 +215,32 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
     assert(rc == 0);
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 void
 ble_hs_conn_insert(struct ble_hs_conn *conn)
 {
+    ble_hs_conn_lock();
+
     assert(ble_hs_conn_find(conn->bhc_handle) == NULL);
     SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
+
+    ble_hs_conn_unlock();
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 void
 ble_hs_conn_remove(struct ble_hs_conn *conn)
 {
     SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 struct ble_hs_conn *
 ble_hs_conn_find(uint16_t conn_handle)
 {
@@ -189,8 +256,24 @@ ble_hs_conn_find(uint16_t conn_handle)
 }
 
 /**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_hs_conn_exists(uint16_t conn_handle)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_conn_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    ble_hs_conn_unlock();
+
+    return conn != NULL;
+}
+
+/**
  * Retrieves the first connection in the list.
- * XXX: This is likely temporary.
+ *
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
  */
 struct ble_hs_conn *
 ble_hs_conn_first(void)
@@ -198,12 +281,18 @@ ble_hs_conn_first(void)
     return SLIST_FIRST(&ble_hs_conns);
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static void
 ble_hs_conn_txable_transition(struct ble_hs_conn *conn)
 {
     ble_gattc_connection_txable(conn->bhc_handle);
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 void
 ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
 {
@@ -211,25 +300,30 @@ ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
     int could_tx;
     int can_tx;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(handle);
-    if (conn == NULL) {
-        return;
+    if (conn != NULL) {
+        could_tx = ble_hs_conn_can_tx(conn);
+
+        if (num_pkts > conn->bhc_outstanding_pkts) {
+            num_pkts = conn->bhc_outstanding_pkts;
+        }
+        conn->bhc_outstanding_pkts -= num_pkts;
+
+        can_tx = ble_hs_conn_can_tx(conn);
+
+        if (!could_tx && can_tx) {
+            ble_hs_conn_txable_transition(conn);
+        }
     }
 
-    could_tx = ble_hs_conn_can_tx(conn);
-
-    if (num_pkts > conn->bhc_outstanding_pkts) {
-        num_pkts = conn->bhc_outstanding_pkts;
-    }
-    conn->bhc_outstanding_pkts -= num_pkts;
-
-    can_tx = ble_hs_conn_can_tx(conn);
-
-    if (!could_tx && can_tx) {
-        ble_hs_conn_txable_transition(conn);
-    }
+    ble_hs_conn_unlock();
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_hs_conn_can_tx(struct ble_hs_conn *conn)
 {
@@ -238,6 +332,9 @@ ble_hs_conn_can_tx(struct ble_hs_conn *conn)
                 ble_hs_cfg.max_outstanding_pkts_per_conn;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static void
 ble_hs_conn_free_mem(void)
 {
@@ -245,6 +342,9 @@ ble_hs_conn_free_mem(void)
     ble_hs_conn_elem_mem = NULL;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int 
 ble_hs_conn_init(void)
 {

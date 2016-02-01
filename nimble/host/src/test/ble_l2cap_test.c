@@ -89,7 +89,7 @@ ble_l2cap_test_util_rx_update_req(struct ble_hs_conn *conn, uint8_t id,
         v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ, &sig_hdr, &req);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == 0);
 }
 
@@ -128,7 +128,7 @@ ble_l2cap_test_util_rx_update_rsp(struct ble_hs_conn *conn,
         v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ, &sig_hdr, &rsp);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     return rc;
 }
 
@@ -215,8 +215,7 @@ ble_l2cap_test_util_verify_tx_update_conn(
 }
 
 static int
-ble_l2cap_test_util_dummy_rx(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan, struct os_mbuf **om)
+ble_l2cap_test_util_dummy_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
     return 0;
 }
@@ -266,7 +265,7 @@ ble_l2cap_test_util_rx_first_frag(struct ble_hs_conn *conn,
     hci_len = sizeof hci_hdr + l2cap_frag_len;
     hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(conn->bhc_handle,
                                           BLE_HCI_PB_FIRST_FLUSH, hci_len);
-    rc = ble_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     return rc;
 }
 
@@ -286,7 +285,7 @@ ble_l2cap_test_util_rx_next_frag(struct ble_hs_conn *conn, uint16_t hci_len)
 
     hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(conn->bhc_handle,
                                           BLE_HCI_PB_MIDDLE, hci_len);
-    rc = ble_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     return rc;
 }
 
@@ -339,7 +338,7 @@ TEST_CASE(ble_l2cap_test_case_bad_header)
     ble_l2cap_test_util_init();
 
     conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      NULL, NULL);
+                                           NULL, NULL);
 
     rc = ble_l2cap_test_util_rx_first_frag(conn, 14, 1234, 10);
     TEST_ASSERT(rc == BLE_HS_ENOENT);
@@ -370,7 +369,7 @@ TEST_CASE(ble_l2cap_test_case_frag_single)
     om = ble_l2cap_prepend_hdr(om, 0, 5);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT(rc == BLE_HS_EBADDATA);
 
     /*** Packet consisting of three fragments. */

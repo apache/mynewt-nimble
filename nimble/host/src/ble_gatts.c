@@ -55,6 +55,9 @@ struct ble_gatts_clt_cfg {
 static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint8_t *uuid128, uint8_t op,
@@ -81,6 +84,9 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint8_t *uuid128, uint8_t op,
@@ -111,6 +117,9 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static uint16_t
 ble_gatts_chr_clt_cfg_allowed(const struct ble_gatt_chr_def *chr)
 {
@@ -127,6 +136,9 @@ ble_gatts_chr_clt_cfg_allowed(const struct ble_gatt_chr_def *chr)
     return flags;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static uint8_t
 ble_gatts_att_flags_from_chr_flags(ble_gatt_chr_flags chr_flags)
 {
@@ -143,6 +155,9 @@ ble_gatts_att_flags_from_chr_flags(ble_gatt_chr_flags chr_flags)
     return att_flags;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static uint8_t
 ble_gatts_chr_properties(const struct ble_gatt_chr_def *chr)
 {
@@ -180,6 +195,9 @@ ble_gatts_chr_properties(const struct ble_gatt_chr_def *chr)
     return properties;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t *uuid128, uint8_t op,
@@ -211,6 +229,9 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_chr_is_sane(const struct ble_gatt_chr_def *chr)
 {
@@ -227,6 +248,9 @@ ble_gatts_chr_is_sane(const struct ble_gatt_chr_def *chr)
     return 1;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static uint8_t
 ble_gatts_chr_op(uint8_t att_op)
 {
@@ -243,6 +267,9 @@ ble_gatts_chr_op(uint8_t att_op)
     }
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
 ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t *uuid128, uint8_t att_op,
@@ -279,7 +306,9 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_find_svc(const struct ble_gatt_svc_def *svc)
 {
@@ -294,6 +323,9 @@ ble_gatts_find_svc(const struct ble_gatt_svc_def *svc)
     return -1;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_svc_incs_satisfied(const struct ble_gatt_svc_def *svc)
 {
@@ -315,6 +347,9 @@ ble_gatts_svc_incs_satisfied(const struct ble_gatt_svc_def *svc)
     return 1;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
 {
@@ -333,6 +368,9 @@ ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
                            uint16_t chr_def_handle)
@@ -350,6 +388,9 @@ ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
     return -1;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static struct ble_gatts_clt_cfg *
 ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
                        uint16_t chr_def_handle)
@@ -364,35 +405,33 @@ ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
     }
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static int
-ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
-                         uint8_t *uuid128, uint8_t op,
-                         struct ble_att_svr_access_ctxt *ctxt,
-                         void *arg)
+ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
+                                uint8_t *uuid128, uint8_t op,
+                                struct ble_att_svr_access_ctxt *ctxt,
+                                void *arg)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
-    struct ble_hs_conn *conn;
     uint16_t chr_def_handle;
     uint16_t flags;
 
     static uint8_t buf[2];
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        return BLE_ATT_ERR_UNLIKELY;
-    }
 
     /* We always register the client characteristics descriptor with handle
      * (chr_def + 2).
      */
     chr_def_handle = attr_handle - 2;
     if (chr_def_handle > attr_handle) {
+        /* Attribute handle wrapped somehow. */
         return BLE_ATT_ERR_UNLIKELY;
     }
 
     clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
                                      attr_handle - 2);
-    if (clt_cfg == 0) {
+    if (clt_cfg == NULL) {
         return BLE_ATT_ERR_UNLIKELY;
     }
 
@@ -424,6 +463,36 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+static int
+ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
+                         uint8_t *uuid128, uint8_t op,
+                         struct ble_att_svr_access_ctxt *ctxt,
+                         void *arg)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_ATT_ERR_UNLIKELY;
+    } else {
+        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
+                                             ctxt, arg);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
+/**
+ * Lock restrictions: None.
+ */
 static uint8_t
 ble_gatts_dsc_op(uint8_t att_op)
 {
@@ -440,6 +509,9 @@ ble_gatts_dsc_op(uint8_t att_op)
     }
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
 ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint8_t *uuid128, uint8_t att_op,
@@ -470,6 +542,9 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_dsc_is_sane(const struct ble_gatt_dsc_def *dsc)
 {
@@ -484,6 +559,9 @@ ble_gatts_dsc_is_sane(const struct ble_gatt_dsc_def *dsc)
     return 1;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
                        const struct ble_gatt_chr_def *chr,
@@ -516,6 +594,9 @@ ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
 
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
 {
@@ -536,6 +617,9 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
@@ -602,6 +686,9 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_svc_type_to_uuid(uint8_t svc_type, uint16_t *out_uuid16)
 {
@@ -619,6 +706,9 @@ ble_gatts_svc_type_to_uuid(uint8_t svc_type, uint16_t *out_uuid16)
     }
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_svc_is_sane(const struct ble_gatt_svc_def *svc)
 {
@@ -635,6 +725,9 @@ ble_gatts_svc_is_sane(const struct ble_gatt_svc_def *svc)
     return 1;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
                        uint16_t *out_handle,
@@ -699,6 +792,9 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_register_round(int *out_num_registered, ble_gatt_register_fn *cb,
                          void *cb_arg)
@@ -742,6 +838,9 @@ ble_gatts_register_round(int *out_num_registered, ble_gatt_register_fn *cb,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                         ble_gatt_register_fn *cb, void *cb_arg)
@@ -770,6 +869,9 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 void
 ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn)
 {
@@ -783,12 +885,18 @@ ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn)
     }
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_clt_cfg_size(void)
 {
     return ble_gatts_num_cfgable_chrs * sizeof (struct ble_gatts_clt_cfg);
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_gatts_clt_cfg_init(void)
 {
@@ -852,6 +960,9 @@ ble_gatts_clt_cfg_init(void)
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
 {
@@ -881,13 +992,15 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 void
 ble_gatts_send_notifications(struct ble_hs_conn *conn)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     int rc;
     int i;
-
 
     /* Iterate through each configurable characteristic.  If a characteristic
      * has been updated, try to send an indication or notification
@@ -920,6 +1033,9 @@ ble_gatts_send_notifications(struct ble_hs_conn *conn)
     }
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 void
 ble_gatts_chr_updated(uint16_t chr_def_handle)
 {
@@ -935,7 +1051,8 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
         return;
     }
 
-    /* XXX: Lock connection list. */
+    ble_hs_conn_lock();
+
     for (conn = ble_hs_conn_first();
          conn != NULL;
          conn = SLIST_NEXT(conn, bhc_next)) {
@@ -951,14 +1068,22 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
             ble_gatts_send_notifications(conn);
         }
     }
+
+    ble_hs_conn_unlock();
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static void
 ble_gatts_free_mem(void)
 {
     free(ble_gatts_clt_cfg_mem);
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_gatts_init(void)
 {

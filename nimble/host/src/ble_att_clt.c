@@ -27,6 +27,9 @@
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static int
 ble_att_clt_init_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
                      struct os_mbuf **txom, uint16_t initial_sz)
@@ -67,6 +70,9 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static int
 ble_att_clt_append_blob(struct ble_l2cap_chan *chan, struct os_mbuf *txom,
                         void *blob, int blob_len)
@@ -102,9 +108,11 @@ ble_att_clt_append_blob(struct ble_l2cap_chan *chan, struct os_mbuf *txom,
  * $error response                                                           *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                     struct os_mbuf **om)
+ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **om)
 {
     struct ble_att_error_rsp rsp;
     int rc;
@@ -119,7 +127,7 @@ ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return rc;
     }
 
-    ble_gattc_rx_err(conn->bhc_handle, &rsp);
+    ble_gattc_rx_err(conn_handle, &rsp);
 
     return 0;
 }
@@ -128,6 +136,9 @@ ble_att_clt_rx_error(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
  * $mtu exchange                                                             *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_mtu(struct ble_hs_conn *conn, struct ble_att_mtu_cmd *req)
 {
@@ -165,28 +176,45 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                   struct os_mbuf **om)
+ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 {
     struct ble_att_mtu_cmd rsp;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint16_t mtu;
     int rc;
+
+    mtu = 0;
 
     *om = os_mbuf_pullup(*om, BLE_ATT_MTU_CMD_SZ);
     if (*om == NULL) {
         rc = BLE_HS_ENOMEM;
-        goto done;
+    } else {
+        rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
+        assert(rc == 0);
+
+        ble_hs_conn_lock();
+
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn == NULL) {
+            rc = BLE_HS_ENOTCONN;
+        } else {
+            chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+            assert(chan != NULL);
+
+            ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
+            mtu = ble_l2cap_chan_mtu(chan);
+            rc = 0;
+        }
+
+        ble_hs_conn_unlock();
     }
 
-    rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
-    assert(rc == 0);
-
-    ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
-
-    rc = 0;
-
-done:
-    ble_gattc_rx_mtu(conn, rc, ble_l2cap_chan_mtu(chan));
+    ble_gattc_rx_mtu(conn_handle, rc, mtu);
     return rc;
 }
 
@@ -194,6 +222,9 @@ done:
  * $find information                                                         *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
                          struct ble_att_find_info_req *req)
@@ -232,9 +263,11 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **om)
+ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **om)
 {
     struct ble_att_find_info_rsp rsp;
     struct ble_att_find_info_idata idata;
@@ -299,7 +332,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             goto done;
         }
 
-        ble_gattc_rx_find_info_idata(conn, &idata);
+        ble_gattc_rx_find_info_idata(conn_handle, &idata);
     }
 
     rc = 0;
@@ -307,7 +340,7 @@ ble_att_clt_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 done:
     *om = rxom;
 
-    ble_gattc_rx_find_info_complete(conn, rc);
+    ble_gattc_rx_find_info_complete(conn_handle, rc);
     return rc;
 }
 
@@ -315,6 +348,9 @@ done:
  * $find by type value                                                       *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
                                struct ble_att_find_type_value_req *req,
@@ -376,10 +412,11 @@ ble_att_clt_parse_find_type_value_hinfo(
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct os_mbuf **rxom)
+ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_find_type_value_hinfo hinfo;
     int rc;
@@ -398,12 +435,12 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
             break;
         }
 
-        ble_gattc_rx_find_type_value_hinfo(conn, &hinfo);
+        ble_gattc_rx_find_type_value_hinfo(conn_handle, &hinfo);
         os_mbuf_adj(*rxom, BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ);
     }
 
     /* Notify GATT client that the full response has been parsed. */
-    ble_gattc_rx_find_type_value_complete(conn, rc);
+    ble_gattc_rx_find_type_value_complete(conn_handle, rc);
 
     return 0;
 }
@@ -412,6 +449,9 @@ ble_att_clt_rx_find_type_value(struct ble_hs_conn *conn,
  * $read by type                                                             *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
                          struct ble_att_read_type_req *req,
@@ -457,6 +497,9 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
                                   struct ble_att_read_type_adata *adata)
@@ -477,9 +520,11 @@ ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_read_type_adata adata;
     struct ble_att_read_type_rsp rsp;
@@ -504,13 +549,13 @@ ble_att_clt_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             goto done;
         }
 
-        ble_gattc_rx_read_type_adata(conn, &adata);
+        ble_gattc_rx_read_type_adata(conn_handle, &adata);
         os_mbuf_adj(*rxom, rsp.batp_length);
     }
 
 done:
     /* Notify GATT that the response is done being parsed. */
-    ble_gattc_rx_read_type_complete(conn, rc);
+    ble_gattc_rx_read_type_complete(conn_handle, rc);
     return rc;
 
 }
@@ -519,6 +564,9 @@ done:
  * $read                                                                     *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
 {
@@ -554,9 +602,11 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                    struct os_mbuf **rxom)
+ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     void *value;
     int value_len;
@@ -583,7 +633,7 @@ ble_att_clt_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     rc = 0;
 
 done:
-    ble_gattc_rx_read_rsp(conn, rc, value, value_len);
+    ble_gattc_rx_read_rsp(conn_handle, rc, value, value_len);
     return rc;
 }
 
@@ -591,6 +641,9 @@ done:
  * $read blob                                                                *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
                          struct ble_att_read_blob_req *req)
@@ -627,9 +680,11 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     void *value;
     int value_len;
@@ -656,7 +711,7 @@ ble_att_clt_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
 done:
     /* Pass the Attribute Value field to GATT. */
-    ble_gattc_rx_read_blob_rsp(conn, rc, value, value_len);
+    ble_gattc_rx_read_blob_rsp(conn_handle, rc, value, value_len);
     return rc;
 }
 
@@ -664,6 +719,9 @@ done:
  * $read multiple                                                            *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
                          uint16_t *handles, int num_handles)
@@ -713,9 +771,11 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     void *value;
     int value_len;
@@ -742,7 +802,7 @@ ble_att_clt_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
 done:
     /* Pass the Attribute Value field to GATT. */
-    ble_gattc_rx_read_mult_rsp(conn, rc, value, value_len);
+    ble_gattc_rx_read_mult_rsp(conn_handle, rc, value, value_len);
     return rc;
 }
 
@@ -750,6 +810,9 @@ done:
  * $read by group type                                                       *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
                                struct ble_att_read_group_type_req *req,
@@ -795,6 +858,9 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_att_clt_parse_read_group_type_adata(
     struct os_mbuf **om, int data_len,
@@ -817,13 +883,14 @@ ble_att_clt_parse_read_group_type_adata(
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct os_mbuf **rxom)
+ble_att_clt_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-    struct ble_att_read_group_type_rsp rsp;
     struct ble_att_read_group_type_adata adata;
+    struct ble_att_read_group_type_rsp rsp;
     int rc;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
@@ -847,13 +914,13 @@ ble_att_clt_rx_read_group_type(struct ble_hs_conn *conn,
             goto done;
         }
 
-        ble_gattc_rx_read_group_type_adata(conn, &adata);
+        ble_gattc_rx_read_group_type_adata(conn_handle, &adata);
         os_mbuf_adj(*rxom, rsp.bagp_length);
     }
 
 done:
     /* Notify GATT that the response is done being parsed. */
-    ble_gattc_rx_read_group_type_complete(conn, rc);
+    ble_gattc_rx_read_group_type_complete(conn_handle, rc);
     return rc;
 }
 
@@ -861,6 +928,9 @@ done:
  * $write                                                                    *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static int
 ble_att_clt_tx_write_req_or_cmd(struct ble_hs_conn *conn,
                                 struct ble_att_write_req *req,
@@ -903,6 +973,9 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
                          struct ble_att_write_req *req,
@@ -918,6 +991,9 @@ ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
                          struct ble_att_write_req *req,
@@ -933,13 +1009,14 @@ ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
     return 0;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_write(struct ble_hs_conn *conn,
-                     struct ble_l2cap_chan *chan,
-                     struct os_mbuf **rxom)
+ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     /* No payload. */
-    ble_gattc_rx_write_rsp(conn);
+    ble_gattc_rx_write_rsp(conn_handle);
     return 0;
 }
 
@@ -947,6 +1024,9 @@ ble_att_clt_rx_write(struct ble_hs_conn *conn,
  * $prepare write request                                                    *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
                           struct ble_att_prep_write_cmd *req,
@@ -1002,10 +1082,11 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_prep_write(struct ble_hs_conn *conn,
-                          struct ble_l2cap_chan *chan,
-                          struct os_mbuf **rxom)
+ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_prep_write_cmd rsp;
     int rc;
@@ -1028,12 +1109,12 @@ ble_att_clt_rx_prep_write(struct ble_hs_conn *conn,
     /* Strip the base from the front of the response. */
     os_mbuf_adj(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
 
-    ble_gattc_rx_prep_write_rsp(conn, 0, &rsp, (*rxom)->om_data,
+    ble_gattc_rx_prep_write_rsp(conn_handle, 0, &rsp, (*rxom)->om_data,
                                 (*rxom)->om_len);
     return 0;
 
 err:
-    ble_gattc_rx_prep_write_rsp(conn, rc, NULL, NULL, 0);
+    ble_gattc_rx_prep_write_rsp(conn_handle, rc, NULL, NULL, 0);
     return rc;
 }
 
@@ -1041,6 +1122,9 @@ err:
  * $execute write request                                                    *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_exec_write(struct ble_hs_conn *conn,
                           struct ble_att_exec_write_req *req)
@@ -1077,26 +1161,23 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_exec_write(struct ble_hs_conn *conn,
-                          struct ble_l2cap_chan *chan,
-                          struct os_mbuf **rxom)
+ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     int rc;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_EXEC_WRITE_RSP_SZ);
     if (*rxom == NULL) {
         rc = BLE_HS_EBADDATA;
-        goto done;
+    } else {
+        rc = ble_att_exec_write_rsp_parse((*rxom)->om_data, (*rxom)->om_len);
+        assert(rc == 0);
     }
 
-    rc = ble_att_exec_write_rsp_parse((*rxom)->om_data, (*rxom)->om_len);
-    assert(rc == 0);
-
-    rc = 0;
-
-done:
-    ble_gattc_rx_exec_write_rsp(conn, rc);
+    ble_gattc_rx_exec_write_rsp(conn_handle, rc);
     return rc;
 }
 
@@ -1104,6 +1185,9 @@ done:
  * $handle value notification                                                *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_notify(struct ble_hs_conn *conn, struct ble_att_notify_req *req,
                       void *value, uint16_t value_len)
@@ -1149,6 +1233,9 @@ err:
  * $handle value indication                                                  *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
 ble_att_clt_tx_indicate(struct ble_hs_conn *conn,
                         struct ble_att_indicate_req *req,
@@ -1192,12 +1279,13 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 int
-ble_att_clt_rx_indicate(struct ble_hs_conn *conn,
-                        struct ble_l2cap_chan *chan,
-                        struct os_mbuf **rxom)
+ble_att_clt_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     /* No payload. */
-    ble_gattc_rx_indicate_rsp(conn);
+    ble_gattc_rx_indicate_rsp(conn_handle);
     return 0;
 }

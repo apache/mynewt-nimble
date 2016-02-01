@@ -16,7 +16,9 @@
 
 #include <stddef.h>
 #include <errno.h>
+#include <assert.h>
 #include "ble_hs_priv.h"
+#include "ble_hs_conn.h"
 #include "ble_l2cap_priv.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
@@ -24,15 +26,13 @@
 static uint16_t ble_att_preferred_mtu;
 
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
-typedef int ble_att_rx_fn(struct ble_hs_conn *conn,
-                          struct ble_l2cap_chan *chan,
-                          struct os_mbuf **om);
+typedef int ble_att_rx_fn(uint16_t conn_handle, struct os_mbuf **om);
 struct ble_att_rx_dispatch_entry {
     uint8_t bde_op;
     ble_att_rx_fn *bde_fn;
 };
 
-static struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
+static const struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
     { BLE_ATT_OP_ERROR_RSP,            ble_att_clt_rx_error },
     { BLE_ATT_OP_MTU_REQ,              ble_att_svr_rx_mtu },
     { BLE_ATT_OP_MTU_RSP,              ble_att_clt_rx_mtu },
@@ -64,10 +64,13 @@ static struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
 #define BLE_ATT_RX_DISPATCH_SZ \
     (sizeof ble_att_rx_dispatch / sizeof ble_att_rx_dispatch[0])
 
-static struct ble_att_rx_dispatch_entry *
+/**
+ * Lock restrictions: None.
+ */
+static const struct ble_att_rx_dispatch_entry *
 ble_att_rx_dispatch_entry_find(uint8_t op)
 {
-    struct ble_att_rx_dispatch_entry *entry;
+    const struct ble_att_rx_dispatch_entry *entry;
     int i;
 
     for (i = 0; i < BLE_ATT_RX_DISPATCH_SZ; i++) {
@@ -84,11 +87,31 @@ ble_att_rx_dispatch_entry_find(uint8_t op)
     return NULL;
 }
 
-static int
-ble_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-           struct os_mbuf **om)
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
+int
+ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
+                       struct ble_l2cap_chan **out_chan)
 {
-    struct ble_att_rx_dispatch_entry *entry;
+    *out_conn = ble_hs_conn_find(conn_handle);
+    if (*out_conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    *out_chan = ble_hs_conn_chan_find(*out_conn, BLE_L2CAP_CID_ATT);
+    assert(*out_chan != NULL);
+
+    return 0;
+}
+
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
+static int
+ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
+{
+    const struct ble_att_rx_dispatch_entry *entry;
     uint8_t op;
     int rc;
 
@@ -102,7 +125,7 @@ ble_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return BLE_HS_EINVAL;
     }
 
-    rc = entry->bde_fn(conn, chan, om);
+    rc = entry->bde_fn(conn_handle, om);
     if (rc != 0) {
         return rc;
     }
@@ -110,6 +133,9 @@ ble_att_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 void
 ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg)
 {
@@ -117,6 +143,9 @@ ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg)
     ble_att_svr_notify_cb_arg = cb_arg;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 void
 ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
 {
@@ -127,6 +156,9 @@ ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
     chan->blc_peer_mtu = peer_mtu;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_att_set_preferred_mtu(uint16_t mtu)
 {
@@ -144,6 +176,9 @@ ble_att_set_preferred_mtu(uint16_t mtu)
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 struct ble_l2cap_chan *
 ble_att_create_chan(void)
 {
@@ -164,6 +199,8 @@ ble_att_create_chan(void)
 
 /**
  * Allocates an mbuf for use as an ATT request or response.
+ *
+ * Lock restrictions: None.
  */
 struct os_mbuf *
 ble_att_get_pkthdr(void)
@@ -181,6 +218,9 @@ ble_att_get_pkthdr(void)
     return om;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 void
 ble_att_init(void)
 {

@@ -524,34 +524,41 @@ err:
 }
 
 int
-ble_att_svr_rx_mtu(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                   struct os_mbuf **om)
+ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 {
     struct ble_att_mtu_cmd cmd;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
     uint8_t att_err;
     int rc;
 
-    *om = os_mbuf_pullup(*om, BLE_ATT_MTU_CMD_SZ);
-    if (*om == NULL) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
-        goto err;
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        *om = os_mbuf_pullup(*om, BLE_ATT_MTU_CMD_SZ);
+        if (*om == NULL) {
+            att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+            rc = BLE_HS_ENOMEM;
+        } else {
+            rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
+            assert(rc == 0);
+
+            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
+        }
+
+        if (rc == 0) {
+            rc = ble_att_svr_tx_mtu_rsp(conn, chan, BLE_ATT_OP_MTU_RSP,
+                                        chan->blc_my_mtu, &att_err);
+        }
+        if (rc != 0) {
+            ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_MTU_REQ, 0,
+                                     att_err);
+        }
     }
 
-    rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
-    assert(rc == 0);
+    ble_hs_conn_unlock();
 
-    ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-    rc = ble_att_svr_tx_mtu_rsp(conn, chan, BLE_ATT_OP_MTU_RSP,
-                                chan->blc_my_mtu, &att_err);
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_MTU_REQ, 0, att_err);
     return rc;
 }
 
@@ -727,9 +734,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_find_info_locked(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf **rxom)
 {
     struct ble_att_find_info_req req;
     uint16_t err_handle;
@@ -770,6 +778,25 @@ ble_att_svr_rx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_FIND_INFO_REQ,
                              err_handle, att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_find_info_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
     return rc;
 }
 
@@ -1042,10 +1069,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_find_type_value_locked(struct ble_hs_conn *conn,
+                                      struct ble_l2cap_chan *chan,
+                                      struct os_mbuf **rxom)
 {
     struct ble_att_find_type_value_req req;
     uint16_t err_handle;
@@ -1087,6 +1114,25 @@ ble_att_svr_rx_find_type_value(struct ble_hs_conn *conn,
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
                              err_handle, att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_find_type_value_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
     return rc;
 }
 
@@ -1217,9 +1263,10 @@ done:
     return rc;
 }
 
-int
-ble_att_svr_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_read_type_locked(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf **rxom)
 {
     struct ble_att_read_type_req req;
     uint16_t err_handle;
@@ -1282,6 +1329,25 @@ ble_att_svr_rx_read_type(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_TYPE_REQ,
                              err_handle, att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_read_type_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
     return rc;
 }
 
@@ -1394,9 +1460,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_read(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                    struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_read_locked(struct ble_hs_conn *conn,
+                           struct ble_l2cap_chan *chan,
+                           struct os_mbuf **rxom)
 {
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
@@ -1461,8 +1528,28 @@ err:
 }
 
 int
-ble_att_svr_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_read_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
+static int
+ble_att_svr_rx_read_blob_locked(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf **rxom)
 {
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
@@ -1530,6 +1617,25 @@ ble_att_svr_rx_read_blob(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_BLOB_REQ,
                              err_handle, att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_read_blob_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
     return rc;
 }
 
@@ -1624,9 +1730,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_read_mult_locked(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan,
+                                struct os_mbuf **rxom)
 {
     uint16_t err_handle;
     uint8_t att_err;
@@ -1663,6 +1770,25 @@ ble_att_svr_rx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_MULT_REQ,
                              err_handle, att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_read_mult_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
     return rc;
 }
 
@@ -1921,10 +2047,10 @@ done:
 }
 
 
-int
-ble_att_svr_rx_read_group_type(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_read_group_type_locked(struct ble_hs_conn *conn,
+                                      struct ble_l2cap_chan *chan,
+                                      struct os_mbuf **rxom)
 {
     struct ble_att_read_group_type_req req;
     uint8_t uuid128[16];
@@ -1988,6 +2114,25 @@ err:
     return rc;
 }
 
+int
+ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_read_group_type_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
 static int
 ble_att_svr_tx_write_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          uint8_t *att_err)
@@ -2025,9 +2170,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                     struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_write_locked(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan,
+                            struct os_mbuf **rxom)
 {
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
@@ -2085,6 +2231,25 @@ ble_att_svr_rx_write(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 err:
     ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_WRITE_REQ, err_handle,
                              att_err);
+    return rc;
+}
+
+int
+ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_write_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
     return rc;
 }
 
@@ -2271,10 +2436,10 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
     return 0;
 }
 
-int
-ble_att_svr_rx_prep_write(struct ble_hs_conn *conn,
-                          struct ble_l2cap_chan *chan,
-                          struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
+                                 struct ble_l2cap_chan *chan,
+                                 struct os_mbuf **rxom)
 {
     struct ble_att_prep_write_cmd req;
     struct ble_att_prep_entry *prep_entry;
@@ -2387,6 +2552,25 @@ err:
     return rc;
 }
 
+int
+ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_prep_write_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
 /**
  * @return                      0 on success; nonzero on failure.
  */
@@ -2429,10 +2613,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_exec_write(struct ble_hs_conn *conn,
-                          struct ble_l2cap_chan *chan,
-                          struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_exec_write_locked(struct ble_hs_conn *conn,
+                                 struct ble_l2cap_chan *chan,
+                                 struct os_mbuf **rxom)
 {
     struct ble_att_exec_write_req req;
     uint16_t err_handle;
@@ -2482,9 +2666,28 @@ err:
 }
 
 int
-ble_att_svr_rx_notify(struct ble_hs_conn *conn,
-                      struct ble_l2cap_chan *chan,
-                      struct os_mbuf **rxom)
+ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_exec_write_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
+static int
+ble_att_svr_rx_notify_locked(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan,
+                             struct os_mbuf **rxom)
 {
     struct ble_att_notify_req req;
     uint16_t attr_len;
@@ -2523,6 +2726,25 @@ ble_att_svr_rx_notify(struct ble_hs_conn *conn,
     }
 
     return 0;
+}
+
+int
+ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_notify_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
 }
 
 /**
@@ -2564,10 +2786,10 @@ err:
     return rc;
 }
 
-int
-ble_att_svr_rx_indicate(struct ble_hs_conn *conn,
-                        struct ble_l2cap_chan *chan,
-                        struct os_mbuf **rxom)
+static int
+ble_att_svr_rx_indicate_locked(struct ble_hs_conn *conn,
+                               struct ble_l2cap_chan *chan,
+                               struct os_mbuf **rxom)
 {
     struct ble_att_indicate_req req;
     uint16_t attr_len;
@@ -2615,6 +2837,25 @@ done:
     if (rc == 0) {
         rc = txrc;
     }
+
+    return rc;
+}
+
+int
+ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
+        rc = ble_att_svr_rx_indicate_locked(conn, chan, rxom);
+    }
+
+    ble_hs_conn_unlock();
 
     return rc;
 }

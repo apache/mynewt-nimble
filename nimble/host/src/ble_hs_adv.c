@@ -101,6 +101,8 @@ ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, uint32_t *elems,
 /**
  * Sets the significant part of the data in outgoing advertisements.
  *
+ * Lock restrictions: None.
+ *
  * @return                      0 on success;  on failure.
  */
 int

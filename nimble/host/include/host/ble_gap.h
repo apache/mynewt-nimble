@@ -126,7 +126,7 @@ struct ble_gap_conn_upd_params {
 };
 
 struct ble_gap_conn_ctxt {
-    struct ble_gap_conn_desc desc;
+    struct ble_gap_conn_desc *desc;
     struct ble_gap_conn_upd_params *peer_params;
     struct ble_gap_conn_upd_params *self_params;
 };

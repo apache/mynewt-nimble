@@ -75,9 +75,9 @@ ble_gap_direct_connect_test_connect_cb(int event, int status,
 
     TEST_ASSERT(event == BLE_GAP_EVENT_CONN);
     TEST_ASSERT(status == 0);
-    TEST_ASSERT(ctxt->desc.conn_handle == 2);
-    TEST_ASSERT(ctxt->desc.peer_addr_type == BLE_ADDR_TYPE_PUBLIC);
-    TEST_ASSERT(memcmp(ctxt->desc.peer_addr, ble_os_test_peer_addr, 6) == 0);
+    TEST_ASSERT(ctxt->desc->conn_handle == 2);
+    TEST_ASSERT(ctxt->desc->peer_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(memcmp(ctxt->desc->peer_addr, ble_os_test_peer_addr, 6) == 0);
 
     return 0;
 }
@@ -241,7 +241,7 @@ ble_gap_terminate_cb(int event, int status,
     }
 
     disconn_handle = arg;
-    *disconn_handle = ctxt->desc.conn_handle;
+    *disconn_handle = ctxt->desc->conn_handle;
 
     return 0;
 }

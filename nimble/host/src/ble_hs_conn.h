@@ -53,12 +53,16 @@ struct ble_hs_conn {
     void *bhc_cb_arg;
 };
 
+void ble_hs_conn_lock(void);
+void ble_hs_conn_unlock(void);
+int ble_hs_conn_locked_by_cur_task(void);
 int ble_hs_conn_can_alloc(void);
 struct ble_hs_conn *ble_hs_conn_alloc(void);
 void ble_hs_conn_free(struct ble_hs_conn *conn);
 void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
+int ble_hs_conn_exists(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
 struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);

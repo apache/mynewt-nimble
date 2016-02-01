@@ -66,8 +66,7 @@ struct ble_l2cap_hdr
 
 struct ble_l2cap_chan;
 
-typedef int ble_l2cap_rx_fn(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan,
+typedef int ble_l2cap_rx_fn(uint16_t conn_handle,
                             struct os_mbuf **om);
 
 typedef int ble_l2cap_tx_fn(struct ble_hs_conn *conn,
@@ -133,9 +132,11 @@ void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 uint16_t ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan);
 
 
-int ble_l2cap_rx(struct ble_hs_conn *connection,
+int ble_l2cap_rx(struct ble_hs_conn *conn,
                  struct hci_data_hdr *hci_hdr,
-                 struct os_mbuf *om);
+                 struct os_mbuf *om,
+                 ble_l2cap_rx_fn **out_rx_cb,
+                 struct os_mbuf **out_rx_buf);
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *om);
 

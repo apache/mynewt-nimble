@@ -48,31 +48,31 @@ int ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle);
 
 void ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
 void ble_gattc_wakeup(void);
-void ble_gattc_rx_mtu(struct ble_hs_conn *conn, int status, uint16_t chan_mtu);
-void ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
+void ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu);
+void ble_gattc_rx_read_type_adata(uint16_t conn_handle,
                                   struct ble_att_read_type_adata *adata);
-void ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status);
-void ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
+void ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status);
+void ble_gattc_rx_read_rsp(uint16_t conn_handle, int status, void *value,
                            int value_len);
-void ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
+void ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
                                 void *value, int value_len);
-void ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
+void ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
                                 void *value, int value_len);
 void ble_gattc_rx_read_group_type_adata(
-    struct ble_hs_conn *conn, struct ble_att_read_group_type_adata *adata);
-void ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int rc);
+    uint16_t conn_handle, struct ble_att_read_group_type_adata *adata);
+void ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int rc);
 void ble_gattc_rx_find_type_value_hinfo(
-    struct ble_hs_conn *conn, struct ble_att_find_type_value_hinfo *hinfo);
-void ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int rc);
-void ble_gattc_rx_write_rsp(struct ble_hs_conn *conn);
-void ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
+    uint16_t conn_handle, struct ble_att_find_type_value_hinfo *hinfo);
+void ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status);
+void ble_gattc_rx_write_rsp(uint16_t conn_handle);
+void ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
                                  struct ble_att_prep_write_cmd *rsp,
                                  void *attr_data, uint16_t attr_data_len);
-void ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status);
-void ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn);
-void ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
+void ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status);
+void ble_gattc_rx_indicate_rsp(uint16_t conn_handle);
+void ble_gattc_rx_find_info_idata(uint16_t conn_handle,
                                   struct ble_att_find_info_idata *idata);
-void ble_gattc_rx_find_info_complete(struct ble_hs_conn *conn, int status);
+void ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status);
 void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
 

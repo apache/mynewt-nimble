@@ -258,95 +258,72 @@ static void ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
  */
 static int
 ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_type_adata *adata);
 static int
 ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn,
                                     int status);
 static int
 ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn,
                                     int status, void *value, int value_len);
 static int
 ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_type_adata *adata);
 static int
 ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn,
                                     int status);
 static int
 ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_type_adata *adata);
 static int
 ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn,
                                     int status);
 static int
-ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc,
-                           struct ble_hs_conn *conn, int status,
+ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc, int status,
                            void *value, int value_len);
 static int
-ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc,
-                                struct ble_hs_conn *conn, int status,
+ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
                                 void *value, int value_len);
 static int
 ble_gattc_read_uuid_rx_adata(struct ble_gattc_proc *proc,
-                             struct ble_hs_conn *conn,
                              struct ble_att_read_type_adata *adata);
 static int
-ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc,
-                                struct ble_hs_conn *conn,
-                                int status);
+ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc, int status);
 static int
 ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
-                             struct ble_hs_conn *conn,
                              int status, struct ble_att_prep_write_cmd *rsp,
                              void *attr_data, uint16_t attr_len);
 static int
-ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc,
-                             struct ble_hs_conn *conn, int status);
+ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status);
 
 static int
-ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
-                                 int status,
+ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc, int status,
                                  struct ble_att_prep_write_cmd *rsp,
                                  void *attr_data, uint16_t attr_len);
 static int
-ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn, int status);
+ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc, int status);
 
 
 typedef int ble_gattc_rx_adata_fn(struct ble_gattc_proc *proc,
-                                  struct ble_hs_conn *conn,
                                   struct ble_att_read_type_adata *adata);
 struct ble_gattc_rx_adata_entry {
     uint8_t op;
     ble_gattc_rx_adata_fn *cb;
 };
 
-typedef int ble_gattc_rx_complete_fn(struct ble_gattc_proc *proc,
-                                     struct ble_hs_conn *conn,
-                                     int rc);
+typedef int ble_gattc_rx_complete_fn(struct ble_gattc_proc *proc, int status);
 struct ble_gattc_rx_complete_entry {
     uint8_t op;
     ble_gattc_rx_complete_fn *cb;
 };
 
-typedef int ble_gattc_rx_attr_fn(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn, int status,
+typedef int ble_gattc_rx_attr_fn(struct ble_gattc_proc *proc, int status,
                                  void *value, int value_len);
 struct ble_gattc_rx_attr_entry {
     uint8_t op;
     ble_gattc_rx_attr_fn *cb;
 };
 
-typedef int ble_gattc_rx_prep_fn(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
-                                 int status,
+typedef int ble_gattc_rx_prep_fn(struct ble_gattc_proc *proc, int status,
                                  struct ble_att_prep_write_cmd *rsp,
                                  void *attr_data, uint16_t attr_len);
 
@@ -355,8 +332,7 @@ struct ble_gattc_rx_prep_entry {
     ble_gattc_rx_prep_fn *cb;
 };
 
-typedef int ble_gattc_rx_exec_fn(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn, int status);
+typedef int ble_gattc_rx_exec_fn(struct ble_gattc_proc *proc, int status);
 
 struct ble_gattc_rx_exec_entry {
     uint8_t op;
@@ -482,6 +458,8 @@ static STAILQ_HEAD(, ble_gattc_proc) ble_gattc_list;
 
 /**
  * Ensures all procedure entries are in a valid state.
+ *
+ * Lock restrictions: None.
  */
 static void
 ble_gattc_assert_sanity(void)
@@ -511,6 +489,9 @@ ble_gattc_assert_sanity(void)
  * $rx entry                                                                 *
  *****************************************************************************/
 
+/**
+ * Lock restrictions: None.
+ */
 static const void *
 ble_gattc_rx_entry_find_(uint8_t op, const void *rx_entries, int num_entries)
 {
@@ -535,6 +516,8 @@ ble_gattc_rx_entry_find_(uint8_t op, const void *rx_entries, int num_entries)
 /**
  * Searches an array of RX entries for one with the specified op code.  This is
  * defined as a macro so that it works with any array type.
+ * 
+ * Lock restrictions: None.
  *
  * @param op_arg                The GATT procedure op code to search for.
  * @param rx_entries            The array to search.
@@ -551,6 +534,8 @@ ble_gattc_rx_entry_find_(uint8_t op, const void *rx_entries, int num_entries)
 
 /**
  * Allocates a proc entry.
+ * 
+ * Lock restrictions: None.
  *
  * @return                      An entry on success; null on failure.
  */
@@ -569,6 +554,8 @@ ble_gattc_proc_alloc(void)
 
 /**
  * Frees the specified proc entry.  No-op if passed a null pointer.
+ * 
+ * Lock restrictions: None.
  */
 static void
 ble_gattc_proc_free(struct ble_gattc_proc *proc)
@@ -583,6 +570,8 @@ ble_gattc_proc_free(struct ble_gattc_proc *proc)
 
 /**
  * Removes the specified proc entry from the global list without freeing it.
+ * 
+ * Lock restrictions: None.
  *
  * @param proc                  The proc to remove.
  * @param prev                  The proc that is previous to "proc" in the
@@ -602,6 +591,8 @@ ble_gattc_proc_remove(struct ble_gattc_proc *proc, struct ble_gattc_proc *prev)
 
 /**
  * Removes and frees the speicifed proc entry.
+ * 
+ * Lock restrictions: None.
  *
  * @param proc                  The proc to remove and free.
  * @param prev                  The proc that is previous to "proc" in the
@@ -617,6 +608,8 @@ ble_gattc_proc_remove_free(struct ble_gattc_proc *proc,
 
 /**
  * Tests if a proc entry fits the specified criteria.
+ * 
+ * Lock restrictions: None.
  *
  * @param proc                  The procedure to test.
  * @param conn_handle           The connection handle to match against.
@@ -650,6 +643,8 @@ ble_gattc_proc_matches(struct ble_gattc_proc *proc, uint16_t conn_handle,
 
 /**
  * Searched the global proc list for an entry that fits the specified criteria.
+ * 
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against, or
@@ -687,6 +682,8 @@ ble_gattc_proc_find(uint16_t conn_handle, uint8_t op, int expecting_only,
 /**
  * Sets the specified proc entry's "pending" flag (i.e., indicates that the
  * GATT procedure is stalled until it transmits its next ATT request.
+ *
+ * Lock restrictions: None.
  */
 static void
 ble_gattc_proc_set_pending(struct ble_gattc_proc *proc)
@@ -701,6 +698,8 @@ ble_gattc_proc_set_pending(struct ble_gattc_proc *proc)
 /**
  * Sets the specified proc entry's "expecting" flag (i.e., indicates that the
  * GATT procedure is stalled until it receives an ATT response.
+ * 
+ * Lock restrictions: None.
  */
 static void
 ble_gattc_proc_set_expecting(struct ble_gattc_proc *proc,
@@ -719,6 +718,8 @@ ble_gattc_proc_set_expecting(struct ble_gattc_proc *proc,
  * Creates a new proc entry and sets its fields to the specified values.  The
  * entry is automatically inserted into the global proc list, and its "pending"
  * flag is set.
+ * 
+ * Lock restrictions: None.
  *
  * @param conn_handle           The handle of the connection associated with
  *                                  the GATT procedure.
@@ -733,16 +734,6 @@ static int
 ble_gattc_new_proc(uint16_t conn_handle, uint8_t op,
                    struct ble_gattc_proc **out_proc)
 {
-    struct ble_hs_conn *conn;
-
-    *out_proc = NULL;
-
-    /* Ensure we have a connection with the specified handle. */
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
-
     *out_proc = ble_gattc_proc_alloc();
     if (*out_proc == NULL) {
         return BLE_HS_ENOMEM;
@@ -759,6 +750,8 @@ ble_gattc_new_proc(uint16_t conn_handle, uint8_t op,
 
 /**
  * Determines if the specified proc entry's "pending" flag can be set.
+ * 
+ * Lock restrictions: None.
  */
 static int
 ble_gattc_proc_can_pend(struct ble_gattc_proc *proc)
@@ -775,6 +768,8 @@ ble_gattc_proc_can_pend(struct ble_gattc_proc *proc)
  * transmission fails.  A tx can be postponed if the failure was caused by
  * congestion or memory exhaustion.  All other failures cannot be postponed,
  * and the procedure should be aborted entirely.
+ * 
+ * Lock restrictions: None.
  *
  * @param proc                  The proc entry to check for postponement.
  * @param rc                    The return code of the previous tx attempt.
@@ -804,6 +799,8 @@ ble_gattc_tx_postpone_chk(struct ble_gattc_proc *proc, int rc)
 
 /**
  * Retrieves the dispatch entry with the specified op code.
+ * 
+ * Lock restrictions: None.
  */
 static const struct ble_gattc_dispatch_entry *
 ble_gattc_dispatch_get(uint8_t op)
@@ -822,6 +819,8 @@ ble_gattc_dispatch_get(uint8_t op)
  * seconds are aborted, and their corresponding connection is terminated.
  *
  * Called by the heartbeat timer; executed every second.
+ * 
+ * Lock restrictions: None.
  */
 static void
 ble_gattc_heartbeat(void *unused)
@@ -855,6 +854,8 @@ ble_gattc_heartbeat(void *unused)
  * Returns a pointer to a GATT error object with the specified fields.  The
  * returned object is statically allocated, so this function is not reentrant.
  * This function should only ever be called by the ble_hs task.
+ * 
+ * Lock restrictions: None.
  */
 struct ble_gatt_error *
 ble_gattc_error(int status, uint16_t att_handle)
@@ -878,6 +879,8 @@ ble_gattc_error(int status, uint16_t att_handle)
  * Calls an mtu-exchange proc's callback with the specified parameters.  If the
  * proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -886,6 +889,8 @@ ble_gattc_mtu_cb(struct ble_gattc_proc *proc, int status, uint16_t att_handle,
                  uint16_t mtu)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->mtu.cb == NULL) {
         rc = 0;
@@ -900,6 +905,8 @@ ble_gattc_mtu_cb(struct ble_gattc_proc *proc, int status, uint16_t att_handle,
 
 /**
  * Triggers a pending transmit for the specified mtu-exchange proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_mtu_kick(struct ble_gattc_proc *proc)
@@ -909,39 +916,41 @@ ble_gattc_mtu_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+        assert(chan != NULL);
+
+        if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
+            rc = BLE_HS_EALREADY;
+        } else {
+            req.bamc_mtu = chan->blc_my_mtu;
+            rc = ble_att_clt_tx_mtu(conn, &req);
+        }
     }
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    assert(chan != NULL);
+    ble_hs_conn_unlock();
 
-    if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
-        rc = BLE_HS_EALREADY;
-        goto err;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_mtu_cb(proc, rc, 0, 0);
+        return BLE_HS_EDONE;
     }
-
-    req.bamc_mtu = chan->blc_my_mtu;
-    rc = ble_att_clt_tx_mtu(conn, &req);
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_mtu_cb(proc, rc, 0, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified mtu-exchange proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_mtu_err(struct ble_gattc_proc *proc, int status, uint16_t att_handle)
@@ -952,9 +961,11 @@ ble_gattc_mtu_err(struct ble_gattc_proc *proc, int status, uint16_t att_handle)
 /**
  * Handles an incoming ATT exchange mtu response for the specified mtu-exchange
  * proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_mtu_rx_rsp(struct ble_gattc_proc *proc, struct ble_hs_conn *conn,
+ble_gattc_mtu_rx_rsp(struct ble_gattc_proc *proc,
                      int status, uint16_t chan_mtu)
 {
     ble_gattc_mtu_cb(proc, status, 0, chan_mtu);
@@ -963,6 +974,8 @@ ble_gattc_mtu_rx_rsp(struct ble_gattc_proc *proc, struct ble_hs_conn *conn,
 
 /**
  * Initiates GATT procedure: Exchange MTU.
+ * 
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -995,6 +1008,8 @@ ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
 /**
  * Calls a discover-all-services proc's callback with the specified parameters.
  * If the proc has no callback, this function is a no-op.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
@@ -1005,6 +1020,8 @@ ble_gattc_disc_all_svcs_cb(struct ble_gattc_proc *proc,
                            struct ble_gatt_service *service)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->disc_all_svcs.cb == NULL) {
         rc = 0;
@@ -1019,6 +1036,8 @@ ble_gattc_disc_all_svcs_cb(struct ble_gattc_proc *proc,
 
 /**
  * Triggers a pending transmit for the specified discover-all-services proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_all_svcs_kick(struct ble_gattc_proc *proc)
@@ -1028,36 +1047,39 @@ ble_gattc_disc_all_svcs_kick(struct ble_gattc_proc *proc)
     uint8_t uuid128[16];
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        rc = ble_uuid_16_to_128(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
+        assert(rc == 0);
+
+        req.bagq_start_handle = proc->disc_all_svcs.prev_handle + 1;
+        req.bagq_end_handle = 0xffff;
+        rc = ble_att_clt_tx_read_group_type(conn, &req, uuid128);
     }
 
-    rc = ble_uuid_16_to_128(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
-    assert(rc == 0);
+    ble_hs_conn_unlock();
 
-    req.bagq_start_handle = proc->disc_all_svcs.prev_handle + 1;
-    req.bagq_end_handle = 0xffff;
-    rc = ble_att_clt_tx_read_group_type(conn, &req, uuid128);
-    if (rc != 0) {
-        goto err;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_disc_all_svcs_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_disc_all_svcs_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * discover-all-services proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_disc_all_svcs_err(struct ble_gattc_proc *proc, int status,
@@ -1074,10 +1096,11 @@ ble_gattc_disc_all_svcs_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming attribute data entry from a read-group-type response for
  * the specified discover-all-services proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_all_svcs_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_group_type_adata *adata)
 {
     struct ble_gatt_service service;
@@ -1127,10 +1150,11 @@ done:
 /**
  * Handles a notification that an incoming read-group-type response has been
  * fully processed.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_disc_all_svcs_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status)
+ble_gattc_disc_all_svcs_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 || proc->disc_all_svcs.prev_handle == 0xffff) {
         /* Error or all svcs discovered. */
@@ -1145,6 +1169,8 @@ ble_gattc_disc_all_svcs_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Discover All Primary Services.
+ * 
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -1178,6 +1204,8 @@ ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
 /**
  * Calls a discover-service-by-uuid proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
@@ -1188,6 +1216,8 @@ ble_gattc_disc_svc_uuid_cb(struct ble_gattc_proc *proc, int status,
                            struct ble_gatt_service *service)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->disc_svc_uuid.cb == NULL) {
         rc = 0;
@@ -1202,6 +1232,8 @@ ble_gattc_disc_svc_uuid_cb(struct ble_gattc_proc *proc, int status,
 
 /**
  * Triggers a pending transmit for the specified discover-service-by-uuid proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_svc_uuid_kick(struct ble_gattc_proc *proc)
@@ -1210,36 +1242,40 @@ ble_gattc_disc_svc_uuid_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        req.bavq_start_handle = proc->disc_svc_uuid.prev_handle + 1;
+        req.bavq_end_handle = 0xffff;
+        req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
+
+        rc = ble_att_clt_tx_find_type_value(conn, &req,
+                                            proc->disc_svc_uuid.service_uuid,
+                                            16);
     }
 
-    req.bavq_start_handle = proc->disc_svc_uuid.prev_handle + 1;
-    req.bavq_end_handle = 0xffff;
-    req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
+    ble_hs_conn_unlock();
 
-    rc = ble_att_clt_tx_find_type_value(conn, &req,
-                                        proc->disc_svc_uuid.service_uuid, 16);
-    if (rc != 0) {
-        goto err;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_disc_svc_uuid_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_disc_svc_uuid_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * discover-service-by-uuid proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_disc_svc_uuid_err(struct ble_gattc_proc *proc, int status,
@@ -1256,10 +1292,11 @@ ble_gattc_disc_svc_uuid_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming "handles info" entry from a find-type-value response for
  * the specified discover-service-by-uuid proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_svc_uuid_rx_hinfo(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_find_type_value_hinfo *hinfo)
 {
     struct ble_gatt_service service;
@@ -1291,10 +1328,11 @@ done:
 /**
  * Handles a notification that a find-type-value response has been fully
  * processed for the specified discover-service-by-uuid proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_disc_svc_uuid_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status)
+ble_gattc_disc_svc_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 || proc->disc_svc_uuid.prev_handle == 0xffff) {
         /* Error or all svcs discovered. */
@@ -1309,6 +1347,8 @@ ble_gattc_disc_svc_uuid_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Discover Primary Service by Service UUID.
+ * 
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -1345,6 +1385,8 @@ ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
  * Calls a find-included-services proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -1354,6 +1396,8 @@ ble_gattc_find_inc_svcs_cb(struct ble_gattc_proc *proc, int status,
                            struct ble_gatt_service *service)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->find_inc_svcs.cb == NULL) {
         rc = 0;
@@ -1368,6 +1412,8 @@ ble_gattc_find_inc_svcs_cb(struct ble_gattc_proc *proc, int status,
 
 /**
  * Triggers a pending transmit for the specified find-included-services proc.
+ * 
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_find_inc_svcs_kick(struct ble_gattc_proc *proc)
@@ -1378,44 +1424,48 @@ ble_gattc_find_inc_svcs_kick(struct ble_gattc_proc *proc)
     uint8_t uuid128[16];
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
-    }
-
-    if (proc->find_inc_svcs.cur_start == 0) {
-        /* Find the next included service. */
-        read_type_req.batq_start_handle = proc->find_inc_svcs.prev_handle + 1;
-        read_type_req.batq_end_handle = proc->find_inc_svcs.end_handle;
-
-        rc = ble_uuid_16_to_128(BLE_ATT_UUID_INCLUDE, uuid128);
-        assert(rc == 0);
-
-        rc = ble_att_clt_tx_read_type(conn, &read_type_req, uuid128);
     } else {
-        /* Read the UUID of the previously found service. */
-        read_req.barq_handle = proc->find_inc_svcs.cur_start;
-        rc = ble_att_clt_tx_read(conn, &read_req);
-    }
-    if (rc != 0) {
-        goto err;
+        if (proc->find_inc_svcs.cur_start == 0) {
+            /* Find the next included service. */
+            read_type_req.batq_start_handle =
+                proc->find_inc_svcs.prev_handle + 1;
+            read_type_req.batq_end_handle = proc->find_inc_svcs.end_handle;
+
+            rc = ble_uuid_16_to_128(BLE_ATT_UUID_INCLUDE, uuid128);
+            assert(rc == 0);
+
+            rc = ble_att_clt_tx_read_type(conn, &read_type_req, uuid128);
+        } else {
+            /* Read the UUID of the previously found service. */
+            read_req.barq_handle = proc->find_inc_svcs.cur_start;
+            rc = ble_att_clt_tx_read(conn, &read_req);
+        }
     }
 
-    return 0;
+    ble_hs_conn_unlock();
 
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_find_inc_svcs_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    ble_gattc_find_inc_svcs_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * find-included-services proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_find_inc_svcs_err(struct ble_gattc_proc *proc, int status,
@@ -1434,10 +1484,11 @@ ble_gattc_find_inc_svcs_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming read-response for the specified find-included-services
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status,
+ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_proc *proc, int status,
                                     void *value, int value_len)
 {
     struct ble_gatt_service service;
@@ -1483,10 +1534,11 @@ done:
 /**
  * Handles an incoming "attribute data" entry from a read-by-type response for
  * the specified find-included-services proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_service service;
@@ -1551,10 +1603,11 @@ done:
 /**
  * Handles a notification that a read-by-type response has been fully
  * processed for the specified find-included-services proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status)
+ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 || proc->find_inc_svcs.prev_handle == 0xffff) {
         /* Error or all svcs discovered. */
@@ -1569,6 +1622,8 @@ ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Find Included Services.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -1609,6 +1664,8 @@ ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
  * Calls a discover-all-characteristics proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -1617,6 +1674,8 @@ ble_gattc_disc_all_chrs_cb(struct ble_gattc_proc *proc, int status,
                            uint16_t att_handle, struct ble_gatt_chr *chr)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->disc_all_chrs.cb == NULL) {
         rc = 0;
@@ -1632,6 +1691,8 @@ ble_gattc_disc_all_chrs_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified discover-all-characteristics
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_all_chrs_kick(struct ble_gattc_proc *proc)
@@ -1641,37 +1702,40 @@ ble_gattc_disc_all_chrs_kick(struct ble_gattc_proc *proc)
     uint8_t uuid128[16];
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+        assert(rc == 0);
+
+        req.batq_start_handle = proc->disc_all_chrs.prev_handle + 1;
+        req.batq_end_handle = proc->disc_all_chrs.end_handle;
+
+        rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
     }
 
-    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-    assert(rc == 0);
+    ble_hs_conn_unlock();
 
-    req.batq_start_handle = proc->disc_all_chrs.prev_handle + 1;
-    req.batq_end_handle = proc->disc_all_chrs.end_handle;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
 
-    rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
-    if (rc != 0) {
-        goto err;
+        ble_gattc_disc_all_chrs_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_disc_all_chrs_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * discover-all-characteristics proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_disc_all_chrs_err(struct ble_gattc_proc *proc, int status,
@@ -1688,10 +1752,11 @@ ble_gattc_disc_all_chrs_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming "attribute data" entry from a read-by-type response for
  * the specified discover-all-characteristics proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_chr chr;
@@ -1745,10 +1810,11 @@ done:
 /**
  * Handles a notification that a read-by-type response has been fully
  * processed for the specified discover-all-characteristics proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status)
+ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 ||
         proc->disc_all_chrs.prev_handle == proc->disc_all_chrs.end_handle) {
@@ -1765,6 +1831,8 @@ ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Discover All Characteristics of a Service.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -1805,6 +1873,8 @@ ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
  * Calls a discover-characteristic-by-uuid proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -1813,6 +1883,8 @@ ble_gattc_disc_chr_uuid_cb(struct ble_gattc_proc *proc, int status,
                            uint16_t att_handle, struct ble_gatt_chr *chr)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->disc_chr_uuid.cb == NULL) {
         rc = 0;
@@ -1828,6 +1900,8 @@ ble_gattc_disc_chr_uuid_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified
  * discover-characteristic-by-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_chr_uuid_kick(struct ble_gattc_proc *proc)
@@ -1837,37 +1911,40 @@ ble_gattc_disc_chr_uuid_kick(struct ble_gattc_proc *proc)
     uint8_t uuid128[16];
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+        assert(rc == 0);
+
+        req.batq_start_handle = proc->disc_chr_uuid.prev_handle + 1;
+        req.batq_end_handle = proc->disc_chr_uuid.end_handle;
+
+        rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
     }
 
-    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-    assert(rc == 0);
+    ble_hs_conn_unlock();
 
-    req.batq_start_handle = proc->disc_chr_uuid.prev_handle + 1;
-    req.batq_end_handle = proc->disc_chr_uuid.end_handle;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
 
-    rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
-    if (rc != 0) {
-        goto err;
+        ble_gattc_disc_chr_uuid_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_disc_chr_uuid_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * discover-characteristic-by-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_disc_chr_uuid_err(struct ble_gattc_proc *proc, int status,
@@ -1884,10 +1961,11 @@ ble_gattc_disc_chr_uuid_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming "attribute data" entry from a read-by-type response for
  * the specified discover-characteristics-by-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_chr chr;
@@ -1946,10 +2024,11 @@ done:
 /**
  * Handles a notification that a read-by-type response has been fully
  * processed for the specified discover-characteristics-by-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status)
+ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 ||
         proc->disc_chr_uuid.prev_handle == proc->disc_chr_uuid.end_handle) {
@@ -1966,6 +2045,8 @@ ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Discover Characteristics by UUID.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2009,6 +2090,8 @@ ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
  * Calls a discover-all-descriptors proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2017,6 +2100,8 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
                            uint16_t att_handle, struct ble_gatt_dsc *dsc)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->disc_all_dscs.cb == NULL) {
         rc = 0;
@@ -2032,6 +2117,8 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
 
 /**
  * Triggers a pending transmit for the specified discover-all-descriptors proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_all_dscs_kick(struct ble_gattc_proc *proc)
@@ -2040,34 +2127,38 @@ ble_gattc_disc_all_dscs_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+
+        req.bafq_start_handle = proc->disc_all_dscs.prev_handle + 1;
+        req.bafq_end_handle = proc->disc_all_dscs.end_handle;
+
+        rc = ble_att_clt_tx_find_info(conn, &req);
     }
 
-    req.bafq_start_handle = proc->disc_all_dscs.prev_handle + 1;
-    req.bafq_end_handle = proc->disc_all_dscs.end_handle;
+    ble_hs_conn_unlock();
 
-    rc = ble_att_clt_tx_find_info(conn, &req);
-    if (rc != 0) {
-        goto err;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_disc_all_dscs_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_disc_all_dscs_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * discover-all-descriptors proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_disc_all_dscs_err(struct ble_gattc_proc *proc, int status,
@@ -2084,10 +2175,11 @@ ble_gattc_disc_all_dscs_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming "information data" entry from a find-information
  * response for the specified discover-all-descriptors proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_disc_all_dscs_rx_idata(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  struct ble_att_find_info_idata *idata)
 {
     struct ble_gatt_dsc dsc;
@@ -2117,10 +2209,11 @@ done:
 /**
  * Handles a notification that a find-information response has been fully
  * processed for the specified discover-all-descriptors proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc,
-                                    struct ble_hs_conn *conn, int status)
+ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 ||
         proc->disc_all_dscs.prev_handle == proc->disc_all_dscs.end_handle) {
@@ -2137,6 +2230,8 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Discover All Characteristic Descriptors.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2178,6 +2273,8 @@ ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_def_handle,
  * Calls a read-characteristic proc's callback with the specified parameters.
  * If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2186,6 +2283,8 @@ ble_gattc_read_cb(struct ble_gattc_proc *proc, int status,
                   uint16_t att_handle, struct ble_gatt_attr *attr)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->read.cb == NULL) {
         rc = 0;
@@ -2201,6 +2300,8 @@ ble_gattc_read_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified read-characteristic-value
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_read_kick(struct ble_gattc_proc *proc)
@@ -2209,32 +2310,35 @@ ble_gattc_read_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        req.barq_handle = proc->read.handle;
+        rc = ble_att_clt_tx_read(conn, &req);
     }
 
-    req.barq_handle = proc->read.handle;
-    rc = ble_att_clt_tx_read(conn, &req);
-    if (rc != 0) {
-        goto err;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_read_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_read_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * read-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_read_err(struct ble_gattc_proc *proc, int status,
@@ -2246,10 +2350,11 @@ ble_gattc_read_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming read-response for the specified
  * read-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc,
-                           struct ble_hs_conn *conn, int status,
+ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc, int status,
                            void *value, int value_len)
 {
     struct ble_gatt_attr attr;
@@ -2267,6 +2372,8 @@ ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Read Characteristic Value.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2302,6 +2409,8 @@ ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
  * Calls a read-using-characteristic-uuid proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2310,6 +2419,8 @@ ble_gattc_read_uuid_cb(struct ble_gattc_proc *proc, int status,
                        uint16_t att_handle, struct ble_gatt_attr *attr)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->read_uuid.cb == NULL) {
         rc = 0;
@@ -2325,6 +2436,8 @@ ble_gattc_read_uuid_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified read-using-characteristic-uuid
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_read_uuid_kick(struct ble_gattc_proc *proc)
@@ -2333,33 +2446,36 @@ ble_gattc_read_uuid_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        req.batq_start_handle = proc->read_uuid.prev_handle + 1;
+        req.batq_end_handle = proc->read_uuid.end_handle;
+        rc = ble_att_clt_tx_read_type(conn, &req, proc->read_uuid.uuid128);
     }
 
-    req.batq_start_handle = proc->read_uuid.prev_handle + 1;
-    req.batq_end_handle = proc->read_uuid.end_handle;
-    rc = ble_att_clt_tx_read_type(conn, &req, proc->read_uuid.uuid128);
-    if (rc != 0) {
-        goto err;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_read_uuid_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_read_uuid_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * read-using-characteristic-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_read_uuid_err(struct ble_gattc_proc *proc, int status,
@@ -2375,10 +2491,11 @@ ble_gattc_read_uuid_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming "attribute data" entry from a read-by-type response for
  * the specified read-using-characteristic-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_read_uuid_rx_adata(struct ble_gattc_proc *proc,
-                             struct ble_hs_conn *conn,
                              struct ble_att_read_type_adata *adata)
 {
     struct ble_gatt_attr attr;
@@ -2402,11 +2519,11 @@ ble_gattc_read_uuid_rx_adata(struct ble_gattc_proc *proc,
 /**
  * Handles a notification that a read-by-type response has been fully
  * processed for the specified read-using-characteristic-uuid proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc,
-                                struct ble_hs_conn *conn,
-                                int status)
+ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
 {
     if (status != 0 ||
         proc->read_uuid.prev_handle == proc->read_uuid.end_handle) {
@@ -2423,6 +2540,8 @@ ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Read Using Characteristic UUID.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2464,6 +2583,8 @@ ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
  * Calls a read-long-characteristic proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2472,6 +2593,8 @@ ble_gattc_read_long_cb(struct ble_gattc_proc *proc, int status,
                        uint16_t att_handle, struct ble_gatt_attr *attr)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->read_long.cb == NULL) {
         rc = 0;
@@ -2486,6 +2609,8 @@ ble_gattc_read_long_cb(struct ble_gattc_proc *proc, int status,
 
 /**
  * Triggers a pending transmit for the specified read-long-characteristic proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_read_long_kick(struct ble_gattc_proc *proc)
@@ -2495,38 +2620,41 @@ ble_gattc_read_long_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
-    }
-
-    if (proc->read_long.offset == 0) {
-        read_req.barq_handle = proc->read_long.handle;
-        rc = ble_att_clt_tx_read(conn, &read_req);
     } else {
-        blob_req.babq_handle = proc->read_long.handle;
-        blob_req.babq_offset = proc->read_long.offset;
-        rc = ble_att_clt_tx_read_blob(conn, &blob_req);
-    }
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
+        if (proc->read_long.offset == 0) {
+            read_req.barq_handle = proc->read_long.handle;
+            rc = ble_att_clt_tx_read(conn, &read_req);
+        } else {
+            blob_req.babq_handle = proc->read_long.handle;
+            blob_req.babq_offset = proc->read_long.offset;
+            rc = ble_att_clt_tx_read_blob(conn, &blob_req);
+        }
     }
 
-    ble_gattc_read_long_cb(proc, rc, 0, NULL);
-    return BLE_HS_EDONE;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_read_long_cb(proc, rc, 0, NULL);
+        return BLE_HS_EDONE;
+    }
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * read-long-characteristic proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_read_long_err(struct ble_gattc_proc *proc, int status,
@@ -2538,14 +2666,17 @@ ble_gattc_read_long_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming read-response for the specified
  * read-long-characteristic-values proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc,
-                                struct ble_hs_conn *conn, int status,
+ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
                                 void *value, int value_len)
 {
     struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
     struct ble_gatt_attr attr;
+    uint16_t mtu;
     int rc;
 
     attr.handle = proc->read_long.handle;
@@ -2560,10 +2691,20 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc,
     }
 
     /* Determine if this is the end of the attribute value. */
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    assert(chan != NULL);
+    ble_hs_conn_lock();
 
-    if (value_len < ble_l2cap_chan_mtu(chan) - 1) {
+    rc = ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
+    if (rc == 0) {
+        mtu = ble_l2cap_chan_mtu(chan);
+    }
+
+    ble_hs_conn_unlock();
+
+    if (rc != 0) {
+        return 1;
+    }
+
+    if (value_len < mtu - 1) {
         ble_gattc_read_long_cb(proc, 0, 0, NULL);
         return 1;
     } else {
@@ -2577,6 +2718,8 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Read Long Characteristic Values.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2613,6 +2756,8 @@ ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
  * Calls a read-multiple-characteristics proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2622,6 +2767,8 @@ ble_gattc_read_mult_cb(struct ble_gattc_proc *proc, int status,
                        uint16_t attr_data_len)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->read_mult.cb == NULL) {
         rc = 0;
@@ -2640,6 +2787,8 @@ ble_gattc_read_mult_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified read-multiple-characteristics
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_read_mult_kick(struct ble_gattc_proc *proc)
@@ -2647,32 +2796,35 @@ ble_gattc_read_mult_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        rc = ble_att_clt_tx_read_mult(conn, proc->read_mult.handles,
+                                      proc->read_mult.num_handles);
     }
 
-    rc = ble_att_clt_tx_read_mult(conn, proc->read_mult.handles,
-                                  proc->read_mult.num_handles);
-    if (rc != 0) {
-        goto err;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_read_mult_cb(proc, rc, 0, NULL, 0);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_read_mult_cb(proc, rc, 0, NULL, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * read-multiple-characteristics proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_read_mult_err(struct ble_gattc_proc *proc, int status,
@@ -2684,10 +2836,11 @@ ble_gattc_read_mult_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming read-multiple-response for the specified
  * read-multiple-characteristic-values proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_read_mult_rx_read_mult_rsp(struct ble_gattc_proc *proc,
-                                     struct ble_hs_conn *conn, int status,
+ble_gattc_read_mult_rx_read_mult_rsp(struct ble_gattc_proc *proc, int status,
                                      void *value, int value_len)
 {
     ble_gattc_read_mult_cb(proc, status, 0, value, value_len);
@@ -2700,6 +2853,8 @@ ble_gattc_read_mult_rx_read_mult_rsp(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Read Multiple Characteristic Values.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2738,6 +2893,8 @@ ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
  * Calls a write-characteristic-value proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2746,6 +2903,8 @@ ble_gattc_write_cb(struct ble_gattc_proc *proc, int status,
                    uint16_t att_handle)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->write.cb == NULL) {
         rc = 0;
@@ -2760,6 +2919,8 @@ ble_gattc_write_cb(struct ble_gattc_proc *proc, int status,
 
 /**
  * Triggers a pending transmit for the specified write-without-response proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_write_no_rsp_kick(struct ble_gattc_proc *proc)
@@ -2768,36 +2929,39 @@ ble_gattc_write_no_rsp_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        req.bawq_handle = proc->write.attr.handle;
+        rc = ble_att_clt_tx_write_cmd(conn, &req, proc->write.attr.value,
+                                      proc->write.attr.value_len);
     }
 
-    req.bawq_handle = proc->write.attr.handle;
-    rc = ble_att_clt_tx_write_cmd(conn, &req, proc->write.attr.value,
-                                  proc->write.attr.value_len);
-    if (rc != 0) {
-        goto err;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        /* No response expected; call callback immediately and return 'done' to
+         * indicate the proc should be freed.
+         */
+        ble_gattc_write_cb(proc, 0, 0);
+        return BLE_HS_EDONE;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_write_cb(proc, rc, 0);
+        return BLE_HS_EDONE;
     }
-
-    /* No response expected; call callback immediately and return 'done' to
-     * indicate the proc should be freed.
-     */
-    ble_gattc_write_cb(proc, 0, 0);
-    return BLE_HS_EDONE;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_write_cb(proc, rc, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Initiates GATT procedure: Write Without Response.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2838,6 +3002,8 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, void *value,
 /**
  * Triggers a pending transmit for the specified write-characteristic-value
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_write_kick(struct ble_gattc_proc *proc)
@@ -2846,33 +3012,36 @@ ble_gattc_write_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        req.bawq_handle = proc->write.attr.handle;
+        rc = ble_att_clt_tx_write_req(conn, &req, proc->write.attr.value,
+                                      proc->write.attr.value_len);
     }
 
-    req.bawq_handle = proc->write.attr.handle;
-    rc = ble_att_clt_tx_write_req(conn, &req, proc->write.attr.value,
-                                  proc->write.attr.value_len);
-    if (rc != 0) {
-        goto err;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_write_cb(proc, rc, 0);
+        return BLE_HS_EDONE;
     }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_write_cb(proc, rc, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * write-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_write_err(struct ble_gattc_proc *proc, int status,
@@ -2884,9 +3053,11 @@ ble_gattc_write_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming write-response for the specified
  * write-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_write_rx_rsp(struct ble_gattc_proc *proc, struct ble_hs_conn *conn)
+ble_gattc_write_rx_rsp(struct ble_gattc_proc *proc)
 {
     ble_gattc_write_cb(proc, 0, 0);
 
@@ -2896,6 +3067,8 @@ ble_gattc_write_rx_rsp(struct ble_gattc_proc *proc, struct ble_hs_conn *conn)
 
 /**
  * Initiates GATT procedure: Write Characteristic Value.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -2937,6 +3110,8 @@ ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
  * Calls a write-long-characteristic-value proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -2945,6 +3120,8 @@ ble_gattc_write_long_cb(struct ble_gattc_proc *proc, int status,
                         uint16_t att_handle)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->write_long.cb == NULL) {
         rc = 0;
@@ -2961,6 +3138,8 @@ ble_gattc_write_long_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified
  * write-long-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_write_long_kick(struct ble_gattc_proc *proc)
@@ -2972,54 +3151,57 @@ ble_gattc_write_long_kick(struct ble_gattc_proc *proc)
     int max_sz;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        if (proc->write_long.attr.offset < proc->write_long.attr.value_len) {
+            chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+            assert(chan != NULL);
+
+            max_sz = ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+            if (proc->write_long.attr.offset + max_sz >
+                proc->write_long.attr.value_len) {
+
+                proc->write_long.length = proc->write_long.attr.value_len -
+                                          proc->write_long.attr.offset;
+            } else {
+                proc->write_long.length = max_sz;
+            }
+
+            prep_req.bapc_handle = proc->write_long.attr.handle;
+            prep_req.bapc_offset = proc->write_long.attr.offset;
+            rc = ble_att_clt_tx_prep_write(conn, &prep_req,
+                                           proc->write_long.attr.value +
+                                               proc->write_long.attr.offset,
+                                           proc->write_long.length);
+        } else {
+            exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+            rc = ble_att_clt_tx_exec_write(conn, &exec_req);
+        }
     }
 
-    if (proc->write_long.attr.offset < proc->write_long.attr.value_len) {
-        chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-        assert(chan != NULL);
+    ble_hs_conn_unlock();
 
-        max_sz = ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
-        if (proc->write_long.attr.offset + max_sz >
-            proc->write_long.attr.value_len) {
-
-            proc->write_long.length = proc->write_long.attr.value_len -
-                                      proc->write_long.attr.offset;
-        } else {
-            proc->write_long.length = max_sz;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
         }
 
-        prep_req.bapc_handle = proc->write_long.attr.handle;
-        prep_req.bapc_offset = proc->write_long.attr.offset;
-        rc = ble_att_clt_tx_prep_write(conn, &prep_req,
-                                       proc->write_long.attr.value +
-                                           proc->write_long.attr.offset,
-                                       proc->write_long.length);
-    } else {
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
-        rc = ble_att_clt_tx_exec_write(conn, &exec_req);
+        ble_gattc_write_long_cb(proc, rc, 0);
+        return BLE_HS_EDONE;
     }
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_write_long_cb(proc, rc, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * write-long-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
@@ -3031,10 +3213,11 @@ ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming prepare-write-response for the specified
  * write-long-cahracteristic-values proc.
+ *
+ * Lock restrictions: None.
  */
 static int
 ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
-                             struct ble_hs_conn *conn,
                              int status, struct ble_att_prep_write_cmd *rsp,
                              void *attr_data, uint16_t attr_len)
 {
@@ -3082,10 +3265,11 @@ err:
 /**
  * Handles an incoming execute-write-response for the specified
  * write-long-characteristic-values proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc,
-                             struct ble_hs_conn *conn, int status)
+ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
 {
     ble_gattc_write_long_cb(proc, status, 0);
     return 1;
@@ -3093,6 +3277,8 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Write Long Characteristic Values.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -3135,6 +3321,8 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle, void *value,
  * Calls a write-long-characteristic-value proc's callback with the specified
  * parameters.  If the proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -3143,6 +3331,8 @@ ble_gattc_write_reliable_cb(struct ble_gattc_proc *proc, int status,
                             uint16_t att_handle)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->write_reliable.cb == NULL) {
         rc = 0;
@@ -3160,6 +3350,8 @@ ble_gattc_write_reliable_cb(struct ble_gattc_proc *proc, int status,
 /**
  * Triggers a pending transmit for the specified
  * write-reliable-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_write_reliable_kick(struct ble_gattc_proc *proc)
@@ -3171,41 +3363,44 @@ ble_gattc_write_reliable_kick(struct ble_gattc_proc *proc)
     int attr_idx;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
-    }
-
-    attr_idx = proc->write_reliable.cur_attr;
-    if (attr_idx < proc->write_reliable.num_attrs) {
-        attr = proc->write_reliable.attrs + attr_idx;
-        prep_req.bapc_handle = attr->handle;
-        prep_req.bapc_offset = 0;
-        rc = ble_att_clt_tx_prep_write(conn, &prep_req, attr->value,
-                                       attr->value_len);
     } else {
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
-        rc = ble_att_clt_tx_exec_write(conn, &exec_req);
-    }
-    if (rc != 0) {
-        goto err;
+        attr_idx = proc->write_reliable.cur_attr;
+        if (attr_idx < proc->write_reliable.num_attrs) {
+            attr = proc->write_reliable.attrs + attr_idx;
+            prep_req.bapc_handle = attr->handle;
+            prep_req.bapc_offset = 0;
+            rc = ble_att_clt_tx_prep_write(conn, &prep_req, attr->value,
+                                           attr->value_len);
+        } else {
+            exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+            rc = ble_att_clt_tx_exec_write(conn, &exec_req);
+        }
     }
 
-    return 0;
+    ble_hs_conn_unlock();
 
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_write_reliable_cb(proc, rc, 0);
+        return BLE_HS_EDONE;
     }
-
-    ble_gattc_write_reliable_cb(proc, rc, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified
  * write-reliable-characteristic-value proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
@@ -3217,10 +3412,11 @@ ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming prepare-write-response for the specified
  * write-reliable-cahracteristic-values proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn,
                                  int status,
                                  struct ble_att_prep_write_cmd *rsp,
                                  void *attr_data, uint16_t attr_len)
@@ -3271,10 +3467,11 @@ err:
 /**
  * Handles an incoming execute-write-response for the specified
  * write-reliable-characteristic-values proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc,
-                                 struct ble_hs_conn *conn, int status)
+ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc, int status)
 {
     ble_gattc_write_reliable_cb(proc, status, 0);
     return 1;
@@ -3282,6 +3479,8 @@ ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc,
 
 /**
  * Initiates GATT procedure: Write Long Characteristic Values.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -3322,6 +3521,8 @@ ble_gattc_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
 
 /**
  * Sends an attribute notification.
+ *
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
  */
 int
 ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle)
@@ -3352,6 +3553,8 @@ ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle)
  * Calls an indication proc's callback with the specified parameters.  If the
  * proc has no callback, this function is a no-op.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      The return code of the callback (or 0 if there
  *                                  is no callback).
  */
@@ -3360,6 +3563,8 @@ ble_gattc_indicate_cb(struct ble_gattc_proc *proc, int status,
                       uint16_t att_handle)
 {
     int rc;
+
+    assert(!ble_hs_conn_locked_by_cur_task());
 
     if (proc->indicate.cb == NULL) {
         rc = 0;
@@ -3374,6 +3579,8 @@ ble_gattc_indicate_cb(struct ble_gattc_proc *proc, int status,
 
 /**
  * Triggers a pending transmit for the specified indication proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_gattc_indicate_kick(struct ble_gattc_proc *proc)
@@ -3383,40 +3590,42 @@ ble_gattc_indicate_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    ble_hs_conn_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
-        goto err;
+    } else {
+        rc = ble_att_svr_read_handle(NULL, proc->indicate.attr.handle, &ctxt,
+                                     NULL);
+        if (rc == 0) {
+            proc->indicate.attr.value = ctxt.attr_data;
+            proc->indicate.attr.value_len = ctxt.data_len;
+
+            req.baiq_handle = proc->indicate.attr.handle;
+            rc = ble_att_clt_tx_indicate(conn, &req, proc->indicate.attr.value,
+                                         proc->indicate.attr.value_len);
+        }
     }
 
-    rc = ble_att_svr_read_handle(NULL, proc->indicate.attr.handle, &ctxt,
-                                 NULL);
-    if (rc != 0) {
-        goto err;
+    ble_hs_conn_unlock();
+
+    if (rc == 0) {
+        return 0;
+    } else {
+        if (ble_gattc_tx_postpone_chk(proc, rc)) {
+            return BLE_HS_EAGAIN;
+        }
+
+        ble_gattc_indicate_cb(proc, rc, 0);
+        return BLE_HS_EDONE;
     }
-    proc->indicate.attr.value = ctxt.attr_data;
-    proc->indicate.attr.value_len = ctxt.data_len;
-
-    req.baiq_handle = proc->indicate.attr.handle;
-    rc = ble_att_clt_tx_indicate(conn, &req, proc->indicate.attr.value,
-                                 proc->indicate.attr.value_len);
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
-
-err:
-    if (ble_gattc_tx_postpone_chk(proc, rc)) {
-        return BLE_HS_EAGAIN;
-    }
-
-    ble_gattc_indicate_cb(proc, rc, 0);
-    return BLE_HS_EDONE;
 }
 
 /**
  * Handles an incoming ATT error response for the specified indication proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static void
 ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
@@ -3428,20 +3637,30 @@ ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
 /**
  * Handles an incoming handle-value-confirmation for the specified indication
  * proc.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc,
-                          struct ble_hs_conn *conn)
+ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 {
+    struct ble_hs_conn *conn;
+
     /* Now that the confirmation has been received, we can send any subsequent
      * indication.
      */
-    conn->bhc_gatt_svr.flags &= ~BLE_GATTS_CONN_F_INDICATION_TXED;
+    ble_hs_conn_lock();
 
-    ble_gattc_indicate_cb(proc, 0, 0);
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn != NULL) {
+        conn->bhc_gatt_svr.flags &= ~BLE_GATTS_CONN_F_INDICATION_TXED;
 
-    /* Send the next indication if one is pending. */
-    ble_gatts_send_notifications(conn);
+        ble_gattc_indicate_cb(proc, 0, 0);
+
+        /* Send the next indication if one is pending. */
+        ble_gatts_send_notifications(conn);
+    }
+
+    ble_hs_conn_unlock();
 
     /* The indicate operation only has a single request / response exchange. */
     return 1;
@@ -3449,6 +3668,8 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc,
 
 /**
  * Sends an attribute indication.
+ *
+ * Lock restrictions: None.
  */
 int
 ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
@@ -3477,6 +3698,8 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
 /**
  * Initiates GATT procedure: Read Characteristic Descriptors.
  *
+ * Lock restrictions: None.
+ *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
  * @param attr_handle           The handle of the descriptor to read.
@@ -3498,6 +3721,8 @@ ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
 /**
  * Initiates GATT procedure: Read Long Characteristic Descriptors.
  *
+ * Lock restrictions: None.
+ *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
  * @param attr_handle           The handle of the descriptor to read.
@@ -3518,6 +3743,8 @@ ble_gattc_read_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
 
 /**
  * Initiates GATT procedure: Write Characteristic Descriptors.
+ *
+ * Lock restrictions: None.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -3544,6 +3771,8 @@ ble_gattc_write_dsc(uint16_t conn_handle, uint16_t attr_handle, void *value,
 /**
  * Initiates GATT procedure: Write Long Characteristic Descriptors.
  *
+ * Lock restrictions: None.
+ *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
  * @param attr_handle           The handle of the descriptor to write.
@@ -3569,6 +3798,8 @@ ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
 /**
  * Dispatches an incoming ATT error-response to the appropriate active GATT
  * procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
 ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
@@ -3597,9 +3828,11 @@ ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
 /**
  * Dispatches an incoming ATT exchange-mtu-response to the appropriate active
  * GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_mtu(struct ble_hs_conn *conn, int status, uint16_t chan_mtu)
+ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -3607,13 +3840,13 @@ ble_gattc_rx_mtu(struct ble_hs_conn *conn, int status, uint16_t chan_mtu)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_MTU, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_MTU, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_mtu_rx_rsp(proc, conn, status, chan_mtu);
+    rc = ble_gattc_mtu_rx_rsp(proc, status, chan_mtu);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3622,9 +3855,11 @@ ble_gattc_rx_mtu(struct ble_hs_conn *conn, int status, uint16_t chan_mtu)
 /**
  * Dispatches an incoming "information data" entry from a
  * find-information-response to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
+ble_gattc_rx_find_info_idata(uint16_t conn_handle,
                              struct ble_att_find_info_idata *idata)
 {
     struct ble_gattc_proc *proc;
@@ -3633,14 +3868,14 @@ ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_disc_all_dscs_rx_idata(proc, conn, idata);
+    rc = ble_gattc_disc_all_dscs_rx_idata(proc, idata);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     } else {
@@ -3656,9 +3891,11 @@ ble_gattc_rx_find_info_idata(struct ble_hs_conn *conn,
 /**
  * Dispatches an incoming notification of the end of a
  * find-information-response to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_find_info_complete(struct ble_hs_conn *conn, int status)
+ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -3666,14 +3903,14 @@ ble_gattc_rx_find_info_complete(struct ble_hs_conn *conn, int status)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_DISC_ALL_DSCS, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_disc_all_dscs_rx_complete(proc, conn, status);
+    rc = ble_gattc_disc_all_dscs_rx_complete(proc, status);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3682,9 +3919,11 @@ ble_gattc_rx_find_info_complete(struct ble_hs_conn *conn, int status)
 /**
  * Dispatches an incoming "handles info" entry from a
  * find-by-type-value-response to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
+ble_gattc_rx_find_type_value_hinfo(uint16_t conn_handle,
                                    struct ble_att_find_type_value_hinfo *hinfo)
 {
     struct ble_gattc_proc *proc;
@@ -3693,14 +3932,14 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_disc_svc_uuid_rx_hinfo(proc, conn, hinfo);
+    rc = ble_gattc_disc_svc_uuid_rx_hinfo(proc, hinfo);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     } else {
@@ -3716,9 +3955,11 @@ ble_gattc_rx_find_type_value_hinfo(struct ble_hs_conn *conn,
 /**
  * Dispatches an incoming notification of the end of a
  * find-by-type-value-response to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int status)
+ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -3726,14 +3967,14 @@ ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int status)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_DISC_SVC_UUID, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_disc_svc_uuid_rx_complete(proc, conn, status);
+    rc = ble_gattc_disc_svc_uuid_rx_complete(proc, status);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3742,9 +3983,11 @@ ble_gattc_rx_find_type_value_complete(struct ble_hs_conn *conn, int status)
 /**
  * Dispatches an incoming "attribute data" entry from a read-by-type-response
  * to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
+ble_gattc_rx_read_type_adata(uint16_t conn_handle,
                              struct ble_att_read_type_adata *adata)
 {
     const struct ble_gattc_rx_adata_entry *rx_entry;
@@ -3754,7 +3997,7 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -3767,7 +4010,7 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
         return;
     }
 
-    rc = rx_entry->cb(proc, conn, adata);
+    rc = rx_entry->cb(proc, adata);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     } else {
@@ -3783,9 +4026,11 @@ ble_gattc_rx_read_type_adata(struct ble_hs_conn *conn,
 /**
  * Dispatches an incoming notification of the end of a read-by-type-response to
  * the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status)
+ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status)
 {
     const struct ble_gattc_rx_complete_entry *rx_entry;
     struct ble_gattc_proc *proc;
@@ -3794,7 +4039,7 @@ ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -3807,7 +4052,7 @@ ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status)
         return;
     }
 
-    rc = rx_entry->cb(proc, conn, status);
+    rc = rx_entry->cb(proc, status);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3816,9 +4061,11 @@ ble_gattc_rx_read_type_complete(struct ble_hs_conn *conn, int status)
 /**
  * Dispatches an incoming "attribute data" entry from a
  * read-by-group-type-response to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
+ble_gattc_rx_read_group_type_adata(uint16_t conn_handle,
                                    struct ble_att_read_group_type_adata *adata)
 {
     struct ble_gattc_proc *proc;
@@ -3827,14 +4074,14 @@ ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_SVCS, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_DISC_ALL_SVCS, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_disc_all_svcs_rx_adata(proc, conn, adata);
+    rc = ble_gattc_disc_all_svcs_rx_adata(proc, adata);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     } else {
@@ -3850,9 +4097,11 @@ ble_gattc_rx_read_group_type_adata(struct ble_hs_conn *conn,
 /**
  * Dispatches an incoming notification of the end of a
  * read-by-group-type-response to the appropriate active GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int status)
+ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int status)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -3860,14 +4109,14 @@ ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int status)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_DISC_ALL_SVCS, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_DISC_ALL_SVCS, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_disc_all_svcs_rx_complete(proc, conn, status);
+    rc = ble_gattc_disc_all_svcs_rx_complete(proc, status);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3876,9 +4125,11 @@ ble_gattc_rx_read_group_type_complete(struct ble_hs_conn *conn, int status)
 /**
  * Dispatches an incoming ATT read-response to the appropriate active GATT
  * procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
+ble_gattc_rx_read_rsp(uint16_t conn_handle, int status, void *value,
                       int value_len)
 {
     const struct ble_gattc_rx_attr_entry *rx_entry;
@@ -3888,7 +4139,7 @@ ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -3900,7 +4151,7 @@ ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
         return;
     }
 
-    rc = rx_entry->cb(proc, conn, status, value, value_len);
+    rc = rx_entry->cb(proc, status, value, value_len);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3909,9 +4160,11 @@ ble_gattc_rx_read_rsp(struct ble_hs_conn *conn, int status, void *value,
 /**
  * Dispatches an incoming ATT read-blob-response to the appropriate active GATT
  * procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
+ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
                            void *value, int value_len)
 {
     struct ble_gattc_proc *proc;
@@ -3920,15 +4173,14 @@ ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_READ_LONG, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_READ_LONG, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_read_long_rx_read_rsp(proc, conn, status, value,
-                                         value_len);
+    rc = ble_gattc_read_long_rx_read_rsp(proc, status, value, value_len);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3937,9 +4189,11 @@ ble_gattc_rx_read_blob_rsp(struct ble_hs_conn *conn, int status,
 /**
  * Dispatches an incoming ATT read-multiple-response to the appropriate active
  * GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
+ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
                            void *value, int value_len)
 {
     struct ble_gattc_proc *proc;
@@ -3948,15 +4202,14 @@ ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_READ_MULT, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_READ_MULT, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_read_mult_rx_read_mult_rsp(proc, conn, status,
-                                              value, value_len);
+    rc = ble_gattc_read_mult_rx_read_mult_rsp(proc, status, value, value_len);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3965,9 +4218,11 @@ ble_gattc_rx_read_mult_rsp(struct ble_hs_conn *conn, int status,
 /**
  * Dispatches an incoming ATT write-response to the appropriate active GATT
  * procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_write_rsp(struct ble_hs_conn *conn)
+ble_gattc_rx_write_rsp(uint16_t conn_handle)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -3975,13 +4230,13 @@ ble_gattc_rx_write_rsp(struct ble_hs_conn *conn)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_WRITE, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_WRITE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_write_rx_rsp(proc, conn);
+    rc = ble_gattc_write_rx_rsp(proc);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -3990,9 +4245,11 @@ ble_gattc_rx_write_rsp(struct ble_hs_conn *conn)
 /**
  * Dispatches an incoming ATT prepare-write-response to the appropriate active
  * GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
+ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
                             struct ble_att_prep_write_cmd *rsp,
                             void *attr_data, uint16_t attr_data_len)
 {
@@ -4003,7 +4260,7 @@ ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -4014,7 +4271,7 @@ ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
         return;
     }
 
-    rc = rx_entry->cb(proc, conn, status, rsp, attr_data, attr_data_len);
+    rc = rx_entry->cb(proc, status, rsp, attr_data, attr_data_len);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -4023,9 +4280,11 @@ ble_gattc_rx_prep_write_rsp(struct ble_hs_conn *conn, int status,
 /**
  * Dispatches an incoming ATT execute-write-response to the appropriate active
  * GATT procedure.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
-ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status)
+ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status)
 {
     const struct ble_gattc_rx_exec_entry *rx_entry;
     struct ble_gattc_proc *proc;
@@ -4034,7 +4293,7 @@ ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_NONE, 1, &prev);
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_NONE, 1, &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
@@ -4045,7 +4304,7 @@ ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status)
         return;
     }
 
-    rc = rx_entry->cb(proc, conn, status);
+    rc = rx_entry->cb(proc, status);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -4056,7 +4315,7 @@ ble_gattc_rx_exec_write_rsp(struct ble_hs_conn *conn, int status)
  * active GATT procedure.
  */
 void
-ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn)
+ble_gattc_rx_indicate_rsp(uint16_t conn_handle)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -4064,14 +4323,14 @@ ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn)
 
     ble_gattc_assert_sanity();
 
-    proc = ble_gattc_proc_find(conn->bhc_handle, BLE_GATT_OP_INDICATE, 1,
+    proc = ble_gattc_proc_find(conn_handle, BLE_GATT_OP_INDICATE, 1,
                                &prev);
     if (proc == NULL) {
         /* Not expecting a response from this device. */
         return;
     }
 
-    rc = ble_gattc_indicate_rx_rsp(proc, conn);
+    rc = ble_gattc_indicate_rx_rsp(proc);
     if (rc != 0) {
         ble_gattc_proc_remove_free(proc, prev);
     }
@@ -4083,6 +4342,8 @@ ble_gattc_rx_indicate_rsp(struct ble_hs_conn *conn)
 
 /**
  * Triggers a transmission for each active GATT procedure with a pending send.
+ *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 void
 ble_gattc_wakeup(void)
@@ -4140,6 +4401,8 @@ ble_gattc_wakeup(void)
  * the connection and cancels all relevant pending and in-progress GATT
  * procedures.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @param conn_handle           The handle of the connection that was
  *                                  terminated.
  */
@@ -4167,6 +4430,9 @@ ble_gattc_connection_broken(uint16_t conn_handle)
  * Called when a BLE connection transitions into a transmittable state.  Wakes
  * up all congested GATT procedures associated with the connection.
  *
+ *
+ * Lock restrictions: None.
+ *
  * @param conn_handle           The handle of the connection to test.
  */
 void
@@ -4188,6 +4454,8 @@ ble_gattc_connection_txable(uint16_t conn_handle)
 
 /**
  * Indicates whether there are currently any active GATT procedures.
+ *
+ * Lock restrictions: None.
  */
 int
 ble_gattc_any_jobs(void)
@@ -4198,6 +4466,8 @@ ble_gattc_any_jobs(void)
 /**
  * XXX This function only exists because we can't set a timer before the OS
  * starts.  Maybe the OS issue can be fixed.
+ *
+ * Lock restrictions: None.
  */
 void
 ble_gattc_started(void)
@@ -4209,6 +4479,9 @@ ble_gattc_started(void)
     assert(rc == 0);
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_gattc_init(void)
 {
