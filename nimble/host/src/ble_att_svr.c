@@ -31,8 +31,6 @@
 static STAILQ_HEAD(, ble_att_svr_entry) ble_att_svr_list;
 static uint16_t ble_att_svr_id;
 
-static struct os_mutex ble_att_svr_list_mutex;
-
 #define BLE_ATT_SVR_NUM_ENTRIES          128
 static bssnz_t os_membuf_t
 ble_att_svr_entry_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_ENTRIES,
@@ -60,34 +58,6 @@ static bssnz_t uint8_t ble_att_svr_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 
 ble_att_svr_notify_fn *ble_att_svr_notify_cb;
 void *ble_att_svr_notify_cb_arg;
-
-/**
- * Locks the host attribute list.
- *
- * @return 0 on success, non-zero error code on failure.
- */
-static void
-ble_att_svr_list_lock(void)
-{
-    int rc;
-
-    rc = os_mutex_pend(&ble_att_svr_list_mutex, OS_WAIT_FOREVER);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
-}
-
-/**
- * Unlocks the host attribute list
- *
- * @return 0 on success, non-zero error code on failure.
- */
-static void
-ble_att_svr_list_unlock(void)
-{
-    int rc;
-
-    rc = os_mutex_release(&ble_att_svr_list_mutex);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
-}
 
 /**
  * Lock restrictions: None.
@@ -162,9 +132,7 @@ ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
     entry->ha_cb = cb;
     entry->ha_cb_arg = cb_arg;
 
-    ble_att_svr_list_lock();
     STAILQ_INSERT_TAIL(&ble_att_svr_list, entry, ha_next);
-    ble_att_svr_list_unlock();
 
     if (handle_id != NULL) {
         *handle_id = entry->ha_handle_id;
@@ -235,8 +203,6 @@ ble_att_svr_walk(ble_att_svr_walk_func_t walk_func, void *arg,
 
     assert(ha_ptr != NULL);
 
-    ble_att_svr_list_lock();
-
     if (*ha_ptr == NULL) {
         ha = STAILQ_FIRST(&ble_att_svr_list);
     } else {
@@ -256,7 +222,6 @@ ble_att_svr_walk(ble_att_svr_walk_func_t walk_func, void *arg,
     rc = 0;
 
 done:
-    ble_att_svr_list_unlock();
     return rc;
 }
 
@@ -272,7 +237,6 @@ ble_att_svr_match_handle(struct ble_att_svr_entry *ha, void *arg)
         return (0);
     }
 }
-
 
 /**
  * Find a host attribute by handle id.
@@ -426,7 +390,6 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
 
     return 0;
 }
-
 
 /**
  * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
@@ -722,8 +685,6 @@ ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
     num_entries = 0;
     rc = 0;
 
-    ble_att_svr_list_lock();
-
     STAILQ_FOREACH(ha, &ble_att_svr_list, ha_next) {
         if (ha->ha_handle_id > req->bafq_end_handle) {
             rc = 0;
@@ -800,7 +761,6 @@ ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
     }
 
 done:
-    ble_att_svr_list_unlock();
 
     if (rc == 0 && num_entries == 0) {
         return BLE_HS_ENOENT;
@@ -1077,8 +1037,6 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
     prev = 0;
     rc = 0;
 
-    ble_att_svr_list_lock();
-
     /* Iterate through the attribute list, keeping track of the current
      * matching group.  For each attribute entry, determine if data needs to be
      * written to the response.
@@ -1138,7 +1096,6 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
     }
 
 done:
-    ble_att_svr_list_unlock();
 
     any_entries = OS_MBUF_PKTHDR(txom)->omp_len >
                   BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
@@ -1991,7 +1948,7 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
         if (start_group_handle != 0) {
             /* We have already found the start of a group. */
             if (!ble_att_svr_is_valid_group_type(entry->ha_uuid)) {
-                /* This attribute is part of the current group. */ 
+                /* This attribute is part of the current group. */
                 end_group_handle = entry->ha_handle_id;
             } else {
                 /* This attribute marks the end of the group.  Write an entry
@@ -2854,11 +2811,6 @@ ble_att_svr_init(void)
     int rc;
 
     STAILQ_INIT(&ble_att_svr_list);
-
-    rc = os_mutex_init(&ble_att_svr_list_mutex);
-    if (rc != 0) {
-        return rc;
-    }
 
     rc = os_mempool_init(&ble_att_svr_entry_pool, BLE_ATT_SVR_NUM_ENTRIES,
                          sizeof (struct ble_att_svr_entry),
