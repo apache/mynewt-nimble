@@ -3531,7 +3531,8 @@ ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle)
     struct ble_att_notify_req req;
     int rc;
 
-    rc = ble_att_svr_read_handle(NULL, chr_val_handle, &ctxt, NULL);
+    rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, chr_val_handle,
+                                 &ctxt, NULL);
     if (rc != 0) {
         return rc;
     }
@@ -3596,7 +3597,8 @@ ble_gattc_indicate_kick(struct ble_gattc_proc *proc)
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
     } else {
-        rc = ble_att_svr_read_handle(NULL, proc->indicate.attr.handle, &ctxt,
+        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
+                                     proc->indicate.attr.handle, &ctxt,
                                      NULL);
         if (rc == 0) {
             proc->indicate.attr.value = ctxt.attr_data;

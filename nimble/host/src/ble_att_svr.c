@@ -89,6 +89,9 @@ ble_att_svr_list_unlock(void)
     assert(rc == 0 || rc == OS_NOT_STARTED);
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static struct ble_att_svr_entry *
 ble_att_svr_entry_alloc(void)
 {
@@ -116,6 +119,8 @@ ble_att_svr_entry_free(struct ble_att_svr_entry *entry)
 /**
  * Allocate the next handle id and return it.
  *
+ * Lock restrictions: None.
+ *
  * @return A new 16-bit handle ID.
  */
 static uint16_t
@@ -129,6 +134,8 @@ ble_att_svr_next_id(void)
 
 /**
  * Register a host attribute with the BLE stack.
+ *
+ * Lock restrictions: None.
  *
  * @param ha                    A filled out ble_att structure to register
  * @param handle_id             A pointer to a 16-bit handle ID, which will be
@@ -166,6 +173,9 @@ ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
                             uint16_t *handle_id, ble_att_svr_access_fn *cb,
@@ -187,6 +197,9 @@ ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
     return 0;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 uint16_t
 ble_att_svr_prev_handle(void)
 {
@@ -197,6 +210,8 @@ ble_att_svr_prev_handle(void)
  * Walk the host attribute list, calling walk_func on each entry with argument.
  * If walk_func wants to stop iteration, it returns 1.  To continue iteration
  * it returns 0.
+ *
+ * Lock restrictions: None.
  *
  * @param walk_func             The function to call for each element in the
  *                                  host attribute list.
@@ -245,6 +260,9 @@ done:
     return rc;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_att_svr_match_handle(struct ble_att_svr_entry *ha, void *arg)
 {
@@ -258,6 +276,8 @@ ble_att_svr_match_handle(struct ble_att_svr_entry *ha, void *arg)
 
 /**
  * Find a host attribute by handle id.
+ *
+ * Lock restrictions: None.
  *
  * @param handle_id             The handle_id to search for
  * @param ha_ptr                On input: Indicates the starting point of the
@@ -286,6 +306,9 @@ ble_att_svr_find_by_handle(uint16_t handle_id,
     }
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_att_svr_match_uuid(struct ble_att_svr_entry *ha, void *arg)
 {
@@ -302,6 +325,8 @@ ble_att_svr_match_uuid(struct ble_att_svr_entry *ha, void *arg)
 
 /**
  * Find a host attribute by UUID.
+ *
+ * Lock restrictions: None.
  *
  * @param uuid                  The ble_uuid_t to search for
  * @param ha_ptr                On input: Indicates the starting point of the
@@ -329,24 +354,30 @@ ble_att_svr_find_by_uuid(uint8_t *uuid, struct ble_att_svr_entry **ha_ptr)
     }
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
-ble_att_svr_read(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
+ble_att_svr_read(uint16_t conn_handle, struct ble_att_svr_entry *entry,
                  struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
 {
-    uint16_t conn_handle;
     uint8_t att_err;
     int rc;
 
-    if (conn == NULL) {
-        conn_handle = BLE_HS_CONN_HANDLE_NONE;
-    } else {
-        conn_handle = conn->bhc_handle;
+    assert(!ble_hs_conn_locked_by_cur_task());
 
-        if (!(entry->ha_flags & HA_FLAG_PERM_READ)) {
-            att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
-            rc = BLE_HS_ENOTSUP;
-            goto err;
-        }
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
+        !(entry->ha_flags & HA_FLAG_PERM_READ)) {
+
+        att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
+    }
+
+    if (entry->ha_cb == NULL) {
+        att_err = BLE_ATT_ERR_UNLIKELY;
+        rc = BLE_HS_ENOTSUP;
+        goto err;
     }
 
     /* XXX: Check security. */
@@ -370,8 +401,11 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
-ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
+ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
                         struct ble_att_svr_access_ctxt *ctxt,
                         uint8_t *out_att_err)
 {
@@ -381,10 +415,11 @@ ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
     entry = NULL;
     rc = ble_att_svr_find_by_handle(attr_handle, &entry);
     if (rc != 0) {
+        *out_att_err = BLE_ATT_ERR_INVALID_HANDLE;
         return rc;
     }
 
-    rc = ble_att_svr_read(conn, entry, ctxt, out_att_err);
+    rc = ble_att_svr_read(conn_handle, entry, ctxt, out_att_err);
     if (rc != 0) {
         return rc;
     }
@@ -393,27 +428,27 @@ ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
 }
 
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
-ble_att_svr_write(struct ble_hs_conn *conn, struct ble_att_svr_entry *entry,
+ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
                   struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
 {
-    uint16_t conn_handle;
     uint8_t att_err;
     int rc;
 
-    if (!(entry->ha_flags & HA_FLAG_PERM_WRITE)) {
+    assert(!ble_hs_conn_locked_by_cur_task());
+
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
+        !(entry->ha_flags & HA_FLAG_PERM_WRITE)) {
+
         att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
         rc = BLE_HS_ENOTSUP;
         goto err;
     }
 
     /* XXX: Check security. */
-
-    if (conn == NULL) {
-        conn_handle = BLE_HS_CONN_HANDLE_NONE;
-    } else {
-        conn_handle = conn->bhc_handle;
-    }
 
     assert(entry->ha_cb != NULL);
     rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
@@ -434,6 +469,32 @@ err:
     return rc;
 }
 
+static int
+ble_att_svr_write_handle(uint16_t conn_handle, uint16_t attr_handle,
+                         struct ble_att_svr_access_ctxt *ctxt,
+                         uint8_t *out_att_err)
+{
+    struct ble_att_svr_entry *entry;
+    int rc;
+
+    entry = NULL;
+    rc = ble_att_svr_find_by_handle(attr_handle, &entry);
+    if (rc != 0) {
+        *out_att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        return rc;
+    }
+
+    rc = ble_att_svr_write(conn_handle, entry, ctxt, out_att_err);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static int
 ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          uint8_t req_op, uint16_t handle, uint8_t error_code)
@@ -475,6 +536,69 @@ err:
     return rc;
 }
 
+/**
+ * Transmits a response or error message over the specified connection.
+ *
+ * The specified rc value controls what gets sent as follows:
+ *     o If rc == 0: tx an affirmative response.
+ *     o If rc == BLE_HS_ENOTCONN: tx nothing.
+ *     o Else: tx an error response.
+ *
+ * In addition, if transmission of an affirmative response fails, an error is
+ * sent instead.
+ *
+ * @param conn_handle           The handle of the connection to send over.
+ * @param rc                    The status indicating whether to transmit an
+ *                                  affirmative response or an error.
+ * @param txom                  Contains the affirmative response payload.
+ * @param err_op                If an error is transmitted, this is the value
+ *                                  of the error message's op field.
+ * @param err_status            If an error is transmitted, this is the value
+ *                                  of the error message's status field.
+ * @param err_handle            If an error is transmitted, this is the value
+ *                                  of the error message's attribute handle
+ *                                  field.
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+static int
+ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
+                   uint8_t err_op, uint8_t err_status, uint16_t err_handle)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+
+    if (rc != BLE_HS_ENOTCONN) {
+        ble_hs_conn_lock();
+
+        ble_att_conn_chan_find(conn_handle, &conn, &chan);
+        if (chan == NULL) {
+            rc = BLE_HS_ENOTCONN;
+        } else {
+            if (rc == 0) {
+                rc = ble_l2cap_tx(conn, chan, txom);
+                txom = NULL;
+                if (rc != 0) {
+                    err_status = BLE_ATT_ERR_UNLIKELY;
+                }
+            }
+
+            if (rc != 0 && err_status != 0) {
+                ble_att_svr_tx_error_rsp(conn, chan, err_op,
+                                         err_handle, err_status);
+            }
+        }
+
+        ble_hs_conn_unlock();
+    }
+
+    os_mbuf_free_chain(txom);
+
+    return rc;
+}
+
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static int
 ble_att_svr_tx_mtu_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                        uint8_t op, uint16_t mtu, uint8_t *att_err)
@@ -523,6 +647,9 @@ err:
     return rc;
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
 ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -565,6 +692,8 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 /**
  * Fills the supplied mbuf with the variable length Information Data field of a
  * Find Information ATT response.
+ *
+ * Lock restrictions: None.
  *
  * @param req                   The Find Information request being responded
  *                                  to.
@@ -680,20 +809,34 @@ done:
     }
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
-ble_att_svr_tx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct ble_att_find_info_req *req, uint8_t *att_err)
+ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
+                                struct ble_att_find_info_req *req,
+                                struct os_mbuf **out_txom,
+                                uint8_t *att_err)
 {
     struct ble_att_find_info_rsp rsp;
     struct os_mbuf *txom;
+    uint16_t mtu;
     void *buf;
     int rc;
+
+    txom = NULL;
+
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
 
     txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     /* Write the response base at the start of the buffer.  The format field is
@@ -703,7 +846,7 @@ ble_att_svr_tx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     if (buf == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_find_info_rsp_write(buf, BLE_ATT_FIND_INFO_RSP_BASE_SZ, &rsp);
@@ -712,44 +855,43 @@ ble_att_svr_tx_find_info(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     /* Write the variable length Information Data field, populating the format
      * field as appropriate.
      */
-    rc = ble_att_svr_fill_info(req, txom, ble_l2cap_chan_mtu(chan),
-                               txom->om_data + 1);
+    rc = ble_att_svr_fill_info(req, txom, mtu, txom->om_data + 1);
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
         rc = BLE_HS_ENOENT;
-        goto err;
+        goto done;
     }
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-    }
+    rc = 0;
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_find_info_locked(struct ble_hs_conn *conn,
-                                struct ble_l2cap_chan *chan,
-                                struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_find_info_req req;
+    struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    att_err = 0;
+    err_handle = 0;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_MTU_CMD_SZ);
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_find_info_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
@@ -764,45 +906,28 @@ ble_att_svr_rx_find_info_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = req.bafq_start_handle;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
-    rc = ble_att_svr_tx_find_info(conn, chan, &req, &att_err);
+    rc = ble_att_svr_build_find_info_rsp(conn_handle, &req, &txom, &att_err);
     if (rc != 0) {
         err_handle = req.bafq_start_handle;
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_FIND_INFO_REQ,
-                             err_handle, att_err);
-    return rc;
-}
-
-int
-ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_find_info_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_FIND_INFO_REQ,
+                            att_err, err_handle);
     return rc;
 }
 
 /**
  * Processes a single non-matching attribute entry while filling a
  * Find-By-Type-Value-Response.
+ *
+ * Lock restrictions: None.
  *
  * @param om                    The response mbuf.
  * @param first                 Pointer to the first matching handle ID in the
@@ -864,6 +989,8 @@ ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
  * Processes a single matching attribute entry while filling a
  * Find-By-Type-Value-Response.
  *
+ * Lock restrictions: None.
+ *
  * @param om                    The response mbuf.
  * @param first                 Pointer to the first matching handle ID in the
  *                                  current group of IDs.  0 if there is not a
@@ -917,6 +1044,8 @@ ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
  * Fills the supplied mbuf with the variable length Handles-Information-List
  * field of a Find-By-Type-Value ATT response.
  *
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @param req                   The Find-By-Type-Value-Request being responded
  *                                  to.
  * @param rxom                  The mbuf containing the received request.
@@ -930,7 +1059,7 @@ ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
  *                              BLE_HS_EAPP on other error.
  */
 static int
-ble_att_svr_fill_type_value(struct ble_hs_conn *conn,
+ble_att_svr_fill_type_value(uint16_t conn_handle,
                             struct ble_att_find_type_value_req *req,
                             struct os_mbuf *rxom, struct os_mbuf *txom,
                             uint16_t mtu, uint8_t *out_att_err)
@@ -968,7 +1097,7 @@ ble_att_svr_fill_type_value(struct ble_hs_conn *conn,
             uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
                 ctxt.offset = 0;
-                rc = ble_att_svr_read(conn, ha, &ctxt, out_att_err);
+                rc = ble_att_svr_read(conn_handle, ha, &ctxt, out_att_err);
                 if (rc != 0) {
                     goto done;
                 }
@@ -1021,14 +1150,18 @@ done:
     }
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
-ble_att_svr_tx_find_type_value(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct ble_att_find_type_value_req *req,
-                               struct os_mbuf *rxom,
-                               uint8_t *out_att_err)
+ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
+                                      struct ble_att_find_type_value_req *req,
+                                      struct os_mbuf *rxom,
+                                      struct os_mbuf **out_txom,
+                                      uint8_t *out_att_err)
 {
     struct os_mbuf *txom;
+    uint16_t mtu;
     uint8_t *buf;
     int rc;
 
@@ -1036,7 +1169,7 @@ ble_att_svr_tx_find_type_value(struct ble_hs_conn *conn,
     if (txom == NULL) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     /* Write the response base at the start of the buffer. */
@@ -1044,47 +1177,53 @@ ble_att_svr_tx_find_type_value(struct ble_hs_conn *conn,
     if (buf == NULL) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
     buf[0] = BLE_ATT_OP_FIND_TYPE_VALUE_RSP;
 
     /* Write the variable length Information Data field. */
-    rc = ble_att_svr_fill_type_value(conn, req, rxom, txom,
-                                     ble_l2cap_chan_mtu(chan), out_att_err);
-    if (rc != 0) {
-        goto err;
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
     }
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
+    rc = ble_att_svr_fill_type_value(conn_handle, req, rxom, txom, mtu,
+                                     out_att_err);
     if (rc != 0) {
-        *out_att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_find_type_value_locked(struct ble_hs_conn *conn,
-                                      struct ble_l2cap_chan *chan,
-                                      struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_find_type_value_req req;
+    struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    att_err = 0;
+    err_handle = 0;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_MTU_CMD_SZ);
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_find_type_value_req_parse((*rxom)->om_data, (*rxom)->om_len,
@@ -1100,53 +1239,41 @@ ble_att_svr_rx_find_type_value_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = req.bavq_start_handle;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
-    rc = ble_att_svr_tx_find_type_value(conn, chan, &req, *rxom, &att_err);
+    rc = ble_att_svr_build_find_type_value_rsp(conn_handle, &req, *rxom,
+                                               &txom, &att_err);
     if (rc != 0) {
         err_handle = req.bavq_start_handle;
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
-                             err_handle, att_err);
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom,
+                            BLE_ATT_OP_FIND_TYPE_VALUE_REQ, att_err,
+                            err_handle);
     return rc;
 }
 
-int
-ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_find_type_value_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
-ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan,
-                             struct ble_att_read_type_req *req,
-                             uint8_t *uuid128, uint8_t *att_err,
-                             uint16_t *err_handle)
+ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
+                                struct ble_att_read_type_req *req,
+                                uint8_t *uuid128,
+                                struct os_mbuf **out_txom,
+                                uint8_t *att_err,
+                                uint16_t *err_handle)
 {
     struct ble_att_read_type_rsp rsp;
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
+    uint16_t mtu;
     uint8_t *dptr;
     int entry_written;
     int txomlen;
@@ -1159,6 +1286,11 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
     *err_handle = req->batq_start_handle;
     entry_written = 0;
     prev_attr_len = 0;
+
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        return BLE_HS_ENOTCONN;
+    }
 
     txom = ble_att_get_pkthdr();
     if (txom == NULL) {
@@ -1197,14 +1329,14 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
 
         if (entry->ha_handle_id >= req->batq_start_handle) {
             ctxt.offset = 0;
-            rc = ble_att_svr_read(conn, entry, &ctxt, att_err);
+            rc = ble_att_svr_read(conn_handle, entry, &ctxt, att_err);
             if (rc != 0) {
                 *err_handle = entry->ha_handle_id;
                 goto done;
             }
 
-            if (ctxt.data_len > ble_l2cap_chan_mtu(chan) - 4) {
-                attr_len = ble_l2cap_chan_mtu(chan) - 4;
+            if (ctxt.data_len > mtu - 4) {
+                attr_len = mtu - 4;
             } else {
                 attr_len = ctxt.data_len;
             }
@@ -1216,7 +1348,7 @@ ble_att_svr_tx_read_type_rsp(struct ble_hs_conn *conn,
             }
 
             txomlen = OS_MBUF_PKTHDR(txom)->omp_len + 2 + attr_len;
-            if (txomlen > ble_l2cap_chan_mtu(chan)) {
+            if (txomlen > mtu) {
                 break;
             }
 
@@ -1244,43 +1376,42 @@ done:
     } else {
         /* Send what we can, even if an error was encountered. */
         *att_err = 0;
+        *err_handle = entry->ha_handle_id;
 
         /* Fill the response base. */
         rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ + prev_attr_len;
         rc = ble_att_read_type_rsp_write(txom->om_data, txom->om_len, &rsp);
         assert(rc == 0);
-
-        /* Transmit the response. */
-        rc = ble_l2cap_tx(conn, chan, txom);
-        txom = NULL;
-        if (rc != 0) {
-            *att_err = BLE_ATT_ERR_UNLIKELY;
-            *err_handle = entry->ha_handle_id;
-        }
     }
 
-    os_mbuf_free_chain(txom);
+    *out_txom = txom;
+
     return rc;
 }
 
-static int
-ble_att_svr_rx_read_type_locked(struct ble_hs_conn *conn,
-                                struct ble_l2cap_chan *chan,
-                                struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_read_type_req req;
+    struct os_mbuf *txom;
     uint16_t err_handle;
     uint16_t uuid16;
     uint8_t uuid128[16];
     uint8_t att_err;
     int rc;
 
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_read_type_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
@@ -1292,7 +1423,7 @@ ble_att_svr_rx_read_type_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = req.batq_start_handle;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
     switch ((*rxom)->om_len) {
@@ -1303,7 +1434,7 @@ ble_att_svr_rx_read_type_locked(struct ble_hs_conn *conn,
             att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
             err_handle = 0;
             rc = BLE_HS_EBADDATA;
-            goto err;
+            goto done;
         }
         break;
 
@@ -1315,59 +1446,51 @@ ble_att_svr_rx_read_type_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = 0;
         rc = BLE_HS_EMSGSIZE;
-        goto err;
+        goto done;
     }
 
-    rc = ble_att_svr_tx_read_type_rsp(conn, chan, &req, uuid128, &att_err,
-                                      &err_handle);
+    rc = ble_att_svr_build_read_type_rsp(conn_handle, &req, uuid128,
+                                         &txom, &att_err, &err_handle);
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_TYPE_REQ,
-                             err_handle, att_err);
-    return rc;
-}
-
-int
-ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_read_type_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_TYPE_REQ,
+                            att_err, err_handle);
     return rc;
 }
 
 /**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                        void *attr_data, int attr_len, uint8_t *att_err)
+ble_att_svr_build_read_rsp(uint16_t conn_handle, void *attr_data, int attr_len,
+                           struct os_mbuf **out_txom, uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint16_t data_len;
+    uint16_t mtu;
     uint8_t op;
     int rc;
+
+    txom = NULL;
+
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
 
     txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     op = BLE_ATT_OP_READ_RSP;
@@ -1375,12 +1498,12 @@ ble_att_svr_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     /* Vol. 3, part F, 3.2.9; don't send more than ATT_MTU-1 bytes of data. */
-    if (attr_len > ble_l2cap_chan_mtu(chan) - 1) {
-        data_len = ble_l2cap_chan_mtu(chan) - 1;
+    if (attr_len > mtu - 1) {
+        data_len = mtu - 1;
     } else {
         data_len = attr_len;
     }
@@ -1389,29 +1512,81 @@ ble_att_svr_tx_read_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-    }
+    rc = 0;
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
 /**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_read_req req;
+    struct os_mbuf *txom;
+    uint16_t err_handle;
+    uint8_t att_err;
+    int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    att_err = 0;
+    err_handle = 0;
+
+    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
+    if (*rxom == NULL) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    rc = ble_att_read_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    if (rc != 0) {
+        att_err = BLE_ATT_ERR_INVALID_PDU;
+        err_handle = 0;
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    ctxt.offset = 0;
+    rc = ble_att_svr_read_handle(conn_handle, req.barq_handle, &ctxt,
+                                 &att_err);
+    if (rc != 0) {
+        err_handle = req.barq_handle;
+        goto done;
+    }
+
+    rc = ble_att_svr_build_read_rsp(conn_handle, ctxt.attr_data, ctxt.data_len,
+                                    &txom, &att_err);
+    if (rc != 0) {
+        err_handle = req.barq_handle;
+        goto done;
+    }
+
+    rc = 0;
+
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_REQ,
+                            att_err, err_handle);
+    return rc;
+}
+
+/**
+ * Lock restrictions: None.
+ *
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_tx_read_blob_rsp(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan, void *attr_data,
-                             int attr_len, uint8_t *att_err)
+ble_att_svr_build_read_blob_rsp(void *attr_data, int attr_len, uint16_t mtu,
+                                struct os_mbuf **out_txom, uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint16_t data_len;
@@ -1422,7 +1597,7 @@ ble_att_svr_tx_read_blob_rsp(struct ble_hs_conn *conn,
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     op = BLE_ATT_OP_READ_BLOB_RSP;
@@ -1430,12 +1605,12 @@ ble_att_svr_tx_read_blob_rsp(struct ble_hs_conn *conn,
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     /* Vol. 3, part F, 3.2.9; don't send more than ATT_MTU-1 bytes of data. */
-    if (attr_len > ble_l2cap_chan_mtu(chan) - 1) {
-        data_len = ble_l2cap_chan_mtu(chan) - 1;
+    if (attr_len > mtu - 1) {
+        data_len = mtu - 1;
     } else {
         data_len = attr_len;
     }
@@ -1444,126 +1619,47 @@ ble_att_svr_tx_read_blob_rsp(struct ble_hs_conn *conn,
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-    }
+    rc = 0;
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_read_locked(struct ble_hs_conn *conn,
-                           struct ble_l2cap_chan *chan,
-                           struct os_mbuf **rxom)
-{
-    struct ble_att_svr_access_ctxt ctxt;
-    struct ble_att_svr_entry *entry;
-    struct ble_att_read_req req;
-    uint16_t err_handle;
-    uint8_t att_err;
-    int rc;
-
-    *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
-    if (*rxom == NULL) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        err_handle = 0;
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    rc = ble_att_read_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
-    if (rc != 0) {
-        att_err = BLE_ATT_ERR_INVALID_PDU;
-        err_handle = 0;
-        rc = BLE_HS_EBADDATA;
-        goto err;
-    }
-
-    entry = NULL;
-    rc = ble_att_svr_find_by_handle(req.barq_handle, &entry);
-    if (rc != 0) {
-        att_err = BLE_ATT_ERR_INVALID_HANDLE;
-        err_handle = req.barq_handle;
-        rc = BLE_HS_ENOENT;
-        goto err;
-    }
-
-    if (entry->ha_cb == NULL) {
-        att_err = BLE_ATT_ERR_UNLIKELY;
-        err_handle = req.barq_handle;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
-    }
-
-    ctxt.offset = 0;
-    rc = ble_att_svr_read(conn, entry, &ctxt, &att_err);
-    if (rc != 0) {
-        err_handle = req.barq_handle;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
-    }
-
-    rc = ble_att_svr_tx_read_rsp(conn, chan, ctxt.attr_data,
-                                 ctxt.data_len, &att_err);
-    if (rc != 0) {
-        err_handle = req.barq_handle;
-        goto err;
-    }
-
-    return 0;
-
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_REQ,
-                             err_handle, att_err);
-    return rc;
-}
-
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
-ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_read_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
-static int
-ble_att_svr_rx_read_blob_locked(struct ble_hs_conn *conn,
-                                struct ble_l2cap_chan *chan,
-                                struct os_mbuf **rxom)
+ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_svr_access_ctxt ctxt;
-    struct ble_att_svr_entry *entry;
     struct ble_att_read_blob_req req;
+    struct os_mbuf *txom;
     uint16_t err_handle;
+    uint16_t mtu;
     uint8_t att_err;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    att_err = 0;
+    err_handle = 0;
+
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
 
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_read_blob_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
@@ -1571,101 +1667,85 @@ ble_att_svr_rx_read_blob_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = 0;
         rc = BLE_HS_EBADDATA;
-        goto err;
-    }
-
-    entry = NULL;
-    rc = ble_att_svr_find_by_handle(req.babq_handle, &entry);
-    if (rc != 0) {
-        att_err = BLE_ATT_ERR_INVALID_HANDLE;
-        err_handle = req.babq_handle;
-        rc = BLE_HS_ENOENT;
-        goto err;
-    }
-
-    if (entry->ha_cb == NULL) {
-        att_err = BLE_ATT_ERR_UNLIKELY;
-        err_handle = req.babq_handle;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
+        goto done;
     }
 
     ctxt.offset = req.babq_offset;
-    rc = ble_att_svr_read(conn, entry, &ctxt, &att_err);
+    rc = ble_att_svr_read_handle(conn_handle, req.babq_handle, &ctxt,
+                                 &att_err);
     if (rc != 0) {
         err_handle = req.babq_handle;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
+        goto done;
     }
 
-    if (ctxt.offset + ctxt.data_len <= ble_l2cap_chan_mtu(chan) - 3) {
+    if (ctxt.offset + ctxt.data_len <= mtu - 3) {
         att_err = BLE_ATT_ERR_ATTR_NOT_LONG;
         err_handle = req.babq_handle;
         rc = BLE_HS_ENOTSUP;
-        goto err;
+        goto done;
     }
 
-    rc = ble_att_svr_tx_read_blob_rsp(conn, chan, ctxt.attr_data,
-                                      ctxt.data_len, &att_err);
+    rc = ble_att_svr_build_read_blob_rsp(ctxt.attr_data, ctxt.data_len, mtu,
+                                         &txom, &att_err);
     if (rc != 0) {
         err_handle = req.babq_handle;
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_BLOB_REQ,
-                             err_handle, att_err);
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_BLOB_REQ,
+                            att_err, err_handle);
     return rc;
 }
 
-int
-ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_read_blob_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
-ble_att_svr_tx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **rxom, uint8_t *att_err,
-                         uint16_t *err_handle)
+ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
+                                struct os_mbuf **rxom,
+                                struct os_mbuf **out_txom,
+                                uint8_t *att_err,
+                                uint16_t *err_handle)
 {
     struct ble_att_svr_access_ctxt ctxt;
-    struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint16_t chunk_sz;
     uint16_t tx_space;
     uint16_t handle;
+    uint16_t mtu;
     uint8_t *dptr;
     int rc;
 
+    txom = NULL;
+
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+
     txom = ble_att_get_pkthdr();
+    if (txom == NULL) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
 
     dptr = os_mbuf_extend(txom, BLE_ATT_READ_MULT_RSP_BASE_SZ);
     if (dptr == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
     rc = ble_att_read_mult_rsp_write(dptr, BLE_ATT_READ_MULT_RSP_BASE_SZ);
     assert(rc == 0);
 
-    tx_space = ble_l2cap_chan_mtu(chan) - OS_MBUF_PKTLEN(txom);
+    tx_space = mtu - OS_MBUF_PKTLEN(txom);
 
     /* Iterate through requested handles, reading the corresponding attribute
      * for each.  Stop when there are no more handles to process, or the
@@ -1675,28 +1755,11 @@ ble_att_svr_tx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         handle = le16toh((*rxom)->om_data);
         os_mbuf_adj(*rxom, 2);
 
-        entry = NULL;
-        rc = ble_att_svr_find_by_handle(handle, &entry);
-        if (rc != 0) {
-            *att_err = BLE_ATT_ERR_INVALID_HANDLE;
-            *err_handle = handle;
-            rc = BLE_HS_ENOENT;
-            goto err;
-        }
-
-        if (entry->ha_cb == NULL) {
-            *att_err = BLE_ATT_ERR_UNLIKELY;
-            *err_handle = handle;
-            rc = BLE_HS_ENOTSUP;
-            goto err;
-        }
-
         ctxt.offset = 0;
-        rc = ble_att_svr_read(conn, entry, &ctxt, att_err);
+        rc = ble_att_svr_read_handle(conn_handle, handle, &ctxt, att_err);
         if (rc != 0) {
             *err_handle = handle;
-            rc = BLE_HS_ENOTSUP;
-            goto err;
+            goto done;
         }
 
         if (ctxt.data_len > tx_space) {
@@ -1710,43 +1773,41 @@ ble_att_svr_tx_read_mult(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
             *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
             *err_handle = handle;
             rc = BLE_HS_ENOMEM;
-            goto err;
+            goto done;
         }
 
         tx_space -= chunk_sz;
     }
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        *err_handle = 0;
-        goto err;
-    }
+    rc = 0;
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_read_mult_locked(struct ble_hs_conn *conn,
-                                struct ble_l2cap_chan *chan,
-                                struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+    struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
 
-    err_handle = 0;     /* Silence warning. */
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    err_handle = 0;
+    att_err = 0;
 
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_read_mult_req_parse((*rxom)->om_data, (*rxom)->om_len);
@@ -1754,44 +1815,29 @@ ble_att_svr_rx_read_mult_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = 0;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
     /* Strip opcode from request. */
     os_mbuf_adj(*rxom, BLE_ATT_READ_MULT_REQ_BASE_SZ);
 
-    rc = ble_att_svr_tx_read_mult(conn, chan, rxom, &att_err, &err_handle);
+    rc = ble_att_svr_build_read_mult_rsp(conn_handle, rxom, &txom, &att_err,
+                                         &err_handle);
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_MULT_REQ,
-                             err_handle, att_err);
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
+                            att_err, err_handle);
     return rc;
 }
 
-int
-ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_read_mult_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_att_svr_is_valid_group_type(uint8_t *uuid128)
 {
@@ -1803,6 +1849,9 @@ ble_att_svr_is_valid_group_type(uint8_t *uuid128)
            uuid16 == BLE_ATT_UUID_SECONDARY_SERVICE;
 }
 
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
                          uint8_t *uuid128)
@@ -1811,7 +1860,7 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     int rc;
 
     ctxt.offset = 0;
-    rc = ble_att_svr_read(NULL, entry, &ctxt, NULL);
+    rc = ble_att_svr_read(BLE_HS_CONN_HANDLE_NONE, entry, &ctxt, NULL);
     if (rc != 0) {
         return rc;
     }
@@ -1834,6 +1883,9 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     }
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static int
 ble_att_svr_read_group_type_entry_write(struct os_mbuf *om, uint16_t mtu,
                                         uint16_t start_group_handle,
@@ -1870,14 +1922,17 @@ ble_att_svr_read_group_type_entry_write(struct os_mbuf *om, uint16_t mtu,
 }
 
 /**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ *
  * @return                      0 on success; BLE_HS error code on failure.
  */
 static int
-ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct ble_att_read_group_type_req *req,
-                               uint8_t *group_uuid128, uint8_t *att_err,
-                               uint16_t *err_handle)
+ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
+                                      struct ble_att_read_group_type_req *req,
+                                      uint8_t *group_uuid128,
+                                      struct os_mbuf **out_txom,
+                                      uint8_t *att_err,
+                                      uint16_t *err_handle)
 {
     struct ble_att_read_group_type_rsp rsp;
     struct ble_att_svr_entry *entry;
@@ -1885,6 +1940,7 @@ ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
     uint16_t start_group_handle;
     uint16_t end_group_handle;
     uint16_t service_uuid16;
+    uint16_t mtu;
     uint8_t service_uuid128[16];
     void *rsp_buf;
     int rc;
@@ -1897,9 +1953,18 @@ ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
     *att_err = 0;
     *err_handle = req->bagq_start_handle;
 
+    txom = NULL;
+
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+
     txom = ble_att_get_pkthdr();
     if (txom == NULL) {
-        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        rc = BLE_HS_ENOMEM;
         goto done;
     }
 
@@ -1933,8 +1998,7 @@ ble_att_svr_tx_read_group_type(struct ble_hs_conn *conn,
                  * representing the group to the response.
                  */
                 rc = ble_att_svr_read_group_type_entry_write(
-                    txom, ble_l2cap_chan_mtu(chan),
-                    start_group_handle, end_group_handle,
+                    txom, mtu, start_group_handle, end_group_handle,
                     service_uuid16, service_uuid128);
                 start_group_handle = 0;
                 end_group_handle = 0;
@@ -2019,8 +2083,7 @@ done:
             }
 
             rc = ble_att_svr_read_group_type_entry_write(
-                txom, ble_l2cap_chan_mtu(chan),
-                start_group_handle, end_group_handle,
+                txom, mtu, start_group_handle, end_group_handle,
                 service_uuid16, service_uuid128);
             if (rc == BLE_HS_ENOMEM) {
                 *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -2037,33 +2100,34 @@ done:
         rc = ble_att_read_group_type_rsp_write(
             rsp_buf, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ, &rsp);
         assert(rc == 0);
-
-        rc = ble_l2cap_tx(conn, chan, txom);
-    } else {
-        os_mbuf_free_chain(txom);
     }
 
+    *out_txom = txom;
     return rc;
 }
 
-
-static int
-ble_att_svr_rx_read_group_type_locked(struct ble_hs_conn *conn,
-                                      struct ble_l2cap_chan *chan,
-                                      struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_read_group_type_req req;
+    struct os_mbuf *txom;
     uint8_t uuid128[16];
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
 
     *rxom = os_mbuf_pullup(*rxom, OS_MBUF_PKTLEN(*rxom));
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_read_group_type_req_parse((*rxom)->om_data, (*rxom)->om_len,
@@ -2072,7 +2136,7 @@ ble_att_svr_rx_read_group_type_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = 0;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
     if (req.bagq_start_handle > req.bagq_end_handle ||
@@ -2081,7 +2145,7 @@ ble_att_svr_rx_read_group_type_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = req.bagq_start_handle;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
     rc = ble_uuid_extract(*rxom, BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
@@ -2090,52 +2154,36 @@ ble_att_svr_rx_read_group_type_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = req.bagq_start_handle;
         rc = BLE_HS_EBADDATA;
-        goto err;
+        goto done;
     }
 
     if (!ble_att_svr_is_valid_group_type(uuid128)) {
         att_err = BLE_ATT_ERR_UNSUPPORTED_GROUP;
         err_handle = req.bagq_start_handle;
         rc = BLE_HS_ENOTSUP;
-        goto err;
+        goto done;
     }
 
-    rc = ble_att_svr_tx_read_group_type(conn, chan, &req, uuid128,
-                                        &att_err, &err_handle);
+    rc = ble_att_svr_build_read_group_type_rsp(conn_handle, &req, uuid128,
+                                               &txom, &att_err, &err_handle);
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_READ_GROUP_TYPE_REQ,
-                             err_handle, att_err);
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom,
+                            BLE_ATT_OP_READ_GROUP_TYPE_REQ, att_err,
+                            err_handle);
     return rc;
 }
 
-int
-ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_read_group_type_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
+/**
+ * Lock restrictions: None.
+ */
 static int
-ble_att_svr_tx_write_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         uint8_t *att_err)
+ble_att_svr_build_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
@@ -2145,49 +2193,49 @@ ble_att_svr_tx_write_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     dst = os_mbuf_extend(txom, BLE_ATT_WRITE_RSP_SZ);
     if (dst == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     *dst = BLE_ATT_OP_WRITE_RSP;
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-    }
 
-    return 0;
+    rc = 0;
 
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_write_locked(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan,
-                            struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_svr_access_ctxt ctxt;
-    struct ble_att_svr_entry *entry;
     struct ble_att_write_req req;
+    struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    att_err = 0;
+    err_handle = 0;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
@@ -2195,86 +2243,52 @@ ble_att_svr_rx_write_locked(struct ble_hs_conn *conn,
 
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
-    entry = NULL;
-    rc = ble_att_svr_find_by_handle(req.bawq_handle, &entry);
-    if (rc != 0) {
-        att_err = BLE_ATT_ERR_INVALID_HANDLE;
-        err_handle = req.bawq_handle;
-        rc = BLE_HS_ENOENT;
-        goto err;
-    }
-
-    if (entry->ha_cb == NULL) {
-        att_err = BLE_ATT_ERR_UNLIKELY;
-        err_handle = req.bawq_handle;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
-    }
-
     ctxt.attr_data = ble_att_svr_flat_buf;
     ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
-    rc = ble_att_svr_write(conn, entry, &ctxt, &att_err);
+    rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, &ctxt,
+                                  &att_err);
     if (rc != 0) {
         err_handle = req.bawq_handle;
-        goto err;
+        goto done;
     }
 
-    rc = ble_att_svr_tx_write_rsp(conn, chan, &att_err);
+    rc = ble_att_svr_build_write_rsp(&txom, &att_err);
     if (rc != 0) {
         err_handle = req.bawq_handle;
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_WRITE_REQ, err_handle,
-                             att_err);
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_WRITE_REQ,
+                            att_err, err_handle);
     return rc;
 }
 
-int
-ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_write_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
 int
 ble_att_svr_write_local(uint16_t attr_handle, void *data, uint16_t data_len)
 {
     struct ble_att_svr_access_ctxt ctxt;
-    struct ble_att_svr_entry *entry;
     int rc;
-
-    entry = NULL;
-    rc = ble_att_svr_find_by_handle(attr_handle, &entry);
-    if (rc != 0) {
-        return rc;
-    }
 
     ctxt.attr_data = data;
     ctxt.data_len = data_len;
     ctxt.offset = 0;
 
-    rc = ble_att_svr_write(NULL, entry, &ctxt, NULL);
+    rc = ble_att_svr_write_handle(BLE_HS_CONN_HANDLE_NONE, attr_handle, &ctxt,
+                                  NULL);
 
     return rc;
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static void
 ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
 {
@@ -2282,6 +2296,9 @@ ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
     os_memblock_put(&ble_att_svr_prep_entry_pool, entry);
 }
 
+/**
+ * Lock restrictions: None.
+ */
 static struct ble_att_prep_entry *
 ble_att_svr_prep_alloc(void)
 {
@@ -2302,6 +2319,9 @@ ble_att_svr_prep_alloc(void)
     return entry;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 static struct ble_att_prep_entry *
 ble_att_svr_prep_find_prev(struct ble_att_svr_conn *basc, uint16_t handle,
                            uint16_t offset)
@@ -2325,6 +2345,9 @@ ble_att_svr_prep_find_prev(struct ble_att_svr_conn *basc, uint16_t handle,
     return prev;
 }
 
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
 void
 ble_att_svr_prep_clear(struct ble_att_svr_conn *basc)
 {
@@ -2337,6 +2360,8 @@ ble_att_svr_prep_clear(struct ble_att_svr_conn *basc)
 }
 
 /**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ *
  * @return                      0 on success; ATT error code on failure.
  */
 static int
@@ -2377,6 +2402,8 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 }
 
 /**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ *
  * @return                      0 on success; ATT error code on failure.
  */
 static int
@@ -2421,7 +2448,7 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 
             ctxt.attr_data = ble_att_svr_flat_buf;
             ctxt.data_len = buf_off;
-            rc = ble_att_svr_write(conn, attr, &ctxt, &att_err);
+            rc = ble_att_svr_write(conn->bhc_handle, attr, &ctxt, &att_err);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;
                 return att_err;
@@ -2436,15 +2463,17 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
     return 0;
 }
 
-static int
-ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
-                                 struct ble_l2cap_chan *chan,
-                                 struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_prep_write_cmd req;
     struct ble_att_prep_entry *prep_entry;
     struct ble_att_prep_entry *prep_prev;
     struct ble_att_svr_entry *attr_entry;
+    struct ble_hs_conn *conn;
     struct os_mbuf *srcom;
     struct os_mbuf *txom;
     uint16_t err_handle;
@@ -2453,13 +2482,16 @@ ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
 
     /* Initialize some values in case of early error. */
     prep_entry = NULL;
+    txom = NULL;
+    att_err = 0;
+    err_handle = 0;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_prep_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
@@ -2472,7 +2504,7 @@ ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = req.bapc_handle;
-        goto err;
+        goto done;
     }
 
     prep_entry = ble_att_svr_prep_alloc();
@@ -2480,29 +2512,46 @@ ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         err_handle = req.bapc_handle;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
     prep_entry->bape_handle = req.bapc_handle;
     prep_entry->bape_offset = req.bapc_offset;
 
-    prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr, req.bapc_handle,
-                                           req.bapc_offset);
-    if (prep_prev == NULL) {
-        SLIST_INSERT_HEAD(&conn->bhc_att_svr.basc_prep_list, prep_entry,
-                          bape_next);
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
     } else {
-        SLIST_INSERT_AFTER(prep_prev, prep_entry, bape_next);
+        prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr,
+                                               req.bapc_handle,
+                                               req.bapc_offset);
+        if (prep_prev == NULL) {
+            SLIST_INSERT_HEAD(&conn->bhc_att_svr.basc_prep_list, prep_entry,
+                              bape_next);
+        } else {
+            SLIST_INSERT_AFTER(prep_prev, prep_entry, bape_next);
+        }
+
+        /* Append attribute value from request onto prep mbuf. */
+        for (srcom = *rxom;
+             srcom != NULL;
+             srcom = SLIST_NEXT(srcom, om_next)) {
+
+            rc = os_mbuf_append(prep_entry->bape_value, srcom->om_data,
+                                srcom->om_len);
+            if (rc != 0) {
+                att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
+                err_handle = req.bapc_handle;
+                break;
+            }
+        }
     }
 
-    /* Append attribute value from request onto prep mbuf. */
-    for (srcom = *rxom; srcom != NULL; srcom = SLIST_NEXT(srcom, om_next)) {
-        rc = os_mbuf_append(prep_entry->bape_value, srcom->om_data,
-                            srcom->om_len);
-        if (rc != 0) {
-            att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
-            err_handle = req.bapc_handle;
-            goto err;
-        }
+    ble_hs_conn_unlock();
+
+    if (rc != 0) {
+        goto done;
     }
 
     /* The receive buffer now contains the attribute value.  Repurpose this
@@ -2513,7 +2562,7 @@ ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = req.bapc_handle;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
     txom = *rxom;
 
@@ -2521,62 +2570,49 @@ ble_att_svr_rx_prep_write_locked(struct ble_hs_conn *conn,
                                       BLE_ATT_PREP_WRITE_CMD_BASE_SZ, &req);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    if (rc != 0) {
-        att_err = BLE_ATT_ERR_UNLIKELY;
-        err_handle = req.bapc_handle;
-        goto err;
+    rc = 0;
+
+done:
+    if (rc != 0 && rc != BLE_HS_ENOTCONN) {
+        ble_hs_conn_lock();
+
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn == NULL) {
+            rc = BLE_HS_ENOTCONN;
+        } else {
+            if (prep_entry != NULL) {
+                if (prep_prev == NULL) {
+                    SLIST_REMOVE_HEAD(&conn->bhc_att_svr.basc_prep_list,
+                                      bape_next);
+                } else {
+                    SLIST_NEXT(prep_prev, bape_next) =
+                        SLIST_NEXT(prep_entry, bape_next);
+                }
+
+                ble_att_svr_prep_free(prep_entry);
+            }
+        }
+
+        ble_hs_conn_unlock();
     }
+
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_PREP_WRITE_REQ,
+                            att_err, err_handle);
 
     /* Make sure the receive buffer doesn't get freed since we are using it for
      * the response.
      */
     *rxom = NULL;
-
-    return 0;
-
-err:
-    if (prep_entry != NULL) {
-        if (prep_prev == NULL) {
-            SLIST_REMOVE_HEAD(&conn->bhc_att_svr.basc_prep_list, bape_next);
-        } else {
-            SLIST_NEXT(prep_prev, bape_next) =
-                SLIST_NEXT(prep_entry, bape_next);
-        }
-
-        ble_att_svr_prep_free(prep_entry);
-    }
-
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_PREP_WRITE_REQ,
-                             err_handle, att_err);
-    return rc;
-}
-
-int
-ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_prep_write_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
     return rc;
 }
 
 /**
+ * Lock restrictions: None.
+ *
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_tx_exec_write_rsp(struct ble_hs_conn *conn,
-                              struct ble_l2cap_chan *chan, uint8_t *att_err)
+ble_att_svr_build_exec_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
@@ -2586,108 +2622,92 @@ ble_att_svr_tx_exec_write_rsp(struct ble_hs_conn *conn,
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     dst = os_mbuf_extend(txom, BLE_ATT_EXEC_WRITE_RSP_SZ);
     if (dst == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_exec_write_rsp_write(dst, BLE_ATT_EXEC_WRITE_RSP_SZ);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-    }
+    rc = 0;
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_exec_write_locked(struct ble_hs_conn *conn,
-                                 struct ble_l2cap_chan *chan,
-                                 struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_exec_write_req req;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_EXEC_WRITE_REQ_SZ);
     if (*rxom == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         err_handle = 0;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_exec_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     assert(rc == 0);
 
-    if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
-        /* Perform attribute writes. */
-        att_err = ble_att_svr_prep_write(conn, &err_handle);
-    } else {
-        att_err = 0;
-        err_handle = 0;
-    }
-
-    /* Erase all prep entries. */
-    ble_att_svr_prep_clear(&conn->bhc_att_svr);
-
-    if (att_err != 0) {
-        rc = BLE_HS_EAPP;
-        goto err;
-    }
-
-    /* Send response. */
-    rc = ble_att_svr_tx_exec_write_rsp(conn, chan, &att_err);
+    rc = ble_att_svr_build_exec_write_rsp(&txom, &att_err);
     if (rc != 0) {
         err_handle = 0;
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_EXEC_WRITE_REQ,
-                             err_handle, att_err);
-    return rc;
-}
-
-int
-ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+done:
     if (rc == 0) {
-        rc = ble_att_svr_rx_exec_write_locked(conn, chan, rxom);
+        ble_hs_conn_lock();
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn == NULL) {
+            rc = BLE_HS_ENOTCONN;
+        } else {
+            if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
+                /* Perform attribute writes. */
+                att_err = ble_att_svr_prep_write(conn, &err_handle);
+                if (att_err != 0) {
+                    rc = BLE_HS_EAPP;
+                }
+            }
+
+            /* Erase all prep entries. */
+            ble_att_svr_prep_clear(&conn->bhc_att_svr);
+        }
+        ble_hs_conn_unlock();
     }
 
-    ble_hs_conn_unlock();
-
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_EXEC_WRITE_REQ,
+                            att_err, err_handle);
     return rc;
 }
 
-static int
-ble_att_svr_rx_notify_locked(struct ble_hs_conn *conn,
-                             struct ble_l2cap_chan *chan,
-                             struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_notify_req req;
     uint16_t attr_len;
@@ -2717,7 +2737,7 @@ ble_att_svr_rx_notify_locked(struct ble_hs_conn *conn,
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
     if (ble_att_svr_notify_cb != NULL) {
-        rc = ble_att_svr_notify_cb(conn->bhc_handle, req.banq_handle,
+        rc = ble_att_svr_notify_cb(conn_handle, req.banq_handle,
                                    attr_data, attr_len,
                                    ble_att_svr_notify_cb_arg);
         if (rc != 0) {
@@ -2728,31 +2748,13 @@ ble_att_svr_rx_notify_locked(struct ble_hs_conn *conn,
     return 0;
 }
 
-int
-ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_notify_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
 /**
+ * Lock restrictions: None.
+ *
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_tx_indicate_rsp(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan)
+ble_att_svr_build_indicate_rsp(struct os_mbuf **out_txom)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
@@ -2761,41 +2763,39 @@ ble_att_svr_tx_indicate_rsp(struct ble_hs_conn *conn,
     txom = ble_att_get_pkthdr();
     if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     dst = os_mbuf_extend(txom, BLE_ATT_INDICATE_RSP_SZ);
     if (dst == NULL) {
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     rc = ble_att_indicate_rsp_write(dst, BLE_ATT_INDICATE_RSP_SZ);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
+    rc = 0;
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
-static int
-ble_att_svr_rx_indicate_locked(struct ble_hs_conn *conn,
-                               struct ble_l2cap_chan *chan,
-                               struct os_mbuf **rxom)
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
+ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {
     struct ble_att_indicate_req req;
+    struct os_mbuf *txom;
     uint16_t attr_len;
     void *attr_data;
-    int txrc;
     int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
 
     if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_INDICATE_REQ_BASE_SZ) {
         rc = BLE_HS_EBADDATA;
@@ -2823,7 +2823,7 @@ ble_att_svr_rx_indicate_locked(struct ble_hs_conn *conn,
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
     if (ble_att_svr_notify_cb != NULL) {
-        rc = ble_att_svr_notify_cb(conn->bhc_handle, req.baiq_handle,
+        rc = ble_att_svr_notify_cb(conn_handle, req.baiq_handle,
                                    attr_data, attr_len,
                                    ble_att_svr_notify_cb_arg);
         if (rc != 0) {
@@ -2832,59 +2832,39 @@ ble_att_svr_rx_indicate_locked(struct ble_hs_conn *conn,
         }
     }
 
+    rc = ble_att_svr_build_indicate_rsp(&txom);
+    if (rc != 0) {
+        goto done;
+    }
+
+    rc = 0;
+
 done:
-    txrc = ble_att_svr_tx_indicate_rsp(conn, chan);
-    if (rc == 0) {
-        rc = txrc;
-    }
-
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_INDICATE_REQ,
+                            0, 0);
     return rc;
 }
 
-int
-ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_rx_indicate_locked(conn, chan, rxom);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
-static void
-ble_att_svr_free_mem(void)
-{
-}
-
+/**
+ * Lock restrictions: None.
+ */
 int
 ble_att_svr_init(void)
 {
     int rc;
 
-    ble_att_svr_free_mem();
-
     STAILQ_INIT(&ble_att_svr_list);
 
     rc = os_mutex_init(&ble_att_svr_list_mutex);
     if (rc != 0) {
-        goto err;
+        return rc;
     }
 
     rc = os_mempool_init(&ble_att_svr_entry_pool, BLE_ATT_SVR_NUM_ENTRIES,
                          sizeof (struct ble_att_svr_entry),
                          ble_att_svr_entry_mem, "ble_att_svr_entry_pool");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     rc = os_mempool_init(&ble_att_svr_prep_entry_pool,
@@ -2893,8 +2873,7 @@ ble_att_svr_init(void)
                          ble_att_svr_prep_entry_mem,
                          "ble_att_svr_prep_entry_pool");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     rc = os_mempool_init(&ble_att_svr_prep_mbuf_mempool,
@@ -2903,8 +2882,7 @@ ble_att_svr_init(void)
                          ble_att_svr_prep_mbuf_mem,
                          "ble_att_svr_prep_mbuf_pool");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     rc = os_mbuf_pool_init(&ble_att_svr_prep_mbuf_pool,
@@ -2912,16 +2890,11 @@ ble_att_svr_init(void)
                            BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
                            BLE_ATT_SVR_NUM_PREP_MBUFS);
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     ble_att_svr_id = 0;
     ble_att_svr_notify_cb = NULL;
 
     return 0;
-
-err:
-    ble_att_svr_free_mem();
-    return rc;
 }

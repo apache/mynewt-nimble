@@ -91,6 +91,7 @@ SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 struct ble_l2cap_chan *ble_att_create_chan(void);
 int ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                            struct ble_l2cap_chan **out_chan);
+uint16_t ble_att_mtu(uint16_t conn_handle);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 struct os_mbuf *ble_att_get_pkthdr(void);
 void ble_att_init(void);
@@ -128,7 +129,7 @@ int ble_att_svr_rx_notify(uint16_t conn_handle,
 int ble_att_svr_rx_indicate(uint16_t conn_handle,
                             struct os_mbuf **rxom);
 void ble_att_svr_prep_clear(struct ble_att_svr_conn *basc);
-int ble_att_svr_read_handle(struct ble_hs_conn *conn, uint16_t attr_handle,
+int ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
                             struct ble_att_svr_access_ctxt *ctxt,
                             uint8_t *out_att_err);
 int ble_att_svr_init(void);
