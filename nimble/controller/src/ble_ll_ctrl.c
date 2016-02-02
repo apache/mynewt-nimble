@@ -245,7 +245,7 @@ conn_parm_req_do_indicate:
         /* XXX: what about masked out event? */
         ble_ll_hci_ev_rem_conn_parm_req(connsm, req);
         connsm->host_reply_opcode = opcode;
-        connsm->awaiting_host_reply = 1;
+        connsm->csmflags.cfbit.awaiting_host_reply = 1;
         rsp_opcode = 255;
     } else {
         /* Create reply to connection request */
@@ -386,7 +386,7 @@ static void
 ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 {
     /* Set flag to denote we have sent/received this */
-    connsm->version_ind_sent = 1;
+    connsm->csmflags.cfbit.version_ind_sent = 1;
 
     /* Fill out response */
     pyld[0] = BLE_HCI_VER_BCS_4_2;
@@ -476,7 +476,7 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
     htole16(pyld + 9, instant);
 
     /* Set flag in state machine to denote we have scheduled an update */
-    connsm->conn_update_scheduled = 1;
+    connsm->csmflags.cfbit.conn_update_scheduled = 1;
 }
 
 /**
@@ -548,7 +548,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
         rsp_opcode = BLE_ERR_MAX;
     } else {
-        connsm->conn_update_scheduled = 1;
+        connsm->csmflags.cfbit.conn_update_scheduled = 1;
     }
 
     return rsp_opcode;
@@ -607,7 +607,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * well. This is not expected to happen anyway. A return of BLE_ERR_MAX
      * means that we will simply discard the connection parameter request
      */
-    if (connsm->awaiting_host_reply) {
+    if (connsm->csmflags.cfbit.awaiting_host_reply) {
         return BLE_ERR_MAX;
     }
 
@@ -665,8 +665,8 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * state just clear the awaiting reply. The slave will hopefully stop its
      * procedure when we reply.
      */ 
-    if (connsm->awaiting_host_reply) {
-        connsm->awaiting_host_reply = 0;
+    if (connsm->csmflags.cfbit.awaiting_host_reply) {
+        connsm->csmflags.cfbit.awaiting_host_reply = 0;
     }
 
     /* If we receive a response and no procedure is pending, just leave */
@@ -701,10 +701,10 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     connsm->vers_nr = dptr[0];
     connsm->comp_id = le16toh(dptr + 1);
     connsm->sub_vers_nr = le16toh(dptr + 3);
-    connsm->rxd_version_ind = 1;
+    connsm->csmflags.cfbit.rxd_version_ind = 1;
 
     rsp_opcode = BLE_ERR_MAX;
-    if (!connsm->version_ind_sent) {
+    if (!connsm->csmflags.cfbit.version_ind_sent) {
         rsp_opcode = BLE_LL_CTRL_VERSION_IND;
         ble_ll_ctrl_version_ind_make(connsm, rspbuf);
     }
@@ -971,7 +971,8 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
                  * The version exchange is a special case. If we have already
                  * received the information dont start it.
                  */ 
-                if ((i == BLE_LL_CTRL_PROC_VERSION_XCHG) && (connsm->rxd_version_ind)) {
+                if ((i == BLE_LL_CTRL_PROC_VERSION_XCHG) && 
+                    (connsm->csmflags.cfbit.rxd_version_ind)) {
                     ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
                     CLR_PENDING_CTRL_PROC(connsm, i);
                 } else {

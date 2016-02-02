@@ -505,11 +505,11 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
      * slave has initiated the procedure, we need to send a reject to the
      * slave.
      */
-    if (connsm->awaiting_host_reply) {
+    if (connsm->csmflags.cfbit.awaiting_host_reply) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             return BLE_ERR_LMP_COLLISION;
         } else {
-            connsm->awaiting_host_reply = 0;
+            connsm->csmflags.cfbit.awaiting_host_reply = 0;
 
             /* XXX: If this fails no reject ind will be sent! */
             ble_ll_ctrl_reject_ind_ext_send(connsm,
@@ -581,7 +581,7 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
     }
 
     /* The connection should be awaiting a reply. If not, just discard */
-    if (connsm->awaiting_host_reply) {
+    if (connsm->csmflags.cfbit.awaiting_host_reply) {
         /* Get a control packet buffer */
         if (positive_reply && (rc == BLE_ERR_SUCCESS)) {
             om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
@@ -599,7 +599,7 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
                                             connsm->host_reply_opcode,
                                             ble_err);
         }
-        connsm->awaiting_host_reply = 0;
+        connsm->csmflags.cfbit.awaiting_host_reply = 0;
 
         /* XXX: if we cant get a buffer, what do we do? We need to remember
          * reason if it was a negative reply. We also would need to have
@@ -740,7 +740,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
      * NOTE: we cant just send the event here. That would cause the event to
      * be queued before the command status.
      */
-    if (!connsm->version_ind_sent) {
+    if (!connsm->csmflags.cfbit.version_ind_sent) {
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG);
     } else {
         connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_VERSION_XCHG);

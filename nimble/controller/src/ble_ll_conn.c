@@ -103,7 +103,7 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
 #define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
-#define BLE_LL_CFG_CONN_MAX_CONNS           (32)
+#define BLE_LL_CFG_CONN_MAX_CONNS           (4)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
 #define BLE_LL_CFG_CONN_INIT_SLOTS          (4)
 
@@ -142,7 +142,7 @@ struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
 /* Connection state machine array */
-sec_bss_nz_core struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
+bssnz_t struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
 
 /* List of active connections */
 struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
@@ -633,7 +633,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
 
         if ((nextpkthdr || 
              ((ble_hdr->txinfo.offset + cur_txlen) < pkthdr->omp_len)) && 
-             !connsm->terminate_ind_rxd) {
+             !connsm->csmflags.cfbit.terminate_ind_rxd) {
             md = 1;
             if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
                 /* 
@@ -695,7 +695,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * received a valid frame with the more data bit set to 0 and we dont
      * have more data.
      */
-    if ((connsm->terminate_ind_rxd) ||
+    if ((connsm->csmflags.cfbit.terminate_ind_rxd) ||
         ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) && (md == 0) &&
          (connsm->cons_rxd_bad_crc == 0) &&
          ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
@@ -721,7 +721,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
                    (uint32_t)m);
 
         /* Set flag denoting we transmitted a pdu */
-        connsm->pdu_txd = 1;
+        connsm->csmflags.cfbit.pdu_txd = 1;
 
         /* Set last transmitted MD bit */
         connsm->last_txd_md = md;
@@ -796,7 +796,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
              * Set flag that tells slave to set last anchor point if a packet
              * has been received.
              */ 
-            connsm->slave_set_last_anchor = 1;
+            connsm->csmflags.cfbit.slave_set_last_anchor = 1;
 
             /* 
              * Set the wait for response time. The anchor point is when we
@@ -976,22 +976,14 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     struct ble_ll_conn_global_params *conn_params;
 
     /* Reset following elements */
+    connsm->csmflags.conn_flags = 0;
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
-    connsm->allow_slave_latency = 0;
     connsm->disconnect_reason = 0;
-    connsm->terminate_ind_txd = 0;
-    connsm->terminate_ind_rxd = 0;
-    connsm->awaiting_host_reply = 0;
-    connsm->send_conn_upd_event = 0;
-    connsm->conn_update_scheduled = 0;
-    connsm->host_expects_upd_event = 0;
-    connsm->version_ind_sent = 0;
     connsm->common_features = 0;
     connsm->vers_nr = 0;
     connsm->comp_id = 0;
     connsm->sub_vers_nr = 0;
-    connsm->rxd_version_ind = 0;
     connsm->reject_reason = BLE_ERR_SUCCESS;
 
     /* Reset current control procedure */
@@ -1204,7 +1196,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * has passed the instant.
      * 2) We successfully sent the reject reason.
      */
-    if (connsm->host_expects_upd_event) {
+    if (connsm->csmflags.cfbit.host_expects_upd_event) {
         update_status = BLE_ERR_SUCCESS;
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
@@ -1215,7 +1207,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             }
         }
         ble_ll_hci_ev_conn_update(connsm, update_status);
-        connsm->host_expects_upd_event = 0;
+        connsm->csmflags.cfbit.host_expects_upd_event = 0;
     }
 
     /* 
@@ -1228,8 +1220,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
-    if (connsm->allow_slave_latency && !connsm->conn_update_scheduled) {
-        if (connsm->pkt_rxd) {
+    if (connsm->csmflags.cfbit.allow_slave_latency && 
+        !connsm->csmflags.cfbit.conn_update_scheduled) {
+        if (connsm->csmflags.cfbit.pkt_rxd) {
             latency += connsm->slave_latency;
             itvl = itvl * latency;
         }
@@ -1245,7 +1238,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * connection by the the transmit window offset. We also copy in the
      * update parameters as they now should take effect.
      */
-    if (connsm->conn_update_scheduled && 
+    if (connsm->csmflags.cfbit.conn_update_scheduled && 
         (connsm->event_cntr == connsm->conn_update_req.instant)) {
 
         /* Set flag so we send connection update event */
@@ -1254,7 +1247,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             (connsm->conn_itvl != upd->interval)            ||
             (connsm->slave_latency != upd->latency)         || 
             (connsm->supervision_tmo != upd->timeout)) {
-            connsm->host_expects_upd_event = 1;
+            connsm->csmflags.cfbit.host_expects_upd_event = 1;
         }
 
         connsm->conn_itvl = upd->interval;
@@ -1275,7 +1268,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         cputime_timer_start(&connsm->conn_spvn_timer, connsm->anchor_point+tmo);
 
         /* Reset update scheduled flag */
-        connsm->conn_update_scheduled = 0;
+        connsm->csmflags.cfbit.conn_update_scheduled = 0;
     }
 
     /* Calculate data channel index of next connection event */
@@ -1347,7 +1340,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
     cputime_timer_relative(&connsm->conn_spvn_timer, usecs);
 
     /* Clear packet received flag */
-    connsm->pkt_rxd = 0;
+    connsm->csmflags.cfbit.pkt_rxd = 0;
 
     /* Consider time created the last scheduled time */
     connsm->last_scheduled = cputime_get32();
@@ -1427,8 +1420,9 @@ ble_ll_conn_event_end(void *arg)
                connsm->ce_end_time);
 
     /* If we have transmitted the terminate IND successfully, we are done */
-    if ((connsm->terminate_ind_txd) || (connsm->terminate_ind_rxd)) {
-        if (connsm->terminate_ind_txd) {
+    if ((connsm->csmflags.cfbit.terminate_ind_txd) || 
+        (connsm->csmflags.cfbit.terminate_ind_rxd)) {
+        if (connsm->csmflags.cfbit.terminate_ind_txd) {
             ble_err = BLE_ERR_CONN_TERM_LOCAL;
         } else {
             /* Make sure the disconnect reason is valid! */
@@ -1448,7 +1442,7 @@ ble_ll_conn_event_end(void *arg)
      * If we have received a packet, we can set the current transmit window
      * usecs to 0 since we dont need to listen in the transmit window.
      */
-    if (connsm->pkt_rxd) {
+    if (connsm->csmflags.cfbit.pkt_rxd) {
         connsm->slave_cur_tx_win_usecs = 0;
     }
 
@@ -1460,7 +1454,7 @@ ble_ll_conn_event_end(void *arg)
 
     /* Reset "per connection event" variables */
     connsm->cons_rxd_bad_crc = 0;
-    connsm->pkt_rxd = 0;
+    connsm->csmflags.cfbit.pkt_rxd = 0;
 
     /* See if we need to start any control procedures */
     ble_ll_ctrl_chk_proc_start(connsm);
@@ -1587,7 +1581,7 @@ ble_ll_conn_event_halt(void)
 {
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     if (g_ble_ll_conn_cur_sm) {
-        g_ble_ll_conn_cur_sm->pkt_rxd = 0;
+        g_ble_ll_conn_cur_sm->csmflags.cfbit.pkt_rxd = 0;
         ble_ll_event_send(&g_ble_ll_conn_cur_sm->conn_ev_end);
         g_ble_ll_conn_cur_sm = NULL;
     }
@@ -1822,7 +1816,7 @@ ble_ll_conn_rx_isr_start(void)
     ble_ll_wfr_disable();
     connsm = g_ble_ll_conn_cur_sm;
     if (connsm) {
-        connsm->pkt_rxd = 1;
+        connsm->csmflags.cfbit.pkt_rxd = 1;
     }
 }
 
@@ -1877,7 +1871,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
              */ 
             if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 if (hdr_byte & BLE_LL_DATA_HDR_NESN_MASK) {
-                    connsm->allow_slave_latency = 1;
+                    connsm->csmflags.cfbit.allow_slave_latency = 1;
                 }
             }
 
@@ -2031,7 +2025,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
          * Check NESN bit from header. If same as tx seq num, the transmission
          * is acknowledged. Otherwise we need to resend this PDU.
          */
-        if (connsm->pdu_txd) {
+        if (connsm->csmflags.cfbit.pdu_txd) {
             hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
             conn_sn = connsm->tx_seqnum;
             if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
@@ -2054,7 +2048,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                     /* Did we transmit a TERMINATE_IND? If so, we are done */
                     if (ble_ll_ctrl_is_terminate_ind(txhdr->txinfo.hdr_byte, 
                                                      txpdu->om_data[0])) {
-                        connsm->terminate_ind_txd = 1;
+                        connsm->csmflags.cfbit.terminate_ind_txd = 1;
                         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
                         os_mbuf_free(txpdu);
                         rc = -1;
@@ -2070,7 +2064,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                         if (connsm->cur_ctrl_proc == 
                             BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
                             connsm->reject_reason = txpdu->om_data[2];
-                            connsm->host_expects_upd_event = 1; 
+                            connsm->csmflags.cfbit.host_expects_upd_event = 1; 
                         }
                     }
 
@@ -2098,7 +2092,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
         /* Should we continue connection event? */
         /* If this is a TERMINATE_IND, we have to reply */
         if (ble_ll_ctrl_is_terminate_ind(rxpdu->om_data[0],rxpdu->om_data[2])) {
-            connsm->terminate_ind_rxd = 1;
+            connsm->csmflags.cfbit.terminate_ind_rxd = 1;
             connsm->rxd_disconnect_reason = rxpdu->om_data[3];
             reply = 1;
         } else if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
@@ -2132,8 +2126,8 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
 
 conn_rx_pdu_end:
     /* Set anchor point (and last) if 1st received frame in connection event */
-    if (connsm->slave_set_last_anchor) {
-        connsm->slave_set_last_anchor = 0;
+    if (connsm->csmflags.cfbit.slave_set_last_anchor) {
+        connsm->csmflags.cfbit.slave_set_last_anchor = 0;
         connsm->last_anchor_point = rxhdr->end_cputime - 
             cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rxpdu->om_data[1]));
         connsm->anchor_point = connsm->last_anchor_point;

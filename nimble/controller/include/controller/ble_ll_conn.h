@@ -55,9 +55,32 @@
  */ 
 #define BLE_LL_EMPTY_PDU_MBUF_SIZE  (BLE_MBUF_PKT_OVERHEAD / 4)
 
+/* Connection state machine flags. */
+union ble_ll_conn_sm_flags {
+    struct {
+        uint16_t pdu_txd:1;
+        uint16_t pkt_rxd:1;
+        uint16_t terminate_ind_txd:1;
+        uint16_t terminate_ind_rxd:1;
+        uint16_t allow_slave_latency:1;
+        uint16_t slave_set_last_anchor:1;
+        uint16_t awaiting_host_reply:1;
+        uint16_t send_conn_upd_event:1;
+        uint16_t conn_update_scheduled:1;
+        uint16_t host_expects_upd_event:1;
+        uint16_t version_ind_sent:1;
+        uint16_t rxd_version_ind:1;
+        uint16_t reserved:4;
+    } cfbit;
+    uint16_t conn_flags;
+} __attribute__((packed));
+
 /* Connection state machine */
 struct ble_ll_conn_sm
 {
+    /* Connection state machine flags */
+    union ble_ll_conn_sm_flags csmflags;
+
     /* Current connection state and role */
     uint8_t conn_state;
     uint8_t conn_role;          /* Can possibly be 1 bit */
@@ -94,18 +117,6 @@ struct ble_ll_conn_sm
                                    only use the MD bit now */
 
     /* connection event mgmt */
-    uint8_t pdu_txd;                /* note: can be 1 bit */
-    uint8_t pkt_rxd;                /* note: can be 1 bit */
-    uint8_t terminate_ind_txd;      /* note: can be 1 bit */
-    uint8_t terminate_ind_rxd;      /* note: can be 1 bit */
-    uint8_t allow_slave_latency;    /* note: can be 1 bit */
-    uint8_t slave_set_last_anchor;  /* note: can be 1 bit */
-    uint8_t awaiting_host_reply;    /* note: can be 1 bit */
-    uint8_t send_conn_upd_event;    /* note: can be 1 bit */
-    uint8_t conn_update_scheduled;  /* note: can be 1 bit */
-    uint8_t host_expects_upd_event;  /* note: can be 1 bit */
-    uint8_t version_ind_sent;       /* note: can be 1 bit */
-    uint8_t rxd_version_ind;        /* not can be 1 bit */
     uint8_t reject_reason;
     uint8_t host_reply_opcode;
     uint8_t master_sca;
