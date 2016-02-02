@@ -120,6 +120,7 @@ int ble_att_svr_rx_read_mult(uint16_t conn_handle,
                              struct os_mbuf **rxom);
 int ble_att_svr_rx_write(uint16_t conn_handle,
                          struct os_mbuf **rxom);
+int ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_svr_rx_prep_write(uint16_t conn_handle,
                               struct os_mbuf **rxom);
 int ble_att_svr_rx_exec_write(uint16_t conn_handle,

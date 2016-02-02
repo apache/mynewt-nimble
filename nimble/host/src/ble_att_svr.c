@@ -2228,6 +2228,39 @@ done:
  * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 int
+ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_write_req req;
+    uint8_t att_err;
+    int rc;
+
+    *rxom = os_mbuf_pullup(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
+    if (*rxom == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    rc = ble_att_write_cmd_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    assert(rc == 0);
+
+    os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
+
+    ctxt.attr_data = ble_att_svr_flat_buf;
+    ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
+    os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
+    rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, &ctxt,
+                                  &att_err);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+int
 ble_att_svr_write_local(uint16_t attr_handle, void *data, uint16_t data_len)
 {
     struct ble_att_svr_access_ctxt ctxt;
