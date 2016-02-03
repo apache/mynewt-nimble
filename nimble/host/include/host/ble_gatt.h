@@ -132,6 +132,8 @@ int ble_gattc_write_dsc(uint16_t conn_handle, uint16_t attr_handle,
 int ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
                              void *value, uint16_t value_len,
                              ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle);
+int ble_gattc_notify_custom(uint16_t conn_handle, struct ble_gatt_attr *attr);
 
 int ble_gattc_init(void);
 

@@ -3546,6 +3546,28 @@ ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle)
     return 0;
 }
 
+int
+ble_gattc_notify_custom(uint16_t conn_handle, struct ble_gatt_attr *attr)
+{
+    struct ble_att_notify_req req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        req.banq_handle = attr->handle;
+        rc = ble_att_clt_tx_notify(conn, &req, attr->value, attr->value_len);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
 /*****************************************************************************
  * $indicate                                                                 *
  *****************************************************************************/
