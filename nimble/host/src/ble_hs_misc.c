@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include "os/os.h"
 #include "console/console.h"
+#include "ble_hs_conn.h"
 #include "ble_hs_priv.h"
 
 int
@@ -62,4 +64,11 @@ ble_hs_misc_log_flat_buf(void *data, int len)
     for (i = 0; i < len; i++) {
         console_printf("0x%02x ", u8ptr[i]);
     }
+}
+
+void
+ble_hs_misc_assert_no_locks(void)
+{
+    assert(!ble_hs_conn_locked_by_cur_task());
+    assert(!ble_gattc_locked_by_cur_task());
 }

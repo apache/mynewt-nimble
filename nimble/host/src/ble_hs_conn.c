@@ -352,6 +352,12 @@ ble_hs_conn_init(void)
 
     ble_hs_conn_free_mem();
 
+    rc = os_mutex_init(&ble_hs_conn_mutex);
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
+
     ble_hs_conn_elem_mem = malloc(
         OS_MEMPOOL_BYTES(ble_hs_cfg.max_connections,
                          sizeof (struct ble_hs_conn)));

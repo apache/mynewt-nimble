@@ -44,4 +44,6 @@ void ble_hs_misc_log_flat_buf(void *data, int len);
 
 void ble_hs_cfg_init(void);
 
+void ble_hs_misc_assert_no_locks(void);
+
 #endif
