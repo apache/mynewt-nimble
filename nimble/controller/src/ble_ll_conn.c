@@ -41,30 +41,25 @@
 
 /* XXX TODO
  * 1) Add set channel map command and implement channel change procedure.
- * 2) Make sure we have implemented all ways a connection can die/end. Not
- * a connection event; I mean the termination of a connection.
- * 3) Link layer control procedures and timers
- * 4) We also need to check to see if we were asked to create a connection
- * when one already exists (the connection create command) Note that
- * an initiator should only send connection requests to devices it is not
- * already connected to. Make sure this cant happen.
- * 5) Make sure we check incoming data packets for size and all that. You
+ * 2) I think if we are initiating and we already have a connection with
+ * a device that we will still try and connect to it. Fix this.
+ * 3) Make sure we check incoming data packets for size and all that. You
  * know, supported octets and all that. For both rx and tx.
- * 6) Make sure we are setting the schedule end time properly for both slave
+ * 4) Make sure we are setting the schedule end time properly for both slave
  * and master. We should just set this to the end of the connection event.
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
- * 7) Do we need to check the terminate timeout inside the connection event?
+ * 5) Do we need to check the terminate timeout inside the connection event?
  * I think we do.
- * 8) Use error code 0x3E correctly! Connection failed to establish. If you
+ * 6) Use error code 0x3E correctly! Connection failed to establish. If you
  * read the LE connection complete event, it says that if the connection
  * fails to be established that the connection complete event gets sent to
  * the host that issued the create connection.
- * 9) How does peer address get set if we are using whitelist? Look at filter
+ * 7) How does peer address get set if we are using whitelist? Look at filter
  * policy and make sure you are doing this correctly.
- * 10) Right now I use a fixed definition for required slots. CHange this.
- * 11) Use output compare for transmit.
+ * 8) Right now I use a fixed definition for required slots. CHange this.
+ * 9) Use output compare for transmit.
  */
 
 /* 
@@ -75,9 +70,6 @@
  *  expected. What to do? If we cant transmit at correct point in slot we
  *  are hosed. Well, anchor point can get really messed up!
  */
-
-/* XXX: we need to make sure we hit the proper tx time for the anchor or we
-   could mess up the slave. Use output compare */
 
 /* XXX: this does not belong here! Move to transport? */
 extern int ble_hs_rx_data(struct os_mbuf *om);
