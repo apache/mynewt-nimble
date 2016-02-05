@@ -30,34 +30,22 @@
  *  2) Should we create pool of control pdu's?. Dont need more
  *  than the # of connections and can probably deal with quite a few less
  *  if we have lots of connections.
- *  3) NOTE: some procedures are allowed to run while others are
- *      running!!! Fix this in the code
- *  4) What about procedures that have been completed but try to restart?
- *  5) NOTE: there is a supported features procedure. However, in the case
+ *  3) What about procedures that have been completed but try to restart?
+ *  4) NOTE: there is a supported features procedure. However, in the case
  *  of data length extension, if the receiving device does not understand
  *  the pdu or it does not support data length extension, the LL_UNKNOWN_RSP
  *  pdu is sent. That needs to be processed...
- *  6) We are supposed to remember when we do the data length update proc if
+ *  5) We are supposed to remember when we do the data length update proc if
  *  the device sent us an unknown rsp. We should not send it another len req.
  *  Implement this how? Through remote supported features?
- *  7) Remember: some procedures dont have timeout rules.
- *  8) remember to stop procedure when rsp received.
- *  9) Says that we should reset procedure timer whenever a LL control pdu
+ *  6) Remember: some procedures dont have timeout rules.
+ *  7) Says that we should reset procedure timer whenever a LL control pdu
  *  is queued for transmission. I dont get it... do some procedures send
  *  multiple packets? I guess so.
- *  10) How to count control pdus sent. DO we count enqueued + sent, or only
+ *  8) How to count control pdus sent. DO we count enqueued + sent, or only
  *  sent (actually attempted to tx). Do we count failures? How?
- */
-
- /* XXX: NOTE: we are not supposed to send a REJECT_IND_EXT unless we know the
-   slave supports that feature */
-
-/* XXX:
- * 1) One thing I need to make sure I do: if we initiated this procedure and
- * we stop it, we have to make sure we send the update complete event! I
- * am referring to the connection parameter request procedure. The code is
- * already there to send the event when the connection update procedure
- * is over.
+ *  9) NOTE: we are not supposed to send a REJECT_IND_EXT unless we know the
+ *  slave supports that feature
  */
 
 /* 
