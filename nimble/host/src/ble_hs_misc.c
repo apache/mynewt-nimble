@@ -19,6 +19,7 @@
 #include "os/os.h"
 #include "console/console.h"
 #include "ble_hs_conn.h"
+#include "ble_gap_priv.h"
 #include "ble_hs_priv.h"
 
 int
@@ -71,4 +72,5 @@ ble_hs_misc_assert_no_locks(void)
 {
     assert(!ble_hs_conn_locked_by_cur_task());
     assert(!ble_gattc_locked_by_cur_task());
+    assert(!ble_gap_locked_by_cur_task());
 }
