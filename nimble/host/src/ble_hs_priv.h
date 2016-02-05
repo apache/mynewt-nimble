@@ -46,4 +46,6 @@ void ble_hs_cfg_init(void);
 
 void ble_hs_misc_assert_no_locks(void);
 
+struct os_mbuf *ble_hs_misc_pkthdr(void);
+
 #endif

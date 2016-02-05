@@ -94,7 +94,7 @@ ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     void *v;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         return BLE_HS_ENOMEM;
     }
@@ -222,7 +222,7 @@ ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
     void *v;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -262,7 +262,7 @@ ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
     void *v;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;

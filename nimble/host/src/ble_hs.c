@@ -52,23 +52,10 @@ static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS,
 #define HCI_NUM_OS_EVENTS       (32)
 #define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
 
-#define BLE_HS_NUM_MBUFS             (8)
-#define BLE_HS_MBUF_BUF_SIZE         (256)
-#define BLE_HS_MBUF_MEMBLOCK_SIZE                                \
-    (BLE_HS_MBUF_BUF_SIZE + sizeof(struct os_mbuf) +             \
-     sizeof(struct os_mbuf_pkthdr))
-
-#define BLE_HS_MBUF_MEMPOOL_SIZE                                 \
-    OS_MEMPOOL_SIZE(BLE_HS_NUM_MBUFS, BLE_HS_MBUF_MEMBLOCK_SIZE)
-
 struct os_mempool g_hci_os_event_pool;
 static os_membuf_t
     g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
                                        HCI_OS_EVENT_BUF_SIZE)] bssnz_t;
-
-static os_membuf_t ble_hs_mbuf_mem[BLE_HS_MBUF_MEMPOOL_SIZE];
-static struct os_mempool ble_hs_mbuf_mempool;
-struct os_mbuf_pool ble_hs_mbuf_pool;
 
 /* Host HCI Task Events */
 struct os_eventq ble_hs_evq;
@@ -244,18 +231,6 @@ ble_hs_init(uint8_t prio)
     os_eventq_init(&ble_hs_evq);
 
     host_hci_init();
-
-    rc = os_mempool_init(&ble_hs_mbuf_mempool, BLE_HS_NUM_MBUFS,
-                         BLE_HS_MBUF_MEMBLOCK_SIZE,
-                         ble_hs_mbuf_mem, "ble_hs_mbuf_pool");
-    if (rc != 0) {
-        return BLE_HS_EOS;
-    }
-    rc = os_mbuf_pool_init(&ble_hs_mbuf_pool, &ble_hs_mbuf_mempool,
-                           BLE_HS_MBUF_MEMBLOCK_SIZE, BLE_HS_NUM_MBUFS);
-    if (rc != 0) {
-        return BLE_HS_EOS;
-    }
 
     rc = ble_hs_conn_init();
     if (rc != 0) {

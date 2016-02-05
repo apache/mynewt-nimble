@@ -66,7 +66,7 @@ ble_l2cap_test_util_rx_update_req(struct ble_hs_conn *conn, uint8_t id,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ);
 
-    om = ble_att_get_pkthdr();
+    om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
     om = ble_l2cap_prepend_hdr(om, BLE_L2CAP_CID_SIG,
@@ -108,7 +108,7 @@ ble_l2cap_test_util_rx_update_rsp(struct ble_hs_conn *conn,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ);
 
-    om = ble_att_get_pkthdr();
+    om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
     om = ble_l2cap_prepend_hdr(om, BLE_L2CAP_CID_SIG,
@@ -253,7 +253,7 @@ ble_l2cap_test_util_rx_first_frag(struct ble_hs_conn *conn,
     void *v;
     int rc;
 
-    om = ble_att_get_pkthdr();
+    om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
     v = os_mbuf_extend(om, l2cap_frag_len);
@@ -277,7 +277,7 @@ ble_l2cap_test_util_rx_next_frag(struct ble_hs_conn *conn, uint16_t hci_len)
     void *v;
     int rc;
 
-    om = ble_att_get_pkthdr();
+    om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
     v = os_mbuf_extend(om, hci_len);
@@ -363,7 +363,7 @@ TEST_CASE(ble_l2cap_test_case_frag_single)
     /*** HCI header specifies middle fragment without start. */
     hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(2, BLE_HCI_PB_MIDDLE, 10);
 
-    om = ble_att_get_pkthdr();
+    om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
     om = ble_l2cap_prepend_hdr(om, 0, 5);

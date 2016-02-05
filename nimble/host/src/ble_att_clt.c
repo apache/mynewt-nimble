@@ -47,7 +47,7 @@ ble_att_clt_init_req(struct ble_hs_conn *conn, struct ble_l2cap_chan **chan,
         goto err;
     }
 
-    *txom = ble_att_get_pkthdr();
+    *txom = ble_hs_misc_pkthdr();
     if (*txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;

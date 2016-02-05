@@ -467,7 +467,7 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     void *dst;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
@@ -576,7 +576,7 @@ ble_att_svr_tx_mtu_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     assert(op == BLE_ATT_OP_MTU_REQ || op == BLE_ATT_OP_MTU_RSP);
     assert(mtu >= BLE_ATT_MTU_DFLT);
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -792,7 +792,7 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
         goto done;
     }
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1122,7 +1122,7 @@ ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
     uint8_t *buf;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1249,7 +1249,7 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
         return BLE_HS_ENOTCONN;
     }
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
@@ -1443,7 +1443,7 @@ ble_att_svr_build_read_rsp(uint16_t conn_handle, void *attr_data, int attr_len,
         goto done;
     }
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1550,7 +1550,7 @@ ble_att_svr_build_read_blob_rsp(void *attr_data, int attr_len, uint16_t mtu,
     uint8_t op;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1684,7 +1684,7 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
         goto done;
     }
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
@@ -1918,7 +1918,7 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
         goto done;
     }
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -2146,7 +2146,7 @@ ble_att_svr_build_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
     uint8_t *dst;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -2608,7 +2608,7 @@ ble_att_svr_build_exec_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
     uint8_t *dst;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -2750,7 +2750,7 @@ ble_att_svr_build_indicate_rsp(struct os_mbuf **out_txom)
     uint8_t *dst;
     int rc;
 
-    txom = ble_att_get_pkthdr();
+    txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto done;

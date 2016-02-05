@@ -74,3 +74,24 @@ ble_hs_misc_assert_no_locks(void)
     assert(!ble_gattc_locked_by_cur_task());
     assert(!ble_gap_locked_by_cur_task());
 }
+
+/**
+ * Allocates an mbuf for use by the nimble host.
+ *
+ * Lock restrictions: None.
+ */
+struct os_mbuf *
+ble_hs_misc_pkthdr(void)
+{
+    struct os_mbuf *om;
+
+    om = os_msys_get_pkthdr(0, 0);
+    if (om == NULL) {
+        return NULL;
+    }
+
+    /* Make room in the buffer for various headers.  XXX Check this number. */
+    om->om_data += 8;
+
+    return om;
+}

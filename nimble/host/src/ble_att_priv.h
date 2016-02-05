@@ -93,7 +93,6 @@ int ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                            struct ble_l2cap_chan **out_chan);
 uint16_t ble_att_mtu(uint16_t conn_handle);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
-struct os_mbuf *ble_att_get_pkthdr(void);
 void ble_att_init(void);
 
 

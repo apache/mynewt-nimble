@@ -30,6 +30,17 @@
 #include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
+#define BLE_HS_TEST_UTIL_NUM_MBUFS      (10)
+#define BLE_HS_TEST_UTIL_BUF_SIZE       OS_ALIGN(BLE_MBUF_PAYLOAD_SIZE, 4)
+#define BLE_HS_TEST_UTIL_MEMBLOCK_SIZE  \
+    (BLE_HS_TEST_UTIL_BUF_SIZE + BLE_MBUF_MEMBLOCK_OVERHEAD)
+#define BLE_HS_TEST_UTIL_MEMPOOL_SIZE   \
+    OS_MEMPOOL_SIZE(BLE_HS_TEST_UTIL_NUM_MBUFS, BLE_HS_TEST_UTIL_MEMBLOCK_SIZE)
+
+os_membuf_t ble_hs_test_util_mbuf_mpool_data[BLE_HS_TEST_UTIL_MEMPOOL_SIZE];
+struct os_mbuf_pool ble_hs_test_util_mbuf_pool;
+struct os_mempool ble_hs_test_util_mbuf_mpool;
+
 struct os_mbuf *ble_hs_test_util_prev_tx;
 uint8_t *ble_hs_test_util_prev_hci_tx;
 
@@ -187,7 +198,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     struct os_mbuf *om;
     int rc;
 
-    om = os_mbuf_get_pkthdr(&ble_hs_mbuf_pool, 0);
+    om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
     om->om_data += BLE_L2CAP_HDR_SZ;
@@ -393,8 +404,26 @@ ble_hs_test_util_init(void)
 {
     int rc;
 
+    os_msys_reset();
+
     rc = ble_hs_init(10);
     TEST_ASSERT_FATAL(rc == 0);
+
+    rc = os_mempool_init(&ble_hs_test_util_mbuf_mpool,
+                         BLE_HS_TEST_UTIL_NUM_MBUFS, 
+                         BLE_HS_TEST_UTIL_MEMBLOCK_SIZE,
+                         ble_hs_test_util_mbuf_mpool_data, 
+                         "ble_hs_test_util_mbuf_data");
+    assert(rc == 0);
+
+    rc = os_mbuf_pool_init(&ble_hs_test_util_mbuf_pool,
+                           &ble_hs_test_util_mbuf_mpool,
+                           BLE_HS_TEST_UTIL_MEMBLOCK_SIZE,
+                           BLE_HS_TEST_UTIL_NUM_MBUFS);
+    assert(rc == 0);
+
+    rc = os_msys_register(&ble_hs_test_util_mbuf_pool);
+    assert(rc == 0);
 
     /* Don't limit a connection's ability to transmit; simplify tests. */
     ble_hs_cfg.max_outstanding_pkts_per_conn = 0;
