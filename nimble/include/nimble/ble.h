@@ -19,7 +19,6 @@
 
 /* XXX: some or all of these should not be here */
 #include "os/os.h"
-extern struct os_mbuf_pool g_mbuf_pool;
 
 /* Shared command pool for transort between host and controller */
 extern struct os_mempool g_hci_cmd_pool;
@@ -108,7 +107,7 @@ struct ble_mbuf_hdr
  * @return struct os_mbuf *
  */
 #define ble_get_packet(__om) do {                                           \
-    __om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));   \
+    __om = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr)); \
     if (__om) {                                                             \
         __om->om_data += 4;                                                 \
     }                                                                       \
