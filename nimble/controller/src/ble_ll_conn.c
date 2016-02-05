@@ -2402,7 +2402,7 @@ ble_ll_conn_module_init(void)
         /* Initialize empty pdu */
         m = (struct os_mbuf *)&connsm->conn_empty_pdu;
         m->om_data = (uint8_t *)&connsm->conn_empty_pdu[0];
-        m->om_data += BLE_MBUF_PKT_OVERHEAD;
+        m->om_data += BLE_MBUF_MEMBLOCK_OVERHEAD;
         m->om_pkthdr_len = sizeof(struct ble_mbuf_hdr) + 
             sizeof(struct os_mbuf_pkthdr);
         m->om_omp = NULL;

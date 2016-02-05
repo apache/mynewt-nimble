@@ -53,7 +53,7 @@
  * and we always want to have one available. The empty pdu length is of
  * type uint32_t so we have 4 byte alignment.
  */ 
-#define BLE_LL_EMPTY_PDU_MBUF_SIZE  (BLE_MBUF_PKT_OVERHEAD / 4)
+#define BLE_LL_EMPTY_PDU_MBUF_SIZE  (BLE_MBUF_MEMBLOCK_OVERHEAD / 4)
 
 /* Connection state machine flags. */
 union ble_ll_conn_sm_flags {

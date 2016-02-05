@@ -202,7 +202,7 @@ struct ble_dev_addr
  *      -> LSB contains pdu type, txadd and rxadd bits.
  *      -> MSB contains length (6 bits). Length is length of payload. Does
  *         not include the header length itself. 
- * -> Payload
+ * -> Payload (max 37 bytes)
  */
 #define BLE_ADV_PDU_HDR_TYPE_MASK           (0x0F)
 #define BLE_ADV_PDU_HDR_TXADD_MASK          (0x40)
@@ -225,6 +225,8 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_HDR_TXADD_RAND          (0x40)
 #define BLE_ADV_PDU_HDR_RXADD_RAND          (0x80)
 
+/* Max length */
+#define BLE_LL_MAX_ADV_PYLD                 (37)
 /*
  * Data Channel format
  * 

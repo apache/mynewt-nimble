@@ -584,7 +584,8 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
         /* Get a control packet buffer */
         if (positive_reply && (rc == BLE_ERR_SUCCESS)) {
-            om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+            om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PAYLOAD + 1, 
+                                    sizeof(struct ble_mbuf_hdr));
             if (om) {
                 dptr = om->om_data;
                 rsp_opcode = ble_ll_ctrl_conn_param_reply(connsm, dptr, 

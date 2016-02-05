@@ -30,9 +30,10 @@ extern struct os_mempool g_hci_os_event_pool;
  * 
  * The BLE mbuf structure is as follows. Note that this structure applies to
  * the packet header mbuf (not mbufs that are part of a "packet chain"):
- *      struct os_mbuf          (12)
+ *      struct os_mbuf          (16)
  *      struct os_mbuf_pkthdr   (8)
- *      struct ble_mbuf_hdr     (4)
+ *      struct ble_mbuf_hdr     (8)
+ *      Data buffer             (BLE_MBUF_PAYLOAD_SIZE)
  * 
  * The BLE mbuf header contains the following:
  *  flags: bitfield with the following values
@@ -68,6 +69,9 @@ struct ble_mbuf_hdr
     uint32_t end_cputime;
 };
 
+/* The payload size for BLE MBUFs. */
+#define BLE_MBUF_PAYLOAD_SIZE           (256)
+
 /* Flag definitions for rxinfo  */
 #define BLE_MBUF_HDR_F_CRC_OK           (0x80)
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x40)
@@ -90,9 +94,11 @@ struct ble_mbuf_hdr
                             sizeof(struct os_mbuf_pkthdr))
 
 /* BLE mbuf overhead per packet header mbuf */
-#define BLE_MBUF_PKT_OVERHEAD   (sizeof(struct os_mbuf) +           \
-                                 sizeof(struct os_mbuf_pkthdr) +    \
-                                 sizeof(struct ble_mbuf_hdr))
+#define BLE_MBUF_PKTHDR_OVERHEAD    \
+    (sizeof(struct os_mbuf_pkthdr) + sizeof(struct ble_mbuf_hdr))
+
+#define BLE_MBUF_MEMBLOCK_OVERHEAD  \
+    (sizeof(struct os_mbuf) + BLE_MBUF_PKTHDR_OVERHEAD)
 
 /**
  * Get a BLE packet. A packet is a BLE packet header mbuf with enough 

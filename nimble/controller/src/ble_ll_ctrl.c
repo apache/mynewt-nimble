@@ -750,7 +750,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
     struct os_mbuf *om;
 
     /* Get an mbuf for the control pdu */
-    om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+    om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN, sizeof(struct ble_mbuf_hdr));
 
     if (om) {
         dptr = om->om_data;
@@ -1203,7 +1203,8 @@ ble_ll_ctrl_reject_ind_ext_send(struct ble_ll_conn_sm *connsm,
     uint8_t *rspbuf;
     struct os_mbuf *om;
 
-    om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+    om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN,
+                            sizeof(struct ble_mbuf_hdr));
     if (om) {
         rspbuf = om->om_data;
         rspbuf[0] = BLE_LL_CTRL_REJECT_IND_EXT;
