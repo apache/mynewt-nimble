@@ -274,7 +274,7 @@ ble_hs_init(uint8_t prio)
         return rc;
     }
 
-    rc = ble_gap_conn_init();
+    rc = ble_gap_init();
     if (rc != 0) {
         return rc;
     }

@@ -105,7 +105,7 @@ struct ble_gap_conn_desc {
     uint8_t peer_addr_type;
 };
 
-struct ble_gap_conn_crt_params {
+struct ble_gap_crt_params {
     uint16_t scan_itvl;
     uint16_t scan_window;
     uint16_t itvl_min;
@@ -116,7 +116,7 @@ struct ble_gap_conn_crt_params {
     uint16_t max_ce_len;
 };
 
-struct ble_gap_conn_upd_params {
+struct ble_gap_upd_params {
     uint16_t itvl_min;
     uint16_t itvl_max;
     uint16_t latency;
@@ -127,8 +127,8 @@ struct ble_gap_conn_upd_params {
 
 struct ble_gap_conn_ctxt {
     struct ble_gap_conn_desc *desc;
-    struct ble_gap_conn_upd_params *peer_params;
-    struct ble_gap_conn_upd_params *self_params;
+    struct ble_gap_upd_params *peer_params;
+    struct ble_gap_upd_params *self_params;
 };
 
 typedef int ble_gap_conn_fn(int event, int status,
@@ -162,24 +162,23 @@ struct ble_gap_white_entry {
     uint8_t addr[6];
 };
 
-int ble_gap_conn_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
-                           uint8_t *peer_addr, uint8_t peer_addr_type,
-                           struct hci_adv_params *adv_params,
-                           ble_gap_conn_fn *cb, void *cb_arg);
-int ble_gap_conn_adv_stop(void);
-int ble_gap_conn_set_adv_fields(struct ble_hs_adv_fields *adv_fields);
-int ble_gap_conn_disc(uint32_t duration_ms, uint8_t discovery_mode,
+int ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
+                      uint8_t *peer_addr, uint8_t peer_addr_type,
+                      struct hci_adv_params *adv_params,
+                      ble_gap_conn_fn *cb, void *cb_arg);
+int ble_gap_adv_stop(void);
+int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
+int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t scan_type, uint8_t filter_policy,
                       ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
-                          struct ble_gap_conn_crt_params *params,
+                          struct ble_gap_crt_params *params,
                           ble_gap_conn_fn *cb, void *cb_arg);
-int ble_gap_conn_terminate(uint16_t handle);
-int ble_gap_conn_cancel(void);
-int ble_gap_conn_wl_set(struct ble_gap_white_entry *white_list,
-                        uint8_t white_list_count, ble_gap_wl_fn *cb,
-                        void *cb_arg);
-int ble_gap_conn_update_params(uint16_t conn_handle,
-                               struct ble_gap_conn_upd_params *params);
+int ble_gap_terminate(uint16_t handle);
+int ble_gap_cancel(void);
+int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
+                   uint8_t white_list_count, ble_gap_wl_fn *cb, void *cb_arg);
+int ble_gap_update_params(uint16_t conn_handle,
+                          struct ble_gap_upd_params *params);
 
 #endif

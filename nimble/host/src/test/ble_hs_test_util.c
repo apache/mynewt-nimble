@@ -85,7 +85,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
     evt.conn_itvl = BLE_GAP_INITIAL_CONN_ITVL_MAX;
     evt.conn_latency = BLE_GAP_INITIAL_CONN_LATENCY;
     evt.supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT;
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
 
     conn = ble_hs_conn_find(handle);
@@ -296,7 +296,7 @@ ble_hs_test_util_rx_und_adv_acks_count(int count)
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS,
                                    BLE_ERR_SUCCESS);
-        TEST_ASSERT(ble_gap_conn_slave_in_progress());
+        TEST_ASSERT(ble_gap_slave_in_progress());
 
         count--;
     }
@@ -306,7 +306,7 @@ ble_hs_test_util_rx_und_adv_acks_count(int count)
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack_param(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR,
                                          BLE_ERR_SUCCESS, (uint8_t[]){0}, 1);
-        TEST_ASSERT(ble_gap_conn_slave_in_progress());
+        TEST_ASSERT(ble_gap_slave_in_progress());
 
         count--;
     }
@@ -316,7 +316,7 @@ ble_hs_test_util_rx_und_adv_acks_count(int count)
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_DATA,
                                    BLE_ERR_SUCCESS);
-        TEST_ASSERT(ble_gap_conn_slave_in_progress());
+        TEST_ASSERT(ble_gap_slave_in_progress());
 
         count--;
     }
@@ -326,7 +326,7 @@ ble_hs_test_util_rx_und_adv_acks_count(int count)
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA,
                                    BLE_ERR_SUCCESS);
-        TEST_ASSERT(ble_gap_conn_slave_in_progress());
+        TEST_ASSERT(ble_gap_slave_in_progress());
 
         count--;
     }
@@ -336,7 +336,7 @@ ble_hs_test_util_rx_und_adv_acks_count(int count)
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE,
                                    BLE_ERR_SUCCESS);
-        TEST_ASSERT(ble_gap_conn_slave_in_progress());
+        TEST_ASSERT(ble_gap_slave_in_progress());
         count--;
     }
 }
@@ -352,13 +352,13 @@ ble_hs_test_util_rx_dir_adv_acks(void)
 {
     /* Receive set-adv-params ack. */
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS, BLE_ERR_SUCCESS);
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
 
     ble_hci_sched_wakeup();
 
     /* Receive set-adv-enable ack. */
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE, BLE_ERR_SUCCESS);
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
 }
 
 uint8_t *

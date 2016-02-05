@@ -118,11 +118,11 @@ ble_hs_adv_test_misc_tx_and_verify_data(
 
     ble_hs_test_util_init();
 
-    rc = ble_gap_conn_set_adv_fields(adv_fields);
+    rc = ble_gap_adv_set_fields(adv_fields);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gap_conn_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0,
-                                NULL, NULL, NULL);
+    rc = ble_gap_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0, NULL,
+                           NULL, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_rx_und_adv_acks_count(3);

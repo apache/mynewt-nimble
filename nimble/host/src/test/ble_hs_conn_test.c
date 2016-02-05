@@ -41,7 +41,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
@@ -50,11 +50,11 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
 
     ble_hci_sched_wakeup();
 
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_master_in_progress());
 
     /* Receive command status event. */
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_master_in_progress());
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -63,9 +63,9 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
 
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
@@ -88,7 +88,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
     ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
@@ -97,7 +97,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
 
     ble_hci_sched_wakeup();
 
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_master_in_progress());
 
     /* Receive connection complete event without intervening command status. */
     memset(&evt, 0, sizeof evt);
@@ -106,19 +106,19 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc != 0);
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_master_in_progress());
 
     /* Receive success command status event. */
     ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, BLE_ERR_SUCCESS);
-    TEST_ASSERT(ble_gap_conn_master_in_progress());
+    TEST_ASSERT(ble_gap_master_in_progress());
 
     /* Receive failure connection complete event. */
     evt.status = BLE_ERR_UNSPECIFIED;
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 }
 
@@ -133,20 +133,19 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(!ble_gap_slave_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
-                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC, NULL,
-                                NULL, NULL);
+    rc = ble_gap_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR, addr,
+                           BLE_HCI_ADV_PEER_ADDR_PUBLIC, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
 
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
 
     ble_hs_test_util_rx_dir_adv_acks();
 
@@ -157,10 +156,10 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(!ble_gap_slave_in_progress());
 
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
@@ -182,19 +181,18 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
 
     ble_hs_test_util_init();
 
-    /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+   /* Ensure no current or pending connections. */
+    TEST_ASSERT(!ble_gap_slave_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate connection. */
-    rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR,
-                                addr, BLE_HCI_ADV_PEER_ADDR_PUBLIC, NULL,
-                                NULL, NULL);
+    rc = ble_gap_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_DIR, addr,
+                           BLE_HCI_ADV_PEER_ADDR_PUBLIC, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_hci_sched_wakeup();
 
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
 
     /* Receive connection complete event without intervening command status. */
     memset(&evt, 0, sizeof evt);
@@ -203,18 +201,18 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc != 0);
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
 
     /* Receive necessary ack events. */
     ble_hs_test_util_rx_dir_adv_acks();
 
     /* Receive failure connection complete event. */
     evt.status = BLE_ERR_UNSPECIFIED;
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 }
 
@@ -229,17 +227,17 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     ble_hs_test_util_init();
 
     /* Ensure no current or pending connections. */
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(!ble_gap_slave_in_progress());
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
-    rc = ble_gap_conn_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_UND,
-                                NULL, 0, NULL, NULL, NULL);
+    rc = ble_gap_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_UND,
+                           NULL, 0, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
 
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-    TEST_ASSERT(ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(ble_gap_slave_in_progress());
 
     ble_hs_test_util_rx_und_adv_acks();
 
@@ -250,10 +248,10 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
     memcpy(evt.peer_addr, addr, 6);
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_gap_conn_master_in_progress());
-    TEST_ASSERT(!ble_gap_conn_slave_in_progress());
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(!ble_gap_slave_in_progress());
 
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);

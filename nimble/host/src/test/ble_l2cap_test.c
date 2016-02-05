@@ -194,7 +194,7 @@ ble_l2cap_test_util_verify_tx_update_rsp(uint8_t exp_id, uint16_t exp_result)
 
 static void
 ble_l2cap_test_util_verify_tx_update_conn(
-    struct ble_gap_conn_upd_params *params)
+    struct ble_gap_upd_params *params)
 {
     uint8_t param_len;
     uint8_t *param;
@@ -481,7 +481,7 @@ static void
 ble_l2cap_test_util_peer_updates(int accept)
 {
     struct ble_l2cap_sig_update_params l2cap_params;
-    struct ble_gap_conn_upd_params params;
+    struct ble_gap_upd_params params;
     struct ble_hs_conn *conn;
 
     ble_l2cap_test_util_init();
@@ -513,7 +513,7 @@ ble_l2cap_test_util_peer_updates(int accept)
         ble_l2cap_test_util_verify_tx_update_conn(&params);
     } else {
         /* Ensure no update got scheduled. */
-        TEST_ASSERT(!ble_gap_conn_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+        TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
     }
 }
 

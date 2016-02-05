@@ -184,7 +184,7 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     evt.connection_handle = le16toh(data + 3);
     evt.reason = data[5];
 
-    ble_gap_conn_rx_disconn_complete(&evt);
+    ble_gap_rx_disconn_complete(&evt);
 
     return 0;
 }
@@ -365,7 +365,7 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
         }
     }
 
-    rc = ble_gap_conn_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt);
     if (rc != 0) {
         return rc;
     }
@@ -458,7 +458,7 @@ host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
         off = rssi_off + 1 * i;
         adv.rssi = data[off];
 
-        ble_gap_conn_rx_adv_report(&adv);
+        ble_gap_rx_adv_report(&adv);
     }
 
     return 0;
@@ -498,7 +498,7 @@ host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
         }
     }
 
-    ble_gap_conn_rx_update_complete(&evt);
+    ble_gap_rx_update_complete(&evt);
 
     return 0;
 }
@@ -536,7 +536,7 @@ host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
         return BLE_HS_EBADDATA;
     }
 
-    ble_gap_conn_rx_param_req(&evt);
+    ble_gap_rx_param_req(&evt);
 
     return 0;
 }

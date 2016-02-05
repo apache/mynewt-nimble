@@ -478,7 +478,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
                             struct os_mbuf **om)
 {
     struct ble_l2cap_sig_update_req req;
-    struct ble_gap_conn_upd_params params;
+    struct ble_gap_upd_params params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     uint16_t l2cap_result;
@@ -517,10 +517,10 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     }
 
     /* Ask application if slave's connection parameters are acceptable. */
-    rc = ble_gap_conn_rx_l2cap_update_req(conn_handle, &params);
+    rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
     if (rc == 0) {
         /* Application agrees to accept parameters; schedule update. */
-        rc = ble_gap_conn_update_params(conn_handle, &params);
+        rc = ble_gap_update_params(conn_handle, &params);
         if (rc != 0) {
             return rc;
         }
@@ -772,7 +772,7 @@ ble_l2cap_sig_heartbeat(void *unused)
             }
         } else if (proc->flags & BLE_L2CAP_SIG_PROC_F_EXPECTING) {
             if (now - proc->tx_time >= BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT) {
-                rc = ble_gap_conn_terminate(proc->conn_handle);
+                rc = ble_gap_terminate(proc->conn_handle);
                 assert(rc == 0); /* XXX */
             }
         }
