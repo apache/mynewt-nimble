@@ -18,6 +18,7 @@
 #define H_BLE_HS_PRIV_
 
 #include <inttypes.h>
+#include "nimble/nimble_opt.h"
 #include "host/ble_hs.h"
 struct os_mbuf;
 struct os_mempool;

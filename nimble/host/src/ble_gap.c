@@ -21,6 +21,7 @@
 #include "os/os.h"
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
+#include "ble_hs_priv.h"
 #include "ble_hs_adv_priv.h"
 #include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
@@ -82,8 +83,6 @@
  * field.
  */
 #define BLE_GAP_ADV_DATA_LIMIT          (BLE_HCI_MAX_ADV_DATA_LEN - 6)
-
-#define BLE_GAP_MAX_UPDATES             4
 
 static const struct ble_gap_crt_params ble_gap_params_dflt = {
     .scan_itvl = 0x0010,
@@ -172,9 +171,7 @@ struct ble_gap_update_entry {
 };
 static SLIST_HEAD(, ble_gap_update_entry) ble_gap_update_entries;
 
-static bssnz_t os_membuf_t
-ble_gap_update_mem[OS_MEMPOOL_SIZE(BLE_GAP_MAX_UPDATES,
-                         sizeof (struct ble_gap_update_entry))];
+static void *ble_gap_update_mem;
 static struct os_mempool ble_gap_update_pool;
 
 static int ble_gap_adv_params_tx(void *arg);
@@ -667,6 +664,10 @@ ble_gap_conn_broken(uint16_t conn_handle)
 void
 ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
     int rc;
@@ -707,6 +708,10 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 void
 ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     struct ble_gap_update_entry *entry;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
@@ -781,6 +786,10 @@ ble_gap_slave_in_progress(void)
 int
 ble_gap_update_in_progress(uint16_t conn_handle)
 {
+#if !NIMBLE_OPT_CONNECT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_gap_update_entry *entry;
 
     ble_gap_lock();
@@ -1015,6 +1024,10 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
 void
 ble_gap_rx_adv_report(struct ble_hs_adv *adv)
 {
+#if !NIMBLE_OPT_ROLE_OBSERVER
+    return;
+#endif
+
     struct ble_hs_adv_fields fields;
     int rc;
 
@@ -1049,6 +1062,10 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
 int
 ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 {
+#if !NIMBLE_OPT_CONNECT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
     int status;
@@ -1239,6 +1256,10 @@ ble_gap_slave_timer_exp(void *arg)
 int
 ble_gap_wl_busy(void)
 {
+#if !NIMBLE_OPT_WHITELIST
+    return BLE_HS_ENOTSUP;
+#endif
+
     /* Check if application is currently setting the white list. */
     if (ble_gap_wl.op != BLE_GAP_OP_NULL) {
         return 1;
@@ -1380,8 +1401,12 @@ ble_gap_wl_tx_clear(void *arg)
  */
 int
 ble_gap_wl_set(struct ble_gap_white_entry *white_list,
-                    uint8_t white_list_count, ble_gap_wl_fn *cb, void *cb_arg)
+               uint8_t white_list_count, ble_gap_wl_fn *cb, void *cb_arg)
 {
+#if !NIMBLE_OPT_WHITELIST
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
     int i;
 
@@ -1461,6 +1486,10 @@ ble_gap_adv_disable_tx(void *arg)
 int
 ble_gap_adv_stop(void)
 {
+#if !NIMBLE_OPT_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     /* Do nothing if advertising is already disabled. */
@@ -1830,6 +1859,10 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                   struct hci_adv_params *adv_params,
                   ble_gap_conn_fn *cb, void *cb_arg)
 {
+#if !NIMBLE_OPT_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
     uint8_t op;
     int rc;
 
@@ -1894,8 +1927,8 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     }
 
     ble_gap_adv_itvls(discoverable_mode, connectable_mode,
-                           &ble_gap_slave.adv_params.adv_itvl_min,
-                           &ble_gap_slave.adv_params.adv_itvl_max);
+                      &ble_gap_slave.adv_params.adv_itvl_min,
+                      &ble_gap_slave.adv_params.adv_itvl_max);
 
     rc = ble_gap_adv_initiate();
     if (rc != 0) {
@@ -1911,6 +1944,10 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
 int
 ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
 {
+#if !NIMBLE_OPT_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
@@ -2063,9 +2100,13 @@ ble_gap_disc_tx_params(void *arg)
  */
 int
 ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
-                  uint8_t scan_type, uint8_t filter_policy,
-                  ble_gap_disc_fn *cb, void *cb_arg)
+             uint8_t scan_type, uint8_t filter_policy,
+             ble_gap_disc_fn *cb, void *cb_arg)
 {
+#if !NIMBLE_OPT_ROLE_OBSERVER
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     if (discovery_mode != BLE_GAP_DISC_MODE_LTD &&
@@ -2204,6 +2245,10 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
                       struct ble_gap_crt_params *params,
                       ble_gap_conn_fn *cb, void *cb_arg)
 {
+#if !NIMBLE_OPT_ROLE_CENTRAL
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     if (addr_type != BLE_ADDR_TYPE_PUBLIC &&
@@ -2439,6 +2484,10 @@ ble_gap_param_reply_ack(struct ble_hci_ack *ack, void *arg)
 void
 ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     struct hci_conn_param_neg_reply neg_reply;
     struct ble_gap_upd_params peer_params;
     struct ble_gap_update_entry *entry;
@@ -2592,6 +2641,10 @@ ble_gap_update_tx(void *arg)
 int
 ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
 {
+#if !NIMBLE_OPT_CONNECT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_gap_update_entry *entry;
     int rc;
 
@@ -2643,19 +2696,33 @@ ble_gap_init(void)
     memset(&ble_gap_slave, 0, sizeof ble_gap_slave);
     memset(&ble_gap_wl, 0, sizeof ble_gap_wl);
 
+    free(ble_gap_update_mem);
+    ble_gap_update_mem = malloc(
+        OS_MEMPOOL_BYTES(ble_hs_cfg.max_conn_update_entries,
+                         sizeof (struct ble_gap_update_entry)));
+
     os_callout_func_init(&ble_gap_master_timer, &ble_hs_evq,
                          ble_gap_master_timer_exp, NULL);
     os_callout_func_init(&ble_gap_slave_timer, &ble_hs_evq,
                          ble_gap_slave_timer_exp, NULL);
 
-    rc = os_mempool_init(&ble_gap_update_pool, BLE_GAP_MAX_UPDATES,
-                         sizeof (struct ble_gap_update_entry),
-                         ble_gap_update_mem, "ble_gap_update_pool");
-    if (rc != 0) {
-        return BLE_HS_EOS;
+    if (ble_hs_cfg.max_conn_update_entries > 0) {
+        rc = os_mempool_init(&ble_gap_update_pool,
+                             ble_hs_cfg.max_conn_update_entries,
+                             sizeof (struct ble_gap_update_entry),
+                             ble_gap_update_mem, "ble_gap_update_pool");
+        if (rc != 0) {
+            rc = BLE_HS_EOS;
+            goto err;
+        }
     }
 
     SLIST_INIT(&ble_gap_update_entries);
 
     return 0;
+
+err:
+    free(ble_gap_update_mem);
+    ble_gap_update_mem = NULL;
+    return rc;
 }

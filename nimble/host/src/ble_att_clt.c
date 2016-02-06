@@ -229,6 +229,10 @@ int
 ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
                          struct ble_att_find_info_req *req)
 {
+#if !NIMBLE_OPT_ATT_CLT_FIND_INFO
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -269,6 +273,10 @@ err:
 int
 ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **om)
 {
+#if !NIMBLE_OPT_ATT_CLT_FIND_INFO
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_find_info_rsp rsp;
     struct ble_att_find_info_idata idata;
     struct os_mbuf *rxom;
@@ -356,6 +364,10 @@ ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
                                struct ble_att_find_type_value_req *req,
                                void *attribute_value, int value_len)
 {
+#if !NIMBLE_OPT_ATT_CLT_FIND_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -418,6 +430,10 @@ ble_att_clt_parse_find_type_value_hinfo(
 int
 ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_FIND_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_find_type_value_hinfo hinfo;
     int rc;
 
@@ -457,6 +473,10 @@ ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
                          struct ble_att_read_type_req *req,
                          void *uuid128)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -526,6 +546,10 @@ ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
 int
 ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_read_type_adata adata;
     struct ble_att_read_type_rsp rsp;
     int rc;
@@ -570,6 +594,10 @@ done:
 int
 ble_att_clt_tx_read(struct ble_hs_conn *conn, struct ble_att_read_req *req)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -608,6 +636,10 @@ err:
 int
 ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ
+    return BLE_HS_ENOTSUP;
+#endif
+
     void *value;
     int value_len;
     int rc;
@@ -648,6 +680,10 @@ int
 ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
                          struct ble_att_read_blob_req *req)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_BLOB
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -686,6 +722,10 @@ err:
 int
 ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_BLOB
+    return BLE_HS_ENOTSUP;
+#endif
+
     void *value;
     int value_len;
     int rc;
@@ -726,6 +766,10 @@ int
 ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
                          uint16_t *handles, int num_handles)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_MULT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     void *buf;
@@ -777,6 +821,10 @@ err:
 int
 ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_MULT
+    return BLE_HS_ENOTSUP;
+#endif
+
     void *value;
     int value_len;
     int rc;
@@ -818,6 +866,10 @@ ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
                                struct ble_att_read_group_type_req *req,
                                void *uuid128)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_GROUP_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -889,6 +941,10 @@ ble_att_clt_parse_read_group_type_adata(
 int
 ble_att_clt_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_READ_GROUP_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_read_group_type_adata adata;
     struct ble_att_read_group_type_rsp rsp;
     int rc;
@@ -981,6 +1037,10 @@ ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
                          struct ble_att_write_req *req,
                          void *value, uint16_t value_len)
 {
+#if !NIMBLE_OPT_ATT_CLT_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     rc = ble_att_clt_tx_write_req_or_cmd(conn, req, value, value_len, 1);
@@ -999,6 +1059,10 @@ ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
                          struct ble_att_write_req *req,
                          void *value, uint16_t value_len)
 {
+#if !NIMBLE_OPT_ATT_CLT_WRITE_NO_RSP
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     rc = ble_att_clt_tx_write_req_or_cmd(conn, req, value, value_len, 0);
@@ -1015,6 +1079,10 @@ ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
 int
 ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     /* No payload. */
     ble_gattc_rx_write_rsp(conn_handle);
     return 0;
@@ -1032,6 +1100,10 @@ ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
                           struct ble_att_prep_write_cmd *req,
                           void *value, uint16_t value_len)
 {
+#if !NIMBLE_OPT_ATT_CLT_PREP_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -1088,6 +1160,10 @@ err:
 int
 ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_PREP_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_prep_write_cmd rsp;
     int rc;
 
@@ -1129,6 +1205,10 @@ int
 ble_att_clt_tx_exec_write(struct ble_hs_conn *conn,
                           struct ble_att_exec_write_req *req)
 {
+#if !NIMBLE_OPT_ATT_CLT_EXEC_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -1167,6 +1247,10 @@ err:
 int
 ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_EXEC_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     *rxom = os_mbuf_pullup(*rxom, BLE_ATT_EXEC_WRITE_RSP_SZ);
@@ -1192,6 +1276,10 @@ int
 ble_att_clt_tx_notify(struct ble_hs_conn *conn, struct ble_att_notify_req *req,
                       void *value, uint16_t value_len)
 {
+#if !NIMBLE_OPT_ATT_CLT_NOTIFY
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -1241,6 +1329,10 @@ ble_att_clt_tx_indicate(struct ble_hs_conn *conn,
                         struct ble_att_indicate_req *req,
                         void *value, uint16_t value_len)
 {
+#if !NIMBLE_OPT_ATT_CLT_INDICATE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     int rc;
@@ -1285,6 +1377,10 @@ err:
 int
 ble_att_clt_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_CLT_INDICATE
+    return BLE_HS_ENOTSUP;
+#endif
+
     /* No payload. */
     ble_gattc_rx_indicate_rsp(conn_handle);
     return 0;

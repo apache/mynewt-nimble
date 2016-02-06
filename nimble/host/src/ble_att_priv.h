@@ -46,6 +46,10 @@ struct ble_att_prep_entry {
     SLIST_ENTRY(ble_att_prep_entry) bape_next;
     uint16_t bape_handle;
     uint16_t bape_offset;
+
+    /* XXX: This is wasteful; we should use one mbuf chain for the entire
+     * prepared write, and compress the data into as few mbufs as possible.
+     */
     struct os_mbuf *bape_value;
 };
 

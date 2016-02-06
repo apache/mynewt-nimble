@@ -56,8 +56,21 @@
 #define BLE_HS_L2C_ERR(x)               ((x) ? BLE_HS_ERR_L2C_BASE + (x) : 0)
 
 struct ble_hs_cfg {
+    /** Connection settings. */
     uint16_t max_outstanding_pkts_per_conn;
     uint8_t max_connections;
+    uint8_t max_conn_update_entries;
+
+    /** GATT server settings. */
+    uint16_t max_services;
+    uint16_t max_client_configs;
+
+    /** GATT client settings. */
+    uint8_t max_gattc_procs;
+
+    /** ATT server settings. */
+    uint16_t max_attrs;
+    uint8_t max_prep_entries;
 };
 extern struct ble_hs_cfg ble_hs_cfg;
 

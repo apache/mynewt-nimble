@@ -72,6 +72,10 @@ ble_hs_conn_locked_by_cur_task(void)
 int
 ble_hs_conn_can_alloc(void)
 {
+#if !NIMBLE_OPT_CONNECT
+    return 0;
+#endif
+
     return ble_hs_conn_pool.mp_num_free >= 1;
 }
 
@@ -81,6 +85,10 @@ ble_hs_conn_can_alloc(void)
 struct ble_l2cap_chan *
 ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 {
+#if !NIMBLE_OPT_CONNECT
+    return NULL;
+#endif
+
     struct ble_l2cap_chan *chan;
 
     SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
@@ -102,6 +110,10 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 int
 ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
+#if !NIMBLE_OPT_CONNECT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_l2cap_chan *prev;
     struct ble_l2cap_chan *cur;
 
@@ -132,6 +144,10 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
 {
+#if !NIMBLE_OPT_CONNECT
+    return NULL;
+#endif
+
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     int rc;
@@ -196,6 +212,10 @@ ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 void
 ble_hs_conn_free(struct ble_hs_conn *conn)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     struct ble_l2cap_chan *chan;
     int rc;
 
@@ -221,6 +241,10 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 void
 ble_hs_conn_insert(struct ble_hs_conn *conn)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     ble_hs_conn_lock();
 
     assert(ble_hs_conn_find(conn->bhc_handle) == NULL);
@@ -235,6 +259,10 @@ ble_hs_conn_insert(struct ble_hs_conn *conn)
 void
 ble_hs_conn_remove(struct ble_hs_conn *conn)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
 }
 
@@ -244,6 +272,10 @@ ble_hs_conn_remove(struct ble_hs_conn *conn)
 struct ble_hs_conn *
 ble_hs_conn_find(uint16_t conn_handle)
 {
+#if !NIMBLE_OPT_CONNECT
+    return NULL;
+#endif
+
     struct ble_hs_conn *conn;
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
@@ -261,6 +293,10 @@ ble_hs_conn_find(uint16_t conn_handle)
 int
 ble_hs_conn_exists(uint16_t conn_handle)
 {
+#if !NIMBLE_OPT_CONNECT
+    return 0;
+#endif
+
     struct ble_hs_conn *conn;
 
     ble_hs_conn_lock();
@@ -278,6 +314,10 @@ ble_hs_conn_exists(uint16_t conn_handle)
 struct ble_hs_conn *
 ble_hs_conn_first(void)
 {
+#if !NIMBLE_OPT_CONNECT
+    return NULL;
+#endif
+
     return SLIST_FIRST(&ble_hs_conns);
 }
 
@@ -296,6 +336,10 @@ ble_hs_conn_txable_transition(struct ble_hs_conn *conn)
 void
 ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
 {
+#if !NIMBLE_OPT_CONNECT
+    return;
+#endif
+
     struct ble_hs_conn *conn;
     int could_tx;
     int can_tx;
@@ -327,6 +371,10 @@ ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
 int
 ble_hs_conn_can_tx(struct ble_hs_conn *conn)
 {
+#if !NIMBLE_OPT_CONNECT
+    return 0;
+#endif
+
     return ble_hs_cfg.max_outstanding_pkts_per_conn == 0 ||
            conn->bhc_outstanding_pkts <
                 ble_hs_cfg.max_outstanding_pkts_per_conn;

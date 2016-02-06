@@ -41,6 +41,10 @@ int
 ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
                     uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
+#if !NIMBLE_OPT_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     assert(data_len > 0);
@@ -109,6 +113,10 @@ int
 ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
                       uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
+#if !NIMBLE_OPT_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
     uint8_t type;
     int rc;
 

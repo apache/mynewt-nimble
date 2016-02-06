@@ -31,28 +31,11 @@
 static STAILQ_HEAD(, ble_att_svr_entry) ble_att_svr_list;
 static uint16_t ble_att_svr_id;
 
-#define BLE_ATT_SVR_NUM_ENTRIES          128
-static bssnz_t os_membuf_t
-ble_att_svr_entry_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_ENTRIES,
-                                      sizeof (struct ble_att_svr_entry))];
+static void *ble_att_svr_entry_mem;
 static struct os_mempool ble_att_svr_entry_pool;
 
-#define BLE_ATT_SVR_PREP_MBUF_BUF_SIZE         (128)
-#define BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE                     \
-    (BLE_ATT_SVR_PREP_MBUF_BUF_SIZE + sizeof(struct os_mbuf) +  \
-     sizeof(struct os_mbuf_pkthdr))
-
-#define BLE_ATT_SVR_NUM_PREP_ENTRIES     8
-#define BLE_ATT_SVR_NUM_PREP_MBUFS       8
-static bssnz_t os_membuf_t
-ble_att_svr_prep_entry_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_PREP_ENTRIES,
-                           sizeof (struct ble_att_prep_entry))];
+static void *ble_att_svr_prep_entry_mem;
 static struct os_mempool ble_att_svr_prep_entry_pool;
-static bssnz_t os_membuf_t
-ble_att_svr_prep_mbuf_mem[OS_MEMPOOL_SIZE(BLE_ATT_SVR_NUM_PREP_MBUFS,
-                          BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE)];
-static struct os_mempool ble_att_svr_prep_mbuf_mempool;
-static struct os_mbuf_pool ble_att_svr_prep_mbuf_pool;
 
 static bssnz_t uint8_t ble_att_svr_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 
@@ -74,17 +57,6 @@ ble_att_svr_entry_alloc(void)
 
     return entry;
 }
-
-#if 0
-static void
-ble_att_svr_entry_free(struct ble_att_svr_entry *entry)
-{
-    int rc;
-
-    rc = os_memblock_put(&ble_att_svr_entry_pool, entry);
-    assert(rc == 0);
-}
-#endif
 
 /**
  * Allocate the next handle id and return it.
@@ -835,6 +807,10 @@ done:
 int
 ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_FIND_INFO
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_find_info_req req;
     struct os_mbuf *txom;
     uint16_t err_handle;
@@ -1096,7 +1072,6 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
     }
 
 done:
-
     any_entries = OS_MBUF_PKTHDR(txom)->omp_len >
                   BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
     if (rc == 0 && !any_entries) {
@@ -1164,6 +1139,10 @@ done:
 int
 ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_FIND_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_find_type_value_req req;
     struct os_mbuf *txom;
     uint16_t err_handle;
@@ -1352,6 +1331,10 @@ done:
 int
 ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_READ_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_read_type_req req;
     struct os_mbuf *txom;
     uint16_t err_handle;
@@ -1485,6 +1468,10 @@ done:
 int
 ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_READ
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_read_req req;
     struct os_mbuf *txom;
@@ -1592,6 +1579,10 @@ done:
 int
 ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_READ_BLOB
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_read_blob_req req;
     struct os_mbuf *txom;
@@ -1749,6 +1740,10 @@ done:
 int
 ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_READ_MULT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
@@ -2069,6 +2064,10 @@ done:
 int
 ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_READ_GROUP_TYPE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_read_group_type_req req;
     struct os_mbuf *txom;
     uint8_t uuid128[16];
@@ -2175,6 +2174,10 @@ done:
 int
 ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_write_req req;
     struct os_mbuf *txom;
@@ -2230,6 +2233,10 @@ done:
 int
 ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_WRITE_NO_RSP
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_write_req req;
     uint8_t att_err;
@@ -2300,7 +2307,7 @@ ble_att_svr_prep_alloc(void)
     }
 
     memset(entry, 0, sizeof *entry);
-    entry->bape_value = os_mbuf_get_pkthdr(&ble_att_svr_prep_mbuf_pool, 0);
+    entry->bape_value = ble_hs_misc_pkthdr();
     if (entry->bape_value == NULL) {
         ble_att_svr_prep_free(entry);
         return NULL;
@@ -2459,6 +2466,10 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 int
 ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_PREP_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_prep_write_cmd req;
     struct ble_att_prep_entry *prep_entry;
     struct ble_att_prep_entry *prep_prev;
@@ -2638,6 +2649,10 @@ done:
 int
 ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_EXEC_WRITE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_exec_write_req req;
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
@@ -2699,6 +2714,10 @@ done:
 int
 ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_NOTIFY
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_notify_req req;
     uint16_t attr_len;
     void *attr_data;
@@ -2778,6 +2797,10 @@ done:
 int
 ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {
+#if !NIMBLE_OPT_ATT_SVR_INDICATE
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct ble_att_indicate_req req;
     struct os_mbuf *txom;
     uint16_t attr_len;
@@ -2835,6 +2858,13 @@ done:
     return rc;
 }
 
+static void
+ble_att_svr_free_mem(void)
+{
+    free(ble_att_svr_entry_mem);
+    ble_att_svr_entry_mem = NULL;
+}
+
 /**
  * Lock restrictions: None.
  */
@@ -2843,43 +2873,54 @@ ble_att_svr_init(void)
 {
     int rc;
 
+    ble_att_svr_free_mem();
+
+    if (ble_hs_cfg.max_attrs > 0) {
+        ble_att_svr_entry_mem = malloc(
+            OS_MEMPOOL_BYTES(ble_hs_cfg.max_attrs,
+                             sizeof (struct ble_att_svr_entry)));
+        if (ble_att_svr_entry_mem == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+
+        rc = os_mempool_init(&ble_att_svr_entry_pool, ble_hs_cfg.max_attrs,
+                             sizeof (struct ble_att_svr_entry),
+                             ble_att_svr_entry_mem, "ble_att_svr_entry_pool");
+        if (rc != 0) {
+            rc = BLE_HS_EOS;
+            goto err;
+        }
+    }
+
+    if (ble_hs_cfg.max_prep_entries > 0) {
+        ble_att_svr_prep_entry_mem = malloc(
+            OS_MEMPOOL_BYTES(ble_hs_cfg.max_prep_entries,
+                             sizeof (struct ble_att_prep_entry)));
+        if (ble_att_svr_prep_entry_mem == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+
+        rc = os_mempool_init(&ble_att_svr_prep_entry_pool,
+                             ble_hs_cfg.max_prep_entries,
+                             sizeof (struct ble_att_prep_entry),
+                             ble_att_svr_prep_entry_mem,
+                             "ble_att_svr_prep_entry_pool");
+        if (rc != 0) {
+            rc = BLE_HS_EOS;
+            goto err;
+        }
+    }
+
     STAILQ_INIT(&ble_att_svr_list);
-
-    rc = os_mempool_init(&ble_att_svr_entry_pool, BLE_ATT_SVR_NUM_ENTRIES,
-                         sizeof (struct ble_att_svr_entry),
-                         ble_att_svr_entry_mem, "ble_att_svr_entry_pool");
-    if (rc != 0) {
-        return BLE_HS_EOS;
-    }
-
-    rc = os_mempool_init(&ble_att_svr_prep_entry_pool,
-                         BLE_ATT_SVR_NUM_PREP_ENTRIES,
-                         sizeof (struct ble_att_prep_entry),
-                         ble_att_svr_prep_entry_mem,
-                         "ble_att_svr_prep_entry_pool");
-    if (rc != 0) {
-        return BLE_HS_EOS;
-    }
-
-    rc = os_mempool_init(&ble_att_svr_prep_mbuf_mempool,
-                         BLE_ATT_SVR_NUM_PREP_MBUFS,
-                         BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
-                         ble_att_svr_prep_mbuf_mem,
-                         "ble_att_svr_prep_mbuf_pool");
-    if (rc != 0) {
-        return BLE_HS_EOS;
-    }
-
-    rc = os_mbuf_pool_init(&ble_att_svr_prep_mbuf_pool,
-                           &ble_att_svr_prep_mbuf_mempool,
-                           BLE_ATT_SVR_PREP_MBUF_MEMBLOCK_SIZE,
-                           BLE_ATT_SVR_NUM_PREP_MBUFS);
-    if (rc != 0) {
-        return BLE_HS_EOS;
-    }
 
     ble_att_svr_id = 0;
     ble_att_svr_notify_cb = NULL;
 
     return 0;
+
+err:
+    ble_att_svr_free_mem();
+    return rc;
 }
