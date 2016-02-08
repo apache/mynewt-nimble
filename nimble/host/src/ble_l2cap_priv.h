@@ -96,6 +96,7 @@ struct ble_l2cap_chan
 
 SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 
+int ble_l2cap_sig_locked_by_cur_task(void);
 int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
                         struct ble_l2cap_hdr *l2cap_hdr);
 struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
