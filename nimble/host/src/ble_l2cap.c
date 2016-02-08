@@ -72,7 +72,8 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  */
 uint16_t
 ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
@@ -137,7 +138,8 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  */
 static void
 ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
@@ -148,7 +150,8 @@ ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  */
 static void
 ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
@@ -158,7 +161,8 @@ ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  */
 static int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
@@ -195,7 +199,8 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  */
 int
 ble_l2cap_rx(struct ble_hs_conn *conn,
@@ -268,7 +273,8 @@ err:
  * Transmits the L2CAP payload contained in the specified mbuf.  The supplied
  * mbuf is consumed, regardless of the outcome of the function call.
  * 
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  *
  * @param chan                  The L2CAP channel to transmit over.
  * @param om                    The data to transmit.

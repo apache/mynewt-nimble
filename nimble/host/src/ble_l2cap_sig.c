@@ -154,7 +154,8 @@ ble_l2cap_sig_assert_sanity(void)
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
  */
 static int
 ble_l2cap_sig_conn_chan_find(uint16_t conn_handle,
@@ -370,7 +371,7 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
 }
 
 /**
- * Searched the global proc list for an entry that fits the specified criteria.
+ * Searches the global proc list for an entry that fits the specified criteria.
  *
  * Lock restrictions: None.
  *
@@ -411,7 +412,7 @@ ble_l2cap_sig_proc_find(uint16_t conn_handle, uint8_t op, uint8_t id,
 
 /**
  * Sets the specified proc entry's "pending" flag (i.e., indicates that the
- * L2CAP sig procedure is stalled until it transmits its next request.
+ * L2CAP sig procedure is stalled until it transmits its next request).
  *
  * Lock restrictions: None.
  */
@@ -427,7 +428,7 @@ ble_l2cap_sig_proc_set_pending(struct ble_l2cap_sig_proc *proc)
 
 /**
  * Sets the specified proc entry's "expecting" flag (i.e., indicates that the
- * L2CAP sig procedure is stalled until it receives a response.
+ * L2CAP sig procedure is stalled until it receives a response).
  *
  * Lock restrictions: None.
  */
@@ -460,7 +461,8 @@ ble_l2cap_sig_rx_noop(uint16_t conn_handle,
  *****************************************************************************/
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
  */
 static void
 ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
@@ -473,7 +475,8 @@ ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
  */
 int
 ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
@@ -545,7 +548,8 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
  */
 static int
 ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
@@ -605,7 +609,8 @@ done:
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller locks ble_hs_conn.
  */
 static int
 ble_l2cap_sig_update_kick(struct ble_l2cap_sig_proc *proc)
@@ -676,7 +681,8 @@ ble_l2cap_sig_update(uint16_t conn_handle,
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
  */
 static int
 ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
@@ -788,7 +794,8 @@ ble_l2cap_sig_heartbeat(void *unused)
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
  */
 void
 ble_l2cap_sig_wakeup(void)
