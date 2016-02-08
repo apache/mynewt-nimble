@@ -55,8 +55,9 @@
 #define BLE_GATT_OP_WRITE                       12
 #define BLE_GATT_OP_WRITE_LONG                  13
 #define BLE_GATT_OP_WRITE_RELIABLE              14
-#define BLE_GATT_OP_INDICATE                    15
-#define BLE_GATT_OP_MAX                         16
+#define BLE_GATT_OP_NOTIFY                      15
+#define BLE_GATT_OP_INDICATE                    16
+#define BLE_GATT_OP_MAX                         17
 
 /** Represents an in-progress GATT procedure. */
 struct ble_gattc_proc {
@@ -172,6 +173,12 @@ struct ble_gattc_proc {
             struct ble_gatt_attr attr;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
+        } notify;
+
+        struct {
+            struct ble_gatt_attr attr;
+            ble_gatt_attr_fn *cb;
+            void *cb_arg;
         } indicate;
     };
 };
@@ -217,6 +224,7 @@ static int ble_gattc_write_no_rsp_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_write_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_write_long_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_write_reliable_kick(struct ble_gattc_proc *proc);
+static int ble_gattc_notify_kick(struct ble_gattc_proc *proc);
 static int ble_gattc_indicate_kick(struct ble_gattc_proc *proc);
 
 /**
@@ -442,6 +450,10 @@ static const struct ble_gattc_dispatch_entry {
     [BLE_GATT_OP_WRITE_RELIABLE] = {
         .kick_cb = ble_gattc_write_reliable_kick,
         .err_cb = ble_gattc_write_reliable_err,
+    },
+    [BLE_GATT_OP_NOTIFY] = {
+        .kick_cb = ble_gattc_notify_kick,
+        .err_cb = NULL,
     },
     [BLE_GATT_OP_INDICATE] = {
         .kick_cb = ble_gattc_indicate_kick,
@@ -3823,36 +3835,54 @@ ble_gattc_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
  *****************************************************************************/
 
 /**
- * Sends an attribute notification.  The content of the message is read from
- * the specified characteristic.
+ * Triggers a pending transmit for the specified indication proc.
  *
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- *     o Caller locks ble_hs_conn.
+ * Lock restrictions:
+ *     o Caller unlocks all ble_hs mutexes.
  */
-int
-ble_gattc_notify(struct ble_hs_conn *conn, uint16_t chr_val_handle)
+static int
+ble_gattc_notify_kick(struct ble_gattc_proc *proc)
 {
-#if !NIMBLE_OPT_GATT_NOTIFY
-    return BLE_HS_ENOTSUP;
-#endif
-
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_notify_req req;
+    struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, chr_val_handle,
-                                 &ctxt, NULL);
-    if (rc != 0) {
-        return rc;
+    if (proc->notify.attr.value == NULL) {
+        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
+                                     proc->notify.attr.handle, &ctxt,
+                                     NULL);
+        if (rc != 0) {
+            /* Fatal error; application disallowed attribute read. */
+            return BLE_HS_EDONE;
+        }
+    } else {
+        ctxt.attr_data = proc->notify.attr.value;
+        ctxt.data_len = proc->notify.attr.value_len;
+        ctxt.offset = 0;
     }
 
-    req.banq_handle = chr_val_handle;
-    rc = ble_att_clt_tx_notify(conn, &req, ctxt.attr_data, ctxt.data_len);
-    if (rc != 0) {
-        return rc;
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        proc->notify.attr.value = ctxt.attr_data;
+        proc->notify.attr.value_len = ctxt.data_len;
+
+        req.banq_handle = proc->notify.attr.handle;
+        rc = ble_att_clt_tx_notify(conn, &req, proc->notify.attr.value,
+                                   proc->notify.attr.value_len);
     }
 
-    return 0;
+    ble_hs_conn_unlock();
+
+    if (ble_gattc_tx_postpone_chk(proc, rc)) {
+        return BLE_HS_EAGAIN;
+    } else {
+        return BLE_HS_EDONE;
+    }
 }
 
 /**
@@ -3869,22 +3899,43 @@ ble_gattc_notify_custom(uint16_t conn_handle, struct ble_gatt_attr *attr)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_notify_req req;
-    struct ble_hs_conn *conn;
+    struct ble_gattc_proc *proc;
     int rc;
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        req.banq_handle = attr->handle;
-        rc = ble_att_clt_tx_notify(conn, &req, attr->value, attr->value_len);
+    rc = ble_gattc_new_proc(conn_handle, BLE_GATT_OP_NOTIFY, &proc);
+    if (rc != 0) {
+        return rc;
     }
 
-    ble_hs_conn_unlock();
+    proc->notify.attr = *attr;
+    ble_gattc_proc_set_pending(proc);
 
+    return rc;
+}
+
+/**
+ * Sends an attribute notification.  The content of the message is read from
+ * the specified characteristic.
+ *
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ *     o Caller locks ble_hs_conn.
+ */
+int
+ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
+{
+#if !NIMBLE_OPT_GATT_NOTIFY
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct ble_gatt_attr attr;
+    int rc;
+
+    attr.handle = chr_val_handle;
+    attr.offset = 0;
+    attr.value_len = 0;
+    attr.value = NULL;
+
+    rc = ble_gattc_notify_custom(conn_handle, &attr);
     return rc;
 }
 
@@ -3935,23 +3986,32 @@ ble_gattc_indicate_kick(struct ble_gattc_proc *proc)
     struct ble_hs_conn *conn;
     int rc;
 
+    if (proc->indicate.attr.value == NULL) {
+        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
+                                     proc->indicate.attr.handle, &ctxt,
+                                     NULL);
+        if (rc != 0) {
+            /* Fatal error; application disallowed attribute read. */
+            return BLE_HS_EDONE;
+        }
+    } else {
+        ctxt.attr_data = proc->indicate.attr.value;
+        ctxt.data_len = proc->indicate.attr.value_len;
+        ctxt.offset = 0;
+    }
+
     ble_hs_conn_lock();
 
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
     } else {
-        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
-                                     proc->indicate.attr.handle, &ctxt,
-                                     NULL);
-        if (rc == 0) {
-            proc->indicate.attr.value = ctxt.attr_data;
-            proc->indicate.attr.value_len = ctxt.data_len;
+        proc->indicate.attr.value = ctxt.attr_data;
+        proc->indicate.attr.value_len = ctxt.data_len;
 
-            req.baiq_handle = proc->indicate.attr.handle;
-            rc = ble_att_clt_tx_indicate(conn, &req, proc->indicate.attr.value,
-                                         proc->indicate.attr.value_len);
-        }
+        req.baiq_handle = proc->indicate.attr.handle;
+        rc = ble_att_clt_tx_indicate(conn, &req, proc->indicate.attr.value,
+                                     proc->indicate.attr.value_len);
     }
 
     ble_hs_conn_unlock();
@@ -3993,6 +4053,8 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 {
     struct ble_hs_conn *conn;
 
+    ble_gattc_indicate_cb(proc, 0, 0);
+
     /* Now that the confirmation has been received, we can send any subsequent
      * indication.
      */
@@ -4001,8 +4063,6 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn != NULL) {
         conn->bhc_gatt_svr.flags &= ~BLE_GATTS_CONN_F_INDICATION_TXED;
-
-        ble_gattc_indicate_cb(proc, 0, 0);
 
         /* Send the next indication if one is pending. */
         ble_gatts_send_notifications(conn);

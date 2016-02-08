@@ -1031,7 +1031,8 @@ ble_gatts_send_notifications(struct ble_hs_conn *conn)
                     }
                 }
             } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
-                rc = ble_gattc_notify(conn, clt_cfg->chr_def_handle + 1);
+                rc = ble_gattc_notify(conn->bhc_handle,
+                                      clt_cfg->chr_def_handle + 1);
                 if (rc == 0) {
                     clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
                 }
@@ -1072,6 +1073,7 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
             (BLE_GATTS_CLT_CFG_F_NOTIFY | BLE_GATTS_CLT_CFG_F_INDICATE)) {
 
             clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_UPDATED;
+
             ble_gatts_send_notifications(conn);
         }
     }
