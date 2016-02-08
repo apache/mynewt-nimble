@@ -41,6 +41,9 @@ static const struct ble_hs_cfg ble_hs_cfg_dflt = {
     /** ATT server settings. */
     .max_attrs = 64,
     .max_prep_entries = 6,
+
+    /** L2CAP settings. */
+    .max_l2cap_sig_procs = 8,
 };
 
 struct ble_hs_cfg ble_hs_cfg;
@@ -80,5 +83,9 @@ ble_hs_cfg_init(void)
 
     if (ble_hs_cfg.max_prep_entries == 0) {
         ble_hs_cfg.max_prep_entries = ble_hs_cfg_dflt.max_prep_entries;
+    }
+
+    if (ble_hs_cfg.max_l2cap_sig_procs == 0) {
+        ble_hs_cfg.max_l2cap_sig_procs = ble_hs_cfg_dflt.max_l2cap_sig_procs;
     }
 }

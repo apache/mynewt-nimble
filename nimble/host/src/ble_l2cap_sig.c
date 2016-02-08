@@ -34,7 +34,6 @@
  * $definitions / declarations                                               *
  *****************************************************************************/
 
-#define BLE_L2CAP_SIG_NUM_PROCS                 16      /* XXX Configurable. */
 #define BLE_L2CAP_SIG_HEARTBEAT_PERIOD          1000    /* Milliseconds. */
 #define BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT      30000   /* Milliseconds. */
 
@@ -989,21 +988,23 @@ ble_l2cap_sig_init(void)
         goto err;
     }
 
-    ble_l2cap_sig_proc_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_L2CAP_SIG_NUM_PROCS,
-                         sizeof (struct ble_l2cap_sig_proc)));
-    if (ble_l2cap_sig_proc_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
+    if (ble_hs_cfg.max_l2cap_sig_procs > 0) {
+        ble_l2cap_sig_proc_mem = malloc(
+            OS_MEMPOOL_BYTES(ble_hs_cfg.max_l2cap_sig_procs,
+                             sizeof (struct ble_l2cap_sig_proc)));
+        if (ble_l2cap_sig_proc_mem == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
 
-    rc = os_mempool_init(&ble_l2cap_sig_proc_pool,
-                         BLE_L2CAP_SIG_NUM_PROCS,
-                         sizeof (struct ble_l2cap_sig_proc),
-                         ble_l2cap_sig_proc_mem,
-                         "ble_l2cap_sig_proc_pool");
-    if (rc != 0) {
-        goto err;
+        rc = os_mempool_init(&ble_l2cap_sig_proc_pool,
+                             ble_hs_cfg.max_l2cap_sig_procs,
+                             sizeof (struct ble_l2cap_sig_proc),
+                             ble_l2cap_sig_proc_mem,
+                             "ble_l2cap_sig_proc_pool");
+        if (rc != 0) {
+            goto err;
+        }
     }
 
     STAILQ_INIT(&ble_l2cap_sig_list);

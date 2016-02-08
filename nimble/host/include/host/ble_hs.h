@@ -74,6 +74,9 @@ struct ble_hs_cfg {
     /** ATT server settings. */
     uint16_t max_attrs;
     uint8_t max_prep_entries;
+
+    /** L2CAP settings. */
+    uint8_t max_l2cap_sig_procs;
 };
 extern struct ble_hs_cfg ble_hs_cfg;
 
