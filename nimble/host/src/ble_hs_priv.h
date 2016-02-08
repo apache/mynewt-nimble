@@ -31,6 +31,8 @@ struct os_mempool;
 #define BLE_HS_KICK_GATT_EVENT          (OS_EVENT_T_PERUSER + 2)
 #define BLE_HS_KICK_L2CAP_SIG_EVENT     (OS_EVENT_T_PERUSER + 3)
 
+extern struct ble_hs_cfg ble_hs_cfg;
+
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
 extern struct os_eventq ble_hs_evq;
 
@@ -46,7 +48,7 @@ int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
 void ble_hs_misc_log_mbuf(struct os_mbuf *om);
 void ble_hs_misc_log_flat_buf(void *data, int len);
 
-void ble_hs_cfg_init(void);
+void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
 void ble_hs_misc_assert_no_locks(void);
 

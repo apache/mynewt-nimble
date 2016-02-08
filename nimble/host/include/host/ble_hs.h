@@ -78,8 +78,9 @@ struct ble_hs_cfg {
     /** L2CAP settings. */
     uint8_t max_l2cap_sig_procs;
 };
-extern struct ble_hs_cfg ble_hs_cfg;
 
-int ble_hs_init(uint8_t prio);
+extern const struct ble_hs_cfg ble_hs_cfg_dflt;
+
+int ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg);
 
 #endif

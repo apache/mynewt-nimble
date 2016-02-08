@@ -209,11 +209,11 @@ ble_hs_kick_l2cap_sig(void)
  * Initializes the host portion of the BLE stack.
  */
 int
-ble_hs_init(uint8_t prio)
+ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
 {
     int rc;
 
-    ble_hs_cfg_init();
+    ble_hs_cfg_init(cfg);
 
     os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
                  OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);

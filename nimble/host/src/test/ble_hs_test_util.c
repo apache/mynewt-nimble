@@ -409,7 +409,7 @@ ble_hs_test_util_init(void)
 
     os_msys_reset();
 
-    rc = ble_hs_init(10);
+    rc = ble_hs_init(10, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = os_mempool_init(&ble_hs_test_util_mbuf_mpool,

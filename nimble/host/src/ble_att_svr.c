@@ -303,7 +303,7 @@ ble_att_svr_read(uint16_t conn_handle, struct ble_att_svr_entry *entry,
     uint8_t att_err;
     int rc;
 
-    assert(!ble_hs_conn_locked_by_cur_task());
+    ble_hs_misc_assert_no_locks();
 
     if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
         !(entry->ha_flags & HA_FLAG_PERM_READ)) {
