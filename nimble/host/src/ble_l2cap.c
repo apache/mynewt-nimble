@@ -31,8 +31,6 @@
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
                "struct ble_l2cap_hdr must be 4 bytes");
 
-#define BLE_L2CAP_CHAN_MAX              32
-
 static struct os_mempool ble_l2cap_chan_pool;
 
 static void *ble_l2cap_chan_mem;
@@ -327,14 +325,14 @@ ble_l2cap_init(void)
     ble_l2cap_free_mem();
 
     ble_l2cap_chan_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_L2CAP_CHAN_MAX,
+        OS_MEMPOOL_BYTES(ble_hs_cfg.max_l2cap_chans,
                          sizeof (struct ble_l2cap_chan)));
     if (ble_l2cap_chan_mem == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
 
-    rc = os_mempool_init(&ble_l2cap_chan_pool, BLE_L2CAP_CHAN_MAX,
+    rc = os_mempool_init(&ble_l2cap_chan_pool, ble_hs_cfg.max_l2cap_chans,
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {

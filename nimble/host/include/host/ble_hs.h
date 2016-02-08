@@ -76,6 +76,7 @@ struct ble_hs_cfg {
     uint8_t max_prep_entries;
 
     /** L2CAP settings. */
+    uint8_t max_l2cap_chans;
     uint8_t max_l2cap_sig_procs;
 };
 
