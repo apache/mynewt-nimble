@@ -66,7 +66,7 @@ struct ble_ll_stats g_ble_ll_stats;
 
 /* The BLE LL task data structure */
 #define BLE_LL_TASK_PRI     (OS_TASK_PRI_HIGHEST)
-#define BLE_LL_STACK_SIZE   (256)
+#define BLE_LL_STACK_SIZE   (64)
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 

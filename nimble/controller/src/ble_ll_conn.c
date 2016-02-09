@@ -98,7 +98,7 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
 #define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
-#define BLE_LL_CFG_CONN_MAX_CONNS           (4)
+#define BLE_LL_CFG_CONN_MAX_CONNS           (1)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
 #define BLE_LL_CFG_CONN_INIT_SLOTS          (4)
 
