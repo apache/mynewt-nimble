@@ -66,8 +66,8 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
             memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
         }
         rc = host_hci_cmd_transport(cmd);
-        console_printf("host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d\n",
-                       ogf, ocf, len);
+        BLE_HS_LOG(DEBUG, "host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d\n",
+                   ogf, ocf, len);
         if (rc == 0) {
             host_hci_outstanding_opcode = opcode;
         }

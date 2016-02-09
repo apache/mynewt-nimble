@@ -674,10 +674,10 @@ host_hci_data_rx(struct os_mbuf *om)
 
     rc = host_hci_data_hdr_strip(om, &hci_hdr);
     if (rc == 0) {
-        console_printf("host_hci_data_rx(): handle=%u pb=%x len=%u data=",
-                       BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
-                       BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
-                       hci_hdr.hdh_len);
+        BLE_HS_LOG(DEBUG, "host_hci_data_rx(): handle=%u pb=%x len=%u data=",
+                   BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
+                   BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
+                   hci_hdr.hdh_len);
         ble_hs_misc_log_mbuf(om);
 
         if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
@@ -741,8 +741,8 @@ host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
 
     memcpy(om->om_data, &hci_hdr, sizeof hci_hdr);
 
-    console_printf("host tx hci data; handle=%d length=%d\n", handle,
-                   le16toh(&hci_hdr.hdh_len));
+    BLE_HS_LOG(DEBUG, "host tx hci data; handle=%d length=%d\n", handle,
+               le16toh(&hci_hdr.hdh_len));
 
     return om;
 }
@@ -765,7 +765,7 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
         return BLE_HS_ENOMEM;
     }
 
-    console_printf("host_hci_data_tx(): ");
+    BLE_HS_LOG(DEBUG, "host_hci_data_tx(): ");
     ble_hs_misc_log_mbuf(om);
 
     rc = ble_hs_tx_data(om);

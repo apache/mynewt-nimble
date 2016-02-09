@@ -20,6 +20,7 @@
 egg.name: net/nimble/host
 egg.vers: 0.1 
 egg.deps:
+    - sys/log
     - libs/os
     - libs/util
     - net/nimble

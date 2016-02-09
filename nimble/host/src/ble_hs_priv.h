@@ -21,6 +21,7 @@
 #define H_BLE_HS_PRIV_
 
 #include <inttypes.h>
+#include "log/log.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs.h"
 struct os_mbuf;
@@ -35,6 +36,8 @@ extern struct ble_hs_cfg ble_hs_cfg;
 
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
 extern struct os_eventq ble_hs_evq;
+
+extern struct log ble_hs_log;
 
 void ble_hs_process_tx_data_queue(void);
 int ble_hs_rx_data(struct os_mbuf *om);
@@ -53,5 +56,7 @@ void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 void ble_hs_misc_assert_no_locks(void);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
+
+#define BLE_HS_LOG(lvl, ...) LOG_ ## lvl(&ble_hs_log, 0, __VA_ARGS__)
 
 #endif

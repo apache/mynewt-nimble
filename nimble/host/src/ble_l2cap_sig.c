@@ -784,9 +784,9 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
     struct ble_hs_conn *conn;
     int rc;
 
-    console_printf("L2CAP - rxed signalling msg: ");
+    BLE_HS_LOG(DEBUG, "L2CAP - rxed signalling msg: ");
     ble_hs_misc_log_mbuf(*om);
-    console_printf("\n");
+    BLE_HS_LOG(DEBUG, "\n");
 
     *om = os_mbuf_pullup(*om, BLE_L2CAP_SIG_HDR_SZ);
     if (*om == NULL) {

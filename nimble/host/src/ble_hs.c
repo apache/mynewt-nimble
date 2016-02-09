@@ -42,6 +42,9 @@
 #define BLE_HS_STACK_SIZE   (176)
 #endif
 
+static struct log_handler ble_hs_log_console_handler;
+struct log ble_hs_log;
+
 static struct os_task ble_hs_task;
 static os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE] bssnz_t;
 
@@ -221,6 +224,10 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     ble_hs_free_mem();
 
     ble_hs_cfg_init(cfg);
+
+    log_init();
+    log_console_handler_init(&ble_hs_log_console_handler);
+    log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
 
     os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
                  OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
