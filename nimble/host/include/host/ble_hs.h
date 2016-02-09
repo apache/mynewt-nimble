@@ -59,6 +59,9 @@
 #define BLE_HS_L2C_ERR(x)               ((x) ? BLE_HS_ERR_L2C_BASE + (x) : 0)
 
 struct ble_hs_cfg {
+    /** HCI settings. */
+    uint8_t max_hci_bufs;
+
     /** Connection settings. */
     uint16_t max_outstanding_pkts_per_conn;
     uint8_t max_connections;

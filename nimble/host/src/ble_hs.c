@@ -39,26 +39,21 @@
 #ifdef ARCH_sim
 #define BLE_HS_STACK_SIZE   (1024)
 #else
-#define BLE_HS_STACK_SIZE   (256)
+#define BLE_HS_STACK_SIZE   (176)
 #endif
 
 static struct os_task ble_hs_task;
 static os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE] bssnz_t;
 
-#define HCI_CMD_BUFS        (4)
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
-static os_membuf_t g_hci_cmd_buf[OS_MEMPOOL_SIZE(HCI_CMD_BUFS,
-                                                 HCI_CMD_BUF_SIZE)] bssnz_t;
+static void *ble_hs_hci_cmd_buf;
 
 /* XXX: this might be transport layer*/
-#define HCI_NUM_OS_EVENTS       (HCI_CMD_BUFS)
 #define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
 
 struct os_mempool g_hci_os_event_pool;
-static os_membuf_t
-    g_hci_os_event_buf[OS_MEMPOOL_SIZE(HCI_NUM_OS_EVENTS,
-                                       HCI_OS_EVENT_BUF_SIZE)] bssnz_t;
+static void *ble_hs_hci_os_event_buf;
 
 /* Host HCI Task Events */
 struct os_eventq ble_hs_evq;
@@ -205,6 +200,16 @@ ble_hs_kick_l2cap_sig(void)
     os_eventq_put(&ble_hs_evq, &ble_hs_kick_l2cap_sig_ev);
 }
 
+static void
+ble_hs_free_mem(void)
+{
+    free(ble_hs_hci_cmd_buf);
+    ble_hs_hci_cmd_buf = NULL;
+
+    free(ble_hs_hci_os_event_buf);
+    ble_hs_hci_os_event_buf = NULL;
+}
+
 /**
  * Initializes the host portion of the BLE stack.
  */
@@ -213,20 +218,36 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
 {
     int rc;
 
+    ble_hs_free_mem();
+
     ble_hs_cfg_init(cfg);
 
     os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
                  OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
 
+    ble_hs_hci_cmd_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
+                                                 HCI_CMD_BUF_SIZE));
+    if (ble_hs_hci_cmd_buf == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
     /* Create memory pool of command buffers */
-    rc = os_mempool_init(&g_hci_cmd_pool, HCI_CMD_BUFS, HCI_CMD_BUF_SIZE,
-                         &g_hci_cmd_buf, "HCICmdPool");
+    rc = os_mempool_init(&g_hci_cmd_pool, ble_hs_cfg.max_hci_bufs,
+                         HCI_CMD_BUF_SIZE, ble_hs_hci_cmd_buf,
+                         "HCICmdPool");
     assert(rc == 0);
 
-    /* XXX: really only needed by the transport */
+    ble_hs_hci_os_event_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
+                                                      HCI_OS_EVENT_BUF_SIZE));
+    if (ble_hs_hci_os_event_buf == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
     /* Create memory pool of OS events */
-    rc = os_mempool_init(&g_hci_os_event_pool, HCI_NUM_OS_EVENTS,
-                         HCI_OS_EVENT_BUF_SIZE, &g_hci_os_event_buf,
+    rc = os_mempool_init(&g_hci_os_event_pool, ble_hs_cfg.max_hci_bufs,
+                         HCI_OS_EVENT_BUF_SIZE, ble_hs_hci_os_event_buf,
                          "HCIOsEventPool");
     assert(rc == 0);
 
@@ -237,41 +258,41 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
 
     rc = ble_hs_conn_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_l2cap_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     ble_att_init();
 
     rc = ble_att_svr_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_gap_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     ble_hci_ack_init();
 
     rc = ble_hci_sched_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_gattc_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_gatts_init();
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     ble_hs_kick_hci_ev.ev_queued = 0;
@@ -290,4 +311,8 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     os_mqueue_init(&ble_hs_tx_q, NULL);
 
     return 0;
+
+err:
+    ble_hs_free_mem();
+    return rc;
 }

@@ -20,6 +20,9 @@
 #include "ble_hs_priv.h"
 
 const struct ble_hs_cfg ble_hs_cfg_dflt = {
+    /** HCI settings. */
+    .max_hci_bufs = 8,
+
     /** Connection settings. */
     .max_outstanding_pkts_per_conn = 5,
 
