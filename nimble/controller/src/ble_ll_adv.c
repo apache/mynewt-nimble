@@ -112,19 +112,18 @@ struct ble_ll_adv_stats g_ble_ll_adv_stats;
  * possible time to receive a scan request and send a scan response (with the
  * appropriate IFS time between them). This number is calculated using the
  * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
+ * Note: worst case time to tx adv, rx scan req and send scan rsp is 1228 usecs.
+ * This assumes maximum sized advertising PDU and scan response PDU.
  * 
- * For directed, connectable advertising events no scan request is allowed. In
- * this case we just need to receive a connect request PDU. Formula is:
- *  IFS + CONNECT_REQ = 150 + 352
+ * For connectable advertising events no scan request is allowed. In this case
+ * we just need to receive a connect request PDU: IFS + CONNECT_REQ = 150 + 352.
+ * Note: worst-case is 376 + 150 + 352 = 878 usecs
  * 
  * NOTE: The advertising PDU transmit time is NOT included here since we know
- * how long that will take.
+ * how long that will take (worst-case is 376 usecs).
  */
 #define BLE_LL_ADV_SCHED_MAX_USECS          (852)
 #define BLE_LL_ADV_DIRECT_SCHED_MAX_USECS   (502)
-
-/* For debug purposes */
-extern void bletest_inc_adv_pkt_num(void);
 
 /**
  * Calculate the first channel that we should advertise upon when we start 
@@ -1032,12 +1031,6 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
      * event. In the case of a connect request we will stop advertising. In
      * the case of the scan response transmission we will get a transmit
      * end callback.
-     * 
-     * XXX: I dont know why I wait to reschedule after transmitting a scan
-     * response. I wont schedule over it and I can use the transmission time
-     * to schedule the next advertising event. I also get rid of the code to
-     * deal with the "scan response transmitted". All depends on how we
-     * schedule the next transmissions in the advertising event.
      */
     adv_event_over = 1;
     if (BLE_MBUF_HDR_CRC_OK(hdr)) {
@@ -1131,17 +1124,9 @@ ble_ll_adv_event_done(void *arg)
     advsm = (struct ble_ll_adv_sm *)arg;
     assert(advsm->enabled);
 
-    /* Check if we need to resume scanning */
-    ble_ll_scan_chk_resume();
-
     /* Remove the element from the schedule if it is still there. */
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
     os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
-
-    /* For debug purposes */
-#ifdef BLETEST_ADV_PKT_NUM
-    bletest_inc_adv_pkt_num();
-#endif
 
     /* 
      * Check if we have ended our advertising event. If our last advertising
@@ -1157,6 +1142,9 @@ ble_ll_adv_event_done(void *arg)
     }
 
     if (advsm->adv_chan == final_adv_chan) {
+        /* Check if we need to resume scanning */
+        ble_ll_scan_chk_resume();
+
         /* This event is over. Set adv channel to first one */
         advsm->adv_chan = ble_ll_adv_first_chan(advsm);
 
@@ -1167,6 +1155,35 @@ ble_ll_adv_event_done(void *arg)
         }
         advsm->adv_event_start_time += cputime_usecs_to_ticks(itvl);
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+
+        /* 
+         * The scheduled time better be in the future! If it is not, we will
+         * count a statistic and close the current advertising event. We will
+         * then setup the next advertising event.
+         */
+        start_time = advsm->adv_pdu_start_time - 
+            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+
+        delta_t = (int32_t)(start_time - cputime_get32());
+        if (delta_t < 0) {
+            /* Count times we were late */
+            ++g_ble_ll_adv_stats.late_tx_done;
+
+            /* Set back to first adv channel */
+            advsm->adv_chan = ble_ll_adv_first_chan(advsm);
+
+            /* Calculate start time of next advertising event */
+            while (delta_t < 0) {
+                itvl = advsm->adv_itvl_usecs;
+                if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+                    itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+                }
+                itvl = cputime_usecs_to_ticks(itvl);
+                advsm->adv_event_start_time += itvl;
+                advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+                delta_t += (int32_t)itvl;
+            }
+        }
     } else {
         /* 
          * Move to next advertising channel. If not in the mask, just
@@ -1179,43 +1196,12 @@ ble_ll_adv_event_done(void *arg)
             ++advsm->adv_chan;
         }
 
-        /* Set next start time to next pdu transmit time */
-        if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
-            itvl = BLE_LL_CFG_ADV_PDU_ITVL_HD_USECS;
-        } else {
-            itvl = BLE_LL_CFG_ADV_PDU_ITVL_LD_USECS;
-        }
-        itvl = cputime_usecs_to_ticks(itvl);
-        advsm->adv_pdu_start_time += itvl;
-    }
-
-    /* 
-     * The scheduled time better be in the future! If it is not, we will
-     * count a statistic and close the current advertising event. We will
-     * then setup the next advertising event.
-     */
-    start_time = advsm->adv_pdu_start_time - 
-        cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-
-    delta_t = (int32_t)(start_time - cputime_get32());
-    if (delta_t < 0) {
-        /* Count times we were late */
-        ++g_ble_ll_adv_stats.late_tx_done;
-
-        /* Set back to first adv channel */
-        advsm->adv_chan = ble_ll_adv_first_chan(advsm);
-
-        /* Calculate start time of next advertising event */
-        while (delta_t < 0) {
-            itvl = advsm->adv_itvl_usecs;
-            if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
-                itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
-            }
-            itvl = cputime_usecs_to_ticks(itvl);
-            advsm->adv_event_start_time += itvl;
-            advsm->adv_pdu_start_time = advsm->adv_event_start_time;
-            delta_t += (int32_t)itvl;
-        }
+        /* 
+         * We will transmit right away. Set next pdu start time to now
+         * plus a xcvr start delay just so we dont count late adv starts
+         */ 
+        advsm->adv_pdu_start_time = cputime_get32() + 
+            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
     }
 
     /* 
@@ -1228,10 +1214,12 @@ ble_ll_adv_event_done(void *arg)
             advsm->enabled = 0;
             ble_ll_whitelist_disable();
             ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO);
+            ble_ll_scan_chk_resume();
             return;
         }
     }
 
+    /* Schedule advertising transmit */
     ble_ll_adv_set_sched(advsm, 0);
 
     /* 
