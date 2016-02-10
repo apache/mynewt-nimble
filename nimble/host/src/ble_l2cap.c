@@ -226,6 +226,8 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 
         chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
         if (chan == NULL) {
+            BLE_HS_LOG(DEBUG, "rx on unknown L2CAP channel: %d\n",
+                       l2cap_hdr.blh_cid);
             rc = BLE_HS_ENOENT;
             goto err;
         }

@@ -51,6 +51,21 @@ struct ble_hs_conn;
 #define BLE_L2CAP_ERR_MTU_EXCEEDED          0x0001
 #define BLE_L2CAP_ERR_INVALID_CID           0x0002
 
+#define BLE_L2CAP_SM_OP_PAIR_REQ                0x01
+#define BLE_L2CAP_SM_OP_PAIR_RSP                0x02
+#define BLE_L2CAP_SM_OP_PAIR_CONFIRM            0x03
+#define BLE_L2CAP_SM_OP_PAIR_RANDOM             0x04
+#define BLE_L2CAP_SM_OP_PAIR_FAILED             0x05
+#define BLE_L2CAP_SM_OP_ENC_INFO                0x06
+#define BLE_L2CAP_SM_OP_MASTER_ID               0x07
+#define BLE_L2CAP_SM_OP_IDENTITY_INFO           0x08
+#define BLE_L2CAP_SM_OP_IDENTITY_ADDR_INFO      0x09
+#define BLE_L2CAP_SM_OP_SIGN_INFO               0x0a
+#define BLE_L2CAP_SM_OP_SEC_REQ                 0x0b
+#define BLE_L2CAP_SM_OP_PAIR_PUBLIC_KEY         0x0c
+#define BLE_L2CAP_SM_OP_PAIR_DHKEY_CHECK        0x0d
+#define BLE_L2CAP_SM_OP_PAIR_KEYPRESS_NOTIFY    0x0e
+
 typedef void ble_l2cap_sig_update_fn(int status, void *arg);
 
 struct ble_l2cap_sig_update_params {

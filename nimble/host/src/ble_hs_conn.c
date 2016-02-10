@@ -25,6 +25,7 @@
 #include "ble_hs_priv.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig.h"
+#include "ble_l2cap_sm.h"
 #include "ble_att_priv.h"
 #include "ble_gatt_priv.h"
 #include "ble_hs_conn.h"
@@ -181,12 +182,19 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
-    rc = ble_gatts_conn_init(&conn->bhc_gatt_svr);
+    chan = ble_l2cap_sm_create_chan();
+    if (chan == NULL) {
+        goto err;
+    }
+    rc = ble_hs_conn_chan_insert(conn, chan);
     if (rc != 0) {
         goto err;
     }
 
-    /* XXX: Sort channels by cid. */
+    rc = ble_gatts_conn_init(&conn->bhc_gatt_svr);
+    if (rc != 0) {
+        goto err;
+    }
 
     return conn;
 
