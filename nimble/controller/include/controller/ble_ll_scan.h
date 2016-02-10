@@ -21,6 +21,7 @@
 #define H_BLE_LL_SCAN_
 
 #include "controller/ble_ll_sched.h"
+#include "hal/hal_cputime.h"
 
 /* 
  * Configuration items for the number of duplicate advertisers and the
@@ -82,11 +83,10 @@ struct ble_ll_scan_sm
     uint16_t backoff_count;
     uint16_t scan_itvl;
     uint16_t scan_window;
-    uint32_t last_sched_time;
     uint32_t scan_win_start_time;
     struct os_mbuf *scan_req_pdu;
     struct os_event scan_sched_ev;
-    struct ble_ll_sched_item scan_sch;
+    struct cpu_timer scan_timer;
 };
 
 /* Scan types */

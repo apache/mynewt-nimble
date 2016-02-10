@@ -79,9 +79,6 @@ int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch);
 /* Reschedule a connection that had previously been scheduled or that is over */
 int ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm * connsm);
 
-/* Schedule a scanning schedule item (start or stop) */
-void ble_ll_sched_scan(struct ble_ll_sched_item *sch);
-
 /* Stop the scheduler */
 void ble_ll_sched_stop(void);
 
