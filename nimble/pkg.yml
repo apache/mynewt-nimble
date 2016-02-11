@@ -17,17 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host
+pkg.name: net/nimble
 pkg.vers: 0.1 
 pkg.deps:
     - libs/os
-    - libs/util
-    - net/nimble
-    - sys/log
-pkg.req_caps:
-    - console
-
-# Satisfy capability dependencies for the self-contained test executable.
-pkg.deps.selftest: libs/console/stub
-pkg.cflags.selftest: -DPHONY_TRANSPORT
-pkg.cflags.test: -DBLE_HS_DEBUG
