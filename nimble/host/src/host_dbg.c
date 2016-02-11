@@ -222,25 +222,17 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     ogf = BLE_HCI_OGF(opcode);
     ocf = BLE_HCI_OCF(opcode);
 
-    BLE_HS_LOG(DEBUG, "Command Complete: cmd_pkts=%u ocf=0x%x ogf=0x%x ",
-               evdata[0], ocf, ogf);
+    BLE_HS_LOG(DEBUG, "Command Complete: cmd_pkts=%u ogf=0x%x ocf=0x%x "
+                      "status=%u", evdata[0], ogf, ocf, evdata[3]);
 
     /* Display parameters based on command. */
-    if (ogf == BLE_HCI_OGF_LE) {
-        switch (ocf) {
-        case BLE_HCI_OCF_LE_SET_ADV_DATA:
-            BLE_HS_LOG(DEBUG, "status=%u", evdata[3]);
-            break;
-        default:
-            break;
-        }
-    } else if (ogf == BLE_HCI_OGF_INFO_PARAMS) {
+    switch (ogf) {
+    case BLE_HCI_OGF_INFO_PARAMS:
         switch (ocf) {
         case BLE_HCI_OCF_IP_RD_LOCAL_VER:
-            BLE_HS_LOG(DEBUG, "status=%u ", evdata[3]);
             if (evdata[3] == BLE_ERR_SUCCESS) {
-                BLE_HS_LOG(DEBUG, "hci_ver=%u hci_rev=%u lmp_ver=%u mfrg=%u "
-                                  "lmp_subver=%u",
+                BLE_HS_LOG(DEBUG, " hci_ver=%u hci_rev=%u lmp_ver=%u mfrg=%u"
+                                  " lmp_subver=%u",
                            evdata[4], le16toh(evdata + 5), evdata[7],
                            le16toh(evdata + 8), le16toh(evdata + 10));
             }
@@ -248,9 +240,21 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
         default:
             break;
         }
+        break;
+    case BLE_HCI_OGF_STATUS_PARAMS:
+        switch (ocf) {
+        case BLE_HCI_OCF_RD_RSSI:
+            BLE_HS_LOG(DEBUG, " handle=%u rssi=%d", le16toh(evdata + 4), 
+                       (int8_t)evdata[6]);
+            break;
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
     }
     BLE_HS_LOG(DEBUG, "\n");
-
 }
 
 void

@@ -1861,6 +1861,9 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 goto conn_rx_data_pdu_end;
             }
 
+            /* Update RSSI */
+            connsm->conn_rssi = hdr->rxinfo.rssi;
+
             /* 
              * If we are a slave, we can only start to use slave latency
              * once we have received a NESN of 1 from the master
