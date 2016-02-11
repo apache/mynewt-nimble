@@ -980,6 +980,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->comp_id = 0;
     connsm->sub_vers_nr = 0;
     connsm->reject_reason = BLE_ERR_SUCCESS;
+    connsm->conn_rssi = BLE_LL_CONN_UNKNOWN_RSSI;
 
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;

@@ -50,6 +50,9 @@
 #define BLE_MASTER_SCA_21_30_PPM        (6)
 #define BLE_MASTER_SCA_0_20_PPM         (7)
 
+/* Definition for RSSI when the RSSI is unknown */
+#define BLE_LL_CONN_UNKNOWN_RSSI        (127)
+
 /* 
  * Length of empty pdu mbuf. Each connection state machine contains an
  * empty pdu since we dont want to allocate a full mbuf for an empty pdu
@@ -109,6 +112,9 @@ struct ble_ll_conn_sm
     uint8_t unmapped_chan;
     uint8_t last_unmapped_chan;
     uint8_t num_used_chans;
+
+    /* RSSI */
+    int8_t conn_rssi;
 
     /* Ack/Flow Control */
     uint8_t tx_seqnum;          /* note: can be 1 bit */

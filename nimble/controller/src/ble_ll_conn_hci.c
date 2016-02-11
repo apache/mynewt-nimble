@@ -752,3 +752,33 @@ ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
 
     return BLE_ERR_SUCCESS;
 }
+
+/**
+ * Called to read the RSSI for a given connection handle
+ * 
+ * @param cmdbuf 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    htole16(rspbuf, handle);
+    rspbuf[2] = connsm->conn_rssi;
+    *rsplen = 3;
+
+    /* Place the RSSI of the connection into the response buffer */
+    return BLE_ERR_SUCCESS;
+}
+

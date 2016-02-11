@@ -521,6 +521,43 @@ ble_ll_hci_info_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     return rc;
 }
 
+static int
+ble_ll_hci_status_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+{
+    int rc;
+    uint8_t len;
+    uint8_t *rspbuf;
+
+    /* Assume error; if all pass rc gets set to 0 */
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+
+    /* Get length from command */
+    len = cmdbuf[sizeof(uint16_t)];
+
+    /* 
+     * The command response pointer points into the same buffer as the
+     * command data itself. That is fine, as each command reads all the data
+     * before crafting a response.
+     */ 
+    rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
+
+    /* Move past HCI command header */
+    cmdbuf += BLE_HCI_CMD_HDR_LEN;
+
+    switch (ocf) {
+    case BLE_HCI_OCF_RD_RSSI:
+        if (len == sizeof(uint16_t)) {
+            rc = ble_ll_conn_hci_rd_rssi(cmdbuf, rspbuf, rsplen);
+        }
+        break;
+    default:
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
+    }
+
+    return rc;
+}
+
 void
 ble_ll_hci_cmd_proc(struct os_event *ev)
 {
@@ -557,6 +594,9 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         break;
     case BLE_HCI_OGF_INFO_PARAMS:
         rc = ble_ll_hci_info_params_cmd_proc(cmdbuf, ocf, &rsplen);
+        break;
+    case BLE_HCI_OGF_STATUS_PARAMS:
+        rc = ble_ll_hci_status_params_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
     case BLE_HCI_OGF_LE:
         rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
