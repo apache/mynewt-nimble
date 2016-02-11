@@ -147,6 +147,9 @@
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
 /* Command Specific Definitions */
+/* --- Read RSSI (OGF 0x05, OCF 0x0005) --- */
+#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN (4)  /* Includes status byte. */
+
 /* --- LE set event mask (OCF 0x0001) --- */
 #define BLE_HCI_SET_LE_EVENT_MASK_LEN   (8)
 
@@ -566,6 +569,14 @@ struct hci_disconn_complete
     uint16_t connection_handle;
     uint8_t status;
     uint8_t reason;
+};
+
+/* Read RSSI command-complete parameters (note: fields out of order). */
+struct hci_read_rssi_ack_params
+{
+    uint16_t connection_handle;
+    uint8_t status;
+    int8_t rssi;
 };
 
 #define BLE_HCI_DATA_HDR_SZ                 4
