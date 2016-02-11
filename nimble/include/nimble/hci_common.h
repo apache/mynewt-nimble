@@ -94,6 +94,9 @@
 #define BLE_LMP_VER_BCS_4_1                 (7)
 #define BLE_LMP_VER_BCS_4_2                 (8)
 
+/* List of OCD for Status parameters commands (OGF = 0x05) */
+#define BLE_HCI_OCF_RD_RSSI                 (0x0005)
+
 /* List of OCF for LE commands (OGF = 0x08) */
 #define BLE_HCI_OCF_LE_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_LE_RD_BUF_SIZE          (0x0002)

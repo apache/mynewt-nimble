@@ -633,3 +633,23 @@ host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn)
     return rc;
 }
 
+/**
+ * Read the RSSI for a given connection handle
+ * 
+ * NOTE: OGF=0x05 OCF=0x0005 
+ *  
+ * @param handle 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_read_rssi(uint16_t handle)
+{
+    int rc;
+    uint8_t cmd[sizeof(uint16_t)];
+
+    htole16(cmd, handle);
+    rc = host_hci_cmd_send(BLE_HCI_OGF_STATUS_PARAMS, BLE_HCI_OCF_RD_RSSI, 
+                           sizeof(uint16_t), cmd);
+    return rc;
+}
