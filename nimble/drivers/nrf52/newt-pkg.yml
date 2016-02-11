@@ -17,17 +17,9 @@
 # under the License.
 #
 
-egg.name: net/nimble/host
-egg.vers: 0.1 
-egg.deps:
-    - sys/log
-    - libs/os
-    - libs/util
+pkg.name: net/nimble/drivers/nrf52
+pkg.vers: 0.1 
+pkg.caps: ble_driver
+pkg.deps:
     - net/nimble
-egg.req_caps:
-    - console
-
-# Satisfy capability dependencies for the self-contained test executable.
-egg.deps.selftest: libs/console/stub
-egg.cflags.selftest: -DPHONY_TRANSPORT
-egg.cflags.test: -DBLE_HS_DEBUG
+    - net/nimble/controller

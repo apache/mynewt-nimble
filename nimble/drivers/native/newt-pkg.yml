@@ -17,9 +17,8 @@
 # under the License.
 #
 
-egg.name: net/nimble/drivers/nrf51
-egg.vers: 0.1 
-egg.caps: ble_driver
-egg.deps:
-    - net/nimble
+pkg.name: net/nimble/drivers/native
+pkg.vers: 0.1
+pkg.caps: ble_driver
+pkg.deps:
     - net/nimble/controller

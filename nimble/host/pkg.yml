@@ -17,8 +17,17 @@
 # under the License.
 #
 
-egg.name: net/nimble/drivers/native
-egg.vers: 0.1
-egg.caps: ble_driver
-egg.deps:
-    - net/nimble/controller
+pkg.name: net/nimble/host
+pkg.vers: 0.1 
+pkg.deps:
+    - sys/log
+    - libs/os
+    - libs/util
+    - net/nimble
+pkg.req_caps:
+    - console
+
+# Satisfy capability dependencies for the self-contained test executable.
+pkg.deps.selftest: libs/console/stub
+pkg.cflags.selftest: -DPHONY_TRANSPORT
+pkg.cflags.test: -DBLE_HS_DEBUG
