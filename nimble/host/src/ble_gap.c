@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -1795,7 +1795,7 @@ ble_gap_adv_params_tx(void *arg)
     rc = host_hci_cmd_le_set_adv_params(&hap);
     if (rc != 0) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FAILURE,
-                                   BLE_HS_HCI_ERR(rc), 1);
+                              BLE_HS_HCI_ERR(rc), 1);
         return 1;
     }
 
