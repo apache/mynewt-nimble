@@ -57,6 +57,7 @@ void ble_hs_misc_assert_no_locks(void);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
-#define BLE_HS_LOG(lvl, ...) LOG_ ## lvl(&ble_hs_log, 0, __VA_ARGS__)
+#define BLE_HS_LOG(lvl, ...) \
+    LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
 
 #endif
