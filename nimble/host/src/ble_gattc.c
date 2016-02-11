@@ -578,135 +578,6 @@ ble_gattc_proc_matches(struct ble_fsm_proc *proc, uint16_t conn_handle,
 }
 
 /**
- * Searched the global proc list for an entry that fits the specified criteria.
- *
- * Lock restrictions:
- *     o Caller locks gattc.
- *
- * @param conn_handle           The connection handle to match against.
- * @param op                    The op code to match against, or
- *                                  BLE_GATT_OP_NONE to ignore this criterion.
- * @param expecting_only        1=Only match entries expecting a response;
- *                                  0=Ignore this criterion.
- * @param out_prev              On success, the address of the result's
- *                                  previous entry gets written here.  Pass
- *                                  null if you don't need this information.
- *
- * @return                      1 if the proc matches; 0 otherwise.
- */
-static struct ble_gattc_proc *
-ble_gattc_proc_find(uint16_t conn_handle, uint8_t op, int expecting_only,
-                    struct ble_gattc_proc **out_prev)
-{
-    struct ble_fsm_proc *proc;
-    struct ble_fsm_proc *prev;
-
-    prev = NULL;
-    STAILQ_FOREACH(proc, &ble_gattc_fsm.procs, next) {
-        if (ble_gattc_proc_matches(proc, conn_handle, op, expecting_only)) {
-            if (out_prev != NULL) {
-                *out_prev = (struct ble_gattc_proc *)prev;
-            }
-            return (struct ble_gattc_proc *)proc;
-        }
-
-        prev = proc;
-    }
-
-    return NULL;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks gattc.
- */
-static struct ble_gattc_proc *
-ble_gattc_proc_extract_gen(uint16_t conn_handle, uint8_t op,
-                           const void *rx_entries, int num_entries,
-                           const void **out_rx_entry)
-{
-    struct ble_gattc_proc *proc;
-    struct ble_gattc_proc *prev;
-    const void *rx_entry;
-
-    rx_entry = NULL;
-
-    ble_gattc_lock();
-
-    ble_fsm_assert_sanity(&ble_gattc_fsm);
-
-    proc = ble_gattc_proc_find(conn_handle, op, 1, &prev);
-    if (proc != NULL && rx_entries != NULL) {
-        rx_entry = ble_gattc_rx_entry_find(proc->fsm_proc.op, rx_entries,
-                                           num_entries);
-        assert(rx_entry != NULL);
-        if (rx_entry == NULL) {
-            proc = NULL;
-        }
-    }
-
-    if (proc != NULL) {
-        ble_fsm_proc_remove(&ble_gattc_fsm.procs, &proc->fsm_proc,
-                            &prev->fsm_proc);
-    }
-
-    ble_gattc_unlock();
-
-    if (out_rx_entry != NULL) {
-        *out_rx_entry = rx_entry;
-    }
-
-    return proc;
-}
-
-/**
- * Searches the main proc list for an "expecting" entry whose connection handle
- * and op code match those specified.  If a matching entry is found, it is
- * removed from the list and returned.
- *
- * Lock restrictions:
- *     o Caller unlocks gattc.
- *
- * @param conn_handle           The connection handle to match against.
- * @param op                    The op code to match against.
- *
- * @return                      The matching proc entry on success;
- *                                  null on failure.
- */
-static struct ble_gattc_proc *
-ble_gattc_proc_extract(uint16_t conn_handle, uint8_t op)
-{
-    struct ble_gattc_proc *proc;
-
-    proc = ble_gattc_proc_extract_gen(conn_handle, op, NULL, 0, NULL);
-    return proc;
-}
-
-/**
- * Searches the main proc list for an "expecting" entry whose connection handle
- * and op code match those specified.  If a matching entry is found, it is
- * removed from the list and returned.
- *
- * Lock restrictions:
- *     o Caller unlocks gattc.
- *
- * @param conn_handle           The connection handle to match against.
- * @param rx_entries            The array of rx entries corresponding to the
- *                                  op code of the incoming response.
- * @param out_rx_entry          On success, the address of the matching rx
- *                                  entry is written to this pointer.
- *
- * @return                      The matching proc entry on success;
- *                                  null on failure.
- */
-#define BLE_GATTC_PROC_EXTRACT_RX_ENTRY(conn_handle, rx_entries,            \
-                                        out_rx_entry)                       \
-    ble_gattc_proc_extract_gen((conn_handle), BLE_GATT_OP_NONE,             \
-                               (rx_entries),                                \
-                               sizeof (rx_entries) / sizeof (rx_entries)[0],\
-                               (const void **)(out_rx_entry))
-
-/**
  * Sets the specified proc entry's "pending" flag (i.e., indicates that the
  * GATT procedure is stalled until it transmits its next ATT request.
  *
@@ -775,6 +646,32 @@ ble_gattc_dispatch_get(uint8_t op)
     return ble_gattc_dispatch + op;
 }
 
+static int
+ble_gattc_heartbeat_extract_cb(struct ble_fsm_proc *proc, void *arg)
+{
+    uint32_t *now;
+
+    now = arg;
+
+    if (proc->flags & BLE_FSM_PROC_F_EXPECTING) {
+        if (*now - proc->tx_time >= BLE_GATT_UNRESPONSIVE_TIMEOUT) {
+            return BLE_FSM_EXTRACT_EMOVE_CONTINUE;
+        }
+    }
+
+    /* If a proc failed due to low memory, don't extract it, but set its 
+     * pending bit.
+     */
+    if (proc->flags & BLE_FSM_PROC_F_NO_MEM) {
+        proc->flags &= ~BLE_FSM_PROC_F_NO_MEM;
+        if (ble_fsm_proc_can_pend(proc)) {
+            ble_fsm_proc_set_pending(proc);
+        }
+    }
+
+    return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
+}
+
 /**
  * Applies periodic checks and actions to all active procedures.
  *
@@ -794,43 +691,21 @@ ble_gattc_heartbeat(void *unused)
 {
     struct ble_fsm_proc_list temp_list;
     struct ble_fsm_proc *proc;
-    struct ble_fsm_proc *prev;
     uint32_t now;
     int rc;
 
     ble_hs_misc_assert_no_locks();
 
-    STAILQ_INIT(&temp_list);
     now = os_time_get();
-    prev = NULL;
 
-    /* Iterate through the proc list.  Remove timed out procedures from the
-     * main list and insert them into a temporary list.  For any stalled
-     * procedures, set their pending bit so they can be retried.
+    /* Remove timed-out procedures from the main list and insert them into a
+     * temporary list.  For any stalled procedures, set their pending bit so
+     * they can be retried.
      */
-    ble_gattc_lock();
+    ble_fsm_proc_extract_list(&ble_gattc_fsm, &temp_list,
+                              ble_gattc_heartbeat_extract_cb, &now);
 
-    STAILQ_FOREACH(proc, &ble_gattc_fsm.procs, next) {
-        if (proc->flags & BLE_FSM_PROC_F_EXPECTING) {
-            if (now - proc->tx_time >= BLE_GATT_UNRESPONSIVE_TIMEOUT) {
-                ble_fsm_proc_remove(&ble_gattc_fsm.procs, proc, prev);
-                STAILQ_INSERT_TAIL(&temp_list, proc, next);
-            }
-        } else {
-            if (proc->flags & BLE_FSM_PROC_F_NO_MEM) {
-                proc->flags &= ~BLE_FSM_PROC_F_NO_MEM;
-                if (ble_fsm_proc_can_pend(proc)) {
-                    ble_fsm_proc_set_pending(proc);
-                }
-            }
-
-            prev = proc;
-        }
-    }
-
-    ble_gattc_unlock();
-
-    /* Terminate the connection associated with each timed out procedure. */
+    /* Terminate the connection associated with each timed-out procedure. */
     STAILQ_FOREACH(proc, &temp_list, next) {
         ble_gap_terminate(proc->conn_handle);
     }
@@ -3928,6 +3803,117 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
  * $rx                                                                       *
  *****************************************************************************/
 
+struct ble_gattc_rx_extract_arg {
+    uint16_t conn_handle;
+    uint8_t op;
+    const void *rx_entries;
+    int num_rx_entries;
+
+    const void *out_rx_entry;
+};
+
+static int
+ble_gattc_rx_extract_cb(struct ble_fsm_proc *proc, void *arg)
+{
+    struct ble_gattc_rx_extract_arg *extract_arg;
+    const void *rx_entry;
+
+    extract_arg = arg;
+
+    rx_entry = NULL;
+
+    if (ble_gattc_proc_matches(proc, extract_arg->conn_handle,
+                               extract_arg->op, 1)) {
+        if (extract_arg->rx_entries == NULL) {
+            return BLE_FSM_EXTRACT_EMOVE_STOP;
+        }
+
+        rx_entry = ble_gattc_rx_entry_find(proc->op,
+                                           extract_arg->rx_entries,
+                                           extract_arg->num_rx_entries);
+        assert(rx_entry != NULL);
+        if (rx_entry != NULL) {
+            extract_arg->out_rx_entry = rx_entry;
+            return BLE_FSM_EXTRACT_EMOVE_STOP;
+        }
+    }
+
+    return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
+}
+
+static struct ble_gattc_proc *
+ble_gattc_rx_extract_gen(uint16_t conn_handle, uint8_t op,
+                         const void *rx_entries, int num_entries,
+                         const void **out_rx_entry)
+{
+    struct ble_gattc_rx_extract_arg arg;
+    struct ble_gattc_proc *proc;
+    int rc;
+
+    arg.conn_handle = conn_handle;
+    arg.op = BLE_GATT_OP_NONE;
+    arg.rx_entries = rx_entries;
+    arg.num_rx_entries = num_entries;
+
+    rc = ble_fsm_proc_extract(&ble_gattc_fsm, (struct ble_fsm_proc **)&proc,
+                              ble_gattc_rx_extract_cb, &arg);
+
+    if (out_rx_entry != NULL) {
+        *out_rx_entry = arg.out_rx_entry;
+    }
+    if (rc != 0) {
+        proc = NULL;
+    }
+
+    return proc;
+}
+
+/**
+ * Searches the main proc list for an "expecting" entry whose connection handle
+ * and op code match those specified.  If a matching entry is found, it is
+ * removed from the list and returned.
+ *
+ * Lock restrictions:
+ *     o Caller unlocks gattc.
+ *
+ * @param conn_handle           The connection handle to match against.
+ * @param op                    The op code to match against.
+ *
+ * @return                      The matching proc entry on success;
+ *                                  null on failure.
+ */
+static struct ble_gattc_proc *
+ble_gattc_rx_extract(uint16_t conn_handle, uint8_t op)
+{
+    struct ble_gattc_proc *proc;
+
+    proc = ble_gattc_rx_extract_gen(conn_handle, op, NULL, 0, NULL);
+    return proc;
+}
+
+/**
+ * Searches the main proc list for an "expecting" entry whose connection handle
+ * and op code match those specified.  If a matching entry is found, it is
+ * removed from the list and returned.
+ *
+ * Lock restrictions:
+ *     o Caller unlocks gattc.
+ *
+ * @param conn_handle           The connection handle to match against.
+ * @param rx_entries            The array of rx entries corresponding to the
+ *                                  op code of the incoming response.
+ * @param out_rx_entry          On success, the address of the matching rx
+ *                                  entry is written to this pointer.
+ *
+ * @return                      The matching proc entry on success;
+ *                                  null on failure.
+ */
+#define BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, rx_entries, out_rx_entry)  \
+    ble_gattc_rx_extract_gen((conn_handle), BLE_GATT_OP_NONE,                 \
+                               (rx_entries),                                  \
+                               sizeof (rx_entries) / sizeof (rx_entries)[0],  \
+                               (const void **)(out_rx_entry))
+
 /**
  * Dispatches an incoming ATT error-response to the appropriate active GATT
  * procedure.
@@ -3943,17 +3929,15 @@ ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_NONE);
-
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_NONE);
     if (proc != NULL) {
         dispatch = ble_gattc_dispatch_get(proc->fsm_proc.op);
         if (dispatch->err_cb != NULL) {
             dispatch->err_cb(proc, BLE_HS_ERR_ATT_BASE + rsp->baep_error_code,
                              rsp->baep_handle);
         }
+        ble_gattc_proc_free(&proc->fsm_proc);
     }
-
-    ble_gattc_proc_free(&proc->fsm_proc);
 }
 
 /**
@@ -3971,7 +3955,7 @@ ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_MTU);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_MTU);
     if (proc != NULL) {
         rc = ble_gattc_mtu_rx_rsp(proc, status, chan_mtu);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -3998,7 +3982,7 @@ ble_gattc_rx_find_info_idata(uint16_t conn_handle,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_DISC_ALL_DSCS);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_DISC_ALL_DSCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_dscs_rx_idata(proc, idata);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4024,7 +4008,7 @@ ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_DISC_ALL_DSCS);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_DISC_ALL_DSCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_dscs_rx_complete(proc, status);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4051,7 +4035,7 @@ ble_gattc_rx_find_type_value_hinfo(uint16_t conn_handle,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_DISC_SVC_UUID);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_DISC_SVC_UUID);
     if (proc != NULL) {
         rc = ble_gattc_disc_svc_uuid_rx_hinfo(proc, hinfo);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4077,7 +4061,7 @@ ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_DISC_SVC_UUID);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_DISC_SVC_UUID);
     if (proc != NULL) {
         rc = ble_gattc_disc_svc_uuid_rx_complete(proc, status);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4105,9 +4089,9 @@ ble_gattc_rx_read_type_adata(uint16_t conn_handle,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = BLE_GATTC_PROC_EXTRACT_RX_ENTRY(conn_handle,
-                                           ble_gattc_rx_read_type_elem_entries,
-                                           &rx_entry);
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+                                         ble_gattc_rx_read_type_elem_entries,
+                                         &rx_entry);
     if (proc != NULL) {
         rc = rx_entry->cb(proc, adata);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4134,7 +4118,7 @@ ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = BLE_GATTC_PROC_EXTRACT_RX_ENTRY(
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(
         conn_handle, ble_gattc_rx_read_type_complete_entries,
         &rx_entry);
     if (proc != NULL) {
@@ -4163,7 +4147,7 @@ ble_gattc_rx_read_group_type_adata(uint16_t conn_handle,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_DISC_ALL_SVCS);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_DISC_ALL_SVCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_svcs_rx_adata(proc, adata);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4189,7 +4173,7 @@ ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int status)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_DISC_ALL_SVCS);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_DISC_ALL_SVCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_svcs_rx_complete(proc, status);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4217,9 +4201,9 @@ ble_gattc_rx_read_rsp(uint16_t conn_handle, int status, void *value,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = BLE_GATTC_PROC_EXTRACT_RX_ENTRY(conn_handle,
-                                           ble_gattc_rx_read_rsp_entries,
-                                           &rx_entry);
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+                                         ble_gattc_rx_read_rsp_entries,
+                                         &rx_entry);
     if (proc != NULL) {
         rc = rx_entry->cb(proc, status, value, value_len);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4246,7 +4230,7 @@ ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_READ_LONG);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_READ_LONG);
     if (proc != NULL) {
         rc = ble_gattc_read_long_rx_read_rsp(proc, status, value, value_len);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4273,7 +4257,7 @@ ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_READ_MULT);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_READ_MULT);
     if (proc != NULL) {
         rc = ble_gattc_read_mult_rx_read_mult_rsp(proc, status, value,
                                                   value_len);
@@ -4300,7 +4284,7 @@ ble_gattc_rx_write_rsp(uint16_t conn_handle)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_WRITE);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_WRITE);
     if (proc != NULL) {
         rc = ble_gattc_write_rx_rsp(proc);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4329,9 +4313,9 @@ ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
 
     ble_hs_misc_assert_no_locks();
 
-    proc = BLE_GATTC_PROC_EXTRACT_RX_ENTRY(conn_handle,
-                                           ble_gattc_rx_prep_entries,
-                                           &rx_entry);
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+                                         ble_gattc_rx_prep_entries,
+                                         &rx_entry);
     if (proc != NULL) {
         rc = rx_entry->cb(proc, status, rsp, attr_data, attr_data_len);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4358,9 +4342,9 @@ ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = BLE_GATTC_PROC_EXTRACT_RX_ENTRY(conn_handle,
-                                           ble_gattc_rx_exec_entries,
-                                           &rx_entry);
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+                                         ble_gattc_rx_exec_entries,
+                                         &rx_entry);
     if (proc != NULL) {
         rc = rx_entry->cb(proc, status);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);
@@ -4386,7 +4370,7 @@ ble_gattc_rx_indicate_rsp(uint16_t conn_handle)
 
     ble_hs_misc_assert_no_locks();
 
-    proc = ble_gattc_proc_extract(conn_handle, BLE_GATT_OP_INDICATE);
+    proc = ble_gattc_rx_extract(conn_handle, BLE_GATT_OP_INDICATE);
     if (proc != NULL) {
         rc = ble_gattc_indicate_rx_rsp(proc);
         ble_fsm_process_rx_status(&ble_gattc_fsm, &proc->fsm_proc, rc);

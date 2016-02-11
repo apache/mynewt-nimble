@@ -29,6 +29,10 @@
 #include "ble_hs_priv.h"
 #include "ble_fsm_priv.h"
 
+/*****************************************************************************
+ * $mutex                                                                    *
+ *****************************************************************************/
+
 void
 ble_fsm_lock(struct ble_fsm *fsm)
 {
@@ -72,7 +76,7 @@ ble_fsm_locked_by_cur_task(struct ble_fsm *fsm)
  * Lock restrictions:
  *     o Caller locks fsm.
  */
-void
+static void
 ble_fsm_assert_sanity(struct ble_fsm *fsm)
 {
 #if !BLE_HS_DEBUG
@@ -97,6 +101,10 @@ ble_fsm_assert_sanity(struct ble_fsm *fsm)
         assert(num_set == 1);
     }
 }
+
+/*****************************************************************************
+ * $proc                                                                     *
+ *****************************************************************************/
 
 /**
  * Removes the specified proc entry from a list without freeing it.
@@ -134,7 +142,6 @@ ble_fsm_proc_concat(struct ble_fsm *fsm, struct ble_fsm_proc_list *tail_list)
 {
     struct ble_fsm_proc *proc;
 
-    /* Concatenate the tempororary list to the end of the main list. */
     if (!STAILQ_EMPTY(tail_list)) {
         ble_fsm_lock(fsm);
 
@@ -165,7 +172,7 @@ ble_fsm_proc_can_pend(struct ble_fsm_proc *proc)
 
 /**
  * Sets the specified proc entry's "pending" flag (i.e., indicates that the
- * FSM procedure is stalled until it transmits its next ATT request.
+ * FSM procedure is stalled until it transmits its next packet).
  *
  * Lock restrictions:
  *     o Caller locks fsm.
@@ -181,7 +188,7 @@ ble_fsm_proc_set_pending(struct ble_fsm_proc *proc)
 
 /**
  * Sets the specified proc entry's "expecting" flag (i.e., indicates that the
- * FSM procedure is stalled until it receives an ATT response.
+ * FSM procedure is stalled until it receives a packet).
  *
  * Lock restrictions: None.
  */
@@ -229,8 +236,8 @@ ble_fsm_tx_postpone_chk(struct ble_fsm_proc *proc, int rc)
 }
 
 /**
- * Called after a GATT response is done being processed.  If the status of the
- * response processing is 0, the proc entry is re-inserted into the main
+ * Called after an incoming packet is done being processed.  If the status of
+ * the response processing is 0, the proc entry is re-inserted into the main
  * proc list.  Otherwise, the proc entry is freed.
  *
  * Lock restrictions:
@@ -247,6 +254,165 @@ ble_fsm_process_rx_status(struct ble_fsm *fsm, struct ble_fsm_proc *proc,
         STAILQ_INSERT_HEAD(&fsm->procs, proc, next);
         ble_fsm_unlock(fsm);
     }
+}
+
+/**
+ * Searches an fsm's proc list for the first entry that that fits a custom set
+ * of criteria.  The supplied callback is applied to each entry in the list
+ * until it indicates a match.  If a matching entry is found, it is removed
+ * from the list and returned.
+ *
+ * Lock restrictions:
+ *     o Caller unlocks fsm.
+ *
+ * @param fsm                   The fsm whose list should be searched.
+ * @param out_proc              On success, the address of the matching proc is
+ *                                  written here.
+ * @extract_cb                  The callback to apply to each proc entry.
+ * @arg                         An argument that gets passed to each invocation
+ *                                  of the callback.
+ *
+ * @return                      The matching proc entry on success;
+ *                                  null on failure.
+ */
+int
+ble_fsm_proc_extract(struct ble_fsm *fsm,
+                     struct ble_fsm_proc **out_proc,
+                     ble_fsm_extract_fn *extract_cb, void *arg)
+{
+    struct ble_fsm_proc *prev;
+    struct ble_fsm_proc *proc;
+    int rc;
+
+    ble_fsm_lock(fsm);
+
+    ble_fsm_assert_sanity(fsm);
+
+    prev = NULL;
+
+    STAILQ_FOREACH(proc, &fsm->procs, next) {
+        rc = extract_cb(proc, arg);
+        switch (rc) {
+        case BLE_FSM_EXTRACT_EMOVE_CONTINUE:
+        case BLE_FSM_EXTRACT_EMOVE_STOP:
+            ble_fsm_proc_remove(&fsm->procs, proc, prev);
+            *out_proc = proc;
+            rc = 0;
+            goto done;
+
+        case BLE_FSM_EXTRACT_EKEEP_CONTINUE:
+            break;
+
+        case BLE_FSM_EXTRACT_EKEEP_STOP:
+            rc = 1;
+            goto done;
+
+        default:
+            assert(0);
+            rc = 1;
+            goto done;
+        }
+
+        prev = proc;
+    }
+
+    rc = 1;
+
+done:
+    ble_fsm_unlock(fsm);
+    return rc;
+}
+
+/**
+ * Searches an fsm's proc list for all entries that that fits a custom set of
+ * criteria.  The supplied callback is applied to each entry in the list to
+ * determine if it matches. Each matching entry is removed from the list and
+ * inserted into a secondary list.
+ *
+ * Lock restrictions:
+ *     o Caller unlocks fsm.
+ *
+ * @param fsm                   The fsm whose list should be searched.
+ * @param dst_list              Matching procs get appended to this list.
+ * @extract_cb                  The callback to apply to each proc entry.
+ * @arg                         An argument that gets passed to each invocation
+ *                                  of the callback.
+ *
+ * @return                      The number of matching procs (i.e., the size of
+ *                                  the destination list).
+ */
+int
+ble_fsm_proc_extract_list(struct ble_fsm *fsm,
+                          struct ble_fsm_proc_list *dst_list,
+                          ble_fsm_extract_fn *extract_cb, void *arg)
+{
+    struct ble_fsm_proc *prev;
+    struct ble_fsm_proc *proc;
+    struct ble_fsm_proc *next;
+    int move;
+    int done;
+    int cnt;
+    int rc;
+
+    STAILQ_INIT(dst_list);
+    cnt = 0;
+
+    ble_fsm_lock(fsm);
+
+    ble_fsm_assert_sanity(fsm);
+
+    prev = NULL;
+    proc = STAILQ_FIRST(&fsm->procs);
+    while (proc != NULL) {
+        next = STAILQ_NEXT(proc, next);
+
+        rc = extract_cb(proc, arg);
+        switch (rc) {
+        case BLE_FSM_EXTRACT_EMOVE_CONTINUE:
+            move = 1;
+            done = 0;
+            break;
+
+        case BLE_FSM_EXTRACT_EMOVE_STOP:
+            move = 1;
+            done = 1;
+            break;
+
+        case BLE_FSM_EXTRACT_EKEEP_CONTINUE:
+            move = 0;
+            done = 0;
+            break;
+
+        case BLE_FSM_EXTRACT_EKEEP_STOP:
+            move = 0;
+            done = 1;
+            break;
+
+        default:
+            assert(0);
+            move = 0;
+            done = 1;
+            break;
+        }
+
+        if (move) {
+            ble_fsm_proc_remove(&fsm->procs, proc, prev);
+            STAILQ_INSERT_TAIL(dst_list, proc, next);
+            cnt++;
+        } else {
+            prev = proc;
+        }
+
+        if (done) {
+            break;
+        }
+
+        proc = next;
+    }
+
+    ble_fsm_unlock(fsm);
+
+    return cnt;
 }
 
 /**
@@ -335,6 +501,13 @@ ble_fsm_wakeup(struct ble_fsm *fsm)
     ble_fsm_proc_concat(fsm, &proc_list);
 }
 
+/**
+ * Initializes an fsm instance.
+ *
+ * Lock restrictions: none.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int
 ble_fsm_new(struct ble_fsm *fsm, ble_fsm_kick_fn *kick_cb,
             ble_fsm_free_fn *free_cb)
