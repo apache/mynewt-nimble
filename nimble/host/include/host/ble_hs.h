@@ -62,6 +62,7 @@
 struct ble_hs_cfg {
     /** HCI settings. */
     uint8_t max_hci_bufs;
+    uint8_t max_hci_tx_slots;
 
     /** Connection settings. */
     uint16_t max_outstanding_pkts_per_conn;

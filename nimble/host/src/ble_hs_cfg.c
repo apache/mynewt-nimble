@@ -22,6 +22,7 @@
 const struct ble_hs_cfg ble_hs_cfg_dflt = {
     /** HCI settings. */
     .max_hci_bufs = 8,
+    .max_hci_tx_slots = 8,
 
     /** Connection settings. */
     .max_outstanding_pkts_per_conn = 5,

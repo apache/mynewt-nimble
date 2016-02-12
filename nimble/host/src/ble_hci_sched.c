@@ -25,8 +25,6 @@
 #include "ble_hs_priv.h"
 #include "ble_hci_sched.h"
 
-#define BLE_HCI_SCHED_NUM_ENTRIES       8
-
 struct ble_hci_sched_entry {
     STAILQ_ENTRY(ble_hci_sched_entry) next;
 
@@ -431,22 +429,24 @@ ble_hci_sched_init(void)
         goto err;
     }
 
-    ble_hci_sched_entry_mem = malloc(
-        OS_MEMPOOL_BYTES(BLE_HCI_SCHED_NUM_ENTRIES,
-                         sizeof (struct ble_hci_sched_entry)));
-    if (ble_hci_sched_entry_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
+    if (ble_hs_cfg.max_hci_tx_slots > 0) {
+        ble_hci_sched_entry_mem = malloc(
+            OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_tx_slots,
+                             sizeof (struct ble_hci_sched_entry)));
+        if (ble_hci_sched_entry_mem == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
 
-    rc = os_mempool_init(&ble_hci_sched_entry_pool,
-                         BLE_HCI_SCHED_NUM_ENTRIES,
-                         sizeof (struct ble_hci_sched_entry),
-                         ble_hci_sched_entry_mem,
-                         "ble_hci_sched_entry_pool");
-    if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        rc = os_mempool_init(&ble_hci_sched_entry_pool,
+                             ble_hs_cfg.max_hci_tx_slots,
+                             sizeof (struct ble_hci_sched_entry),
+                             ble_hci_sched_entry_mem,
+                             "ble_hci_sched_entry_pool");
+        if (rc != 0) {
+            rc = BLE_HS_EOS;
+            goto err;
+        }
     }
 
     STAILQ_INIT(&ble_hci_sched_list);
