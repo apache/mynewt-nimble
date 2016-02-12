@@ -26,9 +26,7 @@
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_adv_priv.h"
-#include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
-#include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_gatt_priv.h"
 #include "ble_gap_priv.h"
@@ -1351,7 +1349,7 @@ ble_gap_wl_tx_add(void *arg)
     assert(ble_gap_wl.entries != NULL);
     assert(ble_gap_wl.cur < ble_gap_wl.count);
 
-    ble_hci_ack_set_callback(ble_gap_wl_ack_add, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_wl_ack_add, NULL);
 
     white_entry = ble_gap_wl.entries + ble_gap_wl.cur;
     rc = host_hci_cmd_le_add_to_whitelist(white_entry->addr,
@@ -1396,7 +1394,7 @@ ble_gap_wl_tx_clear(void *arg)
     assert(ble_gap_wl.op == BLE_GAP_OP_W_SET);
     assert(ble_gap_wl.state == BLE_GAP_STATE_W_CLEAR);
 
-    ble_hci_ack_set_callback(ble_gap_wl_ack_clear, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_wl_ack_clear, NULL);
 
     rc = host_hci_cmd_le_clear_whitelist();
     if (rc != 0) {
@@ -1482,7 +1480,7 @@ ble_gap_adv_disable_tx(void *arg)
 {
     int rc;
 
-    ble_hci_ack_set_callback(ble_gap_adv_ack_disable, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_adv_ack_disable, NULL);
     rc = host_hci_cmd_le_set_adv_enable(0);
     if (rc != BLE_ERR_SUCCESS) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_STOP_FAILURE,
@@ -1622,7 +1620,7 @@ ble_gap_adv_enable_tx(void *arg)
 {
     int rc;
 
-    ble_hci_ack_set_callback(ble_gap_adv_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_enable(1);
     if (rc != BLE_ERR_SUCCESS) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FAILURE,
@@ -1645,7 +1643,7 @@ ble_gap_adv_rsp_data_tx(void *arg)
 
     ble_gap_slave.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
 
-    ble_hci_ack_set_callback(ble_gap_adv_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
     rc = host_hci_cmd_le_set_scan_rsp_data(rsp_data, sizeof rsp_data);
     if (rc != 0) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FAILURE,
@@ -1706,7 +1704,7 @@ ble_gap_adv_data_tx(void *arg)
                              &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
     assert(rc == 0);
 
-    ble_hci_ack_set_callback(ble_gap_adv_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_data(ble_gap_slave.adv_data,
                                       adv_data_len);
     if (rc != 0) {
@@ -1766,7 +1764,7 @@ ble_gap_adv_power_tx(void *arg)
 
     ble_gap_slave.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
 
-    ble_hci_ack_set_callback(ble_gap_adv_power_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_adv_power_ack, NULL);
     rc = host_hci_cmd_read_adv_pwr();
     if (rc != 0) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FAILURE,
@@ -1809,7 +1807,7 @@ ble_gap_adv_params_tx(void *arg)
         break;
     }
 
-    ble_hci_ack_set_callback(ble_gap_adv_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_params(&hap);
     if (rc != 0) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FAILURE,
@@ -2017,7 +2015,7 @@ ble_gap_disc_tx_disable(void *arg)
     assert(ble_gap_master.op == BLE_GAP_OP_M_DISC);
     assert(ble_gap_master.state == BLE_GAP_STATE_M_DISC_DISABLE);
 
-    ble_hci_ack_set_callback(ble_gap_disc_ack_disable, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_disc_ack_disable, NULL);
     rc = host_hci_cmd_le_set_scan_enable(0, 0);
     if (rc != 0) {
         /* XXX: What can we do? */
@@ -2059,7 +2057,7 @@ ble_gap_disc_tx_enable(void *arg)
     assert(ble_gap_master.op == BLE_GAP_OP_M_DISC);
     assert(ble_gap_master.state == BLE_GAP_STATE_M_DISC_ENABLE);
 
-    ble_hci_ack_set_callback(ble_gap_disc_ack_enable, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_disc_ack_enable, NULL);
     rc = host_hci_cmd_le_set_scan_enable(1, 0);
     if (rc != 0) {
         ble_gap_master_failed(rc);
@@ -2102,7 +2100,7 @@ ble_gap_disc_tx_params(void *arg)
     assert(ble_gap_master.op == BLE_GAP_OP_M_DISC);
     assert(ble_gap_master.state == BLE_GAP_STATE_M_DISC_PARAMS);
 
-    ble_hci_ack_set_callback(ble_gap_disc_ack_params, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_disc_ack_params, NULL);
     rc = host_hci_cmd_le_set_scan_params(
         ble_gap_master.disc.scan_type,
         BLE_GAP_SCAN_FAST_INTERVAL_MIN,
@@ -2242,7 +2240,7 @@ ble_gap_conn_create_tx(void *arg)
     hcc.max_ce_len = ble_gap_master.conn.params.max_ce_len;
 
     ble_gap_master.state = BLE_GAP_STATE_M_UNACKED;
-    ble_hci_ack_set_callback(ble_gap_conn_create_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_conn_create_ack, NULL);
 
     rc = host_hci_cmd_le_create_connection(&hcc);
     if (rc != 0) {
@@ -2356,7 +2354,7 @@ ble_gap_terminate_tx(void *arg)
 
     handle = (uintptr_t)arg;
 
-    ble_hci_ack_set_callback(ble_gap_terminate_ack, arg);
+    ble_hci_sched_set_ack_cb(ble_gap_terminate_ack, arg);
 
     status = host_hci_cmd_disconnect(handle, BLE_ERR_REM_USER_CONN_TERM);
     if (status != 0) {
@@ -2418,7 +2416,7 @@ ble_gap_cancel_tx(void *arg)
 {
     int rc;
 
-    ble_hci_ack_set_callback(ble_gap_cancel_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_gap_cancel_ack, NULL);
 
     rc = host_hci_cmd_le_create_conn_cancel();
     if (rc != 0) {
@@ -2574,7 +2572,7 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
         pos_reply.min_ce_len = entry->params.min_ce_len;
         pos_reply.max_ce_len = entry->params.max_ce_len;
 
-        ble_hci_ack_set_callback(ble_gap_param_reply_ack, entry);
+        ble_hci_sched_set_ack_cb(ble_gap_param_reply_ack, entry);
 
         rc = host_hci_cmd_le_conn_param_reply(&pos_reply);
     }
@@ -2587,7 +2585,7 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
             entry->state = BLE_GAP_STATE_U_NEG_REPLY;
         }
 
-        ble_hci_ack_set_callback(ble_gap_param_neg_reply_ack, entry);
+        ble_hci_sched_set_ack_cb(ble_gap_param_neg_reply_ack, entry);
         host_hci_cmd_le_conn_param_neg_reply(&neg_reply);
     }
 
@@ -2652,7 +2650,7 @@ ble_gap_update_tx(void *arg)
     cmd.min_ce_len = entry->params.min_ce_len;
     cmd.max_ce_len = entry->params.max_ce_len;
 
-    ble_hci_ack_set_callback(ble_gap_update_ack, entry);
+    ble_hci_sched_set_ack_cb(ble_gap_update_ack, entry);
 
     rc = host_hci_cmd_le_conn_update(&cmd);
     if (rc != 0) {

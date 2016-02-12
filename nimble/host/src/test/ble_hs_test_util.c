@@ -25,7 +25,6 @@
 #include "testutil/testutil.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_hs_conn.h"
 #include "ble_gap_priv.h"

@@ -23,7 +23,6 @@
 #include "os/queue.h"
 #include "os/os_mempool.h"
 #include "ble_hs_priv.h"
-#include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 
 #define BLE_HCI_SCHED_NUM_ENTRIES       8
@@ -42,7 +41,10 @@ static STAILQ_HEAD(, ble_hci_sched_entry) ble_hci_sched_list;
 static void *ble_hci_sched_entry_mem;
 static struct os_mempool ble_hci_sched_entry_pool;
 static struct ble_hci_sched_entry *ble_hci_sched_cur_entry;
-static uint8_t ble_hci_sched_next_handle;
+static uint8_t ble_hci_sched_prev_handle;
+
+static ble_hci_sched_ack_fn *ble_hci_ack_cb;
+static void *ble_hci_ack_arg;
 
 static struct os_mutex ble_hci_sched_mutex;
 
@@ -143,11 +145,12 @@ ble_hci_sched_new_handle(void)
 
     ble_hci_sched_lock();
 
-    if (ble_hci_sched_next_handle == BLE_HCI_SCHED_HANDLE_NONE) {
-        ble_hci_sched_next_handle++;
+    ble_hci_sched_prev_handle++;
+    if (ble_hci_sched_prev_handle == BLE_HCI_SCHED_HANDLE_NONE) {
+        ble_hci_sched_prev_handle++;
     }
 
-    handle = ble_hci_sched_next_handle++;
+    handle = ble_hci_sched_prev_handle;
 
     ble_hci_sched_unlock();
 
@@ -229,7 +232,7 @@ ble_hci_sched_cancel(uint8_t handle)
         /* User is cancelling an in-progress operation. */
         entry = ble_hci_sched_cur_entry;
         ble_hci_sched_cur_entry = NULL;
-        ble_hci_ack_set_callback(NULL, NULL);
+        ble_hci_sched_set_ack_cb(NULL, NULL);
         do_kick = !STAILQ_EMPTY(&ble_hci_sched_list);
     } else {
         do_kick = 0;
@@ -376,6 +379,32 @@ ble_hci_sched_transaction_complete(void)
     }
 }
 
+void
+ble_hci_sched_rx_ack(struct ble_hci_ack *ack)
+{
+    ble_hci_sched_ack_fn *cb;
+
+    if (ble_hci_ack_cb != NULL) {
+        cb = ble_hci_ack_cb;
+        ble_hci_ack_cb = NULL;
+
+        ack->bha_hci_handle = ble_hci_sched_prev_handle;
+        cb(ack, ble_hci_ack_arg);
+    }
+
+    ble_hci_sched_transaction_complete();
+}
+
+void
+ble_hci_sched_set_ack_cb(ble_hci_sched_ack_fn *cb, void *arg)
+{
+    /* Don't allow the current callback to be replaced with another. */
+    assert(ble_hci_ack_cb == NULL || cb == NULL);
+
+    ble_hci_ack_cb = cb;
+    ble_hci_ack_arg = arg;
+}
+
 /**
  * Lock restrictions: none.
  */
@@ -423,6 +452,7 @@ ble_hci_sched_init(void)
     STAILQ_INIT(&ble_hci_sched_list);
 
     ble_hci_sched_cur_entry = NULL;
+    ble_hci_sched_set_ack_cb(NULL, NULL);
 
     return 0;
 

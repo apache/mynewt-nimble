@@ -21,7 +21,6 @@
 #include <assert.h>
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
-#include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_hs_startup.h"
 
@@ -124,7 +123,7 @@ ble_hs_startup_le_read_sup_f_tx(void *arg)
 
     assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
 
-    ble_hci_ack_set_callback(ble_hs_startup_le_read_sup_f_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_hs_startup_le_read_sup_f_ack, NULL);
     rc = host_hci_cmd_le_read_loc_supp_feat();
     if (rc != 0) {
         return rc;
@@ -172,7 +171,7 @@ ble_hs_startup_le_read_buf_sz_tx(void *arg)
 
     assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
 
-    ble_hci_ack_set_callback(ble_hs_startup_le_read_buf_size_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_hs_startup_le_read_buf_size_ack, NULL);
     rc = host_hci_cmd_le_read_buffer_size();
     if (rc != 0) {
         return rc;
@@ -188,7 +187,7 @@ ble_hs_startup_le_set_evmask_tx(void *arg)
 
     assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_SET_EVMASK);
 
-    ble_hci_ack_set_callback(ble_hs_startup_gen_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
     rc = host_hci_cmd_le_set_event_mask(0x000000000000001f);
     if (rc != 0) {
         return rc;
@@ -204,7 +203,7 @@ ble_hs_startup_set_evmask_tx(void *arg)
 
     assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_SET_EVMASK);
 
-    ble_hci_ack_set_callback(ble_hs_startup_gen_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
     rc = host_hci_cmd_set_event_mask(0x20001fffffffffff);
     if (rc != 0) {
         return rc;
@@ -220,7 +219,7 @@ ble_hs_startup_reset_tx(void *arg)
 
     assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_RESET);
 
-    ble_hci_ack_set_callback(ble_hs_startup_gen_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
     rc = host_hci_cmd_reset();
     if (rc != 0) {
         return rc;

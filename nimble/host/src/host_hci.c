@@ -28,9 +28,9 @@
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
 #include "host_dbg.h"
+#include "ble_hci_sched.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap_priv.h"
-#include "ble_hci_ack.h"
 #include "ble_gap_priv.h"
 #include "ble_hs_adv_priv.h"
 
@@ -170,7 +170,7 @@ host_hci_timer_exp(void *arg)
     ack.bha_params_len = 0;
 
     host_hci_outstanding_opcode = 0;
-    ble_hci_ack_rx(&ack);
+    ble_hci_sched_rx_ack(&ack);
 }
 
 
@@ -234,7 +234,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
         ack.bha_status = BLE_HS_ECONTROLLER;
     }
 
-    ble_hci_ack_rx(&ack);
+    ble_hci_sched_rx_ack(&ack);
 
     return 0;
 }
@@ -278,7 +278,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     ack.bha_params_len = 0;
     ack.bha_status = BLE_HS_HCI_ERR(status);
 
-    ble_hci_ack_rx(&ack);
+    ble_hci_sched_rx_ack(&ack);
 
     return 0;
 }

@@ -28,7 +28,6 @@
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "host_dbg.h"
-#include "ble_hci_ack.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap_priv.h"
 #ifdef PHONY_TRANSPORT

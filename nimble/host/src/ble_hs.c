@@ -29,7 +29,6 @@
 #include "ble_att_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_startup.h"
-#include "ble_hci_ack.h"
 #include "ble_hci_sched.h"
 #include "ble_gap_priv.h"
 #ifdef PHONY_TRANSPORT
@@ -284,8 +283,6 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     if (rc != 0) {
         goto err;
     }
-
-    ble_hci_ack_init();
 
     rc = ble_hci_sched_init();
     if (rc != 0) {
