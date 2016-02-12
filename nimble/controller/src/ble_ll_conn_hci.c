@@ -765,20 +765,26 @@ ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
 int
 ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
+    int rc;
+    int8_t rssi;
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
 
     handle = le16toh(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
-        return BLE_ERR_UNK_CONN_ID;
+        rssi = 127;
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else {
+        rssi = connsm->conn_rssi;
+        rc = BLE_ERR_SUCCESS;
     }
 
     htole16(rspbuf, handle);
-    rspbuf[2] = connsm->conn_rssi;
+    rspbuf[2] = (uint8_t)rssi;
     *rsplen = 3;
 
     /* Place the RSSI of the connection into the response buffer */
-    return BLE_ERR_SUCCESS;
+    return rc;
 }
 
