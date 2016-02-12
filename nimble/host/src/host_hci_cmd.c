@@ -28,6 +28,7 @@
 #include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "host_dbg.h"
+#include "ble_hci_sched.h"
 #include "ble_hs_conn.h"
 #include "ble_l2cap_priv.h"
 #ifdef PHONY_TRANSPORT
@@ -70,6 +71,11 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
         if (rc == 0) {
             host_hci_outstanding_opcode = opcode;
         }
+    }
+
+    /* Cancel ack callback if transmission failed. */
+    if (rc != 0) {
+        ble_hci_sched_set_ack_cb(NULL, NULL);
     }
 
     return rc;
