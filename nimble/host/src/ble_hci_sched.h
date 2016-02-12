@@ -42,6 +42,7 @@ void ble_hci_sched_wakeup(void);
 void ble_hci_sched_transaction_complete(void);
 void ble_hci_sched_rx_ack(struct ble_hci_ack *ack);
 void ble_hci_sched_set_ack_cb(ble_hci_sched_ack_fn *cb, void *arg);
+ble_hci_sched_ack_fn *ble_hci_sched_get_ack_cb(void);
 int ble_hci_sched_init(void);
 
 #endif

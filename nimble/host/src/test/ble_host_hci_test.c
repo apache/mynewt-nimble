@@ -27,6 +27,7 @@
 #include "testutil/testutil.h"
 #include "ble_l2cap_priv.h"
 #include "ble_hs_conn.h"
+#include "ble_hci_sched.h"
 #include "ble_att_priv.h"
 #include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
@@ -107,11 +108,78 @@ TEST_CASE(ble_host_hci_test_event_cmd_status)
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 }
 
+static int ble_host_hci_test_tx_called;
+static uint8_t ble_host_hci_test_handle;
+
+static int
+ble_host_hci_test_util_tx_cb(void *arg)
+{
+    ble_host_hci_test_tx_called++;
+    return 0;
+}
+
+static void
+ble_host_hci_test_util_ack_cb(struct ble_hci_ack *ack, void *arg)
+{ }
+
+TEST_CASE(ble_host_hci_test_cancel_bad)
+{
+    int rc;
+
+    /*** Nonexistant handle. */
+    rc = ble_hci_sched_cancel(123);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+}
+
+TEST_CASE(ble_host_hci_test_cancel_pending)
+{
+    uint8_t hci_handle;
+    int rc;
+
+    rc = ble_hci_sched_enqueue(ble_host_hci_test_util_tx_cb, NULL,
+                               &hci_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(hci_handle != BLE_HCI_SCHED_HANDLE_NONE);
+
+    rc = ble_hci_sched_cancel(hci_handle);
+    TEST_ASSERT(rc == 0);
+
+    ble_hci_sched_wakeup();
+    TEST_ASSERT(ble_host_hci_test_tx_called == 0);
+}
+
+TEST_CASE(ble_host_hci_test_cancel_cur)
+{
+    uint8_t hci_handle;
+    int rc;
+
+    ble_hci_sched_set_ack_cb(ble_host_hci_test_util_ack_cb, NULL);
+    rc = ble_hci_sched_enqueue(ble_host_hci_test_util_tx_cb, NULL,
+                               &hci_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(hci_handle != BLE_HCI_SCHED_HANDLE_NONE);
+
+    ble_host_hci_test_handle = hci_handle;
+
+    ble_hci_sched_wakeup();
+
+    TEST_ASSERT(ble_host_hci_test_tx_called == 1);
+    TEST_ASSERT(ble_hci_sched_get_ack_cb() != NULL);
+
+    rc = ble_hci_sched_cancel(hci_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    TEST_ASSERT(ble_hci_sched_get_ack_cb() == NULL);
+}
+
 TEST_SUITE(ble_host_hci_suite)
 {
     ble_host_hci_test_event_bad();
     ble_host_hci_test_event_cmd_complete();
     ble_host_hci_test_event_cmd_status();
+    ble_host_hci_test_cancel_bad();
+    ble_host_hci_test_cancel_pending();
+    ble_host_hci_test_cancel_cur();
 }
 
 int

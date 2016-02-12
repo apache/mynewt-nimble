@@ -41,8 +41,8 @@ static struct os_mempool ble_hci_sched_entry_pool;
 static struct ble_hci_sched_entry *ble_hci_sched_cur_entry;
 static uint8_t ble_hci_sched_prev_handle;
 
-static ble_hci_sched_ack_fn *ble_hci_ack_cb;
-static void *ble_hci_ack_arg;
+static ble_hci_sched_ack_fn *ble_hci_sched_ack_cb;
+static void *ble_hci_sched_ack_arg;
 
 static struct os_mutex ble_hci_sched_mutex;
 
@@ -117,10 +117,12 @@ static void
 ble_hci_sched_entry_remove(struct ble_hci_sched_entry *entry,
                            struct ble_hci_sched_entry *prev)
 {
-    assert(ble_hci_sched_locked_by_cur_task());
+    if (os_started()) {
+        assert(ble_hci_sched_locked_by_cur_task());
+    }
 
     if (prev == NULL) {
-        assert(STAILQ_FIRST(&ble_hci_sched_list) == prev);
+        assert(STAILQ_FIRST(&ble_hci_sched_list) == entry);
         STAILQ_REMOVE_HEAD(&ble_hci_sched_list, next);
     } else {
         assert(STAILQ_NEXT(prev, next) == prev);
@@ -226,7 +228,9 @@ ble_hci_sched_cancel(uint8_t handle)
 
     ble_hci_sched_lock();
 
-    if (ble_hci_sched_cur_entry->handle == handle) {
+    if (ble_hci_sched_cur_entry != NULL &&
+        ble_hci_sched_cur_entry->handle == handle) {
+
         /* User is cancelling an in-progress operation. */
         entry = ble_hci_sched_cur_entry;
         ble_hci_sched_cur_entry = NULL;
@@ -382,12 +386,12 @@ ble_hci_sched_rx_ack(struct ble_hci_ack *ack)
 {
     ble_hci_sched_ack_fn *cb;
 
-    if (ble_hci_ack_cb != NULL) {
-        cb = ble_hci_ack_cb;
-        ble_hci_ack_cb = NULL;
+    if (ble_hci_sched_ack_cb != NULL) {
+        cb = ble_hci_sched_ack_cb;
+        ble_hci_sched_ack_cb = NULL;
 
         ack->bha_hci_handle = ble_hci_sched_prev_handle;
-        cb(ack, ble_hci_ack_arg);
+        cb(ack, ble_hci_sched_ack_arg);
     }
 
     ble_hci_sched_transaction_complete();
@@ -397,10 +401,21 @@ void
 ble_hci_sched_set_ack_cb(ble_hci_sched_ack_fn *cb, void *arg)
 {
     /* Don't allow the current callback to be replaced with another. */
-    assert(ble_hci_ack_cb == NULL || cb == NULL);
+    assert(ble_hci_sched_ack_cb == NULL || cb == NULL);
 
-    ble_hci_ack_cb = cb;
-    ble_hci_ack_arg = arg;
+    ble_hci_sched_ack_cb = cb;
+    ble_hci_sched_ack_arg = arg;
+}
+
+/**
+ * This is really only useful for unit testing.
+ *
+ * Lock restrictions: none.
+ */
+ble_hci_sched_ack_fn *
+ble_hci_sched_get_ack_cb(void)
+{
+    return ble_hci_sched_ack_cb;
 }
 
 /**
