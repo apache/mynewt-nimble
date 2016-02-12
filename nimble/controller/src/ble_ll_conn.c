@@ -23,6 +23,7 @@
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
@@ -98,12 +99,11 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
 #define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
-#define BLE_LL_CFG_CONN_MAX_CONNS           (1)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
 #define BLE_LL_CFG_CONN_INIT_SLOTS          (4)
 
 /* We cannot have more than 254 connections given our current implementation */
-#if (BLE_LL_CFG_CONN_MAX_CONNS >= 255)
+#if (NIMBLE_OPT_MAX_CONNECTIONS >= 255)
     #error "Maximum # of connections is 254"
 #endif
 
@@ -137,7 +137,7 @@ struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
 /* Connection state machine array */
-bssnz_t struct ble_ll_conn_sm g_ble_ll_conn_sm[BLE_LL_CFG_CONN_MAX_CONNS];
+bssnz_t struct ble_ll_conn_sm g_ble_ll_conn_sm[NIMBLE_OPT_MAX_CONNECTIONS];
 
 /* List of active connections */
 struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
@@ -268,7 +268,7 @@ ble_ll_conn_find_active_conn(uint16_t handle)
     struct ble_ll_conn_sm *connsm;
 
     connsm = NULL;
-    if ((handle != 0) && (handle <= BLE_LL_CFG_CONN_MAX_CONNS)) {
+    if ((handle != 0) && (handle <= NIMBLE_OPT_MAX_CONNECTIONS)) {
         connsm = &g_ble_ll_conn_sm[handle - 1];
         if (connsm->conn_state == BLE_LL_CONN_STATE_IDLE) {
             connsm = NULL;
@@ -2400,7 +2400,7 @@ ble_ll_conn_module_init(void)
      * the specification allows a handle of zero; we just avoid using it.
      */
     connsm = &g_ble_ll_conn_sm[0];
-    for (i = 0; i < BLE_LL_CFG_CONN_MAX_CONNS; ++i) {
+    for (i = 0; i < NIMBLE_OPT_MAX_CONNECTIONS; ++i) {
         memset(connsm, 0, sizeof(struct ble_ll_conn_sm));
 
         connsm->conn_handle = i + 1;

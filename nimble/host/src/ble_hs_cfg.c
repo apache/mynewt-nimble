@@ -27,7 +27,7 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     .max_outstanding_pkts_per_conn = 5,
 
 #if NIMBLE_OPT_CONNECT
-    .max_connections = 8,
+    .max_connections = NIMBLE_OPT_MAX_CONNECTIONS,
     .max_conn_update_entries = 4,
 #else
     .max_connections = 0,

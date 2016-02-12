@@ -20,8 +20,17 @@
 #ifndef H_NIMBLE_OPT_
 #define H_NIMBLE_OPT_
 
+/** HOST / CONTROLLER: Maximum number of concurrent connections. */
 
-/** Supported GAP roles.  By default, all four roles are enabled. */
+#ifndef NIMBLE_OPT_MAX_CONNECTIONS
+#define NIMBLE_OPT_MAX_CONNECTIONS              1
+#endif
+
+
+/**
+ * HOST / CONTROLLER: Supported GAP roles.  By default, all four roles are
+ * enabled.
+ */
 
 #ifndef NIMBLE_OPT_ROLE_CENTRAL
 #define NIMBLE_OPT_ROLE_CENTRAL                 1
@@ -44,7 +53,7 @@
 #endif
 
 
-/** Supported GATT procedures.  By default, all are enabled. */
+/** HOST: Supported GATT procedures.  By default, all are enabled. */
 
 #ifndef NIMBLE_OPT_GATT_DISC_ALL_SVCS
 #define NIMBLE_OPT_GATT_DISC_ALL_SVCS           1
@@ -115,7 +124,7 @@
 #endif
 
 
-/** Supported server ATT commands. */
+/** HOST: Supported server ATT commands. */
 
 #ifndef NIMBLE_OPT_ATT_SVR_FIND_INFO
 #define NIMBLE_OPT_ATT_SVR_FIND_INFO            1
