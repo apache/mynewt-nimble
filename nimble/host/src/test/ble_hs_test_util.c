@@ -405,11 +405,14 @@ ble_hs_test_util_tx_all(void)
 void
 ble_hs_test_util_init(void)
 {
+    struct ble_hs_cfg cfg;
     int rc;
 
     os_msys_reset();
 
-    rc = ble_hs_init(10, NULL);
+    cfg = ble_hs_cfg_dflt;
+    cfg.max_connections = 8;
+    rc = ble_hs_init(10, &cfg);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = os_mempool_init(&ble_hs_test_util_mbuf_mpool,
