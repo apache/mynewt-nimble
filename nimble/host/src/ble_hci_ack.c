@@ -43,7 +43,7 @@ ble_hci_ack_rx(struct ble_hci_ack *ack)
         cb(ack, ble_hci_ack_arg);
     }
 
-    ble_hci_sched_command_complete();
+    ble_hci_sched_transaction_complete();
 }
 
 void

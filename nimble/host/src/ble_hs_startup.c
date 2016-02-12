@@ -76,7 +76,7 @@ ble_hs_startup_enqueue_tx(void)
     tx_fn = ble_hs_startup_dispatch[ble_hs_startup_state];
     assert(tx_fn != NULL);
 
-    rc = ble_hci_sched_enqueue(tx_fn, NULL);
+    rc = ble_hci_sched_enqueue(tx_fn, NULL, NULL);
     if (rc != 0) {
         ble_hs_startup_failure(rc);
         return rc;
