@@ -95,6 +95,8 @@ SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 
 /*** @gen */
 
+extern uint8_t ble_att_flat_buf[BLE_ATT_ATTR_MAX_LEN];
+
 struct ble_l2cap_chan *ble_att_create_chan(void);
 int ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                            struct ble_l2cap_chan **out_chan);
