@@ -102,3 +102,18 @@ ble_hs_misc_pkthdr(void)
 
     return om;
 }
+
+int
+ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len)
+{
+    if (OS_MBUF_PKTLEN(*om) < base_len) {
+        return BLE_HS_EBADDATA;
+    }
+
+    *om = os_mbuf_pullup(*om, base_len);
+    if (*om == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    return 0;
+}

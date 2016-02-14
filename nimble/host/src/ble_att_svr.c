@@ -298,17 +298,11 @@ ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
     uint8_t att_err;
     int rc;
 
-    if (OS_MBUF_PKTLEN(*om) < base_len) {
-        rc = BLE_HS_EBADDATA;
+    rc = ble_hs_misc_pullup_base(om, base_len);
+    if (rc == BLE_HS_ENOMEM) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
     } else {
-        *om = os_mbuf_pullup(*om, base_len);
-        if (*om == NULL) {
-            att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-            rc = BLE_HS_ENOMEM;
-        } else {
-            att_err = 0;
-            rc = 0;
-        }
+        att_err = 0;
     }
 
     if (out_att_err != NULL) {
