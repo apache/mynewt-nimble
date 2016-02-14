@@ -161,8 +161,8 @@ ble_l2cap_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
     ble_hs_misc_log_mbuf(*om);
     BLE_HS_LOG(DEBUG, "\n");
 
-    *om = os_mbuf_pullup(*om, 1);
-    if (*om == NULL) {
+    rc = ble_hs_misc_pullup_base(om, 1);
+    if (rc != 0) {
         return BLE_HS_EBADDATA;
     }
     op = *(*om)->om_data;

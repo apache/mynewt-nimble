@@ -423,9 +423,9 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     uint16_t l2cap_result;
     int rc;
 
-    *om = os_mbuf_pullup(*om, BLE_L2CAP_SIG_UPDATE_REQ_SZ);
-    if (*om == NULL) {
-        return BLE_HS_ENOMEM;
+    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    if (rc != 0) {
+        return rc;
     }
 
     ble_hs_conn_lock();
@@ -503,16 +503,9 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
         return BLE_HS_ENOENT;
     }
 
-    if (OS_MBUF_PKTLEN(*om) < BLE_L2CAP_SIG_UPDATE_RSP_SZ) {
-        cb_status = BLE_HS_EBADDATA;
-        rc = BLE_HS_EBADDATA;
-        goto done;
-    }
-
-    *om = os_mbuf_pullup(*om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
-    if (*om == NULL) {
-        cb_status = BLE_HS_ENOMEM;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    if (rc != 0) {
+        cb_status = rc;
         goto done;
     }
 
@@ -631,9 +624,9 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
     ble_hs_misc_log_mbuf(*om);
     BLE_HS_LOG(DEBUG, "\n");
 
-    *om = os_mbuf_pullup(*om, BLE_L2CAP_SIG_HDR_SZ);
-    if (*om == NULL) {
-        return BLE_HS_EBADDATA;
+    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_HDR_SZ);
+    if (rc != 0) {
+        return rc;
     }
 
     rc = ble_l2cap_sig_hdr_parse((*om)->om_data, (*om)->om_len, &hdr);
