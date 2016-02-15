@@ -100,7 +100,7 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
 #define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
-#define BLE_LL_CFG_CONN_INIT_SLOTS          (4)
+#define BLE_LL_CFG_CONN_INIT_SLOTS          (2)
 
 /* We cannot have more than 254 connections given our current implementation */
 #if (NIMBLE_OPT_MAX_CONNECTIONS >= 255)
@@ -1889,7 +1889,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 }
 
                 if (acl_hdr == BLE_LL_LLID_CTRL) {
-                    /* Process control frame! For now just free */
+                    /* Process control frame */
                     ++g_ble_ll_stats.rx_ctrl_pdus;
                     ble_ll_ctrl_rx_pdu(connsm, rxpdu);
                 } else {

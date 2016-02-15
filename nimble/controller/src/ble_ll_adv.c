@@ -1321,11 +1321,13 @@ ble_ll_adv_init(void)
     advsm->adv_txdone_ev.ev_arg = advsm;
 
     /* Get an advertising mbuf (packet header) and attach to state machine */
-    ble_get_packet(advsm->adv_pdu);
+    advsm->adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+                                        sizeof(struct ble_mbuf_hdr));
     assert(advsm->adv_pdu != NULL);
 
     /* Get a scan response mbuf (packet header) and attach to state machine */
-    ble_get_packet(advsm->scan_rsp_pdu);
+    advsm->scan_rsp_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+                                             sizeof(struct ble_mbuf_hdr));
     assert(advsm->scan_rsp_pdu != NULL);
 }
 

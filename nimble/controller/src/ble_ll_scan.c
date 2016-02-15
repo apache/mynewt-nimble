@@ -1322,7 +1322,8 @@ ble_ll_scan_init(void)
     cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
-    ble_get_packet(scansm->scan_req_pdu);
+    scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+                                              sizeof(struct ble_mbuf_hdr));
     assert(scansm->scan_req_pdu != NULL);
 }
 

@@ -125,7 +125,7 @@ ble_phy_rxpdu_get(void)
 
     m = g_ble_phy_data.rxpdu;
     if (m == NULL) {
-        ble_get_packet(m);
+        m = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr));
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {
