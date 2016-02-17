@@ -234,53 +234,51 @@ struct ble_att_read_group_type_adata {
 };
 
 int ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_mtu(struct ble_hs_conn *conn,
-                       struct ble_att_mtu_cmd *req);
+int ble_att_clt_tx_mtu(uint16_t conn_handle, struct ble_att_mtu_cmd *req);
 int ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_read(struct ble_hs_conn *conn,
-                        struct ble_att_read_req *req);
+int ble_att_clt_tx_read(uint16_t conn_handle, struct ble_att_read_req *req);
 int ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_read_blob(struct ble_hs_conn *conn,
+int ble_att_clt_tx_read_blob(uint16_t conn_handle,
                              struct ble_att_read_blob_req *req);
 int ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_read_mult(struct ble_hs_conn *conn,
+int ble_att_clt_tx_read_mult(uint16_t conn_handle,
                              uint16_t *handles, int num_handles);
 int ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_read_type(struct ble_hs_conn *conn,
+int ble_att_clt_tx_read_type(uint16_t conn_handle,
                              struct ble_att_read_type_req *req,
                              void *uuid128);
 int ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_read_group_type(struct ble_hs_conn *conn,
+int ble_att_clt_tx_read_group_type(uint16_t conn_handle,
                                    struct ble_att_read_group_type_req *req,
                                    void *uuid128);
 int ble_att_clt_rx_read_group_type(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
-int ble_att_clt_tx_find_info(struct ble_hs_conn *conn,
+int ble_att_clt_tx_find_info(uint16_t conn_handle,
                              struct ble_att_find_info_req *req);
 int ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **om);
-int ble_att_clt_tx_find_type_value(struct ble_hs_conn *conn,
+int ble_att_clt_tx_find_type_value(uint16_t conn_handle,
                                    struct ble_att_find_type_value_req *req,
                                    void *attribute_value, int value_len);
 int ble_att_clt_rx_find_type_value(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
-int ble_att_clt_tx_write_req(struct ble_hs_conn *conn,
+int ble_att_clt_tx_write_req(uint16_t conn_handle,
                              struct ble_att_write_req *req,
                              void *value, uint16_t value_len);
-int ble_att_clt_tx_write_cmd(struct ble_hs_conn *conn,
+int ble_att_clt_tx_write_cmd(uint16_t conn_handle,
                              struct ble_att_write_req *req,
                              void *value, uint16_t value_len);
-int ble_att_clt_tx_prep_write(struct ble_hs_conn *conn,
+int ble_att_clt_tx_prep_write(uint16_t conn_handle,
                               struct ble_att_prep_write_cmd *req,
                               void *value, uint16_t value_len);
 int ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_exec_write(struct ble_hs_conn *conn,
+int ble_att_clt_tx_exec_write(uint16_t conn_handle,
                               struct ble_att_exec_write_req *req);
 int ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_notify(struct ble_hs_conn *conn,
+int ble_att_clt_tx_notify(uint16_t conn_handle,
                           struct ble_att_notify_req *req,
                           void *value, uint16_t value_len);
-int ble_att_clt_tx_indicate(struct ble_hs_conn *conn,
+int ble_att_clt_tx_indicate(uint16_t conn_handle,
                             struct ble_att_indicate_req *req,
                             void *value, uint16_t value_len);
 int ble_att_clt_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom);

@@ -104,17 +104,11 @@ int
 ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                        struct ble_l2cap_chan **out_chan)
 {
-    *out_chan = NULL;
+    int rc;
 
-    *out_conn = ble_hs_conn_find(conn_handle);
-    if (*out_conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
-
-    *out_chan = ble_hs_conn_chan_find(*out_conn, BLE_L2CAP_CID_ATT);
-    assert(*out_chan != NULL);
-
-    return 0;
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT,
+                                         out_conn, out_chan);
+    return rc;
 }
 
 void

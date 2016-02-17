@@ -792,30 +792,28 @@ ble_gattc_mtu_kick(struct ble_gattc_proc *proc)
 
     ble_hs_conn_lock();
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-        assert(chan != NULL);
-
-        if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
-            rc = BLE_HS_EALREADY;
-        } else {
-            req.bamc_mtu = chan->blc_my_mtu;
-            rc = ble_att_clt_tx_mtu(conn, &req);
-        }
+    rc = ble_att_conn_chan_find(proc->fsm_proc.conn_handle, &conn, &chan);
+    if (rc == 0) {
+        req.bamc_mtu = chan->blc_my_mtu;
     }
 
     ble_hs_conn_unlock();
 
-    if (rc == 0) {
-        return 0;
-    } else {
-        if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
-        }
+    if (rc != 0) {
+        goto err;
+    }
 
+    rc = ble_att_clt_tx_mtu(proc->fsm_proc.conn_handle, &req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
+        return BLE_HS_EAGAIN;
+    } else {
         ble_gattc_mtu_cb(proc, rc, 0, 0);
         return BLE_HS_EDONE;
     }
@@ -926,36 +924,27 @@ static int
 ble_gattc_disc_all_svcs_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_group_type_req req;
-    struct ble_hs_conn *conn;
     uint8_t uuid128[16];
     int rc;
 
-    ble_hs_conn_lock();
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
+    assert(rc == 0);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        rc = ble_uuid_16_to_128(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
-        assert(rc == 0);
+    req.bagq_start_handle = proc->disc_all_svcs.prev_handle + 1;
+    req.bagq_end_handle = 0xffff;
+    rc = ble_att_clt_tx_read_group_type(proc->fsm_proc.conn_handle, &req,
+                                        uuid128);
 
-        req.bagq_start_handle = proc->disc_all_svcs.prev_handle + 1;
-        req.bagq_end_handle = 0xffff;
-        rc = ble_att_clt_tx_read_group_type(conn, &req, uuid128);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_disc_all_svcs_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_disc_all_svcs_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -1134,36 +1123,24 @@ static int
 ble_gattc_disc_svc_uuid_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_find_type_value_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    req.bavq_start_handle = proc->disc_svc_uuid.prev_handle + 1;
+    req.bavq_end_handle = 0xffff;
+    req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        req.bavq_start_handle = proc->disc_svc_uuid.prev_handle + 1;
-        req.bavq_end_handle = 0xffff;
-        req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
-
-        rc = ble_att_clt_tx_find_type_value(conn, &req,
-                                            proc->disc_svc_uuid.service_uuid,
-                                            16);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    rc = ble_att_clt_tx_find_type_value(proc->fsm_proc.conn_handle, &req,
+                                        proc->disc_svc_uuid.service_uuid, 16);
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_disc_svc_uuid_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_disc_svc_uuid_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -1327,45 +1304,36 @@ ble_gattc_find_inc_svcs_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_type_req read_type_req;
     struct ble_att_read_req read_req;
-    struct ble_hs_conn *conn;
     uint8_t uuid128[16];
     int rc;
 
-    ble_hs_conn_lock();
+    if (proc->find_inc_svcs.cur_start == 0) {
+        /* Find the next included service. */
+        read_type_req.batq_start_handle =
+            proc->find_inc_svcs.prev_handle + 1;
+        read_type_req.batq_end_handle = proc->find_inc_svcs.end_handle;
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
+        rc = ble_uuid_16_to_128(BLE_ATT_UUID_INCLUDE, uuid128);
+        assert(rc == 0);
+
+        rc = ble_att_clt_tx_read_type(proc->fsm_proc.conn_handle,
+                                      &read_type_req, uuid128);
     } else {
-        if (proc->find_inc_svcs.cur_start == 0) {
-            /* Find the next included service. */
-            read_type_req.batq_start_handle =
-                proc->find_inc_svcs.prev_handle + 1;
-            read_type_req.batq_end_handle = proc->find_inc_svcs.end_handle;
-
-            rc = ble_uuid_16_to_128(BLE_ATT_UUID_INCLUDE, uuid128);
-            assert(rc == 0);
-
-            rc = ble_att_clt_tx_read_type(conn, &read_type_req, uuid128);
-        } else {
-            /* Read the UUID of the previously found service. */
-            read_req.barq_handle = proc->find_inc_svcs.cur_start;
-            rc = ble_att_clt_tx_read(conn, &read_req);
-        }
+        /* Read the UUID of the previously found service. */
+        read_req.barq_handle = proc->find_inc_svcs.cur_start;
+        rc = ble_att_clt_tx_read(proc->fsm_proc.conn_handle, &read_req);
     }
 
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
             return BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_find_inc_svcs_cb(proc, rc, 0, NULL);
+            return BLE_HS_EDONE;
         }
-
-        ble_gattc_find_inc_svcs_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -1618,37 +1586,27 @@ static int
 ble_gattc_disc_all_chrs_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_type_req req;
-    struct ble_hs_conn *conn;
     uint8_t uuid128[16];
     int rc;
 
-    ble_hs_conn_lock();
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+    assert(rc == 0);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-        assert(rc == 0);
+    req.batq_start_handle = proc->disc_all_chrs.prev_handle + 1;
+    req.batq_end_handle = proc->disc_all_chrs.end_handle;
 
-        req.batq_start_handle = proc->disc_all_chrs.prev_handle + 1;
-        req.batq_end_handle = proc->disc_all_chrs.end_handle;
+    rc = ble_att_clt_tx_read_type(proc->fsm_proc.conn_handle, &req, uuid128);
 
-        rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_disc_all_chrs_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_disc_all_chrs_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -1839,37 +1797,27 @@ static int
 ble_gattc_disc_chr_uuid_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_type_req req;
-    struct ble_hs_conn *conn;
     uint8_t uuid128[16];
     int rc;
 
-    ble_hs_conn_lock();
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+    assert(rc == 0);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-        assert(rc == 0);
+    req.batq_start_handle = proc->disc_chr_uuid.prev_handle + 1;
+    req.batq_end_handle = proc->disc_chr_uuid.end_handle;
 
-        req.batq_start_handle = proc->disc_chr_uuid.prev_handle + 1;
-        req.batq_end_handle = proc->disc_chr_uuid.end_handle;
+    rc = ble_att_clt_tx_read_type(proc->fsm_proc.conn_handle, &req, uuid128);
 
-        rc = ble_att_clt_tx_read_type(conn, &req, uuid128);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_disc_chr_uuid_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_disc_chr_uuid_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -2068,34 +2016,22 @@ static int
 ble_gattc_disc_all_dscs_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_find_info_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    req.bafq_start_handle = proc->disc_all_dscs.prev_handle + 1;
+    req.bafq_end_handle = proc->disc_all_dscs.end_handle;
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-
-        req.bafq_start_handle = proc->disc_all_dscs.prev_handle + 1;
-        req.bafq_end_handle = proc->disc_all_dscs.end_handle;
-
-        rc = ble_att_clt_tx_find_info(conn, &req);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    rc = ble_att_clt_tx_find_info(proc->fsm_proc.conn_handle, &req);
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_disc_all_dscs_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_disc_all_dscs_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -2263,31 +2199,20 @@ static int
 ble_gattc_read_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        req.barq_handle = proc->read.handle;
-        rc = ble_att_clt_tx_read(conn, &req);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    req.barq_handle = proc->read.handle;
+    rc = ble_att_clt_tx_read(proc->fsm_proc.conn_handle, &req);
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_read_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_read_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -2410,32 +2335,23 @@ static int
 ble_gattc_read_uuid_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_type_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    req.batq_start_handle = proc->read_uuid.prev_handle + 1;
+    req.batq_end_handle = proc->read_uuid.end_handle;
+    rc = ble_att_clt_tx_read_type(proc->fsm_proc.conn_handle, &req,
+                                  proc->read_uuid.uuid128);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        req.batq_start_handle = proc->read_uuid.prev_handle + 1;
-        req.batq_end_handle = proc->read_uuid.end_handle;
-        rc = ble_att_clt_tx_read_type(conn, &req, proc->read_uuid.uuid128);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_read_uuid_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_read_uuid_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -2596,37 +2512,27 @@ ble_gattc_read_long_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_blob_req blob_req;
     struct ble_att_read_req read_req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
+    if (proc->read_long.offset == 0) {
+        read_req.barq_handle = proc->read_long.handle;
+        rc = ble_att_clt_tx_read(proc->fsm_proc.conn_handle, &read_req);
     } else {
-        if (proc->read_long.offset == 0) {
-            read_req.barq_handle = proc->read_long.handle;
-            rc = ble_att_clt_tx_read(conn, &read_req);
-        } else {
-            blob_req.babq_handle = proc->read_long.handle;
-            blob_req.babq_offset = proc->read_long.offset;
-            rc = ble_att_clt_tx_read_blob(conn, &blob_req);
-        }
+        blob_req.babq_handle = proc->read_long.handle;
+        blob_req.babq_offset = proc->read_long.offset;
+        rc = ble_att_clt_tx_read_blob(proc->fsm_proc.conn_handle, &blob_req);
     }
 
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_read_long_cb(proc, rc, 0, NULL);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_read_long_cb(proc, rc, 0, NULL);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -2783,31 +2689,22 @@ ble_gattc_read_mult_cb(struct ble_gattc_proc *proc, int status,
 static int
 ble_gattc_read_mult_kick(struct ble_gattc_proc *proc)
 {
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    rc = ble_att_clt_tx_read_mult(proc->fsm_proc.conn_handle,
+                                  proc->read_mult.handles,
+                                  proc->read_mult.num_handles);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        rc = ble_att_clt_tx_read_mult(conn, proc->read_mult.handles,
-                                      proc->read_mult.num_handles);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_read_mult_cb(proc, rc, 0, NULL, 0);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_read_mult_cb(proc, rc, 0, NULL, 0);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -2927,36 +2824,24 @@ static int
 ble_gattc_write_no_rsp_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_write_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    req.bawq_handle = proc->write.attr.handle;
+    rc = ble_att_clt_tx_write_cmd(proc->fsm_proc.conn_handle, &req,
+                                  proc->write.attr.value,
+                                  proc->write.attr.value_len);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
+    if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
+        rc = BLE_HS_EAGAIN;
     } else {
-        req.bawq_handle = proc->write.attr.handle;
-        rc = ble_att_clt_tx_write_cmd(conn, &req, proc->write.attr.value,
-                                      proc->write.attr.value_len);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
         /* No response expected; call callback immediately and return 'done' to
          * indicate the proc should be freed.
          */
-        ble_gattc_write_cb(proc, 0, 0);
-        return BLE_HS_EDONE;
-    } else {
-        if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
-        }
-
         ble_gattc_write_cb(proc, rc, 0);
-        return BLE_HS_EDONE;
+        rc = BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -3018,32 +2903,23 @@ static int
 ble_gattc_write_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_write_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    req.bawq_handle = proc->write.attr.handle;
+    rc = ble_att_clt_tx_write_req(proc->fsm_proc.conn_handle, &req,
+                                  proc->write.attr.value,
+                                  proc->write.attr.value_len);
 
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        req.bawq_handle = proc->write.attr.handle;
-        rc = ble_att_clt_tx_write_req(conn, &req, proc->write.attr.value,
-                                      proc->write.attr.value_len);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_write_cb(proc, rc, 0);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_write_cb(proc, rc, 0);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -3166,22 +3042,17 @@ ble_gattc_write_long_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
+    void *value;
     int max_sz;
     int rc;
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        if (proc->write_long.attr.offset < proc->write_long.attr.value_len) {
-            chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-            assert(chan != NULL);
-
-            max_sz = ble_l2cap_chan_mtu(chan) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+    if (proc->write_long.attr.offset < proc->write_long.attr.value_len) {
+        max_sz = ble_att_mtu(proc->fsm_proc.conn_handle) -
+                 BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+        if (max_sz == 0) {
+            /* Not connected. */
+            rc = BLE_HS_ENOTCONN;
+        } else {
             if (proc->write_long.attr.offset + max_sz >
                 proc->write_long.attr.value_len) {
 
@@ -3193,28 +3064,26 @@ ble_gattc_write_long_kick(struct ble_gattc_proc *proc)
 
             prep_req.bapc_handle = proc->write_long.attr.handle;
             prep_req.bapc_offset = proc->write_long.attr.offset;
-            rc = ble_att_clt_tx_prep_write(conn, &prep_req,
-                                           proc->write_long.attr.value +
-                                               proc->write_long.attr.offset,
+            value = proc->write_long.attr.value + proc->write_long.attr.offset;
+            rc = ble_att_clt_tx_prep_write(proc->fsm_proc.conn_handle,
+                                           &prep_req, value,
                                            proc->write_long.length);
-        } else {
-            exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
-            rc = ble_att_clt_tx_exec_write(conn, &exec_req);
         }
-    }
-
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
     } else {
-        if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
-        }
-
-        ble_gattc_write_long_cb(proc, rc, 0);
-        return BLE_HS_EDONE;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        rc = ble_att_clt_tx_exec_write(proc->fsm_proc.conn_handle, &exec_req);
     }
+
+    if (rc != 0) {
+        if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_write_long_cb(proc, rc, 0);
+            rc = BLE_HS_EDONE;
+        }
+    }
+
+    return rc;
 }
 
 /**
@@ -3391,41 +3260,31 @@ ble_gattc_write_reliable_kick(struct ble_gattc_proc *proc)
     struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
     struct ble_gatt_attr *attr;
-    struct ble_hs_conn *conn;
     int attr_idx;
     int rc;
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
+    attr_idx = proc->write_reliable.cur_attr;
+    if (attr_idx < proc->write_reliable.num_attrs) {
+        attr = proc->write_reliable.attrs + attr_idx;
+        prep_req.bapc_handle = attr->handle;
+        prep_req.bapc_offset = 0;
+        rc = ble_att_clt_tx_prep_write(proc->fsm_proc.conn_handle, &prep_req,
+                                       attr->value, attr->value_len);
     } else {
-        attr_idx = proc->write_reliable.cur_attr;
-        if (attr_idx < proc->write_reliable.num_attrs) {
-            attr = proc->write_reliable.attrs + attr_idx;
-            prep_req.bapc_handle = attr->handle;
-            prep_req.bapc_offset = 0;
-            rc = ble_att_clt_tx_prep_write(conn, &prep_req, attr->value,
-                                           attr->value_len);
-        } else {
-            exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
-            rc = ble_att_clt_tx_exec_write(conn, &exec_req);
-        }
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        rc = ble_att_clt_tx_exec_write(proc->fsm_proc.conn_handle, &exec_req);
     }
 
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_write_reliable_cb(proc, rc, 0);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_write_reliable_cb(proc, rc, 0);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -3572,7 +3431,6 @@ ble_gattc_notify_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_notify_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
     if (proc->notify.attr.value == NULL) {
@@ -3581,35 +3439,32 @@ ble_gattc_notify_kick(struct ble_gattc_proc *proc)
                                      NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
-            return BLE_HS_EDONE;
+            rc = BLE_HS_EAPP;
         }
     } else {
+        rc = 0;
         ctxt.attr_data = proc->notify.attr.value;
         ctxt.data_len = proc->notify.attr.value_len;
         ctxt.offset = 0;
     }
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
+    if (rc == 0) {
         proc->notify.attr.value = ctxt.attr_data;
         proc->notify.attr.value_len = ctxt.data_len;
 
         req.banq_handle = proc->notify.attr.handle;
-        rc = ble_att_clt_tx_notify(conn, &req, proc->notify.attr.value,
+        rc = ble_att_clt_tx_notify(proc->fsm_proc.conn_handle, &req,
+                                   proc->notify.attr.value,
                                    proc->notify.attr.value_len);
     }
 
-    ble_hs_conn_unlock();
-
     if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-        return BLE_HS_EAGAIN;
+        rc = BLE_HS_EAGAIN;
     } else {
-        return BLE_HS_EDONE;
+        rc = BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**
@@ -3712,7 +3567,6 @@ ble_gattc_indicate_kick(struct ble_gattc_proc *proc)
 {
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_indicate_req req;
-    struct ble_hs_conn *conn;
     int rc;
 
     if (proc->indicate.attr.value == NULL) {
@@ -3721,40 +3575,35 @@ ble_gattc_indicate_kick(struct ble_gattc_proc *proc)
                                      NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
-            return BLE_HS_EDONE;
+            rc = BLE_HS_EAPP;
         }
     } else {
+        rc = 0;
         ctxt.attr_data = proc->indicate.attr.value;
         ctxt.data_len = proc->indicate.attr.value_len;
         ctxt.offset = 0;
     }
 
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
+    if (rc == 0) {
         proc->indicate.attr.value = ctxt.attr_data;
         proc->indicate.attr.value_len = ctxt.data_len;
 
         req.baiq_handle = proc->indicate.attr.handle;
-        rc = ble_att_clt_tx_indicate(conn, &req, proc->indicate.attr.value,
+        rc = ble_att_clt_tx_indicate(proc->fsm_proc.conn_handle, &req,
+                                     proc->indicate.attr.value,
                                      proc->indicate.attr.value_len);
     }
 
-    ble_hs_conn_unlock();
-
-    if (rc == 0) {
-        return 0;
-    } else {
+    if (rc != 0) {
         if (ble_fsm_tx_postpone_chk(&proc->fsm_proc, rc)) {
-            return BLE_HS_EAGAIN;
+            rc = BLE_HS_EAGAIN;
+        } else {
+            ble_gattc_indicate_cb(proc, rc, 0);
+            rc = BLE_HS_EDONE;
         }
-
-        ble_gattc_indicate_cb(proc, rc, 0);
-        return BLE_HS_EDONE;
     }
+
+    return rc;
 }
 
 /**

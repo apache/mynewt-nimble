@@ -576,8 +576,6 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
                           uint8_t *att_err)
 {
     struct ble_att_mtu_cmd cmd;
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
     struct os_mbuf *txom;
     uint16_t mtu;
     void *dst;
@@ -586,14 +584,8 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
     *att_err = 0; /* Silence unnecessary warning. */
     txom = NULL;
 
-    ble_hs_conn_lock();
-    ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (chan != NULL) {
-        mtu = chan->blc_my_mtu;
-    }
-    ble_hs_conn_unlock();
-
-    if (chan == NULL) {
+    mtu = ble_att_mtu(conn_handle);
+    if (mtu == 0) {
         rc = BLE_HS_ENOTCONN;
         goto done;
     }

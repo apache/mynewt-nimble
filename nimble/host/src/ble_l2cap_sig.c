@@ -157,28 +157,18 @@ ble_l2cap_sig_proc_kick(struct ble_fsm_proc *proc)
 
 /**
  * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
+ *     o Caller locks ble_hs_conn.
  */
 static int
 ble_l2cap_sig_conn_chan_find(uint16_t conn_handle,
                              struct ble_hs_conn **out_conn,
                              struct ble_l2cap_chan **out_chan)
 {
-    ble_hs_conn_lock();
+    int rc;
 
-    *out_conn = ble_hs_conn_find(conn_handle);
-    if (*out_conn != NULL) {
-        *out_chan = ble_hs_conn_chan_find(*out_conn, BLE_L2CAP_CID_SIG);
-        assert(*out_chan != NULL);
-    }
-
-    ble_hs_conn_unlock();
-
-    if (*out_conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    } else {
-        return 0;
-    }
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                         out_conn, out_chan);
+    return rc;
 }
 
 /**

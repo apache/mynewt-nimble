@@ -117,3 +117,57 @@ ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len)
 
     return 0;
 }
+
+int
+ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
+                           struct ble_hs_conn **out_conn,
+                           struct ble_l2cap_chan **out_chan)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        chan = NULL;
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        chan = ble_hs_conn_chan_find(conn, cid);
+        if (chan == NULL) {
+            rc = BLE_HS_ENOTCONN;
+        } else {
+            rc = 0;
+        }
+    }
+
+    if (out_conn != NULL) {
+        *out_conn = conn;
+    }
+    if (out_chan != NULL) {
+        *out_chan = chan;
+    }
+
+    return rc;
+}
+
+int
+ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
+                                struct ble_hs_conn **out_conn,
+                                struct ble_l2cap_chan **out_chan)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    rc = ble_hs_misc_conn_chan_find(conn_handle, cid, &conn, &chan);
+    assert(conn == NULL || chan != NULL);
+
+    if (out_conn != NULL) {
+        *out_conn = conn;
+    }
+    if (out_chan != NULL) {
+        *out_chan = chan;
+    }
+
+    return rc;
+}

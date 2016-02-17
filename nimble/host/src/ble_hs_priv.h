@@ -27,6 +27,8 @@
 #include "host/ble_hs.h"
 struct os_mbuf;
 struct os_mempool;
+struct ble_hs_conn;
+struct ble_l2cap_chan;
 
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
 #define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
@@ -51,6 +53,12 @@ int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
 void ble_hs_misc_log_mbuf(struct os_mbuf *om);
 void ble_hs_misc_log_flat_buf(void *data, int len);
+int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
+                               struct ble_hs_conn **out_conn,
+                               struct ble_l2cap_chan **out_chan);
+int ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
+                                    struct ble_hs_conn **out_conn,
+                                    struct ble_l2cap_chan **out_chan);
 
 void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
