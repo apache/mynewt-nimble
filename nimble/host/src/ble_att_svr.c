@@ -510,7 +510,7 @@ err:
  * @param rc                    The status indicating whether to transmit an
  *                                  affirmative response or an error.
  * @param txom                  Contains the affirmative response payload.
- * @param err_op                If an error is transmitted, this is the value
+ * @param att_op                If an error is transmitted, this is the value
  *                                  of the error message's op field.
  * @param err_status            If an error is transmitted, this is the value
  *                                  of the error message's status field.
@@ -521,7 +521,7 @@ err:
  */
 static int
 ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
-                   uint8_t err_op, uint8_t err_status, uint16_t err_handle)
+                   uint8_t att_op, uint8_t err_status, uint16_t err_handle)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -538,6 +538,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
     }
 
     if (do_tx) {
+        ble_att_inc_tx_stat(att_op);
         ble_hs_conn_lock();
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
@@ -554,7 +555,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
             }
 
             if (rc != 0) {
-                ble_att_svr_tx_error_rsp(conn, chan, err_op,
+                ble_att_svr_tx_error_rsp(conn, chan, att_op,
                                          err_handle, err_status);
             }
         }
@@ -568,34 +569,47 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
-ble_att_svr_tx_mtu_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                       uint8_t op, uint16_t mtu, uint8_t *att_err)
+ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
+                          uint8_t *att_err)
 {
     struct ble_att_mtu_cmd cmd;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
     struct os_mbuf *txom;
+    uint16_t mtu;
     void *dst;
     int rc;
 
     *att_err = 0; /* Silence unnecessary warning. */
+    txom = NULL;
 
-    assert(op == BLE_ATT_OP_MTU_REQ || op == BLE_ATT_OP_MTU_RSP);
-    assert(mtu >= BLE_ATT_MTU_DFLT);
+    ble_hs_conn_lock();
+    ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (chan != NULL) {
+        mtu = chan->blc_my_mtu;
+    }
+    ble_hs_conn_unlock();
+
+    if (chan == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
 
     txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     dst = os_mbuf_extend(txom, BLE_ATT_MTU_CMD_SZ);
     if (dst == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     cmd.bamc_mtu = mtu;
@@ -603,18 +617,10 @@ ble_att_svr_tx_mtu_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     rc = ble_att_mtu_rsp_write(dst, BLE_ATT_MTU_CMD_SZ, &cmd);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        *att_err = BLE_ATT_ERR_UNLIKELY;
-        goto err;
-    }
+    rc = 0;
 
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
+done:
+    *out_txom = txom;
     return rc;
 }
 
@@ -627,30 +633,39 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
     struct ble_att_mtu_cmd cmd;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    struct os_mbuf *txom;
     uint8_t att_err;
     int rc;
 
-    ble_hs_conn_lock();
+    txom = NULL;
 
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        rc = ble_att_svr_pullup_req_base(om, BLE_ATT_MTU_CMD_SZ, &att_err);
-        if (rc == 0) {
-            rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
-            assert(rc == 0);
-
-            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-            rc = ble_att_svr_tx_mtu_rsp(conn, chan, BLE_ATT_OP_MTU_RSP,
-                                        chan->blc_my_mtu, &att_err);
-        }
-        if (rc != 0) {
-            ble_att_svr_tx_error_rsp(conn, chan, BLE_ATT_OP_MTU_REQ, 0,
-                                     att_err);
-        }
+    rc = ble_att_svr_pullup_req_base(om, BLE_ATT_MTU_CMD_SZ, &att_err);
+    if (rc != 0) {
+        goto done;
     }
 
-    ble_hs_conn_unlock();
+    rc = ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
+    assert(rc == 0);
 
+    rc = ble_att_svr_build_mtu_rsp(conn_handle, &txom, &att_err);
+    if (rc != 0) {
+        goto done;
+    }
+
+    rc = 0;
+
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_FIND_INFO_REQ,
+                            att_err, 0);
+    if (rc == 0) {
+        ble_hs_conn_lock();
+        ble_att_conn_chan_find(conn_handle, &conn, &chan);
+        if (chan != NULL) {
+            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
+            chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+        }
+        ble_hs_conn_unlock();
+    }
     return rc;
 }
 

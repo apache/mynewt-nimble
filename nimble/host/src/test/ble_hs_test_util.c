@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include "stats/stats.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "testutil/testutil.h"
@@ -409,6 +410,7 @@ ble_hs_test_util_init(void)
     int rc;
 
     os_msys_reset();
+    stats_module_reset();
 
     cfg = ble_hs_cfg_dflt;
     cfg.max_connections = 8;

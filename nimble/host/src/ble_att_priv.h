@@ -21,6 +21,7 @@
 #define H_BLE_ATT_PRIV_
 
 #include <inttypes.h>
+#include "stats/stats.h"
 #include "os/queue.h"
 #include "host/ble_att.h"
 struct os_mbuf;
@@ -40,6 +41,64 @@ struct ble_att_prep_write_cmd;
 struct ble_att_exec_write_req;
 struct ble_att_notify_req;
 struct ble_att_indicate_req;
+
+STATS_SECT_START(ble_att_stats)
+    STATS_SECT_ENTRY(error_rsp_rx)
+    STATS_SECT_ENTRY(error_rsp_tx)
+    STATS_SECT_ENTRY(mtu_req_rx)
+    STATS_SECT_ENTRY(mtu_req_tx)
+    STATS_SECT_ENTRY(mtu_rsp_rx)
+    STATS_SECT_ENTRY(mtu_rsp_tx)
+    STATS_SECT_ENTRY(find_info_req_rx)
+    STATS_SECT_ENTRY(find_info_req_tx)
+    STATS_SECT_ENTRY(find_info_rsp_rx)
+    STATS_SECT_ENTRY(find_info_rsp_tx)
+    STATS_SECT_ENTRY(find_type_value_req_rx)
+    STATS_SECT_ENTRY(find_type_value_req_tx)
+    STATS_SECT_ENTRY(find_type_value_rsp_rx)
+    STATS_SECT_ENTRY(find_type_value_rsp_tx)
+    STATS_SECT_ENTRY(read_type_req_rx)
+    STATS_SECT_ENTRY(read_type_req_tx)
+    STATS_SECT_ENTRY(read_type_rsp_rx)
+    STATS_SECT_ENTRY(read_type_rsp_tx)
+    STATS_SECT_ENTRY(read_req_rx)
+    STATS_SECT_ENTRY(read_req_tx)
+    STATS_SECT_ENTRY(read_rsp_rx)
+    STATS_SECT_ENTRY(read_rsp_tx)
+    STATS_SECT_ENTRY(read_blob_req_rx)
+    STATS_SECT_ENTRY(read_blob_req_tx)
+    STATS_SECT_ENTRY(read_blob_rsp_rx)
+    STATS_SECT_ENTRY(read_blob_rsp_tx)
+    STATS_SECT_ENTRY(read_mult_req_rx)
+    STATS_SECT_ENTRY(read_mult_req_tx)
+    STATS_SECT_ENTRY(read_mult_rsp_rx)
+    STATS_SECT_ENTRY(read_mult_rsp_tx)
+    STATS_SECT_ENTRY(read_group_type_req_rx)
+    STATS_SECT_ENTRY(read_group_type_req_tx)
+    STATS_SECT_ENTRY(read_group_type_rsp_rx)
+    STATS_SECT_ENTRY(read_group_type_rsp_tx)
+    STATS_SECT_ENTRY(write_req_rx)
+    STATS_SECT_ENTRY(write_req_tx)
+    STATS_SECT_ENTRY(write_rsp_rx)
+    STATS_SECT_ENTRY(write_rsp_tx)
+    STATS_SECT_ENTRY(prep_write_req_rx)
+    STATS_SECT_ENTRY(prep_write_req_tx)
+    STATS_SECT_ENTRY(prep_write_rsp_rx)
+    STATS_SECT_ENTRY(prep_write_rsp_tx)
+    STATS_SECT_ENTRY(exec_write_req_rx)
+    STATS_SECT_ENTRY(exec_write_req_tx)
+    STATS_SECT_ENTRY(exec_write_rsp_rx)
+    STATS_SECT_ENTRY(exec_write_rsp_tx)
+    STATS_SECT_ENTRY(notify_req_rx)
+    STATS_SECT_ENTRY(notify_req_tx)
+    STATS_SECT_ENTRY(indicate_req_rx)
+    STATS_SECT_ENTRY(indicate_req_tx)
+    STATS_SECT_ENTRY(indicate_rsp_rx)
+    STATS_SECT_ENTRY(indicate_rsp_tx)
+    STATS_SECT_ENTRY(write_cmd_rx)
+    STATS_SECT_ENTRY(write_cmd_tx)
+STATS_SECT_END
+extern STATS_SECT_DECL(ble_att_stats) ble_att_stats;
 
 #define BLE_ATT_MTU_DFLT                23  /* Also the minimum. */
 #define BLE_ATT_MTU_MAX                 240
@@ -100,9 +159,10 @@ extern uint8_t ble_att_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 struct ble_l2cap_chan *ble_att_create_chan(void);
 int ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                            struct ble_l2cap_chan **out_chan);
+void ble_att_inc_tx_stat(uint8_t att_op);
 uint16_t ble_att_mtu(uint16_t conn_handle);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
-void ble_att_init(void);
+int ble_att_init(void);
 
 
 /*** @svr */

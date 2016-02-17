@@ -21,6 +21,7 @@
 #define H_BLE_HS_PRIV_
 
 #include <inttypes.h>
+#include "stats/stats.h"
 #include "log/log.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs.h"

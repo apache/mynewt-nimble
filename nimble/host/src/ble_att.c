@@ -72,6 +72,8 @@ static const struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
 #define BLE_ATT_RX_DISPATCH_SZ \
     (sizeof ble_att_rx_dispatch / sizeof ble_att_rx_dispatch[0])
 
+STATS_SECT_DECL(ble_att_stats) ble_att_stats;
+
 /**
  * Lock restrictions: None.
  */
@@ -113,6 +115,240 @@ ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
     assert(*out_chan != NULL);
 
     return 0;
+}
+
+void
+ble_att_inc_tx_stat(uint8_t att_op)
+{
+    switch (att_op) {
+    case BLE_ATT_OP_ERROR_RSP:
+        STATS_INC(ble_att_stats, error_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_MTU_REQ:
+        STATS_INC(ble_att_stats, mtu_req_tx);
+        break;
+
+    case BLE_ATT_OP_MTU_RSP:
+        STATS_INC(ble_att_stats, mtu_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_FIND_INFO_REQ:
+        STATS_INC(ble_att_stats, find_info_req_tx);
+        break;
+
+    case BLE_ATT_OP_FIND_INFO_RSP:
+        STATS_INC(ble_att_stats, find_info_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_FIND_TYPE_VALUE_REQ:
+        STATS_INC(ble_att_stats, find_type_value_req_tx);
+        break;
+
+    case BLE_ATT_OP_FIND_TYPE_VALUE_RSP:
+        STATS_INC(ble_att_stats, find_type_value_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_READ_TYPE_REQ:
+        STATS_INC(ble_att_stats, read_type_req_tx);
+        break;
+
+    case BLE_ATT_OP_READ_TYPE_RSP:
+        STATS_INC(ble_att_stats, read_type_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_READ_REQ:
+        STATS_INC(ble_att_stats, read_req_tx);
+        break;
+
+    case BLE_ATT_OP_READ_RSP:
+        STATS_INC(ble_att_stats, read_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_READ_BLOB_REQ:
+        STATS_INC(ble_att_stats, read_blob_req_tx);
+        break;
+
+    case BLE_ATT_OP_READ_BLOB_RSP:
+        STATS_INC(ble_att_stats, read_blob_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_READ_MULT_REQ:
+        STATS_INC(ble_att_stats, read_mult_req_tx);
+        break;
+
+    case BLE_ATT_OP_READ_MULT_RSP:
+        STATS_INC(ble_att_stats, read_mult_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_READ_GROUP_TYPE_REQ:
+        STATS_INC(ble_att_stats, read_group_type_req_tx);
+        break;
+
+    case BLE_ATT_OP_READ_GROUP_TYPE_RSP:
+        STATS_INC(ble_att_stats, read_group_type_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_WRITE_REQ:
+        STATS_INC(ble_att_stats, write_req_tx);
+        break;
+
+    case BLE_ATT_OP_WRITE_RSP:
+        STATS_INC(ble_att_stats, write_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_PREP_WRITE_REQ:
+        STATS_INC(ble_att_stats, prep_write_req_tx);
+        break;
+
+    case BLE_ATT_OP_PREP_WRITE_RSP:
+        STATS_INC(ble_att_stats, prep_write_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_EXEC_WRITE_REQ:
+        STATS_INC(ble_att_stats, exec_write_req_tx);
+        break;
+
+    case BLE_ATT_OP_EXEC_WRITE_RSP:
+        STATS_INC(ble_att_stats, exec_write_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_NOTIFY_REQ:
+        STATS_INC(ble_att_stats, notify_req_tx);
+        break;
+
+    case BLE_ATT_OP_INDICATE_REQ:
+        STATS_INC(ble_att_stats, indicate_req_tx);
+        break;
+
+    case BLE_ATT_OP_INDICATE_RSP:
+        STATS_INC(ble_att_stats, indicate_rsp_tx);
+        break;
+
+    case BLE_ATT_OP_WRITE_CMD:
+        STATS_INC(ble_att_stats, write_cmd_tx);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void
+ble_att_inc_rx_stat(uint8_t att_op)
+{
+    switch (att_op) {
+    case BLE_ATT_OP_ERROR_RSP:
+        STATS_INC(ble_att_stats, error_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_MTU_REQ:
+        STATS_INC(ble_att_stats, mtu_req_rx);
+        break;
+
+    case BLE_ATT_OP_MTU_RSP:
+        STATS_INC(ble_att_stats, mtu_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_FIND_INFO_REQ:
+        STATS_INC(ble_att_stats, find_info_req_rx);
+        break;
+
+    case BLE_ATT_OP_FIND_INFO_RSP:
+        STATS_INC(ble_att_stats, find_info_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_FIND_TYPE_VALUE_REQ:
+        STATS_INC(ble_att_stats, find_type_value_req_rx);
+        break;
+
+    case BLE_ATT_OP_FIND_TYPE_VALUE_RSP:
+        STATS_INC(ble_att_stats, find_type_value_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_READ_TYPE_REQ:
+        STATS_INC(ble_att_stats, read_type_req_rx);
+        break;
+
+    case BLE_ATT_OP_READ_TYPE_RSP:
+        STATS_INC(ble_att_stats, read_type_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_READ_REQ:
+        STATS_INC(ble_att_stats, read_req_rx);
+        break;
+
+    case BLE_ATT_OP_READ_RSP:
+        STATS_INC(ble_att_stats, read_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_READ_BLOB_REQ:
+        STATS_INC(ble_att_stats, read_blob_req_rx);
+        break;
+
+    case BLE_ATT_OP_READ_BLOB_RSP:
+        STATS_INC(ble_att_stats, read_blob_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_READ_MULT_REQ:
+        STATS_INC(ble_att_stats, read_mult_req_rx);
+        break;
+
+    case BLE_ATT_OP_READ_MULT_RSP:
+        STATS_INC(ble_att_stats, read_mult_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_READ_GROUP_TYPE_REQ:
+        STATS_INC(ble_att_stats, read_group_type_req_rx);
+        break;
+
+    case BLE_ATT_OP_READ_GROUP_TYPE_RSP:
+        STATS_INC(ble_att_stats, read_group_type_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_WRITE_REQ:
+        STATS_INC(ble_att_stats, write_req_rx);
+        break;
+
+    case BLE_ATT_OP_WRITE_RSP:
+        STATS_INC(ble_att_stats, write_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_PREP_WRITE_REQ:
+        STATS_INC(ble_att_stats, prep_write_req_rx);
+        break;
+
+    case BLE_ATT_OP_PREP_WRITE_RSP:
+        STATS_INC(ble_att_stats, prep_write_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_EXEC_WRITE_REQ:
+        STATS_INC(ble_att_stats, exec_write_req_rx);
+        break;
+
+    case BLE_ATT_OP_EXEC_WRITE_RSP:
+        STATS_INC(ble_att_stats, exec_write_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_NOTIFY_REQ:
+        STATS_INC(ble_att_stats, notify_req_rx);
+        break;
+
+    case BLE_ATT_OP_INDICATE_REQ:
+        STATS_INC(ble_att_stats, indicate_req_rx);
+        break;
+
+    case BLE_ATT_OP_INDICATE_RSP:
+        STATS_INC(ble_att_stats, indicate_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_WRITE_CMD:
+        STATS_INC(ble_att_stats, write_cmd_rx);
+        break;
+
+    default:
+        break;
+    }
 }
 
 /**
@@ -158,6 +394,8 @@ ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
     if (entry == NULL) {
         return BLE_HS_EINVAL;
     }
+
+    ble_att_inc_rx_stat(op);
 
     rc = entry->bde_fn(conn_handle, om);
     if (rc != 0) {
@@ -234,8 +472,19 @@ ble_att_create_chan(void)
 /**
  * Lock restrictions: None.
  */
-void
+int
 ble_att_init(void)
 {
+    int rc;
+
     ble_att_preferred_mtu = BLE_ATT_MTU_PREFERRED_DFLT;
+
+    rc = stats_init_and_reg(
+        STATS_HDR(ble_att_stats), STATS_SIZE_INIT_PARMS(ble_att_stats,
+        STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_att_stats), "ble_att");
+    if (rc != 0) {
+        return BLE_HS_EOS;
+    }
+
+    return 0;
 }

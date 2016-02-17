@@ -21,6 +21,7 @@
 #define H_BLE_GAP_CONN_
 
 #include <inttypes.h>
+#include "stats/stats.h"
 #include "host/ble_gap.h"
 struct hci_le_conn_upd_complete;
 struct hci_le_conn_param_req;
@@ -28,6 +29,27 @@ struct hci_le_conn_complete;
 struct hci_disconn_complete;
 struct ble_hci_ack;
 struct ble_hs_adv;
+
+STATS_SECT_START(ble_gap_stats)
+    STATS_SECT_ENTRY(disconnects)
+    STATS_SECT_ENTRY(wl_sets)
+    STATS_SECT_ENTRY(adv_stops)
+    STATS_SECT_ENTRY(adv_starts)
+    STATS_SECT_ENTRY(adv_set_fields)
+    STATS_SECT_ENTRY(discovers)
+    STATS_SECT_ENTRY(initiates)
+    STATS_SECT_ENTRY(terminates)
+    STATS_SECT_ENTRY(cancels)
+    STATS_SECT_ENTRY(updates)
+    STATS_SECT_ENTRY(connects_slv)
+    STATS_SECT_ENTRY(connects_mst)
+    STATS_SECT_ENTRY(rx_disconns)
+    STATS_SECT_ENTRY(rx_update_completes)
+    STATS_SECT_ENTRY(rx_adv_reports)
+    STATS_SECT_ENTRY(rx_conn_completes)
+STATS_SECT_END
+
+extern STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;
 
 #define BLE_GAP_CONN_MODE_MAX               3
 #define BLE_GAP_DISC_MODE_MAX               3

@@ -21,6 +21,7 @@ pkg.name: net/nimble/host
 pkg.vers: 0.1 
 pkg.deps:
     - sys/log
+    - sys/stats
     - libs/os
     - libs/util
     - net/nimble

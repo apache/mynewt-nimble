@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <errno.h>
 #include "bsp/bsp.h"
+#include "stats/stats.h"
 #include "util/tpq.h"
 #include "os/os.h"
 #include "nimble/hci_transport.h"
@@ -260,6 +261,13 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     /* Initialize eventq */
     os_eventq_init(&ble_hs_evq);
 
+    /* Initialize stats. */
+    rc = stats_module_init();
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
+
     host_hci_init();
 
     rc = ble_hs_conn_init();
@@ -272,7 +280,10 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    ble_att_init();
+    rc = ble_att_init();
+    if (rc != 0) {
+        goto err;
+    }
 
     rc = ble_att_svr_init();
     if (rc != 0) {
