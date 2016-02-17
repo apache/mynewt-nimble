@@ -50,6 +50,8 @@ ble_l2cap_chan_alloc(void)
 
     memset(chan, 0, sizeof *chan);
 
+    STATS_INC(ble_hs_stats, chan_create);
+
     return chan;
 }
 
@@ -67,6 +69,8 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
 
     rc = os_memblock_put(&ble_l2cap_chan_pool, chan);
     assert(rc == 0);
+
+    STATS_INC(ble_hs_stats, chan_delete);
 }
 
 /**

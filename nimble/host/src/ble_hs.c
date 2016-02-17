@@ -67,6 +67,19 @@ static struct os_event ble_hs_kick_l2cap_sig_ev;
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
 
+STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
+
+STATS_NAME_START(ble_hs_stats)
+    STATS_NAME(ble_hs_stats, conn_create)
+    STATS_NAME(ble_hs_stats, conn_delete)
+    STATS_NAME(ble_hs_stats, chan_create)
+    STATS_NAME(ble_hs_stats, chan_delete)
+    STATS_NAME(ble_hs_stats, hci_cmd)
+    STATS_NAME(ble_hs_stats, hci_event)
+    STATS_NAME(ble_hs_stats, hci_invalid_ack)
+    STATS_NAME(ble_hs_stats, hci_unknown_event)
+STATS_NAME_END(ble_hs_stats)
+
 void
 ble_hs_process_tx_data_queue(void)
 {
@@ -324,6 +337,14 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
 
     os_mqueue_init(&ble_hs_rx_q, NULL);
     os_mqueue_init(&ble_hs_tx_q, NULL);
+
+    rc = stats_init_and_reg(
+        STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
+        STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_hs_stats), "ble_hs");
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
 
     return 0;
 

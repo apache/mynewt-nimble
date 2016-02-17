@@ -64,8 +64,6 @@ struct host_hci_stats
     uint32_t unknown_events_rxd;
 };
 
-struct host_hci_stats g_host_hci_stats;
-
 /** The opcode of the current unacked HCI command; 0 if none. */
 uint16_t host_hci_outstanding_opcode;
 
@@ -215,7 +213,7 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     if (opcode != BLE_HCI_OPCODE_NOP &&
         opcode != host_hci_outstanding_opcode) {
 
-        ++g_host_hci_stats.bad_acks_rxd;
+        STATS_INC(ble_hs_stats, hci_invalid_ack);
         return BLE_HS_ENOENT;
     }
 
@@ -263,7 +261,7 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     if (opcode != BLE_HCI_OPCODE_NOP &&
         opcode != host_hci_outstanding_opcode) {
 
-        ++g_host_hci_stats.bad_acks_rxd;
+        STATS_INC(ble_hs_stats, hci_invalid_ack);
         return BLE_HS_ENOENT;
     }
 
@@ -567,7 +565,7 @@ host_hci_event_rx(uint8_t *data)
     int rc;
 
     /* Count events received */
-    ++g_host_hci_stats.events_rxd;
+    STATS_INC(ble_hs_stats, hci_cmd);
 
     /* Display to console */
     host_hci_dbg_event_disp(data);
@@ -580,7 +578,7 @@ host_hci_event_rx(uint8_t *data)
 
     entry = host_hci_dispatch_entry_find(event_code);
     if (entry == NULL) {
-        ++g_host_hci_stats.unknown_events_rxd;
+        STATS_INC(ble_hs_stats, hci_invalid_ack);
         rc = BLE_HS_ENOTSUP;
     } else {
         rc = entry->hed_fn(event_code, data, event_len);

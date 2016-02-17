@@ -76,6 +76,8 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
     /* Cancel ack callback if transmission failed. */
     if (rc != 0) {
         ble_hci_sched_set_ack_cb(NULL, NULL);
+    } else {
+        STATS_INC(ble_hs_stats, hci_cmd);
     }
 
     return rc;

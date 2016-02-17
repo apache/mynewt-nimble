@@ -130,7 +130,13 @@ ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    uint8_t att_op;
     int rc;
+
+    rc = os_mbuf_copydata(txom, 0, 1, &att_op);
+    assert(rc == 0);
+
+    ble_att_inc_tx_stat(att_op);
 
     ble_hs_conn_lock();
 

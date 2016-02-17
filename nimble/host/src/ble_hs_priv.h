@@ -35,6 +35,18 @@ struct ble_l2cap_chan;
 #define BLE_HS_KICK_GATT_EVENT          (OS_EVENT_T_PERUSER + 2)
 #define BLE_HS_KICK_L2CAP_SIG_EVENT     (OS_EVENT_T_PERUSER + 3)
 
+STATS_SECT_START(ble_hs_stats)
+    STATS_SECT_ENTRY(conn_create)
+    STATS_SECT_ENTRY(conn_delete)
+    STATS_SECT_ENTRY(chan_create)
+    STATS_SECT_ENTRY(chan_delete)
+    STATS_SECT_ENTRY(hci_cmd)
+    STATS_SECT_ENTRY(hci_event)
+    STATS_SECT_ENTRY(hci_invalid_ack)
+    STATS_SECT_ENTRY(hci_unknown_event)
+STATS_SECT_END
+extern STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
+
 extern struct ble_hs_cfg ble_hs_cfg;
 
 extern struct os_mbuf_pool ble_hs_mbuf_pool;

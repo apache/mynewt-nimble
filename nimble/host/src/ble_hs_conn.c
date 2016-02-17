@@ -196,6 +196,8 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
+    STATS_INC(ble_hs_stats, conn_create);
+
     return conn;
 
 err:
@@ -244,6 +246,8 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);
+
+    STATS_INC(ble_hs_stats, conn_delete);
 }
 
 /**

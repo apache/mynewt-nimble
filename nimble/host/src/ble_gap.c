@@ -215,10 +215,23 @@ struct ble_gap_snapshot {
 static struct os_mutex ble_gap_mutex;
 
 STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;
-
 STATS_NAME_START(ble_gap_stats)
+    STATS_NAME(ble_gap_stats, disconnects)
+    STATS_NAME(ble_gap_stats, wl_sets)
+    STATS_NAME(ble_gap_stats, adv_stops)
+    STATS_NAME(ble_gap_stats, adv_starts)
+    STATS_NAME(ble_gap_stats, adv_set_fields)
+    STATS_NAME(ble_gap_stats, discovers)
+    STATS_NAME(ble_gap_stats, initiates)
+    STATS_NAME(ble_gap_stats, terminates)
+    STATS_NAME(ble_gap_stats, cancels)
+    STATS_NAME(ble_gap_stats, updates)
     STATS_NAME(ble_gap_stats, connects_slv)
     STATS_NAME(ble_gap_stats, connects_mst)
+    STATS_NAME(ble_gap_stats, rx_disconns)
+    STATS_NAME(ble_gap_stats, rx_update_completes)
+    STATS_NAME(ble_gap_stats, rx_adv_reports)
+    STATS_NAME(ble_gap_stats, rx_conn_completes)
 STATS_NAME_END(ble_gap_stats)
 
 /*****************************************************************************

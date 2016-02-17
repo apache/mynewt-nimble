@@ -55,6 +55,18 @@ static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
 
 STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
+STATS_NAME_START(ble_gatts_stats)
+    STATS_NAME(ble_gatts_stats, svcs)
+    STATS_NAME(ble_gatts_stats, chrs)
+    STATS_NAME(ble_gatts_stats, dscs)
+    STATS_NAME(ble_gatts_stats, svc_def_reads)
+    STATS_NAME(ble_gatts_stats, svc_inc_reads)
+    STATS_NAME(ble_gatts_stats, chr_def_reads)
+    STATS_NAME(ble_gatts_stats, chr_val_reads)
+    STATS_NAME(ble_gatts_stats, chr_val_writes)
+    STATS_NAME(ble_gatts_stats, dsc_reads)
+    STATS_NAME(ble_gatts_stats, dsc_writes)
+STATS_NAME_END(ble_gatts_stats)
 
 /**
  * Lock restrictions: None.
