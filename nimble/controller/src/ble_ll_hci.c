@@ -229,6 +229,32 @@ ble_ll_hci_is_event_enabled(int bitpos)
 }
 
 /**
+ * Called to determine if the reply to the command should be a command complete 
+ * event or a command status event. 
+ * 
+ * @param ocf 
+ * 
+ * @return int 0: return command complete; 1: return command status event
+ */
+static int
+ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
+{
+    int rc;
+
+    switch (ocf) {
+    case BLE_HCI_OCF_LE_RD_REM_FEAT:
+    case BLE_HCI_OCF_LE_CREATE_CONN:
+    case BLE_HCI_OCF_LE_CONN_UPDATE:
+        rc = 1;
+        break;
+    default:
+        rc = 0;
+        break;
+    }
+    return rc;
+}
+
+/**
  * Process a LE command sent from the host to the controller. The HCI command 
  * has a 3 byte command header followed by data. The header is: 
  *  -> opcode (2 bytes)
@@ -246,6 +272,7 @@ static int
 ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 {
     int rc;
+    uint8_t cmdlen;
     uint8_t len;
     uint8_t *rspbuf;
 
@@ -254,6 +281,12 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     /* Get length from command */
     len = cmdbuf[sizeof(uint16_t)];
+
+    /* Check the length to make sure it is valid */
+    cmdlen = g_ble_hci_le_cmd_len[ocf];
+    if ((cmdlen != 0xFF) && (len != cmdlen)) {
+        goto ll_hci_le_cmd_exit;
+    }
 
     /* 
      * The command response pointer points into the same buffer as the
@@ -267,35 +300,23 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     switch (ocf) {
     case BLE_HCI_OCF_LE_SET_EVENT_MASK:
-        if (len == BLE_HCI_SET_LE_EVENT_MASK_LEN) {
-            rc = ble_ll_hci_set_le_event_mask(cmdbuf);
-        }
+        rc = ble_ll_hci_set_le_event_mask(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE:
-        if (len == BLE_HCI_RD_BUF_SIZE_LEN) {
-            rc = ble_ll_hci_le_read_bufsize(rspbuf, rsplen);
-        }
+        rc = ble_ll_hci_le_read_bufsize(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT:
-        if (len == 0) {
-            rc = ble_ll_hci_le_read_local_features(rspbuf, rsplen);
-        }
+        rc = ble_ll_hci_le_read_local_features(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_RAND_ADDR:
-        if (len == BLE_DEV_ADDR_LEN) {
-            rc = ble_ll_set_random_addr(cmdbuf);
-        }
+        rc = ble_ll_set_random_addr(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
         /* Length should be one byte */
-        if (len == BLE_HCI_SET_ADV_PARAM_LEN) {
-            rc = ble_ll_adv_set_adv_params(cmdbuf);
-        }
+        rc = ble_ll_adv_set_adv_params(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR:
-        if (len == 0) {
-            rc = ble_ll_adv_read_txpwr(rspbuf, rsplen);
-        }
+        rc = ble_ll_adv_read_txpwr(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
         if (len > 0) {
@@ -311,85 +332,63 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
         /* Length should be one byte */
-        if (len == BLE_HCI_SET_ADV_ENABLE_LEN) {
-            rc = ble_ll_adv_set_enable(cmdbuf);
-        }
+        rc = ble_ll_adv_set_enable(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
-        if (len == BLE_HCI_SET_SCAN_ENABLE_LEN) {
-            rc = ble_ll_scan_set_enable(cmdbuf);
-        }
+        rc = ble_ll_scan_set_enable(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
-        /* Length should be one byte */
-        if (len == BLE_HCI_SET_SCAN_PARAM_LEN) {
-            rc = ble_ll_scan_set_scan_params(cmdbuf);
-        }
+        rc = ble_ll_scan_set_scan_params(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN:
-        if (len == BLE_HCI_CREATE_CONN_LEN) {
-            rc = ble_ll_conn_create(cmdbuf);
-        }
-        /* This is a hack; command status gets sent instead of cmd complete */
-        rc += (BLE_ERR_MAX + 1);
+        rc = ble_ll_conn_create(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:
-        if (len == 0) {
-            rc = ble_ll_conn_create_cancel();
-        }
+        rc = ble_ll_conn_create_cancel();
         break;
     case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
-        if (len == 0) {
-            rc = ble_ll_whitelist_clear();
-        }
+        rc = ble_ll_whitelist_clear();
         break;
     case BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE:
-        if (len == 0) {
-            rc = ble_ll_whitelist_read_size(rspbuf, rsplen);
-        }
+        rc = ble_ll_whitelist_read_size(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_ADD_WHITE_LIST:
-        if (len == BLE_HCI_CHG_WHITE_LIST_LEN) {
-            rc = ble_ll_whitelist_add(cmdbuf + 1, cmdbuf[0]);
-        }
+        rc = ble_ll_whitelist_add(cmdbuf + 1, cmdbuf[0]);
         break;
     case BLE_HCI_OCF_LE_RMV_WHITE_LIST:
-        if (len == BLE_HCI_CHG_WHITE_LIST_LEN) {
-            rc = ble_ll_whitelist_rmv(cmdbuf + 1, cmdbuf[0]);
-        }
+        rc = ble_ll_whitelist_rmv(cmdbuf + 1, cmdbuf[0]);
         break;
     case BLE_HCI_OCF_LE_CONN_UPDATE:
-        if (len == BLE_HCI_CONN_UPDATE_LEN) {
-            rc = ble_ll_conn_hci_update(cmdbuf);
-        }
-        /* This is a hack; command status gets sent instead of cmd complete */
-        rc += (BLE_ERR_MAX + 1);
+        rc = ble_ll_conn_hci_update(cmdbuf);
         break;
-
-        /* XXX: implement */
+    case BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS:
+        rc = ble_ll_conn_hci_set_chan_class(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_RD_CHAN_MAP:
+        rc = ble_ll_conn_hci_rd_chan_map(cmdbuf, rspbuf, rsplen);
+        break;
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
-        if (len == BLE_HCI_CONN_RD_REM_FEAT_LEN) {
-            rc = ble_ll_conn_read_rem_features(cmdbuf);
-        }
-        /* This is a hack; command status gets sent instead of cmd complete */
-        rc += (BLE_ERR_MAX + 1);
+        rc = ble_ll_conn_hci_read_rem_features(cmdbuf);
         break;
-
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
-        if (len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN) {
-            rc = ble_ll_conn_hci_param_reply(cmdbuf, 0);
-        }
+        rc = ble_ll_conn_hci_param_reply(cmdbuf, 0);
         break;
-
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
-        if (len == BLE_HCI_CONN_PARAM_REPLY_LEN) {
-            rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
-        }
+        rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
         break;
-
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
+    }
+
+    /* 
+     * This code is here because we add 256 to the return code to denote
+     * that the reply to this command should be command status (as opposed to
+     * command complete).
+     */ 
+ll_hci_le_cmd_exit:
+    if (ble_ll_hci_le_cmd_send_cmd_status(ocf)) {
+        rc += (BLE_ERR_MAX + 1);
     }
 
     return rc;

@@ -76,7 +76,8 @@ union ble_ll_conn_sm_flags {
         uint16_t host_expects_upd_event:1;
         uint16_t version_ind_sent:1;
         uint16_t rxd_version_ind:1;
-        uint16_t reserved:4;
+        uint16_t chanmap_update_scheduled:1;
+        uint16_t reserved:3;
     } cfbit;
     uint16_t conn_flags;
 } __attribute__((packed));
@@ -107,6 +108,8 @@ struct ble_ll_conn_sm
 
     /* Used to calculate data channel index for connection */
     uint8_t chanmap[BLE_LL_CONN_CHMAP_LEN];
+    uint8_t req_chanmap[BLE_LL_CONN_CHMAP_LEN];
+    uint16_t chanmap_instant;
     uint8_t hop_inc;
     uint8_t data_chan_index;
     uint8_t unmapped_chan;

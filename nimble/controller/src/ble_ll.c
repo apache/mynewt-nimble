@@ -837,7 +837,6 @@ ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
     ble_hdr->txinfo.hdr_byte = hdr;
 }
 
-
 /**
  * Called to reset the controller. This performs a "software reset" of the link 
  * layer; it does not perform a HW reset of the controller nor does it reset 

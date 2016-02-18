@@ -641,6 +641,42 @@ host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn)
 }
 
 /**
+ * Read the channel map for a given connection.
+ * 
+ * @param handle 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_rd_chanmap(uint16_t handle)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_RD_CHANMAP_LEN];
+
+    htole16(cmd, handle);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_CHAN_MAP,
+                              BLE_HCI_RD_CHANMAP_LEN, cmd);
+    return rc;
+}
+
+/**
+ * Set the channel map in the controller
+ * 
+ * @param chanmap 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_set_host_chan_class(uint8_t *chanmap)
+{
+    int rc;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS,
+                              BLE_HCI_SET_HOST_CHAN_CLASS_LEN, chanmap);
+    return rc;
+}
+
+/**
  * Read the RSSI for a given connection handle
  * 
  * NOTE: OGF=0x05 OCF=0x0005 

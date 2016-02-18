@@ -118,16 +118,6 @@ static const uint16_t g_ble_sca_ppm_tbl[8] =
     500, 250, 150, 100, 75, 50, 30, 20
 };
 
-/* Global Link Layer connection parameters */
-struct ble_ll_conn_global_params
-{
-    uint8_t supp_max_tx_octets;
-    uint8_t supp_max_rx_octets;
-    uint8_t conn_init_max_tx_octets;
-    uint16_t conn_init_max_tx_time;
-    uint16_t supp_max_tx_time;
-    uint16_t supp_max_rx_time;
-};
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
 
 /* Pointer to connection state machine we are trying to create */
@@ -464,6 +454,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
 {
     int     i;
     int     j;
+    uint8_t chan;
     uint8_t curchan;
     uint8_t remap_index;
     uint8_t bitpos;
@@ -490,6 +481,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
         /* NOTE: possible to build a map but this would use memory. For now,
            we just calculate */
         /* Iterate through channel map to find this channel */
+        chan = 0;
         cntr = 0;
         for (i = 0; i < BLE_LL_CONN_CHMAP_LEN; i++) {
             usable_chans = conn->chanmap[i];
@@ -498,13 +490,14 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
                 for (j = 0; j < 8; j++) {
                     if (usable_chans & mask) {
                         if (cntr == remap_index) {
-                            return cntr;
+                            return (chan + j);
                         }
                         ++cntr;
                     }
                     mask <<= 1;
                 }
             }
+            chan += 8;
         }
     }
 
@@ -940,13 +933,10 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
         connsm->max_ce_len = hcc->max_ce_len;
     }
 
-    /* 
-     * XXX: for now, just set the channel map to all 1's. Needs to get
-     * set to default or initialized or something
-     */ 
-    connsm->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
-    memset(connsm->chanmap, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
-    connsm->chanmap[4] = 0x1f;
+    /* Set channel map to map requested by host */
+    connsm->num_used_chans = g_ble_ll_conn_params.num_used_chans;
+    memcpy(connsm->chanmap, g_ble_ll_conn_params.master_chan_map,
+           BLE_LL_CONN_CHMAP_LEN);
 
     /*  Calculate random access address and crc initialization value */
     connsm->access_addr = ble_ll_conn_calc_access_addr();
@@ -1206,18 +1196,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         connsm->csmflags.cfbit.host_expects_upd_event = 0;
     }
 
-    /* 
-     * XXX: not quite sure I am interpreting slave latency correctly here.
-     * The spec says if you applied slave latency and you dont hear a packet,
-     * you dont apply slave latency. Does that mean you dont apply slave
-     * latency until you hear a packet or on the next interval if you listen
-     * and dont hear anything, can you apply slave latency?
-     */
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
-    if (connsm->csmflags.cfbit.allow_slave_latency && 
-        !connsm->csmflags.cfbit.conn_update_scheduled) {
+    if (connsm->csmflags.cfbit.allow_slave_latency      && 
+        !connsm->csmflags.cfbit.conn_update_scheduled   &&
+        !connsm->csmflags.cfbit.chanmap_update_scheduled) {
         if (connsm->csmflags.cfbit.pkt_rxd) {
             latency += connsm->slave_latency;
             itvl = itvl * latency;
@@ -1265,6 +1249,34 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         /* Reset update scheduled flag */
         connsm->csmflags.cfbit.conn_update_scheduled = 0;
+    }
+
+    /* 
+     * If there is a channel map request pending and we have reached the
+     * instant, change to new channel map. Note there is a special case here.
+     * If we received a channel map update with an instant equal to the event
+     * counter, when we get here the event counter has already been
+     * incremented by 1. That is why we do a signed comparison and change to
+     * new channel map once the event counter equals or has passed channel
+     * map update instant.
+     */ 
+    if (connsm->csmflags.cfbit.chanmap_update_scheduled && 
+        ((int16_t)(connsm->chanmap_instant - connsm->event_cntr) <= 0)) {
+
+        /* XXX: there is a chance that the control packet is still on
+         * the queue of the master. This means that we never successfully
+         * transmitted update request. Would end up killing connection
+           on slave side. Could ignore it or see if still enqueued. */
+        connsm->num_used_chans = 
+            ble_ll_conn_calc_used_chans(connsm->req_chanmap);
+        memcpy(connsm->chanmap, connsm->req_chanmap, BLE_LL_CONN_CHMAP_LEN);
+
+        connsm->csmflags.cfbit.chanmap_update_scheduled = 0;
+
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
+
+        /* XXX: host could have resent channel map command. Need to
+           check to make sure we dont have to restart! */
     }
 
     /* Calculate data channel index of next connection event */
@@ -2225,6 +2237,36 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
 }
 
 /**
+ * Called to set the global channel mask that we use for all connections.
+ * 
+ * @param num_used_chans 
+ * @param chanmap 
+ */
+void
+ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
+{
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_conn_global_params *conn_params;
+
+    /* Do nothing if same channel map */
+    conn_params = &g_ble_ll_conn_params;
+    if (!memcmp(conn_params->master_chan_map, chanmap, BLE_LL_CONN_CHMAP_LEN)) {
+        return;
+    }
+
+    /* Change channel map and cause channel map update procedure to start */
+    conn_params->num_used_chans = num_used_chans;
+    memcpy(conn_params->master_chan_map, chanmap, BLE_LL_CONN_CHMAP_LEN);
+
+    /* Perform channel map update */
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
+        }
+    }
+}
+
+/**
  * Called when a device has received a connect request while advertising and 
  * the connect request has passed the advertising filter policy and is for 
  * us. This will start a connection in the slave role assuming that we dont 
@@ -2378,6 +2420,9 @@ ble_ll_conn_reset(void)
         }
         ble_ll_conn_end(connsm, BLE_ERR_SUCCESS);
     }
+
+    /* Call conn module init */
+    ble_ll_conn_module_init();
 }
 
 /* Initialize the connection module */
@@ -2436,5 +2481,10 @@ ble_ll_conn_module_init(void)
     maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
     conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
+
+    /* Mask in all channels by default */
+    conn_params->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
+    memset(conn_params->master_chan_map, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
+    conn_params->master_chan_map[4] = 0x1f;
 }
 

@@ -435,7 +435,7 @@ ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
  * @return int 
  */
 int
-ble_ll_conn_read_rem_features(uint8_t *cmdbuf)
+ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
 {
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
@@ -518,6 +518,16 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
             ble_ll_ctrl_reject_ind_ext_send(connsm,
                                             connsm->host_reply_opcode, 
                                             BLE_ERR_LMP_COLLISION);
+        }
+    }
+
+    /* 
+     * If we are a slave and the master has initiated the channel map
+     * update procedure we should deny the slave request for now.
+     */
+    if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            return BLE_ERR_DIFF_TRANS_COLL;
         }
     }
 
@@ -785,6 +795,69 @@ ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = 3;
 
     /* Place the RSSI of the connection into the response buffer */
+    return rc;
+}
+
+/**
+ * Called to read the current channel map of a connection 
+ * 
+ * @param cmdbuf 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else {
+        if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
+            memcpy(rspbuf + 2, &connsm->req_chanmap[0], BLE_LL_CONN_CHMAP_LEN);
+        } else {
+            memcpy(rspbuf + 2, &connsm->chanmap[0], BLE_LL_CONN_CHMAP_LEN);
+        }
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    htole16(rspbuf, handle);
+    *rsplen = sizeof(uint16_t) + BLE_LL_CONN_CHMAP_LEN;
+    return rc;
+}
+
+/**
+ * Called when the host issues the LE command "set host channel classification"
+ * 
+ * @param cmdbuf 
+ * 
+ * @return int 
+ */
+int
+ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
+{
+    int rc;
+    uint8_t num_used_chans;
+
+    /* 
+     * The HCI command states that the host is allowed to mask in just one
+     * channel but the Link Layer needs minimum two channels to operate. So
+     * I will not allow this command if there are less than 2 channels masked.
+     */
+    rc = BLE_ERR_SUCCESS;
+    num_used_chans = ble_ll_conn_calc_used_chans(cmdbuf);
+    if ((num_used_chans < 2) || ((cmdbuf[4] & 0xe0) != 0)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Set the host channel mask */
+    ble_ll_conn_set_global_chanmap(num_used_chans, cmdbuf);
     return rc;
 }
 
