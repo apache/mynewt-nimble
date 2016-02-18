@@ -18,7 +18,7 @@
 #
 
 pkg.name: net/nimble/controller
-pkg.vers: 0.1 
+pkg.vers: 0.8.0 
 pkg.deps:
     - libs/os
     - net/nimble

@@ -18,6 +18,6 @@
 #
 
 pkg.name: net/nimble
-pkg.vers: 0.1 
+pkg.vers: 0.8.0 
 pkg.deps:
     - libs/os
