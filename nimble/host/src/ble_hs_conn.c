@@ -322,6 +322,31 @@ ble_hs_conn_exists(uint16_t conn_handle)
 }
 
 /**
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
+ */
+int
+ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = 0;
+        *out_flags = conn->bhc_flags;
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
+/**
  * Retrieves the first connection in the list.
  *
  * Lock restrictions: Caller must lock ble_hs_conn mutex.

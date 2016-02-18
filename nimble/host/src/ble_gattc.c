@@ -745,6 +745,7 @@ ble_gattc_heartbeat(void *unused)
 
     /* Terminate the connection associated with each timed-out procedure. */
     STAILQ_FOREACH(proc, &temp_list, next) {
+        STATS_INC(ble_gattc_stats, proc_timeout);
         ble_gap_terminate(proc->conn_handle);
     }
 

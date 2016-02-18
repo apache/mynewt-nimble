@@ -85,9 +85,34 @@ ble_l2cap_sig_reject_write(void *payload, uint16_t len,
     return 0;
 }
 
+/**
+ * Locking restrictions:
+ *     o Caller unlocks ble_hs_conn.
+ */
+static int
+ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    STATS_INC(ble_l2cap_stats, sig_tx);
+
+    ble_hs_conn_lock();
+
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                         &conn, &chan);
+    if (rc == 0) {
+        rc = ble_l2cap_tx(conn, chan, txom);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
+}
+
 int
-ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                        uint8_t id, uint16_t reason)
+ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason)
 {
     /* XXX: Add support for optional data field. */
 
@@ -119,7 +144,8 @@ ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return rc;
     }
 
-    rc = ble_l2cap_tx(conn, chan, txom);
+    STATS_INC(ble_l2cap_stats, sig_rx);
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
     return rc;
 }
 
@@ -216,8 +242,7 @@ ble_l2cap_sig_update_rsp_write(void *payload, int len,
 }
 
 int
-ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan, uint8_t id,
+ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
                             struct ble_l2cap_sig_update_req *req)
 {
     struct ble_l2cap_sig_hdr hdr;
@@ -246,7 +271,7 @@ ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
         v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ, &hdr, req);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
     txom = NULL;
 
 done:
@@ -255,9 +280,7 @@ done:
 }
 
 int
-ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan, uint8_t id,
-                            uint16_t result)
+ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
 {
     struct ble_l2cap_sig_update_rsp rsp;
     struct ble_l2cap_sig_hdr hdr;
@@ -287,7 +310,7 @@ ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
         v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ, &hdr, &rsp);
     assert(rc == 0);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
     return rc;
 
 err:

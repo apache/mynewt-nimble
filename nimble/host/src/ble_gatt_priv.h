@@ -63,6 +63,7 @@ STATS_SECT_START(ble_gattc_stats)
     STATS_SECT_ENTRY(notify_fail)
     STATS_SECT_ENTRY(indicate)
     STATS_SECT_ENTRY(indicate_fail)
+    STATS_SECT_ENTRY(proc_timeout)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_gattc_stats) ble_gattc_stats;
 

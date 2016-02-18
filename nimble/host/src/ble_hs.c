@@ -68,12 +68,9 @@ static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
 
 STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
-
 STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, conn_create)
     STATS_NAME(ble_hs_stats, conn_delete)
-    STATS_NAME(ble_hs_stats, chan_create)
-    STATS_NAME(ble_hs_stats, chan_delete)
     STATS_NAME(ble_hs_stats, hci_cmd)
     STATS_NAME(ble_hs_stats, hci_event)
     STATS_NAME(ble_hs_stats, hci_invalid_ack)

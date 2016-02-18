@@ -70,28 +70,29 @@ ble_l2cap_sm_dispatch_get(uint8_t op)
 
 /**
  * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
+ *     o Caller locks ble_hs_conn.
  */
 static int
 ble_l2cap_sm_conn_chan_find(uint16_t conn_handle,
                             struct ble_hs_conn **out_conn,
                             struct ble_l2cap_chan **out_chan)
 {
-    ble_hs_conn_lock();
+    int rc;
 
-    *out_conn = ble_hs_conn_find(conn_handle);
-    if (*out_conn != NULL) {
-        *out_chan = ble_hs_conn_chan_find(*out_conn, BLE_L2CAP_CID_SM);
-        assert(*out_chan != NULL);
-    }
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
+                                         out_conn, out_chan);
+    return rc;
+}
 
-    ble_hs_conn_unlock();
+static int
+ble_l2cap_sm_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                struct os_mbuf *txom)
+{
+    int rc;
 
-    if (*out_conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    } else {
-        return 0;
-    }
+    STATS_INC(ble_l2cap_stats, sm_tx);
+    rc = ble_l2cap_tx(conn, chan, txom);
+    return rc;
 }
 
 /**
@@ -114,12 +115,6 @@ ble_l2cap_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
 
     txom = NULL;
 
-    rc = ble_l2cap_sm_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc != 0) {
-        rc = BLE_HS_EUNKNOWN;
-        goto err;
-    }
-
     txom = ble_hs_misc_pkthdr();
     if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
@@ -138,8 +133,23 @@ ble_l2cap_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
     /* Reason: Pairing not supported. */
     u[1] = 5;
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    return rc;
+    ble_hs_conn_lock();
+
+    rc = ble_l2cap_sm_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc != 0) {
+        rc = BLE_HS_EUNKNOWN;
+    } else {
+        rc = ble_l2cap_sm_tx(conn, chan, txom);
+        txom = NULL;
+    }
+
+    ble_hs_conn_unlock();
+
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
 
 err:
     os_mbuf_free_chain(txom);
@@ -157,6 +167,7 @@ ble_l2cap_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
     uint8_t op;
     int rc;
 
+    STATS_INC(ble_l2cap_stats, sm_rx);
     BLE_HS_LOG(DEBUG, "L2CAP - rxed security manager msg: ");
     ble_hs_misc_log_mbuf(*om);
     BLE_HS_LOG(DEBUG, "\n");

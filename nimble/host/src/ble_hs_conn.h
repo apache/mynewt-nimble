@@ -29,7 +29,7 @@ struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;
 
-typedef uint8_t ble_hs_conn_flags;
+typedef uint8_t ble_hs_conn_flags_t;
 
 #define BLE_HS_CONN_F_MASTER        0x01
 
@@ -43,7 +43,7 @@ struct ble_hs_conn {
     uint16_t bhc_latency;
     uint16_t bhc_supervision_timeout;
 
-    ble_hs_conn_flags bhc_flags;
+    ble_hs_conn_flags_t bhc_flags;
 
     struct ble_l2cap_chan_list bhc_channels;
     struct ble_l2cap_chan *bhc_rx_chan; /* Channel rxing current packet. */
@@ -66,6 +66,7 @@ void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
 int ble_hs_conn_exists(uint16_t conn_handle);
+int ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags);
 struct ble_hs_conn *ble_hs_conn_first(void);
 struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);

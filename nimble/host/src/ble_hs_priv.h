@@ -38,8 +38,6 @@ struct ble_l2cap_chan;
 STATS_SECT_START(ble_hs_stats)
     STATS_SECT_ENTRY(conn_create)
     STATS_SECT_ENTRY(conn_delete)
-    STATS_SECT_ENTRY(chan_create)
-    STATS_SECT_ENTRY(chan_delete)
     STATS_SECT_ENTRY(hci_cmd)
     STATS_SECT_ENTRY(hci_event)
     STATS_SECT_ENTRY(hci_invalid_ack)
