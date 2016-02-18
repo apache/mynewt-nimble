@@ -62,7 +62,7 @@ ble_ll_hci_event_send(uint8_t *evbuf)
     int rc;
 
     /* Count number of events sent */
-    ++g_ble_ll_stats.hci_events_sent;
+    STATS_INC(ble_ll_stats, hci_events_sent);
 
     /* Send the event to the host */
     rc = ble_hci_transport_ctlr_event_send(evbuf);
@@ -627,9 +627,9 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
 
     /* Count commands and those in error */
     if (rc) {
-        ++g_ble_ll_stats.hci_cmd_errs;
+        STATS_INC(ble_ll_stats, hci_cmd_errs);
     } else {
-        ++g_ble_ll_stats.hci_cmds;
+        STATS_INC(ble_ll_stats, hci_cmds);
     }
 
     /* Send the event (events cannot be masked) */

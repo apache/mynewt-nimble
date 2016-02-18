@@ -21,6 +21,7 @@ pkg.name: net/nimble/controller
 pkg.vers: 0.1 
 pkg.deps:
     - libs/os
+    - sys/stats
     - net/nimble
 pkg.identities:
     - BLE_DEVICE

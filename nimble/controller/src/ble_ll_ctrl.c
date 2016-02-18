@@ -1049,7 +1049,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
  * @param om 
  * @param connsm 
  */
-void
+int
 ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 {
     uint8_t features;
@@ -1231,12 +1231,11 @@ ll_ctrl_send_rsp:
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
     }
-    return;
+    return 0;
 
 rx_malformed_ctrl:
     os_mbuf_free(om);
-    ++g_ble_ll_stats.rx_malformed_ctrl_pdus;
-    return;
+    return -1;
 }
 
 /**

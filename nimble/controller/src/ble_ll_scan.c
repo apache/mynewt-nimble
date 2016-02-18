@@ -53,17 +53,6 @@
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
-/* Scanning stats */
-struct ble_ll_scan_stats
-{
-    uint32_t scan_starts;
-    uint32_t scan_stops;
-    uint32_t scan_req_txf;
-    uint32_t scan_req_txg;
-};
-
-struct ble_ll_scan_stats g_ble_ll_scan_stats;
-
 /* 
  * Structure used to store advertisers. This is used to limit sending scan
  * requests to the same advertiser and also to filter duplicate events sent
@@ -102,7 +91,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
                 scansm->upper_limit >>= 1;
             }
         }
-        ++g_ble_ll_scan_stats.scan_req_txg;
+        STATS_INC(ble_ll_stats, scan_req_txg);
     } else {
         scansm->scan_rsp_cons_ok = 0;
         ++scansm->scan_rsp_cons_fails;
@@ -112,7 +101,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
                 scansm->upper_limit <<= 1;
             }
         }
-        ++g_ble_ll_scan_stats.scan_req_txf;
+        STATS_INC(ble_ll_stats, scan_req_txf);
     }
 
     scansm->backoff_count = rand() & (scansm->upper_limit - 1);
@@ -591,7 +580,7 @@ ble_ll_scan_sm_stop(int chk_disable)
     scansm->scan_enabled = 0;
 
     /* Count # of times stopped */
-    ++g_ble_ll_scan_stats.scan_stops;
+    STATS_INC(ble_ll_stats, scan_stops);
 
     /* Only set state if we are currently in a scan window */
     if (chk_disable) {
@@ -639,7 +628,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     }
 
     /* Count # of times started */
-    ++g_ble_ll_scan_stats.scan_starts;
+    STATS_INC(ble_ll_stats, scan_starts);
 
     /* Set flag telling us that scanning is enabled */
     scansm->scan_enabled = 1;
@@ -1277,9 +1266,6 @@ ble_ll_scan_reset(void)
     if (scansm->scan_enabled) {
         ble_ll_scan_sm_stop(0);
     }
-
-    /* Reset all statistics */
-    memset(&g_ble_ll_scan_stats, 0, sizeof(struct ble_ll_scan_stats));
 
     /* Free the scan request pdu */
     os_mbuf_free(scansm->scan_req_pdu);

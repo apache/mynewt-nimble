@@ -53,8 +53,6 @@
  * now, we set it to max.
  * 5) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 6) The time between transmissions inside an advertising event is set to
- * max. Need to deal with this.
  */
 
 /* 
@@ -95,17 +93,6 @@ struct ble_ll_adv_sm
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm;
-
-struct ble_ll_adv_stats
-{
-    uint32_t late_starts;
-    uint32_t late_tx_done;
-    uint32_t cant_set_sched;
-    uint32_t scan_rsp_txg;
-    uint32_t adv_txg;
-};
-
-struct ble_ll_adv_stats g_ble_ll_adv_stats;
 
 /* 
  * Worst case time needed for scheduled advertising item. This is the longest
@@ -395,14 +382,14 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         /* Check if we were late getting here */
         if ((int32_t)(start_time - (advsm->adv_pdu_start_time -
                cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS))) > 0) {
-            ++g_ble_ll_adv_stats.late_starts;
+            STATS_INC(ble_ll_stats, adv_late_starts);
         }
 
         /* Set link layer state to advertising */
         ble_ll_state_set(BLE_LL_STATE_ADV);
 
         /* Count # of adv. sent */
-        ++g_ble_ll_adv_stats.adv_txg;
+        STATS_INC(ble_ll_stats, adv_txg);
 
         /* This schedule item is now running */
         rc = BLE_LL_SCHED_STATE_RUNNING;
@@ -897,7 +884,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
-            ++g_ble_ll_adv_stats.scan_rsp_txg;
+            STATS_INC(ble_ll_stats, scan_rsp_txg);
         }
     }
 
@@ -1158,20 +1145,13 @@ ble_ll_adv_event_done(void *arg)
 
         /* 
          * The scheduled time better be in the future! If it is not, we will
-         * count a statistic and close the current advertising event. We will
-         * then setup the next advertising event.
+         * just keep advancing until we the time is in the future
          */
         start_time = advsm->adv_pdu_start_time - 
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
 
         delta_t = (int32_t)(start_time - cputime_get32());
         if (delta_t < 0) {
-            /* Count times we were late */
-            ++g_ble_ll_adv_stats.late_tx_done;
-
-            /* Set back to first adv channel */
-            advsm->adv_chan = ble_ll_adv_first_chan(advsm);
-
             /* Calculate start time of next advertising event */
             while (delta_t < 0) {
                 itvl = advsm->adv_itvl_usecs;
@@ -1284,9 +1264,6 @@ ble_ll_adv_reset(void)
     /* Free advertiser pdu's */
     os_mbuf_free(advsm->adv_pdu);
     os_mbuf_free(advsm->scan_rsp_pdu);
-
-    /* Reset advertising state */
-    memset(&g_ble_ll_adv_stats, 0, sizeof(struct ble_ll_adv_stats));
 
     /* re-initialize the advertiser state machine */
     ble_ll_adv_init();
