@@ -41,6 +41,10 @@ STATS_NAME_START(ble_l2cap_stats)
     STATS_NAME(ble_l2cap_stats, update_rx)
     STATS_NAME(ble_l2cap_stats, update_fail)
     STATS_NAME(ble_l2cap_stats, proc_timeout)
+    STATS_NAME(ble_l2cap_stats, sig_tx)
+    STATS_NAME(ble_l2cap_stats, sig_rx)
+    STATS_NAME(ble_l2cap_stats, sm_tx)
+    STATS_NAME(ble_l2cap_stats, sm_rx)
 STATS_NAME_END(ble_l2cap_stats)
 
 /**
