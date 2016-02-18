@@ -210,22 +210,22 @@ static struct os_mutex ble_gap_mutex;
 
 STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;
 STATS_NAME_START(ble_gap_stats)
-    STATS_NAME(ble_gap_stats, disconnects)
-    STATS_NAME(ble_gap_stats, wl_sets)
-    STATS_NAME(ble_gap_stats, adv_stops)
-    STATS_NAME(ble_gap_stats, adv_starts)
-    STATS_NAME(ble_gap_stats, adv_set_fields)
-    STATS_NAME(ble_gap_stats, discovers)
-    STATS_NAME(ble_gap_stats, initiates)
-    STATS_NAME(ble_gap_stats, terminates)
-    STATS_NAME(ble_gap_stats, cancels)
-    STATS_NAME(ble_gap_stats, updates)
-    STATS_NAME(ble_gap_stats, connects_slv)
-    STATS_NAME(ble_gap_stats, connects_mst)
-    STATS_NAME(ble_gap_stats, rx_disconns)
-    STATS_NAME(ble_gap_stats, rx_update_completes)
-    STATS_NAME(ble_gap_stats, rx_adv_reports)
-    STATS_NAME(ble_gap_stats, rx_conn_completes)
+    STATS_NAME(ble_gap_stats, disconnect)
+    STATS_NAME(ble_gap_stats, wl_set)
+    STATS_NAME(ble_gap_stats, adv_stop)
+    STATS_NAME(ble_gap_stats, adv_start)
+    STATS_NAME(ble_gap_stats, adv_set_field)
+    STATS_NAME(ble_gap_stats, discover)
+    STATS_NAME(ble_gap_stats, initiate)
+    STATS_NAME(ble_gap_stats, terminate)
+    STATS_NAME(ble_gap_stats, cancel)
+    STATS_NAME(ble_gap_stats, update)
+    STATS_NAME(ble_gap_stats, connect_slv)
+    STATS_NAME(ble_gap_stats, connect_mst)
+    STATS_NAME(ble_gap_stats, rx_disconn)
+    STATS_NAME(ble_gap_stats, rx_update_complete)
+    STATS_NAME(ble_gap_stats, rx_adv_report)
+    STATS_NAME(ble_gap_stats, rx_conn_complete)
 STATS_NAME_END(ble_gap_stats)
 
 /*****************************************************************************
@@ -263,6 +263,84 @@ ble_gap_locked_by_cur_task(void)
 
     owner = ble_gap_mutex.mu_owner;
     return owner != NULL && owner == os_sched_get_current_task();
+}
+
+/*****************************************************************************
+ * $log                                                                      *
+ *****************************************************************************/
+
+static void
+ble_gap_log_conn(void)
+{
+    BLE_HS_LOG(INFO, "addr_type=%d addr=", ble_gap_master.conn.addr_type);
+    BLE_HS_LOG_ADDR(INFO, ble_gap_master.conn.addr);
+    BLE_HS_LOG(INFO, " scan_itvl=%d scan_window=%d itvl_min=%d itvl_max=%d "
+                     "latency=%d supervision_timeout=%d min_ce_len=%d "
+                     "max_ce_len=%d",
+               ble_gap_master.conn.params.scan_itvl,
+               ble_gap_master.conn.params.scan_window,
+               ble_gap_master.conn.params.itvl_min,
+               ble_gap_master.conn.params.itvl_max,
+               ble_gap_master.conn.params.latency,
+               ble_gap_master.conn.params.supervision_timeout,
+               ble_gap_master.conn.params.min_ce_len,
+               ble_gap_master.conn.params.max_ce_len);
+}
+
+static void
+ble_gap_log_disc(void)
+{
+    BLE_HS_LOG(INFO, "disc_mode=%d filter_policy=%d scan_type=%d",
+               ble_gap_master.disc.disc_mode,
+               ble_gap_master.disc.filter_policy,
+               ble_gap_master.disc.scan_type);
+}
+
+static void
+ble_gap_log_update(struct ble_gap_update_entry *entry)
+{
+    BLE_HS_LOG(INFO, "connection parameter update; "
+                     "conn_handle=%d itvl_min=%d itvl_max=%d latency=%d "
+                     "supervision_timeout=%d min_ce_len=%d max_ce_len=%d",
+               entry->conn_handle, entry->params.itvl_min,
+               entry->params.itvl_max, entry->params.latency,
+               entry->params.supervision_timeout, entry->params.min_ce_len,
+               entry->params.max_ce_len);
+}
+
+static void
+ble_gap_log_wl(void)
+{
+    struct ble_gap_white_entry *entry;
+    int i;
+
+    BLE_HS_LOG(INFO, "count=%d ", ble_gap_wl.count);
+
+    for (i = 0; i < ble_gap_wl.count; i++) {
+        entry = ble_gap_wl.entries + i;
+
+        BLE_HS_LOG(INFO, "entry-%d={addr_type=%d addr=", i, entry->addr_type);
+        BLE_HS_LOG_ADDR(INFO, entry->addr);
+        BLE_HS_LOG(INFO, "} ");
+    }
+}
+
+static void
+ble_gap_log_adv(void)
+{
+    BLE_HS_LOG(INFO, "disc_mode=%d addr_type=%d addr=",
+               ble_gap_slave.disc_mode, ble_gap_slave.dir_addr_type);
+    BLE_HS_LOG_ADDR(INFO, ble_gap_slave.dir_addr);
+    BLE_HS_LOG(INFO, "adv_type=%d adv_channel_map=%d own_addr_type=%d "
+                     "adv_filter_policy=%d adv_itvl_min=%d  adv_itvl_max=%d "
+                     "adv_data_len=%d",
+               ble_gap_slave.adv_params.adv_type,
+               ble_gap_slave.adv_params.adv_channel_map,
+               ble_gap_slave.adv_params.own_addr_type,
+               ble_gap_slave.adv_params.adv_filter_policy,
+               ble_gap_slave.adv_params.adv_itvl_min,
+               ble_gap_slave.adv_params.adv_itvl_max,
+               ble_gap_slave.adv_data_len);
 }
 
 /*****************************************************************************
@@ -678,7 +756,7 @@ ble_gap_conn_broken(uint16_t conn_handle)
 
     ble_gattc_connection_broken(conn_handle);
 
-    STATS_INC(ble_gap_stats, disconnects);
+    STATS_INC(ble_gap_stats, disconnect);
 }
 
 /**
@@ -698,7 +776,7 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 
     ble_hs_misc_assert_no_locks();
 
-    STATS_INC(ble_gap_stats, rx_disconns);
+    STATS_INC(ble_gap_stats, rx_disconn);
 
     if (evt->status == 0) {
         /* Find the connection that this event refers to. */
@@ -744,7 +822,7 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 
     ble_hs_misc_assert_no_locks();
 
-    STATS_INC(ble_gap_stats, rx_update_completes);
+    STATS_INC(ble_gap_stats, rx_update_complete);
 
     ble_hs_conn_lock();
 
@@ -1000,7 +1078,7 @@ ble_gap_accept_master_conn(uint8_t addr_type, uint8_t *addr)
     }
 
     if (rc == 0) {
-        STATS_INC(ble_gap_stats, connects_mst);
+        STATS_INC(ble_gap_stats, connect_mst);
     }
 
     return rc;
@@ -1060,7 +1138,7 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
     }
 
     if (rc == 0) {
-        STATS_INC(ble_gap_stats, connects_slv);
+        STATS_INC(ble_gap_stats, connect_slv);
     }
 
     return rc;
@@ -1080,7 +1158,7 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
     struct ble_hs_adv_fields fields;
     int rc;
 
-    STATS_INC(ble_gap_stats, rx_adv_reports);
+    STATS_INC(ble_gap_stats, rx_adv_report);
 
     if (ble_gap_master.op      != BLE_GAP_OP_M_DISC ||
         ble_gap_master.state   != BLE_GAP_STATE_M_DISC_ACKED) {
@@ -1122,7 +1200,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     int status;
     int rc;
 
-    STATS_INC(ble_gap_stats, rx_conn_completes);
+    STATS_INC(ble_gap_stats, rx_conn_complete);
 
     /* Determine if this event refers to a completed connection or a connection
      * in progress.
@@ -1467,8 +1545,6 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
     int rc;
     int i;
 
-    STATS_INC(ble_gap_stats, wl_sets);
-
     if (white_list_count <= 0) {
         return BLE_HS_EINVAL;
     }
@@ -1493,8 +1569,17 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
     ble_gap_wl.cur = 0;
 
     rc = ble_gap_wl_enqueue(BLE_GAP_STATE_W_CLEAR, 0,
-                                 ble_gap_wl_tx_clear, NULL);
-    return rc;
+                            ble_gap_wl_tx_clear, NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    STATS_INC(ble_gap_stats, wl_set);
+    BLE_HS_LOG(INFO, "GAP procedure initiated: set whitelist; ");
+    ble_gap_log_wl();
+    BLE_HS_LOG(INFO, "\n");
+
+    return 0;
 }
 
 /*****************************************************************************
@@ -1555,8 +1640,6 @@ ble_gap_adv_stop(void)
 
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_stops);
-
     /* Do nothing if advertising is already disabled. */
     if (!ble_gap_currently_advertising()) {
         return BLE_HS_EALREADY;
@@ -1567,6 +1650,11 @@ ble_gap_adv_stop(void)
     if (rc != 0) {
         return rc;
     }
+
+    STATS_INC(ble_gap_stats, adv_stop);
+    BLE_HS_LOG(INFO, "GAP procedure initiated: stop advertising; ");
+    ble_gap_log_adv();
+    BLE_HS_LOG(INFO, "\n");
 
     return 0;
 }
@@ -1939,8 +2027,6 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     uint8_t op;
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_starts);
-
     if (discoverable_mode >= BLE_GAP_DISC_MODE_MAX ||
         connectable_mode >= BLE_GAP_CONN_MODE_MAX) {
 
@@ -2010,6 +2096,11 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
         return rc;
     }
 
+    STATS_INC(ble_gap_stats, adv_start);
+    BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
+    ble_gap_log_adv();
+    BLE_HS_LOG(INFO, "\n");
+
     return 0;
 }
 
@@ -2025,7 +2116,7 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
 
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_set_fields);
+    STATS_INC(ble_gap_stats, adv_set_field);
 
     rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
                                &ble_gap_slave.adv_data_len,
@@ -2195,8 +2286,6 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
 
     int rc;
 
-    STATS_INC(ble_gap_stats, discovers);
-
     if (discovery_mode != BLE_GAP_DISC_MODE_LTD &&
         discovery_mode != BLE_GAP_DISC_MODE_GEN) {
 
@@ -2228,13 +2317,18 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
     ble_gap_master.disc.cb = cb;
     ble_gap_master.disc.cb_arg = cb_arg;
     rc = ble_gap_master_enqueue(BLE_GAP_STATE_M_DISC_PARAMS, 0,
-                                     ble_gap_disc_tx_params, NULL);
+                                ble_gap_disc_tx_params, NULL);
     if (rc != 0) {
         return rc;
     }
 
     os_callout_reset(&ble_gap_master_timer.cf_c,
                      duration_ms * OS_TICKS_PER_SEC / 1000);
+
+    STATS_INC(ble_gap_stats, discover);
+    BLE_HS_LOG(INFO, "GAP procedure initiated: discovery; ");
+    ble_gap_log_disc();
+    BLE_HS_LOG(INFO, "\n");
 
     return 0;
 }
@@ -2342,8 +2436,6 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
 
     int rc;
 
-    STATS_INC(ble_gap_stats, initiates);
-
     if (addr_type != BLE_ADDR_TYPE_PUBLIC &&
         addr_type != BLE_ADDR_TYPE_RANDOM &&
         addr_type != BLE_GAP_ADDR_TYPE_WL) {
@@ -2376,6 +2468,11 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
     if (rc != 0) {
         return rc;
     }
+
+    STATS_INC(ble_gap_stats, initiate);
+    BLE_HS_LOG(INFO, "GAP procedure initiated: connect; ");
+    ble_gap_log_conn();
+    BLE_HS_LOG(INFO, "\n");
 
     return 0;
 }
@@ -2442,8 +2539,6 @@ ble_gap_terminate(uint16_t conn_handle)
 {
     int rc;
 
-    STATS_INC(ble_gap_stats, terminates);
-
     if (!ble_hs_conn_exists(conn_handle)) {
         return BLE_HS_ENOENT;
     }
@@ -2453,6 +2548,10 @@ ble_gap_terminate(uint16_t conn_handle)
     if (rc != 0) {
         return rc;
     }
+
+    STATS_INC(ble_gap_stats, terminate);
+    BLE_HS_LOG(INFO, "GAP procedure initiated: terminate connection; "
+                     "conn_handle=%d\n", conn_handle);
 
     return 0;
 }
@@ -2502,7 +2601,7 @@ ble_gap_cancel(void)
 {
     int rc;
 
-    STATS_INC(ble_gap_stats, cancels);
+    STATS_INC(ble_gap_stats, cancel);
 
     ble_gap_lock();
 
@@ -2518,6 +2617,10 @@ ble_gap_cancel(void)
     }
 
     ble_gap_unlock();
+
+    if (rc == 0) {
+        BLE_HS_LOG(INFO, "GAP procedure initiated: cancel connetion\n");
+    }
 
     return rc;
 }
@@ -2565,7 +2668,7 @@ ble_gap_param_reply_ack(struct ble_hci_ack *ack, void *arg)
     assert(entry->hci_handle == ack->bha_hci_handle);
 
     entry->hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
- 
+
     if (ack->bha_status != 0) {
         SLIST_REMOVE(&ble_gap_update_entries, entry,
                      ble_gap_update_entry, next);
@@ -2810,7 +2913,7 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
     struct ble_gap_update_entry *entry;
     int rc;
 
-    STATS_INC(ble_gap_stats, updates);
+    STATS_INC(ble_gap_stats, update);
 
     if (!ble_hs_conn_exists(conn_handle)) {
         return BLE_HS_ENOTCONN;
@@ -2836,6 +2939,10 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
 
     rc = ble_hci_sched_enqueue(ble_gap_update_tx, entry, &entry->hci_handle);
     if (rc == 0) {
+        BLE_HS_LOG(INFO, "GAP procedure initiated: ");
+        ble_gap_log_update(entry);
+        BLE_HS_LOG(INFO, "\n");
+
         ble_gap_lock();
         SLIST_INSERT_HEAD(&ble_gap_update_entries, entry, next);
         ble_gap_unlock();

@@ -93,4 +93,9 @@ int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
 #define BLE_HS_LOG(lvl, ...) \
     LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
 
+#define BLE_HS_LOG_ADDR(lvl, addr)                      \
+    BLE_HS_LOG(lvl, "%02x:%02x:%02x:%02x:%02x:%02x",    \
+               (addr)[0], (addr)[1], (addr)[2],         \
+               (addr)[3], (addr)[4], (addr)[5])
+
 #endif
