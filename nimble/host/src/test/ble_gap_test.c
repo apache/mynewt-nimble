@@ -23,12 +23,6 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "host/ble_hs_test.h"
-#include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_hs_adv_priv.h"
-#include "ble_hci_sched.h"
-#include "ble_gatt_priv.h"
-#include "ble_gap_priv.h"
 #include "ble_hs_test_util.h"
 
 static int ble_gap_test_conn_event;

@@ -25,11 +25,6 @@
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_att_cmd.h"
-#include "ble_att_priv.h"
 
 static STAILQ_HEAD(, ble_att_svr_entry) ble_att_svr_list;
 static uint16_t ble_att_svr_id;

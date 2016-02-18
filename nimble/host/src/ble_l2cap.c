@@ -23,10 +23,8 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "ble_hs_priv.h"
 #include "host/host_hci.h"
-#include "ble_hs_conn.h"
-#include "ble_l2cap_priv.h"
+#include "ble_hs_priv.h"
 
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
                "struct ble_l2cap_hdr must be 4 bytes");

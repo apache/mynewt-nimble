@@ -20,18 +20,11 @@
 #include <stddef.h>
 #include <errno.h>
 #include <string.h>
+#include "testutil/testutil.h"
 #include "nimble/hci_common.h"
-#include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
 #include "host/host_hci.h"
-#include "ble_l2cap_priv.h"
-#include "ble_att_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_hs_adv_priv.h"
-#include "ble_hci_sched.h"
-#include "ble_gap_priv.h"
 #include "ble_hs_test_util.h"
-#include "testutil/testutil.h"
 
 #define BLE_ADV_TEST_DATA_OFF   4
 

@@ -27,7 +27,6 @@
 #include "host/ble_uuid.h"
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
-#include "ble_fsm_priv.h"
 
 /*****************************************************************************
  * $mutex                                                                    *

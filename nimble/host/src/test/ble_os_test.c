@@ -22,12 +22,9 @@
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
-#include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_gap.h"
 #include "ble_hs_test_util.h"
-#include "ble_hs_conn.h"
-#include "ble_gap_priv.h"
 
 #ifdef ARCH_sim
 #define BLE_OS_TEST_STACK_SIZE      1024

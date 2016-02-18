@@ -25,13 +25,7 @@
 #include "os/os.h"
 #include "nimble/hci_transport.h"
 #include "host/host_hci.h"
-#include "ble_gatt_priv.h"
 #include "ble_hs_priv.h"
-#include "ble_att_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_hs_startup.h"
-#include "ble_hci_sched.h"
-#include "ble_gap_priv.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
 #endif

@@ -24,9 +24,6 @@
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_att_priv.h"
-#include "ble_gatt_priv.h"
 
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19

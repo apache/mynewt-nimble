@@ -22,10 +22,6 @@
 #include <assert.h>
 #include "bsp/bsp.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_l2cap_priv.h"
-#include "ble_att_cmd.h"
-#include "ble_att_priv.h"
 
 bssnz_t uint8_t ble_att_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 

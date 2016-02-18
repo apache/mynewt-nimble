@@ -21,9 +21,6 @@
 #include <stdlib.h>
 #include "os/os.h"
 #include "console/console.h"
-#include "ble_hs_conn.h"
-#include "ble_gap_priv.h"
-#include "ble_hci_sched.h"
 #include "ble_hs_priv.h"
 
 int

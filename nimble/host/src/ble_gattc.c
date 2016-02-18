@@ -24,14 +24,9 @@
 #include <string.h>
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
-#include "ble_hs_priv.h"
 #include "host/ble_uuid.h"
 #include "host/ble_gap.h"
-#include "ble_hs_conn.h"
-#include "ble_att_cmd.h"
-#include "ble_att_priv.h"
-#include "ble_fsm_priv.h"
-#include "ble_gatt_priv.h"
+#include "ble_hs_priv.h"
 
 /*****************************************************************************
  * $definitions / declarations                                               *

@@ -22,14 +22,8 @@
 #include <errno.h>
 #include "bsp/bsp.h"
 #include "os/os.h"
-#include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_adv_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_hci_sched.h"
-#include "ble_gatt_priv.h"
-#include "ble_gap_priv.h"
 
 #define BLE_GAP_OP_NULL                                 0
 #define BLE_GAP_STATE_NULL                              255

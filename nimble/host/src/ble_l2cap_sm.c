@@ -23,12 +23,6 @@
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_gap_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_att_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_l2cap_sm.h"
 
 typedef int ble_l2cap_sm_rx_fn(uint16_t conn_handle, uint8_t op,
                                struct os_mbuf **om);

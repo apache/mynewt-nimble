@@ -21,16 +21,10 @@
 #include <errno.h>
 #include <assert.h>
 #include "stats/stats.h"
+#include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "testutil/testutil.h"
 #include "host/host_hci.h"
-#include "ble_hs_priv.h"
-#include "ble_hci_sched.h"
-#include "ble_hs_conn.h"
-#include "ble_gap_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
 /** Use lots of small mbufs to ensure correct mbuf usage. */

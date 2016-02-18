@@ -23,10 +23,6 @@
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_uuid.h"
-#include "ble_gatt_priv.h"
-#include "ble_att_cmd.h"
-#include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
 #include "ble_hs_test_util.h"
 
 static struct ble_gatt_service ble_gatt_find_s_test_svcs[256];

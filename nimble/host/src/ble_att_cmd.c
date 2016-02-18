@@ -24,8 +24,7 @@
 #include "ble_hs_priv.h"
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"
-#include "ble_l2cap_priv.h"
-#include "ble_att_cmd.h"
+#include "ble_hs_priv.h"
 
 int
 ble_att_error_rsp_parse(void *payload, int len, struct ble_att_error_rsp *rsp)

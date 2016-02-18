@@ -20,11 +20,9 @@
 #ifndef H_BLE_HS_CONN_
 #define H_BLE_HS_CONN_
 
-#include "os/queue.h"
-#include "host/ble_gap.h"
 #include "ble_l2cap_priv.h"
-#include "ble_att_priv.h"
 #include "ble_gatt_priv.h"
+#include "ble_att_priv.h"
 struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;

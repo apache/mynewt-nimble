@@ -19,9 +19,6 @@
 
 #include <assert.h>
 #include "ble_hs_priv.h"
-#include "ble_att_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_l2cap_priv.h"
 
 int
 ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,

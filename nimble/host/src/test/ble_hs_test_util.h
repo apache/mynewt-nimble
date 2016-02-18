@@ -22,6 +22,7 @@
 
 #include <inttypes.h>
 #include "host/ble_gap.h"
+#include "ble_hs_priv.h"
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 

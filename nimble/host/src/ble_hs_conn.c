@@ -23,12 +23,6 @@
 #include "os/os.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_l2cap_sig.h"
-#include "ble_l2cap_sm.h"
-#include "ble_att_priv.h"
-#include "ble_gatt_priv.h"
-#include "ble_hs_conn.h"
 
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;

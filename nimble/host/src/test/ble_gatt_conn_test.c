@@ -21,10 +21,7 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
-#include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
-#include "ble_hs_conn.h"
-#include "ble_gatt_priv.h"
 #include "ble_hs_test_util.h"
 
 #define BLE_GATT_BREAK_TEST_DISC_SERVICE_HANDLE     1

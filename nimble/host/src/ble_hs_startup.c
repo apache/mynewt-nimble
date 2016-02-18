@@ -21,8 +21,7 @@
 #include <assert.h>
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
-#include "ble_hci_sched.h"
-#include "ble_hs_startup.h"
+#include "ble_hs_priv.h"
 
 #define BLE_HS_STARTUP_STATE_IDLE                       0
 #define BLE_HS_STARTUP_STATE_RESET                      1
