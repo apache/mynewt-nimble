@@ -144,9 +144,12 @@ static bssnz_t struct {
     uint8_t dir_addr[BLE_DEV_ADDR_LEN];
 
     struct hci_adv_params adv_params;
-    int8_t tx_pwr_lvl;
-    uint8_t adv_data_len;
+    struct hci_adv_params rsp_params;
     uint8_t adv_data[BLE_HCI_MAX_ADV_DATA_LEN];
+    uint8_t rsp_data[BLE_HCI_MAX_ADV_DATA_LEN];
+    uint8_t adv_data_len;
+    uint8_t rsp_data_len;
+    int8_t tx_pwr_lvl;
 } ble_gap_slave;
 
 static bssnz_t struct {
@@ -216,8 +219,8 @@ STATS_NAME_START(ble_gap_stats)
     STATS_NAME(ble_gap_stats, adv_stop_fail)
     STATS_NAME(ble_gap_stats, adv_start)
     STATS_NAME(ble_gap_stats, adv_start_fail)
-    STATS_NAME(ble_gap_stats, adv_set_field)
-    STATS_NAME(ble_gap_stats, adv_set_field_fail)
+    STATS_NAME(ble_gap_stats, adv_set_fields)
+    STATS_NAME(ble_gap_stats, adv_set_fields_fail)
     STATS_NAME(ble_gap_stats, discover)
     STATS_NAME(ble_gap_stats, discover_fail)
     STATS_NAME(ble_gap_stats, initiate)
@@ -1680,7 +1683,7 @@ done:
         ble_gap_log_adv();
         BLE_HS_LOG(INFO, "\n");
     } else {
-        STATS_INC(ble_gap_stats, adv_set_field_fail);
+        STATS_INC(ble_gap_stats, adv_set_fields_fail);
     }
 
     return rc;
@@ -1810,11 +1813,11 @@ ble_gap_adv_enable_tx(void *arg)
 static int
 ble_gap_adv_rsp_data_tx(void *arg)
 {
-    uint8_t rsp_data[BLE_HCI_MAX_SCAN_RSP_DATA_LEN] = { 0 }; /* XXX */
     int rc;
 
     ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
-    rc = host_hci_cmd_le_set_scan_rsp_data(rsp_data, sizeof rsp_data);
+    rc = host_hci_cmd_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
+                                           ble_gap_slave.rsp_data_len);
     if (rc != 0) {
         ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, BLE_HS_HCI_ERR(rc), 1);
         return 1;
@@ -2133,13 +2136,37 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
 
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_set_field);
+    STATS_INC(ble_gap_stats, adv_set_fields);
 
     rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
                                &ble_gap_slave.adv_data_len,
                                BLE_GAP_ADV_DATA_LIMIT);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_field_fail);
+        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+    }
+
+    return rc;
+}
+
+/**
+ * Lock restrictions: None.
+ */
+int
+ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields)
+{
+#if !NIMBLE_OPT_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+
+    STATS_INC(ble_gap_stats, adv_rsp_set_fields);
+
+    rc = ble_hs_adv_set_fields(rsp_fields, ble_gap_slave.rsp_data,
+                               &ble_gap_slave.rsp_data_len,
+                               BLE_HCI_MAX_ADV_DATA_LEN);
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, adv_rsp_set_fields_fail);
     }
 
     return rc;

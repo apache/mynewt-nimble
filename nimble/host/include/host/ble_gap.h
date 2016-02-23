@@ -171,6 +171,7 @@ int ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       ble_gap_conn_fn *cb, void *cb_arg);
 int ble_gap_adv_stop(void);
 int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
+int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t scan_type, uint8_t filter_policy,
                       ble_gap_disc_fn *cb, void *cb_arg);
