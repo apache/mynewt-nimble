@@ -63,7 +63,7 @@ void ble_hs_test_util_rx_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);
 void ble_hs_test_util_rx_und_adv_acks(void);
-void ble_hs_test_util_rx_und_adv_acks_count(int count);
+void ble_hs_test_util_rx_und_adv_acks_count(int start, int count);
 void ble_hs_test_util_rx_dir_adv_acks(void);
 uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
                                         uint8_t *out_param_len);
