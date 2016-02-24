@@ -175,6 +175,7 @@ ble_ll_adv_addr_cmp(uint8_t *rxbuf)
 static void
 ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
 {
+    int         is_direct_adv;
     uint8_t     adv_data_len;
     uint8_t     *dptr;
     uint8_t     pdulen;
@@ -185,6 +186,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     /* assume this is not a direct ind */
     adv_data_len = advsm->adv_len;
     pdulen = BLE_DEV_ADDR_LEN + adv_data_len;
+    is_direct_adv = 0;
 
     /* Must be an advertising type! */
     switch (advsm->adv_type) {
@@ -202,6 +204,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
 
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+        is_direct_adv = 1;
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
@@ -225,7 +228,6 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     /* Set the PDU length in the state machine (includes header) */
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
-
     /* Construct scan response */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         addr = g_dev_addr;
@@ -233,7 +235,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
         addr = g_random_addr;
     } else {
-        /* XXX: unsupported for now  */
+        /* XXX: unsupported for now. Should never happen */
         addr = NULL;
         assert(0);
     }
@@ -250,7 +252,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     dptr += BLE_DEV_ADDR_LEN;
 
     /* For ADV_DIRECT_IND, we need to put initiators address in there */
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+    if (is_direct_adv) {
         memcpy(dptr, advsm->initiator_addr, BLE_DEV_ADDR_LEN);
     }
 
@@ -541,6 +543,14 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    /* 
+     * XXX: return unsupported feature if own is address is not public or
+     * static random as we have not implemented non-static random addresses.
+     */ 
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
     /* There are only three adv channels, so check for any outside the range */
     adv_chanmask = cmd[13];
     if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
@@ -552,8 +562,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* XXX: determine if there is anything that needs to be done for
-       own address type or peer address type */
+    /* Fill out rest of advertising state machine */
     advsm->own_addr_type = own_addr_type;
     advsm->peer_addr_type = peer_addr_type;
     advsm->adv_filter_policy = adv_filter_policy;
@@ -615,19 +624,15 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t adv_chan;
 
     /* 
-     * XXX: not sure if I should do this or just report whatever random
-     * address the host sent. For now, I will reject the command with a
-     * command disallowed error. All the parameter errors refer to the command
-     * parameter (which in this case is just enable or disable).
+     * This is not in the specification. I will reject the command with a
+     * command disallowed error if no random address has been sent by the
+     * host. All the parameter errors refer to the command
+     * parameter (which in this case is just enable or disable) so that
+     * is why I chose command disallowed.
      */ 
-    if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
+    if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
-        }
-
-        /* XXX: support these other types */
-        if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            assert(0);
         }
     }
 

@@ -216,13 +216,12 @@ int
 host_hci_cmd_le_set_rand_addr(uint8_t *addr)
 {
     int rc;
-    uint8_t cmd[BLE_DEV_ADDR_LEN];
 
     /* Check for valid parameters */
     rc = -1;
     if (addr) {
         rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_RAND_ADDR,
-                                  BLE_DEV_ADDR_LEN, cmd);
+                                  BLE_DEV_ADDR_LEN, addr);
     }
 
     return rc;

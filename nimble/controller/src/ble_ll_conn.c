@@ -1741,7 +1741,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* Should we send a connect request? */
     if (chk_send_req) {
-        /* Check filter policy */
+        /* Get advertisers address type */
         adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
         if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
             addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
@@ -1768,11 +1768,10 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
         }
 
-        /* XXX: note: this crashed during interop testing! conn_create_sm=NULL*/
         /* Attempt to schedule new connection. Possible that this might fail */
         if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, 
-                                   ble_hdr->end_cputime,
-                                   BLE_LL_CFG_CONN_INIT_SLOTS)) {
+                                     ble_hdr->end_cputime,
+                                     BLE_LL_CFG_CONN_INIT_SLOTS)) {
             /* Setup to transmit the connect request */
             rc = ble_ll_conn_request_send(addr_type, adv_addr, 
                                           g_ble_ll_conn_create_sm->tx_win_off);

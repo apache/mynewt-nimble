@@ -944,6 +944,9 @@ ble_ll_reset(void)
     /* Set state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
+    /* Reset our random address */
+    memset(g_random_addr, 0, BLE_DEV_ADDR_LEN);
+
     /* Re-initialize the PHY */
     rc = ble_phy_init();
 

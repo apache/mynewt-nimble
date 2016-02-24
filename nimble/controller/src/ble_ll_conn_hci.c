@@ -342,6 +342,12 @@ ble_ll_conn_create(uint8_t *cmdbuf)
         if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_MAX) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
+
+        /* XXX: not supported */
+        if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
+            return BLE_ERR_UNSUPPORTED;
+        }
+        
         memcpy(&hcc->peer_addr, cmdbuf + 6, BLE_DEV_ADDR_LEN);
     }
 
@@ -349,6 +355,11 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     hcc->own_addr_type = cmdbuf[12];
     if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* XXX: not supported */
+    if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        return BLE_ERR_UNSUPPORTED;
     }
 
     /* Check connection interval, latency and supervision timeoout */

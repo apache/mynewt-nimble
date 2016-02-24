@@ -604,19 +604,15 @@ static int
 ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 {
     /* 
-     * XXX: not sure if I should do this or just report whatever random
-     * address the host sent. For now, I will reject the command with a
-     * command disallowed error. All the parameter errors refer to the command
-     * parameter (which in this case is just enable or disable).
+     * This is not in the specification. I will reject the command with a
+     * command disallowed error if no random address has been sent by the
+     * host. All the parameter errors refer to the command parameter
+     * (which in this case is just enable or disable) so that is why I chose
+     * command disallowed.
      */ 
-    if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
+    if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
-        }
-
-        /* XXX: support these other types */
-        if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            assert(0);
         }
     }
 
