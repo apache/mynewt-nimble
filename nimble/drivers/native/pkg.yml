@@ -18,7 +18,7 @@
 #
 
 pkg.name: net/nimble/drivers/native
-pkg.vers: 0.1
+pkg.vers: 0.8.0
 pkg.description: BLE driver for simulations.
 pkg.author: wes3 <will@runtime.io>
 pkg.homepage:

@@ -18,7 +18,7 @@
 #
 
 pkg.name: net/nimble/host
-pkg.vers: 0.1 
+pkg.vers: 0.8.0
 pkg.description: Host side of the nimble Bluetooth Smart stack.
 pkg.author: Christopher Collins <ccollins@apache.org>
 pkg.homepage:

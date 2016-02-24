@@ -18,7 +18,7 @@
 #
 
 pkg.name: net/nimble
-pkg.vers: 0.1 
+pkg.vers: 0.8.0
 pkg.description: Generic functionality for the nimble Bluetooth Smart stack; used by both the controller and the host.
 pkg.author: wes3 <will@runtime.io>
 pkg.homepage:

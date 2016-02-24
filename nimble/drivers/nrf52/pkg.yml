@@ -18,7 +18,7 @@
 #
 
 pkg.name: net/nimble/drivers/nrf52
-pkg.vers: 0.1 
+pkg.vers: 0.8.0
 pkg.description: BLE driver for nRF52 systems.
 pkg.author: wes3 <will@runtime.io>
 pkg.homepage:
