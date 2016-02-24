@@ -19,6 +19,14 @@
 
 pkg.name: net/nimble/host
 pkg.vers: 0.1 
+pkg.description: Host side of the nimble Bluetooth Smart stack.
+pkg.author: Christopher Collins <ccollins@apache.org>
+pkg.homepage:
+pkg.repository: https://git-wip-us.apache.org/repos/asf/incubator-mynewt-larva
+pkg.keywords:
+    - ble
+    - bluetooth
+
 pkg.deps:
     - sys/log
     - sys/stats

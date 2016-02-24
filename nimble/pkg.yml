@@ -19,5 +19,13 @@
 
 pkg.name: net/nimble
 pkg.vers: 0.1 
+pkg.description: Generic functionality for the nimble Bluetooth Smart stack; used by both the controller and the host.
+pkg.author: wes3 <will@runtime.io>
+pkg.homepage:
+pkg.repository: https://git-wip-us.apache.org/repos/asf/incubator-mynewt-larva
+pkg.keywords:
+    - ble
+    - bluetooth
+
 pkg.deps:
     - libs/os
