@@ -1225,7 +1225,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     /* Free mbuf or send response */
 ll_ctrl_send_rsp:
     if (rsp_opcode == 255) {
-        os_mbuf_free(om);
+        os_mbuf_free_chain(om);
     } else {
         rspbuf[0] = rsp_opcode;
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
@@ -1234,7 +1234,7 @@ ll_ctrl_send_rsp:
     return 0;
 
 rx_malformed_ctrl:
-    os_mbuf_free(om);
+    os_mbuf_free_chain(om);
     return -1;
 }
 

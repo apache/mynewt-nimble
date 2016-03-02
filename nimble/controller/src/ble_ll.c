@@ -381,7 +381,7 @@ ble_ll_tx_pkt_in(void)
         if ((pkthdr->omp_len != length) || (pb > 0x1000) || (length == 0)) {
             /* This is a bad ACL packet. Count a stat and free it */
             STATS_INC(ble_ll_stats, bad_acl_hdr);
-            os_mbuf_free(om);
+            os_mbuf_free_chain(om);
             continue;
         }
 
@@ -483,7 +483,7 @@ ble_ll_rx_pkt_in(void)
             }
 
             /* Free the packet buffer */
-            os_mbuf_free(m);
+            os_mbuf_free_chain(m);
         }
     }
 }
@@ -696,7 +696,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
         /* If this is a malformed packet, just kill it here */
         if (badpkt) {
             STATS_INC(ble_ll_stats, rx_adv_malformed_pkts);
-            os_mbuf_free(rxpdu);
+            os_mbuf_free_chain(rxpdu);
             rxpdu = NULL;
             rc = -1;
         }
@@ -863,7 +863,7 @@ ble_ll_flush_pkt_queue(struct ble_ll_pkt_q *pktq)
 
         /* Remove from queue and free the mbuf */
         STAILQ_REMOVE_HEAD(pktq, omp_next);
-        os_mbuf_free(om);
+        os_mbuf_free_chain(om);
     }
 }
 
@@ -935,8 +935,8 @@ ble_ll_reset(void)
     memset(&g_ble_ll_log, 0, sizeof(g_ble_ll_log));
 #endif
 
-    /* End all connections */
-    ble_ll_conn_reset();
+    /* Reset connection module */
+    ble_ll_conn_module_reset();
 
     /* All this does is re-initialize the event masks so call the hci init */
     ble_ll_hci_init();

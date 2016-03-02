@@ -1267,8 +1267,8 @@ ble_ll_adv_reset(void)
     ble_ll_adv_sm_stop(advsm);
 
     /* Free advertiser pdu's */
-    os_mbuf_free(advsm->adv_pdu);
-    os_mbuf_free(advsm->scan_rsp_pdu);
+    os_mbuf_free_chain(advsm->adv_pdu);
+    os_mbuf_free_chain(advsm->scan_rsp_pdu);
 
     /* re-initialize the advertiser state machine */
     ble_ll_adv_init();

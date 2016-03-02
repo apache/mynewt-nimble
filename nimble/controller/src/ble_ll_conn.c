@@ -1153,7 +1153,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
 
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
-        os_mbuf_free(m);
+        os_mbuf_free_chain(m);
     }
 
     /* Make sure events off queue */
@@ -1965,7 +1965,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 
     /* Free buffer */
 conn_rx_data_pdu_end:
-    os_mbuf_free(rxpdu);
+    os_mbuf_free_chain(rxpdu);
 }
 
 /**
@@ -2093,7 +2093,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                                                      txpdu->om_data[0])) {
                         connsm->csmflags.cfbit.terminate_ind_txd = 1;
                         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
-                        os_mbuf_free(txpdu);
+                        os_mbuf_free_chain(txpdu);
                         rc = -1;
                         goto conn_rx_pdu_end;
                     }
@@ -2120,7 +2120,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                         if (ble_ll_conn_is_l2cap_pdu(txhdr)) {
                             ++connsm->completed_pkts;
                         }
-                        os_mbuf_free(txpdu);
+                        os_mbuf_free_chain(txpdu);
                     } else {
                         /* More to go. Clear the TXD flag */
                         txhdr->txinfo.flags &= ~BLE_MBUF_HDR_F_TXD;
@@ -2264,7 +2264,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
     } else {
         /* No connection found! */
         STATS_INC(ble_ll_conn_stats, handle_not_found);
-        os_mbuf_free(om);
+        os_mbuf_free_chain(om);
     }
 }
 
@@ -2433,7 +2433,7 @@ err_slave_start:
  * Context: Link Layer task 
  */
 void
-ble_ll_conn_reset(void)
+ble_ll_conn_module_reset(void)
 {
     uint16_t maxbytes;
     struct ble_ll_conn_sm *connsm;
@@ -2529,5 +2529,5 @@ ble_ll_conn_module_init(void)
     assert(rc == 0);
 
     /* Call reset to finish reset of initialization */
-    ble_ll_conn_reset();
+    ble_ll_conn_module_reset();
 }

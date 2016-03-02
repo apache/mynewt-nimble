@@ -1264,7 +1264,7 @@ ble_ll_scan_reset(void)
     }
 
     /* Free the scan request pdu */
-    os_mbuf_free(scansm->scan_req_pdu);
+    os_mbuf_free_chain(scansm->scan_req_pdu);
 
     /* Reset duplicate advertisers and those from which we rxd a response */
     g_ble_ll_scan_num_rsp_advs = 0;
