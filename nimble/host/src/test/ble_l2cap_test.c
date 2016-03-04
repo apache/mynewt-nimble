@@ -19,16 +19,11 @@
 
 #include <stddef.h>
 #include <errno.h>
+#include "testutil/testutil.h"
 #include "nimble/hci_common.h"
-#include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "host/ble_hs_test.h"
-#include "ble_hs_conn.h"
-#include "ble_gap_priv.h"
-#include "ble_hci_sched.h"
 #include "ble_hs_test_util.h"
-#include "ble_l2cap_priv.h"
-#include "testutil/testutil.h"
 
 #define BLE_L2CAP_TEST_CID  99
 

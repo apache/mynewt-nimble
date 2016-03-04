@@ -100,7 +100,7 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
 #define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
 #define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
 #define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
-#define BLE_LL_CFG_CONN_INIT_SLOTS          (4)
+#define BLE_LL_CFG_CONN_INIT_SLOTS          (2)
 
 /* We cannot have more than 254 connections given our current implementation */
 #if (NIMBLE_OPT_MAX_CONNECTIONS >= 255)
@@ -118,16 +118,6 @@ static const uint16_t g_ble_sca_ppm_tbl[8] =
     500, 250, 150, 100, 75, 50, 30, 20
 };
 
-/* Global Link Layer connection parameters */
-struct ble_ll_conn_global_params
-{
-    uint8_t supp_max_tx_octets;
-    uint8_t supp_max_rx_octets;
-    uint8_t conn_init_max_tx_octets;
-    uint16_t conn_init_max_tx_time;
-    uint16_t supp_max_tx_time;
-    uint16_t supp_max_rx_time;
-};
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
 
 /* Pointer to connection state machine we are trying to create */
@@ -145,28 +135,64 @@ struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
 /* List of free connections */
 struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 
-/* Statistics */
-struct ble_ll_conn_stats
-{
-    uint32_t cant_set_sched;
-    uint32_t conn_ev_late;
-    uint32_t wfr_expirations;
-    uint32_t handle_not_found;
-    uint32_t no_tx_pdu;
-    uint32_t no_conn_sm;
-    uint32_t no_free_conn_sm;
-    uint32_t rx_data_pdu_no_conn;
-    uint32_t rx_data_pdu_bad_aa;
-    uint32_t slave_rxd_bad_conn_req_params;
-    uint32_t slave_ce_failures;
-    uint32_t rx_resent_pdus;
-    uint32_t data_pdu_rx_dup;
-    uint32_t data_pdu_txg;
-    uint32_t data_pdu_txf;
-    uint32_t conn_req_txd;
-    uint32_t l2cap_enqueued;
-};
-struct ble_ll_conn_stats g_ble_ll_conn_stats;
+STATS_SECT_START(ble_ll_conn_stats)
+    STATS_SECT_ENTRY(cant_set_sched)
+    STATS_SECT_ENTRY(conn_ev_late)
+    STATS_SECT_ENTRY(wfr_expirations)
+    STATS_SECT_ENTRY(handle_not_found)
+    STATS_SECT_ENTRY(no_tx_pdu)
+    STATS_SECT_ENTRY(no_conn_sm)
+    STATS_SECT_ENTRY(no_free_conn_sm)
+    STATS_SECT_ENTRY(rx_data_pdu_no_conn)
+    STATS_SECT_ENTRY(rx_data_pdu_bad_aa)
+    STATS_SECT_ENTRY(slave_rxd_bad_conn_req_params)
+    STATS_SECT_ENTRY(slave_ce_failures)
+    STATS_SECT_ENTRY(rx_resent_pdus)
+    STATS_SECT_ENTRY(data_pdu_rx_dup)
+    STATS_SECT_ENTRY(data_pdu_txg)
+    STATS_SECT_ENTRY(data_pdu_txf)
+    STATS_SECT_ENTRY(conn_req_txd)
+    STATS_SECT_ENTRY(l2cap_enqueued)
+    STATS_SECT_ENTRY(rx_ctrl_pdus)
+    STATS_SECT_ENTRY(rx_l2cap_pdus)
+    STATS_SECT_ENTRY(rx_malformed_ctrl_pdus)
+    STATS_SECT_ENTRY(rx_bad_llid)
+    STATS_SECT_ENTRY(tx_ctrl_pdus)
+    STATS_SECT_ENTRY(tx_ctrl_bytes)
+    STATS_SECT_ENTRY(tx_l2cap_pdus)
+    STATS_SECT_ENTRY(tx_l2cap_bytes)
+    STATS_SECT_ENTRY(tx_empty_pdus)
+STATS_SECT_END
+STATS_SECT_DECL(ble_ll_conn_stats) ble_ll_conn_stats;
+
+STATS_NAME_START(ble_ll_conn_stats)
+    STATS_NAME(ble_ll_conn_stats, cant_set_sched)
+    STATS_NAME(ble_ll_conn_stats, conn_ev_late)
+    STATS_NAME(ble_ll_conn_stats, wfr_expirations)
+    STATS_NAME(ble_ll_conn_stats, handle_not_found)
+    STATS_NAME(ble_ll_conn_stats, no_tx_pdu)
+    STATS_NAME(ble_ll_conn_stats, no_conn_sm)
+    STATS_NAME(ble_ll_conn_stats, no_free_conn_sm)
+    STATS_NAME(ble_ll_conn_stats, rx_data_pdu_no_conn)
+    STATS_NAME(ble_ll_conn_stats, rx_data_pdu_bad_aa)
+    STATS_NAME(ble_ll_conn_stats, slave_rxd_bad_conn_req_params)
+    STATS_NAME(ble_ll_conn_stats, slave_ce_failures)
+    STATS_NAME(ble_ll_conn_stats, rx_resent_pdus)
+    STATS_NAME(ble_ll_conn_stats, data_pdu_rx_dup)
+    STATS_NAME(ble_ll_conn_stats, data_pdu_txg)
+    STATS_NAME(ble_ll_conn_stats, data_pdu_txf)
+    STATS_NAME(ble_ll_conn_stats, conn_req_txd)
+    STATS_NAME(ble_ll_conn_stats, l2cap_enqueued)
+    STATS_NAME(ble_ll_conn_stats, rx_ctrl_pdus)
+    STATS_NAME(ble_ll_conn_stats, rx_l2cap_pdus)
+    STATS_NAME(ble_ll_conn_stats, rx_malformed_ctrl_pdus)
+    STATS_NAME(ble_ll_conn_stats, rx_bad_llid)
+    STATS_NAME(ble_ll_conn_stats, tx_ctrl_pdus)
+    STATS_NAME(ble_ll_conn_stats, tx_ctrl_bytes)
+    STATS_NAME(ble_ll_conn_stats, tx_l2cap_pdus)
+    STATS_NAME(ble_ll_conn_stats, tx_l2cap_bytes)
+    STATS_NAME(ble_ll_conn_stats, tx_empty_pdus)
+STATS_NAME_END(ble_ll_conn_stats)
 
 /* Some helpful macros */
 #define BLE_IS_RETRY_M(ble_hdr) ((ble_hdr)->txinfo.flags & BLE_MBUF_HDR_F_TXD)
@@ -289,7 +315,7 @@ ble_ll_conn_sm_get(void)
     if (connsm) {
         STAILQ_REMOVE_HEAD(&g_ble_ll_conn_free_list, free_stqe);
     } else {
-        ++g_ble_ll_conn_stats.no_free_conn_sm;
+        STATS_INC(ble_ll_conn_stats, no_free_conn_sm);
     }
 
     return connsm;
@@ -464,6 +490,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
 {
     int     i;
     int     j;
+    uint8_t chan;
     uint8_t curchan;
     uint8_t remap_index;
     uint8_t bitpos;
@@ -490,6 +517,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
         /* NOTE: possible to build a map but this would use memory. For now,
            we just calculate */
         /* Iterate through channel map to find this channel */
+        chan = 0;
         cntr = 0;
         for (i = 0; i < BLE_LL_CONN_CHMAP_LEN; i++) {
             usable_chans = conn->chanmap[i];
@@ -498,13 +526,14 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
                 for (j = 0; j < 8; j++) {
                     if (usable_chans & mask) {
                         if (cntr == remap_index) {
-                            return cntr;
+                            return (chan + j);
                         }
                         ++cntr;
                     }
                     mask <<= 1;
                 }
             }
+            chan += 8;
         }
     }
 
@@ -526,7 +555,7 @@ ble_ll_conn_wfr_timer_exp(void)
     ble_ll_conn_current_sm_over();
     if (connsm) {
         ble_ll_event_send(&connsm->conn_ev_end);
-        ++g_ble_ll_conn_stats.wfr_expirations;
+        STATS_INC(ble_ll_conn_stats, wfr_expirations);
     }
 }
 
@@ -709,10 +738,10 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     rc = ble_phy_tx(m, beg_transition, end_transition);
     if (!rc) {
         /* Log transmit on connection state */
+        cur_txlen = ble_hdr->txinfo.pyld_len;
         ble_ll_log(BLE_LL_LOG_ID_CONN_TX, 
                    hdr_byte, 
-                   ((uint16_t)ble_hdr->txinfo.offset << 8) | 
-                              ble_hdr->txinfo.pyld_len,
+                   ((uint16_t)ble_hdr->txinfo.offset << 8) | cur_txlen,
                    (uint32_t)m);
 
         /* Set flag denoting we transmitted a pdu */
@@ -723,13 +752,13 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
 
         /* Increment packets transmitted */
         if (tx_empty_pdu) {
-            ++g_ble_ll_stats.tx_empty_pdus;
+            STATS_INC(ble_ll_conn_stats, tx_empty_pdus);
         } else if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
-            ++g_ble_ll_stats.tx_ctrl_pdus;
-            g_ble_ll_stats.tx_ctrl_bytes += ble_hdr->txinfo.pyld_len; 
+            STATS_INC(ble_ll_conn_stats, tx_ctrl_pdus);
+            STATS_INCN(ble_ll_conn_stats, tx_ctrl_bytes, cur_txlen);
         } else {
-            ++g_ble_ll_stats.tx_l2cap_pdus;
-            g_ble_ll_stats.tx_l2cap_bytes += ble_hdr->txinfo.pyld_len;
+            STATS_INC(ble_ll_conn_stats, tx_l2cap_pdus);
+            STATS_INCN(ble_ll_conn_stats, tx_l2cap_bytes, cur_txlen);
         }
     }
 
@@ -784,7 +813,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         rc = ble_phy_rx();
         if (rc) {
             /* End the connection event as we have no more buffers */
-            ++g_ble_ll_conn_stats.slave_ce_failures;
+            STATS_INC(ble_ll_conn_stats, slave_ce_failures);
             rc = BLE_LL_SCHED_STATE_DONE;
         } else {
             /* 
@@ -940,13 +969,10 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
         connsm->max_ce_len = hcc->max_ce_len;
     }
 
-    /* 
-     * XXX: for now, just set the channel map to all 1's. Needs to get
-     * set to default or initialized or something
-     */ 
-    connsm->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
-    memset(connsm->chanmap, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
-    connsm->chanmap[4] = 0x1f;
+    /* Set channel map to map requested by host */
+    connsm->num_used_chans = g_ble_ll_conn_params.num_used_chans;
+    memcpy(connsm->chanmap, g_ble_ll_conn_params.master_chan_map,
+           BLE_LL_CONN_CHMAP_LEN);
 
     /*  Calculate random access address and crc initialization value */
     connsm->access_addr = ble_ll_conn_calc_access_addr();
@@ -1127,7 +1153,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
 
         m = (struct os_mbuf *)((uint8_t *)pkthdr - sizeof(struct os_mbuf));
-        os_mbuf_free(m);
+        os_mbuf_free_chain(m);
     }
 
     /* Make sure events off queue */
@@ -1206,18 +1232,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         connsm->csmflags.cfbit.host_expects_upd_event = 0;
     }
 
-    /* 
-     * XXX: not quite sure I am interpreting slave latency correctly here.
-     * The spec says if you applied slave latency and you dont hear a packet,
-     * you dont apply slave latency. Does that mean you dont apply slave
-     * latency until you hear a packet or on the next interval if you listen
-     * and dont hear anything, can you apply slave latency?
-     */
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
-    if (connsm->csmflags.cfbit.allow_slave_latency && 
-        !connsm->csmflags.cfbit.conn_update_scheduled) {
+    if (connsm->csmflags.cfbit.allow_slave_latency      && 
+        !connsm->csmflags.cfbit.conn_update_scheduled   &&
+        !connsm->csmflags.cfbit.chanmap_update_scheduled) {
         if (connsm->csmflags.cfbit.pkt_rxd) {
             latency += connsm->slave_latency;
             itvl = itvl * latency;
@@ -1265,6 +1285,34 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         /* Reset update scheduled flag */
         connsm->csmflags.cfbit.conn_update_scheduled = 0;
+    }
+
+    /* 
+     * If there is a channel map request pending and we have reached the
+     * instant, change to new channel map. Note there is a special case here.
+     * If we received a channel map update with an instant equal to the event
+     * counter, when we get here the event counter has already been
+     * incremented by 1. That is why we do a signed comparison and change to
+     * new channel map once the event counter equals or has passed channel
+     * map update instant.
+     */ 
+    if (connsm->csmflags.cfbit.chanmap_update_scheduled && 
+        ((int16_t)(connsm->chanmap_instant - connsm->event_cntr) <= 0)) {
+
+        /* XXX: there is a chance that the control packet is still on
+         * the queue of the master. This means that we never successfully
+         * transmitted update request. Would end up killing connection
+           on slave side. Could ignore it or see if still enqueued. */
+        connsm->num_used_chans = 
+            ble_ll_conn_calc_used_chans(connsm->req_chanmap);
+        memcpy(connsm->chanmap, connsm->req_chanmap, BLE_LL_CONN_CHMAP_LEN);
+
+        connsm->csmflags.cfbit.chanmap_update_scheduled = 0;
+
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
+
+        /* XXX: host could have resent channel map command. Need to
+           check to make sure we dont have to restart! */
     }
 
     /* Calculate data channel index of next connection event */
@@ -1362,7 +1410,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
         /* Start the scheduler for the first connection event */
         while (ble_ll_sched_slave_new(connsm)) {
             if (ble_ll_conn_next_event(connsm)) {
-                ++g_ble_ll_conn_stats.cant_set_sched;
+                STATS_INC(ble_ll_conn_stats, cant_set_sched);
                 rc = 0;
                 break;
             }
@@ -1693,7 +1741,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* Should we send a connect request? */
     if (chk_send_req) {
-        /* Check filter policy */
+        /* Get advertisers address type */
         adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
         if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
             addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
@@ -1720,21 +1768,20 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
         }
 
-        /* XXX: note: this crashed during interop testing! conn_create_sm=NULL*/
         /* Attempt to schedule new connection. Possible that this might fail */
         if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, 
-                                   ble_hdr->end_cputime,
-                                   BLE_LL_CFG_CONN_INIT_SLOTS)) {
+                                     ble_hdr->end_cputime,
+                                     BLE_LL_CFG_CONN_INIT_SLOTS)) {
             /* Setup to transmit the connect request */
             rc = ble_ll_conn_request_send(addr_type, adv_addr, 
                                           g_ble_ll_conn_create_sm->tx_win_off);
             if (!rc) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CONN_REQ_TXD;
-                ++g_ble_ll_conn_stats.conn_req_txd;
+                STATS_INC(ble_ll_conn_stats, conn_req_txd);
             }
         } else {
             /* Count # of times we could not set schedule */
-            ++g_ble_ll_conn_stats.cant_set_sched;
+            STATS_INC(ble_ll_conn_stats, cant_set_sched);
         }
     }
 
@@ -1836,9 +1883,6 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     struct ble_ll_conn_sm *connsm;
     
     if (BLE_MBUF_HDR_CRC_OK(hdr)) {
-        /* Count valid received data pdus */
-        ++g_ble_ll_stats.rx_valid_data_pdus;
-
         /* XXX: there is a chance that the connection was thrown away and
            re-used before processing packets here. Fix this. */
         /* We better have a connection state machine */
@@ -1857,7 +1901,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
             /* Check that the LLID is reasonable */
             if ((acl_hdr == 0) || 
                 ((acl_hdr == BLE_LL_LLID_DATA_START) && (acl_len == 0))) {
-                ++g_ble_ll_stats.rx_bad_llid;
+                STATS_INC(ble_ll_conn_stats, rx_bad_llid);
                 goto conn_rx_data_pdu_end;
             }
 
@@ -1889,12 +1933,14 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 }
 
                 if (acl_hdr == BLE_LL_LLID_CTRL) {
-                    /* Process control frame! For now just free */
-                    ++g_ble_ll_stats.rx_ctrl_pdus;
-                    ble_ll_ctrl_rx_pdu(connsm, rxpdu);
+                    /* Process control frame */
+                    STATS_INC(ble_ll_conn_stats, rx_ctrl_pdus);
+                    if (ble_ll_ctrl_rx_pdu(connsm, rxpdu)) {
+                        STATS_INC(ble_ll_conn_stats, rx_malformed_ctrl_pdus);
+                    }
                 } else {
                     /* Count # of data frames */
-                    ++g_ble_ll_stats.rx_l2cap_pdus;
+                    STATS_INC(ble_ll_conn_stats, rx_l2cap_pdus);
 
                     /* NOTE: there should be at least two bytes available */
                     assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
@@ -1910,18 +1956,16 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 /* NOTE: we dont free the mbuf since we handed it off! */
                 return;
             } else {
-                ++g_ble_ll_conn_stats.data_pdu_rx_dup;
+                STATS_INC(ble_ll_conn_stats, data_pdu_rx_dup);
             }
         } else {
-            ++g_ble_ll_conn_stats.no_conn_sm;
+            STATS_INC(ble_ll_conn_stats, no_conn_sm);
         }
-    } else {
-        ++g_ble_ll_stats.rx_invalid_data_pdus;
     }
 
     /* Free buffer */
 conn_rx_data_pdu_end:
-    os_mbuf_free(rxpdu);
+    os_mbuf_free_chain(rxpdu);
 }
 
 /**
@@ -1961,13 +2005,13 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     rc = -1;
     connsm = g_ble_ll_conn_cur_sm;
     if (!connsm) {
-        ++g_ble_ll_conn_stats.rx_data_pdu_no_conn;
+        STATS_INC(ble_ll_conn_stats, rx_data_pdu_no_conn);
         goto conn_exit;
     }
 
     /* Double check access address. Better match connection state machine! */
     if (aa != connsm->access_addr) {
-        ++g_ble_ll_conn_stats.rx_data_pdu_bad_aa;
+        STATS_INC(ble_ll_conn_stats, rx_data_pdu_bad_aa);
         goto conn_exit;
     }
 
@@ -2017,7 +2061,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
             connsm->next_exp_seqnum ^= 1;
         } else {
             /* Count re-sent PDUs. */
-            ++g_ble_ll_conn_stats.rx_resent_pdus;
+            STATS_INC(ble_ll_conn_stats, rx_resent_pdus);
         }
 
         /* 
@@ -2029,11 +2073,11 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
             conn_sn = connsm->tx_seqnum;
             if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
                 /* We did not get an ACK. Must retry the PDU */
-                ++g_ble_ll_conn_stats.data_pdu_txf;
+                STATS_INC(ble_ll_conn_stats, data_pdu_txf);
             } else {
                 /* Transmit success */
                 connsm->tx_seqnum ^= 1;
-                ++g_ble_ll_conn_stats.data_pdu_txg;
+                STATS_INC(ble_ll_conn_stats, data_pdu_txg);
 
                 /* 
                  * Determine if we should remove packet from queue or if there
@@ -2049,7 +2093,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                                                      txpdu->om_data[0])) {
                         connsm->csmflags.cfbit.terminate_ind_txd = 1;
                         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
-                        os_mbuf_free(txpdu);
+                        os_mbuf_free_chain(txpdu);
                         rc = -1;
                         goto conn_rx_pdu_end;
                     }
@@ -2076,14 +2120,14 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                         if (ble_ll_conn_is_l2cap_pdu(txhdr)) {
                             ++connsm->completed_pkts;
                         }
-                        os_mbuf_free(txpdu);
+                        os_mbuf_free_chain(txpdu);
                     } else {
                         /* More to go. Clear the TXD flag */
                         txhdr->txinfo.flags &= ~BLE_MBUF_HDR_F_TXD;
                     }
                 } else {
                     /* No packet on queue? This is an error! */
-                    ++g_ble_ll_conn_stats.no_tx_pdu;
+                    STATS_INC(ble_ll_conn_stats, no_tx_pdu);
                 }
             }
         }
@@ -2213,14 +2257,44 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
         }
 
         /* Add to total l2cap pdus enqueue */
-        ++g_ble_ll_conn_stats.l2cap_enqueued;
+        STATS_INC(ble_ll_conn_stats, l2cap_enqueued);
 
         /* Clear flags field in BLE header */
         ble_ll_conn_enqueue_pkt(connsm, om, hdr_byte, length);
     } else {
         /* No connection found! */
-        ++g_ble_ll_conn_stats.handle_not_found;
-        os_mbuf_free(om);
+        STATS_INC(ble_ll_conn_stats, handle_not_found);
+        os_mbuf_free_chain(om);
+    }
+}
+
+/**
+ * Called to set the global channel mask that we use for all connections.
+ * 
+ * @param num_used_chans 
+ * @param chanmap 
+ */
+void
+ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
+{
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_conn_global_params *conn_params;
+
+    /* Do nothing if same channel map */
+    conn_params = &g_ble_ll_conn_params;
+    if (!memcmp(conn_params->master_chan_map, chanmap, BLE_LL_CONN_CHMAP_LEN)) {
+        return;
+    }
+
+    /* Change channel map and cause channel map update procedure to start */
+    conn_params->num_used_chans = num_used_chans;
+    memcpy(conn_params->master_chan_map, chanmap, BLE_LL_CONN_CHMAP_LEN);
+
+    /* Perform channel map update */
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
+        }
     }
 }
 
@@ -2347,7 +2421,7 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end)
 
 err_slave_start:
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
-    ++g_ble_ll_conn_stats.slave_rxd_bad_conn_req_params;
+    STATS_INC(ble_ll_conn_stats, slave_rxd_bad_conn_req_params);
     return 0;
 }
 
@@ -2359,9 +2433,11 @@ err_slave_start:
  * Context: Link Layer task 
  */
 void
-ble_ll_conn_reset(void)
+ble_ll_conn_module_reset(void)
 {
+    uint16_t maxbytes;
     struct ble_ll_conn_sm *connsm;
+    struct ble_ll_conn_global_params *conn_params;
 
     /* Kill the current one first (if one is running) */
     if (g_ble_ll_conn_cur_sm) {
@@ -2378,17 +2454,39 @@ ble_ll_conn_reset(void)
         }
         ble_ll_conn_end(connsm, BLE_ERR_SUCCESS);
     }
+
+    /* Configure the global LL parameters */
+    conn_params = &g_ble_ll_conn_params;
+    maxbytes = BLE_LL_CFG_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
+    conn_params->supp_max_rx_time = BLE_TX_DUR_USECS_M(maxbytes);
+    conn_params->supp_max_rx_octets = BLE_LL_CFG_SUPP_MAX_RX_BYTES;
+
+    maxbytes = BLE_LL_CFG_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
+    conn_params->supp_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
+    conn_params->supp_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
+
+    maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
+    conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
+    conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
+
+    /* Mask in all channels by default */
+    conn_params->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
+    memset(conn_params->master_chan_map, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
+    conn_params->master_chan_map[4] = 0x1f;
+
+    /* Reset statistics */
+    memset((uint8_t *)&ble_ll_conn_stats + sizeof(struct stats_hdr), 0, 
+           sizeof(struct stats_ble_ll_conn_stats) - sizeof(struct stats_hdr));
 }
 
 /* Initialize the connection module */
 void
 ble_ll_conn_module_init(void)
 {
+    int rc;
     uint16_t i;
-    uint16_t maxbytes;
     struct os_mbuf *m;
     struct ble_ll_conn_sm *connsm;
-    struct ble_ll_conn_global_params *conn_params;
 
     /* Initialize list of active conections */
     SLIST_INIT(&g_ble_ll_conn_active_list);
@@ -2423,18 +2521,13 @@ ble_ll_conn_module_init(void)
         ++connsm;
     }
 
-    /* Configure the global LL parameters */
-    conn_params = &g_ble_ll_conn_params;
-    maxbytes = BLE_LL_CFG_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
-    conn_params->supp_max_rx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_rx_octets = BLE_LL_CFG_SUPP_MAX_RX_BYTES;
+    /* Register connection statistics */
+    rc = stats_init_and_reg(STATS_HDR(ble_ll_conn_stats), 
+                            STATS_SIZE_INIT_PARMS(ble_ll_conn_stats, STATS_SIZE_32),
+                            STATS_NAME_INIT_PARMS(ble_ll_conn_stats), 
+                            "ble_ll_conn");
+    assert(rc == 0);
 
-    maxbytes = BLE_LL_CFG_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
-    conn_params->supp_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
-
-    maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
-    conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
+    /* Call reset to finish reset of initialization */
+    ble_ll_conn_module_reset();
 }
-

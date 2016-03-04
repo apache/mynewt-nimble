@@ -386,6 +386,27 @@ ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 }
 
 /**
+ * Called to make a LL control channel map request PDU.
+ * 
+ * @param connsm    Pointer to connection state machine
+ * @param pyld      Pointer to payload of LL control PDU
+ */
+static void
+ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
+{
+    /* Copy channel map that host desires into request */
+    memcpy(pyld, g_ble_ll_conn_params.master_chan_map, BLE_LL_CONN_CHMAP_LEN);
+    memcpy(connsm->req_chanmap, pyld, BLE_LL_CONN_CHMAP_LEN);
+
+    /* Place instant into request */
+    connsm->chanmap_instant = connsm->event_cntr + connsm->slave_latency + 6 + 1;
+    htole16(pyld + BLE_LL_CONN_CHMAP_LEN, connsm->chanmap_instant);
+
+    /* Set scheduled flag */
+    connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
+}
+
+/**
  * Called to make a connection update request LL control PDU
  *  
  * Context: Link Layer 
@@ -633,6 +654,18 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         }
     }
 
+    /* 
+     * If we are a master and we currently performing a channel map
+     * update procedure we need to return an error
+     */ 
+    if ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) &&
+        (connsm->csmflags.cfbit.chanmap_update_scheduled)) {
+        rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
+        rspbuf[1] = BLE_LL_CTRL_CONN_PARM_REQ;
+        rspbuf[2] = BLE_ERR_DIFF_TRANS_COLL;
+        return rsp_opcode;
+    }
+
     /* Process the received connection parameter request */
     rsp_opcode = ble_ll_ctrl_conn_param_pdu_proc(connsm, dptr, rspbuf,
                                                  BLE_LL_CTRL_CONN_PARM_REQ);
@@ -709,6 +742,32 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 }
 
 /**
+ * Called to process a received channel map request control pdu. 
+ *  
+ * Context: Link Layer task 
+ * 
+ * @param connsm 
+ * @param dptr 
+ */
+static void
+ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint16_t instant;
+    uint16_t conn_events;
+
+    /* If instant is in the past, we have to end the connection */
+    instant = le16toh(dptr + BLE_LL_CONN_CHMAP_LEN);
+    conn_events = (instant - connsm->event_cntr) & 0xFFFF;
+    if (conn_events >= 32767) {
+        ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
+    } else {
+        connsm->chanmap_instant = instant;
+        memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
+        connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
+    }
+}
+
+/**
  * Callback when LL control procedure times out (for a given connection). If 
  * this is called, it means that we need to end the connection because it 
  * has not responded to a LL control request. 
@@ -750,6 +809,10 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
         case BLE_LL_CTRL_PROC_CONN_UPDATE:
             opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
             ble_ll_ctrl_conn_upd_make(connsm, dptr + 1, NULL);
+            break;
+        case BLE_LL_CTRL_PROC_CHAN_MAP_UPD:
+            opcode = BLE_LL_CTRL_CHANNEL_MAP_REQ;
+            ble_ll_ctrl_chanmap_req_make(connsm, dptr + 1);
             break;
         case BLE_LL_CTRL_PROC_FEATURE_XCHG:
             if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
@@ -910,14 +973,16 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             connsm->cur_ctrl_proc = ctrl_proc;
 
             /* Initialize the procedure response timeout */
-            os_callout_func_init(&connsm->ctrl_proc_rsp_timer, 
-                                 &g_ble_ll_data.ll_evq, 
-                                 ble_ll_ctrl_proc_rsp_timer_cb, 
-                                 connsm);
+            if (ctrl_proc != BLE_LL_CTRL_PROC_CHAN_MAP_UPD) {
+                os_callout_func_init(&connsm->ctrl_proc_rsp_timer,
+                                     &g_ble_ll_data.ll_evq, 
+                                     ble_ll_ctrl_proc_rsp_timer_cb, 
+                                     connsm);
 
-            /* Re-start the timer. Control procedure timeout is 40 seconds */
-            os_callout_reset(&connsm->ctrl_proc_rsp_timer.cf_c, 
-                             OS_TICKS_PER_SEC * BLE_LL_CTRL_PROC_TIMEOUT);
+                /* Re-start timer. Control procedure timeout is 40 seconds */
+                os_callout_reset(&connsm->ctrl_proc_rsp_timer.cf_c, 
+                                 OS_TICKS_PER_SEC * BLE_LL_CTRL_PROC_TIMEOUT);
+            }
         }
     }
 
@@ -984,7 +1049,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
  * @param om 
  * @param connsm 
  */
-void
+int
 ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 {
     uint8_t features;
@@ -1055,6 +1120,11 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_CONN_UPDATE_REQ:
         rsp_opcode = ble_ll_ctrl_rx_conn_update(connsm, dptr, rspbuf);
         break;
+    case BLE_LL_CTRL_CHANNEL_MAP_REQ:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
+        }
+        break;
     case BLE_LL_CTRL_LENGTH_REQ:
         /* Extract parameters and check if valid */
         if (ble_ll_ctrl_len_proc(connsm, dptr)) {
@@ -1092,7 +1162,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_UNKNOWN_RSP:
         ble_ll_ctrl_proc_unk_rsp(connsm, dptr);
         break;
-
     case BLE_LL_CTRL_FEATURE_REQ:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf);
@@ -1103,7 +1172,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
             rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
         }
         break;
-
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
         /* Stop the control procedure */
@@ -1113,11 +1181,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
         }
         break;
-
     case BLE_LL_CTRL_VERSION_IND:
         rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspbuf + 1);
         break;
-
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf);
@@ -1127,9 +1193,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
             rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
         }
         break;
-
     /* XXX: remember to check if feature supported. Implement! */
-    case BLE_LL_CTRL_CHANNEL_MAP_REQ:
     case BLE_LL_CTRL_ENC_REQ:
     case BLE_LL_CTRL_START_ENC_REQ:
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
@@ -1161,18 +1225,17 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     /* Free mbuf or send response */
 ll_ctrl_send_rsp:
     if (rsp_opcode == 255) {
-        os_mbuf_free(om);
+        os_mbuf_free_chain(om);
     } else {
         rspbuf[0] = rsp_opcode;
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
     }
-    return;
+    return 0;
 
 rx_malformed_ctrl:
-    os_mbuf_free(om);
-    ++g_ble_ll_stats.rx_malformed_ctrl_pdus;
-    return;
+    os_mbuf_free_chain(om);
+    return -1;
 }
 
 /**

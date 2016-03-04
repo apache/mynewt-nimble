@@ -20,17 +20,12 @@
 #include <assert.h>
 #include <errno.h>
 #include "bsp/bsp.h"
+#include "stats/stats.h"
 #include "util/tpq.h"
 #include "os/os.h"
 #include "nimble/hci_transport.h"
 #include "host/host_hci.h"
-#include "ble_gatt_priv.h"
 #include "ble_hs_priv.h"
-#include "ble_att_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_hs_startup.h"
-#include "ble_hci_sched.h"
-#include "ble_gap_priv.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
 #endif
@@ -65,6 +60,16 @@ static struct os_event ble_hs_kick_l2cap_sig_ev;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
+
+STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
+STATS_NAME_START(ble_hs_stats)
+    STATS_NAME(ble_hs_stats, conn_create)
+    STATS_NAME(ble_hs_stats, conn_delete)
+    STATS_NAME(ble_hs_stats, hci_cmd)
+    STATS_NAME(ble_hs_stats, hci_event)
+    STATS_NAME(ble_hs_stats, hci_invalid_ack)
+    STATS_NAME(ble_hs_stats, hci_unknown_event)
+STATS_NAME_END(ble_hs_stats)
 
 void
 ble_hs_process_tx_data_queue(void)
@@ -260,6 +265,13 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     /* Initialize eventq */
     os_eventq_init(&ble_hs_evq);
 
+    /* Initialize stats. */
+    rc = stats_module_init();
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
+
     host_hci_init();
 
     rc = ble_hs_conn_init();
@@ -272,7 +284,10 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    ble_att_init();
+    rc = ble_att_init();
+    if (rc != 0) {
+        goto err;
+    }
 
     rc = ble_att_svr_init();
     if (rc != 0) {
@@ -313,6 +328,14 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
 
     os_mqueue_init(&ble_hs_rx_q, NULL);
     os_mqueue_init(&ble_hs_tx_q, NULL);
+
+    rc = stats_init_and_reg(
+        STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
+        STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_hs_stats), "ble_hs");
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
 
     return 0;
 

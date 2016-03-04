@@ -53,8 +53,6 @@
  * now, we set it to max.
  * 5) How does the advertising channel tx power get set? I dont implement
  * that currently.
- * 6) The time between transmissions inside an advertising event is set to
- * max. Need to deal with this.
  */
 
 /* 
@@ -95,17 +93,6 @@ struct ble_ll_adv_sm
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm;
-
-struct ble_ll_adv_stats
-{
-    uint32_t late_starts;
-    uint32_t late_tx_done;
-    uint32_t cant_set_sched;
-    uint32_t scan_rsp_txg;
-    uint32_t adv_txg;
-};
-
-struct ble_ll_adv_stats g_ble_ll_adv_stats;
 
 /* 
  * Worst case time needed for scheduled advertising item. This is the longest
@@ -188,6 +175,7 @@ ble_ll_adv_addr_cmp(uint8_t *rxbuf)
 static void
 ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
 {
+    int         is_direct_adv;
     uint8_t     adv_data_len;
     uint8_t     *dptr;
     uint8_t     pdulen;
@@ -198,6 +186,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     /* assume this is not a direct ind */
     adv_data_len = advsm->adv_len;
     pdulen = BLE_DEV_ADDR_LEN + adv_data_len;
+    is_direct_adv = 0;
 
     /* Must be an advertising type! */
     switch (advsm->adv_type) {
@@ -215,6 +204,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
 
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+        is_direct_adv = 1;
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
@@ -238,7 +228,6 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     /* Set the PDU length in the state machine (includes header) */
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
-
     /* Construct scan response */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
         addr = g_dev_addr;
@@ -246,7 +235,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
         addr = g_random_addr;
     } else {
-        /* XXX: unsupported for now  */
+        /* XXX: unsupported for now. Should never happen */
         addr = NULL;
         assert(0);
     }
@@ -263,7 +252,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     dptr += BLE_DEV_ADDR_LEN;
 
     /* For ADV_DIRECT_IND, we need to put initiators address in there */
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+    if (is_direct_adv) {
         memcpy(dptr, advsm->initiator_addr, BLE_DEV_ADDR_LEN);
     }
 
@@ -395,14 +384,14 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         /* Check if we were late getting here */
         if ((int32_t)(start_time - (advsm->adv_pdu_start_time -
                cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS))) > 0) {
-            ++g_ble_ll_adv_stats.late_starts;
+            STATS_INC(ble_ll_stats, adv_late_starts);
         }
 
         /* Set link layer state to advertising */
         ble_ll_state_set(BLE_LL_STATE_ADV);
 
         /* Count # of adv. sent */
-        ++g_ble_ll_adv_stats.adv_txg;
+        STATS_INC(ble_ll_stats, adv_txg);
 
         /* This schedule item is now running */
         rc = BLE_LL_SCHED_STATE_RUNNING;
@@ -554,6 +543,14 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    /* 
+     * XXX: return unsupported feature if own is address is not public or
+     * static random as we have not implemented non-static random addresses.
+     */ 
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
     /* There are only three adv channels, so check for any outside the range */
     adv_chanmask = cmd[13];
     if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
@@ -565,8 +562,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* XXX: determine if there is anything that needs to be done for
-       own address type or peer address type */
+    /* Fill out rest of advertising state machine */
     advsm->own_addr_type = own_addr_type;
     advsm->peer_addr_type = peer_addr_type;
     advsm->adv_filter_policy = adv_filter_policy;
@@ -628,19 +624,15 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t adv_chan;
 
     /* 
-     * XXX: not sure if I should do this or just report whatever random
-     * address the host sent. For now, I will reject the command with a
-     * command disallowed error. All the parameter errors refer to the command
-     * parameter (which in this case is just enable or disable).
+     * This is not in the specification. I will reject the command with a
+     * command disallowed error if no random address has been sent by the
+     * host. All the parameter errors refer to the command
+     * parameter (which in this case is just enable or disable) so that
+     * is why I chose command disallowed.
      */ 
-    if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
+    if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
-        }
-
-        /* XXX: support these other types */
-        if (advsm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            assert(0);
         }
     }
 
@@ -897,7 +889,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
-            ++g_ble_ll_adv_stats.scan_rsp_txg;
+            STATS_INC(ble_ll_stats, scan_rsp_txg);
         }
     }
 
@@ -1158,20 +1150,13 @@ ble_ll_adv_event_done(void *arg)
 
         /* 
          * The scheduled time better be in the future! If it is not, we will
-         * count a statistic and close the current advertising event. We will
-         * then setup the next advertising event.
+         * just keep advancing until we the time is in the future
          */
         start_time = advsm->adv_pdu_start_time - 
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
 
         delta_t = (int32_t)(start_time - cputime_get32());
         if (delta_t < 0) {
-            /* Count times we were late */
-            ++g_ble_ll_adv_stats.late_tx_done;
-
-            /* Set back to first adv channel */
-            advsm->adv_chan = ble_ll_adv_first_chan(advsm);
-
             /* Calculate start time of next advertising event */
             while (delta_t < 0) {
                 itvl = advsm->adv_itvl_usecs;
@@ -1282,11 +1267,8 @@ ble_ll_adv_reset(void)
     ble_ll_adv_sm_stop(advsm);
 
     /* Free advertiser pdu's */
-    os_mbuf_free(advsm->adv_pdu);
-    os_mbuf_free(advsm->scan_rsp_pdu);
-
-    /* Reset advertising state */
-    memset(&g_ble_ll_adv_stats, 0, sizeof(struct ble_ll_adv_stats));
+    os_mbuf_free_chain(advsm->adv_pdu);
+    os_mbuf_free_chain(advsm->scan_rsp_pdu);
 
     /* re-initialize the advertiser state machine */
     ble_ll_adv_init();
@@ -1321,11 +1303,13 @@ ble_ll_adv_init(void)
     advsm->adv_txdone_ev.ev_arg = advsm;
 
     /* Get an advertising mbuf (packet header) and attach to state machine */
-    ble_get_packet(advsm->adv_pdu);
+    advsm->adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+                                        sizeof(struct ble_mbuf_hdr));
     assert(advsm->adv_pdu != NULL);
 
     /* Get a scan response mbuf (packet header) and attach to state machine */
-    ble_get_packet(advsm->scan_rsp_pdu);
+    advsm->scan_rsp_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+                                             sizeof(struct ble_mbuf_hdr));
     assert(advsm->scan_rsp_pdu != NULL);
 }
 

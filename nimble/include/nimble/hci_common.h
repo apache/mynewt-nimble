@@ -49,6 +49,12 @@
 /* NOTE: 0x07 not defined in specification  */
 #define BLE_HCI_OGF_LE                      (0x08)
 
+/* 
+ * Number of LE commands. NOTE: this is really just used to size the array
+ * containing the lengths of the LE commands.
+ */
+#define BLE_HCI_NUM_LE_CMDS                 (48)
+
 /* List of OCF for Link Control commands (OGF=0x01) */
 #define BLE_HCI_OCF_DISCONNECT_CMD          (0x0006)
 #define BLE_HCI_OCF_RD_REM_VER_INFO         (0x001D)
@@ -298,6 +304,12 @@
 
 /* --- LE connection update (OCF 0x0013) */
 #define BLE_HCI_CONN_UPDATE_LEN             (14)
+
+/* --- LE set host channel classification command (OCF 0x0014) */
+#define BLE_HCI_SET_HOST_CHAN_CLASS_LEN     (5)
+
+/* --- LE read channel map command (OCF 0x0015) */
+#define BLE_HCI_RD_CHANMAP_LEN              (2)
 
 /* --- LE read remote features (OCF 0x0016) */
 #define BLE_HCI_CONN_RD_REM_FEAT_LEN        (2)
@@ -594,5 +606,8 @@ struct hci_data_hdr
 #define BLE_HCI_PB_MIDDLE                   1
 #define BLE_HCI_PB_FIRST_FLUSH              2
 #define BLE_HCI_PB_FULL                     3
+
+/* External data structures */
+extern const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS];
 
 #endif /* H_BLE_HCI_COMMON_ */

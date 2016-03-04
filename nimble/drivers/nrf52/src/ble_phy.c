@@ -125,10 +125,15 @@ ble_phy_rxpdu_get(void)
 
     m = g_ble_phy_data.rxpdu;
     if (m == NULL) {
-        ble_get_packet(m);
+        m = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr));
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {
+            /* 
+             * NOTE: we add two bytes to the data pointer as we will prepend
+             * two bytes if we hand this received pdu up to host.
+             */
+            m->om_data += 2;
             g_ble_phy_data.rxpdu = m;
         }
     }

@@ -22,10 +22,25 @@
 
 #include "host/ble_l2cap.h"
 #include <inttypes.h>
+#include "stats/stats.h"
 #include "os/queue.h"
 #include "os/os_mbuf.h"
 struct ble_hs_conn;
 struct hci_data_hdr;
+
+STATS_SECT_START(ble_l2cap_stats)
+    STATS_SECT_ENTRY(chan_create)
+    STATS_SECT_ENTRY(chan_delete)
+    STATS_SECT_ENTRY(update_init)
+    STATS_SECT_ENTRY(update_rx)
+    STATS_SECT_ENTRY(update_fail)
+    STATS_SECT_ENTRY(proc_timeout)
+    STATS_SECT_ENTRY(sig_tx)
+    STATS_SECT_ENTRY(sig_rx)
+    STATS_SECT_ENTRY(sm_tx)
+    STATS_SECT_ENTRY(sm_rx)
+STATS_SECT_END
+extern STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
 
 #define BLE_L2CAP_SIG_HDR_SZ                4
 struct ble_l2cap_sig_hdr {
@@ -110,24 +125,20 @@ int ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
 int ble_l2cap_sig_reject_write(void *payload, uint16_t len,
                                struct ble_l2cap_sig_hdr *hdr,
                                struct ble_l2cap_sig_reject *cmd);
-int ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan,
-                            uint8_t id, uint16_t reason);
+int ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason);
 int ble_l2cap_sig_update_req_parse(void *payload, int len,
                                    struct ble_l2cap_sig_update_req *req);
 int ble_l2cap_sig_update_req_write(void *payload, int len,
                                    struct ble_l2cap_sig_hdr *hdr,
                                    struct ble_l2cap_sig_update_req *req);
-int ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
-                                struct ble_l2cap_chan *chan, uint8_t id,
+int ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
                                 struct ble_l2cap_sig_update_req *req);
 int ble_l2cap_sig_update_rsp_parse(void *payload, int len,
                                    struct ble_l2cap_sig_update_rsp *cmd);
 int ble_l2cap_sig_update_rsp_write(void *payload, int len,
                                    struct ble_l2cap_sig_hdr *hdr,
                                    struct ble_l2cap_sig_update_rsp *cmd);
-int ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
-                                struct ble_l2cap_chan *chan, uint8_t id,
+int ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id,
                                 uint16_t result);
 
 

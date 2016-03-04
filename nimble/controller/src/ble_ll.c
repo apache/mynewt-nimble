@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "stats/stats.h"
 #include "bsp/bsp.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -62,7 +63,39 @@
 struct ble_ll_obj g_ble_ll_data;
 
 /* Global link layer statistics */
-struct ble_ll_stats g_ble_ll_stats;
+STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
+STATS_NAME_START(ble_ll_stats)
+    STATS_NAME(ble_ll_stats, hci_cmds)
+    STATS_NAME(ble_ll_stats, hci_cmd_errs)
+    STATS_NAME(ble_ll_stats, hci_events_sent)
+    STATS_NAME(ble_ll_stats, bad_ll_state)
+    STATS_NAME(ble_ll_stats, bad_acl_hdr)
+    STATS_NAME(ble_ll_stats, rx_adv_pdu_crc_ok)
+    STATS_NAME(ble_ll_stats, rx_adv_pdu_crc_err)
+    STATS_NAME(ble_ll_stats, rx_adv_bytes_crc_ok)
+    STATS_NAME(ble_ll_stats, rx_adv_bytes_crc_err)
+    STATS_NAME(ble_ll_stats, rx_data_pdu_crc_ok)
+    STATS_NAME(ble_ll_stats, rx_data_pdu_crc_err)
+    STATS_NAME(ble_ll_stats, rx_data_bytes_crc_ok)
+    STATS_NAME(ble_ll_stats, rx_data_bytes_crc_err)
+    STATS_NAME(ble_ll_stats, rx_adv_malformed_pkts)
+    STATS_NAME(ble_ll_stats, rx_adv_ind)
+    STATS_NAME(ble_ll_stats, rx_adv_direct_ind)
+    STATS_NAME(ble_ll_stats, rx_adv_nonconn_ind)
+    STATS_NAME(ble_ll_stats, rx_scan_reqs)
+    STATS_NAME(ble_ll_stats, rx_scan_rsps)
+    STATS_NAME(ble_ll_stats, rx_connect_reqs)
+    STATS_NAME(ble_ll_stats, rx_scan_ind)
+    STATS_NAME(ble_ll_stats, adv_txg)
+    STATS_NAME(ble_ll_stats, adv_late_starts)
+    STATS_NAME(ble_ll_stats, sched_state_conn_errs)
+    STATS_NAME(ble_ll_stats, sched_state_adv_errs)
+    STATS_NAME(ble_ll_stats, scan_starts)
+    STATS_NAME(ble_ll_stats, scan_stops)
+    STATS_NAME(ble_ll_stats, scan_req_txf)
+    STATS_NAME(ble_ll_stats, scan_req_txg)
+    STATS_NAME(ble_ll_stats, scan_rsp_txg)
+STATS_NAME_END(ble_ll_stats)
 
 /* The BLE LL task data structure */
 #define BLE_LL_TASK_PRI     (OS_TASK_PRI_HIGHEST)
@@ -121,28 +154,27 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
     /* Count received packet types  */
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
-        ++g_ble_ll_stats.rx_adv_ind;
+        STATS_INC(ble_ll_stats, rx_adv_ind);
         break;
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        ++g_ble_ll_stats.rx_adv_direct_ind;
+        STATS_INC(ble_ll_stats, rx_adv_direct_ind);
         break;
     case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
-        ++g_ble_ll_stats.rx_adv_nonconn_ind;
+        STATS_INC(ble_ll_stats, rx_adv_nonconn_ind);
         break;
     case BLE_ADV_PDU_TYPE_SCAN_REQ:
-        ++g_ble_ll_stats.rx_scan_reqs;
+        STATS_INC(ble_ll_stats, rx_scan_reqs);
         break;
     case BLE_ADV_PDU_TYPE_SCAN_RSP:
-        ++g_ble_ll_stats.rx_scan_rsps;
+        STATS_INC(ble_ll_stats, rx_scan_rsps);
         break;
     case BLE_ADV_PDU_TYPE_CONNECT_REQ:
-        ++g_ble_ll_stats.rx_connect_reqs;
+        STATS_INC(ble_ll_stats, rx_connect_reqs);
         break;
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
-        ++g_ble_ll_stats.rx_scan_ind;
+        STATS_INC(ble_ll_stats, rx_scan_ind);
         break;
     default:
-        ++g_ble_ll_stats.rx_adv_unk_pdu_type;
         break;
     }
 }
@@ -348,13 +380,49 @@ ble_ll_tx_pkt_in(void)
         pb = handle & 0x3000;
         if ((pkthdr->omp_len != length) || (pb > 0x1000) || (length == 0)) {
             /* This is a bad ACL packet. Count a stat and free it */
-            ++g_ble_ll_stats.bad_acl_hdr;
-            os_mbuf_free(om);
+            STATS_INC(ble_ll_stats, bad_acl_hdr);
+            os_mbuf_free_chain(om);
             continue;
         }
 
         /* Hand to connection state machine */
         ble_ll_conn_tx_pkt_in(om, handle, length);
+    }
+}
+
+/**
+ * Count Link Layer statistics for received PDUs 
+ *  
+ * Context: Link layer task
+ * 
+ * @param hdr 
+ * @param len 
+ */
+static void
+ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
+{
+    uint8_t crcok;
+    uint8_t chan;
+
+    crcok = BLE_MBUF_HDR_CRC_OK(hdr);
+    chan = hdr->rxinfo.channel;
+    if (crcok) {
+        if (chan < BLE_PHY_NUM_DATA_CHANS) {
+            STATS_INC(ble_ll_stats, rx_data_pdu_crc_ok);
+            STATS_INCN(ble_ll_stats, rx_data_bytes_crc_ok, len);
+        } else {
+            STATS_INC(ble_ll_stats, rx_adv_pdu_crc_ok);
+            STATS_INCN(ble_ll_stats, rx_adv_bytes_crc_ok, len);
+            ble_ll_count_rx_adv_pdus(pdu_type);
+        }
+    } else {
+        if (chan < BLE_PHY_NUM_DATA_CHANS) {
+            STATS_INC(ble_ll_stats, rx_data_pdu_crc_err);
+            STATS_INCN(ble_ll_stats, rx_data_bytes_crc_err, len);
+        } else {
+            STATS_INC(ble_ll_stats, rx_adv_pdu_crc_err);
+            STATS_INCN(ble_ll_stats, rx_adv_bytes_crc_err, len);
+        }
     }
 }
 
@@ -372,7 +440,6 @@ ble_ll_rx_pkt_in(void)
     os_sr_t sr;
     uint8_t pdu_type;
     uint8_t *rxbuf;
-    uint8_t crcok;
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_mbuf_hdr *ble_hdr;
     struct os_mbuf *m;
@@ -388,28 +455,16 @@ ble_ll_rx_pkt_in(void)
         STAILQ_REMOVE_HEAD(&g_ble_ll_data.ll_rx_pkt_q, omp_next);
         OS_EXIT_CRITICAL(sr);
 
-        /* Count statistics */
-        rxbuf = m->om_data;
+        /* Note: pdu type wont get used unless this is an advertising pdu */
         ble_hdr = BLE_MBUF_HDR_PTR(m); 
-        crcok = BLE_MBUF_HDR_CRC_OK(ble_hdr);
-        if (crcok) {
-            /* The total bytes count the PDU header and PDU payload */
-            g_ble_ll_stats.rx_bytes += pkthdr->omp_len;
-        }
+        rxbuf = m->om_data;
+        pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+        ble_ll_count_rx_stats(ble_hdr, pkthdr->omp_len, pdu_type);
 
+        /* Process the data or advertising pdu */
         if (ble_hdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
             ble_ll_conn_rx_data_pdu(m, ble_hdr);
         } else {
-            /* Get advertising PDU type */
-            pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-            if (crcok) {
-                /* Count by type only with valid crc */
-                ++g_ble_ll_stats.rx_valid_adv_pdus;
-                ble_ll_count_rx_adv_pdus(pdu_type);
-            } else {
-                ++g_ble_ll_stats.rx_invalid_adv_pdus;
-            }
-
             /* Process the PDU */
             switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
             case BLE_LL_STATE_ADV:
@@ -423,13 +478,12 @@ ble_ll_rx_pkt_in(void)
                 break;
             default:
                 /* Any other state should never occur */
-                ++g_ble_ll_stats.bad_ll_state;
+                STATS_INC(ble_ll_stats, bad_ll_state);
                 break;
             }
 
-
             /* Free the packet buffer */
-            os_mbuf_free(m);
+            os_mbuf_free_chain(m);
         }
     }
 }
@@ -503,7 +557,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
             /* Set up to go from rx to tx */
             rc = 1;
         } else {
-            ++g_ble_ll_stats.bad_ll_state;
+            STATS_INC(ble_ll_stats, bad_ll_state);
             rc = 0;
         }
         return rc;
@@ -535,7 +589,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
     default:
         /* Should not be in this state! */
         rc = -1;
-        ++g_ble_ll_stats.bad_ll_state;
+        STATS_INC(ble_ll_stats, bad_ll_state);
         break;
     }
 
@@ -641,8 +695,8 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
 
         /* If this is a malformed packet, just kill it here */
         if (badpkt) {
-            ++g_ble_ll_stats.rx_adv_malformed_pkts;
-            os_mbuf_free(rxpdu);
+            STATS_INC(ble_ll_stats, rx_adv_malformed_pkts);
+            os_mbuf_free_chain(rxpdu);
             rxpdu = NULL;
             rc = -1;
         }
@@ -809,7 +863,7 @@ ble_ll_flush_pkt_queue(struct ble_ll_pkt_q *pktq)
 
         /* Remove from queue and free the mbuf */
         STAILQ_REMOVE_HEAD(pktq, omp_next);
-        os_mbuf_free(om);
+        os_mbuf_free_chain(om);
     }
 }
 
@@ -836,7 +890,6 @@ ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
     ble_hdr->txinfo.pyld_len = pdulen;
     ble_hdr->txinfo.hdr_byte = hdr;
 }
-
 
 /**
  * Called to reset the controller. This performs a "software reset" of the link 
@@ -874,21 +927,25 @@ ble_ll_reset(void)
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_rx_pkt_q);
 
     /* Reset LL stats */
-    memset(&g_ble_ll_stats, 0, sizeof(struct ble_ll_stats));
+    memset((uint8_t *)&ble_ll_stats + sizeof(struct stats_hdr), 0, 
+           sizeof(struct stats_ble_ll_stats) - sizeof(struct stats_hdr));
 
 #ifdef BLE_LL_LOG
     g_ble_ll_log_index = 0;
     memset(&g_ble_ll_log, 0, sizeof(g_ble_ll_log));
 #endif
 
-    /* End all connections */
-    ble_ll_conn_reset();
+    /* Reset connection module */
+    ble_ll_conn_module_reset();
 
     /* All this does is re-initialize the event masks so call the hci init */
     ble_ll_hci_init();
 
     /* Set state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    /* Reset our random address */
+    memset(g_random_addr, 0, BLE_DEV_ADDR_LEN);
 
     /* Re-initialize the PHY */
     rc = ble_phy_init();
@@ -904,6 +961,7 @@ ble_ll_reset(void)
 int
 ble_ll_init(void)
 {
+    int rc;
     uint8_t features;
     struct ble_ll_obj *lldata;
 
@@ -961,6 +1019,10 @@ ble_ll_init(void)
     os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, BLE_LL_TASK_PRI, 
                  OS_WAIT_FOREVER, g_ble_ll_stack, BLE_LL_STACK_SIZE);
 
-    return 0;
+    rc = stats_init_and_reg(STATS_HDR(ble_ll_stats), 
+                            STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32), 
+                            STATS_NAME_INIT_PARMS(ble_ll_stats), 
+                            "ble_ll");
+    return rc;
 }
 

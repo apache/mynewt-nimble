@@ -21,7 +21,6 @@
 #include <string.h>
 #include <errno.h>
 #include "nimble/ble.h"
-#include "ble_hs_adv_priv.h"
 #include "ble_hs_priv.h"
 
 static int

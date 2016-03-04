@@ -25,10 +25,6 @@
 #include "host/ble_hs_test.h"
 #include "host/ble_gatt.h"
 #include "host/ble_uuid.h"
-#include "ble_hs_priv.h"
-#include "ble_att_cmd.h"
-#include "ble_gatt_priv.h"
-#include "ble_hs_conn.h"
 #include "ble_hs_test_util.h"
 
 struct ble_gatt_disc_d_test_dsc {

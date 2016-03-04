@@ -24,9 +24,6 @@
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_att_priv.h"
-#include "ble_gatt_priv.h"
 
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
@@ -54,6 +51,20 @@ struct ble_gatts_clt_cfg {
 static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
 
+STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
+STATS_NAME_START(ble_gatts_stats)
+    STATS_NAME(ble_gatts_stats, svcs)
+    STATS_NAME(ble_gatts_stats, chrs)
+    STATS_NAME(ble_gatts_stats, dscs)
+    STATS_NAME(ble_gatts_stats, svc_def_reads)
+    STATS_NAME(ble_gatts_stats, svc_inc_reads)
+    STATS_NAME(ble_gatts_stats, chr_def_reads)
+    STATS_NAME(ble_gatts_stats, chr_val_reads)
+    STATS_NAME(ble_gatts_stats, chr_val_writes)
+    STATS_NAME(ble_gatts_stats, dsc_reads)
+    STATS_NAME(ble_gatts_stats, dsc_writes)
+STATS_NAME_END(ble_gatts_stats)
+
 /**
  * Lock restrictions: None.
  */
@@ -62,9 +73,10 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint8_t *uuid128, uint8_t op,
                      struct ble_att_svr_access_ctxt *ctxt, void *arg)
 {
+    const struct ble_gatt_svc_def *svc;
     static uint16_t uuid16;
 
-    const struct ble_gatt_svc_def *svc;
+    STATS_INC(ble_gatts_stats, svc_def_reads);
 
     assert(op == BLE_ATT_ACCESS_OP_READ);
 
@@ -95,6 +107,8 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     const struct ble_gatts_svc_entry *entry;
     uint16_t uuid16;
+
+    STATS_INC(ble_gatts_stats, svc_inc_reads);
 
     assert(op == BLE_ATT_ACCESS_OP_READ);
 
@@ -206,6 +220,8 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
     const struct ble_gatt_chr_def *chr;
     uint16_t uuid16;
 
+    STATS_INC(ble_gatts_stats, chr_def_reads);
+
     assert(op == BLE_ATT_ACCESS_OP_READ);
 
     chr = arg;
@@ -266,6 +282,23 @@ ble_gatts_chr_op(uint8_t att_op)
     }
 }
 
+static void
+ble_gatts_chr_inc_val_stat(uint8_t gatt_op)
+{
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_CHR:
+        STATS_INC(ble_gatts_stats, chr_val_reads);
+        break;
+
+    case BLE_GATT_ACCESS_OP_WRITE_CHR:
+        STATS_INC(ble_gatts_stats, chr_val_writes);
+        break;
+
+    default:
+        break;
+    }
+}
+
 /**
  * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
@@ -286,6 +319,8 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     gatt_ctxt.chr_access.chr = chr;
     gatt_ctxt.chr_access.data = att_ctxt->attr_data;
     gatt_ctxt.chr_access.len = att_ctxt->data_len;
+
+    ble_gatts_chr_inc_val_stat(gatt_op);
 
     rc = chr->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
                         chr->arg);
@@ -370,128 +405,6 @@ ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
 /**
  * Lock restrictions: None.
  */
-static int
-ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
-                           uint16_t chr_def_handle)
-{
-    struct ble_gatts_clt_cfg *cfg;
-    int i;
-
-    for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
-        cfg = cfgs + i;
-        if (cfg->chr_def_handle == chr_def_handle) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-/**
- * Lock restrictions: None.
- */
-static struct ble_gatts_clt_cfg *
-ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
-                       uint16_t chr_def_handle)
-{
-    int idx;
-
-    idx = ble_gatts_clt_cfg_find_idx(cfgs, chr_def_handle);
-    if (idx == -1) {
-        return NULL;
-    } else {
-        return cfgs + idx;
-    }
-}
-
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
-static int
-ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
-                                uint8_t *uuid128, uint8_t op,
-                                struct ble_att_svr_access_ctxt *ctxt,
-                                void *arg)
-{
-    struct ble_gatts_clt_cfg *clt_cfg;
-    uint16_t chr_def_handle;
-    uint16_t flags;
-
-    static uint8_t buf[2];
-
-    /* We always register the client characteristics descriptor with handle
-     * (chr_def + 2).
-     */
-    chr_def_handle = attr_handle - 2;
-    if (chr_def_handle > attr_handle) {
-        /* Attribute handle wrapped somehow. */
-        return BLE_ATT_ERR_UNLIKELY;
-    }
-
-    clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
-                                     attr_handle - 2);
-    if (clt_cfg == NULL) {
-        return BLE_ATT_ERR_UNLIKELY;
-    }
-
-    switch (op) {
-    case BLE_ATT_ACCESS_OP_READ:
-        htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
-        ctxt->attr_data = buf;
-        ctxt->data_len = sizeof buf;
-        break;
-
-    case BLE_ATT_ACCESS_OP_WRITE:
-        if (ctxt->data_len != 2) {
-            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-        }
-
-        flags = le16toh(ctxt->attr_data);
-        if ((flags & ~clt_cfg->allowed) != 0) {
-            return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
-        }
-
-        clt_cfg->flags = flags;
-        break;
-
-    default:
-        assert(0);
-        return BLE_ATT_ERR_UNLIKELY;
-    }
-
-    return 0;
-}
-
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
-static int
-ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
-                         uint8_t *uuid128, uint8_t op,
-                         struct ble_att_svr_access_ctxt *ctxt,
-                         void *arg)
-{
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        rc = BLE_ATT_ERR_UNLIKELY;
-    } else {
-        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
-                                             ctxt, arg);
-    }
-
-    ble_hs_conn_unlock();
-
-    return rc;
-}
-
-/**
- * Lock restrictions: None.
- */
 static uint8_t
 ble_gatts_dsc_op(uint8_t att_op)
 {
@@ -505,6 +418,23 @@ ble_gatts_dsc_op(uint8_t att_op)
     default:
         assert(0);
         return BLE_GATT_ACCESS_OP_READ_DSC;
+    }
+}
+
+static void
+ble_gatts_dsc_inc_stat(uint8_t gatt_op)
+{
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_DSC:
+        STATS_INC(ble_gatts_stats, dsc_reads);
+        break;
+
+    case BLE_GATT_ACCESS_OP_WRITE_DSC:
+        STATS_INC(ble_gatts_stats, dsc_writes);
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -528,6 +458,8 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
     gatt_ctxt.dsc_access.dsc = dsc;
     gatt_ctxt.dsc_access.data = att_ctxt->attr_data;
     gatt_ctxt.dsc_access.len = att_ctxt->data_len;
+
+    ble_gatts_dsc_inc_stat(gatt_op);
 
     rc = dsc->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
                         dsc->arg);
@@ -589,8 +521,138 @@ ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
         register_cb(BLE_GATT_REGISTER_OP_DSC, &register_ctxt, cb_arg);
     }
 
+    STATS_INC(ble_gatts_stats, dscs);
+
     return 0;
 
+}
+
+/**
+ * Lock restrictions: None.
+ */
+static int
+ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
+                           uint16_t chr_def_handle)
+{
+    struct ble_gatts_clt_cfg *cfg;
+    int i;
+
+    for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
+        cfg = cfgs + i;
+        if (cfg->chr_def_handle == chr_def_handle) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/**
+ * Lock restrictions: None.
+ */
+static struct ble_gatts_clt_cfg *
+ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
+                       uint16_t chr_def_handle)
+{
+    int idx;
+
+    idx = ble_gatts_clt_cfg_find_idx(cfgs, chr_def_handle);
+    if (idx == -1) {
+        return NULL;
+    } else {
+        return cfgs + idx;
+    }
+}
+
+/**
+ * Lock restrictions: Caller must lock ble_hs_conn mutex.
+ */
+static int
+ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
+                                uint8_t *uuid128, uint8_t att_op,
+                                struct ble_att_svr_access_ctxt *ctxt,
+                                void *arg)
+{
+    struct ble_gatts_clt_cfg *clt_cfg;
+    uint16_t chr_def_handle;
+    uint16_t flags;
+    uint8_t gatt_op;
+
+    static uint8_t buf[2];
+
+    /* We always register the client characteristics descriptor with handle
+     * (chr_def + 2).
+     */
+    chr_def_handle = attr_handle - 2;
+    if (chr_def_handle > attr_handle) {
+        /* Attribute handle wrapped somehow. */
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
+                                     attr_handle - 2);
+    if (clt_cfg == NULL) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    gatt_op = ble_gatts_dsc_op(att_op);
+    ble_gatts_dsc_inc_stat(gatt_op);
+
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_DSC:
+        STATS_INC(ble_gatts_stats, dsc_reads);
+        htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
+        ctxt->attr_data = buf;
+        ctxt->data_len = sizeof buf;
+        break;
+
+    case BLE_GATT_ACCESS_OP_WRITE_DSC:
+        STATS_INC(ble_gatts_stats, dsc_writes);
+        if (ctxt->data_len != 2) {
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        }
+
+        flags = le16toh(ctxt->attr_data);
+        if ((flags & ~clt_cfg->allowed) != 0) {
+            return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+        }
+
+        clt_cfg->flags = flags;
+        break;
+
+    default:
+        assert(0);
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    return 0;
+}
+
+/**
+ * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
+ */
+static int
+ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
+                         uint8_t *uuid128, uint8_t op,
+                         struct ble_att_svr_access_ctxt *ctxt,
+                         void *arg)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_ATT_ERR_UNLIKELY;
+    } else {
+        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
+                                             ctxt, arg);
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
 }
 
 /**
@@ -612,6 +674,8 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
     if (rc != 0) {
         return rc;
     }
+
+    STATS_INC(ble_gatts_stats, dscs);
 
     return 0;
 }
@@ -681,6 +745,8 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
             }
         }
     }
+
+    STATS_INC(ble_gatts_stats, chrs);
 
     return 0;
 }
@@ -787,6 +853,8 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
             }
         }
     }
+
+    STATS_INC(ble_gatts_stats, svcs);
 
     return 0;
 }
@@ -1124,6 +1192,14 @@ ble_gatts_init(void)
             rc = BLE_HS_ENOMEM;
             goto err;
         }
+    }
+
+    rc = stats_init_and_reg(
+        STATS_HDR(ble_gatts_stats), STATS_SIZE_INIT_PARMS(ble_gatts_stats,
+        STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_gatts_stats), "ble_gatts");
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
     }
 
     return 0;

@@ -251,6 +251,17 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
             break;
         }
         break;
+    case BLE_HCI_OGF_LE:
+        switch (ocf) {
+        case BLE_HCI_OCF_LE_RD_CHAN_MAP:
+            BLE_HS_LOG(DEBUG, " handle=%u chanmap=%x.%x.%x.%x.%x", 
+                       le16toh(evdata + 4), evdata[6], evdata[7], evdata[8],
+                       evdata[9], evdata[10]);
+            break;
+        default:
+            break;
+        }
+        break;
     default:
         break;
     }

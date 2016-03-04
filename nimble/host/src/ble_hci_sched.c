@@ -23,7 +23,6 @@
 #include "os/queue.h"
 #include "os/os_mempool.h"
 #include "ble_hs_priv.h"
-#include "ble_hci_sched.h"
 
 struct ble_hci_sched_entry {
     STAILQ_ENTRY(ble_hci_sched_entry) next;

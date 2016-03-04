@@ -23,12 +23,6 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "host/ble_hs_test.h"
-#include "ble_hs_priv.h"
-#include "ble_hs_conn.h"
-#include "ble_hs_adv_priv.h"
-#include "ble_hci_sched.h"
-#include "ble_gatt_priv.h"
-#include "ble_gap_priv.h"
 #include "ble_hs_test_util.h"
 
 static int ble_gap_test_conn_event;
@@ -95,11 +89,11 @@ ble_gap_test_util_connect_cb(int event, int status,
     switch (event) {
     case BLE_GAP_EVENT_CONN:
     case BLE_GAP_EVENT_CONN_UPDATED:
-    case BLE_GAP_EVENT_CANCEL_FAILURE:
+    case BLE_GAP_EVENT_CANCEL:
     case BLE_GAP_EVENT_TERM_FAILURE:
+    case BLE_GAP_EVENT_ADV:
+    case BLE_GAP_EVENT_ADV_STOP:
     case BLE_GAP_EVENT_ADV_FINISHED:
-    case BLE_GAP_EVENT_ADV_FAILURE:
-    case BLE_GAP_EVENT_ADV_STOP_FAILURE:
         ble_gap_test_conn_event = event;
         ble_gap_test_conn_status = status;
         ble_gap_test_conn_desc = *ctxt->desc;
@@ -1007,7 +1001,8 @@ TEST_CASE(ble_gap_test_case_conn_cancel_good)
 
     ble_gap_test_util_conn_cancel(peer_addr, -1, 0);
 
-    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CONN);
+    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CANCEL);
+    TEST_ASSERT(ble_gap_test_conn_status == 0);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
 }
 
@@ -1017,7 +1012,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_out_of_order)
 
     ble_gap_test_util_conn_cancel_ooo(peer_addr);
 
-    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CONN);
+    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CANCEL);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
 }
 
@@ -1030,7 +1025,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_ctlr_fail)
 
     ble_gap_test_util_conn_cancel(peer_addr, 0, BLE_ERR_REPEATED_ATTEMPTS);
 
-    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CANCEL_FAILURE);
+    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CANCEL);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
 
     /* Allow connection complete to succeed. */
@@ -1401,8 +1396,7 @@ TEST_CASE(ble_gap_test_case_conn_adv_hci_fail)
                 ble_gap_test_util_adv(d, c, peer_addr, BLE_ADDR_TYPE_PUBLIC,
                                       0, fail_idx, BLE_ERR_UNSUPPORTED);
                 TEST_ASSERT(!ble_gap_slave_in_progress());
-                TEST_ASSERT(ble_gap_test_conn_event ==
-                            BLE_GAP_EVENT_ADV_FAILURE);
+                TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_ADV);
                 TEST_ASSERT(ble_gap_test_conn_status ==
                             BLE_HS_HCI_ERR(BLE_ERR_UNSUPPORTED));
                 TEST_ASSERT(ble_gap_test_conn_desc.conn_handle ==
@@ -1488,8 +1482,7 @@ TEST_CASE(ble_gap_test_case_conn_stop_adv_hci_fail)
             ble_gap_test_util_stop_adv(d, c, peer_addr, BLE_ADDR_TYPE_PUBLIC,
                                        0, BLE_ERR_UNSUPPORTED);
             TEST_ASSERT(ble_gap_slave_in_progress());
-            TEST_ASSERT(ble_gap_test_conn_event ==
-                        BLE_GAP_EVENT_ADV_STOP_FAILURE);
+            TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_ADV_STOP);
             TEST_ASSERT(ble_gap_test_conn_status ==
                         BLE_HS_HCI_ERR(BLE_ERR_UNSUPPORTED));
             TEST_ASSERT(ble_gap_test_conn_desc.conn_handle ==

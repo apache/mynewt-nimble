@@ -20,20 +20,16 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include "stats/stats.h"
+#include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "testutil/testutil.h"
 #include "host/host_hci.h"
-#include "ble_hs_priv.h"
-#include "ble_hci_sched.h"
-#include "ble_hs_conn.h"
-#include "ble_gap_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_HS_TEST_UTIL_NUM_MBUFS      (10)
-#define BLE_HS_TEST_UTIL_BUF_SIZE       OS_ALIGN(BLE_MBUF_PAYLOAD_SIZE, 4)
+/** Use lots of small mbufs to ensure correct mbuf usage. */
+#define BLE_HS_TEST_UTIL_NUM_MBUFS      (100)
+#define BLE_HS_TEST_UTIL_BUF_SIZE       OS_ALIGN(32, 4)
 #define BLE_HS_TEST_UTIL_MEMBLOCK_SIZE  \
     (BLE_HS_TEST_UTIL_BUF_SIZE + BLE_MBUF_MEMBLOCK_OVERHEAD)
 #define BLE_HS_TEST_UTIL_MEMPOOL_SIZE   \
@@ -302,62 +298,64 @@ ble_hs_test_util_rx_num_completed_pkts_event(
 }
 
 void
-ble_hs_test_util_rx_und_adv_acks_count(int count)
+ble_hs_test_util_rx_und_adv_acks_count(int start, int count)
 {
-    if (count > 0) {
+    int end;
+    int i;
+
+    i = 0;
+    end = start + count;
+
+    if (i >= start && i < end) {
         /* Receive set-adv-params ack. */
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_PARAMS,
                                    BLE_ERR_SUCCESS);
         TEST_ASSERT(ble_gap_slave_in_progress());
-
-        count--;
     }
+    i++;
 
-    if (count > 0) {
+    if (i >= start && i < end) {
         /* Receive read-power-level ack. */
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack_param(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR,
                                          BLE_ERR_SUCCESS, (uint8_t[]){0}, 1);
         TEST_ASSERT(ble_gap_slave_in_progress());
-
-        count--;
     }
+    i++;
 
-    if (count > 0) {
+    if (i >= start && i < end) {
         /* Receive set-adv-data ack. */
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_DATA,
                                    BLE_ERR_SUCCESS);
         TEST_ASSERT(ble_gap_slave_in_progress());
-
-        count--;
     }
+    i++;
 
-    if (count > 0) {
+    if (i >= start && i < end) {
         /* Receive set-scan-response-data ack. */
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA,
                                    BLE_ERR_SUCCESS);
         TEST_ASSERT(ble_gap_slave_in_progress());
-
-        count--;
     }
+    i++;
 
-    if (count > 0) {
+    if (i >= start && i < end) {
         /* Receive set-adv-enable ack. */
         ble_hci_sched_wakeup();
         ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_ADV_ENABLE,
                                    BLE_ERR_SUCCESS);
         TEST_ASSERT(ble_gap_slave_in_progress());
-        count--;
     }
+    i++;
 }
 
 void
 ble_hs_test_util_rx_und_adv_acks(void)
 {
-    ble_hs_test_util_rx_und_adv_acks_count(5);
+    ble_hs_test_util_rx_und_adv_acks_count(0, 5);
 }
 
 void
@@ -408,6 +406,7 @@ ble_hs_test_util_init(void)
     int rc;
 
     os_msys_reset();
+    stats_module_reset();
 
     cfg = ble_hs_cfg_dflt;
     cfg.max_connections = 8;

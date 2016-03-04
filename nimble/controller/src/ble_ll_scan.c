@@ -53,17 +53,6 @@
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
-/* Scanning stats */
-struct ble_ll_scan_stats
-{
-    uint32_t scan_starts;
-    uint32_t scan_stops;
-    uint32_t scan_req_txf;
-    uint32_t scan_req_txg;
-};
-
-struct ble_ll_scan_stats g_ble_ll_scan_stats;
-
 /* 
  * Structure used to store advertisers. This is used to limit sending scan
  * requests to the same advertiser and also to filter duplicate events sent
@@ -102,7 +91,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
                 scansm->upper_limit >>= 1;
             }
         }
-        ++g_ble_ll_scan_stats.scan_req_txg;
+        STATS_INC(ble_ll_stats, scan_req_txg);
     } else {
         scansm->scan_rsp_cons_ok = 0;
         ++scansm->scan_rsp_cons_fails;
@@ -112,7 +101,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
                 scansm->upper_limit <<= 1;
             }
         }
-        ++g_ble_ll_scan_stats.scan_req_txf;
+        STATS_INC(ble_ll_stats, scan_req_txf);
     }
 
     scansm->backoff_count = rand() & (scansm->upper_limit - 1);
@@ -591,7 +580,7 @@ ble_ll_scan_sm_stop(int chk_disable)
     scansm->scan_enabled = 0;
 
     /* Count # of times stopped */
-    ++g_ble_ll_scan_stats.scan_stops;
+    STATS_INC(ble_ll_stats, scan_stops);
 
     /* Only set state if we are currently in a scan window */
     if (chk_disable) {
@@ -615,19 +604,15 @@ static int
 ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 {
     /* 
-     * XXX: not sure if I should do this or just report whatever random
-     * address the host sent. For now, I will reject the command with a
-     * command disallowed error. All the parameter errors refer to the command
-     * parameter (which in this case is just enable or disable).
+     * This is not in the specification. I will reject the command with a
+     * command disallowed error if no random address has been sent by the
+     * host. All the parameter errors refer to the command parameter
+     * (which in this case is just enable or disable) so that is why I chose
+     * command disallowed.
      */ 
-    if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
+    if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
-        }
-
-        /* XXX: support these other types */
-        if (scansm->own_addr_type != BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            assert(0);
         }
     }
 
@@ -639,7 +624,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     }
 
     /* Count # of times started */
-    ++g_ble_ll_scan_stats.scan_starts;
+    STATS_INC(ble_ll_stats, scan_starts);
 
     /* Set flag telling us that scanning is enabled */
     scansm->scan_enabled = 1;
@@ -1278,11 +1263,8 @@ ble_ll_scan_reset(void)
         ble_ll_scan_sm_stop(0);
     }
 
-    /* Reset all statistics */
-    memset(&g_ble_ll_scan_stats, 0, sizeof(struct ble_ll_scan_stats));
-
     /* Free the scan request pdu */
-    os_mbuf_free(scansm->scan_req_pdu);
+    os_mbuf_free_chain(scansm->scan_req_pdu);
 
     /* Reset duplicate advertisers and those from which we rxd a response */
     g_ble_ll_scan_num_rsp_advs = 0;
@@ -1322,7 +1304,8 @@ ble_ll_scan_init(void)
     cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
-    ble_get_packet(scansm->scan_req_pdu);
+    scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+                                              sizeof(struct ble_mbuf_hdr));
     assert(scansm->scan_req_pdu != NULL);
 }
 

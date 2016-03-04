@@ -25,12 +25,9 @@
 #include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
-#include "ble_hs_priv.h"
 #include "host/host_hci.h"
 #include "host_dbg.h"
-#include "ble_hci_sched.h"
-#include "ble_hs_conn.h"
-#include "ble_l2cap_priv.h"
+#include "ble_hs_priv.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
 #endif
@@ -76,6 +73,8 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
     /* Cancel ack callback if transmission failed. */
     if (rc != 0) {
         ble_hci_sched_set_ack_cb(NULL, NULL);
+    } else {
+        STATS_INC(ble_hs_stats, hci_cmd);
     }
 
     return rc;
@@ -217,13 +216,12 @@ int
 host_hci_cmd_le_set_rand_addr(uint8_t *addr)
 {
     int rc;
-    uint8_t cmd[BLE_DEV_ADDR_LEN];
 
     /* Check for valid parameters */
     rc = -1;
     if (addr) {
         rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_RAND_ADDR,
-                                  BLE_DEV_ADDR_LEN, cmd);
+                                  BLE_DEV_ADDR_LEN, addr);
     }
 
     return rc;
@@ -635,6 +633,42 @@ host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn)
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR,
                               BLE_HCI_CONN_PARAM_NEG_REPLY_LEN, cmd);
+    return rc;
+}
+
+/**
+ * Read the channel map for a given connection.
+ * 
+ * @param handle 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_rd_chanmap(uint16_t handle)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_RD_CHANMAP_LEN];
+
+    htole16(cmd, handle);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_CHAN_MAP,
+                              BLE_HCI_RD_CHANMAP_LEN, cmd);
+    return rc;
+}
+
+/**
+ * Set the channel map in the controller
+ * 
+ * @param chanmap 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_set_host_chan_class(uint8_t *chanmap)
+{
+    int rc;
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS,
+                              BLE_HCI_SET_HOST_CHAN_CLASS_LEN, chanmap);
     return rc;
 }
 

@@ -629,11 +629,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
             (lls == BLE_LL_STATE_INITIATING)) {
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
         } else if (lls == BLE_LL_STATE_ADV) {
-            ++g_ble_ll_stats.sched_state_adv_errs;
+            STATS_INC(ble_ll_stats, sched_state_adv_errs);
             ble_ll_adv_halt();
         } else {
+            STATS_INC(ble_ll_stats, sched_state_conn_errs);
             ble_ll_conn_event_halt();
-            ++g_ble_ll_stats.sched_state_conn_errs;
         }
     }
 

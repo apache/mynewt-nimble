@@ -20,6 +20,7 @@
 #ifndef H_BLE_LL_
 #define H_BLE_LL_
 
+#include "stats/stats.h"
 #include "hal/hal_cputime.h"
 
 /* Controller revision. */
@@ -70,41 +71,39 @@ struct ble_ll_obj
 extern struct ble_ll_obj g_ble_ll_data;
 
 /* Link layer statistics */
-struct ble_ll_stats
-{
-    uint32_t hci_cmds;
-    uint32_t hci_cmd_errs;
-    uint32_t hci_events_sent;
-    uint32_t bad_ll_state;
-    uint32_t bad_acl_hdr;
-    uint32_t sched_state_conn_errs;
-    uint32_t sched_state_adv_errs;
-    uint32_t rx_bytes;
-    uint32_t rx_valid_adv_pdus;
-    uint32_t rx_invalid_adv_pdus;
-    uint32_t rx_adv_malformed_pkts;
-    uint32_t rx_adv_unk_pdu_type;
-    uint32_t rx_adv_ind;
-    uint32_t rx_adv_direct_ind;
-    uint32_t rx_adv_nonconn_ind;
-    uint32_t rx_scan_reqs;
-    uint32_t rx_scan_rsps;
-    uint32_t rx_connect_reqs;
-    uint32_t rx_scan_ind;
-    uint32_t rx_unk_pdus;
-    uint32_t rx_valid_data_pdus;
-    uint32_t rx_invalid_data_pdus;
-    uint32_t rx_ctrl_pdus;
-    uint32_t rx_l2cap_pdus;
-    uint32_t rx_malformed_ctrl_pdus;
-    uint32_t rx_bad_llid;
-    uint32_t tx_ctrl_pdus;
-    uint32_t tx_ctrl_bytes;
-    uint32_t tx_l2cap_pdus;
-    uint32_t tx_l2cap_bytes;
-    uint32_t tx_empty_pdus;
-};
-extern struct ble_ll_stats g_ble_ll_stats;
+STATS_SECT_START(ble_ll_stats)
+    STATS_SECT_ENTRY(hci_cmds)
+    STATS_SECT_ENTRY(hci_cmd_errs)
+    STATS_SECT_ENTRY(hci_events_sent)
+    STATS_SECT_ENTRY(bad_ll_state)
+    STATS_SECT_ENTRY(bad_acl_hdr)
+    STATS_SECT_ENTRY(rx_adv_pdu_crc_ok)
+    STATS_SECT_ENTRY(rx_adv_pdu_crc_err)
+    STATS_SECT_ENTRY(rx_adv_bytes_crc_ok)
+    STATS_SECT_ENTRY(rx_adv_bytes_crc_err)
+    STATS_SECT_ENTRY(rx_data_pdu_crc_ok)
+    STATS_SECT_ENTRY(rx_data_pdu_crc_err)
+    STATS_SECT_ENTRY(rx_data_bytes_crc_ok)
+    STATS_SECT_ENTRY(rx_data_bytes_crc_err)
+    STATS_SECT_ENTRY(rx_adv_malformed_pkts)
+    STATS_SECT_ENTRY(rx_adv_ind)
+    STATS_SECT_ENTRY(rx_adv_direct_ind)
+    STATS_SECT_ENTRY(rx_adv_nonconn_ind)
+    STATS_SECT_ENTRY(rx_scan_reqs)
+    STATS_SECT_ENTRY(rx_scan_rsps)
+    STATS_SECT_ENTRY(rx_connect_reqs)
+    STATS_SECT_ENTRY(rx_scan_ind)
+    STATS_SECT_ENTRY(adv_txg)
+    STATS_SECT_ENTRY(adv_late_starts)
+    STATS_SECT_ENTRY(sched_state_conn_errs)
+    STATS_SECT_ENTRY(sched_state_adv_errs)
+    STATS_SECT_ENTRY(scan_starts)
+    STATS_SECT_ENTRY(scan_stops)
+    STATS_SECT_ENTRY(scan_req_txf)
+    STATS_SECT_ENTRY(scan_req_txg)
+    STATS_SECT_ENTRY(scan_rsp_txg)
+STATS_SECT_END
+extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
 /* States */
 #define BLE_LL_STATE_STANDBY        (0)
@@ -348,7 +347,7 @@ uint8_t ble_ll_read_supp_features(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */ 
-#undef BLE_LL_LOG
+#define BLE_LL_LOG
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
 #define BLE_LL_LOG_ID_RX_START          (2)

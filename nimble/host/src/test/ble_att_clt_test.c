@@ -21,11 +21,7 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
-#include "ble_hs_priv.h"
 #include "host/ble_hs_test.h"
-#include "ble_hs_conn.h"
-#include "ble_att_priv.h"
-#include "ble_att_cmd.h"
 #include "ble_hs_test_util.h"
 
 static void
@@ -68,16 +64,16 @@ ble_att_clt_test_misc_verify_tx_write(uint16_t handle_id, void *value,
 }
 
 static void
-ble_att_clt_test_tx_write_req_or_cmd(struct ble_hs_conn *conn,
+ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle,
                                      struct ble_att_write_req *req,
                                      void *value, int value_len, int is_req)
 {
     int rc;
 
     if (is_req) {
-        rc = ble_att_clt_tx_write_req(conn, req, value, value_len);
+        rc = ble_att_clt_tx_write_req(conn_handle, req, value, value_len);
     } else {
-        rc = ble_att_clt_tx_write_cmd(conn, req, value, value_len);
+        rc = ble_att_clt_tx_write_cmd(conn_handle, req, value, value_len);
     }
     TEST_ASSERT(rc == 0);
 }
@@ -94,25 +90,25 @@ TEST_CASE(ble_att_clt_test_tx_find_info)
     /*** Success. */
     req.bafq_start_handle = 1;
     req.bafq_end_handle = 0xffff;
-    rc = ble_att_clt_tx_find_info(conn, &req);
+    rc = ble_att_clt_tx_find_info(conn->bhc_handle, &req);
     TEST_ASSERT(rc == 0);
 
     /*** Error: start handle of 0. */
     req.bafq_start_handle = 0;
     req.bafq_end_handle = 0xffff;
-    rc = ble_att_clt_tx_find_info(conn, &req);
+    rc = ble_att_clt_tx_find_info(conn->bhc_handle, &req);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Error: start handle greater than end handle. */
     req.bafq_start_handle = 500;
     req.bafq_end_handle = 499;
-    rc = ble_att_clt_tx_find_info(conn, &req);
+    rc = ble_att_clt_tx_find_info(conn->bhc_handle, &req);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success; start and end handles equal. */
     req.bafq_start_handle = 500;
     req.bafq_end_handle = 500;
-    rc = ble_att_clt_tx_find_info(conn, &req);
+    rc = ble_att_clt_tx_find_info(conn->bhc_handle, &req);
     TEST_ASSERT(rc == 0);
 }
 
@@ -195,16 +191,16 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
 
     /*** 5-byte write. */
     req.bawq_handle = 0x1234;
-    ble_att_clt_test_tx_write_req_or_cmd(conn, &req, value5, sizeof value5,
-                                         is_req);
+    ble_att_clt_test_tx_write_req_or_cmd(conn->bhc_handle, &req, value5,
+                                         sizeof value5, is_req);
     ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0x1234, value5, sizeof value5,
                                           is_req);
 
     /*** Overlong write; verify command truncated to ATT MTU. */
     req.bawq_handle = 0xab83;
-    ble_att_clt_test_tx_write_req_or_cmd(conn, &req, value300, sizeof value300,
-                                         is_req);
+    ble_att_clt_test_tx_write_req_or_cmd(conn->bhc_handle, &req, value300,
+                                         sizeof value300, is_req);
     ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0xab83, value300,
                                           BLE_ATT_MTU_DFLT - 3, is_req);
@@ -225,7 +221,8 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
 
     req.bapc_handle = handle;
     req.bapc_offset = offset;
-    rc = ble_att_clt_tx_prep_write(conn, &req, attr_data, attr_data_len);
+    rc = ble_att_clt_tx_prep_write(conn->bhc_handle, &req, attr_data,
+                                   attr_data_len);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -258,7 +255,7 @@ ble_att_clt_test_misc_exec_good(uint8_t flags)
     ble_att_clt_test_misc_init(&conn, &chan);
 
     req.baeq_flags = flags;
-    rc = ble_att_clt_tx_exec_write(conn, &req);
+    rc = ble_att_clt_tx_exec_write(conn->bhc_handle, &req);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -288,7 +285,8 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
 
     req.bapc_handle = handle;
     req.bapc_offset = offset;
-    rc = ble_att_clt_tx_prep_write(conn, &req, attr_data, attr_data_len);
+    rc = ble_att_clt_tx_prep_write(conn->bhc_handle, &req, attr_data,
+                                   attr_data_len);
     TEST_ASSERT(rc == status);
 }
 
@@ -309,12 +307,12 @@ TEST_CASE(ble_att_clt_test_tx_read)
 
     /*** Success. */
     req.barq_handle = 1;
-    rc = ble_att_clt_tx_read(conn, &req);
+    rc = ble_att_clt_tx_read(conn->bhc_handle, &req);
     TEST_ASSERT(rc == 0);
 
     /*** Error: handle of 0. */
     req.barq_handle = 0;
-    rc = ble_att_clt_tx_read(conn, &req);
+    rc = ble_att_clt_tx_read(conn->bhc_handle, &req);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
@@ -354,13 +352,13 @@ TEST_CASE(ble_att_clt_test_tx_read_blob)
     /*** Success. */
     req.babq_handle = 1;
     req.babq_offset = 0;
-    rc = ble_att_clt_tx_read_blob(conn, &req);
+    rc = ble_att_clt_tx_read_blob(conn->bhc_handle, &req);
     TEST_ASSERT(rc == 0);
 
     /*** Error: handle of 0. */
     req.babq_handle = 0;
     req.babq_offset = 0;
-    rc = ble_att_clt_tx_read_blob(conn, &req);
+    rc = ble_att_clt_tx_read_blob(conn->bhc_handle, &req);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
@@ -398,7 +396,7 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     ble_att_clt_test_misc_init(&conn, &chan);
 
     /*** Success. */
-    rc = ble_att_clt_tx_read_mult(conn, ((uint16_t[]){ 1, 2 }), 2);
+    rc = ble_att_clt_tx_read_mult(conn->bhc_handle, ((uint16_t[]){ 1, 2 }), 2);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -415,7 +413,7 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ + 2) == 2);
 
     /*** Error: no handles. */
-    rc = ble_att_clt_tx_read_mult(conn, NULL, 0);
+    rc = ble_att_clt_tx_read_mult(conn->bhc_handle, NULL, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
@@ -526,7 +524,7 @@ TEST_CASE(ble_att_clt_test_tx_exec_write)
     /*** Error: invalid flags value. */
     ble_att_clt_test_misc_init(&conn, &chan);
     req.baeq_flags = 0x02;
-    rc = ble_att_clt_tx_exec_write(conn, &req);
+    rc = ble_att_clt_tx_exec_write(conn->bhc_handle, &req);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 

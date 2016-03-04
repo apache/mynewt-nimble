@@ -23,10 +23,8 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "ble_hs_priv.h"
 #include "host/host_hci.h"
-#include "ble_hs_conn.h"
-#include "ble_l2cap_priv.h"
+#include "ble_hs_priv.h"
 
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
                "struct ble_l2cap_hdr must be 4 bytes");
@@ -34,6 +32,20 @@ _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
 static struct os_mempool ble_l2cap_chan_pool;
 
 static void *ble_l2cap_chan_mem;
+
+STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
+STATS_NAME_START(ble_l2cap_stats)
+    STATS_NAME(ble_l2cap_stats, chan_create)
+    STATS_NAME(ble_l2cap_stats, chan_delete)
+    STATS_NAME(ble_l2cap_stats, update_init)
+    STATS_NAME(ble_l2cap_stats, update_rx)
+    STATS_NAME(ble_l2cap_stats, update_fail)
+    STATS_NAME(ble_l2cap_stats, proc_timeout)
+    STATS_NAME(ble_l2cap_stats, sig_tx)
+    STATS_NAME(ble_l2cap_stats, sig_rx)
+    STATS_NAME(ble_l2cap_stats, sm_tx)
+    STATS_NAME(ble_l2cap_stats, sm_rx)
+STATS_NAME_END(ble_l2cap_stats)
 
 /**
  * Lock restrictions: None.
@@ -49,6 +61,8 @@ ble_l2cap_chan_alloc(void)
     }
 
     memset(chan, 0, sizeof *chan);
+
+    STATS_INC(ble_l2cap_stats, chan_create);
 
     return chan;
 }
@@ -67,6 +81,8 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
 
     rc = os_memblock_put(&ble_l2cap_chan_pool, chan);
     assert(rc == 0);
+
+    STATS_INC(ble_l2cap_stats, chan_delete);
 }
 
 /**
@@ -344,6 +360,14 @@ ble_l2cap_init(void)
 
     rc = ble_l2cap_sig_init();
     if (rc != 0) {
+        goto err;
+    }
+
+    rc = stats_init_and_reg(
+        STATS_HDR(ble_l2cap_stats), STATS_SIZE_INIT_PARMS(ble_l2cap_stats,
+        STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_l2cap_stats), "ble_l2cap");
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
         goto err;
     }
 

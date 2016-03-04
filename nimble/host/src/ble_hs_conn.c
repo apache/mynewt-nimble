@@ -23,12 +23,6 @@
 #include "os/os.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "ble_l2cap_priv.h"
-#include "ble_l2cap_sig.h"
-#include "ble_l2cap_sm.h"
-#include "ble_att_priv.h"
-#include "ble_gatt_priv.h"
-#include "ble_hs_conn.h"
 
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
@@ -196,6 +190,8 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
+    STATS_INC(ble_hs_stats, conn_create);
+
     return conn;
 
 err:
@@ -244,6 +240,8 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     assert(rc == 0);
+
+    STATS_INC(ble_hs_stats, conn_delete);
 }
 
 /**
@@ -315,6 +313,31 @@ ble_hs_conn_exists(uint16_t conn_handle)
     ble_hs_conn_unlock();
 
     return conn != NULL;
+}
+
+/**
+ * Lock restrictions:
+ *     o Caller unlocks ble_hs_conn.
+ */
+int
+ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = 0;
+        *out_flags = conn->bhc_flags;
+    }
+
+    ble_hs_conn_unlock();
+
+    return rc;
 }
 
 /**

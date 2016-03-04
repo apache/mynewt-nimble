@@ -91,13 +91,13 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_CONN_UPDATED          1
 #define BLE_GAP_EVENT_CONN_UPDATE_REQ       2
 #define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      3
-#define BLE_GAP_EVENT_CANCEL_FAILURE        4
+#define BLE_GAP_EVENT_CANCEL                4
 #define BLE_GAP_EVENT_TERM_FAILURE          5
 #define BLE_GAP_EVENT_DISC_SUCCESS          6
 #define BLE_GAP_EVENT_DISC_FINISHED         7
-#define BLE_GAP_EVENT_ADV_FINISHED          8
-#define BLE_GAP_EVENT_ADV_FAILURE           9
-#define BLE_GAP_EVENT_ADV_STOP_FAILURE      10
+#define BLE_GAP_EVENT_ADV                   8
+#define BLE_GAP_EVENT_ADV_STOP              9
+#define BLE_GAP_EVENT_ADV_FINISHED          10
 
 struct ble_gap_conn_desc {
     uint8_t peer_addr[6];
@@ -171,6 +171,7 @@ int ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       ble_gap_conn_fn *cb, void *cb_arg);
 int ble_gap_adv_stop(void);
 int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
+int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t scan_type, uint8_t filter_policy,
                       ble_gap_disc_fn *cb, void *cb_arg);

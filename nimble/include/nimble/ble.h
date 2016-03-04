@@ -71,8 +71,11 @@ struct ble_mbuf_hdr
     uint32_t end_cputime;
 };
 
-/* The payload size for BLE MBUFs. */
-#define BLE_MBUF_PAYLOAD_SIZE           (256)
+/* 
+ * The payload size for BLE MBUFs. NOTE: this needs to accommodate a max size
+ * PHY pdu of 257 bytes.
+ */
+#define BLE_MBUF_PAYLOAD_SIZE           (260)
 
 /* Flag definitions for rxinfo  */
 #define BLE_MBUF_HDR_F_CRC_OK           (0x80)
@@ -101,20 +104,6 @@ struct ble_mbuf_hdr
 
 #define BLE_MBUF_MEMBLOCK_OVERHEAD  \
     (sizeof(struct os_mbuf) + BLE_MBUF_PKTHDR_OVERHEAD)
-
-/**
- * Get a BLE packet. A packet is a BLE packet header mbuf with enough 
- * leading space for ACL data header (4 bytes). 
- * 
- * 
- * @return struct os_mbuf *
- */
-#define ble_get_packet(__om) do {                                           \
-    __om = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr)); \
-    if (__om) {                                                             \
-        __om->om_data += 4;                                                 \
-    }                                                                       \
-} while (0)
 
 #define BLE_DEV_ADDR_LEN        (6)
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
