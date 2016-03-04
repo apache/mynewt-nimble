@@ -502,6 +502,13 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
     /* Start receiving */
     rc = ble_phy_rx();
     if (!rc) {
+        /* Enable/disable whitelisting */
+        if (scansm->scan_filt_policy & 1) {
+            ble_ll_whitelist_enable();
+        } else {
+            ble_ll_whitelist_disable();
+        }
+
         /* Set link layer state to scanning */
         if (scansm->scan_type == BLE_SCAN_TYPE_INITIATE) {
             ble_ll_state_set(BLE_LL_STATE_INITIATING);
@@ -590,9 +597,6 @@ ble_ll_scan_sm_stop(int chk_disable)
             /* Disable phy */
             ble_phy_disable();
 
-            /* Disable whitelisting  */
-            ble_ll_whitelist_disable();
-
             /* Set LL state to standby */
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
         }
@@ -614,13 +618,6 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
-    }
-
-    /* Enable/disable whitelisting */
-    if (scansm->scan_filt_policy & 1) {
-        ble_ll_whitelist_enable();
-    } else {
-        ble_ll_whitelist_disable();
     }
 
     /* Count # of times started */

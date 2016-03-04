@@ -387,6 +387,13 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
             STATS_INC(ble_ll_stats, adv_late_starts);
         }
 
+        /* Enable/disable whitelisting based on filter policy */
+        if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
+            ble_ll_whitelist_enable();
+        } else {
+            ble_ll_whitelist_disable();
+        }
+
         /* Set link layer state to advertising */
         ble_ll_state_set(BLE_LL_STATE_ADV);
 
@@ -587,9 +594,6 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
     os_sr_t sr;
 
     if (advsm->enabled) {
-        /* Disable whitelisting (just in case) */
-        ble_ll_whitelist_disable();
-
         /* Remove any scheduled advertising items */
         ble_ll_sched_rmv_elem(&advsm->adv_sch);
         os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
@@ -659,13 +663,6 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     /* Set first advertising channel */
     adv_chan = ble_ll_adv_first_chan(advsm);
     advsm->adv_chan = adv_chan;
-
-    /* Enable/disable whitelisting based on filter policy */
-    if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
-        ble_ll_whitelist_enable();
-    } else {
-        ble_ll_whitelist_disable();
-    }
 
     /* 
      * Schedule advertising. We set the initial schedule start and end
@@ -1197,7 +1194,6 @@ ble_ll_adv_event_done(void *arg)
         if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
             /* Disable advertising */
             advsm->enabled = 0;
-            ble_ll_whitelist_disable();
             ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO);
             ble_ll_scan_chk_resume();
             return;

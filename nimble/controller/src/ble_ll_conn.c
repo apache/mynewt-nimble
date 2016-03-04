@@ -789,6 +789,9 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     g_ble_ll_conn_cur_sm = connsm;
     assert(connsm);
 
+    /* Disable whitelisting as connections do not use it */
+    ble_ll_whitelist_disable();
+
     /* Set LL state */
     ble_ll_state_set(BLE_LL_STATE_CONNECTION);
 
