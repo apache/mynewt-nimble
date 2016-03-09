@@ -109,6 +109,12 @@ struct ble_mbuf_hdr
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
+#undef htole16
+#undef htole32
+#undef htole64
+#undef le16toh
+#undef le32toh
+#undef le64toh
 void htole16(void *buf, uint16_t x);
 void htole32(void *buf, uint32_t x);
 void htole64(void *buf, uint64_t x);
