@@ -72,9 +72,6 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     11, 7, 1, 22, 12, 0, 0, 1, 8, 8, 0, 0, 5, 1, 8, 23, 23, 2, 0, 0, 8, 8
 };
 
-/* XXX: Improvements
- * 1) We can inititalize the procedure timer once per connection state machine
- */
 static int
 ble_ll_ctrl_chk_supp_bytes(uint16_t bytes)
 {

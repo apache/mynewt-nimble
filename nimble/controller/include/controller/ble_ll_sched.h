@@ -23,6 +23,13 @@
 /* Time per BLE scheduler slot */
 #define BLE_LL_SCHED_USECS_PER_SLOT (1250)
 
+/* 
+ * This is the number of slots needed to transmit and receive a maximum
+ * size PDU, including an IFS time before each. The actual time is
+ * 2120 usecs for tx/rx and 150 for IFS = 4540 usecs.
+ */ 
+#define BLE_LL_SCHED_MAX_TXRX_SLOT  (4 * BLE_LL_SCHED_USECS_PER_SLOT)
+
 /* BLE scheduler errors */
 #define BLE_LL_SCHED_ERR_OVERLAP    (1)
 
@@ -78,6 +85,18 @@ int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch);
 
 /* Reschedule a connection that had previously been scheduled or that is over */
 int ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm * connsm);
+
+/**
+ * Called to determine when the next scheduled event will occur. 
+ *  
+ * If there are not scheduled events this function returns 0; otherwise it 
+ * returns 1 and *next_event_time is set to the start time of the next event. 
+ * 
+ * @param next_event_time cputime at which next scheduled event will occur
+ * 
+ * @return int 0: No events are scheduled 1: there is an upcoming event 
+ */
+int ble_ll_sched_next_time(uint32_t *next_event_time);
 
 /* Stop the scheduler */
 void ble_ll_sched_stop(void);

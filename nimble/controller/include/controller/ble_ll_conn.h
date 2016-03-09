@@ -147,6 +147,7 @@ struct ble_ll_conn_sm
 
     uint32_t access_addr;
     uint32_t crcinit;               /* only low 24 bits used */
+    /* XXX: do we need ce_end_time? Cant this be sched end time? */
     uint32_t ce_end_time;   /* cputime at which connection event should end */
     uint32_t terminate_timeout;
     uint32_t last_scheduled;

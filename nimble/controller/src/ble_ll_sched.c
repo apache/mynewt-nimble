@@ -241,6 +241,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
 {
     int rc;
     os_sr_t sr;
+    uint32_t tps;
     uint32_t initial_start;
     uint32_t earliest_start;
     uint32_t earliest_end;
@@ -282,11 +283,18 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
      * earliest start so we can end the connection reasonably.
      */
     if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
+        tps = cputime_usecs_to_ticks(BLE_LL_SCHED_USECS_PER_SLOT);
         ce_end_time = ble_ll_conn_get_ce_end_time();
-        if ((int32_t)(ce_end_time - sch->start_time) >= 0) {
-            earliest_start = ce_end_time;
-            earliest_end = earliest_start + dur;
+        while ((int32_t)(ce_end_time - cputime_get32()) < 0) {
+            ce_end_time += tps;
         }
+
+        /* Start at next slot boundary past earliest */
+        while ((int32_t)(ce_end_time - earliest_start) < 0) {
+            ce_end_time += tps;
+        }
+        earliest_start = ce_end_time;
+        earliest_end = earliest_start + dur;
     }
     initial_start = earliest_start;
 
@@ -430,6 +438,7 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
 {
     int rc;
     os_sr_t sr;
+    int32_t ticks;
     uint32_t ce_end_time;
     uint32_t adv_start;
     uint32_t duration;
@@ -445,12 +454,13 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
      * earliest start so we can end the connection reasonably.
      */
     if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
-        sch->start_time += cputime_usecs_to_ticks(BLE_LL_SCHED_USECS_PER_SLOT);
+        ticks = (int32_t)cputime_usecs_to_ticks(BLE_LL_SCHED_MAX_TXRX_SLOT);
         ce_end_time = ble_ll_conn_get_ce_end_time();
-        if ((int32_t)(ce_end_time - sch->start_time) >= 0) {
-            sch->start_time = ce_end_time;
+        if ((int32_t)(ce_end_time - sch->start_time) < ticks) {
+            ce_end_time += ticks;
         }
-        sch->end_time = sch->start_time + duration;
+        sch->start_time = ce_end_time;
+        sch->end_time = ce_end_time + duration;
     }
 
     entry = ble_ll_sched_insert_if_empty(sch);
@@ -667,6 +677,35 @@ ble_ll_sched_run(void *arg)
             break;
         }
     }
+}
+
+/**
+ * Called to determine when the next scheduled event will occur. 
+ *  
+ * If there are not scheduled events this function returns 0; otherwise it 
+ * returns 1 and *next_event_time is set to the start time of the next event. 
+ * 
+ * @param next_event_time 
+ * 
+ * @return int 0: No events are scheduled 1: there is an upcoming event 
+ */
+int
+ble_ll_sched_next_time(uint32_t *next_event_time)
+{
+    int rc;
+    os_sr_t sr;
+    struct ble_ll_sched_item *first;
+
+    rc = 0;
+    OS_ENTER_CRITICAL(sr);
+    first = TAILQ_FIRST(&g_ble_ll_sched_q);
+    if (first) {
+        *next_event_time = first->start_time;
+        rc = 1;
+    }
+    OS_EXIT_CRITICAL(sr);
+
+    return rc;
 }
 
 /**
