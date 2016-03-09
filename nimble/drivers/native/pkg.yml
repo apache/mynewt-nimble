@@ -22,11 +22,11 @@ pkg.vers: 0.8.0
 pkg.description: BLE driver for simulations.
 pkg.author: wes3 <will@runtime.io>
 pkg.homepage:
-pkg.repository: https://git-wip-us.apache.org/repos/asf/incubator-mynewt-larva
+pkg.repository: https://git-wip-us.apache.org/repos/asf/incubator-mynewt-core
 pkg.keywords:
     - ble
     - bluetooth
 
-pkg.caps: ble_driver
+pkg.apis: ble_driver
 pkg.deps:
     - net/nimble/controller

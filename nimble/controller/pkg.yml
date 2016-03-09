@@ -22,7 +22,7 @@ pkg.vers: 0.8.0
 pkg.description: Controller side of the nimble Bluetooth Smart stack.
 pkg.author: wes3 <will@runtime.io>
 pkg.homepage:
-pkg.repository: https://git-wip-us.apache.org/repos/asf/incubator-mynewt-larva
+pkg.repository: https://git-wip-us.apache.org/repos/asf/incubator-mynewt-core
 pkg.keywords:
     - ble
     - bluetooth
@@ -31,5 +31,5 @@ pkg.deps:
     - libs/os
     - sys/stats
     - net/nimble
-pkg.identities:
+pkg.features:
     - BLE_DEVICE
