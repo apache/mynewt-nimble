@@ -37,6 +37,6 @@ pkg.req_apis:
     - console
 
 # Satisfy capability dependencies for the self-contained test executable.
-pkg.deps.selftest: libs/console/stub
-pkg.cflags.selftest: -DPHONY_TRANSPORT
-pkg.cflags.test: -DBLE_HS_DEBUG
+pkg.deps.SELFTEST: libs/console/stub
+pkg.cflags.SELFTEST: -DPHONY_TRANSPORT
+pkg.cflags.TEST: -DBLE_HS_DEBUG
