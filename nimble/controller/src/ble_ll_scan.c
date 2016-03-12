@@ -36,16 +36,11 @@
 
 /* 
  * XXX:
- * 1) Do I need to know if the address is random or public? Or
- * is there no chance that a public address will match a random
- * address? This applies to checking for advertisers that we have heard a scan 
- * response from or sent an advertising report for.
- * 
- * 2) I think I can guarantee that we dont process things out of order if
+ * 1) I think I can guarantee that we dont process things out of order if
  * I send an event when a scan request is sent. The scan_rsp_pending flag
  * code might be made simpler.
  * 
- * 3) Interleave sending scan requests to different advertisers? I guess I need 
+ * 2) Interleave sending scan requests to different advertisers? I guess I need 
  * a list of advertisers to which I sent a scan request and have yet to
  * receive a scan response from? Implement this.
  */
@@ -70,11 +65,11 @@ struct ble_ll_scan_advertisers
 #define BLE_LL_SC_ADV_F_ADV_RPT_SENT    (0x08)
 
 /* Contains list of advertisers that we have heard scan responses from */
-uint8_t g_ble_ll_scan_num_rsp_advs;
+static uint8_t g_ble_ll_scan_num_rsp_advs;
 struct ble_ll_scan_advertisers g_ble_ll_scan_rsp_advs[BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS];
 
 /* Used to filter duplicate advertising events to host */
-uint8_t g_ble_ll_scan_num_dup_advs;
+static uint8_t g_ble_ll_scan_num_dup_advs;
 struct ble_ll_scan_advertisers g_ble_ll_scan_dup_advs[BLE_LL_SCAN_CFG_NUM_DUP_ADVS];
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */

@@ -22,6 +22,7 @@
 #include "os/os.h"
 #include "bsp/bsp.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
@@ -32,15 +33,6 @@
 #include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
-
-/* 
- * Advertising configuration parameters. These are parameters that I have
- * fixed for now but could be considered "configuration" parameters for either
- * the device or the stack.
- */
-#define BLE_LL_CFG_ADV_PDU_ITVL_HD_USECS    (1250)  /* usecs */
-#define BLE_LL_CFG_ADV_PDU_ITVL_LD_USECS    (10000) /* usecs */
-#define BLE_LL_CFG_ADV_TXPWR                (0)     /* dBm */
 
 /* XXX: TODO
  * 1) Need to look at advertising and scan request PDUs. Do I allocate these
@@ -707,7 +699,7 @@ ble_ll_adv_scheduled(uint32_t sch_start)
 int
 ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
 {
-    rspbuf[0] = BLE_LL_CFG_ADV_TXPWR;
+    rspbuf[0] = NIMBLE_OPT_LL_TX_PWR_DBM;
     *rsplen = 1;
     return BLE_ERR_SUCCESS;
 }

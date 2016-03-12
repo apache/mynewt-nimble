@@ -287,7 +287,7 @@ struct ble_dev_addr
 
 /*--- External API ---*/
 /* Initialize the Link Layer */
-int ble_ll_init(void);
+int ble_ll_init(uint8_t ll_task_prio);
 
 /* Reset the Link Layer */
 int ble_ll_reset(void);

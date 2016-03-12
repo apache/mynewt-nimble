@@ -182,6 +182,11 @@
 #define NIMBLE_OPT_ATT_SVR_INDICATE             1
 #endif
 
+/** CONTROLLER: transmit power level */
+#ifndef NIMBLE_OPT_LL_TX_PWR_DBM
+#define NIMBLE_OPT_LL_TX_PWR_DBM                0
+#endif
+
 /* Include automatically-generated settings. */
 #include "nimble/nimble_opt_auto.h"
 
