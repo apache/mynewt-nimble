@@ -36,6 +36,10 @@
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
+#if (BLETEST_THROUGHPUT_TEST == 1)
+extern void bletest_completed_pkt(uint16_t handle);
+#endif
+
 /* XXX TODO
  * 1) I think if we are initiating and we already have a connection with
  * a device that we will still try and connect to it. Fix this.
@@ -109,22 +113,10 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
  */
 #define BLE_LL_WFR_USECS                    (BLE_LL_IFS + 40 + 32)
 
-/* Configuration parameters */
-#define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
-#define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
-#define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
-#define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
-#define BLE_LL_CFG_CONN_INIT_SLOTS          (2)
-
 /* We cannot have more than 254 connections given our current implementation */
 #if (NIMBLE_OPT_MAX_CONNECTIONS >= 255)
     #error "Maximum # of connections is 254"
 #endif
-
-/* LL configuration definitions */
-#define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (251)
-#define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (251)
-#define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (251)
 
 /* Sleep clock accuracy table (in ppm) */
 static const uint16_t g_ble_sca_ppm_tbl[8] =
@@ -359,7 +351,7 @@ ble_ll_conn_calc_window_widening(struct ble_ll_conn_sm *connsm)
     if (time_since_last_anchor > 0) {
         delta_msec = cputime_ticks_to_usecs(time_since_last_anchor) / 1000;
         total_sca_ppm = g_ble_sca_ppm_tbl[connsm->master_sca] + 
-                        BLE_LL_CFG_CONN_OUR_SCA;
+            NIMBLE_OPT_LL_OUR_SCA;
         window_widening = (total_sca_ppm * delta_msec) / 1000;
     }
 
@@ -1021,9 +1013,9 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     connsm->conn_role = BLE_LL_CONN_ROLE_MASTER;
 
     /* Set default ce parameters */
-    connsm->tx_win_size = BLE_LL_CFG_CONN_TX_WIN_SIZE;
-    connsm->tx_win_off = BLE_LL_CFG_CONN_TX_WIN_OFF;
-    connsm->master_sca = BLE_LL_CFG_CONN_MASTER_SCA;
+    connsm->tx_win_size = BLE_LL_CONN_TX_WIN_MIN;
+    connsm->tx_win_off = 0;
+    connsm->master_sca = NIMBLE_OPT_LL_MASTER_SCA;
 
     /* Hop increment is a random value between 5 and 16. */
     connsm->hop_inc = (rand() % 12) + 5;
@@ -1425,7 +1417,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * Calculate ce end time. For a slave, we need to add window widening and
      * the transmit window if we still have one.
      */
-    itvl = BLE_LL_CFG_CONN_INIT_SLOTS * BLE_LL_SCHED_USECS_PER_SLOT;
+    itvl = NIMBLE_OPT_LL_CONN_INIT_SLOTS * BLE_LL_SCHED_USECS_PER_SLOT;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         cur_ww = ble_ll_conn_calc_window_widening(connsm);
         max_ww = (connsm->conn_itvl * (BLE_LL_CONN_ITVL_USECS/2)) - BLE_LL_IFS;
@@ -1489,8 +1481,8 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
         connsm->anchor_point = endtime + cputime_usecs_to_ticks(usecs);
-        usecs = connsm->slave_cur_tx_win_usecs + (BLE_LL_CFG_CONN_INIT_SLOTS *
-                                                  BLE_LL_SCHED_USECS_PER_SLOT);
+        usecs = connsm->slave_cur_tx_win_usecs + 
+            (NIMBLE_OPT_LL_CONN_INIT_SLOTS * BLE_LL_SCHED_USECS_PER_SLOT);
         connsm->ce_end_time = connsm->anchor_point + 
             cputime_usecs_to_ticks(usecs);
         connsm->slave_cur_window_widening = 0;
@@ -1859,7 +1851,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         /* Attempt to schedule new connection. Possible that this might fail */
         if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, 
                                      ble_hdr->end_cputime,
-                                     BLE_LL_CFG_CONN_INIT_SLOTS)) {
+                                     NIMBLE_OPT_LL_CONN_INIT_SLOTS)) {
             /* Setup to transmit the connect request */
             rc = ble_ll_conn_request_send(addr_type, adv_addr, 
                                           g_ble_ll_conn_create_sm->tx_win_off);
@@ -2206,6 +2198,10 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
 
                         /* If l2cap pdu, increment # of completed packets */
                         if (ble_ll_conn_is_l2cap_pdu(txhdr)) {
+#if (BLETEST_THROUGHPUT_TEST == 1)
+                            bletest_completed_pkt(connsm->conn_handle);
+#endif
+
                             ++connsm->completed_pkts;
                         }
                         os_mbuf_free_chain(txpdu);
@@ -2545,17 +2541,17 @@ ble_ll_conn_module_reset(void)
 
     /* Configure the global LL parameters */
     conn_params = &g_ble_ll_conn_params;
-    maxbytes = BLE_LL_CFG_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
+    maxbytes = NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->supp_max_rx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_rx_octets = BLE_LL_CFG_SUPP_MAX_RX_BYTES;
+    conn_params->supp_max_rx_octets = NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES;
 
-    maxbytes = BLE_LL_CFG_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
+    maxbytes = NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->supp_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
+    conn_params->supp_max_tx_octets = NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES;
 
-    maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
+    maxbytes = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
+    conn_params->conn_init_max_tx_octets = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES;
 
     /* Mask in all channels by default */
     conn_params->num_used_chans = BLE_PHY_NUM_DATA_CHANS;

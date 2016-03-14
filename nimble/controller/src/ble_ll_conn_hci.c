@@ -23,6 +23,7 @@
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
@@ -36,9 +37,6 @@
  * event to the host. This is the os time at which we can send an event.
  */
 static uint32_t g_ble_ll_next_num_comp_pkt_evt;
-
-#define BLE_LL_NUM_COMP_PKT_RATE    \
-    ((BLE_LL_CFG_NUM_COMP_PKT_RATE * OS_TICKS_PER_SEC) / 1000)
 
 /**
  * Called to check that the connection parameters are within range 
@@ -133,7 +131,7 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
     htole16(dptr + 12, connsm->slave_latency);
     htole16(dptr + 14, connsm->supervision_tmo);
     memcpy(dptr + 16, &connsm->chanmap, BLE_LL_CONN_CHMAP_LEN);
-    dptr[21] = connsm->hop_inc | connsm->master_sca;
+    dptr[21] = connsm->hop_inc | (connsm->master_sca << 5);
 }
 
 /**
@@ -191,7 +189,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
 
     /* Check rate limit */
     if ((uint32_t)(g_ble_ll_next_num_comp_pkt_evt - os_time_get()) < 
-        BLE_LL_NUM_COMP_PKT_RATE) {
+         NIMBLE_OPT_NUM_COMP_PKT_RATE) {
         return;
     }
 
@@ -258,7 +256,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
 
     if (event_sent) {
         g_ble_ll_next_num_comp_pkt_evt = os_time_get() + 
-            BLE_LL_NUM_COMP_PKT_RATE;
+            NIMBLE_OPT_NUM_COMP_PKT_RATE;
     }
 }
 

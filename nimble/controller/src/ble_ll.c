@@ -953,7 +953,7 @@ ble_ll_reset(void)
  * @return int 
  */
 int
-ble_ll_init(uint8_t ll_task_prio)
+ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 {
     int rc;
     uint8_t features;
@@ -961,6 +961,10 @@ ble_ll_init(uint8_t ll_task_prio)
 
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
+
+    /* Set acl pkt size and number */
+    lldata->ll_num_acl_pkts = num_acl_pkts;
+    lldata->ll_acl_pkt_size = acl_pkt_size;
 
     /* Initialize eventq */
     os_eventq_init(&lldata->ll_evq);

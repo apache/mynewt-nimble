@@ -35,7 +35,7 @@ struct ble_ll_whitelist_entry
     uint8_t wl_dev_addr[BLE_DEV_ADDR_LEN];
 };
 
-struct ble_ll_whitelist_entry g_ble_ll_whitelist[BLE_LL_CFG_WHITELIST_SIZE];
+struct ble_ll_whitelist_entry g_ble_ll_whitelist[NIMBLE_OPT_LL_WHITELIST_SIZE];
 #endif
 
 static int
@@ -79,7 +79,7 @@ ble_ll_whitelist_clear(void)
 
     /* Set the number of entries to 0 */
     wl = &g_ble_ll_whitelist[0];
-    for (i = 0; i < BLE_LL_CFG_WHITELIST_SIZE; ++i) {
+    for (i = 0; i < NIMBLE_OPT_LL_WHITELIST_SIZE; ++i) {
         wl->wl_valid = 0;
         ++wl;
     }
@@ -102,7 +102,7 @@ ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
 #ifdef BLE_USES_HW_WHITELIST
     rspbuf[0] = ble_hw_whitelist_size();
 #else
-    rspbuf[0] = BLE_LL_CFG_WHITELIST_SIZE;
+    rspbuf[0] = NIMBLE_OPT_LL_WHITELIST_SIZE;
 #endif
     *rsplen = 1;
     return BLE_ERR_SUCCESS;
@@ -126,7 +126,7 @@ ble_ll_is_on_whitelist(uint8_t *addr, uint8_t addr_type)
     struct ble_ll_whitelist_entry *wl;
 
     wl = &g_ble_ll_whitelist[0];
-    for (i = 0; i < BLE_LL_CFG_WHITELIST_SIZE; ++i) {
+    for (i = 0; i < NIMBLE_OPT_LL_WHITELIST_SIZE; ++i) {
         if ((wl->wl_valid) && (wl->wl_addr_type == addr_type) &&
             (!memcmp(&wl->wl_dev_addr[0], addr, BLE_DEV_ADDR_LEN))) {
             return i + 1;
@@ -183,7 +183,7 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
     rc = BLE_ERR_SUCCESS;
     if (!ble_ll_is_on_whitelist(addr, addr_type)) {
         wl = &g_ble_ll_whitelist[0];
-        for (i = 0; i < BLE_LL_CFG_WHITELIST_SIZE; ++i) {
+        for (i = 0; i < NIMBLE_OPT_LL_WHITELIST_SIZE; ++i) {
             if (wl->wl_valid == 0) {
                 memcpy(&wl->wl_dev_addr[0], addr, BLE_DEV_ADDR_LEN);
                 wl->wl_addr_type = addr_type;
@@ -193,7 +193,7 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
             ++wl;
         }
 
-        if (i == BLE_LL_CFG_WHITELIST_SIZE) {
+        if (i == NIMBLE_OPT_LL_WHITELIST_SIZE) {
             rc = BLE_ERR_MEM_CAPACITY;
         }
     }
