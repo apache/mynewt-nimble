@@ -134,8 +134,6 @@ ble_gap_direct_connect_test_task_handler(void *arg)
 
 TEST_CASE(ble_gap_direct_connect_test_case)
 {
-    os_init();
-
     ble_hs_test_util_init();
 
     os_task_init(&ble_os_test_task,
@@ -216,8 +214,6 @@ ble_gap_gen_disc_test_task_handler(void *arg)
 
 TEST_CASE(ble_gap_gen_disc_test_case)
 {
-    os_init();
-
     ble_hs_test_util_init();
 
     os_task_init(&ble_os_test_task,
@@ -330,8 +326,6 @@ ble_gap_terminate_test_task_handler(void *arg)
 
 TEST_CASE(ble_gap_terminate_test_case)
 {
-    os_init();
-
     ble_hs_test_util_init();
 
     os_task_init(&ble_os_test_task,

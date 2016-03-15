@@ -36,34 +36,58 @@
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
-/* 
- * XXX: looks like the current code will allow the 1st packet in a
- * connection to extend past the end of the allocated connection end
- * time. That is not good. Need to deal with that. Need to extend connection
- * end time.
- */
+#if (BLETEST_THROUGHPUT_TEST == 1)
+extern void bletest_completed_pkt(uint16_t handle);
+#endif
 
 /* XXX TODO
- * 1) Add set channel map command and implement channel change procedure.
- * 2) I think if we are initiating and we already have a connection with
+ * 1) I think if we are initiating and we already have a connection with
  * a device that we will still try and connect to it. Fix this.
- * 3) Make sure we check incoming data packets for size and all that. You
+ *  -> This is true. There are a couple things to do
+ *      i) When a connection create is issued, if we already are connected
+ *      deny it. BLE ERROR = 0x0B (ACL connection exists).
+ *      ii) If we receive an advertisement while initiating and want to send
+ *      a connect request to the device, make sure we dont have it.
+ *      iii) I think I need to do something like this: I am initiating and
+ *      advertising. Suppose the device I want to connect to sends me a connect
+ *      request because I am advertising? What happens to connection? Deal
+ *      with this!
+ * 
+ * 2) Make sure we check incoming data packets for size and all that. You
  * know, supported octets and all that. For both rx and tx.
- * 4) Make sure we are setting the schedule end time properly for both slave
+ * 
+ * 3) Make sure we are setting the schedule end time properly for both slave
  * and master. We should just set this to the end of the connection event.
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
- * 5) Do we need to check the terminate timeout inside the connection event?
- * I think we do.
+ * 
+ * 4) looks like the current code will allow the 1st packet in a
+ * connection to extend past the end of the allocated connection end
+ * time. That is not good. Need to deal with that. Need to extend connection
+ * end time.
+ * 
  * 6) Use error code 0x3E correctly! Connection failed to establish. If you
  * read the LE connection complete event, it says that if the connection
  * fails to be established that the connection complete event gets sent to
- * the host that issued the create connection.
+ * the host that issued the create connection. Need to resolve this.
+ * 
  * 7) How does peer address get set if we are using whitelist? Look at filter
  * policy and make sure you are doing this correctly.
+ * 
  * 8) Right now I use a fixed definition for required slots. CHange this.
+ * 
  * 9) Use output compare for transmit.
+ * 
+ * 10) See what connection state machine elements are purely master and
+ * purely slave. We can make a union of them.
+ * 
+ * 11) Need to trim elements from the connection state machine.
+ * 
+ * 12) When a slave receives a data packet in a connection it has to send a
+ * response. Well, it should. If this packet will overrun the next scheduled
+ * event, what should we do? Transmit anyway? Not transmit? For now, we just
+ * transmit.
  */
 
 /* 
@@ -79,12 +103,6 @@
 extern int ble_hs_rx_data(struct os_mbuf *om);
 
 /* 
- * XXX: Possible improvements
- * 1) See what connection state machine elements are purely master and
- * purely slave. We can make a union of them.
- */
-
-/* 
  * The amount of time that we will wait to hear the start of a receive
  * packet after we have transmitted a packet. This time is at least
  * an IFS time plus the time to receive the preamble and access address. We
@@ -95,22 +113,10 @@ extern int ble_hs_rx_data(struct os_mbuf *om);
  */
 #define BLE_LL_WFR_USECS                    (BLE_LL_IFS + 40 + 32)
 
-/* Configuration parameters */
-#define BLE_LL_CFG_CONN_TX_WIN_SIZE         (1)
-#define BLE_LL_CFG_CONN_TX_WIN_OFF          (0)
-#define BLE_LL_CFG_CONN_MASTER_SCA          (BLE_MASTER_SCA_51_75_PPM << 5)
-#define BLE_LL_CFG_CONN_OUR_SCA             (60)    /* in ppm */
-#define BLE_LL_CFG_CONN_INIT_SLOTS          (2)
-
 /* We cannot have more than 254 connections given our current implementation */
 #if (NIMBLE_OPT_MAX_CONNECTIONS >= 255)
     #error "Maximum # of connections is 254"
 #endif
-
-/* LL configuration definitions */
-#define BLE_LL_CFG_SUPP_MAX_RX_BYTES        (251)
-#define BLE_LL_CFG_SUPP_MAX_TX_BYTES        (251)
-#define BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES   (251)
 
 /* Sleep clock accuracy table (in ppm) */
 static const uint16_t g_ble_sca_ppm_tbl[8] =
@@ -345,7 +351,7 @@ ble_ll_conn_calc_window_widening(struct ble_ll_conn_sm *connsm)
     if (time_since_last_anchor > 0) {
         delta_msec = cputime_ticks_to_usecs(time_since_last_anchor) / 1000;
         total_sca_ppm = g_ble_sca_ppm_tbl[connsm->master_sca] + 
-                        BLE_LL_CFG_CONN_OUR_SCA;
+            NIMBLE_OPT_LL_OUR_SCA;
         window_widening = (total_sca_ppm * delta_msec) / 1000;
     }
 
@@ -580,6 +586,39 @@ ble_ll_conn_wait_txend(void *arg)
 }
 
 /**
+ * Returns the cputime of the next scheduled item on the scheduler list or 
+ * when the current connection will start its next interval (whichever is 
+ * earlier). This API is called when determining at what time we should end 
+ * the current connection event. The current connection event must end before 
+ * the next scheduled item. However, the current connection itself is not 
+ * in the scheduler list! Thus, we need to calculate the time at which the 
+ * next connection will start and not overrun it. 
+ * 
+ * @param connsm 
+ * 
+ * @return uint32_t 
+ */
+static uint32_t
+ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
+{
+    uint32_t itvl;
+    uint32_t ce_end;
+    uint32_t next_sched_time;
+
+    /* Calculate time at which next connection event will start */
+    itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+    ce_end = connsm->anchor_point + cputime_usecs_to_ticks(itvl);
+
+    if (ble_ll_sched_next_time(&next_sched_time)) {
+        if (CPUTIME_LT(next_sched_time, ce_end)) {
+            ce_end = next_sched_time;
+        }
+    }
+
+    return ce_end;
+}
+
+/**
  * Called when we want to send a data channel pdu inside a connection event. 
  *  
  * Context: interrupt 
@@ -597,7 +636,9 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     uint8_t hdr_byte;
     uint8_t end_transition;
     uint8_t cur_txlen;
+    uint8_t next_txlen;
     uint8_t rem_bytes;
+    uint32_t next_event_time;
     uint32_t ticks;
     struct os_mbuf *m;
     struct ble_mbuf_hdr *ble_hdr;
@@ -607,11 +648,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
 
     /*
      * Get packet off transmit queue. If not available, send empty PDU. Set
-     * the more data bit as well. For a slave, we will set it regardless of
-     * connection event end timing (master will deal with that for us or the
-     * connection event will be terminated locally). For a master, we only
-     * set the MD bit if we have enough time to send the current PDU, get
-     * a response and send the next packet and get a response.
+     * the more data bit as well. 
      */
     md = 0;
     tx_empty_pdu = 0;
@@ -655,32 +692,60 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
             ble_hdr->txinfo.pyld_len = cur_txlen;
         }
 
+        /* 
+         * Set the more data data flag if we have more data to send and we
+         * have not been asked to terminate
+         */ 
         if ((nextpkthdr || 
              ((ble_hdr->txinfo.offset + cur_txlen) < pkthdr->omp_len)) && 
              !connsm->csmflags.cfbit.terminate_ind_rxd) {
-            md = 1;
-            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-                /* 
-                 * Dont bother to set the MD bit if we cannot do the following:
-                 *  -> wait IFS, send the current frame.
-                 *  -> wait IFS, receive a mininim size frame.
-                 *  -> wait IFS, send a mininim size frame.
-                 *  -> wait IFS, receive a mininim size frame.
-                 */
-                /* 
-                 * XXX: this calculation is based on using the current time
-                 * and assuming the transmission will occur an IFS time from
-                 * now. This is not the most accurate especially if we have
-                 * received a frame and we are replying to it.
-                 */ 
-                ticks = (BLE_LL_IFS * 4) + (3 * BLE_LL_CONN_SUPP_TIME_MIN) +
-                    BLE_TX_DUR_USECS_M(cur_txlen);
-                ticks = cputime_usecs_to_ticks(ticks);
-                if ((cputime_get32() + ticks) >= connsm->ce_end_time) {
-                    md = 0;
+            /* Get next event time */
+            next_event_time = ble_ll_conn_get_next_sched_time(connsm);
+
+            /* 
+             * Dont bother to set the MD bit if we cannot do the following:
+             *  -> wait IFS, send the current frame.
+             *  -> wait IFS, receive a maximum size frame.
+             *  -> wait IFS, send the next frame.
+             *  -> wait IFS, receive a maximum size frame.
+             * 
+             *  For slave:
+             *  -> wait IFS, send current frame.
+             *  -> wait IFS, receive maximum size frame.
+             *  -> wait IFS, send next frame.
+             */
+            if ((ble_hdr->txinfo.offset + cur_txlen) < pkthdr->omp_len) {
+                next_txlen = pkthdr->omp_len - 
+                    (ble_hdr->txinfo.offset + cur_txlen);
+            } else {
+                if (nextpkthdr->omp_len > connsm->eff_max_tx_octets) {
+                    next_txlen = connsm->eff_max_tx_octets;
+                } else {
+                    next_txlen = nextpkthdr->omp_len;
                 }
             }
-        }
+
+            /* 
+             * XXX: this calculation is based on using the current time
+             * and assuming the transmission will occur an IFS time from
+             * now. This is not the most accurate especially if we have
+             * received a frame and we are replying to it.
+             */ 
+            ticks = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
+                    BLE_TX_DUR_USECS_M(next_txlen) + 
+                    BLE_TX_DUR_USECS_M(cur_txlen);
+
+            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                ticks += (BLE_LL_IFS + connsm->eff_max_rx_time); 
+            }
+
+            ticks = cputime_usecs_to_ticks(ticks);
+            if ((cputime_get32() + ticks) >= next_event_time) {
+                md = 0;
+            } else {
+                md = 1;
+            }
+         }
     } else {
         /* Send empty pdu. Need to reset some items since we re-use it. */
         m = (struct os_mbuf *)&connsm->conn_empty_pdu;
@@ -718,6 +783,13 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * connection event. We will end the connection event if we have
      * received a valid frame with the more data bit set to 0 and we dont
      * have more data.
+     * 
+     * XXX: for a slave, we dont check to see if we can:
+     *  -> wait IFS, rx frame from master (either big or small).
+     *  -> wait IFS, send empty pdu or next pdu.
+     * 
+     *  We could do this. Now, we just keep going and hope that we dont
+     *  overrun next scheduled item.
      */
     if ((connsm->csmflags.cfbit.terminate_ind_rxd) ||
         ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) && (md == 0) &&
@@ -873,12 +945,17 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime)
     int rc;
     uint8_t rem_bytes;
     uint32_t ticks;
+    uint32_t next_sched_time;
     struct os_mbuf *txpdu;
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_mbuf_hdr *txhdr;
 
     rc = 1;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        /* Get next scheduled item time */
+        next_sched_time = ble_ll_conn_get_next_sched_time(connsm);
+
+        /* Check if there is a packet on the queue. */
         pkthdr = STAILQ_FIRST(&connsm->conn_txq);
         if (pkthdr) {
             txpdu = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
@@ -892,9 +969,9 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime)
             /* We will send empty pdu (just a LL header) */
             ticks = BLE_TX_DUR_USECS_M(0);
         }
-        ticks += (BLE_LL_IFS * 2) + BLE_LL_CONN_SUPP_TIME_MIN;
+        ticks += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
         ticks = cputime_usecs_to_ticks(ticks);
-        if ((begtime + ticks) >= connsm->ce_end_time) {
+        if ((begtime + ticks) >= next_sched_time) {
             rc = 0;
         }
     }
@@ -936,9 +1013,9 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     connsm->conn_role = BLE_LL_CONN_ROLE_MASTER;
 
     /* Set default ce parameters */
-    connsm->tx_win_size = BLE_LL_CFG_CONN_TX_WIN_SIZE;
-    connsm->tx_win_off = BLE_LL_CFG_CONN_TX_WIN_OFF;
-    connsm->master_sca = BLE_LL_CFG_CONN_MASTER_SCA;
+    connsm->tx_win_size = BLE_LL_CONN_TX_WIN_MIN;
+    connsm->tx_win_off = 0;
+    connsm->master_sca = NIMBLE_OPT_LL_MASTER_SCA;
 
     /* Hop increment is a random value between 5 and 16. */
     connsm->hop_inc = (rand() % 12) + 5;
@@ -1340,7 +1417,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * Calculate ce end time. For a slave, we need to add window widening and
      * the transmit window if we still have one.
      */
-    itvl = BLE_LL_CFG_CONN_INIT_SLOTS * BLE_LL_SCHED_USECS_PER_SLOT;
+    itvl = NIMBLE_OPT_LL_CONN_INIT_SLOTS * BLE_LL_SCHED_USECS_PER_SLOT;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         cur_ww = ble_ll_conn_calc_window_widening(connsm);
         max_ww = (connsm->conn_itvl * (BLE_LL_CONN_ITVL_USECS/2)) - BLE_LL_IFS;
@@ -1404,8 +1481,8 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
         connsm->anchor_point = endtime + cputime_usecs_to_ticks(usecs);
-        usecs = connsm->slave_cur_tx_win_usecs + (BLE_LL_CFG_CONN_INIT_SLOTS *
-                                                  BLE_LL_SCHED_USECS_PER_SLOT);
+        usecs = connsm->slave_cur_tx_win_usecs + 
+            (NIMBLE_OPT_LL_CONN_INIT_SLOTS * BLE_LL_SCHED_USECS_PER_SLOT);
         connsm->ce_end_time = connsm->anchor_point + 
             cputime_usecs_to_ticks(usecs);
         connsm->slave_cur_window_widening = 0;
@@ -1774,7 +1851,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         /* Attempt to schedule new connection. Possible that this might fail */
         if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, 
                                      ble_hdr->end_cputime,
-                                     BLE_LL_CFG_CONN_INIT_SLOTS)) {
+                                     NIMBLE_OPT_LL_CONN_INIT_SLOTS)) {
             /* Setup to transmit the connect request */
             rc = ble_ll_conn_request_send(addr_type, adv_addr, 
                                           g_ble_ll_conn_create_sm->tx_win_off);
@@ -2121,6 +2198,10 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
 
                         /* If l2cap pdu, increment # of completed packets */
                         if (ble_ll_conn_is_l2cap_pdu(txhdr)) {
+#if (BLETEST_THROUGHPUT_TEST == 1)
+                            bletest_completed_pkt(connsm->conn_handle);
+#endif
+
                             ++connsm->completed_pkts;
                         }
                         os_mbuf_free_chain(txpdu);
@@ -2460,17 +2541,17 @@ ble_ll_conn_module_reset(void)
 
     /* Configure the global LL parameters */
     conn_params = &g_ble_ll_conn_params;
-    maxbytes = BLE_LL_CFG_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
+    maxbytes = NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->supp_max_rx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_rx_octets = BLE_LL_CFG_SUPP_MAX_RX_BYTES;
+    conn_params->supp_max_rx_octets = NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES;
 
-    maxbytes = BLE_LL_CFG_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
+    maxbytes = NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->supp_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_tx_octets = BLE_LL_CFG_SUPP_MAX_TX_BYTES;
+    conn_params->supp_max_tx_octets = NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES;
 
-    maxbytes = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
+    maxbytes = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->conn_init_max_tx_octets = BLE_LL_CFG_CONN_INIT_MAX_TX_BYTES;
+    conn_params->conn_init_max_tx_octets = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES;
 
     /* Mask in all channels by default */
     conn_params->num_used_chans = BLE_PHY_NUM_DATA_CHANS;

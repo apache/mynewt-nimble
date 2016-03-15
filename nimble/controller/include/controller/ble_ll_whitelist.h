@@ -20,8 +20,6 @@
 #ifndef H_BLE_LL_WHITELIST_
 #define H_BLE_LL_WHITELIST_
 
-#define BLE_LL_CFG_WHITELIST_SIZE   (8)
-
 /* Clear the whitelist */
 int ble_ll_whitelist_clear(void);
 

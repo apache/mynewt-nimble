@@ -23,6 +23,7 @@
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
@@ -36,19 +37,22 @@
 
 /* 
  * XXX:
- * 1) Do I need to know if the address is random or public? Or
- * is there no chance that a public address will match a random
- * address? This applies to checking for advertisers that we have heard a scan 
- * response from or sent an advertising report for.
- * 
- * 2) I think I can guarantee that we dont process things out of order if
+ * 1) I think I can guarantee that we dont process things out of order if
  * I send an event when a scan request is sent. The scan_rsp_pending flag
  * code might be made simpler.
  * 
- * 3) Interleave sending scan requests to different advertisers? I guess I need 
+ * 2) Interleave sending scan requests to different advertisers? I guess I need 
  * a list of advertisers to which I sent a scan request and have yet to
  * receive a scan response from? Implement this.
  */
+
+/* Dont allow more than 255 of these entries */
+#if NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS > 255
+    #error "Cannot have more than 255 duplicate entries!"
+#endif
+#if NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS > 255
+    #error "Cannot have more than 255 scan response entries!"
+#endif
 
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
@@ -70,12 +74,14 @@ struct ble_ll_scan_advertisers
 #define BLE_LL_SC_ADV_F_ADV_RPT_SENT    (0x08)
 
 /* Contains list of advertisers that we have heard scan responses from */
-uint8_t g_ble_ll_scan_num_rsp_advs;
-struct ble_ll_scan_advertisers g_ble_ll_scan_rsp_advs[BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS];
+static uint8_t g_ble_ll_scan_num_rsp_advs;
+struct ble_ll_scan_advertisers 
+g_ble_ll_scan_rsp_advs[NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS];
 
 /* Used to filter duplicate advertising events to host */
-uint8_t g_ble_ll_scan_num_dup_advs;
-struct ble_ll_scan_advertisers g_ble_ll_scan_dup_advs[BLE_LL_SCAN_CFG_NUM_DUP_ADVS];
+static uint8_t g_ble_ll_scan_num_dup_advs;
+struct ble_ll_scan_advertisers 
+g_ble_ll_scan_dup_advs[NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS];
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
 static void
@@ -245,7 +251,7 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd)
     if (!adv) {
         /* XXX: for now, if we dont have room, just leave */
         num_advs = g_ble_ll_scan_num_dup_advs;
-        if (num_advs == BLE_LL_SCAN_CFG_NUM_DUP_ADVS) {
+        if (num_advs == NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS) {
             return;
         }
 
@@ -312,7 +318,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
 
     /* XXX: for now, if we dont have room, just leave */
     num_advs = g_ble_ll_scan_num_rsp_advs;
-    if (num_advs == BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS) {
+    if (num_advs == NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS) {
         return;
     }
 

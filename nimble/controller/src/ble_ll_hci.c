@@ -21,6 +21,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 #include "controller/ble_ll_adv.h"
@@ -31,8 +32,8 @@
 #include "ble_ll_conn_priv.h"
 
 /* LE event mask */
-uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
-uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
+static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
+static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 
 /**
  * ll hci get num cmd pkts 
@@ -109,7 +110,7 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 
     hci_rev = 0;
     lmp_subver = 0;
-    mfrg = BLE_LL_MFRG_ID;
+    mfrg = NIMBLE_OPT_LL_MFRG_ID;
 
     /* Place the data packet length and number of packets in the buffer */
     rspbuf[0] = BLE_HCI_VER_BCS_4_2;
@@ -153,8 +154,8 @@ static int
 ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
 {    
     /* Place the data packet length and number of packets in the buffer */
-    htole16(rspbuf, BLE_LL_CFG_ACL_DATA_PKT_LEN);
-    rspbuf[2] = BLE_LL_CFG_NUM_ACL_DATA_PKTS;
+    htole16(rspbuf, g_ble_ll_data.ll_acl_pkt_size);
+    rspbuf[2] = g_ble_ll_data.ll_num_acl_pkts;
     *rsplen = BLE_HCI_RD_BUF_SIZE_RSPLEN;
     return BLE_ERR_SUCCESS;
 }

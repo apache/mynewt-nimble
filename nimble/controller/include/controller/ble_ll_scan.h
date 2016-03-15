@@ -23,21 +23,6 @@
 #include "controller/ble_ll_sched.h"
 #include "hal/hal_cputime.h"
 
-/* 
- * Configuration items for the number of duplicate advertisers and the
- * number of advertisers from which we have heard a scan response 
- */
-#define BLE_LL_SCAN_CFG_NUM_DUP_ADVS         (8)
-#define BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS    (8)
-
-/* Dont allow more than 255 of these entries */
-#if BLE_LL_SCAN_CFG_NUM_DUP_ADVS > 255
-    #error "Cannot have more than 255 duplicate entries!"
-#endif
-#if BLE_LL_SCAN_CFG_NUM_SCAN_RSP_ADVS > 255
-    #error "Cannot have more than 255 scan response entries!"
-#endif
-
 /*
  * SCAN_REQ 
  *      -> ScanA    (6 bytes)
@@ -50,7 +35,6 @@
  * state. The advertising address is the intended recipient of this frame.
  */
 #define BLE_SCAN_REQ_LEN                (12)
-#define BLE_SCAN_REQ_TXTIME_USECS       (176)
 
 /*
  * SCAN_RSP
@@ -64,8 +48,6 @@
  * scanning state. 
  */
 #define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
-#define BLE_SCAN_RSP_MIN_LEN            (6)
-#define BLE_SCAN_RSP_MAX_LEN            (6 + BLE_SCAN_RSP_DATA_MAX_LEN)
 
 /* Scanning state machine (used when initiating as well) */
 struct ble_ll_scan_sm

@@ -25,7 +25,6 @@
 
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
-#define BLE_LL_MFRG_ID          (0xFFFF)    /* XXX: replace with real one */
 
 /* 
  * The amount of time that we will wait to hear the start of a receive
@@ -53,6 +52,14 @@ struct ble_ll_obj
 
     /* Supported features */
     uint8_t ll_supp_features;
+
+    /* Number of ACL data packets supported */
+    uint8_t ll_num_acl_pkts;
+    uint8_t _pad;
+
+    /* ACL data packet size */
+    uint16_t ll_acl_pkt_size;
+    uint16_t _pad16;
 
     /* Task event queue */
     struct os_eventq ll_evq;
@@ -132,25 +139,14 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_FEAT_EXT_SCAN_FILT   (0x80)
 
 /* LL timing */
-#define BLE_LL_IFS              (150)       /* usecs */
-#define BLE_CLOCK_DRIFT_ACTIVE  (50)        /* +/- ppm */
-#define BLE_CLOCK_DRIFT_SLEEP   (500)       /* +/- ppm */
-
-/* 
- * Link Layer processing delay. This number is simply made up for now. We
- * use it to insure that we have enough time to do some processing before
- * the LL needs to do something. I made it one IFS time for now. It is used:
- *  -> When determining how much time we leave before the end of a connection
- *  event.
- */
-#define BLE_LL_PROC_DELAY       (150)
+#define BLE_LL_IFS                  (150)       /* usecs */
 
 /* 
  * BLE LL device address. Note that element 0 of the array is the LSB and
  * is sent over the air first. Byte 5 is the MSB and is the last one sent over
  * the air.
  */
-#define BLE_DEV_ADDR_LEN    (6)     /* bytes */
+#define BLE_DEV_ADDR_LEN            (6)     /* bytes */
 
 struct ble_dev_addr
 {
@@ -227,8 +223,6 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_HDR_TXADD_RAND          (0x40)
 #define BLE_ADV_PDU_HDR_RXADD_RAND          (0x80)
 
-/* Max length */
-#define BLE_LL_MAX_ADV_PYLD                 (37)
 /*
  * Data Channel format
  * 
@@ -287,7 +281,8 @@ struct ble_dev_addr
 
 /*--- External API ---*/
 /* Initialize the Link Layer */
-int ble_ll_init(void);
+int
+ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size);
 
 /* Reset the Link Layer */
 int ble_ll_reset(void);

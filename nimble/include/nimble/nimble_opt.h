@@ -182,6 +182,96 @@
 #define NIMBLE_OPT_ATT_SVR_INDICATE             1
 #endif
 
+/*** CONTROLLER ***/
+
+/* 
+ * Sleep clock accuracy (sca). This is the amount of drift in the system during 
+ * when the device is sleeping (in parts per million).
+ *
+ * NOTE: the master sca is an enumerated value based on the sca. Rather than
+ * have a piece of code calculate this value, the developer must set this
+ * value based on the value of the SCA using the following table:
+ * 
+ *  SCA between 251 and 500 ppm (inclusive); master sca = 0
+ *  SCA between 151 and 250 ppm (inclusive); master sca = 1
+ *  SCA between 101 and 150 ppm (inclusive); master sca = 2
+ *  SCA between 76 and 100 ppm (inclusive); master sca = 3
+ *  SCA between 51 and 75 ppm (inclusive); master sca = 4
+ *  SCA between 31 and 50 ppm (inclusive); master sca = 5
+ *  SCA between 21 and 30 ppm (inclusive); master sca = 6
+ *  SCA between 0 and 20 ppm (inclusive); master sca = 7
+ * 
+ *  For example:
+ *      if your clock drift is 101 ppm, your master should be set to 2.
+ *      if your clock drift is 20, your master sca should be set to 7.
+ * 
+ *  The values provided below are merely meant to be an example and should
+ *  be replaced by values appropriate for your platform.
+ */
+#ifndef NIMBLE_OPT_LL_OUR_SCA
+#define NIMBLE_OPT_LL_OUR_SCA                   (60)    /* in ppm */
+#endif
+
+#ifndef NIMBLE_OPT_LL_MASTER_SCA
+#define NIMBLE_OPT_LL_MASTER_SCA                (4)
+#endif
+
+/* transmit power level */
+#ifndef NIMBLE_OPT_LL_TX_PWR_DBM
+#define NIMBLE_OPT_LL_TX_PWR_DBM                (0)
+#endif
+
+/* 
+ * Determines the maximum rate at which the controller will send the
+ * number of completed packets event to the host. Rate is in os time ticks
+ */
+#ifndef NIMBLE_OPT_NUM_COMP_PKT_RATE
+#define NIMBLE_OPT_NUM_COMP_PKT_RATE    ((2000 * OS_TICKS_PER_SEC) / 1000)
+#endif
+
+/* Manufacturer ID. Should be set to unique ID per manufacturer */
+#ifndef NIMBLE_OPT_LL_MFRG_ID
+#define NIMBLE_OPT_LL_MFRG_ID                   (0xFFFF)
+#endif
+
+/* 
+ * Configuration items for the number of duplicate advertisers and the
+ * number of advertisers from which we have heard a scan response.
+ */
+#ifndef NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS
+#define NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS         (8)
+#endif
+
+#ifndef NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS
+#define NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS         (8)
+#endif
+
+/* Size of the LL whitelist */
+#ifndef NIMBLE_OPT_LL_WHITELIST_SIZE
+#define NIMBLE_OPT_LL_WHITELIST_SIZE            (8)
+#endif
+
+/* 
+ * Data length management definitions for connections. These define the maximum
+ * size of the PDU's that will be sent and/or received in a connection. 
+ */
+#ifndef NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES
+#define NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES        (251)
+#endif
+
+#ifndef NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES
+#define NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES        (251)
+#endif
+
+#ifndef NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES
+#define NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES   (251)
+#endif
+
+/* The number of slots that will be allocated to each connection */
+#ifndef NIMBLE_OPT_LL_CONN_INIT_SLOTS
+#define NIMBLE_OPT_LL_CONN_INIT_SLOTS          (2)
+#endif
+
 /* Include automatically-generated settings. */
 #include "nimble/nimble_opt_auto.h"
 

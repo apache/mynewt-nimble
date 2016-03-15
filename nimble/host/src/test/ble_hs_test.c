@@ -42,7 +42,7 @@ ble_hs_test_hci_txed(uint8_t *cmdbuf)
     ble_hs_test_util_prev_hci_tx = cmdbuf;
 }
 
-#ifdef PKG_TEST
+#ifdef MYNEWT_SELFTEST
 
 int
 main(void)

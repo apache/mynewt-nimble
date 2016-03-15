@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
@@ -72,9 +73,6 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     11, 7, 1, 22, 12, 0, 0, 1, 8, 8, 0, 0, 5, 1, 8, 23, 23, 2, 0, 0, 8, 8
 };
 
-/* XXX: Improvements
- * 1) We can inititalize the procedure timer once per connection state machine
- */
 static int
 ble_ll_ctrl_chk_supp_bytes(uint16_t bytes)
 {
@@ -381,7 +379,7 @@ ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 
     /* Fill out response */
     pyld[0] = BLE_HCI_VER_BCS_4_2;
-    htole16(pyld + 1, BLE_LL_MFRG_ID);
+    htole16(pyld + 1, NIMBLE_OPT_LL_MFRG_ID);
     htole16(pyld + 3, BLE_LL_SUB_VERS_NR);
 }
 

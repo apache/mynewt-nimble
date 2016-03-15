@@ -405,6 +405,8 @@ ble_hs_test_util_init(void)
     struct ble_hs_cfg cfg;
     int rc;
 
+    tu_init();
+
     os_msys_reset();
     stats_module_reset();
 

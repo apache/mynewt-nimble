@@ -24,6 +24,7 @@
 #include "stats/stats.h"
 #include "bsp/bsp.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
@@ -44,12 +45,6 @@
  * 4) Should look into always disabled the wfr interrupt if we receive the
  * start of a frame. Need to look at the various states to see if this is the
  * right thing to do.
- * 
- * 5) Make sure there is no way we can start a wfr timer and then have
- * whatever event end and not stop the timer. We want to make sure the timer
- * cant fire off unless we are sure that it will fire off when the device is
- * in standby state. At least in standby we are sure no erroneous action will
- * be taken
  */
 
 /* Configuration for supported features */
@@ -98,7 +93,6 @@ STATS_NAME_START(ble_ll_stats)
 STATS_NAME_END(ble_ll_stats)
 
 /* The BLE LL task data structure */
-#define BLE_LL_TASK_PRI     (OS_TASK_PRI_HIGHEST)
 #define BLE_LL_STACK_SIZE   (64)
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
@@ -747,7 +741,7 @@ ble_ll_task(void *arg)
     ble_phy_init();
 
     /* Set output power to 1mW (0 dBm) */
-    ble_phy_txpwr_set(0);
+    ble_phy_txpwr_set(NIMBLE_OPT_LL_TX_PWR_DBM);
 
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
@@ -959,7 +953,7 @@ ble_ll_reset(void)
  * @return int 
  */
 int
-ble_ll_init(void)
+ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 {
     int rc;
     uint8_t features;
@@ -967,6 +961,10 @@ ble_ll_init(void)
 
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
+
+    /* Set acl pkt size and number */
+    lldata->ll_num_acl_pkts = num_acl_pkts;
+    lldata->ll_acl_pkt_size = acl_pkt_size;
 
     /* Initialize eventq */
     os_eventq_init(&lldata->ll_evq);
@@ -1016,7 +1014,7 @@ ble_ll_init(void)
     lldata->ll_supp_features = features;
 
     /* Initialize the LL task */
-    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, BLE_LL_TASK_PRI, 
+    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, ll_task_prio, 
                  OS_WAIT_FOREVER, g_ble_ll_stack, BLE_LL_STACK_SIZE);
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats), 
