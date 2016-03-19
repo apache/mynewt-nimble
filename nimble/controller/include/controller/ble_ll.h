@@ -342,7 +342,7 @@ uint8_t ble_ll_read_supp_features(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */ 
-#define BLE_LL_LOG
+#undef BLE_LL_LOG
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
 #define BLE_LL_LOG_ID_RX_START          (2)

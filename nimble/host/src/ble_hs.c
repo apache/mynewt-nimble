@@ -33,7 +33,7 @@
 #ifdef ARCH_sim
 #define BLE_HS_STACK_SIZE   (1024)
 #else
-#define BLE_HS_STACK_SIZE   (240)
+#define BLE_HS_STACK_SIZE   (250)
 #endif
 
 static struct log_handler ble_hs_log_console_handler;
