@@ -223,7 +223,7 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     ocf = BLE_HCI_OCF(opcode);
 
     BLE_HS_LOG(DEBUG, "Command Complete: cmd_pkts=%u ogf=0x%x ocf=0x%x "
-                      "status=%u", evdata[0], ogf, ocf, evdata[3]);
+                      "status=%u ", evdata[0], ogf, ocf, evdata[3]);
 
     /* Display parameters based on command. */
     switch (ogf) {
@@ -231,10 +231,17 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
         switch (ocf) {
         case BLE_HCI_OCF_IP_RD_LOCAL_VER:
             if (evdata[3] == BLE_ERR_SUCCESS) {
-                BLE_HS_LOG(DEBUG, " hci_ver=%u hci_rev=%u lmp_ver=%u mfrg=%u"
-                                  " lmp_subver=%u",
+                BLE_HS_LOG(DEBUG, "hci_ver=%u hci_rev=%u lmp_ver=%u mfrg=%u "
+                                  "lmp_subver=%u",
                            evdata[4], le16toh(evdata + 5), evdata[7],
                            le16toh(evdata + 8), le16toh(evdata + 10));
+            }
+            break;
+        case BLE_HCI_OCF_IP_RD_BD_ADDR:
+            if (evdata[3] == BLE_ERR_SUCCESS) {
+                BLE_HS_LOG(DEBUG, "bd_addr=%x:%x:%x:%x:%x:%x",
+                           evdata[9], evdata[8], evdata[7],
+                           evdata[6], evdata[5], evdata[4]);
             }
             break;
         default:
@@ -244,7 +251,7 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     case BLE_HCI_OGF_STATUS_PARAMS:
         switch (ocf) {
         case BLE_HCI_OCF_RD_RSSI:
-            BLE_HS_LOG(DEBUG, " handle=%u rssi=%d", le16toh(evdata + 4), 
+            BLE_HS_LOG(DEBUG, "handle=%u rssi=%d", le16toh(evdata + 4), 
                        (int8_t)evdata[6]);
             break;
         default:
@@ -254,9 +261,18 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     case BLE_HCI_OGF_LE:
         switch (ocf) {
         case BLE_HCI_OCF_LE_RD_CHAN_MAP:
-            BLE_HS_LOG(DEBUG, " handle=%u chanmap=%x.%x.%x.%x.%x", 
+            BLE_HS_LOG(DEBUG, "handle=%u chanmap=%x.%x.%x.%x.%x", 
                        le16toh(evdata + 4), evdata[6], evdata[7], evdata[8],
                        evdata[9], evdata[10]);
+            break;
+        case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
+            BLE_HS_LOG(DEBUG, "txoct=%u txtime=%u rxoct=%u rxtime=%u", 
+                       le16toh(evdata + 4), le16toh(evdata + 6),
+                       le16toh(evdata + 8), le16toh(evdata + 10));
+            break;
+        case BLE_HCI_OCF_LE_RD_SUPP_STATES:
+            BLE_HS_LOG(DEBUG, "states=0x%lx%lx", le32toh(evdata + 8),
+                       le32toh(evdata + 4));
             break;
         default:
             break;

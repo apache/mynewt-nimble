@@ -67,6 +67,7 @@
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_CB_RESET                (0x0003)
 #define BLE_HCI_OCF_CB_SET_EV_FILT          (0x0005)
+#define BLE_HCI_OCF_CB_READ_TX_PWR          (0x002D)
 
 /* Command specific definitions */
 /* Set event mask */
@@ -74,6 +75,8 @@
 
 /* List of OCF for Info Param commands (OGF=0x04) */
 #define BLE_HCI_OCF_IP_RD_LOCAL_VER         (0x0001)
+#define BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD      (0x0002)
+#define BLE_HCI_OCF_IP_RD_BD_ADDR           (0x0009)
 
 /* Command specific definitions */
 /* NOTE: does not include status field in command complete event! */
@@ -314,11 +317,17 @@
 /* --- LE read remote features (OCF 0x0016) */
 #define BLE_HCI_CONN_RD_REM_FEAT_LEN        (2)
 
+/* --- LE read supported states (OCF 0x001C) --- */
+#define BLE_HCI_RD_SUPP_STATES_RSPLEN       (8)
+
 /* --- LE remote connection parameter request reply (OCF 0x0020) */
 #define BLE_HCI_CONN_PARAM_REPLY_LEN        (14)
 
 /* --- LE remote connection parameter request negative reply (OCF 0x0021) */
 #define BLE_HCI_CONN_PARAM_NEG_REPLY_LEN    (3)
+
+/* --- LE read maximum data length (OCF 0x002F) */
+#define BLE_HCI_RD_MAX_DATALEN_RSPLEN       (8)
 
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)

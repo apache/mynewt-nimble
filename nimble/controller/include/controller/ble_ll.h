@@ -338,6 +338,9 @@ void ble_ll_wfr_disable(void);
 /* Read set of features supported by the Link Layer */
 uint8_t ble_ll_read_supp_features(void);
 
+/* Read set of states supported by the Link Layer */
+uint64_t ble_ll_read_supp_states(void);
+
 /* 
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log

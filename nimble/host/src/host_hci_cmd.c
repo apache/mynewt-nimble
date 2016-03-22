@@ -238,6 +238,16 @@ host_hci_cmd_rd_local_version(void)
 }
 
 int
+host_hci_cmd_rd_bd_addr(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
+                           BLE_HCI_OCF_IP_RD_BD_ADDR, 0, NULL);
+    return rc;
+}
+
+int
 host_hci_cmd_set_event_mask(uint64_t event_mask)
 {
     int rc;
@@ -298,6 +308,34 @@ host_hci_cmd_le_read_buffer_size(void)
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_BUF_SIZE, 0, NULL);
     return rc;
+}
+
+/**
+ * Read supported states 
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x001C 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_read_supp_states(void)
+{
+    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_SUPP_STATES, 0, NULL);
+}
+
+/**
+ * Read maximum data length
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x002F 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_read_max_datalen(void)
+{
+    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_MAX_DATA_LEN, 0, NULL);
 }
 
 /**

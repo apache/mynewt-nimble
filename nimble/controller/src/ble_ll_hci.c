@@ -123,6 +123,27 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
+ * Called to read the public device address of the device
+ * 
+ * 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_hci_rd_bd_addr(uint8_t *rspbuf, uint8_t *rsplen)
+{    
+    /* 
+     * XXX: for now, assume we always have a public device address. If we
+     * dont, we should set this to zero
+     */ 
+    memcpy(rspbuf, g_dev_addr, BLE_DEV_ADDR_LEN);
+    *rsplen = BLE_DEV_ADDR_LEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
  * ll hci set le event mask
  *  
  * Called when the LL controller receives a set LE event mask command.
@@ -161,6 +182,27 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
+ * HCI read maximum data length command. Returns the controllers max supported 
+ * rx/tx octets/times. 
+ * 
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ * 
+ * @return int BLE error code
+ */
+static int
+ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
+{    
+    /* Place the data packet length and number of packets in the buffer */
+    htole16(rspbuf, g_ble_ll_conn_params.supp_max_tx_octets);
+    htole16(rspbuf + 2, g_ble_ll_conn_params.supp_max_tx_time);
+    htole16(rspbuf + 4, g_ble_ll_conn_params.supp_max_rx_octets);
+    htole16(rspbuf + 6, g_ble_ll_conn_params.supp_max_rx_time);
+    *rsplen = BLE_HCI_RD_MAX_DATALEN_RSPLEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
  * HCI read local supported features command. Returns the features 
  * supported by the controller.
  * 
@@ -176,6 +218,27 @@ ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
     memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
     rspbuf[0] = ble_ll_read_supp_features();
     *rsplen = BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * HCI read local supported states command. Returns the states 
+ * supported by the controller.
+ * 
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ * 
+ * @return int BLE error code
+ */
+static int
+ble_ll_hci_le_read_supp_states(uint8_t *rspbuf, uint8_t *rsplen)
+{    
+    uint64_t supp_states;
+
+    /* Add list of supported states. */
+    supp_states = ble_ll_read_supp_states();
+    htole64(rspbuf, supp_states);
+    *rsplen = BLE_HCI_RD_SUPP_STATES_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
 
@@ -371,11 +434,17 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
         rc = ble_ll_conn_hci_read_rem_features(cmdbuf);
         break;
+    case BLE_HCI_OCF_LE_RD_SUPP_STATES :
+        rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);
+        break;
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
         rc = ble_ll_conn_hci_param_reply(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
+        break;
+    case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
+        rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         break;
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
@@ -513,6 +582,11 @@ ble_ll_hci_info_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = ble_ll_hci_rd_local_version(rspbuf, rsplen);
         }
         break;
+    case BLE_HCI_OCF_IP_RD_BD_ADDR:
+        if (len == 0) {
+            rc = ble_ll_hci_rd_bd_addr(rspbuf, rsplen);
+        }
+        break;
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
@@ -558,6 +632,11 @@ ble_ll_hci_status_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen
     return rc;
 }
 
+/**
+ * Called to process an HCI command from the host.
+ * 
+ * @param ev Pointer to os event containing a pointer to command buffer
+ */
 void
 ble_ll_hci_cmd_proc(struct os_event *ev)
 {
@@ -667,17 +746,6 @@ ble_hci_transport_host_acl_data_send(struct os_mbuf *om)
 {
     ble_ll_acl_data_in(om);
     return 0;
-}
-
-/**
- * Reset the LL HCI interface.
- * 
- */
-void
-ble_ll_hci_reset(void)
-{
-    /* Only need to call the init function again */
-    ble_ll_hci_init();
 }
 
 /**

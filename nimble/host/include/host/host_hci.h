@@ -31,6 +31,7 @@ int host_hci_cmd_set_event_mask(uint64_t event_mask);
 int host_hci_cmd_disconnect(uint16_t handle, uint8_t reason);
 int host_hci_cmd_rd_rem_version(uint16_t handle);
 int host_hci_cmd_rd_local_version(void);
+int host_hci_cmd_rd_bd_addr(void);
 int host_hci_cmd_read_rssi(uint16_t handle);
 int host_hci_cmd_le_set_host_chan_class(uint8_t *new_chan_map);
 int host_hci_cmd_le_rd_chanmap(uint16_t handle);
@@ -59,7 +60,8 @@ int host_hci_cmd_le_create_conn_cancel(void);
 int host_hci_cmd_le_conn_update(struct hci_conn_update *hcu);
 int host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr);
 int host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn);
-
+int host_hci_cmd_le_read_supp_states(void);
+int host_hci_cmd_le_read_max_datalen(void);
 int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 
 uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);

@@ -56,7 +56,7 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     0xFF,
     0xFF,
     0xFF,
-    0xFF,
+    0,                                  /* 0x001C: read supported states */
     0xFF,
     0xFF,
     0xFF,
@@ -75,6 +75,6 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     0xFF,
     0xFF,
     0xFF,
-    0xFF,                               /* 0x002F: Read max data length */
+    0,                                  /* 0x002F: Read max data length */
 };
 
