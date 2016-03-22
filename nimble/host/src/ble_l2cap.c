@@ -363,6 +363,11 @@ ble_l2cap_init(void)
         goto err;
     }
 
+    rc = ble_l2cap_sm_init();
+    if (rc != 0) {
+        goto err;
+    }
+
     rc = stats_init_and_reg(
         STATS_HDR(ble_l2cap_stats), STATS_SIZE_INIT_PARMS(ble_l2cap_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_l2cap_stats), "ble_l2cap");

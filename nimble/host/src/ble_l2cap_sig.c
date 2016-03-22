@@ -434,8 +434,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         return BLE_HS_ENOTSUP;
     }
 
-    rc = ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len,
-                                        &req);
+    rc = ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
     assert(rc == 0);
 
     params.itvl_min = req.itvl_min;

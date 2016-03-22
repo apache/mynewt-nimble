@@ -662,6 +662,20 @@ host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
 }
 
 int
+host_hci_cmd_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr)
+{
+    uint8_t cmd[BLE_HCI_LT_KEY_REQ_REPLY_LEN];
+    int rc;
+
+    htole16(cmd + 0, hkr->conn_handle);
+    swap_buf(cmd + 2, hkr->long_term_key, sizeof hkr->long_term_key);
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY,
+                              sizeof cmd, cmd);
+    return rc;
+}
+
+int
 host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr)
 {
     uint8_t cmd[BLE_HCI_CONN_PARAM_REPLY_LEN];

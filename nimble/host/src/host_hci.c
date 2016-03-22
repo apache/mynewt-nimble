@@ -32,21 +32,21 @@
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
 
-static int host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data,
-                                        int len);
-static int host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data,
-                                    int len);
-static int host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len);
-static int host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data,
-                                          int len);
-static int host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len);
-static int host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data,
-                                        int len);
-static int host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len);
-static int host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data,
-                                            int len);
-static int host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data,
-                                        int len);
+typedef int host_hci_event_fn(uint8_t event_code, uint8_t *data, int len);
+static host_hci_event_fn host_hci_rx_disconn_complete;
+static host_hci_event_fn host_hci_rx_encrypt_change;
+static host_hci_event_fn host_hci_rx_cmd_complete;
+static host_hci_event_fn host_hci_rx_cmd_status;
+static host_hci_event_fn host_hci_rx_num_completed_pkts;
+static host_hci_event_fn host_hci_rx_le_meta;
+
+typedef int host_hci_le_event_fn(uint8_t subevent, uint8_t *data, int len);
+static host_hci_le_event_fn host_hci_rx_le_conn_complete;
+static host_hci_le_event_fn host_hci_rx_le_adv_rpt;
+static host_hci_le_event_fn host_hci_rx_le_conn_upd_complete;
+static host_hci_le_event_fn host_hci_rx_le_lt_key_req;
+static host_hci_le_event_fn host_hci_rx_le_conn_parm_req;
+
 static uint16_t host_hci_buffer_sz;
 static uint8_t host_hci_max_pkts;
 
@@ -67,7 +67,6 @@ uint16_t host_hci_outstanding_opcode;
 static struct os_callout_func host_hci_timer;
 
 /** Dispatch table for incoming HCI events.  Sorted by event code field. */
-typedef int host_hci_event_fn(uint8_t event_code, uint8_t *data, int len);
 struct host_hci_event_dispatch_entry {
     uint8_t hed_event_code;
     host_hci_event_fn *hed_fn;
@@ -75,6 +74,7 @@ struct host_hci_event_dispatch_entry {
 
 static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
+    { BLE_HCI_EVCODE_ENCRYPT_CHG, host_hci_rx_encrypt_change },
     { BLE_HCI_EVCODE_COMMAND_COMPLETE, host_hci_rx_cmd_complete },
     { BLE_HCI_EVCODE_COMMAND_STATUS, host_hci_rx_cmd_status },
     { BLE_HCI_EVCODE_NUM_COMP_PKTS, host_hci_rx_num_completed_pkts },
@@ -85,7 +85,6 @@ static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     (sizeof host_hci_event_dispatch / sizeof host_hci_event_dispatch[0])
 
 /** Dispatch table for incoming LE meta events.  Sorted by subevent field. */
-typedef int host_hci_le_event_fn(uint8_t subevent, uint8_t *data, int len);
 struct host_hci_le_event_dispatch_entry {
     uint8_t hmd_subevent;
     host_hci_le_event_fn *hmd_fn;
@@ -96,6 +95,7 @@ static const struct host_hci_le_event_dispatch_entry
     { BLE_HCI_LE_SUBEV_CONN_COMPLETE, host_hci_rx_le_conn_complete },
     { BLE_HCI_LE_SUBEV_ADV_RPT, host_hci_rx_le_adv_rpt },
     { BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE, host_hci_rx_le_conn_upd_complete },
+    { BLE_HCI_LE_SUBEV_LT_KEY_REQ, host_hci_rx_le_lt_key_req },
     { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, host_hci_rx_le_conn_parm_req },
 };
 
@@ -181,6 +181,24 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     evt.reason = data[5];
 
     ble_gap_rx_disconn_complete(&evt);
+
+    return 0;
+}
+
+static int
+host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
+{
+    struct hci_encrypt_change evt;
+
+    if (len < BLE_HCI_EVENT_ENCRYPT_CHG_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    evt.status = data[2];
+    evt.connection_handle = le16toh(data + 3);
+    evt.encryption_enabled = data[5];
+
+    ble_gap_encryption_changed(evt.connection_handle, evt.encryption_enabled);
 
     return 0;
 }
@@ -495,6 +513,25 @@ host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
     }
 
     ble_gap_rx_update_complete(&evt);
+
+    return 0;
+}
+
+static int
+host_hci_rx_le_lt_key_req(uint8_t subevent, uint8_t *data, int len)
+{
+    struct hci_le_lt_key_req evt;
+
+    if (len < BLE_HCI_LE_LT_KEY_REQ_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    evt.subevent_code = data[0];
+    evt.connection_handle = le16toh(data + 1);
+    evt.random_number = le64toh(data + 3);
+    evt.encrypted_diversifier = le16toh(data + 11);
+
+    ble_l2cap_sm_rx_lt_key_req(&evt);
 
     return 0;
 }

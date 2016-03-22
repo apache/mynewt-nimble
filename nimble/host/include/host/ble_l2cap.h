@@ -55,7 +55,7 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SM_OP_PAIR_RSP                0x02
 #define BLE_L2CAP_SM_OP_PAIR_CONFIRM            0x03
 #define BLE_L2CAP_SM_OP_PAIR_RANDOM             0x04
-#define BLE_L2CAP_SM_OP_PAIR_FAILED             0x05
+#define BLE_L2CAP_SM_OP_PAIR_FAIL               0x05
 #define BLE_L2CAP_SM_OP_ENC_INFO                0x06
 #define BLE_L2CAP_SM_OP_MASTER_ID               0x07
 #define BLE_L2CAP_SM_OP_IDENTITY_INFO           0x08

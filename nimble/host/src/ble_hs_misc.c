@@ -53,7 +53,6 @@ ble_hs_misc_log_mbuf(struct os_mbuf *om)
         os_mbuf_copydata(om, i, 1, &u8);
         BLE_HS_LOG(DEBUG, "0x%02x ", u8);
     }
-    BLE_HS_LOG(DEBUG, "\n");
 }
 
 void
@@ -76,6 +75,7 @@ ble_hs_misc_assert_no_locks(void)
         assert(!ble_gattc_locked_by_cur_task());
         assert(!ble_gap_locked_by_cur_task());
         assert(!ble_hci_sched_locked_by_cur_task());
+        assert(!ble_l2cap_sm_locked_by_cur_task());
     }
 }
 

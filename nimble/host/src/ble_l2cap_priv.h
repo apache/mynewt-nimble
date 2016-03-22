@@ -70,7 +70,6 @@ struct ble_l2cap_sig_update_rsp {
 #define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT  0x0000
 #define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT  0x0001
 
-
 #define BLE_L2CAP_CID_ATT   4
 #define BLE_L2CAP_CID_SIG   5
 #define BLE_L2CAP_CID_SM    6

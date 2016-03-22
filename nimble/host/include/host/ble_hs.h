@@ -56,8 +56,11 @@
 #define BLE_HS_ERR_HCI_BASE             0x200   /* 512 */
 #define BLE_HS_HCI_ERR(x)               ((x) ? BLE_HS_ERR_HCI_BASE + (x) : 0)
 
-#define BLE_HS_ERR_L2C_BASE             0x300
+#define BLE_HS_ERR_L2C_BASE             0x300   /* 768 */
 #define BLE_HS_L2C_ERR(x)               ((x) ? BLE_HS_ERR_L2C_BASE + (x) : 0)
+
+#define BLE_HS_ERR_SM_BASE              0x400   /* 1024 */
+#define BLE_HS_SM_ERR(x)                ((x) ? BLE_HS_ERR_SM_BASE + (x) : 0)
 
 struct ble_hs_cfg {
     /** HCI settings. */
@@ -83,6 +86,7 @@ struct ble_hs_cfg {
     /** L2CAP settings. */
     uint8_t max_l2cap_chans;
     uint8_t max_l2cap_sig_procs;
+    uint8_t max_l2cap_sm_procs;
 };
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;

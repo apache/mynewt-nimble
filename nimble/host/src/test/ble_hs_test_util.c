@@ -396,7 +396,15 @@ ble_hs_test_util_tx_all(void)
 {
     ble_gattc_wakeup();
     ble_l2cap_sig_wakeup();
+    ble_l2cap_sm_wakeup();
     ble_hs_process_tx_data_queue();
+    ble_hci_sched_wakeup();
+}
+
+void
+ble_hs_test_util_set_public_addr(uint8_t *addr)
+{
+    memcpy(ble_hs_our_dev.public_addr, addr, 6);
 }
 
 void
