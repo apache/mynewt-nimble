@@ -33,7 +33,7 @@
 #ifdef ARCH_sim
 #define BLE_HS_STACK_SIZE   (1024)
 #else
-#define BLE_HS_STACK_SIZE   (250)
+#define BLE_HS_STACK_SIZE   (512)//(250)
 #endif
 
 static struct log_handler ble_hs_log_console_handler;
@@ -58,6 +58,7 @@ struct os_eventq ble_hs_evq;
 static struct os_event ble_hs_kick_hci_ev;
 static struct os_event ble_hs_kick_gatt_ev;
 static struct os_event ble_hs_kick_l2cap_sig_ev;
+static struct os_event ble_hs_kick_l2cap_sm_ev;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
@@ -139,6 +140,10 @@ ble_hs_task_handler(void *arg)
             ble_l2cap_sig_wakeup();
             break;
 
+        case BLE_HS_KICK_L2CAP_SM_EVENT:
+            ble_l2cap_sm_wakeup();
+            break;
+
         default:
             assert(0);
             break;
@@ -206,6 +211,15 @@ void
 ble_hs_kick_l2cap_sig(void)
 {
     os_eventq_put(&ble_hs_evq, &ble_hs_kick_l2cap_sig_ev);
+}
+
+/**
+ * Wakes the BLE host task so that it can process L2CAP security events.
+ */
+void
+ble_hs_kick_l2cap_sm(void)
+{
+    os_eventq_put(&ble_hs_evq, &ble_hs_kick_l2cap_sm_ev);
 }
 
 static void
@@ -326,6 +340,10 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     ble_hs_kick_l2cap_sig_ev.ev_queued = 0;
     ble_hs_kick_l2cap_sig_ev.ev_type = BLE_HS_KICK_L2CAP_SIG_EVENT;
     ble_hs_kick_l2cap_sig_ev.ev_arg = NULL;
+
+    ble_hs_kick_l2cap_sm_ev.ev_queued = 0;
+    ble_hs_kick_l2cap_sm_ev.ev_type = BLE_HS_KICK_L2CAP_SM_EVENT;
+    ble_hs_kick_l2cap_sm_ev.ev_arg = NULL;
 
     os_mqueue_init(&ble_hs_rx_q, NULL);
     os_mqueue_init(&ble_hs_tx_q, NULL);

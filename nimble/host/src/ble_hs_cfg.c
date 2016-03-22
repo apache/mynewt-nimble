@@ -49,6 +49,7 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     /** L2CAP settings. */
     .max_l2cap_chans = 16,
     .max_l2cap_sig_procs = 8,
+    .max_l2cap_sm_procs = 1,
 };
 
 struct ble_hs_cfg ble_hs_cfg;

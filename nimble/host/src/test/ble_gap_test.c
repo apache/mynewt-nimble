@@ -101,8 +101,8 @@ ble_gap_test_util_connect_cb(int event, int status,
         break;
 
     case BLE_GAP_EVENT_CONN_UPDATE_REQ:
-        ble_gap_test_conn_peer_params = *ctxt->peer_params;
-        *ctxt->self_params = ble_gap_test_conn_self_params;
+        ble_gap_test_conn_peer_params = *ctxt->update.peer_params;
+        *ctxt->update.self_params = ble_gap_test_conn_self_params;
 
         fail_reason = arg;
         if (fail_reason == NULL) {

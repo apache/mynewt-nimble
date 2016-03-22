@@ -30,7 +30,9 @@ pkg.deps:
     - sys/stats
     - libs/os
     - libs/util
+    - libs/mbedtls
     - net/nimble
+
 pkg.req_apis:
     - console
 

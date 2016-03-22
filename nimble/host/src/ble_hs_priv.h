@@ -46,6 +46,7 @@ struct ble_l2cap_chan;
 #define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
 #define BLE_HS_KICK_GATT_EVENT          (OS_EVENT_T_PERUSER + 2)
 #define BLE_HS_KICK_L2CAP_SIG_EVENT     (OS_EVENT_T_PERUSER + 3)
+#define BLE_HS_KICK_L2CAP_SM_EVENT      (OS_EVENT_T_PERUSER + 4)
 
 STATS_SECT_START(ble_hs_stats)
     STATS_SECT_ENTRY(conn_create)
@@ -78,6 +79,7 @@ int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_kick_hci(void);
 void ble_hs_kick_gatt(void);
 void ble_hs_kick_l2cap_sig(void);
+void ble_hs_kick_l2cap_sm(void);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);

@@ -192,8 +192,7 @@ ble_fsm_proc_set_pending(struct ble_fsm_proc *proc)
  * Lock restrictions: None.
  */
 static void
-ble_fsm_proc_set_expecting(struct ble_fsm_proc *proc,
-                           struct ble_fsm_proc *prev)
+ble_fsm_proc_set_expecting(struct ble_fsm_proc *proc)
 {
     assert(!(proc->flags & BLE_FSM_PROC_F_EXPECTING));
 
@@ -462,20 +461,19 @@ ble_fsm_wakeup(struct ble_fsm *fsm)
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
 
+        proc->flags &= ~BLE_FSM_PROC_F_PENDING;
         rc = fsm->kick_cb(proc);
         switch (rc) {
         case 0:
             /* Transmit succeeded.  Response expected. */
-            ble_fsm_proc_set_expecting(proc, prev);
+            ble_fsm_proc_set_expecting(proc);
 
             /* Current proc remains; reseat prev. */
             prev = proc;
             break;
 
         case BLE_HS_EAGAIN:
-            /* Transmit failed due to resource shortage.  Reschedule. */
-            proc->flags &= ~BLE_FSM_PROC_F_PENDING;
-
+            /* Transmit failed; Reschedule. */
             /* Current proc remains; reseat prev. */
             prev = proc;
             break;

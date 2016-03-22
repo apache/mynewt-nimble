@@ -23,6 +23,9 @@
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
 
+/* Our global device address. */
+uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
+
 void
 ble_hs_test_pkt_txed(struct os_mbuf *om)
 {
@@ -51,6 +54,7 @@ main(void)
     tu_init();
 
     ble_l2cap_test_all();
+    ble_l2cap_sm_test_all();
     ble_att_svr_test_all();
     ble_att_clt_test_all();
     ble_host_hci_test_all();

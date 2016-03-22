@@ -27,6 +27,7 @@ struct hci_le_conn_upd_complete;
 struct hci_le_conn_param_req;
 struct hci_le_conn_complete;
 struct hci_disconn_complete;
+struct hci_encrypt_change;
 struct ble_hci_ack;
 struct ble_hs_adv;
 
@@ -73,6 +74,8 @@ void ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt);
 void ble_gap_rx_param_req(struct hci_le_conn_param_req *evt);
 int ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                                 struct ble_gap_upd_params *params);
+void ble_gap_encryption_changed(uint16_t conn_handle, uint8_t enc_enabled);
+void ble_gap_security_fail(uint16_t conn_handle, int status);
 int ble_gap_master_in_progress(void);
 int ble_gap_slave_in_progress(void);
 int ble_gap_update_in_progress(uint16_t conn_handle);
