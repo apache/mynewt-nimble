@@ -238,6 +238,26 @@ host_hci_cmd_rd_local_version(void)
 }
 
 int
+host_hci_cmd_rd_local_feat(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
+                           BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT, 0, NULL);
+    return rc;
+}
+
+int
+host_hci_cmd_rd_local_cmd(void)
+{
+    int rc;
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
+                           BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD, 0, NULL);
+    return rc;
+}
+
+int
 host_hci_cmd_rd_bd_addr(void)
 {
     int rc;

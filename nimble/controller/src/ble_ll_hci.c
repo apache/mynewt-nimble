@@ -123,6 +123,45 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
+ * Reade local supported features
+ * 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_hci_rd_local_supp_feat(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    /* 
+     * The only two bits we set here currently are:
+     *      BR/EDR not supported        (bit 5)
+     *      LE supported (controller)   (bit 6)
+     */ 
+    memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
+    rspbuf[4] = 0x60;
+    *rsplen = BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * Read local supported commands
+ * 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_hci_rd_local_supp_cmd(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_CMD_RSPLEN);
+    memcpy(rspbuf, g_ble_ll_supp_cmds, sizeof(g_ble_ll_supp_cmds));
+    *rsplen = BLE_HCI_RD_LOC_SUPP_CMD_RSPLEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
  * Called to read the public device address of the device
  * 
  * 
@@ -580,6 +619,16 @@ ble_ll_hci_info_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_IP_RD_LOCAL_VER:
         if (len == 0) {
             rc = ble_ll_hci_rd_local_version(rspbuf, rsplen);
+        }
+        break;
+    case BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD:
+        if (len == 0) {
+            rc = ble_ll_hci_rd_local_supp_cmd(rspbuf, rsplen);
+        }
+        break;
+    case BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT:
+        if (len == 0) {
+            rc = ble_ll_hci_rd_local_supp_feat(rspbuf, rsplen);
         }
         break;
     case BLE_HCI_OCF_IP_RD_BD_ADDR:

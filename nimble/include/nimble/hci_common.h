@@ -39,14 +39,13 @@
 #define BLE_HCI_OGF(opcode)                 (((opcode) >> 10) & 0x003F)
 #define BLE_HCI_OCF(opcode)                 ((opcode) & 0x03FF)
 
-/* Opcode Group */
+/* Opcode Group definitions (note: 0x07 not defined in spec) */
 #define BLE_HCI_OGF_LINK_CTRL               (0x01)
 #define BLE_HCI_OGF_LINK_POLICY             (0x02)
 #define BLE_HCI_OGF_CTLR_BASEBAND           (0x03)
 #define BLE_HCI_OGF_INFO_PARAMS             (0x04)
 #define BLE_HCI_OGF_STATUS_PARAMS           (0x05)
 #define BLE_HCI_OGF_TESTING                 (0x06)
-/* NOTE: 0x07 not defined in specification  */
 #define BLE_HCI_OGF_LE                      (0x08)
 
 /* 
@@ -59,51 +58,19 @@
 #define BLE_HCI_OCF_DISCONNECT_CMD          (0x0006)
 #define BLE_HCI_OCF_RD_REM_VER_INFO         (0x001D)
 
-/* Command specific definitions */
-/* Disconnect command */
-#define BLE_HCI_DISCONNECT_CMD_LEN          (3)
-
 /* List of OCF for Controller and Baseband commands (OGF=0x03) */
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_CB_RESET                (0x0003)
 #define BLE_HCI_OCF_CB_SET_EV_FILT          (0x0005)
 #define BLE_HCI_OCF_CB_READ_TX_PWR          (0x002D)
 
-/* Command specific definitions */
-/* Set event mask */
-#define BLE_HCI_SET_EVENT_MASK_LEN          (8)
-
 /* List of OCF for Info Param commands (OGF=0x04) */
 #define BLE_HCI_OCF_IP_RD_LOCAL_VER         (0x0001)
 #define BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD      (0x0002)
+#define BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT     (0x0003)
 #define BLE_HCI_OCF_IP_RD_BD_ADDR           (0x0009)
 
-/* Command specific definitions */
-/* NOTE: does not include status field in command complete event! */
-#define BLE_HCI_RD_LOC_VER_INFO_RSPLEN      (8)
-
-/* Bluetooth Assigned numbers for version information.*/
-#define BLE_HCI_VER_BCS_1_0b                (0)
-#define BLE_HCI_VER_BCS_1_1                 (1)
-#define BLE_HCI_VER_BCS_1_2                 (2)
-#define BLE_HCI_VER_BCS_2_0_EDR             (3)
-#define BLE_HCI_VER_BCS_2_1_EDR             (4)
-#define BLE_HCI_VER_BCS_3_0_HCS             (5)
-#define BLE_HCI_VER_BCS_4_0                 (6)
-#define BLE_HCI_VER_BCS_4_1                 (7)
-#define BLE_HCI_VER_BCS_4_2                 (8)
-
-#define BLE_LMP_VER_BCS_1_0b                (0)
-#define BLE_LMP_VER_BCS_1_1                 (1)
-#define BLE_LMP_VER_BCS_1_2                 (2)
-#define BLE_LMP_VER_BCS_2_0_EDR             (3)
-#define BLE_LMP_VER_BCS_2_1_EDR             (4)
-#define BLE_LMP_VER_BCS_3_0_HCS             (5)
-#define BLE_LMP_VER_BCS_4_0                 (6)
-#define BLE_LMP_VER_BCS_4_1                 (7)
-#define BLE_LMP_VER_BCS_4_2                 (8)
-
-/* List of OCD for Status parameters commands (OGF = 0x05) */
+/* List of OCF for Status parameters commands (OGF = 0x05) */
 #define BLE_HCI_OCF_RD_RSSI                 (0x0005)
 
 /* List of OCF for LE commands (OGF = 0x08) */
@@ -156,21 +123,32 @@
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
 /* Command Specific Definitions */
+/* --- Disconnect command (OGF 0x01, OCF 0x0006) --- */
+#define BLE_HCI_DISCONNECT_CMD_LEN          (3)
+
+/* --- Set event mask (OGF 0x03, OCF 0x0001 --- */
+#define BLE_HCI_SET_EVENT_MASK_LEN          (8)
+
+/* --- Read local version information (OGF 0x04, OCF 0x0001) --- */
+/* NOTE: does not include status field in command complete event! */
+#define BLE_HCI_RD_LOC_VER_INFO_RSPLEN      (8)
+#define BLE_HCI_RD_LOC_SUPP_CMD_RSPLEN      (64)
+
 /* --- Read RSSI (OGF 0x05, OCF 0x0005) --- */
-#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN (4)  /* Includes status byte. */
+#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN     (4)  /* Includes status byte. */
 
 /* --- LE set event mask (OCF 0x0001) --- */
-#define BLE_HCI_SET_LE_EVENT_MASK_LEN   (8)
+#define BLE_HCI_SET_LE_EVENT_MASK_LEN       (8)
 
 /* --- LE read buffer size (OCF 0x0002) --- */
-#define BLE_HCI_RD_BUF_SIZE_LEN         (0)
-#define BLE_HCI_RD_BUF_SIZE_RSPLEN      (3)
+#define BLE_HCI_RD_BUF_SIZE_LEN             (0)
+#define BLE_HCI_RD_BUF_SIZE_RSPLEN          (3)
 
 /* --- LE read local supported features (OCF 0x0003) --- */
-#define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN (8)
+#define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN     (8)
 
 /* --- LE set advertising parameters (OCF 0x0006) */
-#define BLE_HCI_SET_ADV_PARAM_LEN       (15)
+#define BLE_HCI_SET_ADV_PARAM_LEN           (15)
 
 /* Advertising types */
 #define BLE_HCI_ADV_TYPE_ADV_IND            (0)
@@ -181,11 +159,11 @@
 #define BLE_HCI_ADV_TYPE_MAX                (4)
 
 /* Own address types */
-#define BLE_HCI_ADV_OWN_ADDR_PUBLIC     (0)
-#define BLE_HCI_ADV_OWN_ADDR_RANDOM     (1)
-#define BLE_HCI_ADV_OWN_ADDR_PRIV_PUB   (2)
-#define BLE_HCI_ADV_OWN_ADDR_PRIV_RAND  (3)
-#define BLE_HCI_ADV_OWN_ADDR_MAX        (3)
+#define BLE_HCI_ADV_OWN_ADDR_PUBLIC         (0)
+#define BLE_HCI_ADV_OWN_ADDR_RANDOM         (1)
+#define BLE_HCI_ADV_OWN_ADDR_PRIV_PUB       (2)
+#define BLE_HCI_ADV_OWN_ADDR_PRIV_RAND      (3)
+#define BLE_HCI_ADV_OWN_ADDR_MAX            (3)
 
 /* Advertisement peer address Type */
 #define BLE_HCI_ADV_PEER_ADDR_PUBLIC        (0)
@@ -198,16 +176,16 @@
 #define BLE_HCI_ADV_CHAN_TXPWR_MAX             (10)
 
 /* --- LE set advertising data (OCF 0x0008) */
-#define BLE_HCI_MAX_ADV_DATA_LEN        (31)
+#define BLE_HCI_MAX_ADV_DATA_LEN            (31)
 
 /* --- LE set scan response data (OCF 0x0009) */
-#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN   (31)
+#define BLE_HCI_MAX_SCAN_RSP_DATA_LEN       (31)
 
 /* --- LE set advertising enable (OCF 0x000a) */
-#define BLE_HCI_SET_ADV_ENABLE_LEN      (1)
+#define BLE_HCI_SET_ADV_ENABLE_LEN          (1)
 
 /* --- LE set scan enable (OCF 0x000c) */
-#define BLE_HCI_SET_SCAN_ENABLE_LEN     (2)
+#define BLE_HCI_SET_SCAN_ENABLE_LEN         (2)
 
 /* Connect peer address type */
 #define BLE_HCI_CONN_PEER_ADDR_PUBLIC        (0)
@@ -473,6 +451,27 @@
 
 /* LE data length change event (sub event 0x07) */
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
+
+/* Bluetooth Assigned numbers for version information.*/
+#define BLE_HCI_VER_BCS_1_0b                (0)
+#define BLE_HCI_VER_BCS_1_1                 (1)
+#define BLE_HCI_VER_BCS_1_2                 (2)
+#define BLE_HCI_VER_BCS_2_0_EDR             (3)
+#define BLE_HCI_VER_BCS_2_1_EDR             (4)
+#define BLE_HCI_VER_BCS_3_0_HCS             (5)
+#define BLE_HCI_VER_BCS_4_0                 (6)
+#define BLE_HCI_VER_BCS_4_1                 (7)
+#define BLE_HCI_VER_BCS_4_2                 (8)
+
+#define BLE_LMP_VER_BCS_1_0b                (0)
+#define BLE_LMP_VER_BCS_1_1                 (1)
+#define BLE_LMP_VER_BCS_1_2                 (2)
+#define BLE_LMP_VER_BCS_2_0_EDR             (3)
+#define BLE_LMP_VER_BCS_2_1_EDR             (4)
+#define BLE_LMP_VER_BCS_3_0_HCS             (5)
+#define BLE_LMP_VER_BCS_4_0                 (6)
+#define BLE_LMP_VER_BCS_4_1                 (7)
+#define BLE_LMP_VER_BCS_4_2                 (8)
 
 /*--- Shared data structures ---*/
 /* Read local version information (OGF=0x0004, OCF=0x0001) */

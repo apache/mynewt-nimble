@@ -31,6 +31,8 @@ int host_hci_cmd_set_event_mask(uint64_t event_mask);
 int host_hci_cmd_disconnect(uint16_t handle, uint8_t reason);
 int host_hci_cmd_rd_rem_version(uint16_t handle);
 int host_hci_cmd_rd_local_version(void);
+int host_hci_cmd_rd_local_feat(void);
+int host_hci_cmd_rd_local_cmd(void);
 int host_hci_cmd_rd_bd_addr(void);
 int host_hci_cmd_read_rssi(uint16_t handle);
 int host_hci_cmd_le_set_host_chan_class(uint8_t *new_chan_map);

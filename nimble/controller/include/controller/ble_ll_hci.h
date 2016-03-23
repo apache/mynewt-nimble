@@ -20,6 +20,10 @@
 #ifndef H_BLE_LL_HCI_
 #define H_BLE_LL_HCI_
 
+/* For supported commands */
+#define BLE_LL_SUPP_CMD_LEN (36)
+extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
+
 /* 
  * This determines the number of outstanding commands allowed from the
  * host to the controller.

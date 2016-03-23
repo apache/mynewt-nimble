@@ -26,7 +26,7 @@
 #include "nimble/hci_transport.h"
 #include "ble_hs_priv.h"
 
-void
+static void
 host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 {
     int8_t rssi;
@@ -138,7 +138,7 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
  * @param evdata 
  * @param len 
  */
-void
+static void
 host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t status;
@@ -178,7 +178,7 @@ host_hci_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
  * @param evdata 
  * @param len 
  */
-void
+static void
 host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t handles;
@@ -211,42 +211,70 @@ host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
     }
 }
 
-void
+static void
+host_hci_dbg_cmd_comp_info_params(uint8_t status, uint8_t ocf, uint8_t *evdata)
+{
+    int i;
+    uint8_t *dptr;
+
+    if (status != BLE_ERR_SUCCESS) {
+        return;
+    }
+
+    switch (ocf) {
+    case BLE_HCI_OCF_IP_RD_LOCAL_VER:
+        BLE_HS_LOG(DEBUG, "hci_ver=%u hci_rev=%u lmp_ver=%u mfrg=%u "
+                          "lmp_subver=%u",
+                   evdata[0], le16toh(evdata + 1), evdata[3],
+                   le16toh(evdata + 4), le16toh(evdata + 6));
+        break;
+    case BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD:
+        BLE_HS_LOG(DEBUG, "supp_cmds=");
+        dptr = evdata;
+        for (i = 0; i < 8; ++i) {
+            BLE_HS_LOG(DEBUG, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:",
+                       dptr[0], dptr[1], dptr[2], dptr[3],
+                       dptr[4], dptr[5], dptr[6], dptr[7]);
+            dptr += 8;
+        }
+        break;
+    case BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT:
+        BLE_HS_LOG(DEBUG, "supp_feat=0x%lx%08lx",
+                   le32toh(evdata + 4), le32toh(evdata));
+        break;
+    case BLE_HCI_OCF_IP_RD_BD_ADDR:
+        BLE_HS_LOG(DEBUG, "bd_addr=%x:%x:%x:%x:%x:%x",
+                   evdata[5], evdata[4], evdata[3],
+                   evdata[2], evdata[1], evdata[0]);
+        break;
+    default:
+        break;
+    }
+}
+
+static void
 host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
 {
+    uint8_t cmd_pkts;
     uint8_t ogf;
     uint8_t ocf;
+    uint8_t status;
     uint16_t opcode;
 
+    cmd_pkts = evdata[0];
     opcode = le16toh(evdata + 1);
     ogf = BLE_HCI_OGF(opcode);
     ocf = BLE_HCI_OCF(opcode);
+    status = evdata[3];
 
     BLE_HS_LOG(DEBUG, "Command Complete: cmd_pkts=%u ogf=0x%x ocf=0x%x "
-                      "status=%u ", evdata[0], ogf, ocf, evdata[3]);
+                      "status=%u ", cmd_pkts, ogf, ocf, status);
 
     /* Display parameters based on command. */
     switch (ogf) {
     case BLE_HCI_OGF_INFO_PARAMS:
-        switch (ocf) {
-        case BLE_HCI_OCF_IP_RD_LOCAL_VER:
-            if (evdata[3] == BLE_ERR_SUCCESS) {
-                BLE_HS_LOG(DEBUG, "hci_ver=%u hci_rev=%u lmp_ver=%u mfrg=%u "
-                                  "lmp_subver=%u",
-                           evdata[4], le16toh(evdata + 5), evdata[7],
-                           le16toh(evdata + 8), le16toh(evdata + 10));
-            }
-            break;
-        case BLE_HCI_OCF_IP_RD_BD_ADDR:
-            if (evdata[3] == BLE_ERR_SUCCESS) {
-                BLE_HS_LOG(DEBUG, "bd_addr=%x:%x:%x:%x:%x:%x",
-                           evdata[9], evdata[8], evdata[7],
-                           evdata[6], evdata[5], evdata[4]);
-            }
-            break;
-        default:
-            break;
-        }
+        evdata += 4;
+        host_hci_dbg_cmd_comp_info_params(status, ocf, evdata);
         break;
     case BLE_HCI_OGF_STATUS_PARAMS:
         switch (ocf) {
@@ -271,7 +299,7 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
                        le16toh(evdata + 8), le16toh(evdata + 10));
             break;
         case BLE_HCI_OCF_LE_RD_SUPP_STATES:
-            BLE_HS_LOG(DEBUG, "states=0x%lx%lx", le32toh(evdata + 8),
+            BLE_HS_LOG(DEBUG, "states=0x%lx%08lx", le32toh(evdata + 8),
                        le32toh(evdata + 4));
             break;
         default:
@@ -284,7 +312,7 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     BLE_HS_LOG(DEBUG, "\n");
 }
 
-void
+static void
 host_hci_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t ogf;
@@ -306,9 +334,10 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     uint8_t evcode;
     uint8_t len;
  
+    /* Extract event code and length; move pointer to event parameter data */
     evcode = evbuf[0];
     len = evbuf[1];
-    evdata = evbuf + 2;
+    evdata = evbuf + BLE_HCI_EVENT_HDR_LEN;
 
     switch (evcode) {
     case BLE_HCI_EVCODE_DISCONN_CMP:
