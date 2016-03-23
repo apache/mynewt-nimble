@@ -488,13 +488,13 @@ STATS_NAME_END(ble_gattc_stats)
  * $mutex                                                                    *
  *****************************************************************************/
 
-void
+static void
 ble_gattc_lock(void)
 {
     ble_fsm_lock(&ble_gattc_fsm);
 }
 
-void
+static void
 ble_gattc_unlock(void)
 {
     ble_fsm_unlock(&ble_gattc_fsm);

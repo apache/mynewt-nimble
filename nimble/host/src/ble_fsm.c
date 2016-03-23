@@ -191,7 +191,7 @@ ble_fsm_proc_set_pending(struct ble_fsm_proc *proc)
  *
  * Lock restrictions: None.
  */
-void
+static void
 ble_fsm_proc_set_expecting(struct ble_fsm_proc *proc,
                            struct ble_fsm_proc *prev)
 {

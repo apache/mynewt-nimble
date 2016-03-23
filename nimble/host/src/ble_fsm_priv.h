@@ -70,8 +70,6 @@ void ble_fsm_proc_concat(struct ble_fsm *fsm,
                          struct ble_fsm_proc_list *tail_list);
 int ble_fsm_proc_can_pend(struct ble_fsm_proc *proc);
 void ble_fsm_proc_set_pending(struct ble_fsm_proc *proc);
-void ble_fsm_proc_set_expecting(struct ble_fsm_proc *proc,
-                                struct ble_fsm_proc *prev);
 int ble_fsm_tx_postpone_chk(struct ble_fsm_proc *proc, int rc);
 void ble_fsm_process_rx_status(struct ble_fsm *fsm, struct ble_fsm_proc *proc,
                                int status);
