@@ -54,6 +54,15 @@ struct ble_mbuf_hdr_rxinfo
     int8_t rssi;
 };
 
+/* Flag definitions for rxinfo  */
+#define BLE_MBUF_HDR_F_CRC_OK           (0x80)
+#define BLE_MBUF_HDR_F_DEVMATCH         (0x40)
+#define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x20)
+#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x10)
+#define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x08)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)      
+
+/* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
 {
     uint8_t flags;
@@ -76,17 +85,6 @@ struct ble_mbuf_hdr
  * PHY pdu of 257 bytes.
  */
 #define BLE_MBUF_PAYLOAD_SIZE           (260)
-
-/* Flag definitions for rxinfo  */
-#define BLE_MBUF_HDR_F_CRC_OK           (0x80)
-#define BLE_MBUF_HDR_F_DEVMATCH         (0x40)
-#define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x20)
-#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x10)
-#define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x08)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)      
-
-/* Flag definitions for txinfo */
-#define BLE_MBUF_HDR_F_TXD              (0x01)
 
 #define BLE_MBUF_HDR_CRC_OK(hdr)    \
     ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_CRC_OK)

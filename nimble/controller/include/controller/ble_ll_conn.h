@@ -77,7 +77,9 @@ union ble_ll_conn_sm_flags {
         uint16_t version_ind_sent:1;
         uint16_t rxd_version_ind:1;
         uint16_t chanmap_update_scheduled:1;
-        uint16_t reserved:3;
+        uint16_t conn_empty_pdu_txd:1;
+        uint16_t last_txd_md:1;
+        uint16_t reserved:1;
     } cfbit;
     uint16_t conn_flags;
 } __attribute__((packed));
@@ -88,7 +90,8 @@ struct ble_ll_conn_sm
     /* Connection state machine flags */
     union ble_ll_conn_sm_flags csmflags;
 
-    /* Current connection state and role */
+    /* Current connection handle, state and role */
+    uint16_t conn_handle;
     uint8_t conn_state;
     uint8_t conn_role;          /* Can possibly be 1 bit */
 
@@ -122,7 +125,6 @@ struct ble_ll_conn_sm
     /* Ack/Flow Control */
     uint8_t tx_seqnum;          /* note: can be 1 bit */
     uint8_t next_exp_seqnum;    /* note: can be 1 bit */
-    uint8_t last_txd_md;        /* note can be 1 bit */
     uint8_t cons_rxd_bad_crc;   /* note: can be 1 bit */
     uint8_t last_rxd_sn;        /* note: cant be 1 bit given current code */
     uint8_t last_rxd_hdr_byte;  /* note: possibly can make 1 bit since we
@@ -140,7 +142,6 @@ struct ble_ll_conn_sm
     uint8_t vers_nr;
     uint16_t pending_ctrl_procs;
     uint16_t event_cntr;
-    uint16_t conn_handle;
     uint16_t completed_pkts;
     uint16_t comp_id;
     uint16_t sub_vers_nr;
@@ -181,6 +182,7 @@ struct ble_ll_conn_sm
     struct os_event conn_ev_end;
 
     /* Packet transmit queue */
+    struct os_mbuf *cur_tx_pdu;
     STAILQ_HEAD(conn_txq_head, os_mbuf_pkthdr) conn_txq;
 
     /* List entry for active/free connection pools */
@@ -188,9 +190,6 @@ struct ble_ll_conn_sm
         SLIST_ENTRY(ble_ll_conn_sm) act_sle;
         STAILQ_ENTRY(ble_ll_conn_sm) free_stqe;
     };
-
-    /* empty pdu for connection */
-    uint32_t conn_empty_pdu[BLE_LL_EMPTY_PDU_MBUF_SIZE];
 
     /* LL control procedure response timer */
     struct os_callout_func ctrl_proc_rsp_timer;
@@ -211,6 +210,11 @@ struct ble_ll_conn_sm
     /* XXX: for now, just store them all */
     struct ble_ll_conn_params conn_cp;
 };
+
+/* Flags */
+#define CONN_F_UPDATE_SCHED(csm)    (csm->csmflags.cfbit.conn_update_scheduled)
+#define CONN_F_EMPTY_PDU_TXD(csm)   (csm->csmflags.cfbit.conn_empty_pdu_txd)
+#define CONN_F_LAST_TXD_MD(csm)     (csm->csmflags.cfbit.last_txd_md)
 
 /* 
  * Given a handle, returns an active connection state machine (or NULL if the
