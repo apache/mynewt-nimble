@@ -48,7 +48,6 @@ int
 main(void)
 {
     tu_config.tc_print_results = 1;
-    tu_config.tc_system_assert = 1;
     tu_init();
 
     ble_l2cap_test_all();
