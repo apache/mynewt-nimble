@@ -302,6 +302,16 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
             BLE_HS_LOG(DEBUG, "states=0x%lx%08lx", le32toh(evdata + 8),
                        le32toh(evdata + 4));
             break;
+        case BLE_HCI_OCF_LE_ENCRYPT:
+            evdata += 4;
+            BLE_HS_LOG(DEBUG, "encdata=0x%02x%02x%02x%02x%02x%02x%02x%02x",
+                       evdata[15], evdata[14], evdata[13], evdata[12],
+                       evdata[11], evdata[10], evdata[9], evdata[8]);
+            BLE_HS_LOG(DEBUG, "%02x%02x%02x%02x%02x%02x%02x%02x",
+                       evdata[7], evdata[6], evdata[5], evdata[4],
+                       evdata[3], evdata[2], evdata[1], evdata[0]);
+
+            break;
         default:
             break;
         }

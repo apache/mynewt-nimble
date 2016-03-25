@@ -19,10 +19,12 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "mcu/nrf52_bitfields.h"
 
+/* Total number of white list elements supported by nrf52 */
 #define BLE_HW_WHITE_LIST_SIZE      (8)
 
 /* We use this to keep track of which entries are set to valid addresses */
@@ -159,4 +161,35 @@ int
 ble_hw_whitelist_match(void)
 {
     return (int)NRF_RADIO->EVENTS_DEVMATCH;
+}
+
+/* Encrypt data */
+int
+ble_hw_encrypt_block(struct ble_encryption_block *ecb)
+{
+    int rc;
+
+    /* Stop ECB */
+    NRF_ECB->TASKS_STOPECB = 1;
+    NRF_ECB->EVENTS_ENDECB = 0;
+    NRF_ECB->EVENTS_ERRORECB = 0;
+    NRF_ECB->ECBDATAPTR = (uint32_t)ecb;
+
+    /* Start ECB */
+    NRF_ECB->TASKS_STARTECB = 1;
+
+    /* Wait till error or done */
+    while (1) {
+        if (NRF_ECB->EVENTS_ENDECB != 0) {
+            rc = 0;
+            break;
+        }
+
+        if (NRF_ECB->EVENTS_ERRORECB != 0) {
+            rc = -1;
+            break;
+        }
+    }
+
+    return rc;
 }

@@ -101,6 +101,44 @@ ble_ll_hci_send_noop(void)
     return rc;
 }
 
+/**
+ * LE encrypt command
+ * 
+ * @param cmdbuf 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
+static int
+ble_ll_hci_le_encrypt(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    int rc;
+    struct ble_encryption_block ecb;
+
+    /* Call the link layer to encrypt the data */
+    swap_buf(ecb.key, cmdbuf, BLE_ENC_BLOCK_SIZE);
+    swap_buf(ecb.plain_text, cmdbuf + BLE_ENC_BLOCK_SIZE, BLE_ENC_BLOCK_SIZE);
+    rc = ble_hw_encrypt_block(&ecb);
+    if (!rc) {
+        swap_buf(rspbuf, ecb.cipher_text, BLE_ENC_BLOCK_SIZE);
+        *rsplen = BLE_ENC_BLOCK_SIZE;
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        *rsplen = 0;
+        rc = BLE_ERR_CTLR_BUSY;
+    }
+    return rc;
+}
+
+/**
+ * Read local version
+ * 
+ * @param rspbuf 
+ * @param rsplen 
+ * 
+ * @return int 
+ */
 static int
 ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 {    
@@ -123,7 +161,7 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
- * Reade local supported features
+ * Read local supported features
  * 
  * @param rspbuf 
  * @param rsplen 
@@ -472,6 +510,9 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
         rc = ble_ll_conn_hci_read_rem_features(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_ENCRYPT:
+        rc = ble_ll_hci_le_encrypt(cmdbuf, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_SUPP_STATES :
         rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);

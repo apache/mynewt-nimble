@@ -295,6 +295,9 @@
 /* --- LE read remote features (OCF 0x0016) */
 #define BLE_HCI_CONN_RD_REM_FEAT_LEN        (2)
 
+/* --- LE encrypt (OCF 0x0017) */
+#define BLE_HCI_LE_ENCRYPT_LEN              (32)
+
 /* --- LE read supported states (OCF 0x001C) --- */
 #define BLE_HCI_RD_SUPP_STATES_RSPLEN       (8)
 

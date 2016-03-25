@@ -47,4 +47,8 @@ void ble_hw_whitelist_disable(void);
 /* Boolean function returning true if address matches a whitelist entry */
 int ble_hw_whitelist_match(void);
 
+/* Encrypt data */
+struct ble_encryption_block;
+int ble_hw_encrypt_block(struct ble_encryption_block *ecb);
+
 #endif /* H_BLE_HW_ */

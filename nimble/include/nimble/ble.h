@@ -23,6 +23,16 @@
 /* XXX: some or all of these should not be here */
 #include "os/os.h"
 
+/* BLE encryption block definitions */
+#define BLE_ENC_BLOCK_SIZE       (16)
+
+struct ble_encryption_block
+{
+    uint8_t     key[BLE_ENC_BLOCK_SIZE];
+    uint8_t     plain_text[BLE_ENC_BLOCK_SIZE];
+    uint8_t     cipher_text[BLE_ENC_BLOCK_SIZE];
+};
+
 /* Shared command pool for transort between host and controller */
 extern struct os_mempool g_hci_cmd_pool;
 extern struct os_mempool g_hci_os_event_pool;
@@ -120,6 +130,7 @@ uint16_t le16toh(void *buf);
 uint32_t le32toh(void *buf);
 uint64_t le64toh(void *buf);
 void swap_in_place(void *buf, int len);
+void swap_buf(uint8_t *dst, uint8_t *src, int len);
 /* XXX */
 
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */

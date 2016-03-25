@@ -731,6 +731,28 @@ host_hci_cmd_le_set_host_chan_class(uint8_t *chanmap)
 }
 
 /**
+ * Encrypt a block.
+ * 
+ * 
+ * @param key 
+ * @param pt 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_LE_ENCRYPT_LEN];
+
+    swap_buf(cmd, key, BLE_ENC_BLOCK_SIZE);
+    swap_buf(cmd + BLE_ENC_BLOCK_SIZE, pt, BLE_ENC_BLOCK_SIZE);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_ENCRYPT, BLE_HCI_LE_ENCRYPT_LEN, 
+                              cmd);
+    return rc;
+}
+
+/**
  * Read the RSSI for a given connection handle
  * 
  * NOTE: OGF=0x05 OCF=0x0005 

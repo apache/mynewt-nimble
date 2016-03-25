@@ -106,7 +106,7 @@
 #define BLE_SUPP_CMD_LE_SET_HOST_CHAN_CLASS (1 << 3)
 #define BLE_SUPP_CMD_LE_RD_CHAN_MAP         (1 << 4)
 #define BLE_SUPP_CMD_LE_RD_REM_USED_FEAT    (1 << 5)
-#define BLE_SUPP_CMD_LE_ENCRYPT             (0 << 6)
+#define BLE_SUPP_CMD_LE_ENCRYPT             (1 << 6)
 #define BLE_SUPP_CMD_LE_RAND                (0 << 7)
 
 #define BLE_LL_SUPP_CMD_OCTET_27            \

@@ -121,3 +121,15 @@ swap_in_place(void *buf, int len)
         u8ptr[j] = tmp;
     }
 }
+
+/* swap octets */
+void
+swap_buf(uint8_t *dst, uint8_t *src, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+        dst[len - 1 - i] = src[i];
+    }
+}
+

@@ -19,9 +19,11 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
 
+/* Total number of white list elements supported by nrf52 */
 #define BLE_HW_WHITE_LIST_SIZE      (0)
 
 /* We use this to keep track of which entries are set to valid addresses */
@@ -104,4 +106,11 @@ int
 ble_hw_whitelist_match(void)
 {
     return 0;
+}
+
+/* Encrypt data */
+int
+ble_hw_encrypt_block(struct ble_encryption_block *ecb)
+{
+    return -1;
 }

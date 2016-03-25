@@ -22,6 +22,7 @@
 
 #include "stats/stats.h"
 #include "hal/hal_cputime.h"
+#include "ble_hw.h"
 
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
