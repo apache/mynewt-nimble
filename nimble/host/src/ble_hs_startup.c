@@ -18,6 +18,7 @@
  */
 
 #include <stddef.h>
+#include <string.h>
 #include <assert.h>
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
@@ -233,6 +234,9 @@ ble_hs_startup_go(void)
     int rc;
 
     ble_hs_startup_state = BLE_HS_STARTUP_STATE_RESET;
+
+    /* XXX: Until we support reading the address from the controller. */
+    memcpy(ble_hs_our_dev.public_addr, g_dev_addr, sizeof g_dev_addr);
 
     rc = ble_hs_startup_enqueue_tx();
     return rc;

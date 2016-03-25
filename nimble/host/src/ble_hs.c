@@ -37,6 +37,7 @@
 #endif
 
 static struct log_handler ble_hs_log_console_handler;
+struct ble_hs_dev ble_hs_our_dev;
 struct log ble_hs_log;
 
 static struct os_task ble_hs_task;
