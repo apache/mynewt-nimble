@@ -57,6 +57,14 @@ STATS_SECT_START(ble_hs_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 
+struct ble_hs_dev {
+    uint8_t public_addr[6];
+    uint8_t random_addr[6];
+
+    unsigned has_random_addr:1;
+};
+
+extern struct ble_hs_dev ble_hs_our_dev;
 extern struct ble_hs_cfg ble_hs_cfg;
 
 extern struct os_mbuf_pool ble_hs_mbuf_pool;

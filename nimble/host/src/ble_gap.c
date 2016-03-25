@@ -1055,8 +1055,8 @@ ble_gap_master_enqueue(uint8_t state, int in_progress,
  *
  * @param addr_type             The address type of the peer; one of the
  *                                  following values:
- *                                  o    BLE_HCI_ADV_PEER_ADDR_PUBLIC
- *                                  o    BLE_HCI_ADV_PEER_ADDR_RANDOM
+ *                                  o    BLE_ADDR_TYPE_PUBLIC
+ *                                  o    BLE_ADDR_TYPE_RANDOM
  * @param addr                  The six-byte address of the connection peer.
  *
  * @return                      0 if the connection complete event was
@@ -1111,8 +1111,8 @@ ble_gap_accept_master_conn(uint8_t addr_type, uint8_t *addr)
  *
  * @param addr_type             The address type of the peer; one of the
  *                                  following values:
- *                                  o    BLE_HCI_ADV_PEER_ADDR_PUBLIC
- *                                  o    BLE_HCI_ADV_PEER_ADDR_RANDOM
+ *                                  o    BLE_ADDR_TYPE_PUBLIC
+ *                                  o    BLE_ADDR_TYPE_RANDOM
  * @param addr                  The six-byte address of the connection peer.
  *
  * @return                      0 if the connection complete event was
@@ -2020,8 +2020,8 @@ ble_gap_adv_params_tx(void *arg)
  *                                  modes, specify 0.  For directed connectable
  *                                  mode, this should be one of the following
  *                                  constants:
- *                                      o BLE_HCI_ADV_PEER_ADDR_PUBLIC
- *                                      o BLE_HCI_ADV_PEER_ADDR_RANDOM
+ *                                      o BLE_ADDR_TYPE_PUBLIC
+ *                                      o BLE_ADDR_TYPE_RANDOM
  *
  * @return                      0 on success; nonzero on failure.
  */
@@ -2494,8 +2494,8 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
 
     STATS_INC(ble_gap_stats, initiate);
 
-    if (addr_type != BLE_ADDR_TYPE_PUBLIC &&
-        addr_type != BLE_ADDR_TYPE_RANDOM &&
+    if (addr_type != BLE_HCI_CONN_PEER_ADDR_PUBLIC &&
+        addr_type != BLE_HCI_CONN_PEER_ADDR_RANDOM &&
         addr_type != BLE_GAP_ADDR_TYPE_WL) {
 
         rc = BLE_HS_EINVAL;
