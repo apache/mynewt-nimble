@@ -119,6 +119,7 @@ void htole64(void *buf, uint64_t x);
 uint16_t le16toh(void *buf);
 uint32_t le32toh(void *buf);
 uint64_t le64toh(void *buf);
+void swap_in_place(void *buf, int len);
 /* XXX */
 
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */

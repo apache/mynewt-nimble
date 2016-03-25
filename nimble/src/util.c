@@ -103,3 +103,21 @@ le64toh(void *buf)
 
     return x;
 }
+
+void
+swap_in_place(void *buf, int len)
+{
+    uint8_t *u8ptr;
+    uint8_t tmp;
+    int i;
+    int j;
+
+    u8ptr = buf;
+
+    for (i = 0, j = len - 1; i < j; i++, j--) {
+        tmp = u8ptr[i];
+
+        u8ptr[i] = u8ptr[j];
+        u8ptr[j] = tmp;
+    }
+}
