@@ -131,6 +131,8 @@ struct ble_gap_upd_params {
 
 struct ble_gap_sec_params {
     uint8_t enc_type;
+    unsigned enc_enabled:1;
+    unsigned auth_enabled:1;
 };
 
 struct ble_gap_conn_ctxt {

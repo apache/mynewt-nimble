@@ -32,7 +32,8 @@
 #define BLE_L2CAP_SM_PROC_OP_FAIL               3
 #define BLE_L2CAP_SM_PROC_OP_LTK                4
 #define BLE_L2CAP_SM_PROC_OP_LTK_TXED           5
-#define BLE_L2CAP_SM_PROC_OP_CNT                6
+#define BLE_L2CAP_SM_PROC_OP_ENC_CHANGE         6
+#define BLE_L2CAP_SM_PROC_OP_CNT                7
 
 #define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
 
@@ -117,6 +118,9 @@ ble_l2cap_sm_kick[BLE_L2CAP_SM_PROC_OP_CNT] = {
     [BLE_L2CAP_SM_PROC_OP_FAIL]     = ble_l2cap_sm_fail_kick,
     [BLE_L2CAP_SM_PROC_OP_LTK]      = ble_l2cap_sm_lt_key_req_kick,
 };
+
+static void ble_l2cap_sm_rx_lt_key_req_reply_ack(struct ble_hci_ack *ack,
+                                                 void *arg);
 
 static void *ble_l2cap_sm_proc_mem;
 static struct os_mempool ble_l2cap_sm_proc_pool;
@@ -616,39 +620,17 @@ ble_l2cap_sm_fail_handle(struct ble_l2cap_sm_proc *proc,
  * $hci                                                                      *
  *****************************************************************************/
 
-static void
-ble_l2cap_sm_lt_key_req_reply_ack(struct ble_hci_ack *ack, void *arg)
+static int
+ble_l2cap_sm_lt_key_req_reply_ack_handle(struct ble_l2cap_sm_proc *proc,
+                                         struct ble_hci_ack *ack)
 {
-    struct ble_l2cap_sm_proc *proc;
-    uint16_t conn_handle;
-
-    if (ack->bha_params_len != BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN) {
-        return;
-    }
-
-    conn_handle = le16toh(ack->bha_params + 1);
-
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_LTK_TXED,
-            .initiator = 0,
-        }
-    );
-    if (proc == NULL) {
-        return;
-    }
-
     if (ack->bha_status != 0) {
-        ble_gap_security_fail(proc->fsm_proc.conn_handle,
-                              BLE_HS_HCI_ERR(ack->bha_status));
+        ble_gap_security_fail(proc->fsm_proc.conn_handle, ack->bha_status);
     } else {
-        /* XXX: Tell GAP the security properties and to expect an encryption
-         * change event from the controller.
-         */
+        proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_ENC_CHANGE;
     }
 
-    ble_l2cap_sm_proc_free(&proc->fsm_proc);
+    return ack->bha_status;
 }
 
 static int
@@ -665,7 +647,7 @@ ble_l2cap_sm_lt_key_req_reply_tx(void *arg)
     cmd.conn_handle = proc->fsm_proc.conn_handle;
     memcpy(cmd.long_term_key, proc->hci.key, 16);
 
-    ble_hci_sched_set_ack_cb(ble_l2cap_sm_lt_key_req_reply_ack, NULL);
+    ble_hci_sched_set_ack_cb(ble_l2cap_sm_rx_lt_key_req_reply_ack, NULL);
 
     rc = host_hci_cmd_le_lt_key_req_reply(&cmd);
     return rc;
@@ -927,6 +909,65 @@ ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
     ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
 
     return 0;
+}
+
+static void
+ble_l2cap_sm_rx_lt_key_req_reply_ack(struct ble_hci_ack *ack, void *arg)
+{
+    struct ble_l2cap_sm_proc *proc;
+    uint16_t conn_handle;
+    int rc;
+
+    if (ack->bha_params_len != BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN) {
+        return;
+    }
+
+    conn_handle = le16toh(ack->bha_params + 1);
+
+    proc = ble_l2cap_sm_proc_extract(
+        &(struct ble_l2cap_sm_extract_arg) {
+            .conn_handle = conn_handle,
+            .op = BLE_L2CAP_SM_PROC_OP_LTK_TXED,
+            .initiator = 0,
+        }
+    );
+    if (proc == NULL) {
+        return;
+    }
+
+    rc = ble_l2cap_sm_lt_key_req_reply_ack_handle(proc, ack);
+    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+}
+
+void
+ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
+{
+    struct ble_gap_sec_params sec_params;
+    struct ble_l2cap_sm_proc *proc;
+
+    proc = ble_l2cap_sm_proc_extract(
+        &(struct ble_l2cap_sm_extract_arg) {
+            .conn_handle = evt->connection_handle,
+            .op = BLE_L2CAP_SM_PROC_OP_ENC_CHANGE,
+            .initiator = -1,
+        }
+    );
+    if (proc == NULL) {
+        return;
+    }
+
+    if (evt->status != 0) {
+        ble_gap_security_fail(evt->connection_handle,
+                              BLE_HS_SM_ERR(evt->status));
+    } else {
+        sec_params.enc_type = proc->keygen_method; // XXX
+        sec_params.enc_enabled = evt->encryption_enabled & 0x01; /* LE bit. */
+        sec_params.auth_enabled = 0; // XXX
+        ble_gap_encryption_changed(evt->connection_handle, &sec_params);
+    }
+
+    /* The pairing procedure is now complete. */
+    ble_l2cap_sm_proc_free(&proc->fsm_proc);
 }
 
 /**
