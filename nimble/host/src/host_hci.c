@@ -198,7 +198,7 @@ host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
     evt.connection_handle = le16toh(data + 3);
     evt.encryption_enabled = data[5];
 
-    ble_gap_encryption_changed(evt.connection_handle, evt.encryption_enabled);
+    ble_l2cap_sm_rx_encryption_change(&evt);
 
     return 0;
 }

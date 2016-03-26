@@ -3068,26 +3068,39 @@ done:
  *****************************************************************************/
 
 void
-ble_gap_encryption_changed(uint16_t conn_handle, uint8_t enc_enabled)
+ble_gap_encryption_changed(uint16_t conn_handle,
+                           struct ble_gap_sec_params *sec_params)
 {
-    struct ble_gap_sec_params sec_params;
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
-    int rc;
+    struct ble_hs_conn *conn;
 
-    rc = ble_gap_find_snapshot(conn_handle, &snap);
-    if (rc != 0) {
+    if (!sec_params->enc_enabled) {
+        /* XXX: Encryption got disabled.  Does this ever happen?  If so, the
+         * application needs to be notified of the change.
+         */
+        return;
+    }
+
+    ble_hs_conn_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        conn->bhc_sec_params = *sec_params;
+        ble_gap_conn_to_snapshot(conn, &snap);
+    }
+
+    ble_hs_conn_unlock();
+
+    if (conn == NULL) {
         /* No longer connected. */
         return;
     }
 
-    memset(&sec_params, 0, sizeof sec_params);
-    /* XXX: Fill in the security parameters. */
-
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
-    ctxt.sec_params = &sec_params;
-    ble_gap_call_conn_cb(BLE_GAP_EVENT_SECURITY, rc, &ctxt,
+    ctxt.sec_params = sec_params;
+    ble_gap_call_conn_cb(BLE_GAP_EVENT_SECURITY, 0, &ctxt,
                          snap.cb, snap.cb_arg);
 }
 
@@ -3106,7 +3119,7 @@ ble_gap_security_fail(uint16_t conn_handle, int status)
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
-    ble_gap_call_conn_cb(BLE_GAP_EVENT_SECURITY, rc, &ctxt,
+    ble_gap_call_conn_cb(BLE_GAP_EVENT_SECURITY, status, &ctxt,
                          snap.cb, snap.cb_arg);
 }
 

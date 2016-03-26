@@ -291,6 +291,19 @@ ble_l2cap_sm_test_util_rx_lt_key_req_reply_ack(uint8_t status,
                                      params, sizeof params);
 }
 
+static void
+ble_l2cap_sm_test_util_rx_enc_change(uint16_t conn_handle, uint8_t status,
+                                     uint8_t encryption_enabled)
+{
+    struct hci_encrypt_change evt;
+
+    evt.status = status;
+    evt.encryption_enabled = encryption_enabled;
+    evt.connection_handle = conn_handle;
+
+    ble_l2cap_sm_rx_encryption_change(&evt);
+}
+
 /*****************************************************************************
  * $peer                                                                     *
  *****************************************************************************/
@@ -318,48 +331,65 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
                                         ble_l2cap_sm_test_util_conn_cb,
                                         NULL);
 
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Receive a pair request from the peer. */
     ble_l2cap_sm_test_util_rx_pair_req(conn, pair_req);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected pair response. */
     ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_pair_rsp(pair_rsp);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     ble_l2cap_sm_dbg_set_next_rand(random_rsp->value);
 
     /* Receive a pair confirm from the peer. */
     ble_l2cap_sm_test_util_rx_confirm(conn, confirm_req);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected pair confirm. */
     ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_pair_confirm(confirm_rsp);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair random from the peer. */
     ble_l2cap_sm_test_util_rx_random(conn, random_req);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected pair random. */
     ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_pair_random(random_rsp);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a long term key request from the controller. */
     ble_l2cap_sm_test_util_rx_lt_key_req(2, r, ediv);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected long term key request reply command. */
     ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_lt_key_req_reply(2, stk);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a command complete event. */
     ble_l2cap_sm_test_util_rx_lt_key_req_reply_ack(0, 2);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive an encryption changed event. */
+    ble_l2cap_sm_test_util_rx_enc_change(2, 0, 1);
+
+    /* Pairing should now be complete. */
+    TEST_ASSERT(conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 }
 

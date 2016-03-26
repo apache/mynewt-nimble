@@ -50,6 +50,8 @@ struct ble_hs_conn {
     struct ble_att_svr_conn bhc_att_svr;
     struct ble_gatts_conn bhc_gatt_svr;
 
+    struct ble_gap_sec_params bhc_sec_params;
+
     ble_gap_conn_fn *bhc_cb;
     void *bhc_cb_arg;
 };

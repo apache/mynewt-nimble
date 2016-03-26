@@ -20,6 +20,7 @@
 #ifndef H_BLE_L2CAP_SM_
 #define H_BLE_L2CAP_SM_
 
+struct ble_gap_sec_params;
 struct hci_le_lt_key_req;
 
 #define BLE_L2CAP_SM_ERR_PASSKEY            0x01
@@ -136,6 +137,7 @@ int ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
                         uint8_t *ia, uint8_t *ra,
                         uint8_t *out_enc_data);
 
+void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
 void ble_l2cap_sm_wakeup(void);
