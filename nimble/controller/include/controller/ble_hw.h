@@ -51,4 +51,29 @@ int ble_hw_whitelist_match(void);
 struct ble_encryption_block;
 int ble_hw_encrypt_block(struct ble_encryption_block *ecb);
 
+/* Random number generation */
+typedef void (*ble_rng_isr_cb_t)(uint8_t rnum);
+int ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias);
+
+/**
+ * Start the random number generator
+ * 
+ * @return int 
+ */
+int ble_hw_rng_start(void);
+
+/**
+ * Stop the random generator
+ * 
+ * @return int 
+ */
+int ble_hw_rng_stop(void);
+
+/**
+ * Read the random number generator.
+ * 
+ * @return uint8_t 
+ */
+uint8_t ble_hw_rng_read(void);
+
 #endif /* H_BLE_HW_ */

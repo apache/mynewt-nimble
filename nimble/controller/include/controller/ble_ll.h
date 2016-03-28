@@ -22,7 +22,16 @@
 
 #include "stats/stats.h"
 #include "hal/hal_cputime.h"
-#include "ble_hw.h"
+
+/* Configuration for supported features */
+#define  BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#define BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+#undef  BLE_LL_CFG_FEAT_EXT_REJECT_IND
+#define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
+#undef  BLE_LL_CFG_FEAT_LE_PING
+#define BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#undef  BLE_LL_CFG_FEAT_LL_PRIVACY
+#undef  BLE_LL_CFG_FEAT_EXT_SCAN_FILT
 
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
@@ -341,6 +350,12 @@ uint8_t ble_ll_read_supp_features(void);
 
 /* Read set of states supported by the Link Layer */
 uint64_t ble_ll_read_supp_states(void);
+
+/* Random numbers */
+int ble_ll_rand_init(void);
+void ble_ll_rand_sample(uint8_t rnum);
+int ble_ll_rand_data_get(uint8_t *buf, uint8_t len);
+int ble_ll_rand_start(void);
 
 /* 
  * XXX: temporary LL debug log. Will get removed once we transition to real

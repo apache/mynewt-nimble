@@ -22,6 +22,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "controller/ble_hw.h"
 
 /* Total number of white list elements supported by nrf52 */
 #define BLE_HW_WHITE_LIST_SIZE      (0)
@@ -113,4 +114,51 @@ int
 ble_hw_encrypt_block(struct ble_encryption_block *ecb)
 {
     return -1;
+}
+
+/**
+ * Initialize the random number generator
+ * 
+ * @param cb 
+ * @param bias 
+ * 
+ * @return int 
+ */
+int
+ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
+{
+    return -1;
+}
+
+/**
+ * Start the random number generator
+ * 
+ * @return int 
+ */
+int
+ble_hw_rng_start(void)
+{
+    return -1;
+}
+
+/**
+ * Stop the random generator
+ * 
+ * @return int 
+ */
+int
+ble_hw_rng_stop(void)
+{
+    return -1;
+}
+
+/**
+ * Read the random number generator.
+ * 
+ * @return uint8_t 
+ */
+uint8_t
+ble_hw_rng_read(void)
+{
+    return 0;
 }

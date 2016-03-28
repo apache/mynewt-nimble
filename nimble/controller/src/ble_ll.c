@@ -26,6 +26,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "controller/ble_hw.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_adv.h"
@@ -46,16 +47,6 @@
  * start of a frame. Need to look at the various states to see if this is the
  * right thing to do.
  */
-
-/* Configuration for supported features */
-#undef  BLE_LL_CFG_FEAT_LE_ENCRYPTION
-#define BLE_LL_CFG_FEAT_CONN_PARAM_REQ
-#undef  BLE_LL_CFG_FEAT_EXT_REJECT_IND
-#define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
-#undef  BLE_LL_CFG_FEAT_LE_PING
-#define BLE_LL_CFG_FEAT_DATA_LEN_EXT
-#undef  BLE_LL_CFG_FEAT_LL_PRIVACY
-#undef  BLE_LL_CFG_FEAT_EXT_SCAN_FILT
 
 /* Supported states */
 #define BLE_LL_S_NCA                    (0x00000000001)
@@ -838,6 +829,10 @@ ble_ll_task(void *arg)
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    ble_ll_rand_start();
+#endif
+
     /* Wait for an event */
     while (1) {
         ev = os_eventq_get(&g_ble_ll_data.ll_evq);
@@ -1112,6 +1107,10 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 #endif
 #ifdef BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
     features |= BLE_LL_FEAT_SLAVE_INIT;
+#endif
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    features |= BLE_LL_FEAT_LE_ENCRYPTION;
+    ble_ll_rand_init();
 #endif
 
     lldata->ll_supp_features = features;

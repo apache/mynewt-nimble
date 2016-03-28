@@ -572,14 +572,30 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  * @param connsm 
  * @param dptr 
  * @param rspbuf 
+ * @param opcode
  * 
  * @return int 
  */
 static int
 ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
-                              uint8_t *rspbuf)
+                           uint8_t *rspbuf, uint8_t opcode)
 {
     uint8_t rsp_opcode;
+
+    /* 
+     * Only accept slave feature requests if we are a master and feature
+     * requests if we are a slave.
+     */
+    if (opcode ==  BLE_LL_CTRL_SLAVE_FEATURE_REQ) {
+        if (connsm->conn_role != BLE_LL_CONN_ROLE_MASTER) {
+            return BLE_LL_CTRL_UNKNOWN_RSP;
+        }
+    } else {
+        /* XXX: not sure this is correct but do it anyway */
+        if (connsm->conn_role != BLE_LL_CONN_ROLE_SLAVE) {
+            return BLE_LL_CTRL_UNKNOWN_RSP;
+        }
+    }
 
     /* Add put logical AND of their features and our features*/
     /* XXX: right now, there is only one byte of supported features */
@@ -754,14 +770,16 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     uint16_t conn_events;
 
     /* If instant is in the past, we have to end the connection */
-    instant = le16toh(dptr + BLE_LL_CONN_CHMAP_LEN);
-    conn_events = (instant - connsm->event_cntr) & 0xFFFF;
-    if (conn_events >= 32767) {
-        ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
-    } else {
-        connsm->chanmap_instant = instant;
-        memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
-        connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        instant = le16toh(dptr + BLE_LL_CONN_CHMAP_LEN);
+        conn_events = (instant - connsm->event_cntr) & 0xFFFF;
+        if (conn_events >= 32767) {
+            ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
+        } else {
+            connsm->chanmap_instant = instant;
+            memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
+            connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
+        }
     }
 }
 
@@ -1097,6 +1115,11 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_CONN_PARM_RSP:
         feature = BLE_LL_FEAT_CONN_PARM_REQ;
         break;
+    case BLE_LL_CTRL_ENC_REQ:
+    case BLE_LL_CTRL_START_ENC_REQ:
+    case BLE_LL_CTRL_PAUSE_ENC_REQ:
+        feature = BLE_LL_FEAT_LE_ENCRYPTION;
+        break;
     default:
         feature = 0;
         break;
@@ -1106,7 +1129,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         features = ble_ll_read_supp_features();
         if ((features & feature) == 0) {
             /* Construct unknown rsp pdu */
-            rspbuf[1] = opcode;
             rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
             goto ll_ctrl_send_rsp;
         }
@@ -1119,9 +1141,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_conn_update(connsm, dptr, rspbuf);
         break;
     case BLE_LL_CTRL_CHANNEL_MAP_REQ:
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
-        }
+        ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
         break;
     case BLE_LL_CTRL_LENGTH_REQ:
         /* Extract parameters and check if valid */
@@ -1143,10 +1163,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         ble_ll_ctrl_datalen_upd_make(connsm, rspbuf);
         break;
     case BLE_LL_CTRL_LENGTH_RSP:
-        /* 
-         * According to specification, we should only process this if we
-         * asked for it.
-         */
+        /* According to specification, process this only if we asked for it. */
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_DATA_LEN_UPD) {
             /* Process the received data */
             if (ble_ll_ctrl_len_proc(connsm, dptr)) {
@@ -1161,14 +1178,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         ble_ll_ctrl_proc_unk_rsp(connsm, dptr);
         break;
     case BLE_LL_CTRL_FEATURE_REQ:
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf);
-        } else {
-            /* XXX: not sure this is correct but do it anyway */
-            /* Construct unknown pdu */
-            rspbuf[1] = opcode;
-            rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
-        }
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
         break;
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
@@ -1183,21 +1193,16 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspbuf + 1);
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-            rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf);
-        } else {
-            /* Construct unknown pdu */
-            rspbuf[1] = opcode;
-            rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
-        }
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
         break;
-    /* XXX: remember to check if feature supported. Implement! */
+#if defined(BLE_LL_CFG_FEAT_LE_ENCYPTION)
     case BLE_LL_CTRL_ENC_REQ:
+        rsp_opcode = ble_ll_ctrl_rx_enc_req(connsm, dptr, rspbuf);
     case BLE_LL_CTRL_START_ENC_REQ:
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
+        break;
+#endif
     case BLE_LL_CTRL_PING_REQ:
-        /* Construct unknown pdu */
-        rspbuf[1] = opcode;
         rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
         break;
     case BLE_LL_CTRL_CONN_PARM_REQ:
@@ -1216,7 +1221,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         }
         break;
     default:
-        /* We really should never get here */
+        /* Nothing to do here */
         break;
     }
 
@@ -1226,6 +1231,9 @@ ll_ctrl_send_rsp:
         os_mbuf_free_chain(om);
     } else {
         rspbuf[0] = rsp_opcode;
+        if (rsp_opcode == BLE_LL_CTRL_UNKNOWN_RSP) {
+            rspbuf[1] = opcode;
+        }
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
     }
