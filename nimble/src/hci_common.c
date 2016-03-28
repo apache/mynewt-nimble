@@ -52,7 +52,7 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     sizeof(uint16_t),                   /* 0x0015: read channel map */
     BLE_HCI_CONN_RD_REM_FEAT_LEN,       /* 0x0016: read remote features */
     BLE_HCI_LE_ENCRYPT_LEN,             /* 0x0017: encrypt */
-    0xFF,
+    0,                                  /* 0x0018: rand */
     0xFF,
     0xFF,
     0xFF,

@@ -22,13 +22,18 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "controller/ble_hw.h"
 #include "mcu/nrf52_bitfields.h"
+#include "bsp/cmsis_nvic.h"
 
 /* Total number of white list elements supported by nrf52 */
 #define BLE_HW_WHITE_LIST_SIZE      (8)
 
 /* We use this to keep track of which entries are set to valid addresses */
 static uint8_t g_ble_hw_whitelist_mask;
+
+/* Random number generator isr callback */
+ble_rng_isr_cb_t g_ble_rng_isr_cb;
 
 /**
  * Clear the whitelist
@@ -192,4 +197,121 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     }
 
     return rc;
+}
+
+/**
+ * Random number generator ISR.
+ */
+static void
+ble_rng_isr(void)
+{
+    uint8_t rnum;
+
+    /* No callback? Clear and disable interrupts */
+    if (g_ble_rng_isr_cb == NULL) {
+        NRF_RNG->INTENCLR = 1;
+        NRF_RNG->EVENTS_VALRDY = 0;
+        (void)NRF_RNG->SHORTS;
+        return;
+    }
+
+    /* If there is a value ready grab it */
+    if (NRF_RNG->EVENTS_VALRDY) {
+        NRF_RNG->EVENTS_VALRDY = 0;
+        rnum = (uint8_t)NRF_RNG->VALUE;
+        (*g_ble_rng_isr_cb)(rnum);
+    }
+}
+
+/**
+ * Initialize the random number generator
+ * 
+ * @param cb 
+ * @param bias 
+ * 
+ * @return int 
+ */
+int
+ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
+{
+    /* Set bias */
+    if (bias) {
+        NRF_RNG->CONFIG = 1;
+    } else {
+        NRF_RNG->CONFIG = 0;
+    }
+
+    /* If we were passed a function pointer we need to enable the interrupt */
+    if (cb != NULL) {
+        NVIC_SetPriority(RNG_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+        NVIC_SetVector(RNG_IRQn, (uint32_t)ble_rng_isr);
+        NVIC_EnableIRQ(RNG_IRQn);
+        g_ble_rng_isr_cb = cb;
+    }
+
+    return 0;
+}
+
+/**
+ * Start the random number generator
+ * 
+ * @return int 
+ */
+int
+ble_hw_rng_start(void)
+{
+    os_sr_t sr;
+
+    /* No need for interrupt if there is no callback */
+    OS_ENTER_CRITICAL(sr);
+    if (NRF_RNG->TASKS_START == 0) {
+        NRF_RNG->EVENTS_VALRDY = 0;
+        if (g_ble_rng_isr_cb) {
+            NRF_RNG->INTENSET = 1;
+        }
+        NRF_RNG->TASKS_START = 1;
+    }
+    OS_EXIT_CRITICAL(sr);
+
+    return 0;
+}
+
+/**
+ * Stop the random generator
+ * 
+ * @return int 
+ */
+int
+ble_hw_rng_stop(void)
+{
+    os_sr_t sr;
+
+    /* No need for interrupt if there is no callback */
+    OS_ENTER_CRITICAL(sr);
+    NRF_RNG->INTENCLR = 1;
+    NRF_RNG->TASKS_STOP = 1;
+    NRF_RNG->EVENTS_VALRDY = 0;
+    OS_EXIT_CRITICAL(sr);
+
+    return 0;
+}
+
+/**
+ * Read the random number generator.
+ * 
+ * @return uint8_t 
+ */
+uint8_t
+ble_hw_rng_read(void)
+{
+    uint8_t rnum;
+
+    /* Wait for a sample */
+    while (NRF_RNG->EVENTS_VALRDY == 0) {
+    }
+
+    NRF_RNG->EVENTS_VALRDY = 0;
+    rnum = (uint8_t)NRF_RNG->VALUE;
+
+    return rnum;
 }

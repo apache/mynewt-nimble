@@ -66,6 +66,7 @@ int host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn);
 int host_hci_cmd_le_read_supp_states(void);
 int host_hci_cmd_le_read_max_datalen(void);
 int host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt);
+int host_hci_cmd_le_rand(void);
 int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 
 uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);

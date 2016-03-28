@@ -321,6 +321,14 @@ host_hci_cmd_le_set_event_mask(uint64_t event_mask)
     return rc;
 }
 
+/**
+ * LE Read buffer size
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0002 
+ * 
+ * @return int 
+ */
 int
 host_hci_cmd_le_read_buffer_size(void)
 {
@@ -746,8 +754,10 @@ host_hci_cmd_le_set_host_chan_class(uint8_t *chanmap)
 
 /**
  * Encrypt a block.
- * 
- * 
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0017 
+ *  
  * @param key 
  * @param pt 
  * 
@@ -764,6 +774,20 @@ host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt)
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_ENCRYPT, BLE_HCI_LE_ENCRYPT_LEN, 
                               cmd);
     return rc;
+}
+
+/**
+ * Get random data
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0018
+ *  
+ * @return int 
+ */
+int
+host_hci_cmd_le_rand(void)
+{
+    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RAND, 0, NULL);
 }
 
 /**

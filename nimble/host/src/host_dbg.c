@@ -312,6 +312,12 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
                        evdata[3], evdata[2], evdata[1], evdata[0]);
 
             break;
+        case BLE_HCI_OCF_LE_RAND:
+            evdata += 4;
+            BLE_HS_LOG(DEBUG, "rand=0x%02x%02x%02x%02x%02x%02x%02x%02x",
+                       evdata[0], evdata[1], evdata[2], evdata[3],
+                       evdata[4], evdata[5], evdata[6], evdata[7]);
+            break;
         default:
             break;
         }

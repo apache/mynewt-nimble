@@ -298,6 +298,9 @@
 /* --- LE encrypt (OCF 0x0017) */
 #define BLE_HCI_LE_ENCRYPT_LEN              (32)
 
+/* --- LE rand (OCF 0x0018) */
+#define BLE_HCI_LE_RAND_LEN                 (8)
+
 /* ---  LE long term key request reply command (OCF 0x001a) */
 #define BLE_HCI_LT_KEY_REQ_REPLY_LEN        (18)
 #define BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN (3) /* Includes status byte. */

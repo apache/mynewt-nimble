@@ -106,19 +106,24 @@
 #define BLE_SUPP_CMD_LE_SET_HOST_CHAN_CLASS (1 << 3)
 #define BLE_SUPP_CMD_LE_RD_CHAN_MAP         (1 << 4)
 #define BLE_SUPP_CMD_LE_RD_REM_USED_FEAT    (1 << 5)
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 #define BLE_SUPP_CMD_LE_ENCRYPT             (1 << 6)
+#define BLE_SUPP_CMD_LE_RAND                (1 << 7)
+#else
+#define BLE_SUPP_CMD_LE_ENCRYPT             (0 << 6)
 #define BLE_SUPP_CMD_LE_RAND                (0 << 7)
+#endif
 
 #define BLE_LL_SUPP_CMD_OCTET_27            \
 (                                           \
+    BLE_SUPP_CMD_LE_ENCRYPT             |   \
+    BLE_SUPP_CMD_LE_RAND                |   \
     BLE_SUPP_CMD_LE_ADD_DEV_WHITELIST   |   \
     BLE_SUPP_CMD_LE_RMV_DEV_WHITELIST   |   \
     BLE_SUPP_CMD_LE_CONN_UPDATE         |   \
     BLE_SUPP_CMD_LE_SET_HOST_CHAN_CLASS |   \
     BLE_SUPP_CMD_LE_RD_CHAN_MAP         |   \
-    BLE_SUPP_CMD_LE_RD_REM_USED_FEAT    |   \
-    BLE_SUPP_CMD_LE_ENCRYPT             |   \
-    BLE_SUPP_CMD_LE_RAND                    \
+    BLE_SUPP_CMD_LE_RD_REM_USED_FEAT        \
 )
 
 /* Octet 28 */
