@@ -47,9 +47,9 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT   0x16
 #define BLE_L2CAP_SIG_OP_MAX                0x17
 
-#define BLE_L2CAP_ERR_CMD_NOT_UNDERSTOOD    0x0000
-#define BLE_L2CAP_ERR_MTU_EXCEEDED          0x0001
-#define BLE_L2CAP_ERR_INVALID_CID           0x0002
+#define BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD    0x0000
+#define BLE_L2CAP_SIG_ERR_MTU_EXCEEDED          0x0001
+#define BLE_L2CAP_SIG_ERR_INVALID_CID           0x0002
 
 #define BLE_L2CAP_SM_OP_PAIR_REQ                0x01
 #define BLE_L2CAP_SM_OP_PAIR_RSP                0x02
@@ -66,6 +66,25 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SM_OP_PAIR_DHKEY_CHECK        0x0d
 #define BLE_L2CAP_SM_OP_PAIR_KEYPRESS_NOTIFY    0x0e
 
+#define BLE_L2CAP_SM_ERR_PASSKEY            0x01
+#define BLE_L2CAP_SM_ERR_OOB                0x02
+#define BLE_L2CAP_SM_ERR_AUTHREQ            0x03
+#define BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH   0x04
+#define BLE_L2CAP_SM_ERR_PAIR_NOT_SUPP      0x05
+#define BLE_L2CAP_SM_ERR_ENC_KEY_SZ         0x06
+#define BLE_L2CAP_SM_ERR_CMD_NOT_SUPP       0x07
+#define BLE_L2CAP_SM_ERR_UNSPECIFIED        0x08
+#define BLE_L2CAP_SM_ERR_REPEATED           0x09
+#define BLE_L2CAP_SM_ERR_INVAL              0x0a
+#define BLE_L2CAP_SM_ERR_DHKEY              0x0b
+#define BLE_L2CAP_SM_ERR_NUM_CMP            0x0c
+#define BLE_L2CAP_SM_ERR_ALREADY            0x0d
+#define BLE_L2CAP_SM_ERR_CROSS_TRANS        0x0e
+
+#define BLE_L2CAP_SM_PAIR_ALG_JW            0
+#define BLE_L2CAP_SM_PAIR_ALG_PASSKEY       1
+#define BLE_L2CAP_SM_PAIR_ALG_OOB           2
+
 typedef void ble_l2cap_sig_update_fn(int status, void *arg);
 
 struct ble_l2cap_sig_update_params {
@@ -78,5 +97,8 @@ struct ble_l2cap_sig_update_params {
 int ble_l2cap_sig_update(uint16_t conn_handle,
                          struct ble_l2cap_sig_update_params *params,
                          ble_l2cap_sig_update_fn *cb, void *cb_arg);
+
+
+int ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk);
 
 #endif

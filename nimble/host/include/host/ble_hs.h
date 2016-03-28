@@ -29,38 +29,41 @@
 #include "host/ble_uuid.h"
 #include "host/host_hci.h"
 
-#define BLE_HS_CONN_HANDLE_NONE         0xffff
+#define BLE_HS_CONN_HANDLE_NONE     0xffff
 
-#define BLE_HS_EAGAIN                   1
-#define BLE_HS_EALREADY                 2
-#define BLE_HS_EINVAL                   3
-#define BLE_HS_EMSGSIZE                 4
-#define BLE_HS_ENOENT                   5
-#define BLE_HS_ENOMEM                   6
-#define BLE_HS_ENOTCONN                 7
-#define BLE_HS_ENOTSUP                  8
-#define BLE_HS_EAPP                     9
-#define BLE_HS_EBADDATA                 10
-#define BLE_HS_EOS                      11
-#define BLE_HS_ECONGESTED               12
-#define BLE_HS_ECONTROLLER              13
-#define BLE_HS_ETIMEOUT                 14
-#define BLE_HS_EDONE                    15
-#define BLE_HS_EBUSY                    16
-#define BLE_HS_EREJECT                  17
-#define BLE_HS_EUNKNOWN                 18
+#define BLE_HS_EAGAIN               1
+#define BLE_HS_EALREADY             2
+#define BLE_HS_EINVAL               3
+#define BLE_HS_EMSGSIZE             4
+#define BLE_HS_ENOENT               5
+#define BLE_HS_ENOMEM               6
+#define BLE_HS_ENOTCONN             7
+#define BLE_HS_ENOTSUP              8
+#define BLE_HS_EAPP                 9
+#define BLE_HS_EBADDATA             10
+#define BLE_HS_EOS                  11
+#define BLE_HS_ECONGESTED           12
+#define BLE_HS_ECONTROLLER          13
+#define BLE_HS_ETIMEOUT             14
+#define BLE_HS_EDONE                15
+#define BLE_HS_EBUSY                16
+#define BLE_HS_EREJECT              17
+#define BLE_HS_EUNKNOWN             18
 
-#define BLE_HS_ERR_ATT_BASE             0x100   /* 256 */
-#define BLE_HS_ATT_ERR(x)               ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
+#define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
+#define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
 
-#define BLE_HS_ERR_HCI_BASE             0x200   /* 512 */
-#define BLE_HS_HCI_ERR(x)               ((x) ? BLE_HS_ERR_HCI_BASE + (x) : 0)
+#define BLE_HS_ERR_HCI_BASE         0x200   /* 512 */
+#define BLE_HS_HCI_ERR(x)           ((x) ? BLE_HS_ERR_HCI_BASE + (x) : 0)
 
-#define BLE_HS_ERR_L2C_BASE             0x300   /* 768 */
-#define BLE_HS_L2C_ERR(x)               ((x) ? BLE_HS_ERR_L2C_BASE + (x) : 0)
+#define BLE_HS_ERR_L2C_BASE         0x300   /* 768 */
+#define BLE_HS_L2C_ERR(x)           ((x) ? BLE_HS_ERR_L2C_BASE + (x) : 0)
 
-#define BLE_HS_ERR_SM_BASE              0x400   /* 1024 */
-#define BLE_HS_SM_ERR(x)                ((x) ? BLE_HS_ERR_SM_BASE + (x) : 0)
+#define BLE_HS_ERR_SM_US_BASE       0x400   /* 1024 */
+#define BLE_HS_SM_US_ERR(x)         ((x) ? BLE_HS_ERR_SM_US_BASE + (x) : 0)
+
+#define BLE_HS_ERR_SM_THEM_BASE     0x400   /* 1024 */
+#define BLE_HS_SM_THEM_ERR(x)       ((x) ? BLE_HS_ERR_SM_THEM_BASE + (x) : 0)
 
 struct ble_hs_cfg {
     /** HCI settings. */
@@ -87,6 +90,14 @@ struct ble_hs_cfg {
     uint8_t max_l2cap_chans;
     uint8_t max_l2cap_sig_procs;
     uint8_t max_l2cap_sm_procs;
+
+    /** Security manager settings. */
+    uint8_t sm_io_cap;
+    unsigned sm_oob_data_flag:1;
+    unsigned sm_bonding:1;
+    unsigned sm_mitm:1;
+    unsigned sm_sc:1;
+    unsigned sm_keypress:1;
 };
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
