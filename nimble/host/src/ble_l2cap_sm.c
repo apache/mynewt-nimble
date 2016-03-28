@@ -17,14 +17,15 @@
  * under the License.
  */
 
-#if NIMBLE_OPT_SM
-
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include "console/console.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
+
+#if NIMBLE_OPT_SM
 
 #define BLE_L2CAP_SM_PROC_OP_NONE               ((uint8_t)-1)
 

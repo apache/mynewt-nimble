@@ -17,14 +17,15 @@
  * under the License.
  */
 
-#if NIMBLE_OPT_SM
-
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include "console/console.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
+
+#if NIMBLE_OPT_SM
 
 static int
 ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)

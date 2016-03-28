@@ -17,16 +17,17 @@
  * under the License.
  */
 
-#if NIMBLE_OPT_SM
-
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
+#include "nimble/nimble_opt.h"
 #include "host/host_hci.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
+
+#if NIMBLE_OPT_SM
 
 /*****************************************************************************
  * $util                                                                     *

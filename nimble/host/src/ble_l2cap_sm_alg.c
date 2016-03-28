@@ -17,13 +17,14 @@
  * under the License.
  */
 
-#if NIMBLE_OPT_SM
-
 #include <inttypes.h>
 #include <string.h>
 #include "mbedtls/aes.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
+
+#if NIMBLE_OPT_SM
 
 static mbedtls_aes_context ble_l2cap_sm_alg_ctxt;
 
