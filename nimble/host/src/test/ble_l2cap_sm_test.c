@@ -17,6 +17,8 @@
  * under the License.
  */
 
+#if NIMBLE_OPT_SM
+
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
@@ -558,11 +560,16 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
     ble_l2cap_sm_test_case_peer_lgcy_good();
     ble_l2cap_sm_test_case_peer_lgcy_fail();
 }
+#endif
 
 int
 ble_l2cap_sm_test_all(void)
 {
+#if !NIMBLE_OPT_SM
+    return 0;
+#else
     ble_l2cap_sm_test_suite();
 
     return tu_any_failed;
+#endif
 }

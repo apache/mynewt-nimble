@@ -96,6 +96,8 @@ struct ble_l2cap_sm_pair_fail {
     uint8_t reason;
 };
 
+#if NIMBLE_OPT_SM
+
 #ifdef BLE_HS_DEBUG
 void ble_l2cap_sm_dbg_set_next_rand(uint8_t *next_rand);
 int ble_l2cap_sm_dbg_num_procs(void);
@@ -143,5 +145,40 @@ int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 void ble_l2cap_sm_wakeup(void);
 int ble_l2cap_sm_init(void);
 
+#else
+
+#ifdef BLE_HS_DEBUG
+#define ble_l2cap_sm_dbg_set_next_rand(next_rand)
+#define ble_l2cap_sm_dbg_num_procs() 0
+#endif
+
+#define ble_l2cap_sm_locked_by_cur_task() 0
+
+#define ble_l2cap_sm_create_chan() NULL
+
+#define ble_l2cap_sm_pair_cmd_parse(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_cmd_write(payload, len, is_req, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_cmd_tx(conn_handle, is_req, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_confirm_parse(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_confirm_write(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_confirm_tx(conn_handle, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_random_parse(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_random_write(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_random_tx(conn_handle, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_fail_parse(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_fail_write(payload, len, cmd) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_pair_fail_tx(conn_handle, cmd) BLE_HS_ENOTSUP
+
+#define ble_l2cap_sm_alg_s1(k, r1, r2, out) BLE_HS_ENOTSUP
+#define ble_l2cap_sm_alg_c1(k, r, preq, pres, iat, rat, ia, ra, out_enc_data) \
+    BLE_HS_ENOTSUP
+
+#define ble_l2cap_sm_rx_encryption_change(evt) ((void)(evt))
+#define ble_l2cap_sm_rx_lt_key_req(evt) ((void)(evt))
+
+#define ble_l2cap_sm_wakeup()
+#define ble_l2cap_sm_init() 0
+
+#endif
 
 #endif

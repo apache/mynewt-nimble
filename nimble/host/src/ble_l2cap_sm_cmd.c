@@ -17,6 +17,8 @@
  * under the License.
  */
 
+#if NIMBLE_OPT_SM
+
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
@@ -309,3 +311,5 @@ done:
     os_mbuf_free_chain(txom);
     return rc;
 }
+
+#endif

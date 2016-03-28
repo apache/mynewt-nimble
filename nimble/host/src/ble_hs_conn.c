@@ -176,6 +176,7 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
+#if NIMBLE_OPT_SM
     chan = ble_l2cap_sm_create_chan();
     if (chan == NULL) {
         goto err;
@@ -184,6 +185,7 @@ ble_hs_conn_alloc(void)
     if (rc != 0) {
         goto err;
     }
+#endif
 
     rc = ble_gatts_conn_init(&conn->bhc_gatt_svr);
     if (rc != 0) {
