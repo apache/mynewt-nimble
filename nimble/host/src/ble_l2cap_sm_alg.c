@@ -17,6 +17,8 @@
  * under the License.
  */
 
+#if NIMBLE_OPT_SM
+
 #include <inttypes.h>
 #include <string.h>
 #include "mbedtls/aes.h"
@@ -153,3 +155,5 @@ ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
 
     return 0;
 }
+
+#endif

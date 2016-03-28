@@ -17,6 +17,8 @@
  * under the License.
  */
 
+#if NIMBLE_OPT_SM
+
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
@@ -1079,3 +1081,5 @@ err:
     free(ble_l2cap_sm_proc_mem);
     return rc;
 }
+
+#endif
