@@ -50,6 +50,14 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     .max_l2cap_chans = 16,
     .max_l2cap_sig_procs = 8,
     .max_l2cap_sm_procs = 1,
+
+    /** Security manager settings. */
+    .sm_io_cap = 3,
+    .sm_oob_data_flag = 0,
+    .sm_bonding = 0,
+    .sm_mitm = 0,
+    .sm_sc = 0,
+    .sm_keypress = 0,
 };
 
 struct ble_hs_cfg ble_hs_cfg;

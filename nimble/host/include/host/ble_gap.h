@@ -130,7 +130,7 @@ struct ble_gap_upd_params {
 };
 
 struct ble_gap_sec_params {
-    uint8_t enc_type;
+    uint8_t pair_alg;
     unsigned enc_enabled:1;
     unsigned auth_enabled:1;
 };

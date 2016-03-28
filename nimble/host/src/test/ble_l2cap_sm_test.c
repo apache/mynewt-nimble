@@ -29,6 +29,10 @@
 
 #if NIMBLE_OPT_SM
 
+int ble_l2cap_sm_test_gap_event;
+int ble_l2cap_sm_test_gap_status;
+struct ble_gap_sec_params ble_l2cap_sm_test_sec_params;
+
 /*****************************************************************************
  * $util                                                                     *
  *****************************************************************************/
@@ -44,20 +48,23 @@ static void
 ble_l2cap_sm_test_util_init(void)
 {
     ble_hs_test_util_init();
-    //ble_l2cap_test_update_status = -1;
-    //ble_l2cap_test_update_arg = (void *)(uintptr_t)-1;
+
+    ble_l2cap_sm_test_gap_event = -1;
+    ble_l2cap_sm_test_gap_status = -1;
+    memset(&ble_l2cap_sm_test_sec_params, 0xff,
+           sizeof ble_l2cap_sm_test_sec_params);
 }
 
 static int
 ble_l2cap_sm_test_util_conn_cb(int event, int status,
                                struct ble_gap_conn_ctxt *ctxt, void *arg)
 {
-    int *accept;
-
     switch (event) {
-    case BLE_GAP_EVENT_L2CAP_UPDATE_REQ:
-        accept = arg;
-        return !*accept;
+    case BLE_GAP_EVENT_SECURITY:
+        ble_l2cap_sm_test_gap_event = event;
+        ble_l2cap_sm_test_gap_status = status;
+        ble_l2cap_sm_test_sec_params = *ctxt->sec_params;
+        return 0;
 
     default:
         return 0;
@@ -321,6 +328,8 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     struct ble_l2cap_sm_pair_confirm *confirm_rsp,
     struct ble_l2cap_sm_pair_random *random_req,
     struct ble_l2cap_sm_pair_random *random_rsp,
+    int pair_alg,
+    uint8_t *tk,
     uint8_t *stk,
     uint64_t r,
     uint16_t ediv)
@@ -392,8 +401,22 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     ble_l2cap_sm_test_util_rx_enc_change(2, 0, 1);
 
     /* Pairing should now be complete. */
-    TEST_ASSERT(conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.pair_alg == pair_alg);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.enc_enabled);
+    TEST_ASSERT(!ble_l2cap_sm_test_sec_params.auth_enabled);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.pair_alg ==
+                conn->bhc_sec_params.pair_alg);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.enc_enabled ==
+                conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.auth_enabled ==
+                conn->bhc_sec_params.auth_enabled);
 }
 
 static void
@@ -449,9 +472,26 @@ ble_l2cap_sm_test_util_peer_lgcy_fail(
 
     /* The proc should now be freed. */
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_status ==
+                BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH));
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.pair_alg ==
+                BLE_L2CAP_SM_PAIR_ALG_JW);
+    TEST_ASSERT(!ble_l2cap_sm_test_sec_params.enc_enabled);
+    TEST_ASSERT(!ble_l2cap_sm_test_sec_params.auth_enabled);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.pair_alg ==
+                conn->bhc_sec_params.pair_alg);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.enc_enabled ==
+                conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.auth_enabled ==
+                conn->bhc_sec_params.auth_enabled);
 }
 
-TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_good)
+TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_jw_good)
 {
     ble_l2cap_sm_test_util_peer_lgcy_good(
         ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
@@ -496,6 +536,8 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_good)
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             },
         } }),
+        BLE_L2CAP_SM_PAIR_ALG_JW,
+        NULL,
         ((uint8_t[16]) {
             0xe6, 0xb3, 0x05, 0xd4, 0xc3, 0x67, 0xf0, 0x45,
             0x38, 0x8f, 0xe7, 0x33, 0x0d, 0x51, 0x8e, 0xa4,
@@ -558,7 +600,7 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_fail)
 
 TEST_SUITE(ble_l2cap_sm_test_suite)
 {
-    ble_l2cap_sm_test_case_peer_lgcy_good();
+    ble_l2cap_sm_test_case_peer_lgcy_jw_good();
     ble_l2cap_sm_test_case_peer_lgcy_fail();
 }
 #endif

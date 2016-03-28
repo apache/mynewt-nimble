@@ -430,7 +430,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     /* Only a master can process an update request. */
     if (!is_master) {
         ble_l2cap_sig_reject_tx(conn_handle, hdr->identifier,
-                                BLE_L2CAP_ERR_CMD_NOT_UNDERSTOOD);
+                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
         return BLE_HS_ENOTSUP;
     }
 
@@ -620,7 +620,7 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
         ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
-                                BLE_L2CAP_ERR_CMD_NOT_UNDERSTOOD);
+                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
         rc = BLE_HS_ENOTSUP;
     } else {
         rc = rx_cb(conn_handle, &hdr, om);

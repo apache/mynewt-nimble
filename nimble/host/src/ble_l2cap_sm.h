@@ -23,21 +23,6 @@
 struct ble_gap_sec_params;
 struct hci_le_lt_key_req;
 
-#define BLE_L2CAP_SM_ERR_PASSKEY            0x01
-#define BLE_L2CAP_SM_ERR_OOB                0x02
-#define BLE_L2CAP_SM_ERR_AUTHREQ            0x03
-#define BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH   0x04
-#define BLE_L2CAP_SM_ERR_PAIR_NOT_SUPP      0x05
-#define BLE_L2CAP_SM_ERR_ENC_KEY_SZ         0x06
-#define BLE_L2CAP_SM_ERR_CMD_NOT_SUPP       0x07
-#define BLE_L2CAP_SM_ERR_UNSPECIFIED        0x08
-#define BLE_L2CAP_SM_ERR_REPEATED           0x09
-#define BLE_L2CAP_SM_ERR_INVAL              0x0a
-#define BLE_L2CAP_SM_ERR_DHKEY              0x0b
-#define BLE_L2CAP_SM_ERR_NUM_CMP            0x0c
-#define BLE_L2CAP_SM_ERR_ALREADY            0x0d
-#define BLE_L2CAP_SM_ERR_CROSS_TRANS        0x0e
-
 #define BLE_L2CAP_SM_MTU            65
 
 #define BLE_L2CAP_SM_HDR_SZ         1

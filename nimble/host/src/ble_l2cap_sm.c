@@ -40,14 +40,12 @@
 
 #define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
 
-#define BLE_L2CAP_SM_KEYGEN_METHOD_JW           0
-
 typedef uint16_t ble_l2cap_sm_proc_flags;
 
 struct ble_l2cap_sm_proc {
     struct ble_fsm_proc fsm_proc;
     ble_l2cap_sm_proc_flags flags;
-    uint8_t keygen_method;
+    uint8_t pair_alg;
 
     /* XXX: Minimum security requirements. */
 
@@ -55,6 +53,7 @@ struct ble_l2cap_sm_proc {
         struct {
             struct ble_l2cap_sm_pair_cmd pair_req;
             struct ble_l2cap_sm_pair_cmd pair_rsp;
+            uint8_t tk[16];
             uint8_t confirm_their[16];
             uint8_t rand_our[16];
             uint8_t rand_their[16];
@@ -349,13 +348,44 @@ ble_l2cap_sm_rx_noop(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
     return 0;
 }
 
+static int
+ble_l2cap_sm_request_tk(struct ble_l2cap_sm_proc *proc)
+{
+    if (proc->pair_alg == BLE_L2CAP_SM_PAIR_ALG_JW) {
+        ble_l2cap_sm_proc_set_pending(proc);
+    } else {
+        /* XXX: Ask application for TK. */
+    }
+    return 0;
+}
+
+static void
+ble_l2cap_sm_sec_params(struct ble_l2cap_sm_proc *proc,
+                        struct ble_gap_sec_params *out_sec_params,
+                        int enc_enabled)
+{
+    out_sec_params->pair_alg = proc->pair_alg;
+    out_sec_params->enc_enabled = enc_enabled;
+    out_sec_params->auth_enabled = 0; // XXX
+}
+
+static void
+ble_l2cap_sm_gap_event(struct ble_l2cap_sm_proc *proc, int status,
+                       int enc_enabled)
+{
+    struct ble_gap_sec_params sec_params;
+
+    ble_l2cap_sm_sec_params(proc, &sec_params, enc_enabled);
+    ble_gap_security_event(proc->fsm_proc.conn_handle, status, &sec_params);
+}
+
 /*****************************************************************************
  * $pair                                                                     *
  *****************************************************************************/
 
 static int
 ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
-                            struct ble_l2cap_sm_pair_cmd *req)
+                             struct ble_l2cap_sm_pair_cmd *req)
 {
     proc->phase_1_2.pair_req = *req;
     ble_l2cap_sm_proc_set_pending(proc);
@@ -367,16 +397,24 @@ static int
 ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
                              struct ble_l2cap_sm_pair_cmd *rsp)
 {
+    int rc;
+
     proc->phase_1_2.pair_rsp = *rsp;
+
     proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_CONFIRM;
-    ble_l2cap_sm_proc_set_pending(proc);
+    proc->fsm_proc.flags &= ~BLE_FSM_PROC_F_EXPECTING;
 
     /* XXX: Assume legacy "Just Works" for now. */
-    proc->keygen_method = BLE_L2CAP_SM_KEYGEN_METHOD_JW;
+    proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
+
+    rc = ble_l2cap_sm_request_tk(proc);
+    if (rc != 0) {
+        ble_l2cap_sm_set_fail_state(proc, rc);
+        return rc;
+    }
 
     return 0;
 }
-
 
 static int
 ble_l2cap_sm_pair_kick(struct ble_l2cap_sm_proc *proc)
@@ -384,10 +422,12 @@ ble_l2cap_sm_pair_kick(struct ble_l2cap_sm_proc *proc)
     struct ble_l2cap_sm_pair_cmd cmd;
     int rc;
 
-    /* XXX: Assume legacy "Just Works" for now. */
-    cmd.io_cap = 3;
-    cmd.oob_data_flag = 0;
-    cmd.authreq = 0;
+    cmd.io_cap = ble_hs_cfg.sm_io_cap;
+    cmd.oob_data_flag = ble_hs_cfg.sm_oob_data_flag;
+    cmd.authreq = (ble_hs_cfg.sm_bonding << 0)  |
+                  (ble_hs_cfg.sm_mitm << 2)     |
+                  (ble_hs_cfg.sm_sc << 3)       |
+                  (ble_hs_cfg.sm_keypress << 4);
     cmd.max_enc_key_size = 16;
     cmd.init_key_dist = 0;
     cmd.resp_key_dist = 0;
@@ -401,7 +441,7 @@ ble_l2cap_sm_pair_kick(struct ble_l2cap_sm_proc *proc)
     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
         proc->phase_1_2.pair_req = cmd;
     } else {
-        proc->keygen_method = BLE_L2CAP_SM_KEYGEN_METHOD_JW;
+        proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
         proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_CONFIRM;
         proc->phase_1_2.pair_rsp = cmd;
     }
@@ -419,8 +459,6 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
                                   uint8_t *iat, uint8_t *rat,
                                   uint8_t *ia, uint8_t *ra)
 {
-    static uint8_t zeros[16];
-
     struct ble_hs_conn *conn;
     int rc;
 
@@ -447,7 +485,7 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
         return BLE_HS_ENOTCONN;
     }
 
-    memcpy(k, zeros, 16); /* XXX: Assume legacy "Just Works." */
+    memcpy(k, proc->phase_1_2.tk, sizeof proc->phase_1_2.tk);
 
     rc = ble_l2cap_sm_pair_cmd_write(
         preq, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 1,
@@ -514,12 +552,20 @@ static int
 ble_l2cap_sm_confirm_handle(struct ble_l2cap_sm_proc *proc,
                             struct ble_l2cap_sm_pair_confirm *cmd)
 {
+    int rc;
+
     memcpy(proc->phase_1_2.confirm_their, cmd->value, 16);
 
     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
         proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_RANDOM;
+        ble_l2cap_sm_proc_set_pending(proc);
+    } else {
+        rc = ble_l2cap_sm_request_tk(proc);
+        if (rc != 0) {
+            ble_l2cap_sm_set_fail_state(proc, rc);
+            return rc;
+        }
     }
-    ble_l2cap_sm_proc_set_pending(proc);
 
     return 0;
 }
@@ -605,6 +651,9 @@ ble_l2cap_sm_fail_kick(struct ble_l2cap_sm_proc *proc)
     cmd.reason = proc->fail.reason;
     ble_l2cap_sm_pair_fail_tx(proc->fsm_proc.conn_handle, &cmd);
 
+    /* Notify application of failure. */
+    ble_l2cap_sm_gap_event(proc, BLE_HS_SM_US_ERR(cmd.reason), 0);
+
     return BLE_HS_EDONE;
 }
 
@@ -612,8 +661,7 @@ static int
 ble_l2cap_sm_fail_handle(struct ble_l2cap_sm_proc *proc,
                          struct ble_l2cap_sm_pair_fail *cmd)
 {
-    ble_gap_security_fail(proc->fsm_proc.conn_handle,
-                          BLE_HS_SM_ERR(cmd->reason));
+    ble_l2cap_sm_gap_event(proc, BLE_HS_SM_THEM_ERR(cmd->reason), 0);
 
     /* Procedure should now be terminated (return nonzero). */
     return 1;
@@ -628,7 +676,7 @@ ble_l2cap_sm_lt_key_req_reply_ack_handle(struct ble_l2cap_sm_proc *proc,
                                          struct ble_hci_ack *ack)
 {
     if (ack->bha_status != 0) {
-        ble_gap_security_fail(proc->fsm_proc.conn_handle, ack->bha_status);
+        ble_l2cap_sm_gap_event(proc, ack->bha_status, 0);
     } else {
         proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_ENC_CHANGE;
     }
@@ -664,7 +712,7 @@ ble_l2cap_sm_lt_key_req_kick(struct ble_l2cap_sm_proc *proc)
     rc = ble_hci_sched_enqueue(ble_l2cap_sm_lt_key_req_reply_tx, proc,
                                &proc->hci.handle);
     if (rc != 0) {
-        ble_gap_security_fail(proc->fsm_proc.conn_handle, rc);
+        ble_l2cap_sm_gap_event(proc, rc, 0);
         return BLE_HS_EDONE;
     }
 
@@ -678,15 +726,13 @@ ble_l2cap_sm_lt_key_req_handle(struct ble_l2cap_sm_proc *proc,
                                struct hci_le_lt_key_req *evt)
 {
     uint8_t key[16];
-    /* XXX: Assume legacy "Just Works". */
-    uint8_t k[16] = {0};
     int rc;
 
     /* Generate the key. */
-    rc = ble_l2cap_sm_alg_s1(k, proc->phase_1_2.rand_our,
+    rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
                              proc->phase_1_2.rand_their, key);
     if (rc != 0) {
-        ble_gap_security_fail(proc->fsm_proc.conn_handle, rc);
+        ble_l2cap_sm_gap_event(proc, rc, 0);
         return rc;
     }
 
@@ -945,7 +991,6 @@ ble_l2cap_sm_rx_lt_key_req_reply_ack(struct ble_hci_ack *ack, void *arg)
 void
 ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
 {
-    struct ble_gap_sec_params sec_params;
     struct ble_l2cap_sm_proc *proc;
 
     proc = ble_l2cap_sm_proc_extract(
@@ -960,13 +1005,10 @@ ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
     }
 
     if (evt->status != 0) {
-        ble_gap_security_fail(evt->connection_handle,
-                              BLE_HS_SM_ERR(evt->status));
+        ble_l2cap_sm_gap_event(proc, BLE_HS_HCI_ERR(evt->status), 0);
     } else {
-        sec_params.enc_type = proc->keygen_method; // XXX
-        sec_params.enc_enabled = evt->encryption_enabled & 0x01; /* LE bit. */
-        sec_params.auth_enabled = 0; // XXX
-        ble_gap_encryption_changed(evt->connection_handle, &sec_params);
+        ble_l2cap_sm_gap_event(proc, 0,
+                               evt->encryption_enabled & 0x01 /* LE bit. */);
     }
 
     /* The pairing procedure is now complete. */
@@ -1032,6 +1074,29 @@ ble_l2cap_sm_create_chan(void)
     chan->blc_rx_fn = ble_l2cap_sm_rx;
 
     return chan;
+}
+
+int
+ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk)
+{
+    struct ble_l2cap_sm_proc *proc;
+
+    proc = ble_l2cap_sm_proc_extract(
+        &(struct ble_l2cap_sm_extract_arg) {
+            .conn_handle = conn_handle,
+            .op = BLE_L2CAP_SM_PROC_OP_CONFIRM,
+            .initiator = -1,
+        }
+    );
+    if (proc == NULL) {
+        return BLE_HS_ENOENT;
+    }
+
+    memcpy(proc->phase_1_2.tk, tk, 16);
+
+    ble_l2cap_sm_proc_set_pending(proc);
+
+    return 0;
 }
 
 /**
