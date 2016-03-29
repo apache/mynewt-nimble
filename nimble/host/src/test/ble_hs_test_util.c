@@ -29,7 +29,7 @@
 
 /** Use lots of small mbufs to ensure correct mbuf usage. */
 #define BLE_HS_TEST_UTIL_NUM_MBUFS      (100)
-#define BLE_HS_TEST_UTIL_BUF_SIZE       OS_ALIGN(32, 4)
+#define BLE_HS_TEST_UTIL_BUF_SIZE       OS_ALIGN(100, 4)
 #define BLE_HS_TEST_UTIL_MEMBLOCK_SIZE  \
     (BLE_HS_TEST_UTIL_BUF_SIZE + BLE_MBUF_MEMBLOCK_OVERHEAD)
 #define BLE_HS_TEST_UTIL_MEMPOOL_SIZE   \

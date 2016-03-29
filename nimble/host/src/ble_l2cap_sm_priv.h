@@ -154,6 +154,29 @@ struct ble_l2cap_sm_sec_req {
     uint8_t authreq;
 };
 
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x0c)                        | 1                 |
+ * | Public Key X                       | 32                |
+ * | Public Key Y                       | 32                |
+ */
+#define BLE_L2CAP_SM_PUBLIC_KEY_SZ      64
+struct ble_l2cap_sm_public_key {
+    uint8_t x[32];
+    uint8_t y[32];
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x0d)                        | 1                 |
+ * | DHKey Check                        | 16                |
+ */
+#define BLE_L2CAP_SM_DHKEY_CHECK_SZ     16
+struct ble_l2cap_sm_dhkey_check {
+    uint8_t value[16];
+};
 
 #if NIMBLE_OPT(SM)
 
@@ -173,6 +196,7 @@ struct ble_l2cap_chan *ble_l2cap_sm_create_chan(void);
 
 void ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
                                  struct ble_l2cap_sm_pair_cmd *cmd);
+int ble_l2cap_sm_pair_cmd_is_valid(struct ble_l2cap_sm_pair_cmd *cmd);
 void ble_l2cap_sm_pair_cmd_write(void *payload, int len, int is_req,
                                  struct ble_l2cap_sm_pair_cmd *cmd);
 int ble_l2cap_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
@@ -191,7 +215,6 @@ int ble_l2cap_sm_pair_random_tx(uint16_t conn_handle,
                                 struct ble_l2cap_sm_pair_random *cmd);
 void ble_l2cap_sm_pair_fail_parse(void *payload, int len,
                                   struct ble_l2cap_sm_pair_fail *cmd);
-int ble_l2cap_sm_pair_cmd_is_valid(struct ble_l2cap_sm_pair_cmd *cmd);
 void ble_l2cap_sm_pair_fail_write(void *payload, int len,
                                   struct ble_l2cap_sm_pair_fail *cmd);
 int ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason);
@@ -202,6 +225,17 @@ int ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
                         uint8_t iat, uint8_t rat,
                         uint8_t *ia, uint8_t *ra,
                         uint8_t *out_enc_data);
+int ble_l2cap_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
+                        uint8_t *out_enc_data);
+int ble_l2cap_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
+                        uint32_t *passkey);
+int ble_l2cap_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
+                        uint8_t *a1, uint8_t a2t, uint8_t *a2,
+                        uint8_t *mackey, uint8_t *ltk);
+int ble_l2cap_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
+                        uint8_t *iocap, uint8_t a1t, uint8_t *a1,
+                        uint8_t a2t, uint8_t *a2, uint8_t *check);
+int ble_l2cap_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
 
 void ble_l2cap_sm_enc_info_parse(void *payload, int len,
                                  struct ble_l2cap_sm_enc_info *cmd);
@@ -229,6 +263,18 @@ void ble_l2cap_sm_sec_req_write(void *payload, int len,
                                 struct ble_l2cap_sm_sec_req *cmd);
 int ble_l2cap_sm_sec_req_tx(uint16_t conn_handle,
                             struct ble_l2cap_sm_sec_req *cmd);
+int ble_l2cap_sm_public_key_parse(void *payload, int len,
+                                  struct ble_l2cap_sm_public_key *cmd);
+int ble_l2cap_sm_public_key_write(void *payload, int len,
+                                  struct ble_l2cap_sm_public_key *cmd);
+int ble_l2cap_sm_public_key_tx(uint16_t conn_handle,
+                               struct ble_l2cap_sm_public_key *cmd);
+int ble_l2cap_sm_dhkey_check_parse(void *payload, int len,
+                                   struct ble_l2cap_sm_dhkey_check *cmd);
+int ble_l2cap_sm_dhkey_check_write(void *payload, int len,
+                                   struct ble_l2cap_sm_dhkey_check *cmd);
+int ble_l2cap_sm_dhkey_check_tx(uint16_t conn_handle,
+                                struct ble_l2cap_sm_dhkey_check *cmd);
 
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
