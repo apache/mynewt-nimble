@@ -166,11 +166,22 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
     return rc;
 }
 
+/**
+ * Set advertising data
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0008
+ * 
+ * @param data 
+ * @param len 
+ * 
+ * @return int 
+ */
 int
 host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
 {
     int rc;
-    uint8_t cmd[BLE_HCI_MAX_ADV_DATA_LEN + 1];
+    uint8_t cmd[BLE_HCI_SET_ADV_DATA_LEN];
 
     /* Check for valid parameters */
     if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_ADV_DATA_LEN)) {
@@ -179,7 +190,8 @@ host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
 
     cmd[0] = len;
     memcpy(cmd + 1, data, len);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_DATA, len + 1, cmd);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_DATA, 
+                              BLE_HCI_SET_ADV_DATA_LEN, cmd);
 
     return rc;
 }

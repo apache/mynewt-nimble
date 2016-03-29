@@ -795,7 +795,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 
     /* Check for valid advertising data length */
     datalen = cmd[0];
-    if ((datalen > BLE_ADV_DATA_MAX_LEN) || (datalen != len)) {
+    if (datalen > BLE_ADV_DATA_MAX_LEN) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 

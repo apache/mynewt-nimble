@@ -36,7 +36,7 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     BLE_DEV_ADDR_LEN,                   /* 0x0005: set random address */
     BLE_HCI_SET_ADV_PARAM_LEN,          /* 0x0006: set advertising parameters */
     0,                                  /* 0x0007: read adv chan tx power */
-    0xFF,                               /* 0x0008: set advertising data */
+    BLE_HCI_SET_ADV_DATA_LEN,           /* 0x0008: set advertising data */
     0xFF,                               /* 0x0009: set scan rsp data */
     BLE_HCI_SET_ADV_ENABLE_LEN,         /* 0x000A: set advertising enable */
     BLE_HCI_SET_SCAN_PARAM_LEN,         /* 0x000B: set scan parameters */
