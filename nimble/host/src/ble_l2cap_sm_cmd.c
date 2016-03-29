@@ -517,4 +517,128 @@ done:
     os_mbuf_free_chain(txom);
     return rc;
 }
+
+int
+ble_l2cap_sm_public_key_parse(void *payload, int len,
+                              struct ble_l2cap_sm_public_key *cmd)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_L2CAP_SM_PUBLIC_KEY_SZ) {
+        return BLE_HS_EBADDATA;
+    }
+
+    u8ptr = payload;
+
+    memcpy(cmd->x, u8ptr, sizeof cmd->x);
+    u8ptr += sizeof cmd->x;
+
+    memcpy(cmd->y, u8ptr, sizeof cmd->y);
+    u8ptr += sizeof cmd->y;
+
+    return 0;
+}
+
+int
+ble_l2cap_sm_public_key_write(void *payload, int len,
+                              struct ble_l2cap_sm_public_key *cmd)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PUBLIC_KEY_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    *u8ptr = BLE_L2CAP_SM_OP_PAIR_PUBLIC_KEY;
+    u8ptr++;
+
+    memcpy(u8ptr, cmd->x, sizeof cmd->x);
+    memcpy(u8ptr + 32, cmd->y, sizeof cmd->y);
+
+    return 0;
+}
+
+int
+ble_l2cap_sm_public_key_tx(uint16_t conn_handle,
+                           struct ble_l2cap_sm_public_key *cmd)
+{
+    struct os_mbuf *txom;
+    int rc;
+
+    rc = ble_l2cap_sm_init_req(BLE_L2CAP_SM_PUBLIC_KEY_SZ, &txom);
+    if (rc != 0) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    rc = ble_l2cap_sm_public_key_write(txom->om_data, txom->om_len, cmd);
+    assert(rc == 0);
+
+    rc = ble_l2cap_sm_tx(conn_handle, txom);
+    txom = NULL;
+
+done:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
+int
+ble_l2cap_sm_dhkey_check_parse(void *payload, int len,
+                               struct ble_l2cap_sm_dhkey_check *cmd)
+{
+    if (len < BLE_L2CAP_SM_DHKEY_CHECK_SZ) {
+        return BLE_HS_EBADDATA;
+    }
+
+    memcpy(cmd->value, payload, sizeof cmd->value);
+
+    return 0;
+}
+
+int
+ble_l2cap_sm_dhkey_check_write(void *payload, int len,
+                               struct ble_l2cap_sm_dhkey_check *cmd)
+{
+    uint8_t *u8ptr;
+
+    if (len < BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_DHKEY_CHECK_SZ) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    u8ptr = payload;
+
+    *u8ptr = BLE_L2CAP_SM_OP_PAIR_DHKEY_CHECK;
+    u8ptr++;
+
+    memcpy(u8ptr, cmd->value, sizeof cmd->value);
+
+    return 0;
+}
+
+int
+ble_l2cap_sm_dhkey_check_tx(uint16_t conn_handle,
+                            struct ble_l2cap_sm_dhkey_check *cmd)
+{
+    struct os_mbuf *txom;
+    int rc;
+
+    rc = ble_l2cap_sm_init_req(BLE_L2CAP_SM_DHKEY_CHECK_SZ, &txom);
+    if (rc != 0) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    rc = ble_l2cap_sm_dhkey_check_write(txom->om_data, txom->om_len, cmd);
+    assert(rc == 0);
+
+    rc = ble_l2cap_sm_tx(conn_handle, txom);
+    txom = NULL;
+
+done:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
+
 #endif
