@@ -316,6 +316,15 @@
 /* --- LE remote connection parameter request negative reply (OCF 0x0021) */
 #define BLE_HCI_CONN_PARAM_NEG_REPLY_LEN    (3)
 
+/* --- LE set data length (OCF 0x0022) */
+#define BLE_HCI_SET_DATALEN_LEN             (6)
+
+/* --- LE read suggested default data length (OCF 0x0024) */
+#define BLE_HCI_RD_SUGG_DATALEN_RSPLEN      (4)
+
+/* --- LE write suggested default data length (OCF 0x0024) */
+#define BLE_HCI_WR_SUGG_DATALEN_LEN         (4)
+
 /* --- LE read maximum data length (OCF 0x002F) */
 #define BLE_HCI_RD_MAX_DATALEN_RSPLEN       (8)
 

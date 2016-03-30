@@ -24,12 +24,12 @@
 #include "hal/hal_cputime.h"
 
 /* Configuration for supported features */
-#define  BLE_LL_CFG_FEAT_LE_ENCRYPTION
-#define BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+#undef  BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#undef  BLE_LL_CFG_FEAT_CONN_PARAM_REQ
 #undef  BLE_LL_CFG_FEAT_EXT_REJECT_IND
 #define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
 #undef  BLE_LL_CFG_FEAT_LE_PING
-#define BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#define  BLE_LL_CFG_FEAT_DATA_LEN_EXT
 #undef  BLE_LL_CFG_FEAT_LL_PRIVACY
 #undef  BLE_LL_CFG_FEAT_EXT_SCAN_FILT
 
@@ -350,6 +350,10 @@ uint8_t ble_ll_read_supp_features(void);
 
 /* Read set of states supported by the Link Layer */
 uint64_t ble_ll_read_supp_states(void);
+
+/* Check if octets and time are valid. Returns 0 if not valid */
+int ble_ll_chk_txrx_octets(uint16_t octets);
+int ble_ll_chk_txrx_time(uint16_t time);
 
 /* Random numbers */
 int ble_ll_rand_init(void);

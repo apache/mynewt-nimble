@@ -2107,6 +2107,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     uint8_t conn_sn;
     uint8_t conn_nesn;
     uint8_t reply;
+    uint8_t rem_bytes;
     uint32_t ticks;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
@@ -2240,6 +2241,13 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                         }
                         os_mbuf_free_chain(txpdu);
                         connsm->cur_tx_pdu = NULL;
+                    } else {
+                        rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
+                        if (rem_bytes > connsm->eff_max_tx_octets) {
+                            txhdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
+                        } else {
+                            txhdr->txinfo.pyld_len = rem_bytes;
+                        }
                     }
                 } else {
                     /* No packet on queue? This is an error! */
@@ -2585,6 +2593,9 @@ ble_ll_conn_module_reset(void)
     maxbytes = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
     conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
     conn_params->conn_init_max_tx_octets = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES;
+
+    conn_params->sugg_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
+    conn_params->sugg_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;
 
     /* Mask in all channels by default */
     conn_params->num_used_chans = BLE_PHY_NUM_DATA_CHANS;

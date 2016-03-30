@@ -62,9 +62,9 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     0xFF,
     BLE_HCI_CONN_PARAM_REPLY_LEN,       /* 0x0020: conn param reply */
     BLE_HCI_CONN_PARAM_NEG_REPLY_LEN,   /* 0x0021: conn param neg reply */
-    0xFF,
-    0xFF,
-    0xFF,
+    BLE_HCI_SET_DATALEN_LEN,            /* 0x0022: set data length */
+    0,                                  /* 0x0023: read sugg data len */
+    BLE_HCI_WR_SUGG_DATALEN_LEN,        /* 0x0024: write suggested data len */
     0xFF,
     0xFF,
     0xFF,

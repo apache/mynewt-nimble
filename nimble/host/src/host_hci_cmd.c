@@ -382,6 +382,63 @@ host_hci_cmd_le_read_max_datalen(void)
 }
 
 /**
+ * Set data length command
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0022
+ * 
+ * @return int 
+ */
+int 
+host_hci_cmd_le_set_datalen(uint16_t handle, uint16_t txoctets, uint16_t txtime)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_SET_DATALEN_LEN];
+
+    htole16(cmd, handle);
+    htole16(cmd + 2, txoctets);
+    htole16(cmd + 4, txtime);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_DATA_LEN, 
+                              BLE_HCI_SET_DATALEN_LEN, cmd);
+    return rc;
+}
+
+/**
+ * Read suggested default data length
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0023
+ * 
+ * @return int 
+ */
+int 
+host_hci_cmd_le_read_sugg_datalen(void)
+{
+    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN, 0, NULL);
+}
+
+/**
+ * write suggested default data length
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0024
+ * 
+ * @return int 
+ */
+int 
+host_hci_cmd_le_write_sugg_datalen(uint16_t txoctets, uint16_t txtime)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_WR_SUGG_DATALEN_LEN];
+
+    htole16(cmd, txoctets);
+    htole16(cmd + 2, txtime);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN, 
+                              BLE_HCI_WR_SUGG_DATALEN_LEN, cmd);
+    return rc;
+}
+
+/**
  * OGF=LE, OCF=0x0003
  */
 int

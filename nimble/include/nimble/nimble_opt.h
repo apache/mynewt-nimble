@@ -270,7 +270,7 @@
 #endif
 
 #ifndef NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES
-#define NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES    (251)
+#define NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES    (27)
 #endif
 
 /* The number of slots that will be allocated to each connection */

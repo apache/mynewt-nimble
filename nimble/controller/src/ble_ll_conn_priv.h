@@ -59,7 +59,8 @@ struct ble_ll_conn_global_params
     uint8_t supp_max_tx_octets;
     uint8_t supp_max_rx_octets;
     uint8_t conn_init_max_tx_octets;
-    uint8_t reserved;
+    uint8_t sugg_tx_octets;
+    uint16_t sugg_tx_time;
     uint16_t conn_init_max_tx_time;
     uint16_t supp_max_tx_time;
     uint16_t supp_max_rx_time;
@@ -130,5 +131,6 @@ int ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf);
 int ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, 
                                 uint8_t *rsplen);
-
+int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, 
+                                 uint8_t *rsplen);
 #endif /* H_BLE_LL_CONN_PRIV_ */
