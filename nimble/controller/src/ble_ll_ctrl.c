@@ -294,10 +294,10 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         /* Stop the control procedure */
         ble_ll_ctrl_proc_stop(connsm, ctrl_proc);
         if (ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
-            ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_FEATURE);
+            ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
             /* XXX: should only get this if a slave initiated this */
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNSUPP_FEATURE);
+            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         }
     }
 }
@@ -597,9 +597,7 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         }
     }
 
-    /* Add put logical AND of their features and our features*/
-    /* XXX: right now, there is only one byte of supported features */
-    /* XXX: Used proper macros later */
+    /* Set common features and reply */
     rsp_opcode = BLE_LL_CTRL_FEATURE_RSP;
     connsm->common_features = dptr[0] & ble_ll_read_supp_features();
     memset(rspbuf + 1, 0, 8);
@@ -800,7 +798,11 @@ ble_ll_ctrl_proc_rsp_timer_cb(void *arg)
 }
 
 /**
- * Initiate LL control procedure.
+ * Initiate LL control procedure. 
+ *  
+ * This function is called to obtain a mbuf to send a LL control PDU. The data 
+ * channel PDU header is not part of the mbuf data; it is part of the BLE 
+ * header (which is part of the mbuf). 
  *  
  * Context: LL task. 
  * 
@@ -1057,8 +1059,10 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 }
 
 /**
- * Called when the Link Layer receives a LL control PDU. This function 
- * must either free the received pdu or re-use it for the response. 
+ * Called when the Link Layer receives a LL control PDU. 
+ *  
+ * NOTE: this function uses the received PDU for the response in some cases. If 
+ * the received PDU is not used it needs to be freed here. 
  *  
  * Context: Link Layer 
  * 

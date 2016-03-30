@@ -163,7 +163,7 @@ enum ble_error_codes
     BLE_ERR_REPEATED_ATTEMPTS   = 23,
     BLE_ERR_NO_PAIRING          = 24,
     BLE_ERR_UNK_LMP             = 25,
-    BLE_ERR_UNSUPP_FEATURE      = 26,
+    BLE_ERR_UNSUPP_REM_FEATURE  = 26,
     BLE_ERR_SCO_OFFSET          = 27,
     BLE_ERR_SCO_ITVL            = 28,
     BLE_ERR_SCO_AIR_MODE        = 29,
