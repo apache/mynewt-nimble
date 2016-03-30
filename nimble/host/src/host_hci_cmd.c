@@ -188,6 +188,7 @@ host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    memset(cmd, 0, BLE_HCI_SET_ADV_DATA_LEN);
     cmd[0] = len;
     memcpy(cmd + 1, data, len);
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_DATA, 
@@ -200,7 +201,7 @@ int
 host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len)
 {
     int rc;
-    uint8_t cmd[BLE_HCI_MAX_SCAN_RSP_DATA_LEN + 1];
+    uint8_t cmd[BLE_HCI_SET_SCAN_RSP_DATA_LEN];
 
     /* Check for valid parameters */
     if (((data == NULL) && (len != 0)) ||
@@ -208,9 +209,11 @@ host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    memset(cmd, 0, BLE_HCI_SET_SCAN_RSP_DATA_LEN);
     cmd[0] = len;
     memcpy(cmd + 1, data, len);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA, len + 1, cmd);
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA, 
+                              BLE_HCI_SET_SCAN_RSP_DATA_LEN, cmd);
 
     return rc;
 }
