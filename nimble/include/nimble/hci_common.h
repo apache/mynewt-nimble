@@ -181,6 +181,7 @@
 
 /* --- LE set scan response data (OCF 0x0009) */
 #define BLE_HCI_MAX_SCAN_RSP_DATA_LEN       (31)
+#define BLE_HCI_SET_SCAN_RSP_DATA_LEN       (32)
 
 /* --- LE set advertising enable (OCF 0x000a) */
 #define BLE_HCI_SET_ADV_ENABLE_LEN          (1)
