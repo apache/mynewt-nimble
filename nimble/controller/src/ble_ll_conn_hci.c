@@ -459,7 +459,7 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
     /* See if we support this feature */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         if ((ble_ll_read_supp_features() & BLE_LL_FEAT_SLAVE_INIT) == 0) {
-            return BLE_ERR_UNSUPP_FEATURE;
+            return BLE_ERR_UNKNOWN_HCI_CMD;
         }
     }
 
@@ -504,7 +504,7 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     /* See if we support this feature */
     if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            return BLE_ERR_UNSUPP_FEATURE;
+            return BLE_ERR_UNKNOWN_HCI_CMD;
         } 
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
@@ -580,7 +580,7 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
 
     /* See if we support this feature */
     if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
-        return BLE_ERR_UNSUPP_FEATURE;
+        return BLE_ERR_UNKNOWN_HCI_CMD;
     }
 
     /* If no connection handle exit with error */
@@ -697,7 +697,7 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
         case BLE_ERR_REM_USER_CONN_TERM:
         case BLE_ERR_RD_CONN_TERM_RESRCS:
         case BLE_ERR_RD_CONN_TERM_PWROFF:
-        case BLE_ERR_UNSUPP_FEATURE:
+        case BLE_ERR_UNSUPP_REM_FEATURE:
         case BLE_ERR_UNIT_KEY_PAIRING:
         case BLE_ERR_CONN_PARMS:
             connsm = ble_ll_conn_find_active_conn(handle);
