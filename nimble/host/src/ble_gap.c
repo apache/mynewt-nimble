@@ -795,14 +795,14 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
         conn = ble_hs_conn_find(evt->connection_handle);
         if (conn != NULL) {
             ble_gap_conn_to_snapshot(conn, &snap);
-
-            ble_gap_conn_broken(evt->connection_handle);
             ble_hs_conn_remove(conn);
             ble_hs_conn_free(conn);
         }
         ble_hs_conn_unlock();
 
         if (conn != NULL) {
+            ble_gap_conn_broken(evt->connection_handle);
+
             memset(&ctxt, 0, sizeof ctxt);
             ctxt.desc = &snap.desc;
             ble_gap_call_conn_cb(BLE_GAP_EVENT_CONN, BLE_HS_ENOTCONN, &ctxt,
