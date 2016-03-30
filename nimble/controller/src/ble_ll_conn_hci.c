@@ -870,3 +870,44 @@ ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
     return rc;
 }
 
+#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+int
+ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    uint16_t txoctets;
+    uint16_t txtime;
+    struct ble_ll_conn_sm *connsm;
+
+    /* Find connection */
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else {
+        txoctets = le16toh(cmdbuf + 2);
+        txtime = le16toh(cmdbuf + 4);
+
+        /* Make sure it is valid */
+        if (!ble_ll_chk_txrx_octets(txoctets) || 
+            !ble_ll_chk_txrx_time(txtime)) {
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        } else {
+            rc = BLE_ERR_SUCCESS;
+        }
+
+        /* XXX: should I check against max supported? I think so */
+
+        /* 
+         * XXX: For now; we will simply ignore what the host asks as we are
+         * allowed to do so by the spec. 
+         */ 
+    }
+
+    htole16(rspbuf, handle);
+    *rsplen = sizeof(uint16_t);
+    return rc;
+}
+#endif
+

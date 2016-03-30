@@ -280,6 +280,60 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
+#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+/**
+ * HCI write suggested default data length command. Returns the controllers 
+ * initial max tx octet/time. 
+ * 
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ * 
+ * @return int BLE error code
+ */
+static int
+ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
+{    
+    int rc;
+    uint16_t tx_oct;
+    uint16_t tx_time;
+
+    /* Get suggested octets and time */
+    tx_oct = le16toh(cmdbuf);
+    tx_time = le16toh(cmdbuf + 2);
+
+    /* If valid, write into suggested and change connection initial times */
+    if (ble_ll_chk_txrx_octets(tx_oct) && ble_ll_chk_txrx_time(tx_time)) {
+        g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
+        g_ble_ll_conn_params.sugg_tx_time = tx_time;
+        g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
+        g_ble_ll_conn_params.conn_init_max_tx_time = tx_time;
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return rc;
+}
+
+/**
+ * HCI read suggested default data length command. Returns the controllers 
+ * initial max tx octet/time. 
+ * 
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ * 
+ * @return int BLE error code
+ */
+static int
+ble_ll_hci_le_rd_sugg_data_len(uint8_t *rspbuf, uint8_t *rsplen)
+{    
+    /* Place the data packet length and number of packets in the buffer */
+    htole16(rspbuf, g_ble_ll_conn_params.sugg_tx_octets);
+    htole16(rspbuf + 2, g_ble_ll_conn_params.sugg_tx_time);
+    *rsplen = BLE_HCI_RD_SUGG_DATALEN_RSPLEN;
+    return BLE_ERR_SUCCESS;
+}
+
 /**
  * HCI read maximum data length command. Returns the controllers max supported 
  * rx/tx octets/times. 
@@ -300,6 +354,7 @@ ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = BLE_HCI_RD_MAX_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
+#endif
 
 /**
  * HCI read local supported features command. Returns the features 
@@ -550,9 +605,20 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
         break;
+#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+    case BLE_HCI_OCF_LE_SET_DATA_LEN:
+        rc = ble_ll_conn_hci_set_data_len(cmdbuf, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN:
+        rc = ble_ll_hci_le_rd_sugg_data_len(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN:
+        rc = ble_ll_hci_le_wr_sugg_data_len(cmdbuf);
+        break;
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         break;
+#endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;

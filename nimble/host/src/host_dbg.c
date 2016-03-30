@@ -318,6 +318,15 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
                        evdata[0], evdata[1], evdata[2], evdata[3],
                        evdata[4], evdata[5], evdata[6], evdata[7]);
             break;
+        case BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN:
+            evdata += 4;
+            BLE_HS_LOG(DEBUG, "txoct=%u txtime=%u", le16toh(evdata), 
+                       le16toh(evdata+ 2));
+            break;
+        case BLE_HCI_OCF_LE_SET_DATA_LEN:
+            evdata += 4;
+            BLE_HS_LOG(DEBUG, "handle=%u", le16toh(evdata));
+            break;
         default:
             break;
         }
