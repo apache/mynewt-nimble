@@ -160,6 +160,10 @@
     BLE_SUPP_CMD_LE_RD_SUGG_DATALEN         \
 )
 
+/* Octet 35 */
+#define BLE_SUPP_CMD_LE_RD_MAX_DATALEN      (1 << 3)
+#define BLE_LL_SUPP_CMD_OCTET_35            (BLE_SUPP_CMD_LE_RD_MAX_DATALEN)
+
 /* Defines the array of supported commands */
 const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
 {
@@ -197,6 +201,6 @@ const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
     0,
     0,                                  /* Octet 32 */
     BLE_LL_SUPP_CMD_OCTET_33,
-    34,
-    35,
+    0,
+    BLE_LL_SUPP_CMD_OCTET_35
 };
