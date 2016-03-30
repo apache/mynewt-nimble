@@ -42,7 +42,7 @@ ble_hs_adv_test_misc_verify_tx_adv_data_hdr(int data_len)
     TEST_ASSERT(BLE_HCI_OGF(opcode) == BLE_HCI_OGF_LE);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == BLE_HCI_OCF_LE_SET_ADV_DATA);
 
-    TEST_ASSERT(sptr[2] == data_len + 1);
+    TEST_ASSERT(sptr[2] == BLE_HCI_SET_ADV_DATA_LEN);
     TEST_ASSERT(sptr[3] == data_len);
 }
 
@@ -60,7 +60,7 @@ ble_hs_adv_test_misc_verify_tx_rsp_data_hdr(int data_len)
     TEST_ASSERT(BLE_HCI_OGF(opcode) == BLE_HCI_OGF_LE);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA);
 
-    TEST_ASSERT(sptr[2] == data_len + 1);
+    TEST_ASSERT(sptr[2] == BLE_HCI_SET_SCAN_RSP_DATA_LEN);
     TEST_ASSERT(sptr[3] == data_len);
 }
 
@@ -109,7 +109,7 @@ ble_hs_adv_test_misc_verify_tx_fields(int off,
 
     for (field = fields; field->type != 0; field++) {
         ble_hs_adv_test_misc_verify_tx_field(off, field->type, field->val_len,
-                                          field->val);
+                                             field->val);
         off += 2 + field->val_len;
     }
 }
