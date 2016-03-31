@@ -640,6 +640,10 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     scansm->backoff_count = 1;
     scansm->scan_rsp_pending = 0;
 
+    /* Forget filtered advertisers from previous scan. */
+    g_ble_ll_scan_num_rsp_advs = 0;
+    g_ble_ll_scan_num_dup_advs = 0;
+
     /* XXX: align to current or next slot???. */
     /* Schedule start time now */
     scansm->scan_win_start_time = cputime_get32();
