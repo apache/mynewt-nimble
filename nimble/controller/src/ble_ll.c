@@ -859,9 +859,7 @@ ble_ll_task(void *arg)
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
     ble_ll_rand_start();
-#endif
 
     /* Wait for an event */
     while (1) {
@@ -1140,8 +1138,8 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 #endif
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
     features |= BLE_LL_FEAT_LE_ENCRYPTION;
-    ble_ll_rand_init();
 #endif
+    ble_ll_rand_init();
 
     lldata->ll_supp_features = features;
 
