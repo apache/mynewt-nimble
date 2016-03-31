@@ -274,7 +274,7 @@ ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
 {
     uint8_t *evbuf;
 
-    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_DISCONN_CMP - 1)) {
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_DISCONN_CMP)) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
