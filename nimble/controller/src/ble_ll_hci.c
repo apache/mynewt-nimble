@@ -41,9 +41,8 @@ static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
  *  
  * Returns the number of command packets that the host is allowed to send 
  * to the controller. 
- *  
- *  
- * wOPCODE = opcode;@return uint8_t 
+ * 
+ * @return uint8_t 
  */
 static uint8_t
 ble_ll_hci_get_num_cmd_pkts(void)
@@ -102,7 +101,7 @@ ble_ll_hci_send_noop(void)
     return rc;
 }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /**
  * LE encrypt command
  * 
@@ -427,18 +426,19 @@ ble_ll_hci_is_le_event_enabled(int subev)
 /**
  * Checks to see if an event has been disabled by the host. 
  * 
- * @param bitpos This is the bit position of the event. Note that this can 
- * be a value from 0 to 63, inclusive. 
+ * @param evcode This is the event code for the event (0 - 63).
  * 
  * @return uint8_t 0: event is not enabled; otherwise event is enabled.
  */
 uint8_t
-ble_ll_hci_is_event_enabled(int bitpos)
+ble_ll_hci_is_event_enabled(int evcode)
 {
     uint8_t enabled;
     uint8_t bytenum;
     uint8_t bitmask;
+    int bitpos;
 
+    bitpos = evcode - 1;
     bytenum = bitpos / 8;
     bitmask = 1 << (bitpos & 0x7);
     enabled = g_ble_ll_hci_event_mask[bytenum] & bitmask;
@@ -463,6 +463,9 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
     case BLE_HCI_OCF_LE_CREATE_CONN:
     case BLE_HCI_OCF_LE_CONN_UPDATE:
+    case BLE_HCI_OCF_LE_START_ENCRYPT:
+    case BLE_HCI_OCF_LE_RD_P256_PUBKEY:
+    case BLE_HCI_OCF_LE_GEN_DHKEY:
         rc = 1;
         break;
     default:
@@ -588,7 +591,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
         rc = ble_ll_conn_hci_read_rem_features(cmdbuf);
         break;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_HCI_OCF_LE_ENCRYPT:
         rc = ble_ll_hci_le_encrypt(cmdbuf, rspbuf, rsplen);
         break;
