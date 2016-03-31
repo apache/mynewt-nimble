@@ -129,6 +129,11 @@ ble_phy_rxpdu_get(void)
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {
+            /* 
+             * NOTE: we add two bytes to the data pointer as we will prepend
+             * two bytes if we hand this received pdu up to host.
+             */
+            m->om_data += 2;
             g_ble_phy_data.rxpdu = m;
         }
     }
@@ -174,8 +179,8 @@ ble_phy_isr(void)
         /* Better be in TX state! */
         assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
 
-        ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_txrx_buf[1], 0, 
-                   NRF_TIMER0->CC[2]);
+        ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF, 
+                   0, NRF_TIMER0->CC[2]);
 
         /* Clear events and clear interrupt on disabled event */
         NRF_RADIO->EVENTS_DISABLED = 0;
