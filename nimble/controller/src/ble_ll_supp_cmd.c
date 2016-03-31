@@ -108,11 +108,10 @@
 #define BLE_SUPP_CMD_LE_RD_REM_USED_FEAT    (1 << 5)
 #if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 #define BLE_SUPP_CMD_LE_ENCRYPT             (1 << 6)
-#define BLE_SUPP_CMD_LE_RAND                (1 << 7)
 #else
 #define BLE_SUPP_CMD_LE_ENCRYPT             (0 << 6)
-#define BLE_SUPP_CMD_LE_RAND                (0 << 7)
 #endif
+#define BLE_SUPP_CMD_LE_RAND                (1 << 7)
 
 #define BLE_LL_SUPP_CMD_OCTET_27            \
 (                                           \

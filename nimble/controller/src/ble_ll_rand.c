@@ -26,7 +26,6 @@
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
 
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /* This is a simple circular buffer for holding N samples of random data */
 struct ble_ll_rnum_data
 {
@@ -132,5 +131,3 @@ ble_ll_rand_init(void)
     ble_hw_rng_init(ble_ll_rand_sample, 1);
     return 0;
 }
-#endif
-

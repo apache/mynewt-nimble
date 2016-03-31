@@ -131,6 +131,7 @@ ble_ll_hci_le_encrypt(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     }
     return rc;
 }
+#endif
 
 /**
  * LE rand command
@@ -150,7 +151,6 @@ ble_ll_hci_le_rand(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = BLE_HCI_LE_RAND_LEN;
     return rc;
 }
-#endif
 
 /**
  * Read local version
@@ -595,10 +595,10 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_ENCRYPT:
         rc = ble_ll_hci_le_encrypt(cmdbuf, rspbuf, rsplen);
         break;
+#endif
     case BLE_HCI_OCF_LE_RAND:
         rc = ble_ll_hci_le_rand(rspbuf, rsplen);
         break;
-#endif
     case BLE_HCI_OCF_LE_RD_SUPP_STATES :
         rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);
         break;
