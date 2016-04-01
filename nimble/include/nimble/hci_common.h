@@ -303,6 +303,9 @@
 /* --- LE rand (OCF 0x0018) */
 #define BLE_HCI_LE_RAND_LEN                 (8)
 
+/* --- LE start encryption (OCF 0x0019) */
+#define BLE_HCI_LE_START_ENCRYPT_LEN        (28)
+
 /* ---  LE long term key request reply command (OCF 0x001a) */
 #define BLE_HCI_LT_KEY_REQ_REPLY_LEN        (18)
 #define BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN (3) /* Includes status byte. */
@@ -525,7 +528,7 @@ struct hci_adv_params
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 };
 
-/* LE create connection command */
+/* LE create connection command (ocf=0x000d). */
 struct hci_create_conn
 {
     uint16_t scan_itvl;
@@ -542,7 +545,7 @@ struct hci_create_conn
     uint16_t max_ce_len;
 };
 
-/* LE connection update command */
+/* LE connection update command (ocf=0x0013). */
 struct hci_conn_update
 {
     uint16_t handle;
@@ -552,6 +555,15 @@ struct hci_conn_update
     uint16_t supervision_timeout;
     uint16_t min_ce_len;
     uint16_t max_ce_len;
+};
+
+/* LE start encryption command (ocf=0x0019) (note: fields out of order). */
+struct hci_start_encrypt
+{
+    uint16_t connection_handle;
+    uint16_t encrypted_diversifier;
+    uint64_t random_number;
+    uint8_t long_term_key[16];
 };
 
 /* LE long term key request reply command (ocf=0x001a). */

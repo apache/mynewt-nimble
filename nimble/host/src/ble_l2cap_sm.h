@@ -84,7 +84,9 @@ struct ble_l2cap_sm_pair_fail {
 #if NIMBLE_OPT_SM
 
 #ifdef BLE_HS_DEBUG
-void ble_l2cap_sm_dbg_set_next_rand(uint8_t *next_rand);
+void ble_l2cap_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
+void ble_l2cap_sm_dbg_set_next_ediv(uint16_t next_ediv);
+void ble_l2cap_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
 int ble_l2cap_sm_dbg_num_procs(void);
 #endif
 
@@ -127,6 +129,7 @@ int ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
+int ble_l2cap_sm_initiate(uint16_t conn_handle);
 void ble_l2cap_sm_wakeup(void);
 int ble_l2cap_sm_init(void);
 
