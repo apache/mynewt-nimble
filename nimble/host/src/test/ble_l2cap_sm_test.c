@@ -72,8 +72,8 @@ ble_l2cap_sm_test_util_conn_cb(int event, int status,
 }
 
 static void
-ble_l2cap_sm_test_util_rx_pair_req(struct ble_hs_conn *conn,
-                                   struct ble_l2cap_sm_pair_cmd *req)
+ble_l2cap_sm_test_util_rx_pair_cmd(struct ble_hs_conn *conn, uint8_t op,
+                                   struct ble_l2cap_sm_pair_cmd *cmd)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -96,11 +96,26 @@ ble_l2cap_sm_test_util_rx_pair_req(struct ble_hs_conn *conn,
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
 
-    rc = ble_l2cap_sm_pair_cmd_write(v, payload_len, 1, req);
+    rc = ble_l2cap_sm_pair_cmd_write(v, payload_len,
+                                     op == BLE_L2CAP_SM_OP_PAIR_REQ, cmd);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == 0);
+}
+
+static void
+ble_l2cap_sm_test_util_rx_pair_req(struct ble_hs_conn *conn,
+                                   struct ble_l2cap_sm_pair_cmd *req)
+{
+    ble_l2cap_sm_test_util_rx_pair_cmd(conn, BLE_L2CAP_SM_OP_PAIR_REQ, req);
+}
+
+static void
+ble_l2cap_sm_test_util_rx_pair_rsp(struct ble_hs_conn *conn,
+                                   struct ble_l2cap_sm_pair_cmd *rsp)
+{
+    ble_l2cap_sm_test_util_rx_pair_cmd(conn, BLE_L2CAP_SM_OP_PAIR_RSP, rsp);
 }
 
 static void
@@ -181,26 +196,42 @@ ble_l2cap_sm_test_util_verify_tx_hdr(uint8_t sm_op, uint16_t payload_len)
 }
 
 static void
-ble_l2cap_sm_test_util_verify_tx_pair_rsp(
-    struct ble_l2cap_sm_pair_cmd *exp_rsp)
+ble_l2cap_sm_test_util_verify_tx_pair_cmd(
+    uint8_t op,
+    struct ble_l2cap_sm_pair_cmd *exp_cmd)
 {
-    struct ble_l2cap_sm_pair_cmd rsp;
+    struct ble_l2cap_sm_pair_cmd cmd;
     int rc;
 
-    ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_RSP,
-                                         BLE_L2CAP_SM_PAIR_CMD_SZ);
+    ble_l2cap_sm_test_util_verify_tx_hdr(op, BLE_L2CAP_SM_PAIR_CMD_SZ);
 
     rc = ble_l2cap_sm_pair_cmd_parse(ble_hs_test_util_prev_tx->om_data,
                                      ble_hs_test_util_prev_tx->om_len,
-                                     &rsp);
+                                     &cmd);
     TEST_ASSERT_FATAL(rc == 0);
 
-    TEST_ASSERT(rsp.io_cap == exp_rsp->io_cap);
-    TEST_ASSERT(rsp.oob_data_flag == exp_rsp->oob_data_flag);
-    TEST_ASSERT(rsp.authreq == exp_rsp->authreq);
-    TEST_ASSERT(rsp.max_enc_key_size == exp_rsp->max_enc_key_size);
-    TEST_ASSERT(rsp.init_key_dist == exp_rsp->init_key_dist);
-    TEST_ASSERT(rsp.resp_key_dist == exp_rsp->resp_key_dist);
+    TEST_ASSERT(cmd.io_cap == exp_cmd->io_cap);
+    TEST_ASSERT(cmd.oob_data_flag == exp_cmd->oob_data_flag);
+    TEST_ASSERT(cmd.authreq == exp_cmd->authreq);
+    TEST_ASSERT(cmd.max_enc_key_size == exp_cmd->max_enc_key_size);
+    TEST_ASSERT(cmd.init_key_dist == exp_cmd->init_key_dist);
+    TEST_ASSERT(cmd.resp_key_dist == exp_cmd->resp_key_dist);
+}
+
+static void
+ble_l2cap_sm_test_util_verify_tx_pair_req(
+    struct ble_l2cap_sm_pair_cmd *exp_req)
+{
+    ble_l2cap_sm_test_util_verify_tx_pair_cmd(BLE_L2CAP_SM_OP_PAIR_REQ,
+                                              exp_req);
+}
+
+static void
+ble_l2cap_sm_test_util_verify_tx_pair_rsp(
+    struct ble_l2cap_sm_pair_cmd *exp_rsp)
+{
+    ble_l2cap_sm_test_util_verify_tx_pair_cmd(BLE_L2CAP_SM_OP_PAIR_RSP,
+                                              exp_rsp);
 }
 
 static void
@@ -314,14 +345,35 @@ ble_l2cap_sm_test_util_rx_enc_change(uint16_t conn_handle, uint8_t status,
     ble_l2cap_sm_rx_encryption_change(&evt);
 }
 
+static void
+ble_l2cap_sm_test_util_verify_tx_start_enc(uint16_t conn_handle,
+                                           uint64_t random_number,
+                                           uint16_t ediv,
+                                           uint8_t *ltk)
+{
+    uint8_t param_len;
+    uint8_t *param;
+
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_hci_tx != NULL);
+
+    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_START_ENCRYPT,
+                                           &param_len);
+    TEST_ASSERT(param_len == BLE_HCI_LE_START_ENCRYPT_LEN);
+    TEST_ASSERT(le16toh(param + 0) == conn_handle);
+    TEST_ASSERT(le64toh(param + 2) == random_number);
+    TEST_ASSERT(le16toh(param + 10) == ediv);
+    TEST_ASSERT(memcmp(param + 12, ltk, 16) == 0);
+}
+
 /*****************************************************************************
  * $peer                                                                     *
  *****************************************************************************/
 
 static void
 ble_l2cap_sm_test_util_peer_lgcy_good(
-    uint8_t *our_addr,
-    uint8_t *their_addr,
+    uint8_t *init_addr,
+    uint8_t *rsp_addr,
     struct ble_l2cap_sm_pair_cmd *pair_req,
     struct ble_l2cap_sm_pair_cmd *pair_rsp,
     struct ble_l2cap_sm_pair_confirm *confirm_req,
@@ -337,9 +389,10 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     struct ble_hs_conn *conn;
 
     ble_l2cap_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(our_addr);
+    ble_hs_test_util_set_public_addr(rsp_addr);
+    ble_l2cap_sm_dbg_set_next_pair_rand(random_rsp->value);
 
-    conn = ble_hs_test_util_create_conn(2, their_addr,
+    conn = ble_hs_test_util_create_conn(2, init_addr,
                                         ble_l2cap_sm_test_util_conn_cb,
                                         NULL);
 
@@ -356,8 +409,6 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     ble_l2cap_sm_test_util_verify_tx_pair_rsp(pair_rsp);
     TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
-
-    ble_l2cap_sm_dbg_set_next_rand(random_rsp->value);
 
     /* Receive a pair confirm from the peer. */
     ble_l2cap_sm_test_util_rx_confirm(conn, confirm_req);
@@ -421,8 +472,8 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
 
 static void
 ble_l2cap_sm_test_util_peer_lgcy_fail(
-    uint8_t *our_addr,
-    uint8_t *their_addr,
+    uint8_t *init_addr,
+    uint8_t *rsp_addr,
     struct ble_l2cap_sm_pair_cmd *pair_req,
     struct ble_l2cap_sm_pair_cmd *pair_rsp,
     struct ble_l2cap_sm_pair_confirm *confirm_req,
@@ -434,9 +485,10 @@ ble_l2cap_sm_test_util_peer_lgcy_fail(
     struct ble_hs_conn *conn;
 
     ble_l2cap_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(our_addr);
+    ble_hs_test_util_set_public_addr(rsp_addr);
+    ble_l2cap_sm_dbg_set_next_pair_rand(random_rsp->value);
 
-    conn = ble_hs_test_util_create_conn(2, their_addr,
+    conn = ble_hs_test_util_create_conn(2, init_addr,
                                         ble_l2cap_sm_test_util_conn_cb,
                                         NULL);
 
@@ -450,8 +502,6 @@ ble_l2cap_sm_test_util_peer_lgcy_fail(
     ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_pair_rsp(pair_rsp);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
-
-    ble_l2cap_sm_dbg_set_next_rand(random_rsp->value);
 
     /* Receive a pair confirm from the peer. */
     ble_l2cap_sm_test_util_rx_confirm(conn, confirm_req);
@@ -494,8 +544,8 @@ ble_l2cap_sm_test_util_peer_lgcy_fail(
 TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_jw_good)
 {
     ble_l2cap_sm_test_util_peer_lgcy_good(
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
         ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
         ((struct ble_l2cap_sm_pair_cmd[1]) { {
             .io_cap = 0x04,
             .oob_data_flag = 0,
@@ -550,8 +600,8 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_jw_good)
 TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_fail)
 {
     ble_l2cap_sm_test_util_peer_lgcy_fail(
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
         ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
         ((struct ble_l2cap_sm_pair_cmd[1]) { {
             .io_cap = 0x04,
             .oob_data_flag = 0,
@@ -598,10 +648,179 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_fail)
     );
 }
 
+/*****************************************************************************
+ * $us                                                                       *
+ *****************************************************************************/
+
+static void
+ble_l2cap_sm_test_util_us_lgcy_good(
+    uint8_t *init_addr,
+    uint8_t *rsp_addr,
+    struct ble_l2cap_sm_pair_cmd *pair_req,
+    struct ble_l2cap_sm_pair_cmd *pair_rsp,
+    struct ble_l2cap_sm_pair_confirm *confirm_req,
+    struct ble_l2cap_sm_pair_confirm *confirm_rsp,
+    struct ble_l2cap_sm_pair_random *random_req,
+    struct ble_l2cap_sm_pair_random *random_rsp,
+    int pair_alg,
+    uint8_t *tk,
+    uint8_t *stk,
+    uint64_t r,
+    uint16_t ediv)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_sm_test_util_init();
+    ble_hs_test_util_set_public_addr(init_addr);
+    ble_l2cap_sm_dbg_set_next_pair_rand(random_req->value);
+    ble_l2cap_sm_dbg_set_next_ediv(ediv);
+    ble_l2cap_sm_dbg_set_next_start_rand(r);
+
+    ble_hs_cfg.sm_bonding = 1;
+    ble_hs_cfg.sm_mitm = 1;
+    ble_hs_cfg.sm_io_cap = 4;
+    ble_hs_cfg.sm_our_key_dist = 0x07;
+    ble_hs_cfg.sm_their_key_dist = 0x07;
+
+    conn = ble_hs_test_util_create_conn(2, rsp_addr,
+                                        ble_l2cap_sm_test_util_conn_cb,
+                                        NULL);
+
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Initiate the pairing procedure. */
+    rc = ble_gap_security_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure we sent the expected pair request. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_pair_req(pair_req);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair response from the peer. */
+    ble_l2cap_sm_test_util_rx_pair_rsp(conn, pair_rsp);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected pair confirm. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_pair_confirm(confirm_req);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair confirm from the peer. */
+    ble_l2cap_sm_test_util_rx_confirm(conn, confirm_rsp);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected pair random. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_pair_random(random_req);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair random from the peer. */
+    ble_l2cap_sm_test_util_rx_random(conn, random_rsp);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected start encryption command. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_start_enc(2, r, ediv, stk);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive a command status event. */
+    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_START_ENCRYPT, 0);
+    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive an encryption changed event. */
+    ble_l2cap_sm_test_util_rx_enc_change(2, 0, 1);
+
+    /* Pairing should now be complete. */
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.pair_alg == pair_alg);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.enc_enabled);
+    TEST_ASSERT(!ble_l2cap_sm_test_sec_params.auth_enabled);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.pair_alg ==
+                conn->bhc_sec_params.pair_alg);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.enc_enabled ==
+                conn->bhc_sec_params.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_params.auth_enabled ==
+                conn->bhc_sec_params.auth_enabled);
+}
+
+TEST_CASE(ble_l2cap_sm_test_case_us_lgcy_jw_good)
+{
+    ble_l2cap_sm_test_util_us_lgcy_good(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_confirm[1]) { {
+            .value = {
+                0x0a, 0xac, 0xa2, 0xae, 0xa6, 0x98, 0xdc, 0x6d,
+                0x65, 0x84, 0x11, 0x69, 0x47, 0x36, 0x8d, 0xa0,
+            },
+        } }),
+        ((struct ble_l2cap_sm_pair_confirm[1]) { {
+            .value = {
+                0x45, 0xd2, 0x2c, 0x38, 0xd8, 0x91, 0x4f, 0x19,
+                0xa2, 0xd4, 0xfc, 0x7d, 0xad, 0x37, 0x79, 0xe0
+            },
+        } }),
+        ((struct ble_l2cap_sm_pair_random[1]) { {
+            .value = {
+                0x2b, 0x3b, 0x69, 0xe4, 0xef, 0xab, 0xcc, 0x48,
+                0x78, 0x20, 0x1a, 0x54, 0x7a, 0x91, 0x5d, 0xfb,
+            },
+        } }),
+        ((struct ble_l2cap_sm_pair_random[1]) { {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        } }),
+        BLE_L2CAP_SM_PAIR_ALG_JW,
+        NULL,
+        ((uint8_t[16]) {
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+            0x00, 0x03, 0x07, 0x07, 0x10, 0x05, 0x00, 0x04,
+        }),
+        0,
+        0
+    );
+}
+
 TEST_SUITE(ble_l2cap_sm_test_suite)
 {
     ble_l2cap_sm_test_case_peer_lgcy_jw_good();
     ble_l2cap_sm_test_case_peer_lgcy_fail();
+    ble_l2cap_sm_test_case_us_lgcy_jw_good();
 }
 #endif
 

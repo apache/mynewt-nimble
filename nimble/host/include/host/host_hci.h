@@ -71,6 +71,7 @@ int host_hci_cmd_le_set_datalen(uint16_t handle, uint16_t txoctets,
                                 uint16_t txtime);
 int host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt);
 int host_hci_cmd_le_rand(void);
+int host_hci_cmd_le_start_encrypt(struct hci_start_encrypt *cmd);
 int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 
 uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);

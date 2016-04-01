@@ -49,6 +49,7 @@
 #define BLE_HS_EBUSY                16
 #define BLE_HS_EREJECT              17
 #define BLE_HS_EUNKNOWN             18
+#define BLE_HS_EROLE                19
 
 #define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
@@ -98,6 +99,8 @@ struct ble_hs_cfg {
     unsigned sm_mitm:1;
     unsigned sm_sc:1;
     unsigned sm_keypress:1;
+    uint8_t sm_our_key_dist;
+    uint8_t sm_their_key_dist;
 };
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;

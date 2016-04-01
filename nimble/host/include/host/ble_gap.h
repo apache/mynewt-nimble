@@ -198,5 +198,6 @@ int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
                    uint8_t white_list_count, ble_gap_wl_fn *cb, void *cb_arg);
 int ble_gap_update_params(uint16_t conn_handle,
                           struct ble_gap_upd_params *params);
+int ble_gap_security_initiate(uint16_t conn_handle);
 
 #endif

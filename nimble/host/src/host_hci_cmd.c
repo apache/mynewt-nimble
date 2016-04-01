@@ -863,6 +863,27 @@ host_hci_cmd_le_rand(void)
 }
 
 /**
+ * Enables encryption on a connection.
+ *
+ * OGF = 0x08 (LE)
+ * OCF = 0x0019
+ *
+ * @return int
+ */
+int
+host_hci_cmd_le_start_encrypt(struct hci_start_encrypt *cmd)
+{
+    uint8_t buf[BLE_HCI_LE_START_ENCRYPT_LEN];
+
+    htole16(buf + 0, cmd->connection_handle);
+    htole64(buf + 2, cmd->random_number);
+    htole16(buf + 10, cmd->encrypted_diversifier);
+    swap_buf(buf + 12, cmd->long_term_key, 16);
+
+    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_START_ENCRYPT, sizeof buf, buf);
+}
+
+/**
  * Read the RSSI for a given connection handle
  * 
  * NOTE: OGF=0x05 OCF=0x0005 

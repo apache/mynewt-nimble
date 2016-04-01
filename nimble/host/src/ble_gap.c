@@ -22,6 +22,7 @@
 #include <errno.h>
 #include "bsp/bsp.h"
 #include "os/os.h"
+#include "nimble/nimble_opt.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
 
@@ -3064,8 +3065,35 @@ done:
 }
 
 /*****************************************************************************
- * $encrypt                                                                  *
+ * $security                                                                 *
  *****************************************************************************/
+
+#if NIMBLE_OPT_SM
+int
+ble_gap_security_initiate(uint16_t conn_handle)
+{
+    ble_hs_conn_flags_t conn_flags;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_conn_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        conn_flags = conn->bhc_flags;
+    }
+    ble_hs_conn_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+    if (!(conn_flags & BLE_HS_CONN_F_MASTER)) {
+        return BLE_HS_EROLE;
+    }
+
+    rc = ble_l2cap_sm_initiate(conn_handle);
+    return rc;
+}
+#endif
 
 void
 ble_gap_security_event(uint16_t conn_handle, int status,
