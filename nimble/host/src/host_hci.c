@@ -17,7 +17,6 @@
  * under the License.
  */
 #include <stdint.h>
-#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
@@ -141,7 +140,7 @@ host_hci_timer_set(void)
 
     rc = os_callout_reset(&host_hci_timer.cf_c,
                           HOST_HCI_TIMEOUT * OS_TICKS_PER_SEC / 1000);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 static void
@@ -155,7 +154,7 @@ host_hci_timer_exp(void *arg)
 {
     struct ble_hci_ack ack;
 
-    assert(host_hci_outstanding_opcode != 0);
+    BLE_HS_DBG_ASSERT(host_hci_outstanding_opcode != 0);
 
     ack.bha_opcode = host_hci_outstanding_opcode;
     ack.bha_status = BLE_HS_ETIMEOUT;
@@ -629,11 +628,11 @@ host_hci_os_event_proc(struct os_event *ev)
 
     /* Free the command buffer */
     err = os_memblock_put(&g_hci_cmd_pool, ev->ev_arg);
-    assert(err == OS_OK);
+    BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
 
     /* Free the event */
     err = os_memblock_put(&g_hci_os_event_pool, ev);
-    assert(err == OS_OK);
+    BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
 
     return rc;
 }
@@ -645,13 +644,13 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     os_error_t err;
     struct os_event *ev;
 
-    assert(hci_ev != NULL);
+    BLE_HS_DBG_ASSERT(hci_ev != NULL);
 
     /* Get an event structure off the queue */
     ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
     if (!ev) {
         err = os_memblock_put(&g_hci_cmd_pool, hci_ev);
-        assert(err == OS_OK);
+        BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
         return -1;
     }
 
@@ -735,8 +734,8 @@ host_hci_data_rx(struct os_mbuf *om)
     os_mbuf_free_chain(om);
 
     if (rc == 0) {
-        assert(rx_cb != NULL);
-        assert(rx_buf != NULL);
+        BLE_HS_DBG_ASSERT(rx_cb != NULL);
+        BLE_HS_DBG_ASSERT(rx_buf != NULL);
         rc = rx_cb(handle, &rx_buf);
         os_mbuf_free_chain(rx_buf);
     } else if (rc == BLE_HS_EAGAIN) {
@@ -750,9 +749,9 @@ host_hci_data_rx(struct os_mbuf *om)
 uint16_t
 host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
 {
-    assert(handle <= 0x0fff);
-    assert(pb <= 0x03);
-    assert(bc <= 0x03);
+    BLE_HS_DBG_ASSERT(handle <= 0x0fff);
+    BLE_HS_DBG_ASSERT(pb <= 0x03);
+    BLE_HS_DBG_ASSERT(bc <= 0x03);
 
     return (handle  << 0)   |
            (pb      << 12)  |

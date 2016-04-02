@@ -18,7 +18,6 @@
  */
 
 #include <stddef.h>
-#include <assert.h>
 #include <string.h>
 #include "console/console.h"
 #include "nimble/ble.h"
@@ -78,7 +77,7 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     STATS_INC(ble_gatts_stats, svc_def_reads);
 
-    assert(op == BLE_ATT_ACCESS_OP_READ);
+    BLE_HS_DBG_ASSERT(op == BLE_ATT_ACCESS_OP_READ);
 
     svc = arg;
 
@@ -110,7 +109,7 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     STATS_INC(ble_gatts_stats, svc_inc_reads);
 
-    assert(op == BLE_ATT_ACCESS_OP_READ);
+    BLE_HS_DBG_ASSERT(op == BLE_ATT_ACCESS_OP_READ);
 
     entry = arg;
 
@@ -222,7 +221,7 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
 
     STATS_INC(ble_gatts_stats, chr_def_reads);
 
-    assert(op == BLE_ATT_ACCESS_OP_READ);
+    BLE_HS_DBG_ASSERT(op == BLE_ATT_ACCESS_OP_READ);
 
     chr = arg;
 
@@ -277,7 +276,7 @@ ble_gatts_chr_op(uint8_t att_op)
         return BLE_GATT_ACCESS_OP_WRITE_CHR;
 
     default:
-        assert(0);
+        BLE_HS_DBG_ASSERT(0);
         return BLE_GATT_ACCESS_OP_READ_CHR;
     }
 }
@@ -313,7 +312,7 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     int rc;
 
     chr = arg;
-    assert(chr != NULL && chr->access_cb != NULL);
+    BLE_HS_DBG_ASSERT(chr != NULL && chr->access_cb != NULL);
 
     gatt_op = ble_gatts_chr_op(att_op);
     gatt_ctxt.chr_access.chr = chr;
@@ -390,8 +389,8 @@ ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
     uint16_t handle;
     int rc;
 
-    assert(entry->handle != 0);
-    assert(entry->end_group_handle != 0xffff);
+    BLE_HS_DBG_ASSERT(entry->handle != 0);
+    BLE_HS_DBG_ASSERT(entry->end_group_handle != 0xffff);
 
     rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_INCLUDE, HA_FLAG_PERM_READ,
                                      &handle, ble_gatts_inc_access, entry);
@@ -416,7 +415,7 @@ ble_gatts_dsc_op(uint8_t att_op)
         return BLE_GATT_ACCESS_OP_WRITE_DSC;
 
     default:
-        assert(0);
+        BLE_HS_DBG_ASSERT(0);
         return BLE_GATT_ACCESS_OP_READ_DSC;
     }
 }
@@ -452,7 +451,7 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
     int rc;
 
     dsc = arg;
-    assert(dsc != NULL && dsc->access_cb != NULL);
+    BLE_HS_DBG_ASSERT(dsc != NULL && dsc->access_cb != NULL);
 
     gatt_op = ble_gatts_dsc_op(att_op);
     gatt_ctxt.dsc_access.dsc = dsc;
@@ -621,7 +620,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         break;
 
     default:
-        assert(0);
+        BLE_HS_DBG_ASSERT(0);
         return BLE_ATT_ERR_UNLIKELY;
     }
 
@@ -718,7 +717,7 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
     if (rc != 0) {
         return rc;
     }
-    assert(val_handle == def_handle + 1);
+    BLE_HS_DBG_ASSERT(val_handle == def_handle + 1);
 
     if (register_cb != NULL) {
         register_ctxt.chr_reg.def_handle = def_handle;
@@ -732,7 +731,7 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
         if (rc != 0) {
             return rc;
         }
-        assert(dsc_handle == def_handle + 2);
+        BLE_HS_DBG_ASSERT(dsc_handle == def_handle + 2);
     }
 
     /* Register each descriptor. */
@@ -814,7 +813,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     }
 
     rc = ble_gatts_svc_type_to_uuid(svc->type, &uuid16);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     /* Register service definition attribute (cast away const on callback
      * arg).
@@ -835,7 +834,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     if (svc->includes != NULL) {
         for (i = 0; svc->includes[i] != NULL; i++) {
             idx = ble_gatts_find_svc(svc->includes[i]);
-            assert(idx != -1);
+            BLE_HS_DBG_ASSERT_EVAL(idx != -1);
 
             rc = ble_gatts_register_inc(ble_gatts_svc_entries + idx);
             if (rc != 0) {
@@ -950,7 +949,7 @@ ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn)
 
     if (gatts_conn->clt_cfgs != NULL) {
         rc = os_memblock_put(&ble_gatts_clt_cfg_pool, gatts_conn->clt_cfgs);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
         gatts_conn->clt_cfgs = NULL;
     }
@@ -980,12 +979,12 @@ ble_gatts_clt_cfg_init(void)
     int rc;
 
     rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     /* Count the number of client-configurable characteristics. */
     ble_gatts_num_cfgable_chrs = 0;
     ha = NULL;
-    while (ble_att_svr_find_by_uuid(uuid128, &ha) == 0) {
+    while ((ha = ble_att_svr_find_by_uuid(ha, uuid128)) != NULL) {
         chr = ha->ha_cb_arg;
         if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
             ble_gatts_num_cfgable_chrs++;
@@ -1019,11 +1018,11 @@ ble_gatts_clt_cfg_init(void)
     /* Fill the cache. */
     idx = 0;
     ha = NULL;
-    while (ble_att_svr_find_by_uuid(uuid128, &ha) == 0) {
+    while ((ha = ble_att_svr_find_by_uuid(ha, uuid128)) != NULL) {
         chr = ha->ha_cb_arg;
         allowed_flags = ble_gatts_chr_clt_cfg_allowed(chr);
         if (allowed_flags != 0) {
-            assert(idx < ble_gatts_num_cfgable_chrs);
+            BLE_HS_DBG_ASSERT_EVAL(idx < ble_gatts_num_cfgable_chrs);
 
             ble_gatts_clt_cfgs[idx].chr_def_handle = ha->ha_handle_id;
             ble_gatts_clt_cfgs[idx].allowed = allowed_flags;
@@ -1133,9 +1132,9 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
          conn != NULL;
          conn = SLIST_NEXT(conn, bhc_next)) {
 
-        assert(conn->bhc_gatt_svr.num_clt_cfgs > idx);
+        BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs > idx);
         clt_cfg = conn->bhc_gatt_svr.clt_cfgs + idx;
-        assert(clt_cfg->chr_def_handle == chr_def_handle);
+        BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_def_handle == chr_def_handle);
 
         if (clt_cfg->flags &
             (BLE_GATTS_CLT_CFG_F_NOTIFY | BLE_GATTS_CLT_CFG_F_INDICATE)) {

@@ -18,7 +18,6 @@
  */
 
 #include <stddef.h>
-#include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -707,7 +706,7 @@ ble_gattc_proc_free(struct ble_fsm_proc *proc)
 
     if (proc != NULL) {
         rc = os_memblock_put(&ble_gattc_proc_pool, proc);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
 }
 
@@ -812,7 +811,7 @@ ble_gattc_new_proc(uint16_t conn_handle, uint8_t op,
 static const struct ble_gattc_dispatch_entry *
 ble_gattc_dispatch_get(uint8_t op)
 {
-    assert(op < BLE_GATT_OP_MAX);
+    BLE_HS_DBG_ASSERT(op < BLE_GATT_OP_MAX);
     return ble_gattc_dispatch + op;
 }
 
@@ -888,7 +887,7 @@ ble_gattc_heartbeat(void *unused)
 
     rc = os_callout_reset(&ble_gattc_heartbeat_timer.cf_c,
                           BLE_GATT_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 /**
@@ -1110,7 +1109,7 @@ ble_gattc_disc_all_svcs_kick(struct ble_gattc_proc *proc)
     int rc;
 
     rc = ble_uuid_16_to_128(BLE_ATT_UUID_PRIMARY_SERVICE, uuid128);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     req.bagq_start_handle = proc->disc_all_svcs.prev_handle + 1;
     req.bagq_end_handle = 0xffff;
@@ -1515,7 +1514,7 @@ ble_gattc_find_inc_svcs_kick(struct ble_gattc_proc *proc)
         read_type_req.batq_end_handle = proc->find_inc_svcs.end_handle;
 
         rc = ble_uuid_16_to_128(BLE_ATT_UUID_INCLUDE, uuid128);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
         rc = ble_att_clt_tx_read_type(proc->fsm_proc.conn_handle,
                                       &read_type_req, uuid128);
@@ -1801,7 +1800,7 @@ ble_gattc_disc_all_chrs_kick(struct ble_gattc_proc *proc)
     int rc;
 
     rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     req.batq_start_handle = proc->disc_all_chrs.prev_handle + 1;
     req.batq_end_handle = proc->disc_all_chrs.end_handle;
@@ -2023,7 +2022,7 @@ ble_gattc_disc_chr_uuid_kick(struct ble_gattc_proc *proc)
     int rc;
 
     rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     req.batq_start_handle = proc->disc_chr_uuid.prev_handle + 1;
     req.batq_end_handle = proc->disc_chr_uuid.end_handle;
@@ -4042,7 +4041,7 @@ ble_gattc_rx_extract_cb(struct ble_fsm_proc *proc, void *arg)
         rx_entry = ble_gattc_rx_entry_find(proc->op,
                                            extract_arg->rx_entries,
                                            extract_arg->num_rx_entries);
-        assert(rx_entry != NULL);
+        BLE_HS_DBG_ASSERT(rx_entry != NULL);
         if (rx_entry != NULL) {
             extract_arg->out_rx_entry = rx_entry;
             return BLE_FSM_EXTRACT_EMOVE_STOP;
@@ -4720,7 +4719,7 @@ ble_gattc_started(void)
 
     rc = os_callout_reset(&ble_gattc_heartbeat_timer.cf_c,
                           BLE_GATT_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 /**

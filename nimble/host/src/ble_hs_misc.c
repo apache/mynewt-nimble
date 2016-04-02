@@ -71,11 +71,11 @@ void
 ble_hs_misc_assert_no_locks(void)
 {
     if (os_started()) {
-        assert(!ble_hs_conn_locked_by_cur_task());
-        assert(!ble_gattc_locked_by_cur_task());
-        assert(!ble_gap_locked_by_cur_task());
-        assert(!ble_hci_sched_locked_by_cur_task());
-        assert(!ble_l2cap_sm_locked_by_cur_task());
+        assert(!ble_hs_conn_locked_by_cur_task()    &&
+               !ble_gattc_locked_by_cur_task()      &&
+               !ble_gap_locked_by_cur_task()        &&
+               !ble_hci_sched_locked_by_cur_task()  &&
+               !ble_l2cap_sm_locked_by_cur_task());
     }
 }
 
@@ -157,7 +157,7 @@ ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
     int rc;
 
     rc = ble_hs_misc_conn_chan_find(conn_handle, cid, &conn, &chan);
-    assert(conn == NULL || chan != NULL);
+    BLE_HS_DBG_ASSERT(conn == NULL || chan != NULL);
 
     if (out_conn != NULL) {
         *out_conn = conn;

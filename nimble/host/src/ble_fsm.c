@@ -40,11 +40,11 @@ ble_fsm_lock(struct ble_fsm *fsm)
 
     owner = fsm->mutex.mu_owner;
     if (owner != NULL) {
-        assert(owner != os_sched_get_current_task());
+        BLE_HS_DBG_ASSERT_EVAL(owner != os_sched_get_current_task());
     }
 
     rc = os_mutex_pend(&fsm->mutex, 0xffffffff);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
 void
@@ -53,7 +53,7 @@ ble_fsm_unlock(struct ble_fsm *fsm)
     int rc;
 
     rc = os_mutex_release(&fsm->mutex);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
 int
@@ -97,7 +97,7 @@ ble_fsm_assert_sanity(struct ble_fsm *fsm)
             mask <<= 1;
         }
 
-        assert(num_set == 1);
+        BLE_HS_DBG_ASSERT(num_set == 1);
     }
 }
 
@@ -122,10 +122,10 @@ ble_fsm_proc_remove(struct ble_fsm_proc_list *src_list,
                     struct ble_fsm_proc *prev)
 {
     if (prev == NULL) {
-        assert(STAILQ_FIRST(src_list) == proc);
+        BLE_HS_DBG_ASSERT(STAILQ_FIRST(src_list) == proc);
         STAILQ_REMOVE_HEAD(src_list, next);
     } else {
-        assert(STAILQ_NEXT(prev, next) == proc);
+        BLE_HS_DBG_ASSERT(STAILQ_NEXT(prev, next) == proc);
         STAILQ_NEXT(prev, next) = STAILQ_NEXT(proc, next);
     }
 }
@@ -179,7 +179,7 @@ ble_fsm_proc_can_pend(struct ble_fsm_proc *proc)
 void
 ble_fsm_proc_set_pending(struct ble_fsm_proc *proc)
 {
-    assert(!(proc->flags & BLE_FSM_PROC_F_PENDING));
+    BLE_HS_DBG_ASSERT(!(proc->flags & BLE_FSM_PROC_F_PENDING));
 
     proc->flags &= ~BLE_FSM_PROC_F_EXPECTING;
     proc->flags |= BLE_FSM_PROC_F_PENDING;
@@ -194,7 +194,7 @@ ble_fsm_proc_set_pending(struct ble_fsm_proc *proc)
 static void
 ble_fsm_proc_set_expecting(struct ble_fsm_proc *proc)
 {
-    assert(!(proc->flags & BLE_FSM_PROC_F_EXPECTING));
+    BLE_HS_DBG_ASSERT(!(proc->flags & BLE_FSM_PROC_F_EXPECTING));
 
     proc->flags &= ~BLE_FSM_PROC_F_PENDING;
     proc->flags |= BLE_FSM_PROC_F_EXPECTING;
@@ -306,7 +306,7 @@ ble_fsm_proc_extract(struct ble_fsm *fsm,
             goto done;
 
         default:
-            assert(0);
+            BLE_HS_DBG_ASSERT(0);
             rc = 1;
             goto done;
         }
@@ -387,7 +387,7 @@ ble_fsm_proc_extract_list(struct ble_fsm *fsm,
             break;
 
         default:
-            assert(0);
+            BLE_HS_DBG_ASSERT(0);
             move = 0;
             done = 1;
             break;
@@ -487,7 +487,7 @@ ble_fsm_wakeup(struct ble_fsm *fsm)
             break;
 
         default:
-            assert(0);
+            BLE_HS_DBG_ASSERT(0);
             break;
         }
 
@@ -511,8 +511,8 @@ ble_fsm_new(struct ble_fsm *fsm, ble_fsm_kick_fn *kick_cb,
 {
     int rc;
 
-    assert(kick_cb != NULL);
-    assert(free_cb != NULL);
+    BLE_HS_DBG_ASSERT(kick_cb != NULL);
+    BLE_HS_DBG_ASSERT(free_cb != NULL);
 
     memset(fsm, 0, sizeof *fsm);
 

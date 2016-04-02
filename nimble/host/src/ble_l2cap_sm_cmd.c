@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -75,40 +74,32 @@ err:
     return rc;
 }
 
-int
+void
 ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
                             struct ble_l2cap_sm_pair_cmd *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_L2CAP_SM_PAIR_CMD_SZ) {
-        return BLE_HS_EBADDATA;
-    }
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_PAIR_CMD_SZ);
 
     u8ptr = payload;
-
     cmd->io_cap = u8ptr[0];
     cmd->oob_data_flag = u8ptr[1];
     cmd->authreq = u8ptr[2];
     cmd->max_enc_key_size = u8ptr[3];
     cmd->init_key_dist = u8ptr[4];
     cmd->resp_key_dist = u8ptr[5];
-
-    return 0;
 }
 
-int
+void
 ble_l2cap_sm_pair_cmd_write(void *payload, int len, int is_req,
                             struct ble_l2cap_sm_pair_cmd *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ);
 
     u8ptr = payload;
-
     u8ptr[0] = is_req ? BLE_L2CAP_SM_OP_PAIR_REQ : BLE_L2CAP_SM_OP_PAIR_RSP;
     u8ptr[1] = cmd->io_cap;
     u8ptr[2] = cmd->oob_data_flag;
@@ -116,8 +107,6 @@ ble_l2cap_sm_pair_cmd_write(void *payload, int len, int is_req,
     u8ptr[4] = cmd->max_enc_key_size;
     u8ptr[5] = cmd->init_key_dist;
     u8ptr[6] = cmd->resp_key_dist;
-
-    return 0;
 }
 
 int
@@ -133,8 +122,7 @@ ble_l2cap_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
         goto done;
     }
 
-    rc = ble_l2cap_sm_pair_cmd_write(txom->om_data, txom->om_len, is_req, cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_cmd_write(txom->om_data, txom->om_len, is_req, cmd);
 
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;
@@ -144,35 +132,27 @@ done:
     return rc;
 }
 
-int
+void
 ble_l2cap_sm_pair_confirm_parse(void *payload, int len,
                                 struct ble_l2cap_sm_pair_confirm *cmd)
 {
-    if (len < BLE_L2CAP_SM_PAIR_CONFIRM_SZ) {
-        return BLE_HS_EBADDATA;
-    }
-
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_PAIR_CONFIRM_SZ);
     memcpy(cmd->value, payload, sizeof cmd->value);
-
-    return 0;
 }
 
-int
+void
 ble_l2cap_sm_pair_confirm_write(void *payload, int len,
                                 struct ble_l2cap_sm_pair_confirm *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CONFIRM_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
+    BLE_HS_DBG_ASSERT(len >=
+                      BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CONFIRM_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_L2CAP_SM_OP_PAIR_CONFIRM;
     memcpy(u8ptr + BLE_L2CAP_SM_HDR_SZ, cmd->value, sizeof cmd->value);
-
-    return 0;
 }
 
 int
@@ -188,8 +168,7 @@ ble_l2cap_sm_pair_confirm_tx(uint16_t conn_handle,
         goto done;
     }
 
-    rc = ble_l2cap_sm_pair_confirm_write(txom->om_data, txom->om_len, cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_confirm_write(txom->om_data, txom->om_len, cmd);
 
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;
@@ -199,35 +178,27 @@ done:
     return rc;
 }
 
-int
+void
 ble_l2cap_sm_pair_random_parse(void *payload, int len,
                                struct ble_l2cap_sm_pair_random *cmd)
 {
-    if (len < BLE_L2CAP_SM_PAIR_RANDOM_SZ) {
-        return BLE_HS_EBADDATA;
-    }
-
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_PAIR_RANDOM_SZ);
     memcpy(cmd->value, payload, sizeof cmd->value);
-
-    return 0;
 }
 
-int
+void
 ble_l2cap_sm_pair_random_write(void *payload, int len,
                                struct ble_l2cap_sm_pair_random *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_RANDOM_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
+    BLE_HS_DBG_ASSERT(len >=
+                      BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_RANDOM_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_L2CAP_SM_OP_PAIR_RANDOM;
     memcpy(u8ptr + BLE_L2CAP_SM_HDR_SZ, cmd->value, sizeof cmd->value);
-
-    return 0;
 }
 
 int
@@ -243,8 +214,7 @@ ble_l2cap_sm_pair_random_tx(uint16_t conn_handle,
         goto done;
     }
 
-    rc = ble_l2cap_sm_pair_random_write(txom->om_data, txom->om_len, cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_random_write(txom->om_data, txom->om_len, cmd);
 
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;
@@ -254,39 +224,30 @@ done:
     return rc;
 }
 
-int
+void
 ble_l2cap_sm_pair_fail_parse(void *payload, int len,
                              struct ble_l2cap_sm_pair_fail *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_L2CAP_SM_PAIR_FAIL_SZ) {
-        return BLE_HS_EBADDATA;
-    }
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_PAIR_FAIL_SZ);
 
     u8ptr = payload;
-
     cmd->reason = u8ptr[0];
-
-    return 0;
 }
 
-int
+void
 ble_l2cap_sm_pair_fail_write(void *payload, int len,
                              struct ble_l2cap_sm_pair_fail *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_FAIL_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_FAIL_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_L2CAP_SM_OP_PAIR_FAIL;
     u8ptr[1] = cmd->reason;
-
-    return 0;
 }
 
 int
@@ -302,8 +263,7 @@ ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle,
         goto done;
     }
 
-    rc = ble_l2cap_sm_pair_fail_write(txom->om_data, txom->om_len, cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_fail_write(txom->om_data, txom->om_len, cmd);
 
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;

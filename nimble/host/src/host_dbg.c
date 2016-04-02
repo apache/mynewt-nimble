@@ -355,6 +355,10 @@ host_hci_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
 void
 host_hci_dbg_event_disp(uint8_t *evbuf)
 {
+#if LOG_LEVEL > LOG_LEVEL_DEBUG
+    return;
+#endif
+
     uint8_t *evdata;
     uint8_t evcode;
     uint8_t len;

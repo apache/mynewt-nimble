@@ -19,7 +19,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include "os/queue.h"
 #include "os/os_mempool.h"
 #include "ble_hs_priv.h"
@@ -52,12 +51,11 @@ ble_hci_sched_lock(void)
     int rc;
 
     owner = ble_hci_sched_mutex.mu_owner;
-    if (owner != NULL) {
-        assert(owner != os_sched_get_current_task());
-    }
+    BLE_HS_DBG_ASSERT_EVAL(owner == NULL ||
+                           owner != os_sched_get_current_task());
 
     rc = os_mutex_pend(&ble_hci_sched_mutex, 0xffffffff);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
 static void
@@ -66,7 +64,7 @@ ble_hci_sched_unlock(void)
     int rc;
 
     rc = os_mutex_release(&ble_hci_sched_mutex);
-    assert(rc == 0 || rc == OS_NOT_STARTED);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
 int
@@ -103,7 +101,7 @@ ble_hci_sched_entry_free(struct ble_hci_sched_entry *entry)
     int rc;
 
     rc = os_memblock_put(&ble_hci_sched_entry_pool, entry);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 /**
@@ -117,14 +115,14 @@ ble_hci_sched_entry_remove(struct ble_hci_sched_entry *entry,
                            struct ble_hci_sched_entry *prev)
 {
     if (os_started()) {
-        assert(ble_hci_sched_locked_by_cur_task());
+        BLE_HS_DBG_ASSERT(ble_hci_sched_locked_by_cur_task());
     }
 
     if (prev == NULL) {
-        assert(STAILQ_FIRST(&ble_hci_sched_list) == entry);
+        BLE_HS_DBG_ASSERT(STAILQ_FIRST(&ble_hci_sched_list) == entry);
         STAILQ_REMOVE_HEAD(&ble_hci_sched_list, next);
     } else {
-        assert(STAILQ_NEXT(prev, next) == prev);
+        BLE_HS_DBG_ASSERT(STAILQ_NEXT(prev, next) == prev);
         STAILQ_NEXT(prev, next) = STAILQ_NEXT(prev, next);
     }
 }
@@ -306,7 +304,7 @@ ble_hci_sched_process_next(void)
     struct ble_hci_sched_entry *entry;
     int rc;
 
-    assert(ble_hci_sched_cur_entry == NULL);
+    BLE_HS_DBG_ASSERT(ble_hci_sched_cur_entry == NULL);
 
     ble_hci_sched_lock();
 
@@ -400,7 +398,7 @@ void
 ble_hci_sched_set_ack_cb(ble_hci_sched_ack_fn *cb, void *arg)
 {
     /* Don't allow the current callback to be replaced with another. */
-    assert(ble_hci_sched_ack_cb == NULL || cb == NULL);
+    BLE_HS_DBG_ASSERT(ble_hci_sched_ack_cb == NULL || cb == NULL);
 
     ble_hci_sched_ack_cb = cb;
     ble_hci_sched_ack_arg = arg;

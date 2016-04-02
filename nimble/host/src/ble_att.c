@@ -19,7 +19,6 @@
 
 #include <stddef.h>
 #include <errno.h>
-#include <assert.h>
 #include "bsp/bsp.h"
 #include "ble_hs_priv.h"
 

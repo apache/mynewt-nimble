@@ -19,7 +19,6 @@
 
 #include <stddef.h>
 #include <string.h>
-#include <assert.h>
 #include "host/host_hci.h"
 #include "host/ble_hs.h"
 #include "ble_hs_priv.h"
@@ -73,7 +72,7 @@ ble_hs_startup_enqueue_tx(void)
     }
 
     tx_fn = ble_hs_startup_dispatch[ble_hs_startup_state];
-    assert(tx_fn != NULL);
+    BLE_HS_DBG_ASSERT(tx_fn != NULL);
 
     rc = ble_hci_sched_enqueue(tx_fn, NULL, NULL);
     if (rc != 0) {
@@ -87,7 +86,7 @@ ble_hs_startup_enqueue_tx(void)
 static void
 ble_hs_startup_gen_ack(struct ble_hci_ack *ack, void *arg)
 {
-    assert(ble_hs_startup_state < BLE_HS_STARTUP_STATE_MAX);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state < BLE_HS_STARTUP_STATE_MAX);
 
     if (ack->bha_status != 0) {
         ble_hs_startup_failure(ack->bha_status);
@@ -101,7 +100,8 @@ ble_hs_startup_gen_ack(struct ble_hci_ack *ack, void *arg)
 static void
 ble_hs_startup_le_read_sup_f_ack(struct ble_hci_ack *ack, void *arg)
 {
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
 
     if (ack->bha_status != 0) {
         ble_hs_startup_failure(ack->bha_status);
@@ -121,7 +121,8 @@ ble_hs_startup_le_read_sup_f_tx(void *arg)
 {
     int rc;
 
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
 
     ble_hci_sched_set_ack_cb(ble_hs_startup_le_read_sup_f_ack, NULL);
     rc = host_hci_cmd_le_read_loc_supp_feat();
@@ -139,7 +140,8 @@ ble_hs_startup_le_read_buf_size_ack(struct ble_hci_ack *ack, void *arg)
     uint8_t max_pkts;
     int rc;
 
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
 
     if (ack->bha_status != 0) {
         ble_hs_startup_failure(ack->bha_status);
@@ -169,7 +171,8 @@ ble_hs_startup_le_read_buf_sz_tx(void *arg)
 {
     int rc;
 
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
 
     ble_hci_sched_set_ack_cb(ble_hs_startup_le_read_buf_size_ack, NULL);
     rc = host_hci_cmd_le_read_buffer_size();
@@ -185,7 +188,8 @@ ble_hs_startup_le_set_evmask_tx(void *arg)
 {
     int rc;
 
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_LE_SET_EVMASK);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_LE_SET_EVMASK);
 
     ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
     rc = host_hci_cmd_le_set_event_mask(0x000000000000001f);
@@ -201,7 +205,8 @@ ble_hs_startup_set_evmask_tx(void *arg)
 {
     int rc;
 
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_SET_EVMASK);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_SET_EVMASK);
 
     ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
     rc = host_hci_cmd_set_event_mask(0x20001fffffffffff);
@@ -217,7 +222,8 @@ ble_hs_startup_reset_tx(void *arg)
 {
     int rc;
 
-    assert(ble_hs_startup_state == BLE_HS_STARTUP_STATE_RESET);
+    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
+                      BLE_HS_STARTUP_STATE_RESET);
 
     ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
     rc = host_hci_cmd_reset();

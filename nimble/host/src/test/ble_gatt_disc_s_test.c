@@ -71,9 +71,8 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
     ble_hs_test_util_tx_all();
 
     rsp.bagp_length = ble_gatt_disc_s_test_misc_svc_length(services);
-    rc = ble_att_read_group_type_rsp_write(
-        buf, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_read_group_type_rsp_write(buf, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ,
+                                      &rsp);
 
     off = BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ;
     for (i = 0; ; i++) {

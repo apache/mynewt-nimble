@@ -71,8 +71,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
         rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT;
     }
 
-    rc = ble_att_find_info_rsp_write(buf, BLE_ATT_FIND_INFO_RSP_BASE_SZ, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_find_info_rsp_write(buf, BLE_ATT_FIND_INFO_RSP_BASE_SZ, &rsp);
 
     off = BLE_ATT_FIND_INFO_RSP_BASE_SZ;
     for (i = 0; ; i++) {
