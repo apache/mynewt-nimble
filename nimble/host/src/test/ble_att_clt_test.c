@@ -42,7 +42,6 @@ ble_att_clt_test_misc_verify_tx_write(uint16_t handle_id, void *value,
 {
     struct ble_att_write_req req;
     struct os_mbuf *om;
-    int rc;
 
     TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
 
@@ -51,11 +50,10 @@ ble_att_clt_test_misc_verify_tx_write(uint16_t handle_id, void *value,
     TEST_ASSERT_FATAL(om != NULL);
 
     if (is_req) {
-        rc = ble_att_write_req_parse(om->om_data, om->om_len, &req);
+        ble_att_write_req_parse(om->om_data, om->om_len, &req);
     } else {
-        rc = ble_att_write_cmd_parse(om->om_data, om->om_len, &req);
+        ble_att_write_cmd_parse(om->om_data, om->om_len, &req);
     }
-    TEST_ASSERT_FATAL(rc == 0);
 
     TEST_ASSERT(req.bawq_handle == handle_id);
     TEST_ASSERT(om->om_len == BLE_ATT_WRITE_REQ_BASE_SZ + value_len);
@@ -128,8 +126,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     /* Receive response with attribute mapping. */
     off = 0;
     rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT;
-    rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
     htole16(buf + off, 1);
@@ -144,8 +141,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     /* Receive response with attribute mapping. */
     off = 0;
     rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
-    rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
     htole16(buf + off, 2);
@@ -160,8 +156,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     /* Receive response with attribute mappings. */
     off = 0;
     rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
-    rc = ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
     htole16(buf + off, 3);
@@ -233,8 +228,7 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
 
-    rc = ble_att_prep_write_req_parse(om->om_data, om->om_len, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_prep_write_req_parse(om->om_data, om->om_len, &req);
     TEST_ASSERT(req.bapc_handle == handle);
     TEST_ASSERT(req.bapc_offset == offset);
     for (i = 0; i < attr_data_len; i++) {
@@ -266,8 +260,7 @@ ble_att_clt_test_misc_exec_good(uint8_t flags)
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_EXEC_WRITE_REQ_SZ);
 
-    rc = ble_att_exec_write_req_parse(om->om_data, om->om_len, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_exec_write_req_parse(om->om_data, om->om_len, &req);
     TEST_ASSERT(req.baeq_flags == flags);
 }
 
@@ -407,8 +400,7 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_READ_MULT_REQ_BASE_SZ + 4);
 
-    rc = ble_att_read_mult_req_parse(om->om_data, om->om_len);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_mult_req_parse(om->om_data, om->om_len);
     TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ) == 1);
     TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ + 2) == 2);
 
@@ -427,8 +419,7 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
     ble_att_clt_test_misc_init(&conn, &chan);
 
     /*** Basic success. */
-    rc = ble_att_read_mult_rsp_write(buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_mult_rsp_write(buf, sizeof buf);
     htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
@@ -493,8 +484,7 @@ TEST_CASE(ble_att_clt_test_rx_prep_write)
     /*** Basic success. */
     rsp.bapc_handle = 0x1234;
     rsp.bapc_offset = 0;
-    rc = ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
     memset(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, 1, 5);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
         conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 5);
@@ -503,8 +493,7 @@ TEST_CASE(ble_att_clt_test_rx_prep_write)
     /*** 0-length write. */
     rsp.bapc_handle = 0x1234;
     rsp.bapc_offset = 0;
-    rc = ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
         conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
     TEST_ASSERT(rc == 0);

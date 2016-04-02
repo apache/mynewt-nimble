@@ -20,11 +20,8 @@
 #ifndef H_BLE_HS_PRIV_
 #define H_BLE_HS_PRIV_
 
+#include <assert.h>
 #include <inttypes.h>
-#include "stats/stats.h"
-#include "log/log.h"
-#include "nimble/nimble_opt.h"
-#include "host/ble_hs.h"
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
 #include "ble_fsm_priv.h"
@@ -33,14 +30,19 @@
 #include "ble_hci_sched.h"
 #include "ble_hs_adv_priv.h"
 #include "ble_hs_conn.h"
+#include "ble_hs_endian.h"
 #include "ble_hs_startup.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig.h"
 #include "ble_l2cap_sm.h"
-struct os_mbuf;
-struct os_mempool;
+#include "host/ble_hs.h"
+#include "log/log.h"
+#include "nimble/nimble_opt.h"
+#include "stats/stats.h"
 struct ble_hs_conn;
 struct ble_l2cap_chan;
+struct os_mbuf;
+struct os_mempool;
 
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
 #define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
@@ -107,5 +109,17 @@ int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
     BLE_HS_LOG(lvl, "%02x:%02x:%02x:%02x:%02x:%02x",    \
                (addr)[0], (addr)[1], (addr)[2],         \
                (addr)[3], (addr)[4], (addr)[5])
+
+#if BLE_HS_DEBUG
+#define BLE_HS_DBG_ASSERT(x) assert(x)
+#else
+#define BLE_HS_DBG_ASSERT(x)
+#endif
+
+#if BLE_HS_DEBUG
+#define BLE_HS_DBG_ASSERT_EVAL(x) assert(x)
+#else
+#define BLE_HS_DBG_ASSERT_EVAL(x) ((void)(x))
+#endif
 
 #endif

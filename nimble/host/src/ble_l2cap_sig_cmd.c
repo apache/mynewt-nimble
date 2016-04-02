@@ -17,67 +17,37 @@
  * under the License.
  */
 
-#include <assert.h>
 #include "ble_hs_priv.h"
 
 int
-ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
-                        struct ble_l2cap_sig_hdr *hdr)
+ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
+                       struct os_mbuf **out_om, void **out_payload_buf)
 {
-    uint8_t *u8ptr;
+    struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *txom;
+    void *v;
 
-    if (len < BLE_L2CAP_SIG_HDR_SZ) {
-        return BLE_HS_EBADDATA;
+    *out_om = NULL;
+    *out_payload_buf = NULL;
+
+    txom = ble_hs_misc_pkthdr();
+    if (txom == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    u8ptr = payload;
-    hdr->op = u8ptr[0];
-    hdr->identifier = u8ptr[1];
-    hdr->length = le16toh(u8ptr + 2);
-
-    return 0;
-}
-
-int
-ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
-                        struct ble_l2cap_sig_hdr *hdr)
-{
-    uint8_t *u8ptr;
-
-    if (len < BLE_L2CAP_SIG_HDR_SZ) {
-        return BLE_HS_EBADDATA;
+    v = os_mbuf_extend(txom, BLE_L2CAP_SIG_HDR_SZ + payload_len);
+    if (v == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    u8ptr = payload;
-    u8ptr[0] = hdr->op;
-    u8ptr[1] = hdr->identifier;
-    htole16(u8ptr + 2, hdr->length);
+    hdr.op = op;
+    hdr.identifier = id;
+    hdr.length = TOFROMLE16(payload_len);
 
-    return 0;
-}
+    ble_l2cap_sig_hdr_write(v, BLE_L2CAP_SIG_HDR_SZ, &hdr);
 
-int
-ble_l2cap_sig_reject_write(void *payload, uint16_t len,
-                           struct ble_l2cap_sig_hdr *hdr,
-                           struct ble_l2cap_sig_reject *cmd)
-{
-    uint8_t *u8ptr;
-    int rc;
-
-    u8ptr = payload;
-    rc = ble_l2cap_sig_hdr_write(u8ptr, len, hdr);
-    if (rc != 0) {
-        return rc;
-    }
-
-    u8ptr += BLE_L2CAP_SIG_HDR_SZ;
-    len -= BLE_L2CAP_SIG_HDR_SZ;
-
-    if (len < BLE_L2CAP_SIG_REJECT_MIN_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
-
-    htole16(u8ptr, cmd->reason);
+    *out_om = txom;
+    *out_payload_buf = (uint8_t *)v + BLE_L2CAP_SIG_HDR_SZ;
 
     return 0;
 }
@@ -108,209 +78,165 @@ ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
     return rc;
 }
 
+static void
+ble_l2cap_sig_hdr_swap(struct ble_l2cap_sig_hdr *dst,
+                       struct ble_l2cap_sig_hdr *src)
+{
+    dst->op = src->op;
+    dst->identifier = src->identifier;
+    dst->length = TOFROMLE16(src->length);
+}
+
+void
+ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
+                        struct ble_l2cap_sig_hdr *dst)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_HDR_SZ);
+    ble_l2cap_sig_hdr_swap(dst, payload);
+}
+
+void
+ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
+                        struct ble_l2cap_sig_hdr *src)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_HDR_SZ);
+    ble_l2cap_sig_hdr_swap(payload, src);
+}
+static void
+ble_l2cap_sig_reject_swap(struct ble_l2cap_sig_reject *dst,
+                          struct ble_l2cap_sig_reject *src)
+{
+    dst->reason = TOFROMLE16(src->reason);
+}
+
+static void
+ble_l2cap_sig_reject_write(void *payload, uint16_t len,
+                           struct ble_l2cap_sig_reject *src)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_REJECT_MIN_SZ);
+    ble_l2cap_sig_reject_swap(payload, src);
+}
+
 int
 ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason)
 {
     /* XXX: Add support for optional data field. */
 
     struct ble_l2cap_sig_reject cmd;
-    struct ble_l2cap_sig_hdr hdr;
     struct os_mbuf *txom;
-    void *v;
+    void *payload_buf;
     int rc;
 
-    txom = ble_hs_misc_pkthdr();
-    if (txom == NULL) {
-        return BLE_HS_ENOMEM;
-    }
+    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_REJECT, id,
+                                BLE_L2CAP_SIG_REJECT_MIN_SZ, &txom,
+                                &payload_buf);
 
-    v = os_mbuf_extend(txom,
-                       BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_REJECT_MIN_SZ);
-    if (v == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    hdr.op = BLE_L2CAP_SIG_OP_REJECT;
-    hdr.identifier = id;
-    hdr.length = BLE_L2CAP_SIG_REJECT_MIN_SZ;
     cmd.reason = reason;
-
-    rc = ble_l2cap_sig_reject_write(
-        v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_REJECT_MIN_SZ, &hdr, &cmd);
-    if (rc != 0) {
-        return rc;
-    }
+    ble_l2cap_sig_reject_write(payload_buf, BLE_L2CAP_SIG_REJECT_MIN_SZ, &cmd);
 
     STATS_INC(ble_l2cap_stats, sig_rx);
     rc = ble_l2cap_sig_tx(conn_handle, txom);
     return rc;
 }
 
-int
+static void
+ble_l2cap_sig_update_req_swap(struct ble_l2cap_sig_update_req *dst,
+                              struct ble_l2cap_sig_update_req *src)
+{
+    dst->itvl_min = TOFROMLE16(src->itvl_min);
+    dst->itvl_max = TOFROMLE16(src->itvl_max);
+    dst->slave_latency = TOFROMLE16(src->slave_latency);
+    dst->timeout_multiplier = TOFROMLE16(src->timeout_multiplier);
+}
+
+void
 ble_l2cap_sig_update_req_parse(void *payload, int len,
-                               struct ble_l2cap_sig_update_req *req)
+                               struct ble_l2cap_sig_update_req *dst)
 {
-    uint8_t *u8ptr;
-
-    if (len < BLE_L2CAP_SIG_UPDATE_REQ_SZ) {
-        return BLE_HS_EBADDATA;
-    }
-
-    u8ptr = payload;
-
-    req->itvl_min = le16toh(u8ptr + 0);
-    req->itvl_max = le16toh(u8ptr + 2);
-    req->slave_latency = le16toh(u8ptr + 4);
-    req->timeout_multiplier = le16toh(u8ptr + 6);
-
-    return 0;
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    ble_l2cap_sig_update_req_swap(dst, payload);
 }
 
-int
+void
 ble_l2cap_sig_update_req_write(void *payload, int len,
-                               struct ble_l2cap_sig_hdr *hdr,
-                               struct ble_l2cap_sig_update_req *req)
+                               struct ble_l2cap_sig_update_req *src)
 {
-    uint8_t *u8ptr;
-    int rc;
-
-    u8ptr = payload;
-    rc = ble_l2cap_sig_hdr_write(u8ptr, len, hdr);
-    if (rc != 0) {
-        return rc;
-    }
-
-    u8ptr += BLE_L2CAP_SIG_HDR_SZ;
-    len -= BLE_L2CAP_SIG_HDR_SZ;
-
-    if (len < BLE_L2CAP_SIG_UPDATE_REQ_SZ) {
-        return BLE_HS_EINVAL;
-    }
-
-    htole16(u8ptr + 0, req->itvl_min);
-    htole16(u8ptr + 2, req->itvl_max);
-    htole16(u8ptr + 4, req->slave_latency);
-    htole16(u8ptr + 6, req->timeout_multiplier);
-
-    return 0;
-}
-
-int
-ble_l2cap_sig_update_rsp_parse(void *payload, int len,
-                               struct ble_l2cap_sig_update_rsp *cmd)
-{
-    uint8_t *u8ptr;
-
-    u8ptr = payload;
-
-    if (len < BLE_L2CAP_SIG_UPDATE_RSP_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
-
-    cmd->result = le16toh(u8ptr);
-
-    return 0;
-}
-
-int
-ble_l2cap_sig_update_rsp_write(void *payload, int len,
-                               struct ble_l2cap_sig_hdr *hdr,
-                               struct ble_l2cap_sig_update_rsp *cmd)
-{
-    uint8_t *u8ptr;
-    int rc;
-
-    u8ptr = payload;
-    rc = ble_l2cap_sig_hdr_write(u8ptr, len, hdr);
-    if (rc != 0) {
-        return rc;
-    }
-
-    u8ptr += BLE_L2CAP_SIG_HDR_SZ;
-    len -= BLE_L2CAP_SIG_HDR_SZ;
-
-    if (len < BLE_L2CAP_SIG_UPDATE_RSP_SZ) {
-        return BLE_HS_EMSGSIZE;
-    }
-
-    htole16(u8ptr, cmd->result);
-
-    return 0;
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    ble_l2cap_sig_update_req_swap(payload, src);
 }
 
 int
 ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
                             struct ble_l2cap_sig_update_req *req)
 {
-    struct ble_l2cap_sig_hdr hdr;
     struct os_mbuf *txom;
-    void *v;
+    void *payload_buf;
     int rc;
 
-    txom = ble_hs_misc_pkthdr();
-    if (txom == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto done;
+    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_REQ, id,
+                                BLE_L2CAP_SIG_UPDATE_REQ_SZ, &txom,
+                                &payload_buf);
+    if (rc != 0) {
+        return rc;
     }
 
-    v = os_mbuf_extend(txom,
-                       BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ);
-    if (v == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
-
-    hdr.op = BLE_L2CAP_SIG_OP_UPDATE_REQ;
-    hdr.identifier = id;
-    hdr.length = BLE_L2CAP_SIG_UPDATE_REQ_SZ;
-
-    rc = ble_l2cap_sig_update_req_write(
-        v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ, &hdr, req);
-    assert(rc == 0);
+    ble_l2cap_sig_update_req_write(payload_buf, BLE_L2CAP_SIG_UPDATE_REQ_SZ,
+                                   req);
 
     rc = ble_l2cap_sig_tx(conn_handle, txom);
-    txom = NULL;
+    if (rc != 0) {
+        return rc;
+    }
 
-done:
-    os_mbuf_free_chain(txom);
-    return rc;
+    return 0;
+}
+
+static void
+ble_l2cap_sig_update_rsp_swap(struct ble_l2cap_sig_update_rsp *dst,
+                              struct ble_l2cap_sig_update_rsp *src)
+{
+    dst->result = TOFROMLE16(src->result);
+}
+
+void
+ble_l2cap_sig_update_rsp_parse(void *payload, int len,
+                               struct ble_l2cap_sig_update_rsp *dst)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    ble_l2cap_sig_update_rsp_swap(dst, payload);
+}
+
+void
+ble_l2cap_sig_update_rsp_write(void *payload, int len,
+                               struct ble_l2cap_sig_update_rsp *src)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    ble_l2cap_sig_update_rsp_swap(payload, src);
 }
 
 int
 ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
 {
     struct ble_l2cap_sig_update_rsp rsp;
-    struct ble_l2cap_sig_hdr hdr;
     struct os_mbuf *txom;
-    void *v;
+    void *payload_buf;
     int rc;
 
-    txom = ble_hs_misc_pkthdr();
-    if (txom == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
+    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_RSP, id,
+                                BLE_L2CAP_SIG_UPDATE_RSP_SZ, &txom,
+                                &payload_buf);
+    if (rc != 0) {
+        return rc;
     }
 
-    v = os_mbuf_extend(txom,
-                       BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ);
-    if (v == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    hdr.op = BLE_L2CAP_SIG_OP_UPDATE_RSP;
-    hdr.identifier = id;
-    hdr.length = BLE_L2CAP_SIG_UPDATE_RSP_SZ;
     rsp.result = result;
-
-    rc = ble_l2cap_sig_update_rsp_write(
-        v, BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ, &hdr, &rsp);
-    assert(rc == 0);
+    ble_l2cap_sig_update_rsp_write(payload_buf, BLE_L2CAP_SIG_UPDATE_RSP_SZ,
+                                   &rsp);
 
     rc = ble_l2cap_sig_tx(conn_handle, txom);
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
 
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
+    return 0;
 }

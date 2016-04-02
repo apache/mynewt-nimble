@@ -20,6 +20,7 @@
 #ifndef H_BLE_
 #define H_BLE_
 
+#include <inttypes.h>
 /* XXX: some or all of these should not be here */
 #include "os/os.h"
 

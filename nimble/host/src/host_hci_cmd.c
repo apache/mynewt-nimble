@@ -51,7 +51,7 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
     uint16_t opcode;
 
     /* Don't allow multiple commands "in flight." */
-    assert(host_hci_outstanding_opcode == 0);
+    BLE_HS_DBG_ASSERT(host_hci_outstanding_opcode == 0);
 
     rc = -1;
     cmd = os_memblock_get(&g_hci_cmd_pool);
@@ -120,7 +120,7 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
     uint16_t itvl;
     uint8_t cmd[BLE_HCI_SET_ADV_PARAM_LEN];
 
-    assert(adv != NULL);
+    BLE_HS_DBG_ASSERT(adv != NULL);
 
     /* Make sure parameters are valid */
     rc = -1;

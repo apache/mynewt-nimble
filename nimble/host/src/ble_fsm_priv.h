@@ -20,6 +20,8 @@
 #ifndef H_BLE_FSM_PRIV_
 #define H_BLE_FSM_PRIV_
 
+#include "os/os_mutex.h"
+
 struct ble_fsm_proc {
     STAILQ_ENTRY(ble_fsm_proc) next;
 

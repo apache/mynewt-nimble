@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -216,7 +215,7 @@ ble_l2cap_sm_gen_pair_rand(uint8_t *pair_rand)
 #endif
 
     /* XXX: Generate random value rather than zeros. */
-    memset(pair_rand, 0, sizeof ble_l2cap_sm_dbg_next_pair_rand);
+    memset(pair_rand, 0, 16);
 }
 
 static uint16_t
@@ -253,9 +252,9 @@ ble_l2cap_sm_proc_kick(struct ble_fsm_proc *proc)
     ble_l2cap_sm_kick_fn *kick_cb;
     int rc;
 
-    assert(proc->op < BLE_L2CAP_SM_PROC_OP_CNT);
+    BLE_HS_DBG_ASSERT(proc->op < BLE_L2CAP_SM_PROC_OP_CNT);
     kick_cb = ble_l2cap_sm_kick[proc->op];
-    assert(kick_cb != NULL);
+    BLE_HS_DBG_ASSERT(kick_cb != NULL);
 
     rc = kick_cb((struct ble_l2cap_sm_proc *)proc);
     return rc;
@@ -306,7 +305,7 @@ ble_l2cap_sm_proc_free(struct ble_fsm_proc *proc)
 
     if (proc != NULL) {
         rc = os_memblock_put(&ble_l2cap_sm_proc_pool, proc);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
 }
 
@@ -540,7 +539,6 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
                                   uint8_t *ia, uint8_t *ra)
 {
     struct ble_hs_conn *conn;
-    int rc;
 
     ble_hs_conn_lock();
     conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
@@ -567,15 +565,13 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
 
     memcpy(k, proc->phase_1_2.tk, sizeof proc->phase_1_2.tk);
 
-    rc = ble_l2cap_sm_pair_cmd_write(
+    ble_l2cap_sm_pair_cmd_write(
         preq, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 1,
         &proc->phase_1_2.pair_req);
-    assert(rc == 0);
 
-    rc = ble_l2cap_sm_pair_cmd_write(
+    ble_l2cap_sm_pair_cmd_write(
         pres, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 0,
         &proc->phase_1_2.pair_rsp);
-    assert(rc == 0);
 
     return 0;
 }
@@ -754,7 +750,7 @@ ble_l2cap_sm_lt_key_req_reply_tx(void *arg)
 
     proc = arg;
 
-    assert(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
+    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
 
     cmd.conn_handle = proc->fsm_proc.conn_handle;
     memcpy(cmd.long_term_key, proc->hci.key, 16);
@@ -812,7 +808,7 @@ ble_l2cap_sm_start_encrypt_tx(void *arg)
 
     proc = arg;
 
-    assert(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
+    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
 
     cmd.connection_handle = proc->fsm_proc.conn_handle;
     cmd.encrypted_diversifier = ble_l2cap_sm_gen_ediv();
@@ -858,8 +854,7 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
         return rc;
     }
 
-    rc = ble_l2cap_sm_pair_cmd_parse((*om)->om_data, (*om)->om_len, &req);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_cmd_parse((*om)->om_data, (*om)->om_len, &req);
 
     BLE_HS_LOG(DEBUG, "rxed sm pair req; io_cap=0x%02x oob_data_flag=%d "
                       "authreq=0x%02x max_enc_key_size=%d "
@@ -906,8 +901,7 @@ ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
         return rc;
     }
 
-    rc = ble_l2cap_sm_pair_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
 
     BLE_HS_LOG(DEBUG, "rxed sm pair rsp; io_cap=0x%02x oob_data_flag=%d "
                       "authreq=0x%02x max_enc_key_size=%d "
@@ -945,8 +939,7 @@ ble_l2cap_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op,
         return rc;
     }
 
-    rc = ble_l2cap_sm_pair_confirm_parse((*om)->om_data, (*om)->om_len, &cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_confirm_parse((*om)->om_data, (*om)->om_len, &cmd);
 
     BLE_HS_LOG(DEBUG, "rxed sm confirm cmd\n");
 
@@ -980,8 +973,7 @@ ble_l2cap_sm_rx_pair_random(uint16_t conn_handle, uint8_t op,
         return rc;
     }
 
-    rc = ble_l2cap_sm_pair_random_parse((*om)->om_data, (*om)->om_len, &cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_random_parse((*om)->om_data, (*om)->om_len, &cmd);
 
     BLE_HS_LOG(DEBUG, "rxed sm random cmd\n");
 
@@ -1015,8 +1007,7 @@ ble_l2cap_sm_rx_pair_fail(uint16_t conn_handle, uint8_t op,
         return rc;
     }
 
-    rc = ble_l2cap_sm_pair_fail_parse((*om)->om_data, (*om)->om_len, &cmd);
-    assert(rc == 0);
+    ble_l2cap_sm_pair_fail_parse((*om)->om_data, (*om)->om_len, &cmd);
 
     BLE_HS_LOG(DEBUG, "rxed sm fail cmd; reason=%d\n", cmd.reason);
 
@@ -1069,7 +1060,7 @@ ble_l2cap_sm_rx_lt_key_req_reply_ack(struct ble_hci_ack *ack, void *arg)
 
     proc = arg;
 
-    assert(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
+    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
 
     /* Extract the procedure from the state machine while we mess with it. */
     ble_fsm_lock(&ble_l2cap_sm_fsm);
@@ -1114,7 +1105,7 @@ ble_l2cap_sm_rx_start_encrypt_ack(struct ble_hci_ack *ack, void *arg)
 
     proc = arg;
 
-    assert(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
+    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
 
     /* Extract the procedure from the state machine while we mess with it. */
     ble_fsm_lock(&ble_l2cap_sm_fsm);

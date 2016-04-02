@@ -145,7 +145,7 @@ ble_hs_task_handler(void *arg)
             break;
 
         default:
-            assert(0);
+            BLE_HS_DBG_ASSERT(0);
             break;
         }
     }

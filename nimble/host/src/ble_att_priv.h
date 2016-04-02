@@ -132,19 +132,6 @@ struct ble_att_svr_entry {
     void *ha_cb_arg;
 };
 
-/**
- * Called from ble_att_svr_walk().  Called on each entry in the 
- * ble_att_svr_list.
- *
- * @param Contains the current ble_att being iterated through
- * @param The user supplied argument to ble_att_svr_walk()
- *
- * @return 0 on continue, 1 on stop
- */
-typedef int (*ble_att_svr_walk_func_t)(struct ble_att_svr_entry *entry,
-                                       void *arg);
-
-
 #define HA_OPCODE_METHOD_START (0)
 #define HA_OPCODE_METHOD_END (5)
 #define HA_OPCODE_COMMAND_FLAG (1 << 6) 
@@ -170,7 +157,8 @@ int ble_att_init(void);
 extern ble_att_svr_notify_fn *ble_att_svr_notify_cb;
 extern void *ble_att_svr_notify_cb_arg;
 
-int ble_att_svr_find_by_uuid(uint8_t *uuid, struct ble_att_svr_entry **ha_ptr);
+struct ble_att_svr_entry *
+ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at, uint8_t *uuid);
 uint16_t ble_att_svr_prev_handle(void);
 int ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om);
 int ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom);

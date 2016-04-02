@@ -17,7 +17,6 @@
  * under the License.
  */
 
-#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include "nimble/ble.h"
@@ -49,7 +48,7 @@ ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
 
     int rc;
 
-    assert(data_len > 0);
+    BLE_HS_DBG_ASSERT(data_len > 0);
 
     rc = ble_hs_adv_set_hdr(type, data_len, max_len, dst, dst_len);
     if (rc != 0) {

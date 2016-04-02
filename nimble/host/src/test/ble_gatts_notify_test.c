@@ -100,8 +100,7 @@ ble_gatts_notify_test_misc_enable_notify(struct ble_hs_conn *conn,
     int rc;
 
     req.bawq_handle = chr_def_handle + 2;
-    rc = ble_att_write_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_write_req_write(buf, sizeof buf, &req);
 
     htole16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
@@ -166,8 +165,7 @@ ble_gatts_notify_test_misc_rx_indicate_rsp(struct ble_hs_conn *conn,
     uint8_t buf[BLE_ATT_INDICATE_RSP_SZ];
     int rc;
 
-    rc = ble_att_indicate_rsp_write(buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
+    ble_att_indicate_rsp_write(buf, sizeof buf);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -190,8 +188,7 @@ ble_gatts_notify_test_misc_verify_tx_n(struct ble_l2cap_chan *chan,
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, req_len, buf);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_att_notify_req_parse(buf, req_len, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_notify_req_parse(buf, req_len, &req);
 
     for (i = 0; i < attr_len; i++) {
         TEST_ASSERT(buf[BLE_ATT_NOTIFY_REQ_BASE_SZ + i] == attr_data[i]);
@@ -214,8 +211,7 @@ ble_gatts_notify_test_misc_verify_tx_i(struct ble_l2cap_chan *chan,
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, req_len, buf);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_att_indicate_req_parse(buf, req_len, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_indicate_req_parse(buf, req_len, &req);
 
     for (i = 0; i < attr_len; i++) {
         TEST_ASSERT(buf[BLE_ATT_INDICATE_REQ_BASE_SZ + i] == attr_data[i]);

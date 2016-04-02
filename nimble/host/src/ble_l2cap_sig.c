@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "ble_hs_priv.h"
@@ -224,7 +223,7 @@ ble_l2cap_sig_proc_free(struct ble_fsm_proc *proc)
 
     if (proc != NULL) {
         rc = os_memblock_put(&ble_l2cap_sig_proc_pool, proc);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
 }
 
@@ -383,7 +382,7 @@ ble_l2cap_sig_rx_noop(uint16_t conn_handle,
 static void
 ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
 {
-    assert(!ble_hs_conn_locked_by_cur_task());
+    BLE_HS_DBG_ASSERT(!ble_hs_conn_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_l2cap_stats, update_fail);
@@ -434,8 +433,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         return BLE_HS_ENOTSUP;
     }
 
-    rc = ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
-    assert(rc == 0);
+    ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
 
     params.itvl_min = req.itvl_min;
     params.itvl_max = req.itvl_max;
@@ -492,8 +490,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
         goto done;
     }
 
-    rc = ble_l2cap_sig_update_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
-    assert(rc == 0);
+    ble_l2cap_sig_update_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
 
     switch (rsp.result) {
     case BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT:
@@ -607,8 +604,7 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
         return rc;
     }
 
-    rc = ble_l2cap_sig_hdr_parse((*om)->om_data, (*om)->om_len, &hdr);
-    assert(rc == 0);
+    ble_l2cap_sig_hdr_parse((*om)->om_data, (*om)->om_len, &hdr);
 
     /* Strip L2CAP sig header from the front of the mbuf. */
     os_mbuf_adj(*om, BLE_L2CAP_SIG_HDR_SZ);
@@ -723,7 +719,7 @@ ble_l2cap_sig_heartbeat(void *unused)
     ticks = BLE_L2CAP_SIG_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000;
     rc = os_callout_reset(&ble_l2cap_sig_heartbeat_timer.cf_c, ticks);
         
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 /**

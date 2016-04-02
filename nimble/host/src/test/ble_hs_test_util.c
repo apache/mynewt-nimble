@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include "stats/stats.h"
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
@@ -165,6 +164,20 @@ ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
 }
 
 int
+ble_hs_test_util_l2cap_rx_first_frag(struct ble_hs_conn *conn, uint16_t cid,
+                                     struct hci_data_hdr *hci_hdr,
+                                     struct os_mbuf *om)
+{
+    int rc;
+
+    om = ble_l2cap_prepend_hdr(om, cid, OS_MBUF_PKTLEN(om));
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_hs_test_util_l2cap_rx(conn, hci_hdr, om);
+    return rc;
+}
+
+int
 ble_hs_test_util_l2cap_rx(struct ble_hs_conn *conn,
                           struct hci_data_hdr *hci_hdr,
                           struct os_mbuf *om)
@@ -175,8 +188,8 @@ ble_hs_test_util_l2cap_rx(struct ble_hs_conn *conn,
 
     rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf);
     if (rc == 0) {
-        assert(rx_cb != NULL);
-        assert(rx_buf != NULL);
+        TEST_ASSERT_FATAL(rx_cb != NULL);
+        TEST_ASSERT_FATAL(rx_buf != NULL);
         rc = rx_cb(conn->bhc_handle, &rx_buf);
         os_mbuf_free_chain(rx_buf);
     } else if (rc == BLE_HS_EAGAIN) {
@@ -199,20 +212,16 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     om = ble_hs_misc_pkthdr();
     TEST_ASSERT_FATAL(om != NULL);
 
-    om->om_data += BLE_L2CAP_HDR_SZ;
-
     rc = os_mbuf_append(om, data, len);
     TEST_ASSERT_FATAL(rc == 0);
-
-    om = ble_l2cap_prepend_hdr(om, chan->blc_cid, OS_MBUF_PKTLEN(om));
-    TEST_ASSERT_FATAL(om != NULL);
 
     hci_hdr.hdh_handle_pb_bc =
         host_hci_handle_pb_bc_join(conn->bhc_handle,
                                    BLE_HCI_PB_FIRST_FLUSH, 0);
     hci_hdr.hdh_len = OS_MBUF_PKTHDR(om)->omp_len;
 
-    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, chan->blc_cid, &hci_hdr,
+                                              om);
     return rc;
 }
 
@@ -229,8 +238,7 @@ ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
     rsp.baep_handle = err_handle;
     rsp.baep_error_code = error_code;
 
-    rc = ble_att_error_rsp_write(buf, sizeof buf, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_error_rsp_write(buf, sizeof buf, &rsp);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
@@ -276,7 +284,7 @@ ble_hs_test_util_rx_num_completed_pkts_event(
     for (entry = entries; entry->handle_id != 0; entry++) {
         num_entries++;
     }
-    assert(num_entries <= UINT8_MAX);
+    TEST_ASSERT_FATAL(num_entries <= UINT8_MAX);
 
     buf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
     buf[2] = num_entries;
@@ -428,16 +436,16 @@ ble_hs_test_util_init(void)
                          BLE_HS_TEST_UTIL_MEMBLOCK_SIZE,
                          ble_hs_test_util_mbuf_mpool_data, 
                          "ble_hs_test_util_mbuf_data");
-    assert(rc == 0);
+    TEST_ASSERT_FATAL(rc == 0);
 
     rc = os_mbuf_pool_init(&ble_hs_test_util_mbuf_pool,
                            &ble_hs_test_util_mbuf_mpool,
                            BLE_HS_TEST_UTIL_MEMBLOCK_SIZE,
                            BLE_HS_TEST_UTIL_NUM_MBUFS);
-    assert(rc == 0);
+    TEST_ASSERT_FATAL(rc == 0);
 
     rc = os_msys_register(&ble_hs_test_util_mbuf_pool);
-    assert(rc == 0);
+    TEST_ASSERT_FATAL(rc == 0);
 
     /* Don't limit a connection's ability to transmit; simplify tests. */
     ble_hs_cfg.max_outstanding_pkts_per_conn = 0;

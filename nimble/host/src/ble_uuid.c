@@ -17,7 +17,6 @@
  * under the License.
  */
 
-#include <assert.h>
 #include <inttypes.h>
 #include <string.h>
 #include <errno.h>
@@ -122,7 +121,7 @@ ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
     switch (remlen) {
     case 2:
         rc = os_mbuf_copydata(om, off, 2, &uuid16);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
         uuid16 = le16toh(&uuid16);
         rc = ble_uuid_16_to_128(uuid16, uuid128);
@@ -133,7 +132,7 @@ ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128)
 
     case 16:
         rc = os_mbuf_copydata(om, off, 16, uuid128);
-        assert(rc == 0);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
         return 0;
 
     default:

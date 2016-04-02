@@ -94,28 +94,28 @@ int ble_l2cap_sm_locked_by_cur_task(void);
 
 struct ble_l2cap_chan *ble_l2cap_sm_create_chan(void);
 
-int ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
-                                struct ble_l2cap_sm_pair_cmd *cmd);
-int ble_l2cap_sm_pair_cmd_write(void *payload, int len, int is_req,
-                                struct ble_l2cap_sm_pair_cmd *cmd);
+void ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
+                                 struct ble_l2cap_sm_pair_cmd *cmd);
+void ble_l2cap_sm_pair_cmd_write(void *payload, int len, int is_req,
+                                 struct ble_l2cap_sm_pair_cmd *cmd);
 int ble_l2cap_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
                              struct ble_l2cap_sm_pair_cmd *cmd);
-int ble_l2cap_sm_pair_confirm_parse(void *payload, int len,
-                                    struct ble_l2cap_sm_pair_confirm *cmd);
-int ble_l2cap_sm_pair_confirm_write(void *payload, int len,
-                                    struct ble_l2cap_sm_pair_confirm *cmd);
+void ble_l2cap_sm_pair_confirm_parse(void *payload, int len,
+                                     struct ble_l2cap_sm_pair_confirm *cmd);
+void ble_l2cap_sm_pair_confirm_write(void *payload, int len,
+                                     struct ble_l2cap_sm_pair_confirm *cmd);
 int ble_l2cap_sm_pair_confirm_tx(uint16_t conn_handle,
                                  struct ble_l2cap_sm_pair_confirm *cmd);
-int ble_l2cap_sm_pair_random_parse(void *payload, int len,
-                                   struct ble_l2cap_sm_pair_random *cmd);
-int ble_l2cap_sm_pair_random_write(void *payload, int len,
-                                   struct ble_l2cap_sm_pair_random *cmd);
+void ble_l2cap_sm_pair_random_parse(void *payload, int len,
+                                    struct ble_l2cap_sm_pair_random *cmd);
+void ble_l2cap_sm_pair_random_write(void *payload, int len,
+                                    struct ble_l2cap_sm_pair_random *cmd);
 int ble_l2cap_sm_pair_random_tx(uint16_t conn_handle,
                                 struct ble_l2cap_sm_pair_random *cmd);
-int ble_l2cap_sm_pair_fail_parse(void *payload, int len,
-                                 struct ble_l2cap_sm_pair_fail *cmd);
-int ble_l2cap_sm_pair_fail_write(void *payload, int len,
-                                 struct ble_l2cap_sm_pair_fail *cmd);
+void ble_l2cap_sm_pair_fail_parse(void *payload, int len,
+                                  struct ble_l2cap_sm_pair_fail *cmd);
+void ble_l2cap_sm_pair_fail_write(void *payload, int len,
+                                  struct ble_l2cap_sm_pair_fail *cmd);
 int ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle,
                               struct ble_l2cap_sm_pair_fail *cmd);
 
@@ -144,17 +144,9 @@ int ble_l2cap_sm_init(void);
 
 #define ble_l2cap_sm_create_chan() NULL
 
-#define ble_l2cap_sm_pair_cmd_parse(payload, len, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_cmd_write(payload, len, is_req, cmd) BLE_HS_ENOTSUP
 #define ble_l2cap_sm_pair_cmd_tx(conn_handle, is_req, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_confirm_parse(payload, len, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_confirm_write(payload, len, cmd) BLE_HS_ENOTSUP
 #define ble_l2cap_sm_pair_confirm_tx(conn_handle, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_random_parse(payload, len, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_random_write(payload, len, cmd) BLE_HS_ENOTSUP
 #define ble_l2cap_sm_pair_random_tx(conn_handle, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_fail_parse(payload, len, cmd) BLE_HS_ENOTSUP
-#define ble_l2cap_sm_pair_fail_write(payload, len, cmd) BLE_HS_ENOTSUP
 #define ble_l2cap_sm_pair_fail_tx(conn_handle, cmd) BLE_HS_ENOTSUP
 
 #define ble_l2cap_sm_alg_s1(k, r1, r2, out) BLE_HS_ENOTSUP

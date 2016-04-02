@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -80,7 +79,7 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
     }
 
     rc = os_memblock_put(&ble_l2cap_chan_pool, chan);
-    assert(rc == 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     STATS_INC(ble_l2cap_stats, chan_delete);
 }
@@ -105,7 +104,7 @@ ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
         mtu = min(chan->blc_my_mtu, chan->blc_peer_mtu);
     }
 
-    assert(mtu >= chan->blc_default_mtu);
+    BLE_HS_DBG_ASSERT(mtu >= chan->blc_default_mtu);
 
     return mtu;
 }

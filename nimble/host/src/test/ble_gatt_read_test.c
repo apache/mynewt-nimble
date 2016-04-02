@@ -254,8 +254,7 @@ ble_gatt_read_test_misc_uuid_rx_rsp_good(struct ble_hs_conn *conn,
     ble_hs_test_util_tx_all();
 
     rsp.batp_length = 2 + attrs[0].value_len;
-    rc = ble_att_read_type_rsp_write(buf, sizeof buf, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_read_type_rsp_write(buf, sizeof buf, &rsp);
 
     prev_len = 0;
     off = BLE_ATT_READ_TYPE_RSP_BASE_SZ;

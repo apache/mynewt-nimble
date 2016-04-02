@@ -72,8 +72,7 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
                          BLE_GATT_CHR_DECL_SZ_128;
     }
 
-    rc = ble_att_read_type_rsp_write(buf, BLE_ATT_READ_TYPE_RSP_BASE_SZ, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_read_type_rsp_write(buf, BLE_ATT_READ_TYPE_RSP_BASE_SZ, &rsp);
 
     off = BLE_ATT_READ_TYPE_RSP_BASE_SZ;
     for (i = 0; ; i++) {

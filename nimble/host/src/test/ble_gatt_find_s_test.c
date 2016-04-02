@@ -114,9 +114,7 @@ ble_gatt_find_s_test_misc_rx_read_type(
         return 0;
     }
 
-    rc = ble_att_read_type_rsp_write(buf + 0, BLE_ATT_READ_TYPE_RSP_BASE_SZ,
-                                     &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_read_type_rsp_write(buf + 0, BLE_ATT_READ_TYPE_RSP_BASE_SZ, &rsp);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
@@ -151,7 +149,6 @@ ble_gatt_find_s_test_misc_verify_tx_read_type(uint16_t start_handle,
     struct ble_att_read_type_req req;
     struct os_mbuf *om;
     uint16_t uuid16;
-    int rc;
 
     ble_hs_test_util_tx_all();
 
@@ -161,8 +158,7 @@ ble_gatt_find_s_test_misc_verify_tx_read_type(uint16_t start_handle,
                         OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_att_read_type_req_parse(om->om_data, om->om_len, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_parse(om->om_data, om->om_len, &req);
 
     TEST_ASSERT(req.batq_start_handle == start_handle);
     TEST_ASSERT(req.batq_end_handle == end_handle);
@@ -176,7 +172,6 @@ ble_gatt_find_s_test_misc_verify_tx_read(uint16_t handle)
 {
     struct ble_att_read_req req;
     struct os_mbuf *om;
-    int rc;
 
     ble_hs_test_util_tx_all();
 
@@ -186,8 +181,7 @@ ble_gatt_find_s_test_misc_verify_tx_read(uint16_t handle)
                         OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_att_read_req_parse(om->om_data, om->om_len, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_req_parse(om->om_data, om->om_len, &req);
 
     TEST_ASSERT(req.barq_handle == handle);
     TEST_ASSERT(om->om_len == BLE_ATT_READ_REQ_SZ);

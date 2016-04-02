@@ -297,8 +297,7 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_error_rsp_parse(buf, sizeof buf, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_error_rsp_parse(buf, sizeof buf, &rsp);
 
     TEST_ASSERT(rsp.baep_req_op == req_op);
     TEST_ASSERT(rsp.baep_handle == handle);
@@ -373,8 +372,7 @@ ble_att_svr_test_misc_rx_read_mult_req(struct ble_hs_conn *conn,
     int rc;
     int i;
 
-    rc = ble_att_read_mult_req_write(buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_mult_req_write(buf, sizeof buf);
 
     off = BLE_ATT_READ_MULT_REQ_BASE_SZ;
     for (i = 0; i < num_handles; i++) {
@@ -477,8 +475,7 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
     rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
 
     TEST_ASSERT(rsp.bamc_mtu == chan->blc_my_mtu);
 
@@ -515,8 +512,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
     TEST_ASSERT(rc == 0);
     off += sizeof buf;
 
-    rc = ble_att_find_info_rsp_parse(buf, sizeof buf, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_rsp_parse(buf, sizeof buf, &rsp);
 
     for (entry = entries; entry->handle != 0; entry++) {
         rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &handle);
@@ -627,8 +623,7 @@ ble_att_svr_test_misc_verify_tx_read_group_type_rsp(
                         BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
 
     off = BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ;
     for (entry = entries; entry->start_handle != 0; entry++) {
@@ -700,8 +695,7 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
                         BLE_ATT_READ_TYPE_RSP_BASE_SZ);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_att_read_type_rsp_parse(om->om_data, om->om_len, &rsp);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_rsp_parse(om->om_data, om->om_len, &rsp);
 
     off = BLE_ATT_READ_TYPE_RSP_BASE_SZ;
     for (entry = entries; entry->handle != 0; entry++) {
@@ -740,8 +734,7 @@ ble_att_svr_test_misc_verify_tx_prep_write_rsp(struct ble_l2cap_chan *chan,
                           OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx), buf);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_att_prep_write_rsp_parse(buf, sizeof buf, &rsp);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_prep_write_rsp_parse(buf, sizeof buf, &rsp);
 
     TEST_ASSERT(rsp.bapc_handle == attr_handle);
     TEST_ASSERT(rsp.bapc_offset == offset);
@@ -756,15 +749,13 @@ static void
 ble_att_svr_test_misc_verify_tx_exec_write_rsp(struct ble_l2cap_chan *chan)
 {
     struct os_mbuf *om;
-    int rc;
 
     ble_hs_test_util_tx_all();
 
     om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_EXEC_WRITE_RSP_SZ);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_att_exec_write_rsp_parse(om->om_data, om->om_len);
-    TEST_ASSERT(rc == 0);
+    ble_att_exec_write_rsp_parse(om->om_data, om->om_len);
 }
 
 static void
@@ -782,8 +773,7 @@ ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
     chan->blc_my_mtu = my_mtu;
 
     req.bamc_mtu = peer_sent;
-    rc = ble_att_mtu_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_mtu_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -807,8 +797,7 @@ ble_att_svr_test_misc_prep_write(struct ble_hs_conn *conn,
 
     prep_req.bapc_handle = handle;
     prep_req.bapc_offset = offset;
-    rc = ble_att_prep_write_req_write(buf, sizeof buf, &prep_req);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_prep_write_req_write(buf, sizeof buf, &prep_req);
     memcpy(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, data, data_len);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
         conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ + data_len);
@@ -835,8 +824,7 @@ ble_att_svr_test_misc_exec_write(struct ble_hs_conn *conn,
     int rc;
 
     exec_req.baeq_flags = flags;
-    rc = ble_att_exec_write_req_write(buf, sizeof buf, &exec_req);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_exec_write_req_write(buf, sizeof buf, &exec_req);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf,
                                                 BLE_ATT_EXEC_WRITE_REQ_SZ);
 
@@ -863,8 +851,7 @@ ble_att_svr_test_misc_rx_notify(struct ble_hs_conn *conn,
     int rc;
 
     req.banq_handle = attr_handle;
-    rc = ble_att_notify_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_notify_req_write(buf, sizeof buf, &req);
     off = BLE_ATT_NOTIFY_REQ_BASE_SZ;
 
     memcpy(buf + off, attr_val, attr_len);
@@ -931,15 +918,13 @@ static void
 ble_att_svr_test_misc_verify_tx_indicate_rsp(struct ble_l2cap_chan *chan)
 {
     struct os_mbuf *om;
-    int rc;
 
     ble_hs_test_util_tx_all();
 
     om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_INDICATE_RSP_SZ);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_att_indicate_rsp_parse(om->om_data, om->om_len);
-    TEST_ASSERT(rc == 0);
+    ble_att_indicate_rsp_parse(om->om_data, om->om_len);
 }
 
 static void
@@ -954,8 +939,7 @@ ble_att_svr_test_misc_rx_indicate(struct ble_hs_conn *conn,
     int rc;
 
     req.baiq_handle = attr_handle;
-    rc = ble_att_indicate_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_att_indicate_req_write(buf, sizeof buf, &req);
     off = BLE_ATT_INDICATE_REQ_BASE_SZ;
 
     memcpy(buf + off, attr_val, attr_len);
@@ -1029,8 +1013,7 @@ TEST_CASE(ble_att_svr_test_read)
 
     /*** Nonexistent attribute. */
     req.barq_handle = 0;
-    rc = ble_att_read_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1044,8 +1027,7 @@ TEST_CASE(ble_att_svr_test_read)
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_read_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1058,8 +1040,7 @@ TEST_CASE(ble_att_svr_test_read)
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
     ble_att_svr_test_attr_r_1_len = 40;
 
-    rc = ble_att_read_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1081,8 +1062,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
     /*** Nonexistent attribute. */
     req.babq_handle = 0;
     req.babq_offset = 0;
-    rc = ble_att_read_blob_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_blob_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1098,8 +1078,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_read_blob_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_blob_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1110,8 +1089,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
     /*** Successful partial read. */
     ble_att_svr_test_attr_r_1_len = 40;
 
-    rc = ble_att_read_blob_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_blob_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1121,8 +1099,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
 
     /*** Read remainder of attribute. */
     req.babq_offset = BLE_ATT_MTU_DFLT - 1;
-    rc = ble_att_read_blob_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_blob_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1132,8 +1109,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
 
     /*** Zero-length read. */
     req.babq_offset = ble_att_svr_test_attr_r_1_len;
-    rc = ble_att_read_blob_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_blob_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1223,8 +1199,7 @@ TEST_CASE(ble_att_svr_test_write)
 
     /*** Nonexistent attribute. */
     req.bawq_handle = 0;
-    rc = ble_att_write_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_write_req_write(buf, sizeof buf, &req);
     memcpy(buf + BLE_ATT_READ_REQ_SZ, ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
@@ -1237,8 +1212,7 @@ TEST_CASE(ble_att_svr_test_write)
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_write_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_write_req_write(buf, sizeof buf, &req);
     memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ,
            ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
 
@@ -1275,8 +1249,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = 0;
     req.bafq_end_handle = 0;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1287,8 +1260,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = 101;
     req.bafq_end_handle = 100;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1299,8 +1271,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = 200;
     req.bafq_end_handle = 300;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1315,8 +1286,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = 200;
     req.bafq_end_handle = 300;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1327,8 +1297,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = handle1;
     req.bafq_end_handle = handle1;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1348,8 +1317,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = handle1;
     req.bafq_end_handle = handle2;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1372,8 +1340,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = handle1;
     req.bafq_end_handle = handle3;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1392,8 +1359,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     req.bafq_start_handle = handle3;
     req.bafq_end_handle = handle3;
 
-    rc = ble_att_find_info_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1447,8 +1413,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_end_handle = 0;
     req.bavq_attr_type = 0x0001;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1460,8 +1425,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = 101;
     req.bavq_end_handle = 100;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1473,8 +1437,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = 200;
     req.bavq_end_handle = 300;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1490,8 +1453,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = 200;
     req.bavq_end_handle = 300;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
@@ -1503,8 +1465,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = handle1;
     req.bavq_end_handle = handle1;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1524,8 +1485,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = handle1;
     req.bavq_end_handle = handle2;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1549,8 +1509,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = 0x0001;
     req.bavq_end_handle = 0xffff;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1572,8 +1531,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = 0x0001;
     req.bavq_end_handle = 0xffff;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1595,8 +1553,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     req.bavq_start_handle = 0x0001;
     req.bavq_end_handle = 0xffff;
 
-    rc = ble_att_find_type_value_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc == 0);
@@ -1631,8 +1588,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 0;
     req.batq_end_handle = 0;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1646,8 +1602,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 101;
     req.batq_end_handle = 100;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1661,8 +1616,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 1;
     req.batq_end_handle = 0xffff;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1677,8 +1631,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 200;
     req.batq_end_handle = 300;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1692,8 +1645,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 1;
     req.batq_end_handle = 2;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_CHARACTERISTIC);
 
@@ -1712,8 +1664,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 1;
     req.batq_end_handle = 10;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_CHARACTERISTIC);
 
@@ -1736,8 +1687,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 11;
     req.batq_end_handle = 0xffff;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_CHARACTERISTIC);
 
@@ -1755,8 +1705,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 13;
     req.batq_end_handle = 0xffff;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_CHARACTERISTIC);
 
@@ -1774,8 +1723,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     req.batq_start_handle = 15;
     req.batq_end_handle = 0xffff;
 
-    rc = ble_att_read_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_CHARACTERISTIC);
 
@@ -1810,8 +1758,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 0;
     req.bagq_end_handle = 0;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1825,8 +1772,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 101;
     req.bagq_end_handle = 100;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1840,8 +1786,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 110;
     req.bagq_end_handle = 150;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, 0x1234);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
@@ -1854,8 +1799,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 1;
     req.bagq_end_handle = 0xffff;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1870,8 +1814,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 200;
     req.bagq_end_handle = 300;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1885,8 +1828,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 1;
     req.bagq_end_handle = 5;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1905,8 +1847,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 1;
     req.bagq_end_handle = 10;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1929,8 +1870,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 1;
     req.bagq_end_handle = 100;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -1953,8 +1893,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     req.bagq_start_handle = 11;
     req.bagq_end_handle = 100;
 
-    rc = ble_att_read_group_type_req_write(buf, sizeof buf, &req);
-    TEST_ASSERT(rc == 0);
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ,
             BLE_ATT_UUID_PRIMARY_SERVICE);
 
@@ -2152,6 +2091,7 @@ TEST_SUITE(ble_att_svr_suite)
 int
 ble_att_svr_test_all(void)
 {
+    tu_config.tc_system_assert = 1;
     ble_att_svr_suite();
 
     return tu_any_failed;
