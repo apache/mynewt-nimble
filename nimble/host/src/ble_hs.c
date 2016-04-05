@@ -53,6 +53,19 @@ static void *ble_hs_hci_cmd_buf;
 struct os_mempool g_hci_os_event_pool;
 static void *ble_hs_hci_os_event_buf;
 
+#if MYNEWT_SELFTEST
+/** Use a higher frequency timer to allow tests to run faster. */
+#define BLE_HS_HEARTBEAT_OS_TICKS         (OS_TICKS_PER_SEC / 10)
+#else
+#define BLE_HS_HEARTBEAT_OS_TICKS         OS_TICKS_PER_SEC
+#endif
+
+/**
+ * Handles unresponsive timeouts and periodic retries in case of resource
+ * shortage.
+ */
+static struct os_callout_func ble_hs_heartbeat_timer;
+
 /* Host HCI Task Events */
 struct os_eventq ble_hs_evq;
 static struct os_event ble_hs_kick_hci_ev;
@@ -98,13 +111,41 @@ ble_hs_process_rx_data_queue(void)
 }
 
 static void
+ble_hs_heartbeat_timer_reset(void)
+{
+    int rc;
+
+    rc = os_callout_reset(&ble_hs_heartbeat_timer.cf_c,
+                          BLE_HS_HEARTBEAT_OS_TICKS);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+}
+
+/**
+ * Called once a second by the ble_hs heartbeat timer.  Handles unresponsive
+ * timeouts and periodic retries in case of resource shortage.
+ *
+ * Lock restrictions:
+ *     o Caller unlocks all ble_hs mutexes.
+ */
+static void
+ble_hs_heartbeat(void *unused)
+{
+    ble_hs_misc_assert_no_locks();
+
+    ble_gattc_heartbeat();
+    ble_gap_heartbeat();
+
+    ble_hs_heartbeat_timer_reset();
+}
+
+static void
 ble_hs_task_handler(void *arg)
 {
     struct os_event *ev;
     struct os_callout_func *cf;
     int rc;
 
-    ble_gattc_started();
+    ble_hs_heartbeat_timer_reset();
 
     rc = ble_hs_startup_go();
     assert(rc == 0);
@@ -355,6 +396,9 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
         rc = BLE_HS_EOS;
         goto err;
     }
+
+    os_callout_func_init(&ble_hs_heartbeat_timer, &ble_hs_evq,
+                         ble_hs_heartbeat, NULL);
 
     return 0;
 

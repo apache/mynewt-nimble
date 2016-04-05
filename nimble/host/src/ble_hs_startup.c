@@ -209,6 +209,8 @@ ble_hs_startup_set_evmask_tx(void *arg)
                       BLE_HS_STARTUP_STATE_SET_EVMASK);
 
     ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
+
+    /* Default set + LE-meta event. */
     rc = host_hci_cmd_set_event_mask(0x20001fffffffffff);
     if (rc != 0) {
         return rc;

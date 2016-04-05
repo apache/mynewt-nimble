@@ -81,6 +81,8 @@ int ble_gap_slave_in_progress(void);
 int ble_gap_update_in_progress(uint16_t conn_handle);
 int ble_gap_wl_busy(void);
 
+void ble_gap_heartbeat(void);
+
 int ble_gap_init(void);
 
 #endif
