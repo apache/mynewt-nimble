@@ -1105,7 +1105,8 @@ ble_l2cap_sm_rx_start_encrypt_ack(struct ble_hci_ack *ack, void *arg)
 
     proc = arg;
 
-    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
+    BLE_HS_DBG_ASSERT(proc->fsm_proc.op ==
+                      BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
 
     /* Extract the procedure from the state machine while we mess with it. */
     ble_fsm_lock(&ble_l2cap_sm_fsm);
@@ -1222,8 +1223,8 @@ ble_l2cap_sm_initiate(uint16_t conn_handle)
     }
 
     proc->flags |= BLE_L2CAP_SM_PROC_F_INITIATOR;
-    ble_l2cap_sm_proc_set_pending(proc);
     STAILQ_INSERT_TAIL(&ble_l2cap_sm_fsm.procs, &proc->fsm_proc, next);
+    ble_l2cap_sm_proc_set_pending(proc);
 
     return 0;
 }
