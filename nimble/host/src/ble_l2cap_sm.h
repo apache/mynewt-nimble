@@ -129,6 +129,7 @@ int ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
+void ble_l2cap_sm_heartbeat(void);
 int ble_l2cap_sm_initiate(uint16_t conn_handle);
 void ble_l2cap_sm_wakeup(void);
 int ble_l2cap_sm_init(void);
@@ -156,6 +157,7 @@ int ble_l2cap_sm_init(void);
 #define ble_l2cap_sm_rx_encryption_change(evt) ((void)(evt))
 #define ble_l2cap_sm_rx_lt_key_req(evt) ((void)(evt))
 
+#define ble_l2cap_sm_heartbeat()
 #define ble_l2cap_sm_wakeup()
 #define ble_l2cap_sm_init() 0
 

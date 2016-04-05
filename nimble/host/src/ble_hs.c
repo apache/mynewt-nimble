@@ -134,6 +134,7 @@ ble_hs_heartbeat(void *unused)
 
     ble_gattc_heartbeat();
     ble_gap_heartbeat();
+    ble_l2cap_sm_heartbeat();
 
     ble_hs_heartbeat_timer_reset();
 }

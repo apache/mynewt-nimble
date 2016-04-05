@@ -41,10 +41,14 @@
 
 #define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
 
+/** Procedure timeout; 30 seconds. */
+#define BLE_L2CAP_SM_TIMEOUT_OS_TICKS           (30 * OS_TICKS_PER_SEC)
+
 typedef uint16_t ble_l2cap_sm_proc_flags;
 
 struct ble_l2cap_sm_proc {
     struct ble_fsm_proc fsm_proc;
+    uint32_t exp_os_ticks;
     ble_l2cap_sm_proc_flags flags;
     uint8_t pair_alg;
 
@@ -249,6 +253,7 @@ ble_l2cap_sm_gen_start_rand(void)
 static int
 ble_l2cap_sm_proc_kick(struct ble_fsm_proc *proc)
 {
+    struct ble_l2cap_sm_proc *sm_proc;
     ble_l2cap_sm_kick_fn *kick_cb;
     int rc;
 
@@ -256,7 +261,12 @@ ble_l2cap_sm_proc_kick(struct ble_fsm_proc *proc)
     kick_cb = ble_l2cap_sm_kick[proc->op];
     BLE_HS_DBG_ASSERT(kick_cb != NULL);
 
-    rc = kick_cb((struct ble_l2cap_sm_proc *)proc);
+    /* Set a timeout of 30 seconds. */
+    sm_proc = (struct ble_l2cap_sm_proc *)proc;
+
+    sm_proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SM_TIMEOUT_OS_TICKS;
+    rc = kick_cb(sm_proc);
+
     return rc;
 }
 
@@ -327,6 +337,25 @@ ble_l2cap_sm_proc_new(uint16_t conn_handle, uint8_t op,
     (*out_proc)->fsm_proc.tx_time = os_time_get();
 
     return 0;
+}
+
+/**
+ * Extraction callback used for removing all pairing procedures that have timed
+ * out.
+ */
+static int
+ble_l2cap_sm_proc_extract_expired_cb(struct ble_fsm_proc *proc, void *unused)
+{
+    uint32_t now;
+    int32_t diff;
+
+    now = os_time_get();
+    diff = now - ((struct ble_l2cap_sm_proc *)proc)->exp_os_ticks;
+    if (diff >= 0) {
+        return BLE_FSM_EXTRACT_EMOVE_CONTINUE;
+    } else {
+        return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
+    }
 }
 
 static int
@@ -1195,6 +1224,31 @@ ble_l2cap_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
 /*****************************************************************************
  * $api                                                                      *
  *****************************************************************************/
+
+void
+ble_l2cap_sm_heartbeat(void)
+{
+    struct ble_fsm_proc_list exp_list;
+    struct ble_l2cap_sm_proc *proc;
+    struct ble_fsm_proc *fsm_proc;
+
+    /* Remove all timed out procedures and insert them into a temporary
+     * list.
+     */
+    ble_fsm_proc_extract_list(&ble_l2cap_sm_fsm, &exp_list,
+                              ble_l2cap_sm_proc_extract_expired_cb, NULL);
+
+    /* Notify application of each failure and free the corresponding procedure
+     * objects.
+     */
+    while ((fsm_proc = STAILQ_FIRST(&exp_list)) != NULL) {
+        proc = (struct ble_l2cap_sm_proc *)fsm_proc;
+        ble_l2cap_sm_gap_event(proc, BLE_HS_ETIMEOUT, 0);
+
+        STAILQ_REMOVE_HEAD(&exp_list, next);
+        ble_l2cap_sm_proc_free(&proc->fsm_proc);
+    }
+}
 
 int
 ble_l2cap_sm_initiate(uint16_t conn_handle)
