@@ -110,6 +110,9 @@ static bssnz_t struct {
     uint8_t state;
     uint8_t hci_handle;
 
+    unsigned exp_set:1;
+    uint32_t exp_os_ticks;
+
     union {
         struct {
             uint8_t addr_type;
@@ -200,9 +203,6 @@ static ble_hci_sched_tx_fn * const ble_gap_dispatch_adv_dir[] = {
     [BLE_GAP_STATE_S_DIR_ENABLE]   = ble_gap_adv_enable_tx,
     [BLE_GAP_STATE_S_DIR_ADV]      = NULL,
 };
-
-static struct os_callout_func ble_gap_master_timer;
-static struct os_callout_func ble_gap_slave_timer;
 
 struct ble_gap_snapshot {
     struct ble_gap_conn_desc desc;
@@ -425,7 +425,6 @@ ble_gap_find_snapshot(uint16_t handle, struct ble_gap_snapshot *snap)
 static void
 ble_gap_master_reset_state(void)
 {
-    os_callout_stop(&ble_gap_master_timer.cf_c);
     ble_gap_master.op = BLE_GAP_OP_NULL;
 }
 
@@ -436,7 +435,6 @@ ble_gap_master_reset_state(void)
 static void
 ble_gap_slave_reset_state(void)
 {
-    os_callout_stop(&ble_gap_slave_timer.cf_c);
     ble_gap_slave.op = BLE_GAP_OP_NULL;
 }
 
@@ -692,6 +690,14 @@ ble_gap_update_notify(struct ble_gap_update_entry *entry, int status)
     ctxt.desc = &snap.desc;
     ble_gap_call_conn_cb(BLE_GAP_EVENT_CONN_UPDATED, status, &ctxt,
                          snap.cb, snap.cb_arg);
+}
+
+static void
+ble_gap_master_set_timer(uint32_t ms_from_now)
+{
+    ble_gap_master.exp_os_ticks =
+        os_time_get() + ms_from_now * OS_TICKS_PER_SEC / 1000;
+    ble_gap_master.exp_set = 1;
 }
 
 /**
@@ -1362,41 +1368,45 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
 }
 
 /**
+ * Called by the ble_hs heartbeat timer.  Handles timed out master procedures.
+ *
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_master_timer_exp(void *arg)
+void
+ble_gap_heartbeat(void)
 {
-    ble_hs_misc_assert_no_locks();
+    int timer_expired;
 
-    BLE_HS_DBG_ASSERT(ble_gap_master_in_progress());
+    ble_gap_lock();
 
-    switch (ble_gap_master.op) {
-    case BLE_GAP_OP_M_DISC:
-        /* When a discovery procedure times out, it is not a failure. */
-        ble_gap_master_enqueue(BLE_GAP_STATE_M_DISC_DISABLE, 1,
-                               ble_gap_disc_tx_disable, NULL);
-        break;
+    if (ble_gap_master.op != BLE_GAP_OP_NULL &&
+        ble_gap_master.exp_set &&
+        (int32_t)(os_time_get() - ble_gap_master.exp_os_ticks) >= 0) {
 
-    default:
-        ble_gap_master_failed(BLE_HS_ETIMEOUT);
-        break;
+        timer_expired = 1;
+
+        /* Clear the timer. */
+        ble_gap_master.exp_set = 0;
+    } else {
+        timer_expired = 0;
     }
 
-}
+    ble_gap_unlock();
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static void
-ble_gap_slave_timer_exp(void *arg)
-{
-    ble_hs_misc_assert_no_locks();
+    if (timer_expired) {
+        switch (ble_gap_master.op) {
+        case BLE_GAP_OP_M_DISC:
+            /* When a discovery procedure times out, it is not a failure. */
+            ble_gap_master_enqueue(BLE_GAP_STATE_M_DISC_DISABLE, 1,
+                                   ble_gap_disc_tx_disable, NULL);
+            break;
 
-    BLE_HS_DBG_ASSERT(ble_gap_slave_in_progress());
-    ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FINISHED, 0, 1);
+        default:
+            ble_gap_master_failed(BLE_HS_ETIMEOUT);
+            break;
+        }
+    }
 }
 
 /*****************************************************************************
@@ -2383,8 +2393,7 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
         goto done;
     }
 
-    os_callout_reset(&ble_gap_master_timer.cf_c,
-                     duration_ms * OS_TICKS_PER_SEC / 1000);
+    ble_gap_master_set_timer(duration_ms);
 
 done:
     if (rc == 0) {
@@ -3145,11 +3154,6 @@ ble_gap_init(void)
     ble_gap_update_mem = malloc(
         OS_MEMPOOL_BYTES(ble_hs_cfg.max_conn_update_entries,
                          sizeof (struct ble_gap_update_entry)));
-
-    os_callout_func_init(&ble_gap_master_timer, &ble_hs_evq,
-                         ble_gap_master_timer_exp, NULL);
-    os_callout_func_init(&ble_gap_slave_timer, &ble_hs_evq,
-                         ble_gap_slave_timer_exp, NULL);
 
     if (ble_hs_cfg.max_conn_update_entries > 0) {
         rc = os_mempool_init(&ble_gap_update_pool,

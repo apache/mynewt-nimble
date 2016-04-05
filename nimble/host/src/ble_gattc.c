@@ -31,7 +31,6 @@
  * $definitions / declarations                                               *
  *****************************************************************************/
 
-#define BLE_GATT_HEARTBEAT_PERIOD               1000    /* Milliseconds. */
 #define BLE_GATT_UNRESPONSIVE_TIMEOUT           30000   /* Milliseconds. */
 
 #define BLE_GATT_OP_NONE                        UINT8_MAX
@@ -173,12 +172,6 @@ struct ble_gattc_proc {
         } indicate;
     };
 };
-
-/**
- * Handles unresponsive timeouts and periodic retries in case of resource
- * shortage.
- */
-static struct os_callout_func ble_gattc_heartbeat_timer;
 
 /**
  * Kick functions - these trigger the pending ATT transmit for an active GATT
@@ -850,20 +843,17 @@ ble_gattc_heartbeat_extract_cb(struct ble_fsm_proc *proc, void *arg)
  * All procedures that have been expecting a response for longer than five
  * seconds are aborted, and their corresponding connection is terminated.
  *
- * Called by the heartbeat timer; executed every second.
+ * Called by the host heartbeat timer; executed every second.
  *
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gattc_heartbeat(void *unused)
+void
+ble_gattc_heartbeat(void)
 {
     struct ble_fsm_proc_list temp_list;
     struct ble_fsm_proc *proc;
     uint32_t now;
-    int rc;
-
-    ble_hs_misc_assert_no_locks();
 
     now = os_time_get();
 
@@ -884,10 +874,6 @@ ble_gattc_heartbeat(void *unused)
      * main list.
      */
     ble_fsm_proc_concat(&ble_gattc_fsm, &temp_list);
-
-    rc = os_callout_reset(&ble_gattc_heartbeat_timer.cf_c,
-                          BLE_GATT_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 /**
@@ -4707,22 +4693,6 @@ ble_gattc_any_jobs(void)
 }
 
 /**
- * XXX This function only exists because we can't set a timer before the OS
- * starts.  Maybe the OS issue can be fixed.
- *
- * Lock restrictions: None.
- */
-void
-ble_gattc_started(void)
-{
-    int rc;
-
-    rc = os_callout_reset(&ble_gattc_heartbeat_timer.cf_c,
-                          BLE_GATT_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-}
-
-/**
  * Lock restrictions: None.
  */
 int
@@ -4755,9 +4725,6 @@ ble_gattc_init(void)
             goto err;
         }
     }
-
-    os_callout_func_init(&ble_gattc_heartbeat_timer, &ble_hs_evq,
-                         ble_gattc_heartbeat, NULL);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_gattc_stats), STATS_SIZE_INIT_PARMS(ble_gattc_stats,
