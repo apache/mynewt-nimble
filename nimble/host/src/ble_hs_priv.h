@@ -111,15 +111,11 @@ int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
                (addr)[3], (addr)[4], (addr)[5])
 
 #if BLE_HS_DEBUG
-#define BLE_HS_DBG_ASSERT(x) assert(x)
+    #define BLE_HS_DBG_ASSERT(x) assert(x)
+    #define BLE_HS_DBG_ASSERT_EVAL(x) assert(x)
 #else
-#define BLE_HS_DBG_ASSERT(x)
-#endif
-
-#if BLE_HS_DEBUG
-#define BLE_HS_DBG_ASSERT_EVAL(x) assert(x)
-#else
-#define BLE_HS_DBG_ASSERT_EVAL(x) ((void)(x))
+    #define BLE_HS_DBG_ASSERT(x)
+    #define BLE_HS_DBG_ASSERT_EVAL(x) ((void)(x))
 #endif
 
 #endif
