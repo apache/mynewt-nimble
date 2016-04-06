@@ -157,6 +157,8 @@ int ble_l2cap_sm_init(void);
 #define ble_l2cap_sm_rx_encryption_change(evt) ((void)(evt))
 #define ble_l2cap_sm_rx_lt_key_req(evt) ((void)(evt))
 
+#define ble_l2cap_sm_connection_broken(conn_handle)
+
 #define ble_l2cap_sm_heartbeat()
 #define ble_l2cap_sm_wakeup()
 #define ble_l2cap_sm_init() 0
