@@ -214,6 +214,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
 
 TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 {
+    struct ble_hs_adv_fields adv_fields;
     struct hci_le_conn_complete evt;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -228,6 +229,11 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate advertising. */
+    memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
+    rc = ble_gap_adv_set_fields(&adv_fields);
+    TEST_ASSERT_FATAL(rc == 0);
+
     rc = ble_gap_adv_start(BLE_GAP_DISC_MODE_NON, BLE_GAP_CONN_MODE_UND,
                            NULL, 0, NULL, NULL, NULL);
     TEST_ASSERT(rc == 0);
