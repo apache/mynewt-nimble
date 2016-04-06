@@ -75,10 +75,15 @@
 
 /**
  * The maximum amount of user data that can be put into the advertising data.
- * Six bytes are reserved at the end for the flags field and the transmit power
- * field.
+ * The stack may automatically insert some fields on its own, limiting the
+ * maximum amount of user data.  The following fields are automatically
+ * inserted:
+ *     o Flags (3 bytes)
+ *     o Tx-power-level (3 bytes) - Only if the application specified a
+ *       tx_pwr_llvl_present value of 1 in a call to ble_gap_set_adv_data().
  */
-#define BLE_GAP_ADV_DATA_LIMIT          (BLE_HCI_MAX_ADV_DATA_LEN - 6)
+#define BLE_GAP_ADV_DATA_LIMIT_PWR      (BLE_HCI_MAX_ADV_DATA_LEN - 6)
+#define BLE_GAP_ADV_DATA_LIMIT_NO_PWR   (BLE_HCI_MAX_ADV_DATA_LEN - 3)
 
 static const struct ble_gap_crt_params ble_gap_params_dflt = {
     .scan_itvl = 0x0010,
@@ -154,6 +159,8 @@ static bssnz_t struct {
     uint8_t adv_data_len;
     uint8_t rsp_data_len;
     int8_t tx_pwr_lvl;
+
+    unsigned adv_pwr_lvl:1;
 } ble_gap_slave;
 
 static bssnz_t struct {
@@ -1892,11 +1899,13 @@ ble_gap_adv_data_tx(void *arg)
     }
 
     /* Encode the transmit power AD field. */
-    rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LVL, 1,
-                             &ble_gap_slave.tx_pwr_lvl,
-                             ble_gap_slave.adv_data,
-                             &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
-    BLE_HS_DBG_ASSERT(rc == 0);
+    if (ble_gap_slave.adv_pwr_lvl) {
+        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LVL, 1,
+                                 &ble_gap_slave.tx_pwr_lvl,
+                                 ble_gap_slave.adv_data,
+                                 &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
+        BLE_HS_DBG_ASSERT(rc == 0);
+    }
 
     ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
     rc = host_hci_cmd_le_set_adv_data(ble_gap_slave.adv_data,
@@ -2156,14 +2165,22 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
     return BLE_HS_ENOTSUP;
 #endif
 
+    int max_sz;
     int rc;
 
     STATS_INC(ble_gap_stats, adv_set_fields);
 
+    if (adv_fields->tx_pwr_lvl_is_present) {
+        max_sz = BLE_GAP_ADV_DATA_LIMIT_PWR;
+    } else {
+        max_sz = BLE_GAP_ADV_DATA_LIMIT_NO_PWR;
+    }
+
     rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
-                               &ble_gap_slave.adv_data_len,
-                               BLE_GAP_ADV_DATA_LIMIT);
-    if (rc != 0) {
+                               &ble_gap_slave.adv_data_len, max_sz);
+    if (rc == 0) {
+        ble_gap_slave.adv_pwr_lvl = adv_fields->tx_pwr_lvl_is_present;
+    } else {
         STATS_INC(ble_gap_stats, adv_set_fields_fail);
     }
 

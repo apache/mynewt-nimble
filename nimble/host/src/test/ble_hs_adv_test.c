@@ -176,6 +176,7 @@ TEST_CASE(ble_hs_adv_test_case_flags)
     memset(&rsp_fields, 0, sizeof rsp_fields);
 
     /* Default flags. */
+    adv_fields.tx_pwr_lvl_is_present = 1;
     ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON,
         &adv_fields,
         (struct ble_hs_adv_test_field[]) {
@@ -236,6 +237,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Complete 16-bit service class UUIDs. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
     adv_fields.num_uuids16 = 3;
     adv_fields.uuids16_is_complete = 1;
@@ -262,6 +264,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Incomplete 16-bit service class UUIDs. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
     adv_fields.num_uuids16 = 3;
     adv_fields.uuids16_is_complete = 0;
@@ -288,6 +291,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Complete 32-bit service class UUIDs. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
     adv_fields.num_uuids32 = 2;
     adv_fields.uuids32_is_complete = 1;
@@ -314,6 +318,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Incomplete 32-bit service class UUIDs. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
     adv_fields.num_uuids32 = 2;
     adv_fields.uuids32_is_complete = 0;
@@ -340,6 +345,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Complete 128-bit service class UUIDs. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uuids128 = (uint8_t[]) {
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
@@ -372,6 +378,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Incomplete 128-bit service class UUIDs. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uuids128 = (uint8_t[]) {
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
@@ -404,6 +411,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Complete name. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.name = (uint8_t *)"myname";
     adv_fields.name_len = 6;
     adv_fields.name_is_complete = 1;
@@ -430,6 +438,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Incomplete name. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.name = (uint8_t *)"myname";
     adv_fields.name_len = 6;
     adv_fields.name_is_complete = 0;
@@ -456,6 +465,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Class of device. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.device_class = (uint8_t[]){ 1,2,3 };
 
     ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &adv_fields,
@@ -480,6 +490,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** Slave interval range. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.slave_itvl_range = (uint8_t[]){ 1,2,3,4 };
 
     ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &adv_fields,
@@ -504,6 +515,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x16 - Service data - 16-bit UUID. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.svc_data_uuid16 = (uint8_t[]){ 1,2,3,4 };
     adv_fields.svc_data_uuid16_len = 4;
 
@@ -529,6 +541,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x17 - Public target address. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.public_tgt_addr = (uint8_t[]){ 1,2,3,4,5,6, 6,5,4,3,2,1 };
     adv_fields.num_public_tgt_addrs = 2;
 
@@ -554,6 +567,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x19 - Appearance. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.appearance = 0x1234;
     adv_fields.appearance_is_present = 1;
 
@@ -579,6 +593,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x1a - Advertising interval. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.adv_itvl = 0x1234;
     adv_fields.adv_itvl_is_present = 1;
 
@@ -604,6 +619,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x1b - LE bluetooth device address. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.le_addr = (uint8_t[]){ 1,2,3,4,5,6,7 };
 
     ble_hs_adv_test_misc_tx_and_verify_data(BLE_GAP_DISC_MODE_NON, &adv_fields,
@@ -628,6 +644,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x1c - LE role. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.le_role = BLE_HS_ADV_LE_ROLE_BOTH_PERIPH_PREF;
     adv_fields.le_role_is_present = 1;
 
@@ -653,6 +670,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x20 - Service data - 32-bit UUID. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.svc_data_uuid32 = (uint8_t[]){ 1,2,3,4,5 };
     adv_fields.svc_data_uuid32_len = 5;
 
@@ -678,6 +696,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x21 - Service data - 128-bit UUID. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.svc_data_uuid128 =
         (uint8_t[]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 };
     adv_fields.svc_data_uuid128_len = 18;
@@ -705,6 +724,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0x24 - URI. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.uri = (uint8_t[]){ 1,2,3,4 };
     adv_fields.uri_len = 4;
 
@@ -730,6 +750,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
 
     /*** 0xff - Manufacturer specific data. */
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.mfg_data = (uint8_t[]){ 1,2,3,4 };
     adv_fields.mfg_data_len = 4;
 
@@ -760,6 +781,7 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
     struct ble_hs_adv_fields adv_fields;
 
     memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
 
     /*** Complete 16-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
