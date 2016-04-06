@@ -67,6 +67,8 @@ struct ble_hs_dev {
     unsigned has_random_addr:1;
 };
 
+extern struct os_task ble_hs_task;
+
 extern struct ble_hs_dev ble_hs_our_dev;
 extern struct ble_hs_cfg ble_hs_cfg;
 
@@ -101,6 +103,24 @@ void ble_hs_misc_assert_no_locks(void);
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
 int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
+
+struct ble_hci_block_params {
+    uint16_t cmd_opcode;
+    uint8_t cmd_len;
+    void *cmd_data;
+
+    void *evt_buf;
+    uint8_t evt_buf_len;
+};
+
+struct ble_hci_block_result {
+    uint8_t evt_buf_len;
+    uint8_t evt_total_len;
+};
+
+int ble_hci_block_tx(struct ble_hci_block_params *params,
+                     struct ble_hci_block_result *result);
+void ble_hci_block_init(void);
 
 #define BLE_HS_LOG(lvl, ...) \
     LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)

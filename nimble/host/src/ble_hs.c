@@ -40,7 +40,7 @@ static struct log_handler ble_hs_log_console_handler;
 struct ble_hs_dev ble_hs_our_dev;
 struct log ble_hs_log;
 
-static struct os_task ble_hs_task;
+struct os_task ble_hs_task;
 static os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE] bssnz_t;
 
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
@@ -370,6 +370,8 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     if (rc != 0) {
         goto err;
     }
+
+    ble_hci_block_init();
 
     ble_hs_kick_hci_ev.ev_queued = 0;
     ble_hs_kick_hci_ev.ev_type = BLE_HS_KICK_HCI_EVENT;
