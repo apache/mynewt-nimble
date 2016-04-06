@@ -772,6 +772,7 @@ ble_gap_conn_broken(uint16_t conn_handle)
     ble_gap_unlock();
 
     ble_gattc_connection_broken(conn_handle);
+    ble_l2cap_sm_connection_broken(conn_handle);
 
     STATS_INC(ble_gap_stats, disconnect);
 }

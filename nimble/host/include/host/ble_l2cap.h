@@ -100,5 +100,6 @@ int ble_l2cap_sig_update(uint16_t conn_handle,
 
 
 int ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk);
+void ble_l2cap_sm_connection_broken(uint16_t conn_handle);
 
 #endif

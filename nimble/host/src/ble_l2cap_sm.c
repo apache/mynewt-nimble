@@ -283,6 +283,29 @@ ble_l2cap_sm_dispatch_get(uint8_t op)
     return ble_l2cap_sm_dispatch[op];
 }
 
+/* Indicates the handle of the specified proc's unserviced HCI reservation, if
+ * any.  If there is no such handle associated with the proc,
+ * BLE_HCI_SCHED_HANDLE_NONE is returned.
+ *
+ * Lock restrictions: None.
+ *
+ * @param proc                  The proc object to query.
+ *
+ * @return                      The HCI handle, or BLE_HCI_SCHED_HANDLE_NONE.
+ */
+static uint8_t
+ble_l2cap_sm_proc_outstanding_hci_handle(struct ble_l2cap_sm_proc *proc)
+{
+    switch (proc->fsm_proc.op) {
+    case BLE_L2CAP_SM_PROC_OP_LTK:
+    case BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED:
+        return proc->hci.handle;
+
+    default:
+        return BLE_HCI_SCHED_HANDLE_NONE;
+    }
+}
+
 /**
  * Allocates a proc entry.
  *
@@ -311,9 +334,22 @@ ble_l2cap_sm_proc_alloc(void)
 static void
 ble_l2cap_sm_proc_free(struct ble_fsm_proc *proc)
 {
+    struct ble_l2cap_sm_proc *sm_proc;
+    uint8_t hci_handle;
     int rc;
 
     if (proc != NULL) {
+        sm_proc = (struct ble_l2cap_sm_proc *)proc;
+
+        /* If this proc has an unserviced HCI reservation, cancel it before
+         * freeing the proc.
+         */
+        hci_handle = ble_l2cap_sm_proc_outstanding_hci_handle(sm_proc);
+        if (hci_handle != BLE_HCI_SCHED_HANDLE_NONE) {
+            rc = ble_hci_sched_cancel(hci_handle);
+            BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+        }
+
         rc = os_memblock_put(&ble_l2cap_sm_proc_pool, proc);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
@@ -687,6 +723,7 @@ ble_l2cap_sm_random_kick(struct ble_l2cap_sm_proc *proc)
     }
 
     if (!(proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR)) {
+        proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
         proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_LTK;
     }
 
@@ -781,6 +818,11 @@ ble_l2cap_sm_lt_key_req_reply_tx(void *arg)
 
     BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
 
+    /* Indicate that the HCI reservation has been serviced.  If there is a
+     * failure, we shouldn't try to cancel the reservation.
+     */
+    proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
+
     cmd.conn_handle = proc->fsm_proc.conn_handle;
     memcpy(cmd.long_term_key, proc->hci.key, 16);
 
@@ -837,7 +879,13 @@ ble_l2cap_sm_start_encrypt_tx(void *arg)
 
     proc = arg;
 
-    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
+    BLE_HS_DBG_ASSERT(proc->fsm_proc.op ==
+                      BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
+
+    /* Indicate that the HCI reservation has been serviced.  If there is a
+     * failure, we shouldn't try to cancel the reservation.
+     */
+    proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
 
     cmd.connection_handle = proc->fsm_proc.conn_handle;
     cmd.encrypted_diversifier = ble_l2cap_sm_gen_ediv();
@@ -862,6 +910,7 @@ ble_l2cap_sm_start_encrypt_kick(struct ble_l2cap_sm_proc *proc)
         return BLE_HS_EDONE;
     }
 
+    proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
     proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED;
 
     return 0;
@@ -1239,7 +1288,7 @@ ble_l2cap_sm_heartbeat(void)
                               ble_l2cap_sm_proc_extract_expired_cb, NULL);
 
     /* Notify application of each failure and free the corresponding procedure
-     * objects.
+     * object.
      */
     while ((fsm_proc = STAILQ_FIRST(&exp_list)) != NULL) {
         proc = (struct ble_l2cap_sm_proc *)fsm_proc;
@@ -1325,6 +1374,36 @@ ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk)
     ble_l2cap_sm_proc_set_pending(proc);
 
     return 0;
+}
+
+void
+ble_l2cap_sm_connection_broken(uint16_t conn_handle)
+{
+    struct ble_fsm_proc_list list;
+    struct ble_l2cap_sm_proc *proc;
+    struct ble_fsm_proc *fsm_proc;
+
+    /* Extract all procs associated with the broken connection and insert them
+     * into the temporary list.
+     */
+    ble_fsm_proc_extract_list(
+        &ble_l2cap_sm_fsm, &list, ble_l2cap_sm_proc_extract_cb,
+        &(struct ble_l2cap_sm_extract_arg) {
+            .conn_handle = conn_handle,
+            .op = BLE_L2CAP_SM_PROC_OP_NONE,
+            .initiator = -1,
+        }
+    );
+
+    /* Free each affected procedure object.  There is no need to notify the
+     * application, as it has already been notified of the connection failure.
+     */
+    while ((fsm_proc = STAILQ_FIRST(&list)) != NULL) {
+        proc = (struct ble_l2cap_sm_proc *)fsm_proc;
+
+        STAILQ_REMOVE_HEAD(&list, next);
+        ble_l2cap_sm_proc_free(&proc->fsm_proc);
+    }
 }
 
 /**
