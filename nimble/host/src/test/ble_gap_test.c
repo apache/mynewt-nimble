@@ -1205,6 +1205,7 @@ ble_gap_test_util_adv(uint8_t disc_mode, uint8_t conn_mode,
                       int cmd_fail_idx, uint8_t hci_status)
 {
     struct hci_le_conn_complete evt;
+    struct ble_hs_adv_fields adv_fields;
     int cmd_idx;
     int rc;
 
@@ -1212,6 +1213,13 @@ ble_gap_test_util_adv(uint8_t disc_mode, uint8_t conn_mode,
     cmd_idx = 0;
 
     TEST_ASSERT(!ble_gap_slave_in_progress());
+
+    if (conn_mode != BLE_GAP_CONN_MODE_DIR) {
+        memset(&adv_fields, 0, sizeof adv_fields);
+        adv_fields.tx_pwr_lvl_is_present = 1;
+        rc = ble_gap_adv_set_fields(&adv_fields);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
 
     rc = ble_gap_adv_start(disc_mode, conn_mode, peer_addr, peer_addr_type,
                            NULL, ble_gap_test_util_connect_cb, NULL);
