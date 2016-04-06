@@ -747,6 +747,12 @@ host_hci_data_rx(struct os_mbuf *om)
 }
 
 uint16_t
+host_hci_opcode_join(uint8_t ogf, uint16_t ocf)
+{
+    return (ogf << 10) | ocf;
+}
+
+uint16_t
 host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
 {
     BLE_HS_DBG_ASSERT(handle <= 0x0fff);
