@@ -105,6 +105,7 @@ struct ble_hs_cfg {
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
+int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
 int ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg);
 
 #endif
