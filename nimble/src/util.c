@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -99,7 +99,7 @@ le64toh(void *buf)
     x |= (uint64_t)u8ptr[4] << 32;
     x |= (uint64_t)u8ptr[5] << 40;
     x |= (uint64_t)u8ptr[6] << 48;
-    x |= (uint64_t)u8ptr[7] << 54;
+    x |= (uint64_t)u8ptr[7] << 56;
 
     return x;
 }
