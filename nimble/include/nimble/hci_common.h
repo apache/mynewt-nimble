@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -22,9 +22,9 @@
 
 #include "ble.h"
 
-/* 
+/*
  * HCI Command Header
- * 
+ *
  * Comprises the following fields
  *  -> Opcode group field & Opcode command field (2)
  *  -> Parameter Length                          (1)
@@ -48,7 +48,7 @@
 #define BLE_HCI_OGF_TESTING                 (0x06)
 #define BLE_HCI_OGF_LE                      (0x08)
 
-/* 
+/*
  * Number of LE commands. NOTE: this is really just used to size the array
  * containing the lengths of the LE commands.
  */
@@ -196,11 +196,11 @@
 #define BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT  (3)
 #define BLE_HCI_CONN_PEER_ADDR_MAX           (3)
 
-/* 
+/*
  * Advertising filter policy
- * 
+ *
  * Determines how an advertiser filters scan and connection requests.
- * 
+ *
  *  NONE: no filtering (default value). No whitelist used.
  *  SCAN: process all connection requests but only scans from white list.
  *  CONN: process all scan request but only connection requests from white list
@@ -237,7 +237,7 @@
 #define BLE_HCI_SCAN_WINDOW_MAX             (16384)         /* units */
 #define BLE_HCI_SCAN_WINDOW_DEF             (16)            /* units */
 
-/* 
+/*
  * Scanning filter policy
  *  NO_WL:
  *      Scanner processes all advertising packets (white list not used) except
@@ -264,7 +264,7 @@
 #define BLE_HCI_CHG_WHITE_LIST_LEN          (7)
 
 /* Create Connection */
-#define BLE_HCI_CREATE_CONN_LEN             (25)             
+#define BLE_HCI_CREATE_CONN_LEN             (25)
 #define BLE_HCI_CONN_ITVL                   (1250)  /* usecs */
 #define BLE_HCI_CONN_FILT_NO_WL             (0)
 #define BLE_HCI_CONN_FILT_USE_WL            (1)
@@ -452,7 +452,7 @@
 #define BLE_HCI_ADV_RPT_EVTYPE_DIR_IND      (1)
 #define BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND     (2)
 #define BLE_HCI_ADV_RPT_EVTYPE_NONCONN_IND  (3)
-#define BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP     (5)
+#define BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP     (4)
 
 /* LE sub-event specific definitions */
 #define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */
@@ -523,7 +523,7 @@ struct hci_adv_params
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
     uint8_t adv_filter_policy;
-    uint16_t adv_itvl_min; 
+    uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 };
