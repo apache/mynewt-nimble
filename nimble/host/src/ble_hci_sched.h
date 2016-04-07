@@ -39,7 +39,6 @@ int ble_hci_sched_enqueue(ble_hci_sched_tx_fn *tx_cb, void *tx_cb_arg,
                           uint8_t *out_hci_handle);
 int ble_hci_sched_cancel(uint8_t handle);
 void ble_hci_sched_wakeup(void);
-void ble_hci_sched_transaction_complete(void);
 void ble_hci_sched_rx_ack(struct ble_hci_ack *ack);
 void ble_hci_sched_set_ack_cb(ble_hci_sched_ack_fn *cb, void *arg);
 ble_hci_sched_ack_fn *ble_hci_sched_get_ack_cb(void);

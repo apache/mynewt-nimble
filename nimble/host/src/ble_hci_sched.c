@@ -357,7 +357,7 @@ ble_hci_sched_wakeup(void)
  * Lock restrictions:
  *     o Caller unlocks hci_sched.
  */
-void
+static void
 ble_hci_sched_transaction_complete(void)
 {
     struct ble_hci_sched_entry *entry;

@@ -294,8 +294,6 @@ ble_l2cap_sm_test_util_verify_tx_lt_key_req_reply(uint16_t conn_handle,
     uint8_t param_len;
     uint8_t *param;
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_hci_tx != NULL);
-
     param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY,
                                            &param_len);
@@ -336,8 +334,6 @@ ble_l2cap_sm_test_util_verify_tx_start_enc(uint16_t conn_handle,
 {
     uint8_t param_len;
     uint8_t *param;
-
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_hci_tx != NULL);
 
     param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_START_ENCRYPT,

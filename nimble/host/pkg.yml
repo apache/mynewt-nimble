@@ -40,5 +40,6 @@ pkg.req_apis:
 pkg.deps.SELFTEST: libs/console/stub
 pkg.cflags.SELFTEST:
     - -DPHONY_TRANSPORT=1
+    - -DPHONY_HCI_ACKS=1
     - -DNIMBLE_OPT_SM=1
 pkg.cflags.TEST: -DBLE_HS_DEBUG

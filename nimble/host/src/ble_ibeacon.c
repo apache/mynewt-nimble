@@ -25,10 +25,10 @@
 int
 ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
 {
-    struct ble_hci_block_params params;
     struct ble_hci_block_result result;
     struct ble_hs_adv_fields fields;
     uint8_t buf[BLE_IBEACON_MFG_DATA_SIZE];
+    uint8_t hci_cmd[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
     /** Company identifier (Apple). */
@@ -48,13 +48,10 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
 
     /** Last byte (tx power level) filled in after HCI exchange. */
 
-    memset(&params, 0, sizeof params);
-    params.cmd_opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                             BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR);
-    params.evt_buf = buf + 24;
-    params.evt_buf_len = 1;
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR, 0,
+                       hci_cmd);
 
-    rc = ble_hci_block_tx(&params, &result);
+    rc = ble_hci_block_tx(hci_cmd, buf + 24, 1, &result);
     if (rc != 0) {
         return rc;
     }

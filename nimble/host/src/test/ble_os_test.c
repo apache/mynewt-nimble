@@ -106,13 +106,9 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(ble_hs_conn_first() == NULL);
 
     /* Initiate a direct connection. */
-    ble_gap_conn_initiate(0, addr, NULL,
-                          ble_gap_direct_connect_test_connect_cb, &cb_called);
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
-    TEST_ASSERT(!cb_called);
-
-    /* Receive an ack for the HCI create-connection command. */
-    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
+    ble_hs_test_util_conn_initiate(0, addr, NULL,
+                                   ble_gap_direct_connect_test_connect_cb,
+                                   &cb_called, 0);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(!cb_called);
 
@@ -181,17 +177,17 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Initiate the general discovery procedure with a 200 ms timeout. */
-    rc = ble_gap_disc(200, BLE_GAP_DISC_MODE_GEN, BLE_HCI_SCAN_TYPE_ACTIVE,
-                      BLE_HCI_SCAN_FILT_NO_WL,
-                      ble_gap_gen_disc_test_connect_cb, &cb_called);
+    rc = ble_hs_test_util_disc(200, BLE_GAP_DISC_MODE_GEN,
+                               BLE_HCI_SCAN_TYPE_ACTIVE,
+                               BLE_HCI_SCAN_FILT_NO_WL,
+                               ble_gap_gen_disc_test_connect_cb,
+                               &cb_called, 0, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
 
     /* Receive acks from the controller. */
-    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_SET_SCAN_PARAMS, 0);
-    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_SET_SCAN_ENABLE, 0);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
@@ -270,9 +266,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Create two direct connections. */
-    ble_gap_conn_initiate(0, addr1, NULL, ble_gap_terminate_cb,
-                          &disconn_handle);
-    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
+    ble_hs_test_util_conn_initiate(0, addr1, NULL, ble_gap_terminate_cb,
+                                   &disconn_handle, 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     conn_evt.status = BLE_ERR_SUCCESS;
@@ -281,9 +276,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     rc = ble_gap_rx_conn_complete(&conn_evt);
     TEST_ASSERT(rc == 0);
 
-    ble_gap_conn_initiate(0, addr2, NULL, ble_gap_terminate_cb,
-                          &disconn_handle);
-    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_CREATE_CONN, 0);
+    ble_hs_test_util_conn_initiate(0, addr2, NULL, ble_gap_terminate_cb,
+                                   &disconn_handle, 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     conn_evt.status = BLE_ERR_SUCCESS;
@@ -296,10 +290,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT_FATAL(ble_hs_conn_find(2) != NULL);
 
     /* Terminate the first one. */
-    rc = ble_gap_terminate(1);
+    rc = ble_hs_test_util_conn_terminate(1, 0);
     TEST_ASSERT(rc == 0);
-    ble_os_test_misc_rx_ack(BLE_HCI_OGF_LINK_CTRL, BLE_HCI_OCF_DISCONNECT_CMD,
-                            0);
     disconn_evt.connection_handle = 1;
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
@@ -309,10 +301,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT(ble_hs_conn_find(2) != NULL);
 
     /* Terminate the second one. */
-    rc = ble_gap_terminate(2);
+    rc = ble_hs_test_util_conn_terminate(2, 0);
     TEST_ASSERT(rc == 0);
-    ble_os_test_misc_rx_ack(BLE_HCI_OGF_LINK_CTRL, BLE_HCI_OCF_DISCONNECT_CMD,
-                             0);
     disconn_evt.connection_handle = 2;
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;

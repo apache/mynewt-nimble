@@ -2115,7 +2115,6 @@ TEST_SUITE(ble_att_svr_suite)
 int
 ble_att_svr_test_all(void)
 {
-    tu_config.tc_system_assert = 1;
     ble_att_svr_suite();
 
     return tu_any_failed;

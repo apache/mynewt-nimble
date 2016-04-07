@@ -34,37 +34,24 @@
 
 #define BLE_GAP_OP_S_ADV                                1
 
-#define BLE_GAP_OP_W_SET                                1
-
 /** Discovery master states. */
-#define BLE_GAP_STATE_M_DISC_PARAMS                     0
-#define BLE_GAP_STATE_M_DISC_ENABLE                     1
-#define BLE_GAP_STATE_M_DISC_ACKED                      2
-#define BLE_GAP_STATE_M_DISC_DISABLE                    3
+#define BLE_GAP_STATE_M_DISC_PENDING                    0
+#define BLE_GAP_STATE_M_DISC_ACTIVE                     1
+#define BLE_GAP_STATE_M_DISC_DISABLE                    2
 
 /** Connect master states. */
-#define BLE_GAP_STATE_M_PENDING                         0
-#define BLE_GAP_STATE_M_UNACKED                         1
-#define BLE_GAP_STATE_M_ACKED                           2
+#define BLE_GAP_STATE_M_CONN_PENDING                    0
+#define BLE_GAP_STATE_M_CONN_ACTIVE                     1
 
-/** Slave states. */
-#define BLE_GAP_STATE_S_PARAMS                          0
-#define BLE_GAP_STATE_S_POWER                           1
-#define BLE_GAP_STATE_S_ADV_DATA                        2
-#define BLE_GAP_STATE_S_RSP_DATA                        3
-#define BLE_GAP_STATE_S_ENABLE                          4
-#define BLE_GAP_STATE_S_ADV                             5
-
-/** White list states. */
-#define BLE_GAP_STATE_W_CLEAR                           0
-#define BLE_GAP_STATE_W_ADD                             1
+/** Advertise slave states. */
+#define BLE_GAP_STATE_S_ADV_PENDING                     0
+#define BLE_GAP_STATE_S_ADV_ACTIVE                      1
 
 /** Connection update states. */
 #define BLE_GAP_STATE_U_UPDATE                          0
-#define BLE_GAP_STATE_U_UPDATE_ACKED                    1
-#define BLE_GAP_STATE_U_REPLY                           2
-#define BLE_GAP_STATE_U_REPLY_ACKED                     3
-#define BLE_GAP_STATE_U_NEG_REPLY                       4
+#define BLE_GAP_STATE_U_REPLY                           1
+#define BLE_GAP_STATE_U_REPLY_ACKED                     2
+#define BLE_GAP_STATE_U_NEG_REPLY                       3
 
 /**
  * The maximum amount of user data that can be put into the advertising data.
@@ -106,7 +93,6 @@ static const struct hci_adv_params ble_gap_adv_params_dflt = {
 static bssnz_t struct {
     uint8_t op;
     uint8_t state;
-    uint8_t hci_handle;
 
     unsigned exp_set:1;
     uint32_t exp_os_ticks;
@@ -140,7 +126,6 @@ static bssnz_t struct {
     uint8_t conn_mode;
     uint8_t state;
     uint8_t disc_mode;
-    uint8_t hci_handle;
     ble_gap_conn_fn *cb;
     void *cb_arg;
 
@@ -158,18 +143,6 @@ static bssnz_t struct {
     unsigned adv_pwr_lvl:1;
 } ble_gap_slave;
 
-static bssnz_t struct {
-    ble_gap_wl_fn *cb;
-    void *cb_arg;
-
-    struct ble_gap_white_entry *entries;
-    uint8_t op;
-    uint8_t state;
-    uint8_t count;
-    uint8_t cur;
-    uint8_t hci_handle;
-} ble_gap_wl;
-
 struct ble_gap_update_entry {
     SLIST_ENTRY(ble_gap_update_entry) next;
     struct ble_gap_upd_params params;
@@ -183,22 +156,7 @@ static SLIST_HEAD(, ble_gap_update_entry) ble_gap_update_entries;
 static void *ble_gap_update_mem;
 static struct os_mempool ble_gap_update_pool;
 
-static int ble_gap_adv_params_tx(void *arg);
-static int ble_gap_adv_power_tx(void *arg);
-static int ble_gap_adv_data_tx(void *arg);
-static int ble_gap_adv_rsp_data_tx(void *arg);
-static int ble_gap_adv_enable_tx(void *arg);
-static int ble_gap_wl_tx_add(void *arg);
 static int ble_gap_disc_tx_disable(void *arg);
-
-static ble_hci_sched_tx_fn * const ble_gap_dispatch_adv_und[] = {
-    [BLE_GAP_STATE_S_PARAMS]   = ble_gap_adv_params_tx,
-    [BLE_GAP_STATE_S_POWER]    = ble_gap_adv_power_tx,
-    [BLE_GAP_STATE_S_ADV_DATA] = ble_gap_adv_data_tx,
-    [BLE_GAP_STATE_S_RSP_DATA] = ble_gap_adv_rsp_data_tx,
-    [BLE_GAP_STATE_S_ENABLE]   = ble_gap_adv_enable_tx,
-    [BLE_GAP_STATE_S_ADV]      = NULL,
-};
 
 struct ble_gap_snapshot {
     struct ble_gap_conn_desc desc;
@@ -320,15 +278,16 @@ ble_gap_log_update(struct ble_gap_update_entry *entry)
 }
 
 static void
-ble_gap_log_wl(void)
+ble_gap_log_wl(struct ble_gap_white_entry *white_list,
+               uint8_t white_list_count)
 {
     struct ble_gap_white_entry *entry;
     int i;
 
-    BLE_HS_LOG(INFO, "count=%d ", ble_gap_wl.count);
+    BLE_HS_LOG(INFO, "count=%d ", white_list_count);
 
-    for (i = 0; i < ble_gap_wl.count; i++) {
-        entry = ble_gap_wl.entries + i;
+    for (i = 0; i < white_list_count; i++) {
+        entry = white_list + i;
 
         BLE_HS_LOG(INFO, "entry-%d={addr_type=%d addr=", i, entry->addr_type);
         BLE_HS_LOG_ADDR(INFO, entry->addr);
@@ -421,6 +380,7 @@ ble_gap_find_snapshot(uint16_t handle, struct ble_gap_snapshot *snap)
 static void
 ble_gap_master_reset_state(void)
 {
+    ble_gap_master.state = BLE_GAP_STATE_NULL;
     ble_gap_master.op = BLE_GAP_OP_NULL;
 }
 
@@ -431,6 +391,7 @@ ble_gap_master_reset_state(void)
 static void
 ble_gap_slave_reset_state(void)
 {
+    ble_gap_slave.state = BLE_GAP_STATE_NULL;
     ble_gap_slave.op = BLE_GAP_OP_NULL;
 }
 
@@ -584,31 +545,6 @@ ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
-static void
-ble_gap_call_wl_cb(int status, int reset_state)
-{
-    ble_gap_wl_fn *cb;
-    void *cb_arg;
-
-    ble_gap_lock();
-
-    cb = ble_gap_wl.cb;
-    cb_arg = ble_gap_wl.cb_arg;
-
-    if (reset_state) {
-        ble_gap_wl.op = BLE_GAP_OP_NULL;
-    }
-
-    ble_gap_unlock();
-
-    if (cb != NULL) {
-        cb(status, cb_arg);
-    }
-}
-
-/**
  * Lock restrictions:
  *     o Caller locks gap.
  */
@@ -627,20 +563,12 @@ ble_gap_update_find(uint16_t conn_handle)
 }
 
 /**
- * Lock restrictions:
- *     o Caller unlocks gap.
+ * Lock restrictions: None.
  */
 static struct ble_gap_update_entry *
-ble_gap_update_entry_alloc(uint16_t conn_handle,
-                           struct ble_gap_upd_params *params, int state)
+ble_gap_update_entry_alloc(void)
 {
     struct ble_gap_update_entry *entry;
-
-#ifdef BLE_HS_DEBUG
-    ble_gap_lock();
-    BLE_HS_DBG_ASSERT(ble_gap_update_find(conn_handle) == NULL);
-    ble_gap_unlock();
-#endif
 
     entry = os_memblock_get(&ble_gap_update_pool);
     if (entry == NULL) {
@@ -648,9 +576,6 @@ ble_gap_update_entry_alloc(uint16_t conn_handle,
     }
 
     memset(entry, 0, sizeof *entry);
-    entry->conn_handle = conn_handle;
-    entry->params = *params;
-    entry->state = state;
 
     return entry;
 }
@@ -979,61 +904,12 @@ ble_gap_slave_set_op(uint8_t op)
 }
 
 /**
- * Lock restrictions:
- *     o Caller unlocks gap.
- */
-static int
-ble_gap_wl_set_op(uint8_t op)
-{
-    int rc;
-
-    ble_gap_lock();
-
-    if (ble_gap_wl_busy()) {
-        rc = BLE_HS_EBUSY;
-    } else {
-        ble_gap_wl.op = op;
-        rc = 0;
-    }
-
-    ble_gap_unlock();
-
-    return rc;
-}
-
-/**
  * Lock restrictions: None.
  */
 static int
 ble_gap_currently_advertising(void)
 {
-    return ble_gap_slave.op == BLE_GAP_OP_S_ADV &&
-           ble_gap_slave.state == BLE_GAP_STATE_S_ADV;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static int
-ble_gap_master_enqueue(uint8_t state, int in_progress,
-                       ble_hci_sched_tx_fn *hci_tx_cb, void *cb_arg)
-{
-    int rc;
-
-    ble_hs_misc_assert_no_locks();
-
-    ble_gap_master.state = state;
-    rc = ble_hci_sched_enqueue(hci_tx_cb, cb_arg, &ble_gap_master.hci_handle);
-    if (rc != 0) {
-        if (in_progress) {
-            ble_gap_master_failed(rc);
-        } else {
-            ble_gap_master_reset_state();
-        }
-    }
-
-    return rc;
+    return ble_gap_slave.op == BLE_GAP_OP_S_ADV;
 }
 
 /**
@@ -1067,7 +943,7 @@ ble_gap_accept_master_conn(uint8_t addr_type, uint8_t *addr)
         break;
 
     case BLE_GAP_OP_M_CONN:
-        if (ble_gap_master.state != BLE_GAP_STATE_M_ACKED) {
+        if (ble_gap_master.state != BLE_GAP_STATE_M_CONN_ACTIVE) {
             rc = BLE_HS_ENOENT;
         } else if (ble_gap_master.conn.addr_type == BLE_GAP_ADDR_TYPE_WL ||
                    (addr_type == ble_gap_master.conn.addr_type &&
@@ -1169,7 +1045,7 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
     STATS_INC(ble_gap_stats, rx_adv_report);
 
     if (ble_gap_master.op      != BLE_GAP_OP_M_DISC ||
-        ble_gap_master.state   != BLE_GAP_STATE_M_DISC_ACKED) {
+        ble_gap_master.state   != BLE_GAP_STATE_M_DISC_ACTIVE) {
 
         return;
     }
@@ -1187,7 +1063,7 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
     }
 
     ble_gap_call_master_disc_cb(BLE_GAP_EVENT_DISC_SUCCESS, 0, adv,
-                                     &fields, 0);
+                                &fields, 0);
 }
 
 /**
@@ -1359,8 +1235,7 @@ void
 ble_gap_heartbeat(void)
 {
     int timer_expired;
-
-    ble_gap_lock();
+    int rc;
 
     if (ble_gap_master.op != BLE_GAP_OP_NULL &&
         ble_gap_master.exp_set &&
@@ -1374,14 +1249,15 @@ ble_gap_heartbeat(void)
         timer_expired = 0;
     }
 
-    ble_gap_unlock();
-
     if (timer_expired) {
         switch (ble_gap_master.op) {
         case BLE_GAP_OP_M_DISC:
             /* When a discovery procedure times out, it is not a failure. */
-            ble_gap_master_enqueue(BLE_GAP_STATE_M_DISC_DISABLE, 1,
-                                   ble_gap_disc_tx_disable, NULL);
+            ble_gap_master.state = BLE_GAP_STATE_M_DISC_DISABLE;
+            rc = ble_hci_sched_enqueue(ble_gap_disc_tx_disable, NULL, NULL);
+            if (rc != 0) {
+                ble_gap_master_failed(rc);
+            }
             break;
 
         default:
@@ -1396,31 +1272,41 @@ ble_gap_heartbeat(void)
  *****************************************************************************/
 
 /**
- * XXX: This should be static, as it requires the private gap mutex to be
- * locked.  Currently only called by gap code and test code.
- *
- * Lock restrictions:
- *     o Caller locks gap.
+ * Lock restrictions: None.
  */
-int
+static int
 ble_gap_wl_busy(void)
 {
 #if !NIMBLE_OPT_WHITELIST
     return BLE_HS_ENOTSUP;
 #endif
 
-    /* Check if application is currently setting the white list. */
-    if (ble_gap_wl.op != BLE_GAP_OP_NULL) {
-        return 1;
-    }
-
     /* Check if an auto or selective connection establishment procedure is in
      * progress.
      */
-    if (ble_gap_master.op == BLE_GAP_OP_M_CONN &&
-        ble_gap_master.conn.addr_type == BLE_GAP_ADDR_TYPE_WL) {
+    return ble_gap_master.op == BLE_GAP_OP_M_CONN &&
+           ble_gap_master.conn.addr_type == BLE_GAP_ADDR_TYPE_WL;
+}
 
-        return 1;
+/**
+ * Lock restrictions:
+ *     o Caller unlocks all ble_hs mutexes.
+ */
+static int
+ble_gap_wl_tx_add(struct ble_gap_white_entry *entry)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CHG_WHITE_LIST_LEN];
+    int rc;
+
+    rc = host_hci_cmd_build_le_add_to_whitelist(entry->addr, entry->addr_type,
+                                                buf, sizeof buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
     }
 
     return 0;
@@ -1431,118 +1317,15 @@ ble_gap_wl_busy(void)
  *     o Caller unlocks all ble_hs mutexes.
  */
 static int
-ble_gap_wl_enqueue(uint8_t state, int in_progress,
-                   ble_hci_sched_tx_fn *hci_tx_cb, void *cb_arg)
+ble_gap_wl_tx_clear(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    ble_gap_wl.state = state;
-    rc = ble_hci_sched_enqueue(hci_tx_cb, cb_arg, &ble_gap_wl.hci_handle);
+    host_hci_cmd_le_build_clear_whitelist(buf, sizeof buf);
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
-        if (in_progress) {
-            ble_gap_call_wl_cb(rc, 1);
-        } else {
-            ble_gap_wl.op = BLE_GAP_OP_NULL;
-        }
-    }
-
-    return rc;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static void
-ble_gap_wl_ack_add(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_wl.op == BLE_GAP_OP_W_SET);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.state == BLE_GAP_STATE_W_ADD);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_wl.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_call_wl_cb(ack->bha_status, 1);
-        return;
-    }
-
-    ble_gap_wl.cur++;
-    if (ble_gap_wl.cur < ble_gap_wl.count) {
-        ble_gap_wl_enqueue(BLE_GAP_STATE_W_ADD, 1, ble_gap_wl_tx_add, NULL);
-    } else {
-        /* Success. */
-        ble_gap_call_wl_cb(0, 1);
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static int
-ble_gap_wl_tx_add(void *arg)
-{
-    struct ble_gap_white_entry *white_entry;
-    int rc;
-
-    BLE_HS_DBG_ASSERT(ble_gap_wl.op == BLE_GAP_OP_W_SET);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.state == BLE_GAP_STATE_W_ADD);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.entries != NULL);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.cur < ble_gap_wl.count);
-
-    ble_hci_sched_set_ack_cb(ble_gap_wl_ack_add, NULL);
-
-    white_entry = ble_gap_wl.entries + ble_gap_wl.cur;
-    rc = host_hci_cmd_le_add_to_whitelist(white_entry->addr,
-                                          white_entry->addr_type);
-    if (rc != 0) {
-        ble_gap_call_wl_cb(rc, 1);
-        return 1;
-    }
-
-    return 0;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static void
-ble_gap_wl_ack_clear(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_wl.op == BLE_GAP_OP_W_SET);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.state == BLE_GAP_STATE_W_CLEAR);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_wl.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_call_wl_cb(ack->bha_status, 1);
-        return;
-    }
-
-    ble_gap_wl_enqueue(BLE_GAP_STATE_W_ADD, 1, ble_gap_wl_tx_add, NULL);
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static int
-ble_gap_wl_tx_clear(void *arg)
-{
-    int rc;
-
-    BLE_HS_DBG_ASSERT(ble_gap_wl.op == BLE_GAP_OP_W_SET);
-    BLE_HS_DBG_ASSERT(ble_gap_wl.state == BLE_GAP_STATE_W_CLEAR);
-
-    ble_hci_sched_set_ack_cb(ble_gap_wl_ack_clear, NULL);
-
-    rc = host_hci_cmd_le_clear_whitelist();
-    if (rc != 0) {
-        ble_gap_call_wl_cb(rc, 1);
-        return 1;
+        return rc;
     }
 
     return 0;
@@ -1554,7 +1337,7 @@ ble_gap_wl_tx_clear(void *arg)
  */
 int
 ble_gap_wl_set(struct ble_gap_white_entry *white_list,
-               uint8_t white_list_count, ble_gap_wl_fn *cb, void *cb_arg)
+               uint8_t white_list_count)
 {
 #if !NIMBLE_OPT_WHITELIST
     return BLE_HS_ENOTSUP;
@@ -1565,7 +1348,7 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
 
     STATS_INC(ble_gap_stats, wl_set);
 
-    if (white_list_count <= 0) {
+    if (white_list_count == 0) {
         rc = BLE_HS_EINVAL;
         goto done;
     }
@@ -1579,27 +1362,27 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
         }
     }
 
-    rc = ble_gap_wl_set_op(BLE_GAP_OP_W_SET);
+    if (ble_gap_wl_busy()) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
+    rc = ble_gap_wl_tx_clear();
     if (rc != 0) {
         goto done;
     }
 
-    ble_gap_wl.cb = cb;
-    ble_gap_wl.cb_arg = cb_arg;
-    ble_gap_wl.entries = white_list;
-    ble_gap_wl.count = white_list_count;
-    ble_gap_wl.cur = 0;
-
-    rc = ble_gap_wl_enqueue(BLE_GAP_STATE_W_CLEAR, 0,
-                            ble_gap_wl_tx_clear, NULL);
-    if (rc != 0) {
-        goto done;
+    for (i = 0; i < white_list_count; i++) {
+        rc = ble_gap_wl_tx_add(white_list + i);
+        if (rc != 0) {
+            goto done;
+        }
     }
 
 done:
     if (rc == 0) {
         BLE_HS_LOG(INFO, "GAP procedure initiated: set whitelist; ");
-        ble_gap_log_wl();
+        ble_gap_log_wl(white_list, white_list_count);
         BLE_HS_LOG(INFO, "\n");
     } else {
         STATS_INC(ble_gap_stats, wl_set_fail);
@@ -1616,35 +1399,16 @@ done:
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_adv_ack_disable(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_slave.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_slave.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status == 0) {
-        /* Advertising should now be aborted. */
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_FINISHED, 0, 1);
-    } else {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_STOP, ack->bha_status, 0);
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
-ble_gap_adv_disable_tx(void *arg)
+ble_gap_adv_disable_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_ENABLE_LEN];
     int rc;
 
-    ble_hci_sched_set_ack_cb(ble_gap_adv_ack_disable, NULL);
-    rc = host_hci_cmd_le_set_adv_enable(0);
-    if (rc != BLE_ERR_SUCCESS) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV_STOP, BLE_HS_HCI_ERR(rc), 0);
-        return 1;
+    host_hci_cmd_build_le_set_adv_enable(0, buf, sizeof buf);
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
     }
 
     return 0;
@@ -1671,11 +1435,12 @@ ble_gap_adv_stop(void)
         goto done;
     }
 
-    rc = ble_hci_sched_enqueue(ble_gap_adv_disable_tx, NULL,
-                               &ble_gap_slave.hci_handle);
+    rc = ble_gap_adv_disable_tx();
     if (rc != 0) {
         goto done;
     }
+
+    ble_gap_slave_reset_state();
 
 done:
     if (rc == 0) {
@@ -1723,120 +1488,20 @@ ble_gap_adv_itvls(uint8_t disc_mode, uint8_t conn_mode,
 }
 
 /**
- * Lock restrictions: None.
- */
-static ble_hci_sched_tx_fn *
-ble_gap_adv_get_dispatch(void)
-{
-    return ble_gap_dispatch_adv_und[ble_gap_slave.state];
-}
-
-static int
-ble_gap_adv_should_exec_state(void)
-{
-    switch (ble_gap_slave.state) {
-    case BLE_GAP_STATE_S_PARAMS:
-        return 1;
-
-    case BLE_GAP_STATE_S_POWER:
-        return ble_gap_slave.adv_pwr_lvl;
-
-    case BLE_GAP_STATE_S_ADV_DATA:
-        return ble_gap_slave.conn_mode != BLE_GAP_CONN_MODE_DIR;
-
-    case BLE_GAP_STATE_S_RSP_DATA:
-        return ble_gap_slave.conn_mode != BLE_GAP_CONN_MODE_DIR;
-
-    case BLE_GAP_STATE_S_ENABLE:
-        return 1;
-
-    case BLE_GAP_STATE_S_ADV:
-        return 1;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        return 1;
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static void
-ble_gap_adv_next_state(void)
-{
-    ble_hci_sched_tx_fn *tx_fn;
-    int rc;
-
-    do {
-        ble_gap_slave.state++;
-    } while (!ble_gap_adv_should_exec_state());
-
-    tx_fn = ble_gap_adv_get_dispatch();
-    if (tx_fn != NULL) {
-        rc = ble_hci_sched_enqueue(tx_fn, NULL, &ble_gap_slave.hci_handle);
-        if (rc != 0) {
-            ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, rc, 1);
-        }
-    } else {
-        /* Procedure complete; indicate success to the application. */
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, 0, 0);
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static void
-ble_gap_adv_ack(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_slave.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_slave.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, ack->bha_status, 1);
-    } else {
-        ble_gap_adv_next_state();
-    }
-}
-
-/**
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
 static int
-ble_gap_adv_enable_tx(void *arg)
+ble_gap_adv_enable_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_PARAM_LEN];
     int rc;
 
-    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
-    rc = host_hci_cmd_le_set_adv_enable(1);
-    if (rc != BLE_ERR_SUCCESS) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, BLE_HS_HCI_ERR(rc), 1);
-        return 1;
-    }
+    host_hci_cmd_build_le_set_adv_enable(1, buf, sizeof buf);
 
-    return 0;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static int
-ble_gap_adv_rsp_data_tx(void *arg)
-{
-    int rc;
-
-    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
-    rc = host_hci_cmd_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
-                                           ble_gap_slave.rsp_data_len);
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, BLE_HS_HCI_ERR(rc), 1);
-        return 1;
+        return rc;
     }
 
     return 0;
@@ -1847,13 +1512,37 @@ ble_gap_adv_rsp_data_tx(void *arg)
  *     o Caller unlocks all ble_hs mutexes.
  */
 static int
-ble_gap_adv_data_tx(void *arg)
+ble_gap_adv_rsp_data_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
+    int rc;
+
+    rc = host_hci_cmd_build_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
+                                                 ble_gap_slave.rsp_data_len,
+                                                 buf, sizeof buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
+ * Lock restrictions:
+ *     o Caller unlocks all ble_hs mutexes.
+ */
+static int
+ble_gap_adv_data_tx(void)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_DATA_LEN];
     uint8_t adv_data_len;
     uint8_t flags;
     int rc;
-
-    BLE_HS_DBG_ASSERT(ble_gap_slave.op != BLE_GAP_OP_NULL);
 
     /* Calculate the value of the flags field from the discoverable mode. */
     flags = 0;
@@ -1894,12 +1583,15 @@ ble_gap_adv_data_tx(void *arg)
         BLE_HS_DBG_ASSERT(rc == 0);
     }
 
-    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
-    rc = host_hci_cmd_le_set_adv_data(ble_gap_slave.adv_data,
-                                      adv_data_len);
+    rc = host_hci_cmd_build_le_set_adv_data(ble_gap_slave.adv_data,
+                                            adv_data_len, buf, sizeof buf);
     if (rc != 0) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, BLE_HS_HCI_ERR(rc), 1);
-        return 1;
+        return rc;
+    }
+
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
     }
 
     return 0;
@@ -1909,56 +1601,28 @@ ble_gap_adv_data_tx(void *arg)
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_adv_power_ack(struct ble_hci_ack *ack, void *arg)
-{
-    int8_t power_level;
-
-    BLE_HS_DBG_ASSERT(ble_gap_slave.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_slave.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, ack->bha_status, 1);
-        return;
-    }
-
-    if (ack->bha_params_len != BLE_HCI_ADV_CHAN_TXPWR_ACK_PARAM_LEN) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV,
-                              BLE_HS_ECONTROLLER, 1);
-        return;
-    }
-
-    power_level = ack->bha_params[1];
-    if (power_level < BLE_HCI_ADV_CHAN_TXPWR_MIN ||
-        power_level > BLE_HCI_ADV_CHAN_TXPWR_MAX) {
-
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV,
-                              BLE_HS_ECONTROLLER, 1);
-        return;
-    }
-
-    /* Save power level value so it can be put in the advertising data. */
-    ble_gap_slave.tx_pwr_lvl = power_level;
-
-    ble_gap_adv_next_state();
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
-ble_gap_adv_power_tx(void *arg)
+ble_gap_adv_power_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
+    struct ble_hci_block_result result;
+    uint8_t tx_pwr;
     int rc;
 
-    ble_hci_sched_set_ack_cb(ble_gap_adv_power_ack, NULL);
-    rc = host_hci_cmd_read_adv_pwr();
+    host_hci_cmd_build_read_adv_pwr(buf, sizeof buf);
+    rc = ble_hci_block_tx(buf, &tx_pwr, 1, &result);
     if (rc != 0) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, BLE_HS_HCI_ERR(rc), 1);
-        return 1;
+        return rc;
     }
+
+    if (result.evt_total_len != 1           ||
+        tx_pwr < BLE_HCI_ADV_CHAN_TXPWR_MIN ||
+        tx_pwr > BLE_HCI_ADV_CHAN_TXPWR_MAX) {
+
+        return BLE_HS_ECONTROLLER;
+    }
+
+    ble_gap_slave.tx_pwr_lvl = tx_pwr;
 
     return 0;
 }
@@ -1968,8 +1632,9 @@ ble_gap_adv_power_tx(void *arg)
  *     o Caller unlocks all ble_hs mutexes.
  */
 static int
-ble_gap_adv_params_tx(void *arg)
+ble_gap_adv_params_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_PARAM_LEN];
     struct hci_adv_params hap;
     int rc;
 
@@ -1994,11 +1659,14 @@ ble_gap_adv_params_tx(void *arg)
         break;
     }
 
-    ble_hci_sched_set_ack_cb(ble_gap_adv_ack, NULL);
-    rc = host_hci_cmd_le_set_adv_params(&hap);
+    rc = host_hci_cmd_build_le_set_adv_params(&hap, buf, sizeof buf);
     if (rc != 0) {
-        ble_gap_call_slave_cb(BLE_GAP_EVENT_ADV, BLE_HS_HCI_ERR(rc), 1);
-        return 1;
+        return rc;
+    }
+
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
     }
 
     return 0;
@@ -2092,6 +1760,7 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     if (rc != 0) {
         goto done;
     }
+    ble_gap_slave.state = BLE_GAP_STATE_S_ADV_PENDING;
 
     if (connectable_mode == BLE_GAP_CONN_MODE_DIR) {
         ble_gap_slave.dir_addr_type = peer_addr_type;
@@ -2114,12 +1783,36 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       &ble_gap_slave.adv_params.adv_itvl_min,
                       &ble_gap_slave.adv_params.adv_itvl_max);
 
-    rc = ble_hci_sched_enqueue(ble_gap_adv_params_tx, NULL,
-                               &ble_gap_slave.hci_handle);
+    rc = ble_gap_adv_params_tx();
     if (rc != 0) {
-        ble_gap_slave_reset_state();
         goto done;
     }
+
+    if (ble_gap_slave.adv_pwr_lvl) {
+        rc = ble_gap_adv_power_tx();
+        if (rc != 0) {
+            goto done;
+        }
+    }
+
+    if (ble_gap_slave.conn_mode != BLE_GAP_CONN_MODE_DIR) {
+        rc = ble_gap_adv_data_tx();
+        if (rc != 0) {
+            goto done;
+        }
+
+        rc = ble_gap_adv_rsp_data_tx();
+        if (rc != 0) {
+            goto done;
+        }
+    }
+
+    rc = ble_gap_adv_enable_tx();
+    if (rc != 0) {
+        goto done;
+    }
+
+    ble_gap_slave.state = BLE_GAP_STATE_S_ADV_ACTIVE;
 
 done:
     if (rc == 0) {
@@ -2128,6 +1821,9 @@ done:
         BLE_HS_LOG(INFO, "\n");
     } else {
         STATS_INC(ble_gap_stats, adv_start_fail);
+        if (rc != BLE_HS_EALREADY) {
+            ble_gap_slave_reset_state();
+        }
     }
 
     return rc;
@@ -2202,9 +1898,6 @@ ble_gap_disc_ack_disable(struct ble_hci_ack *ack, void *arg)
 {
     BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_DISC);
     BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_DISC_DISABLE);
-    BLE_HS_DBG_ASSERT(ble_gap_master.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_master.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
 
     if (ack->bha_status != 0) {
         ble_gap_master_failed(ack->bha_status);
@@ -2241,38 +1934,15 @@ ble_gap_disc_tx_disable(void *arg)
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_disc_ack_enable(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_DISC);
-    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_DISC_ENABLE);
-    BLE_HS_DBG_ASSERT(ble_gap_master.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_master.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_master_failed(ack->bha_status);
-    } else {
-        ble_gap_master.state = BLE_GAP_STATE_M_DISC_ACKED;
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
-ble_gap_disc_tx_enable(void *arg)
+ble_gap_disc_tx_enable(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_ENABLE_LEN];
     int rc;
 
-    BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_DISC);
-    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_DISC_ENABLE);
-
-    ble_hci_sched_set_ack_cb(ble_gap_disc_ack_enable, NULL);
-    rc = host_hci_cmd_le_set_scan_enable(1, 0);
+    host_hci_cmd_build_le_set_scan_enable(1, 0, buf, sizeof buf);
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
-        ble_gap_master_failed(rc);
         return rc;
     }
 
@@ -2283,45 +1953,26 @@ ble_gap_disc_tx_enable(void *arg)
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_disc_ack_params(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_DISC);
-    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_DISC_PARAMS);
-    BLE_HS_DBG_ASSERT(ble_gap_master.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_master.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_master_failed(ack->bha_status);
-        return;
-    }
-
-    ble_gap_master_enqueue(BLE_GAP_STATE_M_DISC_ENABLE, 1,
-                                ble_gap_disc_tx_enable, NULL);
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
-ble_gap_disc_tx_params(void *arg)
+ble_gap_disc_tx_params(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN];
     int rc;
 
     BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_DISC);
-    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_DISC_PARAMS);
+    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_DISC_PENDING);
 
-    ble_hci_sched_set_ack_cb(ble_gap_disc_ack_params, NULL);
-    rc = host_hci_cmd_le_set_scan_params(
+    rc = host_hci_cmd_build_le_set_scan_params(
         ble_gap_master.disc.scan_type,
         BLE_GAP_SCAN_FAST_INTERVAL_MIN,
         BLE_GAP_SCAN_FAST_WINDOW,
         BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-        ble_gap_master.disc.filter_policy);
+        ble_gap_master.disc.filter_policy,
+        buf, sizeof buf);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
-        ble_gap_master_failed(rc);
         return rc;
     }
 
@@ -2383,8 +2034,13 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
     ble_gap_master.disc.filter_policy = filter_policy;
     ble_gap_master.disc.cb = cb;
     ble_gap_master.disc.cb_arg = cb_arg;
-    rc = ble_gap_master_enqueue(BLE_GAP_STATE_M_DISC_PARAMS, 0,
-                                ble_gap_disc_tx_params, NULL);
+
+    rc = ble_gap_disc_tx_params();
+    if (rc != 0) {
+        goto done;
+    }
+
+    rc = ble_gap_disc_tx_enable();
     if (rc != 0) {
         goto done;
     }
@@ -2397,6 +2053,9 @@ done:
         ble_gap_log_disc();
         BLE_HS_LOG(INFO, "\n");
     } else {
+        if (rc != BLE_HS_EALREADY) {
+            ble_gap_master_reset_state();
+        }
         STATS_INC(ble_gap_stats, discover_fail);
     }
 
@@ -2414,22 +2073,6 @@ done:
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_conn_create_ack(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_CONN);
-    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_UNACKED);
-    BLE_HS_DBG_ASSERT(ble_gap_master.hci_handle == ack->bha_hci_handle);
-
-    ble_gap_master.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        ble_gap_master_failed(ack->bha_status);
-        return;
-    }
-
-    ble_gap_master.state = BLE_GAP_STATE_M_ACKED;
-}
 
 /**
  * Lock restrictions:
@@ -2438,11 +2081,11 @@ ble_gap_conn_create_ack(struct ble_hci_ack *ack, void *arg)
 static int
 ble_gap_conn_create_tx(void *arg)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CREATE_CONN_LEN];
     struct hci_create_conn hcc;
     int rc;
 
     BLE_HS_DBG_ASSERT(ble_gap_master.op == BLE_GAP_OP_M_CONN);
-    BLE_HS_DBG_ASSERT(ble_gap_master.state == BLE_GAP_STATE_M_PENDING);
 
     hcc.scan_itvl = ble_gap_master.conn.params.scan_itvl;
     hcc.scan_window = ble_gap_master.conn.params.scan_window;
@@ -2466,14 +2109,17 @@ ble_gap_conn_create_tx(void *arg)
     hcc.min_ce_len = ble_gap_master.conn.params.min_ce_len;
     hcc.max_ce_len = ble_gap_master.conn.params.max_ce_len;
 
-    ble_gap_master.state = BLE_GAP_STATE_M_UNACKED;
-    ble_hci_sched_set_ack_cb(ble_gap_conn_create_ack, NULL);
-
-    rc = host_hci_cmd_le_create_connection(&hcc);
+    rc = host_hci_cmd_build_le_create_connection(&hcc, buf, sizeof buf);
     if (rc != 0) {
-        ble_gap_master_failed(rc);
-        return 1;
+        return BLE_HS_EUNKNOWN;
     }
+
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_gap_master.state = BLE_GAP_STATE_M_CONN_ACTIVE;
 
     return 0;
 }
@@ -2520,6 +2166,7 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
     if (rc != 0) {
         goto done;
     }
+    ble_gap_master.state = BLE_GAP_STATE_M_CONN_PENDING;
 
     if (params == NULL) {
         ble_gap_master.conn.params = ble_gap_params_dflt;
@@ -2536,8 +2183,7 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
         memcpy(ble_gap_master.conn.addr, addr, BLE_DEV_ADDR_LEN);
     }
 
-    rc = ble_gap_master_enqueue(BLE_GAP_STATE_M_PENDING, 0,
-                                ble_gap_conn_create_tx, NULL);
+    rc = ble_gap_conn_create_tx(NULL);
     if (rc != 0) {
         goto done;
     }
@@ -2548,6 +2194,9 @@ done:
         ble_gap_log_conn();
         BLE_HS_LOG(INFO, "\n");
     } else {
+        if (rc != BLE_HS_EALREADY) {
+            ble_gap_master_reset_state();
+        }
         STATS_INC(ble_gap_stats, initiate_fail);
     }
 
@@ -2562,79 +2211,22 @@ done:
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_terminate_ack(struct ble_hci_ack *ack, void *arg)
-{
-    struct ble_gap_conn_ctxt ctxt;
-    struct ble_gap_snapshot snap;
-    uint16_t handle;
-    int rc;
-
-    if (ack->bha_status != 0) {
-        handle = (uintptr_t)arg;
-        rc = ble_gap_find_snapshot(handle, &snap);
-        if (rc == 0) {
-            STATS_INC(ble_gap_stats, terminate_fail);
-
-            memset(&ctxt, 0, sizeof ctxt);
-            ctxt.desc = &snap.desc;
-            ble_gap_call_conn_cb(BLE_GAP_EVENT_TERM_FAILURE, ack->bha_status,
-                                 &ctxt, snap.cb, snap.cb_arg);
-        }
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static int
-ble_gap_terminate_tx(void *arg)
-{
-    struct ble_gap_conn_ctxt ctxt;
-    struct ble_gap_snapshot snap;
-    uint16_t handle;
-    int status;
-    int rc;
-
-    handle = (uintptr_t)arg;
-
-    ble_hci_sched_set_ack_cb(ble_gap_terminate_ack, arg);
-
-    status = host_hci_cmd_disconnect(handle, BLE_ERR_REM_USER_CONN_TERM);
-    if (status != 0) {
-        rc = ble_gap_find_snapshot(handle, &snap);
-        if (rc == 0) {
-            STATS_INC(ble_gap_stats, terminate_fail);
-
-            memset(&ctxt, 0, sizeof ctxt);
-            ctxt.desc = &snap.desc;
-            ble_gap_call_conn_cb(BLE_GAP_EVENT_TERM_FAILURE, status, &ctxt,
-                                 snap.cb, snap.cb_arg);
-        }
-    }
-
-    return 0;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_terminate(uint16_t conn_handle)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_DISCONNECT_CMD_LEN];
     int rc;
 
     STATS_INC(ble_gap_stats, terminate);
 
     if (!ble_hs_conn_exists(conn_handle)) {
-        rc = BLE_HS_ENOENT;
+        rc = BLE_HS_ENOTCONN;
         goto done;
     }
 
-    rc = ble_hci_sched_enqueue(ble_gap_terminate_tx,
-                               (void *)(uintptr_t)conn_handle, NULL);
+    host_hci_cmd_build_disconnect(conn_handle, BLE_ERR_REM_USER_CONN_TERM,
+                                  buf, sizeof buf);
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
         goto done;
     }
@@ -2658,63 +2250,28 @@ done:
  * Lock restrictions:
  *     o Caller unlocks all ble_hs mutexes.
  */
-static void
-ble_gap_cancel_ack(struct ble_hci_ack *ack, void *arg)
-{
-    if (ack->bha_status != 0) {
-        STATS_INC(ble_gap_stats, cancel_fail);
-        ble_gap_call_master_conn_cb(BLE_GAP_EVENT_CANCEL, ack->bha_status, 0);
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static int
-ble_gap_cancel_tx(void *arg)
-{
-    int rc;
-
-    ble_hci_sched_set_ack_cb(ble_gap_cancel_ack, NULL);
-
-    rc = host_hci_cmd_le_create_conn_cancel();
-    if (rc != 0) {
-        STATS_INC(ble_gap_stats, cancel_fail);
-        ble_gap_call_master_conn_cb(BLE_GAP_EVENT_CANCEL, rc, 0);
-    }
-
-    return 0;
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_cancel(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
     STATS_INC(ble_gap_stats, cancel);
 
-    ble_gap_lock();
-
     if (!ble_gap_master_in_progress()) {
         rc = BLE_HS_ENOENT;
-    } else {
-        if (ble_gap_master.hci_handle != BLE_HCI_SCHED_HANDLE_NONE) {
-            ble_hci_sched_cancel(ble_gap_master.hci_handle);
-            ble_gap_master.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-        }
-
-        rc = ble_hci_sched_enqueue(ble_gap_cancel_tx, NULL, NULL);
+        goto done;
     }
 
-    ble_gap_unlock();
+    host_hci_cmd_build_le_create_conn_cancel(buf, sizeof buf);
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
+    if (rc != 0) {
+        goto done;
+    }
 
+done:
     if (rc == 0) {
-        BLE_HS_LOG(INFO, "GAP procedure initiated: cancel connetion\n");
+        BLE_HS_LOG(INFO, "GAP procedure initiated: cancel connection\n");
     } else {
         STATS_INC(ble_gap_stats, cancel_fail);
     }
@@ -2740,6 +2297,8 @@ ble_gap_param_neg_reply_ack(struct ble_hci_ack *ack, void *arg)
     entry = arg;
     BLE_HS_DBG_ASSERT(entry->state == BLE_GAP_STATE_U_NEG_REPLY);
     BLE_HS_DBG_ASSERT(entry->hci_handle == ack->bha_hci_handle);
+
+    entry->hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
 
     SLIST_REMOVE(&ble_gap_update_entries, entry,
                  ble_gap_update_entry, next);
@@ -2890,8 +2449,7 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
     peer_params.min_ce_len = 0;
     peer_params.max_ce_len = 0;
 
-    entry = ble_gap_update_entry_alloc(evt->connection_handle, &peer_params,
-                                       BLE_GAP_STATE_U_REPLY);
+    entry = ble_gap_update_entry_alloc();
     if (entry == NULL) {
         /* Out of memory; reject. */
         /* XXX: Our negative response should indicate which connection handle
@@ -2901,6 +2459,10 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
          */
         rc = BLE_ERR_MEM_CAPACITY;
     } else {
+        entry->state = BLE_GAP_STATE_U_REPLY;
+        entry->conn_handle = evt->connection_handle;
+        entry->params = peer_params;
+
         memset(&ctxt, 0, sizeof ctxt);
         ctxt.desc = &snap.desc;
         ctxt.update.self_params = &entry->params;
@@ -2936,50 +2498,14 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 
 /**
  * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-static void
-ble_gap_update_ack(struct ble_hci_ack *ack, void *arg)
-{
-    struct ble_gap_update_entry *entry;
-
-    ble_gap_lock();
-
-    entry = arg;
-    BLE_HS_DBG_ASSERT(entry->state == BLE_GAP_STATE_U_UPDATE);
-    BLE_HS_DBG_ASSERT(entry->hci_handle == ack->bha_hci_handle);
-
-    ble_gap_master.hci_handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    if (ack->bha_status != 0) {
-        SLIST_REMOVE(&ble_gap_update_entries, entry,
-                     ble_gap_update_entry, next);
-    } else {
-        entry->state = BLE_GAP_STATE_U_UPDATE_ACKED;
-    }
-
-    ble_gap_unlock();
-
-    if (ack->bha_status != 0) {
-        ble_gap_update_failed(entry, ack->bha_status);
-    }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
+ *     o Caller locks gap.
  */
 static int
-ble_gap_update_tx(void *arg)
+ble_gap_update_tx(struct ble_gap_update_entry *entry)
 {
-    struct ble_gap_update_entry *entry;
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_UPDATE_LEN];
     struct hci_conn_update cmd;
     int rc;
-
-    ble_gap_lock();
-
-    entry = arg;
-    BLE_HS_DBG_ASSERT(entry->state == BLE_GAP_STATE_U_UPDATE);
 
     cmd.handle = entry->conn_handle;
     cmd.conn_itvl_min = entry->params.itvl_min;
@@ -2989,18 +2515,14 @@ ble_gap_update_tx(void *arg)
     cmd.min_ce_len = entry->params.min_ce_len;
     cmd.max_ce_len = entry->params.max_ce_len;
 
-    ble_hci_sched_set_ack_cb(ble_gap_update_ack, entry);
-
-    rc = host_hci_cmd_le_conn_update(&cmd);
+    rc = host_hci_cmd_build_le_conn_update(&cmd, buf, sizeof buf);
     if (rc != 0) {
-        SLIST_REMOVE(&ble_gap_update_entries, entry,
-                     ble_gap_update_entry, next);
+        return rc;
     }
 
-    ble_gap_unlock();
-
+    rc = ble_hci_block_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
-        ble_gap_update_failed(entry, rc);
+        return rc;
     }
 
     return 0;
@@ -3023,32 +2545,30 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
 
     STATS_INC(ble_gap_stats, update);
 
+    ble_gap_lock();
+
     if (!ble_hs_conn_exists(conn_handle)) {
         rc = BLE_HS_ENOTCONN;
         goto done;
     }
 
-    ble_gap_lock();
     entry = ble_gap_update_find(conn_handle);
-    ble_gap_unlock();
-
     if (entry != NULL) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
 
-    entry = ble_gap_update_entry_alloc(conn_handle, params,
-                                       BLE_GAP_STATE_U_UPDATE);
+    entry = ble_gap_update_entry_alloc();
     if (entry == NULL) {
         rc = BLE_HS_ENOMEM;
         goto done;
     }
 
+    entry->state = BLE_GAP_STATE_U_UPDATE;
     entry->conn_handle = conn_handle;
     entry->params = *params;
-    entry->state = BLE_GAP_STATE_U_UPDATE;
 
-    rc = ble_hci_sched_enqueue(ble_gap_update_tx, entry, &entry->hci_handle);
+    rc = ble_gap_update_tx(entry);
     if (rc != 0) {
         goto done;
     }
@@ -3058,13 +2578,12 @@ done:
         BLE_HS_LOG(INFO, "GAP procedure initiated: ");
         ble_gap_log_update(entry);
         BLE_HS_LOG(INFO, "\n");
-
-        ble_gap_lock();
         SLIST_INSERT_HEAD(&ble_gap_update_entries, entry, next);
-        ble_gap_unlock();
     } else {
         STATS_INC(ble_gap_stats, update_fail);
     }
+
+    ble_gap_unlock();
 
     return rc;
 }
@@ -3144,7 +2663,6 @@ ble_gap_init(void)
 
     memset(&ble_gap_master, 0, sizeof ble_gap_master);
     memset(&ble_gap_slave, 0, sizeof ble_gap_slave);
-    memset(&ble_gap_wl, 0, sizeof ble_gap_wl);
 
     free(ble_gap_update_mem);
     ble_gap_update_mem = malloc(

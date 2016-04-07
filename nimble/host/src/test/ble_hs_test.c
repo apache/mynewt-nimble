@@ -39,10 +39,8 @@ ble_hs_test_pkt_txed(struct os_mbuf *om)
 void
 ble_hs_test_hci_txed(uint8_t *cmdbuf)
 {
-    if (ble_hs_test_util_prev_hci_tx != NULL) {
-        os_memblock_put(&g_hci_cmd_pool, ble_hs_test_util_prev_hci_tx);
-    }
-    ble_hs_test_util_prev_hci_tx = cmdbuf;
+    ble_hs_test_util_enqueue_hci_tx(cmdbuf);
+    os_memblock_put(&g_hci_cmd_pool, cmdbuf);
 }
 
 #ifdef MYNEWT_SELFTEST
@@ -51,6 +49,7 @@ int
 main(void)
 {
     tu_config.tc_print_results = 1;
+    tu_config.tc_system_assert = 1;
     tu_init();
 
     ble_l2cap_test_all();
