@@ -104,21 +104,19 @@ struct os_mbuf *ble_hs_misc_pkthdr(void);
 
 int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
 
-struct ble_hci_block_params {
-    uint16_t cmd_opcode;
-    uint8_t cmd_len;
-    void *cmd_data;
-
-    void *evt_buf;
-    uint8_t evt_buf_len;
-};
-
 struct ble_hci_block_result {
     uint8_t evt_buf_len;
     uint8_t evt_total_len;
 };
 
-int ble_hci_block_tx(struct ble_hci_block_params *params,
+#if PHONY_HCI_ACKS
+typedef int ble_hci_block_phony_ack_fn(void *cmd, uint8_t *ack,
+                                       int ack_buf_len);
+
+void ble_hci_block_set_phony_ack_cb(ble_hci_block_phony_ack_fn *cb);
+#endif
+
+int ble_hci_block_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
                      struct ble_hci_block_result *result);
 void ble_hci_block_init(void);
 

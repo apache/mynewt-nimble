@@ -79,7 +79,6 @@ void ble_gap_security_event(uint16_t conn_handle, int status,
 int ble_gap_master_in_progress(void);
 int ble_gap_slave_in_progress(void);
 int ble_gap_update_in_progress(uint16_t conn_handle);
-int ble_gap_wl_busy(void);
 
 void ble_gap_heartbeat(void);
 

@@ -73,6 +73,8 @@ ble_l2cap_test_util_rx_update_req(struct ble_hs_conn *conn, uint8_t id,
     req.timeout_multiplier = params->timeout_multiplier;
     ble_l2cap_sig_update_req_write(v, BLE_L2CAP_SIG_UPDATE_REQ_SZ, &req);
 
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CONN_UPDATE), 0);
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn, BLE_L2CAP_CID_SIG,
                                               &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == 0);
@@ -167,8 +169,6 @@ ble_l2cap_test_util_verify_tx_update_conn(
     uint8_t param_len;
     uint8_t *param;
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_hci_tx != NULL);
-
     param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_CONN_UPDATE,
                                            &param_len);
@@ -206,6 +206,8 @@ ble_l2cap_test_util_create_conn(uint16_t handle, uint8_t *addr,
     chan->blc_rx_fn = ble_l2cap_test_util_dummy_rx;
 
     ble_hs_conn_chan_insert(conn, chan);
+
+    ble_hs_test_util_prev_hci_tx_clear();
 
     return conn;
 }
@@ -414,7 +416,7 @@ TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
     ble_l2cap_test_util_init();
 
     conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      NULL, NULL);
+                                           NULL, NULL);
 
     /* Receive an unsolicited response. */
     rc = ble_l2cap_test_util_rx_update_rsp(conn, 100, 0);
@@ -455,7 +457,8 @@ ble_l2cap_test_util_peer_updates(int accept)
     ble_l2cap_test_util_init();
 
     conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      ble_l2cap_test_util_conn_cb, &accept);
+                                           ble_l2cap_test_util_conn_cb,
+                                           &accept);
 
     l2cap_params.itvl_min = 0x200;
     l2cap_params.itvl_max = 0x300;

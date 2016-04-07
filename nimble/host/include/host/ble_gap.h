@@ -95,10 +95,8 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_TERM_FAILURE          5
 #define BLE_GAP_EVENT_DISC_SUCCESS          6
 #define BLE_GAP_EVENT_DISC_FINISHED         7
-#define BLE_GAP_EVENT_ADV                   8
-#define BLE_GAP_EVENT_ADV_STOP              9
-#define BLE_GAP_EVENT_ADV_FINISHED          10
-#define BLE_GAP_EVENT_SECURITY              11
+#define BLE_GAP_EVENT_ADV_FINISHED          8
+#define BLE_GAP_EVENT_SECURITY              9
 
 struct ble_gap_conn_desc {
     uint8_t peer_addr[6];
@@ -195,7 +193,7 @@ int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
 int ble_gap_terminate(uint16_t handle);
 int ble_gap_cancel(void);
 int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
-                   uint8_t white_list_count, ble_gap_wl_fn *cb, void *cb_arg);
+                   uint8_t white_list_count);
 int ble_gap_update_params(uint16_t conn_handle,
                           struct ble_gap_upd_params *params);
 int ble_gap_security_initiate(uint16_t conn_handle);

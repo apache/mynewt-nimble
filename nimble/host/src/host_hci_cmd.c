@@ -43,6 +43,19 @@ host_hci_cmd_transport(uint8_t *cmdbuf)
 #endif
 }
 
+void
+host_hci_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len, void *buf)
+{
+    uint16_t opcode;
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+
+    opcode = (ogf << 10) | ocf;
+    htole16(u8ptr, opcode);
+    u8ptr[2] = len;
+}
+
 int
 host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
 {
@@ -80,6 +93,25 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
     return rc;
 }
 
+int
+host_hci_cmd_send_buf(void *buf)
+{
+    uint16_t opcode;
+    uint8_t *u8ptr;
+    uint8_t len;
+    int rc;
+
+    u8ptr = buf;
+
+    opcode = le16toh(u8ptr + 0);
+    len = u8ptr[2];
+
+    rc = host_hci_cmd_send(BLE_HCI_OGF(opcode), BLE_HCI_OCF(opcode), len,
+                           u8ptr + BLE_HCI_CMD_HDR_LEN);
+    return rc;
+}
+
+
 /**
  * Send a LE command from the host to the controller.
  * 
@@ -98,32 +130,46 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
 }
 
 static int
-host_hci_cmd_le_whitelist_chg(uint8_t *addr, uint8_t addr_type, uint8_t ocf)
+host_hci_cmd_body_le_whitelist_chg(uint8_t *addr, uint8_t addr_type,
+                                   uint8_t *dst)
 {
-    int rc;
-    uint8_t cmd[BLE_HCI_CHG_WHITE_LIST_LEN];
-
-    if (addr_type <= BLE_ADDR_TYPE_RANDOM) {
-        cmd[0] = addr_type;
-        memcpy(cmd + 1, addr, BLE_DEV_ADDR_LEN);
-        rc = host_hci_le_cmd_send(ocf, BLE_HCI_CHG_WHITE_LIST_LEN, cmd);
-    } else {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
-    return rc;
+
+    dst[0] = addr_type;
+    memcpy(dst + 1, addr, BLE_DEV_ADDR_LEN);
+
+    return 0;
 }
 
-int
-host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
+static int
+host_hci_cmd_le_whitelist_chg(uint8_t *addr, uint8_t addr_type, uint8_t ocf)
 {
+    uint8_t cmd[BLE_HCI_CHG_WHITE_LIST_LEN];
     int rc;
+
+    rc = host_hci_cmd_body_le_whitelist_chg(addr, addr_type, cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = host_hci_le_cmd_send(ocf, BLE_HCI_CHG_WHITE_LIST_LEN, cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+host_hci_cmd_body_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst)
+{
     uint16_t itvl;
-    uint8_t cmd[BLE_HCI_SET_ADV_PARAM_LEN];
 
     BLE_HS_DBG_ASSERT(adv != NULL);
 
     /* Make sure parameters are valid */
-    rc = -1;
     if ((adv->adv_itvl_min > adv->adv_itvl_max) ||
         (adv->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
         (adv->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) ||
@@ -132,7 +178,7 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
         (adv->adv_channel_map == 0) ||
         ((adv->adv_channel_map & 0xF8) != 0)) {
         /* These parameters are not valid */
-        return rc;
+        return -1;
     }
 
     /* Make sure interval is valid for advertising type. */
@@ -147,23 +193,121 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
     if (adv->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
         if ((adv->adv_itvl_min < itvl) || 
             (adv->adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
-            return rc;
+            return -1;
         }
     }
 
-    htole16(cmd, adv->adv_itvl_min);
-    htole16(cmd + 2, adv->adv_itvl_max);
-    cmd[4] = adv->adv_type;
-    cmd[5] = adv->own_addr_type;
-    cmd[6] = adv->peer_addr_type;
-    memcpy(cmd + 7, adv->peer_addr, BLE_DEV_ADDR_LEN);
-    cmd[13] = adv->adv_channel_map;
-    cmd[14] = adv->adv_filter_policy;
+    htole16(dst, adv->adv_itvl_min);
+    htole16(dst + 2, adv->adv_itvl_max);
+    dst[4] = adv->adv_type;
+    dst[5] = adv->own_addr_type;
+    dst[6] = adv->peer_addr_type;
+    memcpy(dst + 7, adv->peer_addr, BLE_DEV_ADDR_LEN);
+    dst[13] = adv->adv_channel_map;
+    dst[14] = adv->adv_filter_policy;
+
+    return 0;
+}
+
+int
+host_hci_cmd_build_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst,
+                                     int dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_PARAM_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_PARAMS,
+                       BLE_HCI_SET_ADV_PARAM_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_le_set_adv_params(adv, dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
+{
+    int rc;
+    uint8_t cmd[BLE_HCI_SET_ADV_PARAM_LEN];
+
+    rc = host_hci_cmd_body_le_set_adv_params(adv, cmd);
+    if (rc != 0) {
+        return rc;
+    }
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_PARAMS, 
                               BLE_HCI_SET_ADV_PARAM_LEN, cmd);
+    if (rc != 0) {
+        return rc;
+    }
 
-    return rc;
+    return 0;
+}
+
+/**
+ * Set advertising data
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0008
+ * 
+ * @param data 
+ * @param len 
+ * @param dst 
+ * 
+ * @return int 
+ */
+static int
+host_hci_cmd_body_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst)
+{
+    /* Check for valid parameters */
+    if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_ADV_DATA_LEN)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    memset(dst, 0, BLE_HCI_SET_ADV_DATA_LEN);
+    dst[0] = len;
+    memcpy(dst + 1, data, len);
+
+    return 0;
+}
+
+/**
+ * Set advertising data
+ *  
+ * OGF = 0x08 (LE) 
+ * OCF = 0x0008
+ * 
+ * @param data 
+ * @param len 
+ * @param dst 
+ * 
+ * @return int 
+ */
+int
+host_hci_cmd_build_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst,
+                                   int dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_DATA_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_DATA,
+                       BLE_HCI_SET_ADV_DATA_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_le_set_adv_data(data, len, dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 /**
@@ -180,21 +324,59 @@ host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
 int
 host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
 {
-    int rc;
     uint8_t cmd[BLE_HCI_SET_ADV_DATA_LEN];
+    int rc;
 
+    rc = host_hci_cmd_body_le_set_adv_data(data, len, cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_DATA, 
+                              BLE_HCI_SET_ADV_DATA_LEN, cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+host_hci_cmd_body_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
+                                       uint8_t *dst)
+{
     /* Check for valid parameters */
-    if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_ADV_DATA_LEN)) {
+    if (((data == NULL) && (len != 0)) ||
+         (len > BLE_HCI_MAX_SCAN_RSP_DATA_LEN)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    memset(cmd, 0, BLE_HCI_SET_ADV_DATA_LEN);
-    cmd[0] = len;
-    memcpy(cmd + 1, data, len);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_DATA, 
-                              BLE_HCI_SET_ADV_DATA_LEN, cmd);
+    memset(dst, 0, BLE_HCI_SET_SCAN_RSP_DATA_LEN);
+    dst[0] = len;
+    memcpy(dst + 1, data, len);
 
-    return rc;
+    return 0;
+}
+
+int
+host_hci_cmd_build_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
+                                        uint8_t *dst, int dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA,
+                       BLE_HCI_SET_SCAN_RSP_DATA_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_le_set_scan_rsp_data(data, len, dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 int
@@ -203,19 +385,18 @@ host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len)
     int rc;
     uint8_t cmd[BLE_HCI_SET_SCAN_RSP_DATA_LEN];
 
-    /* Check for valid parameters */
-    if (((data == NULL) && (len != 0)) ||
-         (len > BLE_HCI_MAX_SCAN_RSP_DATA_LEN)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    rc = host_hci_cmd_body_le_set_scan_rsp_data(data, len, cmd);
+    if (rc != 0) {
+        return rc;
     }
 
-    memset(cmd, 0, BLE_HCI_SET_SCAN_RSP_DATA_LEN);
-    cmd[0] = len;
-    memcpy(cmd + 1, data, len);
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA, 
                               BLE_HCI_SET_SCAN_RSP_DATA_LEN, cmd);
+    if (rc != 0) {
+        return rc;
+    }
 
-    return rc;
+    return 0;
 }
 
 /**
@@ -296,14 +477,34 @@ host_hci_cmd_set_event_mask(uint64_t event_mask)
     return rc;
 }
 
+static void
+host_hci_cmd_body_disconnect(uint16_t handle, uint8_t reason, uint8_t *dst)
+{
+    htole16(dst + 0, handle);
+    dst[2] = reason;
+}
+
+void
+host_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
+                              uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_DISCONNECT_CMD_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LINK_CTRL, BLE_HCI_OCF_DISCONNECT_CMD,
+                       BLE_HCI_DISCONNECT_CMD_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    host_hci_cmd_body_disconnect(handle, reason, dst);
+}
+
 int
 host_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
 {
-    int rc;
     uint8_t cmd[BLE_HCI_DISCONNECT_CMD_LEN];
+    int rc;
 
-    htole16(cmd, handle);
-    cmd[2] = reason;
+    host_hci_cmd_body_disconnect(handle, reason, cmd);
     rc = host_hci_cmd_send(BLE_HCI_OGF_LINK_CTRL,
                            BLE_HCI_OCF_DISCONNECT_CMD,
                            BLE_HCI_DISCONNECT_CMD_LEN,
@@ -466,25 +667,43 @@ host_hci_cmd_le_read_rem_used_feat(uint16_t handle)
     return rc;
 }
 
+static void
+host_hci_cmd_le_body_set_adv_enable(uint8_t enable, uint8_t *dst)
+{
+    dst[0] = enable;
+}
+
+void
+host_hci_cmd_build_le_set_adv_enable(uint8_t enable, uint8_t *dst,
+                                     int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_ENABLE_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE,
+                       BLE_HCI_SET_ADV_ENABLE_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    host_hci_cmd_le_body_set_adv_enable(enable, dst);
+}
+
 int
 host_hci_cmd_le_set_adv_enable(uint8_t enable)
 {
     int rc;
     uint8_t cmd[BLE_HCI_SET_ADV_ENABLE_LEN];
 
-    cmd[0] = enable;
+    host_hci_cmd_le_body_set_adv_enable(enable, cmd);
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_ENABLE, 
                               BLE_HCI_SET_ADV_ENABLE_LEN, cmd);
 
     return rc;
 }
 
-int
-host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl, 
-                                uint16_t scan_window, uint8_t own_addr_type, 
-                                uint8_t filter_policy) {
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_SCAN_PARAM_LEN];
+static int
+host_hci_cmd_body_le_set_scan_params(
+    uint8_t scan_type, uint16_t scan_itvl, uint16_t scan_window,
+    uint8_t own_addr_type, uint8_t filter_policy, uint8_t *dst) {
 
     /* Make sure parameters are valid */
     if ((scan_type != BLE_HCI_SCAN_TYPE_PASSIVE) && 
@@ -511,16 +730,81 @@ host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    cmd[0] = scan_type;
-    htole16(cmd + 1, scan_itvl);
-    htole16(cmd + 3, scan_window);
-    cmd[5] = own_addr_type;
-    cmd[6] = filter_policy;
+    dst[0] = scan_type;
+    htole16(dst + 1, scan_itvl);
+    htole16(dst + 3, scan_window);
+    dst[5] = own_addr_type;
+    dst[6] = filter_policy;
+
+    return 0;
+}
+
+int
+host_hci_cmd_build_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
+                                      uint16_t scan_window,
+                                      uint8_t own_addr_type,
+                                      uint8_t filter_policy,
+                                      uint8_t *cmd, int cmd_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        cmd_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_PARAMS,
+                       BLE_HCI_SET_SCAN_PARAM_LEN, cmd);
+    cmd += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_le_set_scan_params(scan_type, scan_itvl,
+                                              scan_window, own_addr_type,
+                                              filter_policy, cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl, 
+                                uint16_t scan_window, uint8_t own_addr_type, 
+                                uint8_t filter_policy) {
+    int rc;
+    uint8_t cmd[BLE_HCI_SET_SCAN_PARAM_LEN];
+
+    rc = host_hci_cmd_body_le_set_scan_params(scan_type, scan_itvl,
+                                              scan_window, own_addr_type,
+                                              filter_policy, cmd);
+    if (rc != 0) {
+        return rc;
+    }
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_PARAMS, 
                               BLE_HCI_SET_SCAN_PARAM_LEN, cmd);
 
     return rc;
+}
+
+static void
+host_hci_cmd_body_le_set_scan_enable(uint8_t enable, uint8_t filter_dups,
+                                     uint8_t *dst)
+{
+    dst[0] = enable;
+    dst[1] = filter_dups;
+}
+
+void
+host_hci_cmd_build_le_set_scan_enable(uint8_t enable, uint8_t filter_dups,
+                                      uint8_t *dst, uint8_t dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_ENABLE_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE,
+                       BLE_HCI_SET_SCAN_ENABLE_LEN, dst);
+
+    host_hci_cmd_body_le_set_scan_enable(enable, filter_dups,
+                                         dst + BLE_HCI_CMD_HDR_LEN);
 }
 
 int
@@ -529,19 +813,17 @@ host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
     int rc;
     uint8_t cmd[BLE_HCI_SET_SCAN_ENABLE_LEN];
 
-    cmd[0] = enable;
-    cmd[1] = filter_dups;
+    host_hci_cmd_body_le_set_scan_enable(enable, filter_dups, cmd);
+
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_ENABLE, 
                               BLE_HCI_SET_SCAN_ENABLE_LEN, cmd);
     return rc;
 }
 
-int
-host_hci_cmd_le_create_connection(struct hci_create_conn *hcc)
+static int
+host_hci_cmd_body_le_create_connection(struct hci_create_conn *hcc,
+                                       uint8_t *cmd)
 {
-    int rc;
-    uint8_t cmd[BLE_HCI_CREATE_CONN_LEN];
-
     /* Check scan interval and scan window */
     if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) ||
         (hcc->scan_itvl > BLE_HCI_SCAN_ITVL_MAX) ||
@@ -609,9 +891,56 @@ host_hci_cmd_le_create_connection(struct hci_create_conn *hcc)
     htole16(cmd + 21, hcc->min_ce_len);
     htole16(cmd + 23, hcc->max_ce_len);
 
+    return 0;
+}
+
+int
+host_hci_cmd_build_le_create_connection(struct hci_create_conn *hcc,
+                                        uint8_t *cmd, int cmd_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        cmd_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_CREATE_CONN_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN,
+                       BLE_HCI_CREATE_CONN_LEN, cmd);
+
+    rc = host_hci_cmd_body_le_create_connection(hcc,
+                                                cmd + BLE_HCI_CMD_HDR_LEN);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+host_hci_cmd_le_create_connection(struct hci_create_conn *hcc)
+{
+    uint8_t cmd[BLE_HCI_CREATE_CONN_LEN];
+    int rc;
+
+    rc = host_hci_cmd_body_le_create_connection(hcc, cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CREATE_CONN,
                               BLE_HCI_CREATE_CONN_LEN, cmd);
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+void
+host_hci_cmd_le_build_clear_whitelist(uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CLEAR_WHITE_LIST,
+                       0, dst);
 }
 
 /**
@@ -642,6 +971,27 @@ host_hci_cmd_le_read_whitelist(void)
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE, 0, NULL);
     return rc;
+}
+
+int
+host_hci_cmd_build_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type,
+                                       uint8_t *dst, int dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_CHG_WHITE_LIST_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_WHITE_LIST,
+                       BLE_HCI_CHG_WHITE_LIST_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_le_whitelist_chg(addr, addr_type, dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 /**
@@ -696,6 +1046,14 @@ host_hci_cmd_reset(void)
     return rc;
 }
 
+void
+host_hci_cmd_build_read_adv_pwr(uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR,
+                       0, dst);
+}
+
 /**
  * Read the transmit power level used for LE advertising channel packets.
  *
@@ -711,6 +1069,14 @@ host_hci_cmd_read_adv_pwr(void)
     return rc;
 }
 
+void
+host_hci_cmd_build_le_create_conn_cancel(uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN_CANCEL,
+                       0, dst);
+}
+
 int
 host_hci_cmd_le_create_conn_cancel(void)
 {
@@ -721,24 +1087,60 @@ host_hci_cmd_le_create_conn_cancel(void)
     return rc;
 }
 
+static int
+host_hci_cmd_body_le_conn_update(struct hci_conn_update *hcu, uint8_t *dst)
+{
+    /* XXX: add parameter checking later */
+    htole16(dst + 0, hcu->handle);
+    htole16(dst + 2, hcu->conn_itvl_min);
+    htole16(dst + 4, hcu->conn_itvl_max);
+    htole16(dst + 6, hcu->conn_latency);
+    htole16(dst + 8, hcu->supervision_timeout);
+    htole16(dst + 10, hcu->min_ce_len);
+    htole16(dst + 12, hcu->max_ce_len);
+
+    return 0;
+}
+
+int
+host_hci_cmd_build_le_conn_update(struct hci_conn_update *hcu, uint8_t *dst,
+                                  int dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_UPDATE_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CONN_UPDATE,
+                       BLE_HCI_CONN_UPDATE_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_le_conn_update(hcu, dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 int
 host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
 {
-    int rc;
     uint8_t cmd[BLE_HCI_CONN_UPDATE_LEN];
+    int rc;
 
-    /* XXX: add parameter checking later */
-    htole16(cmd + 0, hcu->handle);
-    htole16(cmd + 2, hcu->conn_itvl_min);
-    htole16(cmd + 4, hcu->conn_itvl_max);
-    htole16(cmd + 6, hcu->conn_latency);
-    htole16(cmd + 8, hcu->supervision_timeout);
-    htole16(cmd + 10, hcu->min_ce_len);
-    htole16(cmd + 12, hcu->max_ce_len);
+    rc = host_hci_cmd_body_le_conn_update(hcu, cmd);
+    if (rc != 0) {
+        return rc;
+    }
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CONN_UPDATE,
                               BLE_HCI_CONN_UPDATE_LEN, cmd);
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 /**

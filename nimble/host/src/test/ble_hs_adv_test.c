@@ -29,54 +29,38 @@
 #define BLE_ADV_TEST_DATA_OFF   4
 
 static void
-ble_hs_adv_test_misc_verify_tx_adv_data_hdr(int data_len)
+ble_hs_adv_test_misc_verify_tx_adv_data_hdr(uint8_t *cmd, int data_len)
 {
     uint16_t opcode;
-    uint8_t *sptr;
 
-    TEST_ASSERT(ble_hs_test_util_prev_hci_tx != NULL);
-
-    sptr = ble_hs_test_util_prev_hci_tx;
-
-    opcode = le16toh(sptr + 0);
+    opcode = le16toh(cmd + 0);
     TEST_ASSERT(BLE_HCI_OGF(opcode) == BLE_HCI_OGF_LE);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == BLE_HCI_OCF_LE_SET_ADV_DATA);
 
-    TEST_ASSERT(sptr[2] == BLE_HCI_SET_ADV_DATA_LEN);
-    TEST_ASSERT(sptr[3] == data_len);
+    TEST_ASSERT(cmd[2] == BLE_HCI_SET_ADV_DATA_LEN);
+    TEST_ASSERT(cmd[3] == data_len);
 }
 
 static void
-ble_hs_adv_test_misc_verify_tx_rsp_data_hdr(int data_len)
+ble_hs_adv_test_misc_verify_tx_rsp_data_hdr(uint8_t *cmd, int data_len)
 {
     uint16_t opcode;
-    uint8_t *sptr;
 
-    TEST_ASSERT(ble_hs_test_util_prev_hci_tx != NULL);
-
-    sptr = ble_hs_test_util_prev_hci_tx;
-
-    opcode = le16toh(sptr + 0);
+    opcode = le16toh(cmd + 0);
     TEST_ASSERT(BLE_HCI_OGF(opcode) == BLE_HCI_OGF_LE);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA);
 
-    TEST_ASSERT(sptr[2] == BLE_HCI_SET_SCAN_RSP_DATA_LEN);
-    TEST_ASSERT(sptr[3] == data_len);
+    TEST_ASSERT(cmd[2] == BLE_HCI_SET_SCAN_RSP_DATA_LEN);
+    TEST_ASSERT(cmd[3] == data_len);
 }
 
 static void
-ble_hs_adv_test_misc_verify_tx_field(int off, uint8_t type, uint8_t val_len,
-                                     void *val)
+ble_hs_adv_test_misc_verify_tx_field(uint8_t *cmd, uint8_t type,
+                                     uint8_t val_len, void *val)
 {
-    uint8_t *sptr;
-
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_hci_tx != NULL);
-
-    sptr = ble_hs_test_util_prev_hci_tx + off;
-
-    TEST_ASSERT(sptr[0] == val_len + 1);
-    TEST_ASSERT(sptr[1] == type);
-    TEST_ASSERT(memcmp(sptr + 2, val, val_len) == 0);
+    TEST_ASSERT(cmd[0] == val_len + 1);
+    TEST_ASSERT(cmd[1] == type);
+    TEST_ASSERT(memcmp(cmd + 2, val, val_len) == 0);
 }
 
 struct ble_hs_adv_test_field {
@@ -102,15 +86,15 @@ ble_hs_adv_test_misc_calc_data_len(struct ble_hs_adv_test_field *fields)
 }
 
 static void
-ble_hs_adv_test_misc_verify_tx_fields(int off,
+ble_hs_adv_test_misc_verify_tx_fields(uint8_t *cmd,
                                       struct ble_hs_adv_test_field *fields)
 {
     struct ble_hs_adv_test_field *field;
 
     for (field = fields; field->type != 0; field++) {
-        ble_hs_adv_test_misc_verify_tx_field(off, field->type, field->val_len,
+        ble_hs_adv_test_misc_verify_tx_field(cmd, field->type, field->val_len,
                                              field->val);
-        off += 2 + field->val_len;
+        cmd += 2 + field->val_len;
     }
 }
 
@@ -118,11 +102,16 @@ static void
 ble_hs_adv_test_misc_verify_tx_adv_data(struct ble_hs_adv_test_field *fields)
 {
     int data_len;
+    uint8_t *cmd;
+
+    cmd = ble_hs_test_util_get_last_hci_tx();
+    TEST_ASSERT_FATAL(cmd != NULL);
 
     data_len = ble_hs_adv_test_misc_calc_data_len(fields);
-    ble_hs_adv_test_misc_verify_tx_adv_data_hdr(data_len);
+    ble_hs_adv_test_misc_verify_tx_adv_data_hdr(cmd, data_len);
     if (fields != NULL) {
-        ble_hs_adv_test_misc_verify_tx_fields(BLE_ADV_TEST_DATA_OFF, fields);
+        ble_hs_adv_test_misc_verify_tx_fields(cmd + BLE_ADV_TEST_DATA_OFF,
+                                              fields);
     }
 }
 
@@ -130,11 +119,16 @@ static void
 ble_hs_adv_test_misc_verify_tx_rsp_data(struct ble_hs_adv_test_field *fields)
 {
     int data_len;
+    uint8_t *cmd;
+
+    cmd = ble_hs_test_util_get_last_hci_tx();
+    TEST_ASSERT_FATAL(cmd != NULL);
 
     data_len = ble_hs_adv_test_misc_calc_data_len(fields);
-    ble_hs_adv_test_misc_verify_tx_rsp_data_hdr(data_len);
+    ble_hs_adv_test_misc_verify_tx_rsp_data_hdr(cmd, data_len);
     if (fields != NULL) {
-        ble_hs_adv_test_misc_verify_tx_fields(BLE_ADV_TEST_DATA_OFF, fields);
+        ble_hs_adv_test_misc_verify_tx_fields(cmd + BLE_ADV_TEST_DATA_OFF,
+                                              fields);
     }
 }
 
@@ -156,15 +150,15 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     rc = ble_gap_adv_rsp_set_fields(rsp_fields);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gap_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0, NULL,
-                           NULL, NULL);
+    rc = ble_hs_test_util_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0,
+                                    NULL, NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_rx_und_adv_acks_count(0, 3);
-    ble_hs_adv_test_misc_verify_tx_adv_data(test_adv_fields);
+    /* Discard the adv-enable command. */
+    ble_hs_test_util_get_last_hci_tx();
 
-    ble_hs_test_util_rx_und_adv_acks_count(3, 1);
     ble_hs_adv_test_misc_verify_tx_rsp_data(test_rsp_fields);
+    ble_hs_adv_test_misc_verify_tx_adv_data(test_adv_fields);
 }
 
 TEST_CASE(ble_hs_adv_test_case_flags)
