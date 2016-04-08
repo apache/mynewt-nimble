@@ -812,6 +812,9 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
         return BLE_HS_EINVAL;
     }
 
+    /* Prevent spurious maybe-uninitialized gcc warning. */
+    uuid16 = 0;
+
     rc = ble_gatts_svc_type_to_uuid(svc->type, &uuid16);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
