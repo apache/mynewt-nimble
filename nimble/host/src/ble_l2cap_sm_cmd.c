@@ -40,6 +40,9 @@ ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
                                          &conn, &chan);
     if (rc == 0) {
+        BLE_HS_LOG(DEBUG, "ble_l2cap_sm_tx(): ");
+        ble_hs_misc_log_mbuf(txom);
+        BLE_HS_LOG(DEBUG, "\n");
         rc = ble_l2cap_tx(conn, chan, txom);
     }
 
@@ -170,6 +173,9 @@ ble_l2cap_sm_pair_confirm_tx(uint16_t conn_handle,
 
     ble_l2cap_sm_pair_confirm_write(txom->om_data, txom->om_len, cmd);
 
+    BLE_HS_LOG(DEBUG, "ble_l2cap_sm_pair_confirm_tx(): ");
+    ble_hs_misc_log_mbuf(txom);
+    BLE_HS_LOG(DEBUG, "\n");
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;
 

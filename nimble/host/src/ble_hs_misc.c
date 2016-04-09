@@ -88,6 +88,7 @@ struct os_mbuf *
 ble_hs_misc_pkthdr(void)
 {
     struct os_mbuf *om;
+    int rc;
 
     om = os_msys_get_pkthdr(0, 0);
     if (om == NULL) {
@@ -95,6 +96,12 @@ ble_hs_misc_pkthdr(void)
     }
 
     /* Make room in the buffer for various headers.  XXX Check this number. */
+    if (om->om_omp->omp_databuf_len < 8) {
+        rc = os_mbuf_free_chain(om);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+        return NULL;
+    }
+
     om->om_data += 8;
 
     return om;
