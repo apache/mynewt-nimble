@@ -713,6 +713,7 @@ static int
 ble_l2cap_sm_random_kick(struct ble_l2cap_sm_proc *proc)
 {
     struct ble_l2cap_sm_pair_random cmd;
+    uint8_t key[16];
     int rc;
 
     memcpy(cmd.value, proc->phase_1_2.rand_our, 16);
@@ -723,6 +724,15 @@ ble_l2cap_sm_random_kick(struct ble_l2cap_sm_proc *proc)
     }
 
     if (!(proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR)) {
+        /* Generate the key. */
+        rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
+                                 proc->phase_1_2.rand_their, key);
+        if (rc != 0) {
+            ble_l2cap_sm_gap_event(proc, rc, 0);
+            return rc;
+        }
+        memcpy(proc->hci.key, key, sizeof key);
+
         proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
         proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_LTK;
     }
@@ -737,6 +747,7 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
     uint8_t preq[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
     uint8_t pres[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
     uint8_t confirm_val[16];
+    uint8_t key[16];
     uint8_t k[16];
     uint8_t ia[6];
     uint8_t ra[6];
@@ -768,6 +779,14 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
     memcpy(proc->phase_1_2.rand_their, cmd->value, 16);
 
     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        /* Generate the key. */
+        rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
+                                 proc->phase_1_2.rand_their, key);
+        if (rc != 0) {
+            ble_l2cap_sm_gap_event(proc, rc, 0);
+            return rc;
+        }
+        memcpy(proc->hci.key, key, sizeof key);
         proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_START_ENCRYPT;
     }
     ble_l2cap_sm_proc_set_pending(proc);
@@ -853,20 +872,7 @@ static int
 ble_l2cap_sm_lt_key_req_handle(struct ble_l2cap_sm_proc *proc,
                                struct hci_le_lt_key_req *evt)
 {
-    uint8_t key[16];
-    int rc;
-
-    /* Generate the key. */
-    rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
-                             proc->phase_1_2.rand_their, key);
-    if (rc != 0) {
-        ble_l2cap_sm_gap_event(proc, rc, 0);
-        return rc;
-    }
-
     ble_l2cap_sm_proc_set_pending(proc);
-    memcpy(proc->hci.key, key, sizeof key);
-
     return 0;
 }
 

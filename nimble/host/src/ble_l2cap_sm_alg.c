@@ -46,17 +46,11 @@ ble_l2cap_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
     uint8_t tmp[16];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_l2cap_sm_alg_encrypt; key=");
-    ble_hs_misc_log_flat_buf(key, 16);
-    BLE_HS_LOG(DEBUG, " plaintext=");
-    ble_hs_misc_log_flat_buf(plaintext, 16);
-
     swap_buf(tmp, key, 16);
 
     rc = mbedtls_aes_setkey_enc(&ble_l2cap_sm_alg_ctxt, tmp, 128);
     if (rc != 0) {
-        rc = BLE_HS_EUNKNOWN;
-        goto done;
+        return BLE_HS_EUNKNOWN;
     }
 
     swap_buf(tmp, plaintext, 16);
@@ -64,25 +58,19 @@ ble_l2cap_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
     rc = mbedtls_aes_crypt_ecb(&ble_l2cap_sm_alg_ctxt, MBEDTLS_AES_ENCRYPT,
                                tmp, enc_data);
     if (rc != 0) {
-        rc = BLE_HS_EUNKNOWN;
-        goto done;
+        return BLE_HS_EUNKNOWN;
     }
 
     swap_in_place(enc_data, 16);
 
-    BLE_HS_LOG(DEBUG, " enc_data=");
-    ble_hs_misc_log_flat_buf(enc_data, 16);
-
-    rc = 0;
-
-done:
-    BLE_HS_LOG(DEBUG, "\n");
-    return rc;
+    return 0;
 }
 
 int
 ble_l2cap_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out)
 {
+    int rc;
+
     /* The most significant 64-bits of r1 are discarded to generate
      * r1' and the most significant 64-bits of r2 are discarded to
      * generate r2'.
@@ -95,7 +83,22 @@ ble_l2cap_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out)
     memcpy(out + 8, r1, 8);
 
     /* s1(k, r1 , r2) = e(k, r') */
-    return ble_l2cap_sm_alg_encrypt(k, out, out);
+    rc = ble_l2cap_sm_alg_encrypt(k, out, out);
+    if (rc != 0) {
+        return rc;
+    }
+
+    BLE_HS_LOG(DEBUG, "ble_l2cap_sm_alg_s1()\n    k=");
+    ble_hs_misc_log_flat_buf(k, 16);
+    BLE_HS_LOG(DEBUG, "\n    r1=");
+    ble_hs_misc_log_flat_buf(r1, 16);
+    BLE_HS_LOG(DEBUG, "\n    r2=");
+    ble_hs_misc_log_flat_buf(r2, 16);
+    BLE_HS_LOG(DEBUG, "\n    out=");
+    ble_hs_misc_log_flat_buf(out, 16);
+    BLE_HS_LOG(DEBUG, "\n");
+
+    return 0;
 }
 
 int
@@ -108,18 +111,18 @@ ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
     uint8_t p1[16], p2[16];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_l2cap_sm_alg_c1; k=");
+    BLE_HS_LOG(DEBUG, "ble_l2cap_sm_alg_c1()\n    k=");
     ble_hs_misc_log_flat_buf(k, 16);
-    BLE_HS_LOG(DEBUG, " r=");
+    BLE_HS_LOG(DEBUG, "\n    r=");
     ble_hs_misc_log_flat_buf(r, 16);
-    BLE_HS_LOG(DEBUG, " iat=%d rat=%d", iat, rat);
-    BLE_HS_LOG(DEBUG, " ia=");
+    BLE_HS_LOG(DEBUG, "\n    iat=%d rat=%d", iat, rat);
+    BLE_HS_LOG(DEBUG, "\n    ia=");
     ble_hs_misc_log_flat_buf(ia, 6);
-    BLE_HS_LOG(DEBUG, " ra=");
+    BLE_HS_LOG(DEBUG, "\n    ra=");
     ble_hs_misc_log_flat_buf(ra, 6);
-    BLE_HS_LOG(DEBUG, " preq=");
+    BLE_HS_LOG(DEBUG, "\n    preq=");
     ble_hs_misc_log_flat_buf(preq, 7);
-    BLE_HS_LOG(DEBUG, " pres=");
+    BLE_HS_LOG(DEBUG, "\n    pres=");
     ble_hs_misc_log_flat_buf(pres, 7);
 
     /* pres, preq, rat and iat are concatenated to generate p1 */
@@ -128,7 +131,7 @@ ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
     memcpy(p1 + 2, preq, 7);
     memcpy(p1 + 9, pres, 7);
 
-    BLE_HS_LOG(DEBUG, " p1=");
+    BLE_HS_LOG(DEBUG, "\n    p1=");
     ble_hs_misc_log_flat_buf(p1, sizeof p1);
 
     /* c1 = e(k, e(k, r XOR p1) XOR p2) */
@@ -147,7 +150,7 @@ ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
     memcpy(p2 + 6, ia, 6);
     memset(p2 + 12, 0, 4);
 
-    BLE_HS_LOG(DEBUG, " p2=");
+    BLE_HS_LOG(DEBUG, "\n    p2=");
     ble_hs_misc_log_flat_buf(p2, sizeof p2);
 
     ble_l2cap_sm_alg_xor_128(out_enc_data, p2, out_enc_data);
@@ -158,10 +161,13 @@ ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
         goto done;
     }
 
+    BLE_HS_LOG(DEBUG, "\n    out_enc_data=");
+    ble_hs_misc_log_flat_buf(out_enc_data, 16);
+
     rc = 0;
 
 done:
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG(DEBUG, "\n    rc=%d\n", rc);
     return rc;
 }
 

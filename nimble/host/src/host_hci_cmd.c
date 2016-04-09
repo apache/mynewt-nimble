@@ -741,6 +741,20 @@ host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
     return rc;
 }
 
+/**
+ * Sends the long-term key (LTK) to the controller.
+ *
+ * Note: This function expects the 128-bit key to be in little-endian byte
+ * order.
+ *
+ * OGF = 0x08 (LE)
+ * OCF = 0x001a
+ *
+ * @param key
+ * @param pt
+ *
+ * @return int
+ */
 int
 host_hci_cmd_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr)
 {
@@ -878,7 +892,7 @@ host_hci_cmd_le_start_encrypt(struct hci_start_encrypt *cmd)
     htole16(buf + 0, cmd->connection_handle);
     htole64(buf + 2, cmd->random_number);
     htole16(buf + 10, cmd->encrypted_diversifier);
-    swap_buf(buf + 12, cmd->long_term_key, 16);
+    memcpy(buf + 12, cmd->long_term_key, sizeof cmd->long_term_key);
 
     return host_hci_le_cmd_send(BLE_HCI_OCF_LE_START_ENCRYPT, sizeof buf, buf);
 }
