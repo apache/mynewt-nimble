@@ -1232,11 +1232,13 @@ done:
         if (*att_err == 0) {
             *att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
         }
-        rc = BLE_HS_ENOENT;
+        if (rc == 0) {
+            rc = BLE_HS_ENOENT;
+        }
     } else {
         /* Send what we can, even if an error was encountered. */
+        rc = 0;
         *att_err = 0;
-        *err_handle = entry->ha_handle_id;
 
         /* Fill the response base. */
         rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ + prev_attr_len;

@@ -43,7 +43,7 @@ static int ble_att_svr_test_attr_n_len;
 
 static void
 ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
-                           struct ble_l2cap_chan **att_chan)
+                           struct ble_l2cap_chan **att_chan, uint16_t mtu)
 {
     ble_hs_test_util_init();
 
@@ -54,6 +54,12 @@ ble_att_svr_test_misc_init(struct ble_hs_conn **conn,
 
     *att_chan = ble_hs_conn_chan_find(*conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(*att_chan != NULL);
+
+    if (mtu != 0) {
+        (*att_chan)->blc_my_mtu = mtu;
+        (*att_chan)->blc_peer_mtu = mtu;
+        (*att_chan)->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    }
 
     ble_att_svr_test_attr_r_1_len = 0;
     ble_att_svr_test_attr_r_2_len = 0;
@@ -103,6 +109,7 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 #define BLE_ATT_SVR_TEST_LAST_SVC  11
+#define BLE_ATT_SVR_TEST_LAST_ATTR 24
 
 static int
 ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
@@ -113,9 +120,9 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
-    /* Service 010203...0f from 11 to 19 */
+    /* Service 010203...0f from 11 to 24 */
 
-    static uint8_t vals[20][16] = {
+    static uint8_t vals[25][16] = {
         [1] =   { 0x22, 0x11 },
         [2] =   { 0x01, 0x11 },
         [3] =   { 0x02, 0x11 },
@@ -133,8 +140,13 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
         [15] =  { 0xdd, 0xdd },
         [16] =  { 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2 },
         [17] =  { 0xdd, 0xdd },
-        [18] =  { 0xdd, 0xdd },
+        [18] =  { 0x66, 0x66 },
         [19] =  { 0xdd, 0xdd },
+        [20] =  { 0x77, 0x77 },
+        [21] =  { 0xdd, 0xdd },
+        [22] =  { 0x88, 0x88 },
+        [23] =  { 0xdd, 0xdd },
+        [24] =  { 0x99, 0x99 },
     };
 
     static uint8_t zeros[14];
@@ -143,7 +155,8 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
         return -1;
     }
 
-    TEST_ASSERT_FATAL(attr_handle >= 1 && attr_handle <= 22);
+    TEST_ASSERT_FATAL(attr_handle >= 1 &&
+                      attr_handle <= BLE_ATT_SVR_TEST_LAST_ATTR);
 
     ctxt->attr_data = vals + attr_handle;
     if (memcmp(ctxt->attr_data + 2, zeros, 14) == 0) {
@@ -188,7 +201,7 @@ ble_att_svr_test_misc_register_group_attrs(void)
 {
     /* Service 0x1122 from 1 to 5 */
     /* Service 0x2233 from 6 to 10 */
-    /* Service 010203...0f from 11 to 19 */
+    /* Service 010203...0f from 11 to 24 */
 
     int i;
 
@@ -218,11 +231,11 @@ ble_att_svr_test_misc_register_group_attrs(void)
             ble_att_svr_test_misc_attr_fn_r_group);
     }
 
-    /* Service 010203...0f from 11 to 19 */
+    /* Service 010203...0f from 11 to 24 */
     ble_att_svr_test_misc_register_uuid16(
         BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 11,
         ble_att_svr_test_misc_attr_fn_r_group);
-    for (i = 12; i <= 19; i++) {
+    for (i = 12; i <= 24; i++) {
         if ((i - 12) % 2 == 0) {
             ble_att_svr_test_misc_register_uuid16(
                 BLE_ATT_UUID_CHARACTERISTIC, HA_FLAG_PERM_RW, i,
@@ -768,7 +781,7 @@ ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
     uint8_t buf[BLE_ATT_MTU_CMD_SZ];
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     chan->blc_my_mtu = my_mtu;
 
@@ -1009,7 +1022,7 @@ TEST_CASE(ble_att_svr_test_read)
     uint8_t uuid[16] = {0};
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     /*** Nonexistent attribute. */
     req.barq_handle = 0;
@@ -1018,7 +1031,7 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
     TEST_ASSERT(rc != 0);
     ble_att_svr_test_misc_verify_tx_err_rsp(chan, BLE_ATT_OP_READ_REQ, 0,
-                                               BLE_ATT_ERR_INVALID_HANDLE);
+                                            BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
@@ -1057,7 +1070,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
     uint8_t uuid[16] = {0};
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     /*** Nonexistent attribute. */
     req.babq_handle = 0;
@@ -1126,7 +1139,7 @@ TEST_CASE(ble_att_svr_test_read_mult)
     struct ble_gatt_attr attr2;
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     attr1.value = (uint8_t[]){ 1, 2, 3, 4 };
     attr1.value_len = 4;
@@ -1195,7 +1208,7 @@ TEST_CASE(ble_att_svr_test_write)
     uint8_t uuid[16] = {0};
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     /*** Nonexistent attribute. */
     req.bawq_handle = 0;
@@ -1238,12 +1251,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     };
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
-
-    /* Increase the MTU to 128 bytes to allow testing of long responses. */
-    chan->blc_my_mtu = 128;
-    chan->blc_peer_mtu = 128;
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    ble_att_svr_test_misc_init(&conn, &chan, 128);
 
     /*** Start handle of 0. */
     req.bafq_start_handle = 0;
@@ -1394,12 +1402,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     };
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
-
-    /* Increase the MTU to 128 bytes to allow testing of long responses. */
-    chan->blc_my_mtu = 128;
-    chan->blc_peer_mtu = 128;
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    ble_att_svr_test_misc_init(&conn, &chan, 128);
 
     /* One-time write of the attribute value at the end of the request. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0x99, 0x99};
@@ -1569,7 +1572,8 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 }
 
-TEST_CASE(ble_att_svr_test_read_type)
+static void
+ble_att_svr_test_misc_read_type(uint16_t mtu)
 {
     struct ble_att_read_type_req req;
     struct ble_l2cap_chan *chan;
@@ -1577,12 +1581,7 @@ TEST_CASE(ble_att_svr_test_read_type)
     uint8_t buf[BLE_ATT_READ_TYPE_REQ_SZ_16];
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
-
-    /* Increase the MTU to 128 bytes to allow testing of long responses. */
-    chan->blc_my_mtu = 128;
-    chan->blc_peer_mtu = 128;
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    ble_att_svr_test_misc_init(&conn, &chan, mtu);
 
     /*** Start handle of 0. */
     req.batq_start_handle = 0;
@@ -1737,6 +1736,43 @@ TEST_CASE(ble_att_svr_test_read_type)
         }, {
             .handle = 0,
         } }));
+
+    /*** Read until the end of the attribute list. */
+    req.batq_start_handle = 17;
+    req.batq_end_handle = 0xffff;
+
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
+    htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ,
+            BLE_ATT_UUID_CHARACTERISTIC);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_read_type_rsp(chan,
+        ((struct ble_att_svr_test_type_entry[]) { {
+            .handle = 18,
+            .value = (uint8_t[]){ 0x66, 0x66 },
+            .value_len = 2,
+        }, {
+            .handle = 20,
+            .value = (uint8_t[]){ 0x77, 0x77 },
+            .value_len = 2,
+        }, {
+            .handle = 22,
+            .value = (uint8_t[]){ 0x88, 0x88 },
+            .value_len = 2,
+        }, {
+            .handle = 24,
+            .value = (uint8_t[]){ 0x99, 0x99 },
+            .value_len = 2,
+        }, {
+            .handle = 0,
+        } }));
+}
+
+TEST_CASE(ble_att_svr_test_read_type)
+{
+    ble_att_svr_test_misc_read_type(0);
+    ble_att_svr_test_misc_read_type(128);
 }
 
 TEST_CASE(ble_att_svr_test_read_group_type)
@@ -1747,12 +1783,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     uint8_t buf[BLE_ATT_READ_GROUP_TYPE_REQ_SZ_16];
     int rc;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
-
-    /* Increase the MTU to 128 bytes to allow testing of long responses. */
-    chan->blc_my_mtu = 128;
-    chan->blc_peer_mtu = 128;
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    ble_att_svr_test_misc_init(&conn, &chan, 128);
 
     /*** Start handle of 0. */
     req.bagq_start_handle = 0;
@@ -1917,7 +1948,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
 
     static uint8_t data[1024];
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 200);
 
     /* Initialize some attribute data. */
     for (i = 0; i < sizeof data; i++) {
@@ -1929,13 +1960,6 @@ TEST_CASE(ble_att_svr_test_prep_write)
                                           ble_att_svr_test_misc_attr_fn_w_1);
     ble_att_svr_test_misc_register_uuid16(0x8989, HA_FLAG_PERM_RW, 2,
                                           ble_att_svr_test_misc_attr_fn_w_2);
-
-    /* Increase the MTU to 200 bytes to allow testing of long requests and
-     * responses.
-     */
-    chan->blc_my_mtu = 200;
-    chan->blc_peer_mtu = 200;
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
 
     /*** Empty write succeeds. */
     ble_att_svr_test_misc_exec_write(conn, chan, BLE_ATT_EXEC_WRITE_F_CONFIRM,
@@ -2031,7 +2055,7 @@ TEST_CASE(ble_att_svr_test_notify)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     /*** Successful notifies; verify callback is executed. */
     /* 3-length attribute. */
@@ -2054,7 +2078,7 @@ TEST_CASE(ble_att_svr_test_indicate)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
 
-    ble_att_svr_test_misc_init(&conn, &chan);
+    ble_att_svr_test_misc_init(&conn, &chan, 0);
 
     /*** Successful indicates; verify callback is executed. */
     /* 3-length attribute. */
