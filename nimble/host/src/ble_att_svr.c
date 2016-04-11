@@ -453,7 +453,6 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
     }
 
     if (do_tx) {
-        ble_att_inc_tx_stat(att_op);
         ble_hs_conn_lock();
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
@@ -462,6 +461,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
         } else {
             if (rc == 0) {
                 BLE_HS_DBG_ASSERT(txom != NULL);
+                ble_att_inc_tx_stat(txom->om_data[0]);
                 rc = ble_l2cap_tx(conn, chan, txom);
                 txom = NULL;
                 if (rc != 0) {
@@ -470,6 +470,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
             }
 
             if (rc != 0) {
+                STATS_INC(ble_att_stats, error_rsp_tx);
                 ble_att_svr_tx_error_rsp(conn, chan, att_op,
                                          err_handle, err_status);
             }
