@@ -29,26 +29,27 @@
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /* To disable all radio interrupts */
-#define NRF51_RADIO_IRQ_MASK_ALL    (0x34FF)
+#define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
 /*
  * We configure the nrf52 with a 1 byte S0 field, 8 bit length field, and
  * zero bit S1 field. The preamble is 8 bits long.
  */
-#define NRF51_LFLEN_BITS        (8)
-#define NRF51_S0_LEN            (1)
+#define NRF_LFLEN_BITS          (8)
+#define NRF_S0_LEN              (1)
 
 /* Maximum length of frames */
-#define NRF51_MAXLEN            (255)
-#define NRF51_BALEN             (3)     /* For base address of 3 bytes */
+#define NRF_MAXLEN              (255)
+#define NRF_BALEN               (3)     /* For base address of 3 bytes */
 
 /* Maximum tx power */
-#define NRF51_TX_PWR_MAX_DBM    (4)
-#define NRF51_TX_PWR_MIN_DBM    (-40)
+#define NRF_TX_PWR_MAX_DBM      (4)
+#define NRF_TX_PWR_MIN_DBM      (-40)
 
 /* BLE PHY data structure */
 struct ble_phy_obj
 {
+    uint8_t phy_stats_initialized;
     int8_t  phy_txpwr_dbm;
     uint8_t phy_chan;
     uint8_t phy_state;
@@ -65,22 +66,38 @@ struct ble_phy_obj g_ble_phy_data;
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
 /* Statistics */
-struct ble_phy_statistics
-{
-    uint32_t tx_good;
-    uint32_t tx_fail;
-    uint32_t tx_late;
-    uint32_t tx_bytes;
-    uint32_t rx_starts;
-    uint32_t rx_aborts;
-    uint32_t rx_valid;
-    uint32_t rx_crc_err;
-    uint32_t phy_isrs;
-    uint32_t radio_state_errs;
-    uint32_t no_bufs;
-};
+STATS_SECT_START(ble_phy_stats)
+    STATS_SECT_ENTRY(phy_isrs)
+    STATS_SECT_ENTRY(tx_good)
+    STATS_SECT_ENTRY(tx_fail)
+    STATS_SECT_ENTRY(tx_late)
+    STATS_SECT_ENTRY(tx_bytes)
+    STATS_SECT_ENTRY(rx_starts)
+    STATS_SECT_ENTRY(rx_aborts)
+    STATS_SECT_ENTRY(rx_valid)
+    STATS_SECT_ENTRY(rx_crc_err)
+    STATS_SECT_ENTRY(no_bufs)
+    STATS_SECT_ENTRY(radio_state_errs)
+    STATS_SECT_ENTRY(rx_hw_err)
+    STATS_SECT_ENTRY(tx_hw_err)
+STATS_SECT_END
+STATS_SECT_DECL(ble_phy_stats) ble_phy_stats;
 
-struct ble_phy_statistics g_ble_phy_stats;
+STATS_NAME_START(ble_phy_stats)
+    STATS_NAME(ble_phy_stats, phy_isrs)
+    STATS_NAME(ble_phy_stats, tx_good)
+    STATS_NAME(ble_phy_stats, tx_fail)
+    STATS_NAME(ble_phy_stats, tx_late)
+    STATS_NAME(ble_phy_stats, tx_bytes)
+    STATS_NAME(ble_phy_stats, rx_starts)
+    STATS_NAME(ble_phy_stats, rx_aborts)
+    STATS_NAME(ble_phy_stats, rx_valid)
+    STATS_NAME(ble_phy_stats, rx_crc_err)
+    STATS_NAME(ble_phy_stats, no_bufs)
+    STATS_NAME(ble_phy_stats, radio_state_errs)
+    STATS_NAME(ble_phy_stats, rx_hw_err)
+    STATS_NAME(ble_phy_stats, tx_hw_err)
+STATS_NAME_END(ble_phy_stats)
 
 /*
  * NOTE:
@@ -127,7 +144,7 @@ ble_phy_rxpdu_get(void)
     if (m == NULL) {
         m = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr));
         if (!m) {
-            ++g_ble_phy_stats.no_bufs;
+            STATS_INC(ble_phy_stats, no_bufs);
         } else {
             /*
              * NOTE: we add two bytes to the data pointer as we will prepend
@@ -213,7 +230,7 @@ ble_phy_isr(void)
                 g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
             } else {
                 /* Disable the phy */
-                ++g_ble_phy_stats.no_bufs;
+                STATS_INC(ble_phy_stats, no_bufs);
                 ble_phy_disable();
             }
 
@@ -255,7 +272,7 @@ ble_phy_isr(void)
              * something is wrong!
              */
             if (state == RADIO_STATE_STATE_Disabled) {
-                NRF_RADIO->INTENCLR = NRF51_RADIO_IRQ_MASK_ALL;
+                NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
                 NRF_RADIO->SHORTS = 0;
                 goto phy_isr_exit;
             }
@@ -287,11 +304,11 @@ ble_phy_isr(void)
             /* Disable PHY */
             ble_phy_disable();
             irq_en = 0;
-            ++g_ble_phy_stats.rx_aborts;
+            STATS_INC(ble_phy_stats, rx_aborts);
         }
 
         /* Count rx starts */
-        ++g_ble_phy_stats.rx_starts;
+        STATS_INC(ble_phy_stats, rx_starts);
     }
 
     /* Receive packet end (we dont enable this for transmit) */
@@ -309,9 +326,9 @@ ble_phy_isr(void)
         /* Count PHY crc errors and valid packets */
         crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
         if (!crcok) {
-            ++g_ble_phy_stats.rx_crc_err;
+            STATS_INC(ble_phy_stats, rx_crc_err);
         } else {
-            ++g_ble_phy_stats.rx_valid;
+            STATS_INC(ble_phy_stats, rx_valid);
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
         }
 
@@ -330,19 +347,20 @@ phy_isr_exit:
     state = NRF_RADIO->SHORTS;
 
     /* Count # of interrupts */
-    ++g_ble_phy_stats.phy_isrs;
+    STATS_INC(ble_phy_stats, phy_isrs);
 }
 
 /**
  * ble phy init
  *
- * Initialize the PHY. This is expected to be called once.
+ * Initialize the PHY.
  *
  * @return int 0: success; PHY error code otherwise
  */
 int
 ble_phy_init(void)
 {
+    int rc;
     uint32_t os_tmo;
 
     /* Make sure HFXO is started */
@@ -366,15 +384,15 @@ ble_phy_init(void)
     NRF_RADIO->POWER = 1;
 
     /* Disable all interrupts */
-    NRF_RADIO->INTENCLR = NRF51_RADIO_IRQ_MASK_ALL;
+    NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
 
     /* Set configuration registers */
     NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
-    NRF_RADIO->PCNF0 = (NRF51_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
-                       (NRF51_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
-    NRF_RADIO->PCNF1 = NRF51_MAXLEN |
+    NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
+                       (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
+    NRF_RADIO->PCNF1 = NRF_MAXLEN |
                        (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
-                       (NRF51_BALEN << RADIO_PCNF1_BALEN_Pos) |
+                       (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
                        RADIO_PCNF1_WHITEEN_Msk;
 
     /* Set base0 with the advertising access address */
@@ -401,6 +419,18 @@ ble_phy_init(void)
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
     NVIC_EnableIRQ(RADIO_IRQn);
 
+    /* Register phy statistics */
+    if (!g_ble_phy_data.phy_stats_initialized) {
+        rc = stats_init_and_reg(STATS_HDR(ble_phy_stats),
+                                STATS_SIZE_INIT_PARMS(ble_phy_stats,
+                                                      STATS_SIZE_32),
+                                STATS_NAME_INIT_PARMS(ble_phy_stats),
+                                "ble_phy");
+        assert(rc == 0);
+
+        g_ble_phy_data.phy_stats_initialized  = 1;
+    }
+
     return 0;
 }
 
@@ -411,7 +441,7 @@ ble_phy_rx(void)
     nrf52_wait_disabled();
     if (NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) {
         ble_phy_disable();
-        ++g_ble_phy_stats.radio_state_errs;
+        STATS_INC(ble_phy_stats, radio_state_errs);
         return BLE_PHY_ERR_RADIO_STATE;
     }
 
@@ -424,7 +454,7 @@ ble_phy_rx(void)
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
 
     /* Make sure all interrupts are disabled */
-    NRF_RADIO->INTENCLR = NRF51_RADIO_IRQ_MASK_ALL;
+    NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
 
     /* Clear events prior to enabling receive */
     NRF_RADIO->EVENTS_END = 0;
@@ -491,7 +521,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
 
     if (NRF_RADIO->STATE != state) {
         ble_phy_disable();
-        ++g_ble_phy_stats.radio_state_errs;
+        STATS_INC(ble_phy_stats, radio_state_errs);
         return BLE_PHY_ERR_RADIO_STATE;
     }
 
@@ -538,15 +568,15 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
 
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
-        ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += ble_hdr->txinfo.pyld_len +
-            BLE_LL_PDU_HDR_LEN;
+        STATS_INC(ble_phy_stats, tx_good);
+        STATS_INCN(ble_phy_stats, tx_bytes,
+                   ble_hdr->txinfo.pyld_len + BLE_LL_PDU_HDR_LEN);
         rc = BLE_ERR_SUCCESS;
     } else {
         if (state == RADIO_STATE_STATE_Tx) {
-            ++g_ble_phy_stats.tx_late;
+            STATS_INC(ble_phy_stats, tx_late);
         } else {
-            ++g_ble_phy_stats.tx_fail;
+            STATS_INC(ble_phy_stats, tx_fail);
         }
 
         /* Frame failed to transmit */
@@ -577,11 +607,11 @@ ble_phy_txpwr_set(int dbm)
     assert(dbm <= BLE_PHY_MAX_PWR_DBM);
 
     /* "Rail" power level if outside supported range */
-    if (dbm > NRF51_TX_PWR_MAX_DBM) {
-        dbm = NRF51_TX_PWR_MAX_DBM;
+    if (dbm > NRF_TX_PWR_MAX_DBM) {
+        dbm = NRF_TX_PWR_MAX_DBM;
     } else {
-        if (dbm < NRF51_TX_PWR_MIN_DBM) {
-            dbm = NRF51_TX_PWR_MIN_DBM;
+        if (dbm < NRF_TX_PWR_MIN_DBM) {
+            dbm = NRF_TX_PWR_MIN_DBM;
         }
     }
 
@@ -699,7 +729,7 @@ ble_phy_disable(void)
 {
     ble_ll_log(BLE_LL_LOG_ID_PHY_DISABLE, g_ble_phy_data.phy_state, 0, 0);
 
-    NRF_RADIO->INTENCLR = NRF51_RADIO_IRQ_MASK_ALL;
+    NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
     NVIC_ClearPendingIRQ(RADIO_IRQn);
