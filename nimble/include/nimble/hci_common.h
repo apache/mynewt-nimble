@@ -313,6 +313,9 @@
 /* --- LE read supported states (OCF 0x001C) --- */
 #define BLE_HCI_RD_SUPP_STATES_RSPLEN       (8)
 
+/* --- LE transitter test command (OCF 0x001E) --- */
+#define BLE_HCI_TX_TEST_LEN                 (3)
+
 /* --- LE remote connection parameter request reply (OCF 0x0020) */
 #define BLE_HCI_CONN_PARAM_REPLY_LEN        (14)
 
@@ -322,11 +325,26 @@
 /* --- LE set data length (OCF 0x0022) */
 #define BLE_HCI_SET_DATALEN_LEN             (6)
 
-/* --- LE read suggested default data length (OCF 0x0024) */
+/* --- LE read suggested default data length (OCF 0x0023) */
 #define BLE_HCI_RD_SUGG_DATALEN_RSPLEN      (4)
 
 /* --- LE write suggested default data length (OCF 0x0024) */
 #define BLE_HCI_WR_SUGG_DATALEN_LEN         (4)
+
+/* --- LE generate DHKEY command (OCF 0x0026) */
+#define BLE_HCI_GEN_DHKEY_LEN               (64)
+
+/* --- LE add device to resolving list (OCF 0x0027) */
+#define BLE_HCI_ADD_TO_RESOLV_LIST_LEN      (39)
+
+/* --- LE add device to resolving list (OCF 0x0028) */
+#define BLE_HCI_RMV_FROM_RESOLV_LIST_LEN    (7)
+
+/* --- LE read peer resolvable address (OCF 0x002B) */
+#define BLE_HCI_RD_PEER_RESOLV_ADDR_LEN     (7)
+
+/* --- LE read peer resolvable address (OCF 0x002C) */
+#define BLE_HCI_RD_LOC_RESOLV_ADDR_LEN      (7)
 
 /* --- LE read maximum data length (OCF 0x002F) */
 #define BLE_HCI_RD_MAX_DATALEN_RSPLEN       (8)

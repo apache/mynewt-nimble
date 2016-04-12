@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -21,12 +21,11 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 
-/* 
- * Lengths for commands. NOTE: 0xFF is a special case and means that there
- * is no fixed length for the command or is a command that we have not
- * implemented.
- */ 
-const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] = 
+/*
+ * Storage for the length of each HCI LE command. This is the length of the
+ * command parameters in the command; not the response length.
+ */
+const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
 {
     0,                                  /* 0x0000: reserved */
     BLE_HCI_SET_LE_EVENT_MASK_LEN,      /* 0x0001: set event mask */
@@ -53,28 +52,28 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     BLE_HCI_CONN_RD_REM_FEAT_LEN,       /* 0x0016: read remote features */
     BLE_HCI_LE_ENCRYPT_LEN,             /* 0x0017: encrypt */
     0,                                  /* 0x0018: rand */
-    0xFF,
-    0xFF,
-    0xFF,
+    BLE_HCI_LE_START_ENCRYPT_LEN,       /* 0x0019: start encryption */
+    BLE_HCI_LT_KEY_REQ_REPLY_LEN,       /* 0x001A: LTK request reply */
+    sizeof(uint16_t),                   /* 0x001B: LTK request negative reply */
     0,                                  /* 0x001C: read supported states */
-    0xFF,
-    0xFF,
-    0xFF,
+    sizeof(uint8_t),                    /* 0x001D: receiver test */
+    BLE_HCI_TX_TEST_LEN,                /* 0x001E: transmitter test */
+    0,                                  /* 0x001F: test end */
     BLE_HCI_CONN_PARAM_REPLY_LEN,       /* 0x0020: conn param reply */
     BLE_HCI_CONN_PARAM_NEG_REPLY_LEN,   /* 0x0021: conn param neg reply */
     BLE_HCI_SET_DATALEN_LEN,            /* 0x0022: set data length */
     0,                                  /* 0x0023: read sugg data len */
     BLE_HCI_WR_SUGG_DATALEN_LEN,        /* 0x0024: write suggested data len */
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
+    0,                                  /* 0x0025: rd local P256 pub key */
+    BLE_HCI_GEN_DHKEY_LEN,              /* 0x0026: generate DHKEY */
+    BLE_HCI_ADD_TO_RESOLV_LIST_LEN,     /* 0x0027: add to resolving list */
+    BLE_HCI_RMV_FROM_RESOLV_LIST_LEN,   /* 0x0028: rmv from resolving list */
+    0,                                  /* 0x0029: clear resolving list */
+    0,                                  /* 0x002A: read resolving list size */
+    BLE_HCI_RD_PEER_RESOLV_ADDR_LEN,    /* 0x002B: read peer resolvable addr */
+    BLE_HCI_RD_LOC_RESOLV_ADDR_LEN,     /* 0x002C: read local resolvable addr */
+    sizeof(uint8_t),                    /* 0x002D: set addr resolution enable */
+    sizeof(uint16_t),                   /* 0x002E: Set resolv priv addr tmo */
     0,                                  /* 0x002F: Read max data length */
 };
 
