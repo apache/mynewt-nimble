@@ -486,7 +486,7 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
     htole16(pyld + 9, instant);
 
     /* Set flag in state machine to denote we have scheduled an update */
-    connsm->csmflags.cfbit.conn_update_scheduled = 1;
+    connsm->csmflags.cfbit.conn_update_sched = 1;
 }
 
 /**
@@ -558,7 +558,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
         rsp_opcode = BLE_ERR_MAX;
     } else {
-        connsm->csmflags.cfbit.conn_update_scheduled = 1;
+        connsm->csmflags.cfbit.conn_update_sched = 1;
     }
 
     return rsp_opcode;
