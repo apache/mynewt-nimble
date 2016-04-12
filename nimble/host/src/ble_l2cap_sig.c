@@ -27,48 +27,38 @@
  * $definitions / declarations                                               *
  *****************************************************************************/
 
-#define BLE_L2CAP_SIG_HEARTBEAT_PERIOD          1000    /* Milliseconds. */
 #define BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT      30000   /* Milliseconds. */
 
 #define BLE_L2CAP_SIG_PROC_OP_UPDATE            0
 #define BLE_L2CAP_SIG_PROC_OP_MAX               1
 
 struct ble_l2cap_sig_proc {
-    struct ble_fsm_proc fsm_proc;
+    STAILQ_ENTRY(ble_l2cap_sig_proc) next;
+
+    uint32_t exp_os_ticks;
+    uint16_t conn_handle;
+    uint8_t op;
     uint8_t id;
 
     union {
         struct {
-            struct ble_l2cap_sig_update_params params;
             ble_l2cap_sig_update_fn *cb;
             void *cb_arg;
         } update;
     };
 };
 
-/**
- * Handles unresponsive timeouts and periodic retries in case of resource
- * shortage.
- */
-static struct os_callout_func ble_l2cap_sig_heartbeat_timer;
+STAILQ_HEAD(ble_l2cap_sig_proc_list, ble_l2cap_sig_proc);
 
-typedef int ble_l2cap_sig_kick_fn(struct ble_l2cap_sig_proc *proc);
+static struct ble_l2cap_sig_proc_list ble_l2cap_sig_procs;
 
 typedef int ble_l2cap_sig_rx_fn(uint16_t conn_handle,
                                 struct ble_l2cap_sig_hdr *hdr,
                                 struct os_mbuf **om);
 
-static int ble_l2cap_sig_rx_noop(uint16_t conn_handle,
-                                 struct ble_l2cap_sig_hdr *hdr,
-                                 struct os_mbuf **om);
-static int ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
-                                       struct ble_l2cap_sig_hdr *hdr,
-                                       struct os_mbuf **om);
-static int ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
-                                       struct ble_l2cap_sig_hdr *hdr,
-                                       struct os_mbuf **om);
-
-static int ble_l2cap_sig_update_kick(struct ble_l2cap_sig_proc *proc);
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_rx_noop;
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_req_rx;
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_rsp_rx;
 
 static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_REJECT]               = ble_l2cap_sig_rx_noop,
@@ -85,72 +75,15 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_rx_noop,
 };
 
-static ble_l2cap_sig_kick_fn * const ble_l2cap_sig_kick[] = {
-    [BLE_L2CAP_SIG_PROC_OP_UPDATE]          = ble_l2cap_sig_update_kick,
-};
-
 static uint8_t ble_l2cap_sig_cur_id;
 
 static void *ble_l2cap_sig_proc_mem;
 static struct os_mempool ble_l2cap_sig_proc_pool;
 
-static struct ble_fsm ble_l2cap_sig_fsm;
-
-/*****************************************************************************
- * $mutex                                                                    *
- *****************************************************************************/
-
-void
-ble_l2cap_sig_lock(void)
-{
-    ble_fsm_lock(&ble_l2cap_sig_fsm);
-}
-
-void
-ble_l2cap_sig_unlock(void)
-{
-    ble_fsm_unlock(&ble_l2cap_sig_fsm);
-}
-
-int
-ble_l2cap_sig_locked_by_cur_task(void)
-{
-    return ble_fsm_locked_by_cur_task(&ble_l2cap_sig_fsm);
-}
-
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
 
-/**
- * Lock restrictions: None.
- */
-static ble_l2cap_sig_kick_fn *
-ble_l2cap_sig_kick_get(uint8_t op)
-{
-    if (op > BLE_L2CAP_SIG_PROC_OP_MAX) {
-        return NULL;
-    }
-
-    return ble_l2cap_sig_kick[op];
-}
-
-static int
-ble_l2cap_sig_proc_kick(struct ble_fsm_proc *proc)
-{
-    ble_l2cap_sig_kick_fn *kick_cb;
-    int rc;
-
-    kick_cb = ble_l2cap_sig_kick_get(proc->op);
-    rc = kick_cb((struct ble_l2cap_sig_proc *)proc);
-
-    return rc;
-}
-
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
 static int
 ble_l2cap_sig_conn_chan_find(uint16_t conn_handle,
                              struct ble_hs_conn **out_conn,
@@ -163,9 +96,6 @@ ble_l2cap_sig_conn_chan_find(uint16_t conn_handle,
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 static uint8_t
 ble_l2cap_sig_next_id(void)
 {
@@ -178,9 +108,6 @@ ble_l2cap_sig_next_id(void)
     return ble_l2cap_sig_cur_id;
 }
 
-/**
- * Lock restrictions: None.
- */
 static ble_l2cap_sig_rx_fn *
 ble_l2cap_sig_dispatch_get(uint8_t op)
 {
@@ -193,8 +120,6 @@ ble_l2cap_sig_dispatch_get(uint8_t op)
 
 /**
  * Allocates a proc entry.
- *
- * Lock restrictions: None.
  *
  * @return                      An entry on success; null on failure.
  */
@@ -213,11 +138,9 @@ ble_l2cap_sig_proc_alloc(void)
 
 /**
  * Frees the specified proc entry.  No-op if passed a null pointer.
- *
- * Lock restrictions: None.
  */
 static void
-ble_l2cap_sig_proc_free(struct ble_fsm_proc *proc)
+ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
 {
     int rc;
 
@@ -227,52 +150,34 @@ ble_l2cap_sig_proc_free(struct ble_fsm_proc *proc)
     }
 }
 
-/**
- * Lock restrictions: None.
- */
-static int
-ble_l2cap_sig_new_proc(uint16_t conn_handle, uint8_t op,
-                       struct ble_l2cap_sig_proc **out_proc)
+static void
+ble_l2cap_sig_proc_insert(struct ble_l2cap_sig_proc *proc)
 {
-    *out_proc = ble_l2cap_sig_proc_alloc();
-    if (*out_proc == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    memset(*out_proc, 0, sizeof **out_proc);
-    (*out_proc)->fsm_proc.op = op;
-    (*out_proc)->fsm_proc.conn_handle = conn_handle;
-    (*out_proc)->fsm_proc.tx_time = os_time_get();
-
-    STAILQ_INSERT_TAIL(&ble_l2cap_sig_fsm.procs, &(*out_proc)->fsm_proc, next);
-
-    return 0;
+    ble_hs_lock();
+    STAILQ_INSERT_HEAD(&ble_l2cap_sig_procs, proc, next);
+    ble_hs_unlock();
 }
 
 /**
  * Tests if a proc entry fits the specified criteria.
  *
- * Lock restrictions: None.
- *
  * @param proc                  The procedure to test.
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against/
  * @param id                    The identifier to match against.
- * @param expecting_only        1=Only match entries expecting a response;
  *                                  0=Ignore this criterion.
  *
  * @return                      1 if the proc matches; 0 otherwise.
  */
 static int
 ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
-                           uint16_t conn_handle, uint8_t op, uint8_t id,
-                           int expecting_only)
+                           uint16_t conn_handle, uint8_t op, uint8_t id)
 {
-    if (conn_handle != proc->fsm_proc.conn_handle) {
+    if (conn_handle != proc->conn_handle) {
         return 0;
     }
 
-    if (op != proc->fsm_proc.op) {
+    if (op != proc->op) {
         return 0;
     }
 
@@ -280,42 +185,13 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
         return 0;
     }
 
-    if (expecting_only && !(proc->fsm_proc.flags & BLE_FSM_PROC_F_EXPECTING)) {
-        return 0;
-    }
-
     return 1;
-}
-
-struct ble_l2cap_sig_proc_extract_arg {
-    uint16_t conn_handle;
-    uint8_t op;
-    uint8_t id;
-};
-
-static int
-ble_l2cap_sig_proc_extract_cb(struct ble_fsm_proc *proc, void *arg)
-{
-    struct ble_l2cap_sig_proc_extract_arg *extract_arg;
-
-    extract_arg = arg;
-
-    if (ble_l2cap_sig_proc_matches((struct ble_l2cap_sig_proc *)proc,
-                                   extract_arg->conn_handle, extract_arg->op,
-                                   extract_arg->id, 1)) {
-        return BLE_FSM_EXTRACT_EMOVE_STOP;
-    } else {
-        return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
-    }
 }
 
 /**
  * Searches the main proc list for an "expecting" entry whose connection handle
  * and op code match those specified.  If a matching entry is found, it is
  * removed from the list and returned.
- *
- * Lock restrictions:
- *     o Caller unlocks l2cap_sig.
  *
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against.
@@ -328,61 +204,44 @@ static struct ble_l2cap_sig_proc *
 ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
                            uint8_t identifier)
 {
-    struct ble_l2cap_sig_proc_extract_arg extract_arg;
     struct ble_l2cap_sig_proc *proc;
-    int rc;
+    struct ble_l2cap_sig_proc *prev;
 
-    extract_arg.conn_handle = conn_handle;
-    extract_arg.op = op;
-    extract_arg.id = identifier;
+    ble_hs_lock();
 
-    rc = ble_fsm_proc_extract(&ble_l2cap_sig_fsm,
-                              (struct ble_fsm_proc **)&proc,
-                              ble_l2cap_sig_proc_extract_cb, &extract_arg);
-
-    if (rc != 0) {
-        proc = NULL;
+    prev = NULL;
+    STAILQ_FOREACH(proc, &ble_l2cap_sig_procs, next) {
+        if (ble_l2cap_sig_proc_matches(proc, conn_handle, op, identifier)) {
+            if (prev == NULL) {
+                STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
+            } else {
+                STAILQ_REMOVE_AFTER(&ble_l2cap_sig_procs, prev, next);
+            }
+            break;
+        }
     }
+
+    ble_hs_unlock();
 
     return proc;
 }
 
-/**
- * Sets the specified proc entry's "pending" flag (i.e., indicates that the
- * L2CAP sig procedure is stalled until it transmits its next request).
- *
- * Lock restrictions: None.
- */
-static void
-ble_l2cap_sig_proc_set_pending(struct ble_l2cap_sig_proc *proc)
-{
-    ble_fsm_proc_set_pending(&proc->fsm_proc);
-    ble_hs_kick_l2cap_sig();
-}
-
-/**
- * Lock restrictions: None.
- */
 static int
 ble_l2cap_sig_rx_noop(uint16_t conn_handle,
                       struct ble_l2cap_sig_hdr *hdr,
                       struct os_mbuf **om)
 {
-    return 0;
+    return BLE_HS_ENOTSUP;
 }
 
 /*****************************************************************************
  * $update                                                                   *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static void
 ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
 {
-    BLE_HS_DBG_ASSERT(!ble_hs_conn_locked_by_cur_task());
+    ble_hs_misc_assert_not_locked();
 
     if (status != 0) {
         STATS_INC(ble_l2cap_stats, update_fail);
@@ -393,10 +252,6 @@ ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
     }
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
                             struct ble_l2cap_sig_hdr *hdr,
@@ -415,12 +270,12 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         return rc;
     }
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
     rc = ble_l2cap_sig_conn_chan_find(conn_handle, &conn, &chan);
     if (rc == 0) {
         is_master = conn->bhc_flags & BLE_HS_CONN_F_MASTER;
     }
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     if (rc != 0) {
         return rc;
@@ -458,13 +313,13 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     /* Send L2CAP response. */
     rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
                                      l2cap_result);
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
                             struct ble_l2cap_sig_hdr *hdr,
@@ -475,12 +330,10 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
     int cb_status;
     int rc;
 
-    ble_hs_misc_assert_no_locks();
-
     proc = ble_l2cap_sig_proc_extract(conn_handle,
                                       BLE_L2CAP_SIG_PROC_OP_UPDATE,
                                       hdr->identifier);
-    if (proc ==  NULL) {
+    if (proc == NULL) {
         return BLE_HS_ENOENT;
     }
 
@@ -511,82 +364,69 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
 
 done:
     ble_l2cap_sig_update_call_cb(proc, cb_status);
-    ble_l2cap_sig_proc_free(&proc->fsm_proc);
+    ble_l2cap_sig_proc_free(proc);
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
-static int
-ble_l2cap_sig_update_kick(struct ble_l2cap_sig_proc *proc)
-{
-    struct ble_l2cap_sig_update_req req;
-    ble_hs_conn_flags_t flags;
-    int rc;
-
-    rc = ble_hs_conn_flags(proc->fsm_proc.conn_handle, &flags);
-    if (rc == 0) {
-        if (flags & BLE_HS_CONN_F_MASTER) {
-            /* Only the slave can initiate the L2CAP connection update
-             * procedure.
-             */
-            rc = BLE_HS_EINVAL;
-        }
-    }
-
-    if (rc == 0) {
-        proc->id = ble_l2cap_sig_next_id();
-        req.itvl_min = proc->update.params.itvl_min;
-        req.itvl_max = proc->update.params.itvl_max;
-        req.slave_latency = proc->update.params.slave_latency;
-        req.timeout_multiplier = proc->update.params.timeout_multiplier;
-
-        rc = ble_l2cap_sig_update_req_tx(proc->fsm_proc.conn_handle,
-                                         proc->id, &req);
-    }
-
-    if (rc != 0) {
-        ble_l2cap_sig_update_call_cb(proc, rc);
-        rc = BLE_HS_EDONE;
-    }
-
-    return rc;
-}
-
-/**
- * Lock restrictions: None.
- */
 int
 ble_l2cap_sig_update(uint16_t conn_handle,
                      struct ble_l2cap_sig_update_params *params,
                      ble_l2cap_sig_update_fn *cb, void *cb_arg)
 {
+    struct ble_l2cap_sig_update_req req;
     struct ble_l2cap_sig_proc *proc;
+    ble_hs_conn_flags_t conn_flags;
     int rc;
+
+    proc = NULL;
 
     STATS_INC(ble_l2cap_stats, update_init);
 
-    rc = ble_l2cap_sig_new_proc(conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE,
-                                &proc);
-    if (rc == 0) {
-        proc->update.params = *params;
-        proc->update.cb = cb;
-        proc->update.cb_arg = cb_arg;
-
-        ble_l2cap_sig_proc_set_pending(proc);
-    } else {
-        STATS_INC(ble_l2cap_stats, update_fail);
+    rc = ble_hs_conn_flags(conn_handle, &conn_flags);
+    if (rc != 0) {
+        return rc;
+    }
+    if (conn_flags & BLE_HS_CONN_F_MASTER) {
+        /* Only the slave can initiate the L2CAP connection update
+         * procedure.
+         */
+        rc = BLE_HS_EINVAL;
+        goto err;
     }
 
+    proc = ble_l2cap_sig_proc_alloc();
+    if (proc == NULL) {
+        STATS_INC(ble_l2cap_stats, update_fail);
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    proc->op = BLE_L2CAP_SIG_PROC_OP_UPDATE;
+    proc->id = ble_l2cap_sig_next_id();
+    proc->conn_handle = conn_handle;
+    proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT;
+    proc->update.cb = cb;
+    proc->update.cb_arg = cb_arg;
+
+    req.itvl_min = params->itvl_min;
+    req.itvl_max = params->itvl_max;
+    req.slave_latency = params->slave_latency;
+    req.timeout_multiplier = params->timeout_multiplier;
+
+    rc = ble_l2cap_sig_update_req_tx(conn_handle, proc->id, &req);
+    if (rc != 0) {
+        goto err;
+    }
+
+    ble_l2cap_sig_proc_insert(proc);
+
     return 0;
+
+err:
+    ble_l2cap_sig_proc_free(proc);
+    return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -625,9 +465,6 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 struct ble_l2cap_chan *
 ble_l2cap_sig_create_chan(void)
 {
@@ -646,30 +483,39 @@ ble_l2cap_sig_create_chan(void)
     return chan;
 }
 
-static int
-ble_l2cap_sig_heartbeat_extract_cb(struct ble_fsm_proc *proc, void *arg)
+static void
+ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
 {
-    uint32_t *now;
+    struct ble_l2cap_sig_proc *proc;
+    struct ble_l2cap_sig_proc *prev;
+    struct ble_l2cap_sig_proc *next;
+    uint32_t now;
+    int32_t time_diff;
 
-    now = arg;
+    now = os_time_get();
+    STAILQ_INIT(dst_list);
 
-    if (proc->flags & BLE_FSM_PROC_F_EXPECTING) {
-        if (*now - proc->tx_time >= BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT) {
-            return BLE_FSM_EXTRACT_EMOVE_CONTINUE;
+    ble_hs_lock();
+
+    prev = NULL;
+    proc = STAILQ_FIRST(&ble_l2cap_sig_procs);
+    while (proc != NULL) {
+        next = STAILQ_NEXT(proc, next);
+    
+        time_diff = now - proc->exp_os_ticks;
+        if (time_diff >= 0) {
+            if (prev == NULL) {
+                STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
+            } else {
+                STAILQ_REMOVE_AFTER(&ble_l2cap_sig_procs, prev, next);
+            }
+            STAILQ_INSERT_TAIL(dst_list, proc, next);
         }
+
+        proc = next;
     }
 
-    /* If a proc failed due to low memory, don't extract it, but set its 
-     * pending bit.
-     */
-    if (proc->flags & BLE_FSM_PROC_F_NO_MEM) {
-        proc->flags &= ~BLE_FSM_PROC_F_NO_MEM;
-        if (ble_fsm_proc_can_pend(proc)) {
-            ble_fsm_proc_set_pending(proc);
-        }
-    }
-
-    return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
+    ble_hs_unlock();
 }
 
 /**
@@ -682,59 +528,25 @@ ble_l2cap_sig_heartbeat_extract_cb(struct ble_fsm_proc *proc, void *arg)
  * seconds are aborted, and their corresponding connection is terminated.
  *
  * Called by the heartbeat timer; executed every second.
- *
- * Lock restrictions: None.
  */
-static void
-ble_l2cap_sig_heartbeat(void *unused)
+void
+ble_l2cap_sig_heartbeat(void)
 {
-    struct ble_fsm_proc_list temp_list;
-    struct ble_fsm_proc *proc;
-    uint32_t ticks;
-    uint32_t now;
-    int rc;
-
-    ble_hs_misc_assert_no_locks();
-
-    now = os_time_get();
+    struct ble_l2cap_sig_proc_list temp_list;
+    struct ble_l2cap_sig_proc *proc;
 
     /* Remove timed-out procedures from the main list and insert them into a
-     * temporary list.  For any stalled procedures, set their pending bit so
-     * they can be retried.
+     * temporary list.
      */
-    ble_fsm_proc_extract_list(&ble_l2cap_sig_fsm, &temp_list,
-                              ble_l2cap_sig_heartbeat_extract_cb, &now);
+    ble_l2cap_sig_extract_expired(&temp_list);
 
     /* Terminate the connection associated with each timed-out procedure. */
     STAILQ_FOREACH(proc, &temp_list, next) {
         STATS_INC(ble_l2cap_stats, proc_timeout);
         ble_gap_terminate(proc->conn_handle);
     }
-
-    /* Concatenate the list of timed out procedures back onto the end of the
-     * main list.
-     */
-    ble_fsm_proc_concat(&ble_l2cap_sig_fsm, &temp_list);
-
-    ticks = BLE_L2CAP_SIG_HEARTBEAT_PERIOD * OS_TICKS_PER_SEC / 1000;
-    rc = os_callout_reset(&ble_l2cap_sig_heartbeat_timer.cf_c, ticks);
-        
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
-void
-ble_l2cap_sig_wakeup(void)
-{
-    ble_fsm_wakeup(&ble_l2cap_sig_fsm);
-}
-
-/**
- * Lock restrictions: None.
- */
 int
 ble_l2cap_sig_init(void)
 {
@@ -742,11 +554,7 @@ ble_l2cap_sig_init(void)
 
     free(ble_l2cap_sig_proc_mem);
 
-    rc = ble_fsm_new(&ble_l2cap_sig_fsm, ble_l2cap_sig_proc_kick,
-                     ble_l2cap_sig_proc_free);
-    if (rc != 0) {
-        goto err;
-    }
+    STAILQ_INIT(&ble_l2cap_sig_procs);
 
     if (ble_hs_cfg.max_l2cap_sig_procs > 0) {
         ble_l2cap_sig_proc_mem = malloc(
@@ -766,9 +574,6 @@ ble_l2cap_sig_init(void)
             goto err;
         }
     }
-
-    os_callout_func_init(&ble_l2cap_sig_heartbeat_timer, &ble_hs_evq,
-                         ble_l2cap_sig_heartbeat, NULL);
 
     return 0;
 

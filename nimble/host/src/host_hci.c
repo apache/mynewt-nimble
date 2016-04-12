@@ -31,11 +31,11 @@
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
 
+#define BLE_HCI_TIMEOUT       (OS_TICKS_PER_SEC)
+
 typedef int host_hci_event_fn(uint8_t event_code, uint8_t *data, int len);
 static host_hci_event_fn host_hci_rx_disconn_complete;
 static host_hci_event_fn host_hci_rx_encrypt_change;
-static host_hci_event_fn host_hci_rx_cmd_complete;
-static host_hci_event_fn host_hci_rx_cmd_status;
 static host_hci_event_fn host_hci_rx_num_completed_pkts;
 static host_hci_event_fn host_hci_rx_le_meta;
 
@@ -58,12 +58,7 @@ struct host_hci_stats
     uint32_t unknown_events_rxd;
 };
 
-/** The opcode of the current unacked HCI command; 0 if none. */
-uint16_t host_hci_outstanding_opcode;
-
 #define HOST_HCI_TIMEOUT        50      /* Milliseconds. */
-
-static struct os_callout_func host_hci_timer;
 
 /** Dispatch table for incoming HCI events.  Sorted by event code field. */
 struct host_hci_event_dispatch_entry {
@@ -74,8 +69,6 @@ struct host_hci_event_dispatch_entry {
 static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
     { BLE_HCI_EVCODE_ENCRYPT_CHG, host_hci_rx_encrypt_change },
-    { BLE_HCI_EVCODE_COMMAND_COMPLETE, host_hci_rx_cmd_complete },
-    { BLE_HCI_EVCODE_COMMAND_STATUS, host_hci_rx_cmd_status },
     { BLE_HCI_EVCODE_NUM_COMP_PKTS, host_hci_rx_num_completed_pkts },
     { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
 };
@@ -100,6 +93,24 @@ static const struct host_hci_le_event_dispatch_entry
 
 #define HOST_HCI_LE_EVENT_DISPATCH_SZ \
     (sizeof host_hci_le_event_dispatch / sizeof host_hci_le_event_dispatch[0])
+
+uint16_t
+host_hci_opcode_join(uint8_t ogf, uint16_t ocf)
+{
+    return (ogf << 10) | ocf;
+}
+
+uint16_t
+host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
+{
+    BLE_HS_DBG_ASSERT(handle <= 0x0fff);
+    BLE_HS_DBG_ASSERT(pb <= 0x03);
+    BLE_HS_DBG_ASSERT(bc <= 0x03);
+
+    return (handle  << 0)   |
+           (pb      << 12)  |
+           (bc      << 14);
+}
 
 static const struct host_hci_event_dispatch_entry *
 host_hci_dispatch_entry_find(uint8_t event_code)
@@ -132,39 +143,6 @@ host_hci_le_dispatch_entry_find(uint8_t event_code)
 
     return NULL;
 }
-
-void
-host_hci_timer_set(void)
-{
-    int rc;
-
-    rc = os_callout_reset(&host_hci_timer.cf_c,
-                          HOST_HCI_TIMEOUT * OS_TICKS_PER_SEC / 1000);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-}
-
-static void
-host_hci_timer_stop(void)
-{
-    os_callout_stop(&host_hci_timer.cf_c);
-}
-
-static void
-host_hci_timer_exp(void *arg)
-{
-    struct ble_hci_ack ack;
-
-    BLE_HS_DBG_ASSERT(host_hci_outstanding_opcode != 0);
-
-    ack.bha_opcode = host_hci_outstanding_opcode;
-    ack.bha_status = BLE_HS_ETIMEOUT;
-    ack.bha_params = NULL;
-    ack.bha_params_len = 0;
-
-    host_hci_outstanding_opcode = 0;
-    ble_hci_sched_rx_ack(&ack);
-}
-
 
 static int
 host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
@@ -203,12 +181,13 @@ host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
+host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len,
+                         struct ble_hci_ack *out_ack)
 {
-    struct ble_hci_ack ack;
     uint16_t opcode;
-    uint8_t num_pkts;
     uint8_t *params;
+    uint8_t params_len;
+    uint8_t num_pkts;
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
         /* XXX: Increment stat. */
@@ -222,37 +201,33 @@ host_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len)
     /* XXX: Process num_pkts field. */
     (void)num_pkts;
 
-    if (opcode != BLE_HCI_OPCODE_NOP &&
-        opcode != host_hci_outstanding_opcode) {
+    out_ack->bha_opcode = opcode;
 
-        STATS_INC(ble_hs_stats, hci_invalid_ack);
-        return BLE_HS_ENOENT;
-    }
-
-    if (opcode == host_hci_outstanding_opcode) {
-        /* Mark the outstanding command as acked. */
-        host_hci_outstanding_opcode = 0;
-        host_hci_timer_stop();
-    }
-
-    ack.bha_opcode = opcode;
-    ack.bha_params = params;
-    ack.bha_params_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
-    if (ack.bha_params_len > 0) {
-        ack.bha_status = BLE_HS_HCI_ERR(params[0]);
+    params_len = len - BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN;
+    if (params_len > 0) {
+        out_ack->bha_status = BLE_HS_HCI_ERR(params[0]);
+    } else if (opcode == BLE_HCI_OPCODE_NOP) {
+        out_ack->bha_status = 0;
     } else {
-        ack.bha_status = BLE_HS_ECONTROLLER;
+        out_ack->bha_status = BLE_HS_ECONTROLLER;
     }
 
-    ble_hci_sched_rx_ack(&ack);
+    /* Don't include the status byte in the parameters blob. */
+    if (params_len > 1) {
+        out_ack->bha_params = params + 1;
+        out_ack->bha_params_len = params_len - 1;
+    } else {
+        out_ack->bha_params = NULL;
+        out_ack->bha_params_len = 0;
+    }
 
     return 0;
 }
 
 static int
-host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
+host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len,
+                       struct ble_hci_ack *out_ack)
 {
-    struct ble_hci_ack ack;
     uint16_t opcode;
     uint8_t num_pkts;
     uint8_t status;
@@ -269,26 +244,10 @@ host_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len)
     /* XXX: Process num_pkts field. */
     (void)num_pkts;
 
-    /* XXX: This check might be overaggressive for the command status event. */
-    if (opcode != BLE_HCI_OPCODE_NOP &&
-        opcode != host_hci_outstanding_opcode) {
-
-        STATS_INC(ble_hs_stats, hci_invalid_ack);
-        return BLE_HS_ENOENT;
-    }
-
-    if (opcode == host_hci_outstanding_opcode) {
-        /* Mark the outstanding command as acked. */
-        host_hci_outstanding_opcode = 0;
-        host_hci_timer_stop();
-    }
-
-    ack.bha_opcode = opcode;
-    ack.bha_params = NULL;
-    ack.bha_params_len = 0;
-    ack.bha_status = BLE_HS_HCI_ERR(status);
-
-    ble_hci_sched_rx_ack(&ack);
+    out_ack->bha_opcode = opcode;
+    out_ack->bha_params = NULL;
+    out_ack->bha_params_len = 0;
+    out_ack->bha_status = BLE_HS_HCI_ERR(status);
 
     return 0;
 }
@@ -318,7 +277,9 @@ host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
         handle = le16toh(data + off + 2 * i);
         num_pkts = le16toh(data + off + 2 * num_handles + 2 * i);
 
-        ble_hs_conn_rx_num_completed_pkts(handle, num_pkts);
+        /* XXX: Do something with these values. */
+        (void)handle;
+        (void)num_pkts;
     }
 
     return 0;
@@ -596,7 +557,7 @@ host_hci_event_rx(uint8_t *data)
     int rc;
 
     /* Count events received */
-    STATS_INC(ble_hs_stats, hci_cmd);
+    STATS_INC(ble_hs_stats, hci_event);
 
     /* Display to console */
     host_hci_dbg_event_disp(data);
@@ -637,28 +598,197 @@ host_hci_os_event_proc(struct os_event *ev)
     return rc;
 }
 
+static uint8_t *ble_hci_ack_ev;
+static struct os_sem ble_hci_sem;
+
+#if PHONY_HCI_ACKS
+static ble_hci_phony_ack_fn *ble_hci_phony_ack_cb;
+#endif
+
+#if PHONY_HCI_ACKS
+void
+ble_hci_set_phony_ack_cb(ble_hci_phony_ack_fn *cb)
+{
+    ble_hci_phony_ack_cb = cb;
+}
+#endif
+
 /* XXX: For now, put this here */
 int
 ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
 {
-    os_error_t err;
     struct os_event *ev;
+    os_error_t err;
+    int enqueue;
 
     BLE_HS_DBG_ASSERT(hci_ev != NULL);
 
-    /* Get an event structure off the queue */
-    ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
-    if (!ev) {
-        err = os_memblock_put(&g_hci_cmd_pool, hci_ev);
-        BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
-        return -1;
+    switch (hci_ev[0]) {
+    case BLE_HCI_EVCODE_COMMAND_COMPLETE:
+    case BLE_HCI_EVCODE_COMMAND_STATUS:
+        if (hci_ev[3] == 0 && hci_ev[4] == 0) {
+            enqueue = 1;
+        } else {
+            if (ble_hci_ack_ev != NULL) {
+                /* The controller sent two acks.  Free the first one. */
+                BLE_HS_DBG_ASSERT(0);
+
+                err = os_memblock_put(&g_hci_cmd_pool, ble_hci_ack_ev);
+                BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
+            }
+
+            ble_hci_ack_ev = hci_ev;
+            os_sem_release(&ble_hci_sem);
+            enqueue = 0;
+        }
+        break;
+
+    default:
+        enqueue = 1;
+        break;
     }
 
-    /* Fill out the event and post to Link Layer */
-    ev->ev_queued = 0;
-    ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
-    ev->ev_arg = hci_ev;
-    os_eventq_put(&ble_hs_evq, ev);
+    if (enqueue) {
+        /* Get an event structure off the queue */
+        ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
+        if (!ev) {
+            err = os_memblock_put(&g_hci_cmd_pool, hci_ev);
+            BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
+            return -1;
+        }
+
+        /* Fill out the event and post to host task. */
+        ev->ev_queued = 0;
+        ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
+        ev->ev_arg = hci_ev;
+        ble_hs_event_enqueue(ev);
+    }
+
+    return 0;
+}
+
+static int
+ble_hci_process_ack(uint8_t *params_buf, uint8_t params_buf_len,
+                    struct ble_hci_ack *out_ack)
+{
+    uint8_t event_code;
+    uint8_t param_len;
+    uint8_t event_len;
+    int rc;
+
+    BLE_HS_DBG_ASSERT(ble_hci_ack_ev != NULL);
+
+    /* Count events received */
+    STATS_INC(ble_hs_stats, hci_event);
+
+    /* Display to console */
+    host_hci_dbg_event_disp(ble_hci_ack_ev);
+
+    event_code = ble_hci_ack_ev[0];
+    param_len = ble_hci_ack_ev[1];
+    event_len = param_len + 2;
+
+    /* Clear ack fields up front to silence spurious gcc warnings. */
+    memset(out_ack, 0, sizeof *out_ack);
+
+    switch (event_code) {
+    case BLE_HCI_EVCODE_COMMAND_COMPLETE:
+        rc = host_hci_rx_cmd_complete(event_code, ble_hci_ack_ev, event_len,
+                                      out_ack);
+        break;
+
+    case BLE_HCI_EVCODE_COMMAND_STATUS:
+        rc = host_hci_rx_cmd_status(event_code, ble_hci_ack_ev, event_len,
+                                    out_ack);
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        rc = BLE_HS_EUNKNOWN;
+        break;
+    }
+
+    if (rc == 0) {
+        if (params_buf == NULL) {
+            out_ack->bha_params_len = 0;
+        } else {
+            if (out_ack->bha_params_len > params_buf_len) {
+                out_ack->bha_params_len = params_buf_len;
+                rc = BLE_HS_EMSGSIZE;
+            }
+            memcpy(params_buf, out_ack->bha_params, out_ack->bha_params_len);
+        }
+        out_ack->bha_params = params_buf;
+    }
+
+    os_memblock_put(&g_hci_cmd_pool, ble_hci_ack_ev);
+    ble_hci_ack_ev = NULL;
+
+    return rc;
+}
+
+static int
+ble_hci_wait_for_ack(void)
+{
+    int rc;
+
+#if PHONY_HCI_ACKS
+    if (ble_hci_phony_ack_cb == NULL) {
+        rc = BLE_HS_ETIMEOUT;
+    } else {
+        BLE_HS_DBG_ASSERT(ble_hci_ack_ev == NULL);
+        ble_hci_ack_ev = os_memblock_get(&g_hci_cmd_pool);
+        if (ble_hci_ack_ev == NULL) {
+            rc = BLE_HS_ENOMEM;
+        } else {
+            rc = ble_hci_phony_ack_cb(ble_hci_ack_ev, 260);
+        }
+    }
+#else
+    rc = os_sem_pend(&ble_hci_sem, BLE_HCI_TIMEOUT);
+#endif
+
+    return rc;
+}
+
+int
+ble_hci_tx_cmd(void *cmd, void *evt_buf, uint8_t evt_buf_len,
+               uint8_t *out_evt_buf_len)
+{
+    struct ble_hci_ack ack;
+    int rc;
+
+    rc = host_hci_cmd_send_buf(cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hci_wait_for_ack();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hci_process_ack(evt_buf, evt_buf_len, &ack);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (out_evt_buf_len != NULL) {
+        *out_evt_buf_len = ack.bha_params_len;
+    }
+
+    return ack.bha_status;
+}
+
+int
+ble_hci_tx_cmd_empty_ack(void *cmd)
+{
+    int rc;
+
+    rc = ble_hci_tx_cmd(cmd, NULL, 0, NULL);
+    if (rc != 0) {
+        return rc;
+    }
 
     return 0;
 }
@@ -717,7 +847,7 @@ host_hci_data_rx(struct os_mbuf *om)
         } else {
             handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
 
-            ble_hs_conn_lock();
+            ble_hs_lock();
 
             conn = ble_hs_conn_find(handle);
             if (conn == NULL) {
@@ -727,7 +857,7 @@ host_hci_data_rx(struct os_mbuf *om)
                 om = NULL;
             }
 
-            ble_hs_conn_unlock();
+            ble_hs_unlock();
         }
     }
 
@@ -744,24 +874,6 @@ host_hci_data_rx(struct os_mbuf *om)
     }
 
     return rc;
-}
-
-uint16_t
-host_hci_opcode_join(uint8_t ogf, uint16_t ocf)
-{
-    return (ogf << 10) | ocf;
-}
-
-uint16_t
-host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
-{
-    BLE_HS_DBG_ASSERT(handle <= 0x0fff);
-    BLE_HS_DBG_ASSERT(pb <= 0x03);
-    BLE_HS_DBG_ASSERT(bc <= 0x03);
-
-    return (handle  << 0)   |
-           (pb      << 12)  |
-           (bc      << 14);
 }
 
 static struct os_mbuf *
@@ -820,8 +932,8 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
 void
 host_hci_init(void)
 {
-    host_hci_outstanding_opcode = 0;
+    int rc;
 
-    os_callout_func_init(&host_hci_timer, &ble_hs_evq,
-                         host_hci_timer_exp, NULL);
+    rc = os_sem_init(&ble_hci_sem, 0);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }

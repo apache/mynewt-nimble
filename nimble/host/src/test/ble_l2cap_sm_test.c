@@ -303,14 +303,15 @@ ble_l2cap_sm_test_util_verify_tx_lt_key_req_reply(uint16_t conn_handle,
 }
 
 static void
-ble_l2cap_sm_test_util_rx_lt_key_req_reply_ack(uint8_t status,
-                                               uint16_t conn_handle)
+ble_l2cap_sm_test_util_set_lt_key_req_reply_ack(uint8_t status,
+                                                uint16_t conn_handle)
 {
-    uint8_t params[BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN - 1];
+    static uint8_t params[BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN - 1];
 
     htole16(params, conn_handle);
-    ble_hs_test_util_rx_le_ack_param(BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY, status,
-                                     params, sizeof params);
+    ble_hs_test_util_set_ack_params(
+        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
+        status, params, sizeof params);
 }
 
 static void
@@ -412,18 +413,13 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a long term key request from the controller. */
+    ble_l2cap_sm_test_util_set_lt_key_req_reply_ack(0, 2);
     ble_l2cap_sm_test_util_rx_lt_key_req(2, r, ediv);
     TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected long term key request reply command. */
-    ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_lt_key_req_reply(2, stk);
-    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
-    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
-
-    /* Receive a command complete event. */
-    ble_l2cap_sm_test_util_rx_lt_key_req_reply_ack(0, 2);
     TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -493,7 +489,6 @@ ble_l2cap_sm_test_util_peer_lgcy_fail(
 
     /* Receive a pair random from the peer. */
     ble_l2cap_sm_test_util_rx_random(conn, random_req);
-    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected pair fail. */
     ble_hs_test_util_tx_all();
@@ -568,8 +563,8 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_jw_good)
         BLE_L2CAP_SM_PAIR_ALG_JW,
         NULL,
         ((uint8_t[16]) {
-            0xe6, 0xb3, 0x05, 0xd4, 0xc3, 0x67, 0xf0, 0x45,
-            0x38, 0x8f, 0xe7, 0x33, 0x0d, 0x51, 0x8e, 0xa4,
+            0xa4, 0x8e, 0x51, 0x0d, 0x33, 0xe7, 0x8f, 0x38,
+            0x45, 0xf0, 0x67, 0xc3, 0xd4, 0x05, 0xb3, 0xe6,
         }),
         0,
         0
@@ -664,7 +659,7 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Initiate the pairing procedure. */
-    rc = ble_gap_security_initiate(2);
+    rc = ble_hs_test_util_security_initiate(2, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure we sent the expected pair request. */
@@ -703,11 +698,6 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     /* Ensure we sent the expected start encryption command. */
     ble_hs_test_util_tx_all();
     ble_l2cap_sm_test_util_verify_tx_start_enc(2, r, ediv, stk);
-    TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
-    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
-
-    /* Receive a command status event. */
-    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_START_ENCRYPT, 0);
     TEST_ASSERT(!conn->bhc_sec_params.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 

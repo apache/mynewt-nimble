@@ -111,7 +111,6 @@ struct ble_l2cap_chan
 
 SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 
-int ble_l2cap_sig_locked_by_cur_task(void);
 int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
                         struct ble_l2cap_hdr *l2cap_hdr);
 struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
@@ -151,7 +150,7 @@ int ble_l2cap_rx(struct ble_hs_conn *conn,
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *om);
 
-void ble_l2cap_sig_wakeup(void);
+void ble_l2cap_sig_heartbeat(void);
 int ble_l2cap_sig_init(void);
 int ble_l2cap_init(void);
 

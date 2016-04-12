@@ -28,39 +28,51 @@
 
 #ifdef ARCH_sim
 #define BLE_OS_TEST_STACK_SIZE      1024
+#define BLE_OS_TEST_APP_STACK_SIZE  1024
 #else
 #define BLE_OS_TEST_STACK_SIZE      256
+#define BLE_OS_TEST_APP_STACK_SIZE  256
 #endif
 
-#define BLE_OS_TEST_HS_PRIO         10
+#define BLE_OS_TEST_APP_PRIO         9
+#define BLE_OS_TEST_TASK_PRIO        10
 
 static struct os_task ble_os_test_task;
+static struct os_task ble_os_test_app_task;
 static os_stack_t ble_os_test_stack[OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE)];
+
+static os_stack_t
+ble_os_test_app_stack[OS_STACK_ALIGN(BLE_OS_TEST_APP_STACK_SIZE)];
 
 static uint8_t ble_os_test_peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
+static void ble_os_test_app_task_handler(void *arg);
+
 static void
-ble_os_test_misc_rx_ack(uint8_t ogf, uint8_t ocf, uint8_t status)
+ble_os_test_init_app_task(void)
 {
-    uint16_t opcode;
-    uint8_t *cmd;
     int rc;
 
-    cmd = os_memblock_get(&g_hci_cmd_pool);
-    TEST_ASSERT_FATAL(cmd != NULL);
-
-    opcode = (ogf << 10) | ocf;
-    ble_hs_test_util_build_cmd_status(cmd, BLE_HCI_EVENT_CMD_STATUS_LEN,
-                                      status, 1, opcode);
-
-    rc = ble_hci_transport_ctlr_event_send(cmd);
-    TEST_ASSERT(rc == 0);
+    rc = os_task_init(&ble_os_test_app_task,
+                      "ble_gap_terminate_test_task",
+                      ble_os_test_app_task_handler, NULL,
+                      BLE_OS_TEST_APP_PRIO, OS_WAIT_FOREVER,
+                      ble_os_test_app_stack,
+                      OS_STACK_ALIGN(BLE_OS_TEST_APP_STACK_SIZE));
+    TEST_ASSERT_FATAL(rc == 0);
 }
 
 static void
-ble_os_test_misc_rx_le_ack(uint16_t ocf, uint8_t status)
+ble_os_test_misc_init(void)
 {
-    ble_os_test_misc_rx_ack(BLE_HCI_OGF_LE, ocf, status);
+    ble_hs_test_util_init();
+
+    ble_os_test_init_app_task();
+
+    /* Receive acknowledgements for the startup sequence.  We sent the
+     * corresponding requests when the host task was started.
+     */
+    ble_hs_test_util_set_startup_acks();
 }
 
 static int
@@ -89,11 +101,6 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
     int cb_called;
     int rc;
-
-    /* Receive acknowledgements for the startup sequence.  We sent the
-     * corresponding requests when the host task was started.
-     */
-    ble_hs_test_util_rx_startup_acks();
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.
@@ -130,12 +137,12 @@ ble_gap_direct_connect_test_task_handler(void *arg)
 
 TEST_CASE(ble_gap_direct_connect_test_case)
 {
-    ble_hs_test_util_init();
+    ble_os_test_misc_init();
 
     os_task_init(&ble_os_test_task,
                  "ble_gap_direct_connect_test_task",
                  ble_gap_direct_connect_test_task_handler, NULL,
-                 BLE_OS_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_os_test_stack,
+                 BLE_OS_TEST_TASK_PRIO, OS_WAIT_FOREVER, ble_os_test_stack,
                  OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE));
 
     os_start();
@@ -163,7 +170,7 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_rx_startup_acks();
+    ble_hs_test_util_set_startup_acks();
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.
@@ -177,7 +184,7 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Initiate the general discovery procedure with a 200 ms timeout. */
-    rc = ble_hs_test_util_disc(200, BLE_GAP_DISC_MODE_GEN,
+    rc = ble_hs_test_util_disc(300, BLE_GAP_DISC_MODE_GEN,
                                BLE_HCI_SCAN_TYPE_ACTIVE,
                                BLE_HCI_SCAN_FILT_NO_WL,
                                ble_gap_gen_disc_test_connect_cb,
@@ -198,9 +205,12 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
 
-    /* Wait 150 more ms; verify scan completed. */
-    os_time_delay(150 * OS_TICKS_PER_SEC / 1000);
-    ble_os_test_misc_rx_le_ack(BLE_HCI_OCF_LE_SET_SCAN_ENABLE, 0);
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+        0);
+
+    /* Wait 250 more ms; verify scan completed. */
+    os_time_delay(250 * OS_TICKS_PER_SEC / 1000);
     TEST_ASSERT(ble_hs_conn_first() == NULL);
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(cb_called);
@@ -210,12 +220,12 @@ ble_gap_gen_disc_test_task_handler(void *arg)
 
 TEST_CASE(ble_gap_gen_disc_test_case)
 {
-    ble_hs_test_util_init();
+    ble_os_test_misc_init();
 
     os_task_init(&ble_os_test_task,
                  "ble_gap_gen_disc_test_task",
                  ble_gap_gen_disc_test_task_handler, NULL,
-                 BLE_OS_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_os_test_stack,
+                 BLE_OS_TEST_TASK_PRIO, OS_WAIT_FOREVER, ble_os_test_stack,
                  OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE));
 
     os_start();
@@ -252,7 +262,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_rx_startup_acks();
+    ble_hs_test_util_set_startup_acks();
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.
@@ -314,14 +324,39 @@ ble_gap_terminate_test_task_handler(void *arg)
     tu_restart();
 }
 
+static void
+ble_os_test_app_task_handler(void *arg)
+{
+    struct os_callout_func *cf;
+    struct os_event *ev;
+    int rc;
+
+    rc = ble_hs_start();
+    TEST_ASSERT(rc == 0);
+
+    while (1) {
+        ev = os_eventq_get(&ble_hs_test_util_evq);
+        switch (ev->ev_type) {
+        case OS_EVENT_T_TIMER:
+            cf = (struct os_callout_func *)ev;
+            assert(cf->cf_func);
+            cf->cf_func(cf->cf_arg);
+            break;
+        default:
+            assert(0);
+            break;
+        }
+    }
+}
+
 TEST_CASE(ble_gap_terminate_test_case)
 {
-    ble_hs_test_util_init();
+    ble_os_test_misc_init();
 
     os_task_init(&ble_os_test_task,
                  "ble_gap_terminate_test_task",
                  ble_gap_terminate_test_task_handler, NULL,
-                 BLE_OS_TEST_HS_PRIO + 1, OS_WAIT_FOREVER, ble_os_test_stack,
+                 BLE_OS_TEST_TASK_PRIO, OS_WAIT_FOREVER, ble_os_test_stack,
                  OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE));
 
     os_start();

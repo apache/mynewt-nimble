@@ -28,6 +28,8 @@
 #include "host/ble_hs_test.h"
 #include "host/ble_uuid.h"
 #include "host/host_hci.h"
+struct os_eventq;
+struct os_event;
 
 #define BLE_HS_CONN_HANDLE_NONE     0xffff
 
@@ -69,7 +71,6 @@
 struct ble_hs_cfg {
     /** HCI settings. */
     uint8_t max_hci_bufs;
-    uint8_t max_hci_tx_slots;
 
     /** Connection settings. */
     uint16_t max_outstanding_pkts_per_conn;
@@ -105,7 +106,9 @@ struct ble_hs_cfg {
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
+int ble_hs_start(void);
+void ble_hs_event_enqueue(struct os_event *ev);
 int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
-int ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg);
+int ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg);
 
 #endif

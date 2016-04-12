@@ -65,7 +65,7 @@ ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
 
     STATS_INC(ble_l2cap_stats, sig_tx);
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
                                          &conn, &chan);
@@ -73,7 +73,7 @@ ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
         rc = ble_l2cap_tx(conn, chan, txom);
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     return rc;
 }

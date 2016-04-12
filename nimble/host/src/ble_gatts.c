@@ -639,7 +639,7 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
@@ -649,7 +649,7 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                                              ctxt, arg);
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     return rc;
 }
@@ -1129,7 +1129,7 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
         return;
     }
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     for (conn = ble_hs_conn_first();
          conn != NULL;
@@ -1148,7 +1148,7 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
         }
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 }
 
 /**

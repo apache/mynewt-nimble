@@ -84,9 +84,6 @@ ble_gatt_conn_test_write_cb(uint16_t conn_handle, struct ble_gatt_error *error,
     TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
     TEST_ASSERT(attr != NULL);
     TEST_ASSERT(attr->handle == BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE);
-    TEST_ASSERT(attr->value_len == sizeof ble_gatt_conn_test_write_value);
-    TEST_ASSERT(memcmp(attr->value, ble_gatt_conn_test_write_value,
-                       sizeof ble_gatt_conn_test_write_value) == 0);
 
     return 0;
 }
@@ -159,6 +156,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_DISC_CHR_HANDLE);
     ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_READ_HANDLE);
     ble_gattc_connection_broken(BLE_GATT_BREAK_TEST_WRITE_HANDLE);
+    /* XXX: Add remaining procedures. */
 
     TEST_ASSERT(disc_s_called == 1);
     TEST_ASSERT(disc_c_called == 1);
@@ -166,55 +164,9 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_called == 1);
 }
 
-TEST_CASE(ble_gatt_conn_test_congestion)
-{
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_test_util_init();
-
-    /* Allow only one outstanding packet per connection. */
-    ble_hs_cfg.max_outstanding_pkts_per_conn = 1;
-
-    /* Create a connection. */
-    conn = ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}),
-                                        NULL, NULL);
-
-    /* Try to send two data packets. */
-    rc = ble_gattc_write(1, 0x1234, ble_gatt_conn_test_write_value,
-                        sizeof ble_gatt_conn_test_write_value, NULL, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    rc = ble_gattc_write(1, 0x1234, ble_gatt_conn_test_write_value,
-                        sizeof ble_gatt_conn_test_write_value, NULL, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
-    ble_hs_test_util_tx_all();
-
-    /* Ensure only one packet got sent. */
-    TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
-
-    /* Additional wakeups should not trigger the second send. */
-    ble_hs_test_util_tx_all();
-    TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
-
-    /* Receive a num-packets-completed event. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 1, 1 },
-            { 0 }});
-
-    /* Outstanding packet count should have been reduced to 0. */
-    TEST_ASSERT(conn->bhc_outstanding_pkts == 0);
-
-    /* Now the second write should get sent. */
-    ble_hs_test_util_tx_all();
-    TEST_ASSERT(conn->bhc_outstanding_pkts == 1);
-}
-
 TEST_SUITE(ble_gatt_break_suite)
 {
     ble_gatt_conn_test_disconnect();
-    ble_gatt_conn_test_congestion();
 }
 
 int

@@ -49,28 +49,27 @@ int
 main(void)
 {
     tu_config.tc_print_results = 1;
-    tu_config.tc_system_assert = 1;
     tu_init();
 
-    ble_l2cap_test_all();
-    ble_l2cap_sm_test_all();
-    ble_att_svr_test_all();
     ble_att_clt_test_all();
-    ble_host_hci_test_all();
-    ble_hs_conn_test_all();
-    ble_os_test_all();
-    ble_uuid_test_all();
-    ble_gatt_disc_s_test_all();
+    ble_att_svr_test_all();
+    ble_gap_test_all();
+    ble_gatt_conn_test_all();
     ble_gatt_disc_c_test_all();
     ble_gatt_disc_d_test_all();
+    ble_gatt_disc_s_test_all();
+    ble_gatt_find_s_test_all();
     ble_gatt_read_test_all();
     ble_gatt_write_test_all();
-    ble_gatt_conn_test_all();
-    ble_hs_adv_test_all();
-    ble_gatts_reg_test_all();
     ble_gatts_notify_test_all();
-    ble_gatt_find_s_test_all();
-    ble_gap_test_all();
+    ble_gatts_reg_test_all();
+    ble_host_hci_test_all();
+    ble_hs_adv_test_all();
+    ble_hs_conn_test_all();
+    ble_l2cap_sm_test_all();
+    ble_l2cap_test_all();
+    ble_os_test_all();
+    ble_uuid_test_all();
 
     return tu_any_failed;
 }

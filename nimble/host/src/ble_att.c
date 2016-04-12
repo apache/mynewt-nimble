@@ -396,9 +396,6 @@ ble_att_inc_rx_stat(uint8_t att_op)
     }
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 uint16_t
 ble_att_mtu(uint16_t conn_handle)
 {
@@ -406,7 +403,7 @@ ble_att_mtu(uint16_t conn_handle)
     struct ble_hs_conn *conn;
     uint16_t mtu;
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (chan != NULL) {
@@ -415,7 +412,7 @@ ble_att_mtu(uint16_t conn_handle)
         mtu = 0;
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     return mtu;
 }

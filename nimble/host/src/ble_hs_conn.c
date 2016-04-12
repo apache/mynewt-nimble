@@ -28,41 +28,6 @@ static struct os_mempool ble_hs_conn_pool;
 
 static os_membuf_t *ble_hs_conn_elem_mem;
 
-static struct os_mutex ble_hs_conn_mutex;
-
-void
-ble_hs_conn_lock(void)
-{
-    struct os_task *owner;
-    int rc;
-
-    owner = ble_hs_conn_mutex.mu_owner;
-    if (owner != NULL) {
-        BLE_HS_DBG_ASSERT_EVAL(owner != os_sched_get_current_task());
-    }
-
-    rc = os_mutex_pend(&ble_hs_conn_mutex, 0xffffffff);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
-}
-
-void
-ble_hs_conn_unlock(void)
-{
-    int rc;
-
-    rc = os_mutex_release(&ble_hs_conn_mutex);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
-}
-
-int
-ble_hs_conn_locked_by_cur_task(void)
-{
-    struct os_task *owner;
-
-    owner = ble_hs_conn_mutex.mu_owner;
-    return owner != NULL && owner == os_sched_get_current_task();
-}
-
 /**
  * Lock restrictions: none.
  */
@@ -255,12 +220,8 @@ ble_hs_conn_insert(struct ble_hs_conn *conn)
     return;
 #endif
 
-    ble_hs_conn_lock();
-
     BLE_HS_DBG_ASSERT_EVAL(ble_hs_conn_find(conn->bhc_handle) == NULL);
     SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
-
-    ble_hs_conn_unlock();
 }
 
 /**
@@ -297,23 +258,13 @@ ble_hs_conn_find(uint16_t conn_handle)
     return NULL;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_hs_conn_exists(uint16_t conn_handle)
 {
 #if !NIMBLE_OPT_CONNECT
     return 0;
 #endif
-
-    struct ble_hs_conn *conn;
-
-    ble_hs_conn_lock();
-    conn = ble_hs_conn_find(conn_handle);
-    ble_hs_conn_unlock();
-
-    return conn != NULL;
+    return ble_hs_conn_find(conn_handle) != NULL;
 }
 
 /**
@@ -326,7 +277,7 @@ ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
     struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
@@ -336,7 +287,7 @@ ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
         *out_flags = conn->bhc_flags;
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     return rc;
 }
@@ -354,65 +305,6 @@ ble_hs_conn_first(void)
 #endif
 
     return SLIST_FIRST(&ble_hs_conns);
-}
-
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
-static void
-ble_hs_conn_txable_transition(struct ble_hs_conn *conn)
-{
-    ble_gattc_connection_txable(conn->bhc_handle);
-}
-
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
-void
-ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts)
-{
-#if !NIMBLE_OPT_CONNECT
-    return;
-#endif
-
-    struct ble_hs_conn *conn;
-    int could_tx;
-    int can_tx;
-
-    ble_hs_conn_lock();
-
-    conn = ble_hs_conn_find(handle);
-    if (conn != NULL) {
-        could_tx = ble_hs_conn_can_tx(conn);
-
-        if (num_pkts > conn->bhc_outstanding_pkts) {
-            num_pkts = conn->bhc_outstanding_pkts;
-        }
-        conn->bhc_outstanding_pkts -= num_pkts;
-
-        can_tx = ble_hs_conn_can_tx(conn);
-
-        if (!could_tx && can_tx) {
-            ble_hs_conn_txable_transition(conn);
-        }
-    }
-
-    ble_hs_conn_unlock();
-}
-
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
-int
-ble_hs_conn_can_tx(struct ble_hs_conn *conn)
-{
-#if !NIMBLE_OPT_CONNECT
-    return 0;
-#endif
-
-    return ble_hs_cfg.max_outstanding_pkts_per_conn == 0 ||
-           conn->bhc_outstanding_pkts <
-                ble_hs_cfg.max_outstanding_pkts_per_conn;
 }
 
 /**
@@ -434,12 +326,6 @@ ble_hs_conn_init(void)
     int rc;
 
     ble_hs_conn_free_mem();
-
-    rc = os_mutex_init(&ble_hs_conn_mutex);
-    if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
-    }
 
     ble_hs_conn_elem_mem = malloc(
         OS_MEMPOOL_BYTES(ble_hs_cfg.max_connections,

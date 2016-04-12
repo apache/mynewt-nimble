@@ -471,10 +471,6 @@ ble_l2cap_test_util_peer_updates(int accept)
     ble_l2cap_test_util_verify_tx_update_rsp(1, !accept);
 
     if (accept) {
-        /* Ensure update request gets sent. */
-        ble_gattc_wakeup();
-        ble_hci_sched_wakeup();
-
         params.itvl_min = 0x200;
         params.itvl_max = 0x300;
         params.latency = 0;
@@ -574,13 +570,11 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_master)
     params.timeout_multiplier = 0x100;
     rc = ble_l2cap_sig_update(conn->bhc_handle, &params,
                               ble_l2cap_test_util_update_cb, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(rc == BLE_HS_EINVAL);
 
+    /* Ensure callback never called. */
     ble_hs_test_util_tx_all();
-
-    /* Ensure callback indicates failure. */
-    TEST_ASSERT(ble_l2cap_test_update_status == BLE_HS_EINVAL);
-    TEST_ASSERT(ble_l2cap_test_update_arg == NULL);
+    TEST_ASSERT(ble_l2cap_test_update_status == -1);
 }
 
 TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)

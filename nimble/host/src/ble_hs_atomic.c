@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -17,35 +17,29 @@
  * under the License.
  */
 
-#include <stddef.h>
-#include <errno.h>
-#include <string.h>
-#include "nimble/hci_common.h"
-#include "host/host_hci.h"
-#include "host/ble_hs_test.h"
-#include "testutil/testutil.h"
-#include "ble_hs_test_util.h"
-
-TEST_CASE(ble_host_hci_test_event_bad)
-{
-    uint8_t buf[2];
-    int rc;
-
-    /*** Invalid event code. */
-    buf[0] = 0xff;
-    buf[1] = 0;
-    rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == BLE_HS_ENOTSUP);
-}
-
-TEST_SUITE(ble_host_hci_suite)
-{
-    ble_host_hci_test_event_bad();
-}
+#include "ble_hs_priv.h"
 
 int
-ble_host_hci_test_all(void)
+ble_hs_atomic_conn_delete(uint16_t conn_handle)
 {
-    ble_host_hci_suite();
-    return tu_any_failed;
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        ble_hs_conn_remove(conn);
+        ble_hs_conn_free(conn);
+
+    }
+    ble_hs_unlock();
+
+    return conn != NULL ? 0 : BLE_HS_ENOTCONN;
+}
+
+void
+ble_hs_atomic_conn_insert(struct ble_hs_conn *conn)
+{
+    ble_hs_lock();
+    ble_hs_conn_insert(conn);
+    ble_hs_unlock();
 }

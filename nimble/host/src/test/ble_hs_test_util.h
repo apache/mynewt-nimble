@@ -26,6 +26,7 @@
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 
+struct os_eventq ble_hs_test_util_evq;
 extern struct os_mbuf *ble_hs_test_util_prev_tx;
 
 struct ble_hs_test_util_num_completed_pkts_entry {
@@ -33,6 +34,8 @@ struct ble_hs_test_util_num_completed_pkts_entry {
     uint16_t num_pkts;
 };
 
+void ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status,
+                                     void *params, uint8_t params_len);
 void ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status);
 void *ble_hs_test_util_get_first_hci_tx(void);
 void *ble_hs_test_util_get_last_hci_tx(void);
@@ -71,10 +74,8 @@ int ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,
 int ble_hs_test_util_conn_update(uint16_t conn_handle,
                                  struct ble_gap_upd_params *params,
                                  uint8_t hci_status);
-void ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status);
-void ble_hs_test_util_rx_ack_param(uint16_t opcode, uint8_t status,
-                                   void *param, int param_len);
-void ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status);
+int ble_hs_test_util_security_initiate(uint16_t conn_handle,
+                                       uint8_t hci_status);
 int ble_hs_test_util_l2cap_rx_first_frag(struct ble_hs_conn *conn,
                                          uint16_t cid,
                                          struct hci_data_hdr *hci_hdr,
@@ -82,15 +83,13 @@ int ble_hs_test_util_l2cap_rx_first_frag(struct ble_hs_conn *conn,
 int ble_hs_test_util_l2cap_rx(struct ble_hs_conn *conn,
                               struct hci_data_hdr *hci_hdr,
                               struct os_mbuf *om);
-void ble_hs_test_util_rx_le_ack_param(uint16_t ocf, uint8_t status,
-                                      void *param, int param_len);
 int ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
                                            struct ble_l2cap_chan *chan,
                                            const void *data, int len);
 void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 void ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
                                      uint8_t error_code, uint16_t err_handle);
-void ble_hs_test_util_rx_startup_acks(void);
+void ble_hs_test_util_set_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);
 uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,

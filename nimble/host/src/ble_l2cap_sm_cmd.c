@@ -35,7 +35,7 @@ ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
 
     STATS_INC(ble_l2cap_stats, sm_tx);
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
                                          &conn, &chan);
@@ -46,7 +46,7 @@ ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
         rc = ble_l2cap_tx(conn, chan, txom);
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     return rc;
 }
@@ -257,11 +257,13 @@ ble_l2cap_sm_pair_fail_write(void *payload, int len,
 }
 
 int
-ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle,
-                          struct ble_l2cap_sm_pair_fail *cmd)
+ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
 {
+    struct ble_l2cap_sm_pair_fail cmd;
     struct os_mbuf *txom;
     int rc;
+
+    BLE_HS_DBG_ASSERT(reason > 0 && reason < BLE_L2CAP_SM_ERR_MAX_PLUS_1);
 
     rc = ble_l2cap_sm_init_req(BLE_L2CAP_SM_PAIR_FAIL_SZ, &txom);
     if (rc != 0) {
@@ -269,7 +271,8 @@ ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle,
         goto done;
     }
 
-    ble_l2cap_sm_pair_fail_write(txom->om_data, txom->om_len, cmd);
+    cmd.reason = reason;
+    ble_l2cap_sm_pair_fail_write(txom->om_data, txom->om_len, &cmd);
 
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;
