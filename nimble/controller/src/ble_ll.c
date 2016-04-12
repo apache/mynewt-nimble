@@ -675,7 +675,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
 
     switch (g_ble_ll_data.ll_state) {
     case BLE_LL_STATE_ADV:
-        rc = ble_ll_adv_rx_isr_start(pdu_type, rxpdu);
+        rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
     case BLE_LL_STATE_INITIATING:
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
