@@ -110,27 +110,6 @@ ble_gap_test_util_connect_cb(int event, int status,
     return 0;
 }
 
-static int
-ble_gap_test_util_rx_hci_ack(int *cmd_idx, int cmd_fail_idx,
-                             uint8_t ogf, uint16_t ocf, uint8_t fail_status)
-{
-    uint16_t opcode;
-    int cur_idx;
-
-    opcode = (ogf << 10) | ocf;
-
-    cur_idx = *cmd_idx;
-    (*cmd_idx)++;
-
-    if (cur_idx == cmd_fail_idx) {
-        ble_hs_test_util_rx_ack(opcode, fail_status);
-        return 1;
-    } else {
-        ble_hs_test_util_rx_ack(opcode, 0);
-        return 0;
-    }
-}
-
 static void
 ble_gap_test_util_verify_tx_clear_wl(void)
 {
@@ -364,10 +343,14 @@ ble_gap_test_util_rx_update_complete(
     ble_gap_rx_update_complete(&evt);
 }
 
-static void
-ble_gap_test_util_rx_param_req(struct ble_gap_upd_params *params)
+static int
+ble_gap_test_util_rx_param_req(struct ble_gap_upd_params *params, int pos,
+                               int *cmd_idx, int cmd_fail_idx,
+                               uint8_t fail_status)
 {
     struct hci_le_conn_param_req evt;
+    uint16_t opcode;
+    uint8_t hci_status;
 
     evt.subevent_code = BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ;
     evt.connection_handle = 2;
@@ -375,8 +358,25 @@ ble_gap_test_util_rx_param_req(struct ble_gap_upd_params *params)
     evt.itvl_max = params->itvl_max;
     evt.latency = params->latency;
     evt.timeout = params->supervision_timeout;
+ 
+    if (pos) {
+        opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_REM_CONN_PARAM_RR);
+    } else {
+        opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR);
+    }
+    if (*cmd_idx == cmd_fail_idx) {
+        hci_status = fail_status;
+    } else {
+        hci_status = 0;
+    }
+    (*cmd_idx)++;
 
+    ble_hs_test_util_set_ack(opcode, hci_status);
     ble_gap_rx_param_req(&evt);
+
+    return hci_status;
 }
 
 /*****************************************************************************
@@ -521,7 +521,6 @@ ble_gap_test_util_disc(uint8_t disc_mode, uint8_t *peer_addr,
 
     if (cmd_fail_idx > 1) {
         /* Verify tx of scan enable command. */
-        ble_hci_sched_wakeup();
         ble_gap_test_util_verify_tx_scan_enable(1);
     }
 
@@ -576,7 +575,15 @@ TEST_CASE(ble_gap_test_case_conn_disc_good)
         ble_gap_test_util_disc(d, peer_addr, &adv, -1, 0);
 
         TEST_ASSERT(ble_gap_master_in_progress());
-        TEST_ASSERT(ble_gap_test_disc_event == -1);
+        TEST_ASSERT(ble_gap_test_disc_event == BLE_GAP_EVENT_DISC_SUCCESS);
+        TEST_ASSERT(ble_gap_test_disc_status == 0);
+        TEST_ASSERT(ble_gap_test_disc_desc.event_type ==
+                    BLE_HCI_ADV_TYPE_ADV_IND);
+        TEST_ASSERT(ble_gap_test_disc_desc.addr_type == BLE_ADDR_TYPE_PUBLIC);
+        TEST_ASSERT(ble_gap_test_disc_desc.length_data == 3);
+        TEST_ASSERT(ble_gap_test_disc_desc.rssi == 0);
+        TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr, adv.addr, 6) == 0);
+        TEST_ASSERT(ble_gap_test_disc_arg == NULL);
     }
 }
 
@@ -706,51 +713,10 @@ TEST_CASE(ble_gap_test_case_conn_dir_bad_args)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_dir_bad_addr)
-{
-    struct hci_le_conn_complete evt;
-    int rc;
-
-    uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
-
-    ble_gap_test_util_init();
-
-    TEST_ASSERT(!ble_gap_master_in_progress());
-
-    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, peer_addr, NULL,
-                                        ble_gap_test_util_connect_cb, NULL, 0);
-    TEST_ASSERT(rc == 0);
-
-    TEST_ASSERT(ble_gap_master_in_progress());
-
-    /* Verify tx of create connection command. */
-    ble_gap_test_util_verify_tx_create_conn(BLE_HCI_CONN_FILT_NO_WL);
-    TEST_ASSERT(ble_gap_master_in_progress());
-    TEST_ASSERT(ble_hs_conn_find(2) == NULL);
-
-    /* Receive connection complete event. */
-    memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-    evt.status = BLE_ERR_SUCCESS;
-    evt.connection_handle = 2;
-    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
-    memcpy(evt.peer_addr, ((uint8_t[]){1,1,1,1,1,1}), 6);
-    rc = ble_gap_rx_conn_complete(&evt);
-    TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
-
-    TEST_ASSERT(!ble_gap_master_in_progress());
-
-    TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CONN);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
-
-    TEST_ASSERT(ble_hs_conn_find(2) == NULL);
-}
-
 TEST_SUITE(ble_gap_test_suite_conn_dir)
 {
     ble_gap_test_case_conn_dir_good();
     ble_gap_test_case_conn_dir_bad_args();
-    ble_gap_test_case_conn_dir_bad_addr();
 }
 
 /*****************************************************************************
@@ -1232,7 +1198,6 @@ ble_gap_test_util_stop_adv(uint8_t disc_mode, uint8_t conn_mode,
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(hci_status));
 
     /* Verify tx of advertising enable command. */
-    ble_hci_sched_wakeup();
     ble_gap_test_util_verify_tx_adv_enable(0);
 }
 
@@ -1334,7 +1299,7 @@ ble_gap_test_util_update(struct ble_gap_upd_params *params,
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
         params->supervision_timeout);
 
-    TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
 
     return;
 
@@ -1349,7 +1314,7 @@ fail:
                 BLE_GAP_INITIAL_CONN_LATENCY);
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
                 BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
-    TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
 }
 
 static void
@@ -1405,19 +1370,16 @@ ble_gap_test_util_update_req_pos(struct ble_gap_upd_params *peer_params,
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     ble_gap_test_conn_self_params = *self_params;
-    ble_gap_test_util_rx_param_req(peer_params);
-    TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
-
-    /* Verify tx of connection parameters reply command. */
-    ble_hci_sched_wakeup();
-    ble_gap_test_util_verify_tx_params_reply_pos();
-    rc = ble_gap_test_util_rx_hci_ack(&cmd_idx, cmd_fail_idx, BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_REM_CONN_PARAM_RR,
-                                      hci_status);
+    rc = ble_gap_test_util_rx_param_req(peer_params, 1, &cmd_idx, cmd_fail_idx,
+                                        hci_status);
     if (rc != 0) {
         goto hci_fail;
     }
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(ble_gap_update_in_progress(2));
+
+    /* Verify tx of connection parameters reply command. */
+    ble_gap_test_util_verify_tx_params_reply_pos();
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_update_in_progress(2));
@@ -1426,7 +1388,7 @@ ble_gap_test_util_update_req_pos(struct ble_gap_upd_params *peer_params,
     ble_gap_test_util_rx_update_complete(0, self_params);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
 
     TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CONN_UPDATED);
     TEST_ASSERT(ble_gap_test_conn_status == 0);
@@ -1470,24 +1432,21 @@ ble_gap_test_util_update_req_neg(struct ble_gap_upd_params *peer_params,
                                  &reason);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
 
-    ble_gap_test_util_rx_param_req(peer_params);
-    TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_gap_update_in_progress(2));
-
-    /* Verify tx of connection parameters negative reply command. */
-    ble_hci_sched_wakeup();
-    ble_gap_test_util_verify_tx_params_reply_neg(reason);
-    rc = ble_gap_test_util_rx_hci_ack(&cmd_idx, cmd_fail_idx, BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR,
-                                      hci_status);
+    rc = ble_gap_test_util_rx_param_req(peer_params, 0, &cmd_idx, cmd_fail_idx,
+                                        hci_status);
     if (rc != 0) {
         goto hci_fail;
     }
+    TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
+
+    /* Verify tx of connection parameters negative reply command. */
+    ble_gap_test_util_verify_tx_params_reply_neg(reason);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
 
     return;
 
@@ -1524,7 +1483,7 @@ ble_gap_test_util_update_req_concurrent(
                                  NULL);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+    TEST_ASSERT(!ble_gap_update_in_progress(2));
 
     hci_status = cmd_fail_idx == 0 ? fail_status : 0;
     rc = ble_hs_test_util_conn_update(2, init_params, hci_status);
@@ -1547,20 +1506,16 @@ ble_gap_test_util_update_req_concurrent(
 
     /* Receive connection parameter update request from peer. */
     ble_gap_test_conn_self_params = *self_params;
-    ble_gap_test_util_rx_param_req(peer_params);
+    rc = ble_gap_test_util_rx_param_req(peer_params, 1, &cmd_idx, cmd_fail_idx,
+                                        hci_status);
+    if (rc != 0) {
+        goto hci_fail;
+    }
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_update_in_progress(2));
 
     /* Verify tx of connection parameters reply command. */
-    ble_hci_sched_wakeup();
     ble_gap_test_util_verify_tx_params_reply_pos();
-    cmd_idx = 1;
-    rc = ble_gap_test_util_rx_hci_ack(&cmd_idx, cmd_fail_idx, BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_REM_CONN_PARAM_RR,
-                                      fail_status);
-    if (rc != 0) {
-        goto hci_fail;
-    }
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_update_in_progress(2));

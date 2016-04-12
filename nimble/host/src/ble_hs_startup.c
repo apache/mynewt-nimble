@@ -23,159 +23,69 @@
 #include "host/ble_hs.h"
 #include "ble_hs_priv.h"
 
-#define BLE_HS_STARTUP_STATE_IDLE                       0
-#define BLE_HS_STARTUP_STATE_RESET                      1
-/* XXX: Read local supported commands. */
-/* XXX: Read local supported features. */
-#define BLE_HS_STARTUP_STATE_SET_EVMASK                 2
-#define BLE_HS_STARTUP_STATE_LE_SET_EVMASK              3
-#define BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ             4
-/* XXX: Read buffer size. */
-#define BLE_HS_STARTUP_STATE_LE_READ_SUP_F              5
-/* XXX: Read BD_ADDR. */
-#define BLE_HS_STARTUP_STATE_MAX                        6
-
-static uint8_t ble_hs_startup_state;
-
-static int ble_hs_startup_reset_tx(void *arg);
-static int ble_hs_startup_set_evmask_tx(void *arg);
-static int ble_hs_startup_le_set_evmask_tx(void *arg);
-static int ble_hs_startup_le_read_buf_sz_tx(void *arg);
-static int ble_hs_startup_le_read_sup_f_tx(void *arg);
-
-static ble_hci_sched_tx_fn * const
-    ble_hs_startup_dispatch[BLE_HS_STARTUP_STATE_MAX] = {
-
-    [BLE_HS_STARTUP_STATE_IDLE]             = NULL,
-    [BLE_HS_STARTUP_STATE_RESET]            = ble_hs_startup_reset_tx,
-    [BLE_HS_STARTUP_STATE_SET_EVMASK]       = ble_hs_startup_set_evmask_tx,
-    [BLE_HS_STARTUP_STATE_LE_SET_EVMASK]    = ble_hs_startup_le_set_evmask_tx,
-    [BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ]   = ble_hs_startup_le_read_buf_sz_tx,
-    [BLE_HS_STARTUP_STATE_LE_READ_SUP_F]    = ble_hs_startup_le_read_sup_f_tx,
-};
-
-static void
-ble_hs_startup_failure(int status)
-{
-    ble_hs_startup_state = BLE_HS_STARTUP_STATE_IDLE;
-    /* XXX: Signal failure. */
-}
-
 static int
-ble_hs_startup_enqueue_tx(void)
+ble_hs_startup_le_read_sup_f_tx(void)
 {
-    ble_hci_sched_tx_fn *tx_fn;
+    uint8_t ack_params[BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN];
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
+    uint8_t ack_params_len;
     int rc;
 
-    if (ble_hs_startup_state == BLE_HS_STARTUP_STATE_MAX) {
-        return 0;
-    }
-
-    tx_fn = ble_hs_startup_dispatch[ble_hs_startup_state];
-    BLE_HS_DBG_ASSERT(tx_fn != NULL);
-
-    rc = ble_hci_sched_enqueue(tx_fn, NULL, NULL);
+    host_hci_cmd_build_le_read_loc_supp_feat(buf, sizeof buf);
+    rc = ble_hci_tx_cmd(buf, ack_params, sizeof ack_params, &ack_params_len);
     if (rc != 0) {
-        ble_hs_startup_failure(rc);
         return rc;
     }
 
-    return 0;
-}
-
-static void
-ble_hs_startup_gen_ack(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state < BLE_HS_STARTUP_STATE_MAX);
-
-    if (ack->bha_status != 0) {
-        ble_hs_startup_failure(ack->bha_status);
-        return;
-    }
-
-    ble_hs_startup_state++;
-    ble_hs_startup_enqueue_tx();
-}
-
-static void
-ble_hs_startup_le_read_sup_f_ack(struct ble_hci_ack *ack, void *arg)
-{
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
-
-    if (ack->bha_status != 0) {
-        ble_hs_startup_failure(ack->bha_status);
-        return;
-    }
-
-    if (ack->bha_params_len != BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN) {
-        ble_hs_startup_failure(BLE_HS_ECONTROLLER);
-        return;
+    if (ack_params_len != BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN) {
+        return BLE_HS_ECONTROLLER;
     }
 
     /* XXX: Do something with the supported features bit map. */
-}
-
-static int
-ble_hs_startup_le_read_sup_f_tx(void *arg)
-{
-    int rc;
-
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_LE_READ_SUP_F);
-
-    ble_hci_sched_set_ack_cb(ble_hs_startup_le_read_sup_f_ack, NULL);
-    rc = host_hci_cmd_le_read_loc_supp_feat();
-    if (rc != 0) {
-        return rc;
-    }
 
     return 0;
 }
 
-static void
-ble_hs_startup_le_read_buf_size_ack(struct ble_hci_ack *ack, void *arg)
+static int
+ble_hs_startup_le_read_buf_sz_tx(void)
 {
     uint16_t pktlen;
+    uint8_t ack_params[BLE_HCI_RD_BUF_SIZE_RSPLEN];
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
+    uint8_t ack_params_len;
     uint8_t max_pkts;
     int rc;
 
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
-
-    if (ack->bha_status != 0) {
-        ble_hs_startup_failure(ack->bha_status);
-        return;
+    host_hci_cmd_build_le_read_buffer_size(buf, sizeof buf);
+    rc = ble_hci_tx_cmd(buf, ack_params, sizeof ack_params, &ack_params_len);
+    if (rc != 0) {
+        return rc;
     }
 
-    if (ack->bha_params_len != BLE_HCI_RD_BUF_SIZE_RSPLEN + 1) {
-        ble_hs_startup_failure(BLE_HS_ECONTROLLER);
-        return;
+    if (ack_params_len != BLE_HCI_RD_BUF_SIZE_RSPLEN) {
+        return BLE_HS_ECONTROLLER;
     }
 
-    pktlen = le16toh(ack->bha_params + 1);
-    max_pkts = ack->bha_params[3];
+    pktlen = le16toh(ack_params + 0);
+    max_pkts = ack_params[2];
 
     rc = host_hci_set_buf_size(pktlen, max_pkts);
     if (rc != 0) {
-        ble_hs_startup_failure(rc);
-        return;
+        return rc;
     }
 
-    ble_hs_startup_state++;
-    ble_hs_startup_enqueue_tx();
+    return 0;
 }
 
 static int
-ble_hs_startup_le_read_buf_sz_tx(void *arg)
+ble_hs_startup_le_set_evmask_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_LE_EVENT_MASK_LEN];
     int rc;
 
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_LE_READ_BUF_SZ);
-
-    ble_hci_sched_set_ack_cb(ble_hs_startup_le_read_buf_size_ack, NULL);
-    rc = host_hci_cmd_le_read_buffer_size();
+    /* [ Default event set ]. */
+    host_hci_cmd_build_le_set_event_mask(0x000000000000001f, buf, sizeof buf);
+    rc = ble_hci_tx_cmd_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -184,15 +94,14 @@ ble_hs_startup_le_read_buf_sz_tx(void *arg)
 }
 
 static int
-ble_hs_startup_le_set_evmask_tx(void *arg)
+ble_hs_startup_set_evmask_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_EVENT_MASK_LEN];
     int rc;
 
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_LE_SET_EVMASK);
-
-    ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
-    rc = host_hci_cmd_le_set_event_mask(0x000000000000001f);
+    /* [ Default event set | LE-meta event ]. */
+    host_hci_cmd_build_set_event_mask(0x20001fffffffffff, buf, sizeof buf);
+    rc = ble_hci_tx_cmd_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -201,34 +110,13 @@ ble_hs_startup_le_set_evmask_tx(void *arg)
 }
 
 static int
-ble_hs_startup_set_evmask_tx(void *arg)
+ble_hs_startup_reset_tx(void)
 {
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_SET_EVMASK);
-
-    ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
-
-    /* Default set + LE-meta event. */
-    rc = host_hci_cmd_set_event_mask(0x20001fffffffffff);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
-ble_hs_startup_reset_tx(void *arg)
-{
-    int rc;
-
-    BLE_HS_DBG_ASSERT(ble_hs_startup_state ==
-                      BLE_HS_STARTUP_STATE_RESET);
-
-    ble_hci_sched_set_ack_cb(ble_hs_startup_gen_ack, NULL);
-    rc = host_hci_cmd_reset();
+    host_hci_cmd_build_reset(buf, sizeof buf);
+    rc = ble_hci_tx_cmd_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -241,11 +129,42 @@ ble_hs_startup_go(void)
 {
     int rc;
 
-    ble_hs_startup_state = BLE_HS_STARTUP_STATE_RESET;
+    rc = ble_hs_startup_reset_tx();
+    if (rc != 0) {
+        return rc;
+    }
 
-    /* XXX: Until we support reading the address from the controller. */
+    /* XXX: Read local supported commands. */
+    /* XXX: Read local supported features. */
+
+    rc = ble_hs_startup_set_evmask_tx();
+    if (rc != 0) {
+        assert(0);
+        return rc;
+    }
+
+    rc = ble_hs_startup_le_set_evmask_tx();
+    if (rc != 0) {
+        assert(0);
+        return rc;
+    }
+
+    rc = ble_hs_startup_le_read_buf_sz_tx();
+    if (rc != 0) {
+        assert(0);
+        return rc;
+    }
+
+    /* XXX: Read buffer size. */
+
+    rc = ble_hs_startup_le_read_sup_f_tx();
+    if (rc != 0) {
+        assert(0);
+        return rc;
+    }
+
+    /* XXX: Read BD_ADDR. */
     memcpy(ble_hs_our_dev.public_addr, g_dev_addr, sizeof g_dev_addr);
 
-    rc = ble_hs_startup_enqueue_tx();
     return rc;
 }

@@ -90,8 +90,6 @@ void ble_l2cap_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
 int ble_l2cap_sm_dbg_num_procs(void);
 #endif
 
-int ble_l2cap_sm_locked_by_cur_task(void);
-
 struct ble_l2cap_chan *ble_l2cap_sm_create_chan(void);
 
 void ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
@@ -116,8 +114,7 @@ void ble_l2cap_sm_pair_fail_parse(void *payload, int len,
                                   struct ble_l2cap_sm_pair_fail *cmd);
 void ble_l2cap_sm_pair_fail_write(void *payload, int len,
                                   struct ble_l2cap_sm_pair_fail *cmd);
-int ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle,
-                              struct ble_l2cap_sm_pair_fail *cmd);
+int ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason);
 
 int ble_l2cap_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out);
 int ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
@@ -131,7 +128,6 @@ int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
 void ble_l2cap_sm_heartbeat(void);
 int ble_l2cap_sm_initiate(uint16_t conn_handle);
-void ble_l2cap_sm_wakeup(void);
 int ble_l2cap_sm_init(void);
 
 #else
@@ -140,8 +136,6 @@ int ble_l2cap_sm_init(void);
 #define ble_l2cap_sm_dbg_set_next_rand(next_rand)
 #define ble_l2cap_sm_dbg_num_procs() 0
 #endif
-
-#define ble_l2cap_sm_locked_by_cur_task() 0
 
 #define ble_l2cap_sm_create_chan() NULL
 
@@ -160,7 +154,6 @@ int ble_l2cap_sm_init(void);
 #define ble_l2cap_sm_connection_broken(conn_handle)
 
 #define ble_l2cap_sm_heartbeat()
-#define ble_l2cap_sm_wakeup()
 #define ble_l2cap_sm_init() 0
 
 #endif

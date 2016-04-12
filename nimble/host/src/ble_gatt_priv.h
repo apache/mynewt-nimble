@@ -104,7 +104,6 @@ int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
                        ble_gatt_attr_fn *cb, void *cb_arg);
 
 void ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
-void ble_gattc_wakeup(void);
 void ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu);
 void ble_gattc_rx_read_type_adata(uint16_t conn_handle,
                                   struct ble_att_read_type_adata *adata);

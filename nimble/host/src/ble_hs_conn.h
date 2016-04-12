@@ -30,6 +30,7 @@ struct ble_l2cap_chan;
 typedef uint8_t ble_hs_conn_flags_t;
 
 #define BLE_HS_CONN_F_MASTER        0x01
+#define BLE_HS_CONN_F_UPDATE        0x02
 
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
@@ -56,9 +57,6 @@ struct ble_hs_conn {
     void *bhc_cb_arg;
 };
 
-void ble_hs_conn_lock(void);
-void ble_hs_conn_unlock(void);
-int ble_hs_conn_locked_by_cur_task(void);
 int ble_hs_conn_can_alloc(void);
 struct ble_hs_conn *ble_hs_conn_alloc(void);
 void ble_hs_conn_free(struct ble_hs_conn *conn);
@@ -72,8 +70,6 @@ struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);
 int ble_hs_conn_chan_insert(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);
-void ble_hs_conn_rx_num_completed_pkts(uint16_t handle, uint16_t num_pkts);
-int ble_hs_conn_can_tx(struct ble_hs_conn *conn);
 int ble_hs_conn_init(void);
 
 #endif

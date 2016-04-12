@@ -117,10 +117,6 @@ ble_att_clt_copy_attr_to_flatbuf(struct os_mbuf *om, void **out_attr_val,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
 {
@@ -131,19 +127,15 @@ ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
     BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
     ble_att_inc_tx_stat(txom->om_data[0]);
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (rc == 0) {
-        if (!ble_hs_conn_can_tx(conn)) {
-            rc = BLE_HS_ECONGESTED;
-        } else {
-            rc = ble_l2cap_tx(conn, chan, txom);
-            txom = NULL;
-        }
+        rc = ble_l2cap_tx(conn, chan, txom);
+        txom = NULL;
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     os_mbuf_free_chain(txom);
     return rc;
@@ -233,14 +225,14 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, struct ble_att_mtu_cmd *req)
         return rc;
     }
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (rc == 0) {
         chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     return rc;
 }
@@ -263,7 +255,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
     if (rc == 0) {
         ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
 
-        ble_hs_conn_lock();
+        ble_hs_lock();
 
         rc = ble_att_conn_chan_find(conn_handle, NULL, &chan);
         if (rc == 0) {
@@ -271,7 +263,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
             mtu = ble_l2cap_chan_mtu(chan);
         }
 
-        ble_hs_conn_unlock();
+        ble_hs_unlock();
     }
 
     ble_gattc_rx_mtu(conn_handle, rc, mtu);

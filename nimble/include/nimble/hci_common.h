@@ -142,7 +142,7 @@
 
 /* --- LE read buffer size (OCF 0x0002) --- */
 #define BLE_HCI_RD_BUF_SIZE_LEN             (0)
-#define BLE_HCI_RD_BUF_SIZE_RSPLEN          (3)
+#define BLE_HCI_RD_BUF_SIZE_RSPLEN          (3) /* No status byte. */
 
 /* --- LE read local supported features (OCF 0x0003) --- */
 #define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN     (8)

@@ -68,12 +68,6 @@ typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
 typedef int ble_gatt_attr_fn(uint16_t conn_handle,
                              struct ble_gatt_error *error,
                              struct ble_gatt_attr *attr, void *arg);
-typedef int ble_gatt_mult_attr_fn(uint16_t conn_handle,
-                                  struct ble_gatt_error *error,
-                                  uint16_t *attr_handles,
-                                  uint8_t num_attr_handles,
-                                  uint8_t *attr_data, uint16_t attr_data_len,
-                                  void *arg);
 typedef int ble_gatt_reliable_attr_fn(uint16_t conn_handle,
                                       struct ble_gatt_error *error,
                                       struct ble_gatt_attr *attrs,
@@ -112,11 +106,10 @@ int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
 int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
-                        uint8_t num_handles, ble_gatt_mult_attr_fn *cb,
+                        uint8_t num_handles, ble_gatt_attr_fn *cb,
                         void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                           void *value, uint16_t value_len,
-                           ble_gatt_attr_fn *cb, void *cb_arg);
+                           void *value, uint16_t value_len);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
@@ -136,7 +129,8 @@ int ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
                              void *value, uint16_t value_len,
                              ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
-int ble_gattc_notify_custom(uint16_t conn_handle, struct ble_gatt_attr *attr);
+int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
+                            void *attr_data, uint16_t attr_data_len);
 
 int ble_gattc_init(void);
 

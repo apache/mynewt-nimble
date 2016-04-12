@@ -68,15 +68,9 @@ ble_hs_misc_log_flat_buf(void *data, int len)
 }
 
 void
-ble_hs_misc_assert_no_locks(void)
+ble_hs_misc_assert_not_locked(void)
 {
-    if (os_started()) {
-        assert(!ble_hs_conn_locked_by_cur_task()    &&
-               !ble_gattc_locked_by_cur_task()      &&
-               !ble_gap_locked_by_cur_task()        &&
-               !ble_hci_sched_locked_by_cur_task()  &&
-               !ble_l2cap_sm_locked_by_cur_task());
-    }
+    assert(!ble_hs_locked());
 }
 
 /**

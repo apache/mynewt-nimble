@@ -110,8 +110,6 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
                                     NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 
-    ble_hci_sched_wakeup();
-
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_slave_in_progress());
 
@@ -220,72 +218,6 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     TEST_ASSERT(chan->blc_peer_mtu == 0);
     TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
 }
-TEST_CASE(ble_hs_conn_test_completed_pkts)
-{
-    struct ble_hs_conn *conn1;
-    struct ble_hs_conn *conn2;
-
-    ble_hs_test_util_init();
-
-    conn1 = ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                         NULL, NULL);
-    conn2 = ble_hs_test_util_create_conn(2, ((uint8_t[]){3,4,5,6,7,8,9,10}),
-                                         NULL, NULL);
-
-    conn1->bhc_outstanding_pkts = 5;
-    conn2->bhc_outstanding_pkts = 5;
-
-    /*** Event specifies nonexistent connection; no effect. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 5, 5 },
-            { 0 }});
-    TEST_ASSERT(conn1->bhc_outstanding_pkts == 5);
-    TEST_ASSERT(conn2->bhc_outstanding_pkts == 5);
-
-    /*** Event specifies connection 1. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 1, 1 },
-            { 0 }});
-    TEST_ASSERT(conn1->bhc_outstanding_pkts == 4);
-    TEST_ASSERT(conn2->bhc_outstanding_pkts == 5);
-
-    /*** Event specifies connection 2. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 2, 1 },
-            { 0 }});
-    TEST_ASSERT(conn1->bhc_outstanding_pkts == 4);
-    TEST_ASSERT(conn2->bhc_outstanding_pkts == 4);
-
-    /*** Event specifies connections 1 and 2. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 1, 2 },
-            { 2, 2 },
-            { 0 }});
-    TEST_ASSERT(conn1->bhc_outstanding_pkts == 2);
-    TEST_ASSERT(conn2->bhc_outstanding_pkts == 2);
-
-    /*** Event specifies connections 1, 2, and nonexistent. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 1, 1 },
-            { 2, 1 },
-            { 10, 50 },
-            { 0 }});
-    TEST_ASSERT(conn1->bhc_outstanding_pkts == 1);
-    TEST_ASSERT(conn2->bhc_outstanding_pkts == 1);
-
-    /*** Don't wrap when count gets out of sync. */
-    ble_hs_test_util_rx_num_completed_pkts_event(
-        (struct ble_hs_test_util_num_completed_pkts_entry []) {
-            { 1, 10 },
-            { 0 }});
-    TEST_ASSERT(conn1->bhc_outstanding_pkts == 0);
-    TEST_ASSERT(conn2->bhc_outstanding_pkts == 1);
-}
 
 TEST_SUITE(conn_suite)
 {
@@ -294,7 +226,6 @@ TEST_SUITE(conn_suite)
     ble_hs_conn_test_direct_connectable_success();
     ble_hs_conn_test_direct_connectable_hci_errors();
     ble_hs_conn_test_undirect_connectable_success();
-    ble_hs_conn_test_completed_pkts();
 }
 
 int

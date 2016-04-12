@@ -24,10 +24,8 @@
 #include <inttypes.h>
 #include "ble_att_cmd.h"
 #include "ble_att_priv.h"
-#include "ble_fsm_priv.h"
 #include "ble_gap_priv.h"
 #include "ble_gatt_priv.h"
-#include "ble_hci_sched.h"
 #include "ble_hs_adv_priv.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_endian.h"
@@ -35,6 +33,7 @@
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig.h"
 #include "ble_l2cap_sm.h"
+#include "ble_hci_util.h"
 #include "host/ble_hs.h"
 #include "log/log.h"
 #include "nimble/nimble_opt.h"
@@ -45,10 +44,6 @@ struct os_mbuf;
 struct os_mempool;
 
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
-#define BLE_HS_KICK_HCI_EVENT           (OS_EVENT_T_PERUSER + 1)
-#define BLE_HS_KICK_GATT_EVENT          (OS_EVENT_T_PERUSER + 2)
-#define BLE_HS_KICK_L2CAP_SIG_EVENT     (OS_EVENT_T_PERUSER + 3)
-#define BLE_HS_KICK_L2CAP_SM_EVENT      (OS_EVENT_T_PERUSER + 4)
 
 STATS_SECT_START(ble_hs_stats)
     STATS_SECT_ENTRY(conn_create)
@@ -67,23 +62,24 @@ struct ble_hs_dev {
     unsigned has_random_addr:1;
 };
 
-extern struct os_task ble_hs_task;
+struct ble_hci_ack {
+    int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
+    uint8_t *bha_params;
+    int bha_params_len;
+    uint16_t bha_opcode;
+    uint8_t bha_hci_handle;
+};
 
 extern struct ble_hs_dev ble_hs_our_dev;
 extern struct ble_hs_cfg ble_hs_cfg;
 
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
-extern struct os_eventq ble_hs_evq;
 
 extern struct log ble_hs_log;
 
 void ble_hs_process_tx_data_queue(void);
 int ble_hs_rx_data(struct os_mbuf *om);
 int ble_hs_tx_data(struct os_mbuf *om);
-void ble_hs_kick_hci(void);
-void ble_hs_kick_gatt(void);
-void ble_hs_kick_l2cap_sig(void);
-void ble_hs_kick_l2cap_sm(void);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
@@ -96,29 +92,29 @@ int ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
                                     struct ble_hs_conn **out_conn,
                                     struct ble_l2cap_chan **out_chan);
 
+int ble_hs_atomic_conn_delete(uint16_t conn_handle);
+void ble_hs_atomic_conn_insert(struct ble_hs_conn *conn);
+
 void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
-void ble_hs_misc_assert_no_locks(void);
+void ble_hs_lock(void);
+void ble_hs_unlock(void);
+int ble_hs_locked(void);
+void ble_hs_misc_assert_not_locked(void);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
 int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
 
-struct ble_hci_block_result {
-    uint8_t evt_buf_len;
-    uint8_t evt_total_len;
-};
+int ble_hci_tx_cmd(void *cmd, void *evt_buf, uint8_t evt_buf_len,
+                   uint8_t *out_evt_buf_len);
+int ble_hci_tx_cmd_empty_ack(void *cmd);
 
 #if PHONY_HCI_ACKS
-typedef int ble_hci_block_phony_ack_fn(void *cmd, uint8_t *ack,
-                                       int ack_buf_len);
+typedef int ble_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);
 
-void ble_hci_block_set_phony_ack_cb(ble_hci_block_phony_ack_fn *cb);
+void ble_hci_set_phony_ack_cb(ble_hci_phony_ack_fn *cb);
 #endif
-
-int ble_hci_block_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
-                     struct ble_hci_block_result *result);
-void ble_hci_block_init(void);
 
 #define BLE_HS_LOG(lvl, ...) \
     LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)

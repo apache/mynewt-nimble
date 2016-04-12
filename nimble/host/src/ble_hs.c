@@ -40,9 +40,6 @@ static struct log_handler ble_hs_log_console_handler;
 struct ble_hs_dev ble_hs_our_dev;
 struct log ble_hs_log;
 
-struct os_task ble_hs_task;
-static os_stack_t ble_hs_stack[BLE_HS_STACK_SIZE] bssnz_t;
-
 #define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
 static void *ble_hs_hci_cmd_buf;
@@ -65,16 +62,16 @@ static void *ble_hs_hci_os_event_buf;
  * shortage.
  */
 static struct os_callout_func ble_hs_heartbeat_timer;
+static struct os_callout_func ble_hs_event_co;
 
 /* Host HCI Task Events */
-struct os_eventq ble_hs_evq;
-static struct os_event ble_hs_kick_hci_ev;
-static struct os_event ble_hs_kick_gatt_ev;
-static struct os_event ble_hs_kick_l2cap_sig_ev;
-static struct os_event ble_hs_kick_l2cap_sm_ev;
+static struct os_eventq ble_hs_evq;
+static struct os_eventq *ble_hs_app_evq;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
+
+static struct os_mutex ble_hs_mutex;
 
 STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 STATS_NAME_START(ble_hs_stats)
@@ -85,6 +82,36 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, hci_invalid_ack)
     STATS_NAME(ble_hs_stats, hci_unknown_event)
 STATS_NAME_END(ble_hs_stats)
+
+void
+ble_hs_lock(void)
+{
+    struct os_task *owner;
+    int rc;
+
+    owner = ble_hs_mutex.mu_owner;
+    if (owner != NULL) {
+        BLE_HS_DBG_ASSERT_EVAL(owner != os_sched_get_current_task());
+    }
+
+    rc = os_mutex_pend(&ble_hs_mutex, 0xffffffff);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+void
+ble_hs_unlock(void)
+{
+    int rc;
+
+    rc = os_mutex_release(&ble_hs_mutex);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+int
+ble_hs_locked(void)
+{
+    return ble_hs_mutex.mu_level > 0;
+}
 
 void
 ble_hs_process_tx_data_queue(void)
@@ -130,28 +157,32 @@ ble_hs_heartbeat_timer_reset(void)
 static void
 ble_hs_heartbeat(void *unused)
 {
-    ble_hs_misc_assert_no_locks();
+    ble_hs_misc_assert_not_locked();
 
     ble_gattc_heartbeat();
     ble_gap_heartbeat();
+    ble_l2cap_sig_heartbeat();
     ble_l2cap_sm_heartbeat();
 
     ble_hs_heartbeat_timer_reset();
 }
 
 static void
-ble_hs_task_handler(void *arg)
+ble_hs_event_handle(void *unused)
 {
-    struct os_event *ev;
     struct os_callout_func *cf;
-    int rc;
-
-    ble_hs_heartbeat_timer_reset();
-
-    rc = ble_hs_startup_go();
-    assert(rc == 0);
+    struct os_event *ev;
+    os_sr_t sr;
 
     while (1) {
+        OS_ENTER_CRITICAL(sr);
+        ev = STAILQ_FIRST(&ble_hs_evq.evq_list);
+        OS_EXIT_CRITICAL(sr);
+
+        if (ev == NULL) {
+            break;
+        }
+
         ev = os_eventq_get(&ble_hs_evq);
         switch (ev->ev_type) {
         case OS_EVENT_T_TIMER:
@@ -170,27 +201,29 @@ ble_hs_task_handler(void *arg)
             ble_hs_process_rx_data_queue();
             break;
 
-        case BLE_HS_KICK_HCI_EVENT:
-            ble_hci_sched_wakeup();
-            break;
-
-        case BLE_HS_KICK_GATT_EVENT:
-            ble_gattc_wakeup();
-            break;
-
-        case BLE_HS_KICK_L2CAP_SIG_EVENT:
-            ble_l2cap_sig_wakeup();
-            break;
-
-        case BLE_HS_KICK_L2CAP_SM_EVENT:
-            ble_l2cap_sm_wakeup();
-            break;
-
         default:
             BLE_HS_DBG_ASSERT(0);
             break;
         }
     }
+}
+
+void
+ble_hs_event_enqueue(struct os_event *ev)
+{
+    os_eventq_put(&ble_hs_evq, ev);
+    os_eventq_put(ble_hs_app_evq, &ble_hs_event_co.cf_c.c_ev);
+}
+
+int
+ble_hs_start(void)
+{
+    int rc;
+
+    ble_hs_heartbeat_timer_reset();
+
+    rc = ble_hs_startup_go();
+    return rc;
 }
 
 /**
@@ -211,6 +244,7 @@ ble_hs_rx_data(struct os_mbuf *om)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
+    os_eventq_put(ble_hs_app_evq, &ble_hs_event_co.cf_c.c_ev);
 
     return 0;
 }
@@ -224,44 +258,9 @@ ble_hs_tx_data(struct os_mbuf *om)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
+    os_eventq_put(ble_hs_app_evq, &ble_hs_event_co.cf_c.c_ev);
 
     return 0;
-}
-
-/**
- * Wakes the BLE host task so that it can process hci events.
- */
-void
-ble_hs_kick_hci(void)
-{
-    os_eventq_put(&ble_hs_evq, &ble_hs_kick_hci_ev);
-}
-
-/**
- * Wakes the BLE host task so that it can process GATT events.
- */
-void
-ble_hs_kick_gatt(void)
-{
-    os_eventq_put(&ble_hs_evq, &ble_hs_kick_gatt_ev);
-}
-
-/**
- * Wakes the BLE host task so that it can process L2CAP sig events.
- */
-void
-ble_hs_kick_l2cap_sig(void)
-{
-    os_eventq_put(&ble_hs_evq, &ble_hs_kick_l2cap_sig_ev);
-}
-
-/**
- * Wakes the BLE host task so that it can process L2CAP security events.
- */
-void
-ble_hs_kick_l2cap_sm(void)
-{
-    os_eventq_put(&ble_hs_evq, &ble_hs_kick_l2cap_sm_ev);
 }
 
 static void
@@ -278,20 +277,23 @@ ble_hs_free_mem(void)
  * Initializes the host portion of the BLE stack.
  */
 int
-ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
+ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
 {
     int rc;
 
     ble_hs_free_mem();
+
+    if (app_evq == NULL) {
+        rc = BLE_HS_EINVAL;
+        goto err;
+    }
+    ble_hs_app_evq = app_evq;
 
     ble_hs_cfg_init(cfg);
 
     log_init();
     log_console_handler_init(&ble_hs_log_console_handler);
     log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
-
-    os_task_init(&ble_hs_task, "ble_hs", ble_hs_task_handler, NULL, prio,
-                 OS_WAIT_FOREVER, ble_hs_stack, BLE_HS_STACK_SIZE);
 
     ble_hs_hci_cmd_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
                                                  HCI_CMD_BUF_SIZE));
@@ -356,11 +358,6 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    rc = ble_hci_sched_init();
-    if (rc != 0) {
-        goto err;
-    }
-
     rc = ble_gattc_init();
     if (rc != 0) {
         goto err;
@@ -370,24 +367,6 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
     if (rc != 0) {
         goto err;
     }
-
-    ble_hci_block_init();
-
-    ble_hs_kick_hci_ev.ev_queued = 0;
-    ble_hs_kick_hci_ev.ev_type = BLE_HS_KICK_HCI_EVENT;
-    ble_hs_kick_hci_ev.ev_arg = NULL;
-
-    ble_hs_kick_gatt_ev.ev_queued = 0;
-    ble_hs_kick_gatt_ev.ev_type = BLE_HS_KICK_GATT_EVENT;
-    ble_hs_kick_gatt_ev.ev_arg = NULL;
-
-    ble_hs_kick_l2cap_sig_ev.ev_queued = 0;
-    ble_hs_kick_l2cap_sig_ev.ev_type = BLE_HS_KICK_L2CAP_SIG_EVENT;
-    ble_hs_kick_l2cap_sig_ev.ev_arg = NULL;
-
-    ble_hs_kick_l2cap_sm_ev.ev_queued = 0;
-    ble_hs_kick_l2cap_sm_ev.ev_type = BLE_HS_KICK_L2CAP_SM_EVENT;
-    ble_hs_kick_l2cap_sm_ev.ev_arg = NULL;
 
     os_mqueue_init(&ble_hs_rx_q, NULL);
     os_mqueue_init(&ble_hs_tx_q, NULL);
@@ -400,8 +379,16 @@ ble_hs_init(uint8_t prio, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    os_callout_func_init(&ble_hs_heartbeat_timer, &ble_hs_evq,
+    os_callout_func_init(&ble_hs_heartbeat_timer, ble_hs_app_evq,
                          ble_hs_heartbeat, NULL);
+    os_callout_func_init(&ble_hs_event_co, &ble_hs_evq,
+                         ble_hs_event_handle, NULL);
+
+    rc = os_mutex_init(&ble_hs_mutex);
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto err;
+    }
 
     return 0;
 

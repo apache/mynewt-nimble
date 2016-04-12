@@ -80,6 +80,7 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SM_ERR_NUM_CMP            0x0c
 #define BLE_L2CAP_SM_ERR_ALREADY            0x0d
 #define BLE_L2CAP_SM_ERR_CROSS_TRANS        0x0e
+#define BLE_L2CAP_SM_ERR_MAX_PLUS_1         0x0f
 
 #define BLE_L2CAP_SM_PAIR_ALG_JW            0
 #define BLE_L2CAP_SM_PAIR_ALG_PASSKEY       1

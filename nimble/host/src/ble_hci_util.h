@@ -17,35 +17,10 @@
  * under the License.
  */
 
-#include <stddef.h>
-#include <errno.h>
-#include <string.h>
-#include "nimble/hci_common.h"
-#include "host/host_hci.h"
-#include "host/ble_hs_test.h"
-#include "testutil/testutil.h"
-#include "ble_hs_test_util.h"
+#ifndef H_BLE_HCI_UTIL_
+#define H_BLE_HCI_UTIL_
 
-TEST_CASE(ble_host_hci_test_event_bad)
-{
-    uint8_t buf[2];
-    int rc;
+int ble_hci_util_read_adv_tx_pwr(int8_t *out_pwr);
+int ble_hci_util_rand(void *dst, int len);
 
-    /*** Invalid event code. */
-    buf[0] = 0xff;
-    buf[1] = 0;
-    rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == BLE_HS_ENOTSUP);
-}
-
-TEST_SUITE(ble_host_hci_suite)
-{
-    ble_host_hci_test_event_bad();
-}
-
-int
-ble_host_hci_test_all(void)
-{
-    ble_host_hci_suite();
-    return tu_any_failed;
-}
+#endif

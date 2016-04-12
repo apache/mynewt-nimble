@@ -240,8 +240,6 @@ ble_att_svr_read(uint16_t conn_handle, struct ble_att_svr_entry *entry,
     uint8_t att_err;
     int rc;
 
-    ble_hs_misc_assert_no_locks();
-
     if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
         !(entry->ha_flags & HA_FLAG_PERM_READ)) {
 
@@ -312,7 +310,7 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
     uint8_t att_err;
     int rc;
 
-    BLE_HS_DBG_ASSERT(!ble_hs_conn_locked_by_cur_task());
+    ble_hs_misc_assert_not_locked();
 
     if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
         !(entry->ha_flags & HA_FLAG_PERM_WRITE)) {
@@ -453,7 +451,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
     }
 
     if (do_tx) {
-        ble_hs_conn_lock();
+        ble_hs_lock();
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
         if (chan == NULL) {
@@ -476,7 +474,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
             }
         }
 
-        ble_hs_conn_unlock();
+        ble_hs_unlock();
     }
 
     os_mbuf_free_chain(txom);
@@ -501,12 +499,12 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
     *att_err = 0; /* Silence unnecessary warning. */
     txom = NULL;
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
     rc = ble_att_conn_chan_find(conn_handle, NULL, &chan);
     if (rc == 0) {
         mtu = chan->blc_my_mtu;
     }
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     if (rc != 0) {
         goto done;
@@ -570,13 +568,13 @@ done:
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_FIND_INFO_REQ,
                             att_err, 0);
     if (rc == 0) {
-        ble_hs_conn_lock();
+        ble_hs_lock();
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
         if (chan != NULL) {
             ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
             chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
         }
-        ble_hs_conn_unlock();
+        ble_hs_unlock();
     }
     return rc;
 }
@@ -2435,7 +2433,7 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     prep_entry->bape_handle = req.bapc_handle;
     prep_entry->bape_offset = req.bapc_offset;
 
-    ble_hs_conn_lock();
+    ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
@@ -2466,7 +2464,7 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
         }
     }
 
-    ble_hs_conn_unlock();
+    ble_hs_unlock();
 
     if (rc != 0) {
         goto done;
@@ -2491,7 +2489,7 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
 done:
     if (rc != 0 && rc != BLE_HS_ENOTCONN) {
-        ble_hs_conn_lock();
+        ble_hs_lock();
 
         conn = ble_hs_conn_find(conn_handle);
         if (conn == NULL) {
@@ -2510,7 +2508,7 @@ done:
             }
         }
 
-        ble_hs_conn_unlock();
+        ble_hs_unlock();
     }
 
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_PREP_WRITE_REQ,
@@ -2597,7 +2595,7 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
 done:
     if (rc == 0) {
-        ble_hs_conn_lock();
+        ble_hs_lock();
         conn = ble_hs_conn_find(conn_handle);
         if (conn == NULL) {
             rc = BLE_HS_ENOTCONN;
@@ -2613,7 +2611,7 @@ done:
             /* Erase all prep entries. */
             ble_att_svr_prep_clear(&conn->bhc_att_svr);
         }
-        ble_hs_conn_unlock();
+        ble_hs_unlock();
     }
 
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_EXEC_WRITE_REQ,

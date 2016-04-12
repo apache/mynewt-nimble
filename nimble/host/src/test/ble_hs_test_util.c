@@ -37,6 +37,8 @@
 #define BLE_HS_TEST_UTIL_LE_OPCODE(ocf) \
     host_hci_opcode_join(BLE_HCI_OGF_LE, (ocf))
 
+struct os_eventq ble_hs_test_util_evq;
+
 os_membuf_t ble_hs_test_util_mbuf_mpool_data[BLE_HS_TEST_UTIL_MEMPOOL_SIZE];
 struct os_mbuf_pool ble_hs_test_util_mbuf_pool;
 struct os_mempool ble_hs_test_util_mbuf_mpool;
@@ -134,7 +136,7 @@ ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
 struct ble_hs_test_util_phony_ack {
     uint16_t opcode;
     uint8_t status;
-    uint8_t *evt_params;
+    uint8_t evt_params[256];
     uint8_t evt_params_len;
 };
 
@@ -143,7 +145,7 @@ ble_hs_test_util_phony_acks[BLE_HS_TEST_UTIL_PHONY_ACK_MAX];
 static int ble_hs_test_util_num_phony_acks;
 
 static int
-ble_hs_test_util_phony_ack_cb(void *cmd, uint8_t *ack, int ack_buf_len)
+ble_hs_test_util_phony_ack_cb(uint8_t *ack, int ack_buf_len)
 {
     struct ble_hs_test_util_phony_ack *entry;
 
@@ -170,13 +172,30 @@ ble_hs_test_util_phony_ack_cb(void *cmd, uint8_t *ack, int ack_buf_len)
 }
 
 void
-ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status)
+ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status, void *params,
+                                uint8_t params_len)
 {
-    ble_hs_test_util_phony_acks[0].opcode = opcode;
-    ble_hs_test_util_phony_acks[0].status = status;
+    struct ble_hs_test_util_phony_ack *ack;
+
+    ack = ble_hs_test_util_phony_acks + 0;
+    ack->opcode = opcode;
+    ack->status = status;
+
+    if (params == NULL || params_len == 0) {
+        ack->evt_params_len = 0;
+    } else {
+        memcpy(ack->evt_params, params, params_len);
+        ack->evt_params_len = params_len;
+    }
     ble_hs_test_util_num_phony_acks = 1;
 
-    ble_hci_block_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
+    ble_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
+}
+
+void
+ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status)
+{
+    ble_hs_test_util_set_ack_params(opcode, status, NULL, 0);
 }
 
 static void
@@ -189,7 +208,7 @@ ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks)
     }
     ble_hs_test_util_num_phony_acks = i;
 
-    ble_hci_block_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
+    ble_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
 }
 
 struct ble_hs_conn *
@@ -320,7 +339,7 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
         acks[i] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
             fail_idx == i ? fail_status : 0,
-            (uint8_t[]) { 0 },
+            { 0 },
             1,
         };
         i++;
@@ -414,65 +433,16 @@ ble_hs_test_util_conn_update(uint16_t conn_handle,
     return rc;
 }
 
-void
-ble_hs_test_util_rx_ack_param(uint16_t opcode, uint8_t status, void *param,
-                              int param_len)
+int
+ble_hs_test_util_security_initiate(uint16_t conn_handle, uint8_t hci_status)
 {
-    uint8_t buf[256];
     int rc;
 
-    ble_hs_test_util_build_cmd_complete(buf, sizeof buf, param_len + 1, 1,
-                                        opcode);
-    buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN] = status;
-    memcpy(buf + BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 1, param, param_len);
+    ble_hs_test_util_set_ack(
+        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_START_ENCRYPT), hci_status);
 
-    rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == 0);
-}
-
-void
-ble_hs_test_util_rx_ack(uint16_t opcode, uint8_t status)
-{
-    uint8_t buf[BLE_HCI_EVENT_CMD_STATUS_LEN];
-    int rc;
-
-    ble_hs_test_util_build_cmd_status(buf, sizeof buf, status, 1, opcode);
-    rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == 0);
-}
-
-void
-ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size)
-{
-    uint8_t buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN +
-                BLE_HCI_RD_BUF_SIZE_RSPLEN + 1];
-    int rc;
-
-    ble_hs_test_util_build_cmd_complete(buf, sizeof buf,
-                                        BLE_HCI_RD_BUF_SIZE_RSPLEN + 1, 1,
-                                        (BLE_HCI_OGF_LE << 10) |
-                                            BLE_HCI_OCF_LE_RD_BUF_SIZE);
-
-    buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 0] = 0;
-    htole16(buf + BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 1, buf_size);
-    buf[BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN + 3] = 1;
-
-    rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == 0);
-}
-
-void
-ble_hs_test_util_rx_le_ack_param(uint16_t ocf, uint8_t status, void *param,
-                                 int param_len)
-{
-    ble_hs_test_util_rx_ack_param((BLE_HCI_OGF_LE << 10) | ocf, status, param,
-                                  param_len);
-}
-
-void
-ble_hs_test_util_rx_le_ack(uint16_t ocf, uint8_t status)
-{
-    ble_hs_test_util_rx_ack((BLE_HCI_OGF_LE << 10) | ocf, status);
+    rc = ble_gap_security_initiate(conn_handle);
+    return rc;
 }
 
 int
@@ -560,24 +530,39 @@ ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
 }
 
 void
-ble_hs_test_util_rx_startup_acks(void)
+ble_hs_test_util_set_startup_acks(void)
 {
-    uint8_t supp_feat[8];
-
-    memset(supp_feat, 0, sizeof supp_feat);
-
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_rx_ack(
-        (BLE_HCI_OGF_CTLR_BASEBAND << 10) | BLE_HCI_OCF_CB_RESET, 0);
-    ble_hs_test_util_rx_ack(
-        (BLE_HCI_OGF_CTLR_BASEBAND << 10) | BLE_HCI_OCF_CB_SET_EVENT_MASK,
-        0);
-    ble_hs_test_util_rx_le_ack(BLE_HCI_OCF_LE_SET_EVENT_MASK, 0);
-    ble_hs_test_util_rx_hci_buf_size_ack(0xffff);
-    ble_hs_test_util_rx_le_ack_param(BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT, 0,
-                                     supp_feat, sizeof supp_feat);
+    ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
+                                           BLE_HCI_OCF_CB_RESET),
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
+                                           BLE_HCI_OCF_CB_SET_EVENT_MASK),
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_SET_EVENT_MASK),
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_RD_BUF_SIZE),
+            .evt_params = { 0xff, 0xff, 1 },
+            .evt_params_len = 3,
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
+            .evt_params = { 0 },
+            .evt_params_len = 8,
+        },
+
+        { 0 }
+    }));
 }
 
 void
@@ -641,11 +626,7 @@ ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
 void
 ble_hs_test_util_tx_all(void)
 {
-    ble_gattc_wakeup();
-    ble_l2cap_sig_wakeup();
-    ble_l2cap_sm_wakeup();
     ble_hs_process_tx_data_queue();
-    ble_hci_sched_wakeup();
 }
 
 void
@@ -662,12 +643,14 @@ ble_hs_test_util_init(void)
 
     tu_init();
 
+    os_eventq_init(&ble_hs_test_util_evq);
+
     os_msys_reset();
     stats_module_reset();
 
     cfg = ble_hs_cfg_dflt;
     cfg.max_connections = 8;
-    rc = ble_hs_init(10, &cfg);
+    rc = ble_hs_init(&ble_hs_test_util_evq, &cfg);
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = os_mempool_init(&ble_hs_test_util_mbuf_mpool,
@@ -686,7 +669,7 @@ ble_hs_test_util_init(void)
     rc = os_msys_register(&ble_hs_test_util_mbuf_pool);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hci_block_set_phony_ack_cb(NULL);
+    ble_hci_set_phony_ack_cb(NULL);
 
     /* Don't limit a connection's ability to transmit; simplify tests. */
     ble_hs_cfg.max_outstanding_pkts_per_conn = 0;

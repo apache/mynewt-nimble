@@ -26,18 +26,14 @@
 
 #if NIMBLE_OPT_SM
 
-#define BLE_L2CAP_SM_PROC_OP_NONE               ((uint8_t)-1)
+#define BLE_L2CAP_SM_PROC_STATE_NONE            ((uint8_t)-1)
 
-#define BLE_L2CAP_SM_PROC_OP_PAIR               0
-#define BLE_L2CAP_SM_PROC_OP_CONFIRM            1
-#define BLE_L2CAP_SM_PROC_OP_RANDOM             2
-#define BLE_L2CAP_SM_PROC_OP_FAIL               3
-#define BLE_L2CAP_SM_PROC_OP_LTK                4
-#define BLE_L2CAP_SM_PROC_OP_LTK_TXED           5
-#define BLE_L2CAP_SM_PROC_OP_ENC_CHANGE         6
-#define BLE_L2CAP_SM_PROC_OP_START_ENCRYPT      7
-#define BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED 8
-#define BLE_L2CAP_SM_PROC_OP_CNT                9
+#define BLE_L2CAP_SM_PROC_STATE_PAIR            0
+#define BLE_L2CAP_SM_PROC_STATE_CONFIRM         1
+#define BLE_L2CAP_SM_PROC_STATE_RANDOM          2
+#define BLE_L2CAP_SM_PROC_STATE_LTK             3
+#define BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE      4
+#define BLE_L2CAP_SM_PROC_STATE_CNT             5
 
 #define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
 
@@ -47,10 +43,14 @@
 typedef uint16_t ble_l2cap_sm_proc_flags;
 
 struct ble_l2cap_sm_proc {
-    struct ble_fsm_proc fsm_proc;
+    STAILQ_ENTRY(ble_l2cap_sm_proc) next;
+
     uint32_t exp_os_ticks;
     ble_l2cap_sm_proc_flags flags;
+    uint16_t conn_handle;
     uint8_t pair_alg;
+    uint8_t state;
+
 
     /* XXX: Minimum security requirements. */
 
@@ -66,25 +66,13 @@ struct ble_l2cap_sm_proc {
 
         struct {
             uint8_t key[16];
-            uint8_t handle;
         } hci;
-
-        struct {
-            uint8_t reason;
-        } fail;
     };
 };
 
-/** Used for extracting proc entries from the fsm list. */
-struct ble_l2cap_sm_extract_arg {
-    uint16_t conn_handle;
-    uint8_t op;
-    int8_t initiator; /* 0=no, 1=yes, -1=don't-care. */
-};
+STAILQ_HEAD(ble_l2cap_sm_proc_list, ble_l2cap_sm_proc);
 
-typedef int ble_l2cap_sm_kick_fn(struct ble_l2cap_sm_proc *proc);
-
-typedef int ble_l2cap_sm_rx_fn(uint16_t conn_handle, uint8_t op,
+typedef int ble_l2cap_sm_rx_fn(uint16_t conn_handle, uint8_t state,
                                struct os_mbuf **om);
 
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_noop;
@@ -93,13 +81,6 @@ static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_rsp;
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_confirm;
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_random;
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_fail;
-
-static ble_l2cap_sm_kick_fn ble_l2cap_sm_pair_kick;
-static ble_l2cap_sm_kick_fn ble_l2cap_sm_confirm_kick;
-static ble_l2cap_sm_kick_fn ble_l2cap_sm_random_kick;
-static ble_l2cap_sm_kick_fn ble_l2cap_sm_fail_kick;
-static ble_l2cap_sm_kick_fn ble_l2cap_sm_lt_key_req_kick;
-static ble_l2cap_sm_kick_fn ble_l2cap_sm_start_encrypt_kick;
 
 static ble_l2cap_sm_rx_fn * const ble_l2cap_sm_dispatch[] = {
    [BLE_L2CAP_SM_OP_PAIR_REQ] = ble_l2cap_sm_rx_pair_req,
@@ -118,31 +99,24 @@ static ble_l2cap_sm_rx_fn * const ble_l2cap_sm_dispatch[] = {
    [BLE_L2CAP_SM_OP_PAIR_KEYPRESS_NOTIFY] = ble_l2cap_sm_rx_noop,
 };
 
-static ble_l2cap_sm_kick_fn * const
-ble_l2cap_sm_kick[BLE_L2CAP_SM_PROC_OP_CNT] = {
-    [BLE_L2CAP_SM_PROC_OP_PAIR]             = ble_l2cap_sm_pair_kick,
-    [BLE_L2CAP_SM_PROC_OP_CONFIRM]          = ble_l2cap_sm_confirm_kick,
-    [BLE_L2CAP_SM_PROC_OP_RANDOM]           = ble_l2cap_sm_random_kick,
-    [BLE_L2CAP_SM_PROC_OP_FAIL]             = ble_l2cap_sm_fail_kick,
-    [BLE_L2CAP_SM_PROC_OP_LTK]              = ble_l2cap_sm_lt_key_req_kick,
-    [BLE_L2CAP_SM_PROC_OP_START_ENCRYPT]    = ble_l2cap_sm_start_encrypt_kick,
-};
-
-static void ble_l2cap_sm_rx_lt_key_req_reply_ack(struct ble_hci_ack *ack,
-                                                 void *arg);
-static void ble_l2cap_sm_rx_start_encrypt_ack(struct ble_hci_ack *ack,
-                                              void *arg);
-
 static void *ble_l2cap_sm_proc_mem;
 static struct os_mempool ble_l2cap_sm_proc_pool;
 
-static struct ble_fsm ble_l2cap_sm_fsm;
+/* Maintains the list of active security manager procedures. */
+static struct ble_l2cap_sm_proc_list ble_l2cap_sm_procs;
+
+static int ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
+                                             uint8_t *k, uint8_t *preq,
+                                             uint8_t *pres, uint8_t *iat,
+                                             uint8_t *rat, uint8_t *ia,
+                                             uint8_t *ra);
 
 /*****************************************************************************
  * $debug                                                                    *
  *****************************************************************************/
 
 #ifdef BLE_HS_DEBUG
+
 static uint8_t ble_l2cap_sm_dbg_next_pair_rand[16];
 static uint8_t ble_l2cap_sm_dbg_next_pair_rand_set;
 static uint16_t ble_l2cap_sm_dbg_next_ediv;
@@ -175,17 +149,13 @@ ble_l2cap_sm_dbg_set_next_start_rand(uint64_t next_start_rand)
 int
 ble_l2cap_sm_dbg_num_procs(void)
 {
-    struct ble_fsm_proc *proc;
+    struct ble_l2cap_sm_proc *proc;
     int cnt;
 
-    ble_fsm_lock(&ble_l2cap_sm_fsm);
-
     cnt = 0;
-    STAILQ_FOREACH(proc, &ble_l2cap_sm_fsm.procs, next) {
+    STAILQ_FOREACH(proc, &ble_l2cap_sm_procs, next) {
         cnt++;
     }
-
-    ble_fsm_unlock(&ble_l2cap_sm_fsm);
 
     return cnt;
 }
@@ -193,117 +163,108 @@ ble_l2cap_sm_dbg_num_procs(void)
 #endif
 
 /*****************************************************************************
- * $mutex                                                                    *
- *****************************************************************************/
-
-int
-ble_l2cap_sm_locked_by_cur_task(void)
-{
-    return ble_fsm_locked_by_cur_task(&ble_l2cap_sm_fsm);
-}
-
-/*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
 
-static void
+static int
 ble_l2cap_sm_gen_pair_rand(uint8_t *pair_rand)
 {
+    int rc;
+
 #ifdef BLE_HS_DEBUG
     if (ble_l2cap_sm_dbg_next_pair_rand_set) {
         ble_l2cap_sm_dbg_next_pair_rand_set = 0;
         memcpy(pair_rand, ble_l2cap_sm_dbg_next_pair_rand,
                sizeof ble_l2cap_sm_dbg_next_pair_rand);
-        return;
+        return 0;
     }
 #endif
 
-    /* XXX: Generate random value rather than zeros. */
-    memset(pair_rand, 0, 16);
-}
-
-static uint16_t
-ble_l2cap_sm_gen_ediv(void)
-{
-#ifdef BLE_HS_DEBUG
-    if (ble_l2cap_sm_dbg_next_ediv_set) {
-        ble_l2cap_sm_dbg_next_ediv_set = 0;
-        return ble_l2cap_sm_dbg_next_ediv;
+    rc = ble_hci_util_rand(pair_rand, 16);
+    if (rc != 0) {
+        return rc;
     }
-#endif
 
-    /* XXX: Generate random value rather than zero. */
-    return 0;
-}
-
-static uint64_t
-ble_l2cap_sm_gen_start_rand(void)
-{
-#ifdef BLE_HS_DEBUG
-    if (ble_l2cap_sm_dbg_next_start_rand_set) {
-        ble_l2cap_sm_dbg_next_start_rand_set = 0;
-        return ble_l2cap_sm_dbg_next_start_rand;
-    }
-#endif
-
-    /* XXX: Generate random value rather than zeros. */
     return 0;
 }
 
 static int
-ble_l2cap_sm_proc_kick(struct ble_fsm_proc *proc)
+ble_l2cap_sm_gen_ediv(uint16_t *ediv)
 {
-    struct ble_l2cap_sm_proc *sm_proc;
-    ble_l2cap_sm_kick_fn *kick_cb;
     int rc;
 
-    BLE_HS_DBG_ASSERT(proc->op < BLE_L2CAP_SM_PROC_OP_CNT);
-    kick_cb = ble_l2cap_sm_kick[proc->op];
-    BLE_HS_DBG_ASSERT(kick_cb != NULL);
+#ifdef BLE_HS_DEBUG
+    if (ble_l2cap_sm_dbg_next_ediv_set) {
+        ble_l2cap_sm_dbg_next_ediv_set = 0;
+        *ediv = ble_l2cap_sm_dbg_next_ediv;
+        return 0;
+    }
+#endif
 
+    rc = ble_hci_util_rand(ediv, sizeof *ediv);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_gen_start_rand(uint64_t *start_rand)
+{
+    int rc;
+
+#ifdef BLE_HS_DEBUG
+    if (ble_l2cap_sm_dbg_next_start_rand_set) {
+        ble_l2cap_sm_dbg_next_start_rand_set = 0;
+        *start_rand = ble_l2cap_sm_dbg_next_start_rand;
+        return 0;
+    }
+#endif
+
+    rc = ble_hci_util_rand(start_rand, sizeof *start_rand);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_gen_key(struct ble_l2cap_sm_proc *proc)
+{
+    uint8_t key[16];
+    int rc;
+
+    rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
+                             proc->phase_1_2.rand_their, key);
+    if (rc != 0) {
+        return rc;
+    }
+
+    memcpy(proc->hci.key, key, sizeof key);
+
+    return 0;
+}
+
+static void
+ble_l2cap_sm_proc_set_timer(struct ble_l2cap_sm_proc *proc)
+{
     /* Set a timeout of 30 seconds. */
-    sm_proc = (struct ble_l2cap_sm_proc *)proc;
-
-    sm_proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SM_TIMEOUT_OS_TICKS;
-    rc = kick_cb(sm_proc);
-
-    return rc;
+    proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SM_TIMEOUT_OS_TICKS;
 }
 
 /**
  * Lock restrictions: None.
  */
 static ble_l2cap_sm_rx_fn *
-ble_l2cap_sm_dispatch_get(uint8_t op)
+ble_l2cap_sm_dispatch_get(uint8_t state)
 {
-    if (op > sizeof ble_l2cap_sm_dispatch / sizeof ble_l2cap_sm_dispatch[0]) {
+    if (state > sizeof ble_l2cap_sm_dispatch / sizeof ble_l2cap_sm_dispatch[0]) {
         return NULL;
     }
 
-    return ble_l2cap_sm_dispatch[op];
-}
-
-/* Indicates the handle of the specified proc's unserviced HCI reservation, if
- * any.  If there is no such handle associated with the proc,
- * BLE_HCI_SCHED_HANDLE_NONE is returned.
- *
- * Lock restrictions: None.
- *
- * @param proc                  The proc object to query.
- *
- * @return                      The HCI handle, or BLE_HCI_SCHED_HANDLE_NONE.
- */
-static uint8_t
-ble_l2cap_sm_proc_outstanding_hci_handle(struct ble_l2cap_sm_proc *proc)
-{
-    switch (proc->fsm_proc.op) {
-    case BLE_L2CAP_SM_PROC_OP_LTK:
-    case BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED:
-        return proc->hci.handle;
-
-    default:
-        return BLE_HCI_SCHED_HANDLE_NONE;
-    }
+    return ble_l2cap_sm_dispatch[state];
 }
 
 /**
@@ -327,171 +288,27 @@ ble_l2cap_sm_proc_alloc(void)
 }
 
 /**
- * Frees the specified proc entry.  No-op if passed a null pointer.
+ * Frees the specified proc entry.  No-state if passed a null pointer.
  *
  * Lock restrictions: None.
  */
 static void
-ble_l2cap_sm_proc_free(struct ble_fsm_proc *proc)
+ble_l2cap_sm_proc_free(struct ble_l2cap_sm_proc *proc)
 {
-    struct ble_l2cap_sm_proc *sm_proc;
-    uint8_t hci_handle;
     int rc;
 
     if (proc != NULL) {
-        sm_proc = (struct ble_l2cap_sm_proc *)proc;
-
-        /* If this proc has an unserviced HCI reservation, cancel it before
-         * freeing the proc.
-         */
-        hci_handle = ble_l2cap_sm_proc_outstanding_hci_handle(sm_proc);
-        if (hci_handle != BLE_HCI_SCHED_HANDLE_NONE) {
-            rc = ble_hci_sched_cancel(hci_handle);
-            BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-        }
-
         rc = os_memblock_put(&ble_l2cap_sm_proc_pool, proc);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
 }
 
-/**
- * Lock restrictions: None.
- */
-static int
-ble_l2cap_sm_proc_new(uint16_t conn_handle, uint8_t op,
-                      struct ble_l2cap_sm_proc **out_proc)
-{
-    *out_proc = ble_l2cap_sm_proc_alloc();
-    if (*out_proc == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    memset(*out_proc, 0, sizeof **out_proc);
-    (*out_proc)->fsm_proc.op = op;
-    (*out_proc)->fsm_proc.conn_handle = conn_handle;
-    (*out_proc)->fsm_proc.tx_time = os_time_get();
-
-    return 0;
-}
-
-/**
- * Extraction callback used for removing all pairing procedures that have timed
- * out.
- */
-static int
-ble_l2cap_sm_proc_extract_expired_cb(struct ble_fsm_proc *proc, void *unused)
-{
-    uint32_t now;
-    int32_t diff;
-
-    now = os_time_get();
-    diff = now - ((struct ble_l2cap_sm_proc *)proc)->exp_os_ticks;
-    if (diff >= 0) {
-        return BLE_FSM_EXTRACT_EMOVE_CONTINUE;
-    } else {
-        return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
-    }
-}
-
-static int
-ble_l2cap_sm_proc_extract_cb(struct ble_fsm_proc *proc, void *arg)
-{
-    struct ble_l2cap_sm_extract_arg *extarg;
-    struct ble_l2cap_sm_proc *sm_proc;
-    int proc_is_initiator;
-
-    extarg = arg;
-    sm_proc = (struct ble_l2cap_sm_proc *)proc;
-
-    if (extarg->conn_handle != proc->conn_handle) {
-        return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
-    }
-
-    if (extarg->op != BLE_L2CAP_SM_PROC_OP_NONE && extarg->op != proc->op) {
-        return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
-    }
-
-    proc_is_initiator = !!(sm_proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR);
-    if (extarg->initiator != -1 && extarg->initiator != proc_is_initiator) {
-        return BLE_FSM_EXTRACT_EKEEP_CONTINUE;
-    }
-
-    return BLE_FSM_EXTRACT_EMOVE_STOP;
-}
-
-/**
- * Searches the main proc list for an "expecting" entry whose connection handle
- * and op code match those specified.  If a matching entry is found, it is
- * removed from the list and returned.
- *
- * Lock restrictions:
- *     o Caller unlocks l2cap_sm.
- *
- * @param conn_handle           The connection handle to match against.
- * @param op                    The op code to match against.
- * @param identifier            The identifier to match against.
- *
- * @return                      The matching proc entry on success;
- *                                  null on failure.
- */
-static struct ble_l2cap_sm_proc *
-ble_l2cap_sm_proc_extract(struct ble_l2cap_sm_extract_arg *arg)
-{
-    struct ble_l2cap_sm_proc *proc;
-    int rc;
-
-    rc = ble_fsm_proc_extract(&ble_l2cap_sm_fsm,
-                              (struct ble_fsm_proc **)&proc,
-                              ble_l2cap_sm_proc_extract_cb, arg);
-
-    if (rc != 0) {
-        proc = NULL;
-    }
-
-    return proc;
-}
-
-/**
- * Sets the specified proc entry's "pending" flag (i.e., indicates that the
- * L2CAP sm procedure is stalled until it transmits its next request).
- *
- * Lock restrictions: None.
- */
 static void
-ble_l2cap_sm_proc_set_pending(struct ble_l2cap_sm_proc *proc)
+ble_l2cap_sm_proc_insert(struct ble_l2cap_sm_proc *proc)
 {
-    ble_fsm_proc_set_pending(&proc->fsm_proc);
-    ble_hs_kick_l2cap_sm();
-}
-
-static void
-ble_l2cap_sm_set_fail_state(struct ble_l2cap_sm_proc *proc,
-                            uint8_t fail_reason)
-{
-    proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_FAIL;
-    proc->fail.reason = fail_reason;
-    ble_l2cap_sm_proc_set_pending(proc);
-}
-
-/**
- * Lock restrictions: None.
- */
-static int
-ble_l2cap_sm_rx_noop(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
-{
-    return 0;
-}
-
-static int
-ble_l2cap_sm_request_tk(struct ble_l2cap_sm_proc *proc)
-{
-    if (proc->pair_alg == BLE_L2CAP_SM_PAIR_ALG_JW) {
-        ble_l2cap_sm_proc_set_pending(proc);
-    } else {
-        /* XXX: Ask application for TK. */
-    }
-    return 0;
+    ble_hs_lock();
+    STAILQ_INSERT_HEAD(&ble_l2cap_sm_procs, proc, next);
+    ble_hs_unlock();
 }
 
 static void
@@ -511,40 +328,157 @@ ble_l2cap_sm_gap_event(struct ble_l2cap_sm_proc *proc, int status,
     struct ble_gap_sec_params sec_params;
 
     ble_l2cap_sm_sec_params(proc, &sec_params, enc_enabled);
-    ble_gap_security_event(proc->fsm_proc.conn_handle, status, &sec_params);
+    ble_gap_security_event(proc->conn_handle, status, &sec_params);
+}
+
+static void
+ble_l2cap_sm_process_status(struct ble_l2cap_sm_proc *proc, int status,
+                            uint8_t sm_status, int call_cb, int tx_fail)
+{
+    if (status == 0) {
+        ble_l2cap_sm_proc_insert(proc);
+    } else {
+        if (tx_fail) {
+            ble_l2cap_sm_pair_fail_tx(proc->conn_handle, sm_status);
+        }
+        if (call_cb) {
+            ble_l2cap_sm_gap_event(proc, status, 0);
+        }
+        ble_l2cap_sm_proc_free(proc);
+    }
+}
+
+static int
+ble_l2cap_sm_proc_matches(struct ble_l2cap_sm_proc *proc, uint16_t conn_handle,
+                          uint8_t state, int is_initiator)
+{
+    int proc_is_initiator;
+
+    if (conn_handle != proc->conn_handle) {
+        return 0;
+    }
+
+    if (state != BLE_L2CAP_SM_PROC_STATE_NONE && state != proc->state) {
+        return 0;
+    }
+
+    proc_is_initiator = !!(proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR);
+    if (is_initiator != -1 && is_initiator != proc_is_initiator) {
+        return 0;
+    }
+
+    return 1;
+}
+
+/**
+ * Searches the main proc list for an entry whose connection handle and state code
+ * match those specified.  If a matching entry is found, it is removed from the
+ * list and returned.
+ *
+ * @param conn_handle           The connection handle to match against.
+ * @param state                    The state code to match against.
+ * @param is_initiator
+ *
+ * @return                      The matching proc entry on success;
+ *                                  null on failure.
+ */
+static struct ble_l2cap_sm_proc *
+ble_l2cap_sm_proc_extract(uint16_t conn_handle, uint8_t state,
+                          int is_initiator)
+{
+    struct ble_l2cap_sm_proc *proc;
+    struct ble_l2cap_sm_proc *prev;
+
+    ble_hs_lock();
+
+    prev = NULL;
+    STAILQ_FOREACH(proc, &ble_l2cap_sm_procs, next) {
+        if (ble_l2cap_sm_proc_matches(proc, conn_handle, state, is_initiator)) {
+            if (prev == NULL) {
+                STAILQ_REMOVE_HEAD(&ble_l2cap_sm_procs, next);
+            } else {
+                STAILQ_REMOVE_AFTER(&ble_l2cap_sm_procs, prev, next);
+            }
+            break;
+        }
+
+        prev = proc;
+    }
+
+    ble_hs_unlock();
+
+    return proc;
+}
+
+static void
+ble_l2cap_sm_extract_expired(struct ble_l2cap_sm_proc_list *dst_list)
+{
+    struct ble_l2cap_sm_proc *proc;
+    struct ble_l2cap_sm_proc *prev;
+    struct ble_l2cap_sm_proc *next;
+    uint32_t now;
+    int32_t time_diff;
+
+    now = os_time_get();
+    STAILQ_INIT(dst_list);
+
+    ble_hs_lock();
+
+    prev = NULL;
+    proc = STAILQ_FIRST(&ble_l2cap_sm_procs);
+    while (proc != NULL) {
+        next = STAILQ_NEXT(proc, next);
+
+        time_diff = now - proc->exp_os_ticks;
+        if (time_diff >= 0) {
+            if (prev == NULL) {
+                STAILQ_REMOVE_HEAD(&ble_l2cap_sm_procs, next);
+            } else {
+                STAILQ_REMOVE_AFTER(&ble_l2cap_sm_procs, prev, next);
+            }
+            STAILQ_INSERT_TAIL(dst_list, proc, next);
+        }
+
+        prev = proc;
+        proc = next;
+    }
+
+    ble_hs_unlock();
+}
+
+static int
+ble_l2cap_sm_rx_noop(uint16_t conn_handle, uint8_t state, struct os_mbuf **om)
+{
+    return BLE_HS_ENOTSUP;
 }
 
 /*****************************************************************************
- * $pair                                                                     *
+ * $hci                                                                      *
  *****************************************************************************/
 
 static int
-ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
-                             struct ble_l2cap_sm_pair_cmd *req)
+ble_l2cap_sm_start_encrypt_tx(uint16_t conn_handle, uint8_t *ltk)
 {
-    proc->phase_1_2.pair_req = *req;
-    ble_l2cap_sm_proc_set_pending(proc);
-
-    return 0;
-}
-
-static int
-ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
-                             struct ble_l2cap_sm_pair_cmd *rsp)
-{
+    struct hci_start_encrypt cmd;
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_START_ENCRYPT_LEN];
     int rc;
 
-    proc->phase_1_2.pair_rsp = *rsp;
-
-    proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_CONFIRM;
-    proc->fsm_proc.flags &= ~BLE_FSM_PROC_F_EXPECTING;
-
-    /* XXX: Assume legacy "Just Works" for now. */
-    proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
-
-    rc = ble_l2cap_sm_request_tk(proc);
+    rc = ble_l2cap_sm_gen_ediv(&cmd.encrypted_diversifier);
     if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, rc);
+        return rc;
+    }
+
+    rc = ble_l2cap_sm_gen_start_rand(&cmd.random_number);
+    if (rc != 0) {
+        return rc;
+    }
+
+    cmd.connection_handle = conn_handle;
+    memcpy(cmd.long_term_key, ltk, sizeof cmd.long_term_key);
+
+    host_hci_cmd_build_le_start_encrypt(&cmd, buf, sizeof buf);
+    rc = ble_hci_tx_cmd_empty_ack(buf);
+    if (rc != 0) {
         return rc;
     }
 
@@ -552,7 +486,263 @@ ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
 }
 
 static int
-ble_l2cap_sm_pair_kick(struct ble_l2cap_sm_proc *proc)
+ble_l2cap_sm_lt_key_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
+{
+    struct hci_lt_key_req_reply cmd;
+    uint16_t ack_conn_handle;
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LT_KEY_REQ_REPLY_LEN];
+    uint8_t ack_params_len;
+    int rc;
+
+    cmd.conn_handle = conn_handle;
+    memcpy(cmd.long_term_key, ltk, 16);
+
+    host_hci_cmd_build_le_lt_key_req_reply(&cmd, buf, sizeof buf);
+    rc = ble_hci_tx_cmd(buf, &ack_conn_handle, sizeof ack_conn_handle,
+                        &ack_params_len);
+    if (rc != 0) {
+        return rc;
+    }
+    if (ack_params_len != BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN - 1) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    ack_conn_handle = TOFROMLE16(ack_conn_handle);
+    if (ack_conn_handle != conn_handle) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_lt_key_req_handle(struct ble_l2cap_sm_proc *proc,
+                               struct hci_le_lt_key_req *evt,
+                               uint8_t *out_sm_status)
+{
+    int rc;
+
+    rc = ble_l2cap_sm_lt_key_req_reply_tx(proc->conn_handle, proc->hci.key);
+    if (rc != 0) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return rc;
+    }
+
+    proc->state = BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $random                                                                   *
+ *****************************************************************************/
+
+static int
+ble_l2cap_sm_random_go(struct ble_l2cap_sm_proc *proc)
+{
+    struct ble_l2cap_sm_pair_random cmd;
+    int rc;
+
+    memcpy(cmd.value, proc->phase_1_2.rand_our, 16);
+    rc = ble_l2cap_sm_pair_random_tx(proc->conn_handle, &cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_l2cap_sm_proc_set_timer(proc);
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
+                           struct ble_l2cap_sm_pair_random *cmd,
+                           uint8_t *out_sm_status)
+{
+    uint8_t preq[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
+    uint8_t pres[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
+    uint8_t confirm_val[16];
+    uint8_t k[16];
+    uint8_t ia[6];
+    uint8_t ra[6];
+    uint8_t iat;
+    uint8_t rat;
+    int rc;
+
+    /* Verify peer's random value. */
+    rc = ble_l2cap_sm_confirm_prepare_args(proc, k, preq, pres, &iat, &rat,
+                                           ia, ra);
+    if (rc != 0) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return rc;
+    }
+
+    rc = ble_l2cap_sm_alg_c1(k, cmd->value, preq, pres, iat, rat,
+                             ia, ra, confirm_val);
+    if (rc != 0) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return rc;
+    }
+
+    if (memcmp(proc->phase_1_2.confirm_their, confirm_val, 16) != 0) {
+        /* Random number mismatch. */
+        rc = BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH);
+        *out_sm_status = BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH;
+        return rc;
+    }
+
+    memcpy(proc->phase_1_2.rand_their, cmd->value, 16);
+
+    /* Generate the key. */
+    rc = ble_l2cap_sm_gen_key(proc);
+    if (rc != 0) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return rc;
+    }
+
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        /* Send the start-encrypt HCI command to the controller. */
+        rc = ble_l2cap_sm_start_encrypt_tx(proc->conn_handle, proc->hci.key);
+        if (rc != 0) {
+            *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+            return rc;
+        }
+        proc->state = BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE;
+    } else {
+        rc = ble_l2cap_sm_random_go(proc);
+        if (rc != 0) {
+            *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+            return rc;
+        }
+        proc->state = BLE_L2CAP_SM_PROC_STATE_LTK;
+    }
+
+    *out_sm_status = 0;
+    return 0;
+}
+
+/*****************************************************************************
+ * $confirm                                                                  *
+ *****************************************************************************/
+
+static int
+ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
+                                  uint8_t *k, uint8_t *preq, uint8_t *pres,
+                                  uint8_t *iat, uint8_t *rat,
+                                  uint8_t *ia, uint8_t *ra)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn != NULL) {
+        if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+            *iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
+            memcpy(ia, ble_hs_our_dev.public_addr, 6);
+
+            *rat = conn->bhc_addr_type;
+            memcpy(ra, conn->bhc_addr, 6);
+        } else {
+            *rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
+            memcpy(ra, ble_hs_our_dev.public_addr, 6);
+
+            *iat = conn->bhc_addr_type;
+            memcpy(ia, conn->bhc_addr, 6);
+        }
+    }
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    memcpy(k, proc->phase_1_2.tk, sizeof proc->phase_1_2.tk);
+
+    ble_l2cap_sm_pair_cmd_write(
+        preq, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 1,
+        &proc->phase_1_2.pair_req);
+
+    ble_l2cap_sm_pair_cmd_write(
+        pres, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 0,
+        &proc->phase_1_2.pair_rsp);
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_confirm_go(struct ble_l2cap_sm_proc *proc)
+{
+    struct ble_l2cap_sm_pair_confirm cmd;
+    uint8_t preq[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
+    uint8_t pres[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
+    uint8_t k[16];
+    uint8_t ia[6];
+    uint8_t ra[6];
+    uint8_t iat;
+    uint8_t rat;
+    int rc;
+
+    rc = ble_l2cap_sm_gen_pair_rand(proc->phase_1_2.rand_our);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_l2cap_sm_confirm_prepare_args(proc, k, preq, pres, &iat, &rat,
+                                           ia, ra);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_l2cap_sm_alg_c1(k, proc->phase_1_2.rand_our, preq, pres, iat, rat,
+                             ia, ra, cmd.value);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_l2cap_sm_pair_confirm_tx(proc->conn_handle, &cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_l2cap_sm_proc_set_timer(proc);
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_confirm_handle(struct ble_l2cap_sm_proc *proc,
+                            struct ble_l2cap_sm_pair_confirm *cmd,
+                            uint8_t *out_sm_status)
+{
+    int rc;
+
+    memcpy(proc->phase_1_2.confirm_their, cmd->value, 16);
+
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        rc = ble_l2cap_sm_random_go(proc);
+        if (rc != 0) {
+            *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+            return rc;
+        }
+    } else {
+        /* XXX: If MITM is used, request TK from application. */
+
+        rc = ble_l2cap_sm_confirm_go(proc);
+        if (rc != 0) {
+            *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+            return rc;
+        }
+    }
+
+    proc->state = BLE_L2CAP_SM_PROC_STATE_RANDOM;
+
+    return 0;
+}
+
+/*****************************************************************************
+ * $pair                                                                     *
+ *****************************************************************************/
+
+static int
+ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
 {
     struct ble_l2cap_sm_pair_cmd cmd;
     int is_req;
@@ -576,348 +766,63 @@ ble_l2cap_sm_pair_kick(struct ble_l2cap_sm_proc *proc)
         cmd.resp_key_dist = ble_hs_cfg.sm_our_key_dist;
     }
 
-    rc = ble_l2cap_sm_pair_cmd_tx(proc->fsm_proc.conn_handle, is_req, &cmd);
+    rc = ble_l2cap_sm_pair_cmd_tx(proc->conn_handle, is_req, &cmd);
     if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return BLE_HS_EAGAIN;
+        return rc;
     }
 
     if (is_req) {
         proc->phase_1_2.pair_req = cmd;
     } else {
         proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
-        proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_CONFIRM;
         proc->phase_1_2.pair_rsp = cmd;
     }
 
-    return 0;
-}
-
-/*****************************************************************************
- * $confirm                                                                  *
- *****************************************************************************/
-
-static int
-ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
-                                  uint8_t *k, uint8_t *preq, uint8_t *pres,
-                                  uint8_t *iat, uint8_t *rat,
-                                  uint8_t *ia, uint8_t *ra)
-{
-    struct ble_hs_conn *conn;
-
-    ble_hs_conn_lock();
-    conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
-    if (conn != NULL) {
-        if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            *iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-            memcpy(ia, ble_hs_our_dev.public_addr, 6);
-
-            *rat = conn->bhc_addr_type;
-            memcpy(ra, conn->bhc_addr, 6);
-        } else {
-            *rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-            memcpy(ra, ble_hs_our_dev.public_addr, 6);
-
-            *iat = conn->bhc_addr_type;
-            memcpy(ia, conn->bhc_addr, 6);
-        }
-    }
-    ble_hs_conn_unlock();
-
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
-
-    memcpy(k, proc->phase_1_2.tk, sizeof proc->phase_1_2.tk);
-
-    ble_l2cap_sm_pair_cmd_write(
-        preq, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 1,
-        &proc->phase_1_2.pair_req);
-
-    ble_l2cap_sm_pair_cmd_write(
-        pres, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 0,
-        &proc->phase_1_2.pair_rsp);
+    ble_l2cap_sm_proc_set_timer(proc);
 
     return 0;
 }
 
 static int
-ble_l2cap_sm_confirm_kick(struct ble_l2cap_sm_proc *proc)
+ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
+                             struct ble_l2cap_sm_pair_cmd *req,
+                             uint8_t *out_sm_status)
 {
-    struct ble_l2cap_sm_pair_confirm cmd;
-    uint8_t preq[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
-    uint8_t pres[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
-    uint8_t k[16];
-    uint8_t ia[6];
-    uint8_t ra[6];
-    uint8_t iat;
-    uint8_t rat;
     int rc;
 
-    ble_l2cap_sm_gen_pair_rand(proc->phase_1_2.rand_our);
+    proc->phase_1_2.pair_req = *req;
 
-    rc = ble_l2cap_sm_confirm_prepare_args(proc, k, preq, pres, &iat, &rat,
-                                           ia, ra);
+    rc = ble_l2cap_sm_pair_go(proc);
     if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return BLE_HS_EAGAIN;
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return rc;
     }
 
-    rc = ble_l2cap_sm_alg_c1(k, proc->phase_1_2.rand_our, preq, pres, iat, rat,
-                             ia, ra, cmd.value);
-    if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return BLE_HS_EAGAIN;
-    }
-
-    rc = ble_l2cap_sm_pair_confirm_tx(proc->fsm_proc.conn_handle, &cmd);
-    if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return BLE_HS_EAGAIN;
-    }
-
-    if (!(proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR)) {
-        proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_RANDOM;
-    }
+    proc->state = BLE_L2CAP_SM_PROC_STATE_CONFIRM;
 
     return 0;
 }
 
 static int
-ble_l2cap_sm_confirm_handle(struct ble_l2cap_sm_proc *proc,
-                            struct ble_l2cap_sm_pair_confirm *cmd)
+ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
+                             struct ble_l2cap_sm_pair_cmd *rsp,
+                             uint8_t *out_sm_status)
 {
     int rc;
 
-    memcpy(proc->phase_1_2.confirm_their, cmd->value, 16);
+    proc->phase_1_2.pair_rsp = *rsp;
 
-    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-        proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_RANDOM;
-        ble_l2cap_sm_proc_set_pending(proc);
-    } else {
-        rc = ble_l2cap_sm_request_tk(proc);
-        if (rc != 0) {
-            ble_l2cap_sm_set_fail_state(proc, rc);
-            return rc;
-        }
-    }
+    /* XXX: Assume legacy "Just Works" for now. */
+    proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
 
-    return 0;
-}
+    /* XXX: If MITM is used, request TK from application. */
 
-/*****************************************************************************
- * $random                                                                  *
- *****************************************************************************/
-
-static int
-ble_l2cap_sm_random_kick(struct ble_l2cap_sm_proc *proc)
-{
-    struct ble_l2cap_sm_pair_random cmd;
-    uint8_t key[16];
-    int rc;
-
-    memcpy(cmd.value, proc->phase_1_2.rand_our, 16);
-    rc = ble_l2cap_sm_pair_random_tx(proc->fsm_proc.conn_handle, &cmd);
+    proc->state = BLE_L2CAP_SM_PROC_STATE_CONFIRM;
+    rc = ble_l2cap_sm_confirm_go(proc);
     if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return BLE_HS_EAGAIN;
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return rc;
     }
-
-    if (!(proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR)) {
-        /* Generate the key. */
-        rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
-                                 proc->phase_1_2.rand_their, key);
-        if (rc != 0) {
-            ble_l2cap_sm_gap_event(proc, rc, 0);
-            return rc;
-        }
-        memcpy(proc->hci.key, key, sizeof key);
-
-        proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
-        proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_LTK;
-    }
-
-    return 0;
-}
-
-static int
-ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
-                           struct ble_l2cap_sm_pair_random *cmd)
-{
-    uint8_t preq[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
-    uint8_t pres[BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ];
-    uint8_t confirm_val[16];
-    uint8_t key[16];
-    uint8_t k[16];
-    uint8_t ia[6];
-    uint8_t ra[6];
-    uint8_t iat;
-    uint8_t rat;
-    int rc;
-
-    /* Verify peer's random value. */
-    rc = ble_l2cap_sm_confirm_prepare_args(proc, k, preq, pres, &iat, &rat,
-                                           ia, ra);
-    if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return 0;
-    }
-
-    rc = ble_l2cap_sm_alg_c1(k, cmd->value, preq, pres, iat, rat,
-                             ia, ra, confirm_val);
-    if (rc != 0) {
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_UNSPECIFIED);
-        return 0;
-    }
-
-    if (memcmp(proc->phase_1_2.confirm_their, confirm_val, 16) != 0) {
-        /* Random number mismatch. */
-        ble_l2cap_sm_set_fail_state(proc, BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH);
-        return 0;
-    }
-
-    memcpy(proc->phase_1_2.rand_their, cmd->value, 16);
-
-    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-        /* Generate the key. */
-        rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
-                                 proc->phase_1_2.rand_their, key);
-        if (rc != 0) {
-            ble_l2cap_sm_gap_event(proc, rc, 0);
-            return rc;
-        }
-        memcpy(proc->hci.key, key, sizeof key);
-        proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_START_ENCRYPT;
-    }
-    ble_l2cap_sm_proc_set_pending(proc);
-
-    return 0;
-}
-
-/*****************************************************************************
- * $fail                                                                    *
- *****************************************************************************/
-
-static int
-ble_l2cap_sm_fail_kick(struct ble_l2cap_sm_proc *proc)
-{
-    struct ble_l2cap_sm_pair_fail cmd;
-
-    cmd.reason = proc->fail.reason;
-    ble_l2cap_sm_pair_fail_tx(proc->fsm_proc.conn_handle, &cmd);
-
-    /* Notify application of failure. */
-    ble_l2cap_sm_gap_event(proc, BLE_HS_SM_US_ERR(cmd.reason), 0);
-
-    return BLE_HS_EDONE;
-}
-
-static int
-ble_l2cap_sm_fail_handle(struct ble_l2cap_sm_proc *proc,
-                         struct ble_l2cap_sm_pair_fail *cmd)
-{
-    ble_l2cap_sm_gap_event(proc, BLE_HS_SM_THEM_ERR(cmd->reason), 0);
-
-    /* Procedure should now be terminated (return nonzero). */
-    return 1;
-}
-
-/*****************************************************************************
- * $hci                                                                      *
- *****************************************************************************/
-
-static int
-ble_l2cap_sm_lt_key_req_reply_tx(void *arg)
-{
-    struct hci_lt_key_req_reply cmd;
-    struct ble_l2cap_sm_proc *proc;
-    int rc;
-
-    proc = arg;
-
-    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
-
-    /* Indicate that the HCI reservation has been serviced.  If there is a
-     * failure, we shouldn't try to cancel the reservation.
-     */
-    proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    cmd.conn_handle = proc->fsm_proc.conn_handle;
-    memcpy(cmd.long_term_key, proc->hci.key, 16);
-
-    ble_hci_sched_set_ack_cb(ble_l2cap_sm_rx_lt_key_req_reply_ack, proc);
-
-    rc = host_hci_cmd_le_lt_key_req_reply(&cmd);
-    return rc;
-}
-
-static int
-ble_l2cap_sm_lt_key_req_kick(struct ble_l2cap_sm_proc *proc)
-{
-    int rc;
-
-    rc = ble_hci_sched_enqueue(ble_l2cap_sm_lt_key_req_reply_tx, proc,
-                               &proc->hci.handle);
-    if (rc != 0) {
-        ble_l2cap_sm_gap_event(proc, rc, 0);
-        return BLE_HS_EDONE;
-    }
-
-    proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_LTK_TXED;
-
-    return 0;
-}
-
-static int
-ble_l2cap_sm_lt_key_req_handle(struct ble_l2cap_sm_proc *proc,
-                               struct hci_le_lt_key_req *evt)
-{
-    ble_l2cap_sm_proc_set_pending(proc);
-    return 0;
-}
-
-static int
-ble_l2cap_sm_start_encrypt_tx(void *arg)
-{
-    struct ble_l2cap_sm_proc *proc;
-    struct hci_start_encrypt cmd;
-    int rc;
-
-    proc = arg;
-
-    BLE_HS_DBG_ASSERT(proc->fsm_proc.op ==
-                      BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
-
-    /* Indicate that the HCI reservation has been serviced.  If there is a
-     * failure, we shouldn't try to cancel the reservation.
-     */
-    proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
-
-    cmd.connection_handle = proc->fsm_proc.conn_handle;
-    cmd.encrypted_diversifier = ble_l2cap_sm_gen_ediv();
-    cmd.random_number = ble_l2cap_sm_gen_start_rand();
-    memcpy(cmd.long_term_key, proc->hci.key, sizeof cmd.long_term_key);
-
-    ble_hci_sched_set_ack_cb(ble_l2cap_sm_rx_start_encrypt_ack, proc);
-
-    rc = host_hci_cmd_le_start_encrypt(&cmd);
-    return rc;
-}
-
-static int
-ble_l2cap_sm_start_encrypt_kick(struct ble_l2cap_sm_proc *proc)
-{
-    int rc;
-
-    rc = ble_hci_sched_enqueue(ble_l2cap_sm_start_encrypt_tx, proc,
-                               &proc->hci.handle);
-    if (rc != 0) {
-        ble_l2cap_sm_gap_event(proc, rc, 0);
-        return BLE_HS_EDONE;
-    }
-
-    proc->hci.handle = BLE_HCI_SCHED_HANDLE_NONE;
-    proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED;
 
     return 0;
 }
@@ -927,10 +832,12 @@ ble_l2cap_sm_start_encrypt_kick(struct ble_l2cap_sm_proc *proc)
  *****************************************************************************/
 
 static int
-ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
+ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t state,
+                         struct os_mbuf **om)
 {
     struct ble_l2cap_sm_pair_cmd req;
     struct ble_l2cap_sm_proc *proc;
+    uint8_t sm_status;
     int rc;
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_PAIR_CMD_SZ);
@@ -948,36 +855,34 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
 
     /* XXX: Check connection state; reject if not appropriate. */
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_NONE,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
+                                     -1);
     if (proc != NULL) {
         /* Pairing already in progress; abort old procedure and start new. */
         /* XXX: Check the spec on this. */
-        ble_l2cap_sm_proc_free(&proc->fsm_proc);
+        ble_l2cap_sm_proc_free(proc);
     }
 
-    rc = ble_l2cap_sm_proc_new(conn_handle, BLE_L2CAP_SM_PROC_OP_PAIR,
-                               &proc);
-    if (rc != 0) {
-        return rc;
+    proc = ble_l2cap_sm_proc_alloc();
+    if (proc == NULL) {
+        return BLE_HS_ENOMEM;
     }
+    proc->conn_handle = conn_handle;
+    proc->state = BLE_L2CAP_SM_PROC_STATE_PAIR;
 
-    rc = ble_l2cap_sm_pair_req_handle(proc, &req);
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+    rc = ble_l2cap_sm_pair_req_handle(proc, &req, &sm_status);
+    ble_l2cap_sm_process_status(proc, rc, sm_status, 1, 1);
 
     return rc;
 }
 
 static int
-ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
+ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t state,
+                         struct os_mbuf **om)
 {
     struct ble_l2cap_sm_pair_cmd rsp;
     struct ble_l2cap_sm_proc *proc;
+    uint8_t sm_status;
     int rc;
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_PAIR_CMD_SZ);
@@ -993,29 +898,25 @@ ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
                rsp.io_cap, rsp.oob_data_flag, rsp.authreq,
                rsp.max_enc_key_size, rsp.init_key_dist, rsp.resp_key_dist);
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_PAIR,
-            .initiator = 1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle, BLE_L2CAP_SM_PROC_STATE_PAIR,
+                                     1);
     if (proc == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_l2cap_sm_pair_rsp_handle(proc, &rsp);
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+    rc = ble_l2cap_sm_pair_rsp_handle(proc, &rsp, &sm_status);
+    ble_l2cap_sm_process_status(proc, rc, sm_status, 1, 1);
 
     return 0;
 }
 
 static int
-ble_l2cap_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op,
+ble_l2cap_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t state,
                              struct os_mbuf **om)
 {
     struct ble_l2cap_sm_pair_confirm cmd;
     struct ble_l2cap_sm_proc *proc;
+    uint8_t sm_status;
     int rc;
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_PAIR_CONFIRM_SZ);
@@ -1027,29 +928,25 @@ ble_l2cap_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op,
 
     BLE_HS_LOG(DEBUG, "rxed sm confirm cmd\n");
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_CONFIRM,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle,
+                                     BLE_L2CAP_SM_PROC_STATE_CONFIRM, -1);
     if (proc == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_l2cap_sm_confirm_handle(proc, &cmd);
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+    rc = ble_l2cap_sm_confirm_handle(proc, &cmd, &sm_status);
+    ble_l2cap_sm_process_status(proc, rc, sm_status, 1, 1);
 
     return 0;
 }
 
 static int
-ble_l2cap_sm_rx_pair_random(uint16_t conn_handle, uint8_t op,
+ble_l2cap_sm_rx_pair_random(uint16_t conn_handle, uint8_t state,
                             struct os_mbuf **om)
 {
     struct ble_l2cap_sm_pair_random cmd;
     struct ble_l2cap_sm_proc *proc;
+    uint8_t sm_status;
     int rc;
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_PAIR_RANDOM_SZ);
@@ -1061,25 +958,20 @@ ble_l2cap_sm_rx_pair_random(uint16_t conn_handle, uint8_t op,
 
     BLE_HS_LOG(DEBUG, "rxed sm random cmd\n");
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_RANDOM,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle,
+                                     BLE_L2CAP_SM_PROC_STATE_RANDOM, -1);
     if (proc == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_l2cap_sm_random_handle(proc, &cmd);
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+    rc = ble_l2cap_sm_random_handle(proc, &cmd, &sm_status);
+    ble_l2cap_sm_process_status(proc, rc, sm_status, 1, 1);
 
     return 0;
 }
 
 static int
-ble_l2cap_sm_rx_pair_fail(uint16_t conn_handle, uint8_t op,
+ble_l2cap_sm_rx_pair_fail(uint16_t conn_handle, uint8_t state,
                           struct os_mbuf **om)
 {
     struct ble_l2cap_sm_pair_fail cmd;
@@ -1095,19 +987,13 @@ ble_l2cap_sm_rx_pair_fail(uint16_t conn_handle, uint8_t op,
 
     BLE_HS_LOG(DEBUG, "rxed sm fail cmd; reason=%d\n", cmd.reason);
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_NONE,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
+                                     -1);
     if (proc == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_l2cap_sm_fail_handle(proc, &cmd);
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+    ble_l2cap_sm_process_status(proc, BLE_HS_SM_THEM_ERR(cmd.reason), 0, 1, 0);
 
     return 0;
 }
@@ -1116,129 +1002,38 @@ int
 ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
 {
     struct ble_l2cap_sm_proc *proc;
+    uint8_t sm_status;
     int rc;
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = evt->connection_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_LTK,
-            .initiator = 0,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(evt->connection_handle,
+                                     BLE_L2CAP_SM_PROC_STATE_LTK, 0);
     if (proc == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_l2cap_sm_lt_key_req_handle(proc, evt);
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
+    rc = ble_l2cap_sm_lt_key_req_handle(proc, evt, &sm_status);
+    ble_l2cap_sm_process_status(proc, rc, sm_status, 1, 1);
 
     return 0;
-}
-
-static void
-ble_l2cap_sm_rx_lt_key_req_reply_ack(struct ble_hci_ack *ack, void *arg)
-{
-    struct ble_l2cap_sm_proc *proc;
-    uint16_t conn_handle;
-    int rc;
-
-    proc = arg;
-
-    BLE_HS_DBG_ASSERT(proc->fsm_proc.op == BLE_L2CAP_SM_PROC_OP_LTK_TXED);
-
-    /* Extract the procedure from the state machine while we mess with it. */
-    ble_fsm_lock(&ble_l2cap_sm_fsm);
-    STAILQ_REMOVE(&ble_l2cap_sm_fsm.procs, &proc->fsm_proc, ble_fsm_proc,
-                  next);
-    ble_fsm_unlock(&ble_l2cap_sm_fsm);
-
-    if (ack->bha_status != 0) {
-        rc = ack->bha_status;
-        goto done;
-    }
-
-    if (ack->bha_params_len != BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN) {
-        /* Controller sent something weird; treat this as a failure. */
-        rc = BLE_HS_ECONTROLLER;
-        goto done;
-    }
-
-    conn_handle = le16toh(ack->bha_params + 1);
-    if (conn_handle != proc->fsm_proc.conn_handle) {
-        /* Controller sent something weird; treat this as a failure. */
-        rc = BLE_HS_ECONTROLLER;
-        goto done;
-    }
-
-    proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_ENC_CHANGE;
-    rc = 0;
-
-done:
-    if (rc != 0) {
-        /* Report the failure to the application. */
-        ble_l2cap_sm_gap_event(proc, rc, 0);
-    }
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
-}
-
-static void
-ble_l2cap_sm_rx_start_encrypt_ack(struct ble_hci_ack *ack, void *arg)
-{
-    struct ble_l2cap_sm_proc *proc;
-    int rc;
-
-    proc = arg;
-
-    BLE_HS_DBG_ASSERT(proc->fsm_proc.op ==
-                      BLE_L2CAP_SM_PROC_OP_START_ENCRYPT_TXED);
-
-    /* Extract the procedure from the state machine while we mess with it. */
-    ble_fsm_lock(&ble_l2cap_sm_fsm);
-    STAILQ_REMOVE(&ble_l2cap_sm_fsm.procs, &proc->fsm_proc, ble_fsm_proc,
-                  next);
-    ble_fsm_unlock(&ble_l2cap_sm_fsm);
-
-    if (ack->bha_status != 0) {
-        rc = ack->bha_status;
-        goto done;
-    }
-
-    proc->fsm_proc.op = BLE_L2CAP_SM_PROC_OP_ENC_CHANGE;
-    rc = 0;
-
-done:
-    if (rc != 0) {
-        /* Report the failure to the application. */
-        ble_l2cap_sm_gap_event(proc, rc, 0);
-    }
-    ble_fsm_process_rx_status(&ble_l2cap_sm_fsm, &proc->fsm_proc, rc);
 }
 
 void
 ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
 {
     struct ble_l2cap_sm_proc *proc;
+    int enc_enabled;
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = evt->connection_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_ENC_CHANGE,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(evt->connection_handle,
+                                     BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE, -1);
     if (proc == NULL) {
         return;
     }
 
-    if (evt->status != 0) {
-        ble_l2cap_sm_gap_event(proc, BLE_HS_HCI_ERR(evt->status), 0);
-    } else {
-        ble_l2cap_sm_gap_event(proc, 0,
-                               evt->encryption_enabled & 0x01 /* LE bit. */);
-    }
+    enc_enabled = evt->encryption_enabled & 0x01; /* LE bit. */
+    ble_l2cap_sm_gap_event(proc, BLE_HS_HCI_ERR(evt->status), enc_enabled);
 
     /* The pairing procedure is now complete. */
-    ble_l2cap_sm_proc_free(&proc->fsm_proc);
+    ble_l2cap_sm_proc_free(proc);
 }
 
 /**
@@ -1257,11 +1052,10 @@ ble_l2cap_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
     ble_hs_misc_log_mbuf(*om);
     BLE_HS_LOG(DEBUG, "\n");
 
-    rc = ble_hs_misc_pullup_base(om, 1);
+    rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
         return BLE_HS_EBADDATA;
     }
-    op = *(*om)->om_data;
 
     /* Strip L2CAP SM header from the front of the mbuf. */
     os_mbuf_adj(*om, 1);
@@ -1283,25 +1077,22 @@ ble_l2cap_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
 void
 ble_l2cap_sm_heartbeat(void)
 {
-    struct ble_fsm_proc_list exp_list;
+    struct ble_l2cap_sm_proc_list exp_list;
     struct ble_l2cap_sm_proc *proc;
-    struct ble_fsm_proc *fsm_proc;
 
     /* Remove all timed out procedures and insert them into a temporary
      * list.
      */
-    ble_fsm_proc_extract_list(&ble_l2cap_sm_fsm, &exp_list,
-                              ble_l2cap_sm_proc_extract_expired_cb, NULL);
+    ble_l2cap_sm_extract_expired(&exp_list);
 
     /* Notify application of each failure and free the corresponding procedure
      * object.
      */
-    while ((fsm_proc = STAILQ_FIRST(&exp_list)) != NULL) {
-        proc = (struct ble_l2cap_sm_proc *)fsm_proc;
+    while ((proc = STAILQ_FIRST(&exp_list)) != NULL) {
         ble_l2cap_sm_gap_event(proc, BLE_HS_ETIMEOUT, 0);
 
         STAILQ_REMOVE_HEAD(&exp_list, next);
-        ble_l2cap_sm_proc_free(&proc->fsm_proc);
+        ble_l2cap_sm_proc_free(proc);
     }
 }
 
@@ -1314,28 +1105,24 @@ ble_l2cap_sm_initiate(uint16_t conn_handle)
     /* Make sure a pairing operation for this connection is not already in
      * progress.
      */
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_NONE,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
+                                     -1);
     if (proc != NULL) {
         return BLE_HS_EALREADY;
     }
 
-    rc = ble_l2cap_sm_proc_new(conn_handle, BLE_L2CAP_SM_PROC_OP_PAIR,
-                               &proc);
-    if (rc != 0) {
-        return rc;
+    proc = ble_l2cap_sm_proc_alloc();
+    if (proc == NULL) {
+        return BLE_HS_ENOMEM;
     }
-
+    proc->conn_handle = conn_handle;
+    proc->state = BLE_L2CAP_SM_PROC_STATE_PAIR;
     proc->flags |= BLE_L2CAP_SM_PROC_F_INITIATOR;
-    STAILQ_INSERT_TAIL(&ble_l2cap_sm_fsm.procs, &proc->fsm_proc, next);
-    ble_l2cap_sm_proc_set_pending(proc);
 
-    return 0;
+    rc = ble_l2cap_sm_pair_go(proc);
+    ble_l2cap_sm_process_status(proc, rc, 0, 0, 0);
+
+    return rc;
 }
 
 /**
@@ -1364,20 +1151,15 @@ ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk)
 {
     struct ble_l2cap_sm_proc *proc;
 
-    proc = ble_l2cap_sm_proc_extract(
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_CONFIRM,
-            .initiator = -1,
-        }
-    );
+    proc = ble_l2cap_sm_proc_extract(conn_handle,
+                                     BLE_L2CAP_SM_PROC_STATE_CONFIRM, -1);
     if (proc == NULL) {
         return BLE_HS_ENOENT;
     }
 
     memcpy(proc->phase_1_2.tk, tk, 16);
 
-    ble_l2cap_sm_proc_set_pending(proc);
+    /* XXX: Proceed with pairing; send confirm command. */
 
     return 0;
 }
@@ -1385,41 +1167,17 @@ ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk)
 void
 ble_l2cap_sm_connection_broken(uint16_t conn_handle)
 {
-    struct ble_fsm_proc_list list;
     struct ble_l2cap_sm_proc *proc;
-    struct ble_fsm_proc *fsm_proc;
 
-    /* Extract all procs associated with the broken connection and insert them
-     * into the temporary list.
-     */
-    ble_fsm_proc_extract_list(
-        &ble_l2cap_sm_fsm, &list, ble_l2cap_sm_proc_extract_cb,
-        &(struct ble_l2cap_sm_extract_arg) {
-            .conn_handle = conn_handle,
-            .op = BLE_L2CAP_SM_PROC_OP_NONE,
-            .initiator = -1,
-        }
-    );
-
-    /* Free each affected procedure object.  There is no need to notify the
-     * application, as it has already been notified of the connection failure.
-     */
-    while ((fsm_proc = STAILQ_FIRST(&list)) != NULL) {
-        proc = (struct ble_l2cap_sm_proc *)fsm_proc;
-
-        STAILQ_REMOVE_HEAD(&list, next);
-        ble_l2cap_sm_proc_free(&proc->fsm_proc);
+    proc = ble_l2cap_sm_proc_extract(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
+                                     -1);
+    if (proc != NULL) {
+        /* Free thw affected procedure object.  There is no need to notify the
+         * application, as it has already been notified of the connection
+         * failure.
+         */
+        ble_l2cap_sm_proc_free(proc);
     }
-}
-
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
-void
-ble_l2cap_sm_wakeup(void)
-{
-    ble_fsm_wakeup(&ble_l2cap_sm_fsm);
 }
 
 int
@@ -1429,11 +1187,7 @@ ble_l2cap_sm_init(void)
 
     free(ble_l2cap_sm_proc_mem);
 
-    rc = ble_fsm_new(&ble_l2cap_sm_fsm, ble_l2cap_sm_proc_kick,
-                     ble_l2cap_sm_proc_free);
-    if (rc != 0) {
-        goto err;
-    }
+    STAILQ_INIT(&ble_l2cap_sm_procs);
 
     if (ble_hs_cfg.max_l2cap_sm_procs > 0) {
         ble_l2cap_sm_proc_mem = malloc(

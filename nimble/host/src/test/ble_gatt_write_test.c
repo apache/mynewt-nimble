@@ -63,8 +63,6 @@ ble_gatt_write_test_cb_good(uint16_t conn_handle, struct ble_gatt_error *error,
     if (attr_len != NULL) {
         TEST_ASSERT(error == NULL);
         TEST_ASSERT(attr->handle == 100);
-        TEST_ASSERT(attr->value_len == *attr_len);
-        TEST_ASSERT(attr->value == ble_gatt_write_test_attr_value);
     } else {
         TEST_ASSERT(error != NULL);
         ble_gatt_write_test_error = *error;
@@ -348,15 +346,14 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
 
     attr_len = 4;
     rc = ble_gattc_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
-                                attr_len, ble_gatt_write_test_cb_good,
-                                &attr_len);
+                                attr_len);
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
     ble_hs_test_util_tx_all();
 
-    /* No response expected; verify callback got called. */
-    TEST_ASSERT(ble_gatt_write_test_cb_called);
+    /* No response expected; verify callback not called. */
+    TEST_ASSERT(!ble_gatt_write_test_cb_called);
 }
 
 TEST_CASE(ble_gatt_write_test_rsp)
