@@ -60,7 +60,7 @@ struct ble_att_mtu_cmd {
 struct ble_att_find_info_req {
     uint16_t bafq_start_handle;
     uint16_t bafq_end_handle;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -73,7 +73,7 @@ struct ble_att_find_info_req {
 struct ble_att_find_info_rsp {
     uint8_t bafp_format;
     /* Followed by information data. */
-};
+} __attribute__((packed));
 
 #define BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT   1
 #define BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT  2
@@ -95,7 +95,7 @@ struct ble_att_find_type_value_req {
     uint16_t bavq_start_handle;
     uint16_t bavq_end_handle;
     uint16_t bavq_attr_type;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -120,7 +120,7 @@ struct ble_att_find_type_value_req {
 struct ble_att_read_type_req {
     uint16_t batq_start_handle;
     uint16_t batq_end_handle;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -132,7 +132,7 @@ struct ble_att_read_type_req {
 #define BLE_ATT_READ_TYPE_RSP_BASE_SZ       2
 struct ble_att_read_type_rsp {
     uint8_t batp_length;
-};
+} __attribute__((packed));
 
 #define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     2
 
@@ -145,7 +145,7 @@ struct ble_att_read_type_rsp {
 #define BLE_ATT_READ_REQ_SZ              3
 struct ble_att_read_req {
     uint16_t barq_handle;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -166,7 +166,7 @@ struct ble_att_read_req {
 struct ble_att_read_blob_req {
     uint16_t babq_handle;
     uint16_t babq_offset;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -206,7 +206,7 @@ struct ble_att_read_blob_req {
 struct ble_att_read_group_type_req {
     uint16_t bagq_start_handle;
     uint16_t bagq_end_handle;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -218,7 +218,7 @@ struct ble_att_read_group_type_req {
 #define BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ  2
 struct ble_att_read_group_type_rsp {
     uint8_t bagp_length;
-};
+} __attribute__((packed));
 
 #define BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ   4
 #define BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16     6
@@ -234,7 +234,7 @@ struct ble_att_read_group_type_rsp {
 #define BLE_ATT_WRITE_REQ_BASE_SZ       3
 struct ble_att_write_req {
     uint16_t bawq_handle;
-};
+} __attribute__((packed));
 
 #define BLE_ATT_WRITE_RSP_SZ            1
 
@@ -250,7 +250,7 @@ struct ble_att_write_req {
 struct ble_att_prep_write_cmd {
     uint16_t bapc_handle;
     uint16_t bapc_offset;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -261,7 +261,7 @@ struct ble_att_prep_write_cmd {
 #define BLE_ATT_EXEC_WRITE_REQ_SZ       2
 struct ble_att_exec_write_req {
     uint8_t baeq_flags;
-};
+} __attribute__((packed));
 
 #define BLE_ATT_EXEC_WRITE_F_CONFIRM    0x01
 #define BLE_ATT_EXEC_WRITE_F_RESERVED   0xfe
@@ -283,7 +283,7 @@ struct ble_att_exec_write_req {
 #define BLE_ATT_NOTIFY_REQ_BASE_SZ      3
 struct ble_att_notify_req {
     uint16_t banq_handle;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -295,7 +295,7 @@ struct ble_att_notify_req {
 #define BLE_ATT_INDICATE_REQ_BASE_SZ    3
 struct ble_att_indicate_req {
     uint16_t baiq_handle;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
