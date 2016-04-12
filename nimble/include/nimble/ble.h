@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -40,14 +40,14 @@ extern struct os_mempool g_hci_os_event_pool;
 
 /*
  * BLE MBUF structure:
- * 
+ *
  * The BLE mbuf structure is as follows. Note that this structure applies to
  * the packet header mbuf (not mbufs that are part of a "packet chain"):
  *      struct os_mbuf          (16)
  *      struct os_mbuf_pkthdr   (8)
  *      struct ble_mbuf_hdr     (8)
  *      Data buffer             (BLE_MBUF_PAYLOAD_SIZE)
- * 
+ *
  * The BLE mbuf header contains the following:
  *  flags: bitfield with the following values
  *      0x01:   Set if there was a match on the whitelist
@@ -71,7 +71,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x20)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x10)
 #define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x08)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)      
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
@@ -91,7 +91,7 @@ struct ble_mbuf_hdr
     uint32_t end_cputime;
 };
 
-/* 
+/*
  * The payload size for BLE MBUFs. NOTE: this needs to accommodate a max size
  * PHY pdu of 257 bytes.
  */

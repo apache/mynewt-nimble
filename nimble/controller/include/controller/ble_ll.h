@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -36,12 +36,12 @@
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
 
-/* 
+/*
  * The amount of time that we will wait to hear the start of a receive
  * packet after we have transmitted a packet. This time is at least
- * an IFS time plus the time to receive the preamble and access address (which 
+ * an IFS time plus the time to receive the preamble and access address (which
  * is 40 usecs). We add an additional 32 usecs just to be safe.
- * 
+ *
  * XXX: move this definition and figure out how we determine the worst-case
  * jitter (spec. should have this).
  */
@@ -50,7 +50,7 @@
 /* Packet queue header definition */
 STAILQ_HEAD(ble_ll_pkt_q, os_mbuf_pkthdr);
 
-/* 
+/*
  * Global Link Layer data object. There is only one Link Layer data object
  * per controller although there may be many instances of the link layer state
  * machine running.
@@ -151,7 +151,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 /* LL timing */
 #define BLE_LL_IFS                  (150)       /* usecs */
 
-/* 
+/*
  * BLE LL device address. Note that element 0 of the array is the LSB and
  * is sent over the air first. Byte 5 is the MSB and is the last one sent over
  * the air.
@@ -167,9 +167,9 @@ struct ble_dev_addr
 #define BLE_IS_DEV_ADDR_RESOLVABLE(addr)    ((addr->u8[5] & 0xc0) == 0x40)
 #define BLE_IS_DEV_ADDR_UNRESOLVABLE(addr)  ((addr->u8[5] & 0xc0) == 0x00)
 
-/* 
+/*
  * LL packet format
- * 
+ *
  *  -> Preamble         (1 byte)
  *  -> Access Address   (4 bytes)
  *  -> PDU              (2 to 257 octets)
@@ -187,15 +187,15 @@ struct ble_dev_addr
 #define BLE_LL_PDU_OVERHEAD     (BLE_LL_OVERHEAD_LEN + BLE_LL_PDU_HDR_LEN)
 
 /**
- * ll pdu tx time get 
- *  
+ * ll pdu tx time get
+ *
  * Returns the number of usecs it will take to transmit a PDU of payload
- * length 'len' bytes. Each byte takes 8 usecs. This routine includes the LL 
- * overhead: preamble (1), access addr (4) and crc (3) and the PDU header (2) 
- * for a total of 10 bytes. 
- * 
- * @param len The length of the PDU payload (does not include include header). 
- * 
+ * length 'len' bytes. Each byte takes 8 usecs. This routine includes the LL
+ * overhead: preamble (1), access addr (4) and crc (3) and the PDU header (2)
+ * for a total of 10 bytes.
+ *
+ * @param len The length of the PDU payload (does not include include header).
+ *
  * @return uint16_t The number of usecs it will take to transmit a PDU of
  *                  length 'len' bytes.
  */
@@ -204,12 +204,12 @@ struct ble_dev_addr
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)
 
-/* 
+/*
  * Advertising PDU format:
  * -> 2 byte header
  *      -> LSB contains pdu type, txadd and rxadd bits.
  *      -> MSB contains length (6 bits). Length is length of payload. Does
- *         not include the header length itself. 
+ *         not include the header length itself.
  * -> Payload (max 37 bytes)
  */
 #define BLE_ADV_PDU_HDR_TYPE_MASK           (0x0F)
@@ -226,7 +226,7 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_TYPE_CONNECT_REQ        (5)
 #define BLE_ADV_PDU_TYPE_ADV_SCAN_IND       (6)
 
-/* 
+/*
  * TxAdd and RxAdd bit definitions. A 0 is a public address; a 1 is a
  * random address.
  */
@@ -235,7 +235,7 @@ struct ble_dev_addr
 
 /*
  * Data Channel format
- * 
+ *
  *  -> Header (2 bytes)
  *      -> LSB contains llid, nesn, sn and md
  *      -> MSB contains length (8 bits)
@@ -270,7 +270,7 @@ struct ble_dev_addr
  *          -> Channel Map (5 bytes)
  *          -> Hop Increment (5 bits)
  *          -> SCA (3 bits)
- * 
+ *
  *  InitA is the initiators public (TxAdd=0) or random (TxAdd=1) address.
  *  AdvaA is the advertisers public (RxAdd=0) or random (RxAdd=1) address.
  *  LLData contains connection request data.
@@ -310,8 +310,8 @@ int ble_ll_is_resolvable_priv_addr(uint8_t *addr);
 int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
 
 /**
- * Called to put a packet on the Link Layer transmit packet queue. 
- * 
+ * Called to put a packet on the Link Layer transmit packet queue.
+ *
  * @param txpdu Pointer to transmit packet
  */
 void ble_ll_acl_data_in(struct os_mbuf *txpkt);
@@ -361,10 +361,10 @@ void ble_ll_rand_sample(uint8_t rnum);
 int ble_ll_rand_data_get(uint8_t *buf, uint8_t len);
 int ble_ll_rand_start(void);
 
-/* 
+/*
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
- */ 
+ */
 #undef BLE_LL_LOG
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)

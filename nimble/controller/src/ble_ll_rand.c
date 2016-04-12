@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -69,7 +69,7 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
 
     while (len != 0) {
         OS_ENTER_CRITICAL(sr);
-        rnums = g_ble_ll_rnum_data.rnd_size; 
+        rnums = g_ble_ll_rnum_data.rnd_size;
         if (rnums > len) {
             rnums = len;
         }
@@ -92,7 +92,7 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
 
         /* Wait till bytes are in buffer. */
         if (len) {
-            while ((g_ble_ll_rnum_data.rnd_size < len) && 
+            while ((g_ble_ll_rnum_data.rnd_size < len) &&
                    (g_ble_ll_rnum_data.rnd_size < NIMBLE_OPT_LL_RNG_BUFSIZE)) {
                 /* Spin here */
             }
@@ -104,8 +104,8 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
 
 /**
  * Start the generation of random numbers
- * 
- * @return int 
+ *
+ * @return int
  */
 int
 ble_ll_rand_start(void)
@@ -118,10 +118,10 @@ ble_ll_rand_start(void)
 }
 
 /**
- * Initialize LL random number generation. Should be called only once on 
- * initialization. 
- * 
- * @return int 
+ * Initialize LL random number generation. Should be called only once on
+ * initialization.
+ *
+ * @return int
  */
 int
 ble_ll_rand_init(void)

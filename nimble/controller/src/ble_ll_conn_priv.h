@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -22,7 +22,7 @@
 
 #include "controller/ble_ll_conn.h"
 
-/* 
+/*
  * Definitions for max rx/tx time/bytes for connections
  *  NOTE: you get 327 usecs from 27 bytes of payload by:
  *      -> adding 4 bytes for MIC
@@ -85,10 +85,10 @@ void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
                              uint8_t hdr_byte, uint8_t length);
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
-void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm, 
+void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
                              struct hci_create_conn *hcc);
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
-void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm, 
+void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_len_req *req);
 
 /* Advertising interface */
@@ -113,7 +113,7 @@ void ble_ll_conn_event_halt(void);
 uint8_t ble_ll_conn_calc_used_chans(uint8_t *chmap);
 
 /* HCI */
-void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, 
+void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
                                     uint8_t reason);
 int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
 int ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf);
@@ -129,8 +129,8 @@ int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);
 int ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf);
 int ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, 
+int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf,
                                 uint8_t *rsplen);
-int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, 
+int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf,
                                  uint8_t *rsplen);
 #endif /* H_BLE_LL_CONN_PRIV_ */

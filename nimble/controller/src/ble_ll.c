@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -37,7 +37,7 @@
 #include "hal/hal_cputime.h"
 
 /* XXX:
- * 
+ *
  * 1) use the sanity task!
  * 2) Need to figure out what to do with packets that we hand up that did
  * not pass the filter policy for the given state. Currently I count all
@@ -219,11 +219,11 @@ ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32)
 #endif
 
 /**
- * Counts the number of advertising PDU's received, by type. For advertising 
- * PDU's that contain a destination address, we still count these packets even 
- * if they are not for us. 
- * 
- * @param pdu_type 
+ * Counts the number of advertising PDU's received, by type. For advertising
+ * PDU's that contain a destination address, we still count these packets even
+ * if they are not for us.
+ *
+ * @param pdu_type
  */
 static void
 ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
@@ -261,7 +261,7 @@ ble_ll_chk_txrx_octets(uint16_t octets)
 {
     int rc;
 
-    if ((octets < BLE_LL_CONN_SUPP_BYTES_MIN) || 
+    if ((octets < BLE_LL_CONN_SUPP_BYTES_MIN) ||
         (octets > BLE_LL_CONN_SUPP_BYTES_MAX)) {
         rc = 0;
     } else {
@@ -276,7 +276,7 @@ ble_ll_chk_txrx_time(uint16_t time)
 {
     int rc;
 
-    if ((time < BLE_LL_CONN_SUPP_TIME_MIN) || 
+    if ((time < BLE_LL_CONN_SUPP_TIME_MIN) ||
         (time > BLE_LL_CONN_SUPP_TIME_MAX)) {
         rc = 0;
     } else {
@@ -338,13 +338,13 @@ ble_ll_is_valid_random_addr(uint8_t *addr)
 }
 
 /**
- * Called from the HCI command parser when the set random address command 
- * is received. 
- *  
- * Context: Link Layer task (HCI command parser) 
- * 
+ * Called from the HCI command parser when the set random address command
+ * is received.
+ *
+ * Context: Link Layer task (HCI command parser)
+ *
  * @param addr Pointer to address
- * 
+ *
  * @return int 0: success
  */
 int
@@ -362,13 +362,13 @@ ble_ll_set_random_addr(uint8_t *addr)
 }
 
 /**
- * Checks to see if an address is our device address (either public or 
- * random) 
- * 
- * @param addr 
- * @param addr_type 
- * 
- * @return int 
+ * Checks to see if an address is our device address (either public or
+ * random)
+ *
+ * @param addr
+ * @param addr_type
+ *
+ * @return int
  */
 int
 ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
@@ -391,11 +391,11 @@ ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
 }
 
 /**
- * Wait for response timeout function 
- *  
- * Context: interrupt (ble scheduler) 
- * 
- * @param arg 
+ * Wait for response timeout function
+ *
+ * Context: interrupt (ble scheduler)
+ *
+ * @param arg
  */
 void
 ble_ll_wfr_timer_exp(void *arg)
@@ -429,13 +429,13 @@ ble_ll_wfr_timer_exp(void *arg)
 }
 
 /**
- * Enable the wait for response timer. 
- *  
- * Context: Interrupt. 
- * 
- * @param cputime 
- * @param wfr_cb 
- * @param arg 
+ * Enable the wait for response timer.
+ *
+ * Context: Interrupt.
+ *
+ * @param cputime
+ * @param wfr_cb
+ * @param arg
  */
 void
 ble_ll_wfr_enable(uint32_t cputime)
@@ -454,11 +454,11 @@ ble_ll_wfr_disable(void)
 
 /**
  * ll tx pkt in proc
- *  
+ *
  * Process ACL data packet input from host
- *  
+ *
  * Context: Link layer task
- *  
+ *
  */
 static void
 ble_ll_tx_pkt_in(void)
@@ -498,12 +498,12 @@ ble_ll_tx_pkt_in(void)
 }
 
 /**
- * Count Link Layer statistics for received PDUs 
- *  
+ * Count Link Layer statistics for received PDUs
+ *
  * Context: Link layer task
- * 
- * @param hdr 
- * @param len 
+ *
+ * @param hdr
+ * @param len
  */
 static void
 ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
@@ -535,11 +535,11 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
 
 /**
  * ll rx pkt in
- *  
+ *
  * Process received packet from PHY.
- *  
+ *
  * Context: Link layer task
- *  
+ *
  */
 static void
 ble_ll_rx_pkt_in(void)
@@ -563,7 +563,7 @@ ble_ll_rx_pkt_in(void)
         OS_EXIT_CRITICAL(sr);
 
         /* Note: pdu type wont get used unless this is an advertising pdu */
-        ble_hdr = BLE_MBUF_HDR_PTR(m); 
+        ble_hdr = BLE_MBUF_HDR_PTR(m);
         rxbuf = m->om_data;
         pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
         ble_ll_count_rx_stats(ble_hdr, pkthdr->omp_len, pdu_type);
@@ -596,8 +596,8 @@ ble_ll_rx_pkt_in(void)
 }
 
 /**
- * Called to put a packet on the Link Layer receive packet queue. 
- * 
+ * Called to put a packet on the Link Layer receive packet queue.
+ *
  * @param rxpdu Pointer to received PDU
  */
 void
@@ -611,8 +611,8 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
 }
 
 /**
- * Called to put a packet on the Link Layer transmit packet queue. 
- * 
+ * Called to put a packet on the Link Layer transmit packet queue.
+ *
  * @param txpdu Pointer to transmit packet
  */
 void
@@ -628,15 +628,15 @@ ble_ll_acl_data_in(struct os_mbuf *txpkt)
     os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_tx_pkt_ev);
 }
 
-/** 
- * Called upon start of received PDU 
- *  
- * Context: Interrupt 
- * 
- * @param rxpdu 
- *        chan 
- * 
- * @return int 
+/**
+ * Called upon start of received PDU
+ *
+ * Context: Interrupt
+ *
+ * @param rxpdu
+ *        chan
+ *
+ * @return int
  *   < 0: A frame we dont want to receive.
  *   = 0: Continue to receive frame. Dont go from rx to tx
  *   > 0: Continue to receive frame and go from rx to tx when done
@@ -653,7 +653,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
     /* Check channel type */
     rxbuf = rxpdu->om_data;
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        /* 
+        /*
          * Data channel pdu. We should be in CONNECTION state with an
          * ongoing connection
          */
@@ -668,7 +668,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
             rc = 0;
         }
         return rc;
-    } 
+    }
 
     /* Advertising channel PDU */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
@@ -704,14 +704,14 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
 }
 
 /**
- * Called by the PHY when a receive packet has ended. 
- *  
+ * Called by the PHY when a receive packet has ended.
+ *
  * NOTE: Called from interrupt context!
- * 
- * @param rxpdu Pointer to received PDU 
- *        ble_hdr Pointer to BLE header of received mbuf 
- * 
- * @return int 
+ *
+ * @param rxpdu Pointer to received PDU
+ *        ble_hdr Pointer to BLE header of received mbuf
+ *
+ * @return int
  *       < 0: Disable the phy after reception.
  *      == 0: Success. Do not disable the PHY.
  *       > 0: Do not disable PHY as that has already been done.
@@ -735,9 +735,9 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
     chan = ble_hdr->rxinfo.channel;
     crcok = BLE_MBUF_HDR_CRC_OK(ble_hdr);
 
-    ble_ll_log(BLE_LL_LOG_ID_RX_END, 
-               chan, 
-               ((uint16_t)crcok << 8) | rxbuf[1], 
+    ble_ll_log(BLE_LL_LOG_ID_RX_END,
+               chan,
+               ((uint16_t)crcok << 8) | rxbuf[1],
                (BLE_MBUF_HDR_PTR(rxpdu))->end_cputime);
 
     /* Check channel type */
@@ -747,7 +747,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
         OS_MBUF_PKTHDR(rxpdu)->omp_len = mblen;
         rxpdu->om_len = mblen;
 
-        /* 
+        /*
          * NOTE: this looks a bit odd, and it is, but for now we place the
          * received PDU on the Link Layer task before calling the rx end
          * function. We do this to guarantee connection event end ordering
@@ -755,13 +755,13 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
          */
         ble_ll_rx_pdu_in(rxpdu);
 
-        /* 
+        /*
          * Data channel pdu. We should be in CONNECTION state with an
          * ongoing connection.
          */
         rc = ble_ll_conn_rx_isr_end(rxpdu, ble_phy_access_addr_get());
         return rc;
-    } 
+    }
 
     /* Get advertising PDU type and length */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
@@ -838,11 +838,11 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
 }
 
 /**
- * Link Layer task. 
- *  
- * This is the task that runs the Link Layer. 
- * 
- * @param arg 
+ * Link Layer task.
+ *
+ * This is the task that runs the Link Layer.
+ *
+ * @param arg
  */
 void
 ble_ll_task(void *arg)
@@ -901,12 +901,12 @@ ble_ll_task(void *arg)
 
 /**
  * ble ll state set
- *  
- * Called to set the current link layer state. 
- *  
+ *
+ * Called to set the current link layer state.
+ *
  * Context: Interrupt and Link Layer task
- * 
- * @param ll_state 
+ *
+ * @param ll_state
  */
 void
 ble_ll_state_set(uint8_t ll_state)
@@ -916,12 +916,12 @@ ble_ll_state_set(uint8_t ll_state)
 
 /**
  * ble ll state get
- *  
- * Called to get the current link layer state. 
- *  
+ *
+ * Called to get the current link layer state.
+ *
  * Context: Link Layer task (can be called from interrupt context though).
- * 
- * @return ll_state 
+ *
+ * @return ll_state
  */
 uint8_t
 ble_ll_state_get(void)
@@ -931,9 +931,9 @@ ble_ll_state_get(void)
 
 /**
  * ble ll event send
- *  
- * Send an event to the Link Layer task 
- * 
+ *
+ * Send an event to the Link Layer task
+ *
  * @param ev Event to add to the Link Layer event queue.
  */
 void
@@ -966,8 +966,8 @@ ble_ll_read_supp_features(void)
 
 /**
  * Flush a link layer packet queue.
- * 
- * @param pktq 
+ *
+ * @param pktq
  */
 static void
 ble_ll_flush_pkt_queue(struct ble_ll_pkt_q *pktq)
@@ -989,10 +989,10 @@ ble_ll_flush_pkt_queue(struct ble_ll_pkt_q *pktq)
 
 /**
  * Called to initialize a mbuf used by the controller
- * 
- * @param m 
- * @param pdulen 
- * @param hdr 
+ *
+ * @param m
+ * @param pdulen
+ * @param hdr
  */
 void
 ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
@@ -1012,14 +1012,14 @@ ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
 }
 
 /**
- * Called to reset the controller. This performs a "software reset" of the link 
- * layer; it does not perform a HW reset of the controller nor does it reset 
- * the HCI interface. 
- * 
- * Context: Link Layer task (HCI command) 
- *  
- * @return int The ble error code to place in the command complete event that 
- * is returned when this command is issued. 
+ * Called to reset the controller. This performs a "software reset" of the link
+ * layer; it does not perform a HW reset of the controller nor does it reset
+ * the HCI interface.
+ *
+ * Context: Link Layer task (HCI command)
+ *
+ * @return int The ble error code to place in the command complete event that
+ * is returned when this command is issued.
  */
 int
 ble_ll_reset(void)
@@ -1047,7 +1047,7 @@ ble_ll_reset(void)
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_rx_pkt_q);
 
     /* Reset LL stats */
-    memset((uint8_t *)&ble_ll_stats + sizeof(struct stats_hdr), 0, 
+    memset((uint8_t *)&ble_ll_stats + sizeof(struct stats_hdr), 0,
            sizeof(struct stats_ble_ll_stats) - sizeof(struct stats_hdr));
 
 #ifdef BLE_LL_LOG
@@ -1074,9 +1074,9 @@ ble_ll_reset(void)
 }
 
 /**
- * Initialize the Link Layer. Should be called only once 
- * 
- * @return int 
+ * Initialize the Link Layer. Should be called only once
+ *
+ * @return int
  */
 int
 ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
@@ -1104,7 +1104,7 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     lldata->ll_tx_pkt_ev.ev_type = BLE_LL_EVENT_TX_PKT_IN;
 
     /* Initialize wait for response timer */
-    cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp, 
+    cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
                        NULL);
 
     /* Initialize LL HCI */
@@ -1144,12 +1144,12 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     lldata->ll_supp_features = features;
 
     /* Initialize the LL task */
-    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, ll_task_prio, 
+    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, ll_task_prio,
                  OS_WAIT_FOREVER, g_ble_ll_stack, BLE_LL_STACK_SIZE);
 
-    rc = stats_init_and_reg(STATS_HDR(ble_ll_stats), 
-                            STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32), 
-                            STATS_NAME_INIT_PARMS(ble_ll_stats), 
+    rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
+                            STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
+                            STATS_NAME_INIT_PARMS(ble_ll_stats),
                             "ble_ll");
     return rc;
 }

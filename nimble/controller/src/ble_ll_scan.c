@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -35,13 +35,13 @@
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
-/* 
+/*
  * XXX:
  * 1) I think I can guarantee that we dont process things out of order if
  * I send an event when a scan request is sent. The scan_rsp_pending flag
  * code might be made simpler.
- * 
- * 2) Interleave sending scan requests to different advertisers? I guess I need 
+ *
+ * 2) Interleave sending scan requests to different advertisers? I guess I need
  * a list of advertisers to which I sent a scan request and have yet to
  * receive a scan response from? Implement this.
  */
@@ -57,7 +57,7 @@
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
-/* 
+/*
  * Structure used to store advertisers. This is used to limit sending scan
  * requests to the same advertiser and also to filter duplicate events sent
  * to the host.
@@ -75,12 +75,12 @@ struct ble_ll_scan_advertisers
 
 /* Contains list of advertisers that we have heard scan responses from */
 static uint8_t g_ble_ll_scan_num_rsp_advs;
-struct ble_ll_scan_advertisers 
+struct ble_ll_scan_advertisers
 g_ble_ll_scan_rsp_advs[NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS];
 
 /* Used to filter duplicate advertising events to host */
 static uint8_t g_ble_ll_scan_num_dup_advs;
-struct ble_ll_scan_advertisers 
+struct ble_ll_scan_advertisers
 g_ble_ll_scan_dup_advs[NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS];
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
@@ -117,9 +117,9 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
 
 /**
  * ble ll scan req pdu make
- *  
- * Construct a SCAN_REQ PDU. 
- * 
+ *
+ * Construct a SCAN_REQ PDU.
+ *
  * @param scansm Pointer to scanning state machine
  * @param adv_addr Pointer to device address of advertiser
  * @param addr_type 0 if public; non-zero if random
@@ -164,12 +164,12 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
 }
 
 /**
- * Checks to see if an advertiser is on the duplicate address list. 
- * 
+ * Checks to see if an advertiser is on the duplicate address list.
+ *
  * @param addr Pointer to address
  * @param txadd TxAdd bit. 0: public; random otherwise
- * 
- * @return uint8_t 0: not on list; any other value is 
+ *
+ * @return uint8_t 0: not on list; any other value is
  */
 static struct ble_ll_scan_advertisers *
 ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd)
@@ -204,10 +204,10 @@ ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd)
 
 /**
  * Check if a packet is a duplicate advertising packet.
- * 
- * @param pdu_type 
- * @param rxbuf 
- * 
+ *
+ * @param pdu_type
+ * @param rxbuf
+ *
  * @return int 0: not a duplicate. 1:duplicate
  */
 int
@@ -234,10 +234,10 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
 
 /**
  * Add an advertiser the list of duplicate advertisers. An address gets added to
- * the list of duplicate addresses when the controller sends an advertising 
- * report to the host. 
- * 
- * @param addr 
+ * the list of duplicate addresses when the controller sends an advertising
+ * report to the host.
+ *
+ * @param addr
  * @param Txadd. TxAdd bit (0 public, random otherwise)
  */
 void
@@ -266,7 +266,7 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd)
         }
     }
 
-    /* 
+    /*
      * XXX: need to set correct flag based on type of report being sent
      * for now, we dont send direct advertising reports
      */
@@ -274,11 +274,11 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd)
 }
 
 /**
- * Checks to see if we have received a scan response from this advertiser. 
- * 
+ * Checks to see if we have received a scan response from this advertiser.
+ *
  * @param adv_addr Address of advertiser
  * @param txadd TxAdd bit (0: public; random otherwise)
- * 
+ *
  * @return int 0: have not received a scan response; 1 otherwise.
  */
 static int
@@ -341,14 +341,14 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
 
 /**
  * Send an advertising report to the host.
- * 
- * NOTE: while we are allowed to send multiple devices in one report, we 
- * will just send for one for now. 
- * 
- * @param pdu_type 
- * @param txadd 
- * @param rxbuf 
- * @param rssi 
+ *
+ * NOTE: while we are allowed to send multiple devices in one report, we
+ * will just send for one for now.
+ *
+ * @param pdu_type
+ * @param txadd
+ * @param rxbuf
+ * @param rssi
  */
 static void
 ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
@@ -417,14 +417,14 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
 }
 
 /**
- * Checks the scanner filter policy to determine if we should allow or discard 
- * the received PDU. 
- *  
- * NOTE: connect requests and scan requests are not passed here 
- *  
- * @param pdu_type 
- * @param rxbuf 
- * 
+ * Checks the scanner filter policy to determine if we should allow or discard
+ * the received PDU.
+ *
+ * NOTE: connect requests and scan requests are not passed here
+ *
+ * @param pdu_type
+ * @param rxbuf
+ *
  * @return int 0: pdu allowed by filter policy. 1: pdu not allowed
  */
 int
@@ -483,23 +483,23 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
 
 /**
  * Called to enable the receiver for scanning.
- *  
+ *
  * Context: Link Layer task
- * 
- * @param sch 
- * 
- * @return int 
+ *
+ * @param sch
+ *
+ * @return int
  */
 static void
 ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
 {
     int rc;
-    
+
     /* Set channel */
     rc = ble_phy_setchan(chan, 0, 0);
     assert(rc == 0);
 
-    /* 
+    /*
      * Set transmit end callback to NULL in case we transmit a scan request.
      * There is a callback for the connect request.
      */
@@ -530,14 +530,14 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
 }
 
 /**
- * Called to determine if we are inside or outside the scan window. If we 
- * are inside the scan window it means that the device should be receiving 
- * on the scan channel. 
- * 
+ * Called to determine if we are inside or outside the scan window. If we
+ * are inside the scan window it means that the device should be receiving
+ * on the scan channel.
+ *
  * Context: Link Layer
- *  
- * @param scansm 
- * 
+ *
+ * @param scansm
+ *
  * @return int 0: inside scan window 1: outside scan window
  */
 static int
@@ -576,7 +576,7 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
 }
 
 /**
- * Stop the scanning state machine 
+ * Stop the scanning state machine
  */
 void
 ble_ll_scan_sm_stop(int chk_disable)
@@ -613,13 +613,13 @@ ble_ll_scan_sm_stop(int chk_disable)
 static int
 ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 {
-    /* 
+    /*
      * This is not in the specification. I will reject the command with a
      * command disallowed error if no random address has been sent by the
      * host. All the parameter errors refer to the command parameter
      * (which in this case is just enable or disable) so that is why I chose
      * command disallowed.
-     */ 
+     */
     if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
@@ -655,11 +655,11 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 }
 
 /**
- * Called to process the scanning OS event which was posted to the LL task 
- *  
- * Context: Link Layer task. 
- * 
- * @param arg 
+ * Called to process the scanning OS event which was posted to the LL task
+ *
+ * Context: Link Layer task.
+ *
+ * @param arg
  */
 void
 ble_ll_scan_event_proc(void *arg)
@@ -676,7 +676,7 @@ ble_ll_scan_event_proc(void *arg)
     uint32_t next_event_time;
     struct ble_ll_scan_sm *scansm;
 
-    /* 
+    /*
      * Get the scanning state machine. If not enabled (this is possible), just
      * leave and do nothing (just make sure timer is stopped).
      */
@@ -717,7 +717,7 @@ ble_ll_scan_event_proc(void *arg)
     }
 
     OS_ENTER_CRITICAL(sr);
-    /* 
+    /*
      * If we are not in the standby state it means that the scheduled
      * scanning event was overlapped in the schedule. In this case all we do
      * is post the scan schedule end event.
@@ -748,16 +748,16 @@ ble_ll_scan_event_proc(void *arg)
 }
 
 /**
- * ble ll scan rx pdu start 
- *  
- * Called when a PDU reception has started and the Link Layer is in the 
- * scanning state. 
- * 
- * Context: Interrupt 
- *  
+ * ble ll scan rx pdu start
+ *
+ * Called when a PDU reception has started and the Link Layer is in the
+ * scanning state.
+ *
+ * Context: Interrupt
+ *
  * @param rxpdu Pointer to where received data is being stored.
- * 
- * @return int 
+ *
+ * @return int
  *  0: we will not attempt to reply to this frame
  *  1: we may send a response to this frame.
  */
@@ -779,13 +779,13 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
             rc = 1;
         }
 
-        /* 
+        /*
          * If this is the first PDU after we sent the scan response (as
          * denoted by the scan rsp pending flag), we set a bit in the ble
          * header so the link layer can check to see if the scan request
          * was successful. We do it this way to let the Link Layer do the
          * work for successful scan requests. If failed, we do the work here.
-         */ 
+         */
         if (scansm->scan_rsp_pending) {
             if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
                 ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
@@ -807,13 +807,13 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
 }
 
 /**
- * Called when a receive PDU has ended. 
- *  
- * Context: Interrupt 
- * 
- * @param rxpdu 
- * 
- * @return int 
+ * Called when a receive PDU has ended.
+ *
+ * Context: Interrupt
+ *
+ * @param rxpdu
+ *
+ * @return int
  *       < 0: Disable the phy after reception.
  *      == 0: Success. Do not disable the PHY.
  *       > 0: Do not disable PHY as that has already been done.
@@ -834,7 +834,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Get scanning state machine */
     scansm = &g_ble_ll_scan_sm;
 
-    /* 
+    /*
      * The reason we do something different here (as opposed to failed CRC) is
      * that the received PDU will not be handed up in this case. So we have
      * to restart scanning and handle a failed scan request. Note that we
@@ -895,7 +895,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* Should we send a scan request? */
     if (chk_send_req) {
-        /* 
+        /*
          * Check to see if we have received a scan response from this
          * advertisor. If so, no need to send scan request.
          */
@@ -927,11 +927,11 @@ scan_rx_isr_exit:
 }
 
 /**
- * Called to resume scanning. This is called after an advertising event or 
- * connection event has ended. It is also called if we receive a packet while 
- * in the initiating or scanning state. 
- *  
- * Context: Link Layer task 
+ * Called to resume scanning. This is called after an advertising event or
+ * connection event has ended. It is also called if we receive a packet while
+ * in the initiating or scanning state.
+ *
+ * Context: Link Layer task
  */
 void
 ble_ll_scan_chk_resume(void)
@@ -951,10 +951,10 @@ ble_ll_scan_chk_resume(void)
 
 /**
  * Connection supervision timer callback; means that the connection supervision
- * timeout has been reached and we should perform the appropriate actions. 
- *  
+ * timeout has been reached and we should perform the appropriate actions.
+ *
  * Context: Interrupt (cputimer)
- * 
+ *
  * @param arg Pointer to connection state machine.
  */
 void
@@ -967,10 +967,10 @@ ble_ll_scan_timer_cb(void *arg)
 }
 
 /**
- * Called when the wait for response timer expires while in the scanning 
- * state. 
- *  
- * Context: Interrupt. 
+ * Called when the wait for response timer expires while in the scanning
+ * state.
+ *
+ * Context: Interrupt.
  */
 void
 ble_ll_scan_wfr_timer_exp(void)
@@ -979,10 +979,10 @@ ble_ll_scan_wfr_timer_exp(void)
 
     ble_phy_disable();
 
-    /* 
+    /*
      * If we timed out waiting for a response, the scan response pending
      * flag should be set. Deal with scan backoff. Put device back into rx.
-     */ 
+     */
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_rsp_pending) {
         ble_ll_scan_req_backoff(scansm, 0);
@@ -992,11 +992,11 @@ ble_ll_scan_wfr_timer_exp(void)
 
 /**
  * Process a received PDU while in the scanning state.
- *  
- * Context: Link Layer task. 
- * 
- * @param pdu_type 
- * @param rxbuf 
+ *
+ * Context: Link Layer task.
+ *
+ * @param pdu_type
+ * @param rxbuf
  */
 void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
@@ -1027,7 +1027,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     txadd = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
     adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 
-    /* 
+    /*
      * XXX: The BLE spec is a bit unclear here. What if we get a scan
      * response from an advertiser that we did not send a request to?
      * Do we send an advertising report? Do we add it to list of devices
@@ -1035,12 +1035,12 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
      */
     scansm = &g_ble_ll_scan_sm;
     if (ptype == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-        /* 
+        /*
          * If this is a scan response in reply to a request we sent we need
          * to store this advertiser's address so we dont send a request to it.
          */
         if (scansm->scan_rsp_pending && scan_rsp_chk) {
-            /* 
+            /*
              * We could also check the timing of the scan reponse; make sure
              * that it is relatively close to the end of the scan request but
              * we wont for now.
@@ -1070,7 +1070,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     ble_ll_hci_send_adv_report(ptype, txadd, rxbuf, hdr->rxinfo.rssi);
 
 scan_continue:
-    /* 
+    /*
      * If the scan response check bit is set and we are pending a response,
      * we have failed the scan request (as we would have reset the scan rsp
      * pending flag if we received a valid response
@@ -1107,13 +1107,13 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     filter_policy = cmd[6];
 
     /* Check scan type */
-    if ((scan_type != BLE_HCI_SCAN_TYPE_PASSIVE) && 
+    if ((scan_type != BLE_HCI_SCAN_TYPE_PASSIVE) &&
         (scan_type != BLE_HCI_SCAN_TYPE_ACTIVE)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     /* Check interval and window */
-    if ((scan_itvl < BLE_HCI_SCAN_ITVL_MIN) || 
+    if ((scan_itvl < BLE_HCI_SCAN_ITVL_MIN) ||
         (scan_itvl > BLE_HCI_SCAN_ITVL_MAX) ||
         (scan_window < BLE_HCI_SCAN_WINDOW_MIN) ||
         (scan_window > BLE_HCI_SCAN_WINDOW_MAX) ||
@@ -1142,15 +1142,15 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
 }
 
 /**
- * ble ll scan set enable 
- *  
+ * ble ll scan set enable
+ *
  *  HCI scan set enable command processing function
- *  
+ *
  *  Context: Link Layer task (HCI Command parser).
- * 
+ *
  * @param cmd Pointer to command buffer
- * 
- * @return int BLE error code. 
+ *
+ * @return int BLE error code.
  */
 int
 ble_ll_scan_set_enable(uint8_t *cmd)
@@ -1188,7 +1188,7 @@ ble_ll_scan_set_enable(uint8_t *cmd)
 /**
  * Checks if controller can change the whitelist. If scanning is enabled and
  * using the whitelist the controller is not allowed to change the whitelist.
- * 
+ *
  * @return int 0: not allowed to change whitelist; 1: change allowed.
  */
 int
@@ -1223,7 +1223,7 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
 
 /**
  * Checks to see if the scanner is enabled.
- * 
+ *
  * @return int 0: not enabled; enabled otherwise
  */
 int
@@ -1254,10 +1254,10 @@ ble_ll_scan_whitelist_enabled(void)
 }
 
 /**
- * Called when the controller receives the reset command. Resets the 
- * scanning state machine to its initial state. 
- * 
- * @return int 
+ * Called when the controller receives the reset command. Resets the
+ * scanning state machine to its initial state.
+ *
+ * @return int
  */
 void
 ble_ll_scan_reset(void)
@@ -1285,10 +1285,10 @@ ble_ll_scan_reset(void)
 }
 
 /**
- * ble ll scan init 
- *  
- * Initialize a scanner. Must be called before scanning can be started. 
- * Expected to be called with a un-initialized or reset scanning state machine. 
+ * ble ll scan init
+ *
+ * Initialize a scanner. Must be called before scanning can be started.
+ * Expected to be called with a un-initialized or reset scanning state machine.
  */
 void
 ble_ll_scan_init(void)
@@ -1311,7 +1311,7 @@ ble_ll_scan_init(void)
     cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
-    scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+    scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
                                               sizeof(struct ble_mbuf_hdr));
     assert(scansm->scan_req_pdu != NULL);
 }

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -53,12 +53,12 @@
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
 
-/* 
+/*
  * Length of empty pdu mbuf. Each connection state machine contains an
  * empty pdu since we dont want to allocate a full mbuf for an empty pdu
  * and we always want to have one available. The empty pdu length is of
  * type uint32_t so we have 4 byte alignment.
- */ 
+ */
 #define BLE_LL_EMPTY_PDU_MBUF_SIZE  (BLE_MBUF_MEMBLOCK_OVERHEAD / 4)
 
 /* Connection state machine flags. */
@@ -198,10 +198,10 @@ struct ble_ll_conn_sm
     struct ble_ll_sched_item conn_sch;
 
     /* XXX: ifdef this by feature? */
-    /* 
+    /*
      * For connection update procedure. XXX: can make this a pointer and
      * malloc it if we want to save space.
-     */ 
+     */
     struct hci_conn_update conn_param_req;
 
     /* For connection update procedure */
@@ -216,10 +216,10 @@ struct ble_ll_conn_sm
 #define CONN_F_EMPTY_PDU_TXD(csm)   (csm->csmflags.cfbit.conn_empty_pdu_txd)
 #define CONN_F_LAST_TXD_MD(csm)     (csm->csmflags.cfbit.last_txd_md)
 
-/* 
+/*
  * Given a handle, returns an active connection state machine (or NULL if the
  * handle does not exist
- * 
+ *
  */
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -43,7 +43,7 @@ ble_ll_whitelist_chg_allowed(void)
 {
     int rc;
 
-    /* 
+    /*
      * This command is not allowed if:
      *  -> advertising uses the whitelist and we are currently advertising.
      *  -> scanning uses the whitelist and is enabled.
@@ -59,8 +59,8 @@ ble_ll_whitelist_chg_allowed(void)
 
 /**
  * Clear the whitelist.
- * 
- * @return int 0: success, BLE error code otherwise 
+ *
+ * @return int 0: success, BLE error code otherwise
  */
 int
 ble_ll_whitelist_clear(void)
@@ -89,11 +89,11 @@ ble_ll_whitelist_clear(void)
 }
 
 /**
- * Read the size of the whitelist. This is the total number of whitelist 
- * entries allowed by the controller. 
- * 
+ * Read the size of the whitelist. This is the total number of whitelist
+ * entries allowed by the controller.
+ *
  * @param rspbuf Pointer to response buffer
- * 
+ *
  * @return int 0: success.
  */
 int
@@ -110,14 +110,14 @@ ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
 
 #ifndef BLE_USES_HW_WHITELIST
 /**
- * Used to determine if the device is on the whitelist. 
- * 
- * @param addr 
+ * Used to determine if the device is on the whitelist.
+ *
+ * @param addr
  * @param addr_type Public address (0) or random address (1)
- * 
- * @return int 0: device is not on whitelist; otherwise the return value 
- * is the 'position' of the device in the whitelist (the index of the element 
- * plus 1). 
+ *
+ * @return int 0: device is not on whitelist; otherwise the return value
+ * is the 'position' of the device in the whitelist (the index of the element
+ * plus 1).
  */
 static int
 ble_ll_is_on_whitelist(uint8_t *addr, uint8_t addr_type)
@@ -139,12 +139,12 @@ ble_ll_is_on_whitelist(uint8_t *addr, uint8_t addr_type)
 #endif
 
 /**
- * Is there a match between the device and a device on the whitelist 
- * 
- * @param addr 
+ * Is there a match between the device and a device on the whitelist
+ *
+ * @param addr
  * @param addr_type Public address (0) or random address (1)
- * 
- * @return int 
+ *
+ * @return int
  */
 int
 ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type)
@@ -159,9 +159,9 @@ ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type)
 }
 
 /**
- * Add a device to the whitelist 
- * 
- * @return int 
+ * Add a device to the whitelist
+ *
+ * @return int
  */
 int
 ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
@@ -203,10 +203,10 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
 }
 
 /**
- * Remove a device from the whitelist 
- * 
- * @param cmdbuf 
- * 
+ * Remove a device from the whitelist
+ *
+ * @param cmdbuf
+ *
  * @return int 0: success, BLE error code otherwise
  */
 int
@@ -232,8 +232,8 @@ ble_ll_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
 }
 
 /**
- * Enable whitelisting. 
- *  
+ * Enable whitelisting.
+ *
  * Note: This function has no effect if we are not using HW whitelisting
  */
 void
@@ -246,7 +246,7 @@ ble_ll_whitelist_enable(void)
 
 /**
  * Disable whitelisting.
- *  
+ *
  * Note: This function has no effect if we are not using HW whitelisting
  */
 void

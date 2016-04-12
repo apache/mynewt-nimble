@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -23,11 +23,11 @@
 /* Time per BLE scheduler slot */
 #define BLE_LL_SCHED_USECS_PER_SLOT (1250)
 
-/* 
+/*
  * This is the number of slots needed to transmit and receive a maximum
  * size PDU, including an IFS time before each. The actual time is
  * 2120 usecs for tx/rx and 150 for IFS = 4540 usecs.
- */ 
+ */
 #define BLE_LL_SCHED_MAX_TXRX_SLOT  (4 * BLE_LL_SCHED_USECS_PER_SLOT)
 
 /* BLE scheduler errors */
@@ -71,7 +71,7 @@ void ble_ll_sched_free_item(struct ble_ll_sched_item *sch);
 
 /* Schedule a new master connection */
 struct ble_ll_conn_sm;
-int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend, 
+int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
                             uint8_t req_slots);
 
 /* Schedule a new slave connection */
@@ -87,14 +87,14 @@ int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch);
 int ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm * connsm);
 
 /**
- * Called to determine when the next scheduled event will occur. 
- *  
- * If there are not scheduled events this function returns 0; otherwise it 
- * returns 1 and *next_event_time is set to the start time of the next event. 
- * 
+ * Called to determine when the next scheduled event will occur.
+ *
+ * If there are not scheduled events this function returns 0; otherwise it
+ * returns 1 and *next_event_time is set to the start time of the next event.
+ *
  * @param next_event_time cputime at which next scheduled event will occur
- * 
- * @return int 0: No events are scheduled 1: there is an upcoming event 
+ *
+ * @return int 0: No events are scheduled 1: there is an upcoming event
  */
 int ble_ll_sched_next_time(uint32_t *next_event_time);
 

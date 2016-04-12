@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -32,20 +32,20 @@
 #include "controller/ble_ll_scan.h"
 #include "ble_ll_conn_priv.h"
 
-/* 
+/*
  * Used to limit the rate at which we send the number of completed packets
  * event to the host. This is the os time at which we can send an event.
  */
 static uint32_t g_ble_ll_next_num_comp_pkt_evt;
 
 /**
- * Called to check that the connection parameters are within range 
- * 
- * @param itvl_min 
- * @param itvl_max 
- * @param latency 
- * @param spvn_tmo 
- * 
+ * Called to check that the connection parameters are within range
+ *
+ * @param itvl_min
+ * @param itvl_max
+ * @param latency
+ * @param spvn_tmo
+ *
  * @return int BLE_ERR_INV_HCI_CMD_PARMS if invalid parameters, 0 otherwise
  */
 int
@@ -55,7 +55,7 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
     uint32_t spvn_tmo_usecs;
     uint32_t min_spvn_tmo_usecs;
 
-    if ((itvl_min > itvl_max) || 
+    if ((itvl_min > itvl_max) ||
         (itvl_min < BLE_HCI_CONN_ITVL_MIN) ||
         (itvl_min > BLE_HCI_CONN_ITVL_MAX) ||
         (latency > BLE_HCI_CONN_LATENCY_MAX) ||
@@ -64,7 +64,7 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* 
+    /*
     * Supervision timeout (in msecs) must be more than:
     *  (1 + connLatency) * connIntervalMax * 1.25 msecs * 2.
     */
@@ -80,9 +80,9 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
 }
 
 /**
- * Make a connect request PDU 
- * 
- * @param connsm 
+ * Make a connect request PDU
+ *
+ * @param connsm
  */
 static void
 ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
@@ -135,8 +135,8 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 }
 
 /**
- * Send a connection complete event 
- * 
+ * Send a connection complete event
+ *
  * @param status The BLE error code associated with the event
  */
 void
@@ -165,17 +165,17 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
 }
 
 /**
- * Called to create and send the number of completed packets event to the 
- * host. 
- *  
+ * Called to create and send the number of completed packets event to the
+ * host.
+ *
  * Because of the ridiculous spec, all the connection handles are contiguous and
- * then all the completed packets are contiguous. In order to avoid multiple 
- * passes through the connection list or allocating a large stack variable or 
- * malloc, I just use the event buffer and place the completed packets after 
- * the last possible handle. I then copy the completed packets to make it 
- * contiguous with the handles. 
- *  
- * @param connsm 
+ * then all the completed packets are contiguous. In order to avoid multiple
+ * passes through the connection list or allocating a large stack variable or
+ * malloc, I just use the event buffer and place the completed packets after
+ * the last possible handle. I then copy the completed packets to make it
+ * contiguous with the handles.
+ *
+ * @param connsm
  */
 void
 ble_ll_conn_num_comp_pkts_event_send(void)
@@ -188,7 +188,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
     struct ble_ll_conn_sm *connsm;
 
     /* Check rate limit */
-    if ((uint32_t)(g_ble_ll_next_num_comp_pkt_evt - os_time_get()) < 
+    if ((uint32_t)(g_ble_ll_next_num_comp_pkt_evt - os_time_get()) <
          NIMBLE_OPT_NUM_COMP_PKT_RATE) {
         return;
     }
@@ -200,10 +200,10 @@ ble_ll_conn_num_comp_pkts_event_send(void)
     comp_pkt_ptr = NULL;
     event_sent = 0;
     SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
-        /* 
+        /*
          * Only look at connections that we have sent a connection complete
          * event and that either has packets enqueued or has completed packets.
-         */ 
+         */
         if ((connsm->conn_state != BLE_LL_CONN_STATE_IDLE) &&
             (connsm->completed_pkts || !STAILQ_EMPTY(&connsm->conn_txq))) {
             /* If no buffer, get one, If cant get one, leave. */
@@ -225,10 +225,10 @@ ble_ll_conn_num_comp_pkts_event_send(void)
             comp_pkt_ptr += sizeof(uint16_t);
             ++handles;
 
-            /* 
+            /*
              * The event buffer should fit at least 255 bytes so this means we
              * can fit up to 60 handles per event (a little more but who cares).
-             */ 
+             */
             if (handles == 60) {
                 evbuf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
                 evbuf[1] = (handles * 2 * sizeof(uint16_t)) + 1;
@@ -255,18 +255,18 @@ ble_ll_conn_num_comp_pkts_event_send(void)
     }
 
     if (event_sent) {
-        g_ble_ll_next_num_comp_pkt_evt = os_time_get() + 
+        g_ble_ll_next_num_comp_pkt_evt = os_time_get() +
             NIMBLE_OPT_NUM_COMP_PKT_RATE;
     }
 }
 
 
 /**
- * Send a disconnection complete event. 
- *  
- * NOTE: we currently only send this event when we have a reason to send it; 
- * not when it fails. 
- * 
+ * Send a disconnection complete event.
+ *
+ * NOTE: we currently only send this event when we have a reason to send it;
+ * not when it fails.
+ *
  * @param reason The BLE error code to send as a disconnect reason
  */
 void
@@ -288,13 +288,13 @@ ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
 }
 
 /**
- * Process the HCI command to create a connection. 
- *  
- * Context: Link Layer task (HCI command processing) 
- * 
- * @param cmdbuf 
- * 
- * @return int 
+ * Process the HCI command to create a connection.
+ *
+ * Context: Link Layer task (HCI command processing)
+ *
+ * @param cmdbuf
+ *
+ * @return int
  */
 int
 ble_ll_conn_create(uint8_t *cmdbuf)
@@ -320,7 +320,7 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     hcc->scan_window = le16toh(cmdbuf + 2);
 
     /* Check interval and window */
-    if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) || 
+    if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) ||
         (hcc->scan_itvl > BLE_HCI_SCAN_ITVL_MAX) ||
         (hcc->scan_window < BLE_HCI_SCAN_WINDOW_MIN) ||
         (hcc->scan_window > BLE_HCI_SCAN_WINDOW_MAX) ||
@@ -345,7 +345,7 @@ ble_ll_conn_create(uint8_t *cmdbuf)
         if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
             return BLE_ERR_UNSUPPORTED;
         }
-        
+
         memcpy(&hcc->peer_addr, cmdbuf + 6, BLE_DEV_ADDR_LEN);
     }
 
@@ -367,7 +367,7 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     hcc->supervision_timeout = le16toh(cmdbuf + 19);
     rc = ble_ll_conn_hci_chk_conn_params(hcc->conn_itvl_min,
                                          hcc->conn_itvl_max,
-                                         hcc->conn_latency, 
+                                         hcc->conn_latency,
                                          hcc->supervision_timeout);
     if (rc) {
         return rc;
@@ -425,7 +425,7 @@ ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
     /* Check that parameter values are in range */
     rc = ble_ll_conn_hci_chk_conn_params(hcu->conn_itvl_min,
                                          hcu->conn_itvl_max,
-                                         hcu->conn_latency, 
+                                         hcu->conn_latency,
                                          hcu->supervision_timeout);
 
     /* Check valid min/max ce length */
@@ -437,11 +437,11 @@ ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
 }
 
 /**
- * Called when the host issues the read remote features command 
- * 
- * @param cmdbuf 
- * 
- * @return int 
+ * Called when the host issues the read remote features command
+ *
+ * @param cmdbuf
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
@@ -471,10 +471,10 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
 
 /**
  * Called to process a connection update command.
- * 
- * @param cmdbuf 
- * 
- * @return int 
+ *
+ * @param cmdbuf
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_update(uint8_t *cmdbuf)
@@ -505,13 +505,13 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             return BLE_ERR_UNKNOWN_HCI_CMD;
-        } 
+        }
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
     }
 
-    /* 
+    /*
      * If we are a slave and the master has initiated the procedure already
      * we should deny the slave request for now. If we are a master and the
      * slave has initiated the procedure, we need to send a reject to the
@@ -525,12 +525,12 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
 
             /* XXX: If this fails no reject ind will be sent! */
             ble_ll_ctrl_reject_ind_ext_send(connsm,
-                                            connsm->host_reply_opcode, 
+                                            connsm->host_reply_opcode,
                                             BLE_ERR_LMP_COLLISION);
         }
     }
 
-    /* 
+    /*
      * If we are a slave and the master has initiated the channel map
      * update procedure we should deny the slave request for now.
      */
@@ -556,7 +556,7 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     /* Check that parameter values are in range */
     rc = ble_ll_conn_hci_chk_conn_params(hcu->conn_itvl_min,
                                          hcu->conn_itvl_max,
-                                         hcu->conn_latency, 
+                                         hcu->conn_latency,
                                          hcu->supervision_timeout);
     if (!rc) {
         /* Start the control procedure */
@@ -606,11 +606,11 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
         /* Get a control packet buffer */
         if (positive_reply && (rc == BLE_ERR_SUCCESS)) {
-            om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PAYLOAD + 1, 
+            om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PAYLOAD + 1,
                                     sizeof(struct ble_mbuf_hdr));
             if (om) {
                 dptr = om->om_data;
-                rsp_opcode = ble_ll_ctrl_conn_param_reply(connsm, dptr, 
+                rsp_opcode = ble_ll_ctrl_conn_param_reply(connsm, dptr,
                                                           &connsm->conn_cp);
                 dptr[0] = rsp_opcode;
                 len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
@@ -618,7 +618,7 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
             }
         } else {
             /* XXX: check return code and deal */
-            ble_ll_ctrl_reject_ind_ext_send(connsm, 
+            ble_ll_ctrl_reject_ind_ext_send(connsm,
                                             connsm->host_reply_opcode,
                                             ble_err);
         }
@@ -633,12 +633,12 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
 }
 
 /**
- * Called when HCI command to cancel a create connection command has been 
- * received. 
- *  
- * Context: Link Layer (HCI command parser) 
- * 
- * @return int 
+ * Called when HCI command to cancel a create connection command has been
+ * received.
+ *
+ * Context: Link Layer (HCI command parser)
+ *
+ * @return int
  */
 int
 ble_ll_conn_create_cancel(void)
@@ -647,7 +647,7 @@ ble_ll_conn_create_cancel(void)
     struct ble_ll_conn_sm *connsm;
 
     /* XXX: BUG! I send the event before the command complete. Not good. */
-    /* 
+    /*
      * If we receive this command and we have not got a connection
      * create command, we have to return disallowed. The spec does not say
      * what happens if the connection has already been established. We
@@ -669,13 +669,13 @@ ble_ll_conn_create_cancel(void)
 }
 
 /**
- * Called to process a HCI disconnect command 
- *  
- * Context: Link Layer task (HCI command parser). 
- * 
- * @param cmdbuf 
- * 
- * @return int 
+ * Called to process a HCI disconnect command
+ *
+ * Context: Link Layer task (HCI command parser).
+ *
+ * @param cmdbuf
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
@@ -730,13 +730,13 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
 }
 
 /**
- * Called to process a HCI disconnect command 
- *  
- * Context: Link Layer task (HCI command parser). 
- * 
- * @param cmdbuf 
- * 
- * @return int 
+ * Called to process a HCI disconnect command
+ *
+ * Context: Link Layer task (HCI command parser).
+ *
+ * @param cmdbuf
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
@@ -756,7 +756,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    /* 
+    /*
      * Start this control procedure. If we have already done this control
      * procedure we set the pending bit so that the host gets an event because
      * it is obviously expecting one (or would not have sent the command).
@@ -774,12 +774,12 @@ ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
 
 /**
  * Called to read the RSSI for a given connection handle
- * 
- * @param cmdbuf 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ * @param cmdbuf
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
@@ -808,13 +808,13 @@ ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
- * Called to read the current channel map of a connection 
- * 
- * @param cmdbuf 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ * Called to read the current channel map of a connection
+ *
+ * @param cmdbuf
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
@@ -843,10 +843,10 @@ ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * Called when the host issues the LE command "set host channel classification"
- * 
- * @param cmdbuf 
- * 
- * @return int 
+ *
+ * @param cmdbuf
+ *
+ * @return int
  */
 int
 ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
@@ -854,7 +854,7 @@ ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
     int rc;
     uint8_t num_used_chans;
 
-    /* 
+    /*
      * The HCI command states that the host is allowed to mask in just one
      * channel but the Link Layer needs minimum two channels to operate. So
      * I will not allow this command if there are less than 2 channels masked.
@@ -890,7 +890,7 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         txtime = le16toh(cmdbuf + 4);
 
         /* Make sure it is valid */
-        if (!ble_ll_chk_txrx_octets(txoctets) || 
+        if (!ble_ll_chk_txrx_octets(txoctets) ||
             !ble_ll_chk_txrx_time(txtime)) {
             rc = BLE_ERR_INV_HCI_CMD_PARMS;
         } else {
@@ -899,10 +899,10 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
         /* XXX: should I check against max supported? I think so */
 
-        /* 
+        /*
          * XXX: For now; we will simply ignore what the host asks as we are
-         * allowed to do so by the spec. 
-         */ 
+         * allowed to do so by the spec.
+         */
     }
 
     htole16(rspbuf, handle);

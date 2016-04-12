@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -34,29 +34,29 @@ struct cpu_timer g_ble_ll_sched_timer;
 /* XXX: TODO:
  *  1) Add some accounting to the schedule code to see how late we are
  *  (min/max?)
- * 
+ *
  *  2) Need to determine how we really want to handle the case when we execute
  *  a schedule item but there is a current event. We could:
  *      -> Reschedule the schedule item and let current event finish
  *      -> Kill the current event and run the scheduled item.
  *      -> Disable schedule timer while in an event; could cause us to be late.
- *      -> Wait for current event to finish hoping it does before schedule item. 
+ *      -> Wait for current event to finish hoping it does before schedule item.
  */
 
 /* Queue for timers */
 TAILQ_HEAD(ll_sched_qhead, ble_ll_sched_item) g_ble_ll_sched_q;
 
 /**
- * Checks if two events in the schedule will overlap in time. NOTE: consecutive 
- * schedule items can end and start at the same time. 
- * 
- * @param s1 
- * @param s2 
- * 
+ * Checks if two events in the schedule will overlap in time. NOTE: consecutive
+ * schedule items can end and start at the same time.
+ *
+ * @param s1
+ * @param s2
+ *
  * @return int 0: dont overlap 1:overlap
  */
 static int
-ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1, 
+ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1,
                         struct ble_ll_sched_item *s2)
 {
     int rc;
@@ -77,7 +77,7 @@ ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1,
     return rc;
 }
 
-/* 
+/*
  * Determines if the schedule item overlaps the currently running schedule
  * item. We only care about connection schedule items
  */
@@ -150,7 +150,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
         usecs = XCVR_RX_SCHED_DELAY_USECS;
         usecs += connsm->slave_cur_window_widening;
     } else {
-        usecs = XCVR_TX_SCHED_DELAY_USECS; 
+        usecs = XCVR_TX_SCHED_DELAY_USECS;
     }
     sch->start_time = connsm->anchor_point - cputime_usecs_to_ticks(usecs);
     sch->end_time = connsm->ce_end_time;
@@ -178,7 +178,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
         if (ble_ll_sched_is_overlap(sch, entry)) {
             /* Only insert if this element is older than all that we overlap */
             if ((entry->sched_type == BLE_LL_SCHED_TYPE_ADV) ||
-                !ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg, 
+                !ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
                                     (struct ble_ll_conn_sm *)entry->cb_arg)) {
                 start_overlap = NULL;
                 rc = -1;
@@ -236,7 +236,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
 }
 
 int
-ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend, 
+ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
                         uint8_t req_slots)
 {
     int rc;
@@ -258,14 +258,14 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
     rc = -1;
     sch = &connsm->conn_sch;
 
-    /* 
+    /*
      * The earliest start time is 1.25 msecs from the end of the connect
      * request transmission. Note that adv_rxend is the end of the received
      * advertisement, so we need to add an IFS plus the time it takes to send
      * the connection request
      */
     dur = cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
-    earliest_start = adv_rxend + 
+    earliest_start = adv_rxend +
         cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
                                BLE_LL_CONN_INITIAL_OFFSET);
     earliest_end = earliest_start + dur;
@@ -349,7 +349,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
         sch->end_time = earliest_end;
         connsm->anchor_point = earliest_start +
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-        connsm->ce_end_time = earliest_end; 
+        connsm->ce_end_time = earliest_end;
     }
 
     OS_EXIT_CRITICAL(sr);
@@ -373,8 +373,8 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
     sch = &connsm->conn_sch;
 
     /* Set schedule start and end times */
-    sch->start_time = connsm->anchor_point -  
-        cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS + 
+    sch->start_time = connsm->anchor_point -
+        cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS +
                                connsm->slave_cur_window_widening);
     sch->end_time = connsm->ce_end_time;
 
@@ -576,10 +576,10 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch)
 
 /**
  * Remove a schedule element
- * 
- * @param sched_type 
- * 
- * @return int 
+ *
+ * @param sched_type
+ *
+ * @return int
  */
 void
 ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
@@ -612,12 +612,12 @@ ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
 }
 
 /**
- * Executes a schedule item by calling the schedule callback function. 
- *  
- * Context: Interrupt 
- * 
+ * Executes a schedule item by calling the schedule callback function.
+ *
+ * Context: Interrupt
+ *
  * @param sch Pointer to schedule item
- * 
+ *
  * @return int 0: schedule item is not over; otherwise schedule item is done.
  */
 static int
@@ -626,7 +626,7 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     int rc;
     uint8_t lls;
 
-    /* 
+    /*
      * This is either an advertising event or connection event start. If
      * we are scanning or initiating just stop it.
      */
@@ -635,7 +635,7 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
         /* We have to disable the PHY no matter what */
         ble_phy_disable();
         ble_ll_wfr_disable();
-        if ((lls == BLE_LL_STATE_SCANNING) || 
+        if ((lls == BLE_LL_STATE_SCANNING) ||
             (lls == BLE_LL_STATE_INITIATING)) {
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
         } else if (lls == BLE_LL_STATE_ADV) {
@@ -654,10 +654,10 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
 
 /**
  * Run the BLE scheduler. Iterate through all items on the schedule queue.
- *  
- * Context: interrupt (scheduler) 
- * 
- * @return int 
+ *
+ * Context: interrupt (scheduler)
+ *
+ * @return int
  */
 void
 ble_ll_sched_run(void *arg)
@@ -680,14 +680,14 @@ ble_ll_sched_run(void *arg)
 }
 
 /**
- * Called to determine when the next scheduled event will occur. 
- *  
- * If there are not scheduled events this function returns 0; otherwise it 
- * returns 1 and *next_event_time is set to the start time of the next event. 
- * 
- * @param next_event_time 
- * 
- * @return int 0: No events are scheduled 1: there is an upcoming event 
+ * Called to determine when the next scheduled event will occur.
+ *
+ * If there are not scheduled events this function returns 0; otherwise it
+ * returns 1 and *next_event_time is set to the start time of the next event.
+ *
+ * @param next_event_time
+ *
+ * @return int 0: No events are scheduled 1: there is an upcoming event
  */
 int
 ble_ll_sched_next_time(uint32_t *next_event_time)
@@ -710,8 +710,8 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 
 /**
  * Stop the scheduler
- *  
- * Context: Link Layer task 
+ *
+ * Context: Link Layer task
  */
 void
 ble_ll_sched_stop(void)
@@ -720,10 +720,10 @@ ble_ll_sched_stop(void)
 }
 
 /**
- * Initialize the scheduler. Should only be called once and should be called 
- * before any of the scheduler API are called. 
- * 
- * @return int 
+ * Initialize the scheduler. Should only be called once and should be called
+ * before any of the scheduler API are called.
+ *
+ * @return int
  */
 int
 ble_ll_sched_init(void)
