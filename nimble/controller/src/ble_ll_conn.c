@@ -1352,7 +1352,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
     if (connsm->csmflags.cfbit.allow_slave_latency      &&
-        !connsm->csmflags.cfbit.conn_update_scheduled   &&
+        !connsm->csmflags.cfbit.conn_update_sched       &&
         !connsm->csmflags.cfbit.chanmap_update_scheduled) {
         if (connsm->csmflags.cfbit.pkt_rxd) {
             latency += connsm->slave_latency;
@@ -1370,7 +1370,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * connection by the the transmit window offset. We also copy in the
      * update parameters as they now should take effect.
      */
-    if (connsm->csmflags.cfbit.conn_update_scheduled &&
+    if (connsm->csmflags.cfbit.conn_update_sched &&
         (connsm->event_cntr == connsm->conn_update_req.instant)) {
 
         /* Set flag so we send connection update event */
@@ -1400,7 +1400,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         cputime_timer_start(&connsm->conn_spvn_timer, connsm->anchor_point+tmo);
 
         /* Reset update scheduled flag */
-        connsm->csmflags.cfbit.conn_update_scheduled = 0;
+        connsm->csmflags.cfbit.conn_update_sched = 0;
     }
 
     /*
@@ -1764,9 +1764,8 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
     /* Get the connection state machine we are trying to create */
     connsm = g_ble_ll_conn_create_sm;
 
-    /* If we have sent a connect request, we need to enter CONNECTION state*/
-    if (connsm && BLE_MBUF_HDR_CRC_OK(ble_hdr) &&
-        (ble_hdr->rxinfo.flags & BLE_MBUF_HDR_F_CONN_REQ_TXD)) {
+    /* If we have sent a connect request, we need to enter CONNECTION state */
+    if (connsm && CONN_F_CONN_REQ_TXD(connsm)) {
         /* Set address of advertiser to which we are connecting. */
         if (ble_ll_scan_whitelist_enabled()) {
             /*
@@ -1892,7 +1891,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             rc = ble_ll_conn_request_send(addr_type, adv_addr,
                                           g_ble_ll_conn_create_sm->tx_win_off);
             if (!rc) {
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CONN_REQ_TXD;
+                CONN_F_CONN_REQ_TXD(g_ble_ll_conn_create_sm) = 1;
                 STATS_INC(ble_ll_conn_stats, conn_req_txd);
             }
         } else {

@@ -72,14 +72,14 @@ union ble_ll_conn_sm_flags {
         uint16_t slave_set_last_anchor:1;
         uint16_t awaiting_host_reply:1;
         uint16_t send_conn_upd_event:1;
-        uint16_t conn_update_scheduled:1;
+        uint16_t conn_update_sched:1;
         uint16_t host_expects_upd_event:1;
         uint16_t version_ind_sent:1;
         uint16_t rxd_version_ind:1;
         uint16_t chanmap_update_scheduled:1;
         uint16_t conn_empty_pdu_txd:1;
         uint16_t last_txd_md:1;
-        uint16_t reserved:1;
+        uint16_t conn_req_txd:1;
     } cfbit;
     uint16_t conn_flags;
 } __attribute__((packed));
@@ -212,9 +212,10 @@ struct ble_ll_conn_sm
 };
 
 /* Flags */
-#define CONN_F_UPDATE_SCHED(csm)    (csm->csmflags.cfbit.conn_update_scheduled)
-#define CONN_F_EMPTY_PDU_TXD(csm)   (csm->csmflags.cfbit.conn_empty_pdu_txd)
-#define CONN_F_LAST_TXD_MD(csm)     (csm->csmflags.cfbit.last_txd_md)
+#define CONN_F_UPDATE_SCHED(csm)    ((csm)->csmflags.cfbit.conn_update_sched)
+#define CONN_F_EMPTY_PDU_TXD(csm)   ((csm)->csmflags.cfbit.conn_empty_pdu_txd)
+#define CONN_F_LAST_TXD_MD(csm)     ((csm)->csmflags.cfbit.last_txd_md)
+#define CONN_F_CONN_REQ_TXD(csm)    ((csm)->csmflags.cfbit.conn_req_txd)
 
 /*
  * Given a handle, returns an active connection state machine (or NULL if the
