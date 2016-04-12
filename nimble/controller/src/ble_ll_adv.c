@@ -1046,7 +1046,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
  *   > 0: Continue to receive frame and go from rx to tx when done
  */
 int
-ble_ll_adv_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
+ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 {
     int rc;
     struct ble_ll_adv_sm *advsm;
