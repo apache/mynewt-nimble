@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -20,13 +20,13 @@
 #ifndef H_BLE_LL_ADV_
 #define H_BLE_LL_ADV_
 
-/* 
+/*
  * ADV event timing
  *      T_advEvent = advInterval + advDelay
- * 
+ *
  *      advInterval: increments of 625 usecs
  *      advDelay: RAND[0, 10] msecs
- * 
+ *
  */
 #define BLE_LL_ADV_ITVL                 (625)           /* usecs */
 #define BLE_LL_ADV_ITVL_MIN             (32)            /* units */
@@ -46,39 +46,39 @@
 /* Maximum advertisement data length */
 #define BLE_ADV_DATA_MAX_LEN            (31)
 
-/* 
+/*
  * ADV_IND
  *      -> AdvA     (6 bytes)
  *      -> AdvData  (0 - 31 bytes)
- * 
- *  The advertising address (AdvA) is a public address (TxAdd=0) or random 
+ *
+ *  The advertising address (AdvA) is a public address (TxAdd=0) or random
  *  address (TxAdd = 1)
  */
 #define BLE_ADV_IND_MIN_LEN             (6)
 #define BLE_ADV_IND_MAX_LEN             (37)
 
-/* 
+/*
  * ADV_DIRECT_IND
  *      -> AdvA     (6 bytes)
  *      -> InitA    (6 bytes)
- * 
+ *
  *  AdvA is the advertisers public address (TxAdd=0) or random address
  *  (TxAdd = 1).
- * 
+ *
  *  InitA is the initiators public or random address. This is the address
  *  to which this packet is addressed.
- * 
+ *
  */
 #define BLE_ADV_DIRECT_IND_LEN          (12)
 
 /*
- * ADV_NONCONN_IND 
+ * ADV_NONCONN_IND
  *      -> AdvA     (6 bytes)
  *      -> AdvData  (0 - 31 bytes)
- * 
- *  The advertising address (AdvA) is a public address (TxAdd=0) or random 
+ *
+ *  The advertising address (AdvA) is a public address (TxAdd=0) or random
  *  address (TxAdd = 1)
- * 
+ *
  */
 #define BLE_ADV_NONCONN_IND_MIN_LEN     (6)
 #define BLE_ADV_NONCONN_IND_MAX_LEN     (37)
@@ -87,17 +87,17 @@
  * ADV_SCAN_IND
  *      -> AdvA     (6 bytes)
  *      -> AdvData  (0 - 31 bytes)
- * 
- *  The advertising address (AdvA) is a public address (TxAdd=0) or random 
+ *
+ *  The advertising address (AdvA) is a public address (TxAdd=0) or random
  *  address (TxAdd = 1)
- * 
+ *
  */
 #define BLE_ADV_SCAN_IND_MIN_LEN        (6)
 #define BLE_ADV_SCAN_IND_MAX_LEN        (37)
 
 /*---- HCI ----*/
 /* Start an advertiser */
-int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type, 
+int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type,
                          uint8_t *init_addr, uint16_t adv_itvl, void *handle);
 
 /* Start or stop advertising */

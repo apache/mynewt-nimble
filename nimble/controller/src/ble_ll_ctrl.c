@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -27,7 +27,7 @@
 #include "controller/ble_ll_ctrl.h"
 #include "ble_ll_conn_priv.h"
 
-/* 
+/*
  * XXX: TODO
  *  1) Do I need to keep track of which procedures have already been done?
  *     Do I need to worry about repeating procedures?
@@ -52,7 +52,7 @@
  *  slave supports that feature
  */
 
-/* 
+/*
  * XXX: I definitely have an issue with control procedures and connection
  * param request procedure and connection update procedure. This was
  * noted when receiving an unknown response. Right now, I am getting confused
@@ -62,7 +62,7 @@
  * the correct thing.
  */
 
-/* 
+/*
  * This array contains the length of the CtrData field in LL control PDU's.
  * Note that there is a one byte opcode which precedes this field in the LL
  * control PDU, so total data channel payload length for the control pdu is
@@ -78,7 +78,7 @@ ble_ll_ctrl_chk_supp_bytes(uint16_t bytes)
 {
     int rc;
 
-    if ((bytes < BLE_LL_CONN_SUPP_BYTES_MIN) || 
+    if ((bytes < BLE_LL_CONN_SUPP_BYTES_MIN) ||
         (bytes > BLE_LL_CONN_SUPP_BYTES_MAX)) {
         rc = 0;
     } else {
@@ -109,7 +109,7 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     struct ble_ll_len_req ctrl_req;
 
     /* Extract parameters and check if valid */
-    ctrl_req.max_rx_bytes = le16toh(dptr); 
+    ctrl_req.max_rx_bytes = le16toh(dptr);
     ctrl_req.max_rx_time = le16toh(dptr + 2);
     ctrl_req.max_tx_bytes = le16toh(dptr + 4);
     ctrl_req.max_tx_time = le16toh(dptr + 6);
@@ -129,14 +129,14 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 /**
- * Called when we receive either a connection parameter request or response. 
- * 
- * @param connsm 
- * @param dptr 
- * @param rspbuf 
- * @param opcode 
- * 
- * @return int 
+ * Called when we receive either a connection parameter request or response.
+ *
+ * @param connsm
+ * @param dptr
+ * @param rspbuf
+ * @param opcode
+ *
+ * @return int
  */
 static int
 ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
@@ -166,21 +166,21 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* Check if parameters are valid */
     ble_err = BLE_ERR_SUCCESS;
-    rc = ble_ll_conn_hci_chk_conn_params(req->interval_min, 
+    rc = ble_ll_conn_hci_chk_conn_params(req->interval_min,
                                          req->interval_max,
-                                         req->latency, 
+                                         req->latency,
                                          req->timeout);
     if (rc) {
         ble_err = BLE_ERR_INV_LMP_LL_PARM;
         goto conn_param_pdu_exit;
     }
 
-    /* 
+    /*
      * Check if there is a requested change to either the interval, timeout
      * or latency. If not, this may just be an anchor point change and we do
      * not have to notify the host.
      *  XXX: what if we dont like the parameters? When do we check that out?
-     */ 
+     */
     indicate = 1;
     if (opcode == BLE_LL_CTRL_CONN_PARM_REQ) {
         if ((connsm->conn_itvl >= req->interval_min) &&
@@ -192,17 +192,17 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         }
     }
 
-    /* 
+    /*
      * A change has been requested. Is it within the values specified by
      * the host? Note that for a master we will not be processing a
      * connect param request from a slave if we are currently trying to
      * update the connection parameters. This means that the previous
      * check is all we need for a master (when receiving a request).
      */
-    if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) || 
+    if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) ||
         (opcode == BLE_LL_CTRL_CONN_PARM_RSP)) {
-        /* 
-         * Not sure what to do about the slave. It is possible that the 
+        /*
+         * Not sure what to do about the slave. It is possible that the
          * current connection parameters are not the same ones as the local host
          * has provided? Not sure what to do here. Do we need to remember what
          * host sent us? For now, I will assume that we need to remember what
@@ -222,15 +222,15 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     }
 
 conn_parm_req_do_indicate:
-    /* 
+    /*
      * XXX: are the connection update parameters acceptable? If not, we will
      * need to know before we indicate to the host that they are acceptable.
-     */ 
+     */
     if (indicate) {
-        /* 
+        /*
          * Send event to host. At this point we leave and wait to get
          * an answer.
-         */ 
+         */
         /* XXX: what about masked out event? */
         ble_ll_hci_ev_rem_conn_parm_req(connsm, req);
         connsm->host_reply_opcode = opcode;
@@ -252,10 +252,10 @@ conn_param_pdu_exit:
 
 /**
  * Called to process and UNKNOWN_RSP LL control packet.
- * 
- * Context: Link Layer Task 
- *  
- * @param dptr 
+ *
+ * Context: Link Layer Task
+ *
+ * @param dptr
  */
 static void
 ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
@@ -303,12 +303,12 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 /**
- * Create a link layer length request or length response PDU. 
- *  
- * NOTE: this function does not set the LL data pdu header nor does it 
- * set the opcode in the buffer. 
- * 
- * @param connsm 
+ * Create a link layer length request or length response PDU.
+ *
+ * NOTE: this function does not set the LL data pdu header nor does it
+ * set the opcode in the buffer.
+ *
+ * @param connsm
  * @param dptr: Pointer to where control pdu payload starts
  */
 static void
@@ -322,10 +322,10 @@ ble_ll_ctrl_datalen_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 
 /**
  * Called to make a connection parameter request or response control pdu.
- * 
- * @param connsm 
- * @param dptr Pointer to start of data. NOTE: the opcode is not part 
- *             of the data. 
+ *
+ * @param connsm
+ * @param dptr Pointer to start of data. NOTE: the opcode is not part
+ *             of the data.
  */
 static void
 ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
@@ -385,7 +385,7 @@ ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 
 /**
  * Called to make a LL control channel map request PDU.
- * 
+ *
  * @param connsm    Pointer to connection state machine
  * @param pyld      Pointer to payload of LL control PDU
  */
@@ -406,11 +406,11 @@ ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 
 /**
  * Called to make a connection update request LL control PDU
- *  
- * Context: Link Layer 
- * 
- * @param connsm 
- * @param rsp 
+ *
+ * Context: Link Layer
+ *
+ * @param connsm
+ * @param rsp
  */
 static void
 ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
@@ -424,16 +424,16 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
     struct hci_conn_update *hcu;
     struct ble_ll_conn_upd_req *req;
 
-    /* 
+    /*
      * Set instant. We set the instant to the current event counter plus
      * the amount of slave latency as the slave may not be listening
      * at every connection interval and we are not sure when the connect
      * request will actually get sent. We add one more event plus the
      * minimum as per the spec of 6 connection events.
-     */ 
+     */
     instant = connsm->event_cntr + connsm->slave_latency + 6 + 1;
 
-    /* 
+    /*
      * XXX: This should change in the future, but for now we will just
      * start the new instant at the same anchor using win offset 0.
      */
@@ -490,14 +490,14 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
 }
 
 /**
- * Called to respond to a LL control PDU connection parameter request or 
- * response. 
- * 
- * @param connsm 
- * @param rsp 
- * @param req 
- * 
- * @return uint8_t 
+ * Called to respond to a LL control PDU connection parameter request or
+ * response.
+ *
+ * @param connsm
+ * @param rsp
+ * @param req
+ *
+ * @return uint8_t
  */
 uint8_t
 ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, uint8_t *rsp,
@@ -520,12 +520,12 @@ ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, uint8_t *rsp,
 
 /**
  * Called when we receive a connection update event
- * 
- * @param connsm 
- * @param dptr 
- * @param rspbuf 
- * 
- * @return int 
+ *
+ * @param connsm
+ * @param dptr
+ * @param rspbuf
+ *
+ * @return int
  */
 static int
 ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
@@ -542,7 +542,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* Retrieve parameters */
     reqdata = &connsm->conn_update_req;
-    reqdata->winsize = dptr[0]; 
+    reqdata->winsize = dptr[0];
     reqdata->winoffset = le16toh(dptr + 1);
     reqdata->interval = le16toh(dptr + 3);
     reqdata->latency = le16toh(dptr + 5);
@@ -565,16 +565,16 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 }
 
 /**
- * Called when we receive a feature request or a slave initiated feature 
- * request. 
- * 
- * 
- * @param connsm 
- * @param dptr 
- * @param rspbuf 
+ * Called when we receive a feature request or a slave initiated feature
+ * request.
+ *
+ *
+ * @param connsm
+ * @param dptr
+ * @param rspbuf
  * @param opcode
- * 
- * @return int 
+ *
+ * @return int
  */
 static int
 ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
@@ -582,7 +582,7 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 {
     uint8_t rsp_opcode;
 
-    /* 
+    /*
      * Only accept slave feature requests if we are a master and feature
      * requests if we are a slave.
      */
@@ -607,15 +607,15 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 }
 
 /**
- * 
- * 
- * Context: Link Layer task 
- *  
- * @param connsm 
- * @param dptr 
- * @param rspbuf 
- * 
- * @return int 
+ *
+ *
+ * Context: Link Layer task
+ *
+ * @param connsm
+ * @param dptr
+ * @param rspbuf
+ *
+ * @return int
  */
 static int
 ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
@@ -623,7 +623,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 {
     uint8_t rsp_opcode;
 
-    /* 
+    /*
      * This is not in the specification per se but it simplifies the
      * implementation. If we get a connection parameter request and we
      * are awaiting a reply from the host, simply ignore the request. This
@@ -649,7 +649,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * and we receive a request we "consider the slave initiated
      * procedure as complete". This means send a connection update complete
      * event (with error).
-     * 
+     *
      * If a master, we send reject with a
      * transaction collision error code.
      */
@@ -666,10 +666,10 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         }
     }
 
-    /* 
+    /*
      * If we are a master and we currently performing a channel map
      * update procedure we need to return an error
-     */ 
+     */
     if ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) &&
         (connsm->csmflags.cfbit.chanmap_update_scheduled)) {
         rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
@@ -695,12 +695,12 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         return BLE_ERR_MAX;
     }
 
-    /* 
+    /*
      * This case should never happen! It means that the slave initiated a
      * procedure and the master initiated one as well. If we do get in this
      * state just clear the awaiting reply. The slave will hopefully stop its
      * procedure when we reply.
-     */ 
+     */
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
         connsm->csmflags.cfbit.awaiting_host_reply = 0;
     }
@@ -718,17 +718,17 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
 /**
  * Called to process the LL control PDU VERSION_IND
- *  
- * Context: Link Layer task 
- * 
- * @param connsm 
- * @param dptr 
- * @param rspbuf 
- * 
- * @return int 
+ *
+ * Context: Link Layer task
+ *
+ * @param connsm
+ * @param dptr
+ * @param rspbuf
+ *
+ * @return int
  */
 static int
-ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr, 
+ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                            uint8_t *rspbuf)
 {
     uint8_t rsp_opcode;
@@ -754,12 +754,12 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 }
 
 /**
- * Called to process a received channel map request control pdu. 
- *  
- * Context: Link Layer task 
- * 
- * @param connsm 
- * @param dptr 
+ * Called to process a received channel map request control pdu.
+ *
+ * Context: Link Layer task
+ *
+ * @param connsm
+ * @param dptr
  */
 static void
 ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
@@ -782,12 +782,12 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 /**
- * Callback when LL control procedure times out (for a given connection). If 
- * this is called, it means that we need to end the connection because it 
- * has not responded to a LL control request. 
- *  
- * Context: Link Layer 
- * 
+ * Callback when LL control procedure times out (for a given connection). If
+ * this is called, it means that we need to end the connection because it
+ * has not responded to a LL control request.
+ *
+ * Context: Link Layer
+ *
  * @param arg Pointer to connection state machine.
  */
 void
@@ -798,16 +798,16 @@ ble_ll_ctrl_proc_rsp_timer_cb(void *arg)
 }
 
 /**
- * Initiate LL control procedure. 
- *  
- * This function is called to obtain a mbuf to send a LL control PDU. The data 
- * channel PDU header is not part of the mbuf data; it is part of the BLE 
- * header (which is part of the mbuf). 
- *  
- * Context: LL task. 
- * 
- * @param connsm 
- * @param ctrl_proc 
+ * Initiate LL control procedure.
+ *
+ * This function is called to obtain a mbuf to send a LL control PDU. The data
+ * channel PDU header is not part of the mbuf data; it is part of the BLE
+ * header (which is part of the mbuf).
+ *
+ * Context: LL task.
+ *
+ * @param connsm
+ * @param ctrl_proc
  */
 static struct os_mbuf *
 ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
@@ -873,12 +873,12 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 }
 
 /**
- * Called to determine if the pdu is a TERMINATE_IND 
- * 
- * @param hdr 
- * @param opcode 
- * 
- * @return int 
+ * Called to determine if the pdu is a TERMINATE_IND
+ *
+ * @param hdr
+ * @param opcode
+ *
+ * @return int
  */
 int
 ble_ll_ctrl_is_terminate_ind(uint8_t hdr, uint8_t opcode)
@@ -895,12 +895,12 @@ ble_ll_ctrl_is_terminate_ind(uint8_t hdr, uint8_t opcode)
 }
 
 /**
- * Called to determine if the pdu is a TERMINATE_IND 
- * 
- * @param hdr 
- * @param opcode 
- * 
- * @return int 
+ * Called to determine if the pdu is a TERMINATE_IND
+ *
+ * @param hdr
+ * @param opcode
+ *
+ * @return int
  */
 int
 ble_ll_ctrl_is_reject_ind_ext(uint8_t hdr, uint8_t opcode)
@@ -918,12 +918,12 @@ ble_ll_ctrl_is_reject_ind_ext(uint8_t hdr, uint8_t opcode)
 
 
 /**
- * Stops the LL control procedure indicated by 'ctrl_proc'. 
- *  
- * Context: Link Layer task 
- * 
- * @param connsm 
- * @param ctrl_proc 
+ * Stops the LL control procedure indicated by 'ctrl_proc'.
+ *
+ * Context: Link Layer task
+ *
+ * @param connsm
+ * @param ctrl_proc
  */
 void
 ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc)
@@ -939,11 +939,11 @@ ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 }
 
 /**
- * Called to start the terminate procedure. 
- *  
- * Context: Link Layer task. 
- *  
- * @param connsm 
+ * Called to start the terminate procedure.
+ *
+ * Context: Link Layer task.
+ *
+ * @param connsm
  */
 void
 ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
@@ -961,7 +961,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
 
         /* Set terminate "timeout" */
         usecs = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
-        connsm->terminate_timeout = cputime_get32() + 
+        connsm->terminate_timeout = cputime_get32() +
             cputime_usecs_to_ticks(usecs);
     }
 }
@@ -969,10 +969,10 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
 /**
  * Called to start a LL control procedure except for the terminate procedure. We
  * always set the control procedure pending bit even if the control procedure
- * has been initiated. 
- *  
- * Context: Link Layer task. 
- * 
+ * has been initiated.
+ *
+ * Context: Link Layer task.
+ *
  * @param connsm Pointer to connection state machine.
  */
 void
@@ -993,12 +993,12 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             /* Initialize the procedure response timeout */
             if (ctrl_proc != BLE_LL_CTRL_PROC_CHAN_MAP_UPD) {
                 os_callout_func_init(&connsm->ctrl_proc_rsp_timer,
-                                     &g_ble_ll_data.ll_evq, 
-                                     ble_ll_ctrl_proc_rsp_timer_cb, 
+                                     &g_ble_ll_data.ll_evq,
+                                     ble_ll_ctrl_proc_rsp_timer_cb,
                                      connsm);
 
                 /* Re-start timer. Control procedure timeout is 40 seconds */
-                os_callout_reset(&connsm->ctrl_proc_rsp_timer.cf_c, 
+                os_callout_reset(&connsm->ctrl_proc_rsp_timer.cf_c,
                                  OS_TICKS_PER_SEC * BLE_LL_CTRL_PROC_TIMEOUT);
             }
         }
@@ -1009,11 +1009,11 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 }
 
 /**
- * Called to determine if we need to start a LL control procedure for the given 
- * connection. 
- *  
- * Context: Link Layer 
- *  
+ * Called to determine if we need to start a LL control procedure for the given
+ * connection.
+ *
+ * Context: Link Layer
+ *
  * @param connsm Pointer to connection state machine.
  */
 void
@@ -1023,11 +1023,11 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 
     /* If we are terminating, dont start any new procedures */
     if (connsm->disconnect_reason) {
-        /* 
+        /*
          * If the terminate procedure is not pending it means we were not
          * able to start it right away (no control pdu was available).
          * Start it now.
-         */ 
+         */
         ble_ll_ctrl_terminate_start(connsm);
         return;
     }
@@ -1035,17 +1035,17 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
     /* If there is a running procedure or no pending, do nothing */
     if ((connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) &&
         (connsm->pending_ctrl_procs != 0)) {
-        /* 
+        /*
          * The specification says there is no priority to control procedures
          * so just start from the first one for now.
          */
         for (i = 0; i < BLE_LL_CTRL_PROC_NUM; ++i) {
             if (IS_PENDING_CTRL_PROC(connsm, i)) {
-                /* 
+                /*
                  * The version exchange is a special case. If we have already
                  * received the information dont start it.
-                 */ 
-                if ((i == BLE_LL_CTRL_PROC_VERSION_XCHG) && 
+                 */
+                if ((i == BLE_LL_CTRL_PROC_VERSION_XCHG) &&
                     (connsm->csmflags.cfbit.rxd_version_ind)) {
                     ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
                     CLR_PENDING_CTRL_PROC(connsm, i);
@@ -1059,15 +1059,15 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 }
 
 /**
- * Called when the Link Layer receives a LL control PDU. 
- *  
- * NOTE: this function uses the received PDU for the response in some cases. If 
- * the received PDU is not used it needs to be freed here. 
- *  
- * Context: Link Layer 
- * 
- * @param om 
- * @param connsm 
+ * Called when the Link Layer receives a LL control PDU.
+ *
+ * NOTE: this function uses the received PDU for the response in some cases. If
+ * the received PDU is not used it needs to be freed here.
+ *
+ * Context: Link Layer
+ *
+ * @param om
+ * @param connsm
  */
 int
 ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
@@ -1094,7 +1094,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     /* Move data pointer to start of control data (2 byte PDU hdr + opcode) */
     dptr += (BLE_LL_PDU_HDR_LEN + 1);
 
-    /* 
+    /*
      * Subtract the opcode from the length. Note that if the length was zero,
      * which would be an error, we will fail the check against the length
      * of the control packet.
@@ -1102,7 +1102,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     --len;
 
     /* opcode must be good */
-    if ((opcode >= BLE_LL_CTRL_OPCODES) || 
+    if ((opcode >= BLE_LL_CTRL_OPCODES) ||
         (len != g_ble_ll_ctrl_pkt_lengths[opcode])) {
         goto rx_malformed_ctrl;
     }
@@ -1153,7 +1153,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
             goto rx_malformed_ctrl;
         }
 
-        /* 
+        /*
          * If we have not started this procedure ourselves and it is
          * pending, no need to perform it.
          */
@@ -1250,13 +1250,13 @@ rx_malformed_ctrl:
 
 /**
  * Called to creeate and send a REJECT_IND_EXT control PDU
- * 
- * 
- * @param connsm 
- * @param rej_opcode 
- * @param err 
- * 
- * @return int 
+ *
+ *
+ * @param connsm
+ * @param rej_opcode
+ * @param err
+ *
+ * @return int
  */
 int
 ble_ll_ctrl_reject_ind_ext_send(struct ble_ll_conn_sm *connsm,

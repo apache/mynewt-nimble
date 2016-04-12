@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -47,11 +47,11 @@
  * that currently.
  */
 
-/* 
- * Advertising state machine 
- * 
+/*
+ * Advertising state machine
+ *
  * The advertising state machine data structure.
- * 
+ *
  *  adv_pdu_len
  *      The length of the advertising PDU that will be sent. This does not
  *      include the preamble, access address and CRC.
@@ -86,18 +86,18 @@ struct ble_ll_adv_sm
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm;
 
-/* 
+/*
  * Worst case time needed for scheduled advertising item. This is the longest
  * possible time to receive a scan request and send a scan response (with the
  * appropriate IFS time between them). This number is calculated using the
  * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
  * Note: worst case time to tx adv, rx scan req and send scan rsp is 1228 usecs.
  * This assumes maximum sized advertising PDU and scan response PDU.
- * 
+ *
  * For connectable advertising events no scan request is allowed. In this case
  * we just need to receive a connect request PDU: IFS + CONNECT_REQ = 150 + 352.
  * Note: worst-case is 376 + 150 + 352 = 878 usecs
- * 
+ *
  * NOTE: The advertising PDU transmit time is NOT included here since we know
  * how long that will take (worst-case is 376 usecs).
  */
@@ -105,11 +105,11 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm;
 #define BLE_LL_ADV_DIRECT_SCHED_MAX_USECS   (502)
 
 /**
- * Calculate the first channel that we should advertise upon when we start 
- * an advertising event. 
- * 
- * @param advsm 
- * 
+ * Calculate the first channel that we should advertise upon when we start
+ * an advertising event.
+ *
+ * @param advsm
+ *
  * @return uint8_t The number of the first channel usable for advertising.
  */
 static uint8_t
@@ -130,11 +130,11 @@ ble_ll_adv_first_chan(struct ble_ll_adv_sm *advsm)
 }
 
 /**
- * Compares the advertiser address in an advertising PDU (scan request or 
+ * Compares the advertiser address in an advertising PDU (scan request or
  * connect request) with our address to see if there is a match
- * 
+ *
  * @param rxbuf Pointer to received PDU
- * 
+ *
  * @return int Returns memcmp return values (0 = match).
  */
 static int
@@ -160,8 +160,8 @@ ble_ll_adv_addr_cmp(uint8_t *rxbuf)
 }
 
 /**
- * Create the advertising PDU 
- * 
+ * Create the advertising PDU
+ *
  * @param advsm Pointer to advertisement state machine
  */
 static void
@@ -255,9 +255,9 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
 }
 
 /**
- * Create a scan response PDU 
- * 
- * @param advsm 
+ * Create a scan response PDU
+ *
+ * @param advsm
  */
 static void
 ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
@@ -309,11 +309,11 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 
 /**
  * Called to indicate the advertising event is over.
- *  
- * Context: Interrupt 
- * 
- * @param advsm 
- * 
+ *
+ * Context: Interrupt
+ *
+ * @param advsm
+ *
  */
 static void
 ble_ll_adv_tx_done(void *arg)
@@ -329,14 +329,14 @@ ble_ll_adv_tx_done(void *arg)
 }
 
 /**
- * This is the scheduler callback (called from interrupt context) which 
- * transmits an advertisement. 
- *  
- * Context: Interrupt (scheduler) 
- *  
- * @param sch 
- * 
- * @return int 
+ * This is the scheduler callback (called from interrupt context) which
+ * transmits an advertisement.
+ *
+ * Context: Interrupt (scheduler)
+ *
+ * @param sch
+ *
+ * @return int
  */
 static int
 ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
@@ -425,14 +425,14 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm, int sched_new)
         break;
     }
 
-    /* 
+    /*
      * XXX: For now, just schedule some additional time so we insure we have
      * enough time to do everything we want.
      */
     max_usecs += XCVR_PROC_DELAY_USECS;
 
     if (sched_new) {
-        /* 
+        /*
          * We have to add the scheduling delay and tx start delay to the max
          * time of the event since the pdu does not start at the scheduled start.
          */
@@ -440,18 +440,18 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm, int sched_new)
         sch->start_time = cputime_get32();
         sch->end_time = sch->start_time + cputime_usecs_to_ticks(max_usecs);
     } else {
-        sch->start_time = advsm->adv_pdu_start_time - 
+        sch->start_time = advsm->adv_pdu_start_time -
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-        sch->end_time = advsm->adv_pdu_start_time + 
+        sch->end_time = advsm->adv_pdu_start_time +
             cputime_usecs_to_ticks(max_usecs);
     }
 }
 
 /**
- * Called when advertising need to be halted. This normally should not be called 
- * and is only called when a scheduled item executes but advertising is still 
- * running. 
- * 
+ * Called when advertising need to be halted. This normally should not be called
+ * and is only called when a scheduled item executes but advertising is still
+ * running.
+ *
  */
 void
 ble_ll_adv_halt(void)
@@ -460,14 +460,14 @@ ble_ll_adv_halt(void)
 }
 
 /**
- * Called by the HCI command parser when a set advertising parameters command 
- * has been received. 
- *  
- * Context: Link Layer task (HCI command parser) 
- * 
- * @param cmd 
- * 
- * @return int 
+ * Called by the HCI command parser when a set advertising parameters command
+ * has been received.
+ *
+ * Context: Link Layer task (HCI command parser)
+ *
+ * @param cmd
+ *
+ * @return int
  */
 int
 ble_ll_adv_set_adv_params(uint8_t *cmd)
@@ -493,7 +493,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     adv_itvl_max = le16toh(cmd + 2);
     adv_type = cmd[4];
 
-    /* 
+    /*
      * Get the filter policy now since we will ignore it if we are doing
      * directed advertising
      */
@@ -527,8 +527,8 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     }
 
     /* Make sure interval minimum is valid for the advertising type */
-    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) || 
-        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) || 
+    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) ||
+        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
         (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -542,10 +542,10 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* 
+    /*
      * XXX: return unsupported feature if own is address is not public or
      * static random as we have not implemented non-static random addresses.
-     */ 
+     */
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         return BLE_ERR_UNSUPPORTED;
     }
@@ -574,11 +574,11 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
 }
 
 /**
- * Stop advertising state machine 
- *  
+ * Stop advertising state machine
+ *
  * Context: Link Layer task.
- * 
- * @param advsm 
+ *
+ * @param advsm
  */
 static void
 ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
@@ -604,28 +604,28 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 }
 
 /**
- * Start the advertising state machine. This is called when the host sends 
- * the "enable advertising" command and is not called again while in the 
- * advertising state. 
- *  
- * Context: Link-layer task. 
- * 
+ * Start the advertising state machine. This is called when the host sends
+ * the "enable advertising" command and is not called again while in the
+ * advertising state.
+ *
+ * Context: Link-layer task.
+ *
  * @param advsm Pointer to advertising state machine
- * 
- * @return int 
+ *
+ * @return int
  */
 static int
 ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
 
-    /* 
+    /*
      * This is not in the specification. I will reject the command with a
      * command disallowed error if no random address has been sent by the
      * host. All the parameter errors refer to the command
      * parameter (which in this case is just enable or disable) so that
      * is why I chose command disallowed.
-     */ 
+     */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
@@ -656,7 +656,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     adv_chan = ble_ll_adv_first_chan(advsm);
     advsm->adv_chan = adv_chan;
 
-    /* 
+    /*
      * Schedule advertising. We set the initial schedule start and end
      * times to the earliest possible start/end.
      */
@@ -679,7 +679,7 @@ ble_ll_adv_scheduled(uint32_t sch_start)
 
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
-    /* 
+    /*
      * Set the time at which we must end directed, high-duty cycle advertising.
      * Does not matter that we calculate this value if we are not doing high
      * duty cycle advertising.
@@ -689,12 +689,12 @@ ble_ll_adv_scheduled(uint32_t sch_start)
 }
 
 /**
- * Called when the LE HCI command read advertising channel tx power command 
- * has been received. Returns the current advertising transmit power. 
- *  
- * Context: Link Layer task (HCI command parser) 
- * 
- * @return int 
+ * Called when the LE HCI command read advertising channel tx power command
+ * has been received. Returns the current advertising transmit power.
+ *
+ * Context: Link Layer task (HCI command parser)
+ *
+ * @return int
  */
 int
 ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
@@ -705,13 +705,13 @@ ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
- * Turn advertising on/off. 
- *  
- * Context: Link Layer task 
- * 
- * @param cmd 
- * 
- * @return int 
+ * Turn advertising on/off.
+ *
+ * Context: Link Layer task
+ *
+ * @param cmd
+ *
+ * @return int
  */
 int
 ble_ll_adv_set_enable(uint8_t *cmd)
@@ -741,11 +741,11 @@ ble_ll_adv_set_enable(uint8_t *cmd)
 
 /**
  * Set the scan response data that the controller will send.
- * 
- * @param cmd 
- * @param len 
- * 
- * @return int 
+ *
+ * @param cmd
+ * @param len
+ *
+ * @return int
  */
 int
 ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
@@ -767,10 +767,10 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
 
     /* Re-make the scan response PDU since data may have changed */
     OS_ENTER_CRITICAL(sr);
-    /* 
+    /*
      * XXX: there is a chance, even with interrupts disabled, that
      * we are transmitting the scan response PDU while writing to it.
-     */ 
+     */
     ble_ll_adv_scan_rsp_pdu_make(advsm);
     OS_EXIT_CRITICAL(sr);
 
@@ -778,12 +778,12 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
 }
 
 /**
- * Called by the LL HCI command parser when a set advertising 
- * data command has been sent from the host to the controller. 
- * 
+ * Called by the LL HCI command parser when a set advertising
+ * data command has been sent from the host to the controller.
+ *
  * @param cmd Pointer to command data
  * @param len Length of command data
- * 
+ *
  * @return int 0: success; BLE_ERR_INV_HCI_CMD_PARMS otherwise.
  */
 int
@@ -806,7 +806,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 
     /* If the state machine is enabled, we need to re-make the adv PDU */
     if (advsm->enabled) {
-        /* 
+        /*
          * XXX: currently, even with interrupts disabled, there is a chance
          * that we are transmitting the advertising PDU while writing into
          * it.
@@ -821,12 +821,12 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 
 /**
  * Called when the LL receives a scan request or connection request
- *  
- * Context: Called from interrupt context. 
- * 
- * @param rxbuf 
- * 
- * @return -1: request not for us or is a connect request. 
+ *
+ * Context: Called from interrupt context.
+ *
+ * @param rxbuf
+ *
+ * @return -1: request not for us or is a connect request.
  *          0: request (scan) is for us and we successfully went from rx to tx.
  *        > 0: PHY error attempting to go from rx to tx.
  */
@@ -874,7 +874,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     rc = -1;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, &g_ble_ll_adv_sm);
-        rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX, 
+        rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX,
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
@@ -886,14 +886,14 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 }
 
 /**
- * Called when a connect request has been received. 
- *  
- * Context: Link Layer 
- * 
- * @param rxbuf 
- * @param flags 
- *  
- * @return 0: no connection started. 1: connection started 
+ * Called when a connect request has been received.
+ *
+ * Context: Link Layer
+ *
+ * @param rxbuf
+ * @param flags
+ *
+ * @return 0: no connection started. 1: connection started
  */
 int
 ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
@@ -913,9 +913,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     } else {
         /* If this is for us? */
         if (!ble_ll_adv_addr_cmp(rxbuf)) {
-            /* 
+            /*
              * Only accept connect requests from the desired address if we
-             * are doing directed advertising 
+             * are doing directed advertising
              */
             if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) ||
                 (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD)) {
@@ -943,22 +943,22 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 }
 
 /**
- * Called on phy rx pdu end when in advertising state. 
- *  
- * There are only two pdu types we care about in this state: scan requests 
- * and connection requests. When we receive a scan request we must determine if 
+ * Called on phy rx pdu end when in advertising state.
+ *
+ * There are only two pdu types we care about in this state: scan requests
+ * and connection requests. When we receive a scan request we must determine if
  * we need to send a scan response and that needs to be acted on within T_IFS.
- *  
- * When we receive a connection request, we need to determine if we will allow 
- * this device to start a connection with us. However, no immediate response is 
- * sent so we handle this at the link layer task. 
- * 
- * Context: Interrupt 
- *  
+ *
+ * When we receive a connection request, we need to determine if we will allow
+ * this device to start a connection with us. However, no immediate response is
+ * sent so we handle this at the link layer task.
+ *
+ * Context: Interrupt
+ *
  * @param pdu_type Type of pdu received.
  * @param rxpdu Pointer to received PDU
- *  
- * @return int 
+ *
+ * @return int
  *       < 0: Disable the phy after reception.
  *      == 0: Do not disable the PHY
  *       > 0: Do not disable PHY as that has already been done.
@@ -989,24 +989,24 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 }
 
 /**
- * Process a received packet at the link layer task when in the advertising 
- * state 
- *  
- * Context: Link Layer 
- * 
- * 
- * @param ptype 
- * @param rxbuf 
- * @param hdr 
- * 
- * @return int 
+ * Process a received packet at the link layer task when in the advertising
+ * state
+ *
+ * Context: Link Layer
+ *
+ *
+ * @param ptype
+ * @param rxbuf
+ * @param hdr
+ *
+ * @return int
  */
 void
 ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int adv_event_over;
 
-    /* 
+    /*
      * If we have received a scan request and we are transmitting a response
      * or we have received a valid connect request, dont "end" the advertising
      * event. In the case of a connect request we will stop advertising. In
@@ -1033,14 +1033,14 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 }
 
 /**
- * Called when a receive PDU has started and we are advertising. 
- *  
- * Context: interrupt 
- * 
- * @param pdu_type 
- * @param rxpdu 
- * 
- * @return int 
+ * Called when a receive PDU has started and we are advertising.
+ *
+ * Context: interrupt
+ *
+ * @param pdu_type
+ * @param rxpdu
+ *
+ * @return int
  *   < 0: A frame we dont want to receive.
  *   = 0: Continue to receive frame. Dont go from rx to tx
  *   > 0: Continue to receive frame and go from rx to tx when done
@@ -1058,22 +1058,22 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
     advsm = &g_ble_ll_adv_sm;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         /* Only accept scan requests if we are indirect adv or scan adv */
-        if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND) || 
+        if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND) ||
             (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
             rc = 1;
-        } 
+        }
     } else {
         /* Only accept connect requests if connectable advertising event */
         if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
-            if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) || 
+            if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) ||
                 (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD) ||
                 (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
                 rc = 0;
-            } 
+            }
         }
     }
 
-    /* 
+    /*
      * If we abort the frame, we need to post the LL task to check if the
      * advertising event is over.
      */
@@ -1086,9 +1086,9 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 
 /**
  * Called when an advertising event is over.
- *  
- * Context: Link Layer task. 
- * 
+ *
+ * Context: Link Layer task.
+ *
  * @param arg Pointer to advertising state machine.
  */
 void
@@ -1109,7 +1109,7 @@ ble_ll_adv_event_done(void *arg)
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
     os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
-    /* 
+    /*
      * Check if we have ended our advertising event. If our last advertising
      * packet was sent on the last channel, it means we are done with this
      * event.
@@ -1137,11 +1137,11 @@ ble_ll_adv_event_done(void *arg)
         advsm->adv_event_start_time += cputime_usecs_to_ticks(itvl);
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
-        /* 
+        /*
          * The scheduled time better be in the future! If it is not, we will
          * just keep advancing until we the time is in the future
          */
-        start_time = advsm->adv_pdu_start_time - 
+        start_time = advsm->adv_pdu_start_time -
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
 
         delta_t = (int32_t)(start_time - cputime_get32());
@@ -1159,7 +1159,7 @@ ble_ll_adv_event_done(void *arg)
             }
         }
     } else {
-        /* 
+        /*
          * Move to next advertising channel. If not in the mask, just
          * increment by 1. We can do this because we already checked if we
          * just transmitted on the last advertising channel
@@ -1170,18 +1170,18 @@ ble_ll_adv_event_done(void *arg)
             ++advsm->adv_chan;
         }
 
-        /* 
+        /*
          * We will transmit right away. Set next pdu start time to now
          * plus a xcvr start delay just so we dont count late adv starts
-         */ 
-        advsm->adv_pdu_start_time = cputime_get32() + 
+         */
+        advsm->adv_pdu_start_time = cputime_get32() +
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
     }
 
-    /* 
+    /*
      * Stop high duty cycle directed advertising if we have been doing
      * it for more than 1.28 seconds
-     */ 
+     */
     if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
         if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
             /* Disable advertising */
@@ -1195,20 +1195,20 @@ ble_ll_adv_event_done(void *arg)
     /* Schedule advertising transmit */
     ble_ll_adv_set_sched(advsm, 0);
 
-    /* 
+    /*
      * In the unlikely event we cant reschedule this, just post a done
      * event and we will reschedule the next advertising event
-     */ 
+     */
     if (ble_ll_sched_adv_reschedule(&advsm->adv_sch)) {
         os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
     }
 }
 
 /**
- * Checks if the controller can change the whitelist. If advertising is enabled 
- * and is using the whitelist the controller is not allowed to change the 
- * whitelist. 
- * 
+ * Checks if the controller can change the whitelist. If advertising is enabled
+ * and is using the whitelist the controller is not allowed to change the
+ * whitelist.
+ *
  * @return int 0: not allowed to change whitelist; 1: change allowed.
  */
 int
@@ -1228,9 +1228,9 @@ ble_ll_adv_can_chg_whitelist(void)
 }
 
 /**
- * Called when the LL wait for response timer expires while in the advertising 
- * state. Disables the phy and 
- * 
+ * Called when the LL wait for response timer expires while in the advertising
+ * state. Disables the phy and
+ *
  */
 void
 ble_ll_adv_wfr_timer_exp(void)
@@ -1240,10 +1240,10 @@ ble_ll_adv_wfr_timer_exp(void)
 }
 
 /**
- * Reset the advertising state machine. 
- *  
- * Context: Link Layer task 
- * 
+ * Reset the advertising state machine.
+ *
+ * Context: Link Layer task
+ *
  */
 void
 ble_ll_adv_reset(void)
@@ -1270,7 +1270,7 @@ ble_ll_adv_enabled(void)
 }
 
 /**
- * Initialize the advertising functionality of a BLE device. This should 
+ * Initialize the advertising functionality of a BLE device. This should
  * be called once on initialization
  */
 void
@@ -1291,12 +1291,12 @@ ble_ll_adv_init(void)
     advsm->adv_txdone_ev.ev_arg = advsm;
 
     /* Get an advertising mbuf (packet header) and attach to state machine */
-    advsm->adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+    advsm->adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
                                         sizeof(struct ble_mbuf_hdr));
     assert(advsm->adv_pdu != NULL);
 
     /* Get a scan response mbuf (packet header) and attach to state machine */
-    advsm->scan_rsp_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, 
+    advsm->scan_rsp_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
                                              sizeof(struct ble_mbuf_hdr));
     assert(advsm->scan_rsp_pdu != NULL);
 }

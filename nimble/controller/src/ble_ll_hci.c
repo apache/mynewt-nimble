@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -37,12 +37,12 @@ static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 
 /**
- * ll hci get num cmd pkts 
- *  
- * Returns the number of command packets that the host is allowed to send 
- * to the controller. 
- * 
- * @return uint8_t 
+ * ll hci get num cmd pkts
+ *
+ * Returns the number of command packets that the host is allowed to send
+ * to the controller.
+ *
+ * @return uint8_t
  */
 static uint8_t
 ble_ll_hci_get_num_cmd_pkts(void)
@@ -51,10 +51,10 @@ ble_ll_hci_get_num_cmd_pkts(void)
 }
 
 /**
- * Send an event to the host. 
- * 
+ * Send an event to the host.
+ *
  * @param evbuf Pointer to event buffer to send
- * 
+ *
  * @return int 0: success; -1 otherwise.
  */
 int
@@ -72,9 +72,9 @@ ble_ll_hci_event_send(uint8_t *evbuf)
 }
 
 /**
- * Created and sends a command complete event with the no-op opcode to the 
- * host. 
- * 
+ * Created and sends a command complete event with the no-op opcode to the
+ * host.
+ *
  * @return int 0: ok, ble error code otherwise.
  */
 int
@@ -104,12 +104,12 @@ ble_ll_hci_send_noop(void)
 #if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /**
  * LE encrypt command
- * 
- * @param cmdbuf 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ * @param cmdbuf
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 static int
 ble_ll_hci_le_encrypt(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
@@ -135,12 +135,12 @@ ble_ll_hci_le_encrypt(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * LE rand command
- * 
- * @param cmdbuf 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ * @param cmdbuf
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 static int
 ble_ll_hci_le_rand(uint8_t *rspbuf, uint8_t *rsplen)
@@ -154,15 +154,15 @@ ble_ll_hci_le_rand(uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * Read local version
- * 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 static int
 ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
-{    
+{
     uint16_t hci_rev;
     uint16_t lmp_subver;
     uint16_t mfrg;
@@ -183,20 +183,20 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * Read local supported features
- * 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 static int
 ble_ll_hci_rd_local_supp_feat(uint8_t *rspbuf, uint8_t *rsplen)
 {
-    /* 
+    /*
      * The only two bits we set here currently are:
      *      BR/EDR not supported        (bit 5)
      *      LE supported (controller)   (bit 6)
-     */ 
+     */
     memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
     rspbuf[4] = 0x60;
     *rsplen = BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN;
@@ -205,11 +205,11 @@ ble_ll_hci_rd_local_supp_feat(uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * Read local supported commands
- * 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 static int
 ble_ll_hci_rd_local_supp_cmd(uint8_t *rspbuf, uint8_t *rsplen)
@@ -222,20 +222,20 @@ ble_ll_hci_rd_local_supp_cmd(uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * Called to read the public device address of the device
- * 
- * 
- * @param rspbuf 
- * @param rsplen 
- * 
- * @return int 
+ *
+ *
+ * @param rspbuf
+ * @param rsplen
+ *
+ * @return int
  */
 static int
 ble_ll_hci_rd_bd_addr(uint8_t *rspbuf, uint8_t *rsplen)
-{    
-    /* 
+{
+    /*
      * XXX: for now, assume we always have a public device address. If we
      * dont, we should set this to zero
-     */ 
+     */
     memcpy(rspbuf, g_dev_addr, BLE_DEV_ADDR_LEN);
     *rsplen = BLE_DEV_ADDR_LEN;
     return BLE_ERR_SUCCESS;
@@ -243,13 +243,13 @@ ble_ll_hci_rd_bd_addr(uint8_t *rspbuf, uint8_t *rsplen)
 
 /**
  * ll hci set le event mask
- *  
+ *
  * Called when the LL controller receives a set LE event mask command.
- *  
- * Context: Link Layer task (HCI command parser) 
- * 
+ *
+ * Context: Link Layer task (HCI command parser)
+ *
  * @param cmdbuf Pointer to command buf.
- * 
+ *
  * @return int BLE_ERR_SUCCESS. Does not return any errors.
  */
 static int
@@ -261,17 +261,17 @@ ble_ll_hci_set_le_event_mask(uint8_t *cmdbuf)
 }
 
 /**
- * HCI read buffer size command. Returns the ACL data packet length and 
- * num data packets. 
- * 
+ * HCI read buffer size command. Returns the ACL data packet length and
+ * num data packets.
+ *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
- * 
+ *
  * @return int BLE error code
  */
 static int
 ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
-{    
+{
     /* Place the data packet length and number of packets in the buffer */
     htole16(rspbuf, g_ble_ll_data.ll_acl_pkt_size);
     rspbuf[2] = g_ble_ll_data.ll_num_acl_pkts;
@@ -281,17 +281,17 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
 
 #ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
 /**
- * HCI write suggested default data length command. Returns the controllers 
- * initial max tx octet/time. 
- * 
+ * HCI write suggested default data length command. Returns the controllers
+ * initial max tx octet/time.
+ *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
- * 
+ *
  * @return int BLE error code
  */
 static int
 ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
-{    
+{
     int rc;
     uint16_t tx_oct;
     uint16_t tx_time;
@@ -315,17 +315,17 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
 }
 
 /**
- * HCI read suggested default data length command. Returns the controllers 
- * initial max tx octet/time. 
- * 
+ * HCI read suggested default data length command. Returns the controllers
+ * initial max tx octet/time.
+ *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
- * 
+ *
  * @return int BLE error code
  */
 static int
 ble_ll_hci_le_rd_sugg_data_len(uint8_t *rspbuf, uint8_t *rsplen)
-{    
+{
     /* Place the data packet length and number of packets in the buffer */
     htole16(rspbuf, g_ble_ll_conn_params.sugg_tx_octets);
     htole16(rspbuf + 2, g_ble_ll_conn_params.sugg_tx_time);
@@ -334,17 +334,17 @@ ble_ll_hci_le_rd_sugg_data_len(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
- * HCI read maximum data length command. Returns the controllers max supported 
- * rx/tx octets/times. 
- * 
+ * HCI read maximum data length command. Returns the controllers max supported
+ * rx/tx octets/times.
+ *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
- * 
+ *
  * @return int BLE error code
  */
 static int
 ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
-{    
+{
     /* Place the data packet length and number of packets in the buffer */
     htole16(rspbuf, g_ble_ll_conn_params.supp_max_tx_octets);
     htole16(rspbuf + 2, g_ble_ll_conn_params.supp_max_tx_time);
@@ -356,17 +356,17 @@ ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
 #endif
 
 /**
- * HCI read local supported features command. Returns the features 
+ * HCI read local supported features command. Returns the features
  * supported by the controller.
- * 
+ *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
- * 
+ *
  * @return int BLE error code
  */
 static int
 ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
-{    
+{
     /* Add list of supported features. */
     memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
     rspbuf[0] = ble_ll_read_supp_features();
@@ -375,17 +375,17 @@ ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
- * HCI read local supported states command. Returns the states 
+ * HCI read local supported states command. Returns the states
  * supported by the controller.
- * 
+ *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
- * 
+ *
  * @return int BLE error code
  */
 static int
 ble_ll_hci_le_read_supp_states(uint8_t *rspbuf, uint8_t *rsplen)
-{    
+{
     uint64_t supp_states;
 
     /* Add list of supported states. */
@@ -396,11 +396,11 @@ ble_ll_hci_le_read_supp_states(uint8_t *rspbuf, uint8_t *rsplen)
 }
 
 /**
- * Checks to see if a LE event has been disabled by the host. 
- * 
- * @param subev Sub-event code of the LE Meta event. Note that this can 
- * be a value from 0 to 63, inclusive. 
- * 
+ * Checks to see if a LE event has been disabled by the host.
+ *
+ * @param subev Sub-event code of the LE Meta event. Note that this can
+ * be a value from 0 to 63, inclusive.
+ *
  * @return uint8_t 0: event is not enabled; otherwise event is enabled.
  */
 uint8_t
@@ -424,10 +424,10 @@ ble_ll_hci_is_le_event_enabled(int subev)
 }
 
 /**
- * Checks to see if an event has been disabled by the host. 
- * 
+ * Checks to see if an event has been disabled by the host.
+ *
  * @param evcode This is the event code for the event (0 - 63).
- * 
+ *
  * @return uint8_t 0: event is not enabled; otherwise event is enabled.
  */
 uint8_t
@@ -447,11 +447,11 @@ ble_ll_hci_is_event_enabled(int evcode)
 }
 
 /**
- * Called to determine if the reply to the command should be a command complete 
- * event or a command status event. 
- * 
- * @param ocf 
- * 
+ * Called to determine if the reply to the command should be a command complete
+ * event or a command status event.
+ *
+ * @param ocf
+ *
  * @return int 0: return command complete; 1: return command status event
  */
 static int
@@ -476,16 +476,16 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
 }
 
 /**
- * Process a LE command sent from the host to the controller. The HCI command 
- * has a 3 byte command header followed by data. The header is: 
+ * Process a LE command sent from the host to the controller. The HCI command
+ * has a 3 byte command header followed by data. The header is:
  *  -> opcode (2 bytes)
  *  -> Length of parameters (1 byte; does include command header bytes).
- * 
+ *
  * @param cmdbuf Pointer to command buffer. Points to start of command header.
  * @param ocf    Opcode command field.
  * @param *rsplen Pointer to length of response
- *  
- * @return int  This function returns a BLE error code. If a command status 
+ *
+ * @return int  This function returns a BLE error code. If a command status
  *              event should be returned as opposed to command complete,
  *              256 gets added to the return value.
  */
@@ -509,11 +509,11 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         goto ll_hci_le_cmd_exit;
     }
 
-    /* 
+    /*
      * The command response pointer points into the same buffer as the
      * command data itself. That is fine, as each command reads all the data
      * before crafting a response.
-     */ 
+     */
     rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 
     /* Move past HCI command header */
@@ -627,11 +627,11 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
     }
 
-    /* 
+    /*
      * This code is here because we add 256 to the return code to denote
      * that the reply to this command should be command status (as opposed to
      * command complete).
-     */ 
+     */
 ll_hci_le_cmd_exit:
     if (ble_ll_hci_le_cmd_send_cmd_status(ocf)) {
         rc += (BLE_ERR_MAX + 1);
@@ -641,16 +641,16 @@ ll_hci_le_cmd_exit:
 }
 
 /**
- * Process a link control command sent from the host to the controller. The HCI 
- * command has a 3 byte command header followed by data. The header is: 
+ * Process a link control command sent from the host to the controller. The HCI
+ * command has a 3 byte command header followed by data. The header is:
  *  -> opcode (2 bytes)
  *  -> Length of parameters (1 byte; does include command header bytes).
- * 
+ *
  * @param cmdbuf Pointer to command buffer. Points to start of command header.
  * @param ocf    Opcode command field.
  * @param *rsplen Pointer to length of response
- *  
- * @return int  This function returns a BLE error code. If a command status 
+ *
+ * @return int  This function returns a BLE error code. If a command status
  *              event should be returned as opposed to command complete,
  *              256 gets added to the return value.
  */
@@ -742,11 +742,11 @@ ble_ll_hci_info_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     /* Get length from command */
     len = cmdbuf[sizeof(uint16_t)];
 
-    /* 
+    /*
      * The command response pointer points into the same buffer as the
      * command data itself. That is fine, as each command reads all the data
      * before crafting a response.
-     */ 
+     */
     rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 
     /* Move past HCI command header */
@@ -794,11 +794,11 @@ ble_ll_hci_status_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen
     /* Get length from command */
     len = cmdbuf[sizeof(uint16_t)];
 
-    /* 
+    /*
      * The command response pointer points into the same buffer as the
      * command data itself. That is fine, as each command reads all the data
      * before crafting a response.
-     */ 
+     */
     rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 
     /* Move past HCI command header */
@@ -820,7 +820,7 @@ ble_ll_hci_status_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen
 
 /**
  * Called to process an HCI command from the host.
- * 
+ *
  * @param ev Pointer to os event containing a pointer to command buffer
  */
 void
@@ -935,10 +935,10 @@ ble_hci_transport_host_acl_data_send(struct os_mbuf *om)
 }
 
 /**
- * Initalize the LL HCI. 
- *  
- * NOTE: This function is called by the HCI RESET command so if any code 
- * is added here it must be OK to be executed when the reset command is used. 
+ * Initalize the LL HCI.
+ *
+ * NOTE: This function is called by the HCI RESET command so if any code
+ * is added here it must be OK to be executed when the reset command is used.
  */
 void
 ble_ll_hci_init(void)

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -28,7 +28,7 @@
 
 /**
  * Send a data length change event for a connection to the host.
- * 
+ *
  * @param connsm Pointer to connection state machine
  */
 void
@@ -54,7 +54,7 @@ ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm)
 
 /**
  * Send a connection parameter request event for a connection to the host.
- * 
+ *
  * @param connsm Pointer to connection state machine
  */
 void
@@ -81,9 +81,9 @@ ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
 
 /**
  * Send a connection update event.
- * 
- * @param connsm Pointer to connection state machine 
- * @param status The error code. 
+ *
+ * @param connsm Pointer to connection state machine
+ * @param status The error code.
  */
 void
 ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -24,13 +24,13 @@
 #include "hal/hal_cputime.h"
 
 /*
- * SCAN_REQ 
+ * SCAN_REQ
  *      -> ScanA    (6 bytes)
  *      -> AdvA     (6 bytes)
- * 
+ *
  *  ScanA is the scanners public (TxAdd=0) or random (TxAdd = 1) address
  *  AdvaA is the advertisers public (RxAdd=0) or random (RxAdd=1) address.
- * 
+ *
  * Sent by the LL in the Scanning state; received by the LL in the advertising
  * state. The advertising address is the intended recipient of this frame.
  */
@@ -39,13 +39,13 @@
 /*
  * SCAN_RSP
  *      -> AdvA         (6 bytes)
- *      -> ScanRspData  (0 - 31 bytes) 
- * 
+ *      -> ScanRspData  (0 - 31 bytes)
+ *
  *  AdvaA is the advertisers public (TxAdd=0) or random (TxAdd=1) address.
  *  ScanRspData may contain any data from the advertisers host.
- * 
+ *
  * Sent by the LL in the advertising state; received by the LL in the
- * scanning state. 
+ * scanning state.
  */
 #define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
 
@@ -100,7 +100,7 @@ int ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu);
 int ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
 
 /* Process a scan response PDU */
-void ble_ll_scan_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, 
+void ble_ll_scan_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
                            struct ble_mbuf_hdr *hdr);
 
 /* Boolean function denoting whether or not the whitelist can be changed */

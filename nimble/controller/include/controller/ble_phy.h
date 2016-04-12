@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -23,10 +23,10 @@
 /* Forward declarations */
 struct os_mbuf;
 
-/* 
+/*
  * XXX: Transceiver definitions. These dont belong here and will be moved
  * once we finalize transceiver specific support.
- */ 
+ */
 #define XCVR_RX_START_DELAY_USECS     (140)
 #define XCVR_TX_START_DELAY_USECS     (140)
 #define XCVR_PROC_DELAY_USECS         (50)

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -31,7 +31,7 @@
 /* To disable all radio interrupts */
 #define NRF52_RADIO_IRQ_MASK_ALL    (0x34FF)
 
-/* 
+/*
  * We configure the nrf52 with a 1 byte S0 field, 8 bit length field, and
  * zero bit S1 field. The preamble is 8 bits long.
  */
@@ -82,8 +82,8 @@ struct ble_phy_statistics
 
 struct ble_phy_statistics g_ble_phy_stats;
 
-/* 
- * NOTE: 
+/*
+ * NOTE:
  * Tested the following to see what would happen:
  *  -> NVIC has radio irq enabled (interrupt # 1, mask 0x2).
  *  -> Set up nrf52 to receive. Clear ADDRESS event register.
@@ -92,11 +92,11 @@ struct ble_phy_statistics g_ble_phy_stats;
  *  -> Disable interrupts globally using OS_ENTER_CRITICAL().
  *  -> Wait until a packet is received and the ADDRESS event occurs.
  *  -> Call ble_phy_disable().
- * 
+ *
  *  At this point I wanted to see the state of the cortex NVIC. The IRQ
  *  pending bit was TRUE for the radio interrupt (as expected) as we never
  *  serviced the radio interrupt (interrupts were disabled).
- * 
+ *
  *  What was unexpected was this: without clearing the pending IRQ in the NVIC,
  *  when radio interrupts were re-enabled (address event bit in INTENSET set to
  *  1) and the radio ADDRESS event register read 1 (it was never cleared after
@@ -106,16 +106,16 @@ struct ble_phy_statistics g_ble_phy_stats;
  *      -> NVIC ISPR bit reads TRUE, meaning interrupt is pending.
  *      -> Radio peripheral interrupts are enabled for some event (or events).
  *      -> Corresponding event register(s) in radio peripheral read 1.
- * 
+ *
  *  Not sure what the end result of all this is. We will clear the pending
  *  bit in the NVIC just to be sure when we disable the PHY.
  */
 
 /**
  * ble phy rxpdu get
- *  
- * Gets a mbuf for PDU reception. 
- * 
+ *
+ * Gets a mbuf for PDU reception.
+ *
  * @return struct os_mbuf* Pointer to retrieved mbuf or NULL if none available
  */
 static struct os_mbuf *
@@ -129,7 +129,7 @@ ble_phy_rxpdu_get(void)
         if (!m) {
             ++g_ble_phy_stats.no_bufs;
         } else {
-            /* 
+            /*
              * NOTE: we add two bytes to the data pointer as we will prepend
              * two bytes if we hand this received pdu up to host.
              */
@@ -179,7 +179,7 @@ ble_phy_isr(void)
         /* Better be in TX state! */
         assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
 
-        ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF, 
+        ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF,
                    0, NRF_TIMER0->CC[2]);
 
         /* Clear events and clear interrupt on disabled event */
@@ -203,7 +203,7 @@ ble_phy_isr(void)
                 NRF_RADIO->EVENTS_DEVMATCH = 0;
                 NRF_RADIO->EVENTS_BCMATCH = 0;
                 NRF_RADIO->EVENTS_RSSIEND = 0;
-                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
+                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
                                     RADIO_SHORTS_READY_START_Msk |
                                     RADIO_SHORTS_ADDRESS_BCSTART_Msk |
                                     RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
@@ -217,10 +217,10 @@ ble_phy_isr(void)
                 ble_phy_disable();
             }
 
-            /* 
+            /*
              * Enable the wait for response timer. Note that cc #2 on
              * timer 0 contains the transmit end time
-             */ 
+             */
             wfr_time = NRF_TIMER0->CC[2];
             wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
             ble_ll_wfr_enable(wfr_time);
@@ -250,10 +250,10 @@ ble_phy_isr(void)
                 break;
             }
 
-            /* 
+            /*
              * If state is disabled, we should have the BCMATCH. If not,
              * something is wrong!
-             */ 
+             */
             if (state == RADIO_STATE_STATE_Disabled) {
                 NRF_RADIO->INTENCLR = NRF52_RADIO_IRQ_MASK_ALL;
                 NRF_RADIO->SHORTS = 0;
@@ -273,11 +273,11 @@ ble_phy_isr(void)
             g_ble_phy_data.phy_rx_started = 1;
             if (rc > 0) {
                 /* We need to go from disabled to TXEN */
-                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
+                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
                                     RADIO_SHORTS_READY_START_Msk |
                                     RADIO_SHORTS_DISABLED_TXEN_Msk;
             } else {
-                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
+                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
                                     RADIO_SHORTS_READY_START_Msk;
             }
 
@@ -334,10 +334,10 @@ phy_isr_exit:
 }
 
 /**
- * ble phy init 
- *  
- * Initialize the PHY. This is expected to be called once. 
- * 
+ * ble phy init
+ *
+ * Initialize the PHY. This is expected to be called once.
+ *
  * @return int 0: success; PHY error code otherwise
  */
 int
@@ -373,7 +373,7 @@ ble_phy_init(void)
     NRF_RADIO->PCNF0 = (NRF52_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
                        (NRF52_S0_LEN << RADIO_PCNF0_S0LEN_Pos) |
                        (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
-    NRF_RADIO->PCNF1 = NRF52_MAXLEN | 
+    NRF_RADIO->PCNF1 = NRF52_MAXLEN |
                        (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
                        (NRF52_BALEN << RADIO_PCNF1_BALEN_Pos) |
                        RADIO_PCNF1_WHITEEN_Msk;
@@ -391,10 +391,10 @@ ble_phy_init(void)
     /* Configure IFS */
     NRF_RADIO->TIFS = BLE_LL_IFS;
 
-    /* 
+    /*
      * Enable the pre-programmed PPI to capture the time when a receive
      * or transmit ends
-     */ 
+     */
     NRF_PPI->CHENSET = PPI_CHEN_CH27_Msk;
 
     /* Set isr in vector table and enable interrupt */
@@ -405,7 +405,7 @@ ble_phy_init(void)
     return 0;
 }
 
-int 
+int
 ble_phy_rx(void)
 {
     /* Check radio state */
@@ -437,7 +437,7 @@ ble_phy_rx(void)
 
     /* I want to know when 1st byte received (after address) */
     NRF_RADIO->BCC = 8; /* in bits */
-    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | 
+    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
                         RADIO_SHORTS_READY_START_Msk |
                         RADIO_SHORTS_ADDRESS_BCSTART_Msk |
                         RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
@@ -534,13 +534,13 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
     state = NRF_RADIO->STATE;
     if (state == RADIO_STATE_STATE_TxRu) {
         /* Copy data from mbuf into transmit buffer */
-        os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset, 
+        os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset,
                          ble_hdr->txinfo.pyld_len, dptr);
 
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
         ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += ble_hdr->txinfo.pyld_len + 
+        g_ble_phy_stats.tx_bytes += ble_hdr->txinfo.pyld_len +
             BLE_LL_PDU_HDR_LEN;
         rc = BLE_ERR_SUCCESS;
     } else {
@@ -559,16 +559,16 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
 }
 
 /**
- * ble phy txpwr set 
- *  
- * Set the transmit output power (in dBm). 
- *  
- * NOTE: If the output power specified is within the BLE limits but outside 
- * the chip limits, we "rail" the power level so we dont exceed the min/max 
- * chip values. 
- * 
+ * ble phy txpwr set
+ *
+ * Set the transmit output power (in dBm).
+ *
+ * NOTE: If the output power specified is within the BLE limits but outside
+ * the chip limits, we "rail" the power level so we dont exceed the min/max
+ * chip values.
+ *
  * @param dbm Power output in dBm.
- * 
+ *
  * @return int 0: success; anything else is an error
  */
 int
@@ -594,9 +594,9 @@ ble_phy_txpwr_set(int dbm)
 
 /**
  * ble phy txpwr get
- *  
- * Get the transmit power. 
- * 
+ *
+ * Get the transmit power.
+ *
  * @return int  The current PHY transmit power, in dBm
  */
 int
@@ -606,17 +606,17 @@ ble_phy_txpwr_get(void)
 }
 
 /**
- * ble phy setchan 
- *  
- * Sets the logical frequency of the transceiver. The input parameter is the 
- * BLE channel index (0 to 39, inclusive). The NRF52 frequency register 
- * works like this: logical frequency = 2400 + FREQ (MHz). 
- *  
- * Thus, to get a logical frequency of 2402 MHz, you would program the 
- * FREQUENCY register to 2. 
- * 
+ * ble phy setchan
+ *
+ * Sets the logical frequency of the transceiver. The input parameter is the
+ * BLE channel index (0 to 39, inclusive). The NRF52 frequency register
+ * works like this: logical frequency = 2400 + FREQ (MHz).
+ *
+ * Thus, to get a logical frequency of 2402 MHz, you would program the
+ * FREQUENCY register to 2.
+ *
  * @param chan This is the Data Channel Index or Advertising Channel index
- * 
+ *
  * @return int 0: success; PHY error code otherwise
  */
 int
@@ -636,11 +636,11 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
         if (chan < 11) {
             /* Data channel 0 starts at 2404. 0 - 10 are contiguous */
-            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) + 
+            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) +
                    (BLE_PHY_CHAN_SPACING_MHZ * chan);
         } else {
             /* Data channel 11 starts at 2428. 0 - 10 are contiguous */
-            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) + 
+            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) +
                    (BLE_PHY_CHAN_SPACING_MHZ * (chan + 1));
         }
 
@@ -687,7 +687,7 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 }
 
 /**
- * Disable the PHY. This will do the following: 
+ * Disable the PHY. This will do the following:
  *  -> Turn off all phy interrupts.
  *  -> Disable internal shortcuts.
  *  -> Disable the radio.
@@ -715,19 +715,19 @@ uint32_t ble_phy_access_addr_get(void)
 
 /**
  * Return the phy state
- * 
+ *
  * @return int The current PHY state.
  */
-int 
+int
 ble_phy_state_get(void)
 {
     return g_ble_phy_data.phy_state;
 }
 
 /**
- * Called to see if a reception has started 
- * 
- * @return int 
+ * Called to see if a reception has started
+ *
+ * @return int
  */
 int
 ble_phy_rx_started(void)

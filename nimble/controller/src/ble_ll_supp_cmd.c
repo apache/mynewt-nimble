@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -167,21 +167,21 @@
 const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
 {
     BLE_LL_SUPP_CMD_OCTET_0,            /* Octet 0 */
-    0, 
-    0, 
-    0, 
-    0, 
-    BLE_LL_SUPP_CMD_OCTET_5, 
-    0, 
+    0,
+    0,
+    0,
+    0,
+    BLE_LL_SUPP_CMD_OCTET_5,
+    0,
     0,
     0,                                  /* Octet 8 */
-    0, 
-    BLE_LL_SUPP_CMD_OCTET_10, 
-    0, 
-    0, 
-    0, 
-    BLE_LL_SUPP_CMD_OCTET_14, 
-    BLE_LL_SUPP_CMD_OCTET_15, 
+    0,
+    BLE_LL_SUPP_CMD_OCTET_10,
+    0,
+    0,
+    0,
+    BLE_LL_SUPP_CMD_OCTET_14,
+    BLE_LL_SUPP_CMD_OCTET_15,
     0,                                  /* Octet 16 */
     0,
     0,

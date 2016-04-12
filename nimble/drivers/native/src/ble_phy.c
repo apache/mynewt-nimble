@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -75,11 +75,11 @@ static struct xcvr_data g_xcvr_data;
 #define BLE_XCVR_TX_PWR_MIN_DBM     (-20)
 
 /* XXX: TODO:
- 
+
  * 1) Test the following to make sure it works: suppose an event is already
  * set to 1 and the interrupt is not enabled. What happens if you enable the
- * interrupt with the event bit already set to 1  
- * 2) how to deal with interrupts? 
+ * interrupt with the event bit already set to 1
+ * 2) how to deal with interrupts?
  */
 static uint32_t
 ble_xcvr_get_irq_status(void)
@@ -95,9 +95,9 @@ ble_xcvr_clear_irq(uint32_t mask)
 
 /**
  * ble phy rxpdu get
- *  
- * Gets a mbuf for PDU reception. 
- * 
+ *
+ * Gets a mbuf for PDU reception.
+ *
  * @return struct os_mbuf* Pointer to retrieved mbuf or NULL if none available
  */
 static struct os_mbuf *
@@ -210,10 +210,10 @@ ble_phy_isr(void)
 }
 
 /**
- * ble phy init 
- *  
- * Initialize the PHY. This is expected to be called once. 
- * 
+ * ble phy init
+ *
+ * Initialize the PHY. This is expected to be called once.
+ *
  * @return int 0: success; PHY error code otherwise
  */
 int
@@ -228,7 +228,7 @@ ble_phy_init(void)
     return 0;
 }
 
-int 
+int
 ble_phy_rx(void)
 {
     /* Check radio state */
@@ -294,7 +294,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
         ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len + 
+        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len +
             BLE_LL_PDU_HDR_LEN;
         rc = BLE_ERR_SUCCESS;
     } else {
@@ -308,16 +308,16 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
 }
 
 /**
- * ble phy txpwr set 
- *  
- * Set the transmit output power (in dBm). 
- *  
- * NOTE: If the output power specified is within the BLE limits but outside 
- * the chip limits, we "rail" the power level so we dont exceed the min/max 
- * chip values. 
- * 
+ * ble phy txpwr set
+ *
+ * Set the transmit output power (in dBm).
+ *
+ * NOTE: If the output power specified is within the BLE limits but outside
+ * the chip limits, we "rail" the power level so we dont exceed the min/max
+ * chip values.
+ *
  * @param dbm Power output in dBm.
- * 
+ *
  * @return int 0: success; anything else is an error
  */
 int
@@ -342,9 +342,9 @@ ble_phy_txpwr_set(int dbm)
 
 /**
  * ble phy txpwr get
- *  
- * Get the transmit power. 
- * 
+ *
+ * Get the transmit power.
+ *
  * @return int  The current PHY transmit power, in dBm
  */
 int
@@ -354,17 +354,17 @@ ble_phy_txpwr_get(void)
 }
 
 /**
- * ble phy setchan 
- *  
- * Sets the logical frequency of the transceiver. The input parameter is the 
- * BLE channel index (0 to 39, inclusive). The NRF52 frequency register 
- * works like this: logical frequency = 2400 + FREQ (MHz). 
- *  
- * Thus, to get a logical frequency of 2402 MHz, you would program the 
- * FREQUENCY register to 2. 
- * 
+ * ble phy setchan
+ *
+ * Sets the logical frequency of the transceiver. The input parameter is the
+ * BLE channel index (0 to 39, inclusive). The NRF52 frequency register
+ * works like this: logical frequency = 2400 + FREQ (MHz).
+ *
+ * Thus, to get a logical frequency of 2402 MHz, you would program the
+ * FREQUENCY register to 2.
+ *
  * @param chan This is the Data Channel Index or Advertising Channel index
- * 
+ *
  * @return int 0: success; PHY error code otherwise
  */
 int
@@ -389,7 +389,7 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 }
 
 /**
- * Disable the PHY. This will do the following: 
+ * Disable the PHY. This will do the following:
  *  -> Turn off all phy interrupts.
  *  -> Disable internal shortcuts.
  *  -> Disable the radio.
@@ -409,19 +409,19 @@ uint32_t ble_phy_access_addr_get(void)
 
 /**
  * Return the phy state
- * 
+ *
  * @return int The current PHY state.
  */
-int 
+int
 ble_phy_state_get(void)
 {
     return g_ble_phy_data.phy_state;
 }
 
 /**
- * Called to see if a reception has started 
- * 
- * @return int 
+ * Called to see if a reception has started
+ *
+ * @return int
  */
 int
 ble_phy_rx_started(void)
