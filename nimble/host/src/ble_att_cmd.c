@@ -98,7 +98,7 @@ ble_att_error_rsp_write(void *payload, int len, struct ble_att_error_rsp *src)
 static void
 ble_att_mtu_cmd_swap(struct ble_att_mtu_cmd *dst, struct ble_att_mtu_cmd *src)
 {
-    dst->bamc_mtu = src->bamc_mtu;
+    dst->bamc_mtu = TOFROMLE16(src->bamc_mtu);
 }
 
 void
@@ -310,8 +310,8 @@ static void
 ble_att_read_blob_req_swap(struct ble_att_read_blob_req *dst,
                            struct ble_att_read_blob_req *src)
 {
-    dst->babq_handle = src->babq_handle;
-    dst->babq_offset = src->babq_offset;
+    dst->babq_handle = TOFROMLE16(src->babq_handle);
+    dst->babq_offset = TOFROMLE16(src->babq_offset);
 }
 
 void
@@ -368,8 +368,8 @@ static void
 ble_att_read_group_type_req_swap(struct ble_att_read_group_type_req *dst,
                                  struct ble_att_read_group_type_req *src)
 {
-    dst->bagq_start_handle = src->bagq_start_handle;
-    dst->bagq_end_handle = src->bagq_end_handle;
+    dst->bagq_start_handle = TOFROMLE16(src->bagq_start_handle);
+    dst->bagq_end_handle = TOFROMLE16(src->bagq_end_handle);
 }
 
 void
@@ -427,7 +427,7 @@ static void
 ble_att_write_req_swap(struct ble_att_write_req *dst,
                        struct ble_att_write_req *src)
 {
-    dst->bawq_handle = src->bawq_handle;
+    dst->bawq_handle = TOFROMLE16(src->bawq_handle);
 }
 
 void
@@ -474,8 +474,8 @@ static void
 ble_att_prep_write_cmd_swap(struct ble_att_prep_write_cmd *dst,
                             struct ble_att_prep_write_cmd *src)
 {
-    dst->bapc_handle = src->bapc_handle;
-    dst->bapc_offset = src->bapc_offset;
+    dst->bapc_handle = TOFROMLE16(src->bapc_handle);
+    dst->bapc_offset = TOFROMLE16(src->bapc_offset);
 }
 
 void
@@ -569,7 +569,7 @@ static void
 ble_att_notify_req_swap(struct ble_att_notify_req *dst,
                         struct ble_att_notify_req *src)
 {
-    dst->banq_handle = src->banq_handle;
+    dst->banq_handle = TOFROMLE16(src->banq_handle);
 }
 
 void
@@ -598,7 +598,7 @@ static void
 ble_att_indicate_req_swap(struct ble_att_indicate_req *dst,
                           struct ble_att_indicate_req *src)
 {
-    dst->baiq_handle = src->baiq_handle;
+    dst->baiq_handle = TOFROMLE16(src->baiq_handle);
 }
 
 void
