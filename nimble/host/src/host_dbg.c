@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -44,11 +44,11 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         if (status == BLE_ERR_SUCCESS) {
             BLE_HS_LOG(DEBUG, "LE connection complete. handle=%u role=%u "
                               "paddrtype=%u addr=%x.%x.%x.%x.%x.%x itvl=%u "
-                              "latency=%u spvn_tmo=%u mca=%u\n", 
-                       le16toh(evdata + 1), evdata[3], evdata[4], 
+                              "latency=%u spvn_tmo=%u mca=%u\n",
+                       le16toh(evdata + 1), evdata[3], evdata[4],
                        evdata[10], evdata[9], evdata[8], evdata[7],
-                       evdata[6], evdata[5], le16toh(evdata + 11), 
-                       le16toh(evdata + 13), le16toh(evdata + 15), 
+                       evdata[6], evdata[5], le16toh(evdata + 11),
+                       le16toh(evdata + 13), le16toh(evdata + 15),
                        evdata[17]);
         } else {
             BLE_HS_LOG(DEBUG, "LE connection complete. FAIL (status=%u)\n",
@@ -87,7 +87,7 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         if (status == BLE_ERR_SUCCESS) {
             BLE_HS_LOG(DEBUG, "LE Connection Update Complete. handle=%u "
                               "itvl=%u latency=%u timeout=%u\n",
-                       le16toh(evdata + 1), le16toh(evdata + 3), 
+                       le16toh(evdata + 1), le16toh(evdata + 3),
                        le16toh(evdata + 5), le16toh(evdata + 7));
         } else {
             BLE_HS_LOG(DEBUG, "LE Connection Update Complete. FAIL "
@@ -98,14 +98,14 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
     case BLE_HCI_LE_SUBEV_DATA_LEN_CHG:
         BLE_HS_LOG(DEBUG, "LE Data Length Change. handle=%u max_tx_bytes=%u "
                           "max_tx_time=%u max_rx_bytes=%u max_rx_time=%u\n",
-                   le16toh(evdata), le16toh(evdata + 2), 
+                   le16toh(evdata), le16toh(evdata + 2),
                    le16toh(evdata + 4), le16toh(evdata + 6),
                    le16toh(evdata + 8));
         break;
     case BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ:
         BLE_HS_LOG(DEBUG, "LE Remote Connection Parameter Request. handle=%u "
                           "min_itvl=%u max_itvl=%u latency=%u timeout=%u\n",
-                   le16toh(evdata), le16toh(evdata + 2), 
+                   le16toh(evdata), le16toh(evdata + 2),
                    le16toh(evdata + 4), le16toh(evdata + 6),
                    le16toh(evdata + 8));
         break;
@@ -125,6 +125,12 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         }
         break;
 
+    case BLE_HCI_LE_SUBEV_LT_KEY_REQ:
+            BLE_HS_LOG(DEBUG, "LE LTK Req. handle=%u rand=%lx%lx encdiv=%u\n",
+                       le16toh(evdata), le32toh(evdata + 6),
+                       le32toh(evdata + 2), le16toh(evdata + 10));
+        break;
+
     default:
         BLE_HS_LOG(DEBUG, "\tUnknown LE event\n");
         break;
@@ -133,10 +139,10 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 
 /**
  * Display a disconnection complete command.
- * 
- * 
- * @param evdata 
- * @param len 
+ *
+ *
+ * @param evdata
+ * @param len
  */
 static void
 host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
@@ -158,10 +164,35 @@ host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
 }
 
 /**
- * Display a version information event 
- * 
- * @param evdata 
- * @param len 
+ * Display an encryption change event.
+ *
+ * @param evdata
+ * @param len
+ */
+static void
+host_hci_dbg_encrypt_chg_disp(uint8_t *evdata, uint8_t len)
+{
+    uint8_t status;
+    uint8_t enabled;
+    uint16_t handle;
+
+    status = evdata[0];
+    handle = le16toh(evdata + 1);
+    /* Ignore reason if status is not success */
+    if (status != BLE_ERR_SUCCESS) {
+        enabled = 0;
+    } else {
+        enabled = evdata[3];
+    }
+    BLE_HS_LOG(DEBUG, "Encrypt change: status=%u handle=%u state=%u\n",
+               status, handle, enabled);
+}
+
+/**
+ * Display a version information event
+ *
+ * @param evdata
+ * @param len
  */
 static void
 host_hci_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
@@ -174,9 +205,9 @@ host_hci_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
 
 /**
  * Display the number of completed packets event
- * 
- * @param evdata 
- * @param len 
+ *
+ * @param evdata
+ * @param len
  */
 static void
 host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
@@ -267,20 +298,22 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     ocf = BLE_HCI_OCF(opcode);
     status = evdata[3];
 
+    /* Move past header and status */
+    evdata += 4;
+
     BLE_HS_LOG(DEBUG, "Command Complete: cmd_pkts=%u ogf=0x%x ocf=0x%x "
                       "status=%u ", cmd_pkts, ogf, ocf, status);
 
     /* Display parameters based on command. */
     switch (ogf) {
     case BLE_HCI_OGF_INFO_PARAMS:
-        evdata += 4;
         host_hci_dbg_cmd_comp_info_params(status, ocf, evdata);
         break;
     case BLE_HCI_OGF_STATUS_PARAMS:
         switch (ocf) {
         case BLE_HCI_OCF_RD_RSSI:
-            BLE_HS_LOG(DEBUG, "handle=%u rssi=%d", le16toh(evdata + 4), 
-                       (int8_t)evdata[6]);
+            BLE_HS_LOG(DEBUG, "handle=%u rssi=%d", le16toh(evdata),
+                       (int8_t)evdata[2]);
             break;
         default:
             break;
@@ -289,21 +322,20 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     case BLE_HCI_OGF_LE:
         switch (ocf) {
         case BLE_HCI_OCF_LE_RD_CHAN_MAP:
-            BLE_HS_LOG(DEBUG, "handle=%u chanmap=%x.%x.%x.%x.%x", 
-                       le16toh(evdata + 4), evdata[6], evdata[7], evdata[8],
-                       evdata[9], evdata[10]);
+            BLE_HS_LOG(DEBUG, "handle=%u chanmap=%x.%x.%x.%x.%x",
+                       le16toh(evdata), evdata[2], evdata[3], evdata[4],
+                       evdata[5], evdata[6]);
             break;
         case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
-            BLE_HS_LOG(DEBUG, "txoct=%u txtime=%u rxoct=%u rxtime=%u", 
-                       le16toh(evdata + 4), le16toh(evdata + 6),
-                       le16toh(evdata + 8), le16toh(evdata + 10));
+            BLE_HS_LOG(DEBUG, "txoct=%u txtime=%u rxoct=%u rxtime=%u",
+                       le16toh(evdata), le16toh(evdata + 2),
+                       le16toh(evdata + 4), le16toh(evdata + 6));
             break;
         case BLE_HCI_OCF_LE_RD_SUPP_STATES:
-            BLE_HS_LOG(DEBUG, "states=0x%lx%08lx", le32toh(evdata + 8),
-                       le32toh(evdata + 4));
+            BLE_HS_LOG(DEBUG, "states=0x%lx%08lx", le32toh(evdata + 4),
+                       le32toh(evdata));
             break;
         case BLE_HCI_OCF_LE_ENCRYPT:
-            evdata += 4;
             BLE_HS_LOG(DEBUG, "encdata=0x%02x%02x%02x%02x%02x%02x%02x%02x",
                        evdata[15], evdata[14], evdata[13], evdata[12],
                        evdata[11], evdata[10], evdata[9], evdata[8]);
@@ -313,18 +345,17 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
 
             break;
         case BLE_HCI_OCF_LE_RAND:
-            evdata += 4;
             BLE_HS_LOG(DEBUG, "rand=0x%02x%02x%02x%02x%02x%02x%02x%02x",
                        evdata[0], evdata[1], evdata[2], evdata[3],
                        evdata[4], evdata[5], evdata[6], evdata[7]);
             break;
         case BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN:
-            evdata += 4;
-            BLE_HS_LOG(DEBUG, "txoct=%u txtime=%u", le16toh(evdata), 
-                       le16toh(evdata+ 2));
+            BLE_HS_LOG(DEBUG, "txoct=%u txtime=%u", le16toh(evdata),
+                       le16toh(evdata + 2));
             break;
+        case BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY:
+        case BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY:
         case BLE_HCI_OCF_LE_SET_DATA_LEN:
-            evdata += 4;
             BLE_HS_LOG(DEBUG, "handle=%u", le16toh(evdata));
             break;
         default:
@@ -362,7 +393,7 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     uint8_t *evdata;
     uint8_t evcode;
     uint8_t len;
- 
+
     /* Extract event code and length; move pointer to event parameter data */
     evcode = evbuf[0];
     len = evbuf[1];
@@ -371,6 +402,9 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     switch (evcode) {
     case BLE_HCI_EVCODE_DISCONN_CMP:
         host_hci_dbg_disconn_comp_disp(evdata, len);
+        break;
+    case BLE_HCI_EVCODE_ENCRYPT_CHG:
+        host_hci_dbg_encrypt_chg_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP:
         host_hci_dbg_rd_rem_ver_disp(evdata, len);

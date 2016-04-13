@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -65,7 +65,7 @@ int host_hci_cmd_build_le_set_scan_params(uint8_t scan_type,
                                           uint8_t own_addr_type,
                                           uint8_t filter_policy,
                                           uint8_t *cmd, int cmd_len);
-int host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl, 
+int host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
                                     uint16_t scan_window,
                                     uint8_t own_addr_type,
                                     uint8_t filter_policy);
@@ -92,13 +92,14 @@ int host_hci_cmd_build_le_conn_update(struct hci_conn_update *hcu,
                                       uint8_t *dst, int dst_len);
 int host_hci_cmd_le_conn_update(struct hci_conn_update *hcu);
 int host_hci_cmd_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr);
+int host_hci_cmd_le_lt_key_req_neg_reply(uint16_t handle);
 int host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr);
 int host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn);
 int host_hci_cmd_le_read_supp_states(void);
 int host_hci_cmd_le_read_max_datalen(void);
 int host_hci_cmd_le_read_sugg_datalen(void);
 int host_hci_cmd_le_write_sugg_datalen(uint16_t txoctets, uint16_t txtime);
-int host_hci_cmd_le_set_datalen(uint16_t handle, uint16_t txoctets, 
+int host_hci_cmd_le_set_datalen(uint16_t handle, uint16_t txoctets,
                                 uint16_t txtime);
 int host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt);
 int host_hci_cmd_le_rand(void);
