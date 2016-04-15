@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -37,8 +37,8 @@ ble_rng_isr_cb_t g_ble_rng_isr_cb;
 
 /**
  * Clear the whitelist
- * 
- * @return int 
+ *
+ * @return int
  */
 void
 ble_hw_whitelist_clear(void)
@@ -48,11 +48,11 @@ ble_hw_whitelist_clear(void)
 }
 
 /**
- * Add a device to the hw whitelist 
- * 
- * @param addr 
- * @param addr_type 
- * 
+ * Add a device to the hw whitelist
+ *
+ * @param addr
+ * @param addr_type
+ *
  * @return int 0: success, BLE error code otherwise
  */
 int
@@ -80,11 +80,11 @@ ble_hw_whitelist_add(uint8_t *addr, uint8_t addr_type)
 }
 
 /**
- * Remove a device from the hw whitelist 
- * 
- * @param addr 
- * @param addr_type 
- * 
+ * Remove a device from the hw whitelist
+ *
+ * @param addr
+ * @param addr_type
+ *
  */
 void
 ble_hw_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
@@ -126,8 +126,8 @@ ble_hw_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
 }
 
 /**
- * Returns the size of the whitelist in HW 
- * 
+ * Returns the size of the whitelist in HW
+ *
  * @return int Number of devices allowed in whitelist
  */
 uint8_t
@@ -137,7 +137,7 @@ ble_hw_whitelist_size(void)
 }
 
 /**
- * Enable the whitelisted devices 
+ * Enable the whitelisted devices
  */
 void
 ble_hw_whitelist_enable(void)
@@ -147,7 +147,7 @@ ble_hw_whitelist_enable(void)
 }
 
 /**
- * Disables the whitelisted devices 
+ * Disables the whitelisted devices
  */
 void
 ble_hw_whitelist_disable(void)
@@ -157,10 +157,10 @@ ble_hw_whitelist_disable(void)
 }
 
 /**
- * Boolean function which returns true ('1') if there is a match on the 
- * whitelist. 
- * 
- * @return int 
+ * Boolean function which returns true ('1') if there is a match on the
+ * whitelist.
+ *
+ * @return int
  */
 int
 ble_hw_whitelist_match(void)
@@ -173,9 +173,12 @@ int
 ble_hw_encrypt_block(struct ble_encryption_block *ecb)
 {
     int rc;
+    uint32_t end;
+    uint32_t err;
 
     /* Stop ECB */
     NRF_ECB->TASKS_STOPECB = 1;
+    /* XXX: does task stop clear these counters? Anyway to do this quicker? */
     NRF_ECB->EVENTS_ENDECB = 0;
     NRF_ECB->EVENTS_ERRORECB = 0;
     NRF_ECB->ECBDATAPTR = (uint32_t)ecb;
@@ -184,14 +187,14 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     NRF_ECB->TASKS_STARTECB = 1;
 
     /* Wait till error or done */
+    rc = 0;
     while (1) {
-        if (NRF_ECB->EVENTS_ENDECB != 0) {
-            rc = 0;
-            break;
-        }
-
-        if (NRF_ECB->EVENTS_ERRORECB != 0) {
-            rc = -1;
+        end = NRF_ECB->EVENTS_ENDECB;
+        err = NRF_ECB->EVENTS_ERRORECB;
+        if (end || err) {
+            if (err) {
+                rc = -1;
+            }
             break;
         }
     }
@@ -225,11 +228,11 @@ ble_rng_isr(void)
 
 /**
  * Initialize the random number generator
- * 
- * @param cb 
- * @param bias 
- * 
- * @return int 
+ *
+ * @param cb
+ * @param bias
+ *
+ * @return int
  */
 int
 ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
@@ -254,8 +257,8 @@ ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
 
 /**
  * Start the random number generator
- * 
- * @return int 
+ *
+ * @return int
  */
 int
 ble_hw_rng_start(void)
@@ -278,8 +281,8 @@ ble_hw_rng_start(void)
 
 /**
  * Stop the random generator
- * 
- * @return int 
+ *
+ * @return int
  */
 int
 ble_hw_rng_stop(void)
@@ -298,8 +301,8 @@ ble_hw_rng_stop(void)
 
 /**
  * Read the random number generator.
- * 
- * @return uint8_t 
+ *
+ * @return uint8_t
  */
 uint8_t
 ble_hw_rng_read(void)

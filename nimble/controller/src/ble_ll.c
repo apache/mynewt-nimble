@@ -736,8 +736,8 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
     crcok = BLE_MBUF_HDR_CRC_OK(ble_hdr);
 
     ble_ll_log(BLE_LL_LOG_ID_RX_END,
-               chan,
-               ((uint16_t)crcok << 8) | rxbuf[1],
+               rxbuf[0],
+               ((uint16_t)ble_hdr->rxinfo.flags << 8) | rxbuf[1],
                (BLE_MBUF_HDR_PTR(rxpdu))->end_cputime);
 
     /* Check channel type */
@@ -821,11 +821,9 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
     case BLE_LL_STATE_INITIATING:
         rc = ble_ll_init_rx_isr_end(rxpdu, crcok);
         break;
-    /* Invalid states */
-    case BLE_LL_STATE_CONNECTION:
     default:
         rc = -1;
-        assert(0);
+        STATS_INC(ble_ll_stats, bad_ll_state);
         break;
     }
 
@@ -1154,3 +1152,29 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     return rc;
 }
 
+#ifdef BLE_LL_LOG
+void
+ble_ll_log_dump_index(int i)
+{
+    struct ble_ll_log *log;
+
+    log = &g_ble_ll_log[i];
+
+    console_printf("cputime=%lu id=%u a8=%u a16=%u a32=%lu\n",
+                   log->cputime, log->log_id, log->log_a8,
+                   log->log_a16, log->log_a32);
+}
+
+void
+ble_ll_log_dump(void)
+{
+    int i;
+
+    for (i = g_ble_ll_log_index; i < BLE_LL_LOG_LEN; ++i) {
+        ble_ll_log_dump_index(i);
+    }
+    for (i = 0; i < g_ble_ll_log_index; ++i) {
+        ble_ll_log_dump_index(i);
+    }
+}
+#endif

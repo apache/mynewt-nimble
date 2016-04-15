@@ -53,35 +53,63 @@
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
 
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /*
- * Length of empty pdu mbuf. Each connection state machine contains an
- * empty pdu since we dont want to allocate a full mbuf for an empty pdu
- * and we always want to have one available. The empty pdu length is of
- * type uint32_t so we have 4 byte alignment.
+ * Encryption states for a connection
+ *
+ * NOTE: the states are ordered so that we can check to see if the state
+ * is greater than ENCRYPTED. If so, it means that the start or pause
+ * encryption procedure is running and we should not send data pdu's.
  */
-#define BLE_LL_EMPTY_PDU_MBUF_SIZE  (BLE_MBUF_MEMBLOCK_OVERHEAD / 4)
+enum conn_enc_state {
+    CONN_ENC_S_UNENCRYPTED = 1,
+    CONN_ENC_S_ENCRYPTED,
+    CONN_ENC_S_ENC_RSP_WAIT,
+    CONN_ENC_S_START_ENC_REQ_WAIT,
+    CONN_ENC_S_START_ENC_RSP_WAIT,
+    CONN_ENC_S_LTK_REQ_WAIT,
+    CONN_ENC_S_LTK_NEG_REPLY
+};
+
+/*
+ * Note that the LTK is the key, the SDK is the plain text, and the
+ * session key is the cipher text portion of the encryption block.
+ */
+struct ble_ll_conn_enc_data
+{
+    uint8_t enc_state;
+    uint8_t tx_encrypted;
+    uint16_t enc_div;
+    uint16_t tx_pkt_cntr;
+    uint16_t rx_pkt_cntr;
+    uint64_t host_rand_num;
+    uint8_t iv[8];
+    struct ble_encryption_block enc_block;
+};
+#endif
 
 /* Connection state machine flags. */
 union ble_ll_conn_sm_flags {
     struct {
-        uint16_t pdu_txd:1;
-        uint16_t pkt_rxd:1;
-        uint16_t terminate_ind_txd:1;
-        uint16_t terminate_ind_rxd:1;
-        uint16_t allow_slave_latency:1;
-        uint16_t slave_set_last_anchor:1;
-        uint16_t awaiting_host_reply:1;
-        uint16_t send_conn_upd_event:1;
-        uint16_t conn_update_sched:1;
-        uint16_t host_expects_upd_event:1;
-        uint16_t version_ind_sent:1;
-        uint16_t rxd_version_ind:1;
-        uint16_t chanmap_update_scheduled:1;
-        uint16_t conn_empty_pdu_txd:1;
-        uint16_t last_txd_md:1;
-        uint16_t conn_req_txd:1;
+        uint32_t pkt_rxd:1;
+        uint32_t terminate_ind_txd:1;
+        uint32_t terminate_ind_rxd:1;
+        uint32_t allow_slave_latency:1;
+        uint32_t slave_set_last_anchor:1;
+        uint32_t awaiting_host_reply:1;
+        uint32_t send_conn_upd_event:1;
+        uint32_t conn_update_sched:1;
+        uint32_t host_expects_upd_event:1;
+        uint32_t version_ind_sent:1;
+        uint32_t rxd_version_ind:1;
+        uint32_t chanmap_update_scheduled:1;
+        uint32_t conn_empty_pdu_txd:1;
+        uint32_t last_txd_md:1;
+        uint32_t conn_req_txd:1;
+        uint32_t send_ltk_req:1;
+        uint32_t encrypted:1;
     } cfbit;
-    uint16_t conn_flags;
+    uint32_t conn_flags;
 } __attribute__((packed));
 
 /* Connection state machine */
@@ -197,7 +225,17 @@ struct ble_ll_conn_sm
     /* For scheduling connections */
     struct ble_ll_sched_item conn_sch;
 
-    /* XXX: ifdef this by feature? */
+    /*
+     * XXX: a note on all these structures for control procedures. First off,
+     * all of these need to be ifdef'd to save memory. Another thing to
+     * consider is this: since most control procedures can only run when no
+     * others are running, can I use just one structure (a union)? Should I
+     * allocate these from a pool? Not sure what to do. For now, I just use
+     * a large chunk of memory per connection.
+     */
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    struct ble_ll_conn_enc_data enc_data;
+#endif
     /*
      * For connection update procedure. XXX: can make this a pointer and
      * malloc it if we want to save space.
@@ -216,6 +254,11 @@ struct ble_ll_conn_sm
 #define CONN_F_EMPTY_PDU_TXD(csm)   ((csm)->csmflags.cfbit.conn_empty_pdu_txd)
 #define CONN_F_LAST_TXD_MD(csm)     ((csm)->csmflags.cfbit.last_txd_md)
 #define CONN_F_CONN_REQ_TXD(csm)    ((csm)->csmflags.cfbit.conn_req_txd)
+#define CONN_F_ENCRYPTED(csm)       ((csm)->csmflags.cfbit.encrypted)
+
+/* Role */
+#define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)
+#define CONN_IS_SLAVE(csm)          (csm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
 
 /*
  * Given a handle, returns an active connection state machine (or NULL if the

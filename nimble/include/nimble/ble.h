@@ -68,7 +68,7 @@ struct ble_mbuf_hdr_rxinfo
 /* Flag definitions for rxinfo  */
 #define BLE_MBUF_HDR_F_CRC_OK           (0x80)
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x40)
-#define BLE_MBUF_HDR_F_CONN_REQ_TXD     (0x20)
+#define BLE_MBUF_HDR_F_MIC_FAILURE      (0x20)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x10)
 #define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x08)
 #define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)
@@ -97,21 +97,24 @@ struct ble_mbuf_hdr
  */
 #define BLE_MBUF_PAYLOAD_SIZE           (260)
 
-#define BLE_MBUF_HDR_CRC_OK(hdr)    \
+#define BLE_MBUF_HDR_CRC_OK(hdr)        \
     ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_CRC_OK)
 
-#define BLE_MBUF_HDR_RX_STATE(hdr)  \
+#define BLE_MBUF_HDR_MIC_FAILURE(hdr)   \
+    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_MIC_FAILURE)
+
+#define BLE_MBUF_HDR_RX_STATE(hdr)      \
     ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK)
 
-#define BLE_MBUF_HDR_PTR(om)        \
+#define BLE_MBUF_HDR_PTR(om)            \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
                             sizeof(struct os_mbuf_pkthdr))
 
 /* BLE mbuf overhead per packet header mbuf */
-#define BLE_MBUF_PKTHDR_OVERHEAD    \
+#define BLE_MBUF_PKTHDR_OVERHEAD        \
     (sizeof(struct os_mbuf_pkthdr) + sizeof(struct ble_mbuf_hdr))
 
-#define BLE_MBUF_MEMBLOCK_OVERHEAD  \
+#define BLE_MBUF_MEMBLOCK_OVERHEAD      \
     (sizeof(struct os_mbuf) + BLE_MBUF_PKTHDR_OVERHEAD)
 
 #define BLE_DEV_ADDR_LEN        (6)

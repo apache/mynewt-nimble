@@ -123,4 +123,9 @@ int ble_phy_rx_started(void);
 /* Gets the current access address */
 uint32_t ble_phy_access_addr_get(void);
 
+void ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
+                            uint8_t is_master);
+void ble_phy_encrypt_disable(void);
+void ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir);
+
 #endif /* H_BLE_PHY_ */

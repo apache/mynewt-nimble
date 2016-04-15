@@ -599,6 +599,16 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RAND:
         rc = ble_ll_hci_le_rand(rspbuf, rsplen);
         break;
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    case BLE_HCI_OCF_LE_START_ENCRYPT:
+        rc = ble_ll_conn_hci_le_start_encrypt(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY:
+    case BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY:
+        rc = ble_ll_conn_hci_le_ltk_reply(cmdbuf, rspbuf, ocf);
+        *rsplen = sizeof(uint16_t);
+        break;
+#endif
     case BLE_HCI_OCF_LE_RD_SUPP_STATES :
         rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);
         break;

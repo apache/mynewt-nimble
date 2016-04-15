@@ -133,4 +133,6 @@ int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf,
                                 uint8_t *rsplen);
 int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf,
                                  uint8_t *rsplen);
+int ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf);
+int ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf);
 #endif /* H_BLE_LL_CONN_PRIV_ */

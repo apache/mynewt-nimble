@@ -26,6 +26,10 @@
 #include "controller/ble_ll_ctrl.h"
 #include "ble_ll_conn_priv.h"
 
+#if (BLETEST_CONCURRENT_CONN_TEST == 1)
+extern void bletest_ltk_req_reply(uint16_t handle);
+#endif
+
 /**
  * Send a data length change event for a connection to the host.
  *
@@ -105,6 +109,65 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
         }
     }
 }
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+void
+ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_ENCRYPT_CHG)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_ENCRYPT_CHG;
+            evbuf[1] = BLE_HCI_EVENT_ENCRYPT_CHG_LEN;
+            evbuf[2] = status;
+            htole16(evbuf + 3, connsm->conn_handle);
+            if (status == BLE_ERR_SUCCESS) {
+                evbuf[5] = 0x01;
+            } else {
+                evbuf[5] = 0;
+            }
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+
+/**
+ * Send a long term key request event for a connection to the host.
+ *
+ * @param connsm Pointer to connection state machine
+ */
+int
+ble_ll_hci_ev_ltk_req(struct ble_ll_conn_sm *connsm)
+{
+    int rc;
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_LT_KEY_REQ)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = BLE_HCI_LE_LT_KEY_REQ_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_LT_KEY_REQ;
+            htole16(evbuf + 3, connsm->conn_handle);
+            htole64(evbuf + 5, connsm->enc_data.host_rand_num);
+            htole16(evbuf + 13, connsm->enc_data.enc_div);
+            ble_ll_hci_event_send(evbuf);
+        }
+        rc = 0;
+    } else {
+        rc = -1;
+    }
+
+#if (BLETEST_CONCURRENT_CONN_TEST == 1)
+    if (rc == 0) {
+        bletest_ltk_req_reply(connsm->conn_handle);
+    }
+#endif
+    return rc;
+}
+#endif
 
 void
 ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)

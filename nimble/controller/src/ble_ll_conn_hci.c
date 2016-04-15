@@ -485,8 +485,14 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     struct ble_ll_conn_sm *connsm;
     struct hci_conn_update *hcu;
 
-    /* XXX: must deal with slave not supporting this feature and using
-       conn update */
+    /*
+     * XXX: must deal with slave not supporting this feature and using
+     * conn update! Right now, we only check if WE support the connection
+     * parameters request procedure. We dont check if the remote does.
+     * We should also be able to deal with sending the parameter request,
+     * getting an UNKOWN_RSP ctrl pdu and resorting to use normal
+     * connection update procedure.
+     */
 
     /* If no connection handle exit with error */
     handle = le16toh(cmdbuf);
@@ -524,9 +530,8 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
             connsm->csmflags.cfbit.awaiting_host_reply = 0;
 
             /* XXX: If this fails no reject ind will be sent! */
-            ble_ll_ctrl_reject_ind_ext_send(connsm,
-                                            connsm->host_reply_opcode,
-                                            BLE_ERR_LMP_COLLISION);
+            ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
+                                        BLE_ERR_LMP_COLLISION);
         }
     }
 
@@ -618,9 +623,8 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
             }
         } else {
             /* XXX: check return code and deal */
-            ble_ll_ctrl_reject_ind_ext_send(connsm,
-                                            connsm->host_reply_opcode,
-                                            ble_err);
+            ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
+                                        ble_err);
         }
         connsm->csmflags.cfbit.awaiting_host_reply = 0;
 
@@ -911,3 +915,89 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 }
 #endif
 
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+/**
+ * LE start encrypt command
+ *
+ * @param cmdbuf
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        rc = BLE_ERR_UNSPECIFIED;
+    } else {
+        /* XXX: implement pause procedure */
+        /* Start the control procedure */
+        connsm->enc_data.host_rand_num = le64toh(cmdbuf + 2);
+        connsm->enc_data.enc_div = le16toh(cmdbuf + 10);
+        swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 12, 16);
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    return rc;
+}
+
+/**
+ * Called to process the LE long term key reply.
+ *
+ * Context: Link Layer Task.
+ *
+ * @param cmdbuf
+ * @param rspbuf
+ * @param ocf
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    /* Find connection handle */
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto ltk_key_cmd_complete;
+    }
+
+    /* Should never get this if we are a master! */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        rc = BLE_ERR_UNSPECIFIED;
+        goto ltk_key_cmd_complete;
+    }
+
+    /* The connection should be awaiting a reply. If not, just discard */
+    if (connsm->enc_data.enc_state == CONN_ENC_S_LTK_REQ_WAIT) {
+        if (ocf == BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY) {
+            swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 2, 16);
+            ble_ll_calc_session_key(connsm);
+            ble_ll_ctrl_start_enc_send(connsm, BLE_LL_CTRL_START_ENC_REQ);
+        } else {
+            /* We received a negative reply! Send REJECT_IND */
+            ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
+                                        BLE_ERR_PINKEY_MISSING);
+            connsm->enc_data.enc_state = CONN_ENC_S_LTK_NEG_REPLY;
+        }
+    }
+    rc = BLE_ERR_SUCCESS;
+
+ltk_key_cmd_complete:
+    htole16(rspbuf, handle);
+    return rc;
+}
+#endif
