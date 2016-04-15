@@ -32,7 +32,7 @@
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
 /*
- * We configure the nrf52 with a 1 byte S0 field, 8 bit length field, and
+ * We configure the nrf with a 1 byte S0 field, 8 bit length field, and
  * zero bit S1 field. The preamble is 8 bits long.
  */
 #define NRF_LFLEN_BITS          (8)
@@ -103,8 +103,8 @@ STATS_NAME_END(ble_phy_stats)
  * NOTE:
  * Tested the following to see what would happen:
  *  -> NVIC has radio irq enabled (interrupt # 1, mask 0x2).
- *  -> Set up nrf52 to receive. Clear ADDRESS event register.
- *  -> Enable ADDRESS interrupt on nrf52 by writing to INTENSET.
+ *  -> Set up nrf to receive. Clear ADDRESS event register.
+ *  -> Enable ADDRESS interrupt on nrf5 by writing to INTENSET.
  *  -> Enable RX.
  *  -> Disable interrupts globally using OS_ENTER_CRITICAL().
  *  -> Wait until a packet is received and the ADDRESS event occurs.
@@ -159,7 +159,7 @@ ble_phy_rxpdu_get(void)
 }
 
 static void
-nrf52_wait_disabled(void)
+nrf_wait_disabled(void)
 {
     uint32_t state;
 
@@ -438,7 +438,7 @@ int
 ble_phy_rx(void)
 {
     /* Check radio state */
-    nrf52_wait_disabled();
+    nrf_wait_disabled();
     if (NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, radio_state_errs);
@@ -506,7 +506,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
     assert(txpdu != NULL);
 
     /* If radio is not disabled, */
-    nrf52_wait_disabled();
+    nrf_wait_disabled();
 
     if (beg_trans == BLE_PHY_TRANSITION_RX_TX) {
         if ((NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk) == 0) {
@@ -661,7 +661,7 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* Get correct nrf52 frequency */
+    /* Get correct frequency */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
         if (chan < 11) {
             /* Data channel 0 starts at 2404. 0 - 10 are contiguous */

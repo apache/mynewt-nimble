@@ -353,6 +353,10 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
     assert(rc == 0);
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    ble_phy_encrypt_disable();
+#endif
+
     /* Set phy mode based on type of advertisement */
     if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
         end_trans = BLE_PHY_TRANSITION_NONE;

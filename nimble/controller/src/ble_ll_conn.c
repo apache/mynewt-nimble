@@ -142,7 +142,7 @@ struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
 /* Connection state machine array */
-bssnz_t struct ble_ll_conn_sm g_ble_ll_conn_sm[NIMBLE_OPT_MAX_CONNECTIONS];
+struct ble_ll_conn_sm g_ble_ll_conn_sm[NIMBLE_OPT_MAX_CONNECTIONS];
 
 /* List of active connections */
 struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
@@ -155,7 +155,6 @@ STATS_SECT_START(ble_ll_conn_stats)
     STATS_SECT_ENTRY(conn_ev_late)
     STATS_SECT_ENTRY(wfr_expirations)
     STATS_SECT_ENTRY(handle_not_found)
-    STATS_SECT_ENTRY(no_tx_pdu)
     STATS_SECT_ENTRY(no_conn_sm)
     STATS_SECT_ENTRY(no_free_conn_sm)
     STATS_SECT_ENTRY(rx_data_pdu_no_conn)
@@ -176,6 +175,7 @@ STATS_SECT_START(ble_ll_conn_stats)
     STATS_SECT_ENTRY(tx_l2cap_pdus)
     STATS_SECT_ENTRY(tx_l2cap_bytes)
     STATS_SECT_ENTRY(tx_empty_pdus)
+    STATS_SECT_ENTRY(mic_failures)
 STATS_SECT_END
 STATS_SECT_DECL(ble_ll_conn_stats) ble_ll_conn_stats;
 
@@ -184,7 +184,6 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, conn_ev_late)
     STATS_NAME(ble_ll_conn_stats, wfr_expirations)
     STATS_NAME(ble_ll_conn_stats, handle_not_found)
-    STATS_NAME(ble_ll_conn_stats, no_tx_pdu)
     STATS_NAME(ble_ll_conn_stats, no_conn_sm)
     STATS_NAME(ble_ll_conn_stats, no_free_conn_sm)
     STATS_NAME(ble_ll_conn_stats, rx_data_pdu_no_conn)
@@ -205,9 +204,28 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, tx_l2cap_pdus)
     STATS_NAME(ble_ll_conn_stats, tx_l2cap_bytes)
     STATS_NAME(ble_ll_conn_stats, tx_empty_pdus)
+    STATS_NAME(ble_ll_conn_stats, mic_failures)
 STATS_NAME_END(ble_ll_conn_stats)
 
-/* */
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+/**
+ * Called to determine if the received PDU is an empty PDU or not.
+ */
+static int
+ble_ll_conn_is_empty_pdu(struct os_mbuf *rxpdu)
+{
+    int rc;
+    uint8_t llid;
+
+    llid = rxpdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK;
+    if ((llid == BLE_LL_LLID_DATA_FRAG) && (rxpdu->om_data[1] == 0)) {
+        rc = 1;
+    } else {
+        rc = 0;
+    }
+    return rc;
+}
+#endif
 
 /**
  * Called to return the currently running connection state machine end time.
@@ -247,27 +265,6 @@ ble_ll_conn_get_ce_end_time(void)
         ce_end_time = cputime_get32();
     }
     return ce_end_time;
-}
-
-/**
- * Checks if pdu is a L2CAP pdu, meaning it is not a control pdu nor an empty
- * pdu. Called only for transmit PDU's.
- *
- * @return int
- */
-static int
-ble_ll_conn_is_l2cap_pdu(struct ble_mbuf_hdr *ble_hdr)
-{
-    int rc;
-    uint8_t llid;
-
-    llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
-    if ((llid != BLE_LL_LLID_CTRL) && (ble_hdr->txinfo.pyld_len != 0)) {
-        rc = 1;
-    } else {
-        rc = 0;
-    }
-    return rc;
 }
 
 /**
@@ -597,6 +594,42 @@ ble_ll_conn_wait_txend(void *arg)
     ble_ll_event_send(&connsm->conn_ev_end);
 }
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+static void
+ble_ll_conn_start_rx_encrypt(void *arg)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)arg;
+    CONN_F_ENCRYPTED(connsm) = 1;
+    ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
+                           connsm->enc_data.iv,
+                           connsm->enc_data.enc_block.cipher_text,
+                           !CONN_IS_MASTER(connsm));
+}
+
+static void
+ble_ll_conn_txend_encrypt(void *arg)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)arg;
+    CONN_F_ENCRYPTED(connsm) = 1;
+    ble_ll_conn_current_sm_over();
+    ble_ll_event_send(&connsm->conn_ev_end);
+}
+
+static void
+ble_ll_conn_continue_rx_encrypt(void *arg)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)arg;
+    ble_phy_encrypt_set_pkt_cntr(connsm->enc_data.rx_pkt_cntr,
+                                 !CONN_IS_MASTER(connsm));
+}
+#endif
+
 /**
  * Returns the cputime of the next scheduled item on the scheduler list or
  * when the current connection will start its next interval (whichever is
@@ -631,6 +664,52 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
 }
 
 /**
+ * Called to check if certain connection state machine flags have been
+ * set.
+ *
+ * @param connsm
+ */
+static void
+ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
+{
+    uint8_t update_status;
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    if (connsm->csmflags.cfbit.send_ltk_req) {
+        /*
+         * Send Long term key request event to host. If masked, we need to
+         * send a REJECT_IND.
+         */
+        if (ble_ll_hci_ev_ltk_req(connsm)) {
+            ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
+                                        BLE_ERR_PINKEY_MISSING);
+        }
+        connsm->csmflags.cfbit.send_ltk_req = 0;
+    }
+#endif
+
+    /*
+     * There are two cases where this flag gets set:
+     * 1) A connection update procedure was started and the event counter
+     * has passed the instant.
+     * 2) We successfully sent the reject reason.
+     */
+    if (connsm->csmflags.cfbit.host_expects_upd_event) {
+        update_status = BLE_ERR_SUCCESS;
+        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
+        } else {
+            if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
+                ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+                update_status = connsm->reject_reason;
+            }
+        }
+        ble_ll_hci_ev_conn_update(connsm, update_status);
+        connsm->csmflags.cfbit.host_expects_upd_event = 0;
+    }
+}
+
+/**
  * Called when we want to send a data channel pdu inside a connection event.
  *
  * Context: interrupt
@@ -648,7 +727,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
     uint8_t end_transition;
     uint8_t cur_txlen;
     uint8_t next_txlen;
-    uint8_t rem_bytes;
+    uint8_t cur_offset;
     uint16_t pktlen;
     uint32_t next_event_time;
     uint32_t ticks;
@@ -679,25 +758,50 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * If we dont have a pdu we have previously transmitted, take it off
      * the connection transmit queue
      */
+    cur_offset = 0;
     if (!connsm->cur_tx_pdu && !CONN_F_EMPTY_PDU_TXD(connsm)) {
-        /* Take packet off queue*/
-        nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
-        STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
-
+        /* Convert packet header to mbuf */
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+        nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+        /*
+         * If we are encrypting, we are only allowed to send certain
+         * kinds of LL control PDU's. If none is enqueued, send empty pdu!
+         */
+        if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
+            if (!ble_ll_ctrl_enc_allowed_pdu(pkthdr)) {
+                CONN_F_EMPTY_PDU_TXD(connsm) = 1;
+                goto conn_tx_pdu;
+            }
+
+            /*
+             * We will allow a next packet if it itself is allowed or we are
+             * a slave and we are sending the START_ENC_RSP. The master has
+             * to wait to receive the START_ENC_RSP from the slave before
+             * packets can be let go.
+             */
+            if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)
+                && ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) ||
+                    !ble_ll_ctrl_is_start_enc_rsp(m))) {
+                nextpkthdr = NULL;
+            }
+        }
+#endif
+        /* Take packet off queue*/
+        STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
         ble_hdr = BLE_MBUF_HDR_PTR(m);
 
         /* Determine packet length we will transmit */
         cur_txlen = connsm->eff_max_tx_octets;
         pktlen = pkthdr->omp_len;
-        rem_bytes = pktlen - ble_hdr->txinfo.offset;
-        if (cur_txlen > rem_bytes) {
-            cur_txlen = rem_bytes;
+        if (cur_txlen > pktlen) {
+            cur_txlen = pktlen;
         }
+        ble_hdr->txinfo.pyld_len = cur_txlen;
 
         /* NOTE: header was set when first enqueued */
         hdr_byte = ble_hdr->txinfo.hdr_byte;
-        ble_hdr->txinfo.pyld_len = cur_txlen;
         connsm->cur_tx_pdu = m;
     } else {
         nextpkthdr = pkthdr;
@@ -706,13 +810,33 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
             ble_hdr = BLE_MBUF_HDR_PTR(m);
             pktlen = OS_MBUF_PKTLEN(m);
             cur_txlen = ble_hdr->txinfo.pyld_len;
-            if (ble_hdr->txinfo.offset == 0) {
+            cur_offset = ble_hdr->txinfo.offset;
+            if (cur_offset == 0) {
                 hdr_byte = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
             }
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+            if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
+                /* We will allow a next packet if it itself is allowed */
+                pkthdr = OS_MBUF_PKTHDR(connsm->cur_tx_pdu);
+                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)
+                    && ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) ||
+                        !ble_ll_ctrl_is_start_enc_rsp(connsm->cur_tx_pdu))) {
+                    nextpkthdr = NULL;
+                }
+            }
+#endif
         } else {
-            /* NOTE: header byte gets set later */
+            /* Empty PDU here. NOTE: header byte gets set later */
             pktlen = 0;
             cur_txlen = 0;
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+            if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
+                /* We will allow a next packet if it itself is allowed */
+                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)) {
+                    nextpkthdr = NULL;
+                }
+            }
+#endif
         }
     }
 
@@ -720,7 +844,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
      * Set the more data data flag if we have more data to send and we
      * have not been asked to terminate
      */
-    if ((nextpkthdr || ((ble_hdr->txinfo.offset + cur_txlen) < pktlen)) &&
+    if ((nextpkthdr || ((cur_offset + cur_txlen) < pktlen)) &&
          !connsm->csmflags.cfbit.terminate_ind_rxd) {
         /* Get next event time */
         next_event_time = ble_ll_conn_get_next_sched_time(connsm);
@@ -737,8 +861,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
          *  -> wait IFS, receive maximum size frame.
          *  -> wait IFS, send next frame.
          */
-        if ((ble_hdr->txinfo.offset + cur_txlen) < pktlen) {
-            next_txlen = pktlen - (ble_hdr->txinfo.offset + cur_txlen);
+        if ((cur_offset + cur_txlen) < pktlen) {
+            next_txlen = pktlen - (cur_offset + cur_txlen);
         } else {
             if (nextpkthdr->omp_len > connsm->eff_max_tx_octets) {
                 next_txlen = connsm->eff_max_tx_octets;
@@ -828,6 +952,37 @@ conn_tx_pdu:
         txend_func = NULL;
     }
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    if (ble_ll_ctrl_is_start_enc_rsp(m)) {
+        CONN_F_ENCRYPTED(connsm) = 1;
+        connsm->enc_data.tx_encrypted = 1;
+        ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
+                               connsm->enc_data.iv,
+                               connsm->enc_data.enc_block.cipher_text,
+                               CONN_IS_MASTER(connsm));
+    } else if (ble_ll_ctrl_is_start_enc_req(m)) {
+        CONN_F_ENCRYPTED(connsm) = 0;
+        connsm->enc_data.enc_state = CONN_ENC_S_START_ENC_RSP_WAIT;
+        connsm->enc_data.tx_encrypted = 0;
+        ble_phy_encrypt_disable();
+        if (txend_func == NULL) {
+            txend_func = ble_ll_conn_start_rx_encrypt;
+        } else {
+            txend_func = ble_ll_conn_txend_encrypt;
+        }
+    } else {
+        /* If encrypted set packet counter */
+        if (CONN_F_ENCRYPTED(connsm)) {
+            connsm->enc_data.tx_encrypted = 1;
+            ble_phy_encrypt_set_pkt_cntr(connsm->enc_data.tx_pkt_cntr,
+                                         CONN_IS_MASTER(connsm));
+            if (txend_func == NULL) {
+                txend_func = ble_ll_conn_continue_rx_encrypt;
+            }
+        }
+    }
+#endif
+
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
     rc = ble_phy_tx(m, beg_transition, end_transition);
@@ -838,9 +993,6 @@ conn_tx_pdu:
                    hdr_byte,
                    ((uint16_t)ble_hdr->txinfo.offset << 8) | cur_txlen,
                    (uint32_t)m);
-
-        /* Set flag denoting we transmitted a pdu */
-        connsm->csmflags.cfbit.pdu_txd = 1;
 
         /* Set last transmitted MD bit */
         CONN_F_LAST_TXD_MD(connsm) = md;
@@ -861,7 +1013,7 @@ conn_tx_pdu:
 }
 
 /**
- * Schedule callback for start of connection event
+ * Schedule callback for start of connection event.
  *
  * Context: Interrupt
  *
@@ -895,11 +1047,20 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
                connsm->conn_handle, connsm->ce_end_time);
 
     /* Set channel */
-    rc = ble_phy_setchan(connsm->data_chan_index, connsm->access_addr,
-                         connsm->crcinit);
-    assert(rc == 0);
+    ble_phy_setchan(connsm->data_chan_index, connsm->access_addr,
+                    connsm->crcinit);
 
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+        if (CONN_F_ENCRYPTED(connsm)) {
+            ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
+                                   connsm->enc_data.iv,
+                                   connsm->enc_data.enc_block.cipher_text,
+                                   1);
+        } else {
+            ble_phy_encrypt_disable();
+        }
+#endif
         rc = ble_ll_conn_tx_data_pdu(connsm, BLE_PHY_TRANSITION_NONE);
         if (!rc) {
             rc = BLE_LL_SCHED_STATE_RUNNING;
@@ -908,6 +1069,16 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
             rc = BLE_LL_SCHED_STATE_DONE;
         }
     } else {
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+            if (CONN_F_ENCRYPTED(connsm)) {
+                ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
+                                       connsm->enc_data.iv,
+                                       connsm->enc_data.enc_block.cipher_text,
+                                       1);
+            } else {
+                ble_phy_encrypt_disable();
+            }
+#endif
         rc = ble_phy_rx();
         if (rc) {
             /* End the connection event as we have no more buffers */
@@ -1171,6 +1342,12 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->eff_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
 
+    /* Reset encryption data */
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    memset(&connsm->enc_data, 0, sizeof(struct ble_ll_conn_enc_data));
+    connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+#endif
+
     /* Add to list of active connections */
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
 }
@@ -1311,7 +1488,6 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 static int
 ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 {
-    uint8_t update_status;
     uint16_t latency;
     uint32_t itvl;
     uint32_t tmo;
@@ -1319,34 +1495,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     uint32_t max_ww;
     struct ble_ll_conn_upd_req *upd;
 
-    /*
-     * XXX: we could send the connection update event a bit earlier. The
-     * way this is coded is that we will generally send it when the
-     * connection event corresponding to the instant ends. We can send
-     * it when it begins if we want.
-     */
-
     /* XXX: deal with connection request procedure here as well */
-
-    /*
-     * There are two cases where this flag gets set:
-     * 1) A connection update procedure was started and the event counter
-     * has passed the instant.
-     * 2) We successfully sent the reject reason.
-     */
-    if (connsm->csmflags.cfbit.host_expects_upd_event) {
-        update_status = BLE_ERR_SUCCESS;
-        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
-            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
-        } else {
-            if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
-                ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
-                update_status = connsm->reject_reason;
-            }
-        }
-        ble_ll_hci_ev_conn_update(connsm, update_status);
-        connsm->csmflags.cfbit.host_expects_upd_event = 0;
-    }
+    ble_ll_conn_chk_csm_flags(connsm);
 
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
@@ -2008,6 +2158,10 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
             tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
             cputime_timer_relative(&connsm->conn_spvn_timer, tmo);
 
+            /* Check state machine */
+            ble_ll_conn_chk_csm_flags(connsm);
+
+            /* Validate rx data pdu */
             rxbuf = rxpdu->om_data;
             hdr_byte = rxbuf[0];
             acl_len = rxbuf[1];
@@ -2046,6 +2200,19 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 if ((acl_hdr == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
                     goto conn_rx_data_pdu_end;
                 }
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+                /*
+                 * XXX: should we check to see if we are in a state where we
+                 * might expect to get an encrypted PDU?
+                 */
+                if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
+                    STATS_INC(ble_ll_conn_stats, mic_failures);
+                    /* Control procedure has timed out. Kill the connection */
+                    ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
+                    goto conn_rx_data_pdu_end;
+                }
+#endif
 
                 if (acl_hdr == BLE_LL_LLID_CTRL) {
                     /* Process control frame */
@@ -2161,10 +2328,21 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
 
         /* Store received header byte in state machine  */
         hdr_byte = rxpdu->om_data[0];
-        connsm->last_rxd_hdr_byte = hdr_byte;
 
-        ble_ll_log(BLE_LL_LOG_ID_CONN_RX, hdr_byte, connsm->tx_seqnum,
-                   connsm->next_exp_seqnum);
+        /* Check for valid LLID before proceeding. */
+        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == 0) {
+            /*
+             * XXX: for now, just exit since we dont trust the length
+             * and may erroneously adjust anchor. Once we fix the anchor
+             * point issue we need to decide what to do on bad llid. Note
+             * that an error stat gets counted at the LL
+             */
+            reply = 0;
+            goto conn_exit;
+        }
+
+        /* Set last received header byte */
+        connsm->last_rxd_hdr_byte = hdr_byte;
 
         /*
          * If SN bit from header does not match NESN in connection, this is
@@ -2174,13 +2352,29 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
         conn_nesn = connsm->next_exp_seqnum;
         if ((hdr_sn && conn_nesn) || (!hdr_sn && !conn_nesn)) {
             connsm->next_exp_seqnum ^= 1;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+            if (CONN_F_ENCRYPTED(connsm) && !ble_ll_conn_is_empty_pdu(rxpdu)) {
+                ++connsm->enc_data.rx_pkt_cntr;
+            }
+#endif
         }
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+        ble_ll_log(BLE_LL_LOG_ID_CONN_RX,
+                   hdr_byte,
+                   (uint16_t)connsm->tx_seqnum << 8 | conn_nesn,
+                   connsm->enc_data.rx_pkt_cntr);
+#else
+        ble_ll_log(BLE_LL_LOG_ID_CONN_RX,
+                   hdr_byte,
+                   (uint16_t)connsm->tx_seqnum << 8 | conn_nesn, 0);
+#endif
 
         /*
          * Check NESN bit from header. If same as tx seq num, the transmission
          * is acknowledged. Otherwise we need to resend this PDU.
          */
-        if (connsm->csmflags.cfbit.pdu_txd) {
+        if (CONN_F_EMPTY_PDU_TXD(connsm) || connsm->cur_tx_pdu) {
             hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
             conn_sn = connsm->tx_seqnum;
             if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
@@ -2203,27 +2397,22 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                  */
                 txpdu = connsm->cur_tx_pdu;
                 if (txpdu) {
-                    /* Did we transmit a TERMINATE_IND? If so, we are done */
-                    txhdr = BLE_MBUF_HDR_PTR(txpdu);
-                    if (ble_ll_ctrl_is_terminate_ind(txhdr->txinfo.hdr_byte,
-                                                     txpdu->om_data[0])) {
-                        connsm->csmflags.cfbit.terminate_ind_txd = 1;
-                        os_mbuf_free_chain(txpdu);
-                        connsm->cur_tx_pdu = NULL;
-                        rc = -1;
-                        goto conn_rx_pdu_end;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+                    if (connsm->enc_data.tx_encrypted) {
+                        ++connsm->enc_data.tx_pkt_cntr;
                     }
-
-                    /*
-                     * Did we transmit a REJECT_IND_EXT? If so we need
-                     * to make sure we send the connection update event
-                     */
-                    if (ble_ll_ctrl_is_reject_ind_ext(txhdr->txinfo.hdr_byte,
-                                                      txpdu->om_data[0])) {
-                        if (connsm->cur_ctrl_proc ==
-                            BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
-                            connsm->reject_reason = txpdu->om_data[2];
-                            connsm->csmflags.cfbit.host_expects_upd_event = 1;
+#endif
+                    txhdr = BLE_MBUF_HDR_PTR(txpdu);
+                    if ((txhdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK)
+                        == BLE_LL_LLID_CTRL) {
+                        connsm->cur_tx_pdu = NULL;
+                        /* Note: the mbuf is freed by this call */
+                        rc = ble_ll_ctrl_tx_done(txpdu, connsm);
+                        if (rc) {
+                            /* Means we transmitted a TERMINATE_IND */
+                            goto conn_rx_pdu_end;
+                        } else {
+                            goto chk_rx_terminate_ind;
                         }
                     }
 
@@ -2231,11 +2420,10 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                     txhdr->txinfo.offset += txhdr->txinfo.pyld_len;
                     if (txhdr->txinfo.offset >= OS_MBUF_PKTLEN(txpdu)) {
                         /* If l2cap pdu, increment # of completed packets */
-                        if (ble_ll_conn_is_l2cap_pdu(txhdr)) {
+                        if (txhdr->txinfo.pyld_len != 0) {
 #if (BLETEST_THROUGHPUT_TEST == 1)
                             bletest_completed_pkt(connsm->conn_handle);
 #endif
-
                             ++connsm->completed_pkts;
                         }
                         os_mbuf_free_chain(txpdu);
@@ -2248,9 +2436,6 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                             txhdr->txinfo.pyld_len = rem_bytes;
                         }
                     }
-                } else {
-                    /* No packet on queue? This is an error! */
-                    STATS_INC(ble_ll_conn_stats, no_tx_pdu);
                 }
             }
         }
@@ -2295,9 +2480,13 @@ conn_rx_pdu_end:
     /* Set anchor point (and last) if 1st received frame in connection event */
     if (connsm->csmflags.cfbit.slave_set_last_anchor) {
         connsm->csmflags.cfbit.slave_set_last_anchor = 0;
-        connsm->last_anchor_point = rxhdr->end_cputime -
-            cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rxpdu->om_data[1]));
-        connsm->anchor_point = connsm->last_anchor_point;
+        /* XXX: For now, we just wont adjust the anchor point on crc error
+           until I fix this issue */
+        if (BLE_MBUF_HDR_CRC_OK(rxhdr)) {
+            connsm->last_anchor_point = rxhdr->end_cputime -
+                cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rxpdu->om_data[1]));
+            connsm->anchor_point = connsm->last_anchor_point;
+        }
     }
 
     /* Send link layer a connection end event if over */
@@ -2329,6 +2518,7 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     os_sr_t sr;
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_mbuf_hdr *ble_hdr;
+    int lifo;
 
     /* Initialize the mbuf */
     ble_ll_mbuf_init(om, length, hdr_byte);
@@ -2342,10 +2532,38 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
         ble_hdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
     }
 
+    lifo = 0;
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
+        /*
+         * If this is one of the following types we need to insert it at
+         * head of queue.
+         */
+        ble_hdr = BLE_MBUF_HDR_PTR(om);
+        if ((ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+            switch (om->om_data[0]) {
+            case BLE_LL_CTRL_TERMINATE_IND:
+            case BLE_LL_CTRL_REJECT_IND:
+            case BLE_LL_CTRL_REJECT_IND_EXT:
+            case BLE_LL_CTRL_START_ENC_REQ:
+            case BLE_LL_CTRL_START_ENC_RSP:
+                lifo = 1;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+#endif
+
     /* Add to transmit queue for the connection */
     pkthdr = OS_MBUF_PKTHDR(om);
     OS_ENTER_CRITICAL(sr);
-    STAILQ_INSERT_TAIL(&connsm->conn_txq, pkthdr, omp_next);
+    if (lifo) {
+        STAILQ_INSERT_HEAD(&connsm->conn_txq, pkthdr, omp_next);
+    } else {
+        STAILQ_INSERT_TAIL(&connsm->conn_txq, pkthdr, omp_next);
+    }
     OS_EXIT_CRITICAL(sr);
 }
 

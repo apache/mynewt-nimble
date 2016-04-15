@@ -18,6 +18,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <assert.h>
 #include "os/os.h"
 #include "bsp/cmsis_nvic.h"
@@ -25,6 +26,11 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "mcu/nrf52_bitfields.h"
+
+/*
+ * XXX: need to make the copy from mbuf into the PHY data structures 32-bit
+ * copies or we are screwed.
+ */
 
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
@@ -55,6 +61,7 @@ struct ble_phy_obj
     uint8_t phy_state;
     uint8_t phy_transition;
     uint8_t phy_rx_started;
+    uint8_t phy_encrypted;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
     void *txend_arg;
@@ -64,6 +71,9 @@ struct ble_phy_obj g_ble_phy_data;
 
 /* Global transmit/receive buffer */
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+#endif
 
 /* Statistics */
 STATS_SECT_START(ble_phy_stats)
@@ -128,6 +138,21 @@ STATS_NAME_END(ble_phy_stats)
  *  bit in the NVIC just to be sure when we disable the PHY.
  */
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+/* NRF requires 43 bytes of scratch for encryption */
+/* XXX: align this? */
+uint32_t g_nrf_encrypt_scratchpad[100];
+struct nrf_ccm_data
+{
+    uint8_t key[16];
+    uint64_t pkt_counter;
+    uint8_t dir_bit;
+    uint8_t iv[8];
+} __attribute__((packed));
+
+struct nrf_ccm_data g_nrf_ccm_data;
+#endif
+
 /**
  * ble phy rxpdu get
  *
@@ -185,6 +210,7 @@ ble_phy_isr(void)
     uint32_t irq_en;
     uint32_t state;
     uint32_t wfr_time;
+    uint8_t *dptr;
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
 
@@ -197,13 +223,26 @@ ble_phy_isr(void)
         assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
 
         ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF,
-                   0, NRF_TIMER0->CC[2]);
+                   g_ble_phy_data.phy_encrypted, NRF_TIMER0->CC[2]);
 
         /* Clear events and clear interrupt on disabled event */
         NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
         NRF_RADIO->EVENTS_END = 0;
         state = NRF_RADIO->SHORTS;
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+        /*
+         * XXX: not sure what to do. We had a HW error during transmission.
+         * For now I just count a stat but continue on like all is good.
+         */
+        if (g_ble_phy_data.phy_encrypted) {
+            if (NRF_CCM->EVENTS_ERROR) {
+                STATS_INC(ble_phy_stats, tx_hw_err);
+                NRF_CCM->EVENTS_ERROR = 0;
+            }
+        }
+#endif
 
         transition = g_ble_phy_data.phy_transition;
         if (transition == BLE_PHY_TRANSITION_TX_RX) {
@@ -212,7 +251,23 @@ ble_phy_isr(void)
 
             /* Packet pointer needs to be reset. */
             if (g_ble_phy_data.rxpdu != NULL) {
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+                if (g_ble_phy_data.phy_encrypted) {
+                    NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+                    NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+                    NRF_CCM->OUTPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+                    NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
+                    NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption;
+                    NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
+                    NRF_CCM->SHORTS = 0;
+                    NRF_CCM->EVENTS_ENDCRYPT = 0;
+                    NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk;
+                } else {
+                    NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+                }
+#else
                 NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+#endif
 
                 /* I want to know when 1st byte received (after address) */
                 NRF_RADIO->BCC = 8; /* in bits */
@@ -322,6 +377,7 @@ ble_phy_isr(void)
         assert(NRF_RADIO->EVENTS_RSSIEND != 0);
         ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
         ble_hdr->end_cputime = NRF_TIMER0->CC[2];
+        dptr = g_ble_phy_data.rxpdu->om_data;
 
         /* Count PHY crc errors and valid packets */
         crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
@@ -330,11 +386,50 @@ ble_phy_isr(void)
         } else {
             STATS_INC(ble_phy_stats, rx_valid);
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+            if (g_ble_phy_data.phy_encrypted) {
+                /* Only set MIC failure flag if frame is not zero length */
+                if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
+                    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_MIC_FAILURE;
+                }
+
+                /*
+                 * XXX: not sure how to deal with this. This should not
+                 * be a MIC failure but we should not hand it up. I guess
+                 * this is just some form of rx error and that is how we
+                 * handle it? For now, just set CRC error flags
+                 */
+                if (NRF_CCM->EVENTS_ERROR) {
+                    STATS_INC(ble_phy_stats, rx_hw_err);
+                    ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
+                }
+
+                /*
+                 * XXX: This is a total hack work-around for now but I dont
+                 * know what else to do. If ENDCRYPT is not set and we are
+                 * encrypted we need to not trust this frame and drop it.
+                 */
+                if (NRF_CCM->EVENTS_ENDCRYPT == 0) {
+                    STATS_INC(ble_phy_stats, rx_hw_err);
+                    ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
+                }
+            }
+#endif
         }
 
         /* Call Link Layer receive payload function */
         rxpdu = g_ble_phy_data.rxpdu;
         g_ble_phy_data.rxpdu = NULL;
+
+        /*
+         * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
+         * that is not sent over the air but is present here. Simply move the
+         * data pointer to deal with it. Fix this later. Do this in the nrf52
+         */
+        dptr[2] = dptr[1];
+        dptr[1] = dptr[0];
+        rxpdu->om_data += 1;
+
         rc = ble_ll_rx_end(rxpdu, ble_hdr);
         if (rc < 0) {
             /* Disable the PHY. */
@@ -389,8 +484,10 @@ ble_phy_init(void)
     /* Set configuration registers */
     NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
     NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos)    |
+                       RADIO_PCNF0_S1INCL_Msk                       |
                        (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos)        |
                        (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
+    /* XXX: should maxlen be 251 for encryption? */
     NRF_RADIO->PCNF1 = NRF_MAXLEN |
                        (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
                        (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
@@ -414,6 +511,14 @@ ble_phy_init(void)
      * or transmit ends
      */
     NRF_PPI->CHENSET = PPI_CHEN_CH27_Msk;
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    NRF_CCM->INTENCLR = 0xffffffff;
+    NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
+    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
+    NRF_CCM->EVENTS_ERROR = 0;
+    memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
+#endif
 
     /* Set isr in vector table and enable interrupt */
     NVIC_SetPriority(RADIO_IRQn, 0);
@@ -452,7 +557,15 @@ ble_phy_rx(void)
     }
 
     /* Set packet pointer */
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    if (g_ble_phy_data.phy_encrypted) {
+        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+    } else {
+        NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+    }
+#else
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+#endif
 
     /* Make sure all interrupts are disabled */
     NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
@@ -464,6 +577,22 @@ ble_phy_rx(void)
     NRF_RADIO->EVENTS_BCMATCH = 0;
     NRF_RADIO->EVENTS_RSSIEND = 0;
     NRF_RADIO->EVENTS_DEVMATCH = 0;
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    if (g_ble_phy_data.phy_encrypted) {
+        NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+        NRF_CCM->OUTPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
+        NRF_CCM->EVENTS_ERROR = 0;
+        NRF_CCM->EVENTS_ENDCRYPT = 0;
+        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption;
+        /* XXX: can I just set this once? (i.e per connection)? In other
+           words, only do this during encrypt enable? */
+        NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
+        NRF_CCM->SHORTS = 0;
+        NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk;
+    }
+#endif
 
     /* I want to know when 1st byte received (after address) */
     NRF_RADIO->BCC = 8; /* in bits */
@@ -485,6 +614,46 @@ ble_phy_rx(void)
 
     return 0;
 }
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+/**
+ * Called to enable encryption at the PHY. Note that this state will persist
+ * in the PHY; in other words, if you call this function you have to call
+ * disable so that future PHY transmits/receives will not be encrypted.
+ *
+ * @param pkt_counter
+ * @param iv
+ * @param key
+ * @param is_master
+ */
+void
+ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
+                       uint8_t is_master)
+{
+    memcpy(g_nrf_ccm_data.key, key, 16);
+    g_nrf_ccm_data.pkt_counter = pkt_counter;
+    memcpy(g_nrf_ccm_data.iv, iv, 8);
+    g_nrf_ccm_data.dir_bit = is_master;
+    g_ble_phy_data.phy_encrypted = 1;
+}
+
+
+void
+ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir)
+{
+    g_nrf_ccm_data.pkt_counter = pkt_counter;
+    g_nrf_ccm_data.dir_bit = dir;
+}
+
+void
+ble_phy_encrypt_disable(void)
+{
+    NRF_PPI->CHENCLR = (PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk);
+    NRF_CCM->TASKS_STOP = 1;
+    NRF_CCM->EVENTS_ERROR = 0;
+    g_ble_phy_data.phy_encrypted = 0;
+}
+#endif
 
 void
 ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
@@ -526,15 +695,48 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
         return BLE_PHY_ERR_RADIO_STATE;
     }
 
-    /* Write LL header first */
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    if (g_ble_phy_data.phy_encrypted) {
+        /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
+        ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
+        dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
+        dptr[0] = ble_hdr->txinfo.hdr_byte;
+        dptr[1] = ble_hdr->txinfo.pyld_len;
+        dptr[2] = 0;
+        dptr += 3;
+
+        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
+        NRF_CCM->SHORTS = 1;
+        NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+        NRF_CCM->OUTPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
+        NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
+        NRF_CCM->EVENTS_ERROR = 0;
+        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk;
+        NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
+        NRF_PPI->CHENCLR = PPI_CHEN_CH25_Msk;
+        NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk;
+    } else {
+        /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
+        ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
+        dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
+        dptr[0] = ble_hdr->txinfo.hdr_byte;
+        dptr[1] = ble_hdr->txinfo.pyld_len;
+        dptr[2] = 0;
+        dptr += 3;
+
+        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
+    }
+#else
+    /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
     ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
     dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
     dptr[0] = ble_hdr->txinfo.hdr_byte;
     dptr[1] = ble_hdr->txinfo.pyld_len;
-    dptr += 2;
+    dptr[2] = 0;
+    dptr += 3;
 
-    /* Set radio transmit data pointer */
     NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
+#endif
 
     /* Clear the ready, end and disabled events */
     NRF_RADIO->EVENTS_READY = 0;

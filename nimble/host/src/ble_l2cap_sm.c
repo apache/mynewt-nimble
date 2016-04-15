@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -609,13 +609,13 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
     conn = ble_hs_conn_find(proc->fsm_proc.conn_handle);
     if (conn != NULL) {
         if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            *iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
+            *iat = BLE_ADDR_TYPE_RANDOM; /* XXX: Support random addresses. */
             memcpy(ia, ble_hs_our_dev.public_addr, 6);
 
             *rat = conn->bhc_addr_type;
             memcpy(ra, conn->bhc_addr, 6);
         } else {
-            *rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
+            *rat = BLE_ADDR_TYPE_RANDOM; /* XXX: Support random addresses. */
             memcpy(ra, ble_hs_our_dev.public_addr, 6);
 
             *iat = conn->bhc_addr_type;

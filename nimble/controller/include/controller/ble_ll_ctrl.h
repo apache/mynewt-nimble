@@ -127,9 +127,6 @@ struct ble_ll_enc_rsp
 
 #define BLE_LL_CTRL_ENC_RSP_LEN             (12)
 
-/* LL control start enc req and start enc rsp have no data */
-#define BLE_LL_CTRL_START_ENC_LEN           (0)
-
 /*
  * LL control unknown response
  *  -> 1 byte which contains the unknown or un-supported opcode.
@@ -231,12 +228,16 @@ int ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
 void ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm);
 int ble_ll_ctrl_is_terminate_ind(uint8_t hdr, uint8_t opcode);
-int ble_ll_ctrl_is_reject_ind_ext(uint8_t hdr, uint8_t opcode);
 uint8_t ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm,
                                      uint8_t *rsp,
                                      struct ble_ll_conn_params *req);
-int ble_ll_ctrl_reject_ind_ext_send(struct ble_ll_conn_sm *connsm,
-                                    uint8_t rej_opcode, uint8_t err);
+int ble_ll_ctrl_reject_ind_send(struct ble_ll_conn_sm *connsm,
+                                uint8_t rej_opcode, uint8_t err);
+int ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm, uint8_t opcode);
+int ble_ll_ctrl_enc_allowed_pdu(struct os_mbuf_pkthdr *pkthdr);
+int ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm);
+int ble_ll_ctrl_is_start_enc_rsp(struct os_mbuf *txpdu);
+int ble_ll_ctrl_is_start_enc_req(struct os_mbuf *txpdu);
 
 void ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm);
 void ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
@@ -245,5 +246,9 @@ void ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status);
 void ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm,
                                       uint8_t status);
 void ble_ll_hci_ev_rd_rem_ver(struct ble_ll_conn_sm *connsm, uint8_t status);
+void ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status);
+int ble_ll_hci_ev_ltk_req(struct ble_ll_conn_sm *connsm);
+
+void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
 
 #endif /* H_BLE_LL_CTRL_ */

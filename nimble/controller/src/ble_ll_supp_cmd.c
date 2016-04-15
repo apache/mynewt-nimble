@@ -126,7 +126,11 @@
 )
 
 /* Octet 28 */
+#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#define BLE_SUPP_CMD_LE_START_ENCRYPT       (1 << 0)
+#else
 #define BLE_SUPP_CMD_LE_START_ENCRYPT       (0 << 0)
+#endif
 #define BLE_SUPP_CMD_LE_LTK_REQ_REPLY       (0 << 1)
 #define BLE_SUPP_CMD_LE_LTK_REQ_NEG_REPLY   (0 << 2)
 #define BLE_SUPP_CMD_LE_READ_SUPP_STATES    (1 << 3)

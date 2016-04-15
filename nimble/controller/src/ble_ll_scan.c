@@ -505,6 +505,10 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
      */
     ble_phy_set_txend_cb(NULL, NULL);
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    ble_phy_encrypt_disable();
+#endif
+
     /* Start receiving */
     rc = ble_phy_rx();
     if (!rc) {

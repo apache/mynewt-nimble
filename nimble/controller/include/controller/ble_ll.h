@@ -366,6 +366,7 @@ int ble_ll_rand_start(void);
  * log
  */
 #undef BLE_LL_LOG
+#include "console/console.h"
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
 #define BLE_LL_LOG_ID_RX_START          (2)
@@ -378,6 +379,7 @@ int ble_ll_rand_start(void);
 #define BLE_LL_LOG_ID_CONN_RX           (16)
 #define BLE_LL_LOG_ID_CONN_TX_RETRY     (17)
 #define BLE_LL_LOG_ID_CONN_RX_ACK       (18)
+#define BLE_LL_LOG_ID_LL_CTRL_RX        (19)
 #define BLE_LL_LOG_ID_CONN_EV_END       (20)
 #define BLE_LL_LOG_ID_CONN_END          (30)
 #define BLE_LL_LOG_ID_ADV_TXBEG         (50)
@@ -389,5 +391,15 @@ void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
 #define ble_ll_log(m,n,o,p)
 #endif
 
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+/* LTK 0x4C68384139F574D836BCF34E9DFB01BF */
+extern const uint8_t g_bletest_LTK[];
+extern uint16_t g_bletest_EDIV;
+extern uint64_t g_bletest_RAND;
+extern uint64_t g_bletest_SKDm;
+extern uint64_t g_bletest_SKDs;
+extern uint32_t g_bletest_IVm;
+extern uint32_t g_bletest_IVs;
+#endif
 
 #endif /* H_LL_ */
