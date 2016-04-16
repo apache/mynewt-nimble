@@ -76,3 +76,32 @@ ble_hci_util_rand(void *dst, int len)
 
     return 0;
 }
+
+int
+ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_READ_RSSI_LEN];
+    uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
+    uint16_t params_conn_handle;
+    uint8_t params_len;
+    int rc;
+
+    host_hci_cmd_build_read_rssi(conn_handle, buf, sizeof buf);
+    rc = ble_hci_tx_cmd(buf, params, 1, &params_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (params_len != BLE_HCI_READ_RSSI_ACK_PARAM_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    params_conn_handle = le16toh(params + 0);
+    if (params_conn_handle != conn_handle) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    *out_rssi = params[2];
+
+    return 0;
+}

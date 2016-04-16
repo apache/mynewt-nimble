@@ -22,5 +22,6 @@
 
 int ble_hci_util_read_adv_tx_pwr(int8_t *out_pwr);
 int ble_hci_util_rand(void *dst, int len);
+int ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi);
 
 #endif

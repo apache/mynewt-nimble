@@ -135,7 +135,8 @@
 #define BLE_HCI_RD_LOC_SUPP_CMD_RSPLEN      (64)
 
 /* --- Read RSSI (OGF 0x05, OCF 0x0005) --- */
-#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN     (4)  /* Includes status byte. */
+#define BLE_HCI_READ_RSSI_LEN               (2)
+#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN     (3)  /* No status byte. */
 
 /* --- LE set event mask (OCF 0x0001) --- */
 #define BLE_HCI_SET_LE_EVENT_MASK_LEN       (8)
