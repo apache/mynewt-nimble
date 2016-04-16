@@ -41,6 +41,7 @@ int host_hci_cmd_rd_local_version(void);
 int host_hci_cmd_rd_local_feat(void);
 int host_hci_cmd_rd_local_cmd(void);
 int host_hci_cmd_rd_bd_addr(void);
+void host_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst, int dst_len);
 int host_hci_cmd_read_rssi(uint16_t handle);
 int host_hci_cmd_le_set_host_chan_class(uint8_t *new_chan_map);
 int host_hci_cmd_le_rd_chanmap(uint16_t handle);

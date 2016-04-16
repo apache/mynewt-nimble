@@ -1508,14 +1508,42 @@ host_hci_cmd_le_start_encrypt(struct hci_start_encrypt *cmd)
  *
  * @return int
  */
+static void
+host_hci_cmd_body_read_rssi(uint16_t handle, uint8_t *dst)
+{
+    htole16(dst, handle);
+}
+
+void
+host_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_READ_RSSI_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_STATUS_PARAMS, BLE_HCI_OCF_RD_RSSI,
+                       BLE_HCI_READ_RSSI_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    host_hci_cmd_body_read_rssi(handle, dst);
+}
+
+/**
+ * Read the RSSI for a given connection handle
+ *
+ * NOTE: OGF=0x05 OCF=0x0005
+ *
+ * @param handle
+ *
+ * @return int
+ */
 int
 host_hci_cmd_read_rssi(uint16_t handle)
 {
+    uint8_t cmd[BLE_HCI_READ_RSSI_LEN];
     int rc;
-    uint8_t cmd[sizeof(uint16_t)];
 
     htole16(cmd, handle);
     rc = host_hci_cmd_send(BLE_HCI_OGF_STATUS_PARAMS, BLE_HCI_OCF_RD_RSSI,
-                           sizeof(uint16_t), cmd);
+                           BLE_HCI_READ_RSSI_LEN, cmd);
     return rc;
 }
