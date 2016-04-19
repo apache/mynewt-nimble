@@ -281,8 +281,14 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
 
 #ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
 /**
- * HCI write suggested default data length command. Returns the controllers
- * initial max tx octet/time.
+ * HCI write suggested default data length command.
+ *
+ * This command is used by the host to change the initial max tx octets/time
+ * for all connections. Note that if the controller does not support the
+ * requested times no error is returned; the controller simply ignores the
+ * request (but remembers what the host requested for the read suggested
+ * default data length command). The spec allows for the controller to
+ * disregard the host.
  *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
@@ -304,8 +310,12 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
     if (ble_ll_chk_txrx_octets(tx_oct) && ble_ll_chk_txrx_time(tx_time)) {
         g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
         g_ble_ll_conn_params.sugg_tx_time = tx_time;
-        g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
-        g_ble_ll_conn_params.conn_init_max_tx_time = tx_time;
+
+        if ((tx_time < g_ble_ll_conn_params.supp_max_tx_time) &&
+            (tx_oct < g_ble_ll_conn_params.supp_max_tx_octets)) {
+            g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
+            g_ble_ll_conn_params.conn_init_max_tx_time = tx_time;
+        }
         rc = BLE_ERR_SUCCESS;
     } else {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
