@@ -31,14 +31,18 @@
 /* To use spec sample data for testing */
 #undef BLE_LL_ENCRYPT_USE_TEST_DATA
 
-/* For console debug to show session key calculation */
+/*
+ * For console debug to show session key calculation. NOTE: if you define
+ * this the stack requirements for the LL task go up considerably. The
+ * default stack will not be enough and must be increased.
+ */
 #undef BLE_LL_ENCRYPT_DEBUG
 #ifdef BLE_LL_ENCRYPT_DEBUG
 #include "console/console.h"
 #endif
 
 /*
- * XXX: TODO
+ * XXX:
  *  1) Do I need to keep track of which procedures have already been done?
  *     Do I need to worry about repeating procedures?
  *  2) Should we create pool of control pdu's?. Dont need more
@@ -52,14 +56,8 @@
  *  5) We are supposed to remember when we do the data length update proc if
  *  the device sent us an unknown rsp. We should not send it another len req.
  *  Implement this how? Through remote supported features?
- *  6) Remember: some procedures dont have timeout rules.
- *  7) Says that we should reset procedure timer whenever a LL control pdu
- *  is queued for transmission. I dont get it... do some procedures send
- *  multiple packets? I guess so.
  *  8) How to count control pdus sent. DO we count enqueued + sent, or only
  *  sent (actually attempted to tx). Do we count failures? How?
- *  9) NOTE: we are not supposed to send a REJECT_IND_EXT unless we know the
- *  slave supports that feature
  */
 
 /*

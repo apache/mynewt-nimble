@@ -735,8 +735,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
     chan = ble_hdr->rxinfo.channel;
     crcok = BLE_MBUF_HDR_CRC_OK(ble_hdr);
 
-    ble_ll_log(BLE_LL_LOG_ID_RX_END,
-               rxbuf[0],
+    ble_ll_log(BLE_LL_LOG_ID_RX_END, rxbuf[0],
                ((uint16_t)ble_hdr->rxinfo.flags << 8) | rxbuf[1],
                (BLE_MBUF_HDR_PTR(rxpdu))->end_cputime);
 

@@ -23,6 +23,7 @@
 #include "os/os.h"
 #include "bsp/cmsis_nvic.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "mcu/nrf52_bitfields.h"
@@ -38,7 +39,7 @@
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
 /*
- * We configure the nrf52 with a 1 byte S0 field, 8 bit length field, and
+ * We configure the nrf with a 1 byte S0 field, 8 bit length field, and
  * zero bit S1 field. The preamble is 8 bits long.
  */
 #define NRF_LFLEN_BITS          (8)
@@ -69,8 +70,10 @@ struct ble_phy_obj
 };
 struct ble_phy_obj g_ble_phy_data;
 
+/* XXX: if 27 byte packets desired we can make this smaller */
 /* Global transmit/receive buffer */
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
@@ -113,8 +116,8 @@ STATS_NAME_END(ble_phy_stats)
  * NOTE:
  * Tested the following to see what would happen:
  *  -> NVIC has radio irq enabled (interrupt # 1, mask 0x2).
- *  -> Set up nrf52 to receive. Clear ADDRESS event register.
- *  -> Enable ADDRESS interrupt on nrf52 by writing to INTENSET.
+ *  -> Set up nrf to receive. Clear ADDRESS event register.
+ *  -> Enable ADDRESS interrupt on nrf5 by writing to INTENSET.
  *  -> Enable RX.
  *  -> Disable interrupts globally using OS_ENTER_CRITICAL().
  *  -> Wait until a packet is received and the ADDRESS event occurs.
@@ -139,9 +142,19 @@ STATS_NAME_END(ble_phy_stats)
  */
 
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-/* NRF requires 43 bytes of scratch for encryption */
-/* XXX: align this? */
-uint32_t g_nrf_encrypt_scratchpad[100];
+
+/*
+ * Per nordic, the number of bytes needed for scratch is 16 + MAX_PKT_SIZE.
+ * However, when I used a smaller size it still overwrote the scratchpad. Until
+ * I figure this out I am just going to allocate 67 words so we have enough
+ * space for 267 bytes of scratch. I used 268 bytes since not sure if this
+ * needs to be aligned and burning a byte is no big deal.
+ */
+//#define NRF_ENC_SCRATCH_WORDS (((NIMBLE_OPT_LL_MAX_PKT_SIZE + 16) + 3) / 4)
+#define NRF_ENC_SCRATCH_WORDS   (67)
+
+uint32_t g_nrf_encrypt_scratchpad[NRF_ENC_SCRATCH_WORDS];
+
 struct nrf_ccm_data
 {
     uint8_t key[16];
@@ -184,7 +197,7 @@ ble_phy_rxpdu_get(void)
 }
 
 static void
-nrf52_wait_disabled(void)
+nrf_wait_disabled(void)
 {
     uint32_t state;
 
@@ -544,7 +557,7 @@ int
 ble_phy_rx(void)
 {
     /* Check radio state */
-    nrf52_wait_disabled();
+    nrf_wait_disabled();
     if (NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, radio_state_errs);
@@ -594,6 +607,8 @@ ble_phy_rx(void)
     }
 #endif
 
+    /* XXX: could it be that I am late turning on the device? That I need
+       to automatically go from rx to tx always? I dont here */
     /* I want to know when 1st byte received (after address) */
     NRF_RADIO->BCC = 8; /* in bits */
     NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
@@ -637,7 +652,6 @@ ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
     g_ble_phy_data.phy_encrypted = 1;
 }
 
-
 void
 ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir)
 {
@@ -676,7 +690,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
     assert(txpdu != NULL);
 
     /* If radio is not disabled, */
-    nrf52_wait_disabled();
+    nrf_wait_disabled();
 
     if (beg_trans == BLE_PHY_TRANSITION_RX_TX) {
         if ((NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk) == 0) {
@@ -841,8 +855,8 @@ ble_phy_txpwr_get(void)
  * ble phy setchan
  *
  * Sets the logical frequency of the transceiver. The input parameter is the
- * BLE channel index (0 to 39, inclusive). The NRF52 frequency register
- * works like this: logical frequency = 2400 + FREQ (MHz).
+ * BLE channel index (0 to 39, inclusive). The NRF frequency register works like
+ * this: logical frequency = 2400 + FREQ (MHz).
  *
  * Thus, to get a logical frequency of 2402 MHz, you would program the
  * FREQUENCY register to 2.
@@ -864,7 +878,7 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* Get correct nrf52 frequency */
+    /* Get correct frequency */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
         if (chan < 11) {
             /* Data channel 0 starts at 2404. 0 - 10 are contiguous */
