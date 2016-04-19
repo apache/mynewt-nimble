@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -44,7 +44,7 @@
 #define NIMBLE_OPT_ROLE_BROADCASTER             1
 #endif
 
-#ifndef NIMBLE_OPT_ROLE_OBSERVER   
+#ifndef NIMBLE_OPT_ROLE_OBSERVER
 #define NIMBLE_OPT_ROLE_OBSERVER                1
 #endif
 
@@ -85,23 +85,23 @@
 #define NIMBLE_OPT_GATT_DISC_ALL_DSCS           1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_READ         
+#ifndef NIMBLE_OPT_GATT_READ
 #define NIMBLE_OPT_GATT_READ                    1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_READ_UUID    
+#ifndef NIMBLE_OPT_GATT_READ_UUID
 #define NIMBLE_OPT_GATT_READ_UUID               1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_READ_LONG    
+#ifndef NIMBLE_OPT_GATT_READ_LONG
 #define NIMBLE_OPT_GATT_READ_LONG               1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_READ_MULT    
+#ifndef NIMBLE_OPT_GATT_READ_MULT
 #define NIMBLE_OPT_GATT_READ_MULT               1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_WRITE_NO_RSP 
+#ifndef NIMBLE_OPT_GATT_WRITE_NO_RSP
 #define NIMBLE_OPT_GATT_WRITE_NO_RSP            1
 #endif
 
@@ -109,23 +109,23 @@
 #define NIMBLE_OPT_GATT_SIGNED_WRITE            1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_WRITE              
+#ifndef NIMBLE_OPT_GATT_WRITE
 #define NIMBLE_OPT_GATT_WRITE                   1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_WRITE_LONG         
+#ifndef NIMBLE_OPT_GATT_WRITE_LONG
 #define NIMBLE_OPT_GATT_WRITE_LONG              1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_WRITE_RELIABLE     
+#ifndef NIMBLE_OPT_GATT_WRITE_RELIABLE
 #define NIMBLE_OPT_GATT_WRITE_RELIABLE          1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_NOTIFY             
+#ifndef NIMBLE_OPT_GATT_NOTIFY
 #define NIMBLE_OPT_GATT_NOTIFY                  1
 #endif
 
-#ifndef NIMBLE_OPT_GATT_INDICATE           
+#ifndef NIMBLE_OPT_GATT_INDICATE
 #define NIMBLE_OPT_GATT_INDICATE                1
 #endif
 
@@ -180,7 +180,7 @@
 #define NIMBLE_OPT_ATT_SVR_EXEC_WRITE           1
 #endif
 
-#ifndef NIMBLE_OPT_ATT_SVR_NOTIFY  
+#ifndef NIMBLE_OPT_ATT_SVR_NOTIFY
 #define NIMBLE_OPT_ATT_SVR_NOTIFY               1
 #endif
 
@@ -190,14 +190,14 @@
 
 /*** CONTROLLER ***/
 
-/* 
- * Sleep clock accuracy (sca). This is the amount of drift in the system during 
+/*
+ * Sleep clock accuracy (sca). This is the amount of drift in the system during
  * when the device is sleeping (in parts per million).
  *
  * NOTE: the master sca is an enumerated value based on the sca. Rather than
  * have a piece of code calculate this value, the developer must set this
  * value based on the value of the SCA using the following table:
- * 
+ *
  *  SCA between 251 and 500 ppm (inclusive); master sca = 0
  *  SCA between 151 and 250 ppm (inclusive); master sca = 1
  *  SCA between 101 and 150 ppm (inclusive); master sca = 2
@@ -206,11 +206,11 @@
  *  SCA between 31 and 50 ppm (inclusive); master sca = 5
  *  SCA between 21 and 30 ppm (inclusive); master sca = 6
  *  SCA between 0 and 20 ppm (inclusive); master sca = 7
- * 
+ *
  *  For example:
  *      if your clock drift is 101 ppm, your master should be set to 2.
  *      if your clock drift is 20, your master sca should be set to 7.
- * 
+ *
  *  The values provided below are merely meant to be an example and should
  *  be replaced by values appropriate for your platform.
  */
@@ -227,7 +227,7 @@
 #define NIMBLE_OPT_LL_TX_PWR_DBM                (0)
 #endif
 
-/* 
+/*
  * Determines the maximum rate at which the controller will send the
  * number of completed packets event to the host. Rate is in os time ticks
  */
@@ -240,7 +240,7 @@
 #define NIMBLE_OPT_LL_MFRG_ID                   (0xFFFF)
 #endif
 
-/* 
+/*
  * Configuration items for the number of duplicate advertisers and the
  * number of advertisers from which we have heard a scan response.
  */
@@ -257,16 +257,20 @@
 #define NIMBLE_OPT_LL_WHITELIST_SIZE            (8)
 #endif
 
-/* 
+/*
  * Data length management definitions for connections. These define the maximum
- * size of the PDU's that will be sent and/or received in a connection. 
+ * size of the PDU's that will be sent and/or received in a connection.
  */
+#ifndef NIMBLE_OPT_LL_MAX_PKT_SIZE
+#define NIMBLE_OPT_LL_MAX_PKT_SIZE              (251)
+#endif
+
 #ifndef NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES
-#define NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES         (251)
+#define NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES         (NIMBLE_OPT_LL_MAX_PKT_SIZE)
 #endif
 
 #ifndef NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES
-#define NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES         (251)
+#define NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES         (NIMBLE_OPT_LL_MAX_PKT_SIZE)
 #endif
 
 #ifndef NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES
