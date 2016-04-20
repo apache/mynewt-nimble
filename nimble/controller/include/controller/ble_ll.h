@@ -24,14 +24,14 @@
 #include "hal/hal_cputime.h"
 
 /* Configuration for supported features */
-#undef  BLE_LL_CFG_FEAT_LE_ENCRYPTION
-#undef  BLE_LL_CFG_FEAT_CONN_PARAM_REQ
-#undef  BLE_LL_CFG_FEAT_EXT_REJECT_IND
+//#define  BLE_LL_CFG_FEAT_LE_ENCRYPTION
+//#define  BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+//#define  BLE_LL_CFG_FEAT_EXT_REJECT_IND
 #define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
-#undef  BLE_LL_CFG_FEAT_LE_PING
+//#define  BLE_LL_CFG_FEAT_LE_PING
 #define  BLE_LL_CFG_FEAT_DATA_LEN_EXT
-#undef  BLE_LL_CFG_FEAT_LL_PRIVACY
-#undef  BLE_LL_CFG_FEAT_EXT_SCAN_FILT
+//#define  BLE_LL_CFG_FEAT_LL_PRIVACY
+//#define  BLE_LL_CFG_FEAT_EXT_SCAN_FILT
 
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
