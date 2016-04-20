@@ -157,8 +157,6 @@ ble_hs_heartbeat_timer_reset(void)
 static void
 ble_hs_heartbeat(void *unused)
 {
-    ble_hs_misc_assert_not_locked();
-
     ble_gattc_heartbeat();
     ble_gap_heartbeat();
     ble_l2cap_sig_heartbeat();
