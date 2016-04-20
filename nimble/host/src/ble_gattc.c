@@ -17,6 +17,31 @@
  * under the License.
  */
 
+/**
+ * GATT client - Generic Attribute Profile; client operations.
+ *
+ * Design overview:
+ *
+ * GATT client procedures are initiated by the application via function calls.
+ * Such functions return when either of the following happens:
+ *
+ * (1) The procedure completes (success or failure).
+ * (2) The procedure cannot proceed until a BLE peer responds.
+ *
+ * For (1), the result of the procedure if fully indicated by the function
+ * return code.
+ * For (2), the procedure result is indicated by an application-configured
+ * callback.  The callback is executed when the procedure completes.
+ *
+ * Notes on thread-safety:
+ * 1. The ble_hs mutex must never be locked when an application callback is
+ *    executed.  A callback is free to initiate additional host procedures.
+ * 2. The only resource protected by the mutex is the list of active procedures
+ *    (ble_gattc_procs).  Thread-safety is achieved by locking the mutex during
+ *    removal and insertion operations.  Procedure objects are only modified
+ *    while they are not in the list.
+ */
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -840,7 +865,7 @@ ble_gattc_mtu_cb(struct ble_gattc_proc *proc, int status, uint16_t att_handle,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, mtu_fail);
@@ -944,7 +969,7 @@ ble_gattc_disc_all_svcs_cb(struct ble_gattc_proc *proc,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, disc_all_svcs_fail);
@@ -1141,7 +1166,7 @@ ble_gattc_disc_svc_uuid_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, disc_svc_uuid_fail);
@@ -1319,7 +1344,7 @@ ble_gattc_find_inc_svcs_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, find_inc_svcs_fail);
@@ -1606,7 +1631,7 @@ ble_gattc_disc_all_chrs_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, disc_all_chrs_fail);
@@ -1814,11 +1839,11 @@ ble_gattc_disc_chr_uuid_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+
     if (status != 0) {
         STATS_INC(ble_gattc_stats, disc_chrs_uuid_fail);
     }
-
-    ble_hs_misc_assert_not_locked();
 
     if (proc->disc_chr_uuid.cb == NULL) {
         rc = 0;
@@ -2033,11 +2058,11 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+
     if (status != 0) {
         STATS_INC(ble_gattc_stats, disc_all_dscs_fail);
     }
-
-    ble_hs_misc_assert_not_locked();
 
     if (proc->disc_all_dscs.cb == NULL) {
         rc = 0;
@@ -2214,7 +2239,7 @@ ble_gattc_read_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, read_fail);
@@ -2334,7 +2359,7 @@ ble_gattc_read_uuid_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, read_uuid_fail);
@@ -2476,7 +2501,7 @@ ble_gattc_read_long_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, read_long_fail);
@@ -2641,7 +2666,7 @@ ble_gattc_read_mult_cb(struct ble_gattc_proc *proc, int status,
     struct ble_gatt_attr attr;
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, read_mult_fail);
@@ -2785,7 +2810,7 @@ ble_gattc_write_cb(struct ble_gattc_proc *proc, int status,
     struct ble_gatt_attr attr;
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, write_fail);
@@ -2889,7 +2914,7 @@ ble_gattc_write_long_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, write_long_fail);
@@ -3100,7 +3125,7 @@ ble_gattc_write_reliable_cb(struct ble_gattc_proc *proc, int status,
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, write_reliable_fail);
@@ -3376,7 +3401,7 @@ ble_gattc_indicate_cb(struct ble_gattc_proc *proc, int status,
     struct ble_gatt_attr attr;
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_gattc_stats, indicate_fail);

@@ -64,7 +64,6 @@ void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
 int ble_hs_conn_exists(uint16_t conn_handle);
-int ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags);
 struct ble_hs_conn *ble_hs_conn_first(void);
 struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);

@@ -20,6 +20,11 @@
 #ifndef H_BLE_HS_ATOMIC_
 #define H_BLE_HS_ATOMIC_
 
+#include "ble_hs_conn.h"
+
 int ble_hs_atomic_conn_delete(uint16_t conn_handle);
+void ble_hs_atomic_conn_insert(struct ble_hs_conn *conn);
+int ble_hs_atomic_conn_flags(uint16_t conn_handle,
+                             ble_hs_conn_flags_t *out_flags);
 
 #endif

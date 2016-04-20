@@ -52,10 +52,6 @@ ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
     return 0;
 }
 
-/**
- * Locking restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
 {

@@ -76,6 +76,24 @@ ble_os_test_misc_init(void)
 }
 
 static int
+ble_os_test_misc_conn_exists(uint16_t conn_handle)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        conn = ble_hs_conn_first();
+    } else {
+        conn = ble_hs_conn_find(conn_handle);
+    }
+
+    ble_hs_unlock();
+
+    return conn != NULL;
+}
+
+static int
 ble_gap_direct_connect_test_connect_cb(int event, int status,
                                        struct ble_gap_conn_ctxt *ctxt,
                                        void *arg)
@@ -110,13 +128,13 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     /* Make sure there are no created connections and no connections in
      * progress.
      */
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
 
     /* Initiate a direct connection. */
     ble_hs_test_util_conn_initiate(0, addr, NULL,
                                    ble_gap_direct_connect_test_connect_cb,
                                    &cb_called, 0);
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!cb_called);
 
     /* Receive an HCI connection-complete event. */
@@ -129,7 +147,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(rc == 0);
 
     /* The connection should now be created. */
-    TEST_ASSERT(ble_hs_conn_find(2) != NULL);
+    TEST_ASSERT(ble_os_test_misc_conn_exists(2));
     TEST_ASSERT(cb_called);
 
     tu_restart();
@@ -180,7 +198,7 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     /* Make sure there are no created connections and no connections in
      * progress.
      */
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Initiate the general discovery procedure with a 200 ms timeout. */
@@ -190,18 +208,18 @@ ble_gap_gen_disc_test_task_handler(void *arg)
                                ble_gap_gen_disc_test_connect_cb,
                                &cb_called, 0, 0);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
 
     /* Receive acks from the controller. */
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
 
     /* Wait 100 ms; verify scan still in progress. */
     os_time_delay(100 * OS_TICKS_PER_SEC / 1000);
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
 
@@ -211,7 +229,7 @@ ble_gap_gen_disc_test_task_handler(void *arg)
 
     /* Wait 250 more ms; verify scan completed. */
     os_time_delay(250 * OS_TICKS_PER_SEC / 1000);
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(cb_called);
 
@@ -272,7 +290,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     /* Make sure there are no created connections and no connections in
      * progress.
      */
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Create two direct connections. */
@@ -296,8 +314,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     rc = ble_gap_rx_conn_complete(&conn_evt);
     TEST_ASSERT(rc == 0);
 
-    TEST_ASSERT_FATAL(ble_hs_conn_find(1) != NULL);
-    TEST_ASSERT_FATAL(ble_hs_conn_find(2) != NULL);
+    TEST_ASSERT_FATAL(ble_os_test_misc_conn_exists(1));
+    TEST_ASSERT_FATAL(ble_os_test_misc_conn_exists(2));
 
     /* Terminate the first one. */
     rc = ble_hs_test_util_conn_terminate(1, 0);
@@ -307,8 +325,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
     ble_gap_rx_disconn_complete(&disconn_evt);
     TEST_ASSERT(disconn_handle == 1);
-    TEST_ASSERT(ble_hs_conn_find(1) == NULL);
-    TEST_ASSERT(ble_hs_conn_find(2) != NULL);
+    TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(1));
+    TEST_ASSERT_FATAL(ble_os_test_misc_conn_exists(2));
 
     /* Terminate the second one. */
     rc = ble_hs_test_util_conn_terminate(2, 0);
@@ -318,8 +336,8 @@ ble_gap_terminate_test_task_handler(void *arg)
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
     ble_gap_rx_disconn_complete(&disconn_evt);
     TEST_ASSERT(disconn_handle == 2);
-    TEST_ASSERT(ble_hs_conn_find(1) == NULL);
-    TEST_ASSERT(ble_hs_conn_find(2) == NULL);
+    TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(1));
+    TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(2));
 
     tu_restart();
 }

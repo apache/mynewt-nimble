@@ -67,16 +67,8 @@ ble_hs_misc_log_flat_buf(void *data, int len)
     }
 }
 
-void
-ble_hs_misc_assert_not_locked(void)
-{
-    assert(!ble_hs_locked());
-}
-
 /**
  * Allocates an mbuf for use by the nimble host.
- *
- * Lock restrictions: None.
  */
 struct os_mbuf *
 ble_hs_misc_pkthdr(void)

@@ -22,7 +22,7 @@
 #include "bsp/bsp.h"
 #include "ble_hs_priv.h"
 
-bssnz_t uint8_t ble_att_flat_buf[BLE_ATT_ATTR_MAX_LEN];
+static bssnz_t uint8_t ble_att_flat_buf[BLE_ATT_ATTR_MAX_LEN];
 
 static uint16_t ble_att_preferred_mtu;
 
@@ -125,9 +125,6 @@ STATS_NAME_START(ble_att_stats)
     STATS_NAME(ble_att_stats, write_cmd_tx)
 STATS_NAME_END(ble_att_stats)
 
-/**
- * Lock restrictions: None.
- */
 static const struct ble_att_rx_dispatch_entry *
 ble_att_rx_dispatch_entry_find(uint8_t op)
 {
@@ -148,9 +145,6 @@ ble_att_rx_dispatch_entry_find(uint8_t op)
     return NULL;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 int
 ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                        struct ble_l2cap_chan **out_chan)
@@ -396,6 +390,17 @@ ble_att_inc_rx_stat(uint8_t att_op)
     }
 }
 
+/**
+ * Retrieves a pointer to the global ATT flat buffer.  This buffer is only used
+ * by the host parent task, so users can assume exclusive access.
+ */
+uint8_t *
+ble_att_get_flat_buf(void)
+{
+    BLE_HS_DBG_ASSERT(ble_hs_is_app_task());
+    return ble_att_flat_buf;
+}
+
 uint16_t
 ble_att_mtu(uint16_t conn_handle)
 {
@@ -417,9 +422,6 @@ ble_att_mtu(uint16_t conn_handle)
     return mtu;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 static int
 ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -447,9 +449,6 @@ ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 void
 ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg)
 {
@@ -457,9 +456,6 @@ ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg)
     ble_att_svr_notify_cb_arg = cb_arg;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 void
 ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
 {
@@ -470,9 +466,6 @@ ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
     chan->blc_peer_mtu = peer_mtu;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_att_set_preferred_mtu(uint16_t mtu)
 {
@@ -490,9 +483,6 @@ ble_att_set_preferred_mtu(uint16_t mtu)
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 struct ble_l2cap_chan *
 ble_att_create_chan(void)
 {
@@ -511,9 +501,6 @@ ble_att_create_chan(void)
     return chan;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_att_init(void)
 {
