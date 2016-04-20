@@ -30,7 +30,7 @@ ble_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
     int rc;
 
     host_hci_cmd_build_read_adv_pwr(buf, sizeof buf);
-    rc = ble_hci_tx_cmd(buf, out_tx_pwr, 1, &params_len);
+    rc = ble_hci_cmd_tx(buf, out_tx_pwr, 1, &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -59,7 +59,7 @@ ble_hci_util_rand(void *dst, int len)
 
     u8ptr = dst;
     while (len > 0) {
-        rc = ble_hci_tx_cmd(req_buf, rsp_buf, sizeof rsp_buf, &params_len);
+        rc = ble_hci_cmd_tx(req_buf, rsp_buf, sizeof rsp_buf, &params_len);
         if (rc != 0) {
             return rc;
         }
@@ -87,7 +87,7 @@ ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
     int rc;
 
     host_hci_cmd_build_read_rssi(conn_handle, buf, sizeof buf);
-    rc = ble_hci_tx_cmd(buf, params, 1, &params_len);
+    rc = ble_hci_cmd_tx(buf, params, 1, &params_len);
     if (rc != 0) {
         return rc;
     }

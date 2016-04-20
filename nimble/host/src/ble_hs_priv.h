@@ -106,14 +106,16 @@ struct os_mbuf *ble_hs_misc_pkthdr(void);
 
 int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
 
-int ble_hci_tx_cmd(void *cmd, void *evt_buf, uint8_t evt_buf_len,
+int ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
                    uint8_t *out_evt_buf_len);
-int ble_hci_tx_cmd_empty_ack(void *cmd);
+int ble_hci_cmd_tx_empty_ack(void *cmd);
+void ble_hci_cmd_rx_ack(uint8_t *ack_ev);
+void ble_hci_cmd_init(void);
 
 #if PHONY_HCI_ACKS
-typedef int ble_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);
+typedef int ble_hci_cmd_phony_ack_fn(uint8_t *ack, int ack_buf_len);
 
-void ble_hci_set_phony_ack_cb(ble_hci_phony_ack_fn *cb);
+void ble_hci_set_phony_ack_cb(ble_hci_cmd_phony_ack_fn *cb);
 #endif
 
 #define BLE_HS_LOG(lvl, ...) \

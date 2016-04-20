@@ -329,7 +329,7 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    host_hci_init();
+    ble_hci_cmd_init();
 
     rc = ble_hs_conn_init();
     if (rc != 0) {
