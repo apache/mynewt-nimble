@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include "os/os.h"
 #include "ble_hs_priv.h"
-#include "host_dbg.h"
+#include "host_dbg_priv.h"
 
 #define BLE_HCI_CMD_TIMEOUT     (OS_TICKS_PER_SEC)
 

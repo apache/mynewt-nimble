@@ -42,59 +42,18 @@ STATS_SECT_START(ble_l2cap_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
 
-#define BLE_L2CAP_SIG_HDR_SZ                4
-struct ble_l2cap_sig_hdr {
-    uint8_t op;
-    uint8_t identifier;
-    uint16_t length;
-} __attribute__((packed));
-
-#define BLE_L2CAP_SIG_REJECT_MIN_SZ         2
-struct ble_l2cap_sig_reject {
-    uint16_t reason;
-} __attribute__((packed));
-
-#define BLE_L2CAP_SIG_UPDATE_REQ_SZ         8
-struct ble_l2cap_sig_update_req {
-    uint16_t itvl_min;
-    uint16_t itvl_max;
-    uint16_t slave_latency;
-    uint16_t timeout_multiplier;
-} __attribute__((packed));
-
-#define BLE_L2CAP_SIG_UPDATE_RSP_SZ         2
-struct ble_l2cap_sig_update_rsp {
-    uint16_t result;
-} __attribute__((packed));
-
-#define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT  0x0000
-#define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT  0x0001
-
 #define BLE_L2CAP_CID_ATT   4
 #define BLE_L2CAP_CID_SIG   5
 #define BLE_L2CAP_CID_SM    6
 
 #define BLE_L2CAP_HDR_SZ    4
 
-struct ble_l2cap_hdr
-{
-    uint16_t blh_len;
-    uint16_t blh_cid;
-};
-
-struct ble_l2cap_chan;
+typedef uint8_t ble_l2cap_chan_flags;
 
 typedef int ble_l2cap_rx_fn(uint16_t conn_handle,
                             struct os_mbuf **om);
 
-typedef int ble_l2cap_tx_fn(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan);
-
-typedef uint8_t ble_l2cap_chan_flags;
-#define BLE_L2CAP_CHAN_F_TXED_MTU       0x01    /* We have sent our MTU. */
-
-struct ble_l2cap_chan
-{
+struct ble_l2cap_chan {
     SLIST_ENTRY(ble_l2cap_chan) blc_next;
     uint16_t blc_cid;
     uint16_t blc_my_mtu;
@@ -108,6 +67,15 @@ struct ble_l2cap_chan
     ble_l2cap_rx_fn *blc_rx_fn;
 };
 
+struct ble_l2cap_hdr {
+    uint16_t blh_len;
+    uint16_t blh_cid;
+};
+
+typedef int ble_l2cap_tx_fn(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan);
+
+#define BLE_L2CAP_CHAN_F_TXED_MTU       0x01    /* We have sent our MTU. */
 
 SLIST_HEAD(ble_l2cap_chan_list, ble_l2cap_chan);
 
@@ -115,26 +83,6 @@ int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
                         struct ble_l2cap_hdr *l2cap_hdr);
 struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
                                       uint16_t len);
-
-int ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
-                           struct os_mbuf **out_om, void **out_payload_buf);
-void ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
-                             struct ble_l2cap_sig_hdr *hdr);
-void ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
-                             struct ble_l2cap_sig_hdr *hdr);
-int ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason);
-void ble_l2cap_sig_update_req_parse(void *payload, int len,
-                                    struct ble_l2cap_sig_update_req *req);
-void ble_l2cap_sig_update_req_write(void *payload, int len,
-                                    struct ble_l2cap_sig_update_req *src);
-int ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
-                                struct ble_l2cap_sig_update_req *req);
-void ble_l2cap_sig_update_rsp_parse(void *payload, int len,
-                                    struct ble_l2cap_sig_update_rsp *cmd);
-void ble_l2cap_sig_update_rsp_write(void *payload, int len,
-                                    struct ble_l2cap_sig_update_rsp *src);
-int ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id,
-                                uint16_t result);
 
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
@@ -150,8 +98,6 @@ int ble_l2cap_rx(struct ble_hs_conn *conn,
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *om);
 
-void ble_l2cap_sig_heartbeat(void);
-int ble_l2cap_sig_init(void);
 int ble_l2cap_init(void);
 
 #endif

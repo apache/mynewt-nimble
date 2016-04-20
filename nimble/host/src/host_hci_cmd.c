@@ -26,7 +26,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 #include "host/host_hci.h"
-#include "host_dbg.h"
+#include "host_dbg_priv.h"
 #include "ble_hs_priv.h"
 #ifdef PHONY_TRANSPORT
 #include "host/ble_hs_test.h"
