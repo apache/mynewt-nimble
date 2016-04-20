@@ -28,9 +28,6 @@ static struct os_mempool ble_hs_conn_pool;
 
 static os_membuf_t *ble_hs_conn_elem_mem;
 
-/**
- * Lock restrictions: none.
- */
 int
 ble_hs_conn_can_alloc(void)
 {
@@ -41,9 +38,6 @@ ble_hs_conn_can_alloc(void)
     return ble_hs_conn_pool.mp_num_free >= 1;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 struct ble_l2cap_chan *
 ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 {
@@ -65,10 +59,6 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
     return NULL;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex if connection has been
- * inserted.
- */
 int
 ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
@@ -100,9 +90,6 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     return 0;
 }
 
-/**
- * Lock restrictions: none.
- */
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
 {
@@ -165,9 +152,6 @@ err:
     return NULL;
 }
 
-/**
- * Lock restrictions: none.
- */
 static void
 ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
@@ -179,9 +163,6 @@ ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     ble_l2cap_chan_free(chan);
 }
 
-/**
- * Lock restrictions: none.
- */
 void
 ble_hs_conn_free(struct ble_hs_conn *conn)
 {
@@ -210,9 +191,6 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
     STATS_INC(ble_hs_stats, conn_delete);
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 void
 ble_hs_conn_insert(struct ble_hs_conn *conn)
 {
@@ -220,13 +198,12 @@ ble_hs_conn_insert(struct ble_hs_conn *conn)
     return;
 #endif
 
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+
     BLE_HS_DBG_ASSERT_EVAL(ble_hs_conn_find(conn->bhc_handle) == NULL);
     SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 void
 ble_hs_conn_remove(struct ble_hs_conn *conn)
 {
@@ -234,12 +211,11 @@ ble_hs_conn_remove(struct ble_hs_conn *conn)
     return;
 #endif
 
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+
     SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 struct ble_hs_conn *
 ble_hs_conn_find(uint16_t conn_handle)
 {
@@ -248,6 +224,8 @@ ble_hs_conn_find(uint16_t conn_handle)
 #endif
 
     struct ble_hs_conn *conn;
+
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
         if (conn->bhc_handle == conn_handle) {
@@ -268,34 +246,7 @@ ble_hs_conn_exists(uint16_t conn_handle)
 }
 
 /**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
-int
-ble_hs_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
-{
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        rc = 0;
-        *out_flags = conn->bhc_flags;
-    }
-
-    ble_hs_unlock();
-
-    return rc;
-}
-
-/**
  * Retrieves the first connection in the list.
- *
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
  */
 struct ble_hs_conn *
 ble_hs_conn_first(void)
@@ -304,12 +255,10 @@ ble_hs_conn_first(void)
     return NULL;
 #endif
 
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
     return SLIST_FIRST(&ble_hs_conns);
 }
 
-/**
- * Lock restrictions: None.
- */
 static void
 ble_hs_conn_free_mem(void)
 {
@@ -317,9 +266,6 @@ ble_hs_conn_free_mem(void)
     ble_hs_conn_elem_mem = NULL;
 }
 
-/**
- * Lock restrictions: None.
- */
 int 
 ble_hs_conn_init(void)
 {

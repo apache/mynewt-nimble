@@ -26,11 +26,40 @@
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
 
-#define BLE_GAP_OP_NULL                                 0
+/**
+ * GAP - Generic Access Profile.
+ *
+ * Design overview:
+ *
+ * GAP procedures are initiated by the application via function calls.  Such
+ * functions return when either of the following happens:
+ *
+ * (1) The procedure completes (success or failure).
+ * (2) The procedure cannot proceed until a BLE peer responds.
+ *
+ * For (1), the result of the procedure if fully indicated by the function
+ * return code.
+ * For (2), the procedure result is indicated by an application-configured
+ * callback.  The callback is executed when the procedure completes.
+ *
+ * Notes on thread-safety:
+ * 1. The ble_hs mutex must never be locked when an application callback is
+ *    executed.  A callback is free to initiate additional host procedures.
+ * 2. Functions called directly by the application never call callbacks.
+ *    Generally, these functions lock the ble_hs mutex at the start, and only
+ *    unlock it at return.
+ * 3. Functions which do call callbacks (receive handlers and timer
+ *    expirations) generally only lock the mutex long enough to modify
+ *    affected state and make copies of data needed for the callback.  A copy
+ *    of various pieces of data is called a "snapshot" (struct
+ *    ble_gap_snapshot).  The sole purpose of snapshots is to allow callbacks
+ *    to be executed after unlocking the mutex.
+ */
 
+/** GAP procedure op codes. */
+#define BLE_GAP_OP_NULL                                 0
 #define BLE_GAP_OP_M_DISC                               1
 #define BLE_GAP_OP_M_CONN                               2
-
 #define BLE_GAP_OP_S_ADV                                1
 
 /**
@@ -234,9 +263,6 @@ ble_gap_log_adv(struct hci_adv_params *adv_params)
  * $snapshot                                                                 *
  *****************************************************************************/
 
-/**
- * Lock restrictions: None.
- */
 static void
 ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
                        struct ble_gap_conn_desc *desc)
@@ -249,9 +275,6 @@ ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
     desc->supervision_timeout = conn->bhc_supervision_timeout;
 }
 
-/**
- * Lock restrictions: None.
- */
 static void
 ble_gap_conn_to_snapshot(struct ble_hs_conn *conn,
                          struct ble_gap_snapshot *snap)
@@ -261,10 +284,6 @@ ble_gap_conn_to_snapshot(struct ble_hs_conn *conn,
     snap->cb_arg = conn->bhc_cb_arg;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_gap_find_snapshot(uint16_t handle, struct ble_gap_snapshot *snap)
 {
@@ -290,17 +309,13 @@ ble_gap_find_snapshot(uint16_t handle, struct ble_gap_snapshot *snap)
  * $misc                                                                     *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_call_conn_cb(int event, int status, struct ble_gap_conn_ctxt *ctxt,
                      ble_gap_conn_fn *cb, void *cb_arg)
 {
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (cb != NULL) {
         rc = cb(event, status, ctxt, cb_arg);
@@ -315,10 +330,6 @@ ble_gap_call_conn_cb(int event, int status, struct ble_gap_conn_ctxt *ctxt,
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static void
 ble_gap_call_slave_cb(int event, int status, int reset_state)
 {
@@ -348,10 +359,6 @@ ble_gap_call_slave_cb(int event, int status, int reset_state)
     }
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_call_master_conn_cb(int event, int status, int reset_state)
 {
@@ -388,10 +395,6 @@ ble_gap_call_master_conn_cb(int event, int status, int reset_state)
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static void
 ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
                             struct ble_hs_adv_fields *fields, int reset_state)
@@ -428,16 +431,11 @@ ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
     }
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks gap.
- */
 int
 ble_gap_update_in_progress(uint16_t conn_handle)
 {
     struct ble_hs_conn *conn;
 
-    /* XXX LOCKING */
     conn = ble_hs_conn_find(conn_handle);
     return conn != NULL && conn->bhc_flags & BLE_HS_CONN_F_UPDATE;
 }
@@ -447,7 +445,6 @@ ble_gap_update_set_flag(uint16_t conn_handle, int val)
 {
     struct ble_hs_conn *conn;
 
-    /* XXX LOCKING */
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
         return BLE_HS_ENOTCONN;
@@ -461,10 +458,6 @@ ble_gap_update_set_flag(uint16_t conn_handle, int val)
     }
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static void
 ble_gap_update_notify(uint16_t conn_handle, int status)
 {
@@ -495,9 +488,6 @@ ble_gap_master_set_timer(uint32_t ms_from_now)
  * Called when an error is encountered while the master-connection-fsm is
  * active.  Resets the state machine, clears the HCI ack callback, and notifies
  * the host task that the next hci_batch item can be processed.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  */
 static void
 ble_gap_master_failed(int status)
@@ -527,10 +517,6 @@ ble_gap_update_failed(uint16_t conn_handle, int status)
     ble_gap_update_notify(conn_handle, status);
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks gap.
- */
 static void
 ble_gap_conn_broken(struct ble_gap_snapshot *snap)
 {
@@ -548,10 +534,6 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap)
     STATS_INC(ble_gap_stats, disconnect);
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 void
 ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 {
@@ -582,10 +564,6 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
     }
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 void
 ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 {
@@ -596,8 +574,6 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
-
-    ble_hs_misc_assert_not_locked();
 
     STATS_INC(ble_gap_stats, rx_update_complete);
 
@@ -628,8 +604,6 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 
 /**
  * Tells you if the BLE host is in the process of creating a master connection.
- *
- * Lock restrictions: None.
  */
 int
 ble_gap_master_in_progress(void)
@@ -639,8 +613,6 @@ ble_gap_master_in_progress(void)
 
 /**
  * Tells you if the BLE host is in the process of creating a slave connection.
- *
- * Lock restrictions: None.
  */
 int
 ble_gap_slave_in_progress(void)
@@ -648,9 +620,6 @@ ble_gap_slave_in_progress(void)
     return ble_gap_slave.op != BLE_GAP_OP_NULL;
 }
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_gap_currently_advertising(void)
 {
@@ -662,9 +631,6 @@ ble_gap_currently_advertising(void)
  * "connection complete" event from the controller.  If the master connection
  * FSM is in a state that can accept this event, and the peer device address is
  * valid, the master FSM is reset and success is returned.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  *
  * @param addr_type             The address type of the peer; one of the
  *                                  following values:
@@ -709,8 +675,6 @@ ble_gap_accept_master_conn(uint8_t addr_type, uint8_t *addr)
  * "connection complete" event from the controller.  If the slave connection
  * FSM is in a state that can accept this event, and the peer device address is
  * valid, the master FSM is reset and success is returned.
- *
- * Lock restrictions: None.
  *
  * @param addr_type             The address type of the peer; one of the
  *                                  following values:
@@ -757,10 +721,6 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 void
 ble_gap_rx_adv_report(struct ble_hs_adv *adv)
 {
@@ -795,9 +755,6 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
 
 /**
  * Processes an incoming connection-complete HCI event.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  */
 int
 ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
@@ -875,6 +832,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     }
 
     /* We verified that there is a free connection when the procedure began. */
+    /* XXX: Revisit this; ensure this is guaranteed. */
     conn = ble_hs_conn_alloc();
     BLE_HS_DBG_ASSERT(conn != NULL);
 
@@ -905,10 +863,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                             struct ble_gap_upd_params *params)
@@ -916,8 +870,6 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int rc;
-
-    ble_hs_misc_assert_not_locked();
 
     rc = ble_gap_find_snapshot(conn_handle, &snap);
     if (rc != 0) {
@@ -938,9 +890,6 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
 
 /**
  * Called by the ble_hs heartbeat timer.  Handles timed out master procedures.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  */
 void
 ble_gap_heartbeat(void)
@@ -980,9 +929,6 @@ ble_gap_heartbeat(void)
  * $white list                                                               *
  *****************************************************************************/
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_gap_wl_busy(void)
 {
@@ -997,10 +943,6 @@ ble_gap_wl_busy(void)
            ble_gap_master.conn.using_wl;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_wl_tx_add(struct ble_gap_white_entry *entry)
 {
@@ -1021,10 +963,6 @@ ble_gap_wl_tx_add(struct ble_gap_white_entry *entry)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_wl_tx_clear(void)
 {
@@ -1040,10 +978,6 @@ ble_gap_wl_tx_clear(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_wl_set(struct ble_gap_white_entry *white_list,
                uint8_t white_list_count)
@@ -1103,10 +1037,6 @@ err:
  * $stop advertise                                                           *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_adv_disable_tx(void)
 {
@@ -1122,10 +1052,6 @@ ble_gap_adv_disable_tx(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_adv_stop(void)
 {
@@ -1163,9 +1089,6 @@ err:
  * $advertise                                                                *
  *****************************************************************************/
 
-/**
- * Lock restrictions: None.
- */
 static void
 ble_gap_adv_itvls(uint8_t disc_mode, uint8_t conn_mode,
                   uint16_t *out_itvl_min, uint16_t *out_itvl_max)
@@ -1192,10 +1115,6 @@ ble_gap_adv_itvls(uint8_t disc_mode, uint8_t conn_mode,
     }
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_adv_enable_tx(void)
 {
@@ -1212,10 +1131,6 @@ ble_gap_adv_enable_tx(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_adv_rsp_data_tx(void)
 {
@@ -1237,10 +1152,6 @@ ble_gap_adv_rsp_data_tx(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_adv_data_tx(void)
 {
@@ -1302,10 +1213,6 @@ ble_gap_adv_data_tx(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_adv_params_tx(struct hci_adv_params *adv_params)
 {
@@ -1346,9 +1253,6 @@ ble_gap_adv_params_tx(struct hci_adv_params *adv_params)
 /**
  * Enables the specified discoverable mode and connectable mode, and initiates
  * the advertising process.
- *
- * Lock restrictions:
- *     o Caller unlocks gap.
  *
  * @param discoverable_mode     One of the following constants:
  *                                  o BLE_GAP_DISC_MODE_NON
@@ -1503,9 +1407,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
 {
@@ -1539,9 +1440,6 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields)
 {
@@ -1571,10 +1469,6 @@ ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields)
  * $discovery procedures                                                     *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_disc_tx_disable(void)
 {
@@ -1590,10 +1484,6 @@ ble_gap_disc_tx_disable(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_disc_tx_enable(void)
 {
@@ -1609,10 +1499,6 @@ ble_gap_disc_tx_enable(void)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy)
 {
@@ -1639,9 +1525,6 @@ ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy)
 /**
  * Performs the Limited or General Discovery Procedures, as described in
  * vol. 3, part C, section 9.2.5 / 9.2.6.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  *
  * @return                      0 on success; nonzero on failure.
  */
@@ -1725,18 +1608,6 @@ done:
  * $connection establishment procedures                                      *
  *****************************************************************************/
 
-/**
- * Processes an HCI acknowledgement (either command status or command complete)
- * while a master connection is being established.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
-
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 static int
 ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
                        struct ble_gap_crt_params *params)
@@ -1789,9 +1660,6 @@ ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
  *                                  o BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT
  *                                  o BLE_GAP_ADDR_TYPE_WL
  * @param addr                  The address of the peer to connect to.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  *
  * @return                      0 on success; nonzero on failure.
  */
@@ -1860,10 +1728,6 @@ done:
  * $terminate connection procedure                                           *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_terminate(uint16_t conn_handle)
 {
@@ -1905,10 +1769,6 @@ done:
  * $cancel                                                                   *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_gap_cancel(void)
 {
@@ -1992,10 +1852,6 @@ ble_gap_tx_param_neg_reply(uint16_t conn_handle, uint8_t reject_reason)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 void
 ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 {
@@ -2010,14 +1866,12 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
     uint8_t reject_reason;
     int rc;
 
-    ble_hs_lock();
-
     reject_reason = 0; /* Silence warning. */
 
     rc = ble_gap_find_snapshot(evt->connection_handle, &snap);
     if (rc != 0) {
         /* We are not connected to the sender. */
-        goto done;;
+        return;
     }
 
     peer_params.itvl_min = evt->itvl_min;
@@ -2027,7 +1881,10 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
     peer_params.min_ce_len = 0;
     peer_params.max_ce_len = 0;
 
-    /* By default, the application will just XXX */
+    /* Copy the peer params into the self params to make it easy on the
+     * application.  The application callback will change only the fields which
+     * it finds unsuitable.
+     */
     self_params = peer_params;
 
     memset(&ctxt, 0, sizeof ctxt);
@@ -2050,15 +1907,8 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
     } else {
         ble_gap_tx_param_neg_reply(evt->connection_handle, reject_reason);
     }
-
-done:
-    ble_hs_unlock();
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks gap.
- */
 static int
 ble_gap_update_tx(uint16_t conn_handle, struct ble_gap_upd_params *params)
 {
@@ -2087,11 +1937,6 @@ ble_gap_update_tx(uint16_t conn_handle, struct ble_gap_upd_params *params)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- *     o Caller unlocks gap.
- */
 int
 ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
 {
@@ -2145,21 +1990,13 @@ int
 ble_gap_security_initiate(uint16_t conn_handle)
 {
     ble_hs_conn_flags_t conn_flags;
-    struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn != NULL) {
-        conn_flags = conn->bhc_flags;
+    rc = ble_hs_atomic_conn_flags(conn_handle, &conn_flags);
+    if (rc != 0) {
+        return rc;
     }
 
-    ble_hs_unlock();
-
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
     if (!(conn_flags & BLE_HS_CONN_F_MASTER)) {
         return BLE_HS_EROLE;
     }
@@ -2203,9 +2040,6 @@ ble_gap_security_event(uint16_t conn_handle, int status,
  * $init                                                                     *
  *****************************************************************************/
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_gap_init(void)
 {

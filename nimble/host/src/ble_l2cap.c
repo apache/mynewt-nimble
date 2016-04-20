@@ -46,9 +46,6 @@ STATS_NAME_START(ble_l2cap_stats)
     STATS_NAME(ble_l2cap_stats, sm_rx)
 STATS_NAME_END(ble_l2cap_stats)
 
-/**
- * Lock restrictions: None.
- */
 struct ble_l2cap_chan *
 ble_l2cap_chan_alloc(void)
 {
@@ -66,9 +63,6 @@ ble_l2cap_chan_alloc(void)
     return chan;
 }
 
-/**
- * Lock restrictions: None.
- */
 void
 ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
 {
@@ -84,10 +78,6 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
     STATS_INC(ble_l2cap_stats, chan_delete);
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
 uint16_t
 ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
 {
@@ -109,9 +99,6 @@ ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
     return mtu;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
                     struct ble_l2cap_hdr *l2cap_hdr)
@@ -129,9 +116,6 @@ ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 struct os_mbuf *
 ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
 {
@@ -150,10 +134,6 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
     return om;
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
 static void
 ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
@@ -162,10 +142,6 @@ ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     chan->blc_rx_len = 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
 static void
 ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
@@ -173,10 +149,6 @@ ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     ble_l2cap_forget_rx(conn, chan);
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
 static int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf *om,
@@ -211,10 +183,6 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- */
 int
 ble_l2cap_rx(struct ble_hs_conn *conn,
              struct hci_data_hdr *hci_hdr,
@@ -288,9 +256,6 @@ err:
  * Transmits the L2CAP payload contained in the specified mbuf.  The supplied
  * mbuf is consumed, regardless of the outcome of the function call.
  * 
- * Lock restrictions:
- *     o Caller locks ble_hs_conn.
- *
  * @param chan                  The L2CAP channel to transmit over.
  * @param om                    The data to transmit.
  *
@@ -324,9 +289,6 @@ err:
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 static void
 ble_l2cap_free_mem(void)
 {
@@ -334,9 +296,6 @@ ble_l2cap_free_mem(void)
     ble_l2cap_chan_mem = NULL;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_l2cap_init(void)
 {

@@ -17,6 +17,31 @@
  * under the License.
  */
 
+/**
+ * L2CAP Security Manager (channel ID = 6).
+ *
+ * Design overview:
+ *
+ * L2CAP sm procedures are initiated by the application via function calls.
+ * Such functions return when either of the following happens:
+ *
+ * (1) The procedure completes (success or failure).
+ * (2) The procedure cannot proceed until a BLE peer responds.
+ *
+ * For (1), the result of the procedure if fully indicated by the function
+ * return code.
+ * For (2), the procedure result is indicated by an application-configured
+ * callback.  The callback is executed when the procedure completes.
+ *
+ * Notes on thread-safety:
+ * 1. The ble_hs mutex must never be locked when an application callback is
+ *    executed.  A callback is free to initiate additional host procedures.
+ * 2. The only resource protected by the mutex is the list of active procedures
+ *    (ble_l2cap_sm_procs).  Thread-safety is achieved by locking the mutex
+ *    during removal and insertion operations.  Procedure objects are only
+ *    modified while they are not in the list.
+ */
+
 #include <string.h>
 #include <errno.h>
 #include "console/console.h"
@@ -245,9 +270,6 @@ ble_l2cap_sm_proc_set_timer(struct ble_l2cap_sm_proc *proc)
     proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SM_TIMEOUT_OS_TICKS;
 }
 
-/**
- * Lock restrictions: None.
- */
 static ble_l2cap_sm_rx_fn *
 ble_l2cap_sm_dispatch_get(uint8_t state)
 {
@@ -260,8 +282,6 @@ ble_l2cap_sm_dispatch_get(uint8_t state)
 
 /**
  * Allocates a proc entry.
- *
- * Lock restrictions: None.
  *
  * @return                      An entry on success; null on failure.
  */
@@ -280,8 +300,6 @@ ble_l2cap_sm_proc_alloc(void)
 
 /**
  * Frees the specified proc entry.  No-state if passed a null pointer.
- *
- * Lock restrictions: None.
  */
 static void
 ble_l2cap_sm_proc_free(struct ble_l2cap_sm_proc *proc)
@@ -644,6 +662,8 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
 {
     struct ble_hs_conn *conn;
 
+    ble_hs_lock();
+
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn != NULL) {
         if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
@@ -660,6 +680,8 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
             memcpy(ia, conn->bhc_addr, 6);
         }
     }
+
+    ble_hs_unlock();
 
     if (conn == NULL) {
         return BLE_HS_ENOTCONN;
@@ -1047,10 +1069,6 @@ ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
     ble_l2cap_sm_proc_free(proc);
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_l2cap_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -1136,9 +1154,6 @@ ble_l2cap_sm_initiate(uint16_t conn_handle)
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 struct ble_l2cap_chan *
 ble_l2cap_sm_create_chan(void)
 {

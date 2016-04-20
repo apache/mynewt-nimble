@@ -26,9 +26,6 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_init_req(uint16_t initial_sz, struct os_mbuf **out_txom)
 {
@@ -58,10 +55,6 @@ err:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_append_blob(uint16_t conn_handle, struct os_mbuf *txom,
                         void *blob, int blob_len)
@@ -93,13 +86,11 @@ ble_att_clt_append_blob(uint16_t conn_handle, struct os_mbuf *txom,
     return 0;
 }
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_copy_attr_to_flatbuf(struct os_mbuf *om, void **out_attr_val,
                                  uint16_t *out_attr_len)
 {
+    uint8_t *flat_buf;
     uint16_t attr_len;
 
     /* Make sure the attribute value isn't too big. */
@@ -111,8 +102,9 @@ ble_att_clt_copy_attr_to_flatbuf(struct os_mbuf *om, void **out_attr_val,
     }
 
     /* Copy the attribute data into the global ATT flat buffer. */
-    os_mbuf_copydata(om, 0, attr_len, ble_att_flat_buf);
-    *out_attr_val = ble_att_flat_buf;
+    flat_buf = ble_att_get_flat_buf();
+    os_mbuf_copydata(om, 0, attr_len, flat_buf);
+    *out_attr_val = flat_buf;
     *out_attr_len = attr_len;
     return 0;
 }
@@ -145,10 +137,6 @@ ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
  * $error response                                                           *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -170,9 +158,6 @@ ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **om)
  * $mtu exchange                                                             *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_mtu_req(struct ble_att_mtu_cmd *req,
                           struct os_mbuf **out_txom)
@@ -199,10 +184,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_mtu(uint16_t conn_handle, struct ble_att_mtu_cmd *req)
 {
@@ -237,10 +218,6 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, struct ble_att_mtu_cmd *req)
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -274,9 +251,6 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
  * $find information                                                         *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_find_info_req(struct ble_att_find_info_req *req,
                                 struct os_mbuf **out_txom)
@@ -295,10 +269,6 @@ ble_att_clt_build_find_info_req(struct ble_att_find_info_req *req,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_find_info(uint16_t conn_handle,
                          struct ble_att_find_info_req *req)
@@ -382,10 +352,6 @@ ble_att_clt_parse_find_info_entry(struct os_mbuf **rxom, uint8_t rsp_format,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -429,9 +395,6 @@ done:
  * $find by type value                                                       *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_find_type_value_req(struct ble_att_find_type_value_req *req,
                                       void *attribute_value, int value_len,
@@ -456,10 +419,6 @@ ble_att_clt_build_find_type_value_req(struct ble_att_find_type_value_req *req,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_find_type_value(uint16_t conn_handle,
                                struct ble_att_find_type_value_req *req,
@@ -492,9 +451,6 @@ ble_att_clt_tx_find_type_value(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_parse_find_type_value_hinfo(
     struct os_mbuf **om, struct ble_att_find_type_value_hinfo *dst)
@@ -512,10 +468,6 @@ ble_att_clt_parse_find_type_value_hinfo(
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -554,9 +506,6 @@ ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
  * $read by type                                                             *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_read_type_req(struct ble_att_read_type_req *req,
                                 void *uuid128, struct os_mbuf **out_txom)
@@ -589,10 +538,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_read_type(uint16_t conn_handle,
                          struct ble_att_read_type_req *req,
@@ -624,9 +569,6 @@ ble_att_clt_tx_read_type(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
                                   struct ble_att_read_type_adata *adata)
@@ -645,10 +587,6 @@ ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -692,9 +630,6 @@ done:
  * $read                                                                     *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_read_req(struct ble_att_read_req *req,
                            struct os_mbuf **out_txom)
@@ -721,10 +656,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_read(uint16_t conn_handle, struct ble_att_read_req *req)
 {
@@ -752,10 +683,6 @@ ble_att_clt_tx_read(uint16_t conn_handle, struct ble_att_read_req *req)
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -784,9 +711,6 @@ ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
  * $read blob                                                                *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_read_blob_req(struct ble_att_read_blob_req *req,
                                 struct os_mbuf **out_txom)
@@ -813,10 +737,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_read_blob(uint16_t conn_handle,
                          struct ble_att_read_blob_req *req)
@@ -845,10 +765,6 @@ ble_att_clt_tx_read_blob(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -877,9 +793,6 @@ ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
  * $read multiple                                                            *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_read_mult_req(uint16_t *att_handles, int num_att_handles,
                                 struct os_mbuf **out_txom)
@@ -920,10 +833,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_read_mult(uint16_t conn_handle, uint16_t *att_handles,
                          int num_att_handles)
@@ -952,10 +861,6 @@ ble_att_clt_tx_read_mult(uint16_t conn_handle, uint16_t *att_handles,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -984,9 +889,6 @@ ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
  * $read by group type                                                       *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_read_group_type_req(struct ble_att_read_group_type_req *req,
                                       void *uuid128, struct os_mbuf **out_txom)
@@ -1018,10 +920,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_read_group_type(uint16_t conn_handle,
                                struct ble_att_read_group_type_req *req,
@@ -1055,9 +953,6 @@ ble_att_clt_tx_read_group_type(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_att_clt_parse_read_group_type_adata(
     struct os_mbuf **om, int data_len,
@@ -1082,10 +977,6 @@ ble_att_clt_parse_read_group_type_adata(
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1129,10 +1020,6 @@ done:
  * $write                                                                    *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_build_write_req_or_cmd(uint16_t conn_handle,
                                    struct ble_att_write_req *req,
@@ -1170,10 +1057,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_tx_write_req_or_cmd(uint16_t conn_handle,
                                 struct ble_att_write_req *req,
@@ -1197,10 +1080,6 @@ ble_att_clt_tx_write_req_or_cmd(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_write_req(uint16_t conn_handle, struct ble_att_write_req *req,
                          void *value, uint16_t value_len)
@@ -1216,10 +1095,6 @@ ble_att_clt_tx_write_req(uint16_t conn_handle, struct ble_att_write_req *req,
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_write_cmd(uint16_t conn_handle,
                          struct ble_att_write_req *req,
@@ -1236,10 +1111,6 @@ ble_att_clt_tx_write_cmd(uint16_t conn_handle,
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1256,10 +1127,6 @@ ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
  * $prepare write request                                                    *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_build_prep_write_req(uint16_t conn_handle,
                                  struct ble_att_prep_write_cmd *req,
@@ -1293,10 +1160,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_prep_write(uint16_t conn_handle,
                           struct ble_att_prep_write_cmd *req,
@@ -1337,10 +1200,6 @@ ble_att_clt_tx_prep_write(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1381,9 +1240,6 @@ done:
  * $execute write request                                                    *
  *****************************************************************************/
 
-/**
- * Lock restrictions: none.
- */
 static int
 ble_att_clt_build_exec_write_req(struct ble_att_exec_write_req *req,
                                  struct os_mbuf **out_txom)
@@ -1410,10 +1266,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_exec_write(uint16_t conn_handle,
                           struct ble_att_exec_write_req *req)
@@ -1442,10 +1294,6 @@ ble_att_clt_tx_exec_write(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1468,10 +1316,6 @@ ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
  * $handle value notification                                                *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_build_notify_req(uint16_t conn_handle,
                              struct ble_att_notify_req *req,
@@ -1505,10 +1349,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_notify(uint16_t conn_handle, struct ble_att_notify_req *req,
                       void *value, uint16_t value_len)
@@ -1542,10 +1382,6 @@ ble_att_clt_tx_notify(uint16_t conn_handle, struct ble_att_notify_req *req,
  * $handle value indication                                                  *
  *****************************************************************************/
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 static int
 ble_att_clt_build_indicate_req(uint16_t conn_handle,
                                struct ble_att_indicate_req *req,
@@ -1579,10 +1415,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks ble_hs_conn.
- */
 int
 ble_att_clt_tx_indicate(uint16_t conn_handle,
                         struct ble_att_indicate_req *req,
@@ -1613,10 +1445,6 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
     return 0;
 }
 
-/**
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
- */
 int
 ble_att_clt_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {

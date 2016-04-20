@@ -17,6 +17,31 @@
  * under the License.
  */
 
+/**
+ * L2CAP Signaling (channel ID = 5).
+ *
+ * Design overview:
+ *
+ * L2CAP sig procedures are initiated by the application via function calls.
+ * Such functions return when either of the following happens:
+ *
+ * (1) The procedure completes (success or failure).
+ * (2) The procedure cannot proceed until a BLE peer responds.
+ *
+ * For (1), the result of the procedure if fully indicated by the function
+ * return code.
+ * For (2), the procedure result is indicated by an application-configured
+ * callback.  The callback is executed when the procedure completes.
+ *
+ * Notes on thread-safety:
+ * 1. The ble_hs mutex must never be locked when an application callback is
+ *    executed.  A callback is free to initiate additional host procedures.
+ * 2. The only resource protected by the mutex is the list of active procedures
+ *    (ble_l2cap_sig_procs).  Thread-safety is achieved by locking the mutex
+ *    during removal and insertion operations.  Procedure objects are only
+ *    modified while they are not in the list.
+ */
+
 #include <string.h>
 #include <errno.h>
 #include "console/console.h"
@@ -241,7 +266,7 @@ ble_l2cap_sig_rx_noop(uint16_t conn_handle,
 static void
 ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
 {
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (status != 0) {
         STATS_INC(ble_l2cap_stats, update_fail);
@@ -382,7 +407,7 @@ ble_l2cap_sig_update(uint16_t conn_handle,
 
     STATS_INC(ble_l2cap_stats, update_init);
 
-    rc = ble_hs_conn_flags(conn_handle, &conn_flags);
+    rc = ble_hs_atomic_conn_flags(conn_handle, &conn_flags);
     if (rc != 0) {
         return rc;
     }

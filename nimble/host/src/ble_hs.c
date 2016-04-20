@@ -44,7 +44,7 @@ struct log ble_hs_log;
 struct os_mempool g_hci_cmd_pool;
 static void *ble_hs_hci_cmd_buf;
 
-/* XXX: this might be transport layer*/
+/* XXX: this might be transport layer */
 #define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
 
 struct os_mempool g_hci_os_event_pool;
@@ -67,6 +67,7 @@ static struct os_callout_func ble_hs_event_co;
 /* Host HCI Task Events */
 static struct os_eventq ble_hs_evq;
 static struct os_eventq *ble_hs_app_evq;
+static struct os_task *ble_hs_app_task;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
@@ -83,16 +84,39 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, hci_unknown_event)
 STATS_NAME_END(ble_hs_stats)
 
+int
+ble_hs_locked(void)
+{
+    return ble_hs_mutex.mu_level > 0;
+}
+
+int
+ble_hs_locked_by_cur_task(void)
+{
+    struct os_task *owner;
+
+    owner = ble_hs_mutex.mu_owner;
+    return owner != NULL && owner == os_sched_get_current_task();
+}
+
+int
+ble_hs_thread_safe(void)
+{
+    return !os_started() || ble_hs_locked_by_cur_task();
+}
+
+int
+ble_hs_is_app_task(void)
+{
+    return os_sched_get_current_task() == ble_hs_app_task;
+}
+
 void
 ble_hs_lock(void)
 {
-    struct os_task *owner;
     int rc;
 
-    owner = ble_hs_mutex.mu_owner;
-    if (owner != NULL) {
-        BLE_HS_DBG_ASSERT_EVAL(owner != os_sched_get_current_task());
-    }
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     rc = os_mutex_pend(&ble_hs_mutex, 0xffffffff);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
@@ -105,12 +129,6 @@ ble_hs_unlock(void)
 
     rc = os_mutex_release(&ble_hs_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
-}
-
-int
-ble_hs_locked(void)
-{
-    return ble_hs_mutex.mu_level > 0;
 }
 
 void
@@ -150,9 +168,6 @@ ble_hs_heartbeat_timer_reset(void)
 /**
  * Called once a second by the ble_hs heartbeat timer.  Handles unresponsive
  * timeouts and periodic retries in case of resource shortage.
- *
- * Lock restrictions:
- *     o Caller unlocks all ble_hs mutexes.
  */
 static void
 ble_hs_heartbeat(void *unused)
@@ -217,6 +232,8 @@ int
 ble_hs_start(void)
 {
     int rc;
+
+    ble_hs_app_task = os_sched_get_current_task();
 
     ble_hs_heartbeat_timer_reset();
 

@@ -43,3 +43,24 @@ ble_hs_atomic_conn_insert(struct ble_hs_conn *conn)
     ble_hs_conn_insert(conn);
     ble_hs_unlock();
 }
+
+int
+ble_hs_atomic_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = 0;
+        *out_flags = conn->bhc_flags;
+    }
+
+    ble_hs_unlock();
+
+    return rc;
+}

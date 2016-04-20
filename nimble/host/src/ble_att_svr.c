@@ -37,9 +37,6 @@ static struct os_mempool ble_att_svr_prep_entry_pool;
 ble_att_svr_notify_fn *ble_att_svr_notify_cb;
 void *ble_att_svr_notify_cb_arg;
 
-/**
- * Lock restrictions: None.
- */
 static struct ble_att_svr_entry *
 ble_att_svr_entry_alloc(void)
 {
@@ -56,8 +53,6 @@ ble_att_svr_entry_alloc(void)
 /**
  * Allocate the next handle id and return it.
  *
- * Lock restrictions: None.
- *
  * @return A new 16-bit handle ID.
  */
 static uint16_t
@@ -70,8 +65,6 @@ ble_att_svr_next_id(void)
 
 /**
  * Register a host attribute with the BLE stack.
- *
- * Lock restrictions: None.
  *
  * @param ha                    A filled out ble_att structure to register
  * @param handle_id             A pointer to a 16-bit handle ID, which will be
@@ -107,9 +100,6 @@ ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
                             uint16_t *handle_id, ble_att_svr_access_fn *cb,
@@ -131,9 +121,6 @@ ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
     return 0;
 }
 
-/**
- * Lock restrictions: None.
- */
 uint16_t
 ble_att_svr_prev_handle(void)
 {
@@ -142,8 +129,6 @@ ble_att_svr_prev_handle(void)
 
 /**
  * Find a host attribute by handle id.
- *
- * Lock restrictions: None.
  *
  * @param handle_id             The handle_id to search for
  * @param ha_ptr                On input: Indicates the starting point of the
@@ -175,8 +160,6 @@ ble_att_svr_find_by_handle(uint16_t handle_id)
 
 /**
  * Find a host attribute by UUID.
- *
- * Lock restrictions: None.
  *
  * @param uuid                  The ble_uuid_t to search for
  * @param ha_ptr                On input: Indicates the starting point of the
@@ -230,9 +213,6 @@ ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_read(uint16_t conn_handle, struct ble_att_svr_entry *entry,
                  struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
@@ -275,9 +255,6 @@ err:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
                         struct ble_att_svr_access_ctxt *ctxt,
@@ -300,9 +277,6 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
                   struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
@@ -310,7 +284,7 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
     uint8_t att_err;
     int rc;
 
-    ble_hs_misc_assert_not_locked();
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
         !(entry->ha_flags & HA_FLAG_PERM_WRITE)) {
@@ -363,9 +337,6 @@ ble_att_svr_write_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          uint8_t req_op, uint16_t handle, uint8_t error_code)
@@ -430,7 +401,6 @@ err:
  * @param err_handle            If an error is transmitted, this is the value
  *                                  of the error message's attribute handle
  *                                  field.
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  */
 static int
 ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
@@ -482,9 +452,6 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *txom,
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
                           uint8_t *att_err)
@@ -535,9 +502,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -582,8 +546,6 @@ done:
 /**
  * Fills the supplied mbuf with the variable length Information Data field of a
  * Find Information ATT response.
- *
- * Lock restrictions: None.
  *
  * @param req                   The Find Information request being responded
  *                                  to.
@@ -678,9 +640,6 @@ done:
     }
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
                                 struct ble_att_find_info_req *req,
@@ -737,9 +696,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -795,8 +751,6 @@ done:
 /**
  * Processes a single non-matching attribute entry while filling a
  * Find-By-Type-Value-Response.
- *
- * Lock restrictions: None.
  *
  * @param om                    The response mbuf.
  * @param first                 Pointer to the first matching handle ID in the
@@ -858,8 +812,6 @@ ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
  * Processes a single matching attribute entry while filling a
  * Find-By-Type-Value-Response.
  *
- * Lock restrictions: None.
- *
  * @param om                    The response mbuf.
  * @param first                 Pointer to the first matching handle ID in the
  *                                  current group of IDs.  0 if there is not a
@@ -912,8 +864,6 @@ ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
 /**
  * Fills the supplied mbuf with the variable length Handles-Information-List
  * field of a Find-By-Type-Value ATT response.
- *
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
  *
  * @param req                   The Find-By-Type-Value-Request being responded
  *                                  to.
@@ -1010,9 +960,6 @@ done:
     }
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
                                       struct ble_att_find_type_value_req *req,
@@ -1061,9 +1008,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1119,9 +1063,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
                                 struct ble_att_read_type_req *req,
@@ -1248,9 +1189,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1333,8 +1271,6 @@ done:
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- *
  * @return                      0 on success; nonzero on failure.
  */
 static int
@@ -1391,9 +1327,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1445,8 +1378,6 @@ done:
 }
 
 /**
- * Lock restrictions: None.
- *
  * @return                      0 on success; nonzero on failure.
  */
 static int
@@ -1494,9 +1425,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1561,9 +1489,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
                                 struct os_mbuf **rxom,
@@ -1658,9 +1583,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1704,9 +1626,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_att_svr_is_valid_group_type(uint8_t *uuid128)
 {
@@ -1718,9 +1637,6 @@ ble_att_svr_is_valid_group_type(uint8_t *uuid128)
            uuid16 == BLE_ATT_UUID_SECONDARY_SERVICE;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
                          uint8_t *uuid128)
@@ -1752,9 +1668,6 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     }
 }
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_att_svr_read_group_type_entry_write(struct os_mbuf *om, uint16_t mtu,
                                         uint16_t start_group_handle,
@@ -1791,8 +1704,6 @@ ble_att_svr_read_group_type_entry_write(struct os_mbuf *om, uint16_t mtu,
 }
 
 /**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- *
  * @return                      0 on success; BLE_HS error code on failure.
  */
 static int
@@ -1975,9 +1886,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2052,9 +1960,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 static int
 ble_att_svr_build_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
 {
@@ -2085,9 +1990,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2119,7 +2021,7 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
-    ctxt.attr_data = ble_att_flat_buf;
+    ctxt.attr_data = ble_att_get_flat_buf();
     ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
     rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, &ctxt,
@@ -2143,9 +2045,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2169,7 +2068,7 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
-    ctxt.attr_data = ble_att_flat_buf;
+    ctxt.attr_data = ble_att_get_flat_buf();
     ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
     rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, &ctxt,
@@ -2181,9 +2080,6 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     return 0;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_write_local(uint16_t attr_handle, void *data, uint16_t data_len)
 {
@@ -2200,9 +2096,6 @@ ble_att_svr_write_local(uint16_t attr_handle, void *data, uint16_t data_len)
     return rc;
 }
 
-/**
- * Lock restrictions: None.
- */
 static void
 ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
 {
@@ -2210,9 +2103,6 @@ ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
     os_memblock_put(&ble_att_svr_prep_entry_pool, entry);
 }
 
-/**
- * Lock restrictions: None.
- */
 static struct ble_att_prep_entry *
 ble_att_svr_prep_alloc(void)
 {
@@ -2233,9 +2123,6 @@ ble_att_svr_prep_alloc(void)
     return entry;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 static struct ble_att_prep_entry *
 ble_att_svr_prep_find_prev(struct ble_att_svr_conn *basc, uint16_t handle,
                            uint16_t offset)
@@ -2259,9 +2146,6 @@ ble_att_svr_prep_find_prev(struct ble_att_svr_conn *basc, uint16_t handle,
     return prev;
 }
 
-/**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- */
 void
 ble_att_svr_prep_clear(struct ble_att_svr_conn *basc)
 {
@@ -2274,8 +2158,6 @@ ble_att_svr_prep_clear(struct ble_att_svr_conn *basc)
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- *
  * @return                      0 on success; ATT error code on failure.
  */
 static int
@@ -2316,8 +2198,6 @@ ble_att_svr_prep_validate(struct ble_att_svr_conn *basc, uint16_t *err_handle)
 }
 
 /**
- * Lock restrictions: Caller must lock ble_hs_conn mutex.
- *
  * @return                      0 on success; ATT error code on failure.
  */
 static int
@@ -2327,6 +2207,7 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
     struct ble_att_prep_entry *entry;
     struct ble_att_prep_entry *next;
     struct ble_att_svr_entry *attr;
+    uint8_t *flat_buf;
     uint8_t att_err;
     int buf_off;
     int rc;
@@ -2339,6 +2220,8 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
         return rc;
     }
 
+    flat_buf = ble_att_get_flat_buf();
+
     /* Contents are valid; perform the writes. */
     buf_off = 0;
     entry = SLIST_FIRST(&conn->bhc_att_svr.basc_prep_list);
@@ -2347,7 +2230,7 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
 
         rc = os_mbuf_copydata(entry->bape_value, 0,
                               OS_MBUF_PKTLEN(entry->bape_value),
-                              ble_att_flat_buf + buf_off);
+                              flat_buf + buf_off);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
         buf_off += OS_MBUF_PKTLEN(entry->bape_value);
 
@@ -2359,7 +2242,7 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
                 return BLE_ATT_ERR_INVALID_HANDLE;
             }
 
-            ctxt.attr_data = ble_att_flat_buf;
+            ctxt.attr_data = flat_buf;
             ctxt.data_len = buf_off;
             rc = ble_att_svr_write(conn->bhc_handle, attr, &ctxt, &att_err);
             if (rc != 0) {
@@ -2376,9 +2259,6 @@ ble_att_svr_prep_write(struct ble_hs_conn *conn, uint16_t *err_handle)
     return 0;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2522,8 +2402,6 @@ done:
 }
 
 /**
- * Lock restrictions: None.
- *
  * @return                      0 on success; nonzero on failure.
  */
 static int
@@ -2556,9 +2434,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2619,9 +2494,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2652,7 +2524,7 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
 
-    attr_data = ble_att_flat_buf;
+    attr_data = ble_att_get_flat_buf();
     attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
@@ -2669,8 +2541,6 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 }
 
 /**
- * Lock restrictions: None.
- *
  * @return                      0 on success; nonzero on failure.
  */
 static int
@@ -2701,9 +2571,6 @@ done:
     return rc;
 }
 
-/**
- * Lock restrictions: Caller must NOT lock ble_hs_conn mutex.
- */
 int
 ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2740,7 +2607,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_INDICATE_REQ_BASE_SZ);
 
-    attr_data = ble_att_flat_buf;
+    attr_data = ble_att_get_flat_buf();
     attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
@@ -2774,9 +2641,6 @@ ble_att_svr_free_mem(void)
     ble_att_svr_entry_mem = NULL;
 }
 
-/**
- * Lock restrictions: None.
- */
 int
 ble_att_svr_init(void)
 {

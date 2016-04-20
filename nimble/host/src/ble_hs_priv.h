@@ -26,14 +26,15 @@
 #include "ble_att_priv.h"
 #include "ble_gap_priv.h"
 #include "ble_gatt_priv.h"
+#include "ble_hci_util.h"
 #include "ble_hs_adv_priv.h"
+#include "ble_hs_atomic.h"
 #include "ble_hs_conn.h"
 #include "ble_hs_endian.h"
 #include "ble_hs_startup.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig.h"
 #include "ble_l2cap_sm.h"
-#include "ble_hci_util.h"
 #include "host/ble_hs.h"
 #include "log/log.h"
 #include "nimble/nimble_opt.h"
@@ -92,15 +93,14 @@ int ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
                                     struct ble_hs_conn **out_conn,
                                     struct ble_l2cap_chan **out_chan);
 
-int ble_hs_atomic_conn_delete(uint16_t conn_handle);
-void ble_hs_atomic_conn_insert(struct ble_hs_conn *conn);
-
 void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
+int ble_hs_locked(void);
+int ble_hs_locked_by_cur_task(void);
+int ble_hs_thread_safe(void);
+int ble_hs_is_app_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
-int ble_hs_locked(void);
-void ble_hs_misc_assert_not_locked(void);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
