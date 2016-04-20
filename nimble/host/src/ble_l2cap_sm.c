@@ -57,8 +57,8 @@ struct ble_l2cap_sm_proc {
     struct ble_l2cap_sm_pair_cmd pair_rsp;
     uint8_t tk[16];
     uint8_t confirm_their[16];
-    uint8_t rand_our[16];
-    uint8_t rand_their[16];
+    uint8_t randm[16];
+    uint8_t rands[16];
     uint8_t ltk[16];
 };
 
@@ -228,7 +228,7 @@ ble_l2cap_sm_gen_key(struct ble_l2cap_sm_proc *proc)
     uint8_t key[16];
     int rc;
 
-    rc = ble_l2cap_sm_alg_s1(proc->tk, proc->rand_our, proc->rand_their, key);
+    rc = ble_l2cap_sm_alg_s1(proc->tk, proc->rands, proc->randm, key);
     if (rc != 0) {
         return rc;
     }
@@ -528,13 +528,33 @@ ble_l2cap_sm_lt_key_req_handle(struct ble_l2cap_sm_proc *proc,
  * $random                                                                   *
  *****************************************************************************/
 
+static uint8_t *
+ble_l2cap_sm_our_pair_rand(struct ble_l2cap_sm_proc *proc)
+{
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        return proc->randm;
+    } else {
+        return proc->rands;
+    }
+}
+
+static uint8_t *
+ble_l2cap_sm_their_pair_rand(struct ble_l2cap_sm_proc *proc)
+{
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        return proc->rands;
+    } else {
+        return proc->randm;
+    }
+}
+
 static int
 ble_l2cap_sm_random_go(struct ble_l2cap_sm_proc *proc)
 {
     struct ble_l2cap_sm_pair_random cmd;
     int rc;
 
-    memcpy(cmd.value, proc->rand_our, 16);
+    memcpy(cmd.value, ble_l2cap_sm_our_pair_rand(proc), 16);
     rc = ble_l2cap_sm_pair_random_tx(proc->conn_handle, &cmd);
     if (rc != 0) {
         return rc;
@@ -582,7 +602,7 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
         return rc;
     }
 
-    memcpy(proc->rand_their, cmd->value, 16);
+    memcpy(ble_l2cap_sm_their_pair_rand(proc), cmd->value, 16);
 
     /* Generate the key. */
     rc = ble_l2cap_sm_gen_key(proc);
@@ -677,8 +697,8 @@ ble_l2cap_sm_confirm_go(struct ble_l2cap_sm_proc *proc)
         return rc;
     }
 
-    rc = ble_l2cap_sm_alg_c1(k, proc->rand_our, preq, pres, iat, rat,
-                             ia, ra, cmd.value);
+    rc = ble_l2cap_sm_alg_c1(k, ble_l2cap_sm_our_pair_rand(proc), preq, pres,
+                             iat, rat, ia, ra, cmd.value);
     if (rc != 0) {
         return rc;
     }
@@ -764,7 +784,7 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
         proc->pair_rsp = cmd;
     }
 
-    rc = ble_l2cap_sm_gen_pair_rand(proc->rand_our);
+    rc = ble_l2cap_sm_gen_pair_rand(ble_l2cap_sm_our_pair_rand(proc));
     if (rc != 0) {
         return rc;
     }
