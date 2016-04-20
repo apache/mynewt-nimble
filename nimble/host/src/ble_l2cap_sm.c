@@ -51,23 +51,15 @@ struct ble_l2cap_sm_proc {
     uint8_t pair_alg;
     uint8_t state;
 
-
     /* XXX: Minimum security requirements. */
 
-    union {
-        struct {
-            struct ble_l2cap_sm_pair_cmd pair_req;
-            struct ble_l2cap_sm_pair_cmd pair_rsp;
-            uint8_t tk[16];
-            uint8_t confirm_their[16];
-            uint8_t rand_our[16];
-            uint8_t rand_their[16];
-        } phase_1_2;
-
-        struct {
-            uint8_t key[16];
-        } hci;
-    };
+    struct ble_l2cap_sm_pair_cmd pair_req;
+    struct ble_l2cap_sm_pair_cmd pair_rsp;
+    uint8_t tk[16];
+    uint8_t confirm_their[16];
+    uint8_t rand_our[16];
+    uint8_t rand_their[16];
+    uint8_t ltk[16];
 };
 
 STAILQ_HEAD(ble_l2cap_sm_proc_list, ble_l2cap_sm_proc);
@@ -236,13 +228,12 @@ ble_l2cap_sm_gen_key(struct ble_l2cap_sm_proc *proc)
     uint8_t key[16];
     int rc;
 
-    rc = ble_l2cap_sm_alg_s1(proc->phase_1_2.tk, proc->phase_1_2.rand_our,
-                             proc->phase_1_2.rand_their, key);
+    rc = ble_l2cap_sm_alg_s1(proc->tk, proc->rand_our, proc->rand_their, key);
     if (rc != 0) {
         return rc;
     }
 
-    memcpy(proc->hci.key, key, sizeof key);
+    memcpy(proc->ltk, key, sizeof key);
 
     return 0;
 }
@@ -522,7 +513,7 @@ ble_l2cap_sm_lt_key_req_handle(struct ble_l2cap_sm_proc *proc,
 {
     int rc;
 
-    rc = ble_l2cap_sm_lt_key_req_reply_tx(proc->conn_handle, proc->hci.key);
+    rc = ble_l2cap_sm_lt_key_req_reply_tx(proc->conn_handle, proc->ltk);
     if (rc != 0) {
         *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
         return rc;
@@ -543,7 +534,7 @@ ble_l2cap_sm_random_go(struct ble_l2cap_sm_proc *proc)
     struct ble_l2cap_sm_pair_random cmd;
     int rc;
 
-    memcpy(cmd.value, proc->phase_1_2.rand_our, 16);
+    memcpy(cmd.value, proc->rand_our, 16);
     rc = ble_l2cap_sm_pair_random_tx(proc->conn_handle, &cmd);
     if (rc != 0) {
         return rc;
@@ -584,14 +575,14 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
         return rc;
     }
 
-    if (memcmp(proc->phase_1_2.confirm_their, confirm_val, 16) != 0) {
+    if (memcmp(proc->confirm_their, confirm_val, 16) != 0) {
         /* Random number mismatch. */
         rc = BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH);
         *out_sm_status = BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH;
         return rc;
     }
 
-    memcpy(proc->phase_1_2.rand_their, cmd->value, 16);
+    memcpy(proc->rand_their, cmd->value, 16);
 
     /* Generate the key. */
     rc = ble_l2cap_sm_gen_key(proc);
@@ -602,7 +593,7 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
 
     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
         /* Send the start-encrypt HCI command to the controller. */
-        rc = ble_l2cap_sm_start_encrypt_tx(proc->conn_handle, proc->hci.key);
+        rc = ble_l2cap_sm_start_encrypt_tx(proc->conn_handle, proc->ltk);
         if (rc != 0) {
             *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
             return rc;
@@ -654,15 +645,15 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
         return BLE_HS_ENOTCONN;
     }
 
-    memcpy(k, proc->phase_1_2.tk, sizeof proc->phase_1_2.tk);
+    memcpy(k, proc->tk, sizeof proc->tk);
 
     ble_l2cap_sm_pair_cmd_write(
         preq, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 1,
-        &proc->phase_1_2.pair_req);
+        &proc->pair_req);
 
     ble_l2cap_sm_pair_cmd_write(
         pres, BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_PAIR_CMD_SZ, 0,
-        &proc->phase_1_2.pair_rsp);
+        &proc->pair_rsp);
 
     return 0;
 }
@@ -680,18 +671,13 @@ ble_l2cap_sm_confirm_go(struct ble_l2cap_sm_proc *proc)
     uint8_t rat;
     int rc;
 
-    rc = ble_l2cap_sm_gen_pair_rand(proc->phase_1_2.rand_our);
-    if (rc != 0) {
-        return rc;
-    }
-
     rc = ble_l2cap_sm_confirm_prepare_args(proc, k, preq, pres, &iat, &rat,
                                            ia, ra);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_l2cap_sm_alg_c1(k, proc->phase_1_2.rand_our, preq, pres, iat, rat,
+    rc = ble_l2cap_sm_alg_c1(k, proc->rand_our, preq, pres, iat, rat,
                              ia, ra, cmd.value);
     if (rc != 0) {
         return rc;
@@ -714,7 +700,7 @@ ble_l2cap_sm_confirm_handle(struct ble_l2cap_sm_proc *proc,
 {
     int rc;
 
-    memcpy(proc->phase_1_2.confirm_their, cmd->value, 16);
+    memcpy(proc->confirm_their, cmd->value, 16);
 
     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
         rc = ble_l2cap_sm_random_go(proc);
@@ -772,10 +758,15 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
     }
 
     if (is_req) {
-        proc->phase_1_2.pair_req = cmd;
+        proc->pair_req = cmd;
     } else {
         proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
-        proc->phase_1_2.pair_rsp = cmd;
+        proc->pair_rsp = cmd;
+    }
+
+    rc = ble_l2cap_sm_gen_pair_rand(proc->rand_our);
+    if (rc != 0) {
+        return rc;
     }
 
     ble_l2cap_sm_proc_set_timer(proc);
@@ -790,7 +781,7 @@ ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
 {
     int rc;
 
-    proc->phase_1_2.pair_req = *req;
+    proc->pair_req = *req;
 
     rc = ble_l2cap_sm_pair_go(proc);
     if (rc != 0) {
@@ -810,7 +801,7 @@ ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
 {
     int rc;
 
-    proc->phase_1_2.pair_rsp = *rsp;
+    proc->pair_rsp = *rsp;
 
     /* XXX: Assume legacy "Just Works" for now. */
     proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
@@ -1157,7 +1148,7 @@ ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk)
         return BLE_HS_ENOENT;
     }
 
-    memcpy(proc->phase_1_2.tk, tk, 16);
+    memcpy(proc->tk, tk, 16);
 
     /* XXX: Proceed with pairing; send confirm command. */
 
