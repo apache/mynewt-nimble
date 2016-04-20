@@ -26,7 +26,7 @@
 #include "nimble/hci_transport.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "host_dbg.h"
+#include "host_dbg_priv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
