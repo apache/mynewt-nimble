@@ -397,7 +397,7 @@ ble_att_inc_rx_stat(uint8_t att_op)
 uint8_t *
 ble_att_get_flat_buf(void)
 {
-    BLE_HS_DBG_ASSERT(ble_hs_is_app_task());
+    BLE_HS_DBG_ASSERT(ble_hs_is_parent_task());
     return ble_att_flat_buf;
 }
 

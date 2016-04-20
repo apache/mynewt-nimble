@@ -64,10 +64,12 @@ static void *ble_hs_hci_os_event_buf;
 static struct os_callout_func ble_hs_heartbeat_timer;
 static struct os_callout_func ble_hs_event_co;
 
-/* Host HCI Task Events */
+/* Queue for host-specific OS events. */
 static struct os_eventq ble_hs_evq;
-static struct os_eventq *ble_hs_app_evq;
-static struct os_task *ble_hs_app_task;
+
+/* Task structures for the host's parent task. */
+static struct os_eventq *ble_hs_parent_evq;
+static struct os_task *ble_hs_parent_task;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
@@ -105,10 +107,13 @@ ble_hs_thread_safe(void)
     return !os_started() || ble_hs_locked_by_cur_task();
 }
 
+/**
+ * Indicates whether the host's parent task is currently running.
+ */
 int
-ble_hs_is_app_task(void)
+ble_hs_is_parent_task(void)
 {
-    return os_sched_get_current_task() == ble_hs_app_task;
+    return os_sched_get_current_task() == ble_hs_parent_task;
 }
 
 void
@@ -225,7 +230,7 @@ void
 ble_hs_event_enqueue(struct os_event *ev)
 {
     os_eventq_put(&ble_hs_evq, ev);
-    os_eventq_put(ble_hs_app_evq, &ble_hs_event_co.cf_c.c_ev);
+    os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
 }
 
 int
@@ -233,7 +238,7 @@ ble_hs_start(void)
 {
     int rc;
 
-    ble_hs_app_task = os_sched_get_current_task();
+    ble_hs_parent_task = os_sched_get_current_task();
 
     ble_hs_heartbeat_timer_reset();
 
@@ -259,7 +264,7 @@ ble_hs_rx_data(struct os_mbuf *om)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
-    os_eventq_put(ble_hs_app_evq, &ble_hs_event_co.cf_c.c_ev);
+    os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
 
     return 0;
 }
@@ -273,7 +278,7 @@ ble_hs_tx_data(struct os_mbuf *om)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
-    os_eventq_put(ble_hs_app_evq, &ble_hs_event_co.cf_c.c_ev);
+    os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
 
     return 0;
 }
@@ -302,7 +307,7 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
         rc = BLE_HS_EINVAL;
         goto err;
     }
-    ble_hs_app_evq = app_evq;
+    ble_hs_parent_evq = app_evq;
 
     ble_hs_cfg_init(cfg);
 
@@ -394,7 +399,7 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    os_callout_func_init(&ble_hs_heartbeat_timer, ble_hs_app_evq,
+    os_callout_func_init(&ble_hs_heartbeat_timer, ble_hs_parent_evq,
                          ble_hs_heartbeat, NULL);
     os_callout_func_init(&ble_hs_event_co, &ble_hs_evq,
                          ble_hs_event_handle, NULL);

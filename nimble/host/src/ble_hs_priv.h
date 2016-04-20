@@ -98,7 +98,7 @@ void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 int ble_hs_locked(void);
 int ble_hs_locked_by_cur_task(void);
 int ble_hs_thread_safe(void);
-int ble_hs_is_app_task(void);
+int ble_hs_is_parent_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
 
