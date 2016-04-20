@@ -32,7 +32,7 @@ ble_hs_startup_le_read_sup_f_tx(void)
     int rc;
 
     host_hci_cmd_build_le_read_loc_supp_feat(buf, sizeof buf);
-    rc = ble_hci_tx_cmd(buf, ack_params, sizeof ack_params, &ack_params_len);
+    rc = ble_hci_cmd_tx(buf, ack_params, sizeof ack_params, &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -57,7 +57,7 @@ ble_hs_startup_le_read_buf_sz_tx(void)
     int rc;
 
     host_hci_cmd_build_le_read_buffer_size(buf, sizeof buf);
-    rc = ble_hci_tx_cmd(buf, ack_params, sizeof ack_params, &ack_params_len);
+    rc = ble_hci_cmd_tx(buf, ack_params, sizeof ack_params, &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -85,7 +85,7 @@ ble_hs_startup_le_set_evmask_tx(void)
 
     /* [ Default event set ]. */
     host_hci_cmd_build_le_set_event_mask(0x000000000000001f, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -101,7 +101,7 @@ ble_hs_startup_set_evmask_tx(void)
 
     /* [ Default event set | LE-meta event ]. */
     host_hci_cmd_build_set_event_mask(0x20001fffffffffff, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -116,7 +116,7 @@ ble_hs_startup_reset_tx(void)
     int rc;
 
     host_hci_cmd_build_reset(buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }

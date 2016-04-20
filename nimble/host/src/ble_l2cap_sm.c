@@ -468,7 +468,7 @@ ble_l2cap_sm_start_encrypt_tx(uint16_t conn_handle, uint8_t *ltk)
     memcpy(cmd.long_term_key, ltk, sizeof cmd.long_term_key);
 
     host_hci_cmd_build_le_start_encrypt(&cmd, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -489,7 +489,7 @@ ble_l2cap_sm_lt_key_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
     memcpy(cmd.long_term_key, ltk, 16);
 
     host_hci_cmd_build_le_lt_key_req_reply(&cmd, buf, sizeof buf);
-    rc = ble_hci_tx_cmd(buf, &ack_conn_handle, sizeof ack_conn_handle,
+    rc = ble_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
                         &ack_params_len);
     if (rc != 0) {
         return rc;

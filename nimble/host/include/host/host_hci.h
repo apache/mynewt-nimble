@@ -129,6 +129,5 @@ int host_hci_data_rx(struct os_mbuf *om);
 int host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om);
 
 void host_hci_timer_set(void);
-void host_hci_init(void);
 
 #endif /* H_HOST_HCI_ */

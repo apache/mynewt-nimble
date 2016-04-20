@@ -1013,7 +1013,7 @@ ble_gap_wl_tx_add(struct ble_gap_white_entry *entry)
         return rc;
     }
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1032,7 +1032,7 @@ ble_gap_wl_tx_clear(void)
     int rc;
 
     host_hci_cmd_build_le_clear_whitelist(buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1114,7 +1114,7 @@ ble_gap_adv_disable_tx(void)
     int rc;
 
     host_hci_cmd_build_le_set_adv_enable(0, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1204,7 +1204,7 @@ ble_gap_adv_enable_tx(void)
 
     host_hci_cmd_build_le_set_adv_enable(1, buf, sizeof buf);
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1229,7 +1229,7 @@ ble_gap_adv_rsp_data_tx(void)
         return rc;
     }
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1294,7 +1294,7 @@ ble_gap_adv_data_tx(void)
         return rc;
     }
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1335,7 +1335,7 @@ ble_gap_adv_params_tx(struct hci_adv_params *adv_params)
         return rc;
     }
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1582,7 +1582,7 @@ ble_gap_disc_tx_disable(void)
     int rc;
 
     host_hci_cmd_build_le_set_scan_enable(0, 0, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1601,7 +1601,7 @@ ble_gap_disc_tx_enable(void)
     int rc;
 
     host_hci_cmd_build_le_set_scan_enable(1, 0, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1628,7 +1628,7 @@ ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy)
         buf, sizeof buf);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1770,7 +1770,7 @@ ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
         return BLE_HS_EUNKNOWN;
     }
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1884,7 +1884,7 @@ ble_gap_terminate(uint16_t conn_handle)
 
     host_hci_cmd_build_disconnect(conn_handle, BLE_ERR_REM_USER_CONN_TERM,
                                   buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         goto done;
     }
@@ -1927,7 +1927,7 @@ ble_gap_cancel(void)
     BLE_HS_LOG(INFO, "GAP procedure initiated: cancel connection\n");
 
     host_hci_cmd_build_le_create_conn_cancel(buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         goto done;
     }
@@ -1965,7 +1965,7 @@ ble_gap_tx_param_pos_reply(uint16_t conn_handle,
     pos_reply.max_ce_len = params->max_ce_len;
 
     host_hci_cmd_build_le_conn_param_reply(&pos_reply, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1984,7 +1984,7 @@ ble_gap_tx_param_neg_reply(uint16_t conn_handle, uint8_t reject_reason)
     neg_reply.reason = reject_reason;
 
     host_hci_cmd_build_le_conn_param_neg_reply(&neg_reply, buf, sizeof buf);
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2079,7 +2079,7 @@ ble_gap_update_tx(uint16_t conn_handle, struct ble_gap_upd_params *params)
         return rc;
     }
 
-    rc = ble_hci_tx_cmd_empty_ack(buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
