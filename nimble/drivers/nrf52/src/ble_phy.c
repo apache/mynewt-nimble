@@ -196,6 +196,11 @@ ble_phy_rxpdu_get(void)
     return m;
 }
 
+/**
+ * Called when we want to wait if the radio is in either the rx or tx
+ * disable states. We want to wait until that state is over before doing
+ * anything to the radio
+ */
 static void
 nrf_wait_disabled(void)
 {
@@ -214,15 +219,124 @@ nrf_wait_disabled(void)
     }
 }
 
+/**
+ * Setup transceiver for receive
+ *
+ */
+static void
+ble_phy_rx_xcvr_setup(void)
+{
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    if (g_ble_phy_data.phy_encrypted) {
+        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+        NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+        NRF_CCM->OUTPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
+        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption;
+        NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
+        NRF_CCM->SHORTS = 0;
+        NRF_CCM->EVENTS_ERROR = 0;
+        NRF_CCM->EVENTS_ENDCRYPT = 0;
+        NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk;
+    } else {
+        NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+    }
+#else
+    NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+#endif
+
+    /* Reset the rx started flag. Used for the wait for response */
+    g_ble_phy_data.phy_rx_started = 0;
+    g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
+
+    /* I want to know when 1st byte received (after address) */
+    NRF_RADIO->BCC = 8; /* in bits */
+    NRF_RADIO->EVENTS_ADDRESS = 0;
+    NRF_RADIO->EVENTS_DEVMATCH = 0;
+    NRF_RADIO->EVENTS_BCMATCH = 0;
+    NRF_RADIO->EVENTS_RSSIEND = 0;
+    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
+                        RADIO_SHORTS_READY_START_Msk |
+                        RADIO_SHORTS_DISABLED_TXEN_Msk |
+                        RADIO_SHORTS_ADDRESS_BCSTART_Msk |
+                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
+                        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
+
+    NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
+}
+
+/**
+ * Called from interrupt context when the transmit ends
+ *
+ */
+static void
+ble_phy_tx_end_isr(void)
+{
+    uint8_t transition;
+    uint32_t wfr_time;
+
+    /* Better be in TX state! */
+    assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
+
+    /* Log the event */
+    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF,
+               g_ble_phy_data.phy_encrypted, NRF_TIMER0->CC[2]);
+
+    /* Clear events and clear interrupt on disabled event */
+    NRF_RADIO->EVENTS_DISABLED = 0;
+    NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
+    NRF_RADIO->EVENTS_END = 0;
+    wfr_time = NRF_RADIO->SHORTS;
+
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    /*
+     * XXX: not sure what to do. We had a HW error during transmission.
+     * For now I just count a stat but continue on like all is good.
+     */
+    if (g_ble_phy_data.phy_encrypted) {
+        if (NRF_CCM->EVENTS_ERROR) {
+            STATS_INC(ble_phy_stats, tx_hw_err);
+            NRF_CCM->EVENTS_ERROR = 0;
+        }
+    }
+#endif
+
+    transition = g_ble_phy_data.phy_transition;
+    if (transition == BLE_PHY_TRANSITION_TX_RX) {
+        /* Packet pointer needs to be reset. */
+        if (g_ble_phy_data.rxpdu != NULL) {
+            ble_phy_rx_xcvr_setup();
+        } else {
+            /* Disable the phy */
+            STATS_INC(ble_phy_stats, no_bufs);
+            ble_phy_disable();
+        }
+
+        /*
+         * Enable the wait for response timer. Note that cc #2 on
+         * timer 0 contains the transmit end time
+         */
+        wfr_time = NRF_TIMER0->CC[2];
+        wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
+        ble_ll_wfr_enable(wfr_time);
+    } else {
+        /* Better not be going from rx to tx! */
+        assert(transition == BLE_PHY_TRANSITION_NONE);
+    }
+
+    /* Call transmit end callback */
+    if (g_ble_phy_data.txend_cb) {
+        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
+    }
+}
+
 static void
 ble_phy_isr(void)
 {
     int rc;
-    uint8_t transition;
     uint8_t crcok;
     uint32_t irq_en;
     uint32_t state;
-    uint32_t wfr_time;
     uint8_t *dptr;
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
@@ -232,92 +346,7 @@ ble_phy_isr(void)
 
     /* Check for disabled event. This only happens for transmits now */
     if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO->EVENTS_DISABLED) {
-        /* Better be in TX state! */
-        assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
-
-        ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF,
-                   g_ble_phy_data.phy_encrypted, NRF_TIMER0->CC[2]);
-
-        /* Clear events and clear interrupt on disabled event */
-        NRF_RADIO->EVENTS_DISABLED = 0;
-        NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
-        NRF_RADIO->EVENTS_END = 0;
-        state = NRF_RADIO->SHORTS;
-
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-        /*
-         * XXX: not sure what to do. We had a HW error during transmission.
-         * For now I just count a stat but continue on like all is good.
-         */
-        if (g_ble_phy_data.phy_encrypted) {
-            if (NRF_CCM->EVENTS_ERROR) {
-                STATS_INC(ble_phy_stats, tx_hw_err);
-                NRF_CCM->EVENTS_ERROR = 0;
-            }
-        }
-#endif
-
-        transition = g_ble_phy_data.phy_transition;
-        if (transition == BLE_PHY_TRANSITION_TX_RX) {
-            /* Clear the rx started flag */
-            g_ble_phy_data.phy_rx_started = 0;
-
-            /* Packet pointer needs to be reset. */
-            if (g_ble_phy_data.rxpdu != NULL) {
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-                if (g_ble_phy_data.phy_encrypted) {
-                    NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-                    NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-                    NRF_CCM->OUTPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
-                    NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
-                    NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption;
-                    NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
-                    NRF_CCM->SHORTS = 0;
-                    NRF_CCM->EVENTS_ENDCRYPT = 0;
-                    NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk;
-                } else {
-                    NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
-                }
-#else
-                NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
-#endif
-
-                /* I want to know when 1st byte received (after address) */
-                NRF_RADIO->BCC = 8; /* in bits */
-                NRF_RADIO->EVENTS_ADDRESS = 0;
-                NRF_RADIO->EVENTS_DEVMATCH = 0;
-                NRF_RADIO->EVENTS_BCMATCH = 0;
-                NRF_RADIO->EVENTS_RSSIEND = 0;
-                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                                    RADIO_SHORTS_READY_START_Msk |
-                                    RADIO_SHORTS_ADDRESS_BCSTART_Msk |
-                                    RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
-                                    RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
-
-                NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
-                g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
-            } else {
-                /* Disable the phy */
-                STATS_INC(ble_phy_stats, no_bufs);
-                ble_phy_disable();
-            }
-
-            /*
-             * Enable the wait for response timer. Note that cc #2 on
-             * timer 0 contains the transmit end time
-             */
-            wfr_time = NRF_TIMER0->CC[2];
-            wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
-            ble_ll_wfr_enable(wfr_time);
-        } else {
-            /* Better not be going from rx to tx! */
-            assert(transition == BLE_PHY_TRANSITION_NONE);
-        }
-
-        /* Call transmit end callback */
-        if (g_ble_phy_data.txend_cb) {
-            g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
-        }
+        ble_phy_tx_end_isr();
     }
 
     /* We get this if we have started to receive a frame */
@@ -355,18 +384,8 @@ ble_phy_isr(void)
         /* Call Link Layer receive start function */
         rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
         if (rc >= 0) {
+            /* Set rx started flag and enable rx end ISR */
             g_ble_phy_data.phy_rx_started = 1;
-            if (rc > 0) {
-                /* We need to go from disabled to TXEN */
-                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                                    RADIO_SHORTS_READY_START_Msk |
-                                    RADIO_SHORTS_DISABLED_TXEN_Msk;
-            } else {
-                NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                                    RADIO_SHORTS_READY_START_Msk;
-            }
-
-            /* Set rx end ISR enable */
             NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
         } else {
             /* Disable PHY */
@@ -553,6 +572,11 @@ ble_phy_init(void)
     return 0;
 }
 
+/**
+ * Puts the phy into receive mode.
+ *
+ * @return int 0: success; BLE Phy error code otherwise
+ */
 int
 ble_phy_rx(void)
 {
@@ -569,63 +593,18 @@ ble_phy_rx(void)
         return BLE_PHY_ERR_NO_BUFS;
     }
 
-    /* Set packet pointer */
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-    if (g_ble_phy_data.phy_encrypted) {
-        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-    } else {
-        NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
-    }
-#else
-    NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
-#endif
-
     /* Make sure all interrupts are disabled */
     NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
 
     /* Clear events prior to enabling receive */
     NRF_RADIO->EVENTS_END = 0;
-    NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->EVENTS_DISABLED = 0;
-    NRF_RADIO->EVENTS_BCMATCH = 0;
-    NRF_RADIO->EVENTS_RSSIEND = 0;
-    NRF_RADIO->EVENTS_DEVMATCH = 0;
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-    if (g_ble_phy_data.phy_encrypted) {
-        NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-        NRF_CCM->OUTPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
-        NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
-        NRF_CCM->EVENTS_ERROR = 0;
-        NRF_CCM->EVENTS_ENDCRYPT = 0;
-        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption;
-        /* XXX: can I just set this once? (i.e per connection)? In other
-           words, only do this during encrypt enable? */
-        NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
-        NRF_CCM->SHORTS = 0;
-        NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk;
-    }
-#endif
-
-    /* XXX: could it be that I am late turning on the device? That I need
-       to automatically go from rx to tx always? I dont here */
-    /* I want to know when 1st byte received (after address) */
-    NRF_RADIO->BCC = 8; /* in bits */
-    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                        RADIO_SHORTS_READY_START_Msk |
-                        RADIO_SHORTS_ADDRESS_BCSTART_Msk |
-                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
-                        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
-
-    NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
-
-    /* Reset the rx started flag. Used for the wait for response */
-    g_ble_phy_data.phy_rx_started = 0;
+    /* Setup for rx */
+    ble_phy_rx_xcvr_setup();
 
     /* Start the receive task in the radio */
     NRF_RADIO->TASKS_RXEN = 1;
-
-    g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
 
     return 0;
 }
@@ -980,4 +959,3 @@ ble_phy_rx_started(void)
 {
     return g_ble_phy_data.phy_rx_started;
 }
-
