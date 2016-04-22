@@ -137,25 +137,6 @@ host_hci_cmd_body_le_whitelist_chg(uint8_t *addr, uint8_t addr_type,
 }
 
 static int
-host_hci_cmd_le_whitelist_chg(uint8_t *addr, uint8_t addr_type, uint8_t ocf)
-{
-    uint8_t cmd[BLE_HCI_CHG_WHITE_LIST_LEN];
-    int rc;
-
-    rc = host_hci_cmd_body_le_whitelist_chg(addr, addr_type, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = host_hci_le_cmd_send(ocf, BLE_HCI_CHG_WHITE_LIST_LEN, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
 host_hci_cmd_body_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst)
 {
     uint16_t itvl;
@@ -223,26 +204,6 @@ host_hci_cmd_build_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst,
     return 0;
 }
 
-int
-host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_ADV_PARAM_LEN];
-
-    rc = host_hci_cmd_body_le_set_adv_params(adv, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_PARAMS,
-                              BLE_HCI_SET_ADV_PARAM_LEN, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
 /**
  * Set advertising data
  *
@@ -303,37 +264,6 @@ host_hci_cmd_build_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst,
     return 0;
 }
 
-/**
- * Set advertising data
- *
- * OGF = 0x08 (LE)
- * OCF = 0x0008
- *
- * @param data
- * @param len
- *
- * @return int
- */
-int
-host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len)
-{
-    uint8_t cmd[BLE_HCI_SET_ADV_DATA_LEN];
-    int rc;
-
-    rc = host_hci_cmd_body_le_set_adv_data(data, len, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_DATA,
-                              BLE_HCI_SET_ADV_DATA_LEN, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
 static int
 host_hci_cmd_body_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
                                        uint8_t *dst)
@@ -372,90 +302,6 @@ host_hci_cmd_build_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
     return 0;
 }
 
-int
-host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_SCAN_RSP_DATA_LEN];
-
-    rc = host_hci_cmd_body_le_set_scan_rsp_data(data, len, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA,
-                              BLE_HCI_SET_SCAN_RSP_DATA_LEN, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-/**
- * ble host hci cmd le set rand addr
- *
- * Sets the random address to be used in advertisements.
- *
- * @param addr Pointer to the random address to send to device
- *
- * @return int
- */
-int
-host_hci_cmd_le_set_rand_addr(uint8_t *addr)
-{
-    int rc;
-
-    /* Check for valid parameters */
-    rc = -1;
-    if (addr) {
-        rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_RAND_ADDR,
-                                  BLE_DEV_ADDR_LEN, addr);
-    }
-
-    return rc;
-}
-
-int
-host_hci_cmd_rd_local_version(void)
-{
-    int rc;
-
-    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
-                           BLE_HCI_OCF_IP_RD_LOCAL_VER, 0, NULL);
-    return rc;
-}
-
-int
-host_hci_cmd_rd_local_feat(void)
-{
-    int rc;
-
-    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
-                           BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT, 0, NULL);
-    return rc;
-}
-
-int
-host_hci_cmd_rd_local_cmd(void)
-{
-    int rc;
-
-    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
-                           BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD, 0, NULL);
-    return rc;
-}
-
-int
-host_hci_cmd_rd_bd_addr(void)
-{
-    int rc;
-
-    rc = host_hci_cmd_send(BLE_HCI_OGF_INFO_PARAMS,
-                           BLE_HCI_OCF_IP_RD_BD_ADDR, 0, NULL);
-    return rc;
-}
-
 static void
 host_hci_cmd_body_set_event_mask(uint64_t event_mask, uint8_t *dst)
 {
@@ -475,20 +321,6 @@ host_hci_cmd_build_set_event_mask(uint64_t event_mask,
     dst += BLE_HCI_CMD_HDR_LEN;
 
     host_hci_cmd_body_set_event_mask(event_mask, dst);
-}
-
-int
-host_hci_cmd_set_event_mask(uint64_t event_mask)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_EVENT_MASK_LEN];
-
-    host_hci_cmd_body_set_event_mask(event_mask, cmd);
-    rc = host_hci_cmd_send(BLE_HCI_OGF_CTLR_BASEBAND,
-                           BLE_HCI_OCF_CB_SET_EVENT_MASK,
-                           BLE_HCI_SET_EVENT_MASK_LEN,
-                           cmd);
-    return rc;
 }
 
 static void
@@ -526,18 +358,6 @@ host_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
     return rc;
 }
 
-int
-host_hci_cmd_rd_rem_version(uint16_t handle)
-{
-    int rc;
-    uint8_t cmd[sizeof(uint16_t)];
-
-    htole16(cmd, handle);
-    rc = host_hci_cmd_send(BLE_HCI_OGF_LINK_CTRL,
-                           BLE_HCI_OCF_RD_REM_VER_INFO, sizeof(uint16_t), cmd);
-    return rc;
-}
-
 static void
 host_hci_cmd_body_le_set_event_mask(uint64_t event_mask, uint8_t *dst)
 {
@@ -559,20 +379,6 @@ host_hci_cmd_build_le_set_event_mask(uint64_t event_mask,
     host_hci_cmd_body_le_set_event_mask(event_mask, dst);
 }
 
-int
-host_hci_cmd_le_set_event_mask(uint64_t event_mask)
-{
-    uint8_t cmd[BLE_HCI_SET_LE_EVENT_MASK_LEN];
-
-    int rc;
-
-    host_hci_cmd_body_le_set_event_mask(event_mask, cmd);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_EVENT_MASK, sizeof(uint64_t),
-                              cmd);
-
-    return rc;
-}
-
 /**
  * LE Read buffer size
  *
@@ -590,11 +396,11 @@ host_hci_cmd_build_le_read_buffer_size(uint8_t *dst, int dst_len)
 
 /**
  * LE Read buffer size
- *  
- * OGF = 0x08 (LE) 
- * OCF = 0x0002 
- * 
- * @return int 
+ *
+ * OGF = 0x08 (LE)
+ * OCF = 0x0002
+ *
+ * @return int
  */
 int
 host_hci_cmd_le_read_buffer_size(void)
@@ -602,91 +408,6 @@ host_hci_cmd_le_read_buffer_size(void)
     int rc;
 
     rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_BUF_SIZE, 0, NULL);
-    return rc;
-}
-
-/**
- * Read supported states
- *
- * OGF = 0x08 (LE)
- * OCF = 0x001C
- *
- * @return int
- */
-int
-host_hci_cmd_le_read_supp_states(void)
-{
-    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_SUPP_STATES, 0, NULL);
-}
-
-/**
- * Read maximum data length
- *
- * OGF = 0x08 (LE)
- * OCF = 0x002F
- *
- * @return int
- */
-int
-host_hci_cmd_le_read_max_datalen(void)
-{
-    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_MAX_DATA_LEN, 0, NULL);
-}
-
-/**
- * Set data length command
- *
- * OGF = 0x08 (LE)
- * OCF = 0x0022
- *
- * @return int
- */
-int
-host_hci_cmd_le_set_datalen(uint16_t handle, uint16_t txoctets, uint16_t txtime)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_DATALEN_LEN];
-
-    htole16(cmd, handle);
-    htole16(cmd + 2, txoctets);
-    htole16(cmd + 4, txtime);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_DATA_LEN,
-                              BLE_HCI_SET_DATALEN_LEN, cmd);
-    return rc;
-}
-
-/**
- * Read suggested default data length
- *
- * OGF = 0x08 (LE)
- * OCF = 0x0023
- *
- * @return int
- */
-int
-host_hci_cmd_le_read_sugg_datalen(void)
-{
-    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN, 0, NULL);
-}
-
-/**
- * write suggested default data length
- *
- * OGF = 0x08 (LE)
- * OCF = 0x0024
- *
- * @return int
- */
-int
-host_hci_cmd_le_write_sugg_datalen(uint16_t txoctets, uint16_t txtime)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_WR_SUGG_DATALEN_LEN];
-
-    htole16(cmd, txoctets);
-    htole16(cmd + 2, txtime);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN,
-                              BLE_HCI_WR_SUGG_DATALEN_LEN, cmd);
     return rc;
 }
 
@@ -699,34 +420,6 @@ host_hci_cmd_build_le_read_loc_supp_feat(uint8_t *dst, uint8_t dst_len)
     BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT,
                        0, dst);
-}
-
-/**
- * OGF=LE, OCF=0x0003
- */
-int
-host_hci_cmd_le_read_loc_supp_feat(void)
-{
-    int rc;
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT, 0, NULL);
-    return rc;
-}
-
-/**
- * OGF=LE, OCF=0x0016
- */
-int
-host_hci_cmd_le_read_rem_used_feat(uint16_t handle)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_CONN_RD_REM_FEAT_LEN];
-
-    htole16(cmd, handle);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_REM_FEAT,
-                              BLE_HCI_CONN_RD_REM_FEAT_LEN,
-                              cmd);
-    return rc;
 }
 
 static void
@@ -747,19 +440,6 @@ host_hci_cmd_build_le_set_adv_enable(uint8_t enable, uint8_t *dst,
     dst += BLE_HCI_CMD_HDR_LEN;
 
     host_hci_cmd_body_le_set_adv_enable(enable, dst);
-}
-
-int
-host_hci_cmd_le_set_adv_enable(uint8_t enable)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_ADV_ENABLE_LEN];
-
-    host_hci_cmd_body_le_set_adv_enable(enable, cmd);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_ADV_ENABLE,
-                              BLE_HCI_SET_ADV_ENABLE_LEN, cmd);
-
-    return rc;
 }
 
 static int
@@ -827,26 +507,6 @@ host_hci_cmd_build_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
     return 0;
 }
 
-int
-host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
-                                uint16_t scan_window, uint8_t own_addr_type,
-                                uint8_t filter_policy) {
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_SCAN_PARAM_LEN];
-
-    rc = host_hci_cmd_body_le_set_scan_params(scan_type, scan_itvl,
-                                              scan_window, own_addr_type,
-                                              filter_policy, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_PARAMS,
-                              BLE_HCI_SET_SCAN_PARAM_LEN, cmd);
-
-    return rc;
-}
-
 static void
 host_hci_cmd_body_le_set_scan_enable(uint8_t enable, uint8_t filter_dups,
                                      uint8_t *dst)
@@ -867,19 +527,6 @@ host_hci_cmd_build_le_set_scan_enable(uint8_t enable, uint8_t filter_dups,
 
     host_hci_cmd_body_le_set_scan_enable(enable, filter_dups,
                                          dst + BLE_HCI_CMD_HDR_LEN);
-}
-
-int
-host_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_SET_SCAN_ENABLE_LEN];
-
-    host_hci_cmd_body_le_set_scan_enable(enable, filter_dups, cmd);
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_SCAN_ENABLE,
-                              BLE_HCI_SET_SCAN_ENABLE_LEN, cmd);
-    return rc;
 }
 
 static int
@@ -977,62 +624,12 @@ host_hci_cmd_build_le_create_connection(struct hci_create_conn *hcc,
     return 0;
 }
 
-int
-host_hci_cmd_le_create_connection(struct hci_create_conn *hcc)
-{
-    uint8_t cmd[BLE_HCI_CREATE_CONN_LEN];
-    int rc;
-
-    rc = host_hci_cmd_body_le_create_connection(hcc, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CREATE_CONN,
-                              BLE_HCI_CREATE_CONN_LEN, cmd);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
 void
 host_hci_cmd_build_le_clear_whitelist(uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CLEAR_WHITE_LIST,
                        0, dst);
-}
-
-/**
- * Clear the whitelist.
- *
- * @return int
- */
-int
-host_hci_cmd_le_clear_whitelist(void)
-{
-    int rc;
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_CLEAR_WHITE_LIST, 0, NULL);
-    return rc;
-}
-
-/**
- * Read the whitelist size. Note that this is not how many elements have
- * been added to the whitelist; rather it is the number of whitelist entries
- * allowed by the controller.
- *
- * @return int
- */
-int
-host_hci_cmd_le_read_whitelist(void)
-{
-    int rc;
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE, 0, NULL);
-    return rc;
 }
 
 int
@@ -1054,43 +651,6 @@ host_hci_cmd_build_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type,
     }
 
     return 0;
-}
-
-/**
- * Add a device to the whitelist.
- *
- * @param addr
- * @param addr_type
- *
- * @return int
- */
-int
-host_hci_cmd_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type)
-{
-    int rc;
-
-    rc = host_hci_cmd_le_whitelist_chg(addr, addr_type,
-                                       BLE_HCI_OCF_LE_ADD_WHITE_LIST);
-
-    return rc;
-}
-
-/**
- * Remove a device from the whitelist.
- *
- * @param addr
- * @param addr_type
- *
- * @return int
- */
-int
-host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type)
-{
-    int rc;
-
-    rc = host_hci_cmd_le_whitelist_chg(addr, addr_type,
-                                       BLE_HCI_OCF_LE_RMV_WHITE_LIST);
-    return rc;
 }
 
 void
@@ -1370,66 +930,6 @@ host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn)
 }
 
 /**
- * Read the channel map for a given connection.
- *
- * @param handle
- *
- * @return int
- */
-int
-host_hci_cmd_le_rd_chanmap(uint16_t handle)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_RD_CHANMAP_LEN];
-
-    htole16(cmd, handle);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_RD_CHAN_MAP,
-                              BLE_HCI_RD_CHANMAP_LEN, cmd);
-    return rc;
-}
-
-/**
- * Set the channel map in the controller
- *
- * @param chanmap
- *
- * @return int
- */
-int
-host_hci_cmd_le_set_host_chan_class(uint8_t *chanmap)
-{
-    int rc;
-
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS,
-                              BLE_HCI_SET_HOST_CHAN_CLASS_LEN, chanmap);
-    return rc;
-}
-
-/**
- * Encrypt a block.
- *
- * OGF = 0x08 (LE)
- * OCF = 0x0017
- *
- * @param key
- * @param pt
- *
- * @return int
- */
-int
-host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt)
-{
-    int rc;
-    uint8_t cmd[BLE_HCI_LE_ENCRYPT_LEN];
-
-    swap_buf(cmd, key, BLE_ENC_BLOCK_SIZE);
-    swap_buf(cmd + BLE_ENC_BLOCK_SIZE, pt, BLE_ENC_BLOCK_SIZE);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_ENCRYPT, BLE_HCI_LE_ENCRYPT_LEN,
-                              cmd);
-    return rc;
-}
-
-/**
  * Get random data
  *
  * OGF = 0x08 (LE)
@@ -1442,20 +942,6 @@ host_hci_cmd_build_le_rand(uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RAND, 0, dst);
-}
-
-/**
- * Get random data
- *  
- * OGF = 0x08 (LE) 
- * OCF = 0x0018
- *
- * @return int
- */
-int
-host_hci_cmd_le_rand(void)
-{
-    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_RAND, 0, NULL);
 }
 
 static void
@@ -1479,24 +965,6 @@ host_hci_cmd_build_le_start_encrypt(struct hci_start_encrypt *cmd,
     dst += BLE_HCI_CMD_HDR_LEN;
 
     host_hci_cmd_body_le_start_encrypt(cmd, dst);
-}
-
-/**
- * Enables encryption on a connection.
- *
- * OGF = 0x08 (LE)
- * OCF = 0x0019
- *
- * @return int
- */
-int
-host_hci_cmd_le_start_encrypt(struct hci_start_encrypt *cmd)
-{
-    uint8_t buf[BLE_HCI_LE_START_ENCRYPT_LEN];
-
-    host_hci_cmd_body_le_start_encrypt(cmd, buf);
-
-    return host_hci_le_cmd_send(BLE_HCI_OCF_LE_START_ENCRYPT, sizeof buf, buf);
 }
 
 /**
@@ -1525,25 +993,4 @@ host_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst, int dst_len)
     dst += BLE_HCI_CMD_HDR_LEN;
 
     host_hci_cmd_body_read_rssi(handle, dst);
-}
-
-/**
- * Read the RSSI for a given connection handle
- *
- * NOTE: OGF=0x05 OCF=0x0005
- *
- * @param handle
- *
- * @return int
- */
-int
-host_hci_cmd_read_rssi(uint16_t handle)
-{
-    uint8_t cmd[BLE_HCI_READ_RSSI_LEN];
-    int rc;
-
-    htole16(cmd, handle);
-    rc = host_hci_cmd_send(BLE_HCI_OGF_STATUS_PARAMS, BLE_HCI_OCF_RD_RSSI,
-                           BLE_HCI_READ_RSSI_LEN, cmd);
-    return rc;
 }

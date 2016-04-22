@@ -294,6 +294,7 @@
 
 /* --- LE read channel map command (OCF 0x0015) */
 #define BLE_HCI_RD_CHANMAP_LEN              (2)
+#define BLE_HCI_RD_CHANMAP_RSP_LEN          (7)
 
 /* --- LE read remote features (OCF 0x0016) */
 #define BLE_HCI_CONN_RD_REM_FEAT_LEN        (2)
