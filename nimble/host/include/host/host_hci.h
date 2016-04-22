@@ -32,37 +32,22 @@ int host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata);
 int host_hci_cmd_send_buf(void *cmddata);
 void host_hci_cmd_build_set_event_mask(uint64_t event_mask,
                                        uint8_t *dst, int dst_len);
-int host_hci_cmd_set_event_mask(uint64_t event_mask);
 void host_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
                                    uint8_t *dst, int dst_len);
 int host_hci_cmd_disconnect(uint16_t handle, uint8_t reason);
-int host_hci_cmd_rd_rem_version(uint16_t handle);
-int host_hci_cmd_rd_local_version(void);
-int host_hci_cmd_rd_local_feat(void);
-int host_hci_cmd_rd_local_cmd(void);
-int host_hci_cmd_rd_bd_addr(void);
 void host_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst, int dst_len);
 int host_hci_cmd_read_rssi(uint16_t handle);
-int host_hci_cmd_le_set_host_chan_class(uint8_t *new_chan_map);
-int host_hci_cmd_le_rd_chanmap(uint16_t handle);
 int host_hci_cmd_build_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
                                             uint8_t *dst, int dst_len);
-int host_hci_cmd_le_set_scan_rsp_data(uint8_t *data, uint8_t len);
 int host_hci_cmd_build_le_set_adv_data(uint8_t *data, uint8_t len,
                                        uint8_t *dst, int dst_len);
-int host_hci_cmd_le_set_adv_data(uint8_t *data, uint8_t len);
 int host_hci_cmd_build_le_set_adv_params(struct hci_adv_params *adv,
                                          uint8_t *dst, int dst_len);
-int host_hci_cmd_le_set_adv_params(struct hci_adv_params *adv);
-int host_hci_cmd_le_set_rand_addr(uint8_t *addr);
 void host_hci_cmd_build_le_set_event_mask(uint64_t event_mask,
                                           uint8_t *dst, int dst_len);
-int host_hci_cmd_le_set_event_mask(uint64_t event_mask);
 void host_hci_cmd_build_le_read_buffer_size(uint8_t *dst, int dst_len);
 int host_hci_cmd_le_read_buffer_size(void);
 void host_hci_cmd_build_le_read_loc_supp_feat(uint8_t *dst, uint8_t dst_len);
-int host_hci_cmd_le_read_loc_supp_feat(void);
-int host_hci_cmd_le_read_rem_used_feat(uint16_t handle);
 void host_hci_cmd_build_le_set_adv_enable(uint8_t enable, uint8_t *dst,
                                           int dst_len);
 int host_hci_cmd_le_set_adv_enable(uint8_t enable);
@@ -72,10 +57,6 @@ int host_hci_cmd_build_le_set_scan_params(uint8_t scan_type,
                                           uint8_t own_addr_type,
                                           uint8_t filter_policy,
                                           uint8_t *cmd, int cmd_len);
-int host_hci_cmd_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
-                                    uint16_t scan_window,
-                                    uint8_t own_addr_type,
-                                    uint8_t filter_policy);
 void host_hci_cmd_build_le_set_scan_enable(uint8_t enable,
                                            uint8_t filter_dups,
                                            uint8_t *dst, uint8_t dst_len);
@@ -84,12 +65,8 @@ int host_hci_cmd_build_le_create_connection(struct hci_create_conn *hcc,
                                             uint8_t *cmd, int cmd_len);
 int host_hci_cmd_le_create_connection(struct hci_create_conn *hcc);
 void host_hci_cmd_build_le_clear_whitelist(uint8_t *dst, int dst_len);
-int host_hci_cmd_le_clear_whitelist(void);
-int host_hci_cmd_le_read_whitelist(void);
 int host_hci_cmd_build_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type,
                                            uint8_t *dst, int dst_len);
-int host_hci_cmd_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type);
-int host_hci_cmd_le_rmv_from_whitelist(uint8_t *addr, uint8_t addr_type);
 void host_hci_cmd_build_reset(uint8_t *dst, int dst_len);
 int host_hci_cmd_reset(void);
 void host_hci_cmd_build_read_adv_pwr(uint8_t *dst, int dst_len);
@@ -109,18 +86,9 @@ int host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr);
 void host_hci_cmd_build_le_conn_param_neg_reply(
     struct hci_conn_param_neg_reply *hcn, uint8_t *dst, int dst_len);
 int host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn);
-int host_hci_cmd_le_read_supp_states(void);
-int host_hci_cmd_le_read_max_datalen(void);
-int host_hci_cmd_le_read_sugg_datalen(void);
-int host_hci_cmd_le_write_sugg_datalen(uint16_t txoctets, uint16_t txtime);
-int host_hci_cmd_le_set_datalen(uint16_t handle, uint16_t txoctets,
-                                uint16_t txtime);
-int host_hci_cmd_le_encrypt(uint8_t *key, uint8_t *pt);
 void host_hci_cmd_build_le_rand(uint8_t *dst, int dst_len);
-int host_hci_cmd_le_rand(void);
 void host_hci_cmd_build_le_start_encrypt(struct hci_start_encrypt *cmd,
                                          uint8_t *dst, int dst_len);
-int host_hci_cmd_le_start_encrypt(struct hci_start_encrypt *cmd);
 int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 
 uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);
