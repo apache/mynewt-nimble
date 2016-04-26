@@ -311,8 +311,8 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
         g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
         g_ble_ll_conn_params.sugg_tx_time = tx_time;
 
-        if ((tx_time < g_ble_ll_conn_params.supp_max_tx_time) &&
-            (tx_oct < g_ble_ll_conn_params.supp_max_tx_octets)) {
+        if ((tx_time <= g_ble_ll_conn_params.supp_max_tx_time) &&
+            (tx_oct <= g_ble_ll_conn_params.supp_max_tx_octets)) {
             g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
             g_ble_ll_conn_params.conn_init_max_tx_time = tx_time;
         }
