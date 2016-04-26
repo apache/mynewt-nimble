@@ -936,8 +936,14 @@ ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf)
         rc = BLE_ERR_UNK_CONN_ID;
     } else if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         rc = BLE_ERR_UNSPECIFIED;
+    } else if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT) {
+        /*
+         * The specification does not say what to do here but the host should
+         * not be telling us to start encryption while we are in the process
+         * of honoring a previous start encrypt.
+         */
+        rc = BLE_ERR_CMD_DISALLOWED;
     } else {
-        /* XXX: implement pause procedure */
         /* Start the control procedure */
         connsm->enc_data.host_rand_num = le64toh(cmdbuf + 2);
         connsm->enc_data.enc_div = le16toh(cmdbuf + 10);

@@ -67,6 +67,7 @@ enum conn_enc_state {
     CONN_ENC_S_ENC_RSP_WAIT,
     CONN_ENC_S_START_ENC_REQ_WAIT,
     CONN_ENC_S_START_ENC_RSP_WAIT,
+    CONN_ENC_S_PAUSE_ENC_RSP_WAIT,
     CONN_ENC_S_LTK_REQ_WAIT,
     CONN_ENC_S_LTK_NEG_REPLY
 };
@@ -108,6 +109,7 @@ union ble_ll_conn_sm_flags {
         uint32_t conn_req_txd:1;
         uint32_t send_ltk_req:1;
         uint32_t encrypted:1;
+        uint32_t encrypt_chg_sent;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -255,6 +257,7 @@ struct ble_ll_conn_sm
 #define CONN_F_LAST_TXD_MD(csm)     ((csm)->csmflags.cfbit.last_txd_md)
 #define CONN_F_CONN_REQ_TXD(csm)    ((csm)->csmflags.cfbit.conn_req_txd)
 #define CONN_F_ENCRYPTED(csm)       ((csm)->csmflags.cfbit.encrypted)
+#define CONN_F_ENC_CHANGE_SENT(csm) ((csm)->csmflags.cfbit.encrypt_chg_sent)
 
 /* Role */
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)

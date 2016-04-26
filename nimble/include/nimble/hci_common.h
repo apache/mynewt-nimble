@@ -452,6 +452,7 @@
 
 /* Event encryption change (code=0x08) */
 #define BLE_HCI_EVENT_ENCRYPT_CHG_LEN       (4)
+#define BLE_HCI_EVENT_ENC_KEY_REFRESH_LEN   (3)
 
 /* Event command complete */
 #define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (5)
