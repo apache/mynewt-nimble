@@ -367,6 +367,19 @@ ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm)
 #endif
 }
 
+/**
+ * Called to determine if this is a control PDU we are allowed to send. This
+ * is called when a link is being encrypted, as only certain control PDU's
+ * area lowed to be sent.
+ *
+ * XXX: the current code may actually allow some control pdu's to be sent
+ * in states where they shouldnt. I dont expect those states to occur so I
+ * dont try to check for them but we could do more...
+ *
+ * @param pkthdr
+ *
+ * @return int
+ */
 int
 ble_ll_ctrl_enc_allowed_pdu(struct os_mbuf_pkthdr *pkthdr)
 {
@@ -390,6 +403,8 @@ ble_ll_ctrl_enc_allowed_pdu(struct os_mbuf_pkthdr *pkthdr)
         case BLE_LL_CTRL_START_ENC_REQ:
         case BLE_LL_CTRL_ENC_REQ:
         case BLE_LL_CTRL_ENC_RSP:
+        case BLE_LL_CTRL_PAUSE_ENC_REQ:
+        case BLE_LL_CTRL_PAUSE_ENC_RSP:
         case BLE_LL_CTRL_TERMINATE_IND:
             allowed = 1;
             break;
@@ -421,28 +436,6 @@ ble_ll_ctrl_is_start_enc_rsp(struct os_mbuf *txpdu)
     }
 
     return is_start_enc_rsp;
-}
-
-int
-ble_ll_ctrl_is_start_enc_req(struct os_mbuf *txpdu)
-{
-    int is_start_enc_req;
-    uint8_t opcode;
-    uint8_t llid;
-    struct ble_mbuf_hdr *ble_hdr;
-
-    is_start_enc_req = 0;
-    ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
-
-    llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
-    if (llid == BLE_LL_LLID_CTRL) {
-        opcode = txpdu->om_data[0];
-        if (opcode == BLE_LL_CTRL_START_ENC_REQ) {
-            is_start_enc_req = 1;
-        }
-    }
-
-    return is_start_enc_req;
 }
 
 /**
@@ -532,6 +525,11 @@ ble_ll_ctrl_rx_enc_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     /* Calculate session key now that we have received the ENC_RSP */
     if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT) {
+        /* In case we were already encrypted we need to reset packet counters */
+        connsm->enc_data.rx_pkt_cntr = 0;
+        connsm->enc_data.tx_pkt_cntr = 0;
+        connsm->enc_data.tx_encrypted = 0;
+
         swap_buf(connsm->enc_data.enc_block.plain_text, dptr, 8);
         memcpy(connsm->enc_data.iv + 4, dptr + 8, 4);
         ble_ll_calc_session_key(connsm);
@@ -567,6 +565,11 @@ ble_ll_ctrl_rx_enc_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     if (connsm->conn_role != BLE_LL_CONN_ROLE_SLAVE) {
         return BLE_ERR_MAX;
     }
+
+    /* In case we were already encrypted we need to reset packet counters */
+    connsm->enc_data.rx_pkt_cntr = 0;
+    connsm->enc_data.tx_pkt_cntr = 0;
+    connsm->enc_data.tx_encrypted = 0;
 
     /* Extract information from request */
     connsm->enc_data.host_rand_num = le64toh(dptr);
@@ -609,6 +612,46 @@ ble_ll_ctrl_rx_start_enc_req(struct ble_ll_conn_sm *connsm)
             rc = BLE_LL_CTRL_START_ENC_RSP;
         }
     }
+    return rc;
+}
+
+static uint8_t
+ble_ll_ctrl_rx_pause_enc_req(struct ble_ll_conn_sm *connsm)
+{
+    int rc;
+
+    /*
+     * The spec does not say what to do here, but if we receive a pause
+     * encryption request and we are not encrypted, what do we do? We
+     * ignore it...
+     */
+    rc = BLE_ERR_MAX;
+    if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
+        (connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED)) {
+        rc = BLE_LL_CTRL_PAUSE_ENC_RSP;
+    }
+
+    return rc;
+}
+
+/**
+ * Called when a LL control pdu with opcode PAUSE_ENC_RSP is received.
+ *
+ *
+ * @param connsm
+ *
+ * @return uint8_t
+ */
+static uint8_t
+ble_ll_ctrl_rx_pause_enc_rsp(struct ble_ll_conn_sm *connsm)
+{
+    int rc;
+
+    rc = BLE_ERR_MAX;
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        rc = BLE_LL_CTRL_PAUSE_ENC_RSP;
+    }
+
     return rc;
 }
 
@@ -1238,8 +1281,13 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 #if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         /* XXX: deal with already encrypted connection.*/
         case BLE_LL_CTRL_PROC_ENCRYPT:
-            opcode = BLE_LL_CTRL_ENC_REQ;
-            ble_ll_ctrl_enc_req_make(connsm, ctrdata);
+            /* If we are already encrypted we do pause procedure */
+            if (connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) {
+                opcode = BLE_LL_CTRL_PAUSE_ENC_REQ;
+            } else {
+                opcode = BLE_LL_CTRL_ENC_REQ;
+                ble_ll_ctrl_enc_req_make(connsm, ctrdata);
+            }
             break;
 #endif
         default:
@@ -1427,6 +1475,8 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
  * NOTE: this function uses the received PDU for the response in some cases. If
  * the received PDU is not used it needs to be freed here.
  *
+ * XXX: may want to check, for both master and slave, whether the control
+ * pdu should be received by that role. Might make for less code...
  * Context: Link Layer
  *
  * @param om
@@ -1443,6 +1493,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     uint8_t *dptr;
     uint8_t *rspbuf;
     uint8_t *rspdata;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    int restart_encryption;
+#endif
 
     /* XXX: where do we validate length received and packet header length?
      * do this in LL task when received. Someplace!!! What I mean
@@ -1477,13 +1530,17 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
      */
     --len;
 
+    ble_ll_log(BLE_LL_LOG_ID_LL_CTRL_RX, opcode, len, 0);
+
     /* opcode must be good */
     if ((opcode >= BLE_LL_CTRL_OPCODES) ||
         (len != g_ble_ll_ctrl_pkt_lengths[opcode])) {
         goto rx_malformed_ctrl;
     }
 
-    ble_ll_log(BLE_LL_LOG_ID_LL_CTRL_RX, opcode, len, 0);
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    restart_encryption = 0;
+#endif
 
     /* Check if the feature is supported. */
     switch (opcode) {
@@ -1529,7 +1586,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     }
 
     /* Process opcode */
-    rsp_opcode = 255;
+    rsp_opcode = BLE_ERR_MAX;
     switch (opcode) {
     case BLE_LL_CTRL_CONN_UPDATE_REQ:
         rsp_opcode = ble_ll_ctrl_rx_conn_update(connsm, dptr, rspbuf);
@@ -1589,7 +1646,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
         break;
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
     case BLE_LL_CTRL_ENC_REQ:
         rsp_opcode = ble_ll_ctrl_rx_enc_req(connsm, dptr, rspdata);
         break;
@@ -1599,13 +1656,17 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_START_ENC_REQ:
         rsp_opcode = ble_ll_ctrl_rx_start_enc_req(connsm);
         break;
-
     case BLE_LL_CTRL_START_ENC_RSP:
         rsp_opcode = ble_ll_ctrl_rx_start_enc_rsp(connsm);
         break;
-
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
-        /* XXX: implement */
+        rsp_opcode = ble_ll_ctrl_rx_pause_enc_req(connsm);
+        break;
+    case BLE_LL_CTRL_PAUSE_ENC_RSP:
+        rsp_opcode = ble_ll_ctrl_rx_pause_enc_rsp(connsm);
+        if (rsp_opcode == BLE_LL_CTRL_PAUSE_ENC_RSP) {
+            restart_encryption = 1;
+        }
         break;
 #endif
     case BLE_LL_CTRL_PING_REQ:
@@ -1643,6 +1704,13 @@ ll_ctrl_send_rsp:
         }
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+        if (restart_encryption) {
+            /* XXX: what happens if this fails? Meaning we cant allocate
+               mbuf? */
+            ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+        }
+#endif
     }
     return 0;
 
@@ -1732,11 +1800,13 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 #endif
         break;
     case BLE_LL_CTRL_REJECT_IND:
-#if defined (BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
         connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
 #endif
         break;
 #if defined (BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    case BLE_LL_CTRL_PAUSE_ENC_REQ:
+        /* note: fall-through intentional */
     case BLE_LL_CTRL_ENC_REQ:
         connsm->enc_data.enc_state = CONN_ENC_S_ENC_RSP_WAIT;
         break;
@@ -1745,9 +1815,13 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         connsm->csmflags.cfbit.send_ltk_req = 1;
         break;
     case BLE_LL_CTRL_START_ENC_RSP:
-        /* We are encrypted */
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
+        }
+        break;
+    case BLE_LL_CTRL_PAUSE_ENC_RSP:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            connsm->enc_data.enc_state = CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
         }
         break;
 #endif

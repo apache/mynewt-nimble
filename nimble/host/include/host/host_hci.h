@@ -78,7 +78,6 @@ int host_hci_cmd_build_le_conn_update(struct hci_conn_update *hcu,
 int host_hci_cmd_le_conn_update(struct hci_conn_update *hcu);
 void host_hci_cmd_build_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr,
                                             uint8_t *dst, int dst_len);
-int host_hci_cmd_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr);
 int host_hci_cmd_le_lt_key_req_neg_reply(uint16_t handle);
 void host_hci_cmd_build_le_conn_param_reply(struct hci_conn_param_reply *hcr,
                                             uint8_t *dst, int dst_len);

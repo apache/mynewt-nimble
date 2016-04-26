@@ -164,7 +164,7 @@ host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
 }
 
 /**
- * Display an encryption change event.
+ * Display an encryption change event or encryption key refresh event
  *
  * @param evdata
  * @param len
@@ -178,6 +178,7 @@ host_hci_dbg_encrypt_chg_disp(uint8_t *evdata, uint8_t len)
 
     status = evdata[0];
     handle = le16toh(evdata + 1);
+
     /* Ignore reason if status is not success */
     if (status != BLE_ERR_SUCCESS) {
         enabled = 0;
@@ -186,6 +187,25 @@ host_hci_dbg_encrypt_chg_disp(uint8_t *evdata, uint8_t len)
     }
     BLE_HS_LOG(DEBUG, "Encrypt change: status=%u handle=%u state=%u\n",
                status, handle, enabled);
+}
+
+/**
+ * Display an encryption encryption key refresh event
+ *
+ * @param evdata
+ * @param len
+ */
+static void
+host_hci_dbg_encrypt_refresh_disp(uint8_t *evdata, uint8_t len)
+{
+    uint8_t status;
+    uint16_t handle;
+
+    status = evdata[0];
+    handle = le16toh(evdata + 1);
+
+    BLE_HS_LOG(DEBUG, "Encrypt key refresh: status=%u handle=%u\n",
+               status, handle);
 }
 
 /**
@@ -402,6 +422,9 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
     switch (evcode) {
     case BLE_HCI_EVCODE_DISCONN_CMP:
         host_hci_dbg_disconn_comp_disp(evdata, len);
+        break;
+    case BLE_HCI_EVCODE_ENC_KEY_REFRESH:
+        host_hci_dbg_encrypt_refresh_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_ENCRYPT_CHG:
         host_hci_dbg_encrypt_chg_disp(evdata, len);

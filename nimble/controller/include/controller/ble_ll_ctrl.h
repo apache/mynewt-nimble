@@ -139,9 +139,6 @@ struct ble_ll_enc_rsp
  */
 #define BLE_LL_CTRL_FEATURE_LEN             (8)
 
-/* LL control pause enc req and pause enc rsp have no data */
-#define BLE_LL_CTRL_PAUSE_ENC_LEN           (0)
-
 /*
  * LL control version ind
  *  -> version (1 byte):
@@ -237,7 +234,6 @@ int ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm, uint8_t opcode);
 int ble_ll_ctrl_enc_allowed_pdu(struct os_mbuf_pkthdr *pkthdr);
 int ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm);
 int ble_ll_ctrl_is_start_enc_rsp(struct os_mbuf *txpdu);
-int ble_ll_ctrl_is_start_enc_req(struct os_mbuf *txpdu);
 
 void ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm);
 void ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,

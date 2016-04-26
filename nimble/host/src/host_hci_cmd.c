@@ -809,32 +809,6 @@ host_hci_cmd_build_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr,
     host_hci_cmd_body_le_lt_key_req_reply(hkr, dst);
 }
 
-/**
- * Sends the long-term key (LTK) to the controller.
- *
- * Note: This function expects the 128-bit key to be in little-endian byte
- * order.
- *
- * OGF = 0x08 (LE)
- * OCF = 0x001a
- *
- * @param key
- * @param pt
- *
- * @return int
- */
-int
-host_hci_cmd_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr)
-{
-    uint8_t cmd[BLE_HCI_LT_KEY_REQ_REPLY_LEN];
-    int rc;
-
-    host_hci_cmd_body_le_lt_key_req_reply(hkr, cmd);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY,
-                              sizeof cmd, cmd);
-    return rc;
-}
-
 static void
 host_hci_cmd_body_le_conn_param_reply(struct hci_conn_param_reply *hcr,
                                       uint8_t *dst)
@@ -860,18 +834,6 @@ host_hci_cmd_build_le_conn_param_reply(struct hci_conn_param_reply *hcr,
     dst += BLE_HCI_CMD_HDR_LEN;
 
     host_hci_cmd_body_le_conn_param_reply(hcr, dst);
-}
-
-int
-host_hci_cmd_le_lt_key_req_neg_reply(uint16_t handle)
-{
-    uint8_t cmd[sizeof(uint16_t)];
-    int rc;
-
-    htole16(cmd, handle);
-    rc = host_hci_le_cmd_send(BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY,
-                              sizeof(uint16_t), cmd);
-    return rc;
 }
 
 int

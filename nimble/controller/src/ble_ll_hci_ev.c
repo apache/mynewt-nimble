@@ -114,23 +114,36 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
 void
 ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
 {
+    uint8_t evcode;
     uint8_t *evbuf;
+    uint8_t evlen;
 
-    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_ENCRYPT_CHG)) {
+    if (CONN_F_ENC_CHANGE_SENT(connsm) == 0) {
+        evcode = BLE_HCI_EVCODE_ENCRYPT_CHG;
+        evlen = BLE_HCI_EVENT_ENCRYPT_CHG_LEN;
+    } else {
+        evcode = BLE_HCI_EVCODE_ENC_KEY_REFRESH;
+        evlen = BLE_HCI_EVENT_ENC_KEY_REFRESH_LEN;
+    }
+
+    if (ble_ll_hci_is_event_enabled(evcode)) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
-            evbuf[0] = BLE_HCI_EVCODE_ENCRYPT_CHG;
-            evbuf[1] = BLE_HCI_EVENT_ENCRYPT_CHG_LEN;
+            evbuf[0] = evcode;
+            evbuf[1] = evlen;
             evbuf[2] = status;
             htole16(evbuf + 3, connsm->conn_handle);
-            if (status == BLE_ERR_SUCCESS) {
-                evbuf[5] = 0x01;
-            } else {
-                evbuf[5] = 0;
+            if (evcode == BLE_HCI_EVCODE_ENCRYPT_CHG) {
+                if (status == BLE_ERR_SUCCESS) {
+                    evbuf[5] = 0x01;
+                } else {
+                    evbuf[5] = 0;
+                }
             }
             ble_ll_hci_event_send(evbuf);
         }
     }
+    CONN_F_ENC_CHANGE_SENT(connsm) = 1;
 }
 
 /**

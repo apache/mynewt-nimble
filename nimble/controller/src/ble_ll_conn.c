@@ -609,12 +609,33 @@ ble_ll_conn_start_rx_encrypt(void *arg)
 }
 
 static void
+ble_ll_conn_start_rx_unencrypt(void *arg)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)arg;
+    CONN_F_ENCRYPTED(connsm) = 0;
+    ble_phy_encrypt_disable();
+}
+
+static void
 ble_ll_conn_txend_encrypt(void *arg)
 {
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
     CONN_F_ENCRYPTED(connsm) = 1;
+    ble_ll_conn_current_sm_over();
+    ble_ll_event_send(&connsm->conn_ev_end);
+}
+
+static void
+ble_ll_conn_rxend_unencrypt(void *arg)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)arg;
+    CONN_F_ENCRYPTED(connsm) = 0;
     ble_ll_conn_current_sm_over();
     ble_ll_event_send(&connsm->conn_ev_end);
 }
@@ -953,14 +974,34 @@ conn_tx_pdu:
     }
 
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-    if (ble_ll_ctrl_is_start_enc_rsp(m)) {
+    int is_ctrl;
+    uint8_t llid;
+    uint8_t opcode;
+
+    llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+    if (llid == BLE_LL_LLID_CTRL) {
+        is_ctrl = 1;
+        opcode = m->om_data[0];
+    } else {
+        is_ctrl = 0;
+    }
+
+    if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_RSP)) {
+        /*
+         * Both master and slave send the START_ENC_RSP encrypted and receive
+         * encrypted
+         */
         CONN_F_ENCRYPTED(connsm) = 1;
         connsm->enc_data.tx_encrypted = 1;
         ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
                                connsm->enc_data.iv,
                                connsm->enc_data.enc_block.cipher_text,
                                CONN_IS_MASTER(connsm));
-    } else if (ble_ll_ctrl_is_start_enc_req(m)) {
+    } else if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_REQ)) {
+        /*
+         * Only the slave sends this and it gets sent unencrypted but
+         * we receive encrypted
+         */
         CONN_F_ENCRYPTED(connsm) = 0;
         connsm->enc_data.enc_state = CONN_ENC_S_START_ENC_RSP_WAIT;
         connsm->enc_data.tx_encrypted = 0;
@@ -969,6 +1010,29 @@ conn_tx_pdu:
             txend_func = ble_ll_conn_start_rx_encrypt;
         } else {
             txend_func = ble_ll_conn_txend_encrypt;
+        }
+    } else if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_RSP)) {
+        /*
+         * The slave sends the PAUSE_ENC_RSP encrypted. The master sends
+         * it unencrypted (note that link was already set unencrypted).
+         */
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            CONN_F_ENCRYPTED(connsm) = 1;
+            connsm->enc_data.tx_encrypted = 1;
+            ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
+                                   connsm->enc_data.iv,
+                                   connsm->enc_data.enc_block.cipher_text,
+                                   CONN_IS_MASTER(connsm));
+            if (txend_func == NULL) {
+                txend_func = ble_ll_conn_start_rx_unencrypt;
+            } else {
+                txend_func = ble_ll_conn_rxend_unencrypt;
+            }
+        } else {
+            CONN_F_ENCRYPTED(connsm) = 0;
+            connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+            connsm->enc_data.tx_encrypted = 0;
+            ble_phy_encrypt_disable();
         }
     } else {
         /* If encrypted set packet counter */
@@ -1043,8 +1107,8 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_state_set(BLE_LL_STATE_CONNECTION);
 
     /* Log connection event start */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, connsm->data_chan_index,
-               connsm->conn_handle, connsm->ce_end_time);
+    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, (uint8_t)connsm->conn_handle,
+               (uint16_t)connsm->ce_end_time, connsm->csmflags.conn_flags);
 
     /* Set channel */
     ble_phy_setchan(connsm->data_chan_index, connsm->access_addr,
@@ -2208,7 +2272,6 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                  */
                 if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
                     STATS_INC(ble_ll_conn_stats, mic_failures);
-                    /* Control procedure has timed out. Kill the connection */
                     ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
                     goto conn_rx_data_pdu_end;
                 }
@@ -2267,6 +2330,7 @@ int
 ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
 {
     int rc;
+    int is_ctrl;
     uint8_t hdr_byte;
     uint8_t hdr_sn;
     uint8_t hdr_nesn;
@@ -2274,6 +2338,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     uint8_t conn_nesn;
     uint8_t reply;
     uint8_t rem_bytes;
+    uint8_t opcode;
     uint32_t ticks;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
@@ -2443,7 +2508,14 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
         /* Should we continue connection event? */
         /* If this is a TERMINATE_IND, we have to reply */
 chk_rx_terminate_ind:
-        if (ble_ll_ctrl_is_terminate_ind(rxpdu->om_data[0],rxpdu->om_data[2])) {
+        is_ctrl = 0;
+        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+            is_ctrl = 1;
+            opcode = rxpdu->om_data[2];
+        }
+
+        /* If we received a terminate IND, we must set some flags */
+        if (is_ctrl && (opcode == BLE_LL_CTRL_TERMINATE_IND)) {
             connsm->csmflags.cfbit.terminate_ind_rxd = 1;
             connsm->rxd_disconnect_reason = rxpdu->om_data[3];
             reply = 1;
@@ -2452,6 +2524,11 @@ chk_rx_terminate_ind:
         } else {
             /* A slave always replies */
             reply = 1;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+            if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_RSP)) {
+                connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+            }
+#endif
         }
     }
 
@@ -2463,6 +2540,8 @@ chk_rx_terminate_ind:
          * terminate timer will expire within two packet times. If it will,
          * no use sending the terminate ind. We need to get an ACK for the
          * terminate ind (master and/or slave) so that is why it is two packets.
+         *
+         *  XXX: should we just skip this check?
          */
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
             ticks = BLE_TX_DUR_USECS_M(0) +
@@ -2535,12 +2614,15 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     lifo = 0;
 #if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
+        uint8_t llid;
+
         /*
          * If this is one of the following types we need to insert it at
          * head of queue.
          */
         ble_hdr = BLE_MBUF_HDR_PTR(om);
-        if ((ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+        llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+        if (llid == BLE_LL_LLID_CTRL) {
             switch (om->om_data[0]) {
             case BLE_LL_CTRL_TERMINATE_IND:
             case BLE_LL_CTRL_REJECT_IND:
@@ -2548,6 +2630,11 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
             case BLE_LL_CTRL_START_ENC_REQ:
             case BLE_LL_CTRL_START_ENC_RSP:
                 lifo = 1;
+                break;
+            case BLE_LL_CTRL_PAUSE_ENC_RSP:
+                if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                    lifo = 1;
+                }
                 break;
             default:
                 break;
