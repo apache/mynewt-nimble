@@ -257,7 +257,7 @@ ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
 }
 
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
+ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 {
     int rc;
     uint32_t state;

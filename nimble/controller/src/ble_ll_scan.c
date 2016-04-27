@@ -915,8 +915,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (scansm->backoff_count == 0) {
             /* Setup to transmit the scan request */
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
-            rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_RX_TX,
-                            BLE_PHY_TRANSITION_TX_RX);
+            rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_TX_RX);
 
             /* Set "waiting for scan response" flag */
             scansm->scan_rsp_pending = 1;

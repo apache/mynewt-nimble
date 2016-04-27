@@ -25,6 +25,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "ble/xcvr.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_scan.h"
@@ -740,7 +741,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
  * @return int 0: success; otherwise failure to transmit
  */
 static int
-ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm, int beg_transition)
+ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
 {
     int rc;
     uint8_t md;
@@ -1049,7 +1050,7 @@ conn_tx_pdu:
 
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
-    rc = ble_phy_tx(m, beg_transition, end_transition);
+    rc = ble_phy_tx(m, end_transition);
     if (!rc) {
         /* Log transmit on connection state */
         cur_txlen = ble_hdr->txinfo.pyld_len;
@@ -1115,21 +1116,28 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
                     connsm->crcinit);
 
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-        if (CONN_F_ENCRYPTED(connsm)) {
-            ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
-                                   connsm->enc_data.iv,
-                                   connsm->enc_data.enc_block.cipher_text,
-                                   1);
-        } else {
-            ble_phy_encrypt_disable();
-        }
-#endif
-        rc = ble_ll_conn_tx_data_pdu(connsm, BLE_PHY_TRANSITION_NONE);
+        /* Set start time of transmission */
+        rc = ble_phy_tx_set_start_time(sch->start_time + XCVR_PROC_DELAY_USECS);
         if (!rc) {
-            rc = BLE_LL_SCHED_STATE_RUNNING;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+            if (CONN_F_ENCRYPTED(connsm)) {
+                ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
+                                       connsm->enc_data.iv,
+                                       connsm->enc_data.enc_block.cipher_text,
+                                       1);
+            } else {
+                ble_phy_encrypt_disable();
+            }
+#endif
+            rc = ble_ll_conn_tx_data_pdu(connsm);
+            if (!rc) {
+                rc = BLE_LL_SCHED_STATE_RUNNING;
+            } else {
+                /* Inform LL task of connection event end */
+                rc = BLE_LL_SCHED_STATE_DONE;
+            }
         } else {
-            /* Inform LL task of connection event end */
+            STATS_INC(ble_ll_conn_stats, conn_ev_late);
             rc = BLE_LL_SCHED_STATE_DONE;
         }
     } else {
@@ -1143,6 +1151,10 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
                 ble_phy_encrypt_disable();
             }
 #endif
+        /*
+         * XXX: make sure I dont care that I get here early to start receiving.
+         * I could use events compare and all that shit to start rx.
+         */
         rc = ble_phy_rx();
         if (rc) {
             /* End the connection event as we have no more buffers */
@@ -1938,7 +1950,7 @@ ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset)
     m = ble_ll_scan_get_pdu();
     ble_ll_conn_req_pdu_update(m, adva, addr_type, txoffset);
     ble_phy_set_txend_cb(ble_ll_conn_req_txend, NULL);
-    rc = ble_phy_tx(m, BLE_PHY_TRANSITION_RX_TX, BLE_PHY_TRANSITION_NONE);
+    rc = ble_phy_tx(m, BLE_PHY_TRANSITION_NONE);
     return rc;
 }
 
@@ -1973,6 +1985,8 @@ void
 ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
 {
     uint8_t addr_type;
+    uint8_t payload_len;
+    uint32_t endtime;
     struct ble_ll_conn_sm *connsm;
 
     /* Get the connection state machine we are trying to create */
@@ -2002,7 +2016,9 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
         /* Connection has been created. Stop scanning */
         g_ble_ll_conn_create_sm = NULL;
         ble_ll_scan_sm_stop(0);
-        ble_ll_conn_created(connsm, ble_hdr->end_cputime);
+        payload_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;;
+        endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(payload_len);
+        ble_ll_conn_created(connsm, endtime);
     } else {
         ble_ll_scan_chk_resume();
     }
@@ -2030,6 +2046,8 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     uint8_t *adv_addr;
     uint8_t *init_addr;
     uint8_t *rxbuf;
+    uint8_t pyld_len;
+    uint32_t endtime;
     struct ble_mbuf_hdr *ble_hdr;
 
     /*
@@ -2049,6 +2067,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Only interested in ADV IND or ADV DIRECT IND */
     rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+    pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
 
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
@@ -2098,8 +2117,8 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         }
 
         /* Attempt to schedule new connection. Possible that this might fail */
-        if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm,
-                                     ble_hdr->end_cputime,
+        endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+        if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, endtime,
                                      NIMBLE_OPT_LL_CONN_INIT_SLOTS)) {
             /* Setup to transmit the connect request */
             rc = ble_ll_conn_request_send(addr_type, adv_addr,
@@ -2339,7 +2358,8 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     uint8_t reply;
     uint8_t rem_bytes;
     uint8_t opcode;
-    uint32_t ticks;
+    uint8_t pyld_len;
+    uint32_t endtime;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
     struct ble_mbuf_hdr *rxhdr;
@@ -2365,6 +2385,8 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     /* Set the handle in the ble mbuf header */
     rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
     rxhdr->rxinfo.handle = connsm->conn_handle;
+    hdr_byte = rxpdu->om_data[0];
+    pyld_len = rxpdu->om_data[1];
 
     /*
      * Check the packet CRC. A connection event can continue even if the
@@ -2390,9 +2412,6 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     } else {
         /* Reset consecutively received bad crcs (since this one was good!) */
         connsm->cons_rxd_bad_crc = 0;
-
-        /* Store received header byte in state machine  */
-        hdr_byte = rxpdu->om_data[0];
 
         /* Check for valid LLID before proceeding. */
         if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == 0) {
@@ -2534,7 +2553,8 @@ chk_rx_terminate_ind:
 
     /* If reply flag set, send data pdu and continue connection event */
     rc = -1;
-    if (reply && ble_ll_conn_can_send_next_pdu(connsm, rxhdr->end_cputime)) {
+    endtime = rxhdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+    if (reply && ble_ll_conn_can_send_next_pdu(connsm, endtime)) {
         /*
          * While this is not perfect, we will just check to see if the
          * terminate timer will expire within two packet times. If it will,
@@ -2544,28 +2564,22 @@ chk_rx_terminate_ind:
          *  XXX: should we just skip this check?
          */
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
-            ticks = BLE_TX_DUR_USECS_M(0) +
-                BLE_TX_DUR_USECS_M(BLE_LL_CTRL_TERMINATE_IND_LEN + 1) +
-                BLE_LL_IFS;
-            ticks = cputime_usecs_to_ticks(ticks) + cputime_get32();
-            if ((int32_t)(connsm->terminate_timeout - ticks) < 0) {
+            endtime = BLE_TX_DUR_USECS_M(BLE_LL_CTRL_TERMINATE_IND_LEN + 1) +
+                      BLE_TX_DUR_USECS_M(0) + BLE_LL_IFS;
+            endtime = cputime_usecs_to_ticks(endtime) + cputime_get32();
+            if ((int32_t)(connsm->terminate_timeout - endtime) < 0) {
                 goto conn_rx_pdu_end;
             }
         }
-        rc = ble_ll_conn_tx_data_pdu(connsm, BLE_PHY_TRANSITION_RX_TX);
+        rc = ble_ll_conn_tx_data_pdu(connsm);
     }
 
 conn_rx_pdu_end:
     /* Set anchor point (and last) if 1st received frame in connection event */
     if (connsm->csmflags.cfbit.slave_set_last_anchor) {
         connsm->csmflags.cfbit.slave_set_last_anchor = 0;
-        /* XXX: For now, we just wont adjust the anchor point on crc error
-           until I fix this issue */
-        if (BLE_MBUF_HDR_CRC_OK(rxhdr)) {
-            connsm->last_anchor_point = rxhdr->end_cputime -
-                cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rxpdu->om_data[1]));
-            connsm->anchor_point = connsm->last_anchor_point;
-        }
+        connsm->last_anchor_point = rxhdr->beg_cputime;
+        connsm->anchor_point = connsm->last_anchor_point;
     }
 
     /* Send link layer a connection end event if over */

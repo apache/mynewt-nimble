@@ -88,7 +88,7 @@ struct ble_mbuf_hdr
         struct ble_mbuf_hdr_rxinfo rxinfo;
         struct ble_mbuf_hdr_txinfo txinfo;
     };
-    uint32_t end_cputime;
+    uint32_t beg_cputime;
 };
 
 /*

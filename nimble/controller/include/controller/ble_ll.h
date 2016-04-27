@@ -201,6 +201,9 @@ struct ble_dev_addr
  */
 #define BLE_TX_DUR_USECS_M(len)     (((len) + BLE_LL_PDU_OVERHEAD) << 3)
 
+/* Calculates the time it takes to transmit 'len' bytes */
+#define BLE_TX_LEN_USECS_M(len)     ((len) << 3)
+
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)
 
@@ -373,6 +376,8 @@ int ble_ll_rand_start(void);
 #define BLE_LL_LOG_ID_RX_END            (3)
 #define BLE_LL_LOG_ID_WFR_EXP           (4)
 #define BLE_LL_LOG_ID_PHY_TXEND         (5)
+#define BLE_LL_LOG_ID_PHY_TX            (6)
+#define BLE_LL_LOG_ID_PHY_RX            (7)
 #define BLE_LL_LOG_ID_PHY_DISABLE       (9)
 #define BLE_LL_LOG_ID_CONN_EV_START     (10)
 #define BLE_LL_LOG_ID_CONN_TX           (15)

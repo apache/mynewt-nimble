@@ -23,18 +23,6 @@
 /* Forward declarations */
 struct os_mbuf;
 
-/*
- * XXX: Transceiver definitions. These dont belong here and will be moved
- * once we finalize transceiver specific support.
- */
-#define XCVR_RX_START_DELAY_USECS     (140)
-#define XCVR_TX_START_DELAY_USECS     (140)
-#define XCVR_PROC_DELAY_USECS         (50)
-#define XCVR_TX_SCHED_DELAY_USECS     \
-    (XCVR_TX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
-#define XCVR_RX_SCHED_DELAY_USECS     \
-    (XCVR_RX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
-
 /* Channel/Frequency defintions */
 #define BLE_PHY_NUM_CHANS           (40)
 #define BLE_PHY_NUM_DATA_CHANS      (37)
@@ -77,6 +65,7 @@ struct os_mbuf;
 #define BLE_PHY_ERR_INIT            (2)
 #define BLE_PHY_ERR_INV_PARAM       (3)
 #define BLE_PHY_ERR_NO_BUFS         (4)
+#define BLE_PHY_ERR_TX_LATE         (5)
 
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
@@ -93,11 +82,17 @@ int ble_phy_reset(void);
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
+/* Set transmit start time */
+int ble_phy_tx_set_start_time(uint32_t cputime);
+
+/* Set receive start time */
+int ble_phy_rx_set_start_time(uint32_t cputime);
+
 /* Set the transmit end callback and argument */
 void ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg);
 
 /* Place the PHY into transmit mode */
-int ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans);
+int ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans);
 
 /* Place the PHY into receive mode */
 int ble_phy_rx(void);
