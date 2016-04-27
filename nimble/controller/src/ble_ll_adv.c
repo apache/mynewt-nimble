@@ -21,6 +21,7 @@
 #include <assert.h>
 #include "os/os.h"
 #include "bsp/bsp.h"
+#include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
@@ -343,7 +344,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 {
     int rc;
     uint8_t end_trans;
-    uint32_t start_time;
+    uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
 
     /* Get the state machine for the event */
@@ -352,6 +353,15 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
     assert(rc == 0);
+
+    /* Set transmit start time. */
+    txstart = sch->start_time + XCVR_PROC_DELAY_USECS;
+    rc = ble_phy_tx_set_start_time(txstart);
+    if (rc) {
+        STATS_INC(ble_ll_stats, adv_late_starts);
+        ble_ll_adv_tx_done(advsm);
+        return BLE_LL_SCHED_STATE_DONE;
+    }
 
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
     ble_phy_encrypt_disable();
@@ -366,23 +376,12 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         ble_phy_set_txend_cb(NULL, NULL);
     }
 
-    /* This is for debug */
-    start_time = cputime_get32();
-
-    /* XXX: transmit using an output compare */
     /* Transmit advertisement */
-    rc = ble_phy_tx(advsm->adv_pdu, BLE_PHY_TRANSITION_NONE, end_trans);
+    rc = ble_phy_tx(advsm->adv_pdu, end_trans);
     if (rc) {
-        /* Transmit failed. */
         ble_ll_adv_tx_done(advsm);
         rc =  BLE_LL_SCHED_STATE_DONE;
     } else {
-        /* Check if we were late getting here */
-        if ((int32_t)(start_time - (advsm->adv_pdu_start_time -
-               cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS))) > 0) {
-            STATS_INC(ble_ll_stats, adv_late_starts);
-        }
-
         /* Enable/disable whitelisting based on filter policy */
         if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
             ble_ll_whitelist_enable();
@@ -878,8 +877,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     rc = -1;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, &g_ble_ll_adv_sm);
-        rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_RX_TX,
-                        BLE_PHY_TRANSITION_NONE);
+        rc = ble_phy_tx(advsm->scan_rsp_pdu, BLE_PHY_TRANSITION_NONE);
         if (!rc) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
             STATS_INC(ble_ll_stats, scan_rsp_txg);
@@ -903,7 +901,9 @@ int
 ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int valid;
+    uint8_t pyld_len;
     uint8_t *inita;
+    uint32_t endtime;
     struct ble_ll_adv_sm *advsm;
 
     /* Check filter policy. */
@@ -937,7 +937,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 
     if (valid) {
         /* Try to start slave connection. If successful, stop advertising */
-        valid = ble_ll_conn_slave_start(rxbuf, hdr->end_cputime);
+        pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+        endtime = hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+        valid = ble_ll_conn_slave_start(rxbuf, endtime);
         if (valid) {
             ble_ll_adv_sm_stop(advsm);
         }

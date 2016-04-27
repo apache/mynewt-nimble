@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "ble/xcvr.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_sched.h"

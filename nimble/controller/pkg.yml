@@ -25,6 +25,7 @@ pkg.keywords:
     - ble
     - bluetooth
 
+pkg.req_apis: ble_driver
 pkg.deps:
     - libs/os
     - sys/stats

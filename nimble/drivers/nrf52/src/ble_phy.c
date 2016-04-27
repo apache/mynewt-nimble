@@ -21,6 +21,7 @@
 #include <string.h>
 #include <assert.h>
 #include "os/os.h"
+#include "ble/xcvr.h"
 #include "bsp/cmsis_nvic.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -48,6 +49,7 @@
 /* Maximum length of frames */
 #define NRF_MAXLEN              (255)
 #define NRF_BALEN               (3)     /* For base address of 3 bytes */
+#define NRF_RX_START_OFFSET     (5)
 
 /* Maximum tx power */
 #define NRF_TX_PWR_MAX_DBM      (4)
@@ -63,6 +65,7 @@ struct ble_phy_obj
     uint8_t phy_transition;
     uint8_t phy_rx_started;
     uint8_t phy_encrypted;
+    uint8_t phy_tx_pyld_len;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
     void *txend_arg;
@@ -89,6 +92,7 @@ STATS_SECT_START(ble_phy_stats)
     STATS_SECT_ENTRY(rx_aborts)
     STATS_SECT_ENTRY(rx_valid)
     STATS_SECT_ENTRY(rx_crc_err)
+    STATS_SECT_ENTRY(rx_late)
     STATS_SECT_ENTRY(no_bufs)
     STATS_SECT_ENTRY(radio_state_errs)
     STATS_SECT_ENTRY(rx_hw_err)
@@ -106,6 +110,7 @@ STATS_NAME_START(ble_phy_stats)
     STATS_NAME(ble_phy_stats, rx_aborts)
     STATS_NAME(ble_phy_stats, rx_valid)
     STATS_NAME(ble_phy_stats, rx_crc_err)
+    STATS_NAME(ble_phy_stats, rx_late)
     STATS_NAME(ble_phy_stats, no_bufs)
     STATS_NAME(ble_phy_stats, radio_state_errs)
     STATS_NAME(ble_phy_stats, rx_hw_err)
@@ -220,8 +225,7 @@ nrf_wait_disabled(void)
 }
 
 /**
- * Setup transceiver for receive
- *
+ * Setup transceiver for receive.
  */
 static void
 ble_phy_rx_xcvr_setup(void)
@@ -244,6 +248,9 @@ ble_phy_rx_xcvr_setup(void)
 #else
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
 #endif
+
+    /* We dont want to trigger TXEN on output compare match */
+    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
 
     /* Reset the rx started flag. Used for the wait for response */
     g_ble_phy_data.phy_rx_started = 0;
@@ -280,7 +287,7 @@ ble_phy_tx_end_isr(void)
 
     /* Log the event */
     ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF,
-               g_ble_phy_data.phy_encrypted, NRF_TIMER0->CC[2]);
+               g_ble_phy_data.phy_encrypted, NRF_TIMER0->CC[1]);
 
     /* Clear events and clear interrupt on disabled event */
     NRF_RADIO->EVENTS_DISABLED = 0;
@@ -313,14 +320,16 @@ ble_phy_tx_end_isr(void)
         }
 
         /*
-         * Enable the wait for response timer. Note that cc #2 on
-         * timer 0 contains the transmit end time
+         * Enable the wait for response timer. Note that cc #1 on
+         * timer 0 contains the transmit start time
          */
-        wfr_time = NRF_TIMER0->CC[2];
+        wfr_time = NRF_TIMER0->CC[1] - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
+        wfr_time += BLE_TX_DUR_USECS_M(g_ble_phy_data.phy_tx_pyld_len);
         wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
         ble_ll_wfr_enable(wfr_time);
     } else {
-        /* Better not be going from rx to tx! */
+        /* Disable automatic TXEN */
+        NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
         assert(transition == BLE_PHY_TRANSITION_NONE);
     }
 
@@ -331,15 +340,144 @@ ble_phy_tx_end_isr(void)
 }
 
 static void
-ble_phy_isr(void)
+ble_phy_rx_end_isr(void)
 {
     int rc;
-    uint8_t crcok;
-    uint32_t irq_en;
-    uint32_t state;
     uint8_t *dptr;
+    uint8_t crcok;
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
+
+    /* Clear events and clear interrupt */
+    NRF_RADIO->EVENTS_END = 0;
+    NRF_RADIO->INTENCLR = RADIO_INTENCLR_END_Msk;
+
+    /* Disable automatic RXEN */
+    NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
+
+    /* Set RSSI and CRC status flag in header */
+    ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
+    assert(NRF_RADIO->EVENTS_RSSIEND != 0);
+    ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
+
+    dptr = g_ble_phy_data.rxpdu->om_data;
+
+    /* Count PHY crc errors and valid packets */
+    crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
+    if (!crcok) {
+        STATS_INC(ble_phy_stats, rx_crc_err);
+    } else {
+        STATS_INC(ble_phy_stats, rx_valid);
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
+#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+        if (g_ble_phy_data.phy_encrypted) {
+            /* Only set MIC failure flag if frame is not zero length */
+            if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
+                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_MIC_FAILURE;
+            }
+
+            /*
+             * XXX: not sure how to deal with this. This should not
+             * be a MIC failure but we should not hand it up. I guess
+             * this is just some form of rx error and that is how we
+             * handle it? For now, just set CRC error flags
+             */
+            if (NRF_CCM->EVENTS_ERROR) {
+                STATS_INC(ble_phy_stats, rx_hw_err);
+                ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
+            }
+
+            /*
+             * XXX: This is a total hack work-around for now but I dont
+             * know what else to do. If ENDCRYPT is not set and we are
+             * encrypted we need to not trust this frame and drop it.
+             */
+            if (NRF_CCM->EVENTS_ENDCRYPT == 0) {
+                STATS_INC(ble_phy_stats, rx_hw_err);
+                ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
+            }
+        }
+#endif
+    }
+
+    /* Call Link Layer receive payload function */
+    rxpdu = g_ble_phy_data.rxpdu;
+    g_ble_phy_data.rxpdu = NULL;
+
+    /*
+     * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
+     * that is not sent over the air but is present here. Simply move the
+     * data pointer to deal with it. Fix this later. Do this in the nrf52
+     */
+    dptr[2] = dptr[1];
+    dptr[1] = dptr[0];
+    rxpdu->om_data += 1;
+
+    rc = ble_ll_rx_end(rxpdu, ble_hdr);
+    if (rc < 0) {
+        ble_phy_disable();
+    }
+}
+
+static void
+ble_phy_rx_start_isr(void)
+{
+    int rc;
+    uint32_t state;
+    struct ble_mbuf_hdr *ble_hdr;
+
+    /* Clear events and clear interrupt */
+    NRF_RADIO->EVENTS_ADDRESS = 0;
+    NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
+
+    assert(g_ble_phy_data.rxpdu != NULL);
+
+    /* Wait to get 1st byte of frame */
+    while (1) {
+        state = NRF_RADIO->STATE;
+        if (NRF_RADIO->EVENTS_BCMATCH != 0) {
+            break;
+        }
+
+        /*
+         * If state is disabled, we should have the BCMATCH. If not,
+         * something is wrong!
+         */
+        if (state == RADIO_STATE_STATE_Disabled) {
+            NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
+            NRF_RADIO->SHORTS = 0;
+            return;
+        }
+    }
+
+    /* Initialize flags, channel and state in ble header at rx start */
+    ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
+    ble_hdr->rxinfo.flags = ble_ll_state_get();
+    ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
+    ble_hdr->rxinfo.handle = 0;
+    ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
+        BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
+
+    /* Call Link Layer receive start function */
+    rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
+    if (rc >= 0) {
+        /* Set rx started flag and enable rx end ISR */
+        g_ble_phy_data.phy_rx_started = 1;
+        NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
+    } else {
+        /* Disable PHY */
+        ble_phy_disable();
+        STATS_INC(ble_phy_stats, rx_aborts);
+    }
+
+    /* Count rx starts */
+    STATS_INC(ble_phy_stats, rx_starts);
+}
+
+static void
+ble_phy_isr(void)
+{
+    uint32_t irq_en;
 
     /* Read irq register to determine which interrupts are enabled */
     irq_en = NRF_RADIO->INTENCLR;
@@ -351,127 +489,16 @@ ble_phy_isr(void)
 
     /* We get this if we have started to receive a frame */
     if ((irq_en & RADIO_INTENCLR_ADDRESS_Msk) && NRF_RADIO->EVENTS_ADDRESS) {
-        /* Clear events and clear interrupt */
-        NRF_RADIO->EVENTS_ADDRESS = 0;
-        NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
-
-        assert(g_ble_phy_data.rxpdu != NULL);
-
-        /* Wait to get 1st byte of frame */
-        while (1) {
-            state = NRF_RADIO->STATE;
-            if (NRF_RADIO->EVENTS_BCMATCH != 0) {
-                break;
-            }
-
-            /*
-             * If state is disabled, we should have the BCMATCH. If not,
-             * something is wrong!
-             */
-            if (state == RADIO_STATE_STATE_Disabled) {
-                NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
-                NRF_RADIO->SHORTS = 0;
-                goto phy_isr_exit;
-            }
-        }
-
-        /* Initialize flags, channel and state in ble header at rx start */
-        ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
-        ble_hdr->rxinfo.flags = ble_ll_state_get();
-        ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
-        ble_hdr->rxinfo.handle = 0;
-
-        /* Call Link Layer receive start function */
-        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
-        if (rc >= 0) {
-            /* Set rx started flag and enable rx end ISR */
-            g_ble_phy_data.phy_rx_started = 1;
-            NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
-        } else {
-            /* Disable PHY */
-            ble_phy_disable();
-            irq_en = 0;
-            STATS_INC(ble_phy_stats, rx_aborts);
-        }
-
-        /* Count rx starts */
-        STATS_INC(ble_phy_stats, rx_starts);
+        ble_phy_rx_start_isr();
     }
 
     /* Receive packet end (we dont enable this for transmit) */
     if ((irq_en & RADIO_INTENCLR_END_Msk) && NRF_RADIO->EVENTS_END) {
-        /* Clear events and clear interrupt */
-        NRF_RADIO->EVENTS_END = 0;
-        NRF_RADIO->INTENCLR = RADIO_INTENCLR_END_Msk;
-
-        /* Set RSSI and CRC status flag in header */
-        ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
-        assert(NRF_RADIO->EVENTS_RSSIEND != 0);
-        ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
-        ble_hdr->end_cputime = NRF_TIMER0->CC[2];
-        dptr = g_ble_phy_data.rxpdu->om_data;
-
-        /* Count PHY crc errors and valid packets */
-        crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
-        if (!crcok) {
-            STATS_INC(ble_phy_stats, rx_crc_err);
-        } else {
-            STATS_INC(ble_phy_stats, rx_valid);
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-            if (g_ble_phy_data.phy_encrypted) {
-                /* Only set MIC failure flag if frame is not zero length */
-                if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
-                    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_MIC_FAILURE;
-                }
-
-                /*
-                 * XXX: not sure how to deal with this. This should not
-                 * be a MIC failure but we should not hand it up. I guess
-                 * this is just some form of rx error and that is how we
-                 * handle it? For now, just set CRC error flags
-                 */
-                if (NRF_CCM->EVENTS_ERROR) {
-                    STATS_INC(ble_phy_stats, rx_hw_err);
-                    ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
-                }
-
-                /*
-                 * XXX: This is a total hack work-around for now but I dont
-                 * know what else to do. If ENDCRYPT is not set and we are
-                 * encrypted we need to not trust this frame and drop it.
-                 */
-                if (NRF_CCM->EVENTS_ENDCRYPT == 0) {
-                    STATS_INC(ble_phy_stats, rx_hw_err);
-                    ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
-                }
-            }
-#endif
-        }
-
-        /* Call Link Layer receive payload function */
-        rxpdu = g_ble_phy_data.rxpdu;
-        g_ble_phy_data.rxpdu = NULL;
-
-        /*
-         * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
-         * that is not sent over the air but is present here. Simply move the
-         * data pointer to deal with it. Fix this later. Do this in the nrf52
-         */
-        dptr[2] = dptr[1];
-        dptr[1] = dptr[0];
-        rxpdu->om_data += 1;
-
-        rc = ble_ll_rx_end(rxpdu, ble_hdr);
-        if (rc < 0) {
-            /* Disable the PHY. */
-            ble_phy_disable();
-        }
+        ble_phy_rx_end_isr();
     }
 
-phy_isr_exit:
     /* Ensures IRQ is cleared */
-    state = NRF_RADIO->SHORTS;
+    irq_en = NRF_RADIO->SHORTS;
 
     /* Count # of interrupts */
     STATS_INC(ble_phy_stats, phy_isrs);
@@ -538,11 +565,8 @@ ble_phy_init(void)
     /* Configure IFS */
     NRF_RADIO->TIFS = BLE_LL_IFS;
 
-    /*
-     * Enable the pre-programmed PPI to capture the time when a receive
-     * or transmit ends
-     */
-    NRF_PPI->CHENSET = PPI_CHEN_CH27_Msk;
+    /* Captures tx/rx start in timer0 capture 1 */
+    NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk;
 
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
     NRF_CCM->INTENCLR = 0xffffffff;
@@ -603,8 +627,12 @@ ble_phy_rx(void)
     /* Setup for rx */
     ble_phy_rx_xcvr_setup();
 
-    /* Start the receive task in the radio */
-    NRF_RADIO->TASKS_RXEN = 1;
+    /* Start the receive task in the radio if not automatically going to rx */
+    if ((NRF_PPI->CHEN & PPI_CHEN_CH21_Msk) == 0) {
+        NRF_RADIO->TASKS_RXEN = 1;
+    }
+
+    ble_ll_log(BLE_LL_LOG_ID_PHY_RX, g_ble_phy_data.phy_encrypted, 0, 0);
 
     return 0;
 }
@@ -656,11 +684,76 @@ ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
     g_ble_phy_data.txend_arg = arg;
 }
 
+/**
+ * Called to set the start time of a transmission.
+ *
+ * This function is called to set the start time when we are not going from
+ * rx to tx automatically.
+ *
+ * NOTE: care must be taken when calling this function. The channel should
+ * already be set.
+ *
+ * @param cputime
+ *
+ * @return int
+ */
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
+ble_phy_tx_set_start_time(uint32_t cputime)
+{
+    int rc;
+
+    NRF_TIMER0->CC[0] = cputime;
+    NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
+    NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
+    if ((int32_t)(cputime_get32() - cputime) >= 0) {
+        STATS_INC(ble_phy_stats, tx_late);
+        ble_phy_disable();
+        rc =  BLE_PHY_ERR_TX_LATE;
+    } else {
+        rc = 0;
+    }
+    return rc;
+}
+
+/**
+ * Called to set the start time of a reception
+ *
+ * This function acts a bit differently than transmit. If we are late getting
+ * here we will still attempt to receive.
+ *
+ * NOTE: care must be taken when calling this function. The channel should
+ * already be set.
+ *
+ * @param cputime
+ *
+ * @return int
+ */
+int
+ble_phy_rx_set_start_time(uint32_t cputime)
+{
+    int rc;
+
+    NRF_TIMER0->CC[0] = cputime;
+    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
+    NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
+    if ((int32_t)(cputime_get32() - cputime) >= 0) {
+        STATS_INC(ble_phy_stats, rx_late);
+        NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
+        NRF_RADIO->TASKS_RXEN = 1;
+        rc =  BLE_PHY_ERR_TX_LATE;
+    } else {
+        rc = 0;
+    }
+    return rc;
+}
+
+
+int
+ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 {
     int rc;
     uint8_t *dptr;
+    uint8_t payload_len;
     uint32_t state;
     uint32_t shortcuts;
     struct ble_mbuf_hdr *ble_hdr;
@@ -668,37 +761,18 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
     /* Better have a pdu! */
     assert(txpdu != NULL);
 
-    /* If radio is not disabled, */
+    /*
+     * This check is to make sure that the radio is not in a state where
+     * it is moving to disabled state. If so, let it get there.
+     */
     nrf_wait_disabled();
 
-    if (beg_trans == BLE_PHY_TRANSITION_RX_TX) {
-        if ((NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk) == 0) {
-            assert(0);
-        }
-        /* Radio better be in TXRU state or we are in bad shape */
-        state = RADIO_STATE_STATE_TxRu;
-    } else {
-        /* Radio should be in disabled state */
-        state = RADIO_STATE_STATE_Disabled;
-    }
-
-    if (NRF_RADIO->STATE != state) {
-        ble_phy_disable();
-        STATS_INC(ble_phy_stats, radio_state_errs);
-        return BLE_PHY_ERR_RADIO_STATE;
-    }
+    ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
+    payload_len = ble_hdr->txinfo.pyld_len;
 
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
     if (g_ble_phy_data.phy_encrypted) {
-        /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
-        ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
-        dptr[0] = ble_hdr->txinfo.hdr_byte;
-        dptr[1] = ble_hdr->txinfo.pyld_len;
-        dptr[2] = 0;
-        dptr += 3;
-
-        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
         NRF_CCM->SHORTS = 1;
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
         NRF_CCM->OUTPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
@@ -709,27 +783,18 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
         NRF_PPI->CHENCLR = PPI_CHEN_CH25_Msk;
         NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk;
     } else {
-        /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
-        ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
         dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
-        dptr[0] = ble_hdr->txinfo.hdr_byte;
-        dptr[1] = ble_hdr->txinfo.pyld_len;
-        dptr[2] = 0;
-        dptr += 3;
-
-        NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
     }
 #else
-    /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
-    ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
     dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
+#endif
+
+    /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
     dptr[0] = ble_hdr->txinfo.hdr_byte;
-    dptr[1] = ble_hdr->txinfo.pyld_len;
+    dptr[1] = payload_len;
     dptr[2] = 0;
     dptr += 3;
-
     NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
-#endif
 
     /* Clear the ready, end and disabled events */
     NRF_RADIO->EVENTS_READY = 0;
@@ -747,36 +812,26 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t beg_trans, uint8_t end_trans)
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     NRF_RADIO->SHORTS = shortcuts;
 
-    /* Trigger transmit if our state was disabled */
-    if (state == RADIO_STATE_STATE_Disabled) {
-        NRF_RADIO->TASKS_TXEN = 1;
-    }
+    /* Set transmitted payload length */
+    g_ble_phy_data.phy_tx_pyld_len = payload_len;
 
     /* Set the PHY transition */
     g_ble_phy_data.phy_transition = end_trans;
 
-    /* Read back radio state. If in TXRU, we are fine */
+    /* If we already started transmitting, abort it! */
     state = NRF_RADIO->STATE;
-    if (state == RADIO_STATE_STATE_TxRu) {
+    if (state != RADIO_STATE_STATE_Tx) {
         /* Copy data from mbuf into transmit buffer */
-        os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset,
-                         ble_hdr->txinfo.pyld_len, dptr);
+        os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset, payload_len, dptr);
 
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
         STATS_INC(ble_phy_stats, tx_good);
-        STATS_INCN(ble_phy_stats, tx_bytes,
-                   ble_hdr->txinfo.pyld_len + BLE_LL_PDU_HDR_LEN);
+        STATS_INCN(ble_phy_stats, tx_bytes, payload_len + BLE_LL_PDU_HDR_LEN);
         rc = BLE_ERR_SUCCESS;
     } else {
-        if (state == RADIO_STATE_STATE_Tx) {
-            STATS_INC(ble_phy_stats, tx_late);
-        } else {
-            STATS_INC(ble_phy_stats, tx_fail);
-        }
-
-        /* Frame failed to transmit */
         ble_phy_disable();
+        STATS_INC(ble_phy_stats, tx_late);
         rc = BLE_PHY_ERR_RADIO_STATE;
     }
 
@@ -916,6 +971,7 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
  *  -> Turn off all phy interrupts.
  *  -> Disable internal shortcuts.
  *  -> Disable the radio.
+ *  -> Make sure we wont automatically go to rx/tx on output compare
  *  -> Sets phy state to idle.
  *  -> Clears any pending irqs in the NVIC. Might not be necessary but we do
  *  it as a precaution.
@@ -928,6 +984,7 @@ ble_phy_disable(void)
     NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
+    NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk | PPI_CHEN_CH20_Msk;
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
 }

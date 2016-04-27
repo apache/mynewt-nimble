@@ -737,7 +737,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
 
     ble_ll_log(BLE_LL_LOG_ID_RX_END, rxbuf[0],
                ((uint16_t)ble_hdr->rxinfo.flags << 8) | rxbuf[1],
-               (BLE_MBUF_HDR_PTR(rxpdu))->end_cputime);
+               (BLE_MBUF_HDR_PTR(rxpdu))->beg_cputime);
 
     /* Check channel type */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
