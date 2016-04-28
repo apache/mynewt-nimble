@@ -33,9 +33,9 @@ ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
     struct ble_hs_conn *conn;
     int rc;
 
-    STATS_INC(ble_l2cap_stats, sm_tx);
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
 
-    ble_hs_lock();
+    STATS_INC(ble_l2cap_stats, sm_tx);
 
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
                                          &conn, &chan);
@@ -45,8 +45,6 @@ ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
         BLE_HS_LOG(DEBUG, "\n");
         rc = ble_l2cap_tx(conn, chan, txom);
     }
-
-    ble_hs_unlock();
 
     return rc;
 }

@@ -65,7 +65,7 @@ struct os_event;
 #define BLE_HS_ERR_SM_US_BASE       0x400   /* 1024 */
 #define BLE_HS_SM_US_ERR(x)         ((x) ? BLE_HS_ERR_SM_US_BASE + (x) : 0)
 
-#define BLE_HS_ERR_SM_THEM_BASE     0x400   /* 1024 */
+#define BLE_HS_ERR_SM_THEM_BASE     0x500   /* 1280 */
 #define BLE_HS_SM_THEM_ERR(x)       ((x) ? BLE_HS_ERR_SM_THEM_BASE + (x) : 0)
 
 struct ble_hs_cfg {
