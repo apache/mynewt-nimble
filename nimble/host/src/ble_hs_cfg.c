@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -51,7 +51,7 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     .max_l2cap_sm_procs = 1,
 
     /** Security manager settings. */
-    .sm_io_cap = 3,
+    .sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT,
     .sm_oob_data_flag = 0,
     .sm_bonding = 0,
     .sm_mitm = 0,
