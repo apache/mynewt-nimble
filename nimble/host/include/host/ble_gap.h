@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -97,6 +97,7 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_DISC_FINISHED         7
 #define BLE_GAP_EVENT_ADV_FINISHED          8
 #define BLE_GAP_EVENT_SECURITY              9
+#define BLE_GAP_EVENT_PASSKEY_ACTION        10
 
 struct ble_gap_conn_desc {
     uint8_t peer_addr[6];
@@ -130,7 +131,22 @@ struct ble_gap_upd_params {
 struct ble_gap_sec_params {
     uint8_t pair_alg;
     unsigned enc_enabled:1;
-    unsigned auth_enabled:1;
+    unsigned authenticated:1;
+};
+
+/*
+ * when the l2cap calls to the application, it will ask the application
+ * to perform one of they key generation roles. In all cases, the
+ * application must pass the passkey back to the l2cap via
+ * ble_l2cap_sm_set_tk
+ */
+ #define PKACT_NONE         0
+ #define PKACT_OOB          1
+ #define PKACT_INPUT        2
+ #define PKACK_GEN_DISP     3
+
+struct ble_gap_passkey_action {
+    uint8_t  action;
 };
 
 struct ble_gap_conn_ctxt {
@@ -143,6 +159,7 @@ struct ble_gap_conn_ctxt {
         } update;
 
         struct ble_gap_sec_params *sec_params;
+        struct ble_gap_passkey_action *passkey_action;
     };
 };
 

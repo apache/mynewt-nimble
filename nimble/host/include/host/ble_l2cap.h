@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -99,8 +99,23 @@ int ble_l2cap_sig_update(uint16_t conn_handle,
                          struct ble_l2cap_sig_update_params *params,
                          ble_l2cap_sig_update_fn *cb, void *cb_arg);
 
+/* Strucure to pass the passkey info back to the l2cap */
+struct passkey_action
+{
+    uint8_t action;
+    union
+    {
+        uint32_t passkey;
+        uint8_t  oob[16];
+    };
+};
 
-int ble_l2cap_sm_set_tk(uint16_t conn_handle, uint8_t *tk);
+/* If the application gets a passkey action, it must peform the action
+ * and then call this function to notify the host that the action is
+ * complete
+ */
+int ble_l2cap_sm_set_tk(uint16_t conn_handle, struct passkey_action *pkey);
+
 void ble_l2cap_sm_connection_broken(uint16_t conn_handle);
 
 #endif
