@@ -127,12 +127,18 @@ extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 #undef le16toh
 #undef le32toh
 #undef le64toh
+#undef htobe16
+#undef htobe32
+#undef htobe64
 void htole16(void *buf, uint16_t x);
 void htole32(void *buf, uint32_t x);
 void htole64(void *buf, uint64_t x);
 uint16_t le16toh(void *buf);
 uint32_t le32toh(void *buf);
 uint64_t le64toh(void *buf);
+void htobe16(void *buf, uint16_t x);
+void htobe32(void *buf, uint32_t x);
+void htobe64(void *buf, uint64_t x);
 void swap_in_place(void *buf, int len);
 void swap_buf(uint8_t *dst, uint8_t *src, int len);
 /* XXX */
