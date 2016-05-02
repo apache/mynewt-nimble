@@ -78,12 +78,13 @@ extern void bletest_completed_pkt(uint16_t handle);
  *
  * 8) Right now I use a fixed definition for required slots. CHange this.
  *
- * 9) Use output compare for transmit.
- *
  * 10) See what connection state machine elements are purely master and
  * purely slave. We can make a union of them.
  *
- * 11) Need to trim elements from the connection state machine.
+ * 11) Not sure I am dealing with the connection terminate timeout perfectly.
+ * I may extend a connection event too long although if it is always in terms
+ * of connection events I am probably fine. Checking at end that the next
+ * connection event will occur past terminate timeould would be fine.
  *
  * 12) When a slave receives a data packet in a connection it has to send a
  * response. Well, it should. If this packet will overrun the next scheduled
@@ -1073,7 +1074,6 @@ conn_tx_pdu:
             STATS_INCN(ble_ll_conn_stats, tx_l2cap_bytes, cur_txlen);
         }
     }
-
     return rc;
 }
 
@@ -2358,7 +2358,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     uint8_t reply;
     uint8_t rem_bytes;
     uint8_t opcode;
-    uint8_t pyld_len;
+    uint8_t rx_pyld_len;
     uint32_t endtime;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
@@ -2386,7 +2386,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
     rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
     rxhdr->rxinfo.handle = connsm->conn_handle;
     hdr_byte = rxpdu->om_data[0];
-    pyld_len = rxpdu->om_data[1];
+    rx_pyld_len = rxpdu->om_data[1];
 
     /*
      * Check the packet CRC. A connection event can continue even if the
@@ -2553,24 +2553,11 @@ chk_rx_terminate_ind:
 
     /* If reply flag set, send data pdu and continue connection event */
     rc = -1;
-    endtime = rxhdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+    if (rx_pyld_len && CONN_F_ENCRYPTED(connsm)) {
+        rx_pyld_len += BLE_LL_DATA_MIC_LEN;
+    }
+    endtime = rxhdr->beg_cputime + BLE_TX_DUR_USECS_M(rx_pyld_len);
     if (reply && ble_ll_conn_can_send_next_pdu(connsm, endtime)) {
-        /*
-         * While this is not perfect, we will just check to see if the
-         * terminate timer will expire within two packet times. If it will,
-         * no use sending the terminate ind. We need to get an ACK for the
-         * terminate ind (master and/or slave) so that is why it is two packets.
-         *
-         *  XXX: should we just skip this check?
-         */
-        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_TERMINATE)) {
-            endtime = BLE_TX_DUR_USECS_M(BLE_LL_CTRL_TERMINATE_IND_LEN + 1) +
-                      BLE_TX_DUR_USECS_M(0) + BLE_LL_IFS;
-            endtime = cputime_usecs_to_ticks(endtime) + cputime_get32();
-            if ((int32_t)(connsm->terminate_timeout - endtime) < 0) {
-                goto conn_rx_pdu_end;
-            }
-        }
         rc = ble_ll_conn_tx_data_pdu(connsm);
     }
 

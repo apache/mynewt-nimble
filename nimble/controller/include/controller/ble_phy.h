@@ -112,6 +112,9 @@ void ble_phy_disable(void);
 /* Gets the current state of the PHY */
 int ble_phy_state_get(void);
 
+/* Gets current state of transceiver */
+uint8_t ble_phy_xcvr_state_get(void);
+
 /* Returns 'true' if a reception has started */
 int ble_phy_rx_started(void);
 

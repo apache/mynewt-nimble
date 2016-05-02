@@ -280,6 +280,7 @@ static void
 ble_phy_tx_end_isr(void)
 {
     uint8_t transition;
+    uint8_t txlen;
     uint32_t wfr_time;
 
     /* Better be in TX state! */
@@ -323,8 +324,12 @@ ble_phy_tx_end_isr(void)
          * Enable the wait for response timer. Note that cc #1 on
          * timer 0 contains the transmit start time
          */
+        txlen = g_ble_phy_data.phy_tx_pyld_len;
+        if (txlen && g_ble_phy_data.phy_encrypted) {
+            txlen += BLE_LL_DATA_MIC_LEN;
+        }
         wfr_time = NRF_TIMER0->CC[1] - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
-        wfr_time += BLE_TX_DUR_USECS_M(g_ble_phy_data.phy_tx_pyld_len);
+        wfr_time += BLE_TX_DUR_USECS_M(txlen);
         wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
         ble_ll_wfr_enable(wfr_time);
     } else {
@@ -1015,4 +1020,17 @@ int
 ble_phy_rx_started(void)
 {
     return g_ble_phy_data.phy_rx_started;
+}
+
+/**
+ * Return the transceiver state
+ *
+ * @return int transceiver state.
+ */
+uint8_t
+ble_phy_xcvr_state_get(void)
+{
+    uint32_t state;
+    state = NRF_RADIO->STATE;
+    return (uint8_t)state;
 }
