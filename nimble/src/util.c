@@ -105,6 +105,90 @@ le64toh(void *buf)
 }
 
 void
+htobe16(void *buf, uint16_t x)
+{
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    u8ptr[0] = (uint8_t)(x >> 8);
+    u8ptr[1] = (uint8_t)x;
+}
+
+void
+htobe32(void *buf, uint32_t x)
+{
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    u8ptr[0] = (uint8_t)(x >> 24);
+    u8ptr[1] = (uint8_t)(x >> 16);
+    u8ptr[2] = (uint8_t)(x >> 8);
+    u8ptr[3] = (uint8_t)x;
+}
+
+void
+htobe64(void *buf, uint64_t x)
+{
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    u8ptr[0] = (uint8_t)(x >> 56);
+    u8ptr[1] = (uint8_t)(x >> 48);
+    u8ptr[2] = (uint8_t)(x >> 40);
+    u8ptr[3] = (uint8_t)(x >> 32);
+    u8ptr[4] = (uint8_t)(x >> 24);
+    u8ptr[5] = (uint8_t)(x >> 16);
+    u8ptr[6] = (uint8_t)(x >> 8);
+    u8ptr[7] = (uint8_t)x;
+}
+
+uint16_t
+be16toh(void *buf)
+{
+    uint16_t x;
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    x = (uint16_t)u8ptr[0] << 8;
+    x |= u8ptr[1];
+
+    return x;
+}
+
+uint32_t
+be32toh(void *buf)
+{
+    uint32_t x;
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    x = (uint32_t)u8ptr[0] << 24;
+    x |= (uint32_t)u8ptr[1] << 16;
+    x |= (uint32_t)u8ptr[2] << 8;
+    x |= u8ptr[3];
+
+    return x;
+}
+
+uint64_t
+be64toh(void *buf)
+{
+    uint64_t x;
+    uint8_t *u8ptr;
+
+    u8ptr = buf;
+    x = (uint64_t)u8ptr[0] << 56;
+    x |= (uint64_t)u8ptr[1] << 48;
+    x |= (uint64_t)u8ptr[2] << 40;
+    x |= (uint64_t)u8ptr[3] << 32;
+    x |= (uint64_t)u8ptr[4] << 24;
+    x |= (uint64_t)u8ptr[5] << 16;
+    x |= (uint64_t)u8ptr[6] << 8;
+    x |= u8ptr[7];
+
+    return x;
+}
+void
 swap_in_place(void *buf, int len)
 {
     uint8_t *u8ptr;
