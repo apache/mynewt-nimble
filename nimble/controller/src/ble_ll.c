@@ -176,7 +176,7 @@ STATS_NAME_START(ble_ll_stats)
 STATS_NAME_END(ble_ll_stats)
 
 /* The BLE LL task data structure */
-#define BLE_LL_STACK_SIZE   (64)
+#define BLE_LL_STACK_SIZE   (80)
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
@@ -406,7 +406,8 @@ ble_ll_wfr_timer_exp(void *arg)
     rx_start = ble_phy_rx_started();
     lls = g_ble_ll_data.ll_state;
 
-    ble_ll_log(BLE_LL_LOG_ID_WFR_EXP, lls, 0, (uint32_t)rx_start);
+    ble_ll_log(BLE_LL_LOG_ID_WFR_EXP, lls, ble_phy_xcvr_state_get(),
+               (uint32_t)rx_start);
 
     /* If we have started a reception, there is nothing to do here */
     if (!rx_start) {
