@@ -78,7 +78,6 @@ struct ble_ll_adv_sm
     uint8_t initiator_addr[BLE_DEV_ADDR_LEN];
     uint8_t adv_data[BLE_ADV_DATA_MAX_LEN];
     uint8_t scan_rsp_data[BLE_SCAN_RSP_DATA_MAX_LEN];
-    struct os_mbuf *adv_pdu;
     struct os_mbuf *scan_rsp_pdu;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
@@ -166,7 +165,7 @@ ble_ll_adv_addr_cmp(uint8_t *rxbuf)
  * @param advsm Pointer to advertisement state machine
  */
 static void
-ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
 {
     int         is_direct_adv;
     uint8_t     adv_data_len;
@@ -174,7 +173,6 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     uint8_t     pdulen;
     uint8_t     pdu_type;
     uint8_t     *addr;
-    struct os_mbuf *m;
 
     /* assume this is not a direct ind */
     adv_data_len = advsm->adv_len;
@@ -234,9 +232,6 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm)
     }
 
     /* Get the advertising PDU and initialize it*/
-    m = advsm->adv_pdu;
-    assert(m != NULL);
-
     ble_ll_mbuf_init(m, pdulen, pdu_type);
 
     /* Construct advertisement */
@@ -346,6 +341,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
+    struct os_mbuf *adv_pdu;
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
@@ -359,11 +355,11 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_tx_set_start_time(txstart);
     if (rc) {
         STATS_INC(ble_ll_stats, adv_late_starts);
-        ble_ll_adv_tx_done(advsm);
-        return BLE_LL_SCHED_STATE_DONE;
+        goto adv_tx_done;
     }
 
 #ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+    /* XXX: automatically do this in the phy based on channel? */
     ble_phy_encrypt_disable();
 #endif
 
@@ -376,30 +372,41 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         ble_phy_set_txend_cb(NULL, NULL);
     }
 
-    /* Transmit advertisement */
-    rc = ble_phy_tx(advsm->adv_pdu, end_trans);
-    if (rc) {
-        ble_ll_adv_tx_done(advsm);
-        rc =  BLE_LL_SCHED_STATE_DONE;
-    } else {
-        /* Enable/disable whitelisting based on filter policy */
-        if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
-            ble_ll_whitelist_enable();
-        } else {
-            ble_ll_whitelist_disable();
-        }
-
-        /* Set link layer state to advertising */
-        ble_ll_state_set(BLE_LL_STATE_ADV);
-
-        /* Count # of adv. sent */
-        STATS_INC(ble_ll_stats, adv_txg);
-
-        /* This schedule item is now running */
-        rc = BLE_LL_SCHED_STATE_RUNNING;
+    /* Get an advertising mbuf (packet header)  */
+    adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
+                                 sizeof(struct ble_mbuf_hdr));
+    if (!adv_pdu) {
+        ble_phy_disable();
+        goto adv_tx_done;
     }
 
-    return rc;
+    ble_ll_adv_pdu_make(advsm, adv_pdu);
+
+    /* Transmit advertisement */
+    rc = ble_phy_tx(adv_pdu, end_trans);
+    os_mbuf_free_chain(adv_pdu);
+    if (rc) {
+        goto adv_tx_done;
+    }
+
+    /* Enable/disable whitelisting based on filter policy */
+    if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
+        ble_ll_whitelist_enable();
+    } else {
+        ble_ll_whitelist_disable();
+    }
+
+    /* Set link layer state to advertising */
+    ble_ll_state_set(BLE_LL_STATE_ADV);
+
+    /* Count # of adv. sent */
+    STATS_INC(ble_ll_stats, adv_txg);
+
+    return BLE_LL_SCHED_STATE_RUNNING;
+
+adv_tx_done:
+    ble_ll_adv_tx_done(advsm);
+    return BLE_LL_SCHED_STATE_DONE;
 }
 
 static void
@@ -647,9 +654,6 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
         advsm->adv_itvl_usecs *= BLE_LL_ADV_ITVL;
     }
 
-    /* Create the advertising PDU */
-    ble_ll_adv_pdu_make(advsm);
-
     /* Create scan response PDU (if needed) */
     if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
         ble_ll_adv_scan_rsp_pdu_make(advsm);
@@ -794,7 +798,6 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
 {
     uint8_t datalen;
     struct ble_ll_adv_sm *advsm;
-    os_sr_t sr;
 
     /* Check for valid advertising data length */
     datalen = cmd[0];
@@ -806,18 +809,6 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
     advsm = &g_ble_ll_adv_sm;
     advsm->adv_len = datalen;
     memcpy(advsm->adv_data, cmd + 1, datalen);
-
-    /* If the state machine is enabled, we need to re-make the adv PDU */
-    if (advsm->enabled) {
-        /*
-         * XXX: currently, even with interrupts disabled, there is a chance
-         * that we are transmitting the advertising PDU while writing into
-         * it.
-         */
-        OS_ENTER_CRITICAL(sr);
-        ble_ll_adv_pdu_make(advsm);
-        OS_EXIT_CRITICAL(sr);
-    }
 
     return 0;
 }
@@ -1260,8 +1251,7 @@ ble_ll_adv_reset(void)
     /* Stop advertising state machine */
     ble_ll_adv_sm_stop(advsm);
 
-    /* Free advertiser pdu's */
-    os_mbuf_free_chain(advsm->adv_pdu);
+    /* Free scan pdu's */
     os_mbuf_free_chain(advsm->scan_rsp_pdu);
 
     /* re-initialize the advertiser state machine */
@@ -1295,11 +1285,6 @@ ble_ll_adv_init(void)
     /* Initialize advertising tx done event */
     advsm->adv_txdone_ev.ev_type = BLE_LL_EVENT_ADV_EV_DONE;
     advsm->adv_txdone_ev.ev_arg = advsm;
-
-    /* Get an advertising mbuf (packet header) and attach to state machine */
-    advsm->adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
-                                        sizeof(struct ble_mbuf_hdr));
-    assert(advsm->adv_pdu != NULL);
 
     /* Get a scan response mbuf (packet header) and attach to state machine */
     advsm->scan_rsp_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
