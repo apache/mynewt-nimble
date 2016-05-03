@@ -109,7 +109,7 @@ union ble_ll_conn_sm_flags {
         uint32_t conn_req_txd:1;
         uint32_t send_ltk_req:1;
         uint32_t encrypted:1;
-        uint32_t encrypt_chg_sent;
+        uint32_t encrypt_chg_sent:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
