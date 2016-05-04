@@ -1368,10 +1368,10 @@ ble_l2cap_sm_set_tk(uint16_t conn_handle, struct passkey_action *pkey)
                 goto set_tk_return;
             }
             memset(proc->tk, 0, 16);
-            proc->tk[15] = (pkey->passkey >> 0) & 0xff;
-            proc->tk[14] = (pkey->passkey >> 8) & 0xff;
-            proc->tk[13] = (pkey->passkey >> 16) & 0xff;
-            proc->tk[12] = (pkey->passkey >> 24) & 0xff;
+            proc->tk[0] = (pkey->passkey >> 0) & 0xff;
+            proc->tk[1] = (pkey->passkey >> 8) & 0xff;
+            proc->tk[2] = (pkey->passkey >> 16) & 0xff;
+            proc->tk[3] = (pkey->passkey >> 24) & 0xff;
             sm_error = BLE_L2CAP_SM_ERR_PASSKEY;
             break;
         default:
