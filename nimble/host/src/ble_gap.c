@@ -838,6 +838,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     conn->bhc_handle = evt->connection_handle;
     memcpy(conn->bhc_addr, evt->peer_addr, sizeof conn->bhc_addr);
+    conn->bhc_addr_type = evt->peer_addr_type;
     conn->bhc_itvl = evt->conn_itvl;
     conn->bhc_latency = evt->conn_latency;
     conn->bhc_supervision_timeout = evt->supervision_timeout;
