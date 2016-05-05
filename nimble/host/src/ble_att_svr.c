@@ -214,27 +214,90 @@ ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
 }
 
 static int
-ble_att_svr_read(uint16_t conn_handle, struct ble_att_svr_entry *entry,
-                 struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
+ble_att_svr_get_sec_params(uint16_t conn_handle,
+                           struct ble_gap_sec_params *out_sec_params)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        *out_sec_params = conn->bhc_sec_params;
+    }
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    } else {
+        return 0;
+    }
+}
+
+static int
+ble_att_svr_check_security(uint16_t conn_handle,
+                           struct ble_att_svr_entry *entry,
+                           uint8_t *out_att_err)
+{
+    struct ble_gap_sec_params sec_params;
+    int rc;
+
+    if (!(entry->ha_flags & (HA_FLAG_ENC_REQ |
+                             HA_FLAG_AUTHENTICATION_REQ |
+                             HA_FLAG_AUTHORIZATION_REQ))) {
+
+        return 0;
+    }
+
+    rc = ble_att_svr_get_sec_params(conn_handle, &sec_params);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (entry->ha_flags & HA_FLAG_ENC_REQ && !sec_params.enc_enabled) {
+        /* XXX: Check security database; if required key present, respond with
+         * insufficient encryption error code.
+         */
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
+        return BLE_HS_ATT_ERR(*out_att_err);
+    }
+
+    if (entry->ha_flags & HA_FLAG_AUTHENTICATION_REQ &&
+        !sec_params.authenticated) {
+
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
+        return BLE_HS_ATT_ERR(*out_att_err);
+    }
+
+    if (entry->ha_flags & HA_FLAG_AUTHORIZATION_REQ) {
+        /* XXX: Prompt user for authorization. */
+    }
+
+    return 0;
+}
+
+static int
+ble_att_svr_read(uint16_t conn_handle,
+                 struct ble_att_svr_entry *entry,
+                 struct ble_att_svr_access_ctxt *ctxt,
+                 uint8_t *out_att_err)
 {
     uint8_t att_err;
     int rc;
 
-    if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
-        !(entry->ha_flags & HA_FLAG_PERM_READ)) {
+    att_err = 0;    /* Silence gcc warning. */
 
-        att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        if (!(entry->ha_flags & HA_FLAG_PERM_READ)) {
+            att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
+            rc = BLE_HS_ENOTSUP;
+            goto err;
+        }
+
+        rc = ble_att_svr_check_security(conn_handle, entry, &att_err);
+        if (rc != 0) {
+            goto err;
+        }
     }
-
-    if (entry->ha_cb == NULL) {
-        att_err = BLE_ATT_ERR_UNLIKELY;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
-    }
-
-    /* XXX: Check security. */
 
     BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);
     rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
