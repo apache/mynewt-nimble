@@ -670,26 +670,35 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
  * $confirm                                                                  *
  *****************************************************************************/
 
+/**
+ * Create some shortened names for the passkey actions so that the table is
+ * easier to read.
+ */
+#define PKACT_NONE  BLE_GAP_PKACT_NONE
+#define PKACT_OOB   BLE_GAP_PKACT_OOB
+#define PKACT_INPUT BLE_GAP_PKACT_INPUT
+#define PKACT_DISP  BLE_GAP_PKACT_DISP
+
 /* This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
  */
 static const uint8_t initiator_pkact[5 /*init*/ ][5 /*resp */] =
 {
-  {PKACT_NONE,     PKACT_NONE,     PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-  {PKACT_NONE,     PKACT_NONE,     PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-  {PKACK_GEN_DISP, PKACK_GEN_DISP, PKACT_INPUT, PKACT_NONE, PKACK_GEN_DISP},
-  {PKACT_NONE,     PKACT_NONE,     PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-  {PKACK_GEN_DISP, PKACK_GEN_DISP, PKACK_GEN_DISP, PKACT_NONE, PKACK_GEN_DISP},
+  {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+  {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+  {PKACT_DISP,    PKACT_DISP,   PKACT_INPUT, PKACT_NONE, PKACT_DISP},
+  {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
+  {PKACT_DISP,    PKACT_DISP,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
 };
 
 /* This is the initiator passkey action action depending on the io
  * capabilities of both parties */
 static const uint8_t responder_pkact[5 /*init*/ ][5 /*resp */] =
 {
-  {PKACT_NONE,    PKACT_NONE,   PKACK_GEN_DISP, PKACT_NONE, PKACK_GEN_DISP},
-  {PKACT_NONE,    PKACT_NONE,   PKACK_GEN_DISP, PKACT_NONE, PKACK_GEN_DISP},
-  {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT,    PKACT_NONE, PKACT_INPUT},
-  {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,     PKACT_NONE, PKACT_NONE},
+  {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
+  {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
+  {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+  {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
   {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
 };
 
@@ -701,15 +710,15 @@ ble_l2cap_sm_passkey_action(struct ble_l2cap_sm_proc *proc)
 
     /* if both OOB set, then its OOB */
     if(proc->pair_req.oob_data_flag && proc->pair_rsp.oob_data_flag) {
-        action = PKACT_OOB;
+        action = BLE_GAP_PKACT_OOB;
     }
     /* if neither MITM is set, then its just works */
     else if(((proc->pair_req.authreq | proc->pair_rsp.authreq) & 0x04) == 0) {
-        action = PKACT_NONE;
+        action = BLE_GAP_PKACT_NONE;
     }
     /* what to do if this in in error */
     else if ((proc->pair_req.io_cap >= 5) || (proc->pair_rsp.io_cap >= 5)) {
-        action = PKACT_NONE;
+        action = BLE_GAP_PKACT_NONE;
     }
     /* check io_cap */
     else if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
@@ -720,16 +729,16 @@ ble_l2cap_sm_passkey_action(struct ble_l2cap_sm_proc *proc)
 
     /* set some state for the application */
     switch(action) {
-        case PKACT_NONE:
+        case BLE_GAP_PKACT_NONE:
             proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
             proc->flags &= ~BLE_L2CAP_SM_PROC_F_AUTHENTICATED;
             break;
-        case PKACT_OOB:
+        case BLE_GAP_PKACT_OOB:
             proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_OOB;
             proc->flags |= BLE_L2CAP_SM_PROC_F_AUTHENTICATED;
             break;
-        case PKACT_INPUT:
-        case PKACK_GEN_DISP:
+        case BLE_GAP_PKACT_INPUT:
+        case BLE_GAP_PKACT_DISP:
             proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_PASSKEY;
             proc->flags |= BLE_L2CAP_SM_PROC_F_AUTHENTICATED;
             break;
@@ -835,7 +844,7 @@ ble_l2cap_sm_confirm_handle(struct ble_l2cap_sm_proc *proc,
     } else {
         proc->flags |= BLE_L2CAP_SM_PROC_F_RX_CONFIRM;
         /* if there is no passkey action or if we already got the passkey */
-        if((ble_l2cap_sm_passkey_action(proc) == PKACT_NONE) ||
+        if((ble_l2cap_sm_passkey_action(proc) == BLE_GAP_PKACT_NONE) ||
            (proc->flags & BLE_L2CAP_SM_PROC_F_TK_VALID))
         {
             rc = ble_l2cap_sm_confirm_go(proc);
@@ -942,7 +951,7 @@ ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
 
     /* if there is no passkey action to take, just continue with confirm */
     *passkey_action = ble_l2cap_sm_passkey_action(proc);
-    if(*passkey_action == PKACT_NONE) {
+    if(*passkey_action == BLE_GAP_PKACT_NONE) {
         rc = ble_l2cap_sm_confirm_go(proc);
         if (rc != 0) {
             *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
@@ -965,7 +974,7 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t state,
     struct ble_l2cap_sm_proc *proc;
     struct ble_l2cap_sm_proc *prev;
     uint8_t sm_status;
-    uint8_t passkey_action = PKACT_NONE;
+    uint8_t passkey_action = BLE_GAP_PKACT_NONE;
 
     int rc;
 
@@ -1008,7 +1017,7 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t state,
     ble_hs_unlock();
 
     /* This has to be done after the unlock */
-    if ( passkey_action != PKACT_NONE ) {
+    if ( passkey_action != BLE_GAP_PKACT_NONE ) {
         ble_gap_passkey_event(proc->conn_handle,sm_status, passkey_action);
     }
 
@@ -1025,7 +1034,7 @@ ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t state,
     struct ble_l2cap_sm_proc *prev;
     uint8_t sm_status;
     int rc;
-    uint8_t passkey_action = PKACT_NONE;
+    uint8_t passkey_action = BLE_GAP_PKACT_NONE;
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_PAIR_CMD_SZ);
     if (rc != 0) {
@@ -1052,7 +1061,7 @@ ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t state,
     ble_hs_unlock();
 
     /* This has to be done after the unlock */
-    if ( passkey_action != PKACT_NONE ) {
+    if ( passkey_action != BLE_GAP_PKACT_NONE ) {
         ble_gap_passkey_event(proc->conn_handle,sm_status, passkey_action);
     }
 
@@ -1355,13 +1364,13 @@ ble_l2cap_sm_set_tk(uint16_t conn_handle, struct passkey_action *pkey)
 
     /* Add the passkey range */
     switch(pkey->action) {
-        case PKACT_OOB:
+        case BLE_GAP_PKACT_OOB:
             memcpy(proc->tk, pkey->oob, 16);
             /* only a potential error */
             sm_error = BLE_L2CAP_SM_ERR_OOB;
             break;
-        case PKACT_INPUT:
-        case PKACK_GEN_DISP:
+        case BLE_GAP_PKACT_INPUT:
+        case BLE_GAP_PKACT_DISP:
             if (pkey->passkey > 999999) {
                 /* return an error */
                 rc = BLE_L2CAP_SM_ERR_INVAL;

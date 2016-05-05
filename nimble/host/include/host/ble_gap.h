@@ -140,10 +140,10 @@ struct ble_gap_sec_params {
  * application must pass the passkey back to the l2cap via
  * ble_l2cap_sm_set_tk
  */
- #define PKACT_NONE         0
- #define PKACT_OOB          1
- #define PKACT_INPUT        2
- #define PKACK_GEN_DISP     3
+#define BLE_GAP_PKACT_NONE          0
+#define BLE_GAP_PKACT_OOB           1
+#define BLE_GAP_PKACT_INPUT         2
+#define BLE_GAP_PKACT_DISP          3
 
 struct ble_gap_passkey_action {
     uint8_t  action;
