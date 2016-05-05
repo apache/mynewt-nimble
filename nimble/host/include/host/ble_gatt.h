@@ -166,6 +166,9 @@ typedef uint16_t ble_gatt_chr_flags;
 #define BLE_GATT_CHR_F_AUTH_SIGN_WRITE      0x0040
 #define BLE_GATT_CHR_F_RELIABLE_WRITE       0x0080
 #define BLE_GATT_CHR_F_AUX_WRITE            0x0100
+#define BLE_GATT_CHR_F_ENC_REQ              0x0200
+#define BLE_GATT_CHR_F_AUTHEN_REQ           0x0400
+#define BLE_GATT_CHR_F_AUTHOR_REQ           0x0800
 
 struct ble_gatt_chr_def {
     uint8_t *uuid128;   /* NULL if no more characteristics. */

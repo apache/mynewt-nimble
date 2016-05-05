@@ -151,6 +151,15 @@ ble_gatts_att_flags_from_chr_flags(ble_gatt_chr_flags chr_flags)
     if (chr_flags & (BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_WRITE)) {
         att_flags |= HA_FLAG_PERM_WRITE;
     }
+    if (chr_flags & BLE_GATT_CHR_F_ENC_REQ) {
+        att_flags |= HA_FLAG_ENC_REQ;
+    }
+    if (chr_flags & BLE_GATT_CHR_F_AUTHEN_REQ) {
+        att_flags |= HA_FLAG_AUTHENTICATION_REQ;
+    }
+    if (chr_flags & BLE_GATT_CHR_F_AUTHOR_REQ) {
+        att_flags |= HA_FLAG_AUTHORIZATION_REQ;
+    }
 
     return att_flags;
 }
@@ -642,7 +651,7 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
         return rc;
     }
 
-    /* Register characteristic value attribute  (cast away const on callback
+    /* Register characteristic value attribute (cast away const on callback
      * arg).
      */
     att_flags = ble_gatts_att_flags_from_chr_flags(chr->flags);
