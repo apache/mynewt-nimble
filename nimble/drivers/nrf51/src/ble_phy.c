@@ -41,13 +41,6 @@
  * crystal accuracy
  */
 
-/* The NRF51 does not support encryption for payload size < 27 bytes */
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-#if (NIMBLE_OPT_LL_MAX_PKT_SIZE > 27)
-#error "nrf51 does not support encryption with packet size > 27 bytes!"
-#endif
-#endif
-
 /* To disable all radio interrupts */
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
@@ -66,6 +59,12 @@
 /* Maximum tx power */
 #define NRF_TX_PWR_MAX_DBM      (4)
 #define NRF_TX_PWR_MIN_DBM      (-40)
+
+/* Max. encrypted payload length */
+#define NRF_MAX_ENCRYPTED_PYLD_LEN  (27)
+#define NRF_ENC_HDR_SIZE            (3)
+#define NRF_ENC_BUF_SIZE            \
+    (NRF_MAX_ENCRYPTED_PYLD_LEN + NRF_ENC_HDR_SIZE + BLE_LL_DATA_MIC_LEN)
 
 /* BLE PHY data structure */
 struct ble_phy_obj
@@ -89,8 +88,9 @@ struct ble_phy_obj g_ble_phy_data;
 /* Global transmit/receive buffer */
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+/* Make sure word-aligned for faster copies */
+static uint32_t g_ble_phy_enc_buf[(NRF_ENC_BUF_SIZE + 3) / 4];
 #endif
 
 /* Statistics */
@@ -158,7 +158,7 @@ STATS_NAME_END(ble_phy_stats)
  *  bit in the NVIC just to be sure when we disable the PHY.
  */
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 
 /* Per nordic, the number of bytes needed for scratch is 16 + MAX_PKT_SIZE */
 #define NRF_ENC_SCRATCH_WORDS   (((NIMBLE_OPT_LL_MAX_PKT_SIZE + 16) + 3) / 4)
@@ -235,7 +235,7 @@ nrf_wait_disabled(void)
 static void
 ble_phy_rx_xcvr_setup(void)
 {
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     if (g_ble_phy_data.phy_encrypted) {
         NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
@@ -301,7 +301,7 @@ ble_phy_tx_end_isr(void)
     NRF_RADIO->EVENTS_END = 0;
     wfr_time = NRF_RADIO->SHORTS;
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     /*
      * XXX: not sure what to do. We had a HW error during transmission.
      * For now I just count a stat but continue on like all is good.
@@ -353,7 +353,7 @@ static void
 ble_phy_rx_end_isr(void)
 {
     int rc;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     uint8_t *dptr;
 #endif
     uint8_t crcok;
@@ -371,7 +371,7 @@ ble_phy_rx_end_isr(void)
     ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
     ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     dptr = g_ble_phy_data.rxpdu->om_data;
 #endif
     /* Count PHY crc errors and valid packets */
@@ -381,7 +381,7 @@ ble_phy_rx_end_isr(void)
     } else {
         STATS_INC(ble_phy_stats, rx_valid);
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
         if (g_ble_phy_data.phy_encrypted) {
             /* Only set MIC failure flag if frame is not zero length */
             if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
@@ -416,7 +416,7 @@ ble_phy_rx_end_isr(void)
     rxpdu = g_ble_phy_data.rxpdu;
     g_ble_phy_data.rxpdu = NULL;
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     if (g_ble_phy_data.phy_encrypted) {
         /*
          * XXX: This is a horrible ugly hack to deal with the RAM S1 byte.
@@ -581,7 +581,7 @@ ble_phy_init(void)
     /* Captures tx/rx start in timer0 capture 1 */
     NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk;
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     NRF_CCM->INTENCLR = 0xffffffff;
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
     NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
@@ -650,7 +650,7 @@ ble_phy_rx(void)
     return 0;
 }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /**
  * Called to enable encryption at the PHY. Note that this state will persist
  * in the PHY; in other words, if you call this function you have to call
@@ -793,7 +793,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
     payload_len = ble_hdr->txinfo.pyld_len;
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     if (g_ble_phy_data.phy_encrypted) {
         /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
@@ -1061,3 +1061,26 @@ ble_phy_xcvr_state_get(void)
     return (uint8_t)state;
 }
 
+/*
+ * Returns the maximum supported tx/rx PDU payload size, in bytes, for data
+ * channel PDUs (this does not apply to advertising channel PDUs). Note
+ * that the data channel PDU is composed of a 2-byte header, the payload, and
+ * an optional MIC. The maximum payload is 251 bytes.
+ */
+
+/**
+ * Called to return the maximum data pdu payload length supported by the
+ * phy. For this chip, if encryption is enabled, the maximum payload is 27
+ * bytes.
+ *
+ * @return uint8_t Maximum data channel PDU payload size supported
+ */
+uint8_t
+ble_phy_max_data_pdu_pyld(void)
+{
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+    return NRF_MAX_ENCRYPTED_PYLD_LEN;
+#else
+    return BLE_LL_DATA_PDU_MAX_PYLD;
+#endif
+}

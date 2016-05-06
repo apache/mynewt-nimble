@@ -505,7 +505,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
      */
     ble_phy_set_txend_cb(NULL, NULL);
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     ble_phy_encrypt_disable();
 #endif
 

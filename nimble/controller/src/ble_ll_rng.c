@@ -34,7 +34,7 @@ struct ble_ll_rnum_data
     uint8_t _pad;
 };
 
-#if defined BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 int
 ble_ll_rng_init(void)
 {

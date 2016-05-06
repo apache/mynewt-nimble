@@ -287,6 +287,78 @@
 #define NIMBLE_OPT_LL_RNG_BUFSIZE               (32)
 #endif
 
+/*
+ * Configuration for LL supported features.
+ *
+ * There are a total 8 features that the LL can support. These can be found in
+ * v4.2, Vol 6 Part B Section 4.6.
+ *
+ * These feature definitions are used to inform a host or other controller
+ * about the LL features supported by the controller.
+ *
+ * NOTE: the controller always supports extended reject indicate and thus is
+ * not listed here.
+ */
+
+ /*
+  * This option enables/disables encryption support in the controller. This
+  * option saves both both code and RAM.
+  */
+#ifndef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#define BLE_LL_CFG_FEAT_LE_ENCRYPTION           (1)
+#endif
+
+/*
+ * This option enables/disables the connection parameter request procedure.
+ * This is implemented in the controller but is disabled by default.
+ */
+#ifndef BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+#define BLE_LL_CFG_FEAT_CONN_PARAM_REQ          (0)
+#endif
+
+/*
+ * This option allows a slave to initiate the feature exchange procedure.
+ * This feature is implemented but currently has no impact on code or ram size
+ */
+#ifndef BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
+#define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG    (1)
+#endif
+
+/*
+ * This option allows a controller to send/receive LE pings. Currently,
+ * this feature is not implemented by the controller so turning it on or off
+ * has no effect.
+ */
+#ifndef BLE_LL_CFG_FEAT_LE_PING
+#define  BLE_LL_CFG_FEAT_LE_PING                (0)
+#endif
+
+/*
+ * This option enables/disables the data length update procedure in the
+ * controller. If enabled, the controller is allowed to change the size of
+ * tx/rx pdu's used in a connection. This option has only minor impact on
+ * code size and non on RAM.
+ */
+#ifndef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#define  BLE_LL_CFG_FEAT_DATA_LEN_EXT           (1)
+#endif
+
+/*
+ * This option is used to enable/disable LL privacy. Currently, this feature
+ * is not supported by the nimble controller.
+ */
+#ifndef BLE_LL_CFG_FEAT_LL_PRIVACY
+#define BLE_LL_CFG_FEAT_LL_PRIVACY              (0)
+#endif
+
+/*
+ * This option is used to enable/disable the extended scanner filter policy
+ * feature. Currently, this feature is not supported by the nimble controller.
+ */
+#ifndef BLE_LL_CFG_FEAT_EXT_SCAN_FILT
+#define  BLE_LL_CFG_FEAT_EXT_SCAN_FILT          (0)
+#endif
+
 /* Include automatically-generated settings. */
 #include "nimble/nimble_opt_auto.h"
 

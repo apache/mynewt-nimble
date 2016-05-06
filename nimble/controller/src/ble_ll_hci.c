@@ -101,7 +101,7 @@ ble_ll_hci_send_noop(void)
     return rc;
 }
 
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /**
  * LE encrypt command
  *
@@ -279,7 +279,7 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
-#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
 /**
  * HCI write suggested default data length command.
  *
@@ -342,6 +342,7 @@ ble_ll_hci_le_rd_sugg_data_len(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = BLE_HCI_RD_SUGG_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
+#endif
 
 /**
  * HCI read maximum data length command. Returns the controllers max supported
@@ -363,7 +364,6 @@ ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = BLE_HCI_RD_MAX_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
-#endif
 
 /**
  * HCI read local supported features command. Returns the features
@@ -601,7 +601,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
         rc = ble_ll_conn_hci_read_rem_features(cmdbuf);
         break;
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     case BLE_HCI_OCF_LE_ENCRYPT:
         rc = ble_ll_hci_le_encrypt(cmdbuf, rspbuf, rsplen);
         break;
@@ -609,7 +609,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RAND:
         rc = ble_ll_hci_le_rand(rspbuf, rsplen);
         break;
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     case BLE_HCI_OCF_LE_START_ENCRYPT:
         rc = ble_ll_conn_hci_le_start_encrypt(cmdbuf);
         break;
@@ -628,7 +628,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
         break;
-#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
     case BLE_HCI_OCF_LE_SET_DATA_LEN:
         rc = ble_ll_conn_hci_set_data_len(cmdbuf, rspbuf, rsplen);
         break;
@@ -638,10 +638,10 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN:
         rc = ble_ll_hci_le_wr_sugg_data_len(cmdbuf);
         break;
+#endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         break;
-#endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
