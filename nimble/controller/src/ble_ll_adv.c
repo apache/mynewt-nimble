@@ -358,7 +358,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     /* XXX: automatically do this in the phy based on channel? */
     ble_phy_encrypt_disable();
 #endif

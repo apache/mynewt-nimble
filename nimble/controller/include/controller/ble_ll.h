@@ -22,16 +22,7 @@
 
 #include "stats/stats.h"
 #include "hal/hal_cputime.h"
-
-/* Configuration for supported features */
-//#define  BLE_LL_CFG_FEAT_LE_ENCRYPTION
-//#define  BLE_LL_CFG_FEAT_CONN_PARAM_REQ
-//#define  BLE_LL_CFG_FEAT_EXT_REJECT_IND
-#define BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
-//#define  BLE_LL_CFG_FEAT_LE_PING
-#define  BLE_LL_CFG_FEAT_DATA_LEN_EXT
-//#define  BLE_LL_CFG_FEAT_LL_PRIVACY
-//#define  BLE_LL_CFG_FEAT_EXT_SCAN_FILT
+#include "nimble/nimble_opt.h"
 
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
@@ -396,7 +387,7 @@ void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
 #define ble_ll_log(m,n,o,p)
 #endif
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /* LTK 0x4C68384139F574D836BCF34E9DFB01BF */
 extern const uint8_t g_bletest_LTK[];
 extern uint16_t g_bletest_EDIV;

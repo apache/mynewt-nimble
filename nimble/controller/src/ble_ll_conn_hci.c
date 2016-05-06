@@ -874,7 +874,7 @@ ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
     return rc;
 }
 
-#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
 int
 ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -915,7 +915,7 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 }
 #endif
 
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /**
  * LE start encrypt command
  *

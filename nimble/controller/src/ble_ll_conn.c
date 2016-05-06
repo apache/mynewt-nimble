@@ -209,7 +209,7 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
 STATS_NAME_END(ble_ll_conn_stats)
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /**
  * Called to determine if the received PDU is an empty PDU or not.
  */
@@ -596,7 +596,7 @@ ble_ll_conn_wait_txend(void *arg)
     ble_ll_event_send(&connsm->conn_ev_end);
 }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 static void
 ble_ll_conn_start_rx_encrypt(void *arg)
 {
@@ -697,7 +697,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
 {
     uint8_t update_status;
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     if (connsm->csmflags.cfbit.send_ltk_req) {
         /*
          * Send Long term key request event to host. If masked, we need to
@@ -787,7 +787,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
         nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
         /*
          * If we are encrypting, we are only allowed to send certain
          * kinds of LL control PDU's. If none is enqueued, send empty pdu!
@@ -837,7 +837,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
             if (cur_offset == 0) {
                 hdr_byte = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
             }
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
                 /* We will allow a next packet if it itself is allowed */
                 pkthdr = OS_MBUF_PKTHDR(connsm->cur_tx_pdu);
@@ -852,7 +852,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
             /* Empty PDU here. NOTE: header byte gets set later */
             pktlen = 0;
             cur_txlen = 0;
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
                 /* We will allow a next packet if it itself is allowed */
                 if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)) {
@@ -975,7 +975,7 @@ conn_tx_pdu:
         txend_func = NULL;
     }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     int is_ctrl;
     uint8_t llid;
     uint8_t opcode;
@@ -1119,7 +1119,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         /* Set start time of transmission */
         rc = ble_phy_tx_set_start_time(sch->start_time + XCVR_PROC_DELAY_USECS);
         if (!rc) {
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (CONN_F_ENCRYPTED(connsm)) {
                 ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
                                        connsm->enc_data.iv,
@@ -1141,7 +1141,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
             rc = BLE_LL_SCHED_STATE_DONE;
         }
     } else {
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (CONN_F_ENCRYPTED(connsm)) {
                 ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
                                        connsm->enc_data.iv,
@@ -1419,7 +1419,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
 
     /* Reset encryption data */
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     memset(&connsm->enc_data, 0, sizeof(struct ble_ll_conn_enc_data));
     connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
 #endif
@@ -2284,7 +2284,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                     goto conn_rx_data_pdu_end;
                 }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
                 /*
                  * XXX: should we check to see if we are in a state where we
                  * might expect to get an encrypted PDU?
@@ -2436,14 +2436,14 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
         conn_nesn = connsm->next_exp_seqnum;
         if ((hdr_sn && conn_nesn) || (!hdr_sn && !conn_nesn)) {
             connsm->next_exp_seqnum ^= 1;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (CONN_F_ENCRYPTED(connsm) && !ble_ll_conn_is_empty_pdu(rxpdu)) {
                 ++connsm->enc_data.rx_pkt_cntr;
             }
 #endif
         }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
         ble_ll_log(BLE_LL_LOG_ID_CONN_RX,
                    hdr_byte,
                    (uint16_t)connsm->tx_seqnum << 8 | conn_nesn,
@@ -2481,7 +2481,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                  */
                 txpdu = connsm->cur_tx_pdu;
                 if (txpdu) {
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
                     if (connsm->enc_data.tx_encrypted) {
                         ++connsm->enc_data.tx_pkt_cntr;
                     }
@@ -2543,7 +2543,7 @@ chk_rx_terminate_ind:
         } else {
             /* A slave always replies */
             reply = 1;
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_RSP)) {
                 connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
             }
@@ -2613,7 +2613,7 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     }
 
     lifo = 0;
-#if defined(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
         uint8_t llid;
 
@@ -2884,6 +2884,8 @@ ble_ll_conn_module_reset(void)
         }
         ble_ll_conn_end(connsm, BLE_ERR_SUCCESS);
     }
+
+    /* Get the maximum supported PHY PDU size from the PHY */
 
     /* Configure the global LL parameters */
     conn_params = &g_ble_ll_conn_params;
