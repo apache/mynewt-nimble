@@ -1034,3 +1034,16 @@ ble_phy_xcvr_state_get(void)
     state = NRF_RADIO->STATE;
     return (uint8_t)state;
 }
+
+/**
+ * Called to return the maximum data pdu payload length supported by the
+ * phy. For this chip, if encryption is enabled, the maximum payload is 27
+ * bytes.
+ *
+ * @return uint8_t Maximum data channel PDU payload size supported
+ */
+uint8_t
+ble_phy_max_data_pdu_pyld(void)
+{
+    return BLE_LL_DATA_PDU_MAX_PYLD;
+}

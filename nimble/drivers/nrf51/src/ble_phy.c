@@ -41,13 +41,6 @@
  * crystal accuracy
  */
 
-/* The NRF51 does not support encryption for payload size < 27 bytes */
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
-#if (NIMBLE_OPT_LL_MAX_PKT_SIZE > 27)
-#error "nrf51 does not support encryption with packet size > 27 bytes!"
-#endif
-#endif
-
 /* To disable all radio interrupts */
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
@@ -66,6 +59,12 @@
 /* Maximum tx power */
 #define NRF_TX_PWR_MAX_DBM      (4)
 #define NRF_TX_PWR_MIN_DBM      (-40)
+
+/* Max. encrypted payload length */
+#define NRF_MAX_ENCRYPTED_PYLD_LEN  (27)
+#define NRF_ENC_HDR_SIZE            (3)
+#define NRF_ENC_BUF_SIZE            \
+    (NRF_MAX_ENCRYPTED_PYLD_LEN + NRF_ENC_HDR_SIZE + BLE_LL_DATA_MIC_LEN)
 
 /* BLE PHY data structure */
 struct ble_phy_obj
@@ -90,7 +89,8 @@ struct ble_phy_obj g_ble_phy_data;
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
-static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+/* Make sure word-aligned for faster copies */
+static uint32_t g_ble_phy_enc_buf[(NRF_ENC_BUF_SIZE + 3) / 4];
 #endif
 
 /* Statistics */
@@ -1061,3 +1061,26 @@ ble_phy_xcvr_state_get(void)
     return (uint8_t)state;
 }
 
+/*
+ * Returns the maximum supported tx/rx PDU payload size, in bytes, for data
+ * channel PDUs (this does not apply to advertising channel PDUs). Note
+ * that the data channel PDU is composed of a 2-byte header, the payload, and
+ * an optional MIC. The maximum payload is 251 bytes.
+ */
+
+/**
+ * Called to return the maximum data pdu payload length supported by the
+ * phy. For this chip, if encryption is enabled, the maximum payload is 27
+ * bytes.
+ *
+ * @return uint8_t Maximum data channel PDU payload size supported
+ */
+uint8_t
+ble_phy_max_data_pdu_pyld(void)
+{
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+    return NRF_MAX_ENCRYPTED_PYLD_LEN;
+#else
+    return BLE_LL_DATA_PDU_MAX_PYLD;
+#endif
+}
