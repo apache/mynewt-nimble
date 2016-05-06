@@ -110,7 +110,7 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
     }
 }
 
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 void
 ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
 {

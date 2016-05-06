@@ -1120,23 +1120,23 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     /* Initialize the connection module */
     ble_ll_conn_module_init();
 
-    /* Set the supported features */
-    features = 0;
-#ifdef BLE_LL_CFG_FEAT_DATA_LEN_EXT
+    /* Set the supported features. NOTE: we always support extended reject. */
+    features = BLE_LL_FEAT_EXTENDED_REJ;
+
+#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
     features |= BLE_LL_FEAT_DATA_LEN_EXT;
 #endif
-#ifdef BLE_LL_CFG_FEAT_CONN_PARAM_REQ
+#if (BLE_LL_CFG_FEAT_CONN_PARAM_REQ == 1)
     features |= BLE_LL_FEAT_CONN_PARM_REQ;
 #endif
-#ifdef BLE_LL_CFG_FEAT_EXT_REJECT_IND
-    features |= BLE_LL_FEAT_EXTENDED_REJ;
-#endif
-#ifdef BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
+#if (BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG == 1)
     features |= BLE_LL_FEAT_SLAVE_INIT;
 #endif
-#ifdef BLE_LL_CFG_FEAT_LE_ENCRYPTION
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     features |= BLE_LL_FEAT_LE_ENCRYPTION;
 #endif
+
+    /* Initialize random number generation */
     ble_ll_rand_init();
 
     lldata->ll_supp_features = features;
