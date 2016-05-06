@@ -241,6 +241,7 @@ struct ble_dev_addr
 #define BLE_LL_DATA_HDR_SN_MASK         (0x08)
 #define BLE_LL_DATA_HDR_MD_MASK         (0x10)
 #define BLE_LL_DATA_HDR_RSRVD_MASK      (0xE0)
+#define BLE_LL_DATA_PDU_MAX_PYLD        (251)
 #define BLE_LL_DATA_MIC_LEN             (4)
 
 /* LLID definitions */

@@ -2865,6 +2865,7 @@ err_slave_start:
 void
 ble_ll_conn_module_reset(void)
 {
+    uint8_t max_phy_pyld;
     uint16_t maxbytes;
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_conn_global_params *conn_params;
@@ -2889,17 +2890,22 @@ ble_ll_conn_module_reset(void)
 
     /* Configure the global LL parameters */
     conn_params = &g_ble_ll_conn_params;
-    maxbytes = NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES + BLE_LL_DATA_MIC_LEN;
-    conn_params->supp_max_rx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_rx_octets = NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES;
+    max_phy_pyld = ble_phy_max_data_pdu_pyld();
 
-    maxbytes = NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
-    conn_params->supp_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->supp_max_tx_octets = NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES;
+    maxbytes = min(NIMBLE_OPT_LL_SUPP_MAX_RX_BYTES, max_phy_pyld);
+    conn_params->supp_max_rx_octets = maxbytes;
+    conn_params->supp_max_rx_time =
+        BLE_TX_DUR_USECS_M(maxbytes + BLE_LL_DATA_MIC_LEN);
 
-    maxbytes = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES + BLE_LL_DATA_MIC_LEN;
-    conn_params->conn_init_max_tx_time = BLE_TX_DUR_USECS_M(maxbytes);
-    conn_params->conn_init_max_tx_octets = NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES;
+    maxbytes = min(NIMBLE_OPT_LL_SUPP_MAX_TX_BYTES, max_phy_pyld);
+    conn_params->supp_max_tx_octets = maxbytes;
+    conn_params->supp_max_tx_time =
+        BLE_TX_DUR_USECS_M(maxbytes + BLE_LL_DATA_MIC_LEN);
+
+    maxbytes = min(NIMBLE_OPT_LL_CONN_INIT_MAX_TX_BYTES, max_phy_pyld);
+    conn_params->conn_init_max_tx_octets = maxbytes;
+    conn_params->conn_init_max_tx_time =
+        BLE_TX_DUR_USECS_M(maxbytes + BLE_LL_DATA_MIC_LEN);
 
     conn_params->sugg_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     conn_params->sugg_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;

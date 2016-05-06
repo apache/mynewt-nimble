@@ -305,7 +305,7 @@
   * option saves both both code and RAM.
   */
 #ifndef BLE_LL_CFG_FEAT_LE_ENCRYPTION
-#define BLE_LL_CFG_FEAT_LE_ENCRYPTION           (0)
+#define BLE_LL_CFG_FEAT_LE_ENCRYPTION           (1)
 #endif
 
 /*

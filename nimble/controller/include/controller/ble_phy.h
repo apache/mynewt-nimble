@@ -118,12 +118,25 @@ uint8_t ble_phy_xcvr_state_get(void);
 /* Returns 'true' if a reception has started */
 int ble_phy_rx_started(void);
 
+/*
+ * Returns the maximum supported tx/rx PDU payload size, in bytes, for data
+ * channel PDUs (this does not apply to advertising channel PDUs). Note
+ * that the data channel PDU is composed of a 2-byte header, the payload, and
+ * an optional MIC. The maximum payload is 251 bytes.
+ */
+uint8_t ble_phy_max_data_pdu_pyld(void);
+
 /* Gets the current access address */
 uint32_t ble_phy_access_addr_get(void);
 
+/* Enable encryption */
 void ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
                             uint8_t is_master);
+
+/* Disable encryption */
 void ble_phy_encrypt_disable(void);
+
+/* Set the packet counters and dir used by LE encyption */
 void ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir);
 
 #endif /* H_BLE_PHY_ */
