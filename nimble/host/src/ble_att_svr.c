@@ -214,15 +214,15 @@ ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
 }
 
 static int
-ble_att_svr_get_sec_params(uint16_t conn_handle,
-                           struct ble_gap_sec_params *out_sec_params)
+ble_att_svr_get_sec_state(uint16_t conn_handle,
+                          struct ble_gap_sec_state *out_sec_state)
 {
     struct ble_hs_conn *conn;
 
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-        *out_sec_params = conn->bhc_sec_params;
+        *out_sec_state = conn->bhc_sec_state;
     }
     ble_hs_unlock();
 
@@ -238,7 +238,7 @@ ble_att_svr_check_security(uint16_t conn_handle,
                            struct ble_att_svr_entry *entry,
                            uint8_t *out_att_err)
 {
-    struct ble_gap_sec_params sec_params;
+    struct ble_gap_sec_state sec_state;
     int rc;
 
     if (!(entry->ha_flags & (HA_FLAG_ENC_REQ |
@@ -248,12 +248,12 @@ ble_att_svr_check_security(uint16_t conn_handle,
         return 0;
     }
 
-    rc = ble_att_svr_get_sec_params(conn_handle, &sec_params);
+    rc = ble_att_svr_get_sec_state(conn_handle, &sec_state);
     if (rc != 0) {
         return rc;
     }
 
-    if (entry->ha_flags & HA_FLAG_ENC_REQ && !sec_params.enc_enabled) {
+    if (entry->ha_flags & HA_FLAG_ENC_REQ && !sec_state.enc_enabled) {
         /* XXX: Check security database; if required key present, respond with
          * insufficient encryption error code.
          */
@@ -262,7 +262,7 @@ ble_att_svr_check_security(uint16_t conn_handle,
     }
 
     if (entry->ha_flags & HA_FLAG_AUTHENTICATION_REQ &&
-        !sec_params.authenticated) {
+        !sec_state.authenticated) {
 
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
         return BLE_HS_ATT_ERR(*out_att_err);

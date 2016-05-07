@@ -98,8 +98,17 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_ADV_FINISHED          8
 #define BLE_GAP_EVENT_SECURITY              9
 #define BLE_GAP_EVENT_PASSKEY_ACTION        10
+#define BLE_GAP_EVENT_LTK_REQUEST           11
+#define BLE_GAP_EVENT_KEY_EXCHANGE          12
+
+struct ble_gap_sec_state {
+    uint8_t pair_alg;
+    unsigned enc_enabled:1;
+    unsigned authenticated:1;
+};
 
 struct ble_gap_conn_desc {
+    struct ble_gap_sec_state sec_state;
     uint8_t peer_addr[6];
     uint16_t conn_handle;
     uint16_t conn_itvl;
@@ -128,9 +137,29 @@ struct ble_gap_upd_params {
     uint16_t max_ce_len;
 };
 
-struct ble_gap_sec_params {
-    uint8_t pair_alg;
-    unsigned enc_enabled:1;
+struct ble_gap_key_parms {
+    unsigned is_ours:1;
+    unsigned ltk_valid:1;
+    unsigned ediv_rand_valid:1;
+    unsigned irk_valid:1;
+    unsigned csrk_valid:1;
+    unsigned addr_valid:1;
+    uint16_t ediv;
+    uint64_t rand_val;
+    uint8_t addr_type;
+    uint8_t ltk[16];
+    uint8_t irk[16];
+    uint8_t csrk[16];
+    uint8_t  addr[6];
+};
+
+struct ble_gap_ltk_params {
+    /* host --> app. */
+    uint16_t ediv;
+    uint64_t rand_num;
+
+    /* app --> host. */
+    uint8_t ltk[16];
     unsigned authenticated:1;
 };
 
@@ -158,8 +187,9 @@ struct ble_gap_conn_ctxt {
             struct ble_gap_upd_params *peer_params;
         } update;
 
-        struct ble_gap_sec_params *sec_params;
         struct ble_gap_passkey_action *passkey_action;
+        struct ble_gap_ltk_params *ltk_params;
+        struct ble_gap_key_parms *key_params;
     };
 };
 
@@ -214,5 +244,7 @@ int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
 int ble_gap_update_params(uint16_t conn_handle,
                           struct ble_gap_upd_params *params);
 int ble_gap_security_initiate(uint16_t conn_handle);
-
+int
+ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
+                            uint16_t ediv, uint64_t rand_val, int auth);
 #endif

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -20,7 +20,7 @@
 #ifndef H_BLE_L2CAP_SM_
 #define H_BLE_L2CAP_SM_
 
-struct ble_gap_sec_params;
+struct ble_gap_sec_state;
 struct hci_le_lt_key_req;
 
 #define BLE_L2CAP_SM_MTU            65
@@ -47,6 +47,13 @@ struct ble_l2cap_sm_pair_cmd {
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
 };
+
+/* defines for the bitgs in  init_key_dist and resp_key_dist */
+#define KEY_DIST_ENC_KEY    (0x01)
+#define KEY_DIST_ID_KEY     (0x02)
+#define KEY_DIST_SIGN       (0x04)
+#define KEY_DIST_LINK       (0x08)
+#define KEY_DIST_RESERVED   (0xf0)
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -80,6 +87,67 @@ struct ble_l2cap_sm_pair_random {
 struct ble_l2cap_sm_pair_fail {
     uint8_t reason;
 };
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x06)                        | 1                 |
+ * | ltk                                | 16                |
+ */
+#define BLE_L2CAP_SM_ENC_INFO_SZ        16
+struct ble_l2cap_sm_enc_info {
+    uint8_t ltk_le[16];
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x07)                        | 1                 |
+ * | EDIV                               | 2                 |
+ * | RAND                               | 8                 |
+ */
+#define BLE_L2CAP_SM_MASTER_IDEN_SZ     10
+struct ble_l2cap_sm_master_iden {
+    uint16_t ediv;
+    uint64_t rand_val;
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x08)                        | 1                 |
+ * | irk                                | 16                |
+ */
+ #define BLE_L2CAP_SM_IDEN_INFO_SZ      16
+struct ble_l2cap_sm_iden_info {
+    uint8_t irk_le[16];
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x09)                        | 1                 |
+ * | addr_type                          | 1                 |
+ * | address                            | 6                 |
+ */
+#define BLE_L2CAP_SM_IDEN_ADDR_INFO_SZ  7
+struct ble_l2cap_sm_iden_addr_info {
+
+    uint8_t addr_type;
+    uint8_t bd_addr_le[6];
+};
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x0A)                        | 1                 |
+ * | csrk                               | 16                |
+ */
+#define BLE_L2CAP_SM_SIGNING_INFO_SZ    16
+struct ble_l2cap_sm_signing_info {
+    uint8_t sig_key_le[16];
+};
+
 
 #if NIMBLE_OPT_SM
 
@@ -123,11 +191,34 @@ int ble_l2cap_sm_alg_c1(uint8_t *k, uint8_t *r,
                         uint8_t *ia, uint8_t *ra,
                         uint8_t *out_enc_data);
 
+void ble_l2cap_sm_enc_info_parse(void *payload, int len,
+                                 struct ble_l2cap_sm_enc_info *cmd);
+int ble_l2cap_sm_enc_info_tx(uint16_t conn_handle,
+                             struct ble_l2cap_sm_enc_info *cmd);
+void ble_l2cap_sm_master_iden_parse(void *payload, int len,
+                                    struct ble_l2cap_sm_master_iden *cmd);
+int ble_l2cap_sm_master_iden_tx(uint16_t conn_handle,
+                                struct ble_l2cap_sm_master_iden *cmd);
+void ble_l2cap_sm_iden_info_parse(void *payload, int len,
+                                  struct ble_l2cap_sm_iden_info *cmd);
+int ble_l2cap_sm_iden_info_tx(uint16_t conn_handle,
+                              struct ble_l2cap_sm_iden_info *cmd);
+void ble_l2cap_sm_iden_addr_parse(void *payload, int len,
+                                  struct ble_l2cap_sm_iden_addr_info *cmd);
+int ble_l2cap_sm_iden_addr_tx(uint16_t conn_handle,
+                              struct ble_l2cap_sm_iden_addr_info *cmd);
+void ble_l2cap_sm_signing_info_parse(void *payload, int len,
+                                     struct ble_l2cap_sm_signing_info *cmd);
+int ble_l2cap_sm_signing_info_tx(uint16_t conn_handle,
+                                 struct ble_l2cap_sm_signing_info *cmd);
+
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
 void ble_l2cap_sm_heartbeat(void);
 int ble_l2cap_sm_initiate(uint16_t conn_handle);
+int ble_l2cap_sm_sec_initiate(uint16_t conn_handle, uint8_t *ltk,
+                          uint16_t ediv, uint64_t rand_val, int auth);
 int ble_l2cap_sm_init(void);
 
 #else

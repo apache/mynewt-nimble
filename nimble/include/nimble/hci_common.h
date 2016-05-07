@@ -310,7 +310,11 @@
 
 /* ---  LE long term key request reply command (OCF 0x001a) */
 #define BLE_HCI_LT_KEY_REQ_REPLY_LEN        (18)
-#define BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN (3) /* Includes status byte. */
+#define BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN (2) /* No status byte. */
+
+/* ---  LE long term key request negative reply command (OCF 0x001b) */
+#define BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN    (2)
+#define BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN (2)
 
 /* --- LE read supported states (OCF 0x001C) --- */
 #define BLE_HCI_RD_SUPP_STATES_RSPLEN       (8)
