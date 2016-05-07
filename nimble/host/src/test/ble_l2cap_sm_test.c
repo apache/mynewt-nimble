@@ -417,6 +417,9 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
                                         ble_l2cap_sm_test_util_conn_cb,
                                         NULL);
 
+    /* Peer is the initiator so we must be the slave. */
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
@@ -507,6 +510,9 @@ ble_l2cap_sm_test_util_peer_lgcy_fail(
     conn = ble_hs_test_util_create_conn(2, init_addr,
                                         ble_l2cap_sm_test_util_conn_cb,
                                         NULL);
+
+    /* Peer is the initiator so we must be the slave. */
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
 
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
