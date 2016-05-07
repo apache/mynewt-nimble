@@ -48,13 +48,6 @@ struct ble_l2cap_sm_pair_cmd {
     uint8_t resp_key_dist;
 };
 
-/* defines for the bitgs in  init_key_dist and resp_key_dist */
-#define KEY_DIST_ENC_KEY    (0x01)
-#define KEY_DIST_ID_KEY     (0x02)
-#define KEY_DIST_SIGN       (0x04)
-#define KEY_DIST_LINK       (0x08)
-#define KEY_DIST_RESERVED   (0xf0)
-
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
@@ -180,6 +173,7 @@ int ble_l2cap_sm_pair_random_tx(uint16_t conn_handle,
                                 struct ble_l2cap_sm_pair_random *cmd);
 void ble_l2cap_sm_pair_fail_parse(void *payload, int len,
                                   struct ble_l2cap_sm_pair_fail *cmd);
+int ble_l2cap_sm_pair_cmd_is_valid(struct ble_l2cap_sm_pair_cmd *cmd);
 void ble_l2cap_sm_pair_fail_write(void *payload, int len,
                                   struct ble_l2cap_sm_pair_fail *cmd);
 int ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason);

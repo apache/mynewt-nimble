@@ -92,6 +92,38 @@ ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
     cmd->resp_key_dist = u8ptr[5];
 }
 
+int
+ble_l2cap_sm_pair_cmd_is_valid(struct ble_l2cap_sm_pair_cmd *cmd)
+{
+    if (cmd->io_cap >= BLE_L2CAP_SM_IO_CAP_RESERVED) {
+        return 0;
+    }
+
+    if (cmd->oob_data_flag >= BLE_L2CAP_SM_PAIR_OOB_RESERVED) {
+        return 0;
+    }
+
+    if (cmd->authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_RESERVED) {
+        return 0;
+    }
+
+    if (cmd->max_enc_key_size < BLE_L2CAP_SM_PAIR_KEY_SZ_MIN ||
+        cmd->max_enc_key_size > BLE_L2CAP_SM_PAIR_KEY_SZ_MAX) {
+
+        return 0;
+    }
+
+    if (cmd->init_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_RESERVED) {
+        return 0;
+    }
+
+    if (cmd->resp_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_RESERVED) {
+        return 0;
+    }
+
+    return 1;
+}
+
 void
 ble_l2cap_sm_pair_cmd_write(void *payload, int len, int is_req,
                             struct ble_l2cap_sm_pair_cmd *cmd)
@@ -124,6 +156,7 @@ ble_l2cap_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
     }
 
     ble_l2cap_sm_pair_cmd_write(txom->om_data, txom->om_len, is_req, cmd);
+    BLE_HS_DBG_ASSERT(ble_l2cap_sm_pair_cmd_is_valid(cmd));
 
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;
