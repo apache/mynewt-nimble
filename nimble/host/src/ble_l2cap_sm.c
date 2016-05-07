@@ -1025,17 +1025,27 @@ ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
                              uint8_t *out_sm_status,
                              uint8_t *passkey_action)
 {
+    struct ble_hs_conn *conn;
     int rc;
 
     proc->pair_req = *req;
 
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn == NULL) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+        return BLE_HS_ENOTCONN;
+    }
+    if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_CMD_NOT_SUPP;
+        return BLE_HS_EROLE;
+    }
+
     if (!ble_l2cap_sm_pair_cmd_is_valid(req)) {
         *out_sm_status = BLE_L2CAP_SM_ERR_INVAL;
-        return BLE_HS_EBADDATA;
+        return BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_INVAL);
     }
 
     rc = ble_l2cap_sm_pair_go(proc);
-
     if (rc != 0) {
         *out_sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
         return rc;
