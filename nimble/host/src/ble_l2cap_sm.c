@@ -209,31 +209,31 @@ ble_l2cap_sm_dbg_num_procs(void)
  * $misc                                                                     *
  *****************************************************************************/
 
- static void
- ble_l2cap_build_rx_key_exchange_state(struct ble_l2cap_sm_proc *proc)
- {
-     uint8_t rx_key_dist;
+static void
+ble_l2cap_build_rx_key_exchange_state(struct ble_l2cap_sm_proc *proc)
+{
+    uint8_t rx_key_dist;
 
-     /* if we are intiating we are waiting for the responders keys */
-     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-         rx_key_dist = proc->pair_rsp.resp_key_dist;
-     } else {
-         rx_key_dist = proc->pair_rsp.init_key_dist;
-     }
-     proc->rx_key_flags = 0;
+    /* if we are intiating we are waiting for the responders keys */
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        rx_key_dist = proc->pair_rsp.resp_key_dist;
+    } else {
+        rx_key_dist = proc->pair_rsp.init_key_dist;
+    }
+    proc->rx_key_flags = 0;
 
-     if (rx_key_dist & KEY_DIST_ENC_KEY) {
-         proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_ENC_INFO |
-                               BLE_L2CAP_SM_KE_F_MASTER_IDEN;
-     }
-     if (rx_key_dist & KEY_DIST_ID_KEY) {
-         proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_IDEN_INFO |
-                               BLE_L2CAP_SM_KE_F_ADDR_INFO;
-     }
-     if (rx_key_dist & KEY_DIST_SIGN) {
-         proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_SIGN_INFO;
-     }
- }
+    if (rx_key_dist & KEY_DIST_ENC_KEY) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_ENC_INFO |
+                              BLE_L2CAP_SM_KE_F_MASTER_IDEN;
+    }
+    if (rx_key_dist & KEY_DIST_ID_KEY) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_IDEN_INFO |
+                              BLE_L2CAP_SM_KE_F_ADDR_INFO;
+    }
+    if (rx_key_dist & KEY_DIST_SIGN) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_SIGN_INFO;
+    }
+}
 
 static int
 ble_l2cap_sm_gen_pair_rand(uint8_t *pair_rand)
