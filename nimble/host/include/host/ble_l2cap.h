@@ -86,6 +86,11 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SM_PAIR_ALG_PASSKEY       1
 #define BLE_L2CAP_SM_PAIR_ALG_OOB           2
 
+#define BLE_L2CAP_SM_KEY_DIST_ENC           0x01
+#define BLE_L2CAP_SM_KEY_DIST_ID            0x02
+#define BLE_L2CAP_SM_KEY_DIST_SIGN          0x04
+#define BLE_L2CAP_SM_KEY_DIST_LINK          0x08
+
 typedef void ble_l2cap_sig_update_fn(int status, void *arg);
 
 struct ble_l2cap_sig_update_params {

@@ -809,6 +809,20 @@ host_hci_cmd_build_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr,
     host_hci_cmd_body_le_lt_key_req_reply(hkr, dst);
 }
 
+void
+host_hci_cmd_build_le_lt_key_req_neg_reply(uint16_t conn_handle,
+                                           uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY,
+                       BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    htole16(dst + 0, conn_handle);
+}
+
 static void
 host_hci_cmd_body_le_conn_param_reply(struct hci_conn_param_reply *hcr,
                                       uint8_t *dst)
