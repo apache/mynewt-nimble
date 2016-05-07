@@ -86,10 +86,31 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SM_PAIR_ALG_PASSKEY       1
 #define BLE_L2CAP_SM_PAIR_ALG_OOB           2
 
-#define BLE_L2CAP_SM_KEY_DIST_ENC           0x01
-#define BLE_L2CAP_SM_KEY_DIST_ID            0x02
-#define BLE_L2CAP_SM_KEY_DIST_SIGN          0x04
-#define BLE_L2CAP_SM_KEY_DIST_LINK          0x08
+#define BLE_L2CAP_SM_PAIR_KEY_DIST_ENC      0x01
+#define BLE_L2CAP_SM_PAIR_KEY_DIST_ID       0x02
+#define BLE_L2CAP_SM_PAIR_KEY_DIST_SIGN     0x04
+#define BLE_L2CAP_SM_PAIR_KEY_DIST_LINK     0x08
+#define BLE_L2CAP_SM_PAIR_KEY_DIST_RESERVED 0xf0
+
+#define BLE_L2CAP_SM_IO_CAP_DISP_ONLY       0x00
+#define BLE_L2CAP_SM_IO_CAP_DISP_YES_NO     0x01
+#define BLE_L2CAP_SM_IO_CAP_KEYBOARD_ONLY   0x02
+#define BLE_L2CAP_SM_IO_CAP_NO_IO           0x03
+#define BLE_L2CAP_SM_IO_CAP_KEYBOARD_DISP   0x04
+#define BLE_L2CAP_SM_IO_CAP_RESERVED        0x05
+
+#define BLE_L2CAP_SM_PAIR_OOB_NO            0x00
+#define BLE_L2CAP_SM_PAIR_OOB_YES           0x01
+#define BLE_L2CAP_SM_PAIR_OOB_RESERVED      0x02
+
+#define BLE_L2CAP_SM_PAIR_AUTHREQ_BOND      0x01
+#define BLE_L2CAP_SM_PAIR_AUTHREQ_MITM      0x04
+#define BLE_L2CAP_SM_PAIR_AUTHREQ_SC        0x08
+#define BLE_L2CAP_SM_PAIR_AUTHREQ_KEYPRESS  0x10
+#define BLE_L2CAP_SM_PAIR_AUTHREQ_RESERVED  0xe2
+
+#define BLE_L2CAP_SM_PAIR_KEY_SZ_MIN        7
+#define BLE_L2CAP_SM_PAIR_KEY_SZ_MAX        16
 
 typedef void ble_l2cap_sig_update_fn(int status, void *arg);
 

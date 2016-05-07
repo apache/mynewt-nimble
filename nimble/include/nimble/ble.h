@@ -130,6 +130,9 @@ extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 #undef htobe16
 #undef htobe32
 #undef htobe64
+#undef be16toh
+#undef be32toh
+#undef be64toh
 void htole16(void *buf, uint16_t x);
 void htole32(void *buf, uint32_t x);
 void htole64(void *buf, uint64_t x);

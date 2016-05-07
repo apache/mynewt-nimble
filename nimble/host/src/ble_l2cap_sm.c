@@ -209,32 +209,6 @@ ble_l2cap_sm_dbg_num_procs(void)
  * $misc                                                                     *
  *****************************************************************************/
 
-static void
-ble_l2cap_build_rx_key_exchange_state(struct ble_l2cap_sm_proc *proc)
-{
-    uint8_t rx_key_dist;
-
-    /* if we are intiating we are waiting for the responders keys */
-    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-        rx_key_dist = proc->pair_rsp.resp_key_dist;
-    } else {
-        rx_key_dist = proc->pair_rsp.init_key_dist;
-    }
-    proc->rx_key_flags = 0;
-
-    if (rx_key_dist & KEY_DIST_ENC_KEY) {
-        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_ENC_INFO |
-                              BLE_L2CAP_SM_KE_F_MASTER_IDEN;
-    }
-    if (rx_key_dist & KEY_DIST_ID_KEY) {
-        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_IDEN_INFO |
-                              BLE_L2CAP_SM_KE_F_ADDR_INFO;
-    }
-    if (rx_key_dist & KEY_DIST_SIGN) {
-        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_SIGN_INFO;
-    }
-}
-
 static int
 ble_l2cap_sm_gen_pair_rand(uint8_t *pair_rand)
 {
@@ -415,7 +389,6 @@ ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc) {
 
     proc->our_keys.is_ours = 1;
     proc->peer_keys.is_ours = 0;
-    /* TODO */
     ble_gap_key_exchange_event(proc->conn_handle, &proc->our_keys);
     ble_gap_key_exchange_event(proc->conn_handle, &proc->peer_keys);
 }
@@ -809,26 +782,18 @@ ble_l2cap_sm_passkey_action(struct ble_l2cap_sm_proc *proc)
 {
     int action;
 
-    /* If both OOB set, then its OOB */
     if (proc->pair_req.oob_data_flag && proc->pair_rsp.oob_data_flag) {
         action = BLE_GAP_PKACT_OOB;
-    }
-    /* If neither MITM is set, then its just works */
-    else if (!((proc->pair_req.authreq | proc->pair_rsp.authreq) & 0x04)) {
+    } else if (!(proc->pair_req.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_MITM) ||
+               !(proc->pair_rsp.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_MITM)) {
+
         action = BLE_GAP_PKACT_NONE;
-    }
-    /* What to do if this in in error */
-    /* XXX: Check this during pairing tx/rx. */
-    else if (proc->pair_req.io_cap >= 5 || proc->pair_rsp.io_cap >= 5) {
-        action = BLE_GAP_PKACT_NONE;
-    }
-    else if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+    } else if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
         action = initiator_pkact[proc->pair_req.io_cap][proc->pair_rsp.io_cap];
     } else {
         action = responder_pkact[proc->pair_req.io_cap][proc->pair_rsp.io_cap];
     }
 
-    /* set some state for the application */
     switch (action) {
     case BLE_GAP_PKACT_NONE:
         proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW;
@@ -844,7 +809,12 @@ ble_l2cap_sm_passkey_action(struct ble_l2cap_sm_proc *proc)
         proc->pair_alg = BLE_L2CAP_SM_PAIR_ALG_PASSKEY;
         proc->flags |= BLE_L2CAP_SM_PROC_F_AUTHENTICATED;
         break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
     }
+
     return action;
 }
 
@@ -986,8 +956,13 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
         cmd.init_key_dist = ble_hs_cfg.sm_our_key_dist;
         cmd.resp_key_dist = ble_hs_cfg.sm_their_key_dist;
     } else {
-        cmd.init_key_dist = ble_hs_cfg.sm_their_key_dist;
-        cmd.resp_key_dist = ble_hs_cfg.sm_our_key_dist;
+        /* The response's key distribution flags field is the intersection of
+         * the peer's preferences and our capabilities.
+         */
+        cmd.init_key_dist = proc->pair_req.init_key_dist &
+                            ble_hs_cfg.sm_their_key_dist;
+        cmd.resp_key_dist = proc->pair_req.resp_key_dist &
+                            ble_hs_cfg.sm_our_key_dist;
     }
 
     rc = ble_l2cap_sm_pair_cmd_tx(proc->conn_handle, is_req, &cmd);
@@ -1010,21 +985,38 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
 
     return 0;
 }
-static int
+
+static void
 ble_l2cap_sm_check_key_exchange(struct ble_l2cap_sm_proc *proc)
 {
-    if ((proc->pair_req.authreq & proc->pair_rsp.authreq & 0x3) == 1) {
-        /* The pair response defines what shall be exchanged. */
-        if (proc->pair_rsp.init_key_dist | proc->pair_rsp.resp_key_dist) {
-            proc->flags |= BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE;
-        }
+    uint8_t rx_key_dist;
+
+    if (proc->pair_req.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_BOND &&
+        proc->pair_rsp.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_BOND &&
+        proc->pair_rsp.init_key_dist                            &&
+        proc->pair_rsp.resp_key_dist) {
+
+        proc->flags |= BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE;
     }
 
-    /* Build the key exchange data. */
-    ble_l2cap_build_rx_key_exchange_state(proc);
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        rx_key_dist = proc->pair_rsp.resp_key_dist;
+    } else {
+        rx_key_dist = proc->pair_rsp.init_key_dist;
+    }
 
-    /* XXX: Check for valid combinations. */
-    return 0;
+    proc->rx_key_flags = 0;
+    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ENC) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_ENC_INFO |
+                              BLE_L2CAP_SM_KE_F_MASTER_IDEN;
+    }
+    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ID) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_IDEN_INFO |
+                              BLE_L2CAP_SM_KE_F_ADDR_INFO;
+    }
+    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_SIGN) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_SIGN_INFO;
+    }
 }
 
 static int
@@ -1037,6 +1029,11 @@ ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
 
     proc->pair_req = *req;
 
+    if (!ble_l2cap_sm_pair_cmd_is_valid(req)) {
+        *out_sm_status = BLE_L2CAP_SM_ERR_INVAL;
+        return BLE_HS_EBADDATA;
+    }
+
     rc = ble_l2cap_sm_pair_go(proc);
 
     if (rc != 0) {
@@ -1044,12 +1041,7 @@ ble_l2cap_sm_pair_req_handle(struct ble_l2cap_sm_proc *proc,
         return rc;
     }
 
-    rc = ble_l2cap_sm_check_key_exchange(proc);
-    if (rc != 0) {
-        *out_sm_status = BLE_L2CAP_SM_ERR_INVAL;
-        return rc;
-    }
-
+    ble_l2cap_sm_check_key_exchange(proc);
     proc->state = BLE_L2CAP_SM_PROC_STATE_CONFIRM;
 
     /* Get the passkey action for querying the application. */
@@ -1068,11 +1060,12 @@ ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
 
     proc->pair_rsp = *rsp;
 
-    rc = ble_l2cap_sm_check_key_exchange(proc);
-    if (rc != 0) {
+    if (!ble_l2cap_sm_pair_cmd_is_valid(rsp)) {
         *out_sm_status = BLE_L2CAP_SM_ERR_INVAL;
-        return rc;
+        return BLE_HS_EBADDATA;
     }
+
+    ble_l2cap_sm_check_key_exchange(proc);
     proc->state = BLE_L2CAP_SM_PROC_STATE_CONFIRM;
 
     /* If there is no passkey action to take, just continue with confirm. */
@@ -1163,7 +1156,7 @@ ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
         our_key_dist = proc->pair_rsp.resp_key_dist;
     }
 
-    if (our_key_dist & BLE_L2CAP_SM_KEY_DIST_ENC) {
+    if (our_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ENC) {
         /* Send encryption information. */
         rc = ble_l2cap_sm_gen_ltk(proc, enc_info.ltk_le);
         if (rc != 0) {
@@ -1370,7 +1363,11 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t op,
                req.max_enc_key_size, req.init_key_dist, req.resp_key_dist);
 
     ble_hs_lock();
+
     /* XXX: Check connection state; reject if not appropriate. */
+    /* XXX: Ensure enough time has passed since the previous failed pairing
+     * attempt.
+     */
     proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
                                   -1, &prev);
     if (proc != NULL) {
