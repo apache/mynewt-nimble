@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include <string.h>
 #include "ble_hs_priv.h"
 
 int
@@ -52,28 +53,6 @@ ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
     return 0;
 }
 
-static int
-ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    STATS_INC(ble_l2cap_stats, sig_tx);
-
-    ble_hs_lock();
-
-    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                         &conn, &chan);
-    if (rc == 0) {
-        rc = ble_l2cap_tx(conn, chan, txom);
-    }
-
-    ble_hs_unlock();
-
-    return rc;
-}
-
 static void
 ble_l2cap_sig_hdr_swap(struct ble_l2cap_sig_hdr *dst,
                        struct ble_l2cap_sig_hdr *src)
@@ -107,31 +86,61 @@ ble_l2cap_sig_reject_swap(struct ble_l2cap_sig_reject *dst,
 
 static void
 ble_l2cap_sig_reject_write(void *payload, uint16_t len,
-                           struct ble_l2cap_sig_reject *src)
+                           struct ble_l2cap_sig_reject *src,
+                           void *data, int data_len)
 {
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_REJECT_MIN_SZ);
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_REJECT_MIN_SZ + data_len);
+
     ble_l2cap_sig_reject_swap(payload, src);
+
+    u8ptr = payload;
+    u8ptr += BLE_L2CAP_SIG_REJECT_MIN_SZ;
+    memcpy(u8ptr, data, data_len);
 }
 
 int
-ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason)
+ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                        uint8_t id, uint16_t reason,
+                        void *data, int data_len)
 {
-    /* XXX: Add support for optional data field. */
-
     struct ble_l2cap_sig_reject cmd;
     struct os_mbuf *txom;
     void *payload_buf;
     int rc;
 
     rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_REJECT, id,
-                                BLE_L2CAP_SIG_REJECT_MIN_SZ, &txom,
+                                BLE_L2CAP_SIG_REJECT_MIN_SZ + data_len, &txom,
                                 &payload_buf);
 
     cmd.reason = reason;
-    ble_l2cap_sig_reject_write(payload_buf, BLE_L2CAP_SIG_REJECT_MIN_SZ, &cmd);
+    ble_l2cap_sig_reject_write(payload_buf, txom->om_len, &cmd,
+                               data, data_len);
 
     STATS_INC(ble_l2cap_stats, sig_rx);
-    rc = ble_l2cap_sig_tx(conn_handle, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
+    return rc;
+}
+
+int
+ble_l2cap_sig_reject_invalid_cid_tx(struct ble_hs_conn *conn,
+                                    struct ble_l2cap_chan *chan, uint8_t id,
+                                    uint16_t src_cid, uint16_t dst_cid)
+{
+    int rc;
+
+    struct {
+        uint16_t local_cid;
+        uint16_t remote_cid;
+    } data = {
+        .local_cid = dst_cid,
+        .remote_cid = src_cid,
+    };
+
+    rc = ble_l2cap_sig_reject_tx(conn, chan, id,
+                                 BLE_L2CAP_SIG_ERR_INVALID_CID,
+                                 &data, sizeof data);
     return rc;
 }
 
@@ -162,7 +171,8 @@ ble_l2cap_sig_update_req_write(void *payload, int len,
 }
 
 int
-ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
+ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan, uint8_t id,
                             struct ble_l2cap_sig_update_req *req)
 {
     struct os_mbuf *txom;
@@ -179,7 +189,7 @@ ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
     ble_l2cap_sig_update_req_write(payload_buf, BLE_L2CAP_SIG_UPDATE_REQ_SZ,
                                    req);
 
-    rc = ble_l2cap_sig_tx(conn_handle, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         return rc;
     }
@@ -211,7 +221,9 @@ ble_l2cap_sig_update_rsp_write(void *payload, int len,
 }
 
 int
-ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
+ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan, uint8_t id,
+                            uint16_t result)
 {
     struct ble_l2cap_sig_update_rsp rsp;
     struct os_mbuf *txom;
@@ -229,7 +241,7 @@ ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
     ble_l2cap_sig_update_rsp_write(payload_buf, BLE_L2CAP_SIG_UPDATE_RSP_SZ,
                                    &rsp);
 
-    rc = ble_l2cap_sig_tx(conn_handle, txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         return rc;
     }
