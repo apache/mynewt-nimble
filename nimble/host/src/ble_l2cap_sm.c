@@ -851,6 +851,11 @@ ble_l2cap_sm_confirm_go(struct ble_l2cap_sm_proc *proc)
     uint8_t rat;
     int rc;
 
+    rc = ble_l2cap_sm_gen_pair_rand(ble_l2cap_sm_our_pair_rand(proc));
+    if (rc != 0) {
+        return rc;
+    }
+
     rc = ble_l2cap_sm_confirm_prepare_args(proc, k, preq, pres, &iat, &rat,
                                            ia, ra);
     if (rc != 0) {
@@ -952,11 +957,6 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
         proc->pair_rsp = cmd;
     }
 
-    rc = ble_l2cap_sm_gen_pair_rand(ble_l2cap_sm_our_pair_rand(proc));
-    if (rc != 0) {
-        return rc;
-    }
-
     ble_l2cap_sm_proc_set_timer(proc);
 
     return 0;
@@ -1048,7 +1048,7 @@ ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
 
     if (!ble_l2cap_sm_pair_cmd_is_valid(rsp)) {
         *out_sm_status = BLE_L2CAP_SM_ERR_INVAL;
-        return BLE_HS_EBADDATA;
+        return BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_INVAL);
     }
 
     ble_l2cap_sm_check_key_exchange(proc);
