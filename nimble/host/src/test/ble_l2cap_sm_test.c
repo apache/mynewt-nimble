@@ -1014,6 +1014,261 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_bonding_bad)
  *****************************************************************************/
 
 static void
+ble_l2cap_sm_test_util_us_fail_inval(
+    uint8_t *init_addr,
+    uint8_t *rsp_addr,
+    struct ble_l2cap_sm_pair_cmd *pair_req,
+    struct ble_l2cap_sm_pair_cmd *pair_rsp,
+    struct ble_l2cap_sm_pair_fail *pair_fail)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_sm_test_util_init();
+    ble_hs_test_util_set_public_addr(rsp_addr);
+
+    conn = ble_hs_test_util_create_conn(2, init_addr,
+                                        ble_l2cap_sm_test_util_conn_cb,
+                                        NULL);
+
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Initiate the pairing procedure. */
+    rc = ble_hs_test_util_security_initiate(2, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure we sent the expected pair request. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_pair_req(pair_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair response from the peer. */
+    ble_l2cap_sm_test_util_rx_pair_rsp(
+        conn, pair_rsp, BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_INVAL));
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Ensure we sent the expected pair fail. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_pair_fail(pair_fail);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was not executed. */
+    //TEST_ASSERT(ble_l2cap_sm_test_gap_event == -1);
+    //TEST_ASSERT(ble_l2cap_sm_test_gap_status == -1);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(!conn->bhc_sec_state.authenticated);
+}
+
+TEST_CASE(ble_l2cap_sm_test_case_us_fail_inval)
+{
+    /* Invalid IO capabiltiies. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x14,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid OOB flag. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 2,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid authreq - reserved bonding flag. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x2,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid authreq - reserved other flag. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x20,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid key size - too small. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 6,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid key size - too large. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 17,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid init key dist. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x10,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid resp key dist. */
+    ble_l2cap_sm_test_util_us_fail_inval(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_l2cap_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x10,
+        } }),
+        ((struct ble_l2cap_sm_pair_fail[1]) { {
+            .reason = BLE_L2CAP_SM_ERR_INVAL,
+        } })
+    );
+}
+
+static void
 ble_l2cap_sm_test_util_us_lgcy_good(
     uint8_t *init_addr,
     uint8_t *rsp_addr,
@@ -1171,6 +1426,7 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
     ble_l2cap_sm_test_case_peer_fail_inval();
     ble_l2cap_sm_test_case_peer_lgcy_fail_confirm();
     ble_l2cap_sm_test_case_peer_lgcy_jw_good();
+    ble_l2cap_sm_test_case_us_fail_inval();
     ble_l2cap_sm_test_case_us_lgcy_jw_good();
     ble_l2cap_sm_test_case_peer_bonding_good();
     ble_l2cap_sm_test_case_peer_bonding_bad();
@@ -1183,7 +1439,6 @@ ble_l2cap_sm_test_all(void)
 #if !NIMBLE_OPT_SM
     return 0;
 #else
-    tu_config.tc_system_assert=1;
     ble_l2cap_sm_test_suite();
 
     return tu_any_failed;
