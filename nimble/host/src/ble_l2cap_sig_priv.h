@@ -56,19 +56,29 @@ void ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
                              struct ble_l2cap_sig_hdr *hdr);
 void ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
                              struct ble_l2cap_sig_hdr *hdr);
-int ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason);
+int ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn,
+                            struct ble_l2cap_chan *chan,
+                            uint8_t id, uint16_t reason,
+                            void *data, int data_len);
 void ble_l2cap_sig_update_req_parse(void *payload, int len,
                                     struct ble_l2cap_sig_update_req *req);
 void ble_l2cap_sig_update_req_write(void *payload, int len,
                                     struct ble_l2cap_sig_update_req *src);
-int ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
+int ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan, uint8_t id,
                                 struct ble_l2cap_sig_update_req *req);
 void ble_l2cap_sig_update_rsp_parse(void *payload, int len,
                                     struct ble_l2cap_sig_update_rsp *cmd);
 void ble_l2cap_sig_update_rsp_write(void *payload, int len,
                                     struct ble_l2cap_sig_update_rsp *src);
-int ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id,
+int ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
+                                struct ble_l2cap_chan *chan, uint8_t id,
                                 uint16_t result);
+
+int ble_l2cap_sig_reject_invalid_cid_tx(struct ble_hs_conn *conn,
+                                        struct ble_l2cap_chan *chan,
+                                        uint8_t id,
+                                        uint16_t src_cid, uint16_t dst_cid);
 
 void ble_l2cap_sig_heartbeat(void);
 struct ble_l2cap_chan *ble_l2cap_sig_create_chan(void);

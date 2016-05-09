@@ -109,18 +109,6 @@ static struct os_mempool ble_l2cap_sig_proc_pool;
  * $misc                                                                     *
  *****************************************************************************/
 
-static int
-ble_l2cap_sig_conn_chan_find(uint16_t conn_handle,
-                             struct ble_hs_conn **out_conn,
-                             struct ble_l2cap_chan **out_chan)
-{
-    int rc;
-
-    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                         out_conn, out_chan);
-    return rc;
-}
-
 static uint8_t
 ble_l2cap_sig_next_id(void)
 {
@@ -285,64 +273,68 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     struct ble_l2cap_sig_update_req req;
     struct ble_gap_upd_params params;
     struct ble_l2cap_chan *chan;
+    ble_hs_conn_flags_t conn_flags;
     struct ble_hs_conn *conn;
     uint16_t l2cap_result;
-    int is_master;
+    int sig_err;
     int rc;
+
+    l2cap_result = 0; /* Silence spurious gcc warning. */
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_UPDATE_REQ_SZ);
     if (rc != 0) {
         return rc;
     }
 
-    ble_hs_lock();
-    rc = ble_l2cap_sig_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc == 0) {
-        is_master = conn->bhc_flags & BLE_HS_CONN_F_MASTER;
-    }
-    ble_hs_unlock();
-
+    rc = ble_hs_atomic_conn_flags(conn_handle, &conn_flags);
     if (rc != 0) {
         return rc;
     }
 
     /* Only a master can process an update request. */
-    if (!is_master) {
-        ble_l2cap_sig_reject_tx(conn_handle, hdr->identifier,
-                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
-        return BLE_HS_ENOTSUP;
-    }
+    sig_err = !(conn_flags & BLE_HS_CONN_F_MASTER);
+    if (!sig_err) {
+        ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
 
-    ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
+        params.itvl_min = req.itvl_min;
+        params.itvl_max = req.itvl_max;
+        params.latency = req.slave_latency;
+        params.supervision_timeout = req.timeout_multiplier;
+        params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
+        params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
 
-    params.itvl_min = req.itvl_min;
-    params.itvl_max = req.itvl_max;
-    params.latency = req.slave_latency;
-    params.supervision_timeout = req.timeout_multiplier;
-    params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
-    params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
-
-    /* Ask application if slave's connection parameters are acceptable. */
-    rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
-    if (rc == 0) {
-        /* Application agrees to accept parameters; schedule update. */
-        rc = ble_gap_update_params(conn_handle, &params);
-        if (rc != 0) {
-            return rc;
+        /* Ask application if slave's connection parameters are acceptable. */
+        rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
+        if (rc == 0) {
+            /* Application agrees to accept parameters; schedule update. */
+            rc = ble_gap_update_params(conn_handle, &params);
+            if (rc != 0) {
+                return rc;
+            }
+            l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
+        } else {
+            l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
         }
-        l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
-    } else {
-        l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
     }
 
     /* Send L2CAP response. */
-    rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
-                                     l2cap_result);
-    if (rc != 0) {
-        return rc;
+    ble_hs_lock();
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                         &conn, &chan);
+    if (rc == 0) {
+        if (!sig_err) {
+            rc = ble_l2cap_sig_update_rsp_tx(conn, chan, hdr->identifier,
+                                             l2cap_result);
+        } else {
+            ble_l2cap_sig_reject_tx(conn, chan, hdr->identifier,
+                                    BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
+                                    NULL, 0);
+            rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
+        }
     }
+    ble_hs_unlock();
 
-    return 0;
+    return rc;
 }
 
 static int
@@ -400,30 +392,34 @@ ble_l2cap_sig_update(uint16_t conn_handle,
 {
     struct ble_l2cap_sig_update_req req;
     struct ble_l2cap_sig_proc *proc;
-    ble_hs_conn_flags_t conn_flags;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
     int rc;
 
     proc = NULL;
 
     STATS_INC(ble_l2cap_stats, update_init);
 
-    rc = ble_hs_atomic_conn_flags(conn_handle, &conn_flags);
+    ble_hs_lock();
+
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                         &conn, &chan);
     if (rc != 0) {
-        return rc;
+        goto done;
     }
-    if (conn_flags & BLE_HS_CONN_F_MASTER) {
+    if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
         /* Only the slave can initiate the L2CAP connection update
          * procedure.
          */
         rc = BLE_HS_EINVAL;
-        goto err;
+        goto done;
     }
 
     proc = ble_l2cap_sig_proc_alloc();
     if (proc == NULL) {
         STATS_INC(ble_l2cap_stats, update_fail);
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     proc->op = BLE_L2CAP_SIG_PROC_OP_UPDATE;
@@ -438,17 +434,18 @@ ble_l2cap_sig_update(uint16_t conn_handle,
     req.slave_latency = params->slave_latency;
     req.timeout_multiplier = params->timeout_multiplier;
 
-    rc = ble_l2cap_sig_update_req_tx(conn_handle, proc->id, &req);
-    if (rc != 0) {
-        goto err;
+    rc = ble_l2cap_sig_update_req_tx(conn, chan, proc->id, &req);
+    if (rc == 0) {
+        ble_l2cap_sig_proc_insert(proc);
     }
 
-    ble_l2cap_sig_proc_insert(proc);
+done:
+    ble_hs_unlock();
 
-    return 0;
+    if (rc != 0) {
+        ble_l2cap_sig_proc_free(proc);
+    }
 
-err:
-    ble_l2cap_sig_proc_free(proc);
     return rc;
 }
 
@@ -456,6 +453,8 @@ static int
 ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
     struct ble_l2cap_sig_hdr hdr;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
     ble_l2cap_sig_rx_fn *rx_cb;
     int rc;
 
@@ -480,9 +479,18 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
-        ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
-                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
-        rc = BLE_HS_ENOTSUP;
+        ble_hs_lock();
+        rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                             &conn, &chan);
+        if (rc == 0) {
+            ble_l2cap_sig_reject_tx(conn, chan, hdr.identifier,
+                                    BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
+                                    NULL, 0);
+            rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
+        } else {
+            rc = BLE_HS_ENOTCONN;
+        }
+        ble_hs_unlock();
     } else {
         rc = rx_cb(conn_handle, &hdr, om);
     }
