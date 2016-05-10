@@ -242,6 +242,8 @@ ble_hs_start(void)
 
     ble_hs_heartbeat_timer_reset();
 
+    ble_gatts_start();
+
     rc = ble_hs_startup_go();
     return rc;
 }

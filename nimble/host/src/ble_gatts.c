@@ -38,7 +38,6 @@ static int ble_gatts_num_svc_entries;
 
 static os_membuf_t *ble_gatts_clt_cfg_mem;
 static struct os_mempool ble_gatts_clt_cfg_pool;
-static uint8_t ble_gatts_clt_cfg_inited;
 
 struct ble_gatts_clt_cfg {
     uint16_t chr_def_handle;
@@ -889,8 +888,8 @@ ble_gatts_clt_cfg_size(void)
     return ble_gatts_num_cfgable_chrs * sizeof (struct ble_gatts_clt_cfg);
 }
 
-static int
-ble_gatts_clt_cfg_init(void)
+int
+ble_gatts_start(void)
 {
     struct ble_att_svr_entry *ha;
     struct ble_gatt_chr_def *chr;
@@ -957,19 +956,15 @@ ble_gatts_clt_cfg_init(void)
 }
 
 int
+ble_gatts_conn_can_alloc(void)
+{
+    return ble_gatts_num_cfgable_chrs == 0 ||
+           ble_gatts_clt_cfg_pool.mp_num_free > 0;
+}
+
+int
 ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
 {
-    int rc;
-
-    /* Initialize the client configuration memory pool if necessary. */
-    if (!ble_gatts_clt_cfg_inited) {
-        rc = ble_gatts_clt_cfg_init();
-        if (rc != 0) {
-            return rc;
-        }
-        ble_gatts_clt_cfg_inited = 1;
-    }
-
     if (ble_gatts_num_cfgable_chrs > 0) {
         ble_gatts_conn_deinit(gatts_conn);
         gatts_conn->clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
@@ -1079,7 +1074,6 @@ ble_gatts_init(void)
     ble_gatts_free_mem();
     ble_gatts_num_cfgable_chrs = 0;
     ble_gatts_clt_cfgs = NULL;
-    ble_gatts_clt_cfg_inited = 0;
 
     if (ble_hs_cfg.max_client_configs > 0) {
         ble_gatts_clt_cfg_mem = malloc(

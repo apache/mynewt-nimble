@@ -42,6 +42,8 @@ STATS_SECT_START(ble_l2cap_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
 
+extern struct os_mempool ble_l2cap_chan_pool;
+
 #define BLE_L2CAP_CID_ATT   4
 #define BLE_L2CAP_CID_SIG   5
 #define BLE_L2CAP_CID_SM    6
