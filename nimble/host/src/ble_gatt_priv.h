@@ -149,7 +149,9 @@ void ble_gatts_send_notifications(struct ble_hs_conn *conn);
 
 /*** @misc. */
 void ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn);
+int ble_gatts_conn_can_alloc(void);
 int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
+int ble_gatts_start(void);
 int ble_gatts_init(void);
 
 #endif

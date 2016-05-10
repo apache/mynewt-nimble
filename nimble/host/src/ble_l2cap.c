@@ -28,7 +28,7 @@
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
                "struct ble_l2cap_hdr must be 4 bytes");
 
-static struct os_mempool ble_l2cap_chan_pool;
+struct os_mempool ble_l2cap_chan_pool;
 
 static void *ble_l2cap_chan_mem;
 

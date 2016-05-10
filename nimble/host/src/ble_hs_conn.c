@@ -23,6 +23,9 @@
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
 
+/** At least three channels required per connection (sig, att, sm). */
+#define BLE_HS_CONN_MIN_CHANS       3
+
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
 
@@ -35,7 +38,9 @@ ble_hs_conn_can_alloc(void)
     return 0;
 #endif
 
-    return ble_hs_conn_pool.mp_num_free >= 1;
+    return ble_hs_conn_pool.mp_num_free >= 1 &&
+           ble_l2cap_chan_pool.mp_num_free >= BLE_HS_CONN_MIN_CHANS &&
+           ble_gatts_conn_can_alloc();
 }
 
 struct ble_l2cap_chan *
@@ -127,6 +132,9 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
+    /* XXX: We should create the SM channel even if not configured.  We need it
+     * to reject SM messages.
+     */
 #if NIMBLE_OPT_SM
     chan = ble_l2cap_sm_create_chan();
     if (chan == NULL) {
