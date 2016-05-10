@@ -69,6 +69,8 @@ static int
 ble_eddystone_set_adv_data_gen(struct ble_hs_adv_fields *adv_fields,
                                uint8_t svc_data_len)
 {
+    int rc;
+
     if (adv_fields->num_uuids16 > BLE_EDDYSTONE_MAX_UUIDS16) {
         return BLE_HS_EINVAL;
     }
@@ -115,6 +117,10 @@ ble_eddystone_set_adv_data_gen(struct ble_hs_adv_fields *adv_fields,
 int
 ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
 {
+#if !NIMBLE_OPT_EDDYSTONE
+    return BLE_HS_ENOTSUP;
+#endif
+
     void *svc_data;
     int rc;
 
@@ -143,7 +149,7 @@ ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
  * @param url_suffix            The suffix of the URL; one of the
  *                                  BLE_EDDYSTONE_URL_SUFFIX values; use
  *                                  BLE_EDDYSTONE_URL_SUFFIX_NONE if the suffix
- *                                  is embeded in the body argument.
+ *                                  is embedded in the body argument.
  *
  * @return                      0 on success; BLE_HS_E... on failure.
  */
@@ -152,6 +158,10 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                uint8_t url_scheme, char *url_body,
                                uint8_t url_body_len, uint8_t url_suffix)
 {
+#if !NIMBLE_OPT_EDDYSTONE
+    return BLE_HS_ENOTSUP;
+#endif
+
     uint8_t *svc_data;
     int8_t tx_pwr;
     int url_len;

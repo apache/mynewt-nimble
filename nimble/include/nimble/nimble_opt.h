@@ -188,6 +188,14 @@
 #define NIMBLE_OPT_ATT_SVR_INDICATE             1
 #endif
 
+
+/** HOST: Miscellaneous features. */
+
+#ifndef NIMBLE_OPT_EDDYSTONE
+#define NIMBLE_OPT_EDDYSTONE                    1
+#endif
+
+
 /*** CONTROLLER ***/
 
 /*
