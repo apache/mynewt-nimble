@@ -23,7 +23,7 @@
 #include <inttypes.h>
 struct ble_hs_adv_fields;
 
-#define BLE_EDDYSTONE_MAX_UUIDS16       3
+#define BLE_EDDYSTONE_MAX_UUIDS16           3
 #define BLE_EDDYSTONE_URL_MAX_LEN           17
 
 #define BLE_EDDYSTONE_URL_SCHEME_HTTP_WWW   0
