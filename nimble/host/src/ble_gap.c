@@ -519,7 +519,7 @@ ble_gap_update_failed(uint16_t conn_handle, int status)
 }
 
 static void
-ble_gap_conn_broken(struct ble_gap_snapshot *snap)
+ble_gap_conn_broken(struct ble_gap_snapshot *snap, int status)
 {
     struct ble_gap_conn_ctxt ctxt;
 
@@ -528,7 +528,7 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap)
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap->desc;
-    ble_gap_call_conn_cb(BLE_GAP_EVENT_CONN, BLE_HS_ENOTCONN, &ctxt,
+    ble_gap_call_conn_cb(BLE_GAP_EVENT_CONN, status, &ctxt,
                          snap->cb, snap->cb_arg);
     ble_hs_atomic_conn_delete(snap->desc.conn_handle);
 
@@ -544,6 +544,7 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
+    int status;
     int rc;
 
     STATS_INC(ble_gap_stats, rx_disconnect);
@@ -555,7 +556,15 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
     }
 
     if (evt->status == 0) {
-        ble_gap_conn_broken(&snap);
+        if (evt->reason == BLE_ERR_CONN_TERM_LOCAL) {
+            /* Don't confuse the application with an HCI error code in the
+             * success case.
+             */
+            status = BLE_HS_ENOTCONN;
+        } else {
+            status = BLE_HS_HCI_ERR(evt->reason);
+        }
+        ble_gap_conn_broken(&snap, status);
     } else {
         memset(&ctxt, 0, sizeof ctxt);
         ctxt.desc = &snap.desc;
@@ -781,7 +790,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         /* XXX: Does this ever happen? */
 
         if (evt->status != 0) {
-            ble_gap_conn_broken(&snap);
+            ble_gap_conn_broken(&snap, BLE_HS_HCI_ERR(evt->status));
         }
         return 0;
     }
