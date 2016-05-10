@@ -148,6 +148,9 @@
 /* --- LE read local supported features (OCF 0x0003) --- */
 #define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN     (8)
 
+/* --- LE set random address (OCF 0x0005) --- */
+#define BLE_HCI_LE_SET_RAND_ADDR_LEN           (6)
+
 /* --- LE set advertising parameters (OCF 0x0006) */
 #define BLE_HCI_SET_ADV_PARAM_LEN           (15)
 

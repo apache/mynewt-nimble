@@ -48,6 +48,8 @@ void host_hci_cmd_build_le_set_event_mask(uint64_t event_mask,
 void host_hci_cmd_build_le_read_buffer_size(uint8_t *dst, int dst_len);
 int host_hci_cmd_le_read_buffer_size(void);
 void host_hci_cmd_build_le_read_loc_supp_feat(uint8_t *dst, uint8_t dst_len);
+void host_hci_cmd_build_le_set_rand_addr(uint8_t *addr, uint8_t *dst,
+                                         int dst_len);
 void host_hci_cmd_build_le_set_adv_enable(uint8_t enable, uint8_t *dst,
                                           int dst_len);
 int host_hci_cmd_le_set_adv_enable(uint8_t enable);
