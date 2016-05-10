@@ -422,6 +422,22 @@ host_hci_cmd_build_le_read_loc_supp_feat(uint8_t *dst, uint8_t dst_len)
                        0, dst);
 }
 
+/**
+ * OGF=LE, OCF=0x0005
+ */
+void
+host_hci_cmd_build_le_set_rand_addr(uint8_t *addr, uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(dst_len >=
+        BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_RAND_ADDR_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RAND_ADDR,
+                       BLE_HCI_LE_SET_RAND_ADDR_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    memcpy(dst, addr, 6);
+}
+
 static void
 host_hci_cmd_body_le_set_adv_enable(uint8_t enable, uint8_t *dst)
 {
