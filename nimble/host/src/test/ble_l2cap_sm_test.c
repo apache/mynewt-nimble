@@ -1421,6 +1421,33 @@ TEST_CASE(ble_l2cap_sm_test_case_us_lgcy_jw_good)
     );
 }
 
+TEST_CASE(ble_l2cap_sm_test_case_conn_broken)
+{
+    struct hci_disconn_complete disconn_evt;
+    int rc;
+
+    ble_l2cap_sm_test_util_init();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
+                                 ble_l2cap_sm_test_util_conn_cb, NULL);
+
+    /* Initiate the pairing procedure. */
+    rc = ble_hs_test_util_security_initiate(2, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Terminate the connection. */
+    disconn_evt.connection_handle = 2;
+    disconn_evt.status = 0;
+    disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
+    ble_gap_rx_disconn_complete(&disconn_evt);
+
+    /* Verify security callback got called. */
+    TEST_ASSERT(ble_l2cap_sm_test_gap_status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(!ble_l2cap_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(!ble_l2cap_sm_test_sec_state.authenticated);
+}
+
 TEST_SUITE(ble_l2cap_sm_test_suite)
 {
     ble_l2cap_sm_test_case_peer_fail_inval();
@@ -1430,6 +1457,7 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
     ble_l2cap_sm_test_case_us_lgcy_jw_good();
     ble_l2cap_sm_test_case_peer_bonding_good();
     ble_l2cap_sm_test_case_peer_bonding_bad();
+    ble_l2cap_sm_test_case_conn_broken();
 }
 #endif
 

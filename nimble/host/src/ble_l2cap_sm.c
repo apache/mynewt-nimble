@@ -1987,14 +1987,17 @@ ble_l2cap_sm_connection_broken(uint16_t conn_handle)
     proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
                                   -1, &prev);
     if (proc != NULL) {
-        /* Free the affected procedure object.  There is no need to notify the
-         * application, as it has already been notified of the connection
+        /* Free the affected procedure object and notify the application of the
          * failure.
          */
         ble_l2cap_sm_proc_remove(proc, prev);
-        ble_l2cap_sm_proc_free(proc);
     }
     ble_hs_unlock();
+
+    if (proc != NULL) {
+        ble_l2cap_sm_gap_event(proc, BLE_HS_ENOTCONN, 0);
+        ble_l2cap_sm_proc_free(proc);
+    }
 }
 
 int
