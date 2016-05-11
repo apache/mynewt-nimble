@@ -328,7 +328,9 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
 
     entry = ble_att_svr_find_by_handle(attr_handle);
     if (entry == NULL) {
-        *out_att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        if (out_att_err != NULL) {
+            *out_att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        }
         return BLE_HS_ENOENT;
     }
 
