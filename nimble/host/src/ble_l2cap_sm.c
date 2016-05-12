@@ -197,6 +197,7 @@ ble_l2cap_sm_dbg_num_procs(void)
 
     cnt = 0;
     STAILQ_FOREACH(proc, &ble_l2cap_sm_procs, next) {
+        BLE_HS_DBG_ASSERT(cnt < ble_hs_cfg.max_l2cap_sm_procs);
         cnt++;
     }
 
@@ -204,6 +205,14 @@ ble_l2cap_sm_dbg_num_procs(void)
 }
 
 #endif
+
+static void
+ble_l2cap_sm_dbg_assert_no_cycles(void)
+{
+#if BLE_HS_DEBUG
+    ble_l2cap_sm_dbg_num_procs();
+#endif
+}
 
 /*****************************************************************************
  * $misc                                                                     *
@@ -371,6 +380,8 @@ ble_l2cap_sm_proc_remove(struct ble_l2cap_sm_proc *proc,
         BLE_HS_DBG_ASSERT(STAILQ_NEXT(prev, next) == proc);
         STAILQ_REMOVE_AFTER(&ble_l2cap_sm_procs, prev, next);
     }
+
+    ble_l2cap_sm_dbg_assert_no_cycles();
 }
 
 static void
@@ -467,6 +478,20 @@ ble_l2cap_sm_proc_find(uint16_t conn_handle, uint8_t state, int is_initiator,
 }
 
 static void
+ble_l2cap_sm_insert(struct ble_l2cap_sm_proc *proc)
+{
+#ifdef BLE_HS_DEBUG
+    struct ble_l2cap_sm_proc *cur;
+
+    STAILQ_FOREACH(cur, &ble_l2cap_sm_procs, next) {
+        BLE_HS_DBG_ASSERT(cur != proc);
+    }
+#endif
+
+    STAILQ_INSERT_HEAD(&ble_l2cap_sm_procs, proc, next);
+}
+
+static void
 ble_l2cap_sm_extract_expired(struct ble_l2cap_sm_proc_list *dst_list)
 {
     struct ble_l2cap_sm_proc *proc;
@@ -498,6 +523,8 @@ ble_l2cap_sm_extract_expired(struct ble_l2cap_sm_proc_list *dst_list)
         prev = proc;
         proc = next;
     }
+
+    ble_l2cap_sm_dbg_assert_no_cycles();
 
     ble_hs_unlock();
 }
@@ -1375,7 +1402,7 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t op,
         rc = ble_l2cap_sm_pair_req_handle(proc, &req, &sm_status,
                                           &passkey_action);
         if (rc == 0) {
-            STAILQ_INSERT_HEAD(&ble_l2cap_sm_procs, proc, next);
+            ble_l2cap_sm_insert(proc);
         }
     }
 
@@ -1639,7 +1666,7 @@ ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
         if (proc != NULL) {
             proc->conn_handle = evt->connection_handle;
             proc->state = BLE_L2CAP_SM_PROC_STATE_LTK;
-            STAILQ_INSERT_HEAD(&ble_l2cap_sm_procs, proc, next);
+            ble_l2cap_sm_insert(proc);
         }
     } else if (proc->state == BLE_L2CAP_SM_PROC_STATE_LTK) {
         /* Short-term key pairing just completed.  Send the short term key to
@@ -1685,36 +1712,39 @@ ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
     struct ble_l2cap_sm_proc *prev;
     int enc_enabled = 0;
     int do_key_exchange = 0;
-    int rc = 0;
+    int rc;
     uint8_t sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+    int complete;
 
     ble_hs_lock();
     proc = ble_l2cap_sm_proc_find(evt->connection_handle,
                                   BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE, -1,
                                   &prev);
-
-    if (proc != NULL) {
+    if (proc == NULL) {
+        rc = BLE_HS_ENOENT;
+    } else {
         enc_enabled = evt->encryption_enabled & 0x01; /* LE bit. */
         do_key_exchange = (proc->flags & BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE);
+        rc = 0;
     }
 
-    /* do we do a key exchange. Must be secure also */
     if (do_key_exchange && enc_enabled) {
         proc->state = BLE_L2CAP_SM_PROC_STATE_KEY_EXCH;
-        /* the slave starts first */
+
+        /* The responder sends its keys first. */
         if (!(proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR)) {
             rc = ble_l2cap_sm_key_exchange_go(proc, &sm_status);
         }
-    } else {
-        if (proc != NULL) {
-            ble_l2cap_sm_proc_remove(proc, prev);
-        }
+    }
+
+    complete = proc != NULL && (rc != 0 || !do_key_exchange || !enc_enabled);
+    if (complete) {
+        ble_l2cap_sm_proc_remove(proc, prev);
     }
 
     ble_hs_unlock();
 
-    if (rc != 0 || (proc != NULL && do_key_exchange == 0)) {
-        /* The pairing procedure is now complete. */
+    if (complete) {
         ble_l2cap_sm_gap_event(proc, BLE_HS_HCI_ERR(evt->status), enc_enabled);
         ble_l2cap_sm_proc_free(proc);
     }
@@ -1808,7 +1838,7 @@ ble_l2cap_sm_initiate(uint16_t conn_handle)
         goto done;
     }
 
-    STAILQ_INSERT_HEAD(&ble_l2cap_sm_procs, proc, next);
+    ble_l2cap_sm_insert(proc);
 
 done:
     ble_hs_unlock();
@@ -1856,7 +1886,7 @@ ble_l2cap_sm_sec_initiate(uint16_t conn_handle,
         goto sec_initiate_done;
     }
 
-    STAILQ_INSERT_HEAD(&ble_l2cap_sm_procs, proc, next);
+    ble_l2cap_sm_insert(proc);
 
 sec_initiate_done:
     ble_hs_unlock();
