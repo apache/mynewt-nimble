@@ -58,7 +58,7 @@ struct ble_l2cap_sm_test_pair_params {
     uint64_t r;
     uint16_t ediv;
 
-    struct passkey_action passkey;
+    struct ble_l2cap_sm_passkey passkey;
     struct ble_l2cap_sm_pair_fail pair_fail;
 
     unsigned has_enc_info_req:1;
@@ -94,7 +94,7 @@ static int
 ble_l2cap_sm_test_util_conn_cb(int event, int status,
                                struct ble_gap_conn_ctxt *ctxt, void *arg)
 {
-    struct passkey_action *passkey;
+    struct ble_l2cap_sm_passkey *passkey;
     struct ble_l2cap_sm_test_ltk_info *ltk_info;
     int rc;
 
