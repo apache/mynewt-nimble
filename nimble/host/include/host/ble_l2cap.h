@@ -126,7 +126,7 @@ int ble_l2cap_sig_update(uint16_t conn_handle,
                          ble_l2cap_sig_update_fn *cb, void *cb_arg);
 
 /* Strucure to pass the passkey info back to the l2cap */
-struct passkey_action
+struct ble_l2cap_sm_passkey
 {
     uint8_t action;
     union
@@ -140,7 +140,8 @@ struct passkey_action
  * and then call this function to notify the host that the action is
  * complete
  */
-int ble_l2cap_sm_set_tk(uint16_t conn_handle, struct passkey_action *pkey);
+int ble_l2cap_sm_set_tk(uint16_t conn_handle,
+                        struct ble_l2cap_sm_passkey *pkey);
 
 void ble_l2cap_sm_connection_broken(uint16_t conn_handle);
 

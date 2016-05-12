@@ -1912,7 +1912,7 @@ ble_l2cap_sm_create_chan(void)
 }
 
 int
-ble_l2cap_sm_set_tk(uint16_t conn_handle, struct passkey_action *pkey)
+ble_l2cap_sm_set_tk(uint16_t conn_handle, struct ble_l2cap_sm_passkey *pkey)
 {
     struct ble_l2cap_sm_proc *proc;
     struct ble_l2cap_sm_proc *prev;
