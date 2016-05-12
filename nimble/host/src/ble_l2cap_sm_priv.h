@@ -148,6 +148,7 @@ struct ble_l2cap_sm_signing_info {
 void ble_l2cap_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
 void ble_l2cap_sm_dbg_set_next_ediv(uint16_t next_ediv);
 void ble_l2cap_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
+void ble_l2cap_sm_dbg_set_next_ltk(uint8_t *next_ltk);
 int ble_l2cap_sm_dbg_num_procs(void);
 #endif
 

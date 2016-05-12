@@ -175,7 +175,7 @@ struct ble_gap_ltk_params {
 #define BLE_GAP_PKACT_DISP          3
 
 struct ble_gap_passkey_action {
-    uint8_t  action;
+    uint8_t action;
 };
 
 struct ble_gap_conn_ctxt {

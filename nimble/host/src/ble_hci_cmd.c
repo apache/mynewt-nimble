@@ -290,4 +290,6 @@ ble_hci_cmd_init(void)
 
     rc = os_mutex_init(&ble_hci_cmd_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+    ble_hci_cmd_ack_ev = NULL;
 }
