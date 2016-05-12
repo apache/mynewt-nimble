@@ -43,14 +43,78 @@ os_membuf_t ble_hs_test_util_mbuf_mpool_data[BLE_HS_TEST_UTIL_MEMPOOL_SIZE];
 struct os_mbuf_pool ble_hs_test_util_mbuf_pool;
 struct os_mempool ble_hs_test_util_mbuf_mpool;
 
-struct os_mbuf *ble_hs_test_util_prev_tx;
+static STAILQ_HEAD(, os_mbuf_pkthdr) ble_hs_test_util_prev_tx_queue;
+struct os_mbuf *ble_hs_test_util_prev_tx_cur;
 
-#define BLE_HS_TEST_UTIL_MAX_PREV_HCI_TXES      64
+#define BLE_HS_TEST_UTIL_PREV_HCI_TX_CNT      64
 static uint8_t
-ble_hs_test_util_prev_hci_tx[BLE_HS_TEST_UTIL_MAX_PREV_HCI_TXES][260];
+ble_hs_test_util_prev_hci_tx[BLE_HS_TEST_UTIL_PREV_HCI_TX_CNT][260];
 int ble_hs_test_util_num_prev_hci_txes;
 
 uint8_t ble_hs_test_util_cur_hci_tx[260];
+
+void
+ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om)
+{
+    struct os_mbuf_pkthdr *omp;
+
+    assert(OS_MBUF_IS_PKTHDR(om));
+
+    omp = OS_MBUF_PKTHDR(om);
+    if (STAILQ_EMPTY(&ble_hs_test_util_prev_tx_queue)) {
+        STAILQ_INSERT_HEAD(&ble_hs_test_util_prev_tx_queue, omp, omp_next);
+    } else {
+        STAILQ_INSERT_TAIL(&ble_hs_test_util_prev_tx_queue, omp, omp_next);
+    }
+}
+
+struct os_mbuf *
+ble_hs_test_util_prev_tx_dequeue(void)
+{
+    struct os_mbuf_pkthdr *omp;
+
+    os_mbuf_free_chain(ble_hs_test_util_prev_tx_cur);
+
+    omp = STAILQ_LAST(&ble_hs_test_util_prev_tx_queue, os_mbuf_pkthdr,
+                      omp_next);
+    if (omp != NULL) {
+        STAILQ_REMOVE(&ble_hs_test_util_prev_tx_queue, omp, os_mbuf_pkthdr,
+                      omp_next);
+        ble_hs_test_util_prev_tx_cur = OS_MBUF_PKTHDR_TO_MBUF(omp);
+    } else {
+        ble_hs_test_util_prev_tx_cur = NULL;
+    }
+    return ble_hs_test_util_prev_tx_cur;
+}
+
+struct os_mbuf *
+ble_hs_test_util_prev_tx_dequeue_pullup(void)
+{
+    struct os_mbuf *om;
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+    if (om != NULL) {
+        om = os_mbuf_pullup(om, OS_MBUF_PKTLEN(om));
+        TEST_ASSERT_FATAL(om != NULL);
+        ble_hs_test_util_prev_tx_cur = om;
+    }
+
+    return om;
+}
+
+int
+ble_hs_test_util_prev_tx_queue_sz(void)
+{
+    struct os_mbuf_pkthdr *omp;
+    int cnt;
+
+    cnt = 0;
+    STAILQ_FOREACH(omp, &ble_hs_test_util_prev_tx_queue, omp_next) {
+        cnt++;
+    }
+
+    return cnt;
+}
 
 void *
 ble_hs_test_util_get_first_hci_tx(void)
@@ -92,7 +156,7 @@ void
 ble_hs_test_util_enqueue_hci_tx(void *cmd)
 {
     TEST_ASSERT_FATAL(ble_hs_test_util_num_prev_hci_txes <
-                      BLE_HS_TEST_UTIL_MAX_PREV_HCI_TXES);
+                      BLE_HS_TEST_UTIL_PREV_HCI_TX_CNT);
     memcpy(ble_hs_test_util_prev_hci_tx + ble_hs_test_util_num_prev_hci_txes,
            cmd, 260);
 
@@ -644,6 +708,8 @@ ble_hs_test_util_init(void)
     tu_init();
 
     os_eventq_init(&ble_hs_test_util_evq);
+    STAILQ_INIT(&ble_hs_test_util_prev_tx_queue);
+    ble_hs_test_util_prev_tx_cur = NULL;
 
     os_msys_reset();
     stats_module_reset();
@@ -674,6 +740,5 @@ ble_hs_test_util_init(void)
     /* Don't limit a connection's ability to transmit; simplify tests. */
     ble_hs_cfg.max_outstanding_pkts_per_conn = 0;
 
-    ble_hs_test_util_prev_tx = NULL;
     ble_hs_test_util_prev_hci_tx_clear();
 }

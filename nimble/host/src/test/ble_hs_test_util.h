@@ -27,12 +27,16 @@ struct ble_hs_conn;
 struct ble_l2cap_chan;
 
 struct os_eventq ble_hs_test_util_evq;
-extern struct os_mbuf *ble_hs_test_util_prev_tx;
 
 struct ble_hs_test_util_num_completed_pkts_entry {
     uint16_t handle_id; /* 0 for terminating entry in array. */
     uint16_t num_pkts;
 };
+
+void ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om);
+struct os_mbuf *ble_hs_test_util_prev_tx_dequeue(void);
+struct os_mbuf *ble_hs_test_util_prev_tx_dequeue_pullup(void);
+int ble_hs_test_util_prev_tx_queue_sz(void);
 
 void ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status,
                                      void *params, uint8_t params_len);

@@ -152,10 +152,7 @@ ble_gatt_find_s_test_misc_verify_tx_read_type(uint16_t start_handle,
 
     ble_hs_test_util_tx_all();
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
 
     ble_att_read_type_req_parse(om->om_data, om->om_len, &req);
@@ -175,10 +172,7 @@ ble_gatt_find_s_test_misc_verify_tx_read(uint16_t handle)
 
     ble_hs_test_util_tx_all();
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
 
     ble_att_read_req_parse(om->om_data, om->om_len, &req);

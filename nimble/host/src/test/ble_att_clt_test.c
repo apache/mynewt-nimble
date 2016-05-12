@@ -43,10 +43,7 @@ ble_att_clt_test_misc_verify_tx_write(uint16_t handle_id, void *value,
     struct ble_att_write_req req;
     struct os_mbuf *om;
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
 
     if (is_req) {
@@ -221,10 +218,7 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
 
@@ -253,10 +247,7 @@ ble_att_clt_test_misc_exec_good(uint8_t flags)
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_EXEC_WRITE_REQ_SZ);
 
@@ -393,10 +384,7 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx));
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_READ_MULT_REQ_BASE_SZ + 4);
 

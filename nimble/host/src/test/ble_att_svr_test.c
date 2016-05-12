@@ -302,12 +302,15 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
                                         uint8_t error_code)
 {
     struct ble_att_error_rsp rsp;
+    struct os_mbuf *om;
     uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
     int rc;
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
     ble_att_error_rsp_parse(buf, sizeof buf, &rsp);
@@ -315,63 +318,60 @@ ble_att_svr_test_misc_verify_tx_err_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(rsp.baep_req_op == req_op);
     TEST_ASSERT(rsp.baep_handle == handle);
     TEST_ASSERT(rsp.baep_error_code == error_code);
-
-    /* Remove the error response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx, BLE_ATT_ERROR_RSP_SZ);
 }
 
 static void
 ble_att_svr_test_misc_verify_tx_read_rsp(struct ble_l2cap_chan *chan,
                                          uint8_t *attr_data, int attr_len)
 {
+    struct os_mbuf *om;
     uint8_t u8;
     int rc;
     int i;
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_ATT_OP_READ_RSP);
 
     for (i = 0; i < attr_len; i++) {
-        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, i + 1, 1, &u8);
+        rc = os_mbuf_copydata(om, i + 1, 1, &u8);
         TEST_ASSERT(rc == 0);
         TEST_ASSERT(u8 == attr_data[i]);
     }
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, i + 1, 1, &u8);
+    rc = os_mbuf_copydata(om, i + 1, 1, &u8);
     TEST_ASSERT(rc != 0);
-
-    /* Remove the read response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx, attr_len + 1);
 }
 
 static void
 ble_att_svr_test_misc_verify_tx_read_blob_rsp(struct ble_l2cap_chan *chan,
                                               uint8_t *attr_data, int attr_len)
 {
+    struct os_mbuf *om;
     uint8_t u8;
     int rc;
     int i;
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_ATT_OP_READ_BLOB_RSP);
 
     for (i = 0; i < attr_len; i++) {
-        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, i + 1, 1, &u8);
+        rc = os_mbuf_copydata(om, i + 1, 1, &u8);
         TEST_ASSERT(rc == 0);
         TEST_ASSERT(u8 == attr_data[i]);
     }
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, i + 1, 1, &u8);
+    rc = os_mbuf_copydata(om, i + 1, 1, &u8);
     TEST_ASSERT(rc != 0);
-
-    /* Remove the read response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx, attr_len + 1);
 }
 
 static void
@@ -406,6 +406,7 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(struct ble_l2cap_chan *chan,
                                               struct ble_gatt_attr *attrs,
                                               int num_attrs)
 {
+    struct os_mbuf *om;
     uint8_t *attr_value;
     uint8_t u8;
     int rc;
@@ -415,7 +416,9 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(struct ble_l2cap_chan *chan,
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_ATT_OP_READ_MULT_RSP);
 
@@ -427,7 +430,7 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(struct ble_l2cap_chan *chan,
              ii < attrs[i].value_len && off < ble_l2cap_chan_mtu(chan);
              ii++) {
 
-            rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 1, &u8);
+            rc = os_mbuf_copydata(om, off, 1, &u8);
             TEST_ASSERT(rc == 0);
             TEST_ASSERT(u8 == attr_value[ii]);
 
@@ -435,7 +438,7 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(struct ble_l2cap_chan *chan,
         }
     }
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 1, &u8);
+    rc = os_mbuf_copydata(om, off, 1, &u8);
     TEST_ASSERT(rc != 0);
 }
 
@@ -462,39 +465,37 @@ ble_att_svr_test_misc_verify_all_read_mult(struct ble_hs_conn *conn,
 static void
 ble_att_svr_test_misc_verify_tx_write_rsp(struct ble_l2cap_chan *chan)
 {
+    struct os_mbuf *om;
     uint8_t u8;
     int rc;
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, 1, &u8);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_ATT_OP_WRITE_RSP);
-
-    /* Remove the write response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx,
-                BLE_ATT_WRITE_RSP_SZ);
 }
 
 static void
 ble_att_svr_test_misc_verify_tx_mtu_rsp(struct ble_l2cap_chan *chan)
 {
     struct ble_att_mtu_cmd rsp;
+    struct os_mbuf *om;
     uint8_t buf[BLE_ATT_MTU_CMD_SZ];
     int rc;
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, sizeof buf, buf);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
     ble_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
 
     TEST_ASSERT(rsp.bamc_mtu == chan->blc_my_mtu);
-
-    /* Remove the write response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx,
-                BLE_ATT_MTU_CMD_SZ);
 }
 
 struct ble_att_svr_test_info_entry {
@@ -510,6 +511,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
 {
     struct ble_att_svr_test_info_entry *entry;
     struct ble_att_find_info_rsp rsp;
+    struct os_mbuf *om;
     uint16_t handle;
     uint16_t uuid16;
     uint8_t buf[BLE_ATT_FIND_INFO_RSP_BASE_SZ];
@@ -521,14 +523,16 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
 
     off = 0;
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, sizeof buf, buf);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+
+    rc = os_mbuf_copydata(om, off, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
     off += sizeof buf;
 
     ble_att_find_info_rsp_parse(buf, sizeof buf, &rsp);
 
     for (entry = entries; entry->handle != 0; entry++) {
-        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &handle);
+        rc = os_mbuf_copydata(om, off, 2, &handle);
         TEST_ASSERT(rc == 0);
         off += 2;
 
@@ -538,7 +542,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
         if (entry->uuid16 != 0) {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT);
-            rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &uuid16);
+            rc = os_mbuf_copydata(om, off, 2, &uuid16);
             TEST_ASSERT(rc == 0);
             off += 2;
 
@@ -547,7 +551,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
         } else {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT);
-            rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 16, uuid128);
+            rc = os_mbuf_copydata(om, off, 16, uuid128);
             TEST_ASSERT(rc == 0);
             off += 16;
 
@@ -556,10 +560,7 @@ ble_att_svr_test_misc_verify_tx_find_info_rsp(
     }
 
     /* Ensure there is no extra data in the response. */
-    TEST_ASSERT(off == OS_MBUF_PKTHDR(ble_hs_test_util_prev_tx)->omp_len);
-
-    /* Remove the response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx, off);
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(om)->omp_len);
 }
 
 struct ble_att_svr_test_type_value_entry {
@@ -573,6 +574,7 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
     struct ble_att_svr_test_type_value_entry *entries)
 {
     struct ble_att_svr_test_type_value_entry *entry;
+    struct os_mbuf *om;
     uint16_t u16;
     uint8_t op;
     int off;
@@ -582,20 +584,22 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
 
     off = 0;
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 1, &op);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+
+    rc = os_mbuf_copydata(om, off, 1, &op);
     TEST_ASSERT(rc == 0);
     off += 1;
 
     TEST_ASSERT(op == BLE_ATT_OP_FIND_TYPE_VALUE_RSP);
 
     for (entry = entries; entry->first != 0; entry++) {
-        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &u16);
+        rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
         htole16(&u16, u16);
         TEST_ASSERT(u16 == entry->first);
         off += 2;
 
-        rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, off, 2, &u16);
+        rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
         htole16(&u16, u16);
         TEST_ASSERT(u16 == entry->last);
@@ -603,10 +607,7 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
     }
 
     /* Ensure there is no extra data in the response. */
-    TEST_ASSERT(off == OS_MBUF_PKTHDR(ble_hs_test_util_prev_tx)->omp_len);
-
-    /* Remove the response from the buffer. */
-    os_mbuf_adj(ble_hs_test_util_prev_tx, off);
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(om)->omp_len);
 }
 
 struct ble_att_svr_test_group_type_entry {
@@ -632,9 +633,7 @@ ble_att_svr_test_misc_verify_tx_read_group_type_rsp(
 
     ble_hs_test_util_tx_all();
 
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
-    TEST_ASSERT_FATAL(om != NULL);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
 
     ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
 
@@ -704,9 +703,7 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
 
     ble_hs_test_util_tx_all();
 
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx,
-                        BLE_ATT_READ_TYPE_RSP_BASE_SZ);
-    TEST_ASSERT_FATAL(om != NULL);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
 
     ble_att_read_type_rsp_parse(om->om_data, om->om_len, &rsp);
 
@@ -738,13 +735,15 @@ ble_att_svr_test_misc_verify_tx_prep_write_rsp(struct ble_l2cap_chan *chan,
                                                void *data, int data_len)
 {
     struct ble_att_prep_write_cmd rsp;
+    struct os_mbuf *om;
     uint8_t buf[1024];
     int rc;
 
     ble_hs_test_util_tx_all();
 
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0,
-                          OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx), buf);
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), buf);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_att_prep_write_rsp_parse(buf, sizeof buf, &rsp);
@@ -754,7 +753,7 @@ ble_att_svr_test_misc_verify_tx_prep_write_rsp(struct ble_l2cap_chan *chan,
     TEST_ASSERT(memcmp(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, data,
                        data_len) == 0);
 
-    TEST_ASSERT(OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx) ==
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) ==
                 BLE_ATT_PREP_WRITE_CMD_BASE_SZ + data_len);
 }
 
@@ -765,9 +764,7 @@ ble_att_svr_test_misc_verify_tx_exec_write_rsp(struct ble_l2cap_chan *chan)
 
     ble_hs_test_util_tx_all();
 
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_EXEC_WRITE_RSP_SZ);
-    TEST_ASSERT_FATAL(om != NULL);
-
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     ble_att_exec_write_rsp_parse(om->om_data, om->om_len);
 }
 
@@ -934,8 +931,7 @@ ble_att_svr_test_misc_verify_tx_indicate_rsp(struct ble_l2cap_chan *chan)
 
     ble_hs_test_util_tx_all();
 
-    om = os_mbuf_pullup(ble_hs_test_util_prev_tx, BLE_ATT_INDICATE_RSP_SZ);
-    TEST_ASSERT_FATAL(om != NULL);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
 
     ble_att_indicate_rsp_parse(om->om_data, om->om_len);
 }
@@ -988,13 +984,14 @@ ble_att_svr_test_misc_verify_indicate(struct ble_hs_conn *conn,
         TEST_ASSERT(ble_att_svr_test_n_attr_handle == attr_handle);
         TEST_ASSERT(ble_att_svr_test_attr_n_len == attr_len);
         TEST_ASSERT(memcmp(ble_att_svr_test_attr_n, attr_val, attr_len) == 0);
+        ble_att_svr_test_misc_verify_tx_indicate_rsp(chan);
     } else {
         TEST_ASSERT(ble_att_svr_test_n_conn_handle == 0xffff);
         TEST_ASSERT(ble_att_svr_test_n_attr_handle == 0);
         TEST_ASSERT(ble_att_svr_test_attr_n_len == 0);
+        ble_hs_test_util_tx_all();
+        TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
     }
-
-    ble_att_svr_test_misc_verify_tx_indicate_rsp(chan);
 }
 
 TEST_CASE(ble_att_svr_test_mtu)

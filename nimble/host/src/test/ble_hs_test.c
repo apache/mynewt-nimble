@@ -29,11 +29,9 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 void
 ble_hs_test_pkt_txed(struct os_mbuf *om)
 {
-    os_mbuf_free_chain(ble_hs_test_util_prev_tx);
-    ble_hs_test_util_prev_tx = om;
-
     /* XXX: For now, just strip the HCI ACL data and L2CAP headers. */
     os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ + BLE_L2CAP_HDR_SZ);
+    ble_hs_test_util_prev_tx_enqueue(om);
 }
 
 void
