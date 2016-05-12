@@ -106,6 +106,36 @@ ble_l2cap_test_util_rx_update_rsp(struct ble_hs_conn *conn,
     return rc;
 }
 
+
+static struct os_mbuf *
+ble_l2cap_test_util_verify_tx_sig_hdr(uint8_t op, uint8_t id,
+                                      uint16_t payload_len,
+                                      struct ble_l2cap_sig_hdr *out_hdr)
+{
+    struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *om;
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+    TEST_ASSERT_FATAL(om != NULL);
+
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) == BLE_L2CAP_SIG_HDR_SZ + payload_len);
+    ble_l2cap_sig_hdr_parse(om->om_data, om->om_len, &hdr);
+    TEST_ASSERT(hdr.op == op);
+    if (id != 0) {
+        TEST_ASSERT(hdr.identifier == id);
+    }
+    TEST_ASSERT(hdr.length == payload_len);
+
+    om->om_data += BLE_L2CAP_SIG_HDR_SZ;
+    om->om_len -= BLE_L2CAP_SIG_HDR_SZ;
+
+    if (out_hdr != NULL) {
+        *out_hdr = hdr;
+    }
+
+    return om;
+}
+
 /**
  * @return                      The L2CAP sig identifier in the request.
  */
@@ -115,21 +145,14 @@ ble_l2cap_test_util_verify_tx_update_req(
 {
     struct ble_l2cap_sig_update_req req;
     struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *om;
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-    TEST_ASSERT(OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx) ==
-                BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ);
-    ble_l2cap_sig_hdr_parse(ble_hs_test_util_prev_tx->om_data,
-                            ble_hs_test_util_prev_tx->om_len, &hdr);
+    om = ble_l2cap_test_util_verify_tx_sig_hdr(BLE_L2CAP_SIG_OP_UPDATE_REQ, 0,
+                                               BLE_L2CAP_SIG_UPDATE_REQ_SZ,
+                                               &hdr);
 
-    ble_hs_test_util_prev_tx->om_data += BLE_L2CAP_SIG_HDR_SZ;
-    ble_hs_test_util_prev_tx->om_len -= BLE_L2CAP_SIG_HDR_SZ;
-
-    ble_l2cap_sig_update_req_parse(ble_hs_test_util_prev_tx->om_data,
-                                   ble_hs_test_util_prev_tx->om_len,
-                                   &req);
-    TEST_ASSERT(hdr.op == BLE_L2CAP_SIG_OP_UPDATE_REQ);
-    TEST_ASSERT(hdr.length == BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    /* Verify payload. */
+    ble_l2cap_sig_update_req_parse(om->om_data, om->om_len, &req);
     TEST_ASSERT(req.itvl_min == params->itvl_min);
     TEST_ASSERT(req.itvl_max == params->itvl_max);
     TEST_ASSERT(req.slave_latency == params->slave_latency);
@@ -142,23 +165,14 @@ static void
 ble_l2cap_test_util_verify_tx_update_rsp(uint8_t exp_id, uint16_t exp_result)
 {
     struct ble_l2cap_sig_update_rsp rsp;
-    struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *om;
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-    TEST_ASSERT(OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx) ==
-                BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ);
-    ble_l2cap_sig_hdr_parse(ble_hs_test_util_prev_tx->om_data,
-                            ble_hs_test_util_prev_tx->om_len, &hdr);
+    om = ble_l2cap_test_util_verify_tx_sig_hdr(BLE_L2CAP_SIG_OP_UPDATE_RSP,
+                                               exp_id,
+                                               BLE_L2CAP_SIG_UPDATE_RSP_SZ,
+                                               NULL);
 
-    ble_hs_test_util_prev_tx->om_data += BLE_L2CAP_SIG_HDR_SZ;
-    ble_hs_test_util_prev_tx->om_len -= BLE_L2CAP_SIG_HDR_SZ;
-
-    ble_l2cap_sig_update_rsp_parse(ble_hs_test_util_prev_tx->om_data,
-                                   ble_hs_test_util_prev_tx->om_len,
-                                   &rsp);
-    TEST_ASSERT(hdr.op == BLE_L2CAP_SIG_OP_UPDATE_RSP);
-    TEST_ASSERT(hdr.identifier == exp_id);
-    TEST_ASSERT(hdr.length == BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    ble_l2cap_sig_update_rsp_parse(om->om_data, om->om_len, &rsp);
     TEST_ASSERT(rsp.result == exp_result);
 }
 
@@ -424,7 +438,7 @@ TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
 
     /* Ensure we did not send anything in return. */
     ble_hs_test_util_tx_all();
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx == NULL);
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx_dequeue() == NULL);
 }
 
 /*****************************************************************************

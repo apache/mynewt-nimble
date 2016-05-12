@@ -211,17 +211,21 @@ ble_l2cap_sm_test_util_rx_random(struct ble_hs_conn *conn,
     TEST_ASSERT_FATAL(rc == exp_status);
 }
 
-static void
+static struct os_mbuf *
 ble_l2cap_sm_test_util_verify_tx_hdr(uint8_t sm_op, uint16_t payload_len)
 {
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx != NULL);
-    TEST_ASSERT(OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx) ==
-                BLE_L2CAP_SM_HDR_SZ + payload_len);
+    struct os_mbuf *om;
 
-    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx->om_data[0] == sm_op);
+    om = ble_hs_test_util_prev_tx_dequeue();
+    TEST_ASSERT_FATAL(om != NULL);
 
-    ble_hs_test_util_prev_tx->om_data += BLE_L2CAP_SM_HDR_SZ;
-    ble_hs_test_util_prev_tx->om_len -= BLE_L2CAP_SM_HDR_SZ;
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) == BLE_L2CAP_SM_HDR_SZ + payload_len);
+    TEST_ASSERT_FATAL(om->om_data[0] == sm_op);
+
+    om->om_data += BLE_L2CAP_SM_HDR_SZ;
+    om->om_len -= BLE_L2CAP_SM_HDR_SZ;
+
+    return om;
 }
 
 static void
@@ -230,12 +234,10 @@ ble_l2cap_sm_test_util_verify_tx_pair_cmd(
     struct ble_l2cap_sm_pair_cmd *exp_cmd)
 {
     struct ble_l2cap_sm_pair_cmd cmd;
+    struct os_mbuf *om;
 
-    ble_l2cap_sm_test_util_verify_tx_hdr(op, BLE_L2CAP_SM_PAIR_CMD_SZ);
-
-    ble_l2cap_sm_pair_cmd_parse(ble_hs_test_util_prev_tx->om_data,
-                                ble_hs_test_util_prev_tx->om_len,
-                                &cmd);
+    om = ble_l2cap_sm_test_util_verify_tx_hdr(op, BLE_L2CAP_SM_PAIR_CMD_SZ);
+    ble_l2cap_sm_pair_cmd_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.io_cap == exp_cmd->io_cap);
     TEST_ASSERT(cmd.oob_data_flag == exp_cmd->oob_data_flag);
@@ -266,13 +268,11 @@ ble_l2cap_sm_test_util_verify_tx_pair_confirm(
     struct ble_l2cap_sm_pair_confirm *exp_cmd)
 {
     struct ble_l2cap_sm_pair_confirm cmd;
+    struct os_mbuf *om;
 
-    ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_CONFIRM,
-                                         BLE_L2CAP_SM_PAIR_CONFIRM_SZ);
-
-    ble_l2cap_sm_pair_confirm_parse(ble_hs_test_util_prev_tx->om_data,
-                                    ble_hs_test_util_prev_tx->om_len,
-                                    &cmd);
+    om = ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_CONFIRM,
+                                              BLE_L2CAP_SM_PAIR_CONFIRM_SZ);
+    ble_l2cap_sm_pair_confirm_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.value, exp_cmd->value, 16) == 0);
 }
@@ -282,13 +282,11 @@ ble_l2cap_sm_test_util_verify_tx_pair_random(
     struct ble_l2cap_sm_pair_random *exp_cmd)
 {
     struct ble_l2cap_sm_pair_random cmd;
+    struct os_mbuf *om;
 
-    ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_RANDOM,
-                                         BLE_L2CAP_SM_PAIR_RANDOM_SZ);
-
-    ble_l2cap_sm_pair_random_parse(ble_hs_test_util_prev_tx->om_data,
-                                   ble_hs_test_util_prev_tx->om_len,
-                                   &cmd);
+    om = ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_RANDOM,
+                                              BLE_L2CAP_SM_PAIR_RANDOM_SZ);
+    ble_l2cap_sm_pair_random_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.value, exp_cmd->value, 16) == 0);
 }
@@ -298,13 +296,11 @@ ble_l2cap_sm_test_util_verify_tx_pair_fail(
     struct ble_l2cap_sm_pair_fail *exp_cmd)
 {
     struct ble_l2cap_sm_pair_fail cmd;
+    struct os_mbuf *om;
 
-    ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_FAIL,
-                                         BLE_L2CAP_SM_PAIR_FAIL_SZ);
-
-    ble_l2cap_sm_pair_fail_parse(ble_hs_test_util_prev_tx->om_data,
-                                 ble_hs_test_util_prev_tx->om_len,
-                                 &cmd);
+    om = ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_PAIR_FAIL,
+                                              BLE_L2CAP_SM_PAIR_FAIL_SZ);
+    ble_l2cap_sm_pair_fail_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.reason == exp_cmd->reason);
 }
@@ -1336,6 +1332,8 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     ble_l2cap_sm_test_util_rx_random(conn, random_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Ensure keys are distributed, if necessary. */
 
     /* Ensure we sent the expected start encryption command. */
     ble_hs_test_util_tx_all();

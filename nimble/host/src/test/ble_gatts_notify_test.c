@@ -178,22 +178,20 @@ static void
 ble_gatts_notify_test_misc_verify_tx_n(struct ble_l2cap_chan *chan,
                                        uint8_t *attr_data, int attr_len)
 {
-    uint8_t buf[1024];
     struct ble_att_notify_req req;
-    int req_len;
-    int rc;
+    struct os_mbuf *om;
     int i;
 
     ble_hs_test_util_tx_all();
 
-    req_len = OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx);
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, req_len, buf);
-    TEST_ASSERT_FATAL(rc == 0);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om != NULL);
 
-    ble_att_notify_req_parse(buf, req_len, &req);
+    ble_att_notify_req_parse(om->om_data, om->om_len, &req);
 
     for (i = 0; i < attr_len; i++) {
-        TEST_ASSERT(buf[BLE_ATT_NOTIFY_REQ_BASE_SZ + i] == attr_data[i]);
+        TEST_ASSERT(om->om_data[BLE_ATT_NOTIFY_REQ_BASE_SZ + i] ==
+                    attr_data[i]);
     }
 }
 
@@ -201,22 +199,20 @@ static void
 ble_gatts_notify_test_misc_verify_tx_i(struct ble_l2cap_chan *chan,
                                        uint8_t *attr_data, int attr_len)
 {
-    uint8_t buf[1024];
     struct ble_att_indicate_req req;
-    int req_len;
-    int rc;
+    struct os_mbuf *om;
     int i;
 
     ble_hs_test_util_tx_all();
 
-    req_len = OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx);
-    rc = os_mbuf_copydata(ble_hs_test_util_prev_tx, 0, req_len, buf);
-    TEST_ASSERT_FATAL(rc == 0);
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om != NULL);
 
-    ble_att_indicate_req_parse(buf, req_len, &req);
+    ble_att_indicate_req_parse(om->om_data, om->om_len, &req);
 
     for (i = 0; i < attr_len; i++) {
-        TEST_ASSERT(buf[BLE_ATT_INDICATE_REQ_BASE_SZ + i] == attr_data[i]);
+        TEST_ASSERT(om->om_data[BLE_ATT_INDICATE_REQ_BASE_SZ + i] ==
+                    attr_data[i]);
     }
 }
 
@@ -272,6 +268,11 @@ TEST_CASE(ble_gatts_notify_test_i)
         conn, chan, ble_gatts_notify_test_chr_2_def_handle,
         BLE_GATTS_CLT_CFG_F_INDICATE);
 
+    /* Toss both write responses. */
+    ble_hs_test_util_tx_all();
+    ble_hs_test_util_prev_tx_dequeue();
+    ble_hs_test_util_prev_tx_dequeue();
+
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
     ble_gatts_notify_test_chr_1_val[0] = 0xab;
@@ -283,9 +284,6 @@ TEST_CASE(ble_gatts_notify_test_i)
         ble_gatts_notify_test_chr_1_val,
         ble_gatts_notify_test_chr_1_len);
 
-    os_mbuf_free_chain(ble_hs_test_util_prev_tx);
-    ble_hs_test_util_prev_tx = NULL;
-
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
@@ -295,12 +293,14 @@ TEST_CASE(ble_gatts_notify_test_i)
     /* Verify the second indication doesn't get sent until the first is
      * confirmed.
      */
-    TEST_ASSERT(ble_hs_test_util_prev_tx == NULL);
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 
     /* Receive the confirmation for the first indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(conn, chan);
 
     /* Verify indication sent properly. */
+    ble_hs_test_util_tx_all();
     ble_gatts_notify_test_misc_verify_tx_i(
         chan,
         ble_gatts_notify_test_chr_2_val,
