@@ -25,6 +25,7 @@
 #include "ble_hs_priv.h"
 struct ble_hs_conn;
 struct ble_l2cap_chan;
+struct hci_disconn_complete;
 
 struct os_eventq ble_hs_test_util_evq;
 
@@ -96,6 +97,8 @@ void ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
 void ble_hs_test_util_set_startup_acks(void);
 void ble_hs_test_util_rx_num_completed_pkts_event(
     struct ble_hs_test_util_num_completed_pkts_entry *entries);
+void ble_hs_test_util_rx_disconn_complete_event(
+    struct hci_disconn_complete *evt);
 uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
                                         uint8_t *out_param_len);
 void ble_hs_test_util_tx_all(void);
