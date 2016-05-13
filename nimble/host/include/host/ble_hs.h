@@ -110,11 +110,16 @@ struct ble_hs_cfg {
     unsigned sm_keypress:1;
     uint8_t sm_our_key_dist;
     uint8_t sm_their_key_dist;
-
     /** Store settings. */
     ble_store_read_fn *store_read_cb;
     ble_store_write_fn *store_write_cb;
     ble_store_delete_fn *store_delete_cb;
+    /* privacy settings */
+    uint8_t privacy_mode;
+    #define BLE_HS_PRIVACY_MODE_NONE            (0)
+    #define BLE_HS_PRIVACY_MODE_RANDOM_STATIC   (1)
+    #define BLE_HS_PRIVACY_MODE_RESOLV_RAND     (2)
+    uint16_t privacy_resolvable_addr_timeout;
 };
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;

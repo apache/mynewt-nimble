@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -164,7 +164,7 @@ ble_hs_startup_go(void)
     }
 
     /* XXX: Read BD_ADDR. */
-    memcpy(ble_hs_our_dev.public_addr, g_dev_addr, sizeof g_dev_addr);
+    ble_hs_priv_init_identity(g_dev_addr);
 
     return rc;
 }

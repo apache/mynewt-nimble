@@ -59,6 +59,8 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     .sm_keypress = 0,
     .sm_our_key_dist = 0,
     .sm_their_key_dist = 0,
+    /** privacy info */
+    .privacy_resolvable_addr_timeout = 300,
 };
 
 struct ble_hs_cfg ble_hs_cfg;

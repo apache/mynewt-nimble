@@ -108,6 +108,15 @@ struct ble_gap_sec_state {
     unsigned bonded:1;
 };
 
+struct ble_gap_adv_params {
+    uint8_t adv_type;
+    uint8_t adv_channel_map;
+    uint8_t own_addr_type;
+    uint8_t adv_filter_policy;
+    uint16_t adv_itvl_min;
+    uint16_t adv_itvl_max;
+};
+
 struct ble_gap_conn_desc {
     struct ble_gap_sec_state sec_state;
     uint8_t peer_addr[6];
@@ -119,8 +128,9 @@ struct ble_gap_conn_desc {
 };
 
 struct ble_gap_crt_params {
-    uint16_t scan_itvl;
     uint16_t scan_window;
+    uint16_t scan_itvl;
+    uint8_t our_addr_type;
     uint16_t itvl_min;
     uint16_t itvl_max;
     uint16_t latency;
@@ -241,13 +251,15 @@ int ble_gap_find_conn(uint16_t handle, struct ble_gap_conn_desc *out_desc);
 
 int ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       uint8_t *peer_addr, uint8_t peer_addr_type,
-                      struct hci_adv_params *adv_params,
+                      const struct ble_gap_adv_params *adv_params,
                       ble_gap_event_fn *cb, void *cb_arg);
+
 int ble_gap_adv_stop(void);
 int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t scan_type, uint8_t filter_policy,
+                      uint8_t addr_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
                           struct ble_gap_crt_params *params,
@@ -262,4 +274,5 @@ int ble_gap_security_initiate(uint16_t conn_handle);
 int
 ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
                             uint16_t ediv, uint64_t rand_val, int auth);
+void ble_gap_init_identity_addr(uint8_t *addr);
 #endif

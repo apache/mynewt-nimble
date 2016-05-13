@@ -372,28 +372,6 @@ ble_l2cap_sm_gen_ltk(struct ble_l2cap_sm_proc *proc, uint8_t *ltk)
 }
 
 static int
-ble_l2cap_sm_gen_irk(struct ble_l2cap_sm_proc *proc, uint8_t *irk)
-{
-    int rc;
-
-#ifdef BLE_HS_DEBUG
-    if (ble_l2cap_sm_dbg_next_irk_set) {
-        ble_l2cap_sm_dbg_next_irk_set = 0;
-        memcpy(irk, ble_l2cap_sm_dbg_next_irk,
-               sizeof ble_l2cap_sm_dbg_next_irk);
-        return 0;
-    }
-#endif
-
-    rc = ble_hci_util_rand(irk, 16);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
 ble_l2cap_sm_gen_csrk(struct ble_l2cap_sm_proc *proc, uint8_t *csrk)
 {
     int rc;
@@ -994,15 +972,13 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn != NULL) {
         if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            *iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-            memcpy(ia, ble_hs_our_dev.public_addr, 6);
-
+            *iat = BLE_ADDR_TYPE_PUBLIC;
+            bls_hs_priv_copy_local_identity_addr(ra, rat);
             *rat = conn->bhc_addr_type;
             memcpy(ra, conn->bhc_addr, 6);
         } else {
-            *rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-            memcpy(ra, ble_hs_our_dev.public_addr, 6);
-
+            *rat = BLE_ADDR_TYPE_PUBLIC;
+            bls_hs_priv_copy_local_identity_addr(ia, iat);
             *iat = conn->bhc_addr_type;
             memcpy(ia, conn->bhc_addr, 6);
         }
@@ -1336,11 +1312,11 @@ static int
 ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
                              uint8_t *sm_status)
 {
-    struct ble_l2cap_sm_iden_addr_info addr_info;
     struct ble_l2cap_sm_signing_info sign_info;
     struct ble_l2cap_sm_master_iden master_iden;
     struct ble_l2cap_sm_iden_info iden_info;
     struct ble_l2cap_sm_enc_info enc_info;
+    struct ble_l2cap_sm_iden_addr_info iden_addr_info;
     uint8_t our_key_dist;
     int rc;
 
@@ -1385,32 +1361,33 @@ ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
     }
 
     if (our_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ID) {
-        /* Send identity information. */
-        rc = ble_l2cap_sm_gen_irk(proc, iden_info.irk_le);
-        if (rc != 0) {
-            return rc;
-        }
+        /* send IRK and BD ADDR */
+        uint8_t *irk = ble_hs_priv_get_local_irk();
+
+        memcpy(iden_info.irk_le, irk, 16);
+
         rc = ble_l2cap_sm_iden_info_tx(proc->conn_handle, &iden_info);
         if (rc != 0) {
-            return rc;
+            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+          return rc;
         }
-        proc->our_keys.irk_valid = 1;
-        memcpy(proc->our_keys.irk, iden_info.irk_le, 16);
 
-        /* Send identity address information. */
-        if (ble_hs_our_dev.has_random_addr) {
-            addr_info.addr_type = BLE_ADDR_TYPE_RANDOM;
-            memcpy(addr_info.bd_addr_le, ble_hs_our_dev.random_addr, 6);
-        } else {
-            addr_info.addr_type = BLE_ADDR_TYPE_PUBLIC;
-            memcpy(addr_info.bd_addr_le, ble_hs_our_dev.public_addr, 6);
-        }
-        rc = ble_l2cap_sm_iden_addr_tx(proc->conn_handle, &addr_info);
+        bls_hs_priv_copy_local_identity_addr(iden_addr_info.bd_addr_le,
+                                            &iden_addr_info.addr_type);
+        rc = ble_l2cap_sm_iden_addr_tx(proc->conn_handle, &iden_addr_info);
         if (rc != 0) {
-            return rc;
+            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
+          return rc;
         }
-        proc->our_keys.addr_type = addr_info.addr_type;
-        memcpy(proc->our_keys.addr, addr_info.bd_addr_le, 6);
+
+        /* copy data to pass to application */
+        proc->our_keys.is_ours = 1;
+        proc->our_keys.irk_valid = 1;
+        proc->our_keys.addr_valid = 1;
+        memcpy(proc->our_keys.irk, irk,16);
+        proc->our_keys.addr_type = iden_addr_info.addr_type;
+        memcpy(proc->our_keys.addr, iden_addr_info.bd_addr_le, 6);
+        memcpy(proc->our_keys.ltk, enc_info.ltk_le, 16);
     }
 
     if (our_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_SIGN) {
@@ -1427,9 +1404,9 @@ ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
         memcpy(proc->our_keys.csrk, sign_info.sig_key_le, 16);
     }
 
+    /* XXX: Send remainining key information. */
     return 0;
 }
-
 
 static int
 ble_l2cap_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op,

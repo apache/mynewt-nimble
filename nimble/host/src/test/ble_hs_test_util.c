@@ -415,7 +415,8 @@ ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
         { 0 }
     }));
 
-    rc = ble_gap_disc(duration_ms, discovery_mode, scan_type, filter_policy,
+    rc = ble_gap_disc(duration_ms, discovery_mode, scan_type, filter_policy, 
+                      BLE_ADDR_TYPE_PUBLIC,
                       cb, cb_arg);
     return rc;
 }
@@ -424,7 +425,6 @@ int
 ble_hs_test_util_adv_start(uint8_t discoverable_mode,
                            uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type,
-                           struct hci_adv_params *adv_params,
                            ble_gap_event_fn *cb, void *cb_arg,
                            int fail_idx, uint8_t fail_status)
 {
@@ -471,8 +471,10 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
     memset(acks + i, 0, sizeof acks[i]);
 
     ble_hs_test_util_set_ack_seq(acks);
-    rc = ble_gap_adv_start(discoverable_mode, connectable_mode, peer_addr,
-                           peer_addr_type, adv_params, cb, cb_arg);
+    
+    rc = ble_gap_adv_start(discoverable_mode, connectable_mode, 
+                        peer_addr, peer_addr_type,
+                        adv_params, cb, cb_arg);
 
     return rc;
 }
@@ -755,7 +757,7 @@ ble_hs_test_util_tx_all(void)
 void
 ble_hs_test_util_set_public_addr(uint8_t *addr)
 {
-    memcpy(ble_hs_our_dev.public_addr, addr, 6);
+    ble_hs_priv_init_identity(addr);
 }
 
 

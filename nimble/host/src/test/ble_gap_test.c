@@ -561,7 +561,7 @@ TEST_CASE(ble_gap_test_case_conn_disc_bad_args)
 
     /*** Invalid discovery mode. */
     rc = ble_gap_disc(0, BLE_GAP_DISC_MODE_NON, BLE_HCI_SCAN_TYPE_ACTIVE,
-                      BLE_HCI_SCAN_FILT_NO_WL, ble_gap_test_util_disc_cb,
+                      BLE_HCI_SCAN_FILT_NO_WL, BLE_ADDR_TYPE_PUBLIC, ble_gap_test_util_disc_cb,
                       NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
@@ -569,7 +569,7 @@ TEST_CASE(ble_gap_test_case_conn_disc_bad_args)
     rc = ble_hs_test_util_conn_initiate(BLE_GAP_ADDR_TYPE_WL, NULL, NULL,
                                         ble_gap_test_util_connect_cb, NULL, 0);
     rc = ble_gap_disc(0, BLE_GAP_DISC_MODE_GEN, BLE_HCI_SCAN_TYPE_ACTIVE,
-                      BLE_HCI_SCAN_FILT_NO_WL, ble_gap_test_util_disc_cb,
+                      BLE_HCI_SCAN_FILT_NO_WL, BLE_ADDR_TYPE_PUBLIC, ble_gap_test_util_disc_cb,
                       NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }

@@ -32,7 +32,7 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     BLE_HCI_RD_BUF_SIZE_LEN,            /* 0x0002: read buffer size */
     0,                                  /* 0x0003: read local supp features */
     0,                                  /* 0x0004: not defined */
-    BLE_DEV_ADDR_LEN,                   /* 0x0005: set random address */
+    BLE_HCI_SET_RAND_ADDR_LEN,          /* 0x0005: set random address */
     BLE_HCI_SET_ADV_PARAM_LEN,          /* 0x0006: set advertising parameters */
     0,                                  /* 0x0007: read adv chan tx power */
     BLE_HCI_SET_ADV_DATA_LEN,           /* 0x0008: set advertising data */
@@ -76,4 +76,3 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     sizeof(uint16_t),                   /* 0x002E: Set resolv priv addr tmo */
     0,                                  /* 0x002F: Read max data length */
 };
-

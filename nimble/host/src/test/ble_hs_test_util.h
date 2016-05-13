@@ -70,7 +70,7 @@ int ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
 int ble_hs_test_util_adv_start(uint8_t discoverable_mode,
                                uint8_t connectable_mode,
                                uint8_t *peer_addr, uint8_t peer_addr_type,
-                               struct hci_adv_params *adv_params,
+                               struct ble_gap_adv_params *adv_params,
                                ble_gap_event_fn *cb, void *cb_arg,
                                int fail_idx, uint8_t fail_status);
 int ble_hs_test_util_adv_stop(uint8_t hci_status);
