@@ -113,7 +113,7 @@ ble_hs_thread_safe(void)
 int
 ble_hs_is_parent_task(void)
 {
-    return os_sched_get_current_task() == ble_hs_parent_task;
+    return !os_started() || os_sched_get_current_task() == ble_hs_parent_task;
 }
 
 void

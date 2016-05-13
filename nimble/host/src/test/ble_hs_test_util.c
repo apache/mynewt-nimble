@@ -23,6 +23,7 @@
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "nimble/hci_transport.h"
 #include "host/host_hci.h"
 #include "ble_hs_test_util.h"
 
@@ -167,6 +168,29 @@ void
 ble_hs_test_util_prev_hci_tx_clear(void)
 {
     ble_hs_test_util_num_prev_hci_txes = 0;
+}
+
+static void
+ble_hs_test_util_rx_hci_evt(uint8_t *evt)
+{
+    uint8_t *evbuf;
+    int totlen;
+    int rc;
+
+    totlen = BLE_HCI_EVENT_HDR_LEN + evt[1];
+    TEST_ASSERT_FATAL(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
+
+    if (os_started()) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        TEST_ASSERT_FATAL(evbuf != NULL);
+
+        memcpy(evbuf, evt, totlen);
+        rc = ble_hci_transport_ctlr_event_send(evbuf);
+    } else {
+        rc = host_hci_event_rx(evt);
+    }
+
+    TEST_ASSERT_FATAL(rc == 0);
 }
 
 void
@@ -637,7 +661,6 @@ ble_hs_test_util_rx_num_completed_pkts_event(
     uint8_t buf[1024];
     int num_entries;
     int off;
-    int rc;
     int i;
 
     /* Count number of entries. */
@@ -662,8 +685,21 @@ ble_hs_test_util_rx_num_completed_pkts_event(
 
     buf[1] = off - 2;
 
-    rc = host_hci_event_rx(buf);
-    TEST_ASSERT(rc == 0);
+    ble_hs_test_util_rx_hci_evt(buf);
+}
+
+void
+ble_hs_test_util_rx_disconn_complete_event(struct hci_disconn_complete *evt)
+{
+    uint8_t buf[BLE_HCI_EVENT_HDR_LEN + BLE_HCI_EVENT_DISCONN_COMPLETE_LEN];
+
+    buf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
+    buf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
+    buf[2] = evt->status;
+    htole16(buf + 3, evt->connection_handle);
+    buf[5] = evt->reason;
+
+    ble_hs_test_util_rx_hci_evt(buf);
 }
 
 uint8_t *

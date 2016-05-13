@@ -67,12 +67,12 @@ ble_os_test_misc_init(void)
 {
     ble_hs_test_util_init();
 
-    ble_os_test_init_app_task();
-
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
     ble_hs_test_util_set_startup_acks();
+
+    ble_os_test_init_app_task();
 }
 
 static int
@@ -323,7 +323,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     disconn_evt.connection_handle = 1;
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
-    ble_gap_rx_disconn_complete(&disconn_evt);
+    ble_hs_test_util_rx_disconn_complete_event(&disconn_evt);
     TEST_ASSERT(disconn_handle == 1);
     TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(1));
     TEST_ASSERT_FATAL(ble_os_test_misc_conn_exists(2));
@@ -334,7 +334,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     disconn_evt.connection_handle = 2;
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
-    ble_gap_rx_disconn_complete(&disconn_evt);
+    ble_hs_test_util_rx_disconn_complete_event(&disconn_evt);
     TEST_ASSERT(disconn_handle == 2);
     TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(1));
     TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(2));
