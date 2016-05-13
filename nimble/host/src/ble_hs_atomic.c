@@ -57,7 +57,36 @@ ble_hs_atomic_conn_flags(uint16_t conn_handle, ble_hs_conn_flags_t *out_flags)
         rc = BLE_HS_ENOTCONN;
     } else {
         rc = 0;
-        *out_flags = conn->bhc_flags;
+        if (out_flags != NULL) {
+            *out_flags = conn->bhc_flags;
+        }
+    }
+
+    ble_hs_unlock();
+
+    return rc;
+}
+
+int
+ble_hs_atomic_conn_set_flags(uint16_t conn_handle, ble_hs_conn_flags_t flags,
+                             int on)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = 0;
+
+        if (on) {
+            conn->bhc_flags |= flags;
+        } else {
+            conn->bhc_flags &= ~flags;
+        }
     }
 
     ble_hs_unlock();

@@ -26,5 +26,7 @@ int ble_hs_atomic_conn_delete(uint16_t conn_handle);
 void ble_hs_atomic_conn_insert(struct ble_hs_conn *conn);
 int ble_hs_atomic_conn_flags(uint16_t conn_handle,
                              ble_hs_conn_flags_t *out_flags);
+int ble_hs_atomic_conn_set_flags(uint16_t conn_handle,
+                                 ble_hs_conn_flags_t flags, int on);
 
 #endif

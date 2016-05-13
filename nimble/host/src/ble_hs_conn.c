@@ -187,7 +187,7 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 
     ble_gatts_conn_deinit(&conn->bhc_gatt_svr);
 
-    ble_att_svr_prep_clear(&conn->bhc_att_svr);
+    ble_att_svr_prep_clear(&conn->bhc_att_svr.basc_prep_list);
 
     while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
         ble_hs_conn_delete_chan(conn, chan);

@@ -299,12 +299,11 @@ ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks)
     ble_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
 }
 
-struct ble_hs_conn *
+void
 ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
                              ble_gap_conn_fn *cb, void *cb_arg)
 {
     struct hci_le_conn_complete evt;
-    struct ble_hs_conn *conn;
     int rc;
 
     ble_hs_test_util_set_ack(
@@ -325,12 +324,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
 
-    conn = ble_hs_conn_find(handle);
-    TEST_ASSERT_FATAL(conn != NULL);
-
     ble_hs_test_util_prev_hci_tx_clear();
-
-    return conn;
 }
 
 int
@@ -534,7 +528,7 @@ ble_hs_test_util_security_initiate(uint16_t conn_handle, uint8_t hci_status)
 }
 
 int
-ble_hs_test_util_l2cap_rx_first_frag(struct ble_hs_conn *conn, uint16_t cid,
+ble_hs_test_util_l2cap_rx_first_frag(uint16_t conn_handle, uint16_t cid,
                                      struct hci_data_hdr *hci_hdr,
                                      struct os_mbuf *om)
 {
@@ -543,24 +537,35 @@ ble_hs_test_util_l2cap_rx_first_frag(struct ble_hs_conn *conn, uint16_t cid,
     om = ble_l2cap_prepend_hdr(om, cid, OS_MBUF_PKTLEN(om));
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_hs_test_util_l2cap_rx(conn, hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn_handle, hci_hdr, om);
     return rc;
 }
 
 int
-ble_hs_test_util_l2cap_rx(struct ble_hs_conn *conn,
+ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
                           struct hci_data_hdr *hci_hdr,
                           struct os_mbuf *om)
 {
+    struct ble_hs_conn *conn;
     ble_l2cap_rx_fn *rx_cb;
     struct os_mbuf *rx_buf;
     int rc;
 
-    rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf);
-    if (rc == 0) {
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf);
+    }
+
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else if (rc == 0) {
         TEST_ASSERT_FATAL(rx_cb != NULL);
         TEST_ASSERT_FATAL(rx_buf != NULL);
-        rc = rx_cb(conn->bhc_handle, &rx_buf);
+        rc = rx_cb(conn_handle, &rx_buf);
         os_mbuf_free_chain(rx_buf);
     } else if (rc == BLE_HS_EAGAIN) {
         /* More fragments on the way. */
@@ -571,8 +576,7 @@ ble_hs_test_util_l2cap_rx(struct ble_hs_conn *conn,
 }
 
 int
-ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
-                                       struct ble_l2cap_chan *chan,
+ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
                                        const void *data, int len)
 {
     struct hci_data_hdr hci_hdr;
@@ -586,21 +590,19 @@ ble_hs_test_util_l2cap_rx_payload_flat(struct ble_hs_conn *conn,
     TEST_ASSERT_FATAL(rc == 0);
 
     hci_hdr.hdh_handle_pb_bc =
-        host_hci_handle_pb_bc_join(conn->bhc_handle,
+        host_hci_handle_pb_bc_join(conn_handle,
                                    BLE_HCI_PB_FIRST_FLUSH, 0);
     hci_hdr.hdh_len = OS_MBUF_PKTHDR(om)->omp_len;
 
-    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, chan->blc_cid, &hci_hdr,
-                                              om);
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, cid, &hci_hdr, om);
     return rc;
 }
 
 void
-ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
+ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
                                 uint8_t error_code, uint16_t err_handle)
 {
     struct ble_att_error_rsp rsp;
-    struct ble_l2cap_chan *chan;
     uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
     int rc;
 
@@ -610,10 +612,8 @@ ble_hs_test_util_rx_att_err_rsp(struct ble_hs_conn *conn, uint8_t req_op,
 
     ble_att_error_rsp_write(buf, sizeof buf, &rsp);
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
     TEST_ASSERT(rc == 0);
 }
 

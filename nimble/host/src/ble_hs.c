@@ -76,6 +76,10 @@ static struct os_mqueue ble_hs_tx_q;
 
 static struct os_mutex ble_hs_mutex;
 
+#if BLE_HS_DEBUG
+static uint8_t ble_hs_dbg_mutex_locked;
+#endif
+
 STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, conn_create)
@@ -87,15 +91,15 @@ STATS_NAME_START(ble_hs_stats)
 STATS_NAME_END(ble_hs_stats)
 
 int
-ble_hs_locked(void)
-{
-    return ble_hs_mutex.mu_level > 0;
-}
-
-int
 ble_hs_locked_by_cur_task(void)
 {
     struct os_task *owner;
+
+#if BLE_HS_DEBUG
+    if (!os_started()) {
+        return ble_hs_dbg_mutex_locked;
+    }
+#endif
 
     owner = ble_hs_mutex.mu_owner;
     return owner != NULL && owner == os_sched_get_current_task();
@@ -104,7 +108,7 @@ ble_hs_locked_by_cur_task(void)
 int
 ble_hs_thread_safe(void)
 {
-    return !os_started() || ble_hs_locked_by_cur_task();
+    return ble_hs_locked_by_cur_task();
 }
 
 /**
@@ -123,6 +127,13 @@ ble_hs_lock(void)
 
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
+#if BLE_HS_DEBUG
+    if (!os_started()) {
+        ble_hs_dbg_mutex_locked = 1;
+        return;
+    }
+#endif
+
     rc = os_mutex_pend(&ble_hs_mutex, 0xffffffff);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
@@ -131,6 +142,14 @@ void
 ble_hs_unlock(void)
 {
     int rc;
+
+#if BLE_HS_DEBUG
+    if (!os_started()) {
+        BLE_HS_DBG_ASSERT(ble_hs_dbg_mutex_locked);
+        ble_hs_dbg_mutex_locked = 0;
+        return;
+    }
+#endif
 
     rc = os_mutex_release(&ble_hs_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
@@ -411,6 +430,9 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
         rc = BLE_HS_EOS;
         goto err;
     }
+#if BLE_HS_DEBUG
+    ble_hs_dbg_mutex_locked = 0;
+#endif
 
     return 0;
 

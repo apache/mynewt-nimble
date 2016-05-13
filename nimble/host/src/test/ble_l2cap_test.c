@@ -50,7 +50,7 @@ ble_l2cap_test_util_init(void)
 }
 
 static void
-ble_l2cap_test_util_rx_update_req(struct ble_hs_conn *conn, uint8_t id,
+ble_l2cap_test_util_rx_update_req(uint16_t conn_handle, uint8_t id,
                                   struct ble_l2cap_sig_update_params *params)
 {
     struct ble_l2cap_sig_update_req req;
@@ -75,13 +75,13 @@ ble_l2cap_test_util_rx_update_req(struct ble_hs_conn *conn, uint8_t id,
 
     ble_hs_test_util_set_ack(
         host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CONN_UPDATE), 0);
-    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, BLE_L2CAP_CID_SIG,
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
                                               &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == 0);
 }
 
 static int
-ble_l2cap_test_util_rx_update_rsp(struct ble_hs_conn *conn,
+ble_l2cap_test_util_rx_update_rsp(uint16_t conn_handle,
                                   uint8_t id, uint16_t result)
 {
     struct ble_l2cap_sig_update_rsp rsp;
@@ -101,7 +101,7 @@ ble_l2cap_test_util_rx_update_rsp(struct ble_hs_conn *conn,
     rsp.result = result;
     ble_l2cap_sig_update_rsp_write(v, BLE_L2CAP_SIG_UPDATE_RSP_SZ, &rsp);
 
-    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, BLE_L2CAP_CID_SIG,
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
                                               &hci_hdr, om);
     return rc;
 }
@@ -202,14 +202,19 @@ ble_l2cap_test_util_dummy_rx(uint16_t conn_handle, struct os_mbuf **om)
     return 0;
 }
 
-static struct ble_hs_conn *
-ble_l2cap_test_util_create_conn(uint16_t handle, uint8_t *addr,
+static void
+ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
                                 ble_gap_conn_fn *cb, void *cb_arg)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
 
-    conn = ble_hs_test_util_create_conn(handle, addr, cb, cb_arg);
+    ble_hs_test_util_create_conn(conn_handle, addr, cb, cb_arg);
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
 
     chan = ble_l2cap_chan_alloc();
     TEST_ASSERT_FATAL(chan != NULL);
@@ -223,11 +228,11 @@ ble_l2cap_test_util_create_conn(uint16_t handle, uint8_t *addr,
 
     ble_hs_test_util_prev_hci_tx_clear();
 
-    return conn;
+    ble_hs_unlock();
 }
 
 static int
-ble_l2cap_test_util_rx_first_frag(struct ble_hs_conn *conn,
+ble_l2cap_test_util_rx_first_frag(uint16_t conn_handle,
                                   uint16_t l2cap_frag_len,
                                   uint16_t cid, uint16_t l2cap_len)
 {
@@ -247,14 +252,14 @@ ble_l2cap_test_util_rx_first_frag(struct ble_hs_conn *conn,
     TEST_ASSERT_FATAL(om != NULL);
 
     hci_len = sizeof hci_hdr + l2cap_frag_len;
-    hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(conn->bhc_handle,
+    hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(conn_handle,
                                           BLE_HCI_PB_FIRST_FLUSH, hci_len);
-    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn_handle, &hci_hdr, om);
     return rc;
 }
 
 static int
-ble_l2cap_test_util_rx_next_frag(struct ble_hs_conn *conn, uint16_t hci_len)
+ble_l2cap_test_util_rx_next_frag(uint16_t conn_handle, uint16_t hci_len)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -267,47 +272,71 @@ ble_l2cap_test_util_rx_next_frag(struct ble_hs_conn *conn, uint16_t hci_len)
     v = os_mbuf_extend(om, hci_len);
     TEST_ASSERT_FATAL(v != NULL);
 
-    hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(conn->bhc_handle,
+    hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(conn_handle,
                                           BLE_HCI_PB_MIDDLE, hci_len);
-    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(conn_handle, &hci_hdr, om);
     return rc;
 }
 
 static void
-ble_l2cap_test_util_verify_first_frag(struct ble_hs_conn *conn,
+ble_l2cap_test_util_verify_first_frag(uint16_t conn_handle,
                                       uint16_t l2cap_frag_len,
                                       uint16_t l2cap_len)
 {
+    struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_l2cap_test_util_rx_first_frag(conn, l2cap_frag_len,
+    rc = ble_l2cap_test_util_rx_first_frag(conn_handle, l2cap_frag_len,
                                            BLE_L2CAP_TEST_CID, l2cap_len);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
                 conn->bhc_rx_chan->blc_cid == BLE_L2CAP_TEST_CID);
+
+    ble_hs_unlock();
 }
 
 static void
-ble_l2cap_test_util_verify_middle_frag(struct ble_hs_conn *conn,
+ble_l2cap_test_util_verify_middle_frag(uint16_t conn_handle,
                                        uint16_t hci_len)
 {
+    struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_l2cap_test_util_rx_next_frag(conn, hci_len);
+    rc = ble_l2cap_test_util_rx_next_frag(conn_handle, hci_len);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
                 conn->bhc_rx_chan->blc_cid == BLE_L2CAP_TEST_CID);
+
+    ble_hs_unlock();
 }
 
 static void
-ble_l2cap_test_util_verify_last_frag(struct ble_hs_conn *conn,
+ble_l2cap_test_util_verify_last_frag(uint16_t conn_handle,
                                      uint16_t hci_len)
 {
+    struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_l2cap_test_util_rx_next_frag(conn, hci_len);
+    rc = ble_l2cap_test_util_rx_next_frag(conn_handle, hci_len);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan == NULL);
+
+    ble_hs_unlock();
 }
 
 /*****************************************************************************
@@ -316,15 +345,14 @@ ble_l2cap_test_util_verify_last_frag(struct ble_hs_conn *conn,
 
 TEST_CASE(ble_l2cap_test_case_bad_header)
 {
-    struct ble_hs_conn *conn;
     int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                           NULL, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
 
-    rc = ble_l2cap_test_util_rx_first_frag(conn, 14, 1234, 10);
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, 1234, 10);
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 }
 
@@ -335,14 +363,13 @@ TEST_CASE(ble_l2cap_test_case_bad_header)
 TEST_CASE(ble_l2cap_test_case_frag_single)
 {
     struct hci_data_hdr hci_hdr;
-    struct ble_hs_conn *conn;
     struct os_mbuf *om;
     int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      NULL, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
 
     /*** HCI header specifies middle fragment without start. */
     hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(2, BLE_HCI_PB_MIDDLE, 10);
@@ -353,44 +380,42 @@ TEST_CASE(ble_l2cap_test_case_frag_single)
     om = ble_l2cap_prepend_hdr(om, 0, 5);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_hs_test_util_l2cap_rx(conn, &hci_hdr, om);
+    rc = ble_hs_test_util_l2cap_rx(2, &hci_hdr, om);
     TEST_ASSERT(rc == BLE_HS_EBADDATA);
 
     /*** Packet consisting of three fragments. */
-    ble_l2cap_test_util_verify_first_frag(conn, 10, 30);
-    ble_l2cap_test_util_verify_middle_frag(conn, 10);
-    ble_l2cap_test_util_verify_last_frag(conn, 10);
+    ble_l2cap_test_util_verify_first_frag(2, 10, 30);
+    ble_l2cap_test_util_verify_middle_frag(2, 10);
+    ble_l2cap_test_util_verify_last_frag(2, 10);
 
     /*** Packet consisting of five fragments. */
-    ble_l2cap_test_util_verify_first_frag(conn, 8, 49);
-    ble_l2cap_test_util_verify_middle_frag(conn, 13);
-    ble_l2cap_test_util_verify_middle_frag(conn, 2);
-    ble_l2cap_test_util_verify_middle_frag(conn, 21);
-    ble_l2cap_test_util_verify_last_frag(conn, 5);
+    ble_l2cap_test_util_verify_first_frag(2, 8, 49);
+    ble_l2cap_test_util_verify_middle_frag(2, 13);
+    ble_l2cap_test_util_verify_middle_frag(2, 2);
+    ble_l2cap_test_util_verify_middle_frag(2, 21);
+    ble_l2cap_test_util_verify_last_frag(2, 5);
 }
 
 TEST_CASE(ble_l2cap_test_case_frag_multiple)
 {
-    struct ble_hs_conn *conns[3];
-
     ble_l2cap_test_util_init();
 
-    conns[0] = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                          NULL, NULL);
-    conns[1] = ble_l2cap_test_util_create_conn(3, ((uint8_t[]){2,3,4,5,6,7}),
-                                          NULL, NULL);
-    conns[2] = ble_l2cap_test_util_create_conn(4, ((uint8_t[]){3,4,5,6,7,8}),
-                                          NULL, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
+    ble_l2cap_test_util_create_conn(3, ((uint8_t[]){2,3,4,5,6,7}),
+                                    NULL, NULL);
+    ble_l2cap_test_util_create_conn(4, ((uint8_t[]){3,4,5,6,7,8}),
+                                    NULL, NULL);
 
-    ble_l2cap_test_util_verify_first_frag(conns[0], 3, 10);
-    ble_l2cap_test_util_verify_first_frag(conns[1], 2, 5);
-    ble_l2cap_test_util_verify_middle_frag(conns[0], 6);
-    ble_l2cap_test_util_verify_first_frag(conns[2], 1, 4);
-    ble_l2cap_test_util_verify_middle_frag(conns[1], 2);
-    ble_l2cap_test_util_verify_last_frag(conns[1], 1);
-    ble_l2cap_test_util_verify_middle_frag(conns[2], 2);
-    ble_l2cap_test_util_verify_last_frag(conns[2], 1);
-    ble_l2cap_test_util_verify_last_frag(conns[0], 1);
+    ble_l2cap_test_util_verify_first_frag(2, 3, 10);
+    ble_l2cap_test_util_verify_first_frag(3, 2, 5);
+    ble_l2cap_test_util_verify_middle_frag(2, 6);
+    ble_l2cap_test_util_verify_first_frag(4, 1, 4);
+    ble_l2cap_test_util_verify_middle_frag(3, 2);
+    ble_l2cap_test_util_verify_last_frag(3, 1);
+    ble_l2cap_test_util_verify_middle_frag(4, 2);
+    ble_l2cap_test_util_verify_last_frag(4, 1);
+    ble_l2cap_test_util_verify_last_frag(2, 1);
 }
 
 TEST_CASE(ble_l2cap_test_case_frag_channels)
@@ -400,22 +425,32 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      NULL, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
 
     /* Receive a starting fragment on the first channel. */
-    rc = ble_l2cap_test_util_rx_first_frag(conn, 14, BLE_L2CAP_TEST_CID, 30);
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_TEST_CID, 30);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
                 conn->bhc_rx_chan->blc_cid == BLE_L2CAP_TEST_CID);
+    ble_hs_unlock();
 
     /* Receive a starting fragment on a different channel.  The first fragment
      * should get discarded.
      */
-    rc = ble_l2cap_test_util_rx_first_frag(conn, 14, BLE_L2CAP_CID_ATT, 30);
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_CID_ATT, 30);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
                 conn->bhc_rx_chan->blc_cid == BLE_L2CAP_CID_ATT);
+    ble_hs_unlock();
 }
 
 /*****************************************************************************
@@ -424,16 +459,15 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
 
 TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
 {
-    struct ble_hs_conn *conn;
     int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                           NULL, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
 
     /* Receive an unsolicited response. */
-    rc = ble_l2cap_test_util_rx_update_rsp(conn, 100, 0);
+    rc = ble_l2cap_test_util_rx_update_rsp(2, 100, 0);
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 
     /* Ensure we did not send anything in return. */
@@ -466,19 +500,20 @@ ble_l2cap_test_util_peer_updates(int accept)
 {
     struct ble_l2cap_sig_update_params l2cap_params;
     struct ble_gap_upd_params params;
-    struct ble_hs_conn *conn;
+    ble_hs_conn_flags_t conn_flags;
+    int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                           ble_l2cap_test_util_conn_cb,
-                                           &accept);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    ble_l2cap_test_util_conn_cb,
+                                    &accept);
 
     l2cap_params.itvl_min = 0x200;
     l2cap_params.itvl_max = 0x300;
     l2cap_params.slave_latency = 0;
     l2cap_params.timeout_multiplier = 0x100;
-    ble_l2cap_test_util_rx_update_req(conn, 1, &l2cap_params);
+    ble_l2cap_test_util_rx_update_req(2, 1, &l2cap_params);
 
     /* Ensure an update response command got sent. */
     ble_hs_process_tx_data_queue();
@@ -494,7 +529,8 @@ ble_l2cap_test_util_peer_updates(int accept)
         ble_l2cap_test_util_verify_tx_update_conn(&params);
     } else {
         /* Ensure no update got scheduled. */
-        TEST_ASSERT(!ble_gap_update_in_progress(BLE_HS_CONN_HANDLE_NONE));
+        rc = ble_hs_atomic_conn_flags(2, &conn_flags);
+        TEST_ASSERT(rc == 0 && !(conn_flags & BLE_HS_CONN_F_UPDATE));
     }
 }
 
@@ -509,24 +545,22 @@ static void
 ble_l2cap_test_util_we_update(int peer_accepts)
 {
     struct ble_l2cap_sig_update_params params;
-    struct ble_hs_conn *conn;
     uint8_t id;
     int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      ble_l2cap_test_util_conn_cb, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    ble_l2cap_test_util_conn_cb, NULL);
 
     /* Only the slave can initiate the L2CAP connection update procedure. */
-    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
 
     params.itvl_min = 0x200;
     params.itvl_min = 0x300;
     params.slave_latency = 0;
     params.timeout_multiplier = 0x100;
-    rc = ble_l2cap_sig_update(conn->bhc_handle, &params,
-                              ble_l2cap_test_util_update_cb, NULL);
+    rc = ble_l2cap_sig_update(2, &params, ble_l2cap_test_util_update_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -535,7 +569,7 @@ ble_l2cap_test_util_we_update(int peer_accepts)
     id = ble_l2cap_test_util_verify_tx_update_req(&params);
 
     /* Receive response from peer. */
-    rc = ble_l2cap_test_util_rx_update_rsp(conn, id, !peer_accepts);
+    rc = ble_l2cap_test_util_rx_update_rsp(2, id, !peer_accepts);
     TEST_ASSERT(rc == 0);
 
     /* Ensure callback got called. */
@@ -570,20 +604,18 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_reject)
 TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_master)
 {
     struct ble_l2cap_sig_update_params params;
-    struct ble_hs_conn *conn;
     int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      ble_l2cap_test_util_conn_cb, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    ble_l2cap_test_util_conn_cb, NULL);
 
     params.itvl_min = 0x200;
     params.itvl_min = 0x300;
     params.slave_latency = 0;
     params.timeout_multiplier = 0x100;
-    rc = ble_l2cap_sig_update(conn->bhc_handle, &params,
-                              ble_l2cap_test_util_update_cb, NULL);
+    rc = ble_l2cap_sig_update(2, &params, ble_l2cap_test_util_update_cb, NULL);
     TEST_ASSERT_FATAL(rc == BLE_HS_EINVAL);
 
     /* Ensure callback never called. */
@@ -594,24 +626,22 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_master)
 TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)
 {
     struct ble_l2cap_sig_update_params params;
-    struct ble_hs_conn *conn;
     uint8_t id;
     int rc;
 
     ble_l2cap_test_util_init();
 
-    conn = ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
-                                      ble_l2cap_test_util_conn_cb, NULL);
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    ble_l2cap_test_util_conn_cb, NULL);
 
     /* Only the slave can initiate the L2CAP connection update procedure. */
-    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
 
     params.itvl_min = 0x200;
     params.itvl_min = 0x300;
     params.slave_latency = 0;
     params.timeout_multiplier = 0x100;
-    rc = ble_l2cap_sig_update(conn->bhc_handle, &params,
-                              ble_l2cap_test_util_update_cb, NULL);
+    rc = ble_l2cap_sig_update(2, &params, ble_l2cap_test_util_update_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -620,14 +650,14 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)
     id = ble_l2cap_test_util_verify_tx_update_req(&params);
 
     /* Receive response from peer with incorrect ID. */
-    rc = ble_l2cap_test_util_rx_update_rsp(conn, id + 1, 0);
+    rc = ble_l2cap_test_util_rx_update_rsp(2, id + 1, 0);
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 
     /* Ensure callback did not get called. */
     TEST_ASSERT(ble_l2cap_test_update_status == -1);
 
     /* Receive response from peer with correct ID. */
-    rc = ble_l2cap_test_util_rx_update_rsp(conn, id, 0);
+    rc = ble_l2cap_test_util_rx_update_rsp(2, id, 0);
     TEST_ASSERT(rc == 0);
 
     /* Ensure callback got called. */

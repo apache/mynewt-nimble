@@ -84,7 +84,6 @@ int ble_gap_ltk_event(uint16_t conn_handle,
                       struct ble_gap_ltk_params *ltk_params);
 int ble_gap_master_in_progress(void);
 int ble_gap_slave_in_progress(void);
-int ble_gap_update_in_progress(uint16_t conn_handle);
 
 void ble_gap_heartbeat(void);
 

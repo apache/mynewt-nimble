@@ -26,6 +26,18 @@
 #include "host/host_hci.h"
 #include "ble_hs_test_util.h"
 
+static int
+ble_hs_conn_test_util_any()
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_first();
+    ble_hs_unlock();
+
+    return conn != NULL;
+}
+
 TEST_CASE(ble_hs_conn_test_direct_connect_success)
 {
     struct hci_le_conn_complete evt;
@@ -38,7 +50,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection. */
     rc = ble_hs_test_util_conn_initiate(0, addr, NULL, NULL, NULL, 0);
@@ -57,6 +69,8 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
 
+    ble_hs_lock();
+
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
@@ -67,6 +81,8 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(chan->blc_my_mtu == BLE_ATT_MTU_PREFERRED_DFLT);
     TEST_ASSERT(chan->blc_peer_mtu == 0);
     TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
+
+    ble_hs_unlock();
 }
 
 TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
@@ -78,14 +94,14 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection; receive no HCI ack. */
     rc = ble_gap_conn_initiate(0, addr, NULL, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_ETIMEOUT);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 }
 
 TEST_CASE(ble_hs_conn_test_direct_connectable_success)
@@ -101,7 +117,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_gap_slave_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate advertising. */
     rc = ble_hs_test_util_adv_start(BLE_GAP_DISC_MODE_NON,
@@ -125,6 +141,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_gap_slave_in_progress());
 
+    ble_hs_lock();
+
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
@@ -135,6 +153,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     TEST_ASSERT(chan->blc_my_mtu == BLE_ATT_MTU_PREFERRED_DFLT);
     TEST_ASSERT(chan->blc_peer_mtu == 0);
     TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
+
+    ble_hs_unlock();
 }
 
 TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
@@ -145,9 +165,9 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
 
     ble_hs_test_util_init();
 
-   /* Ensure no current or pending connections. */
+    /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_slave_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection. */
     rc = ble_hs_test_util_adv_start(BLE_GAP_DISC_MODE_NON,
@@ -162,7 +182,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_hci_errors)
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_slave_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 }
 
 TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
@@ -179,7 +199,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_gap_slave_in_progress());
-    TEST_ASSERT(ble_hs_conn_first() == NULL);
+    TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate advertising. */
     memset(&adv_fields, 0, sizeof adv_fields);
@@ -207,6 +227,8 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_gap_slave_in_progress());
 
+    ble_hs_lock();
+
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
@@ -217,6 +239,8 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     TEST_ASSERT(chan->blc_my_mtu == BLE_ATT_MTU_PREFERRED_DFLT);
     TEST_ASSERT(chan->blc_peer_mtu == 0);
     TEST_ASSERT(chan->blc_default_mtu == BLE_ATT_MTU_DFLT);
+
+    ble_hs_unlock();
 }
 
 TEST_SUITE(conn_suite)

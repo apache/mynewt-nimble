@@ -67,8 +67,7 @@ static uint8_t ble_gatts_notify_test_chr_2_val[1024];
 static int ble_gatts_notify_test_chr_2_len;
 
 static void
-ble_gatts_notify_test_misc_init(struct ble_hs_conn **conn,
-                                struct ble_l2cap_chan **att_chan)
+ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle)
 {
     int rc;
 
@@ -84,16 +83,11 @@ ble_gatts_notify_test_misc_init(struct ble_hs_conn **conn,
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    *conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(*conn != NULL);
-
-    *att_chan = ble_hs_conn_chan_find(*conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(*att_chan != NULL);
+    *out_conn_handle = 2;
 }
 
 static void
-ble_gatts_notify_test_misc_enable_notify(struct ble_hs_conn *conn,
-                                         struct ble_l2cap_chan *chan,
+ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
                                          uint16_t chr_def_handle,
                                          uint16_t flags)
 {
@@ -105,7 +99,8 @@ ble_gatts_notify_test_misc_enable_notify(struct ble_hs_conn *conn,
     ble_att_write_req_write(buf, sizeof buf, &req);
 
     htole16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
     TEST_ASSERT(rc == 0);
 }
 
@@ -161,22 +156,21 @@ ble_gatts_notify_test_misc_access(uint16_t conn_handle,
 }
 
 static void
-ble_gatts_notify_test_misc_rx_indicate_rsp(struct ble_hs_conn *conn,
-                                           struct ble_l2cap_chan *chan)
+ble_gatts_notify_test_misc_rx_indicate_rsp(uint16_t conn_handle)
 {
     uint8_t buf[BLE_ATT_INDICATE_RSP_SZ];
     int rc;
 
     ble_att_indicate_rsp_write(buf, sizeof buf);
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, sizeof buf);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
     TEST_ASSERT(rc == 0);
 }
 
 
 static void
-ble_gatts_notify_test_misc_verify_tx_n(struct ble_l2cap_chan *chan,
-                                       uint8_t *attr_data, int attr_len)
+ble_gatts_notify_test_misc_verify_tx_n(uint8_t *attr_data, int attr_len)
 {
     struct ble_att_notify_req req;
     struct os_mbuf *om;
@@ -196,8 +190,7 @@ ble_gatts_notify_test_misc_verify_tx_n(struct ble_l2cap_chan *chan,
 }
 
 static void
-ble_gatts_notify_test_misc_verify_tx_i(struct ble_l2cap_chan *chan,
-                                       uint8_t *attr_data, int attr_len)
+ble_gatts_notify_test_misc_verify_tx_i(uint8_t *attr_data, int attr_len)
 {
     struct ble_att_indicate_req req;
     struct os_mbuf *om;
@@ -218,17 +211,16 @@ ble_gatts_notify_test_misc_verify_tx_i(struct ble_l2cap_chan *chan,
 
 TEST_CASE(ble_gatts_notify_test_n)
 {
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
+    uint16_t conn_handle;
 
-    ble_gatts_notify_test_misc_init(&conn, &chan);
+    ble_gatts_notify_test_misc_init(&conn_handle);
 
     /* Enable notifications on both characteristics. */
     ble_gatts_notify_test_misc_enable_notify(
-        conn, chan, ble_gatts_notify_test_chr_1_def_handle,
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle,
         BLE_GATTS_CLT_CFG_F_NOTIFY);
     ble_gatts_notify_test_misc_enable_notify(
-        conn, chan, ble_gatts_notify_test_chr_2_def_handle,
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle,
         BLE_GATTS_CLT_CFG_F_NOTIFY);
 
     /* Update characteristic 1's value. */
@@ -237,8 +229,7 @@ TEST_CASE(ble_gatts_notify_test_n)
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle);
 
     /* Verify notification sent properly. */
-    ble_gatts_notify_test_misc_verify_tx_n(chan,
-                                           ble_gatts_notify_test_chr_1_val,
+    ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_1_val,
                                            ble_gatts_notify_test_chr_1_len);
 
     /* Update characteristic 2's value. */
@@ -248,24 +239,22 @@ TEST_CASE(ble_gatts_notify_test_n)
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle);
 
     /* Verify notification sent properly. */
-    ble_gatts_notify_test_misc_verify_tx_n(chan,
-                                           ble_gatts_notify_test_chr_2_val,
+    ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_2_val,
                                            ble_gatts_notify_test_chr_2_len);
 }
 
 TEST_CASE(ble_gatts_notify_test_i)
 {
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
+    uint16_t conn_handle;
 
-    ble_gatts_notify_test_misc_init(&conn, &chan);
+    ble_gatts_notify_test_misc_init(&conn_handle);
 
     /* Enable indications on both characteristics. */
     ble_gatts_notify_test_misc_enable_notify(
-        conn, chan, ble_gatts_notify_test_chr_1_def_handle,
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle,
         BLE_GATTS_CLT_CFG_F_INDICATE);
     ble_gatts_notify_test_misc_enable_notify(
-        conn, chan, ble_gatts_notify_test_chr_2_def_handle,
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle,
         BLE_GATTS_CLT_CFG_F_INDICATE);
 
     /* Toss both write responses. */
@@ -279,10 +268,8 @@ TEST_CASE(ble_gatts_notify_test_i)
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle);
 
     /* Verify indication sent properly. */
-    ble_gatts_notify_test_misc_verify_tx_i(
-        chan,
-        ble_gatts_notify_test_chr_1_val,
-        ble_gatts_notify_test_chr_1_len);
+    ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_1_val,
+                                           ble_gatts_notify_test_chr_1_len);
 
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
@@ -297,17 +284,15 @@ TEST_CASE(ble_gatts_notify_test_i)
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 
     /* Receive the confirmation for the first indication. */
-    ble_gatts_notify_test_misc_rx_indicate_rsp(conn, chan);
+    ble_gatts_notify_test_misc_rx_indicate_rsp(conn_handle);
 
     /* Verify indication sent properly. */
     ble_hs_test_util_tx_all();
-    ble_gatts_notify_test_misc_verify_tx_i(
-        chan,
-        ble_gatts_notify_test_chr_2_val,
-        ble_gatts_notify_test_chr_2_len);
+    ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_2_val,
+                                           ble_gatts_notify_test_chr_2_len);
 
     /* Receive the confirmation for the second indication. */
-    ble_gatts_notify_test_misc_rx_indicate_rsp(conn, chan);
+    ble_gatts_notify_test_misc_rx_indicate_rsp(conn_handle);
 
     /* Verify no pending GATT jobs. */
     TEST_ASSERT(!ble_gattc_any_jobs());

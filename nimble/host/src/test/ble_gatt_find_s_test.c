@@ -63,10 +63,9 @@ ble_gatt_find_s_test_misc_cb(uint16_t conn_handle,
 }
 static int
 ble_gatt_find_s_test_misc_rx_read_type(
-    struct ble_hs_conn *conn, struct ble_gatt_find_s_test_entry *entries)
+    uint16_t conn_handle, struct ble_gatt_find_s_test_entry *entries)
 {
     struct ble_att_read_type_rsp rsp;
-    struct ble_l2cap_chan *chan;
     uint16_t uuid16;
     uint8_t buf[1024];
     int off;
@@ -109,36 +108,31 @@ ble_gatt_find_s_test_misc_rx_read_type(
     }
 
     if (i == 0) {
-        ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND, 0);
         return 0;
     }
 
     ble_att_read_type_rsp_write(buf + 0, BLE_ATT_READ_TYPE_RSP_BASE_SZ, &rsp);
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, off);
     TEST_ASSERT(rc == 0);
 
     return i;
 }
 
 static void
-ble_gatt_find_s_test_misc_rx_read(struct ble_hs_conn *conn, uint8_t *uuid128)
+ble_gatt_find_s_test_misc_rx_read(uint16_t conn_handle, uint8_t *uuid128)
 {
-    struct ble_l2cap_chan *chan;
     uint8_t buf[17];
     int rc;
 
     buf[0] = BLE_ATT_OP_READ_RSP;
     memcpy(buf + 1, uuid128, 16);
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, 17);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, 17);
     TEST_ASSERT(rc == 0);
 }
 
@@ -182,7 +176,7 @@ ble_gatt_find_s_test_misc_verify_tx_read(uint16_t handle)
 }
 
 static void
-ble_gatt_find_s_test_misc_find_inc(struct ble_hs_conn *conn,
+ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
                                    uint16_t start_handle, uint16_t end_handle,
                                    struct ble_gatt_find_s_test_entry *entries)
 {
@@ -193,7 +187,7 @@ ble_gatt_find_s_test_misc_find_inc(struct ble_hs_conn *conn,
     int rc;
     int i;
 
-    rc = ble_gattc_find_inc_svcs(conn->bhc_handle, start_handle, end_handle,
+    rc = ble_gattc_find_inc_svcs(conn_handle, start_handle, end_handle,
                                  ble_gatt_find_s_test_misc_cb, &service);
     TEST_ASSERT(rc == 0);
 
@@ -201,7 +195,7 @@ ble_gatt_find_s_test_misc_find_inc(struct ble_hs_conn *conn,
     idx = 0;
     while (1) {
         ble_gatt_find_s_test_misc_verify_tx_read_type(cur_start, end_handle);
-        num_found = ble_gatt_find_s_test_misc_rx_read_type(conn,
+        num_found = ble_gatt_find_s_test_misc_rx_read_type(conn_handle,
                                                            entries + idx);
         if (num_found == 0) {
             break;
@@ -211,7 +205,8 @@ ble_gatt_find_s_test_misc_find_inc(struct ble_hs_conn *conn,
             TEST_ASSERT(num_found == 1);
             ble_gatt_find_s_test_misc_verify_tx_read(
                 entries[idx].start_handle);
-            ble_gatt_find_s_test_misc_rx_read(conn, entries[idx].uuid128);
+            ble_gatt_find_s_test_misc_rx_read(conn_handle,
+                                              entries[idx].uuid128);
         }
 
         idx += num_found;
@@ -232,13 +227,11 @@ ble_gatt_find_s_test_misc_find_inc(struct ble_hs_conn *conn,
 
 TEST_CASE(ble_gatt_find_s_test_1)
 {
-    struct ble_hs_conn *conn;
-
     /* Two 16-bit UUID services; one response. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(conn, 5, 10,
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+    ble_gatt_find_s_test_misc_find_inc(2, 5, 10,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 6,
             .start_handle = 35,
@@ -256,9 +249,9 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* One 128-bit UUID service; two responses. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(conn, 34, 100,
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+    ble_gatt_find_s_test_misc_find_inc(2, 34, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
             .start_handle = 403,
@@ -271,9 +264,9 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* Two 128-bit UUID service; four responses. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(conn, 34, 100,
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+    ble_gatt_find_s_test_misc_find_inc(2, 34, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
             .start_handle = 403,
@@ -291,9 +284,9 @@ TEST_CASE(ble_gatt_find_s_test_1)
 
     /* Two 16-bit UUID; three 128-bit UUID; seven responses. */
     ble_gatt_find_s_test_misc_init();
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(conn, 1, 100,
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+    ble_gatt_find_s_test_misc_find_inc(2, 1, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
             .start_handle = 403,

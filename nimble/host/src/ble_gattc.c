@@ -3658,12 +3658,14 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
     ble_hs_lock();
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn != NULL) {
-        conn->bhc_gatt_svr.flags &= ~BLE_GATTS_CONN_F_INDICATION_TXED;
-
-        /* Send the next indication if one is pending. */
-        ble_gatts_send_notifications(conn);
+        conn->bhc_flags &= ~BLE_HS_CONN_F_INDICATE_TXED;
     }
     ble_hs_unlock();
+
+    /* Send the next indication if one is pending. */
+    if (conn != NULL) {
+        ble_gatts_send_updates_for_conn(proc->conn_handle);
+    }
 }
 
 /**
@@ -3702,6 +3704,7 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
                                  &ctxt, NULL);
     if (rc != 0) {
         /* Fatal error; application disallowed attribute read. */
+        BLE_HS_DBG_ASSERT(0);
         rc = BLE_HS_EAPP;
         goto done;
     }
