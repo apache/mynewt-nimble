@@ -95,7 +95,6 @@ int ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
 
 void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
-int ble_hs_locked(void);
 int ble_hs_locked_by_cur_task(void);
 int ble_hs_thread_safe(void);
 int ble_hs_is_parent_task(void);

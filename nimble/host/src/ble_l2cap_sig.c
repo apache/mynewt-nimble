@@ -166,9 +166,8 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
 static void
 ble_l2cap_sig_proc_insert(struct ble_l2cap_sig_proc *proc)
 {
-    ble_hs_lock();
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
     STAILQ_INSERT_HEAD(&ble_l2cap_sig_procs, proc, next);
-    ble_hs_unlock();
 }
 
 /**

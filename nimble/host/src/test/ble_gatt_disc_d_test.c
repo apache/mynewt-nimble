@@ -50,10 +50,9 @@ ble_gatt_disc_d_test_init(void)
 
 static int
 ble_gatt_disc_d_test_misc_rx_rsp_once(
-    struct ble_hs_conn *conn, struct ble_gatt_disc_d_test_dsc *dscs)
+    uint16_t conn_handle, struct ble_gatt_disc_d_test_dsc *dscs)
 {
     struct ble_att_find_info_rsp rsp;
-    struct ble_l2cap_chan *chan;
     uint8_t buf[1024];
     uint16_t uuid16_cur;
     uint16_t uuid16_0;
@@ -98,17 +97,15 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
         }
     }
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, off);
     TEST_ASSERT(rc == 0);
 
     return i;
 }
 
 static void
-ble_gatt_disc_d_test_misc_rx_rsp(struct ble_hs_conn *conn,
+ble_gatt_disc_d_test_misc_rx_rsp(uint16_t conn_handle,
                                  uint16_t end_handle,
                                  struct ble_gatt_disc_d_test_dsc *dscs)
 {
@@ -117,7 +114,7 @@ ble_gatt_disc_d_test_misc_rx_rsp(struct ble_hs_conn *conn,
 
     idx = 0;
     while (dscs[idx].chr_def_handle != 0) {
-        count = ble_gatt_disc_d_test_misc_rx_rsp_once(conn, dscs + idx);
+        count = ble_gatt_disc_d_test_misc_rx_rsp_once(conn_handle, dscs + idx);
         if (count == 0) {
             break;
         }
@@ -127,7 +124,7 @@ ble_gatt_disc_d_test_misc_rx_rsp(struct ble_hs_conn *conn,
     if (dscs[idx - 1].dsc_handle != end_handle) {
         /* Send the pending ATT Request. */
         ble_hs_test_util_tx_all();
-        ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_FIND_INFO_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_FIND_INFO_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         end_handle);
     }
@@ -199,21 +196,20 @@ ble_gatt_disc_d_test_misc_all(uint16_t chr_def_handle, uint16_t end_handle,
                               int stop_after,
                               struct ble_gatt_disc_d_test_dsc *dscs)
 {
-    struct ble_hs_conn *conn;
     int num_left;
     int rc;
 
     ble_gatt_disc_d_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
     num_left = stop_after;
     rc = ble_gattc_disc_all_dscs(2, chr_def_handle, end_handle,
                                  ble_gatt_disc_d_test_misc_cb, &num_left);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_d_test_misc_rx_rsp(conn, end_handle, dscs);
+    ble_gatt_disc_d_test_misc_rx_rsp(2, end_handle, dscs);
     ble_gatt_disc_d_test_misc_verify_dscs(dscs, stop_after);
 }
 

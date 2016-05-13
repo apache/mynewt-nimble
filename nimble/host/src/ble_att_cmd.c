@@ -614,7 +614,7 @@ ble_att_indicate_req_parse(void *payload, int len,
 
 void
 ble_att_indicate_req_write(void *payload, int len,
-                         struct ble_att_indicate_req *src)
+                           struct ble_att_indicate_req *src)
 {
     struct ble_att_indicate_req *dst;
 

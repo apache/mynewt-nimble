@@ -115,9 +115,11 @@ struct ble_att_prep_entry {
     struct os_mbuf *bape_value;
 };
 
+SLIST_HEAD(ble_att_prep_entry_list, ble_att_prep_entry);
+
 struct ble_att_svr_conn {
     /** This list is sorted by attribute handle ID. */
-    SLIST_HEAD(, ble_att_prep_entry) basc_prep_list;
+    struct ble_att_prep_entry_list basc_prep_list;
     uint32_t basc_prep_write_rx_time;
 };
 
@@ -184,7 +186,7 @@ int ble_att_svr_rx_notify(uint16_t conn_handle,
                           struct os_mbuf **rxom);
 int ble_att_svr_rx_indicate(uint16_t conn_handle,
                             struct os_mbuf **rxom);
-void ble_att_svr_prep_clear(struct ble_att_svr_conn *basc);
+void ble_att_svr_prep_clear(struct ble_att_prep_entry_list *prep_list);
 int ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
                             struct ble_att_svr_access_ctxt *ctxt,
                             uint8_t *out_att_err);

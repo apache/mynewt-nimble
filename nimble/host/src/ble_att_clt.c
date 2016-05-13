@@ -59,9 +59,6 @@ static int
 ble_att_clt_append_blob(uint16_t conn_handle, struct os_mbuf *txom,
                         void *blob, int blob_len)
 {
-    uint16_t mtu;
-    int extra_len;
-    int cmd_len;
     int rc;
 
     if (blob_len < 0) {
@@ -69,13 +66,6 @@ ble_att_clt_append_blob(uint16_t conn_handle, struct os_mbuf *txom,
     }
     if (blob_len == 0) {
         return 0;
-    }
-
-    mtu = ble_att_mtu(conn_handle);
-    cmd_len = OS_MBUF_PKTLEN(txom) + blob_len;
-    extra_len = cmd_len - mtu;
-    if (extra_len > 0) {
-        blob_len -= extra_len;
     }
 
     rc = os_mbuf_append(txom, blob, blob_len);
@@ -110,10 +100,14 @@ ble_att_clt_copy_attr_to_flatbuf(struct os_mbuf *om, void **out_attr_val,
 }
 
 static int
-ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
+ble_att_clt_tx_req_flags(uint16_t conn_handle, struct os_mbuf *txom,
+                         ble_hs_conn_flags_t flags_on_success)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    uint16_t total_len;
+    uint16_t mtu;
+    int extra_len;
     int rc;
 
     BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
@@ -123,13 +117,36 @@ ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
 
     rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (rc == 0) {
+        /* Reduce the size of the transmission to fit the connection's ATT
+         * MTU.
+         */
+        total_len = OS_MBUF_PKTLEN(txom);
+        mtu = ble_l2cap_chan_mtu(chan);
+        extra_len = total_len - mtu;
+        if (extra_len > 0) {
+            os_mbuf_adj(txom, -extra_len);
+        }
+
         rc = ble_l2cap_tx(conn, chan, txom);
         txom = NULL;
+
+        if (rc == 0) {
+            conn->bhc_flags |= flags_on_success;
+        }
     }
 
     ble_hs_unlock();
 
     os_mbuf_free_chain(txom);
+    return rc;
+}
+
+static int
+ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
+{
+    int rc;
+
+    rc = ble_att_clt_tx_req_flags(conn_handle, txom, 0);
     return rc;
 }
 
@@ -1437,7 +1454,8 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
         return rc;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
+    rc = ble_att_clt_tx_req_flags(conn_handle, txom,
+                                  BLE_HS_CONN_F_INDICATE_TXED);
     if (rc != 0) {
         return rc;
     }

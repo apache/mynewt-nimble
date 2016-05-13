@@ -52,10 +52,9 @@ ble_gatt_disc_c_test_init(void)
 
 static int
 ble_gatt_disc_c_test_misc_rx_rsp_once(
-    struct ble_hs_conn *conn, struct ble_gatt_disc_c_test_char *chars)
+    uint16_t conn_handle, struct ble_gatt_disc_c_test_char *chars)
 {
     struct ble_att_read_type_rsp rsp;
-    struct ble_l2cap_chan *chan;
     uint8_t buf[1024];
     int off;
     int rc;
@@ -104,26 +103,25 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
         }
     }
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, buf, off);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, off);
     TEST_ASSERT(rc == 0);
 
     return i;
 }
 
 static void
-ble_gatt_disc_c_test_misc_rx_rsp(struct ble_hs_conn *conn,
-                                     uint16_t end_handle,
-                                     struct ble_gatt_disc_c_test_char *chars)
+ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle,
+                                 uint16_t end_handle,
+                                 struct ble_gatt_disc_c_test_char *chars)
 {
     int count;
     int idx;
 
     idx = 0;
     while (chars[idx].decl_handle != 0) {
-        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn, chars + idx);
+        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn_handle,
+                                                      chars + idx);
         if (count == 0) {
             break;
         }
@@ -133,7 +131,7 @@ ble_gatt_disc_c_test_misc_rx_rsp(struct ble_hs_conn *conn,
     if (chars[idx - 1].decl_handle != end_handle) {
         /* Send the pending ATT Request. */
         ble_hs_test_util_tx_all();
-        ble_hs_test_util_rx_att_err_rsp(conn, BLE_ATT_OP_READ_TYPE_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         chars[idx - 1].decl_handle);
     }
@@ -208,21 +206,20 @@ ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
                               int stop_after,
                               struct ble_gatt_disc_c_test_char *chars)
 {
-    struct ble_hs_conn *conn;
     int num_left;
     int rc;
 
     ble_gatt_disc_c_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
     num_left = stop_after;
     rc = ble_gattc_disc_all_chrs(2, start_handle, end_handle,
                                  ble_gatt_disc_c_test_misc_cb, &num_left);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_c_test_misc_rx_rsp(conn, end_handle, chars);
+    ble_gatt_disc_c_test_misc_rx_rsp(2, end_handle, chars);
     ble_gatt_disc_c_test_misc_verify_chars(chars, stop_after);
 }
 
@@ -232,13 +229,12 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
                                struct ble_gatt_disc_c_test_char *rsp_chars,
                                struct ble_gatt_disc_c_test_char *ret_chars)
 {
-    struct ble_hs_conn *conn;
     int rc;
 
     ble_gatt_disc_c_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
     rc = ble_gattc_disc_chrs_by_uuid(2, start_handle, end_handle,
                                      uuid128,
@@ -246,7 +242,7 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
                                      &stop_after);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_c_test_misc_rx_rsp(conn, end_handle, rsp_chars);
+    ble_gatt_disc_c_test_misc_rx_rsp(2, end_handle, rsp_chars);
     ble_gatt_disc_c_test_misc_verify_chars(ret_chars, 0);
 }
 

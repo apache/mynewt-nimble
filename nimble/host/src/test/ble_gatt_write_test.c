@@ -74,32 +74,25 @@ ble_gatt_write_test_cb_good(uint16_t conn_handle, struct ble_gatt_error *error,
 }
 
 static void
-ble_gatt_write_test_rx_rsp(struct ble_hs_conn *conn)
+ble_gatt_write_test_rx_rsp(uint16_t conn_handle)
 {
-    struct ble_l2cap_chan *chan;
     uint8_t op;
     int rc;
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
     op = BLE_ATT_OP_WRITE_RSP;
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, &op, 1);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                &op, 1);
     TEST_ASSERT(rc == 0);
 }
 
 static void
-ble_gatt_write_test_rx_prep_rsp(struct ble_hs_conn *conn, uint16_t attr_handle,
+ble_gatt_write_test_rx_prep_rsp(uint16_t conn_handle, uint16_t attr_handle,
                                 uint16_t offset,
                                 void *attr_data, uint16_t attr_data_len)
 {
     struct ble_att_prep_write_cmd rsp;
-    struct ble_l2cap_chan *chan;
     uint8_t buf[512];
     int rc;
-
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
 
     rsp.bapc_handle = attr_handle;
     rsp.bapc_offset = offset;
@@ -108,40 +101,36 @@ ble_gatt_write_test_rx_prep_rsp(struct ble_hs_conn *conn, uint16_t attr_handle,
     memcpy(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, attr_data, attr_data_len);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn, chan, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
     TEST_ASSERT(rc == 0);
 }
 
 static void
-ble_gatt_write_test_rx_exec_rsp(struct ble_hs_conn *conn)
+ble_gatt_write_test_rx_exec_rsp(uint16_t conn_handle)
 {
-    struct ble_l2cap_chan *chan;
     uint8_t op;
     int rc;
 
-    chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
-    TEST_ASSERT_FATAL(chan != NULL);
-
     op = BLE_ATT_OP_EXEC_WRITE_RSP;
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn, chan, &op, 1);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                &op, 1);
     TEST_ASSERT(rc == 0);
 }
 
 static void
 ble_gatt_write_test_misc_long_good(int attr_len)
 {
-    struct ble_hs_conn *conn;
     int off;
     int len;
     int rc;
 
     ble_gatt_write_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
-    rc = ble_gattc_write_long(conn->bhc_handle, 100,
-                              ble_gatt_write_test_attr_value,
+    rc = ble_gattc_write_long(2, 100, ble_gatt_write_test_attr_value,
                               attr_len, ble_gatt_write_test_cb_good,
                               &attr_len);
     TEST_ASSERT(rc == 0);
@@ -156,7 +145,7 @@ ble_gatt_write_test_misc_long_good(int attr_len)
         if (off + len > attr_len) {
             len = attr_len - off;
         }
-        ble_gatt_write_test_rx_prep_rsp(conn, 100, off,
+        ble_gatt_write_test_rx_prep_rsp(2, 100, off,
                                         ble_gatt_write_test_attr_value + off,
                                         len);
 
@@ -168,20 +157,19 @@ ble_gatt_write_test_misc_long_good(int attr_len)
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
-    ble_gatt_write_test_rx_exec_rsp(conn);
+    ble_gatt_write_test_rx_exec_rsp(2);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
 }
 
-typedef void ble_gatt_write_test_long_fail_fn(struct ble_hs_conn *conn,
+typedef void ble_gatt_write_test_long_fail_fn(uint16_t conn_handle,
                                               int off, int len);
 
 static void
 ble_gatt_write_test_misc_long_bad(int attr_len,
                                   ble_gatt_write_test_long_fail_fn *cb)
 {
-    struct ble_hs_conn *conn;
     int fail_now;
     int off;
     int len;
@@ -189,11 +177,10 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
 
     ble_gatt_write_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
-    rc = ble_gattc_write_long(conn->bhc_handle, 100,
-                              ble_gatt_write_test_attr_value,
+    rc = ble_gattc_write_long(2, 100, ble_gatt_write_test_attr_value,
                               attr_len, ble_gatt_write_test_cb_good, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -211,10 +198,9 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
         }
         if (!fail_now) {
             ble_gatt_write_test_rx_prep_rsp(
-                conn, 100, off, ble_gatt_write_test_attr_value + off,
-                len);
+                2, 100, off, ble_gatt_write_test_attr_value + off, len);
         } else {
-            cb(conn, off, len);
+            cb(2, off, len);
             break;
         }
 
@@ -231,38 +217,38 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_handle(struct ble_hs_conn *conn,
+ble_gatt_write_test_misc_long_fail_handle(uint16_t conn_handle,
                                           int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn, 99, off, ble_gatt_write_test_attr_value + off,
+        conn_handle, 99, off, ble_gatt_write_test_attr_value + off,
         len);
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_offset(struct ble_hs_conn *conn,
+ble_gatt_write_test_misc_long_fail_offset(uint16_t conn_handle,
                                           int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn, 100, off + 1, ble_gatt_write_test_attr_value + off,
+        conn_handle, 100, off + 1, ble_gatt_write_test_attr_value + off,
         len);
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_value(struct ble_hs_conn *conn,
+ble_gatt_write_test_misc_long_fail_value(uint16_t conn_handle,
                                          int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn, 100, off, ble_gatt_write_test_attr_value + off + 1,
+        conn_handle, 100, off, ble_gatt_write_test_attr_value + off + 1,
         len);
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_length(struct ble_hs_conn *conn,
+ble_gatt_write_test_misc_long_fail_length(uint16_t conn_handle,
                                           int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn, 100, off, ble_gatt_write_test_attr_value + off,
+        conn_handle, 100, off, ble_gatt_write_test_attr_value + off,
         len - 1);
 }
 
@@ -291,7 +277,6 @@ ble_gatt_write_test_reliable_cb_good(uint16_t conn_handle,
 static void
 ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
 {
-    struct ble_hs_conn *conn;
     int num_attrs;
     int attr_idx;
     int rc;
@@ -302,10 +287,10 @@ ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
     for (num_attrs = 0; attrs[num_attrs].handle != 0; num_attrs++)
         ;
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
-    rc = ble_gattc_write_reliable(conn->bhc_handle, attrs, num_attrs,
+    rc = ble_gattc_write_reliable(2, attrs, num_attrs,
                                   ble_gatt_write_test_reliable_cb_good, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -314,7 +299,7 @@ ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
         ble_hs_test_util_tx_all();
 
         /* Receive Prep Write response. */
-        ble_gatt_write_test_rx_prep_rsp(conn, attrs[attr_idx].handle, 0,
+        ble_gatt_write_test_rx_prep_rsp(2, attrs[attr_idx].handle, 0,
                                         attrs[attr_idx].value,
                                         attrs[attr_idx].value_len);
 
@@ -324,7 +309,7 @@ ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
-    ble_gatt_write_test_rx_exec_rsp(conn);
+    ble_gatt_write_test_rx_exec_rsp(2);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
@@ -342,7 +327,7 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
     ble_gatt_write_test_init();
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+                                 NULL, NULL);
 
     attr_len = 4;
     rc = ble_gattc_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
@@ -358,13 +343,12 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
 
 TEST_CASE(ble_gatt_write_test_rsp)
 {
-    struct ble_hs_conn *conn;
     int attr_len;
 
     ble_gatt_write_test_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                        NULL, NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
 
     attr_len = 4;
     ble_gattc_write(2, 100, ble_gatt_write_test_attr_value, attr_len,
@@ -377,7 +361,7 @@ TEST_CASE(ble_gatt_write_test_rsp)
     TEST_ASSERT(!ble_gatt_write_test_cb_called);
 
     /* Receive write response. */
-    ble_gatt_write_test_rx_rsp(conn);
+    ble_gatt_write_test_rx_rsp(2);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);

@@ -141,7 +141,7 @@ ble_l2cap_sm_test_util_conn_cb(int event, int status,
 }
 
 static void
-ble_l2cap_sm_test_util_rx_pair_cmd(struct ble_hs_conn *conn, uint8_t op,
+ble_l2cap_sm_test_util_rx_pair_cmd(uint16_t conn_handle, uint8_t op,
                                    struct ble_l2cap_sm_pair_cmd *cmd,
                                    int rx_status)
 {
@@ -166,31 +166,31 @@ ble_l2cap_sm_test_util_rx_pair_cmd(struct ble_hs_conn *conn, uint8_t op,
     ble_l2cap_sm_pair_cmd_write(v, payload_len, op == BLE_L2CAP_SM_OP_PAIR_REQ,
                                 cmd);
 
-    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, BLE_L2CAP_CID_SM, &hci_hdr,
-                                              om);
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SM,
+                                              &hci_hdr, om);
     TEST_ASSERT(rc == rx_status);
 }
 
 static void
-ble_l2cap_sm_test_util_rx_pair_req(struct ble_hs_conn *conn,
+ble_l2cap_sm_test_util_rx_pair_req(uint16_t conn_handle,
                                    struct ble_l2cap_sm_pair_cmd *req,
                                    int rx_status)
 {
-    ble_l2cap_sm_test_util_rx_pair_cmd(conn, BLE_L2CAP_SM_OP_PAIR_REQ, req,
-                                       rx_status);
+    ble_l2cap_sm_test_util_rx_pair_cmd(conn_handle, BLE_L2CAP_SM_OP_PAIR_REQ,
+                                       req, rx_status);
 }
 
 static void
-ble_l2cap_sm_test_util_rx_pair_rsp(struct ble_hs_conn *conn,
+ble_l2cap_sm_test_util_rx_pair_rsp(uint16_t conn_handle,
                                    struct ble_l2cap_sm_pair_cmd *rsp,
                                    int rx_status)
 {
-    ble_l2cap_sm_test_util_rx_pair_cmd(conn, BLE_L2CAP_SM_OP_PAIR_RSP, rsp,
-                                       rx_status);
+    ble_l2cap_sm_test_util_rx_pair_cmd(conn_handle, BLE_L2CAP_SM_OP_PAIR_RSP,
+                                       rsp, rx_status);
 }
 
 static void
-ble_l2cap_sm_test_util_rx_confirm(struct ble_hs_conn *conn,
+ble_l2cap_sm_test_util_rx_confirm(uint16_t conn_handle,
                                   struct ble_l2cap_sm_pair_confirm *cmd)
 {
     struct hci_data_hdr hci_hdr;
@@ -213,13 +213,13 @@ ble_l2cap_sm_test_util_rx_confirm(struct ble_hs_conn *conn,
 
     ble_l2cap_sm_pair_confirm_write(v, payload_len, cmd);
 
-    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, BLE_L2CAP_CID_SM, &hci_hdr,
-                                              om);
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SM,
+                                              &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == 0);
 }
 
 static void
-ble_l2cap_sm_test_util_rx_random(struct ble_hs_conn *conn,
+ble_l2cap_sm_test_util_rx_random(uint16_t conn_handle,
                                  struct ble_l2cap_sm_pair_random *cmd,
                                  int exp_status)
 {
@@ -243,8 +243,8 @@ ble_l2cap_sm_test_util_rx_random(struct ble_hs_conn *conn,
 
     ble_l2cap_sm_pair_random_write(v, payload_len, cmd);
 
-    rc = ble_hs_test_util_l2cap_rx_first_frag(conn, BLE_L2CAP_CID_SM, &hci_hdr,
-                                              om);
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SM,
+                                              &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == exp_status);
 }
 
@@ -461,9 +461,17 @@ ble_l2cap_sm_test_util_peer_fail_inval(
     ble_l2cap_sm_test_util_init();
     ble_hs_test_util_set_public_addr(rsp_addr);
 
-    conn = ble_hs_test_util_create_conn(2, init_addr,
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        NULL);
+    ble_hs_test_util_create_conn(2, init_addr, ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     if (!we_are_master) {
         conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
@@ -473,7 +481,7 @@ ble_l2cap_sm_test_util_peer_fail_inval(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Receive a pair request from the peer. */
-    ble_l2cap_sm_test_util_rx_pair_req(conn, pair_req,
+    ble_l2cap_sm_test_util_rx_pair_req(2, pair_req,
                                        BLE_HS_SM_US_ERR(pair_fail->reason));
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
@@ -676,9 +684,17 @@ ble_l2cap_sm_test_util_peer_lgcy_fail_confirm(
     ble_hs_test_util_set_public_addr(rsp_addr);
     ble_l2cap_sm_dbg_set_next_pair_rand(random_rsp->value);
 
-    conn = ble_hs_test_util_create_conn(2, init_addr,
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        NULL);
+    ble_hs_test_util_create_conn(2, init_addr, ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     /* Peer is the initiator so we must be the slave. */
     conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
@@ -686,7 +702,7 @@ ble_l2cap_sm_test_util_peer_lgcy_fail_confirm(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Receive a pair request from the peer. */
-    ble_l2cap_sm_test_util_rx_pair_req(conn, pair_req, 0);
+    ble_l2cap_sm_test_util_rx_pair_req(2, pair_req, 0);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected pair response. */
@@ -695,7 +711,7 @@ ble_l2cap_sm_test_util_peer_lgcy_fail_confirm(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair confirm from the peer. */
-    ble_l2cap_sm_test_util_rx_confirm(conn, confirm_req);
+    ble_l2cap_sm_test_util_rx_confirm(2, confirm_req);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected pair confirm. */
@@ -705,7 +721,7 @@ ble_l2cap_sm_test_util_peer_lgcy_fail_confirm(
 
     /* Receive a pair random from the peer. */
     ble_l2cap_sm_test_util_rx_random(
-        conn, random_req, BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH));
+        2, random_req, BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH));
 
     /* Ensure we sent the expected pair fail. */
     ble_hs_test_util_tx_all();
@@ -806,9 +822,18 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     ble_hs_test_util_set_public_addr(params->rsp_addr);
     ble_l2cap_sm_dbg_set_next_pair_rand(params->random_rsp.value);
 
-    conn = ble_hs_test_util_create_conn(2, params->init_addr,
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        &params->passkey);
+    ble_hs_test_util_create_conn(2, params->init_addr,
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 &params->passkey);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     /* Peer is the initiator so we must be the slave. */
     conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
@@ -817,7 +842,7 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Receive a pair request from the peer. */
-    ble_l2cap_sm_test_util_rx_pair_req(conn, &params->pair_req, 0);
+    ble_l2cap_sm_test_util_rx_pair_req(2, &params->pair_req, 0);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -828,7 +853,7 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair confirm from the peer. */
-    ble_l2cap_sm_test_util_rx_confirm(conn, &params->confirm_req);
+    ble_l2cap_sm_test_util_rx_confirm(2, &params->confirm_req);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -839,7 +864,7 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair random from the peer. */
-    ble_l2cap_sm_test_util_rx_random(conn, &params->random_req, 0);
+    ble_l2cap_sm_test_util_rx_random(2, &params->random_req, 0);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -1023,9 +1048,18 @@ ble_l2cap_sm_test_util_peer_bonding_good(uint8_t *ltk, int authenticated,
     memcpy(ltk_info.ltk, ltk, sizeof ltk_info.ltk);
     ltk_info.authenticated = authenticated;
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        &ltk_info);
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 &ltk_info);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
@@ -1079,9 +1113,18 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
 
     ble_l2cap_sm_test_util_init();
 
-    conn = ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
@@ -1144,9 +1187,18 @@ ble_l2cap_sm_test_util_us_fail_inval(
     ble_l2cap_sm_test_util_init();
     ble_hs_test_util_set_public_addr(params->rsp_addr);
 
-    conn = ble_hs_test_util_create_conn(2, params->init_addr,
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        NULL);
+    ble_hs_test_util_create_conn(2, params->init_addr,
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
@@ -1163,7 +1215,7 @@ ble_l2cap_sm_test_util_us_fail_inval(
 
     /* Receive a pair response from the peer. */
     ble_l2cap_sm_test_util_rx_pair_rsp(
-        conn, &params->pair_rsp, BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_INVAL));
+        2, &params->pair_rsp, BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_INVAL));
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
@@ -1412,9 +1464,18 @@ ble_l2cap_sm_test_util_us_lgcy_good(
         ble_l2cap_sm_dbg_set_next_ltk(params->enc_info_req.ltk_le);
     }
 
-    conn = ble_hs_test_util_create_conn(2, params->rsp_addr,
-                                        ble_l2cap_sm_test_util_conn_cb,
-                                        NULL);
+    ble_hs_test_util_create_conn(2, params->rsp_addr,
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
@@ -1430,7 +1491,7 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair response from the peer. */
-    ble_l2cap_sm_test_util_rx_pair_rsp(conn, &params->pair_rsp, 0);
+    ble_l2cap_sm_test_util_rx_pair_rsp(2, &params->pair_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -1441,7 +1502,7 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair confirm from the peer. */
-    ble_l2cap_sm_test_util_rx_confirm(conn, &params->confirm_rsp);
+    ble_l2cap_sm_test_util_rx_confirm(2, &params->confirm_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -1452,7 +1513,7 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Receive a pair random from the peer. */
-    ble_l2cap_sm_test_util_rx_random(conn, &params->random_rsp, 0);
+    ble_l2cap_sm_test_util_rx_random(2, &params->random_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 

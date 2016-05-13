@@ -91,10 +91,7 @@ typedef uint8_t ble_gatts_conn_flags;
 struct ble_gatts_conn {
     struct ble_gatts_clt_cfg *clt_cfgs;
     int num_clt_cfgs;
-    ble_gatts_conn_flags flags;
 };
-
-#define BLE_GATTS_CONN_F_INDICATION_TXED        0x01
 
 /*** @client. */
 int ble_gattc_locked_by_cur_task(void);
@@ -145,7 +142,7 @@ int ble_gattc_init(void);
 #define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
 #define BLE_GATTS_INC_SVC_LEN_UUID              6
 
-void ble_gatts_send_notifications(struct ble_hs_conn *conn);
+void ble_gatts_send_updates_for_conn(uint16_t conn_handle);
 
 /*** @misc. */
 void ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn);

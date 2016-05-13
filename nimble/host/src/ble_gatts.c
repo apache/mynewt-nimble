@@ -980,39 +980,83 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
     return 0;
 }
 
-void
-ble_gatts_send_notifications(struct ble_hs_conn *conn)
+static int
+ble_gatts_send_one_update(uint16_t conn_handle)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+    uint16_t chr_val_handle;
+    uint8_t att_op;
     int rc;
     int i;
 
-    /* Iterate through each configurable characteristic.  If a characteristic
-     * has been updated, try to send an indication or notification
-     * (never both).
-     */
-    for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
-        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
+    /* Silence spurious gcc warning. */
+    chr_val_handle = 0;
 
-        if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED) {
-            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
-                if (!(conn->bhc_gatt_svr.flags &
-                      BLE_GATTS_CONN_F_INDICATION_TXED)) {
+    /* Assume no pending updates. */
+    att_op = 0;
 
-                    rc = ble_gattc_indicate(conn->bhc_handle,
-                                            clt_cfg->chr_def_handle + 1,
-                                            NULL, NULL);
-                    if (rc == 0) {
-                        conn->bhc_gatt_svr.flags |=
-                            BLE_GATTS_CONN_F_INDICATION_TXED;
-                        clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
-                    }
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
+            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
+            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED) {
+                if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
+                    att_op = BLE_ATT_OP_NOTIFY_REQ;
+                } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE &&
+                           !(conn->bhc_flags & BLE_HS_CONN_F_INDICATE_TXED)) {
+                    att_op = BLE_ATT_OP_INDICATE_REQ;
                 }
-            } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
-                rc = ble_gattc_notify(conn->bhc_handle,
-                                      clt_cfg->chr_def_handle + 1);
-                if (rc == 0) {
+
+                if (att_op != 0) {
+                    chr_val_handle = clt_cfg->chr_def_handle + 1;
                     clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
+                    break;
+                }
+            }
+        }
+    }
+    ble_hs_unlock();
+
+    switch (att_op) {
+    case 0:
+        return BLE_HS_EDONE;
+
+    case BLE_ATT_OP_NOTIFY_REQ:
+        rc = ble_gattc_notify(conn_handle, chr_val_handle);
+        return rc;
+        
+    case BLE_ATT_OP_INDICATE_REQ:
+        rc = ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
+        return rc;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
+    }
+}
+
+static void
+ble_gatts_send_updates(uint16_t *conn_handles, int num_conns)
+{
+    int more_sends;
+    int rc;
+    int i;
+
+    more_sends = 1;
+
+    while (more_sends) {
+        for (i = 0; i < num_conns; i++) {
+            more_sends = 0;
+            for (i = 0; i < num_conns; i++) {
+                if (conn_handles[i] != BLE_HS_CONN_HANDLE_NONE) {
+                    rc = ble_gatts_send_one_update(conn_handles[i]);
+                    if (rc == 0) {
+                        more_sends = 1;
+                    } else {
+                        conn_handles[i] = BLE_HS_CONN_HANDLE_NONE;
+                    }
                 }
             }
         }
@@ -1020,10 +1064,47 @@ ble_gatts_send_notifications(struct ble_hs_conn *conn)
 }
 
 void
+ble_gatts_send_updates_for_conn(uint16_t conn_handle)
+{
+    ble_gatts_send_updates(&conn_handle, 1);
+}
+
+static int
+ble_gatts_conns_with_pending_updates(uint16_t *conn_handles)
+{
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+    int num_conns;
+    int i;
+
+    num_conns = 0;
+
+    for (conn = ble_hs_conn_first();
+         conn != NULL;
+         conn = SLIST_NEXT(conn, bhc_next)) {
+
+        /* XXX: Consider caching this information as a connection flag. */
+        for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
+            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
+
+            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED) {
+                conn_handles[num_conns++] = conn->bhc_handle;
+                break;
+            }
+        }
+    }
+
+    return num_conns;
+}
+
+void
 ble_gatts_chr_updated(uint16_t chr_def_handle)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
+    uint16_t conn_handles[NIMBLE_OPT_MAX_CONNECTIONS];
+    int any_updates;
+    int num_conns;
     int idx;
 
     /* Determine if notifications / indications are enabled for this
@@ -1033,6 +1114,9 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
     if (idx == -1) {
         return;
     }
+
+    /* Assume no peers are subscribed to this characteristic. */
+    any_updates = 0;
 
     ble_hs_lock();
 
@@ -1048,12 +1132,19 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
             (BLE_GATTS_CLT_CFG_F_NOTIFY | BLE_GATTS_CLT_CFG_F_INDICATE)) {
 
             clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_UPDATED;
-
-            ble_gatts_send_notifications(conn);
+            any_updates = 1;
         }
     }
 
+    if (any_updates) {
+        num_conns = ble_gatts_conns_with_pending_updates(conn_handles);
+    }
+
     ble_hs_unlock();
+
+    if (any_updates) {
+        ble_gatts_send_updates(conn_handles, num_conns);
+    }
 }
 
 static void

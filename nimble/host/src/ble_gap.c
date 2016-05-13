@@ -432,33 +432,6 @@ ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
     }
 }
 
-int
-ble_gap_update_in_progress(uint16_t conn_handle)
-{
-    struct ble_hs_conn *conn;
-
-    conn = ble_hs_conn_find(conn_handle);
-    return conn != NULL && conn->bhc_flags & BLE_HS_CONN_F_UPDATE;
-}
-
-static int
-ble_gap_update_set_flag(uint16_t conn_handle, int val)
-{
-    struct ble_hs_conn *conn;
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    } else {
-        if (val) {
-            conn->bhc_flags |= BLE_HS_CONN_F_UPDATE;
-        } else {
-            conn->bhc_flags &= ~BLE_HS_CONN_F_UPDATE;
-        }
-        return 0;
-    }
-}
-
 static void
 ble_gap_update_notify(uint16_t conn_handle, int status)
 {
@@ -514,7 +487,7 @@ static void
 ble_gap_update_failed(uint16_t conn_handle, int status)
 {
     STATS_INC(ble_gap_stats, update_fail);
-    ble_gap_update_set_flag(conn_handle, 0);
+    ble_hs_atomic_conn_set_flags(conn_handle, BLE_HS_CONN_F_UPDATE, 0);
     ble_gap_update_notify(conn_handle, status);
 }
 
@@ -600,7 +573,8 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
         ble_gap_conn_to_snapshot(conn, &snap);
     }
 
-    ble_gap_update_set_flag(evt->connection_handle, 0);
+    conn->bhc_flags &= ~BLE_HS_CONN_F_UPDATE;
+
     ble_hs_unlock();
 
     if (conn != NULL) {
@@ -1913,7 +1887,8 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
         if (rc != 0) {
             ble_gap_update_failed(evt->connection_handle, rc);
         } else {
-            ble_gap_update_set_flag(evt->connection_handle, 1);
+            ble_hs_atomic_conn_set_flags(evt->connection_handle,
+                                         BLE_HS_CONN_F_UPDATE, 1);
         }
     } else {
         ble_gap_tx_param_neg_reply(evt->connection_handle, reject_reason);
@@ -1955,18 +1930,20 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_hs_conn *conn;
     int rc;
 
     ble_hs_lock();
 
     STATS_INC(ble_gap_stats, update);
 
-    if (!ble_hs_conn_exists(conn_handle)) {
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
         goto done;
     }
 
-    if (ble_gap_update_in_progress(conn_handle)) {
+    if (conn->bhc_flags & BLE_HS_CONN_F_UPDATE) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
@@ -1980,7 +1957,7 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
         goto done;
     }
 
-    ble_gap_update_set_flag(conn_handle, 1);
+    conn->bhc_flags |= BLE_HS_CONN_F_UPDATE;
 
 done:
     if (rc != 0) {
