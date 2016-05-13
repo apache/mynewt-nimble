@@ -25,6 +25,7 @@
 #include "nimble/nimble_opt.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
+#include "host/ble_keycache.h"
 
 /**
  * GAP - Generic Access Profile.
@@ -85,12 +86,11 @@ static const struct ble_gap_crt_params ble_gap_params_dflt = {
     .max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN,
 };
 
-static const struct hci_adv_params ble_gap_adv_params_dflt = {
+static const struct ble_gap_adv_params ble_gap_adv_params_dflt = {
     .adv_itvl_min = 0,
     .adv_itvl_max = 0,
     .adv_type = BLE_HCI_ADV_TYPE_ADV_IND,
     .own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC,
-    .peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC,
     .adv_channel_map = BLE_HCI_ADV_CHANMASK_DEF,
     .adv_filter_policy = BLE_HCI_ADV_FILT_DEF,
 };
@@ -198,18 +198,18 @@ ble_gap_log_conn(uint8_t addr_type, uint8_t *addr,
 
     BLE_HS_LOG(INFO, " scan_itvl=%d scan_window=%d itvl_min=%d itvl_max=%d "
                      "latency=%d supervision_timeout=%d min_ce_len=%d "
-                     "max_ce_len=%d",
+                     "max_ce_len=%d our_addr_type=%d",
                params->scan_itvl, params->scan_window, params->itvl_min,
                params->itvl_max, params->latency, params->supervision_timeout,
-               params->min_ce_len, params->max_ce_len);
+               params->min_ce_len, params->max_ce_len, params->our_addr_type);
 }
 
 static void
-ble_gap_log_disc(uint8_t scan_type, uint8_t filter_policy)
+ble_gap_log_disc(uint8_t scan_type, uint8_t filter_policy, uint8_t addr_mode)
 {
-    BLE_HS_LOG(INFO, "disc_mode=%d filter_policy=%d scan_type=%d",
+    BLE_HS_LOG(INFO, "disc_mode=%d filter_policy=%d scan_type=%d addr_node %d",
                ble_gap_master.disc.disc_mode,
-               filter_policy, scan_type);
+               filter_policy, scan_type, addr_mode);
 }
 
 static void
@@ -242,11 +242,16 @@ ble_gap_log_wl(struct ble_gap_white_entry *white_list,
 }
 
 static void
-ble_gap_log_adv(struct hci_adv_params *adv_params)
+ble_gap_log_adv(const struct ble_gap_adv_params *adv_params,
+                uint8_t *peer_addr, uint8_t peer_addr_type)
 {
     BLE_HS_LOG(INFO, "disc_mode=%d addr_type=%d addr=",
-               ble_gap_slave.disc_mode, adv_params->peer_addr_type);
-    BLE_HS_LOG_ADDR(INFO, adv_params->peer_addr);
+               ble_gap_slave.disc_mode, peer_addr_type);
+    if(peer_addr) {
+        BLE_HS_LOG_ADDR(INFO, peer_addr);
+    } else {
+        BLE_HS_LOG(INFO, "none");
+    }
     BLE_HS_LOG(INFO, " adv_type=%d adv_channel_map=%d own_addr_type=%d "
                      "adv_filter_policy=%d adv_itvl_min=%d adv_itvl_max=%d "
                      "adv_data_len=%d",
@@ -1268,22 +1273,47 @@ ble_gap_adv_data_tx(void)
 }
 
 static int
-ble_gap_adv_params_tx(struct hci_adv_params *adv_params)
+ble_gap_adv_params_tx(const struct ble_gap_adv_params *adv_params, 
+                      uint8_t *peer_addr, uint8_t peer_addr_type)
 {
+    struct hci_adv_params hci_adv_params;
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_PARAM_LEN];
     int rc;
+    uint8_t peer[6];
+
+    if(peer_addr) {
+        memcpy(peer, peer_addr, 6);
+    } else {
+        memset(peer, 0, 6);
+    }
+    
+    hci_adv_params.adv_channel_map = adv_params->adv_channel_map;
+    hci_adv_params.own_addr_type = adv_params->own_addr_type;
+    hci_adv_params.adv_filter_policy = adv_params->adv_filter_policy;
+    hci_adv_params.adv_itvl_min = adv_params->adv_itvl_min;
+    hci_adv_params.adv_itvl_max = adv_params->adv_itvl_max;
+
+    if (ble_gap_slave.conn_mode == BLE_GAP_CONN_MODE_DIR) {
+        hci_adv_params.peer_addr_type = peer_addr_type;
+        memcpy(hci_adv_params.peer_addr,peer,
+            sizeof(hci_adv_params.peer_addr));
+    }
+
+    BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
+    ble_gap_log_adv(adv_params, peer, peer_addr_type);
+    BLE_HS_LOG(INFO, "\n");
 
     switch (ble_gap_slave.conn_mode) {
     case BLE_GAP_CONN_MODE_NON:
-        adv_params->adv_type = BLE_HCI_ADV_TYPE_ADV_NONCONN_IND;
+        hci_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_NONCONN_IND;
         break;
 
     case BLE_GAP_CONN_MODE_DIR:
-        adv_params->adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD;
+        hci_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD;
         break;
 
     case BLE_GAP_CONN_MODE_UND:
-        adv_params->adv_type = BLE_HCI_ADV_TYPE_ADV_IND;
+        hci_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_IND;
         break;
 
     default:
@@ -1291,7 +1321,7 @@ ble_gap_adv_params_tx(struct hci_adv_params *adv_params)
         break;
     }
 
-    rc = host_hci_cmd_build_le_set_adv_params(adv_params, buf, sizeof buf);
+    rc = host_hci_cmd_build_le_set_adv_params(&hci_adv_params, buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
@@ -1322,32 +1352,20 @@ ble_gap_adv_params_tx(struct hci_adv_params *adv_params)
  *                                      (directed-connectable; 3.C.9.3.3).
  *                                  o BLE_GAP_CONN_MODE_UND
  *                                      (undirected-connectable; 3.C.9.3.4).
- * @param peer_addr             The address of the peer who is allowed to
- *                                  connect; only meaningful for directed
- *                                  connectable mode.  For other modes, specify
- *                                  NULL.
- * @param peer_addr_type        The type of address specified for the
- *                                  "peer_addr" parameter; only meaningful for
- *                                  directed connectable mode.  For other
- *                                  modes, specify 0.  For directed connectable
- *                                  mode, this should be one of the following
- *                                  constants:
- *                                      o BLE_ADDR_TYPE_PUBLIC
- *                                      o BLE_ADDR_TYPE_RANDOM
  *
  * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                   uint8_t *peer_addr, uint8_t peer_addr_type,
-                  struct hci_adv_params *adv_params,
+                  const struct ble_gap_adv_params *adv_params,
                   ble_gap_event_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(ADVERTISE)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct hci_adv_params adv_params_copy;
+    struct ble_gap_adv_params gap_adv_params;
     int rc;
 
     ble_hs_lock();
@@ -1381,7 +1399,9 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
 
     case BLE_GAP_CONN_MODE_DIR:
         if (peer_addr_type != BLE_ADDR_TYPE_PUBLIC &&
-            peer_addr_type != BLE_ADDR_TYPE_RANDOM) {
+            peer_addr_type != BLE_ADDR_TYPE_RANDOM &&
+            peer_addr_type != BLE_ADDR_TYPE_RPA_PUB_DEFAULT &&
+            peer_addr_type != BLE_ADDR_TYPE_RPA_RND_DEFAULT) {
 
             rc = BLE_HS_EINVAL;
             goto done;
@@ -1393,21 +1413,20 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
         goto done;
     }
 
-    if (adv_params != NULL) {
-        adv_params_copy = *adv_params;
+    if(adv_params == NULL) {
+        gap_adv_params = ble_gap_adv_params_dflt;
     } else {
-        adv_params_copy = ble_gap_adv_params_dflt;
+        gap_adv_params = *adv_params;
     }
 
+    if(gap_adv_params.own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        rc = BLE_HS_EINVAL;
+        goto done;
+    }
+    
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
-    ble_gap_log_adv(&adv_params_copy);
+    ble_gap_log_adv(&gap_adv_params, peer_addr, peer_addr_type);
     BLE_HS_LOG(INFO, "\n");
-
-    if (connectable_mode == BLE_GAP_CONN_MODE_DIR) {
-        adv_params_copy.peer_addr_type = peer_addr_type;
-        memcpy(adv_params_copy.peer_addr, peer_addr,
-               sizeof adv_params_copy.peer_addr);
-    }
 
     ble_gap_slave.cb = cb;
     ble_gap_slave.cb_arg = cb_arg;
@@ -1415,10 +1434,15 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     ble_gap_slave.disc_mode = discoverable_mode;
 
     ble_gap_adv_itvls(discoverable_mode, connectable_mode,
-                      &adv_params_copy.adv_itvl_min,
-                      &adv_params_copy.adv_itvl_max);
+                      &gap_adv_params.adv_itvl_min,
+                      &gap_adv_params.adv_itvl_max);
 
-    rc = ble_gap_adv_params_tx(&adv_params_copy);
+    /* set a new private address for random advertisements */
+    if(gap_adv_params.own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        ble_hs_priv_set_nrpa();
+    }
+
+    rc = ble_gap_adv_params_tx(&gap_adv_params, peer_addr, peer_addr_type);
     if (rc != 0) {
         goto done;
     }
@@ -1554,7 +1578,8 @@ ble_gap_disc_tx_enable(void)
 }
 
 static int
-ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy)
+ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy,
+                        uint8_t addr_mode)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN];
     int rc;
@@ -1563,7 +1588,7 @@ ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy)
         scan_type,
         BLE_GAP_SCAN_FAST_INTERVAL_MIN,
         BLE_GAP_SCAN_FAST_WINDOW,
-        BLE_HCI_ADV_OWN_ADDR_PUBLIC,
+        addr_mode,
         filter_policy,
         buf, sizeof buf);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
@@ -1584,7 +1609,7 @@ ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy)
  */
 int
 ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
-             uint8_t scan_type, uint8_t filter_policy,
+             uint8_t scan_type, uint8_t filter_policy, uint8_t addr_mode,
              ble_gap_disc_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(ROLE_OBSERVER)
@@ -1616,6 +1641,14 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
         goto done;
     }
 
+    if((addr_mode != BLE_HCI_ADV_OWN_ADDR_PUBLIC) &&
+       (addr_mode != BLE_HCI_ADV_OWN_ADDR_RANDOM) &&
+       (addr_mode != BLE_HCI_ADV_OWN_ADDR_PRIV_PUB) &&
+       (addr_mode != BLE_HCI_ADV_OWN_ADDR_PRIV_RAND)) {
+          rc = BLE_HS_EINVAL;
+          goto done;
+      }
+
     if (filter_policy > BLE_HCI_SCAN_FILT_MAX) {
         rc = BLE_HS_EINVAL;
         goto done;
@@ -1630,10 +1663,15 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
     ble_gap_master.disc.cb_arg = cb_arg;
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: discovery; ");
-    ble_gap_log_disc(scan_type, filter_policy);
+    ble_gap_log_disc(scan_type, filter_policy, addr_mode);
     BLE_HS_LOG(INFO, "\n");
 
-    rc = ble_gap_disc_tx_params(scan_type, filter_policy);
+        /* set a new random address for this mode */
+    if(addr_mode == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        ble_hs_priv_set_nrpa();
+    }
+
+    rc = ble_gap_disc_tx_params(scan_type, filter_policy, addr_mode);
     if (rc != 0) {
         goto done;
     }
@@ -1682,7 +1720,9 @@ ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
         hcc.peer_addr_type = addr_type;
         memcpy(hcc.peer_addr, addr, sizeof hcc.peer_addr);
     }
-    hcc.own_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
+    /* TODO error check our_addr_type */
+    hcc.own_addr_type = params->our_addr_type;
+
     hcc.conn_itvl_min = params->itvl_min;
     hcc.conn_itvl_max = params->itvl_max;
     hcc.conn_latency = params->latency;
@@ -1744,6 +1784,7 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
         rc = BLE_HS_EINVAL;
         goto done;
     }
+    
 
     if (params == NULL) {
         params = (void *)&ble_gap_params_dflt;
@@ -2181,6 +2222,11 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
     ctxt.notify.attr_len = attr_len;
     ctxt.notify.indication = is_indication;
     ble_gap_call_event_cb(BLE_GAP_EVENT_NOTIFY, &ctxt, snap.cb, snap.cb_arg);
+}
+
+void ble_gap_init_identity_addr(uint8_t *addr)
+{
+    ble_hs_priv_init_identity(addr);
 }
 
 /*****************************************************************************

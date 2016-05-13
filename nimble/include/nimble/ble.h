@@ -220,7 +220,9 @@ enum ble_error_codes
 };
 
 /* Address types */
-#define BLE_ADDR_TYPE_PUBLIC    (0)
-#define BLE_ADDR_TYPE_RANDOM    (1)
+#define BLE_ADDR_TYPE_PUBLIC            (0)
+#define BLE_ADDR_TYPE_RANDOM            (1)
+#define BLE_ADDR_TYPE_RPA_PUB_DEFAULT   (2)
+#define BLE_ADDR_TYPE_RPA_RND_DEFAULT   (3)
 
 #endif /* H_BLE_ */

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -104,4 +104,21 @@ ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
     *out_rssi = params[2];
 
     return 0;
+}
+
+int
+ble_hs_util_set_random_addr(uint8_t *addr)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RAND_ADDR_LEN];
+    int rc;
+
+    /* set the address in the controller */
+
+    rc = host_hci_cmd_set_random_addr(addr, buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hci_cmd_tx_empty_ack(buf);
+    return rc;
 }

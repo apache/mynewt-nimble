@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -56,13 +56,6 @@ STATS_SECT_START(ble_hs_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 
-struct ble_hs_dev {
-    uint8_t public_addr[6];
-    uint8_t random_addr[6];
-
-    unsigned has_random_addr:1;
-};
-
 struct ble_hci_ack {
     int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
     uint8_t *bha_params;
@@ -110,7 +103,10 @@ int ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
 int ble_hci_cmd_tx_empty_ack(void *cmd);
 void ble_hci_cmd_rx_ack(uint8_t *ack_ev);
 void ble_hci_cmd_init(void);
-
+int ble_hs_priv_set_nrpa(void);
+void ble_hs_priv_init_identity(uint8_t *addr);
+void bls_hs_priv_copy_local_identity_addr(uint8_t *pdst, uint8_t* addr_type);
+uint8_t *ble_hs_priv_get_local_irk(void);
 #if PHONY_HCI_ACKS
 typedef int ble_hci_cmd_phony_ack_fn(uint8_t *ack, int ack_buf_len);
 

@@ -48,8 +48,6 @@ void host_hci_cmd_build_le_set_event_mask(uint64_t event_mask,
 void host_hci_cmd_build_le_read_buffer_size(uint8_t *dst, int dst_len);
 int host_hci_cmd_le_read_buffer_size(void);
 void host_hci_cmd_build_le_read_loc_supp_feat(uint8_t *dst, uint8_t dst_len);
-void host_hci_cmd_build_le_set_rand_addr(uint8_t *addr, uint8_t *dst,
-                                         int dst_len);
 void host_hci_cmd_build_le_set_adv_enable(uint8_t enable, uint8_t *dst,
                                           int dst_len);
 int host_hci_cmd_le_set_adv_enable(uint8_t enable);
@@ -98,6 +96,29 @@ uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);
 int host_hci_data_rx(struct os_mbuf *om);
 int host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om);
 
+int host_hci_cmd_add_device_to_resolving_list(
+                                    struct hci_add_dev_to_resolving_list *padd,
+                                    uint8_t *dst, int dst_len);
+int host_hci_cmd_remove_device_from_resolving_list(uint8_t addr_type,
+                                            uint8_t *addr, uint8_t *dst,
+                                            int dst_len);
+int host_hci_cmd_read_resolving_list_size(uint8_t *dst, int dst_len);
+int
+host_hci_cmd_clear_resolving_list(uint8_t *dst, int dst_len);
+int host_hci_cmd_read_peer_resolvable_address(uint8_t peer_identity_addr_type,
+                                          uint8_t *peer_identity_addr,
+                                          uint8_t *dst, int dst_len);
+int host_hci_cmd_read_local_resolvable_address(uint8_t local_identity_addr_type,
+                                        uint8_t *local_identity_addr,
+                                        uint8_t *dst, int dst_len);
+int host_hci_cmd_set_addr_resolution_enable(uint8_t enable,
+                                          uint8_t *dst, int dst_len);
+int host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
+                                                            uint8_t *dst,
+                                                            int dst_len);
+
 void host_hci_timer_set(void);
+
+int host_hci_cmd_set_random_addr(uint8_t *addr, uint8_t *dst, int dst_len);
 
 #endif /* H_HOST_HCI_ */
