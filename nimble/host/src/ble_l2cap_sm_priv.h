@@ -211,8 +211,8 @@ void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
 void ble_l2cap_sm_heartbeat(void);
-int ble_l2cap_sm_initiate(uint16_t conn_handle);
-int ble_l2cap_sm_sec_initiate(uint16_t conn_handle, uint8_t *ltk,
+int ble_l2cap_sm_pair_initiate(uint16_t conn_handle);
+int ble_l2cap_sm_enc_initiate(uint16_t conn_handle, uint8_t *ltk,
                           uint16_t ediv, uint64_t rand_val, int auth);
 int ble_l2cap_sm_init(void);
 
