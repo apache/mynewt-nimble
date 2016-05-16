@@ -141,6 +141,17 @@ struct ble_l2cap_sm_signing_info {
     uint8_t sig_key_le[16];
 };
 
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | (Code=0x0B)                        | 1                 |
+ * | authreq                            | 1                 |
+ */
+#define BLE_L2CAP_SM_SEC_REQ_SZ         1
+struct ble_l2cap_sm_sec_req {
+    uint8_t authreq;
+};
+
 
 #if NIMBLE_OPT_SM
 
@@ -206,6 +217,12 @@ void ble_l2cap_sm_signing_info_parse(void *payload, int len,
                                      struct ble_l2cap_sm_signing_info *cmd);
 int ble_l2cap_sm_signing_info_tx(uint16_t conn_handle,
                                  struct ble_l2cap_sm_signing_info *cmd);
+void ble_l2cap_sm_sec_req_parse(void *payload, int len,
+                                struct ble_l2cap_sm_sec_req *cmd);
+void ble_l2cap_sm_sec_req_write(void *payload, int len,
+                                struct ble_l2cap_sm_sec_req *cmd);
+int ble_l2cap_sm_sec_req_tx(uint16_t conn_handle,
+                            struct ble_l2cap_sm_sec_req *cmd);
 
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);

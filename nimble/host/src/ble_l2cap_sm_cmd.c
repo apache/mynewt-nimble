@@ -471,4 +471,50 @@ done:
     return rc;
 }
 
+void
+ble_l2cap_sm_sec_req_parse(void *payload, int len,
+                           struct ble_l2cap_sm_sec_req *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_SEC_REQ_SZ);
+
+    u8ptr = payload;
+    cmd->authreq = *u8ptr;
+}
+
+void
+ble_l2cap_sm_sec_req_write(void *payload, int len,
+                           struct ble_l2cap_sm_sec_req *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_SEC_REQ_SZ);
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_L2CAP_SM_OP_SEC_REQ;
+    u8ptr[1] = cmd->authreq;
+}
+
+int
+ble_l2cap_sm_sec_req_tx(uint16_t conn_handle, struct ble_l2cap_sm_sec_req *cmd)
+{
+    struct os_mbuf *txom;
+    int rc;
+
+    rc = ble_l2cap_sm_init_req(BLE_L2CAP_SM_SEC_REQ_SZ, &txom);
+    if (rc != 0) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    ble_l2cap_sm_sec_req_write(txom->om_data, txom->om_len, cmd);
+    rc = ble_l2cap_sm_tx(conn_handle, txom);
+    txom = NULL;
+
+done:
+    os_mbuf_free_chain(txom);
+    return rc;
+}
 #endif

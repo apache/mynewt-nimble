@@ -114,6 +114,7 @@ static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_confirm;
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_random;
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_pair_fail;
 static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_key_exchange;
+static ble_l2cap_sm_rx_fn ble_l2cap_sm_rx_sec_req;
 
 static ble_l2cap_sm_rx_fn * const ble_l2cap_sm_dispatch[] = {
    [BLE_L2CAP_SM_OP_PAIR_REQ] = ble_l2cap_sm_rx_pair_req,
@@ -126,7 +127,7 @@ static ble_l2cap_sm_rx_fn * const ble_l2cap_sm_dispatch[] = {
    [BLE_L2CAP_SM_OP_IDENTITY_INFO] = ble_l2cap_sm_rx_key_exchange,
    [BLE_L2CAP_SM_OP_IDENTITY_ADDR_INFO] = ble_l2cap_sm_rx_key_exchange,
    [BLE_L2CAP_SM_OP_SIGN_INFO] = ble_l2cap_sm_rx_key_exchange,
-   [BLE_L2CAP_SM_OP_SEC_REQ] = ble_l2cap_sm_rx_noop,
+   [BLE_L2CAP_SM_OP_SEC_REQ] = ble_l2cap_sm_rx_sec_req,
    [BLE_L2CAP_SM_OP_PAIR_PUBLIC_KEY] = ble_l2cap_sm_rx_noop,
    [BLE_L2CAP_SM_OP_PAIR_DHKEY_CHECK] = ble_l2cap_sm_rx_noop,
    [BLE_L2CAP_SM_OP_PAIR_KEYPRESS_NOTIFY] = ble_l2cap_sm_rx_noop,
@@ -1754,6 +1755,59 @@ ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt)
         ble_l2cap_sm_gap_event(proc, BLE_HS_HCI_ERR(evt->status), enc_enabled);
         ble_l2cap_sm_proc_free(proc);
     }
+}
+
+static int
+ble_l2cap_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
+{
+    struct ble_l2cap_sm_sec_req cmd;
+    struct ble_l2cap_sm_proc *proc;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_SEC_REQ_SZ);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_l2cap_sm_sec_req_parse((*om)->om_data, (*om)->om_len, &cmd);
+
+    BLE_HS_LOG(DEBUG, "rxed sm sec req; authreq=%d\n", cmd.authreq);
+
+    ble_hs_lock();
+
+    /* Only handle the security request if a procedure isn't already in
+     * progress for this connection.
+     */
+    proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
+                                  -1, NULL);
+    if (proc != NULL) {
+        rc = BLE_HS_EALREADY;
+    } else {
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn == NULL) {
+            rc = BLE_HS_ENOTCONN;
+        } else if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+            rc = BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CMD_NOT_SUPP);
+            ble_l2cap_sm_pair_fail_tx(conn_handle,
+                                      BLE_L2CAP_SM_ERR_CMD_NOT_SUPP);
+        } else {
+            rc = 0;
+        }
+    }
+
+    ble_hs_unlock();
+
+    if (rc == 0) {
+        /* XXX: Ask app / someone if there is a persisted LTK such that:
+         *     o It corresponds to this peer.
+         *     o It meets the specified authreq criteria.
+         * For now, assume we don't have an appropriate LTK; initiate pairing.
+         */
+        rc = ble_l2cap_sm_pair_initiate(conn_handle);
+    }
+
+    return rc;
 }
 
 static int
