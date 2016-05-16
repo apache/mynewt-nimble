@@ -248,6 +248,36 @@ ble_l2cap_sm_test_util_rx_random(uint16_t conn_handle,
     TEST_ASSERT_FATAL(rc == exp_status);
 }
 
+static void
+ble_l2cap_sm_test_util_rx_sec_req(uint16_t conn_handle,
+                                  struct ble_l2cap_sm_sec_req *cmd,
+                                  int exp_status)
+{
+    struct hci_data_hdr hci_hdr;
+    struct os_mbuf *om;
+    void *v;
+    int payload_len;
+    int rc;
+
+    hci_hdr = BLE_L2CAP_SM_TEST_UTIL_HCI_HDR(
+        2, BLE_HCI_PB_FIRST_FLUSH,
+        BLE_L2CAP_HDR_SZ + BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_SEC_REQ_SZ);
+
+    om = ble_hs_misc_pkthdr();
+    TEST_ASSERT_FATAL(om != NULL);
+
+    payload_len = BLE_L2CAP_SM_HDR_SZ + BLE_L2CAP_SM_SEC_REQ_SZ;
+
+    v = os_mbuf_extend(om, payload_len);
+    TEST_ASSERT_FATAL(v != NULL);
+
+    ble_l2cap_sm_sec_req_write(v, payload_len, cmd);
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SM,
+                                              &hci_hdr, om);
+    TEST_ASSERT_FATAL(rc == exp_status);
+}
+
 static struct os_mbuf *
 ble_l2cap_sm_test_util_verify_tx_hdr(uint8_t sm_op, uint16_t payload_len)
 {
@@ -1638,6 +1668,51 @@ TEST_CASE(ble_l2cap_sm_test_case_conn_broken)
     TEST_ASSERT(!ble_l2cap_sm_test_sec_state.authenticated);
 }
 
+TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_inval)
+{
+    struct ble_l2cap_sm_pair_fail fail;
+    struct ble_l2cap_sm_sec_req sec_req;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_sm_test_util_init();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
+
+    /*** We are the slave; reject the security request. */
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+
+    sec_req.authreq = 0;
+    ble_l2cap_sm_test_util_rx_sec_req(
+        2, &sec_req, BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CMD_NOT_SUPP));
+
+    ble_hs_test_util_tx_all();
+
+    fail.reason = BLE_L2CAP_SM_ERR_CMD_NOT_SUPP;
+    ble_l2cap_sm_test_util_verify_tx_pair_fail(&fail);
+
+    /*** Pairing already in progress; ignore security request. */
+    rc = ble_l2cap_sm_pair_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_tx_all();
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    ble_l2cap_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+}
+
 TEST_SUITE(ble_l2cap_sm_test_suite)
 {
     ble_l2cap_sm_test_case_peer_fail_inval();
@@ -1649,6 +1724,7 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
     ble_l2cap_sm_test_case_peer_bonding_good();
     ble_l2cap_sm_test_case_peer_bonding_bad();
     ble_l2cap_sm_test_case_conn_broken();
+    ble_l2cap_sm_test_case_peer_sec_req_inval();
 }
 #endif
 

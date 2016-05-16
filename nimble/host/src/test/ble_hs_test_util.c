@@ -117,6 +117,14 @@ ble_hs_test_util_prev_tx_queue_sz(void)
     return cnt;
 }
 
+void
+ble_hs_test_util_prev_tx_queue_clear(void)
+{
+    while (!STAILQ_EMPTY(&ble_hs_test_util_prev_tx_queue)) {
+        ble_hs_test_util_prev_tx_dequeue();
+    }
+}
+
 void *
 ble_hs_test_util_get_first_hci_tx(void)
 {
