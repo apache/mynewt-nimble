@@ -65,6 +65,7 @@
 #define BLE_L2CAP_SM_PROC_F_RX_CONFIRM          0x04
 #define BLE_L2CAP_SM_PROC_F_AUTHENTICATED       0x08
 #define BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE        0x10
+#define BLE_L2CAP_SM_PROC_F_BONDED              0x20
 
 #define BLE_L2CAP_SM_KE_F_ENC_INFO              0x01
 #define BLE_L2CAP_SM_KE_F_MASTER_IDEN           0x02
@@ -393,6 +394,7 @@ ble_l2cap_sm_sec_state(struct ble_l2cap_sm_proc *proc,
     out_sec_state->enc_enabled = enc_enabled;
     out_sec_state->authenticated =
             (proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED) ? 1 : 0;
+    out_sec_state->bonded = (proc->flags & BLE_L2CAP_SM_PROC_F_BONDED) ? 1 : 0;
 }
 
 static void
@@ -1331,6 +1333,10 @@ ble_l2cap_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op,
         rc = BLE_HS_ENOENT;
     }
 
+    if (rc == 0 && sm_end) {
+        proc->flags |= BLE_L2CAP_SM_PROC_F_BONDED;
+    }
+
     ble_hs_unlock();
 
     /* a successful ending of the link */
@@ -1665,6 +1671,7 @@ ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
         if (proc != NULL) {
             proc->conn_handle = evt->connection_handle;
             proc->state = BLE_L2CAP_SM_PROC_STATE_LTK;
+            proc->flags |= BLE_L2CAP_SM_PROC_F_BONDED;
             ble_l2cap_sm_insert(proc);
         }
     } else if (proc->state == BLE_L2CAP_SM_PROC_STATE_LTK) {
