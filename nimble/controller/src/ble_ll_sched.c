@@ -340,9 +340,6 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
             connsm->tx_win_off = (earliest_start - initial_start) /
                 cputime_usecs_to_ticks(BLE_LL_CONN_ITVL_USECS);
         }
-
-        /* Restart with head of list */
-        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
     }
 
     if (!rc) {
@@ -352,6 +349,9 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
             cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
         connsm->ce_end_time = earliest_end;
     }
+
+    /* Get head of list to restart timer */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
 
     OS_EXIT_CRITICAL(sr);
 
@@ -669,10 +669,10 @@ ble_ll_sched_run(void *arg)
     while ((sch = TAILQ_FIRST(&g_ble_ll_sched_q)) != NULL) {
         /* Make sure we have passed the start time of the first event */
         if ((int32_t)(cputime_get32() - sch->start_time) >= 0) {
-            /* Execute the schedule item and remove it when done */
-            ble_ll_sched_execute_item(sch);
+            /* Remove schedule item and execute the callback */
             TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
             sch->enqueued = 0;
+            ble_ll_sched_execute_item(sch);
         } else {
             cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
             break;
