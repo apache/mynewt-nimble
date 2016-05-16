@@ -1348,7 +1348,6 @@ ble_l2cap_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op,
     return rc;
 }
 
-
 /*****************************************************************************
  * $rx                                                                       *
  *****************************************************************************/
@@ -1806,15 +1805,16 @@ ble_l2cap_sm_heartbeat(void)
     }
 }
 
+/**
+ * Initiates the pairing procedure for the specified connection.
+ */
 int
-ble_l2cap_sm_initiate(uint16_t conn_handle)
+ble_l2cap_sm_pair_initiate(uint16_t conn_handle)
 {
     struct ble_l2cap_sm_proc *proc;
     int rc;
 
-    /* Make sure a pairing operation for this connection is not already in
-     * progress.
-     */
+    /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
     proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
                                   -1, NULL);
@@ -1845,8 +1845,11 @@ done:
     return rc;
 }
 
+/**
+ * Initiates the encryption procedure for the specified connection.
+ */
 int
-ble_l2cap_sm_sec_initiate(uint16_t conn_handle,
+ble_l2cap_sm_enc_initiate(uint16_t conn_handle,
                           uint8_t *ltk,
                           uint16_t ediv,
                           uint64_t rand_val,
@@ -1855,9 +1858,7 @@ ble_l2cap_sm_sec_initiate(uint16_t conn_handle,
     struct ble_l2cap_sm_proc *proc;
     int rc;
 
-    /* Make sure a pairing operation for this connection is not already in
-     * progress.
-     */
+    /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
     proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
                                   -1, NULL);

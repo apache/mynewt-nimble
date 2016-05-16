@@ -816,7 +816,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     }
 
     /* We verified that there is a free connection when the procedure began. */
-    /* XXX: Revisit this; ensure this is guaranteed. */
     conn = ble_hs_conn_alloc();
     BLE_HS_DBG_ASSERT(conn != NULL);
 
@@ -1989,7 +1988,7 @@ ble_gap_security_initiate(uint16_t conn_handle)
         return BLE_HS_EROLE;
     }
 
-    rc = ble_l2cap_sm_initiate(conn_handle);
+    rc = ble_l2cap_sm_pair_initiate(conn_handle);
     return rc;
 }
 
@@ -2012,7 +2011,7 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
         return BLE_HS_EROLE;
     }
 
-    rc = ble_l2cap_sm_sec_initiate(conn_handle, ltk, ediv, rand_val, auth);
+    rc = ble_l2cap_sm_enc_initiate(conn_handle, ltk, ediv, rand_val, auth);
     return rc;
 }
 #endif
