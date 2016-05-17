@@ -496,6 +496,8 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap, int status)
 {
     struct ble_gap_conn_ctxt ctxt;
 
+    ble_hs_atomic_conn_delete(snap->desc.conn_handle);
+
     ble_gattc_connection_broken(snap->desc.conn_handle);
     ble_l2cap_sm_connection_broken(snap->desc.conn_handle);
 
@@ -503,7 +505,6 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap, int status)
     ctxt.desc = &snap->desc;
     ble_gap_call_conn_cb(BLE_GAP_EVENT_CONN, status, &ctxt,
                          snap->cb, snap->cb_arg);
-    ble_hs_atomic_conn_delete(snap->desc.conn_handle);
 
     STATS_INC(ble_gap_stats, disconnect);
 }
