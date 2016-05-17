@@ -163,6 +163,8 @@ void ble_l2cap_sm_dbg_set_next_ltk(uint8_t *next_ltk);
 int ble_l2cap_sm_dbg_num_procs(void);
 #endif
 
+uint8_t ble_l2cap_sm_build_authreq(void);
+
 struct ble_l2cap_chan *ble_l2cap_sm_create_chan(void);
 
 void ble_l2cap_sm_pair_cmd_parse(void *payload, int len,
@@ -229,6 +231,7 @@ int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
 void ble_l2cap_sm_heartbeat(void);
 int ble_l2cap_sm_pair_initiate(uint16_t conn_handle);
+int ble_l2cap_sm_slave_initiate(uint16_t conn_handle);
 int ble_l2cap_sm_enc_initiate(uint16_t conn_handle, uint8_t *ltk,
                           uint16_t ediv, uint64_t rand_val, int auth);
 int ble_l2cap_sm_init(void);

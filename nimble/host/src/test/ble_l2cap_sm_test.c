@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -41,6 +41,7 @@ struct ble_gap_ltk_params ble_l2cap_sm_test_ltk_params;
 struct ble_l2cap_sm_test_pair_params {
     uint8_t init_addr[6];
     uint8_t rsp_addr[6];
+    struct ble_l2cap_sm_sec_req sec_req;
     struct ble_l2cap_sm_pair_cmd pair_req;
     struct ble_l2cap_sm_pair_cmd pair_rsp;
     struct ble_l2cap_sm_pair_confirm confirm_req;
@@ -61,6 +62,7 @@ struct ble_l2cap_sm_test_pair_params {
     struct ble_l2cap_sm_passkey passkey;
     struct ble_l2cap_sm_pair_fail pair_fail;
 
+    unsigned has_sec_req:1;
     unsigned has_enc_info_req:1;
     unsigned has_enc_info_rsp:1;
     unsigned has_master_id_req:1;
@@ -834,6 +836,7 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     struct ble_l2cap_sm_test_pair_params *params)
 {
     struct ble_hs_conn *conn;
+    int rc;
 
     ble_l2cap_sm_test_util_init();
 
@@ -870,6 +873,11 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    if (params->has_sec_req) {
+        rc = ble_l2cap_sm_slave_initiate(2);
+        TEST_ASSERT(rc == 0);
+    }
 
     /* Receive a pair request from the peer. */
     ble_l2cap_sm_test_util_rx_pair_req(2, &params->pair_req, 0);
@@ -1066,12 +1074,20 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_passkey_good)
     ble_l2cap_sm_test_util_peer_lgcy_good(&params);
 }
 
+/**
+ * @param send_enc_req          Whether this procedure is initiated by a slave
+ *                                  security request;
+ *                                  1: We send a security request at start.
+ *                                  0: No security request; peer initiates.
+ */
 static void
-ble_l2cap_sm_test_util_peer_bonding_good(uint8_t *ltk, int authenticated,
+ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
+                                         int authenticated,
                                          uint16_t ediv, uint64_t rand_num)
 {
     struct ble_l2cap_sm_test_ltk_info ltk_info;
     struct ble_hs_conn *conn;
+    int rc;
 
     ble_l2cap_sm_test_util_init();
 
@@ -1093,6 +1109,11 @@ ble_l2cap_sm_test_util_peer_bonding_good(uint8_t *ltk, int authenticated,
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    if (send_enc_req) {
+        rc = ble_l2cap_sm_slave_initiate(2);
+        TEST_ASSERT(rc == 0);
+    }
 
     /* Receive a long term key request from the controller. */
     ble_l2cap_sm_test_util_set_lt_key_req_reply_ack(0, 2);
@@ -1184,6 +1205,7 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_bonding_good)
 {
     /* Unauthenticated. */
     ble_l2cap_sm_test_util_peer_bonding_good(
+        0,
         ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
         0,
         0x1234,
@@ -1191,6 +1213,7 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_bonding_good)
 
     /* Authenticated. */
     ble_l2cap_sm_test_util_peer_bonding_good(
+        0,
         ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
         1,
         0x4325,
@@ -1510,9 +1533,15 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
-    /* Initiate the pairing procedure. */
-    rc = ble_hs_test_util_security_initiate(2, 0);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
+    if (params->has_sec_req) {
+        ble_l2cap_sm_test_util_rx_sec_req(2, &params->sec_req, 0);
+    } else {
+        /* Initiate the pairing procedure. */
+        rc = ble_gap_security_initiate(2);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
 
     /* Ensure we sent the expected pair request. */
     ble_hs_test_util_tx_all();
@@ -1586,7 +1615,7 @@ TEST_CASE(ble_l2cap_sm_test_case_us_lgcy_jw_good)
     struct ble_l2cap_sm_test_pair_params params;
 
     params = (struct ble_l2cap_sm_test_pair_params) {
-        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01}, 
+        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
         .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
         .pair_req = (struct ble_l2cap_sm_pair_cmd) {
             .io_cap = 3,
@@ -1672,7 +1701,6 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_inval)
 {
     struct ble_l2cap_sm_pair_fail fail;
     struct ble_l2cap_sm_sec_req sec_req;
-    struct ble_hs_conn *conn;
     int rc;
 
     ble_l2cap_sm_test_util_init();
@@ -1681,17 +1709,8 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_inval)
                                  ble_l2cap_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
-     * the host mutex.  It is not OK for real code to do this, but this test
-     * can assume the connection list is unchanging.
-     */
-    ble_hs_lock();
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-    ble_hs_unlock();
-
     /*** We are the slave; reject the security request. */
-    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
 
     sec_req.authreq = 0;
     ble_l2cap_sm_test_util_rx_sec_req(
@@ -1713,6 +1732,167 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_inval)
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 }
 
+/**
+ * Master: us.
+ * Peer sends a security request.
+ * We respond by initiating the pairing procedure.
+ */
+TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_pair)
+{
+    struct ble_l2cap_sm_test_pair_params params;
+
+    params = (struct ble_l2cap_sm_test_pair_params) {
+        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
+        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .sec_req = (struct ble_l2cap_sm_sec_req) {
+            .authreq = 0,
+        },
+        .has_sec_req = 1,
+        .pair_req = (struct ble_l2cap_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_l2cap_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .confirm_req = (struct ble_l2cap_sm_pair_confirm) {
+            .value = {
+                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
+                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
+            },
+        },
+        .confirm_rsp = (struct ble_l2cap_sm_pair_confirm) {
+            .value = {
+                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
+                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
+            },
+        },
+        .random_req = (struct ble_l2cap_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .random_rsp = (struct ble_l2cap_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .pair_alg = BLE_L2CAP_SM_PAIR_ALG_JW,
+        .tk = { 0 },
+        .stk = {
+            0x2e, 0x2b, 0x34, 0xca, 0x59, 0xfa, 0x4c, 0x88,
+            0x3b, 0x2c, 0x8a, 0xef, 0xd4, 0x4b, 0xe9, 0x66,
+        },
+        .r = 0,
+        .ediv = 0,
+    };
+
+    ble_l2cap_sm_test_util_us_lgcy_good(&params);
+}
+
+/**
+ * Master: peer.
+ * We send a security request.
+ * We accept pairing request sent in response.
+ */
+TEST_CASE(ble_l2cap_sm_test_case_us_sec_req_pair)
+{
+    struct ble_l2cap_sm_test_pair_params params;
+
+    params = (struct ble_l2cap_sm_test_pair_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .sec_req = (struct ble_l2cap_sm_sec_req) {
+            .authreq = 0x05,
+        },
+        .has_sec_req = 1,
+        .pair_req = (struct ble_l2cap_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = (struct ble_l2cap_sm_pair_cmd) {
+            .io_cap = 0x02,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x01,
+            .resp_key_dist = 0x01,
+        },
+        .confirm_req = (struct ble_l2cap_sm_pair_confirm) {
+            .value = {
+                0x54, 0xed, 0x7c, 0x65, 0xc5, 0x3a, 0xee, 0x87,
+                0x8e, 0xf8, 0x04, 0xd8, 0x93, 0xb0, 0xfa, 0xa4,
+            },
+        },
+        .confirm_rsp = (struct ble_l2cap_sm_pair_confirm) {
+            .value = {
+                0xdf, 0x96, 0x88, 0x73, 0x49, 0x24, 0x3f, 0xe8,
+                0xb0, 0xaf, 0xb3, 0xf6, 0xc8, 0xf4, 0xe2, 0x36,
+            },
+        },
+        .random_req = (struct ble_l2cap_sm_pair_random) {
+            .value = {
+                0x4d, 0x2c, 0xf2, 0xb7, 0x11, 0x56, 0xbd, 0x4f,
+                0xfc, 0xde, 0xa9, 0x86, 0x4d, 0xfd, 0x77, 0x03,
+            },
+        },
+        .random_rsp = {
+            .value = {
+                0x12, 0x45, 0x65, 0x2c, 0x85, 0x56, 0x32, 0x8f,
+                0xf4, 0x7f, 0x44, 0xd0, 0x17, 0x35, 0x41, 0xed
+            },
+        },
+        .pair_alg = BLE_L2CAP_SM_PAIR_ALG_PASSKEY,
+        .authenticated = 1,
+        .tk = {
+            0x5a, 0x7f, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        },
+        .stk = {
+            0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+            0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+        },
+        .r = 4107344270811490869,
+        .ediv = 61621,
+
+        .passkey = {
+            .action = BLE_GAP_PKACT_INPUT,
+            .passkey = 884570,
+        }
+    };
+    ble_l2cap_sm_test_util_peer_lgcy_good(&params);
+}
+
+/**
+ * Master: peer.
+ * We send a security request.
+ * We accept an encryption-changed event in response.
+ */
+TEST_CASE(ble_l2cap_sm_test_case_us_sec_req_enc)
+{
+    ble_l2cap_sm_test_util_peer_bonding_good(
+        1,
+        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
+        1,
+        0x4325,
+        0x543892375);
+}
+
 TEST_SUITE(ble_l2cap_sm_test_suite)
 {
     ble_l2cap_sm_test_case_peer_fail_inval();
@@ -1725,6 +1905,10 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
     ble_l2cap_sm_test_case_peer_bonding_bad();
     ble_l2cap_sm_test_case_conn_broken();
     ble_l2cap_sm_test_case_peer_sec_req_inval();
+    ble_l2cap_sm_test_case_peer_sec_req_pair();
+    /* XXX: ble_l2cap_sm_test_case_peer_sec_req_enc(); */
+    ble_l2cap_sm_test_case_us_sec_req_pair();
+    ble_l2cap_sm_test_case_us_sec_req_enc();
 }
 #endif
 

@@ -1984,11 +1984,16 @@ ble_gap_security_initiate(uint16_t conn_handle)
         return rc;
     }
 
-    if (!(conn_flags & BLE_HS_CONN_F_MASTER)) {
-        return BLE_HS_EROLE;
+    if (conn_flags & BLE_HS_CONN_F_MASTER) {
+        /* XXX: Search the security database for an LTK for this peer.  If one
+         * is found, perform the encryption procedure rather than the pairing
+         * procedure.
+         */
+        rc = ble_l2cap_sm_pair_initiate(conn_handle);
+    } else {
+        rc = ble_l2cap_sm_slave_initiate(conn_handle);
     }
 
-    rc = ble_l2cap_sm_pair_initiate(conn_handle);
     return rc;
 }
 
