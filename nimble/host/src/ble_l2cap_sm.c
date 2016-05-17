@@ -162,6 +162,10 @@ static uint64_t ble_l2cap_sm_dbg_next_start_rand;
 static uint8_t ble_l2cap_sm_dbg_next_start_rand_set;
 static uint8_t ble_l2cap_sm_dbg_next_ltk[16];
 static uint8_t ble_l2cap_sm_dbg_next_ltk_set;
+static uint8_t ble_l2cap_sm_dbg_next_irk[16];
+static uint8_t ble_l2cap_sm_dbg_next_irk_set;
+static uint8_t ble_l2cap_sm_dbg_next_csrk[16];
+static uint8_t ble_l2cap_sm_dbg_next_csrk_set;
 
 void
 ble_l2cap_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand)
@@ -191,6 +195,22 @@ ble_l2cap_sm_dbg_set_next_ltk(uint8_t *next_ltk)
     memcpy(ble_l2cap_sm_dbg_next_ltk, next_ltk,
            sizeof ble_l2cap_sm_dbg_next_ltk);
     ble_l2cap_sm_dbg_next_ltk_set = 1;
+}
+
+void
+ble_l2cap_sm_dbg_set_next_irk(uint8_t *next_irk)
+{
+    memcpy(ble_l2cap_sm_dbg_next_irk, next_irk,
+           sizeof ble_l2cap_sm_dbg_next_irk);
+    ble_l2cap_sm_dbg_next_irk_set = 1;
+}
+
+void
+ble_l2cap_sm_dbg_set_next_csrk(uint8_t *next_csrk)
+{
+    memcpy(ble_l2cap_sm_dbg_next_csrk, next_csrk,
+           sizeof ble_l2cap_sm_dbg_next_csrk);
+    ble_l2cap_sm_dbg_next_csrk_set = 1;
 }
 
 int
@@ -317,6 +337,50 @@ ble_l2cap_sm_gen_ltk(struct ble_l2cap_sm_proc *proc, uint8_t *ltk)
 #endif
 
     rc = ble_hci_util_rand(ltk, 16);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_gen_irk(struct ble_l2cap_sm_proc *proc, uint8_t *irk)
+{
+    int rc;
+
+#ifdef BLE_HS_DEBUG
+    if (ble_l2cap_sm_dbg_next_irk_set) {
+        ble_l2cap_sm_dbg_next_irk_set = 0;
+        memcpy(irk, ble_l2cap_sm_dbg_next_irk,
+               sizeof ble_l2cap_sm_dbg_next_irk);
+        return 0;
+    }
+#endif
+
+    rc = ble_hci_util_rand(irk, 16);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_l2cap_sm_gen_csrk(struct ble_l2cap_sm_proc *proc, uint8_t *csrk)
+{
+    int rc;
+
+#ifdef BLE_HS_DEBUG
+    if (ble_l2cap_sm_dbg_next_csrk_set) {
+        ble_l2cap_sm_dbg_next_csrk_set = 0;
+        memcpy(csrk, ble_l2cap_sm_dbg_next_csrk,
+               sizeof ble_l2cap_sm_dbg_next_csrk);
+        return 0;
+    }
+#endif
+
+    rc = ble_hci_util_rand(csrk, 16);
     if (rc != 0) {
         return rc;
     }
@@ -1190,10 +1254,16 @@ static int
 ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
                              uint8_t *sm_status)
 {
+    struct ble_l2cap_sm_iden_addr_info addr_info;
+    struct ble_l2cap_sm_signing_info sign_info;
     struct ble_l2cap_sm_master_iden master_iden;
+    struct ble_l2cap_sm_iden_info iden_info;
     struct ble_l2cap_sm_enc_info enc_info;
     uint8_t our_key_dist;
     int rc;
+
+    /* There are no appropriate error codes for key distribution failures. */
+    *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
 
     if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
         our_key_dist = proc->pair_rsp.init_key_dist;
@@ -1205,42 +1275,75 @@ ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
         /* Send encryption information. */
         rc = ble_l2cap_sm_gen_ltk(proc, enc_info.ltk_le);
         if (rc != 0) {
-            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
             return rc;
         }
         rc = ble_l2cap_sm_enc_info_tx(proc->conn_handle, &enc_info);
         if (rc != 0) {
-            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
             return rc;
         }
+        proc->our_keys.ltk_valid = 1;
+        memcpy(proc->our_keys.ltk, enc_info.ltk_le, 16);
 
         /* Send master identification. */
         rc = ble_l2cap_sm_gen_ediv(&master_iden.ediv);
         if (rc != 0) {
-            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
             return rc;
         }
         rc = ble_l2cap_sm_gen_start_rand(&master_iden.rand_val);
         if (rc != 0) {
-            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
             return rc;
         }
         rc = ble_l2cap_sm_master_iden_tx(proc->conn_handle, &master_iden);
         if (rc != 0) {
-            *sm_status = BLE_L2CAP_SM_ERR_UNSPECIFIED;
             return rc;
         }
-
-        /* copy data to pass to application */
-        proc->our_keys.is_ours = 1;
-        proc->our_keys.ltk_valid = 1;
         proc->our_keys.ediv_rand_valid = 1;
         proc->our_keys.rand_val = master_iden.rand_val;
         proc->our_keys.ediv = master_iden.ediv;
-        memcpy(proc->our_keys.ltk, enc_info.ltk_le, 16);
     }
 
-    /* XXX: Send remainining key information. */
+    if (our_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ID) {
+        /* Send identity information. */
+        rc = ble_l2cap_sm_gen_irk(proc, iden_info.irk_le);
+        if (rc != 0) {
+            return rc;
+        }
+        rc = ble_l2cap_sm_iden_info_tx(proc->conn_handle, &iden_info);
+        if (rc != 0) {
+            return rc;
+        }
+        proc->our_keys.irk_valid = 1;
+        memcpy(proc->our_keys.irk, iden_info.irk_le, 16);
+
+        /* Send identity address information. */
+        if (ble_hs_our_dev.has_random_addr) {
+            addr_info.addr_type = BLE_ADDR_TYPE_RANDOM;
+            memcpy(addr_info.bd_addr_le, ble_hs_our_dev.random_addr, 6);
+        } else {
+            addr_info.addr_type = BLE_ADDR_TYPE_PUBLIC;
+            memcpy(addr_info.bd_addr_le, ble_hs_our_dev.public_addr, 6);
+        }
+        rc = ble_l2cap_sm_iden_addr_tx(proc->conn_handle, &addr_info);
+        if (rc != 0) {
+            return rc;
+        }
+        proc->our_keys.addr_type = addr_info.addr_type;
+        memcpy(proc->our_keys.addr, addr_info.bd_addr_le, 6);
+    }
+
+    if (our_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_SIGN) {
+        /* Send signing information. */
+        rc = ble_l2cap_sm_gen_csrk(proc, sign_info.sig_key_le);
+        if (rc != 0) {
+            return rc;
+        }
+        rc = ble_l2cap_sm_signing_info_tx(proc->conn_handle, &sign_info);
+        if (rc != 0) {
+            return rc;
+        }
+        proc->our_keys.csrk_valid = 1;
+        memcpy(proc->our_keys.csrk, sign_info.sig_key_le, 16);
+    }
 
     return 0;
 }
@@ -1320,7 +1423,6 @@ ble_l2cap_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op,
 
     ble_hs_lock();
 
-    /* Check connection state; reject if not appropriate. */
     proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_KEY_EXCH,
                                   -1, &prev);
     if (proc != NULL) {
