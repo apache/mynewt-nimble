@@ -151,7 +151,7 @@ struct ble_gap_key_parms {
     uint8_t ltk[16];
     uint8_t irk[16];
     uint8_t csrk[16];
-    uint8_t  addr[6];
+    uint8_t addr[6];
 };
 
 struct ble_gap_ltk_params {

@@ -111,7 +111,7 @@ struct ble_l2cap_sm_master_iden {
  * | (Code=0x08)                        | 1                 |
  * | irk                                | 16                |
  */
- #define BLE_L2CAP_SM_IDEN_INFO_SZ      16
+#define BLE_L2CAP_SM_IDEN_INFO_SZ      16
 struct ble_l2cap_sm_iden_info {
     uint8_t irk_le[16];
 };
@@ -125,7 +125,6 @@ struct ble_l2cap_sm_iden_info {
  */
 #define BLE_L2CAP_SM_IDEN_ADDR_INFO_SZ  7
 struct ble_l2cap_sm_iden_addr_info {
-
     uint8_t addr_type;
     uint8_t bd_addr_le[6];
 };
@@ -160,6 +159,8 @@ void ble_l2cap_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
 void ble_l2cap_sm_dbg_set_next_ediv(uint16_t next_ediv);
 void ble_l2cap_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
 void ble_l2cap_sm_dbg_set_next_ltk(uint8_t *next_ltk);
+void ble_l2cap_sm_dbg_set_next_irk(uint8_t *next_irk);
+void ble_l2cap_sm_dbg_set_next_csrk(uint8_t *next_csrk);
 int ble_l2cap_sm_dbg_num_procs(void);
 #endif
 
