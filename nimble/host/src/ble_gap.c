@@ -496,10 +496,10 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap, int status)
 {
     struct ble_gap_conn_ctxt ctxt;
 
-    ble_hs_atomic_conn_delete(snap->desc.conn_handle);
-
-    ble_gattc_connection_broken(snap->desc.conn_handle);
     ble_l2cap_sm_connection_broken(snap->desc.conn_handle);
+    ble_gattc_connection_broken(snap->desc.conn_handle);
+
+    ble_hs_atomic_conn_delete(snap->desc.conn_handle);
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap->desc;
