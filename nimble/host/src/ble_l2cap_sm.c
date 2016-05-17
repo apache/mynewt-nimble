@@ -58,7 +58,8 @@
 #define BLE_L2CAP_SM_PROC_STATE_LTK             3
 #define BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE      4
 #define BLE_L2CAP_SM_PROC_STATE_KEY_EXCH        5
-#define BLE_L2CAP_SM_PROC_STATE_CNT             6
+#define BLE_L2CAP_SM_PROC_STATE_SEC_REQ         6
+#define BLE_L2CAP_SM_PROC_STATE_CNT             7
 
 #define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
 #define BLE_L2CAP_SM_PROC_F_TK_VALID            0x02
@@ -144,6 +145,7 @@ static int ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
                                              uint8_t *pres, uint8_t *iat,
                                              uint8_t *rat, uint8_t *ia,
                                              uint8_t *ra);
+static void ble_l2cap_sm_check_key_exchange(struct ble_l2cap_sm_proc *proc);
 
 
 /*****************************************************************************
@@ -538,6 +540,15 @@ ble_l2cap_sm_rx_noop(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
     return BLE_HS_ENOTSUP;
 }
 
+uint8_t
+ble_l2cap_sm_build_authreq(void)
+{
+    return ble_hs_cfg.sm_bonding << 0  |
+           ble_hs_cfg.sm_mitm << 2     |
+           ble_hs_cfg.sm_sc << 3       |
+           ble_hs_cfg.sm_keypress << 4;
+}
+
 /*****************************************************************************
  * $hci                                                                      *
  *****************************************************************************/
@@ -765,22 +776,22 @@ ble_l2cap_sm_random_handle(struct ble_l2cap_sm_proc *proc,
  */
 static const uint8_t initiator_pkact[5 /*init*/ ][5 /*resp */] =
 {
-  {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-  {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-  {PKACT_DISP,    PKACT_DISP,   PKACT_INPUT, PKACT_NONE, PKACT_DISP},
-  {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-  {PKACT_DISP,    PKACT_DISP,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
+    {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+    {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+    {PKACT_DISP,    PKACT_DISP,   PKACT_INPUT, PKACT_NONE, PKACT_DISP},
+    {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
+    {PKACT_DISP,    PKACT_DISP,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
 };
 
 /* This is the initiator passkey action action depending on the io
  * capabilities of both parties */
 static const uint8_t responder_pkact[5 /*init*/ ][5 /*resp */] =
 {
-  {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
-  {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
-  {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-  {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-  {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+    {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
+    {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
+    {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+    {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
+    {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
 };
 
 static int
@@ -957,10 +968,7 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
 
     cmd.io_cap = ble_hs_cfg.sm_io_cap;
     cmd.oob_data_flag = ble_hs_cfg.sm_oob_data_flag;
-    cmd.authreq = (ble_hs_cfg.sm_bonding << 0)  |
-                  (ble_hs_cfg.sm_mitm << 2)     |
-                  (ble_hs_cfg.sm_sc << 3)       |
-                  (ble_hs_cfg.sm_keypress << 4);
+    cmd.authreq = ble_l2cap_sm_build_authreq();
     cmd.max_enc_key_size = 16;
 
     if (is_req) {
@@ -990,39 +998,6 @@ ble_l2cap_sm_pair_go(struct ble_l2cap_sm_proc *proc)
     ble_l2cap_sm_proc_set_timer(proc);
 
     return 0;
-}
-
-static void
-ble_l2cap_sm_check_key_exchange(struct ble_l2cap_sm_proc *proc)
-{
-    uint8_t rx_key_dist;
-
-    if (proc->pair_req.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_BOND &&
-        proc->pair_rsp.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_BOND &&
-        proc->pair_rsp.init_key_dist                            &&
-        proc->pair_rsp.resp_key_dist) {
-
-        proc->flags |= BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE;
-    }
-
-    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-        rx_key_dist = proc->pair_rsp.resp_key_dist;
-    } else {
-        rx_key_dist = proc->pair_rsp.init_key_dist;
-    }
-
-    proc->rx_key_flags = 0;
-    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ENC) {
-        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_ENC_INFO |
-                              BLE_L2CAP_SM_KE_F_MASTER_IDEN;
-    }
-    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ID) {
-        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_IDEN_INFO |
-                              BLE_L2CAP_SM_KE_F_ADDR_INFO;
-    }
-    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_SIGN) {
-        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_SIGN_INFO;
-    }
 }
 
 static int
@@ -1098,8 +1073,62 @@ ble_l2cap_sm_pair_rsp_handle(struct ble_l2cap_sm_proc *proc,
 }
 
 /*****************************************************************************
+ * $security request                                                         *
+ *****************************************************************************/
+
+static int
+ble_l2cap_sm_sec_req_go(struct ble_l2cap_sm_proc *proc)
+{
+    struct ble_l2cap_sm_sec_req cmd;
+    int rc;
+
+    cmd.authreq = ble_l2cap_sm_build_authreq();
+    rc = ble_l2cap_sm_sec_req_tx(proc->conn_handle, &cmd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_l2cap_sm_proc_set_timer(proc);
+
+    return 0;
+}
+
+/*****************************************************************************
  * $key exchange                                                             *
  *****************************************************************************/
+
+static void
+ble_l2cap_sm_check_key_exchange(struct ble_l2cap_sm_proc *proc)
+{
+    uint8_t rx_key_dist;
+
+    if (proc->pair_req.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_BOND &&
+        proc->pair_rsp.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_BOND &&
+        proc->pair_rsp.init_key_dist                            &&
+        proc->pair_rsp.resp_key_dist) {
+
+        proc->flags |= BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE;
+    }
+
+    if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+        rx_key_dist = proc->pair_rsp.resp_key_dist;
+    } else {
+        rx_key_dist = proc->pair_rsp.init_key_dist;
+    }
+
+    proc->rx_key_flags = 0;
+    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ENC) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_ENC_INFO |
+                              BLE_L2CAP_SM_KE_F_MASTER_IDEN;
+    }
+    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_ID) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_IDEN_INFO |
+                              BLE_L2CAP_SM_KE_F_ADDR_INFO;
+    }
+    if (rx_key_dist & BLE_L2CAP_SM_PAIR_KEY_DIST_SIGN) {
+        proc->rx_key_flags |= BLE_L2CAP_SM_KE_F_SIGN_INFO;
+    }
+}
 
 static void
 ble_l2cap_sm_enc_info_handle(struct ble_l2cap_sm_proc *proc,
@@ -1662,10 +1691,10 @@ ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
     proc = ble_l2cap_sm_proc_find(evt->connection_handle,
                                   BLE_L2CAP_SM_PROC_STATE_NONE, 0, &prev);
     if (proc == NULL) {
-        /* The peer is attempting to restore a encrypted connection via
-         * bonding.  Create a proc entry to indicate that security
-         * establishment is in progress and execute the procedure after the
-         * mutex gets unlocked.
+        /* The peer is attempting to restore a encrypted connection via the
+         * encryption procedure (bonding).  Create a proc entry to indicate
+         * that security establishment is in progress and execute the procedure
+         * after the mutex gets unlocked.
          */
         bonding = 1;
         proc = ble_l2cap_sm_proc_alloc();
@@ -1675,6 +1704,13 @@ ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
             proc->flags |= BLE_L2CAP_SM_PROC_F_BONDED;
             ble_l2cap_sm_insert(proc);
         }
+    } else if (proc->state == BLE_L2CAP_SM_PROC_STATE_SEC_REQ) {
+        /* Same as above, except we solicited the encryption procedure by
+         * sending a security request.
+         */
+        bonding = 1;
+        proc->state = BLE_L2CAP_SM_PROC_STATE_LTK;
+        proc->flags |= BLE_L2CAP_SM_PROC_F_BONDED;
     } else if (proc->state == BLE_L2CAP_SM_PROC_STATE_LTK) {
         /* Short-term key pairing just completed.  Send the short term key to
          * the controller.
@@ -1894,6 +1930,43 @@ ble_l2cap_sm_pair_initiate(uint16_t conn_handle)
     proc->flags |= BLE_L2CAP_SM_PROC_F_INITIATOR;
 
     rc = ble_l2cap_sm_pair_go(proc);
+    if (rc != 0) {
+        ble_l2cap_sm_proc_free(proc);
+        goto done;
+    }
+
+    ble_l2cap_sm_insert(proc);
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
+int
+ble_l2cap_sm_slave_initiate(uint16_t conn_handle)
+{
+    struct ble_l2cap_sm_proc *proc;
+    int rc;
+
+    ble_hs_lock();
+
+    /* Make sure a procedure isn't already in progress for this connection. */
+    proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
+                                  -1, NULL);
+    if (proc != NULL) {
+        rc = BLE_HS_EALREADY;
+        goto done;
+    }
+
+    proc = ble_l2cap_sm_proc_alloc();
+    if (proc == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+    proc->conn_handle = conn_handle;
+    proc->state = BLE_L2CAP_SM_PROC_STATE_SEC_REQ;
+
+    rc = ble_l2cap_sm_sec_req_go(proc);
     if (rc != 0) {
         ble_l2cap_sm_proc_free(proc);
         goto done;
