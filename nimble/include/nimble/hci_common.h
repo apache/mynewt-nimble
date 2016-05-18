@@ -653,6 +653,8 @@ struct hci_le_conn_complete
     uint16_t conn_latency;
     uint16_t supervision_timeout;
     uint8_t master_clk_acc;
+    uint8_t local_rpa[BLE_DEV_ADDR_LEN];
+    uint8_t peer_rpa[BLE_DEV_ADDR_LEN];
 };
 
 /* Connection update complete LE meta subevent */

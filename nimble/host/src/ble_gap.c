@@ -25,7 +25,6 @@
 #include "nimble/nimble_opt.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#include "host/ble_keycache.h"
 
 /**
  * GAP - Generic Access Profile.
@@ -824,6 +823,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
+    struct ble_gap_enhanced_conn enhanced_conn;
     int rc;
 
     STATS_INC(ble_gap_stats, rx_conn_complete);
@@ -916,6 +916,9 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
+    memcpy(enhanced_conn.local_rpa, evt->local_rpa,6);
+    memcpy(enhanced_conn.peer_rpa, evt->peer_rpa,6);
+    ctxt.connect.enhanced_conn = &enhanced_conn;
     ctxt.connect.status = 0;
     ble_gap_call_event_cb(BLE_GAP_EVENT_CONNECT, &ctxt, snap.cb, snap.cb_arg);
 
@@ -1273,7 +1276,7 @@ ble_gap_adv_data_tx(void)
 }
 
 static int
-ble_gap_adv_params_tx(const struct ble_gap_adv_params *adv_params, 
+ble_gap_adv_params_tx(const struct ble_gap_adv_params *adv_params,
                       uint8_t *peer_addr, uint8_t peer_addr_type)
 {
     struct hci_adv_params hci_adv_params;
@@ -1286,40 +1289,25 @@ ble_gap_adv_params_tx(const struct ble_gap_adv_params *adv_params,
     } else {
         memset(peer, 0, 6);
     }
-    
+
     hci_adv_params.adv_channel_map = adv_params->adv_channel_map;
     hci_adv_params.own_addr_type = adv_params->own_addr_type;
     hci_adv_params.adv_filter_policy = adv_params->adv_filter_policy;
     hci_adv_params.adv_itvl_min = adv_params->adv_itvl_min;
     hci_adv_params.adv_itvl_max = adv_params->adv_itvl_max;
+    hci_adv_params.peer_addr_type = peer_addr_type;
+    hci_adv_params.adv_type = adv_params->adv_type;
 
-    if (ble_gap_slave.conn_mode == BLE_GAP_CONN_MODE_DIR) {
-        hci_adv_params.peer_addr_type = peer_addr_type;
-        memcpy(hci_adv_params.peer_addr,peer,
+    if ((ble_gap_slave.conn_mode == BLE_GAP_CONN_MODE_DIR) ||
+        (adv_params->own_addr_type == BLE_ADDR_TYPE_RPA_PUB_DEFAULT) ||
+        (adv_params->own_addr_type == BLE_ADDR_TYPE_RPA_RND_DEFAULT)) {
+            memcpy(hci_adv_params.peer_addr,peer,
             sizeof(hci_adv_params.peer_addr));
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
     ble_gap_log_adv(adv_params, peer, peer_addr_type);
     BLE_HS_LOG(INFO, "\n");
-
-    switch (ble_gap_slave.conn_mode) {
-    case BLE_GAP_CONN_MODE_NON:
-        hci_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_NONCONN_IND;
-        break;
-
-    case BLE_GAP_CONN_MODE_DIR:
-        hci_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD;
-        break;
-
-    case BLE_GAP_CONN_MODE_UND:
-        hci_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_IND;
-        break;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        break;
-    }
 
     rc = host_hci_cmd_build_le_set_adv_params(&hci_adv_params, buf, sizeof buf);
     if (rc != 0) {
@@ -1423,7 +1411,7 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
         rc = BLE_HS_EINVAL;
         goto done;
     }
-    
+
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
     ble_gap_log_adv(&gap_adv_params, peer_addr, peer_addr_type);
     BLE_HS_LOG(INFO, "\n");
@@ -1440,6 +1428,24 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     /* set a new private address for random advertisements */
     if(gap_adv_params.own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         ble_hs_priv_set_nrpa();
+    }
+
+    switch (connectable_mode) {
+    case BLE_GAP_CONN_MODE_NON:
+        gap_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_NONCONN_IND;
+        break;
+
+    case BLE_GAP_CONN_MODE_DIR:
+        gap_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD;
+        break;
+
+    case BLE_GAP_CONN_MODE_UND:
+        gap_adv_params.adv_type = BLE_HCI_ADV_TYPE_ADV_IND;
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
     }
 
     rc = ble_gap_adv_params_tx(&gap_adv_params, peer_addr, peer_addr_type);
@@ -1779,12 +1785,13 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
 
     if (addr_type != BLE_HCI_CONN_PEER_ADDR_PUBLIC &&
         addr_type != BLE_HCI_CONN_PEER_ADDR_RANDOM &&
+        addr_type != BLE_HCI_CONN_PEER_ADDR_PUB_ID &&
+        addr_type != BLE_HCI_CONN_PEER_ADDR_RAND_ID &&
         addr_type != BLE_GAP_ADDR_TYPE_WL) {
 
         rc = BLE_HS_EINVAL;
         goto done;
     }
-    
 
     if (params == NULL) {
         params = (void *)&ble_gap_params_dflt;
@@ -2226,7 +2233,7 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
 
 void ble_gap_init_identity_addr(uint8_t *addr)
 {
-    ble_hs_priv_init_identity(addr);
+    ble_hs_priv_update_identity(addr);
 }
 
 /*****************************************************************************

@@ -985,7 +985,7 @@ host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
     dst[0] = addr_type;
     memcpy(dst + 1, addr, BLE_DEV_ADDR_LEN);
     memcpy(dst + 1 + 6, peer_irk , 16);
-    memcpy(dst + 1 + 6 + 16, peer_irk , 16);
+    memcpy(dst + 1 + 6 + 16, local_irk , 16);
     /* 16 + 16 + 6 + 1 == 39 */
     return 0;
 }
@@ -1203,7 +1203,7 @@ host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
     int rc;
 
     BLE_HS_DBG_ASSERT(
-        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RESPRIV_ADDR_TO_LEN);
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN);
 
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RPA_TMO,
                        BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN, dst);

@@ -136,4 +136,11 @@ void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    struct ble_store_value_cccd *value);
 
+typedef int ble_store_iterator_fn(int obj_type,
+                                  union ble_store_value *val,
+                                  void *cookie);
+
+void ble_store_iterate(int obj_type,
+                       ble_store_iterator_fn *callback,
+                       void *cookie);
 #endif

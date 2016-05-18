@@ -31,7 +31,7 @@ struct ble_ll_rnum_data
 {
     uint8_t *rnd_in;
     uint8_t *rnd_out;
-    uint8_t rnd_size;
+    volatile uint8_t rnd_size;
 };
 
 struct ble_ll_rnum_data g_ble_ll_rnum_data;
