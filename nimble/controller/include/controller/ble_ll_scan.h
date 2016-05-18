@@ -61,6 +61,8 @@ struct ble_ll_scan_sm
     uint8_t scan_rsp_pending;
     uint8_t scan_rsp_cons_fails;
     uint8_t scan_rsp_cons_ok;
+    int8_t scan_rpa_index;
+    uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
     uint16_t upper_limit;
     uint16_t backoff_count;
     uint16_t scan_itvl;
@@ -119,6 +121,15 @@ int ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
 /* Returns the PDU allocated by the scanner */
 struct os_mbuf *ble_ll_scan_get_pdu(void);
 
+/* Called to set the resolvable private address of the last connected peer */
+void ble_ll_scan_set_peer_rpa(uint8_t *rpa);
+
+/* Returns peer RPA of last connection made */
+uint8_t *ble_ll_scan_get_peer_rpa(void);
+
+/* Returns the local RPA used by the scanner/initiator */
+uint8_t *ble_ll_scan_get_local_rpa(void);
+
 /* Stop the scanning state machine */
 void ble_ll_scan_sm_stop(int chk_disable);
 
@@ -127,8 +138,5 @@ void ble_ll_scan_chk_resume(void);
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);
-
-/* Returns the global scanning state machine */
-struct ble_ll_scan_sm *ble_ll_scan_sm_get(void);
 
 #endif /* H_BLE_LL_SCAN_ */

@@ -36,6 +36,7 @@
 uint8_t g_ble_ll_addr_res_enabled;
 uint8_t g_ble_ll_resolv_list_size;
 uint8_t g_ble_ll_resolv_list_cnt;
+uint32_t g_ble_ll_resolv_rpa_tmo;
 
 struct ble_ll_resolv_entry g_ble_ll_resolv_list[NIMBLE_OPT_LL_RESOLV_LIST_SIZE];
 
@@ -67,7 +68,7 @@ ble_ll_resolv_list_chg_allowed(void)
  *
  * @param irk
  *
- * @return int 0: IRK has a non-zero value. 1: IRK is all zero.
+ * @return int 0: IRK is zero . 1: IRK has non-zero value.
  */
 int
 ble_ll_resolv_irk_nonzero(uint8_t *irk)
@@ -75,10 +76,10 @@ ble_ll_resolv_irk_nonzero(uint8_t *irk)
     int i;
     int rc;
 
-    rc = 1;
+    rc = 0;
     for (i = 0; i < 16; ++i) {
         if (*irk != 0) {
-            rc = 0;
+            rc = 1;
             break;
         }
         ++irk;
@@ -178,27 +179,6 @@ ble_ll_resolv_list_find(uint8_t *addr, uint8_t addr_type)
 }
 
 /**
- * Is there a match between the device and a device on the resolving list
- *
- * @param addr
- * @param addr_type Public address (0) or random address (1)
- *
- * @return int
- */
-int
-ble_ll_resolv_list_match(uint8_t *addr, uint8_t addr_type)
-{
-    int rc;
-    /* WWW: will this be used? */
-#ifdef BLE_USES_HW_RESOLV_LIST
-    rc = ble_hw_resolv_list_match();
-#else
-    rc = ble_ll_is_on_resolv_list(addr, addr_type);
-#endif
-    return rc;
-}
-
-/**
  * Add a device to the resolving list
  *
  * @return int
@@ -292,7 +272,6 @@ ble_ll_resolv_enable_cmd(uint8_t *cmdbuf)
         g_ble_ll_conn_create_sm) {
         rc = BLE_ERR_CMD_DISALLOWED;
     } else {
-        /* WWW: do we do anything here if we change state? */
         g_ble_ll_addr_res_enabled = cmdbuf[0];
         rc = BLE_ERR_SUCCESS;
     }
@@ -310,6 +289,41 @@ ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf)
 void
 ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf)
 {
+}
+
+/**
+ * Set the resolvable private address timeout.
+ *
+ * @param cmdbuf
+ *
+ * @return int
+ */
+int
+ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
+{
+    int rc;
+    uint16_t tmo_secs;
+
+    tmo_secs = le16toh(cmdbuf);
+    if ((tmo_secs > 0) && (tmo_secs <= 0xA1B8)) {
+        g_ble_ll_resolv_rpa_tmo = tmo_secs * OS_TICKS_PER_SEC;
+    } else {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return rc;
+}
+
+/**
+ * Returns the Resolvable Private address timeout, in os ticks
+ *
+ *
+ * @return uint32_t
+ */
+uint32_t
+ble_ll_resolv_get_rpa_tmo(void)
+{
+    return OS_TICKS_PER_SEC * g_ble_ll_resolv_rpa_tmo;
 }
 
 /**
@@ -348,7 +362,68 @@ ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local,
 
     /* Calculate hash */
     ble_hw_encrypt_block(&ecb);
-    swap_buf(addr, ecb.cipher_text, 3);
+    swap_buf(addr, ecb.cipher_text + 13, 3);
+}
+
+/**
+ * Generate a resolvable private address.
+ *
+ * @param addr
+ * @param addr_type
+ * @param rpa
+ *
+ * @return int
+ */
+int
+ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa, int local)
+{
+    int rc;
+    uint8_t *irk;
+    struct ble_ll_resolv_entry *rl;
+
+    rc = 0;
+    rl = ble_ll_resolv_list_find(addr, addr_type);
+    if (rl) {
+        if (local) {
+            irk = rl->rl_local_irk;
+        } else {
+            irk = rl->rl_peer_irk;
+        }
+        if (ble_ll_resolv_irk_nonzero(irk)) {
+            ble_ll_resolv_gen_priv_addr(rl, local, rpa);
+            rc = 1;
+        }
+    }
+
+    return rc;
+}
+
+/**
+ * Resolve a Resolvable Private Address
+ *
+ * @param rpa
+ * @param index
+ *
+ * @return int
+ */
+int
+ble_ll_resolv_rpa(uint8_t *rpa, uint8_t *irk)
+{
+    int rc;
+    struct ble_encryption_block ecb;
+
+    memcpy(ecb.key, irk, BLE_ENC_BLOCK_SIZE);
+    memset(ecb.plain_text, 0, BLE_ENC_BLOCK_SIZE);
+    swap_buf(&ecb.plain_text[13], rpa + 3, 3);
+    ble_hw_encrypt_block(&ecb);
+    if ((ecb.cipher_text[15] == rpa[0]) && (ecb.cipher_text[14] == rpa[1]) &&
+        (ecb.cipher_text[13] == rpa[2])) {
+        rc = 1;
+    } else {
+        rc = 0;
+    }
+
+    return rc;
 }
 
 /**
@@ -368,10 +443,25 @@ ble_ll_resolv_enabled(void)
 void
 ble_ll_resolv_list_reset(void)
 {
-    ble_ll_resolv_list_clr();
     g_ble_ll_addr_res_enabled = 0;
-    /* XXX: deal with HW restrictions */
-    g_ble_ll_resolv_list_size = NIMBLE_OPT_LL_RESOLV_LIST_SIZE;
+    ble_ll_resolv_list_clr();
+    ble_ll_resolv_init();
+}
+
+void
+ble_ll_resolv_init(void)
+{
+    uint8_t hw_size;
+
+    /* Default is 15 minutes */
+    g_ble_ll_resolv_rpa_tmo = 15 * 60 * OS_TICKS_PER_SEC;
+
+    hw_size = ble_hw_resolv_list_size();
+    if (hw_size > NIMBLE_OPT_LL_RESOLV_LIST_SIZE) {
+        hw_size = NIMBLE_OPT_LL_RESOLV_LIST_SIZE;
+    }
+    g_ble_ll_resolv_list_size = hw_size;
+
 }
 
 #endif  /* if BLE_LL_CFG_FEAT_LL_PRIVACY == 1 */

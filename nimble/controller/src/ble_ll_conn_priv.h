@@ -92,8 +92,7 @@ void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_len_req *req);
 
 /* Advertising interface */
-int ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end,
-                            uint8_t resolved);
+int ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);

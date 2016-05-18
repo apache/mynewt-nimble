@@ -26,12 +26,14 @@
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "controller/ble_phy.h"
+#include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
+#include "controller/ble_ll_resolv.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
@@ -122,7 +124,8 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
  *
  * @param scansm Pointer to scanning state machine
  * @param adv_addr Pointer to device address of advertiser
- * @param addr_type 0 if public; non-zero if random
+ * @param addr_type 0 if public; non-zero if random. This is the addr type of
+ *                  the advertiser; not our "own address type"
  */
 static void
 ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
@@ -130,8 +133,12 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
 {
     uint8_t     *dptr;
     uint8_t     pdu_type;
-    uint8_t     *addr;
+    uint8_t     *scana;
     struct os_mbuf *m;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    uint8_t rpa[BLE_DEV_ADDR_LEN];
+    struct ble_ll_resolv_entry *rl;
+#endif
 
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_SCAN_REQ;
@@ -144,22 +151,39 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     assert(m != NULL);
 
     /* Get pointer to our device address */
-    if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
-        addr = g_dev_addr;
-    } else if (scansm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        addr = g_random_addr;
+    if ((scansm->own_addr_type & 1) == 0) {
+        scana = g_dev_addr;
     } else {
-        /* XXX: unsupported for now  */
-        addr = NULL;
-        assert(0);
+        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        scana = g_random_addr;
     }
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        if (ble_ll_is_rpa(adv_addr, adv_addr_type)) {
+            rl = NULL;
+            if (scansm->scan_rpa_index >= 0) {
+                /* Generate a RPA to use for scana */
+                rl = &g_ble_ll_resolv_list[scansm->scan_rpa_index];
+            } else {
+                if (ble_ll_resolv_enabled()) {
+                    rl = ble_ll_resolv_list_find(adv_addr, adv_addr_type);
+                }
+            }
+
+            if (rl) {
+                ble_ll_resolv_gen_priv_addr(rl, 1, rpa);
+                scana = rpa;
+            }
+        }
+    }
+#endif
 
     ble_ll_mbuf_init(m, BLE_SCAN_REQ_LEN, pdu_type);
 
     /* Construct the scan request */
     dptr = m->om_data;
-    memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+    memcpy(dptr, scana, BLE_DEV_ADDR_LEN);
     memcpy(dptr + BLE_DEV_ADDR_LEN, adv_addr, BLE_DEV_ADDR_LEN);
 }
 
@@ -185,16 +209,18 @@ ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd)
             /* Address type must match */
             if (txadd) {
                 if ((adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) == 0) {
-                    continue;
+                    goto next_dup_adv;
                 }
             } else {
                 if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) {
-                    continue;
+                    goto next_dup_adv;
                 }
             }
 
             return adv;
         }
+
+next_dup_adv:
         ++adv;
         --num_advs;
     }
@@ -237,11 +263,12 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
  * the list of duplicate addresses when the controller sends an advertising
  * report to the host.
  *
- * @param addr
+ * @param addr   Pointer to advertisers address or identity address
  * @param Txadd. TxAdd bit (0 public, random otherwise)
+ * @param subev  Type of advertising report sent (direct or normal).
  */
 void
-ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd)
+ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -266,11 +293,11 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd)
         }
     }
 
-    /*
-     * XXX: need to set correct flag based on type of report being sent
-     * for now, we dont send direct advertising reports
-     */
-    adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
+    if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
+        adv->sc_adv_flags |= BLE_LL_SC_ADV_F_DIRECT_RPT_SENT;
+    } else {
+        adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
+    }
 }
 
 /**
@@ -348,24 +375,37 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
  * @param pdu_type
  * @param txadd
  * @param rxbuf
- * @param rssi
+ * @param hdr
+ * @param scansm
  */
 static void
 ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
-                           int8_t rssi)
+                           struct ble_mbuf_hdr *hdr,
+                           struct ble_ll_scan_sm *scansm)
 {
     int rc;
+    int index;
     uint8_t evtype;
     uint8_t subev;
     uint8_t *evbuf;
+    uint8_t *orig_evbuf;
+    uint8_t *adv_addr;
+    uint8_t *inita;
+    uint8_t addr_type;
     uint8_t adv_data_len;
+    uint8_t event_len;
 
+    inita = NULL;
     subev = BLE_HCI_LE_SUBEV_ADV_RPT;
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
-        /* XXX: NOTE: the direct advertising report is only used when InitA
-           is a resolvable private address. We dont support that yet! */
-        //subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
+        if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+            if ((inita[5] & 0x40) == 0x40) {
+                subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
+            }
+        }
         evtype = BLE_HCI_ADV_RPT_EVTYPE_DIR_IND;
+        event_len = BLE_HCI_LE_ADV_DIRECT_RPT_LEN;
         adv_data_len = 0;
     } else {
         if (pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) {
@@ -377,41 +417,61 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
         } else {
             evtype = BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP;
         }
-        subev = BLE_HCI_LE_SUBEV_ADV_RPT;
-
         adv_data_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
         adv_data_len -= BLE_DEV_ADDR_LEN;
+        event_len = BLE_HCI_LE_ADV_RPT_MIN_LEN + adv_data_len;
     }
 
     if (ble_ll_hci_is_le_event_enabled(subev)) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
-            evbuf[1] = 12 + adv_data_len;
+            evbuf[1] = event_len;
             evbuf[2] = subev;
             evbuf[3] = 1;       /* number of reports */
             evbuf[4] = evtype;
 
-            /* WWW: Yeah... if we are using private resolvable addresses
-               we need to deal here. The address type is different... */
-            /* XXX: need to deal with resolvable addresses here! */
             if (txadd) {
-                evbuf[5] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+                addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
             } else {
-                evbuf[5] = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
+                addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
             }
-            rxbuf += BLE_LL_PDU_HDR_LEN;
-            memcpy(evbuf + 6, rxbuf, BLE_DEV_ADDR_LEN);
-            evbuf[12] = adv_data_len;
-            memcpy(evbuf + 13, rxbuf + BLE_DEV_ADDR_LEN,
-                   adv_data_len);
-            evbuf[13 + adv_data_len] = rssi;
 
-            rc = ble_ll_hci_event_send(evbuf);
+            rxbuf += BLE_LL_PDU_HDR_LEN;
+            if (BLE_MBUF_HDR_RESOLVED(hdr)) {
+                index = scansm->scan_rpa_index;
+                adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+                /*
+                 * NOTE: this looks a bit odd, but the resolved address types
+                 * are 2 greater than the unresolved ones in the spec, so
+                 * we just add 2 here.
+                 */
+                addr_type += 2;
+            } else{
+                adv_addr = rxbuf;
+            }
+
+            orig_evbuf = evbuf;
+            evbuf += 5;
+            if (inita) {
+                evbuf[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+                memcpy(evbuf + 1, inita, adv_data_len);
+                evbuf += BLE_DEV_ADDR_LEN + 1;
+            } else {
+                evbuf[7] = adv_data_len;
+                memcpy(evbuf + 8, rxbuf + BLE_DEV_ADDR_LEN, adv_data_len);
+                evbuf[8 + adv_data_len] = hdr->rxinfo.rssi;
+            }
+
+            /* The advertisers address type and address are always in event */
+            evbuf[0] = addr_type;
+            memcpy(evbuf + 1, adv_addr, BLE_DEV_ADDR_LEN);
+
+            rc = ble_ll_hci_event_send(orig_evbuf);
             if (!rc) {
                 /* If filtering, add it to list of duplicate addresses */
                 if (g_ble_ll_scan_sm.scan_filt_dups) {
-                    ble_ll_scan_add_dup_adv(rxbuf, txadd);
+                    ble_ll_scan_add_dup_adv(adv_addr, txadd, subev);
                 }
             }
         }
@@ -429,7 +489,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
  *
  * @return int 0: pdu allowed by filter policy. 1: pdu not allowed
  */
-int
+static int
 ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
 {
     uint8_t *addr;
@@ -474,7 +534,7 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
         addr = rxbuf + BLE_LL_PDU_HDR_LEN;
         addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
         if (!ble_ll_is_our_devaddr(addr + BLE_DEV_ADDR_LEN, addr_type)) {
-            if (!chk_inita || !ble_ll_is_resolvable_priv_addr(addr)) {
+            if (!chk_inita || !ble_ll_is_rpa(addr, addr_type)) {
                 return 1;
             }
         }
@@ -509,6 +569,14 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     ble_phy_encrypt_disable();
+#endif
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    if (ble_ll_resolv_enabled()) {
+        ble_phy_resolv_list_enable();
+    } else {
+        ble_phy_resolv_list_disable();
+    }
 #endif
 
     /* Start receiving */
@@ -829,10 +897,14 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 {
     int rc;
     int chk_send_req;
-    int chk_whitelist;
+    int chk_wl;
+    int index;
+    int resolved;
     uint8_t pdu_type;
     uint8_t addr_type;
+    uint8_t peer_addr_type;
     uint8_t *adv_addr;
+    uint8_t *peer;
     uint8_t *rxbuf;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_scan_sm *scansm;
@@ -863,12 +935,13 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Get pdu type, pointer to address and address "type"  */
     rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-    adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+    peer = rxbuf + BLE_LL_PDU_HDR_LEN;
     if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
         addr_type = BLE_ADDR_TYPE_RANDOM;
     } else {
         addr_type = BLE_ADDR_TYPE_PUBLIC;
     }
+    peer_addr_type = addr_type;
 
     /* Determine if request may be sent and if whitelist needs to be checked */
     chk_send_req = 0;
@@ -878,34 +951,51 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (scansm->scan_type == BLE_SCAN_TYPE_ACTIVE) {
             chk_send_req = 1;
         }
-        chk_whitelist = 1;
+        chk_wl = 1;
         break;
     case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        chk_whitelist = 1;
+        chk_wl = 1;
         break;
     default:
-        chk_whitelist = 0;
+        chk_wl = 0;
         break;
     }
 
-    /* Set device match bit if we are whitelisting */
-    if (chk_whitelist && (scansm->scan_filt_policy & 1)) {
-        /* Check if device is on whitelist. If not, leave */
-        if (!ble_ll_whitelist_match(adv_addr, addr_type)) {
-            return -1;
-        }
-        ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
+    ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+    if ((scansm->scan_filt_policy & 1) == 0) {
+        chk_wl = 0;
     }
+    resolved = 0;
+
+    index = -1;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    if (ble_ll_is_rpa(peer, peer_addr_type) && ble_ll_resolv_enabled()) {
+        index = ble_hw_resolv_list_match();
+        if (index >= 0) {
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
+            peer = g_ble_ll_resolv_list[index].rl_identity_addr;
+            peer_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+            resolved = 1;
+        } else {
+            if (chk_wl) {
+                goto scan_rx_isr_exit;
+            }
+        }
+    }
+#endif
+    scansm->scan_rpa_index = index;
+
+    /* If whitelist enabled, check to see if device is in the white list */
+    if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
+        return -1;
+    }
+    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
 
     /* Should we send a scan request? */
     if (chk_send_req) {
-        /*
-         * Check to see if we have received a scan response from this
-         * advertisor. If so, no need to send scan request.
-         */
-        if (ble_ll_scan_have_rxd_scan_rsp(adv_addr, addr_type)) {
+        /* Dont send scan request if we have sent one to this advertiser */
+        if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type)) {
             return -1;
         }
 
@@ -916,6 +1006,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         --scansm->backoff_count;
         if (scansm->backoff_count == 0) {
             /* Setup to transmit the scan request */
+            adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
             rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_TX_RX);
 
@@ -1006,8 +1097,11 @@ ble_ll_scan_wfr_timer_exp(void)
 void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
+    int index;
     uint8_t *adv_addr;
     uint8_t *adva;
+    uint8_t *ident_addr;
+    uint8_t ident_addr_type;
     uint8_t txadd;
     uint8_t rxadd;
     uint8_t scan_rsp_chk;
@@ -1032,13 +1126,26 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     txadd = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
     adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 
+    ident_addr = adv_addr;
+    ident_addr_type = txadd;
+
+    scansm = &g_ble_ll_scan_sm;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    index = scansm->scan_rpa_index;
+    if (index >= 0) {
+        ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+        ident_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+    }
+#else
+    index = -1;
+#endif
+
     /*
      * XXX: The BLE spec is a bit unclear here. What if we get a scan
      * response from an advertiser that we did not send a request to?
      * Do we send an advertising report? Do we add it to list of devices
      * that we have heard a scan response from?
      */
-    scansm = &g_ble_ll_scan_sm;
     if (ptype == BLE_ADV_PDU_TYPE_SCAN_RSP) {
         /*
          * If this is a scan response in reply to a request we sent we need
@@ -1056,7 +1163,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             if (((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
                 !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
                 /* We have received a scan response. Add to list */
-                ble_ll_scan_add_scan_rsp_adv(adv_addr, txadd);
+                ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type);
 
                 /* Perform scan request backoff procedure */
                 ble_ll_scan_req_backoff(scansm, 1);
@@ -1066,13 +1173,13 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 
     /* Filter duplicates */
     if (scansm->scan_filt_dups) {
-        if (ble_ll_scan_is_dup_adv(ptype, txadd, adv_addr)) {
+        if (ble_ll_scan_is_dup_adv(ptype, ident_addr_type, ident_addr)) {
             goto scan_continue;
         }
     }
 
     /* Send the advertising report */
-    ble_ll_hci_send_adv_report(ptype, txadd, rxbuf, hdr->rxinfo.rssi);
+    ble_ll_hci_send_adv_report(ptype, ident_addr_type, rxbuf, hdr, scansm);
 
 scan_continue:
     /*
@@ -1237,18 +1344,66 @@ ble_ll_scan_enabled(void)
     return (int)g_ble_ll_scan_sm.scan_enabled;
 }
 
+/**
+ * Returns the peer resolvable private address of last device connecting to us
+ *
+ * @return uint8_t*
+ */
+uint8_t *
+ble_ll_scan_get_peer_rpa(void)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    /* XXX: should this go into IRK list or connection? */
+    scansm = &g_ble_ll_scan_sm;
+    return scansm->scan_peer_rpa;
+}
+
+/**
+ * Returns the local resolvable private address currently being using by
+ * the scanner/initiator
+ *
+ * @return uint8_t*
+ */
+uint8_t *
+ble_ll_scan_get_local_rpa(void)
+{
+    uint8_t *rpa;
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = &g_ble_ll_scan_sm;
+
+    /*
+     * The RPA we used is in connect request or scan request and is the
+     * first address in the packet
+     */
+    rpa = scansm->scan_req_pdu->om_data;
+
+    return rpa;
+}
+
+/**
+ * Set the Resolvable Private Address in the scanning (or initiating) state
+ * machine.
+ *
+ * XXX: should this go into IRK list or connection?
+ *
+ * @param rpa
+ */
+void
+ble_ll_scan_set_peer_rpa(uint8_t *rpa)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = &g_ble_ll_scan_sm;
+    memcpy(scansm->scan_peer_rpa, rpa, BLE_DEV_ADDR_LEN);
+}
+
 /* Returns the PDU allocated by the scanner */
 struct os_mbuf *
 ble_ll_scan_get_pdu(void)
 {
     return g_ble_ll_scan_sm.scan_req_pdu;
-}
-
-/* Returns the global scanning state machine */
-struct ble_ll_scan_sm *
-ble_ll_scan_sm_get(void)
-{
-    return &g_ble_ll_scan_sm;
 }
 
 /* Returns true if whitelist is enabled for scanning */
@@ -1320,4 +1475,3 @@ ble_ll_scan_init(void)
                                               sizeof(struct ble_mbuf_hdr));
     assert(scansm->scan_req_pdu != NULL);
 }
-

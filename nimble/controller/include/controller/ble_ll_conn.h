@@ -160,6 +160,9 @@ struct ble_ll_conn_sm
     uint8_t last_rxd_hdr_byte;  /* note: possibly can make 1 bit since we
                                    only use the MD bit now */
 
+    /* For privacy */
+    int8_t rpa_index;
+
     /* connection event mgmt */
     uint8_t reject_reason;
     uint8_t host_reply_opcode;

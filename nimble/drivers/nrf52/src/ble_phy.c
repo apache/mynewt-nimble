@@ -265,6 +265,7 @@ ble_phy_rx_xcvr_setup(void)
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     if (g_ble_phy_data.phy_privacy) {
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
+        NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
         NRF_AAR->ADDRPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
         NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
         NRF_AAR->EVENTS_END = 0;
@@ -840,6 +841,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     } else {
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
         NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk;
+        NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
 #endif
         dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
     }

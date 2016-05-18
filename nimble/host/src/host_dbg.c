@@ -39,17 +39,30 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
     char adv_data_buf[32];
 
     switch (subev) {
+    case BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE:
     case BLE_HCI_LE_SUBEV_CONN_COMPLETE:
         status = evdata[0];
         if (status == BLE_ERR_SUCCESS) {
             BLE_HS_LOG(DEBUG, "LE connection complete. handle=%u role=%u "
-                              "paddrtype=%u addr=%x.%x.%x.%x.%x.%x itvl=%u "
-                              "latency=%u spvn_tmo=%u mca=%u\n",
+                              "paddrtype=%u addr=%x.%x.%x.%x.%x.%x ",
                        le16toh(evdata + 1), evdata[3], evdata[4],
                        evdata[10], evdata[9], evdata[8], evdata[7],
-                       evdata[6], evdata[5], le16toh(evdata + 11),
-                       le16toh(evdata + 13), le16toh(evdata + 15),
-                       evdata[17]);
+                       evdata[6], evdata[5]);
+
+            evdata += 11;
+            if (subev == BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE) {
+                BLE_HS_LOG(DEBUG, "local_rpa=%x.%x.%x.%x.%x.%x "
+                                   "peer_rpa=%x.%x.%x.%x.%x.%x ",
+                           evdata[5], evdata[4], evdata[3], evdata[2],
+                           evdata[1], evdata[0],
+                           evdata[11], evdata[10], evdata[9], evdata[8],
+                           evdata[7], evdata[6]);
+
+                evdata += 12;
+            }
+            BLE_HS_LOG(DEBUG, "itvl=%u latency=%u spvn_tmo=%u mca=%u\n",
+                       le16toh(evdata), le16toh(evdata + 2),
+                       le16toh(evdata + 4), evdata[6]);
         } else {
             BLE_HS_LOG(DEBUG, "LE connection complete. FAIL (status=%u)\n",
                        status);

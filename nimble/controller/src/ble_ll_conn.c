@@ -32,7 +32,9 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_ctrl.h"
+#include "controller/ble_ll_resolv.h"
 #include "controller/ble_phy.h"
+#include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
@@ -1116,6 +1118,10 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_setchan(connsm->data_chan_index, connsm->access_addr,
                     connsm->crcinit);
 
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    ble_phy_resolv_list_disable();
+#endif
+
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         /* Set start time of transmission */
         rc = ble_phy_tx_set_start_time(sch->start_time + XCVR_PROC_DELAY_USECS);
@@ -1302,8 +1308,6 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     connsm->slave_latency = hcc->conn_latency;
     connsm->supervision_tmo = hcc->supervision_timeout;
 
-    /* WWW: if not using whitelist, what happens if we resolve the address?
-       we would have to set the differently huh? CHeck this out... */
     /* Set own address type and peer address if needed */
     connsm->own_addr_type = hcc->own_addr_type;
     if (hcc->filter_policy == 0) {
@@ -1367,6 +1371,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->sub_vers_nr = 0;
     connsm->reject_reason = BLE_ERR_SUCCESS;
     connsm->conn_rssi = BLE_LL_CONN_UNKNOWN_RSSI;
+    connsm->rpa_index = -1;
 
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
@@ -1777,7 +1782,6 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
                 ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
             }
         }
-        /* WWW: enhanced connection complete! */
         ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS);
     }
 
@@ -1874,51 +1878,120 @@ ble_ll_conn_event_end(void *arg)
  *
  * @param m
  * @param adva
- * @param addr_type
+ * @param addr_type     Address type of ADVA from received advertisement.
  * @param txoffset      The tx window offset for this connection
  */
 static void
 ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
-                           uint16_t txoffset)
+                           uint16_t txoffset, int rpa_index)
 {
-    uint8_t pdu_type;
+    int is_rpa;
+    uint8_t hdr;
     uint8_t *dptr;
+    uint8_t *addr;
     struct ble_mbuf_hdr *ble_hdr;
+    struct ble_ll_resolv_entry *rl;
+    struct ble_ll_conn_sm *connsm;
 
     assert(m != NULL);
 
+    /* Retain pdu type but clear txadd/rxadd bits */
     ble_hdr = BLE_MBUF_HDR_PTR(m);
-    pdu_type = ble_hdr->txinfo.hdr_byte;
+    hdr = ble_hdr->txinfo.hdr_byte & BLE_ADV_PDU_HDR_TYPE_MASK;
     if (addr_type) {
         /* Set random address */
-        pdu_type |= BLE_ADV_PDU_HDR_RXADD_MASK;
-    } else {
-        /* Set public device address */
-        pdu_type &= ~BLE_ADV_PDU_HDR_RXADD_MASK;
+        hdr |= BLE_ADV_PDU_HDR_RXADD_MASK;
     }
 
-    /* Set BLE transmit header */
-    ble_hdr->txinfo.hdr_byte = pdu_type;
-
     dptr = m->om_data;
+
+    /* Get pointer to our device address */
+    connsm = g_ble_ll_conn_create_sm;
+    if ((connsm->own_addr_type & 1) == 0) {
+        addr = g_dev_addr;
+    } else {
+        hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        addr = g_random_addr;
+    }
+
+    /* XXX: do this ahead of time? Calculate the local rpa I mean */
+    if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        rl = NULL;
+        is_rpa = ble_ll_is_rpa(adva, addr_type);
+        if (is_rpa) {
+            if (rpa_index >= 0) {
+                rl = &g_ble_ll_resolv_list[rpa_index];
+            }
+        } else {
+            if (ble_ll_resolv_enabled()) {
+                rl = ble_ll_resolv_list_find(adva, addr_type);
+            }
+        }
+
+        if (rl) {
+            hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+            ble_ll_resolv_gen_priv_addr(rl, 1, dptr);
+            addr = NULL;
+        }
+    }
+
+    if (addr) {
+        memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+    }
     memcpy(dptr + BLE_DEV_ADDR_LEN, adva, BLE_DEV_ADDR_LEN);
     htole16(dptr + 20, txoffset);
+
+    /* Set BLE transmit header */
+    ble_hdr->txinfo.hdr_byte = hdr;
 }
 
 /* Returns true if the address matches the connection peer address */
 static int
-ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva)
+ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
 {
     int rc;
+    uint8_t *peer_addr;
     struct ble_ll_conn_sm *connsm;
 
     /* XXX: Deal with different types of random addresses here! */
     connsm = g_ble_ll_conn_create_sm;
-    if (connsm && (connsm->peer_addr_type == addr_type) &&
-        !memcmp(adva, connsm->peer_addr, BLE_DEV_ADDR_LEN)) {
-        rc = 1;
-    } else {
-        rc = 0;
+    if (!connsm) {
+        return 0;
+    }
+
+    switch (connsm->peer_addr_type) {
+    /* Fall-through intentional */
+    case BLE_HCI_CONN_PEER_ADDR_PUBLIC:
+    case BLE_HCI_CONN_PEER_ADDR_RANDOM:
+        if (addr_type != connsm->peer_addr_type) {
+            return 0;
+        }
+        peer_addr = adva;
+        break;
+    case BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT:
+        if ((index < 0) ||
+            (g_ble_ll_resolv_list[index].rl_addr_type != 0)) {
+            return 0;
+        }
+        peer_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+        break;
+    case BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT:
+        if ((index < 0) ||
+            (g_ble_ll_resolv_list[index].rl_addr_type != 1)) {
+            return 0;
+        }
+        peer_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+        break;
+    default:
+        peer_addr = NULL;
+        break;
+    }
+
+    rc = 0;
+    if (peer_addr) {
+        if (!memcmp(peer_addr, connsm->peer_addr, BLE_DEV_ADDR_LEN)) {
+            rc = 1;
+        }
     }
 
     return rc;
@@ -1946,13 +2019,14 @@ ble_ll_conn_req_txend(void *arg)
  * @param adva Address of advertiser
  */
 static int
-ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset)
+ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset,
+                         int rpa_index)
 {
     int rc;
     struct os_mbuf *m;
 
     m = ble_ll_scan_get_pdu();
-    ble_ll_conn_req_pdu_update(m, adva, addr_type, txoffset);
+    ble_ll_conn_req_pdu_update(m, adva, addr_type, txoffset, rpa_index);
     ble_phy_set_txend_cb(ble_ll_conn_req_txend, NULL);
     rc = ble_phy_tx(m, BLE_PHY_TRANSITION_NONE);
     return rc;
@@ -1988,8 +2062,10 @@ ble_ll_conn_event_halt(void)
 void
 ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
 {
+    int8_t rpa_index;
     uint8_t addr_type;
     uint8_t payload_len;
+    uint8_t *addr;
     uint32_t endtime;
     struct ble_ll_conn_sm *connsm;
 
@@ -2000,11 +2076,6 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
     if (connsm && CONN_F_CONN_REQ_TXD(connsm)) {
         /* Set address of advertiser to which we are connecting. */
         if (ble_ll_scan_whitelist_enabled()) {
-            /*
-             * XXX: need to see if the whitelist tells us exactly what peer
-             * addr type we should use? Not sure it matters. If whitelisting
-             * is not used the peer addr and type already set
-             */
             /* Get address type of advertiser */
             if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
                 addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
@@ -2012,15 +2083,31 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
                 addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
             }
 
+            /*
+             * Did we resolve this address? If so, set correct peer address
+             * and peer address type.
+             */
+            rpa_index = connsm->rpa_index;
+
+            if (rpa_index >= 0) {
+                addr_type = g_ble_ll_resolv_list[rpa_index].rl_addr_type + 2;
+                addr = g_ble_ll_resolv_list[rpa_index].rl_identity_addr;
+            } else {
+                addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+            }
+
             connsm->peer_addr_type = addr_type;
-            memcpy(connsm->peer_addr, rxbuf + BLE_LL_PDU_HDR_LEN,
-                   BLE_DEV_ADDR_LEN);
+            memcpy(connsm->peer_addr, addr, BLE_DEV_ADDR_LEN);
+        }
+
+        if (connsm->rpa_index >= 0) {
+            ble_ll_scan_set_peer_rpa(rxbuf + BLE_LL_PDU_HDR_LEN);
         }
 
         /* Connection has been created. Stop scanning */
         g_ble_ll_conn_create_sm = NULL;
         ble_ll_scan_sm_stop(0);
-        payload_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;;
+        payload_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
         endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(payload_len);
         ble_ll_conn_created(connsm, endtime);
     } else {
@@ -2044,15 +2131,22 @@ int
 ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 {
     int rc;
+    int resolved;
     int chk_send_req;
+    int chk_wl;
+    int index;
     uint8_t pdu_type;
     uint8_t addr_type;
+    uint8_t peer_addr_type;
     uint8_t *adv_addr;
+    uint8_t *peer;
     uint8_t *init_addr;
     uint8_t *rxbuf;
     uint8_t pyld_len;
+    uint8_t inita_is_rpa;
     uint32_t endtime;
     struct ble_mbuf_hdr *ble_hdr;
+    struct ble_ll_conn_sm *connsm;
 
     /*
      * We have to restart receive if we cant hand up pdu. We return 0 so that
@@ -2068,22 +2162,34 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         goto init_rx_isr_exit;
     }
 
+    /* Get connection state machine to use if connection to be established */
+    connsm = g_ble_ll_conn_create_sm;
+
     /* Only interested in ADV IND or ADV DIRECT IND */
     rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+
+    inita_is_rpa = 0;
 
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
         chk_send_req = 1;
         break;
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+        /* XXX: needs to be fixed for privacy */
+        chk_send_req = 0;
         init_addr = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
         addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
-        if (ble_ll_is_our_devaddr(init_addr, addr_type)) {
-            chk_send_req = 1;
-        } else {
-            chk_send_req = 0;
+        if (addr_type) {
+            inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, addr_type);
+        }
+
+        if (!inita_is_rpa && ble_ll_is_our_devaddr(init_addr, addr_type)) {
+            /* We should not respond if we expect the device to be private */
+            if (connsm->own_addr_type <= BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+                chk_send_req = 1;
+            }
         }
         break;
     default:
@@ -2101,34 +2207,65 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
         }
 
-        /* Check filter policy */
+        index = -1;
         ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-        if (ble_ll_scan_whitelist_enabled()) {
-            /* Check if device is on whitelist. If not, leave */
-            if (!ble_ll_whitelist_match(adv_addr, addr_type)) {
+        peer = adv_addr;
+        peer_addr_type = addr_type;
+
+        resolved = 0;
+        chk_wl = ble_ll_scan_whitelist_enabled();
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+        if (ble_ll_is_rpa(adv_addr, addr_type) && ble_ll_resolv_enabled()) {
+            index = ble_hw_resolv_list_match();
+            if (index >= 0) {
+                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
+                connsm->rpa_index = index;
+                peer = g_ble_ll_resolv_list[index].rl_identity_addr;
+                peer_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+                resolved = 1;
+            } else {
+                if (chk_wl) {
+                    return -1;
+                }
+            }
+        }
+#endif
+
+        /* Check filter policy */
+        if (chk_wl) {
+            if (!ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
                 return -1;
             }
-
-            /* Set BLE mbuf header flags */
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
         } else {
-            /* XXX: Resolvable? Deal with those */
-            /* XXX: HW device matching? If so, implement */
             /* Must match the connection address */
-            if (!ble_ll_conn_is_peer_adv(addr_type, adv_addr)) {
+            if (!ble_ll_conn_is_peer_adv(addr_type, adv_addr, index)) {
+                return -1;
+            }
+        }
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
+
+        /*
+         * If the inita is a RPA, we must see if it resolves based on the
+         * identity address of the resolved ADVA.
+         */
+        if (inita_is_rpa) {
+            if ((index < 0) ||
+                !ble_ll_resolv_rpa(init_addr,
+                                   g_ble_ll_resolv_list[index].rl_local_irk)) {
                 return -1;
             }
         }
 
         /* Attempt to schedule new connection. Possible that this might fail */
         endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
-        if (!ble_ll_sched_master_new(g_ble_ll_conn_create_sm, endtime,
+        if (!ble_ll_sched_master_new(connsm, endtime,
                                      NIMBLE_OPT_LL_CONN_INIT_SLOTS)) {
             /* Setup to transmit the connect request */
             rc = ble_ll_conn_request_send(addr_type, adv_addr,
-                                          g_ble_ll_conn_create_sm->tx_win_off);
+                                          connsm->tx_win_off, index);
             if (!rc) {
-                CONN_F_CONN_REQ_TXD(g_ble_ll_conn_create_sm) = 1;
+                CONN_F_CONN_REQ_TXD(connsm) = 1;
                 STATS_INC(ble_ll_conn_stats, conn_req_txd);
             }
         } else {
@@ -2747,7 +2884,7 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
  * @return 0: connection not started; 1 connecton started
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t resolved)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat)
 {
     int rc;
     uint32_t temp;
@@ -2824,23 +2961,9 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t resolved)
         goto err_slave_start;
     }
 
-    /* WWW: what about master when it makes a connection? It has to do this
-       properly! */
     /* Set the address of device that we are connecting with */
     memcpy(&connsm->peer_addr, inita, BLE_DEV_ADDR_LEN);
-    if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-        if (resolved) {
-            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT;
-        } else {
-            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
-        }
-    } else {
-        if (resolved) {
-            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT;
-        } else {
-            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
-        }
-    }
+    connsm->peer_addr_type = pat;
 
     /* Calculate number of used channels; make sure it meets min requirement */
     connsm->num_used_chans = ble_ll_conn_calc_used_chans(connsm->chanmap);

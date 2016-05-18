@@ -299,7 +299,7 @@ int ble_ll_is_valid_random_addr(uint8_t *addr);
 uint16_t ble_ll_pdu_tx_time_get(uint16_t len);
 
 /* Is this address a resolvable private address? */
-int ble_ll_is_resolvable_priv_addr(uint8_t *addr);
+int ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type);
 
 /* Is 'addr' our device address? 'addr_type' is public (0) or random (!=0) */
 int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);

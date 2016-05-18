@@ -30,6 +30,7 @@
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_adv.h"
 #include "ble_ll_conn_priv.h"
 
 /*
@@ -88,7 +89,6 @@ static void
 ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 {
     uint8_t pdu_type;
-    uint8_t *addr;
     uint8_t *dptr;
     struct os_mbuf *m;
 
@@ -98,26 +98,13 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
 
-    /* Get pointer to our device address */
-    if (connsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_PUBLIC) {
-        addr = g_dev_addr;
-    } else if (connsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        addr = g_random_addr;
-    } else {
-        /* XXX: unsupported for now  */
-        addr = NULL;
-        assert(0);
-    }
-
     /* Set BLE transmit header */
     ble_ll_mbuf_init(m, BLE_CONNECT_REQ_LEN, pdu_type);
 
     /* Construct the connect request */
     dptr = m->om_data;
-    memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
 
-    /* Skip the advertiser's address as we dont know that yet */
+    /* Skip inita and adva advertiser's address as we dont know that yet */
     dptr += (2 * BLE_DEV_ADDR_LEN);
 
     /* Access address */
@@ -142,23 +129,74 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 void
 ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
 {
+    uint8_t peer_addr_type;
+    uint8_t enabled;
+    uint8_t enh_enabled;
     uint8_t *evbuf;
+    uint8_t *evdata;
+    uint8_t *rpa;
 
-    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_COMPLETE)) {
+    enabled = ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_COMPLETE);
+    enh_enabled = ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE);
+
+    if (enabled || enh_enabled) {
         evbuf = os_memblock_get(&g_hci_cmd_pool);
         if (evbuf) {
+            /* Put common elements in event */
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
-            evbuf[1] = BLE_HCI_LE_CONN_COMPLETE_LEN;
-            evbuf[2] = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+            if (enh_enabled) {
+                evbuf[1] = BLE_HCI_LE_ENH_CONN_COMPLETE_LEN;
+                evbuf[2] = BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE;
+            } else {
+                evbuf[1] = BLE_HCI_LE_CONN_COMPLETE_LEN;
+                evbuf[2] = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+            }
             evbuf[3] = status;
-            htole16(evbuf + 4, connsm->conn_handle);
-            evbuf[6] = connsm->conn_role - 1;
-            evbuf[7] = connsm->peer_addr_type;
-            memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
-            htole16(evbuf + 14, connsm->conn_itvl);
-            htole16(evbuf + 16, connsm->slave_latency);
-            htole16(evbuf + 18, connsm->supervision_tmo);
-            evbuf[20] = connsm->master_sca;
+
+            if (connsm) {
+                htole16(evbuf + 4, connsm->conn_handle);
+                evbuf[6] = connsm->conn_role - 1;
+                peer_addr_type = connsm->peer_addr_type;
+
+                evdata = evbuf + 14;
+                if (enh_enabled) {
+                    memset(evdata, 0, 2 * BLE_DEV_ADDR_LEN);
+                    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+                            rpa = ble_ll_scan_get_local_rpa();
+                        } else {
+                            rpa = NULL;
+                        }
+                    } else {
+                        rpa = ble_ll_adv_get_local_rpa();
+                    }
+                    if (rpa) {
+                        memcpy(evdata, rpa, BLE_DEV_ADDR_LEN);
+                    }
+
+                    if (connsm->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
+                        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                            rpa = ble_ll_scan_get_peer_rpa();
+                        } else {
+                            rpa = ble_ll_adv_get_peer_rpa();
+                        }
+                        memcpy(evdata + 6, rpa, BLE_DEV_ADDR_LEN);
+                    }
+                    evdata += 12;
+                } else {
+                    if (peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
+                        peer_addr_type -= 2;
+                    }
+                }
+
+                evbuf[7] = peer_addr_type;
+                memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
+
+                htole16(evdata, connsm->conn_itvl);
+                htole16(evdata + 2, connsm->slave_latency);
+                htole16(evdata + 4, connsm->supervision_tmo);
+                evdata[6] = connsm->master_sca;
+            }
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -341,11 +379,6 @@ ble_ll_conn_create(uint8_t *cmdbuf)
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
-        /* XXX: not supported */
-        if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
-            return BLE_ERR_UNSUPPORTED;
-        }
-
         memcpy(&hcc->peer_addr, cmdbuf + 6, BLE_DEV_ADDR_LEN);
     }
 
@@ -353,11 +386,6 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     hcc->own_addr_type = cmdbuf[12];
     if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* XXX: not supported */
-    if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        return BLE_ERR_UNSUPPORTED;
     }
 
     /* Check connection interval, latency and supervision timeoout */

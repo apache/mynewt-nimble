@@ -62,7 +62,7 @@ struct ble_mbuf_hdr_rxinfo
     uint8_t flags;
     uint8_t channel;
     uint8_t handle;
-    int8_t rssi;
+    int8_t  rssi;
 };
 
 /* Flag definitions for rxinfo  */
