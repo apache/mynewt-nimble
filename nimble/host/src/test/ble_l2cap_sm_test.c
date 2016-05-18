@@ -27,7 +27,7 @@
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
-#if NIMBLE_OPT_SM
+#if NIMBLE_OPT(SM)
 
 int ble_l2cap_sm_test_gap_event;
 int ble_l2cap_sm_test_gap_status;
@@ -1915,7 +1915,7 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
 int
 ble_l2cap_sm_test_all(void)
 {
-#if !NIMBLE_OPT_SM
+#if !NIMBLE_OPT(SM)
     return 0;
 #else
     ble_l2cap_sm_test_suite();

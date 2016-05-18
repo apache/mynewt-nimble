@@ -20,6 +20,8 @@
 #ifndef H_BLE_L2CAP_SM_
 #define H_BLE_L2CAP_SM_
 
+#include "nimble/nimble_opt.h"
+
 struct ble_gap_sec_state;
 struct hci_le_lt_key_req;
 
@@ -152,7 +154,7 @@ struct ble_l2cap_sm_sec_req {
 };
 
 
-#if NIMBLE_OPT_SM
+#if NIMBLE_OPT(SM)
 
 #ifdef BLE_HS_DEBUG
 void ble_l2cap_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
