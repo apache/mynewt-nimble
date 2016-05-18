@@ -380,7 +380,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     ble_hs_test_util_init();
 
     /*** Register an attribute to allow indicatations to be sent. */
-    rc = ble_att_svr_register(BLE_UUID16(0x1212), HA_FLAG_PERM_READ,
+    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ,
                               &attr_handle,
                               ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);
