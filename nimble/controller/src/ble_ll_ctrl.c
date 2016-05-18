@@ -25,8 +25,8 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_ctrl.h"
-#include "ble_ll_conn_priv.h"
 #include "controller/ble_hw.h"
+#include "ble_ll_conn_priv.h"
 
 /* To use spec sample data for testing */
 #undef BLE_LL_ENCRYPT_USE_TEST_DATA

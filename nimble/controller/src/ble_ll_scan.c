@@ -392,6 +392,8 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
             evbuf[3] = 1;       /* number of reports */
             evbuf[4] = evtype;
 
+            /* WWW: Yeah... if we are using private resolvable addresses
+               we need to deal here. The address type is different... */
             /* XXX: need to deal with resolvable addresses here! */
             if (txadd) {
                 evbuf[5] = BLE_HCI_ADV_OWN_ADDR_RANDOM;

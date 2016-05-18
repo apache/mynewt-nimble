@@ -264,6 +264,11 @@
 #define NIMBLE_OPT_LL_WHITELIST_SIZE            (8)
 #endif
 
+/* Size of the resolving ist */
+#ifndef NIMBLE_OPT_LL_RESOLV_LIST_SIZE
+#define NIMBLE_OPT_LL_RESOLV_LIST_SIZE          (4)
+#endif
+
 /*
  * Data length management definitions for connections. These define the maximum
  * size of the PDU's that will be sent and/or received in a connection.
@@ -355,7 +360,7 @@
  * is not supported by the nimble controller.
  */
 #ifndef BLE_LL_CFG_FEAT_LL_PRIVACY
-#define BLE_LL_CFG_FEAT_LL_PRIVACY              (0)
+#define BLE_LL_CFG_FEAT_LL_PRIVACY              (1)
 #endif
 
 /*

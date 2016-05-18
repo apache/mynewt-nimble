@@ -22,18 +22,40 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "controller/ble_hw.h"
+#include "nimble/nimble_opt.h"
 #include "mcu/nrf52_bitfields.h"
+#include "controller/ble_hw.h"
 #include "bsp/cmsis_nvic.h"
 
-/* Total number of white list elements supported by nrf52 */
+/* Total number of white list elements */
 #define BLE_HW_WHITE_LIST_SIZE      (8)
+
+/* Total number of resolving list elements */
+#define BLE_HW_RESOLV_LIST_SIZE     (16)
 
 /* We use this to keep track of which entries are set to valid addresses */
 static uint8_t g_ble_hw_whitelist_mask;
 
 /* Random number generator isr callback */
 ble_rng_isr_cb_t g_ble_rng_isr_cb;
+
+/* If LL privacy is enabled, allocate memory for AAR */
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+
+/* The NRF51 supports up to 16 IRK entries */
+#if (NIMBLE_OPT_LL_RESOLV_LIST_SIZE < 16)
+#define NRF_IRK_LIST_ENTRIES    (NIMBLE_OPT_LL_RESOLV_LIST_SIZE)
+#else
+#define NRF_IRK_LIST_ENTRIES    (16)
+#endif
+
+/* NOTE: each entry is 16 bytes long. */
+uint32_t g_nrf_irk_list[NRF_IRK_LIST_ENTRIES * 4];
+
+/* Current number of IRK entries */
+uint8_t g_nrf_num_irks;
+
+#endif
 
 /**
  * Clear the whitelist
@@ -318,3 +340,93 @@ ble_hw_rng_read(void)
 
     return rnum;
 }
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY)
+/**
+ * Clear the resolving list
+ *
+ * @return int
+ */
+void
+ble_hw_resolv_list_clear(void)
+{
+    g_nrf_num_irks = 0;
+}
+
+/**
+ * Add a device to the hw resolving list
+ *
+ * @param irk   Pointer to IRK to add
+ *
+ * @return int 0: success, BLE error code otherwise
+ */
+int
+ble_hw_resolv_list_add(uint8_t *irk)
+{
+    uint32_t *nrf_entry;
+
+    /* Find first ununsed device address match element */
+    if (g_nrf_num_irks == NRF_IRK_LIST_ENTRIES) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    /* Copy into irk list */
+    nrf_entry = &g_nrf_irk_list[4 * g_nrf_num_irks];
+    memcpy(nrf_entry, irk, 16);
+
+    /* Add to total */
+    ++g_nrf_num_irks;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * Remove a device from the hw resolving list
+ *
+ * @param index Index of IRK to remove
+ */
+void
+ble_hw_resolv_list_rmv(int index)
+{
+    uint32_t *irk_entry;
+
+    if (index < g_nrf_num_irks) {
+        --g_nrf_num_irks;
+        irk_entry = &g_nrf_irk_list[index];
+        if (g_nrf_num_irks > index) {
+            memmove(irk_entry, irk_entry + 4, g_nrf_num_irks - index);
+        }
+    }
+}
+
+/**
+ * Returns the size of the whitelist in HW
+ *
+ * @return int Number of devices allowed in whitelist
+ */
+uint8_t
+ble_hw_resolv_list_size(void)
+{
+    return BLE_HW_RESOLV_LIST_SIZE;
+}
+
+/**
+ * Called to determine if the address received was resolved.
+ *
+ * @return int  Negative values indicate unresolved address; positive values
+ *              indicate index in resolving list of resolved address.
+ */
+int
+ble_hw_resolv_list_match(void)
+{
+    uint32_t index;
+
+    if (NRF_AAR->EVENTS_END) {
+        if (NRF_AAR->EVENTS_RESOLVED) {
+            index = NRF_AAR->STATUS;
+            return (int)index;
+        }
+    }
+
+    return -1;
+}
+#endif

@@ -354,6 +354,7 @@ int ble_ll_chk_txrx_time(uint16_t time);
 int ble_ll_rand_init(void);
 void ble_ll_rand_sample(uint8_t rnum);
 int ble_ll_rand_data_get(uint8_t *buf, uint8_t len);
+void ble_ll_rand_prand_get(uint8_t *prand);
 int ble_ll_rand_start(void);
 
 /*

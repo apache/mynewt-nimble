@@ -36,6 +36,16 @@
 
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
+/*
+ * XXX: Maximum possible transmit time is 1 msec for a 60ppm crystal
+ * and 16ms for a 30ppm crystal! We need to limit PDU size based on
+ * crystal accuracy
+ */
+
+/* XXX: private header file? */
+extern uint8_t g_nrf_num_irks;
+extern uint32_t g_nrf_irk_list[];
+
 /* To disable all radio interrupts */
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
@@ -65,7 +75,9 @@ struct ble_phy_obj
     uint8_t phy_transition;
     uint8_t phy_rx_started;
     uint8_t phy_encrypted;
+    uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
+    uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
     void *txend_arg;
@@ -78,6 +90,7 @@ struct ble_phy_obj g_ble_phy_data;
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+/* Make sure word-aligned for faster copies */
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
 
@@ -249,8 +262,23 @@ ble_phy_rx_xcvr_setup(void)
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
 #endif
 
-    /* We dont want to trigger TXEN on output compare match */
-    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    if (g_ble_phy_data.phy_privacy) {
+        NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
+        NRF_AAR->ADDRPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
+        NRF_AAR->EVENTS_END = 0;
+        NRF_AAR->EVENTS_RESOLVED = 0;
+        NRF_AAR->EVENTS_NOTRESOLVED = 0;
+    } else {
+        if (g_ble_phy_data.phy_encrypted == 0) {
+            NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Disabled;
+        }
+    }
+#endif
+
+    /* Turn off trigger TXEN on output compare match and AAR on bcmatch */
+    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk | PPI_CHEN_CH23_Msk;
 
     /* Reset the rx started flag. Used for the wait for response */
     g_ble_phy_data.phy_rx_started = 0;
@@ -412,7 +440,7 @@ ble_phy_rx_end_isr(void)
     /*
      * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
      * that is not sent over the air but is present here. Simply move the
-     * data pointer to deal with it. Fix this later. Do this in the nrf52
+     * data pointer to deal with it. Fix this later.
      */
     dptr[2] = dptr[1];
     dptr[1] = dptr[0];
@@ -469,6 +497,15 @@ ble_phy_rx_start_isr(void)
         /* Set rx started flag and enable rx end ISR */
         g_ble_phy_data.phy_rx_started = 1;
         NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+        /* Must start aar if we need to  */
+        if (g_ble_phy_data.phy_privacy) {
+            NRF_RADIO->EVENTS_BCMATCH = 0;
+            NRF_PPI->CHENSET = PPI_CHEN_CH23_Msk;
+            NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8;
+        }
+#endif
     } else {
         /* Disable PHY */
         ble_phy_disable();
@@ -576,9 +613,18 @@ ble_phy_init(void)
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     NRF_CCM->INTENCLR = 0xffffffff;
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
-    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
     NRF_CCM->EVENTS_ERROR = 0;
     memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
+#endif
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    g_ble_phy_data.phy_aar_scratch = 0;
+    NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
+    NRF_AAR->INTENCLR = 0xffffffff;
+    NRF_AAR->EVENTS_END = 0;
+    NRF_AAR->EVENTS_RESOLVED = 0;
+    NRF_AAR->EVENTS_NOTRESOLVED = 0;
+    NRF_AAR->NIRK = 0;
 #endif
 
     /* Set isr in vector table and enable interrupt */
@@ -662,6 +708,9 @@ ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
     memcpy(g_nrf_ccm_data.iv, iv, 8);
     g_nrf_ccm_data.dir_bit = is_master;
     g_ble_phy_data.phy_encrypted = 1;
+    /* Enable the module (AAR cannot be on while CCM on) */
+    NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Disabled;
+    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
 }
 
 void
@@ -677,6 +726,8 @@ ble_phy_encrypt_disable(void)
     NRF_PPI->CHENCLR = (PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk);
     NRF_CCM->TASKS_STOP = 1;
     NRF_CCM->EVENTS_ERROR = 0;
+    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Disabled;
+
     g_ble_phy_data.phy_encrypted = 0;
 }
 #endif
@@ -752,7 +803,6 @@ ble_phy_rx_set_start_time(uint32_t cputime)
     return rc;
 }
 
-
 int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 {
@@ -785,12 +835,18 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         NRF_CCM->EVENTS_ERROR = 0;
         NRF_CCM->MODE = CCM_MODE_LENGTH_Msk;
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
-        NRF_PPI->CHENCLR = PPI_CHEN_CH25_Msk;
+        NRF_PPI->CHENCLR = PPI_CHEN_CH25_Msk | PPI_CHEN_CH23_Msk;
         NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk;
     } else {
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+        NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk;
+#endif
         dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
     }
 #else
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk;
+#endif
     dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
 #endif
 
@@ -989,7 +1045,7 @@ ble_phy_disable(void)
     NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
-    NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk | PPI_CHEN_CH20_Msk;
+    NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk | PPI_CHEN_CH21_Msk | PPI_CHEN_CH20_Msk;
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
 }
@@ -1047,3 +1103,18 @@ ble_phy_max_data_pdu_pyld(void)
 {
     return BLE_LL_DATA_PDU_MAX_PYLD;
 }
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+void
+ble_phy_resolv_list_enable(void)
+{
+    NRF_AAR->NIRK = (uint32_t)g_nrf_num_irks;
+    g_ble_phy_data.phy_privacy = 1;
+}
+
+void
+ble_phy_resolv_list_disable(void)
+{
+    g_ble_phy_data.phy_privacy = 0;
+}
+#endif

@@ -139,4 +139,10 @@ void ble_phy_encrypt_disable(void);
 /* Set the packet counters and dir used by LE encyption */
 void ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir);
 
+/* Enable phy resolving list */
+void ble_phy_resolv_list_enable(void);
+
+/* Disable phy resolving list */
+void ble_phy_resolv_list_disable(void);
+
 #endif /* H_BLE_PHY_ */

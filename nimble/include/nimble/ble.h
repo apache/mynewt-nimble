@@ -71,7 +71,8 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x20)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x10)
 #define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x08)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x07)
+#define BLE_MBUF_HDR_F_RESOLVED         (0x04)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x03)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
@@ -102,6 +103,9 @@ struct ble_mbuf_hdr
 
 #define BLE_MBUF_HDR_MIC_FAILURE(hdr)   \
     ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_MIC_FAILURE)
+
+#define BLE_MBUF_HDR_RESOLVED(hdr)      \
+    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RESOLVED)
 
 #define BLE_MBUF_HDR_RX_STATE(hdr)      \
     ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK)
