@@ -171,12 +171,18 @@ struct ble_gap_passkey_action {
     uint8_t action;
 };
 
+struct ble_gap_enhanced_conn {
+    uint8_t peer_rpa[6];
+    uint8_t local_rpa[6];
+};
+
 struct ble_gap_conn_ctxt {
     struct ble_gap_conn_desc *desc;
 
     union {
         struct {
             int status;
+            struct ble_gap_enhanced_conn *enhanced_conn;
         } connect;
 
         struct {
@@ -274,5 +280,6 @@ int ble_gap_security_initiate(uint16_t conn_handle);
 int
 ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
                             uint16_t ediv, uint64_t rand_val, int auth);
+int ble_gap_provide_ltk(uint16_t conn_handle, uint8_t *ltk);
 void ble_gap_init_identity_addr(uint8_t *addr);
 #endif

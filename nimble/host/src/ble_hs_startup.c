@@ -84,7 +84,7 @@ ble_hs_startup_le_set_evmask_tx(void)
     int rc;
 
     /* [ Default event set ]. */
-    host_hci_cmd_build_le_set_event_mask(0x000000000000001f, buf, sizeof buf);
+    host_hci_cmd_build_le_set_event_mask(0x000000000000021f, buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
@@ -164,7 +164,8 @@ ble_hs_startup_go(void)
     }
 
     /* XXX: Read BD_ADDR. */
-    ble_hs_priv_init_identity(g_dev_addr);
+    ble_hs_priv_update_identity(g_dev_addr);
+    ble_hs_priv_update_irk(NULL);
 
     return rc;
 }

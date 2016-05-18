@@ -87,6 +87,7 @@ static const struct host_hci_le_event_dispatch_entry
     { BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE, host_hci_rx_le_conn_upd_complete },
     { BLE_HCI_LE_SUBEV_LT_KEY_REQ, host_hci_rx_le_lt_key_req },
     { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, host_hci_rx_le_conn_parm_req },
+    { BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE, host_hci_rx_le_conn_complete },
 };
 
 #define HOST_HCI_LE_EVENT_DISPATCH_SZ \
@@ -132,7 +133,7 @@ host_hci_le_dispatch_entry_find(uint8_t event_code)
     const struct host_hci_le_event_dispatch_entry *entry;
     int i;
 
-    for (i = 0; i < HOST_HCI_EVENT_DISPATCH_SZ; i++) {
+    for (i = 0; i < HOST_HCI_LE_EVENT_DISPATCH_SZ; i++) {
         entry = host_hci_le_event_dispatch + i;
         if (entry->hmd_subevent == event_code) {
             return entry;
@@ -240,9 +241,16 @@ static int
 host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
 {
     struct hci_le_conn_complete evt;
+    int extended_offset = 0;
     int rc;
 
     if (len < BLE_HCI_LE_CONN_COMPLETE_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    /* this code processes two different events that are really similar */
+    if ((subevent == BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE) &&
+        ( len < BLE_HCI_LE_ENH_CONN_COMPLETE_LEN)) {
         return BLE_HS_EMSGSIZE;
     }
 
@@ -252,10 +260,22 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     evt.role = data[4];
     evt.peer_addr_type = data[5];
     memcpy(evt.peer_addr, data + 6, BLE_DEV_ADDR_LEN);
-    evt.conn_itvl = le16toh(data + 12);
-    evt.conn_latency = le16toh(data + 14);
-    evt.supervision_timeout = le16toh(data + 16);
-    evt.master_clk_acc = data[18];
+
+    /* enhanced connection event has the same information with these
+     * extra fields stuffed into the middle */
+    if (subevent == BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE) {
+        memcpy(evt.local_rpa, data + 12, BLE_DEV_ADDR_LEN);
+        memcpy(evt.peer_rpa, data + 18, BLE_DEV_ADDR_LEN);
+        extended_offset = 12;
+    } else {
+        memset(evt.local_rpa, 0, BLE_DEV_ADDR_LEN);
+        memset(evt.peer_rpa, 0, BLE_DEV_ADDR_LEN);
+    }
+
+    evt.conn_itvl = le16toh(data + 12 + extended_offset);
+    evt.conn_latency = le16toh(data + 14 + extended_offset);
+    evt.supervision_timeout = le16toh(data + 16 + extended_offset);
+    evt.master_clk_acc = data[18 + extended_offset];
 
     if (evt.status == 0) {
         if (evt.role != BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER &&

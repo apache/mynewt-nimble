@@ -425,6 +425,7 @@ int
 ble_hs_test_util_adv_start(uint8_t discoverable_mode,
                            uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type,
+                           struct ble_gap_adv_params *adv_params,
                            ble_gap_event_fn *cb, void *cb_arg,
                            int fail_idx, uint8_t fail_status)
 {
@@ -673,7 +674,22 @@ ble_hs_test_util_set_startup_acks(void)
             .evt_params = { 0 },
             .evt_params_len = 8,
         },
-
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+        },
         { 0 }
     }));
 }
@@ -757,7 +773,7 @@ ble_hs_test_util_tx_all(void)
 void
 ble_hs_test_util_set_public_addr(uint8_t *addr)
 {
-    ble_hs_priv_init_identity(addr);
+    ble_hs_priv_update_identity(addr);
 }
 
 

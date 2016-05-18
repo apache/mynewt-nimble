@@ -972,13 +972,11 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn != NULL) {
         if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            *iat = BLE_ADDR_TYPE_PUBLIC;
-            bls_hs_priv_copy_local_identity_addr(ra, rat);
+            bls_hs_priv_copy_local_identity_addr(ia, iat);
             *rat = conn->bhc_addr_type;
             memcpy(ra, conn->bhc_addr, 6);
         } else {
-            *rat = BLE_ADDR_TYPE_PUBLIC;
-            bls_hs_priv_copy_local_identity_addr(ia, iat);
+            bls_hs_priv_copy_local_identity_addr(ra, rat);
             *iat = conn->bhc_addr_type;
             memcpy(ia, conn->bhc_addr, 6);
         }
@@ -1381,7 +1379,6 @@ ble_l2cap_sm_key_exchange_go(struct ble_l2cap_sm_proc *proc,
         }
 
         /* copy data to pass to application */
-        proc->our_keys.is_ours = 1;
         proc->our_keys.irk_valid = 1;
         proc->our_keys.addr_valid = 1;
         memcpy(proc->our_keys.irk, irk,16);
@@ -1795,7 +1792,7 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
     int store_rc;
     int rc;
 
-    /* Tell applicaiton to look up LTK by ediv/rand pair. */
+    /* Tell application to look up LTK by ediv/rand pair. */
     /* XXX: Also filter by peer address? */
     memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -2004,7 +2001,7 @@ ble_l2cap_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
     ble_hs_unlock();
 
     if (rc == 0) {
-        /* Query database for an LTK corresonding to the sender.  We are the
+        /* Query database for an LTK corresponding to the sender.  We are the
          * master, so retrieve a master key.
          */
         rc = ble_store_read_mst_sec(&key_sec, &value_sec);

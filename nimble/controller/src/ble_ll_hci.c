@@ -642,10 +642,10 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 #endif
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     case BLE_HCI_OCF_LE_ADD_RESOLV_LIST :
-        ble_ll_resolv_list_add(cmdbuf);
+        rc = ble_ll_resolv_list_add(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_RMV_RESOLV_LIST:
-        ble_ll_resolv_list_rmv(cmdbuf);
+        rc = ble_ll_resolv_list_rmv(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_CLR_RESOLV_LIST:
         rc = ble_ll_resolv_list_clr();

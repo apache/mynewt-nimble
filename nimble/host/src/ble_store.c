@@ -101,6 +101,11 @@ ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
     store_key = (void *)key_sec;
     store_value = (void *)value_sec;
     rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_SEC, store_key, store_value);
+
+    if (rc) {
+        return rc;
+    }
+
     return rc;
 }
 
@@ -112,6 +117,35 @@ ble_store_write_mst_sec(struct ble_store_value_sec *value_sec)
 
     store_value = (void *)value_sec;
     rc = ble_store_write(BLE_STORE_OBJ_TYPE_MST_SEC, store_value);
+
+    if ((value_sec->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) &&
+       (value_sec->irk_present)) {
+        /* Write the peer IRK to the controller keycache
+         * There is not much to do here if it fails */
+        rc = ble_keycache_write_irk_entry(value_sec->peer_addr,
+                                          value_sec->peer_addr_type,
+                                          value_sec->irk);
+    }
+
+    return rc;
+}
+
+int
+ble_store_delete_mst_sec(struct ble_store_key_sec *key_sec)
+{
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key_sec;
+    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_MST_SEC, store_key);
+
+    if(key_sec->peer_addr_type == BLE_STORE_ADDR_TYPE_NONE) {
+        /* don't error check this since we don't know without looking up
+         * the value whether it had a valid IRK */
+        ble_keycache_remove_irk_entry(key_sec->peer_addr_type,
+                                    key_sec->peer_addr);
+    }
+
     return rc;
 }
 
@@ -172,4 +206,42 @@ ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
     out_key->rand_num = value->rand_num;
     out_key->ediv_rand_present = 1;
     out_key->idx = 0;
+}
+
+void ble_store_iterate(int obj_type,
+                       ble_store_iterator_fn *callback,
+                       void *cookie)
+{
+    union ble_store_key key;
+    union ble_store_value value;
+    int idx = 0;
+    uint8_t *pidx;
+
+    /* a magic value to retrieve anything */
+    memset(&key, 0, sizeof(key));
+    switch(obj_type) {
+        case BLE_STORE_OBJ_TYPE_MST_SEC:
+        case BLE_STORE_OBJ_TYPE_SLV_SEC:
+            key.sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+            pidx = &key.sec.idx;
+            break;
+        case BLE_STORE_OBJ_TYPE_CCCD:
+            key.cccd.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+            pidx = &key.cccd.idx;
+        default:
+            return;
+    }
+
+    while (1) {
+        int rc;
+        *pidx = idx;
+        rc = ble_store_read(obj_type, &key, &value);
+        if (rc != 0) {
+            /* read error or no more entries */
+            break;
+        } else if (callback) {
+            callback(obj_type, &value, cookie);
+        }
+        idx++;
+    }
 }
