@@ -145,19 +145,28 @@ ble_gatts_att_flags_from_chr_flags(ble_gatt_chr_flags chr_flags)
 
     att_flags = 0;
     if (chr_flags & BLE_GATT_CHR_F_READ) {
-        att_flags |= HA_FLAG_PERM_READ;
+        att_flags |= BLE_ATT_F_READ;
     }
     if (chr_flags & (BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_WRITE)) {
-        att_flags |= HA_FLAG_PERM_WRITE;
+        att_flags |= BLE_ATT_F_WRITE;
     }
-    if (chr_flags & BLE_GATT_CHR_F_ENC_REQ) {
-        att_flags |= HA_FLAG_ENC_REQ;
+    if (chr_flags & BLE_GATT_CHR_F_READ_ENC) {
+        att_flags |= BLE_ATT_F_READ_ENC;
     }
-    if (chr_flags & BLE_GATT_CHR_F_AUTHEN_REQ) {
-        att_flags |= HA_FLAG_AUTHENTICATION_REQ;
+    if (chr_flags & BLE_GATT_CHR_F_READ_AUTHEN) {
+        att_flags |= BLE_ATT_F_READ_AUTHEN;
     }
-    if (chr_flags & BLE_GATT_CHR_F_AUTHOR_REQ) {
-        att_flags |= HA_FLAG_AUTHORIZATION_REQ;
+    if (chr_flags & BLE_GATT_CHR_F_READ_AUTHOR) {
+        att_flags |= BLE_ATT_F_READ_AUTHOR;
+    }
+    if (chr_flags & BLE_GATT_CHR_F_WRITE_ENC) {
+        att_flags |= BLE_ATT_F_WRITE_ENC;
+    }
+    if (chr_flags & BLE_GATT_CHR_F_WRITE_AUTHEN) {
+        att_flags |= BLE_ATT_F_WRITE_AUTHEN;
+    }
+    if (chr_flags & BLE_GATT_CHR_F_WRITE_AUTHOR) {
+        att_flags |= BLE_ATT_F_WRITE_AUTHOR;
     }
 
     return att_flags;
@@ -364,7 +373,7 @@ ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
     BLE_HS_DBG_ASSERT(entry->handle != 0);
     BLE_HS_DBG_ASSERT(entry->end_group_handle != 0xffff);
 
-    rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_INCLUDE, HA_FLAG_PERM_READ,
+    rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_INCLUDE, BLE_ATT_F_READ,
                                      &handle, ble_gatts_inc_access, entry);
     if (rc != 0) {
         return rc;
@@ -613,7 +622,7 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
         return rc;
     }
 
-    rc = ble_att_svr_register(uuid128, HA_FLAG_PERM_READ | HA_FLAG_PERM_WRITE,
+    rc = ble_att_svr_register(uuid128, BLE_ATT_F_READ | BLE_ATT_F_WRITE,
                               att_handle, ble_gatts_clt_cfg_access, NULL);
     if (rc != 0) {
         return rc;
@@ -644,7 +653,7 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
      * callback arg).
      */
     rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_CHARACTERISTIC,
-                                     HA_FLAG_PERM_READ, &def_handle,
+                                     BLE_ATT_F_READ, &def_handle,
                                      ble_gatts_chr_def_access, (void *)chr);
     if (rc != 0) {
         return rc;
@@ -754,7 +763,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     /* Register service definition attribute (cast away const on callback
      * arg).
      */
-    rc = ble_att_svr_register_uuid16(uuid16, HA_FLAG_PERM_READ, out_handle,
+    rc = ble_att_svr_register_uuid16(uuid16, BLE_ATT_F_READ, out_handle,
                                      ble_gatts_svc_access, (void *)svc);
     if (rc != 0) {
         return rc;

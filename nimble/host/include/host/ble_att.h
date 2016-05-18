@@ -72,13 +72,16 @@
 
 #define BLE_ATT_ATTR_MAX_LEN                512
 
-#define HA_FLAG_PERM_READ                   (1 << 0)
-#define HA_FLAG_PERM_WRITE                  (1 << 1)
-#define HA_FLAG_ENC_REQ                     (1 << 2)
-#define HA_FLAG_AUTHENTICATION_REQ          (1 << 3)
-#define HA_FLAG_AUTHORIZATION_REQ           (1 << 4)
+#define BLE_ATT_F_READ                      0x01
+#define BLE_ATT_F_WRITE                     0x02
+#define BLE_ATT_F_READ_ENC                  0x04
+#define BLE_ATT_F_READ_AUTHEN               0x08
+#define BLE_ATT_F_READ_AUTHOR               0x10
+#define BLE_ATT_F_WRITE_ENC                 0x20
+#define BLE_ATT_F_WRITE_AUTHEN              0x40
+#define BLE_ATT_F_WRITE_AUTHOR              0x80
 
-#define HA_FLAG_PERM_RW             (HA_FLAG_PERM_READ | HA_FLAG_PERM_WRITE)
+#define HA_FLAG_PERM_RW                     (BLE_ATT_F_READ | BLE_ATT_F_WRITE)
 
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2

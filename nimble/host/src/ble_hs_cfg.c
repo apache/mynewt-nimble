@@ -57,6 +57,8 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     .sm_mitm = 0,
     .sm_sc = 0,
     .sm_keypress = 0,
+    .sm_our_key_dist = 0,
+    .sm_their_key_dist = 0,
 };
 
 struct ble_hs_cfg ble_hs_cfg;
