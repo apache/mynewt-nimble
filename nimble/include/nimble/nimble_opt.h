@@ -52,10 +52,10 @@
 #define NIMBLE_OPT_WHITELIST                    1
 #endif
 
-/** HOST / CONTROLLER: Security manager.  Disabled by default. */
+/** HOST / CONTROLLER: Security manager.  Enabled by default. */
 
 #ifndef NIMBLE_OPT_SM
-#define NIMBLE_OPT_SM                           0
+#define NIMBLE_OPT_SM                           1
 #endif
 
 
