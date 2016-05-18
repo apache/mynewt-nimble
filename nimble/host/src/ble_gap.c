@@ -248,7 +248,7 @@ ble_gap_log_adv(struct hci_adv_params *adv_params)
                ble_gap_slave.disc_mode, adv_params->peer_addr_type);
     BLE_HS_LOG_ADDR(INFO, adv_params->peer_addr);
     BLE_HS_LOG(INFO, " adv_type=%d adv_channel_map=%d own_addr_type=%d "
-                     "adv_filter_policy=%d adv_itvl_min=%d  adv_itvl_max=%d "
+                     "adv_filter_policy=%d adv_itvl_min=%d adv_itvl_max=%d "
                      "adv_data_len=%d",
                adv_params->adv_type,
                adv_params->adv_channel_map,
