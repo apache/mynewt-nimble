@@ -21,13 +21,21 @@
 #include <string.h>
 #include "os/os.h"
 #include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
+#include "ble/xcvr.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_hw.h"
+#include "hal/hal_cputime.h"
 
-#ifndef BLE_USES_HW_WHITELIST
+#if (NIMBLE_OPT_LL_WHITELIST_SIZE < BLE_HW_WHITE_LIST_SIZE)
+#define BLE_LL_WHITELIST_SIZE       NIMBLE_OPT_LL_WHITELIST_SIZE
+#else
+#define BLE_LL_WHITELIST_SIZE       BLE_HW_WHITE_LIST_SIZE
+#endif
+
 struct ble_ll_whitelist_entry
 {
     uint8_t wl_valid;
@@ -35,8 +43,7 @@ struct ble_ll_whitelist_entry
     uint8_t wl_dev_addr[BLE_DEV_ADDR_LEN];
 };
 
-struct ble_ll_whitelist_entry g_ble_ll_whitelist[NIMBLE_OPT_LL_WHITELIST_SIZE];
-#endif
+struct ble_ll_whitelist_entry g_ble_ll_whitelist[BLE_LL_WHITELIST_SIZE];
 
 static int
 ble_ll_whitelist_chg_allowed(void)
@@ -65,24 +72,23 @@ ble_ll_whitelist_chg_allowed(void)
 int
 ble_ll_whitelist_clear(void)
 {
+    int i;
+    struct ble_ll_whitelist_entry *wl;
 
     /* Check proper state */
     if (!ble_ll_whitelist_chg_allowed()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-#ifdef BLE_USES_HW_WHITELIST
-    ble_hw_whitelist_clear();
-#else
-    int i;
-    struct ble_ll_whitelist_entry *wl;
-
     /* Set the number of entries to 0 */
     wl = &g_ble_ll_whitelist[0];
-    for (i = 0; i < NIMBLE_OPT_LL_WHITELIST_SIZE; ++i) {
+    for (i = 0; i < BLE_LL_WHITELIST_SIZE; ++i) {
         wl->wl_valid = 0;
         ++wl;
     }
+
+#if (BLE_USES_HW_WHITELIST == 1)
+    ble_hw_whitelist_clear();
 #endif
 
     return BLE_ERR_SUCCESS;
@@ -99,20 +105,17 @@ ble_ll_whitelist_clear(void)
 int
 ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
 {
-#ifdef BLE_USES_HW_WHITELIST
-    rspbuf[0] = ble_hw_whitelist_size();
-#else
-    rspbuf[0] = NIMBLE_OPT_LL_WHITELIST_SIZE;
-#endif
+    rspbuf[0] = BLE_LL_WHITELIST_SIZE;
     *rsplen = 1;
     return BLE_ERR_SUCCESS;
 }
 
-#ifndef BLE_USES_HW_WHITELIST
 /**
- * Used to determine if the device is on the whitelist.
+ * Searches the whitelist to determine if the address is present in the
+ * whitelist. This is an internal API that only searches the link layer
+ * whitelist and does not care about the hardware whitelist
  *
- * @param addr
+ * @param addr      Device or identity address to check.
  * @param addr_type Public address (0) or random address (1)
  *
  * @return int 0: device is not on whitelist; otherwise the return value
@@ -120,13 +123,13 @@ ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
  * plus 1).
  */
 static int
-ble_ll_is_on_whitelist(uint8_t *addr, uint8_t addr_type)
+ble_ll_whitelist_search(uint8_t *addr, uint8_t addr_type)
 {
     int i;
     struct ble_ll_whitelist_entry *wl;
 
     wl = &g_ble_ll_whitelist[0];
-    for (i = 0; i < NIMBLE_OPT_LL_WHITELIST_SIZE; ++i) {
+    for (i = 0; i < BLE_LL_WHITELIST_SIZE; ++i) {
         if ((wl->wl_valid) && (wl->wl_addr_type == addr_type) &&
             (!memcmp(&wl->wl_dev_addr[0], addr, BLE_DEV_ADDR_LEN))) {
             return i + 1;
@@ -136,24 +139,37 @@ ble_ll_is_on_whitelist(uint8_t *addr, uint8_t addr_type)
 
     return 0;
 }
-#endif
 
 /**
- * Is there a match between the device and a device on the whitelist
+ * Is there a match between the device and a device on the whitelist.
+ *
+ * NOTE: This API uses the HW, if present, to determine if there was a match
+ * between a received address and an address in the whitelist. If the HW does
+ * not support whitelisting this API is the same as the whitelist search API
  *
  * @param addr
  * @param addr_type Public address (0) or random address (1)
+ * @param is_ident  True if addr is an identity address; false otherwise
  *
  * @return int
  */
 int
-ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type)
+ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type, int is_ident)
 {
     int rc;
-#ifdef BLE_USES_HW_WHITELIST
-    rc = ble_hw_whitelist_match();
+#if (BLE_USES_HW_WHITELIST == 1)
+    /*
+     * XXX: This should be changed. This is HW specific: some HW may be able
+     * to both resolve a private address and perform a whitelist check. The
+     * current BLE hw cannot support this.
+     */
+    if (is_ident) {
+        rc = ble_ll_whitelist_search(addr, addr_type);
+    } else {
+        rc = ble_hw_whitelist_match();
+    }
 #else
-    rc = ble_ll_is_on_whitelist(addr, addr_type);
+    rc = ble_ll_whitelist_search(addr, addr_type);
 #endif
     return rc;
 }
@@ -166,7 +182,9 @@ ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type)
 int
 ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
 {
+    int i;
     int rc;
+    struct ble_ll_whitelist_entry *wl;
 
     /* Must be in proper state */
     if (!ble_ll_whitelist_chg_allowed()) {
@@ -174,16 +192,10 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
     }
 
     /* Check if we have any open entries */
-#ifdef BLE_USES_HW_WHITELIST
-    rc = ble_hw_whitelist_add(addr, addr_type);
-#else
-    int i;
-    struct ble_ll_whitelist_entry *wl;
-
     rc = BLE_ERR_SUCCESS;
-    if (!ble_ll_is_on_whitelist(addr, addr_type)) {
+    if (!ble_ll_whitelist_search(addr, addr_type)) {
         wl = &g_ble_ll_whitelist[0];
-        for (i = 0; i < NIMBLE_OPT_LL_WHITELIST_SIZE; ++i) {
+        for (i = 0; i < BLE_LL_WHITELIST_SIZE; ++i) {
             if (wl->wl_valid == 0) {
                 memcpy(&wl->wl_dev_addr[0], addr, BLE_DEV_ADDR_LEN);
                 wl->wl_addr_type = addr_type;
@@ -193,11 +205,14 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
             ++wl;
         }
 
-        if (i == NIMBLE_OPT_LL_WHITELIST_SIZE) {
+        if (i == BLE_LL_WHITELIST_SIZE) {
             rc = BLE_ERR_MEM_CAPACITY;
+        } else {
+#if (BLE_USES_HW_WHITELIST == 1)
+            rc = ble_hw_whitelist_add(addr, addr_type);
+#endif
         }
     }
-#endif
 
     return rc;
 }
@@ -212,20 +227,20 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
 int
 ble_ll_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
 {
+    int position;
+
     /* Must be in proper state */
     if (!ble_ll_whitelist_chg_allowed()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-#ifdef BLE_USES_HW_WHITELIST
-    ble_hw_whitelist_rmv(addr, addr_type);
-#else
-    int position;
-
-    position = ble_ll_is_on_whitelist(addr, addr_type);
+    position = ble_ll_whitelist_search(addr, addr_type);
     if (position) {
         g_ble_ll_whitelist[position - 1].wl_valid = 0;
     }
+
+#if (BLE_USES_HW_WHITELIST == 1)
+    ble_hw_whitelist_rmv(addr, addr_type);
 #endif
 
     return BLE_ERR_SUCCESS;
@@ -239,7 +254,7 @@ ble_ll_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
 void
 ble_ll_whitelist_enable(void)
 {
-#ifdef BLE_USES_HW_WHITELIST
+#if (BLE_USES_HW_WHITELIST == 1)
     ble_hw_whitelist_enable();
 #endif
 }
@@ -252,9 +267,7 @@ ble_ll_whitelist_enable(void)
 void
 ble_ll_whitelist_disable(void)
 {
-#ifdef BLE_USES_HW_WHITELIST
+#if (BLE_USES_HW_WHITELIST == 1)
     ble_hw_whitelist_disable();
 #endif
 }
-
-

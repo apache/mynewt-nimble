@@ -27,7 +27,7 @@
  */
 struct ble_ll_resolv_entry
 {
-    uint8_t rl_valid;
+    uint8_t rl_reserved;
     uint8_t rl_addr_type;
     uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
     uint8_t rl_local_irk[16];
@@ -51,16 +51,11 @@ int ble_ll_resolv_list_rmv(uint8_t *cmdbuf);
 /* Address resolution enable command */
 int ble_ll_resolv_enable_cmd(uint8_t *cmdbuf);
 
+/* XXX: implement */
 int ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf);
 void ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf);
 
-/* Enable resolving list */
-void ble_ll_resolv_list_enable(void);
-
-/* Disable resolving list */
-void ble_ll_resolv_list_disable(void);
-
-/* Finds 'addr' in resolving list. */
+/* Finds 'addr' in resolving list. Doesnt check if address resolution enabled */
 struct ble_ll_resolv_entry *
 ble_ll_resolv_list_find(uint8_t *addr, uint8_t addr_type);
 
@@ -75,5 +70,21 @@ void ble_ll_resolv_list_reset(void);
 
 void ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local,
                                  uint8_t *addr);
+
+/* Generate a resolvable private address. */
+int ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa,
+                          int local);
+
+/* Set the resolvable private address timeout */
+int ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf);
+
+/* Get the RPA timeout, in seconds */
+uint32_t ble_ll_resolv_get_rpa_tmo(void);
+
+/* Resolve a resolvable private address */
+int ble_ll_resolv_rpa(uint8_t *rpa, uint8_t *irk);
+
+/* Initialize resolv*/
+void ble_ll_resolv_init(void);
 
 #endif

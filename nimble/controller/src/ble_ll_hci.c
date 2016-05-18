@@ -663,7 +663,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_resolv_enable_cmd(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_SET_RPA_TMO:
-        /* XXX: implement */
+        rc = ble_ll_resolv_set_rpa_tmo(cmdbuf);
         break;
 #endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:

@@ -29,4 +29,10 @@
 #define XCVR_RX_SCHED_DELAY_USECS     \
     (XCVR_RX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
 
+/*
+ * Define HW whitelist size. This is the total possible whitelist size;
+ * not necessarily the size that will be used (may be smaller)
+ */
+#define BLE_HW_WHITE_LIST_SIZE        (8)
+
 #endif /* H_BLE_XCVR_ */

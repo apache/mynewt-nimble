@@ -266,6 +266,7 @@ ble_phy_rx_xcvr_setup(void)
                            (2 << RADIO_PCNF0_S1LEN_Pos) |
                            (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
+        NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
         NRF_AAR->ADDRPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
         NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
         NRF_AAR->EVENTS_END = 0;
@@ -821,7 +822,6 @@ ble_phy_rx_set_start_time(uint32_t cputime)
     return rc;
 }
 
-
 int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 {
@@ -869,6 +869,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
                            (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
         NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk;
+        NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
 #endif
         /* RAM representation has S0 and LENGTH fields (2 bytes) */
         dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];

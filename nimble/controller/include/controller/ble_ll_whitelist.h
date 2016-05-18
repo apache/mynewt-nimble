@@ -39,6 +39,6 @@ void ble_ll_whitelist_enable(void);
 void ble_ll_whitelist_disable(void);
 
 /* Boolean function returning true if address matches a whitelist entry */
-int ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type);
+int ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type, int is_ident);
 
 #endif /* H_BLE_LL_WHITELIST_ */

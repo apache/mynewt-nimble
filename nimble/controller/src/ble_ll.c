@@ -288,21 +288,23 @@ ble_ll_chk_txrx_time(uint16_t time)
     return rc;
 }
 
-/* WWW: check where called to see if correct */
 /**
- * Checks to see if the address is a resolvable private address. Th
+ * Checks to see if the address is a resolvable private address.
  *
+ * NOTE: the addr_type parameter will be 0 if the address is public;
+ * any other value is random (all non-zero values).
  *
  * @param addr
+ * @param addr_type Public (zero) or Random (non-zero) address
  *
  * @return int
  */
 int
-ble_ll_is_resolvable_priv_addr(uint8_t *addr)
+ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type)
 {
     int rc;
 
-    if ((addr[5] & 0xc0) == 0x40) {
+    if (addr_type && ((addr[5] & 0xc0) == 0x40)) {
         rc = 1;
     } else {
         rc = 0;
@@ -385,7 +387,7 @@ ble_ll_set_random_addr(uint8_t *addr)
  * @param addr
  * @param addr_type
  *
- * @return int
+ * @return int 0: not our device address. 1: is our device address
  */
 int
 ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
@@ -1159,6 +1161,10 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 #endif
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     features |= BLE_LL_FEAT_LE_ENCRYPTION;
+#endif
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    ble_ll_resolv_init();
 #endif
 
     /* Initialize random number generation */

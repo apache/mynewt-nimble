@@ -116,6 +116,12 @@ int ble_ll_adv_set_adv_params(uint8_t *cmd);
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
 
 /*---- API used by BLE LL ----*/
+/* Returns local resolvable private address */
+uint8_t *ble_ll_adv_get_local_rpa(void);
+
+/* Returns peer resolvable private address */
+uint8_t *ble_ll_adv_get_peer_rpa(void);
+
 /* Called when advertising event done posted to LL task */
 void ble_ll_adv_event_done(void *arg);
 

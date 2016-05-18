@@ -498,6 +498,7 @@
 
 /* LE advertising report event. (sub event 0x02) */
 #define BLE_HCI_LE_ADV_RPT_MIN_LEN          (12)
+#define BLE_HCI_LE_ADV_DIRECT_RPT_LEN       (18)
 #define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN     (1)
 #define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX     (0x19)
 
@@ -536,6 +537,9 @@
 #define BLE_LMP_VER_BCS_4_0                 (6)
 #define BLE_LMP_VER_BCS_4_1                 (7)
 #define BLE_LMP_VER_BCS_4_2                 (8)
+
+/* Sub-event 0x0A: enhanced connection complete */
+#define BLE_HCI_LE_ENH_CONN_COMPLETE_LEN    (31)
 
 /*--- Shared data structures ---*/
 /* Read local version information (OGF=0x0004, OCF=0x0001) */

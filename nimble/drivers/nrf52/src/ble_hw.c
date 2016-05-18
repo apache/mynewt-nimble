@@ -21,14 +21,12 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "mcu/nrf52_bitfields.h"
 #include "controller/ble_hw.h"
 #include "bsp/cmsis_nvic.h"
-
-/* Total number of white list elements */
-#define BLE_HW_WHITE_LIST_SIZE      (8)
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -399,9 +397,10 @@ ble_hw_resolv_list_rmv(int index)
 }
 
 /**
- * Returns the size of the whitelist in HW
+ * Returns the size of the resolving list. NOTE: this returns the maximum
+ * allowable entries in the HW. Configuration options may limit this.
  *
- * @return int Number of devices allowed in whitelist
+ * @return int Number of devices allowed in resolving list
  */
 uint8_t
 ble_hw_resolv_list_size(void)
