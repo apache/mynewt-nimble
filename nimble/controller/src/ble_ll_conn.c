@@ -1302,6 +1302,8 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     connsm->slave_latency = hcc->conn_latency;
     connsm->supervision_tmo = hcc->supervision_timeout;
 
+    /* WWW: if not using whitelist, what happens if we resolve the address?
+       we would have to set the differently huh? CHeck this out... */
     /* Set own address type and peer address if needed */
     connsm->own_addr_type = hcc->own_addr_type;
     if (hcc->filter_policy == 0) {
@@ -1775,6 +1777,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
                 ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
             }
         }
+        /* WWW: enhanced connection complete! */
         ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS);
     }
 
@@ -2744,14 +2747,13 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
  * @return 0: connection not started; 1 connecton started
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t resolved)
 {
     int rc;
     uint32_t temp;
     uint32_t crcinit;
     uint8_t *inita;
     uint8_t *dptr;
-    uint8_t addr_type;
     struct ble_ll_conn_sm *connsm;
 
     /* Ignore the connection request if we are already connected*/
@@ -2759,12 +2761,13 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end)
     SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
         if (!memcmp(&connsm->peer_addr, inita, BLE_DEV_ADDR_LEN)) {
             if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-                addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
+                if (connsm->peer_addr_type & 1) {
+                    return 0;
+                }
             } else {
-                addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
-            }
-            if (connsm->peer_addr_type == addr_type) {
-                return 0;
+                if ((connsm->peer_addr_type & 1) == 0) {
+                    return 0;
+                }
             }
         }
     }
@@ -2821,13 +2824,22 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end)
         goto err_slave_start;
     }
 
-    /* XXX: might want to set this differently based on adv. filter policy! */
+    /* WWW: what about master when it makes a connection? It has to do this
+       properly! */
     /* Set the address of device that we are connecting with */
-    memcpy(&connsm->peer_addr, rxbuf + BLE_LL_PDU_HDR_LEN, BLE_DEV_ADDR_LEN);
+    memcpy(&connsm->peer_addr, inita, BLE_DEV_ADDR_LEN);
     if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-        connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
+        if (resolved) {
+            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT;
+        } else {
+            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
+        }
     } else {
-        connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
+        if (resolved) {
+            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT;
+        } else {
+            connsm->peer_addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
+        }
     }
 
     /* Calculate number of used channels; make sure it meets min requirement */

@@ -1203,9 +1203,9 @@ host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
     int rc;
 
     BLE_HS_DBG_ASSERT(
-        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN);
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RESPRIV_ADDR_TO_LEN);
 
-    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RESOLV_PRIV_ADDR,
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RPA_TMO,
                        BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN, dst);
 
     rc = host_hci_cmd_body_set_resolvable_private_address_timeout(timeout,

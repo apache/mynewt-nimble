@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -57,23 +57,44 @@ int ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias);
 
 /**
  * Start the random number generator
- * 
- * @return int 
+ *
+ * @return int
  */
 int ble_hw_rng_start(void);
 
 /**
  * Stop the random generator
- * 
- * @return int 
+ *
+ * @return int
  */
 int ble_hw_rng_stop(void);
 
 /**
  * Read the random number generator.
- * 
- * @return uint8_t 
+ *
+ * @return uint8_t
  */
 uint8_t ble_hw_rng_read(void);
+
+/*  Clear the resolving list*/
+void ble_hw_resolv_list_clear(void);
+
+/* Add a device to the hw resolving list */
+int ble_hw_resolv_list_add(uint8_t *irk);
+
+/* Remove a device from the hw resolving list */
+void ble_hw_resolv_list_rmv(int index);
+
+/* Returns the size of the whitelist in HW */
+uint8_t ble_hw_resolv_list_size(void);
+
+/* Enable the resolving list */
+void ble_hw_resolv_list_enable(void);
+
+/* Disables resolving list devices */
+void ble_hw_resolv_list_disable(void);
+
+/* Returns index of resolved address; -1 if not resolved */
+int ble_hw_resolv_list_match(void);
 
 #endif /* H_BLE_HW_ */

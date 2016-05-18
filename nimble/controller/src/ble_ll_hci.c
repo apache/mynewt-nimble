@@ -30,6 +30,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
+#include "controller/ble_ll_resolv.h"
 #include "ble_ll_conn_priv.h"
 
 /* LE event mask */
@@ -637,6 +638,32 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
     case BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN:
         rc = ble_ll_hci_le_wr_sugg_data_len(cmdbuf);
+        break;
+#endif
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    case BLE_HCI_OCF_LE_ADD_RESOLV_LIST :
+        ble_ll_resolv_list_add(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_RMV_RESOLV_LIST:
+        ble_ll_resolv_list_rmv(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_CLR_RESOLV_LIST:
+        rc = ble_ll_resolv_list_clr();
+        break;
+    case BLE_HCI_OCF_LE_RD_RESOLV_LIST_SIZE:
+        rc = ble_ll_resolv_list_read_size(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR:
+        rc = ble_ll_resolv_peer_addr_rd(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR:
+        ble_ll_resolv_local_addr_rd(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_SET_ADDR_RES_EN:
+        rc = ble_ll_resolv_enable_cmd(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_SET_RPA_TMO:
+        /* XXX: implement */
         break;
 #endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:

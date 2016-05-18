@@ -119,7 +119,7 @@
 #define BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR  (0x002B)
 #define BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR (0x002C)
 #define BLE_HCI_OCF_LE_SET_ADDR_RES_EN      (0x002D)
-#define BLE_HCI_OCF_LE_SET_RESOLV_PRIV_ADDR (0x002E)
+#define BLE_HCI_OCF_LE_SET_RPA_TMO          (0x002E)
 #define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
 
 /* Command Specific Definitions */

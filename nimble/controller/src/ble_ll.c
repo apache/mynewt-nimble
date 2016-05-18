@@ -33,6 +33,8 @@
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_hci.h"
+#include "controller/ble_ll_whitelist.h"
+#include "controller/ble_ll_resolv.h"
 #include "ble_ll_conn_priv.h"
 #include "hal/hal_cputime.h"
 
@@ -286,11 +288,26 @@ ble_ll_chk_txrx_time(uint16_t time)
     return rc;
 }
 
+/* WWW: check where called to see if correct */
+/**
+ * Checks to see if the address is a resolvable private address. Th
+ *
+ *
+ * @param addr
+ *
+ * @return int
+ */
 int
 ble_ll_is_resolvable_priv_addr(uint8_t *addr)
 {
-    /* XXX: implement this */
-    return 0;
+    int rc;
+
+    if ((addr[5] & 0xc0) == 0x40) {
+        rc = 1;
+    } else {
+        rc = 0;
+    }
+    return rc;
 }
 
 /* Checks to see that the device is a valid random address */
@@ -1064,6 +1081,14 @@ ble_ll_reset(void)
 
     /* Reset our random address */
     memset(g_random_addr, 0, BLE_DEV_ADDR_LEN);
+
+    /* Clear the whitelist */
+    ble_ll_whitelist_clear();
+
+    /* Reset resolving list */
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    ble_ll_resolv_list_reset();
+#endif
 
     /* Re-initialize the PHY */
     rc = ble_phy_init();

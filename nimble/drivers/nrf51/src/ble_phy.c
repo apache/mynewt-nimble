@@ -41,6 +41,10 @@
  * crystal accuracy
  */
 
+/* XXX: private header file? */
+extern uint8_t g_nrf_num_irks;
+extern uint32_t g_nrf_irk_list[];
+
 /* To disable all radio interrupts */
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
 
@@ -76,7 +80,9 @@ struct ble_phy_obj
     uint8_t phy_transition;
     uint8_t phy_rx_started;
     uint8_t phy_encrypted;
+    uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
+    uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
     void *txend_arg;
@@ -159,7 +165,7 @@ STATS_NAME_END(ble_phy_stats)
  */
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
-
+/* XXX: test this. only needs 43 bytes. Should just not use the macro for this*/
 /* Per nordic, the number of bytes needed for scratch is 16 + MAX_PKT_SIZE */
 #define NRF_ENC_SCRATCH_WORDS   (((NIMBLE_OPT_LL_MAX_PKT_SIZE + 16) + 3) / 4)
 
@@ -254,8 +260,30 @@ ble_phy_rx_xcvr_setup(void)
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
 #endif
 
-    /* We dont want to trigger TXEN on output compare match */
-    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    if (g_ble_phy_data.phy_privacy) {
+        NRF_RADIO->PCNF0 = (6 << RADIO_PCNF0_LFLEN_Pos) |
+                           (2 << RADIO_PCNF0_S1LEN_Pos) |
+                           (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
+        NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
+        NRF_AAR->ADDRPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
+        NRF_AAR->EVENTS_END = 0;
+        NRF_AAR->EVENTS_RESOLVED = 0;
+        NRF_AAR->EVENTS_NOTRESOLVED = 0;
+    } else {
+        if (g_ble_phy_data.phy_encrypted == 0) {
+            NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
+                               (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
+            /* XXX: do I only need to do this once? Figure out what I can do
+               once. */
+            NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Disabled;
+        }
+    }
+#endif
+
+    /* Turn off trigger TXEN on output compare match and AAR on bcmatch */
+    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk | PPI_CHEN_CH23_Msk;
 
     /* Reset the rx started flag. Used for the wait for response */
     g_ble_phy_data.phy_rx_started = 0;
@@ -284,8 +312,8 @@ ble_phy_rx_xcvr_setup(void)
 static void
 ble_phy_tx_end_isr(void)
 {
-    uint8_t txlen;
     uint8_t transition;
+    uint8_t txlen;
     uint32_t wfr_time;
 
     /* Better be in TX state! */
@@ -416,8 +444,8 @@ ble_phy_rx_end_isr(void)
     rxpdu = g_ble_phy_data.rxpdu;
     g_ble_phy_data.rxpdu = NULL;
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
-    if (g_ble_phy_data.phy_encrypted) {
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1) || (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    if (g_ble_phy_data.phy_encrypted || g_ble_phy_data.phy_privacy) {
         /*
          * XXX: This is a horrible ugly hack to deal with the RAM S1 byte.
          * This should get fixed as we should not be handing up the header
@@ -479,6 +507,15 @@ ble_phy_rx_start_isr(void)
         /* Set rx started flag and enable rx end ISR */
         g_ble_phy_data.phy_rx_started = 1;
         NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+        /* Must start aar if we need to  */
+        if (g_ble_phy_data.phy_privacy) {
+            NRF_RADIO->EVENTS_BCMATCH = 0;
+            NRF_PPI->CHENSET = PPI_CHEN_CH23_Msk;
+            NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8;
+        }
+#endif
     } else {
         /* Disable PHY */
         ble_phy_disable();
@@ -584,9 +621,18 @@ ble_phy_init(void)
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     NRF_CCM->INTENCLR = 0xffffffff;
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
-    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
     NRF_CCM->EVENTS_ERROR = 0;
     memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
+#endif
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    g_ble_phy_data.phy_aar_scratch = 0;
+    NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
+    NRF_AAR->INTENCLR = 0xffffffff;
+    NRF_AAR->EVENTS_END = 0;
+    NRF_AAR->EVENTS_RESOLVED = 0;
+    NRF_AAR->EVENTS_NOTRESOLVED = 0;
+    NRF_AAR->NIRK = 0;
 #endif
 
     /* Set isr in vector table and enable interrupt */
@@ -675,6 +721,10 @@ ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
     NRF_RADIO->PCNF0 = (5 << RADIO_PCNF0_LFLEN_Pos) |
                        (3 << RADIO_PCNF0_S1LEN_Pos) |
                        (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
+
+    /* Enable the module (AAR cannot be on while CCM on) */
+    NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Disabled;
+    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
 }
 
 void
@@ -690,6 +740,7 @@ ble_phy_encrypt_disable(void)
     NRF_PPI->CHENCLR = (PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk);
     NRF_CCM->TASKS_STOP = 1;
     NRF_CCM->EVENTS_ERROR = 0;
+    NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Disabled;
 
     /* Switch back to normal length */
     NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
@@ -809,9 +860,16 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         NRF_CCM->EVENTS_ERROR = 0;
         NRF_CCM->MODE = CCM_MODE_MODE_Encryption;
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
-        NRF_PPI->CHENCLR = PPI_CHEN_CH25_Msk;
+        NRF_PPI->CHENCLR = PPI_CHEN_CH25_Msk | PPI_CHEN_CH23_Msk;
         NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk;
     } else {
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+        /* Reconfigure PCNF0 */
+        NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
+                           (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
+        NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk;
+#endif
         /* RAM representation has S0 and LENGTH fields (2 bytes) */
         dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
         dptr[0] = ble_hdr->txinfo.hdr_byte;
@@ -819,12 +877,21 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         dptr += 2;
     }
 #else
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    /* Reconfigure PCNF0 */
+    NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
+                       (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
+    NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk;
+#endif
+
     /* RAM representation has S0 and LENGTH fields (2 bytes) */
     dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
     dptr[0] = ble_hdr->txinfo.hdr_byte;
     dptr[1] = payload_len;
     dptr += 2;
 #endif
+
     NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
 
     /* Clear the ready, end and disabled events */
@@ -1015,7 +1082,7 @@ ble_phy_disable(void)
     NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
     NRF_RADIO->SHORTS = 0;
     NRF_RADIO->TASKS_DISABLE = 1;
-    NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk | PPI_CHEN_CH20_Msk;
+    NRF_PPI->CHENCLR = PPI_CHEN_CH23_Msk | PPI_CHEN_CH21_Msk | PPI_CHEN_CH20_Msk;
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
 }
@@ -1061,13 +1128,6 @@ ble_phy_xcvr_state_get(void)
     return (uint8_t)state;
 }
 
-/*
- * Returns the maximum supported tx/rx PDU payload size, in bytes, for data
- * channel PDUs (this does not apply to advertising channel PDUs). Note
- * that the data channel PDU is composed of a 2-byte header, the payload, and
- * an optional MIC. The maximum payload is 251 bytes.
- */
-
 /**
  * Called to return the maximum data pdu payload length supported by the
  * phy. For this chip, if encryption is enabled, the maximum payload is 27
@@ -1084,3 +1144,18 @@ ble_phy_max_data_pdu_pyld(void)
     return BLE_LL_DATA_PDU_MAX_PYLD;
 #endif
 }
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+void
+ble_phy_resolv_list_enable(void)
+{
+    NRF_AAR->NIRK = (uint32_t)g_nrf_num_irks;
+    g_ble_phy_data.phy_privacy = 1;
+}
+
+void
+ble_phy_resolv_list_disable(void)
+{
+    g_ble_phy_data.phy_privacy = 0;
+}
+#endif
