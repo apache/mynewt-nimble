@@ -25,7 +25,7 @@
 #include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_OPT_SM
+#if NIMBLE_OPT(SM)
 
 static mbedtls_aes_context ble_l2cap_sm_alg_ctxt;
 

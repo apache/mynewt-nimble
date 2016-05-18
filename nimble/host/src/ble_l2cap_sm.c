@@ -48,7 +48,7 @@
 #include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_OPT_SM
+#if NIMBLE_OPT(SM)
 
 #define BLE_L2CAP_SM_PROC_STATE_NONE            ((uint8_t)-1)
 

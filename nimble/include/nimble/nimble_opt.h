@@ -58,7 +58,6 @@
 #define NIMBLE_OPT_SM                           1
 #endif
 
-
 /** HOST: Supported GATT procedures.  By default, all are enabled. */
 
 #ifndef NIMBLE_OPT_GATT_DISC_ALL_SVCS
@@ -366,6 +365,14 @@
 #ifndef BLE_LL_CFG_FEAT_EXT_SCAN_FILT
 #define  BLE_LL_CFG_FEAT_EXT_SCAN_FILT          (0)
 #endif
+
+/**
+ * This macro exists to help catch bugs at compile time.  If code uses this
+ * macro to check an option value, the compiler will complain when this header
+ * is not included.  If the code checks the option symbol directly without
+ * including this header, it will appear as though the option is set to 0.
+ */
+#define NIMBLE_OPT(x)                           NIMBLE_OPT_ ## x
 
 /* Include automatically-generated settings. */
 #include "nimble/nimble_opt_auto.h"

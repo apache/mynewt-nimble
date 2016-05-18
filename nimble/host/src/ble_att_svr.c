@@ -776,7 +776,7 @@ done:
 int
 ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_FIND_INFO
+#if !NIMBLE_OPT(ATT_SVR_FIND_INFO)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1088,7 +1088,7 @@ done:
 int
 ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_FIND_TYPE
+#if !NIMBLE_OPT(ATT_SVR_FIND_TYPE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1269,7 +1269,7 @@ done:
 int
 ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_READ_TYPE
+#if !NIMBLE_OPT(ATT_SVR_READ_TYPE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1407,7 +1407,7 @@ done:
 int
 ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_READ
+#if !NIMBLE_OPT(ATT_SVR_READ)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1505,7 +1505,7 @@ done:
 int
 ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_READ_BLOB
+#if !NIMBLE_OPT(ATT_SVR_READ_BLOB)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1663,7 +1663,7 @@ done:
 int
 ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_READ_MULT
+#if !NIMBLE_OPT(ATT_SVR_READ_MULT)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1966,7 +1966,7 @@ done:
 int
 ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_READ_GROUP_TYPE
+#if !NIMBLE_OPT(ATT_SVR_READ_GROUP_TYPE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2070,7 +2070,7 @@ done:
 int
 ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_WRITE
+#if !NIMBLE_OPT(ATT_SVR_WRITE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2125,7 +2125,7 @@ done:
 int
 ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_WRITE_NO_RSP
+#if !NIMBLE_OPT(ATT_SVR_WRITE_NO_RSP)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2342,7 +2342,7 @@ ble_att_svr_prep_write(uint16_t conn_handle,
 int
 ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_PREP_WRITE
+#if !NIMBLE_OPT(ATT_SVR_PREP_WRITE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2517,7 +2517,7 @@ done:
 int
 ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_EXEC_WRITE
+#if !NIMBLE_OPT(ATT_SVR_EXEC_WRITE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2589,7 +2589,7 @@ done:
 int
 ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_NOTIFY
+#if !NIMBLE_OPT(ATT_SVR_NOTIFY)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2666,7 +2666,7 @@ done:
 int
 ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !NIMBLE_OPT_ATT_SVR_INDICATE
+#if !NIMBLE_OPT(ATT_SVR_INDICATE)
     return BLE_HS_ENOTSUP;
 #endif
 

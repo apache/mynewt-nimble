@@ -24,7 +24,7 @@
 #include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_OPT_SM
+#if NIMBLE_OPT(SM)
 
 static int
 ble_l2cap_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)

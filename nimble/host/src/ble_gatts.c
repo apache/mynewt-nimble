@@ -1111,7 +1111,7 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    uint16_t conn_handles[NIMBLE_OPT_MAX_CONNECTIONS];
+    uint16_t conn_handles[NIMBLE_OPT(MAX_CONNECTIONS)];
     int any_updates;
     int num_conns;
     int idx;
