@@ -106,6 +106,22 @@ static void *ble_l2cap_sig_proc_mem;
 static struct os_mempool ble_l2cap_sig_proc_pool;
 
 /*****************************************************************************
+ * $debug                                                                    *
+ *****************************************************************************/
+
+static void
+ble_l2cap_sig_dbg_assert_proc_not_inserted(struct ble_l2cap_sig_proc *proc)
+{
+#if BLE_HS_DEBUG
+    struct ble_l2cap_sig_proc *cur;
+
+    STAILQ_FOREACH(cur, &ble_l2cap_sig_procs, next) {
+        BLE_HS_DBG_ASSERT(cur != proc);
+    }
+#endif
+}
+
+/*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
 
@@ -158,6 +174,8 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
     int rc;
 
     if (proc != NULL) {
+        ble_l2cap_sig_dbg_assert_proc_not_inserted(proc);
+
         rc = os_memblock_put(&ble_l2cap_sig_proc_pool, proc);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
@@ -166,6 +184,8 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
 static void
 ble_l2cap_sig_proc_insert(struct ble_l2cap_sig_proc *proc)
 {
+    ble_l2cap_sig_dbg_assert_proc_not_inserted(proc);
+
     BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
     STAILQ_INSERT_HEAD(&ble_l2cap_sig_procs, proc, next);
 }
