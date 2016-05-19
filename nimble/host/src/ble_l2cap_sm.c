@@ -238,6 +238,18 @@ ble_l2cap_sm_dbg_assert_no_cycles(void)
 #endif
 }
 
+static void
+ble_l2cap_sm_dbg_assert_not_inserted(struct ble_l2cap_sm_proc *proc)
+{
+#if BLE_HS_DEBUG
+    struct ble_l2cap_sm_proc *cur;
+
+    STAILQ_FOREACH(cur, &ble_l2cap_sm_procs, next) {
+        BLE_HS_DBG_ASSERT(cur != proc);
+    }
+#endif
+}
+
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
@@ -432,6 +444,8 @@ ble_l2cap_sm_proc_free(struct ble_l2cap_sm_proc *proc)
     int rc;
 
     if (proc != NULL) {
+        ble_l2cap_sm_dbg_assert_not_inserted(proc);
+
         rc = os_memblock_put(&ble_l2cap_sm_proc_pool, proc);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
