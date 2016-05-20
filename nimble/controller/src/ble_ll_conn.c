@@ -986,6 +986,7 @@ conn_tx_pdu:
         opcode = m->om_data[0];
     } else {
         is_ctrl = 0;
+        opcode = 0;
     }
 
     if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_RSP)) {

@@ -248,6 +248,34 @@ ble_phy_rx(void)
     return 0;
 }
 
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+/**
+ * Called to enable encryption at the PHY. Note that this state will persist
+ * in the PHY; in other words, if you call this function you have to call
+ * disable so that future PHY transmits/receives will not be encrypted.
+ *
+ * @param pkt_counter
+ * @param iv
+ * @param key
+ * @param is_master
+ */
+void
+ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
+                       uint8_t is_master)
+{
+}
+
+void
+ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir)
+{
+}
+
+void
+ble_phy_encrypt_disable(void)
+{
+}
+#endif
+
 void
 ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
 {
@@ -255,6 +283,45 @@ ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
     g_ble_phy_data.txend_cb = txend_cb;
     g_ble_phy_data.txend_arg = arg;
 }
+
+/**
+ * Called to set the start time of a transmission.
+ *
+ * This function is called to set the start time when we are not going from
+ * rx to tx automatically.
+ *
+ * NOTE: care must be taken when calling this function. The channel should
+ * already be set.
+ *
+ * @param cputime
+ *
+ * @return int
+ */
+int
+ble_phy_tx_set_start_time(uint32_t cputime)
+{
+    return 0;
+}
+
+/**
+ * Called to set the start time of a reception
+ *
+ * This function acts a bit differently than transmit. If we are late getting
+ * here we will still attempt to receive.
+ *
+ * NOTE: care must be taken when calling this function. The channel should
+ * already be set.
+ *
+ * @param cputime
+ *
+ * @return int
+ */
+int
+ble_phy_rx_set_start_time(uint32_t cputime)
+{
+    return 0;
+}
+
 
 int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
@@ -427,4 +494,17 @@ int
 ble_phy_rx_started(void)
 {
     return g_ble_phy_data.phy_rx_started;
+}
+
+/**
+ * Called to return the maximum data pdu payload length supported by the
+ * phy. For this chip, if encryption is enabled, the maximum payload is 27
+ * bytes.
+ *
+ * @return uint8_t Maximum data channel PDU payload size supported
+ */
+uint8_t
+ble_phy_max_data_pdu_pyld(void)
+{
+    return BLE_LL_DATA_PDU_MAX_PYLD;
 }
