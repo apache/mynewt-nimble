@@ -530,7 +530,7 @@ static int
 ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
                                 uint8_t *uuid128, uint8_t att_op,
                                 struct ble_att_svr_access_ctxt *ctxt,
-                                void *arg)
+                                int *out_persist_flags)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     uint16_t chr_def_handle;
@@ -538,6 +538,8 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     uint8_t gatt_op;
 
     static uint8_t buf[2];
+
+    *out_persist_flags = -1;
 
     /* We always register the client characteristics descriptor with handle
      * (chr_def + 2).
@@ -577,6 +579,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         }
 
         clt_cfg->flags = flags;
+        *out_persist_flags = flags;
         break;
 
     default:
@@ -594,6 +597,7 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                          void *arg)
 {
     struct ble_hs_conn *conn;
+    int persist_flags;
     int rc;
 
     ble_hs_lock();
@@ -603,10 +607,14 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = BLE_ATT_ERR_UNLIKELY;
     } else {
         rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
-                                             ctxt, arg);
+                                             ctxt, &persist_flags);
     }
 
     ble_hs_unlock();
+
+    if (rc == 0 && persist_flags != -1) {
+        /* XXX: Persist flags. */
+    }
 
     return rc;
 }

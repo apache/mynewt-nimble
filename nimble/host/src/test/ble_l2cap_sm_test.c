@@ -32,7 +32,16 @@
 int ble_l2cap_sm_test_gap_event;
 int ble_l2cap_sm_test_gap_status;
 struct ble_gap_sec_state ble_l2cap_sm_test_sec_state;
-struct ble_gap_ltk_params ble_l2cap_sm_test_ltk_params;
+
+int ble_l2cap_sm_test_store_obj_type;
+uint16_t ble_l2cap_sm_test_saved_ediv;
+uint64_t ble_l2cap_sm_test_saved_rand;
+uint8_t ble_l2cap_sm_test_saved_ltk[16];
+int ble_l2cap_sm_test_saved_authenticated;
+int ble_l2cap_sm_test_saved_present;
+
+static ble_store_read_fn ble_l2cap_sm_test_util_store_read;
+static ble_store_write_fn ble_l2cap_sm_test_util_store_write;
 
 /*****************************************************************************
  * $util                                                                     *
@@ -80,9 +89,14 @@ static void
 ble_l2cap_sm_test_util_init(void)
 {
     ble_hs_test_util_init();
+    ble_hs_cfg.store_read_cb = ble_l2cap_sm_test_util_store_read;
+    ble_hs_cfg.store_write_cb = ble_l2cap_sm_test_util_store_write;
 
+    ble_l2cap_sm_test_store_obj_type = -1;
     ble_l2cap_sm_test_gap_event = -1;
     ble_l2cap_sm_test_gap_status = -1;
+    ble_l2cap_sm_test_saved_present = 0;
+
     memset(&ble_l2cap_sm_test_sec_state, 0xff,
            sizeof ble_l2cap_sm_test_sec_state);
 }
@@ -97,7 +111,6 @@ ble_l2cap_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
                                void *arg)
 {
     struct ble_l2cap_sm_passkey *passkey;
-    struct ble_l2cap_sm_test_ltk_info *ltk_info;
     int rc;
 
     switch (event) {
@@ -114,25 +127,6 @@ ble_l2cap_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
         rc = ble_l2cap_sm_set_tk(ctxt->desc->conn_handle, passkey);
         break;
 
-    case BLE_GAP_EVENT_LTK_REQUEST:
-        ltk_info = arg;
-        if (ltk_info == NULL) {
-            memset(ctxt->ltk_params->ltk, 0, sizeof ctxt->ltk_params->ltk);
-            ctxt->ltk_params->authenticated = 0;
-        } else {
-            memcpy(ctxt->ltk_params->ltk, ltk_info->ltk,
-                   sizeof ctxt->ltk_params->ltk);
-            ctxt->ltk_params->authenticated = ltk_info->authenticated;
-        }
-
-        ble_l2cap_sm_test_ltk_params = *ctxt->ltk_params;
-        if (ltk_info == NULL) {
-            rc = -1;
-        } else {
-            rc = 0;
-        }
-        break;
-
     default:
         return 0;
     }
@@ -140,6 +134,50 @@ ble_l2cap_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
     ble_l2cap_sm_test_gap_event = event;
 
     return rc;
+}
+
+static int
+ble_l2cap_sm_test_util_store_read(int obj_type, union ble_store_key *key,
+                                  union ble_store_value *dst)
+{
+    ble_l2cap_sm_test_store_obj_type = obj_type;
+
+    switch (obj_type) {
+    case BLE_STORE_OBJ_TYPE_OUR_LTK:
+        ble_l2cap_sm_test_saved_ediv = key->ltk.ediv;
+        ble_l2cap_sm_test_saved_rand = key->ltk.rand_num;
+
+        if (!ble_l2cap_sm_test_saved_present) {
+            return BLE_HS_ENOENT;
+        }
+
+        memcpy(dst->ltk.key, ble_l2cap_sm_test_saved_ltk, sizeof dst->ltk.key);
+        dst->ltk.authenticated = ble_l2cap_sm_test_saved_authenticated;
+        return 0;
+
+    default:
+        return BLE_HS_ENOTSUP;
+    }
+}
+
+static int
+ble_l2cap_sm_test_util_store_write(int obj_type, union ble_store_key *key,
+                                   union ble_store_value *val)
+{
+    ble_l2cap_sm_test_store_obj_type = obj_type;
+
+    switch (obj_type) {
+    case BLE_STORE_OBJ_TYPE_OUR_LTK:
+        ble_l2cap_sm_test_saved_ediv = key->ltk.ediv;
+        ble_l2cap_sm_test_saved_rand = key->ltk.rand_num;
+        memcpy(ble_l2cap_sm_test_saved_ltk, val->ltk.key, sizeof val->ltk.key);
+        ble_l2cap_sm_test_saved_authenticated = val->ltk.authenticated;
+        ble_l2cap_sm_test_saved_present = 1;
+        return 0;
+
+    default:
+        return BLE_HS_ENOTSUP;
+    }
 }
 
 static void
@@ -1094,6 +1132,10 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     memcpy(ltk_info.ltk, ltk, sizeof ltk_info.ltk);
     ltk_info.authenticated = authenticated;
 
+    memcpy(ble_l2cap_sm_test_saved_ltk, ltk, 16);
+    ble_l2cap_sm_test_saved_authenticated = authenticated;
+    ble_l2cap_sm_test_saved_present = 1;
+
     ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
                                  ble_l2cap_sm_test_util_conn_cb,
                                  &ltk_info);
@@ -1122,12 +1164,12 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure the LTK request event got sent to the application. */
-    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_LTK_REQUEST);
-    TEST_ASSERT(ble_l2cap_sm_test_ltk_params.ediv == ediv);
-    TEST_ASSERT(ble_l2cap_sm_test_ltk_params.rand_num == rand_num);
-    TEST_ASSERT(memcmp(ble_l2cap_sm_test_ltk_params.ltk, ltk_info.ltk,
-                       16) == 0);
-    TEST_ASSERT(ble_l2cap_sm_test_ltk_params.authenticated ==
+    TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
+                BLE_STORE_OBJ_TYPE_OUR_LTK);
+    TEST_ASSERT(ble_l2cap_sm_test_saved_ediv == ediv);
+    TEST_ASSERT(ble_l2cap_sm_test_saved_rand == rand_num);
+    TEST_ASSERT(memcmp(ble_l2cap_sm_test_saved_ltk, ltk_info.ltk, 16) == 0);
+    TEST_ASSERT(ble_l2cap_sm_test_saved_authenticated ==
                 ltk_info.authenticated);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
@@ -1185,9 +1227,10 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
 
     /* Ensure the LTK request event got sent to the application. */
-    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_LTK_REQUEST);
-    TEST_ASSERT(ble_l2cap_sm_test_ltk_params.ediv == ediv);
-    TEST_ASSERT(ble_l2cap_sm_test_ltk_params.rand_num == rand_num);
+    TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
+                BLE_STORE_OBJ_TYPE_OUR_LTK);
+    TEST_ASSERT(ble_l2cap_sm_test_saved_ediv == ediv);
+    TEST_ASSERT(ble_l2cap_sm_test_saved_rand == rand_num);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
 
     /* Ensure we sent the expected long term key request neg reply command. */
