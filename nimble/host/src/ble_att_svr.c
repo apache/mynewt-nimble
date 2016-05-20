@@ -34,9 +34,6 @@ static struct os_mempool ble_att_svr_entry_pool;
 static void *ble_att_svr_prep_entry_mem;
 static struct os_mempool ble_att_svr_prep_entry_pool;
 
-ble_att_svr_notify_fn *ble_att_svr_notify_cb;
-void *ble_att_svr_notify_cb_arg;
-
 static struct ble_att_svr_entry *
 ble_att_svr_entry_alloc(void)
 {
@@ -2620,14 +2617,7 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
-    if (ble_att_svr_notify_cb != NULL) {
-        rc = ble_att_svr_notify_cb(conn_handle, req.banq_handle,
-                                   attr_data, attr_len,
-                                   ble_att_svr_notify_cb_arg);
-        if (rc != 0) {
-            return BLE_HS_EAPP;
-        }
-    }
+    ble_gap_notify_event(conn_handle, req.banq_handle, attr_data, attr_len, 0);
 
     return 0;
 }
@@ -2703,15 +2693,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
-    if (ble_att_svr_notify_cb != NULL) {
-        rc = ble_att_svr_notify_cb(conn_handle, req.baiq_handle,
-                                   attr_data, attr_len,
-                                   ble_att_svr_notify_cb_arg);
-        if (rc != 0) {
-            rc = BLE_HS_EAPP;
-            goto done;
-        }
-    }
+    ble_gap_notify_event(conn_handle, req.baiq_handle, attr_data, attr_len, 1);
 
     rc = ble_att_svr_build_indicate_rsp(&txom);
     if (rc != 0) {
@@ -2781,7 +2763,6 @@ ble_att_svr_init(void)
     STAILQ_INIT(&ble_att_svr_list);
 
     ble_att_svr_id = 0;
-    ble_att_svr_notify_cb = NULL;
 
     return 0;
 

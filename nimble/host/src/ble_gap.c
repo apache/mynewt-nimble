@@ -2132,6 +2132,37 @@ ble_gap_ltk_event(uint16_t conn_handle, struct ble_gap_ltk_params *ltk_params)
 }
 
 /*****************************************************************************
+ * $notify                                                                   *
+ *****************************************************************************/
+
+void
+ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
+                     void *attr_data, uint16_t attr_len, int is_indication)
+{
+    /* XXX: Early return if notifications and indications disabled. */
+    struct ble_gap_notify_params params;
+    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_snapshot snap;
+    int rc;
+
+    rc = ble_gap_find_snapshot(conn_handle, &snap);
+    if (rc != 0) {
+        /* No longer connected. */
+        return;
+    }
+
+    params.attr_handle = attr_handle;
+    params.attr_data = attr_data;
+    params.attr_len = attr_len;
+    params.indication = is_indication;
+
+    memset(&ctxt, 0, sizeof ctxt);
+    ctxt.desc = &snap.desc;
+    ctxt.notify_params = &params;
+    ble_gap_call_conn_cb(BLE_GAP_EVENT_NOTIFY, 0, &ctxt, snap.cb, snap.cb_arg);
+}
+
+/*****************************************************************************
  * $init                                                                     *
  *****************************************************************************/
 

@@ -100,6 +100,7 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_PASSKEY_ACTION        10
 #define BLE_GAP_EVENT_LTK_REQUEST           11
 #define BLE_GAP_EVENT_KEY_EXCHANGE          12
+#define BLE_GAP_EVENT_NOTIFY                13
 
 struct ble_gap_sec_state {
     uint8_t pair_alg;
@@ -164,6 +165,14 @@ struct ble_gap_ltk_params {
     unsigned authenticated:1;
 };
 
+struct ble_gap_notify_params {
+    uint16_t attr_handle;
+    void *attr_data;
+    uint16_t attr_len;
+
+    unsigned indication:1;
+};
+
 /*
  * when the l2cap calls to the application, it will ask the application
  * to perform one of they key generation roles. In all cases, the
@@ -191,6 +200,7 @@ struct ble_gap_conn_ctxt {
         struct ble_gap_passkey_action *passkey_action;
         struct ble_gap_ltk_params *ltk_params;
         struct ble_gap_key_parms *key_params;
+        struct ble_gap_notify_params *notify_params;
     };
 };
 

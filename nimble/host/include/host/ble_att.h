@@ -124,6 +124,4 @@ int ble_att_svr_write_local(uint16_t attr_handle, void *data,
 
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
-void ble_att_set_notify_cb(ble_att_svr_notify_fn *cb, void *cb_arg);
-
 #endif
