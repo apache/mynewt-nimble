@@ -204,7 +204,7 @@ ble_l2cap_test_util_dummy_rx(uint16_t conn_handle, struct os_mbuf **om)
 
 static void
 ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
-                                ble_gap_conn_fn *cb, void *cb_arg)
+                                ble_gap_event_fn *cb, void *cb_arg)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -480,8 +480,8 @@ TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
  *****************************************************************************/
 
 static int
-ble_l2cap_test_util_conn_cb(int event, int status,
-                            struct ble_gap_conn_ctxt *ctxt, void *arg)
+ble_l2cap_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
+                            void *arg)
 {
     int *accept;
 

@@ -54,10 +54,10 @@ void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
                                        uint8_t status, uint8_t num_pkts,
                                        uint16_t opcode);
 void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
-                                  ble_gap_conn_fn *cb, void *cb_arg);
+                                  ble_gap_event_fn *cb, void *cb_arg);
 int ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,
                                    struct ble_gap_crt_params *params,
-                                   ble_gap_conn_fn *cb, void *cb_arg,
+                                   ble_gap_event_fn *cb, void *cb_arg,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
@@ -69,7 +69,7 @@ int ble_hs_test_util_adv_start(uint8_t discoverable_mode,
                                uint8_t connectable_mode,
                                uint8_t *peer_addr, uint8_t peer_addr_type,
                                struct hci_adv_params *adv_params,
-                               ble_gap_conn_fn *cb, void *cb_arg,
+                               ble_gap_event_fn *cb, void *cb_arg,
                                int fail_idx, uint8_t fail_status);
 int ble_hs_test_util_adv_stop(uint8_t hci_status);
 int ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,

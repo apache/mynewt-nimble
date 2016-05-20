@@ -42,18 +42,18 @@ static uint8_t ble_att_svr_test_attr_n[1024];
 static int ble_att_svr_test_attr_n_len;
 
 static int
-ble_att_svr_test_misc_gap_cb(int event, int status,
+ble_att_svr_test_misc_gap_cb(int event,
                              struct ble_gap_conn_ctxt *ctxt, void *arg)
 {
     switch (event) {
     case BLE_GAP_EVENT_NOTIFY:
         ble_att_svr_test_n_conn_handle = ctxt->desc->conn_handle;
-        ble_att_svr_test_n_attr_handle = ctxt->notify_params->attr_handle;
-        TEST_ASSERT_FATAL(ctxt->notify_params->attr_len <=
+        ble_att_svr_test_n_attr_handle = ctxt->notify.attr_handle;
+        TEST_ASSERT_FATAL(ctxt->notify.attr_len <=
                           sizeof ble_att_svr_test_attr_n);
-        ble_att_svr_test_attr_n_len = ctxt->notify_params->attr_len;
-        memcpy(ble_att_svr_test_attr_n, ctxt->notify_params->attr_data,
-               ctxt->notify_params->attr_len);
+        ble_att_svr_test_attr_n_len = ctxt->notify.attr_len;
+        memcpy(ble_att_svr_test_attr_n, ctxt->notify.attr_data,
+               ctxt->notify.attr_len);
         break;
 
     default:

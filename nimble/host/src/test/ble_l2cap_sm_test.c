@@ -93,15 +93,16 @@ struct ble_l2cap_sm_test_ltk_info {
 };
 
 static int
-ble_l2cap_sm_test_util_conn_cb(int event, int status,
-                               struct ble_gap_conn_ctxt *ctxt, void *arg)
+ble_l2cap_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
+                               void *arg)
 {
     struct ble_l2cap_sm_passkey *passkey;
     struct ble_l2cap_sm_test_ltk_info *ltk_info;
     int rc;
 
     switch (event) {
-    case BLE_GAP_EVENT_SECURITY:
+    case BLE_GAP_EVENT_ENC_CHANGE:
+        ble_l2cap_sm_test_gap_status = ctxt->enc_change.status;
         ble_l2cap_sm_test_sec_state = ctxt->desc->sec_state;
         rc = 0;
         break;
@@ -137,7 +138,6 @@ ble_l2cap_sm_test_util_conn_cb(int event, int status,
     }
 
     ble_l2cap_sm_test_gap_event = event;
-    ble_l2cap_sm_test_gap_status = status;
 
     return rc;
 }
@@ -763,7 +763,7 @@ ble_l2cap_sm_test_util_peer_lgcy_fail_confirm(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_l2cap_sm_test_gap_status ==
                 BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CONFIRM_MISMATCH));
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.pair_alg ==
@@ -930,7 +930,7 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.pair_alg == params->pair_alg);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);
@@ -1123,7 +1123,6 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_LTK_REQUEST);
-    TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
     TEST_ASSERT(ble_l2cap_sm_test_ltk_params.ediv == ediv);
     TEST_ASSERT(ble_l2cap_sm_test_ltk_params.rand_num == rand_num);
     TEST_ASSERT(memcmp(ble_l2cap_sm_test_ltk_params.ltk, ltk_info.ltk,
@@ -1145,7 +1144,7 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.authenticated ==
@@ -1187,7 +1186,6 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_LTK_REQUEST);
-    TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
     TEST_ASSERT(ble_l2cap_sm_test_ltk_params.ediv == ediv);
     TEST_ASSERT(ble_l2cap_sm_test_ltk_params.rand_num == rand_num);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
@@ -1595,7 +1593,7 @@ ble_l2cap_sm_test_util_us_lgcy_good(
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_SECURITY);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.pair_alg == params->pair_alg);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);

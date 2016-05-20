@@ -54,7 +54,7 @@ struct ble_hs_conn {
 
     struct ble_gap_sec_state bhc_sec_state;
 
-    ble_gap_conn_fn *bhc_cb;
+    ble_gap_event_fn *bhc_cb;
     void *bhc_cb_arg;
 };
 
