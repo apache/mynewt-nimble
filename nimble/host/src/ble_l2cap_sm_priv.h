@@ -115,6 +115,7 @@ struct ble_l2cap_sm_master_iden {
  */
 #define BLE_L2CAP_SM_IDEN_INFO_SZ      16
 struct ble_l2cap_sm_iden_info {
+    /* Stored in little-endian. */
     uint8_t irk_le[16];
 };
 
