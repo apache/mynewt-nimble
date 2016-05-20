@@ -47,6 +47,7 @@ int
 main(void)
 {
     tu_config.tc_print_results = 1;
+    tu_config.tc_system_assert = 1;
     tu_init();
 
     ble_att_clt_test_all();

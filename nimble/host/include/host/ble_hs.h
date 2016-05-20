@@ -27,6 +27,7 @@
 #include "host/ble_hs.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_uuid.h"
+#include "host/ble_store.h"
 #include "host/host_hci.h"
 struct os_eventq;
 struct os_event;
@@ -109,6 +110,11 @@ struct ble_hs_cfg {
     unsigned sm_keypress:1;
     uint8_t sm_our_key_dist;
     uint8_t sm_their_key_dist;
+
+    /** Store settings. */
+    ble_store_read_fn *store_read_cb;
+    ble_store_write_fn *store_write_cb;
+    ble_store_delete_fn *store_delete_cb;
 };
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
