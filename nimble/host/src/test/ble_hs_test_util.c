@@ -309,7 +309,7 @@ ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks)
 
 void
 ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
-                             ble_gap_conn_fn *cb, void *cb_arg)
+                             ble_gap_event_fn *cb, void *cb_arg)
 {
     struct hci_le_conn_complete evt;
     int rc;
@@ -338,7 +338,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
 int
 ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,
                                struct ble_gap_crt_params *params,
-                               ble_gap_conn_fn *cb, void *cb_arg,
+                               ble_gap_event_fn *cb, void *cb_arg,
                                uint8_t ack_status)
 {
     int rc;
@@ -410,7 +410,7 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
                            uint8_t connectable_mode,
                            uint8_t *peer_addr, uint8_t peer_addr_type,
                            struct hci_adv_params *adv_params,
-                           ble_gap_conn_fn *cb, void *cb_arg,
+                           ble_gap_event_fn *cb, void *cb_arg,
                            int fail_idx, uint8_t fail_status)
 {
     struct ble_hs_test_util_phony_ack acks[6];

@@ -1565,7 +1565,7 @@ ble_l2cap_sm_rx_pair_req(uint16_t conn_handle, uint8_t op,
 
     if (rc == 0) {
         if (passkey_action != BLE_GAP_PKACT_NONE) {
-            ble_gap_passkey_event(conn_handle, sm_status, passkey_action);
+            ble_gap_passkey_event(conn_handle, passkey_action);
         }
     } else {
         ble_l2cap_sm_proc_free(proc);
@@ -1616,7 +1616,7 @@ ble_l2cap_sm_rx_pair_rsp(uint16_t conn_handle, uint8_t op,
         ble_l2cap_sm_gap_event(proc, rc, 0);
         ble_l2cap_sm_proc_free(proc);
     } else if (passkey_action != BLE_GAP_PKACT_NONE) {
-        ble_gap_passkey_event(conn_handle, sm_status, passkey_action);
+        ble_gap_passkey_event(conn_handle, passkey_action);
     }
 
     return rc;

@@ -87,20 +87,21 @@ struct hci_adv_params;
 
 #define BLE_GAP_ADDR_TYPE_WL                0xff
 
-#define BLE_GAP_EVENT_CONN                  0
-#define BLE_GAP_EVENT_CONN_UPDATED          1
-#define BLE_GAP_EVENT_CONN_UPDATE_REQ       2
-#define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      3
-#define BLE_GAP_EVENT_CANCEL                4
-#define BLE_GAP_EVENT_TERM_FAILURE          5
-#define BLE_GAP_EVENT_DISC_SUCCESS          6
-#define BLE_GAP_EVENT_DISC_FINISHED         7
-#define BLE_GAP_EVENT_ADV_FINISHED          8
-#define BLE_GAP_EVENT_SECURITY              9
-#define BLE_GAP_EVENT_PASSKEY_ACTION        10
-#define BLE_GAP_EVENT_LTK_REQUEST           11
-#define BLE_GAP_EVENT_KEY_EXCHANGE          12
-#define BLE_GAP_EVENT_NOTIFY                13
+#define BLE_GAP_EVENT_CONNECT               0
+#define BLE_GAP_EVENT_DISCONNECT            1
+#define BLE_GAP_EVENT_CONN_CANCEL           2
+#define BLE_GAP_EVENT_CONN_UPDATE           3
+#define BLE_GAP_EVENT_CONN_UPDATE_REQ       4
+#define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      5
+#define BLE_GAP_EVENT_TERM_FAILURE          6
+#define BLE_GAP_EVENT_DISC_SUCCESS          7
+#define BLE_GAP_EVENT_DISC_COMPLETE         8
+#define BLE_GAP_EVENT_ADV_COMPLETE          9
+#define BLE_GAP_EVENT_ENC_CHANGE            10
+#define BLE_GAP_EVENT_PASSKEY_ACTION        11
+#define BLE_GAP_EVENT_LTK_REQUEST           12
+#define BLE_GAP_EVENT_KEY_EXCHANGE          13
+#define BLE_GAP_EVENT_NOTIFY                14
 
 struct ble_gap_sec_state {
     uint8_t pair_alg;
@@ -193,19 +194,49 @@ struct ble_gap_conn_ctxt {
 
     union {
         struct {
+            int status;
+        } connect;
+
+        struct {
+            int reason;
+        } disconnect;
+
+        struct {
+            int status;
+        } conn_update;
+
+        struct {
             struct ble_gap_upd_params *self_params;
             struct ble_gap_upd_params *peer_params;
-        } update;
+        } conn_update_req;
 
-        struct ble_gap_passkey_action *passkey_action;
+        struct {
+            int status;
+        } term_failure;
+
+        struct {
+            int status;
+        } enc_change;
+
+        struct {
+            uint8_t action;
+        } passkey_action;
+
+        struct {
+            uint16_t attr_handle;
+            void *attr_data;
+            uint16_t attr_len;
+
+            unsigned indication:1;
+        } notify;
+
         struct ble_gap_ltk_params *ltk_params;
         struct ble_gap_key_parms *key_params;
-        struct ble_gap_notify_params *notify_params;
     };
 };
 
-typedef int ble_gap_conn_fn(int event, int status,
-                            struct ble_gap_conn_ctxt *ctxt, void *arg);
+typedef int ble_gap_event_fn(int event, struct ble_gap_conn_ctxt *ctxt,
+                             void *arg);
 
 struct ble_gap_disc_desc {
     uint8_t event_type;
@@ -235,10 +266,12 @@ struct ble_gap_white_entry {
     uint8_t addr[6];
 };
 
+int ble_gap_find_conn(uint16_t handle, struct ble_gap_conn_desc *out_desc);
+
 int ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       uint8_t *peer_addr, uint8_t peer_addr_type,
                       struct hci_adv_params *adv_params,
-                      ble_gap_conn_fn *cb, void *cb_arg);
+                      ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_adv_stop(void);
 int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
@@ -247,7 +280,7 @@ int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
                           struct ble_gap_crt_params *params,
-                          ble_gap_conn_fn *cb, void *cb_arg);
+                          ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_terminate(uint16_t handle);
 int ble_gap_cancel(void);
 int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
