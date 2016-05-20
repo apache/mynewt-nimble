@@ -155,9 +155,6 @@ int ble_att_init(void);
 
 /*** @svr */
 
-extern ble_att_svr_notify_fn *ble_att_svr_notify_cb;
-extern void *ble_att_svr_notify_cb_arg;
-
 struct ble_att_svr_entry *
 ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at, uint8_t *uuid);
 uint16_t ble_att_svr_prev_handle(void);

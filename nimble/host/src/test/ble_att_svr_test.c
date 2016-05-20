@@ -41,6 +41,28 @@ static uint16_t ble_att_svr_test_n_attr_handle;
 static uint8_t ble_att_svr_test_attr_n[1024];
 static int ble_att_svr_test_attr_n_len;
 
+static int
+ble_att_svr_test_misc_gap_cb(int event, int status,
+                             struct ble_gap_conn_ctxt *ctxt, void *arg)
+{
+    switch (event) {
+    case BLE_GAP_EVENT_NOTIFY:
+        ble_att_svr_test_n_conn_handle = ctxt->desc->conn_handle;
+        ble_att_svr_test_n_attr_handle = ctxt->notify_params->attr_handle;
+        TEST_ASSERT_FATAL(ctxt->notify_params->attr_len <=
+                          sizeof ble_att_svr_test_attr_n);
+        ble_att_svr_test_attr_n_len = ctxt->notify_params->attr_len;
+        memcpy(ble_att_svr_test_attr_n, ctxt->notify_params->attr_data,
+               ctxt->notify_params->attr_len);
+        break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
 /**
  * @return                      The handle of the new test connection.
  */
@@ -54,7 +76,7 @@ ble_att_svr_test_misc_init(uint16_t mtu)
     ble_hs_test_util_init();
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                 NULL, NULL);
+                                 ble_att_svr_test_misc_gap_cb, NULL);
 
     ble_hs_lock();
 
@@ -893,34 +915,10 @@ ble_att_svr_test_misc_rx_notify(uint16_t conn_handle, uint16_t attr_handle,
     }
 }
 
-static int ble_att_svr_test_misc_notify_cb_arg;
-static int
-ble_att_svr_test_misc_notify_cb(uint16_t conn_handle, uint16_t attr_handle,
-                                uint8_t *attr_val, uint16_t attr_len,
-                                void *arg)
-{
-    int *iarg;
-
-    iarg = arg;
-    TEST_ASSERT(iarg == &ble_att_svr_test_misc_notify_cb_arg);
-
-    ble_att_svr_test_n_conn_handle = conn_handle;
-    ble_att_svr_test_n_attr_handle = attr_handle;
-    TEST_ASSERT_FATAL(attr_len <= sizeof ble_att_svr_test_attr_n);
-    ble_att_svr_test_attr_n_len = attr_len;
-    memcpy(ble_att_svr_test_attr_n, attr_val, attr_len);
-
-    return *iarg;
-}
-
 static void
 ble_att_svr_test_misc_verify_notify(uint16_t conn_handle, uint16_t attr_handle,
                                     void *attr_val, int attr_len, int good)
 {
-    ble_att_svr_test_misc_notify_cb_arg = 0;
-    ble_att_set_notify_cb(ble_att_svr_test_misc_notify_cb,
-                          &ble_att_svr_test_misc_notify_cb_arg);
-
     ble_att_svr_test_n_conn_handle = 0xffff;
     ble_att_svr_test_n_attr_handle = 0;
     ble_att_svr_test_attr_n_len = 0;
@@ -982,10 +980,6 @@ ble_att_svr_test_misc_verify_indicate(uint16_t conn_handle,
                                       uint16_t attr_handle,
                                       void *attr_val, int attr_len, int good)
 {
-    ble_att_svr_test_misc_notify_cb_arg = 0;
-    ble_att_set_notify_cb(ble_att_svr_test_misc_notify_cb,
-                          &ble_att_svr_test_misc_notify_cb_arg);
-
     ble_att_svr_test_n_conn_handle = 0xffff;
     ble_att_svr_test_n_attr_handle = 0;
     ble_att_svr_test_attr_n_len = 0;

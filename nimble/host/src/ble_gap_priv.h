@@ -82,6 +82,9 @@ void ble_gap_key_exchange_event(uint16_t conn_handle,
                            struct ble_gap_key_parms *key_params);
 int ble_gap_ltk_event(uint16_t conn_handle,
                       struct ble_gap_ltk_params *ltk_params);
+void ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
+                          void *attr_data, uint16_t attr_len,
+                          int is_indication);
 int ble_gap_master_in_progress(void);
 int ble_gap_slave_in_progress(void);
 
