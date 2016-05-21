@@ -482,34 +482,28 @@ static void
 ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc)
 {
     union ble_store_value store_value;
-    union ble_store_key store_key;
 
     if (proc->our_keys.ediv_rand_valid && proc->our_keys.ltk_valid) {
-        store_key.ltk.ediv = proc->our_keys.ediv;
-        store_key.ltk.rand_num = proc->our_keys.rand_val;
+        store_value.ltk.ediv = proc->our_keys.ediv;
+        store_value.ltk.rand_num = proc->our_keys.rand_val;
         memcpy(store_value.ltk.key, proc->our_keys.ltk,
                sizeof store_value.ltk.key);
         store_value.ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
-        ble_store_write(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_key, &store_value);
+        ble_store_write(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_value);
     }
 
     if (proc->peer_keys.ediv_rand_valid && proc->peer_keys.ltk_valid) {
-        store_key.ltk.ediv = proc->peer_keys.ediv;
-        store_key.ltk.rand_num = proc->peer_keys.rand_val;
+        store_value.ltk.ediv = proc->peer_keys.ediv;
+        store_value.ltk.rand_num = proc->peer_keys.rand_val;
         memcpy(store_value.ltk.key, proc->peer_keys.ltk,
                sizeof store_value.ltk.key);
         store_value.ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
-        ble_store_write(BLE_STORE_OBJ_TYPE_PEER_LTK, &store_key, &store_value);
+        ble_store_write(BLE_STORE_OBJ_TYPE_PEER_LTK, &store_value);
     }
 
     /* XXX: Persist other key data. */
-
-    //proc->our_keys.is_ours = 1;
-    //proc->peer_keys.is_ours = 0;
-    //ble_gap_key_exchange_event(proc->conn_handle, &proc->our_keys);
-    //ble_gap_key_exchange_event(proc->conn_handle, &proc->peer_keys);
 }
 
 static void

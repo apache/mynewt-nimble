@@ -161,15 +161,14 @@ ble_l2cap_sm_test_util_store_read(int obj_type, union ble_store_key *key,
 }
 
 static int
-ble_l2cap_sm_test_util_store_write(int obj_type, union ble_store_key *key,
-                                   union ble_store_value *val)
+ble_l2cap_sm_test_util_store_write(int obj_type, union ble_store_value *val)
 {
     ble_l2cap_sm_test_store_obj_type = obj_type;
 
     switch (obj_type) {
     case BLE_STORE_OBJ_TYPE_OUR_LTK:
-        ble_l2cap_sm_test_saved_ediv = key->ltk.ediv;
-        ble_l2cap_sm_test_saved_rand = key->ltk.rand_num;
+        ble_l2cap_sm_test_saved_ediv = val->ltk.ediv;
+        ble_l2cap_sm_test_saved_rand = val->ltk.rand_num;
         memcpy(ble_l2cap_sm_test_saved_ltk, val->ltk.key, sizeof val->ltk.key);
         ble_l2cap_sm_test_saved_authenticated = val->ltk.authenticated;
         ble_l2cap_sm_test_saved_present = 1;

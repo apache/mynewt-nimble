@@ -22,6 +22,7 @@
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
+#include "host/ble_store.h"
 #include "ble_hs_priv.h"
 
 #define BLE_GATTS_INCLUDE_SZ    6
@@ -526,11 +527,17 @@ ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
     }
 }
 
+struct ble_gatts_clt_cfg_record {
+    unsigned write:1;
+    struct ble_store_key_cccd key;
+    struct ble_store_value_cccd value;
+};
+
 static int
 ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
                                 uint8_t *uuid128, uint8_t att_op,
                                 struct ble_att_svr_access_ctxt *ctxt,
-                                int *out_persist_flags)
+                                struct ble_gatts_clt_cfg_record *out_record)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     uint16_t chr_def_handle;
@@ -539,7 +546,8 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
 
     static uint8_t buf[2];
 
-    *out_persist_flags = -1;
+    /* Assume nothing needs to be persisted. */
+    out_record->write = 0;
 
     /* We always register the client characteristics descriptor with handle
      * (chr_def + 2).
@@ -579,7 +587,15 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         }
 
         clt_cfg->flags = flags;
-        *out_persist_flags = flags;
+
+        /* Successful writes get persisted for bonded connections. */
+        if (conn->bhc_sec_state.bonded) {
+            out_record->key.peer_addr_type = conn->bhc_addr_type;
+            memcpy(out_record->key.peer_addr, conn->bhc_addr, 6);
+            out_record->value.flags = clt_cfg->flags;
+            out_record->value.value_changed = 0;
+            out_record->write = 1;
+        }
         break;
 
     default:
@@ -596,8 +612,8 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                          struct ble_att_svr_access_ctxt *ctxt,
                          void *arg)
 {
+    struct ble_gatts_clt_cfg_record persist_record;
     struct ble_hs_conn *conn;
-    int persist_flags;
     int rc;
 
     ble_hs_lock();
@@ -607,13 +623,17 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = BLE_ATT_ERR_UNLIKELY;
     } else {
         rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
-                                             ctxt, &persist_flags);
+                                             ctxt, &persist_record);
     }
 
     ble_hs_unlock();
 
-    if (rc == 0 && persist_flags != -1) {
-        /* XXX: Persist flags. */
+    if (rc == 0 && persist_record.write) {
+        if (persist_record.value.flags == 0) {
+            rc = ble_store_delete_cccd(&persist_record.key);
+        } else {
+            rc = ble_store_write_cccd(&persist_record.value);
+        }
     }
 
     return rc;
