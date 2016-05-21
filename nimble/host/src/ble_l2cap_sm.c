@@ -513,7 +513,7 @@ ble_l2cap_sm_gap_event(struct ble_l2cap_sm_proc *proc, int status,
     struct ble_gap_sec_state sec_state;
 
     ble_l2cap_sm_sec_state(proc, &sec_state, enc_enabled);
-    ble_gap_security_event(proc->conn_handle, status, &sec_state);
+    ble_gap_enc_changed(proc->conn_handle, status, &sec_state);
 }
 
 static int
@@ -1504,7 +1504,6 @@ ble_l2cap_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op,
 
     ble_hs_unlock();
 
-    /* a successful ending of the link */
     if (rc == 0) {
         if (sm_end) {
             ble_l2cap_sm_gap_event(proc, 0, 1);
