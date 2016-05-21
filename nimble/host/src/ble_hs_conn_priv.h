@@ -20,6 +20,7 @@
 #ifndef H_BLE_HS_CONN_
 #define H_BLE_HS_CONN_
 
+#include <inttypes.h>
 #include "ble_l2cap_priv.h"
 #include "ble_gatt_priv.h"
 #include "ble_att_priv.h"
@@ -64,6 +65,8 @@ void ble_hs_conn_free(struct ble_hs_conn *conn);
 void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
+struct ble_hs_conn *ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr);
+struct ble_hs_conn *ble_hs_conn_find_by_idx(int idx);
 int ble_hs_conn_exists(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
 struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,

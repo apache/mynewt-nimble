@@ -142,7 +142,7 @@ int ble_gattc_init(void);
 #define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
 #define BLE_GATTS_INC_SVC_LEN_UUID              6
 
-void ble_gatts_send_updates_for_conn(uint16_t conn_handle);
+int ble_gatts_send_next_indicate(uint16_t conn_handle);
 
 /*** @misc. */
 void ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn);
