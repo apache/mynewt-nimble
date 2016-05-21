@@ -244,6 +244,52 @@ ble_hs_conn_find(uint16_t conn_handle)
     return NULL;
 }
 
+struct ble_hs_conn *
+ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr)
+{
+#if !NIMBLE_OPT(CONNECT)
+    return NULL;
+#endif
+
+    struct ble_hs_conn *conn;
+
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+
+    SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
+        if (conn->bhc_addr_type == addr_type &&
+            memcmp(conn->bhc_addr, addr, 6) == 0) {
+
+            return conn;
+        }
+    }
+
+    return NULL;
+}
+
+struct ble_hs_conn *
+ble_hs_conn_find_by_idx(int idx)
+{
+#if !NIMBLE_OPT(CONNECT)
+    return NULL;
+#endif
+
+    struct ble_hs_conn *conn;
+    int i;
+
+    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+
+    i = 0;
+    SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
+        if (i == idx) {
+            return conn;
+        }
+
+        i++;
+    }
+
+    return NULL;
+}
+
 int
 ble_hs_conn_exists(uint16_t conn_handle)
 {

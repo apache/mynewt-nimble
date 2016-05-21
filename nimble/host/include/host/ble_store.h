@@ -25,6 +25,7 @@
 #define BLE_STORE_OBJ_TYPE_OUR_LTK      1
 #define BLE_STORE_OBJ_TYPE_PEER_LTK     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
+#define BLE_STORE_OBJ_TYPE_CCCD_IDX     4
 
 struct ble_store_key_ltk {
     uint16_t ediv;
@@ -41,6 +42,11 @@ struct ble_store_value_ltk {
 struct ble_store_key_cccd {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
+};
+
+struct ble_store_key_cccd_idx {
+    uint16_t chr_def_handle;
+    uint8_t idx;
 };
 
 struct ble_store_value_cccd {
@@ -72,6 +78,8 @@ int ble_store_read(int obj_type, union ble_store_key *key,
 int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
 
+int ble_store_read_cccd_idx(struct ble_store_key_cccd_idx *key,
+                            struct ble_store_value_cccd *out_value);
 int ble_store_write_cccd(struct ble_store_value_cccd *value);
 int ble_store_delete_cccd(struct ble_store_key_cccd *key);
 

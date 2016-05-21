@@ -3664,7 +3664,7 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 
     /* Send the next indication if one is pending. */
     if (conn != NULL) {
-        ble_gatts_send_updates_for_conn(proc->conn_handle);
+        ble_gatts_send_next_indicate(proc->conn_handle);
     }
 }
 
