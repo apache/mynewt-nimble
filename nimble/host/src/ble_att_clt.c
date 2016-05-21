@@ -100,8 +100,7 @@ ble_att_clt_copy_attr_to_flatbuf(struct os_mbuf *om, void **out_attr_val,
 }
 
 static int
-ble_att_clt_tx_req_flags(uint16_t conn_handle, struct os_mbuf *txom,
-                         ble_hs_conn_flags_t flags_on_success)
+ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -129,24 +128,11 @@ ble_att_clt_tx_req_flags(uint16_t conn_handle, struct os_mbuf *txom,
 
         rc = ble_l2cap_tx(conn, chan, txom);
         txom = NULL;
-
-        if (rc == 0) {
-            conn->bhc_flags |= flags_on_success;
-        }
     }
 
     ble_hs_unlock();
 
     os_mbuf_free_chain(txom);
-    return rc;
-}
-
-static int
-ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
-{
-    int rc;
-
-    rc = ble_att_clt_tx_req_flags(conn_handle, txom, 0);
     return rc;
 }
 
@@ -1454,8 +1440,7 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
         return rc;
     }
 
-    rc = ble_att_clt_tx_req_flags(conn_handle, txom,
-                                  BLE_HS_CONN_F_INDICATE_TXED);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
