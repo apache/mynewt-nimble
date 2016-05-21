@@ -49,10 +49,10 @@ struct ble_store_key_cccd {
     uint8_t peer_addr_type;
 
     /**
-     * Key by characteristic definition handle;
-     * chr_def_handle=0 means don't key off characteristic handle.
+     * Key by characteristic value handle;
+     * chr_val_handle=0 means don't key off characteristic handle.
      */
-    uint16_t chr_def_handle;
+    uint16_t chr_val_handle;
 
     /** Number of results to skip; 0 means retrieve the first match. */
     uint8_t idx;
@@ -61,6 +61,7 @@ struct ble_store_key_cccd {
 struct ble_store_value_cccd {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
+    uint16_t chr_val_handle;
     uint16_t flags;
     unsigned value_changed:1;
 };

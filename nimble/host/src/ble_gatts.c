@@ -17,8 +17,6 @@
  * under the License.
  */
 
-/* XXX: Standardize on chr_val_handle; never use definition handle. */
-
 #include <stddef.h>
 #include <string.h>
 #include "console/console.h"
@@ -43,7 +41,7 @@ static os_membuf_t *ble_gatts_clt_cfg_mem;
 static struct os_mempool ble_gatts_clt_cfg_pool;
 
 struct ble_gatts_clt_cfg {
-    uint16_t chr_def_handle;
+    uint16_t chr_val_handle;
     uint8_t flags;
     uint8_t allowed;
 };
@@ -500,14 +498,14 @@ ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
 
 static int
 ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
-                           uint16_t chr_def_handle)
+                           uint16_t chr_val_handle)
 {
     struct ble_gatts_clt_cfg *cfg;
     int i;
 
     for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
         cfg = cfgs + i;
-        if (cfg->chr_def_handle == chr_def_handle) {
+        if (cfg->chr_val_handle == chr_val_handle) {
             return i;
         }
     }
@@ -517,11 +515,11 @@ ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
 
 static struct ble_gatts_clt_cfg *
 ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
-                       uint16_t chr_def_handle)
+                       uint16_t chr_val_handle)
 {
     int idx;
 
-    idx = ble_gatts_clt_cfg_find_idx(cfgs, chr_def_handle);
+    idx = ble_gatts_clt_cfg_find_idx(cfgs, chr_val_handle);
     if (idx == -1) {
         return NULL;
     } else {
@@ -542,7 +540,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
                                 struct ble_gatts_clt_cfg_record *out_record)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
-    uint16_t chr_def_handle;
+    uint16_t chr_val_handle;
     uint16_t flags;
     uint8_t gatt_op;
 
@@ -552,16 +550,16 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     out_record->write = 0;
 
     /* We always register the client characteristics descriptor with handle
-     * (chr_def + 2).
+     * (chr_val + 1).
      */
-    chr_def_handle = attr_handle - 2;
-    if (chr_def_handle > attr_handle) {
+    chr_val_handle = attr_handle - 1;
+    if (chr_val_handle > attr_handle) {
         /* Attribute handle wrapped somehow. */
         return BLE_ATT_ERR_UNLIKELY;
     }
 
     clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
-                                     attr_handle - 2);
+                                     chr_val_handle);
     if (clt_cfg == NULL) {
         return BLE_ATT_ERR_UNLIKELY;
     }
@@ -594,6 +592,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         if (conn->bhc_sec_state.bonded) {
             out_record->key.peer_addr_type = conn->bhc_addr_type;
             memcpy(out_record->key.peer_addr, conn->bhc_addr, 6);
+            out_record->value.chr_val_handle = chr_val_handle;
             out_record->value.flags = clt_cfg->flags;
             out_record->value.value_changed = 0;
             out_record->write = 1;
@@ -984,7 +983,7 @@ ble_gatts_start(void)
         if (allowed_flags != 0) {
             BLE_HS_DBG_ASSERT_EVAL(idx < ble_gatts_num_cfgable_chrs);
 
-            ble_gatts_clt_cfgs[idx].chr_def_handle = ha->ha_handle_id;
+            ble_gatts_clt_cfgs[idx].chr_val_handle = ha->ha_handle_id + 1;
             ble_gatts_clt_cfgs[idx].allowed = allowed_flags;
             ble_gatts_clt_cfgs[idx].flags = 0;
             idx++;
@@ -1041,9 +1040,10 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
                 BLE_HS_DBG_ASSERT(clt_cfg->flags &
                                   BLE_GATTS_CLT_CFG_F_INDICATE);
 
+                chr_val_handle = clt_cfg->chr_val_handle;
+
                 /* Clear updated flag in anticipation of indication tx. */
                 clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
-                chr_val_handle = clt_cfg->chr_def_handle + 1;
                 break;
             }
         }
@@ -1073,15 +1073,12 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
     struct ble_store_value_cccd cccd_value;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    uint16_t chr_def_handle;
     int clt_cfg_idx;
     int persist;
     int rc;
 
-    chr_def_handle = chr_val_handle - 1;
-
     clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
-                                             chr_def_handle);
+                                             chr_val_handle);
     if (clt_cfg_idx == -1) {
         /* This characteristic does not have a CCCD. */
         return BLE_HS_ENOENT;
@@ -1111,13 +1108,14 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
          */
         BLE_HS_DBG_ASSERT(conn->bhc_gatt_svr.num_clt_cfgs > clt_cfg_idx);
         clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
-        BLE_HS_DBG_ASSERT(clt_cfg->chr_def_handle == chr_def_handle);
+        BLE_HS_DBG_ASSERT(clt_cfg->chr_val_handle == chr_val_handle);
 
         persist = conn->bhc_sec_state.bonded &&
                   !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED);
         if (persist) {
             cccd_value.peer_addr_type = conn->bhc_addr_type;
             memcpy(cccd_value.peer_addr, conn->bhc_addr, 6);
+            cccd_value.chr_val_handle = chr_val_handle;
             cccd_value.flags = clt_cfg->flags;
             cccd_value.value_changed = 0;
         }
@@ -1145,13 +1143,12 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
 }
 
 void
-ble_gatts_chr_updated(uint16_t chr_def_handle)
+ble_gatts_chr_updated(uint16_t chr_val_handle)
 {
     struct ble_store_value_cccd cccd_value;
     struct ble_store_key_cccd cccd_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    uint16_t chr_val_handle;
     uint16_t clt_cfg_flags;
     uint16_t conn_handle;
     int clt_cfg_idx;
@@ -1162,13 +1159,10 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
      * characteristic.
      */
     clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
-                                             chr_def_handle);
+                                             chr_val_handle);
     if (clt_cfg_idx == -1) {
         return;
     }
-
-    chr_val_handle = chr_def_handle + 1;
-    BLE_HS_DBG_ASSERT(chr_val_handle > chr_def_handle);
 
     /* Handle the connected devices. */
     for (i = 0; ; i++) {
@@ -1179,7 +1173,7 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
             BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs >
                                    clt_cfg_idx);
             clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
-            BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_def_handle == chr_def_handle);
+            BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
 
 
             if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
@@ -1222,7 +1216,7 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
      */
     cccd_key = (struct ble_store_key_cccd) {
         .peer_addr_type = BLE_STORE_PEER_ADDR_TYPE_NONE,
-        .chr_def_handle = chr_def_handle,
+        .chr_val_handle = chr_val_handle,
         .idx = 0,
     };
 

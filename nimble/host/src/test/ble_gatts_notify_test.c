@@ -226,7 +226,7 @@ TEST_CASE(ble_gatts_notify_test_n)
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
     ble_gatts_notify_test_chr_1_val[0] = 0xab;
-    ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle);
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify notification sent properly. */
     ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_1_val,
@@ -236,7 +236,7 @@ TEST_CASE(ble_gatts_notify_test_n)
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
            ((uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}), 16);
-    ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle);
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Verify notification sent properly. */
     ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_2_val,
@@ -265,7 +265,7 @@ TEST_CASE(ble_gatts_notify_test_i)
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
     ble_gatts_notify_test_chr_1_val[0] = 0xab;
-    ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle);
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_1_val,
@@ -275,7 +275,7 @@ TEST_CASE(ble_gatts_notify_test_i)
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
            ((uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}), 16);
-    ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle);
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Verify the second indication doesn't get sent until the first is
      * confirmed.
