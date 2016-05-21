@@ -25,7 +25,8 @@
 #define BLE_STORE_OBJ_TYPE_OUR_LTK      1
 #define BLE_STORE_OBJ_TYPE_PEER_LTK     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
-#define BLE_STORE_OBJ_TYPE_CCCD_IDX     4
+
+#define BLE_STORE_PEER_ADDR_TYPE_NONE   0xff
 
 struct ble_store_key_ltk {
     uint16_t ediv;
@@ -40,12 +41,20 @@ struct ble_store_value_ltk {
 };
 
 struct ble_store_key_cccd {
+    /**
+     * Key by peer address; peer_addr_type=BLE_STORE_PEER_ADDR_TYPE_NONE means
+     * don't key off peer.
+     */
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
-};
 
-struct ble_store_key_cccd_idx {
+    /**
+     *  Key by characteristic definition handle; chr_def_handle=0 means don't
+     *  key off characteristic handle.
+     */
     uint16_t chr_def_handle;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
     uint8_t idx;
 };
 
@@ -78,8 +87,8 @@ int ble_store_read(int obj_type, union ble_store_key *key,
 int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
 
-int ble_store_read_cccd_idx(struct ble_store_key_cccd_idx *key,
-                            struct ble_store_value_cccd *out_value);
+int ble_store_read_cccd(struct ble_store_key_cccd *key,
+                        struct ble_store_value_cccd *out_value);
 int ble_store_write_cccd(struct ble_store_value_cccd *value);
 int ble_store_delete_cccd(struct ble_store_key_cccd *key);
 

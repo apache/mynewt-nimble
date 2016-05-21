@@ -64,8 +64,8 @@ ble_store_delete(int obj_type, union ble_store_key *key)
 }
 
 int
-ble_store_read_cccd_idx(struct ble_store_key_cccd_idx *key,
-                        struct ble_store_value_cccd *out_value)
+ble_store_read_cccd(struct ble_store_key_cccd *key,
+                    struct ble_store_value_cccd *out_value)
 {
     union ble_store_value *store_value;
     union ble_store_key *store_key;
@@ -73,7 +73,7 @@ ble_store_read_cccd_idx(struct ble_store_key_cccd_idx *key,
 
     store_key = (void *)key;
     store_value = (void *)out_value;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_CCCD_IDX, store_key, store_value);
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_CCCD, store_key, store_value);
     return rc;
 }
 
