@@ -1018,6 +1018,49 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
     return 0;
 }
 
+
+/**
+ * Schedules a notification or indication for the specified peer-CCCD pair.  If
+ * the udpate should be sent immediately, it is indicated in the return code.
+ * If the update can only be sent in the future, the appropriate flags are set
+ * to ensure this happens.
+ *
+ * @param conn                  The connection to schedule the update for.
+ * @param clt_cfg               The client config entry corresponding to the
+ *                                  peer and affected characteristic.
+ *
+ * @return                      The att_op of the update to send immediately,
+ *                                  if any.  0 if nothing should get sent.
+ */
+static uint8_t
+ble_gatts_schedule_update(struct ble_hs_conn *conn,
+                          struct ble_gatts_clt_cfg *clt_cfg)
+{
+    uint8_t att_op;
+
+    if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
+        /* Notifications always get sent immediately. */
+        att_op = BLE_ATT_OP_NOTIFY_REQ;
+    } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
+        /* Only one outstanding indication per peer is allowed.  If we
+         * are still awaiting an ack, mark this CCCD as updated so that
+         * we know to send the indication upon receiving the expected ack.
+         * If there isn't an outstanding indication, send this one now.
+         */
+        if (conn->bhc_gatt_svr.indicate_val_handle != 0) {
+            clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_INDICATE_PENDING;
+            att_op = 0;
+        } else {
+            att_op = BLE_ATT_OP_INDICATE_REQ;
+        }
+    } else {
+        BLE_HS_DBG_ASSERT(0);
+        att_op = 0;
+    }
+
+    return att_op;
+}
+
 int
 ble_gatts_send_next_indicate(uint16_t conn_handle)
 {
@@ -1036,14 +1079,14 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
     if (conn != NULL) {
         for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
             clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
-            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED) {
+            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE_PENDING) {
                 BLE_HS_DBG_ASSERT(clt_cfg->flags &
                                   BLE_GATTS_CLT_CFG_F_INDICATE);
 
                 chr_val_handle = clt_cfg->chr_val_handle;
 
-                /* Clear updated flag in anticipation of indication tx. */
-                clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
+                /* Clear pending flag in anticipation of indication tx. */
+                clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_INDICATE_PENDING;
                 break;
             }
         }
@@ -1111,7 +1154,7 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
         BLE_HS_DBG_ASSERT(clt_cfg->chr_val_handle == chr_val_handle);
 
         persist = conn->bhc_sec_state.bonded &&
-                  !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED);
+                  !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE_PENDING);
         if (persist) {
             cccd_value.peer_addr_type = conn->bhc_addr_type;
             memcpy(cccd_value.peer_addr, conn->bhc_addr, 6);
@@ -1149,9 +1192,10 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     struct ble_store_key_cccd cccd_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    uint16_t clt_cfg_flags;
     uint16_t conn_handle;
+    uint8_t att_op;
     int clt_cfg_idx;
+    int persist;
     int rc;
     int i;
 
@@ -1175,50 +1219,115 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
             clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
             BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
 
-
-            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
-                clt_cfg_flags = clt_cfg->flags;
-            } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
-                /* Only one outstanding indication per peer is allowed.  If we
-                 * are still awaiting an ack, mark this CCCD as updated so that
-                 * an indication will get sent after the current one is
-                 * acknowledged.  If there isn't an outstanding indication,
-                 * just send this one now.
-                 */
-                if (conn->bhc_gatt_svr.indicate_val_handle != 0) {
-                    clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_UPDATED;
-                    clt_cfg_flags = 0;
-                } else {
-                    clt_cfg_flags = clt_cfg->flags;
-                }
-            } else {
-                clt_cfg_flags = 0;
-            }
+            /* Determine what kind of update should get sent immediately (if
+             * any).
+             */
+            att_op = ble_gatts_schedule_update(conn, clt_cfg);
             conn_handle = conn->bhc_handle;
-
         }
         ble_hs_unlock();
 
         if (conn == NULL) {
+            /* No more connected devices. */
             break;
         }
 
-        if (clt_cfg_flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
-            ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
-        } else if (clt_cfg_flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
+        switch (att_op) {
+        case 0:
+            break;
+        case BLE_ATT_OP_NOTIFY_REQ:
             ble_gattc_notify(conn_handle, chr_val_handle);
+            break;
+        case BLE_ATT_OP_INDICATE_REQ:
+            ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
+            break;
+        default:
+            BLE_HS_DBG_ASSERT(0);
+            break;
         }
     }
 
-    /* Persist updated flag for devices for which an update was not sent or
-     * scheduled.  Retrieve each record corresponding to the modified
-     * characteristic.
-     */
-    cccd_key = (struct ble_store_key_cccd) {
-        .peer_addr_type = BLE_STORE_PEER_ADDR_TYPE_NONE,
-        .chr_val_handle = chr_val_handle,
-        .idx = 0,
-    };
+    /*** Persist updated flag for unconnected and not-yet-bonded devices. */
+
+    /* Retrieve each record corresponding to the modified characteristic. */
+    cccd_key.peer_addr_type = BLE_STORE_PEER_ADDR_TYPE_NONE,
+    cccd_key.chr_val_handle = chr_val_handle,
+    cccd_key.idx = 0;
+
+    while (1) {
+        rc = ble_store_read_cccd(&cccd_key, &cccd_value);
+        if (rc != 0) {
+            /* Read error or no more CCCD records. */
+            break;
+        }
+
+        /* Determine if this record needs to be rewritten. */
+        ble_hs_lock();
+        conn = ble_hs_conn_find_by_addr(cccd_value.peer_addr_type,
+                                        cccd_value.peer_addr);
+
+        if (conn == NULL) {
+            /* Device isn't connected; persist the changed flag so that an
+             * update can be sent when the device reconnects and rebonds.
+             */
+            persist = 1;
+        } else if (cccd_value.flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
+            /* Indication for a connected device; record that the
+             * characteristic has changed until we receive the ack.
+             */
+            persist = 1;
+        } else {
+            /* Notification for a connected device; we already sent it so there
+             * is no need to persist.
+             */
+            persist = 0;
+        }
+
+        ble_hs_unlock();
+
+        /* Only persist if the value changed flag wasn't already sent (i.e.,
+         * don't overwrite with identical data).
+         */
+        if (persist && !cccd_value.value_changed) {
+            cccd_value.value_changed = 1;
+            ble_store_write_cccd(&cccd_value);
+        }
+
+        /* Read the next matching record. */
+        cccd_key.idx++;
+    }
+}
+
+/**
+ * Called when bonding has been restored via the encryption procedure.  This
+ * function:
+ *     o Restores persisted CCCD entries for the connected peer.
+ *     o Sends all pending notifications to the connected peer.
+ *     o Sends up to one pending indication to the connected peer; schedules
+ *       any remaining pending indications.
+ */
+void
+ble_gatts_bonding_restored(uint16_t conn_handle)
+{
+    struct ble_store_value_cccd cccd_value;
+    struct ble_store_key_cccd cccd_key;
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+    uint8_t att_op;
+    int rc;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    BLE_HS_DBG_ASSERT(conn != NULL);
+    BLE_HS_DBG_ASSERT(conn->bhc_sec_state.bonded);
+
+    cccd_key.peer_addr_type = conn->bhc_addr_type;
+    memcpy(cccd_key.peer_addr, conn->bhc_addr, 6);
+    cccd_key.chr_val_handle = 0;
+    cccd_key.idx = 0;
+
+    ble_hs_unlock();
 
     while (1) {
         rc = ble_store_read_cccd(&cccd_key, &cccd_value);
@@ -1226,27 +1335,41 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
             break;
         }
 
-        /* Assume no update was scheduled for this device .*/
-        clt_cfg_flags = 0;
-
         ble_hs_lock();
-        conn = ble_hs_conn_find_by_addr(cccd_value.peer_addr_type,
-                                        cccd_value.peer_addr);
-        if (conn != NULL) {
-            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
-            clt_cfg_flags = clt_cfg->flags;
+
+        conn = ble_hs_conn_find(conn_handle);
+        BLE_HS_DBG_ASSERT(conn != NULL);
+
+        clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
+                                         cccd_value.chr_val_handle);
+        if (clt_cfg != NULL) {
+            clt_cfg->flags = cccd_value.flags;
+            if (cccd_value.value_changed) {
+                att_op = ble_gatts_schedule_update(conn, clt_cfg);
+            }
         }
+
         ble_hs_unlock();
 
-        /* Only persist if the value changed flag wasn't already set (i.e.,
-         * only if we are writing new information).
-         */
-        if (clt_cfg_flags == 0 && !cccd_value.value_changed) {
-            cccd_value.value_changed = 1;
-            ble_store_write_cccd(&cccd_value);
+        switch (att_op) {
+        case 0:
+            break;
+        case BLE_ATT_OP_NOTIFY_REQ:
+            rc = ble_gattc_notify(conn_handle, cccd_value.chr_val_handle);
+            if (rc == 0) {
+                cccd_value.value_changed = 0;
+                ble_store_write_cccd(&cccd_value);
+            }
+            break;
+        case BLE_ATT_OP_INDICATE_REQ:
+            ble_gattc_indicate(conn_handle, cccd_value.chr_val_handle,
+                               NULL, NULL);
+            break;
+        default:
+            BLE_HS_DBG_ASSERT(0);
+            break;
         }
 
-        /* Read the next matching record. */
         cccd_key.idx++;
     }
 }

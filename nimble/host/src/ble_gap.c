@@ -2122,8 +2122,8 @@ ble_gap_passkey_event(uint16_t conn_handle, uint8_t passkey_action)
 }
 
 void
-ble_gap_security_event(uint16_t conn_handle, int status,
-                       struct ble_gap_sec_state *sec_state)
+ble_gap_enc_changed(uint16_t conn_handle, int status,
+                    struct ble_gap_sec_state *sec_state)
 {
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
@@ -2149,6 +2149,10 @@ ble_gap_security_event(uint16_t conn_handle, int status,
     ctxt.enc_change.status = status;
     ble_gap_call_event_cb(BLE_GAP_EVENT_ENC_CHANGE, &ctxt,
                           snap.cb, snap.cb_arg);
+
+    if (sec_state->bonded) {
+        ble_gatts_bonding_restored(conn_handle);
+    }
 }
 
 /*****************************************************************************
