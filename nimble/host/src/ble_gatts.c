@@ -1069,8 +1069,8 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
 void
 ble_gatts_chr_updated(uint16_t chr_def_handle)
 {
-    struct ble_store_key_cccd_idx cccd_idx;
     struct ble_store_value_cccd cccd_value;
+    struct ble_store_key_cccd cccd_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
     uint16_t chr_val_handle;
@@ -1133,11 +1133,17 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
     }
 
     /* Persist updated flag for devices for which an update was not sent or
-     * scheduled.
+     * scheduled.  Retrieve each record corresponding to the modified
+     * characteristic.
      */
-    cccd_idx.chr_def_handle = chr_def_handle;
-    for (cccd_idx.idx = 0; ; cccd_idx.idx++) {
-        rc = ble_store_read_cccd_idx(&cccd_idx, &cccd_value);
+    cccd_key = (struct ble_store_key_cccd) {
+        .peer_addr_type = BLE_STORE_PEER_ADDR_TYPE_NONE,
+        .chr_def_handle = chr_def_handle,
+        .idx = 0,
+    };
+
+    while (1) {
+        rc = ble_store_read_cccd(&cccd_key, &cccd_value);
         if (rc != 0) {
             break;
         }
@@ -1161,6 +1167,9 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
             cccd_value.value_changed = 1;
             ble_store_write_cccd(&cccd_value);
         }
+
+        /* Read the next matching record. */
+        cccd_key.idx++;
     }
 }
 
