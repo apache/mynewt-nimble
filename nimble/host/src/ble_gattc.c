@@ -3649,23 +3649,18 @@ ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
 static void
 ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 {
-    struct ble_hs_conn *conn;
+    int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    ble_gattc_indicate_cb(proc, 0, 0);
-
-    ble_hs_lock();
-    conn = ble_hs_conn_find(proc->conn_handle);
-    if (conn != NULL) {
-        conn->bhc_flags &= ~BLE_HS_CONN_F_INDICATE_TXED;
+    rc = ble_gatts_rx_indicate_ack(proc->conn_handle,
+                                   proc->indicate.chr_val_handle);
+    if (rc != BLE_HS_ENOTCONN && rc != BLE_HS_ENOENT) {
+        ble_gattc_indicate_cb(proc, rc, 0);
     }
-    ble_hs_unlock();
 
     /* Send the next indication if one is pending. */
-    if (conn != NULL) {
-        ble_gatts_send_next_indicate(proc->conn_handle);
-    }
+    ble_gatts_send_next_indicate(proc->conn_handle);
 }
 
 /**
@@ -3682,6 +3677,7 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_indicate_req req;
     struct ble_gattc_proc *proc;
+    struct ble_hs_conn *conn;
     int rc;
 
     STATS_INC(ble_gattc_stats, indicate);
@@ -3716,6 +3712,15 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
     if (rc != 0) {
         goto done;
     }
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        BLE_HS_DBG_ASSERT(conn->bhc_gatt_svr.indicate_val_handle == 0);
+        conn->bhc_gatt_svr.indicate_val_handle = chr_val_handle;
+    }
+    ble_hs_unlock();
+
 
 done:
     if (rc != 0) {

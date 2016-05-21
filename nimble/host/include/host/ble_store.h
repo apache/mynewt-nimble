@@ -42,15 +42,15 @@ struct ble_store_value_ltk {
 
 struct ble_store_key_cccd {
     /**
-     * Key by peer address; peer_addr_type=BLE_STORE_PEER_ADDR_TYPE_NONE means
-     * don't key off peer.
+     * Key by peer identity address;
+     * peer_addr_type=BLE_STORE_PEER_ADDR_TYPE_NONE means don't key off peer.
      */
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
 
     /**
-     *  Key by characteristic definition handle; chr_def_handle=0 means don't
-     *  key off characteristic handle.
+     * Key by characteristic definition handle;
+     * chr_def_handle=0 means don't key off characteristic handle.
      */
     uint16_t chr_def_handle;
 

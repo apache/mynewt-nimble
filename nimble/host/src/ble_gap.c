@@ -559,6 +559,10 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap, int reason)
 {
     struct ble_gap_conn_ctxt ctxt;
 
+    /* XXX: Consider removing the connection from the list and handing it to
+     * each fo the "connection_broken" functions below.
+     */
+
     ble_l2cap_sm_connection_broken(snap->desc.conn_handle);
     ble_gattc_connection_broken(snap->desc.conn_handle);
 

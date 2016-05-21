@@ -91,6 +91,8 @@ typedef uint8_t ble_gatts_conn_flags;
 struct ble_gatts_conn {
     struct ble_gatts_clt_cfg *clt_cfgs;
     int num_clt_cfgs;
+
+    uint16_t indicate_val_handle;
 };
 
 /*** @client. */
@@ -142,6 +144,7 @@ int ble_gattc_init(void);
 #define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
 #define BLE_GATTS_INC_SVC_LEN_UUID              6
 
+int ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle);
 int ble_gatts_send_next_indicate(uint16_t conn_handle);
 
 /*** @misc. */

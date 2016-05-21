@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* XXX: Standardize on chr_val_handle; never use definition handle. */
+
 #include <stddef.h>
 #include <string.h>
 #include "console/console.h"
@@ -1039,9 +1041,8 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
                 BLE_HS_DBG_ASSERT(clt_cfg->flags &
                                   BLE_GATTS_CLT_CFG_F_INDICATE);
 
-                /* Clear updated flag in anticipation of intication tx. */
+                /* Clear updated flag in anticipation of indication tx. */
                 clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_UPDATED;
-
                 chr_val_handle = clt_cfg->chr_def_handle + 1;
                 break;
             }
@@ -1061,6 +1062,83 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
     rc = ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
     if (rc != 0) {
         return rc;
+    }
+
+    return 0;
+}
+
+int
+ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
+{
+    struct ble_store_value_cccd cccd_value;
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+    uint16_t chr_def_handle;
+    int clt_cfg_idx;
+    int persist;
+    int rc;
+
+    chr_def_handle = chr_val_handle - 1;
+
+    clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
+                                             chr_def_handle);
+    if (clt_cfg_idx == -1) {
+        /* This characteristic does not have a CCCD. */
+        return BLE_HS_ENOENT;
+    }
+
+    clt_cfg = ble_gatts_clt_cfgs + clt_cfg_idx;
+    if (!(clt_cfg->allowed & BLE_GATTS_CLT_CFG_F_INDICATE)) {
+        /* This characteristic does not allow indications. */
+        return BLE_HS_ENOENT;
+    }
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    BLE_HS_DBG_ASSERT(conn != NULL);
+    if (conn->bhc_gatt_svr.indicate_val_handle == chr_val_handle) {
+        /* This acknowledgement is expected. */
+        rc = 0;
+
+        /* Mark that there is no longer an outstanding txed indicate. */
+        conn->bhc_gatt_svr.indicate_val_handle = 0;
+
+        /* Determine if we need to persist that there is no pending indication
+         * for this peer-characteristic pair.  If the characteristic has not
+         * been modified since we sent the indication, there is no indication
+         * pending.
+         */
+        BLE_HS_DBG_ASSERT(conn->bhc_gatt_svr.num_clt_cfgs > clt_cfg_idx);
+        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
+        BLE_HS_DBG_ASSERT(clt_cfg->chr_def_handle == chr_def_handle);
+
+        persist = conn->bhc_sec_state.bonded &&
+                  !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_UPDATED);
+        if (persist) {
+            cccd_value.peer_addr_type = conn->bhc_addr_type;
+            memcpy(cccd_value.peer_addr, conn->bhc_addr, 6);
+            cccd_value.flags = clt_cfg->flags;
+            cccd_value.value_changed = 0;
+        }
+    } else {
+        /* This acknowledgement doesn't correspnod to the outstanding
+         * indication; ignore it.
+         */
+        rc = BLE_HS_ENOENT;
+    }
+
+    ble_hs_unlock();
+
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (persist) {
+        rc = ble_store_write_cccd(&cccd_value);
+        if (rc != 0) {
+            return rc;
+        }
     }
 
     return 0;
@@ -1107,7 +1185,13 @@ ble_gatts_chr_updated(uint16_t chr_def_handle)
             if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
                 clt_cfg_flags = clt_cfg->flags;
             } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
-                if (conn->bhc_flags & BLE_HS_CONN_F_INDICATE_TXED) {
+                /* Only one outstanding indication per peer is allowed.  If we
+                 * are still awaiting an ack, mark this CCCD as updated so that
+                 * an indication will get sent after the current one is
+                 * acknowledged.  If there isn't an outstanding indication,
+                 * just send this one now.
+                 */
+                if (conn->bhc_gatt_svr.indicate_val_handle != 0) {
                     clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_UPDATED;
                     clt_cfg_flags = 0;
                 } else {
