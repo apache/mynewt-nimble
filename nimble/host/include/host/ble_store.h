@@ -26,42 +26,53 @@
 #define BLE_STORE_OBJ_TYPE_PEER_LTK     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
-union ble_store_key {
-    struct {
-        uint16_t ediv;
-        uint64_t rand_num;
-    } ltk;
+struct ble_store_key_ltk {
+    uint16_t ediv;
+    uint64_t rand_num;
+};
 
-    struct {
-        uint8_t peer_addr[6];
-        /* XXX: Peer addr type? */
-    } cccd;
+struct ble_store_value_ltk {
+    uint16_t ediv;
+    uint64_t rand_num;
+    uint8_t key[16];
+    unsigned authenticated:1;
+};
+
+struct ble_store_key_cccd {
+    uint8_t peer_addr[6];
+    uint8_t peer_addr_type;
+};
+
+struct ble_store_value_cccd {
+    uint8_t peer_addr[6];
+    uint8_t peer_addr_type;
+    uint16_t flags;
+    unsigned value_changed:1;
+};
+
+union ble_store_key {
+    struct ble_store_key_ltk ltk;
+    struct ble_store_key_cccd cccd;
 };
 
 union ble_store_value {
-    struct {
-        uint8_t key[16];
-        unsigned authenticated:1;
-    } ltk;
-
-    struct {
-        uint16_t flags;
-        unsigned value_changed:1;
-    } cccd;
+    struct ble_store_value_ltk ltk;
+    struct ble_store_value_cccd cccd;
 };
 
 typedef int ble_store_read_fn(int obj_type, union ble_store_key *key,
                               union ble_store_value *dst);
 
-typedef int ble_store_write_fn(int obj_type, union ble_store_key *key,
-                               union ble_store_value *val);
+typedef int ble_store_write_fn(int obj_type, union ble_store_value *val);
 
 typedef int ble_store_delete_fn(int obj_type, union ble_store_key *key);
 
 int ble_store_read(int obj_type, union ble_store_key *key,
                    union ble_store_value *val);
-int ble_store_write(int obj_type, union ble_store_key *key,
-                    union ble_store_value *val);
+int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
+
+int ble_store_write_cccd(struct ble_store_value_cccd *value);
+int ble_store_delete_cccd(struct ble_store_key_cccd *key);
 
 #endif
