@@ -1224,6 +1224,10 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
              */
             att_op = ble_gatts_schedule_update(conn, clt_cfg);
             conn_handle = conn->bhc_handle;
+        } else {
+            /* Silence some spurious gcc warnings. */
+            att_op = 0;
+            conn_handle = BLE_HS_CONN_HANDLE_NONE;
         }
         ble_hs_unlock();
 
@@ -1334,6 +1338,9 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
         if (rc != 0) {
             break;
         }
+
+        /* Assume no immediate send for this characteristic. */
+        att_op = 0;
 
         ble_hs_lock();
 
