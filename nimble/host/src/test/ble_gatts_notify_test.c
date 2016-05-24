@@ -24,6 +24,7 @@
 #include "host/ble_uuid.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
+#include "ble_hs_test_util_store.h"
 
 #define BLE_GATTS_NOTIFY_TEST_CHR_1_UUID    0x1111
 #define BLE_GATTS_NOTIFY_TEST_CHR_2_UUID    0x2222
@@ -66,43 +67,9 @@ static uint16_t ble_gatts_notify_test_chr_2_def_handle;
 static uint8_t ble_gatts_notify_test_chr_2_val[1024];
 static int ble_gatts_notify_test_chr_2_len;
 
-static void
-ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle)
-{
-    int rc;
+typedef int ble_store_write_fn(int obj_type, union ble_store_value *val);
 
-    ble_hs_test_util_init();
-
-    rc = ble_gatts_register_svcs(ble_gatts_notify_test_svcs,
-                                 ble_gatts_notify_test_misc_reg_cb, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_1_def_handle != 0);
-    TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_2_def_handle != 0);
-
-    ble_gatts_start();
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                 NULL, NULL);
-    *out_conn_handle = 2;
-}
-
-static void
-ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
-                                         uint16_t chr_def_handle,
-                                         uint16_t flags)
-{
-    struct ble_att_write_req req;
-    uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + 2];
-    int rc;
-
-    req.bawq_handle = chr_def_handle + 2;
-    ble_att_write_req_write(buf, sizeof buf, &req);
-
-    htole16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
-}
+typedef int ble_store_delete_fn(int obj_type, union ble_store_key *key);
 
 static uint16_t
 ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle,
@@ -130,6 +97,57 @@ ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle,
 
     flags = le16toh(om->om_data + 1);
     return flags;
+}
+
+static void
+ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle)
+{
+    uint16_t flags;
+    int rc;
+
+    ble_hs_test_util_init();
+
+    ble_hs_test_util_store_init(10, 10, 10);
+    ble_hs_cfg.store_read_cb = ble_hs_test_util_store_read;
+    ble_hs_cfg.store_write_cb = ble_hs_test_util_store_write;
+
+    rc = ble_gatts_register_svcs(ble_gatts_notify_test_svcs,
+                                 ble_gatts_notify_test_misc_reg_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_1_def_handle != 0);
+    TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_2_def_handle != 0);
+
+    ble_gatts_start();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+    *out_conn_handle = 2;
+
+    /* Ensure notifications disabled on new connection. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        2, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == 0);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        2, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == 0);
+}
+
+static void
+ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
+                                         uint16_t chr_def_handle,
+                                         uint16_t flags)
+{
+    struct ble_att_write_req req;
+    uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + 2];
+    int rc;
+
+    req.bawq_handle = chr_def_handle + 2;
+    ble_att_write_req_write(buf, sizeof buf, &req);
+
+    htole16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
 }
 
 static void
@@ -253,9 +271,18 @@ TEST_CASE(ble_gatts_notify_test_n)
         BLE_GATTS_CLT_CFG_F_NOTIFY);
 
     /* Toss both write responses. */
-    ble_hs_test_util_tx_all();
-    ble_hs_test_util_prev_tx_dequeue();
-    ble_hs_test_util_prev_tx_dequeue();
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    /* Ensure nothing got persisted since peer is not bonded. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 0);
+
+    /* Ensure notifications read back as enabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -325,9 +352,18 @@ TEST_CASE(ble_gatts_notify_test_i)
         BLE_GATTS_CLT_CFG_F_INDICATE);
 
     /* Toss both write responses. */
-    ble_hs_test_util_tx_all();
-    ble_hs_test_util_prev_tx_dequeue();
-    ble_hs_test_util_prev_tx_dequeue();
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    /* Ensure nothing got persisted since peer is not bonded. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 0);
+
+    /* Ensure indications read back as enabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -397,10 +433,243 @@ TEST_CASE(ble_gatts_notify_test_i)
     TEST_ASSERT(flags == 0);
 }
 
+TEST_CASE(ble_gatts_notify_test_bonded_n)
+{
+    struct ble_hs_conn *conn;
+    uint16_t conn_handle;
+    uint16_t flags;
+
+    ble_gatts_notify_test_misc_init(&conn_handle);
+
+    /* Enable bonding. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_sec_state.enc_enabled = 1;
+    conn->bhc_sec_state.authenticated = 1;
+    conn->bhc_sec_state.bonded = 1;
+    ble_hs_unlock();
+
+    /* Enable notifications on both characteristics. */
+    ble_gatts_notify_test_misc_enable_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle,
+        BLE_GATTS_CLT_CFG_F_NOTIFY);
+    ble_gatts_notify_test_misc_enable_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle,
+        BLE_GATTS_CLT_CFG_F_NOTIFY);
+
+    /* Toss both write responses. */
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    /* Ensure both CCCDs got persisted. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+
+    /* Ensure notifications read back as enabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
+
+    /* Disconnect. */
+    ble_hs_test_util_conn_disconnect(conn_handle);
+
+    /* Ensure both CCCDs still persisted. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+
+    /* Update characteristic 1's value. */
+    ble_gatts_notify_test_chr_1_len = 1;
+    ble_gatts_notify_test_chr_1_val[0] = 0xdd;
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle + 1);
+
+    /* Update characteristic 2's value. */
+    ble_gatts_notify_test_chr_2_len = 16;
+    memcpy(ble_gatts_notify_test_chr_2_val,
+           ((uint8_t[]){1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}), 16);
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
+
+    /* Reconnect; ensure notifications don't get sent while unbonded and that
+     * notifications appear disabled.
+     */
+
+    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Ensure no notifications sent. */
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    /* Ensure notifications disabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == 0);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == 0);
+
+    /* Simulate a successful encryption procedure (bonding restoration). */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_sec_state.enc_enabled = 1;
+    conn->bhc_sec_state.authenticated = 1;
+    conn->bhc_sec_state.bonded = 1;
+    ble_hs_unlock();
+
+    ble_gatts_bonding_restored(conn_handle);
+
+    /* Verify notifications sent properly. */
+    ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_1_val,
+                                           ble_gatts_notify_test_chr_1_len);
+    ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_2_val,
+                                           ble_gatts_notify_test_chr_2_len);
+
+    /* Ensure notifications enabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
+
+    /* Ensure both CCCDs still persisted. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+}
+
+TEST_CASE(ble_gatts_notify_test_bonded_i)
+{
+    struct ble_hs_conn *conn;
+    uint16_t conn_handle;
+    uint16_t flags;
+
+    ble_gatts_notify_test_misc_init(&conn_handle);
+
+    /* Enable bonding. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_sec_state.enc_enabled = 1;
+    conn->bhc_sec_state.authenticated = 1;
+    conn->bhc_sec_state.bonded = 1;
+    ble_hs_unlock();
+
+    /* Enable indications on both characteristics. */
+    ble_gatts_notify_test_misc_enable_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle,
+        BLE_GATTS_CLT_CFG_F_INDICATE);
+    ble_gatts_notify_test_misc_enable_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle,
+        BLE_GATTS_CLT_CFG_F_INDICATE);
+
+    /* Toss both write responses. */
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    /* Ensure both CCCDs got persisted. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+
+    /* Ensure indications read back as enabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
+
+    /* Disconnect. */
+    ble_hs_test_util_conn_disconnect(conn_handle);
+
+    /* Ensure both CCCDs still persisted. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+
+    /* Update characteristic 1's value. */
+    ble_gatts_notify_test_chr_1_len = 1;
+    ble_gatts_notify_test_chr_1_val[0] = 0xab;
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle + 1);
+
+    /* Update characteristic 2's value. */
+    ble_gatts_notify_test_chr_2_len = 16;
+    memcpy(ble_gatts_notify_test_chr_2_val,
+           ((uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}), 16);
+    ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
+
+    /* Reconnect; ensure notifications don't get sent while unbonded and that
+     * notifications appear disabled.
+     */
+
+    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Ensure no indications sent. */
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    /* Ensure notifications disabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == 0);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == 0);
+
+    /* Simulate a successful encryption procedure (bonding restoration). */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_sec_state.enc_enabled = 1;
+    conn->bhc_sec_state.authenticated = 1;
+    conn->bhc_sec_state.bonded = 1;
+    ble_hs_unlock();
+
+    ble_gatts_bonding_restored(conn_handle);
+
+    /* Verify first indication sent properly. */
+    ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_1_val,
+                                           ble_gatts_notify_test_chr_1_len);
+
+    /* Verify the second indication doesn't get sent until the first is
+     * confirmed.
+     */
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+
+    /* Receive the confirmation for the first indication. */
+    ble_gatts_notify_test_misc_rx_indicate_rsp(conn_handle);
+
+    /* Verify indication sent properly. */
+    ble_hs_test_util_tx_all();
+    ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_2_val,
+                                           ble_gatts_notify_test_chr_2_len);
+
+    /* Receive the confirmation for the second indication. */
+    ble_gatts_notify_test_misc_rx_indicate_rsp(conn_handle);
+
+    /* Verify no pending GATT jobs. */
+    TEST_ASSERT(!ble_gattc_any_jobs());
+
+    /* Ensure notifications enabled. */
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
+    flags = ble_gatts_notify_test_misc_read_notify(
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle);
+    TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
+
+    /* Ensure both CCCDs still persisted. */
+    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+}
+
 TEST_SUITE(ble_gatts_notify_suite)
 {
     ble_gatts_notify_test_n();
     ble_gatts_notify_test_i();
+
+    ble_gatts_notify_test_bonded_n();
+    ble_gatts_notify_test_bonded_i();
+
+    /* XXX: Test corner cases:
+     *     o Bonding after CCCD configuration.
+     *     o Disconnect prior to rx of indicate ack.
+     *     o Multiple characteristic updates prior to rx of indicate ack.
+     */
 }
 
 int
