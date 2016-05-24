@@ -379,6 +379,22 @@ ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
     return rc;
 }
 
+void
+ble_hs_test_util_conn_disconnect(uint16_t conn_handle)
+{
+    struct hci_disconn_complete evt;
+    int rc;
+
+    rc = ble_hs_test_util_conn_terminate(conn_handle, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Receive disconnection complete event. */
+    evt.connection_handle = conn_handle;
+    evt.status = 0;
+    evt.reason = BLE_ERR_CONN_TERM_LOCAL;
+    ble_gap_rx_disconn_complete(&evt);
+}
+
 int
 ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t scan_type, uint8_t filter_policy,

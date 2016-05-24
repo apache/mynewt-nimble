@@ -44,9 +44,11 @@ ble_hs_test_hci_txed(uint8_t *cmdbuf)
 #ifdef MYNEWT_SELFTEST
 
 int
-main(void)
+main(int argc, char **argv)
 {
     tu_config.tc_print_results = 1;
+    tu_parse_args(argc, argv);
+
     tu_init();
 
     ble_att_clt_test_all();

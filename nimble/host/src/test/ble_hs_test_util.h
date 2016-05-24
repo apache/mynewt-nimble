@@ -61,6 +61,7 @@ int ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
+void ble_hs_test_util_conn_disconnect(uint16_t conn_handle);
 int ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
                           uint8_t scan_type, uint8_t filter_policy,
                           ble_gap_disc_fn *cb, void *cb_arg, int fail_idx,
