@@ -412,6 +412,21 @@ ble_l2cap_sm_test_util_verify_tx_enc_info(
 }
 
 static void
+ble_l2cap_sm_test_util_verify_tx_sec_req(struct ble_l2cap_sm_sec_req *exp_cmd)
+{
+    struct ble_l2cap_sm_sec_req cmd;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_l2cap_sm_test_util_verify_tx_hdr(BLE_L2CAP_SM_OP_SEC_REQ,
+                                              BLE_L2CAP_SM_SEC_REQ_SZ);
+    ble_l2cap_sm_sec_req_parse(om->om_data, om->om_len, &cmd);
+
+    TEST_ASSERT(cmd.authreq == exp_cmd->authreq);
+}
+
+static void
 ble_l2cap_sm_test_util_verify_tx_pair_fail(
     struct ble_l2cap_sm_pair_fail *exp_cmd)
 {
@@ -914,6 +929,9 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
     if (params->has_sec_req) {
         rc = ble_l2cap_sm_slave_initiate(2);
         TEST_ASSERT(rc == 0);
+
+        /* Ensure we sent the expected security request. */
+        ble_l2cap_sm_test_util_verify_tx_sec_req(&params->sec_req);
     }
 
     /* Receive a pair request from the peer. */
