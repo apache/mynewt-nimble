@@ -527,17 +527,11 @@ ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
     }
 }
 
-struct ble_gatts_clt_cfg_record {
-    unsigned write:1;
-    struct ble_store_key_cccd key;
-    struct ble_store_value_cccd value;
-};
-
 static int
 ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
                                 uint8_t *uuid128, uint8_t att_op,
                                 struct ble_att_svr_access_ctxt *ctxt,
-                                struct ble_gatts_clt_cfg_record *out_record)
+                                struct ble_store_value_cccd *out_cccd)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     uint16_t chr_val_handle;
@@ -547,7 +541,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     static uint8_t buf[2];
 
     /* Assume nothing needs to be persisted. */
-    out_record->write = 0;
+    out_cccd->chr_val_handle = 0;
 
     /* We always register the client characteristics descriptor with handle
      * (chr_val + 1).
@@ -590,12 +584,11 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
 
         /* Successful writes get persisted for bonded connections. */
         if (conn->bhc_sec_state.bonded) {
-            out_record->key.peer_addr_type = conn->bhc_addr_type;
-            memcpy(out_record->key.peer_addr, conn->bhc_addr, 6);
-            out_record->value.chr_val_handle = chr_val_handle;
-            out_record->value.flags = clt_cfg->flags;
-            out_record->value.value_changed = 0;
-            out_record->write = 1;
+            out_cccd->peer_addr_type = conn->bhc_addr_type;
+            memcpy(out_cccd->peer_addr, conn->bhc_addr, 6);
+            out_cccd->chr_val_handle = chr_val_handle;
+            out_cccd->flags = clt_cfg->flags;
+            out_cccd->value_changed = 0;
         }
         break;
 
@@ -613,7 +606,8 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                          struct ble_att_svr_access_ctxt *ctxt,
                          void *arg)
 {
-    struct ble_gatts_clt_cfg_record persist_record;
+    struct ble_store_value_cccd cccd_value;
+    struct ble_store_key_cccd cccd_key;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -624,16 +618,17 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = BLE_ATT_ERR_UNLIKELY;
     } else {
         rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
-                                             ctxt, &persist_record);
+                                             ctxt, &cccd_value);
     }
 
     ble_hs_unlock();
 
-    if (rc == 0 && persist_record.write) {
-        if (persist_record.value.flags == 0) {
-            rc = ble_store_delete_cccd(&persist_record.key);
+    if (rc == 0 && cccd_value.chr_val_handle != 0) {
+        if (cccd_value.flags == 0) {
+            ble_store_key_from_value_cccd(&cccd_key, &cccd_value);
+            rc = ble_store_delete_cccd(&cccd_key);
         } else {
-            rc = ble_store_write_cccd(&persist_record.value);
+            rc = ble_store_write_cccd(&cccd_value);
         }
     }
 

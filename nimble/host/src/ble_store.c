@@ -17,6 +17,8 @@
  * under the License.
  */
 
+#include <string.h>
+
 #include "host/ble_store.h"
 #include "ble_hs_priv.h"
 
@@ -97,4 +99,14 @@ ble_store_delete_cccd(struct ble_store_key_cccd *key)
     store_key = (void *)key;
     rc = ble_store_delete(BLE_STORE_OBJ_TYPE_CCCD, store_key);
     return rc;
+}
+
+void
+ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
+                              struct ble_store_value_cccd *value)
+{
+    out_key->peer_addr_type = value->peer_addr_type;
+    memcpy(out_key->peer_addr, value->peer_addr, 6);
+    out_key->chr_val_handle = value->chr_val_handle;
+    out_key->idx = 0;
 }
