@@ -527,9 +527,29 @@ ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
     }
 }
 
+/**
+ * Performs a read or write access on a client characteritic configuration
+ * descriptor (CCCD).
+ *
+ * @param conn                  The connection of the peer doing the accessing.
+ * @apram attr_handle           The handle of the CCCD.
+ * @param att_op                The ATT operation being performed (read or
+ *                                  write).
+ * @param ctxt                  Communication channel between this function and
+ *                                  the caller within the nimble stack.
+ *                                  Semantics depends on the operation being
+ *                                  performed.
+ * @param out_cccd              If the CCCD should be persisted as a result of
+ *                                  the access, the data-to-be-persisted gets
+ *                                  written here.  If no persistence is
+ *                                  necessary, out_cccd->chr_val_handle is set
+ *                                  to 0.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 static int
 ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
-                                uint8_t *uuid128, uint8_t att_op,
+                                uint8_t att_op,
                                 struct ble_att_svr_access_ctxt *ctxt,
                                 struct ble_store_value_cccd *out_cccd)
 {
@@ -617,12 +637,13 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     if (conn == NULL) {
         rc = BLE_ATT_ERR_UNLIKELY;
     } else {
-        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, uuid128, op,
-                                             ctxt, &cccd_value);
+        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, op, ctxt,
+                                             &cccd_value);
     }
 
     ble_hs_unlock();
 
+    /* Persist the CCCD if required. */
     if (rc == 0 && cccd_value.chr_val_handle != 0) {
         if (cccd_value.flags == 0) {
             ble_store_key_from_value_cccd(&cccd_key, &cccd_value);
