@@ -25,14 +25,14 @@
 /* XXX: Rethink our/peer distinction.  Might make sense to unify keys such that
  * each entry contains both peers' addresses.
  */
-#define BLE_STORE_OBJ_TYPE_MST_LTK      1
-#define BLE_STORE_OBJ_TYPE_SLV_LTK      2
+#define BLE_STORE_OBJ_TYPE_MST_SEC      1
+#define BLE_STORE_OBJ_TYPE_SLV_SEC      2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
 #define BLE_STORE_ADDR_TYPE_NONE        0xff
 #define BLE_STORE_AUTHREQ_NONE          0xff
 
-struct ble_store_key_ltk {
+struct ble_store_key_sec {
     /**
      * Key by peer identity address;
      * peer_addr_type=BLE_STORE_ADDR_TYPE_NONE means don't key off peer.
@@ -40,25 +40,32 @@ struct ble_store_key_ltk {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
 
-    /** Key by ediv; ediv_present=0 means don't key off ediv. */
+    /** Key by ediv; ediv_rand_present=0 means don't key off ediv. */
     uint16_t ediv;
-    unsigned ediv_present:1;
 
-    /** Key by rand_num; rand_num_present=0 means don't key off rand_num. */
+    /** Key by rand_num; ediv_rand_present=0 means don't key off rand_num. */
     uint64_t rand_num;
-    unsigned rand_num_present:1;
+
+    unsigned ediv_rand_present:1;
 };
 
-struct ble_store_value_ltk {
+struct ble_store_value_sec {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
+
     uint16_t ediv;
     uint64_t rand_num;
-    uint8_t key[16];
+    uint8_t ltk[16];
+    unsigned ltk_present:1;
+
+    uint8_t irk[16];
+    unsigned irk_present:1;
+
+    uint8_t csrk[16];
+    unsigned csrk_present:1;
 
     unsigned authenticated:1;
     unsigned sc:1;
-
 };
 
 struct ble_store_key_cccd {
@@ -88,12 +95,12 @@ struct ble_store_value_cccd {
 };
 
 union ble_store_key {
-    struct ble_store_key_ltk ltk;
+    struct ble_store_key_sec sec;
     struct ble_store_key_cccd cccd;
 };
 
 union ble_store_value {
-    struct ble_store_value_ltk ltk;
+    struct ble_store_value_sec sec;
     struct ble_store_value_cccd cccd;
 };
 
@@ -109,20 +116,20 @@ int ble_store_read(int obj_type, union ble_store_key *key,
 int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
 
-int ble_store_read_slv_ltk(struct ble_store_key_ltk *key_ltk,
-                           struct ble_store_value_ltk *value_ltk);
-int ble_store_write_slv_ltk(struct ble_store_value_ltk *value_ltk);
-int ble_store_read_mst_ltk(struct ble_store_key_ltk *key_ltk,
-                           struct ble_store_value_ltk *value_ltk);
-int ble_store_write_mst_ltk(struct ble_store_value_ltk *value_ltk);
+int ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
+                           struct ble_store_value_sec *value_sec);
+int ble_store_write_slv_sec(struct ble_store_value_sec *value_sec);
+int ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
+                           struct ble_store_value_sec *value_sec);
+int ble_store_write_mst_sec(struct ble_store_value_sec *value_sec);
 
 int ble_store_read_cccd(struct ble_store_key_cccd *key,
                         struct ble_store_value_cccd *out_value);
 int ble_store_write_cccd(struct ble_store_value_cccd *value);
 int ble_store_delete_cccd(struct ble_store_key_cccd *key);
 
-void ble_store_key_from_value_ltk(struct ble_store_key_ltk *out_key,
-                                  struct ble_store_value_ltk *value);
+void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
+                                  struct ble_store_value_sec *value);
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    struct ble_store_value_cccd *value);
 
