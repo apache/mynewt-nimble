@@ -27,17 +27,35 @@
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
 #define BLE_STORE_PEER_ADDR_TYPE_NONE   0xff
+#define BLE_STORE_AUTHREQ_NONE          0xff
 
 struct ble_store_key_ltk {
+    /**
+     * Key by peer identity address;
+     * peer_addr_type=BLE_STORE_PEER_ADDR_TYPE_NONE means don't key off peer.
+     */
+    uint8_t addr[6];
+    uint8_t addr_type;
+
+    /** Key by ediv; ediv_present=0 means don't key off ediv. */
     uint16_t ediv;
+    unsigned ediv_present:1;
+
+    /** Key by rand_num; rand_num_present=0 means don't key off rand_num. */
     uint64_t rand_num;
+    unsigned rand_num_present:1;
 };
 
 struct ble_store_value_ltk {
+    uint8_t addr[6];
+    uint8_t addr_type;
     uint16_t ediv;
     uint64_t rand_num;
     uint8_t key[16];
+
     unsigned authenticated:1;
+    unsigned sc:1;
+
 };
 
 struct ble_store_key_cccd {
@@ -88,6 +106,8 @@ int ble_store_read(int obj_type, union ble_store_key *key,
 int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
 
+int ble_store_read_peer_ltk(struct ble_store_key_ltk *key_ltk,
+                            struct ble_store_value_ltk *value_ltk);
 int ble_store_read_cccd(struct ble_store_key_cccd *key,
                         struct ble_store_value_cccd *out_value);
 int ble_store_write_cccd(struct ble_store_value_cccd *value);
