@@ -481,28 +481,55 @@ ble_l2cap_sm_sec_state(struct ble_l2cap_sm_proc *proc,
 static void
 ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc)
 {
-    union ble_store_value store_value;
+    struct ble_store_value_ltk value_ltk;
+    struct ble_hs_conn *conn;
+    uint8_t peer_addr[8];
+    uint8_t peer_addr_type;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(proc->conn_handle);
+    BLE_HS_DBG_ASSERT(conn != NULL);
+
+    peer_addr_type = conn->bhc_addr_type;
+    memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
+
+    ble_hs_unlock();
 
     if (proc->our_keys.ediv_rand_valid && proc->our_keys.ltk_valid) {
-        store_value.ltk.ediv = proc->our_keys.ediv;
-        store_value.ltk.rand_num = proc->our_keys.rand_val;
-        memcpy(store_value.ltk.key, proc->our_keys.ltk,
-               sizeof store_value.ltk.key);
-        store_value.ltk.authenticated =
+        value_ltk.peer_addr_type = peer_addr_type;
+        memcpy(value_ltk.peer_addr, peer_addr, sizeof value_ltk.peer_addr);
+        value_ltk.ediv = proc->our_keys.ediv;
+        value_ltk.rand_num = proc->our_keys.rand_val;
+        memcpy(value_ltk.key, proc->our_keys.ltk,
+               sizeof value_ltk.key);
+        value_ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
-        store_value.ltk.sc = 0;
-        ble_store_write(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_value);
+        value_ltk.sc = 0;
+
+        if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+            ble_store_write_mst_ltk(&value_ltk);
+        } else {
+            ble_store_write_slv_ltk(&value_ltk);
+        }
     }
 
     if (proc->peer_keys.ediv_rand_valid && proc->peer_keys.ltk_valid) {
-        store_value.ltk.ediv = proc->peer_keys.ediv;
-        store_value.ltk.rand_num = proc->peer_keys.rand_val;
-        memcpy(store_value.ltk.key, proc->peer_keys.ltk,
-               sizeof store_value.ltk.key);
-        store_value.ltk.authenticated =
+        value_ltk.peer_addr_type = peer_addr_type;
+        memcpy(value_ltk.peer_addr, peer_addr, sizeof value_ltk.peer_addr);
+        value_ltk.ediv = proc->our_keys.ediv;
+        value_ltk.rand_num = proc->our_keys.rand_val;
+        memcpy(value_ltk.key, proc->our_keys.ltk,
+               sizeof value_ltk.key);
+        value_ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
-        store_value.ltk.sc = 0;
-        ble_store_write(BLE_STORE_OBJ_TYPE_PEER_LTK, &store_value);
+        value_ltk.sc = 0;
+
+        if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
+            ble_store_write_slv_ltk(&value_ltk);
+        } else {
+            ble_store_write_mst_ltk(&value_ltk);
+        }
     }
 
     /* XXX: Persist other key data. */
@@ -1771,12 +1798,12 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
     /* Tell applicaiton to look up LTK by ediv/rand pair. */
     /* XXX: Also filter by peer address? */
     memset(&store_key, 0, sizeof store_key);
-    store_key.ltk.addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    store_key.ltk.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
     store_key.ltk.ediv = evt->encrypted_diversifier;
     store_key.ltk.ediv_present = 1;
     store_key.ltk.rand_num = evt->random_number;
     store_key.ltk.rand_num_present = 1;
-    store_rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_key,
+    store_rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_LTK, &store_key,
                               &store_value);
     if (store_rc == 0) {
         /* Store provided a key; send it to the controller. */
@@ -1972,15 +1999,17 @@ ble_l2cap_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
          * locked.
          */
         memset(&key_ltk, 0, sizeof key_ltk);
-        key_ltk.addr_type = conn->bhc_addr_type;
-        memcpy(key_ltk.addr, conn->bhc_addr, 6);
+        key_ltk.peer_addr_type = conn->bhc_addr_type;
+        memcpy(key_ltk.peer_addr, conn->bhc_addr, 6);
     }
 
     ble_hs_unlock();
 
     if (rc == 0) {
-        /* Query database for an LTK corresonding to the sender. */
-        rc = ble_store_read_our_ltk(&key_ltk, &value_ltk);
+        /* Query database for an LTK corresonding to the sender.  We are the
+         * master, so retrieve a master key.
+         */
+        rc = ble_store_read_mst_ltk(&key_ltk, &value_ltk);
         if (rc == 0) {
             /* Found a key corresponding to this peer.  Make sure it meets the
              * requested minimum authreq.

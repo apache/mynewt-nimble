@@ -92,12 +92,13 @@ ble_hs_test_util_store_read_ltk(struct ble_store_value_ltk *store,
     for (i = 0; i < num_values; i++) {
         cur = store + i;
 
-        if (key->addr_type != BLE_STORE_ADDR_TYPE_NONE) {
-            if (cur->addr_type != key->addr_type) {
+        if (key->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) {
+            if (cur->peer_addr_type != key->peer_addr_type) {
                 continue;
             }
 
-            if (memcmp(cur->addr, key->addr, sizeof cur->addr) != 0) {
+            if (memcmp(cur->peer_addr, key->peer_addr,
+                       sizeof cur->peer_addr) != 0) {
                 continue;
             }
         }
@@ -175,14 +176,14 @@ ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
                             union ble_store_value *dst)
 {
     switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_OUR_LTK:
+    case BLE_STORE_OBJ_TYPE_MST_LTK:
         return ble_hs_test_util_store_read_ltk(
             ble_hs_test_util_store_our_ltks,
             ble_hs_test_util_store_num_our_ltks,
             &key->ltk,
             &dst->ltk);
 
-    case BLE_STORE_OBJ_TYPE_PEER_LTK:
+    case BLE_STORE_OBJ_TYPE_SLV_LTK:
         return ble_hs_test_util_store_read_ltk(
             ble_hs_test_util_store_peer_ltks,
             ble_hs_test_util_store_num_peer_ltks,
@@ -205,14 +206,14 @@ ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
     int idx;
 
     switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_OUR_LTK:
+    case BLE_STORE_OBJ_TYPE_MST_LTK:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
             ble_hs_test_util_store_our_ltks,
             ble_hs_test_util_store_num_our_ltks,
             ble_hs_test_util_store_max_our_ltks,
             value->ltk, -1);
 
-    case BLE_STORE_OBJ_TYPE_PEER_LTK:
+    case BLE_STORE_OBJ_TYPE_SLV_LTK:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
             ble_hs_test_util_store_peer_ltks,
             ble_hs_test_util_store_num_peer_ltks,

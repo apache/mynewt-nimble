@@ -1138,15 +1138,15 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Populate the SM database with an LTK for this peer. */
-    value_ltk.addr_type = conn->bhc_addr_type;
-    memcpy(value_ltk.addr, conn->bhc_addr, sizeof value_ltk.addr);
+    value_ltk.peer_addr_type = conn->bhc_addr_type;
+    memcpy(value_ltk.peer_addr, conn->bhc_addr, sizeof value_ltk.peer_addr);
     value_ltk.ediv = ediv;
     value_ltk.rand_num = rand_num;
     memcpy(value_ltk.key, ltk, sizeof value_ltk.key);
     value_ltk.authenticated = authenticated;
     value_ltk.sc = 0;
 
-    rc = ble_store_write_our_ltk(&value_ltk);
+    rc = ble_store_write_slv_ltk(&value_ltk);
     TEST_ASSERT_FATAL(rc == 0);
 
     if (send_enc_req) {
@@ -1162,8 +1162,8 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_OUR_LTK);
-    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.addr_type ==
+                BLE_STORE_OBJ_TYPE_MST_LTK);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.peer_addr_type ==
                 BLE_STORE_ADDR_TYPE_NONE);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv_present);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv == ediv);
@@ -1227,7 +1227,7 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_OUR_LTK);
+                BLE_STORE_OBJ_TYPE_MST_LTK);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv_present);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv == ediv);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.rand_num_present);
@@ -1880,15 +1880,15 @@ ble_l2cap_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
 
     /* Populate the SM database with an LTK for this peer. */
-    value_ltk.addr_type = conn->bhc_addr_type;
-    memcpy(value_ltk.addr, conn->bhc_addr, sizeof value_ltk.addr);
+    value_ltk.peer_addr_type = conn->bhc_addr_type;
+    memcpy(value_ltk.peer_addr, conn->bhc_addr, sizeof value_ltk.peer_addr);
     value_ltk.ediv = ediv;
     value_ltk.rand_num = rand_num;
     memcpy(value_ltk.key, ltk, sizeof value_ltk.key);
     value_ltk.authenticated = authenticated;
     value_ltk.sc = 0;
 
-    rc = ble_store_write_our_ltk(&value_ltk);
+    rc = ble_store_write_mst_ltk(&value_ltk);
     TEST_ASSERT_FATAL(rc == 0);
 
     if (send_enc_req) {
