@@ -138,22 +138,6 @@ struct ble_gap_upd_params {
     uint16_t max_ce_len;
 };
 
-struct ble_gap_key_parms {
-    unsigned is_ours:1;
-    unsigned ltk_valid:1;
-    unsigned ediv_rand_valid:1;
-    unsigned irk_valid:1;
-    unsigned csrk_valid:1;
-    unsigned addr_valid:1;
-    uint16_t ediv;
-    uint64_t rand_val;
-    uint8_t addr_type;
-    uint8_t ltk[16];
-    uint8_t irk[16];
-    uint8_t csrk[16];
-    uint8_t addr[6];
-};
-
 struct ble_gap_notify_params {
     uint16_t attr_handle;
     void *attr_data;
@@ -219,7 +203,6 @@ struct ble_gap_conn_ctxt {
         } notify;
 
         struct ble_gap_ltk_params *ltk_params;
-        struct ble_gap_key_parms *key_params;
     };
 };
 

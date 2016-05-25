@@ -23,15 +23,15 @@
 #include "ble_hs_test_util.h"
 #include "ble_hs_test_util_store.h"
 
-static int ble_hs_test_util_store_max_slv_ltks;
-static int ble_hs_test_util_store_max_mst_ltks;
+static int ble_hs_test_util_store_max_slv_secs;
+static int ble_hs_test_util_store_max_mst_secs;
 static int ble_hs_test_util_store_max_cccds;
 
-static struct ble_store_value_ltk *ble_hs_test_util_store_slv_ltks;
-static struct ble_store_value_ltk *ble_hs_test_util_store_mst_ltks;
+static struct ble_store_value_sec *ble_hs_test_util_store_slv_secs;
+static struct ble_store_value_sec *ble_hs_test_util_store_mst_secs;
 static struct ble_store_value_cccd *ble_hs_test_util_store_cccds;
-int ble_hs_test_util_store_num_slv_ltks;
-int ble_hs_test_util_store_num_mst_ltks;
+int ble_hs_test_util_store_num_slv_secs;
+int ble_hs_test_util_store_num_mst_secs;
 int ble_hs_test_util_store_num_cccds;
 
 
@@ -51,42 +51,42 @@ int ble_hs_test_util_store_num_cccds;
 } while (0) 
 
 void
-ble_hs_test_util_store_init(int max_slv_ltks, int max_mst_ltks, int max_cccds)
+ble_hs_test_util_store_init(int max_slv_secs, int max_mst_secs, int max_cccds)
 {
-    free(ble_hs_test_util_store_slv_ltks);
-    free(ble_hs_test_util_store_mst_ltks);
+    free(ble_hs_test_util_store_slv_secs);
+    free(ble_hs_test_util_store_mst_secs);
     free(ble_hs_test_util_store_cccds);
 
-    ble_hs_test_util_store_slv_ltks = malloc(
-        ble_hs_test_util_store_max_slv_ltks *
-        sizeof *ble_hs_test_util_store_slv_ltks);
-    TEST_ASSERT_FATAL(ble_hs_test_util_store_slv_ltks != NULL);
+    ble_hs_test_util_store_slv_secs = malloc(
+        ble_hs_test_util_store_max_slv_secs *
+        sizeof *ble_hs_test_util_store_slv_secs);
+    TEST_ASSERT_FATAL(ble_hs_test_util_store_slv_secs != NULL);
 
-    ble_hs_test_util_store_mst_ltks = malloc(
-        ble_hs_test_util_store_max_mst_ltks *
-        sizeof *ble_hs_test_util_store_mst_ltks);
-    TEST_ASSERT_FATAL(ble_hs_test_util_store_mst_ltks != NULL);
+    ble_hs_test_util_store_mst_secs = malloc(
+        ble_hs_test_util_store_max_mst_secs *
+        sizeof *ble_hs_test_util_store_mst_secs);
+    TEST_ASSERT_FATAL(ble_hs_test_util_store_mst_secs != NULL);
 
     ble_hs_test_util_store_cccds = malloc(
         ble_hs_test_util_store_max_cccds *
         sizeof *ble_hs_test_util_store_cccds);
     TEST_ASSERT_FATAL(ble_hs_test_util_store_cccds != NULL);
 
-    ble_hs_test_util_store_max_slv_ltks = max_slv_ltks;
-    ble_hs_test_util_store_max_mst_ltks = max_mst_ltks;
+    ble_hs_test_util_store_max_slv_secs = max_slv_secs;
+    ble_hs_test_util_store_max_mst_secs = max_mst_secs;
     ble_hs_test_util_store_max_cccds = max_cccds;
-    ble_hs_test_util_store_num_slv_ltks = 0;
-    ble_hs_test_util_store_num_mst_ltks = 0;
+    ble_hs_test_util_store_num_slv_secs = 0;
+    ble_hs_test_util_store_num_mst_secs = 0;
     ble_hs_test_util_store_num_cccds = 0;
 }
 
 static int
-ble_hs_test_util_store_read_ltk(struct ble_store_value_ltk *store,
+ble_hs_test_util_store_read_sec(struct ble_store_value_sec *store,
                                 int num_values,
-                                struct ble_store_key_ltk *key,
-                                struct ble_store_value_ltk *value)
+                                struct ble_store_key_sec *key,
+                                struct ble_store_value_sec *value)
 {
-    struct ble_store_value_ltk *cur;
+    struct ble_store_value_sec *cur;
     int i;
 
     for (i = 0; i < num_values; i++) {
@@ -103,12 +103,14 @@ ble_hs_test_util_store_read_ltk(struct ble_store_value_ltk *store,
             }
         }
 
-        if (key->ediv_present && cur->ediv != key->ediv) {
-            continue;
-        }
+        if (key->ediv_rand_present) {
+            if (cur->ediv != key->ediv) {
+                continue;
+            }
 
-        if (key->rand_num_present && cur->rand_num != key->rand_num) {
-            continue;
+            if (cur->rand_num != key->rand_num) {
+                continue;
+            }
         }
 
         *value = *cur;
@@ -176,19 +178,19 @@ ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
                             union ble_store_value *dst)
 {
     switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_MST_LTK:
-        return ble_hs_test_util_store_read_ltk(
-            ble_hs_test_util_store_slv_ltks,
-            ble_hs_test_util_store_num_slv_ltks,
-            &key->ltk,
-            &dst->ltk);
+    case BLE_STORE_OBJ_TYPE_MST_SEC:
+        return ble_hs_test_util_store_read_sec(
+            ble_hs_test_util_store_slv_secs,
+            ble_hs_test_util_store_num_slv_secs,
+            &key->sec,
+            &dst->sec);
 
-    case BLE_STORE_OBJ_TYPE_SLV_LTK:
-        return ble_hs_test_util_store_read_ltk(
-            ble_hs_test_util_store_mst_ltks,
-            ble_hs_test_util_store_num_mst_ltks,
-            &key->ltk,
-            &dst->ltk);
+    case BLE_STORE_OBJ_TYPE_SLV_SEC:
+        return ble_hs_test_util_store_read_sec(
+            ble_hs_test_util_store_mst_secs,
+            ble_hs_test_util_store_num_mst_secs,
+            &key->sec,
+            &dst->sec);
 
     case BLE_STORE_OBJ_TYPE_CCCD:
         return ble_hs_test_util_store_read_cccd(&key->cccd, &dst->cccd);
@@ -206,19 +208,19 @@ ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
     int idx;
 
     switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_MST_LTK:
+    case BLE_STORE_OBJ_TYPE_MST_SEC:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
-            ble_hs_test_util_store_slv_ltks,
-            ble_hs_test_util_store_num_slv_ltks,
-            ble_hs_test_util_store_max_slv_ltks,
-            value->ltk, -1);
+            ble_hs_test_util_store_slv_secs,
+            ble_hs_test_util_store_num_slv_secs,
+            ble_hs_test_util_store_max_slv_secs,
+            value->sec, -1);
 
-    case BLE_STORE_OBJ_TYPE_SLV_LTK:
+    case BLE_STORE_OBJ_TYPE_SLV_SEC:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
-            ble_hs_test_util_store_mst_ltks,
-            ble_hs_test_util_store_num_mst_ltks,
-            ble_hs_test_util_store_max_mst_ltks,
-            value->ltk, -1);
+            ble_hs_test_util_store_mst_secs,
+            ble_hs_test_util_store_num_mst_secs,
+            ble_hs_test_util_store_max_mst_secs,
+            value->sec, -1);
 
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_store_key_from_value_cccd(&key_cccd, &value->cccd);

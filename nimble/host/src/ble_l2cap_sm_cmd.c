@@ -461,7 +461,7 @@ ble_l2cap_sm_signing_info_tx(uint16_t conn_handle,
         goto done;
     }
 
-    txom->om_data[0] = BLE_L2CAP_SM_OP_IDENTITY_INFO;
+    txom->om_data[0] = BLE_L2CAP_SM_OP_SIGN_INFO;
     memcpy(txom->om_data + 1, cmd->sig_key_le, sizeof cmd->sig_key_le);
     rc = ble_l2cap_sm_tx(conn_handle, txom);
     txom = NULL;

@@ -66,52 +66,52 @@ ble_store_delete(int obj_type, union ble_store_key *key)
 }
 
 int
-ble_store_read_slv_ltk(struct ble_store_key_ltk *key_ltk,
-                       struct ble_store_value_ltk *value_ltk)
+ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
+                       struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
     union ble_store_key *store_key;
     int rc;
 
-    store_key = (void *)key_ltk;
-    store_value = (void *)value_ltk;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_SLV_LTK, store_key, store_value);
+    store_key = (void *)key_sec;
+    store_value = (void *)value_sec;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_SLV_SEC, store_key, store_value);
     return rc;
 }
 
 int
-ble_store_write_slv_ltk(struct ble_store_value_ltk *value_ltk)
+ble_store_write_slv_sec(struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
     int rc;
 
-    store_value = (void *)value_ltk;
-    rc = ble_store_write(BLE_STORE_OBJ_TYPE_SLV_LTK, store_value);
+    store_value = (void *)value_sec;
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_SLV_SEC, store_value);
     return rc;
 }
 
 int
-ble_store_read_mst_ltk(struct ble_store_key_ltk *key_ltk,
-                       struct ble_store_value_ltk *value_ltk)
+ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
+                       struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
     union ble_store_key *store_key;
     int rc;
 
-    store_key = (void *)key_ltk;
-    store_value = (void *)value_ltk;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_LTK, store_key, store_value);
+    store_key = (void *)key_sec;
+    store_value = (void *)value_sec;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_SEC, store_key, store_value);
     return rc;
 }
 
 int
-ble_store_write_mst_ltk(struct ble_store_value_ltk *value_ltk)
+ble_store_write_mst_sec(struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
     int rc;
 
-    store_value = (void *)value_ltk;
-    rc = ble_store_write(BLE_STORE_OBJ_TYPE_MST_LTK, store_value);
+    store_value = (void *)value_sec;
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_MST_SEC, store_value);
     return rc;
 }
 
@@ -162,15 +162,13 @@ ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
 }
 
 void
-ble_store_key_from_value_ltk(struct ble_store_key_ltk *out_key,
-                             struct ble_store_value_ltk *value)
+ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
+                             struct ble_store_value_sec *value)
 {
     out_key->peer_addr_type = value->peer_addr_type;
     memcpy(out_key->peer_addr, value->peer_addr, sizeof out_key->peer_addr);
 
     out_key->ediv = value->ediv;
-    out_key->ediv_present = 1;
-
     out_key->rand_num = value->rand_num;
-    out_key->rand_num_present = 1;
+    out_key->ediv_rand_present = 1;
 }
