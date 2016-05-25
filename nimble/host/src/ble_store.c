@@ -110,3 +110,11 @@ ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
     out_key->chr_val_handle = value->chr_val_handle;
     out_key->idx = 0;
 }
+
+void
+ble_store_key_from_value_ltk(struct ble_store_key_ltk *out_key,
+                             struct ble_store_value_ltk *value)
+{
+    out_key->ediv = value->ediv;
+    out_key->rand_num = value->rand_num;
+}
