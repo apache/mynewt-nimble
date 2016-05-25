@@ -92,7 +92,7 @@ ble_hs_test_util_store_read_ltk(struct ble_store_value_ltk *store,
     for (i = 0; i < num_values; i++) {
         cur = store + i;
 
-        if (key->addr_type != BLE_STORE_PEER_ADDR_TYPE_NONE) {
+        if (key->addr_type != BLE_STORE_ADDR_TYPE_NONE) {
             if (cur->addr_type != key->addr_type) {
                 continue;
             }
@@ -128,7 +128,7 @@ ble_hs_test_util_store_find_cccd(struct ble_store_key_cccd *key)
     for (i = 0; i < ble_hs_test_util_store_num_cccds; i++) {
         cur = ble_hs_test_util_store_cccds + i;
 
-        if (key->peer_addr_type != BLE_STORE_PEER_ADDR_TYPE_NONE) {
+        if (key->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) {
             if (cur->peer_addr_type != key->peer_addr_type) {
                 continue;
             }

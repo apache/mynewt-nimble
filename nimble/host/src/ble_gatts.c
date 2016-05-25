@@ -1270,7 +1270,7 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     /*** Persist updated flag for unconnected and not-yet-bonded devices. */
 
     /* Retrieve each record corresponding to the modified characteristic. */
-    cccd_key.peer_addr_type = BLE_STORE_PEER_ADDR_TYPE_NONE,
+    cccd_key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE,
     cccd_key.chr_val_handle = chr_val_handle,
     cccd_key.idx = 0;
 

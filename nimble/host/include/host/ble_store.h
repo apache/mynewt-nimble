@@ -22,17 +22,20 @@
 
 #include <inttypes.h>
 
+/* XXX: Rethink our/peer distinction.  Might make sense to unify keys such that
+ * each entry contains both peers' addresses.
+ */
 #define BLE_STORE_OBJ_TYPE_OUR_LTK      1
 #define BLE_STORE_OBJ_TYPE_PEER_LTK     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
-#define BLE_STORE_PEER_ADDR_TYPE_NONE   0xff
+#define BLE_STORE_ADDR_TYPE_NONE        0xff
 #define BLE_STORE_AUTHREQ_NONE          0xff
 
 struct ble_store_key_ltk {
     /**
      * Key by peer identity address;
-     * peer_addr_type=BLE_STORE_PEER_ADDR_TYPE_NONE means don't key off peer.
+     * peer_addr_type=BLE_STORE_ADDR_TYPE_NONE means don't key off peer.
      */
     uint8_t addr[6];
     uint8_t addr_type;
@@ -61,7 +64,7 @@ struct ble_store_value_ltk {
 struct ble_store_key_cccd {
     /**
      * Key by peer identity address;
-     * peer_addr_type=BLE_STORE_PEER_ADDR_TYPE_NONE means don't key off peer.
+     * peer_addr_type=BLE_STORE_ADDR_TYPE_NONE means don't key off peer.
      */
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
@@ -106,8 +109,13 @@ int ble_store_read(int obj_type, union ble_store_key *key,
 int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
 
+int ble_store_read_our_ltk(struct ble_store_key_ltk *key_ltk,
+                           struct ble_store_value_ltk *value_ltk);
+int ble_store_write_our_ltk(struct ble_store_value_ltk *value_ltk);
 int ble_store_read_peer_ltk(struct ble_store_key_ltk *key_ltk,
                             struct ble_store_value_ltk *value_ltk);
+int ble_store_write_peer_ltk(struct ble_store_value_ltk *value_ltk);
+
 int ble_store_read_cccd(struct ble_store_key_cccd *key,
                         struct ble_store_value_cccd *out_value);
 int ble_store_write_cccd(struct ble_store_value_cccd *value);

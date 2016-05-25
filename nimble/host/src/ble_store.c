@@ -66,6 +66,31 @@ ble_store_delete(int obj_type, union ble_store_key *key)
 }
 
 int
+ble_store_read_our_ltk(struct ble_store_key_ltk *key_ltk,
+                        struct ble_store_value_ltk *value_ltk)
+{
+    union ble_store_value *store_value;
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key_ltk;
+    store_value = (void *)value_ltk;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_LTK, store_key, store_value);
+    return rc;
+}
+
+int
+ble_store_write_our_ltk(struct ble_store_value_ltk *value_ltk)
+{
+    union ble_store_value *store_value;
+    int rc;
+
+    store_value = (void *)value_ltk;
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_OUR_LTK, store_value);
+    return rc;
+}
+
+int
 ble_store_read_peer_ltk(struct ble_store_key_ltk *key_ltk,
                         struct ble_store_value_ltk *value_ltk)
 {
@@ -76,6 +101,17 @@ ble_store_read_peer_ltk(struct ble_store_key_ltk *key_ltk,
     store_key = (void *)key_ltk;
     store_value = (void *)value_ltk;
     rc = ble_store_read(BLE_STORE_OBJ_TYPE_PEER_LTK, store_key, store_value);
+    return rc;
+}
+
+int
+ble_store_write_peer_ltk(struct ble_store_value_ltk *value_ltk)
+{
+    union ble_store_value *store_value;
+    int rc;
+
+    store_value = (void *)value_ltk;
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_PEER_LTK, store_value);
     return rc;
 }
 
