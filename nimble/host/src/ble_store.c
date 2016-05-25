@@ -75,7 +75,7 @@ ble_store_read_slv_ltk(struct ble_store_key_ltk *key_ltk,
 
     store_key = (void *)key_ltk;
     store_value = (void *)value_ltk;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_LTK, store_key, store_value);
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_SLV_LTK, store_key, store_value);
     return rc;
 }
 
@@ -86,7 +86,7 @@ ble_store_write_slv_ltk(struct ble_store_value_ltk *value_ltk)
     int rc;
 
     store_value = (void *)value_ltk;
-    rc = ble_store_write(BLE_STORE_OBJ_TYPE_MST_LTK, store_value);
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_SLV_LTK, store_value);
     return rc;
 }
 
@@ -100,7 +100,7 @@ ble_store_read_mst_ltk(struct ble_store_key_ltk *key_ltk,
 
     store_key = (void *)key_ltk;
     store_value = (void *)value_ltk;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_SLV_LTK, store_key, store_value);
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_LTK, store_key, store_value);
     return rc;
 }
 
@@ -111,7 +111,7 @@ ble_store_write_mst_ltk(struct ble_store_value_ltk *value_ltk)
     int rc;
 
     store_value = (void *)value_ltk;
-    rc = ble_store_write(BLE_STORE_OBJ_TYPE_SLV_LTK, store_value);
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_MST_LTK, store_value);
     return rc;
 }
 

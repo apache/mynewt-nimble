@@ -1158,11 +1158,10 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     ble_l2cap_sm_test_util_set_lt_key_req_reply_ack(0, 2);
     ble_l2cap_sm_test_util_rx_lt_key_req(2, rand_num, ediv);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_MST_LTK);
+                BLE_STORE_OBJ_TYPE_SLV_LTK);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.peer_addr_type ==
                 BLE_STORE_ADDR_TYPE_NONE);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv_present);
@@ -1215,6 +1214,7 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
     ble_hs_lock();
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
     ble_hs_unlock();
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
@@ -1227,7 +1227,7 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_MST_LTK);
+                BLE_STORE_OBJ_TYPE_SLV_LTK);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv_present);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv == ediv);
     TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.rand_num_present);

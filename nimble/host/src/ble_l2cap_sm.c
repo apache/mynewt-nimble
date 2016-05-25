@@ -507,29 +507,21 @@ ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc)
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
         value_ltk.sc = 0;
 
-        if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            ble_store_write_mst_ltk(&value_ltk);
-        } else {
-            ble_store_write_slv_ltk(&value_ltk);
-        }
+        ble_store_write_slv_ltk(&value_ltk);
     }
 
     if (proc->peer_keys.ediv_rand_valid && proc->peer_keys.ltk_valid) {
         value_ltk.peer_addr_type = peer_addr_type;
         memcpy(value_ltk.peer_addr, peer_addr, sizeof value_ltk.peer_addr);
-        value_ltk.ediv = proc->our_keys.ediv;
-        value_ltk.rand_num = proc->our_keys.rand_val;
-        memcpy(value_ltk.key, proc->our_keys.ltk,
+        value_ltk.ediv = proc->peer_keys.ediv;
+        value_ltk.rand_num = proc->peer_keys.rand_val;
+        memcpy(value_ltk.key, proc->peer_keys.ltk,
                sizeof value_ltk.key);
         value_ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
         value_ltk.sc = 0;
 
-        if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            ble_store_write_slv_ltk(&value_ltk);
-        } else {
-            ble_store_write_mst_ltk(&value_ltk);
-        }
+        ble_store_write_mst_ltk(&value_ltk);
     }
 
     /* XXX: Persist other key data. */
@@ -1788,8 +1780,8 @@ ble_l2cap_sm_rx_pair_fail(uint16_t conn_handle, uint8_t op,
 static int
 ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
 {
-    union ble_store_value store_value;
-    union ble_store_key store_key;
+    struct ble_store_value_ltk value_ltk;
+    struct ble_store_key_ltk key_ltk;
     struct ble_l2cap_sm_proc *proc;
     struct ble_l2cap_sm_proc *prev;
     int store_rc;
@@ -1797,18 +1789,17 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
 
     /* Tell applicaiton to look up LTK by ediv/rand pair. */
     /* XXX: Also filter by peer address? */
-    memset(&store_key, 0, sizeof store_key);
-    store_key.ltk.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
-    store_key.ltk.ediv = evt->encrypted_diversifier;
-    store_key.ltk.ediv_present = 1;
-    store_key.ltk.rand_num = evt->random_number;
-    store_key.ltk.rand_num_present = 1;
-    store_rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_LTK, &store_key,
-                              &store_value);
+    memset(&key_ltk, 0, sizeof key_ltk);
+    key_ltk.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key_ltk.ediv = evt->encrypted_diversifier;
+    key_ltk.ediv_present = 1;
+    key_ltk.rand_num = evt->random_number;
+    key_ltk.rand_num_present = 1;
+    store_rc = ble_store_read_slv_ltk(&key_ltk, &value_ltk);
     if (store_rc == 0) {
         /* Store provided a key; send it to the controller. */
         rc = ble_l2cap_sm_lt_key_req_reply_tx(evt->connection_handle,
-                                              store_value.ltk.key);
+                                              value_ltk.key);
     } else {
         /* Application does not have the requested key in its database.  Send a
          * negative reply to the controller.
@@ -1824,7 +1815,7 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
         rc = BLE_HS_EUNKNOWN;
     } else if (store_rc == 0 && rc == 0) {
         proc->state = BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE;
-        if (store_value.ltk.authenticated) {
+        if (value_ltk.authenticated) {
             proc->flags |= BLE_L2CAP_SM_PROC_F_AUTHENTICATED;
         }
     } else {
