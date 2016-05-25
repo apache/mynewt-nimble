@@ -93,6 +93,8 @@ int ble_store_read_cccd(struct ble_store_key_cccd *key,
 int ble_store_write_cccd(struct ble_store_value_cccd *value);
 int ble_store_delete_cccd(struct ble_store_key_cccd *key);
 
+void ble_store_key_from_value_ltk(struct ble_store_key_ltk *out_key,
+                                  struct ble_store_value_ltk *value);
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    struct ble_store_value_cccd *value);
 
