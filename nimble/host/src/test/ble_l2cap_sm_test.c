@@ -34,14 +34,12 @@ int ble_l2cap_sm_test_gap_status;
 struct ble_gap_sec_state ble_l2cap_sm_test_sec_state;
 
 int ble_l2cap_sm_test_store_obj_type;
-uint16_t ble_l2cap_sm_test_saved_ediv;
-uint64_t ble_l2cap_sm_test_saved_rand;
-uint8_t ble_l2cap_sm_test_saved_ltk[16];
-int ble_l2cap_sm_test_saved_authenticated;
-int ble_l2cap_sm_test_saved_present;
+union ble_store_key ble_l2cap_sm_test_store_key;
+union ble_store_value ble_l2cap_sm_test_store_value;
 
 static ble_store_read_fn ble_l2cap_sm_test_util_store_read;
 static ble_store_write_fn ble_l2cap_sm_test_util_store_write;
+
 
 /*****************************************************************************
  * $util                                                                     *
@@ -85,17 +83,36 @@ struct ble_l2cap_sm_test_pair_params {
         .hdh_len = (len)                                \
     })
 
+static int
+ble_l2cap_sm_test_util_store_read(int obj_type, union ble_store_key *key,
+                                  union ble_store_value *val)
+{
+    ble_l2cap_sm_test_store_obj_type = obj_type;
+    ble_l2cap_sm_test_store_key = *key;
+
+    return ble_hs_test_util_store_read(obj_type, key, val);
+}
+
+static int
+ble_l2cap_sm_test_util_store_write(int obj_type, union ble_store_value *val)
+{
+    ble_l2cap_sm_test_store_obj_type = obj_type;
+    ble_l2cap_sm_test_store_value = *val;
+
+    return ble_hs_test_util_store_write(obj_type, val);
+}
+
 static void
 ble_l2cap_sm_test_util_init(void)
 {
     ble_hs_test_util_init();
+    ble_hs_test_util_store_init(10, 10, 10);
     ble_hs_cfg.store_read_cb = ble_l2cap_sm_test_util_store_read;
     ble_hs_cfg.store_write_cb = ble_l2cap_sm_test_util_store_write;
 
     ble_l2cap_sm_test_store_obj_type = -1;
     ble_l2cap_sm_test_gap_event = -1;
     ble_l2cap_sm_test_gap_status = -1;
-    ble_l2cap_sm_test_saved_present = 0;
 
     memset(&ble_l2cap_sm_test_sec_state, 0xff,
            sizeof ble_l2cap_sm_test_sec_state);
@@ -134,49 +151,6 @@ ble_l2cap_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
     ble_l2cap_sm_test_gap_event = event;
 
     return rc;
-}
-
-static int
-ble_l2cap_sm_test_util_store_read(int obj_type, union ble_store_key *key,
-                                  union ble_store_value *dst)
-{
-    ble_l2cap_sm_test_store_obj_type = obj_type;
-
-    switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_OUR_LTK:
-        ble_l2cap_sm_test_saved_ediv = key->ltk.ediv;
-        ble_l2cap_sm_test_saved_rand = key->ltk.rand_num;
-
-        if (!ble_l2cap_sm_test_saved_present) {
-            return BLE_HS_ENOENT;
-        }
-
-        memcpy(dst->ltk.key, ble_l2cap_sm_test_saved_ltk, sizeof dst->ltk.key);
-        dst->ltk.authenticated = ble_l2cap_sm_test_saved_authenticated;
-        return 0;
-
-    default:
-        return BLE_HS_ENOTSUP;
-    }
-}
-
-static int
-ble_l2cap_sm_test_util_store_write(int obj_type, union ble_store_value *val)
-{
-    ble_l2cap_sm_test_store_obj_type = obj_type;
-
-    switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_OUR_LTK:
-        ble_l2cap_sm_test_saved_ediv = val->ltk.ediv;
-        ble_l2cap_sm_test_saved_rand = val->ltk.rand_num;
-        memcpy(ble_l2cap_sm_test_saved_ltk, val->ltk.key, sizeof val->ltk.key);
-        ble_l2cap_sm_test_saved_authenticated = val->ltk.authenticated;
-        ble_l2cap_sm_test_saved_present = 1;
-        return 0;
-
-    default:
-        return BLE_HS_ENOTSUP;
-    }
 }
 
 static void
@@ -1140,22 +1114,15 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
                                          int authenticated,
                                          uint16_t ediv, uint64_t rand_num)
 {
-    struct ble_l2cap_sm_test_ltk_info ltk_info;
+    struct ble_store_value_ltk value_ltk;
     struct ble_hs_conn *conn;
     int rc;
 
     ble_l2cap_sm_test_util_init();
 
-    memcpy(ltk_info.ltk, ltk, sizeof ltk_info.ltk);
-    ltk_info.authenticated = authenticated;
-
-    memcpy(ble_l2cap_sm_test_saved_ltk, ltk, 16);
-    ble_l2cap_sm_test_saved_authenticated = authenticated;
-    ble_l2cap_sm_test_saved_present = 1;
-
     ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
                                  ble_l2cap_sm_test_util_conn_cb,
-                                 &ltk_info);
+                                 NULL);
 
     /* This test inspects and modifies the connection object without locking
      * the host mutex.  It is not OK for real code to do this, but this test
@@ -1164,10 +1131,23 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     ble_hs_lock();
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
     ble_hs_unlock();
 
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Populate the SM database with an LTK for this peer. */
+    value_ltk.addr_type = conn->bhc_addr_type;
+    memcpy(value_ltk.addr, conn->bhc_addr, sizeof value_ltk.addr);
+    value_ltk.ediv = ediv;
+    value_ltk.rand_num = rand_num;
+    memcpy(value_ltk.key, ltk, sizeof value_ltk.key);
+    value_ltk.authenticated = authenticated;
+    value_ltk.sc = 0;
+
+    rc = ble_store_write_our_ltk(&value_ltk);
+    TEST_ASSERT_FATAL(rc == 0);
 
     if (send_enc_req) {
         rc = ble_l2cap_sm_slave_initiate(2);
@@ -1183,16 +1163,18 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
                 BLE_STORE_OBJ_TYPE_OUR_LTK);
-    TEST_ASSERT(ble_l2cap_sm_test_saved_ediv == ediv);
-    TEST_ASSERT(ble_l2cap_sm_test_saved_rand == rand_num);
-    TEST_ASSERT(memcmp(ble_l2cap_sm_test_saved_ltk, ltk_info.ltk, 16) == 0);
-    TEST_ASSERT(ble_l2cap_sm_test_saved_authenticated ==
-                ltk_info.authenticated);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.addr_type ==
+                BLE_STORE_ADDR_TYPE_NONE);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv_present);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv == ediv);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.rand_num_present);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.rand_num == rand_num);
+
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
     /* Ensure we sent the expected long term key request reply command. */
-    ble_l2cap_sm_test_util_verify_tx_lt_key_req_reply(2, ltk_info.ltk);
+    ble_l2cap_sm_test_util_verify_tx_lt_key_req_reply(2, value_ltk.key);
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
 
@@ -1207,12 +1189,12 @@ ble_l2cap_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.authenticated ==
-                ltk_info.authenticated);
+                authenticated);
 
     /* Verify that connection has correct security state. */
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(ble_l2cap_sm_test_sec_state.authenticated ==
-                ltk_info.authenticated);
+                authenticated);
 }
 
 static void
@@ -1246,8 +1228,11 @@ ble_l2cap_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_l2cap_sm_test_store_obj_type ==
                 BLE_STORE_OBJ_TYPE_OUR_LTK);
-    TEST_ASSERT(ble_l2cap_sm_test_saved_ediv == ediv);
-    TEST_ASSERT(ble_l2cap_sm_test_saved_rand == rand_num);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv_present);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.ediv == ediv);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.rand_num_present);
+    TEST_ASSERT(ble_l2cap_sm_test_store_key.ltk.rand_num == rand_num);
+
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
 
     /* Ensure we sent the expected long term key request neg reply command. */
@@ -1861,6 +1846,105 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_pair)
 }
 
 /**
+ * @param send_enc_req          Whether this procedure is initiated by a slave
+ *                                  security request;
+ *                                  1: Peer sends a security request at start.
+ *                                  0: No security request; we initiate.
+ */
+static void
+ble_l2cap_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
+                                       int authenticated,
+                                       uint16_t ediv, uint64_t rand_num)
+{
+    struct ble_l2cap_sm_sec_req sec_req;
+    struct ble_store_value_ltk value_ltk;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_sm_test_util_init();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
+                                 ble_l2cap_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object without locking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Populate the SM database with an LTK for this peer. */
+    value_ltk.addr_type = conn->bhc_addr_type;
+    memcpy(value_ltk.addr, conn->bhc_addr, sizeof value_ltk.addr);
+    value_ltk.ediv = ediv;
+    value_ltk.rand_num = rand_num;
+    memcpy(value_ltk.key, ltk, sizeof value_ltk.key);
+    value_ltk.authenticated = authenticated;
+    value_ltk.sc = 0;
+
+    rc = ble_store_write_our_ltk(&value_ltk);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    if (send_enc_req) {
+        sec_req.authreq = 0;
+        sec_req.authreq |= BLE_L2CAP_SM_PAIR_AUTHREQ_BOND;
+        if (authenticated) {
+            sec_req.authreq |= BLE_L2CAP_SM_PAIR_AUTHREQ_MITM;
+        }
+        ble_hs_test_util_set_ack(
+            host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT),
+            0);
+        ble_l2cap_sm_test_util_rx_sec_req(2, &sec_req, 0);
+    }
+
+    /* Ensure we sent the expected start encryption command. */
+    ble_hs_test_util_tx_all();
+    ble_l2cap_sm_test_util_verify_tx_start_enc(2, rand_num, ediv, ltk);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 1);
+
+    /* Receive an encryption changed event. */
+    ble_l2cap_sm_test_util_rx_enc_change(2, 0, 1);
+
+    /* Pairing should now be complete. */
+    TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_l2cap_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_l2cap_sm_test_gap_status == 0);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_state.authenticated ==
+                authenticated);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_l2cap_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(ble_l2cap_sm_test_sec_state.authenticated ==
+                authenticated);
+}
+
+/**
+ * Master: us.
+ * Peer sends a security request.
+ * We respond by initiating the encryption procedure.
+ */
+TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_enc)
+{
+    /* Unauthenticated. */
+    ble_l2cap_sm_test_util_us_bonding_good(
+        1,
+        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
+        0,
+        0x1234,
+        0x5678);
+}
+
+/**
  * Master: peer.
  * We send a security request.
  * We accept pairing request sent in response.
@@ -1965,7 +2049,7 @@ TEST_SUITE(ble_l2cap_sm_test_suite)
     ble_l2cap_sm_test_case_conn_broken();
     ble_l2cap_sm_test_case_peer_sec_req_inval();
     ble_l2cap_sm_test_case_peer_sec_req_pair();
-    /* XXX: ble_l2cap_sm_test_case_peer_sec_req_enc(); */
+    ble_l2cap_sm_test_case_peer_sec_req_enc();
     ble_l2cap_sm_test_case_us_sec_req_pair();
     ble_l2cap_sm_test_case_us_sec_req_enc();
 }

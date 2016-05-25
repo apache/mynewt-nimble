@@ -1771,6 +1771,7 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
     /* Tell applicaiton to look up LTK by ediv/rand pair. */
     /* XXX: Also filter by peer address? */
     memset(&store_key, 0, sizeof store_key);
+    store_key.ltk.addr_type = BLE_STORE_ADDR_TYPE_NONE;
     store_key.ltk.ediv = evt->encrypted_diversifier;
     store_key.ltk.ediv_present = 1;
     store_key.ltk.rand_num = evt->random_number;
@@ -1838,6 +1839,7 @@ ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
          * that security establishment is in progress and execute the procedure
          * after the mutex gets unlocked.
          */
+        /* XXX: Ensure we are the master. */
         bonding = 1;
         proc = ble_l2cap_sm_proc_alloc();
         if (proc != NULL) {
@@ -1978,7 +1980,7 @@ ble_l2cap_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
 
     if (rc == 0) {
         /* Query database for an LTK corresonding to the sender. */
-        rc = ble_store_read_peer_ltk(&key_ltk, &value_ltk);
+        rc = ble_store_read_our_ltk(&key_ltk, &value_ltk);
         if (rc == 0) {
             /* Found a key corresponding to this peer.  Make sure it meets the
              * requested minimum authreq.
