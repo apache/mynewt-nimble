@@ -86,15 +86,32 @@ ble_hs_test_util_store_read_ltk(struct ble_store_value_ltk *store,
                                 struct ble_store_key_ltk *key,
                                 struct ble_store_value_ltk *value)
 {
-    struct ble_store_value_ltk *ltk;
+    struct ble_store_value_ltk *cur;
     int i;
 
     for (i = 0; i < num_values; i++) {
-        ltk = store + i;
-        if (ltk->ediv == key->ediv && ltk->rand_num == key->rand_num) {
-            *value = *ltk;
-            return 0;
+        cur = store + i;
+
+        if (key->addr_type != BLE_STORE_PEER_ADDR_TYPE_NONE) {
+            if (cur->addr_type != key->addr_type) {
+                continue;
+            }
+
+            if (memcmp(cur->addr, key->addr, sizeof cur->addr) != 0) {
+                continue;
+            }
         }
+
+        if (key->ediv_present && cur->ediv != key->ediv) {
+            continue;
+        }
+
+        if (key->rand_num_present && cur->rand_num != key->rand_num) {
+            continue;
+        }
+
+        *value = *cur;
+        return 0;
     }
 
     return BLE_HS_ENOENT;
@@ -103,26 +120,26 @@ ble_hs_test_util_store_read_ltk(struct ble_store_value_ltk *store,
 static int
 ble_hs_test_util_store_find_cccd(struct ble_store_key_cccd *key)
 {
-    struct ble_store_value_cccd *cccd;
+    struct ble_store_value_cccd *cur;
     int skipped;
     int i;
 
     skipped = 0;
     for (i = 0; i < ble_hs_test_util_store_num_cccds; i++) {
-        cccd = ble_hs_test_util_store_cccds + i;
+        cur = ble_hs_test_util_store_cccds + i;
 
         if (key->peer_addr_type != BLE_STORE_PEER_ADDR_TYPE_NONE) {
-            if (cccd->peer_addr_type != key->peer_addr_type) {
+            if (cur->peer_addr_type != key->peer_addr_type) {
                 continue;
             }
 
-            if (memcmp(cccd->peer_addr, key->peer_addr, 6) != 0) {
+            if (memcmp(cur->peer_addr, key->peer_addr, 6) != 0) {
                 continue;
             }
         }
 
         if (key->chr_val_handle != 0) {
-            if (cccd->chr_val_handle != key->chr_val_handle) {
+            if (cur->chr_val_handle != key->chr_val_handle) {
                 continue;
             }
         }

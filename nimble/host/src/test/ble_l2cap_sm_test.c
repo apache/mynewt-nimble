@@ -1780,6 +1780,7 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_sec_req_inval)
     ble_l2cap_sm_test_util_verify_tx_pair_fail(&fail);
 
     /*** Pairing already in progress; ignore security request. */
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 1);
     rc = ble_l2cap_sm_pair_initiate(2);
     TEST_ASSERT_FATAL(rc == 0);
     ble_hs_test_util_tx_all();

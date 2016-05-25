@@ -357,17 +357,20 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
 
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
-    if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
-        !(entry->ha_flags & BLE_ATT_F_WRITE)) {
+    /* Bypass permissions and security checks if we are writing our own
+     * attribute.
+     */
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        if (!(entry->ha_flags & BLE_ATT_F_WRITE)) {
+            att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+            rc = BLE_HS_ENOTSUP;
+            goto err;
+        }
 
-        att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
-        rc = BLE_HS_ENOTSUP;
-        goto err;
-    }
-
-    rc = ble_att_svr_check_security(conn_handle, 0, entry, &att_err);
-    if (rc != 0) {
-        goto err;
+        rc = ble_att_svr_check_security(conn_handle, 0, entry, &att_err);
+        if (rc != 0) {
+            goto err;
+        }
     }
 
     BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);

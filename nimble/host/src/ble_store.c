@@ -66,6 +66,20 @@ ble_store_delete(int obj_type, union ble_store_key *key)
 }
 
 int
+ble_store_read_peer_ltk(struct ble_store_key_ltk *key_ltk,
+                        struct ble_store_value_ltk *value_ltk)
+{
+    union ble_store_value *store_value;
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key_ltk;
+    store_value = (void *)value_ltk;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_PEER_LTK, store_key, store_value);
+    return rc;
+}
+
+int
 ble_store_read_cccd(struct ble_store_key_cccd *key,
                     struct ble_store_value_cccd *out_value)
 {
@@ -115,6 +129,12 @@ void
 ble_store_key_from_value_ltk(struct ble_store_key_ltk *out_key,
                              struct ble_store_value_ltk *value)
 {
+    out_key->addr_type = value->addr_type;
+    memcpy(out_key->addr, value->addr, sizeof out_key->addr);
+
     out_key->ediv = value->ediv;
+    out_key->ediv_present = 1;
+
     out_key->rand_num = value->rand_num;
+    out_key->rand_num_present = 1;
 }

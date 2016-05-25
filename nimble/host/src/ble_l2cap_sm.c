@@ -490,6 +490,7 @@ ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc)
                sizeof store_value.ltk.key);
         store_value.ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
+        store_value.ltk.sc = 0;
         ble_store_write(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_value);
     }
 
@@ -500,6 +501,7 @@ ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc)
                sizeof store_value.ltk.key);
         store_value.ltk.authenticated =
             !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
+        store_value.ltk.sc = 0;
         ble_store_write(BLE_STORE_OBJ_TYPE_PEER_LTK, &store_value);
     }
 
@@ -1763,16 +1765,20 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
     union ble_store_key store_key;
     struct ble_l2cap_sm_proc *proc;
     struct ble_l2cap_sm_proc *prev;
-    int app_rc;
+    int store_rc;
     int rc;
 
     /* Tell applicaiton to look up LTK by ediv/rand pair. */
+    /* XXX: Also filter by peer address? */
+    memset(&store_key, 0, sizeof store_key);
     store_key.ltk.ediv = evt->encrypted_diversifier;
+    store_key.ltk.ediv_present = 1;
     store_key.ltk.rand_num = evt->random_number;
-    app_rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_key,
-                            &store_value);
-    if (app_rc == 0) {
-        /* App provided a key; send it to the controller. */
+    store_key.ltk.rand_num_present = 1;
+    store_rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_LTK, &store_key,
+                              &store_value);
+    if (store_rc == 0) {
+        /* Store provided a key; send it to the controller. */
         rc = ble_l2cap_sm_lt_key_req_reply_tx(evt->connection_handle,
                                               store_value.ltk.key);
     } else {
@@ -1788,7 +1794,7 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
                                   &prev);
     if (proc == NULL) {
         rc = BLE_HS_EUNKNOWN;
-    } else if (app_rc == 0 && rc == 0) {
+    } else if (store_rc == 0 && rc == 0) {
         proc->state = BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE;
         if (store_value.ltk.authenticated) {
             proc->flags |= BLE_L2CAP_SM_PROC_F_AUTHENTICATED;
@@ -1799,14 +1805,14 @@ ble_l2cap_sm_lt_key_req_ltk_handle(struct hci_le_lt_key_req *evt)
     ble_hs_unlock();
 
     /* Notify the app if it provided a key and the procedure failed. */
-    if (app_rc == 0 && rc != 0) {
+    if (store_rc == 0 && rc != 0) {
         ble_l2cap_sm_gap_event(proc, rc, 0);
     }
 
     /* The procedure is aborted if the app didn't provide a key or if there was
      * a failure.
      */
-    if (app_rc != 0 || rc != 0) {
+    if (store_rc != 0 || rc != 0) {
         ble_l2cap_sm_proc_free(proc);
     }
 
@@ -1928,8 +1934,10 @@ static int
 ble_l2cap_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
 {
     struct ble_l2cap_sm_sec_req cmd;
-    struct ble_l2cap_sm_proc *proc;
+    struct ble_store_value_ltk value_ltk;
+    struct ble_store_key_ltk key_ltk;
     struct ble_hs_conn *conn;
+    int authreq_mitm;
     int rc;
 
     rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SM_SEC_REQ_SZ);
@@ -1939,39 +1947,57 @@ ble_l2cap_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om)
 
     ble_l2cap_sm_sec_req_parse((*om)->om_data, (*om)->om_len, &cmd);
 
+    /* XXX: Reject if:
+     *     o authreq-bonded flag not set?
+     *     o authreq-reserved flags set?
+     */
+
     BLE_HS_LOG(DEBUG, "rxed sm sec req; authreq=%d\n", cmd.authreq);
 
     ble_hs_lock();
 
-    /* Only handle the security request if a procedure isn't already in
-     * progress for this connection.
-     */
-    proc = ble_l2cap_sm_proc_find(conn_handle, BLE_L2CAP_SM_PROC_STATE_NONE,
-                                  -1, NULL);
-    if (proc != NULL) {
-        rc = BLE_HS_EALREADY;
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+        rc = BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CMD_NOT_SUPP);
+        ble_l2cap_sm_pair_fail_tx(conn_handle, BLE_L2CAP_SM_ERR_CMD_NOT_SUPP);
     } else {
-        conn = ble_hs_conn_find(conn_handle);
-        if (conn == NULL) {
-            rc = BLE_HS_ENOTCONN;
-        } else if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
-            rc = BLE_HS_SM_US_ERR(BLE_L2CAP_SM_ERR_CMD_NOT_SUPP);
-            ble_l2cap_sm_pair_fail_tx(conn_handle,
-                                      BLE_L2CAP_SM_ERR_CMD_NOT_SUPP);
-        } else {
-            rc = 0;
-        }
+        rc = 0;
+
+        /* We will be querying the SM database for a key corresponding to the
+         * sender; remember the sender's address while the connection list is
+         * locked.
+         */
+        memset(&key_ltk, 0, sizeof key_ltk);
+        key_ltk.addr_type = conn->bhc_addr_type;
+        memcpy(key_ltk.addr, conn->bhc_addr, 6);
     }
 
     ble_hs_unlock();
 
     if (rc == 0) {
-        /* XXX: Ask app / someone if there is a persisted LTK such that:
-         *     o It corresponds to this peer.
-         *     o It meets the specified authreq criteria.
-         * For now, assume we don't have an appropriate LTK; initiate pairing.
-         */
-        rc = ble_l2cap_sm_pair_initiate(conn_handle);
+        /* Query database for an LTK corresonding to the sender. */
+        rc = ble_store_read_peer_ltk(&key_ltk, &value_ltk);
+        if (rc == 0) {
+            /* Found a key corresponding to this peer.  Make sure it meets the
+             * requested minimum authreq.
+             */
+            authreq_mitm = cmd.authreq & BLE_L2CAP_SM_PAIR_AUTHREQ_MITM;
+            if ((!authreq_mitm && value_ltk.authenticated) ||
+                (authreq_mitm && !value_ltk.authenticated)) {
+
+                rc = BLE_HS_EREJECT;
+            }
+        }
+
+        if (rc == 0) {
+            rc = ble_l2cap_sm_enc_initiate(conn_handle, value_ltk.key,
+                                           value_ltk.ediv, value_ltk.rand_num,
+                                           value_ltk.authenticated);
+        } else {
+            rc = ble_l2cap_sm_pair_initiate(conn_handle);
+        }
     }
 
     return rc;
