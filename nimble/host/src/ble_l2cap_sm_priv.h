@@ -20,10 +20,13 @@
 #ifndef H_BLE_L2CAP_SM_
 #define H_BLE_L2CAP_SM_
 
+#include <inttypes.h>
+#include "os/queue.h"
 #include "nimble/nimble_opt.h"
 
 struct ble_gap_sec_state;
 struct hci_le_lt_key_req;
+struct hci_encrypt_change;
 
 #define BLE_L2CAP_SM_MTU            65
 
@@ -185,13 +188,15 @@ struct ble_l2cap_sm_dhkey_check {
 #define BLE_L2CAP_SM_PROC_STATE_PAIR            0
 #define BLE_L2CAP_SM_PROC_STATE_CONFIRM         1
 #define BLE_L2CAP_SM_PROC_STATE_RANDOM          2
-#define BLE_L2CAP_SM_PROC_STATE_LTK             3
-#define BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE      4
-#define BLE_L2CAP_SM_PROC_STATE_KEY_EXCH        5
-#define BLE_L2CAP_SM_PROC_STATE_SEC_REQ         6
-#define BLE_L2CAP_SM_PROC_STATE_PUBLIC_KEY      7
-#define BLE_L2CAP_SM_PROC_STATE_DHKEY_CHECK     8
-#define BLE_L2CAP_SM_PROC_STATE_CNT             9
+#define BLE_L2CAP_SM_PROC_STATE_LTK_START       3
+#define BLE_L2CAP_SM_PROC_STATE_LTK_RESTORE     4
+#define BLE_L2CAP_SM_PROC_STATE_ENC_START       5
+#define BLE_L2CAP_SM_PROC_STATE_ENC_RESTORE     6
+#define BLE_L2CAP_SM_PROC_STATE_KEY_EXCH        7
+#define BLE_L2CAP_SM_PROC_STATE_SEC_REQ         8
+#define BLE_L2CAP_SM_PROC_STATE_PUBLIC_KEY      9
+#define BLE_L2CAP_SM_PROC_STATE_DHKEY_CHECK     10
+#define BLE_L2CAP_SM_PROC_STATE_CNT             11
 
 #define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
 #define BLE_L2CAP_SM_PROC_F_TK_VALID            0x02
@@ -247,9 +252,18 @@ struct ble_l2cap_sm_proc {
     uint8_t ltk[16];
     uint8_t mackey[16];
 
-    /* this may be temporary, but we keep the keys here for now */
-    struct ble_l2cap_sm_keys our_keys;
-    struct ble_l2cap_sm_keys peer_keys;
+    uint16_t ediv;
+    uint64_t rand_num;
+
+    struct ble_l2cap_sm_keys *our_keys;
+    struct ble_l2cap_sm_keys *peer_keys;
+};
+
+struct ble_l2cap_sm_result {
+    int app_status;
+    uint8_t sm_err;
+    unsigned do_tx:1;
+    unsigned do_cb:1;
 };
 
 #ifdef BLE_HS_DEBUG
@@ -351,12 +365,48 @@ int ble_l2cap_sm_dhkey_check_tx(uint16_t conn_handle,
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
+int ble_sm_lgcy_next_state(struct ble_l2cap_sm_proc *proc);
+int ble_sm_lgcy_passkey_action(struct ble_l2cap_sm_proc *proc);
+void ble_sm_lgcy_confirm_go(struct ble_l2cap_sm_proc *proc,
+                            struct ble_l2cap_sm_result *res);
+void ble_sm_lgcy_random_go(struct ble_l2cap_sm_proc *proc,
+                           struct ble_l2cap_sm_result *res);
+void ble_sm_lgcy_random_handle(struct ble_l2cap_sm_proc *proc,
+                               struct ble_l2cap_sm_result *res);
+
+int ble_sm_sc_next_state(struct ble_l2cap_sm_proc *proc);
+int ble_sm_sc_passkey_action(struct ble_l2cap_sm_proc *proc);
+void ble_sm_sc_confirm_go(struct ble_l2cap_sm_proc *proc,
+                          struct ble_l2cap_sm_result *res);
+void ble_sm_sc_random_go(struct ble_l2cap_sm_proc *proc,
+                         struct ble_l2cap_sm_result *res);
+void ble_sm_sc_random_handle(struct ble_l2cap_sm_proc *proc,
+                             struct ble_l2cap_sm_result *res);
+void ble_sm_sc_public_key_go(struct ble_l2cap_sm_proc *proc,
+                             struct ble_l2cap_sm_result *res,
+                             void *arg);
+void ble_sm_sc_public_key_handle(struct ble_l2cap_sm_proc *proc,
+                                 struct ble_l2cap_sm_public_key *cmd,
+                                 struct ble_l2cap_sm_result *res);
+int ble_sm_sc_rx_public_key(uint16_t conn_handle, uint8_t op,
+                            struct os_mbuf **om);
+void ble_sm_sc_dhkey_check_go(struct ble_l2cap_sm_proc *proc,
+                                 struct ble_l2cap_sm_result *res, void *arg);
+int ble_sm_sc_rx_dhkey_check(uint16_t conn_handle, uint8_t op,
+                             struct os_mbuf **om);
+
+struct ble_l2cap_sm_proc *
+ble_l2cap_sm_proc_find(uint16_t conn_handle, uint8_t state, int is_initiator,
+                       struct ble_l2cap_sm_proc **out_prev);
+int ble_l2cap_sm_gen_pub_priv(struct ble_l2cap_sm_proc *proc,
+                              uint8_t *pub, uint8_t *priv);
 uint8_t *ble_l2cap_sm_our_pair_rand(struct ble_l2cap_sm_proc *proc);
 uint8_t *ble_l2cap_sm_their_pair_rand(struct ble_l2cap_sm_proc *proc);
-int ble_sm_lgcy_confirm_go(struct ble_l2cap_sm_proc *proc);
-int ble_sm_lgcy_random_handle(struct ble_l2cap_sm_proc *proc,
-                              struct ble_l2cap_sm_pair_random *cmd,
-                              uint8_t *out_sm_status);
+void ble_l2cap_sm_go(struct ble_l2cap_sm_proc *proc,
+                     struct ble_l2cap_sm_result *res,
+                     void *arg);
+void ble_l2cap_sm_process_result(uint16_t conn_handle,
+                                 struct ble_l2cap_sm_result *res);
 
 
 void ble_l2cap_sm_heartbeat(void);
