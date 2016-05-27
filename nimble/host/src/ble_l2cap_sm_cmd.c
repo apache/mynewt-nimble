@@ -287,6 +287,7 @@ ble_l2cap_sm_pair_fail_write(void *payload, int len,
     u8ptr[1] = cmd->reason;
 }
 
+/* XXX: Should not require locked. */
 int
 ble_l2cap_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
 {

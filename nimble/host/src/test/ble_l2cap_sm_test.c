@@ -998,6 +998,12 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
 
     ble_hs_test_util_set_public_addr(params->rsp_addr);
     ble_l2cap_sm_dbg_set_next_pair_rand(params->random_rsp.value);
+    ble_l2cap_sm_dbg_set_next_ediv(params->ediv);
+    ble_l2cap_sm_dbg_set_next_start_rand(params->r);
+
+    if (params->has_enc_info_req) {
+        ble_l2cap_sm_dbg_set_next_ltk(params->enc_info_req.ltk_le);
+    }
 
     ble_hs_test_util_create_conn(2, params->init_addr,
                                  ble_l2cap_sm_test_util_conn_cb,
@@ -1072,6 +1078,10 @@ ble_l2cap_sm_test_util_peer_lgcy_good(
 
     /* Receive an encryption changed event. */
     ble_l2cap_sm_test_util_rx_enc_change(2, 0, 1);
+
+    if (params->has_enc_info_req) {
+        return; // XXX
+    }
 
     /* Pairing should now be complete. */
     TEST_ASSERT(ble_l2cap_sm_dbg_num_procs() == 0);
@@ -1215,7 +1225,31 @@ TEST_CASE(ble_l2cap_sm_test_case_peer_lgcy_passkey_good)
         .passkey = {
             .action = BLE_GAP_PKACT_INPUT,
             .passkey = 884570,
-        }
+        },
+        .enc_info_req = {
+            .ltk_le = {
+                0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+                0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+            },
+        },
+        .has_enc_info_req = 1,
+
+        .master_id_req = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_req = 1,
+
+        .enc_info_rsp = {
+            .ltk_le = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
+        },
+        .has_enc_info_rsp = 1,
+
+        .master_id_rsp = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_rsp = 1,
     };
     ble_l2cap_sm_test_util_peer_lgcy_good(&params);
 }
@@ -2137,7 +2171,32 @@ TEST_CASE(ble_l2cap_sm_test_case_us_sec_req_pair)
         .passkey = {
             .action = BLE_GAP_PKACT_INPUT,
             .passkey = 884570,
-        }
+        },
+
+        .enc_info_req = {
+            .ltk_le = {
+                0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+                0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+            },
+        },
+        .has_enc_info_req = 1,
+
+        .master_id_req = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_req = 1,
+
+        .enc_info_rsp = {
+            .ltk_le = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
+        },
+        .has_enc_info_rsp = 1,
+
+        .master_id_rsp = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_rsp = 1,
     };
     ble_l2cap_sm_test_util_peer_lgcy_good(&params);
 }

@@ -42,4 +42,5 @@ pkg.cflags.SELFTEST:
     - -DPHONY_TRANSPORT=1
     - -DPHONY_HCI_ACKS=1
     - -DNIMBLE_OPT_SM=1
+    - -DNIMBLE_OPT_SM_SC=1
 pkg.cflags.TEST: -DBLE_HS_DEBUG
