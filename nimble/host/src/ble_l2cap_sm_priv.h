@@ -180,6 +180,78 @@ struct ble_l2cap_sm_dhkey_check {
 
 #if NIMBLE_OPT(SM)
 
+#define BLE_L2CAP_SM_PROC_STATE_NONE            ((uint8_t)-1)
+
+#define BLE_L2CAP_SM_PROC_STATE_PAIR            0
+#define BLE_L2CAP_SM_PROC_STATE_CONFIRM         1
+#define BLE_L2CAP_SM_PROC_STATE_RANDOM          2
+#define BLE_L2CAP_SM_PROC_STATE_LTK             3
+#define BLE_L2CAP_SM_PROC_STATE_ENC_CHANGE      4
+#define BLE_L2CAP_SM_PROC_STATE_KEY_EXCH        5
+#define BLE_L2CAP_SM_PROC_STATE_SEC_REQ         6
+#define BLE_L2CAP_SM_PROC_STATE_PUBLIC_KEY      7
+#define BLE_L2CAP_SM_PROC_STATE_DHKEY_CHECK     8
+#define BLE_L2CAP_SM_PROC_STATE_CNT             9
+
+#define BLE_L2CAP_SM_PROC_F_INITIATOR           0x01
+#define BLE_L2CAP_SM_PROC_F_TK_VALID            0x02
+#define BLE_L2CAP_SM_PROC_F_RX_CONFIRM          0x04
+#define BLE_L2CAP_SM_PROC_F_AUTHENTICATED       0x08
+#define BLE_L2CAP_SM_PROC_F_KEY_EXCHANGE        0x10
+#define BLE_L2CAP_SM_PROC_F_BONDED              0x20
+#define BLE_L2CAP_SM_PROC_F_SC                  0x40
+
+#define BLE_L2CAP_SM_KE_F_ENC_INFO              0x01
+#define BLE_L2CAP_SM_KE_F_MASTER_IDEN           0x02
+#define BLE_L2CAP_SM_KE_F_IDEN_INFO             0x04
+#define BLE_L2CAP_SM_KE_F_ADDR_INFO             0x08
+#define BLE_L2CAP_SM_KE_F_SIGN_INFO             0x10
+
+typedef uint8_t ble_l2cap_sm_proc_flags;
+
+struct ble_l2cap_sm_keys {
+    unsigned ltk_valid:1;
+    unsigned ediv_rand_valid:1;
+    unsigned irk_valid:1;
+    unsigned csrk_valid:1;
+    unsigned addr_valid:1;
+    uint16_t ediv;
+    uint64_t rand_val;
+    uint8_t addr_type;
+    uint8_t ltk[16];
+    uint8_t irk[16];
+    uint8_t csrk[16];
+    uint8_t addr[6];
+};
+
+struct ble_l2cap_sm_proc {
+    STAILQ_ENTRY(ble_l2cap_sm_proc) next;
+
+    uint32_t exp_os_ticks;
+    ble_l2cap_sm_proc_flags flags;
+    uint16_t conn_handle;
+    uint8_t pair_alg;
+    uint8_t state;
+    uint8_t rx_key_flags;
+    /* XXX: Minimum security requirements. */
+
+    struct ble_l2cap_sm_pair_cmd pair_req;
+    struct ble_l2cap_sm_pair_cmd pair_rsp;
+    struct ble_l2cap_sm_public_key pub_key_our;
+    struct ble_l2cap_sm_public_key pub_key_their;
+    uint8_t priv_key_our[32];
+    uint8_t tk[16];
+    uint8_t confirm_their[16];
+    uint8_t randm[16];
+    uint8_t rands[16];
+    uint8_t ltk[16];
+    uint8_t mackey[16];
+
+    /* this may be temporary, but we keep the keys here for now */
+    struct ble_l2cap_sm_keys our_keys;
+    struct ble_l2cap_sm_keys peer_keys;
+};
+
 #ifdef BLE_HS_DEBUG
 void ble_l2cap_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
 void ble_l2cap_sm_dbg_set_next_ediv(uint16_t next_ediv);
@@ -278,6 +350,14 @@ int ble_l2cap_sm_dhkey_check_tx(uint16_t conn_handle,
 
 void ble_l2cap_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_l2cap_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
+
+uint8_t *ble_l2cap_sm_our_pair_rand(struct ble_l2cap_sm_proc *proc);
+uint8_t *ble_l2cap_sm_their_pair_rand(struct ble_l2cap_sm_proc *proc);
+int ble_sm_lgcy_confirm_go(struct ble_l2cap_sm_proc *proc);
+int ble_sm_lgcy_random_handle(struct ble_l2cap_sm_proc *proc,
+                              struct ble_l2cap_sm_pair_random *cmd,
+                              uint8_t *out_sm_status);
+
 
 void ble_l2cap_sm_heartbeat(void);
 int ble_l2cap_sm_pair_initiate(uint16_t conn_handle);
