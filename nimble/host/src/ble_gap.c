@@ -569,7 +569,7 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap, int reason)
      * each fo the "connection_broken" functions below.
      */
 
-    ble_l2cap_sm_connection_broken(snap->desc.conn_handle);
+    ble_sm_connection_broken(snap->desc.conn_handle);
     ble_gattc_connection_broken(snap->desc.conn_handle);
 
     ble_hs_atomic_conn_delete(snap->desc.conn_handle);
@@ -2115,9 +2115,9 @@ ble_gap_security_initiate(uint16_t conn_handle)
          * is found, perform the encryption procedure rather than the pairing
          * procedure.
          */
-        rc = ble_l2cap_sm_pair_initiate(conn_handle);
+        rc = ble_sm_pair_initiate(conn_handle);
     } else {
-        rc = ble_l2cap_sm_slave_initiate(conn_handle);
+        rc = ble_sm_slave_initiate(conn_handle);
     }
 
     return rc;
@@ -2142,7 +2142,7 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
         return BLE_HS_EROLE;
     }
 
-    rc = ble_l2cap_sm_enc_initiate(conn_handle, ltk, ediv, rand_val, auth);
+    rc = ble_sm_enc_initiate(conn_handle, ltk, ediv, rand_val, auth);
     return rc;
 }
 #endif

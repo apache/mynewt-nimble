@@ -174,7 +174,7 @@ host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
     evt.connection_handle = le16toh(data + 3);
     evt.encryption_enabled = data[5];
 
-    ble_l2cap_sm_rx_encryption_change(&evt);
+    ble_sm_rx_encryption_change(&evt);
 
     return 0;
 }
@@ -437,7 +437,7 @@ host_hci_rx_le_lt_key_req(uint8_t subevent, uint8_t *data, int len)
     evt.random_number = le64toh(data + 3);
     evt.encrypted_diversifier = le16toh(data + 11);
 
-    ble_l2cap_sm_rx_lt_key_req(&evt);
+    ble_sm_rx_lt_key_req(&evt);
 
     return 0;
 }

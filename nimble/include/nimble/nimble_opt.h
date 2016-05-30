@@ -352,7 +352,7 @@
  * code size and non on RAM.
  */
 #ifndef BLE_LL_CFG_FEAT_DATA_LEN_EXT
-#define  BLE_LL_CFG_FEAT_DATA_LEN_EXT           (1)
+#define  BLE_LL_CFG_FEAT_DATA_LEN_EXT           (0)
 #endif
 
 /*

@@ -136,7 +136,7 @@ ble_hs_conn_alloc(void)
      * to reject SM messages.
      */
 #if NIMBLE_OPT(SM)
-    chan = ble_l2cap_sm_create_chan();
+    chan = ble_sm_create_chan();
     if (chan == NULL) {
         goto err;
     }

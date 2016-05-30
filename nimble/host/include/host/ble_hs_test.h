@@ -27,7 +27,7 @@ void ble_hs_test_pkt_txed(struct os_mbuf *om);
 void ble_hs_test_hci_txed(uint8_t *cmdbuf);
 
 int ble_l2cap_test_all(void);
-int ble_l2cap_sm_test_all(void);
+int ble_sm_test_all(void);
 int ble_att_svr_test_all(void);
 int ble_att_clt_test_all(void);
 int ble_host_hci_test_all(void);

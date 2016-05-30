@@ -337,7 +337,7 @@ ble_l2cap_init(void)
         goto err;
     }
 
-    rc = ble_l2cap_sm_init();
+    rc = ble_sm_init();
     if (rc != 0) {
         goto err;
     }

@@ -160,7 +160,7 @@ struct ble_gap_notify_params {
  * when the l2cap calls to the application, it will ask the application
  * to perform one of they key generation roles. In all cases, the
  * application must pass the passkey back to the l2cap via
- * ble_l2cap_sm_set_tk
+ * ble_sm_set_tk
  */
 #define BLE_GAP_PKACT_NONE          0
 #define BLE_GAP_PKACT_OOB           1
