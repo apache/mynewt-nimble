@@ -34,7 +34,7 @@
 #include "ble_hs_startup_priv.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig_priv.h"
-#include "ble_l2cap_sm_priv.h"
+#include "ble_sm_priv.h"
 #include "host/ble_hs.h"
 #include "log/log.h"
 #include "nimble/nimble_opt.h"
