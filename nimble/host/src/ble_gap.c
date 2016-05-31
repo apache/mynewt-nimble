@@ -2178,7 +2178,7 @@ ble_gap_passkey_event(uint16_t conn_handle, uint8_t passkey_action)
 }
 
 void
-ble_gap_enc_changed(uint16_t conn_handle, int status,
+ble_gap_enc_event(uint16_t conn_handle, int status,
                     struct ble_gap_sec_state *sec_state)
 {
     struct ble_gap_conn_ctxt ctxt;
