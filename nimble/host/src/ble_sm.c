@@ -64,7 +64,11 @@ static ble_sm_rx_fn ble_sm_rx_pair_rsp;
 static ble_sm_rx_fn ble_sm_rx_pair_confirm;
 static ble_sm_rx_fn ble_sm_rx_pair_random;
 static ble_sm_rx_fn ble_sm_rx_pair_fail;
-static ble_sm_rx_fn ble_sm_rx_key_exchange;
+static ble_sm_rx_fn ble_sm_rx_enc_info;
+static ble_sm_rx_fn ble_sm_rx_master_id;
+static ble_sm_rx_fn ble_sm_rx_id_info;
+static ble_sm_rx_fn ble_sm_rx_id_addr_info;
+static ble_sm_rx_fn ble_sm_rx_sign_info;
 static ble_sm_rx_fn ble_sm_rx_sec_req;
 
 static ble_sm_rx_fn * const ble_sm_dispatch[] = {
@@ -73,11 +77,11 @@ static ble_sm_rx_fn * const ble_sm_dispatch[] = {
    [BLE_SM_OP_PAIR_CONFIRM] = ble_sm_rx_pair_confirm,
    [BLE_SM_OP_PAIR_RANDOM] = ble_sm_rx_pair_random,
    [BLE_SM_OP_PAIR_FAIL] = ble_sm_rx_pair_fail,
-   [BLE_SM_OP_ENC_INFO] = ble_sm_rx_key_exchange,
-   [BLE_SM_OP_MASTER_ID] = ble_sm_rx_key_exchange,
-   [BLE_SM_OP_IDENTITY_INFO] = ble_sm_rx_key_exchange,
-   [BLE_SM_OP_IDENTITY_ADDR_INFO] = ble_sm_rx_key_exchange,
-   [BLE_SM_OP_SIGN_INFO] = ble_sm_rx_key_exchange,
+   [BLE_SM_OP_ENC_INFO] = ble_sm_rx_enc_info,
+   [BLE_SM_OP_MASTER_ID] = ble_sm_rx_master_id,
+   [BLE_SM_OP_IDENTITY_INFO] = ble_sm_rx_id_info,
+   [BLE_SM_OP_IDENTITY_ADDR_INFO] = ble_sm_rx_id_addr_info,
+   [BLE_SM_OP_SIGN_INFO] = ble_sm_rx_sign_info,
    [BLE_SM_OP_SEC_REQ] = ble_sm_rx_sec_req,
    [BLE_SM_OP_PAIR_KEYPRESS_NOTIFY] = ble_sm_rx_noop,
 #if NIMBLE_OPT_SM_SC
@@ -1133,62 +1137,6 @@ ble_sm_check_key_exchange(struct ble_sm_proc *proc)
 }
 
 static void
-ble_sm_enc_info_handle(struct ble_sm_proc *proc,
-                             struct ble_sm_enc_info *info)
-{
-    proc->rx_key_flags &= ~BLE_SM_KE_F_ENC_INFO;
-
-    /* Save until completion. */
-    proc->peer_keys.ltk_valid = 1;
-    memcpy(proc->peer_keys.ltk, info->ltk_le, 16);
-}
-
-static void
-ble_sm_master_iden_handle(struct ble_sm_proc *proc,
-                             struct ble_sm_master_iden *info)
-{
-    proc->rx_key_flags &= ~BLE_SM_KE_F_MASTER_IDEN;
-    /* Save until completion. */
-    proc->peer_keys.ediv_rand_valid = 1;
-    proc->peer_keys.ediv = info->ediv;
-    proc->peer_keys.rand_val = info->rand_val;
-}
-
-static void
-ble_sm_iden_info_handle(struct ble_sm_proc *proc,
-                              struct ble_sm_iden_info *info)
-{
-    proc->rx_key_flags &= ~BLE_SM_KE_F_IDEN_INFO;
-
-    /* Save until completion. */
-    proc->peer_keys.irk_valid = 1;
-    memcpy(proc->peer_keys.irk, info->irk_le, 16);
-}
-
-static void
-ble_sm_iden_addr_handle(struct ble_sm_proc *proc,
-                              struct ble_sm_iden_addr_info *info)
-{
-    proc->rx_key_flags &= ~BLE_SM_KE_F_ADDR_INFO;
-
-    /* Save until completion. */
-    proc->peer_keys.addr_valid = 1;
-    proc->peer_keys.addr_type = info->addr_type;
-    memcpy(proc->peer_keys.addr, info->bd_addr_le, 6);
-}
-
-static void
-ble_sm_signing_info_handle(struct ble_sm_proc *proc,
-                                 struct ble_sm_signing_info *info)
-{
-    proc->rx_key_flags &= ~BLE_SM_KE_F_SIGN_INFO;
-
-    /* save until completion */
-    proc->peer_keys.csrk_valid = 1;
-    memcpy(proc->peer_keys.csrk, info->sig_key_le, 16);
-}
-
-static void
 ble_sm_key_exch_go(struct ble_sm_proc *proc,
                    struct ble_sm_result *res, void *arg)
 {
@@ -1300,134 +1248,202 @@ err:
     res->enc_cb = 1;
 }
 
+static void
+ble_sm_key_rxed(struct ble_sm_proc *proc, struct ble_sm_result *res)
+{
+    BLE_HS_LOG(DEBUG, "key received; rx_key_flags=0x%02x\n",
+               proc->rx_key_flags);
+
+    if (proc->rx_key_flags == 0) {
+        /* The peer is done sending keys.  If we are the initiator, we need to
+         * send ours.  If we are the responder, the procedure is complete.
+         */
+        if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+            res->do_state = 1;
+        } else {
+            proc->flags |= BLE_SM_PROC_F_BONDED;
+            proc->state = BLE_SM_PROC_STATE_NONE;
+            res->persist_keys = 1;
+            res->enc_cb = 1;
+        }
+    }
+}
 
 static void
-ble_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
-                       struct ble_sm_result *res)
+ble_sm_rx_enc_info(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+                   struct ble_sm_result *res)
 {
-    union {
-        struct ble_sm_enc_info enc_info;
-        struct ble_sm_master_iden master_iden;
-        struct ble_sm_iden_info iden_info;
-        struct ble_sm_iden_addr_info iden_addr;
-        struct ble_sm_signing_info signing_info;
-    } u;
-    int rc;
-    int base_len;
+    struct ble_sm_enc_info cmd;
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    switch (op)  {
-    case BLE_SM_OP_ENC_INFO:
-        base_len = BLE_SM_ENC_INFO_SZ;
-        break;
-
-    case BLE_SM_OP_MASTER_ID:
-        base_len = BLE_SM_MASTER_IDEN_SZ;
-        break;
-
-    case BLE_SM_OP_IDENTITY_INFO:
-        base_len = BLE_SM_IDEN_INFO_SZ;
-        break;
-
-    case BLE_SM_OP_IDENTITY_ADDR_INFO:
-        base_len = BLE_SM_IDEN_ADDR_INFO_SZ;
-        break;
-
-    case BLE_SM_OP_SIGN_INFO:
-        base_len = BLE_SM_SIGNING_INFO_SZ;
-        break;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
+    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_ENC_INFO_SZ);
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
         return;
     }
 
-    rc = ble_hs_misc_pullup_base(om, base_len);
-    if (rc != 0) {
-        goto err;
-    }
-
-    switch (op) {
-    case BLE_SM_OP_ENC_INFO:
-        ble_sm_enc_info_parse((*om)->om_data, (*om)->om_len,
-                                    &u.enc_info);
-        break;
-    case BLE_SM_OP_MASTER_ID:
-        ble_sm_master_iden_parse((*om)->om_data, (*om)->om_len,
-                                       &u.master_iden);
-        break;
-    case BLE_SM_OP_IDENTITY_INFO:
-        ble_sm_iden_info_parse((*om)->om_data, (*om)->om_len,
-                                     &u.iden_info);
-        break;
-    case BLE_SM_OP_IDENTITY_ADDR_INFO:
-        ble_sm_iden_addr_parse((*om)->om_data, (*om)->om_len,
-                                     &u.iden_addr);
-        break;
-    case BLE_SM_OP_SIGN_INFO:
-        ble_sm_signing_info_parse((*om)->om_data, (*om)->om_len,
-                                        &u.signing_info);
-        break;
-    }
+    ble_sm_enc_info_parse((*om)->om_data, (*om)->om_len, &cmd);
 
     ble_hs_lock();
 
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
                             &prev);
-    if (proc != NULL) {
-        switch (op) {
-        case BLE_SM_OP_ENC_INFO:
-            ble_sm_enc_info_handle(proc, &u.enc_info);
-            break;
-
-        case BLE_SM_OP_MASTER_ID:
-            ble_sm_master_iden_handle(proc, &u.master_iden);
-            break;
-
-        case BLE_SM_OP_IDENTITY_INFO:
-            ble_sm_iden_info_handle(proc, &u.iden_info);
-            break;
-
-        case BLE_SM_OP_IDENTITY_ADDR_INFO:
-            ble_sm_iden_addr_handle(proc, &u.iden_addr);
-            break;
-
-        case BLE_SM_OP_SIGN_INFO:
-            ble_sm_signing_info_handle(proc, &u.signing_info);
-            break;
-        }
-
-        BLE_HS_LOG(DEBUG, "op=%d rx_key_flags=0x%02x\n", op,
-                   proc->rx_key_flags);
-
-        if (proc->rx_key_flags == 0) {
-            if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-                res->do_state = 1;
-            } else {
-                /* The procedure is now complete. */
-                proc->flags |= BLE_SM_PROC_F_BONDED;
-                proc->state = BLE_SM_PROC_STATE_NONE;
-                res->persist_keys = 1;
-                res->enc_cb = 1;
-            }
-        }
+    if (proc == NULL) {
+        res->app_status = BLE_HS_ENOENT;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
     } else {
-        rc = BLE_HS_ENOENT;
+        proc->rx_key_flags &= ~BLE_SM_KE_F_ENC_INFO;
+        proc->peer_keys.ltk_valid = 1;
+        memcpy(proc->peer_keys.ltk, cmd.ltk_le, 16);
+
+        ble_sm_key_rxed(proc, res);
     }
 
     ble_hs_unlock();
+}
 
-    if (rc != 0) {
-        goto err;
+static void
+ble_sm_rx_master_id(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+                    struct ble_sm_result *res)
+{
+    struct ble_sm_master_iden cmd;
+    struct ble_sm_proc *proc;
+    struct ble_sm_proc *prev;
+
+    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_MASTER_IDEN_SZ);
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
     }
 
-    return;
+    ble_sm_master_iden_parse((*om)->om_data, (*om)->om_len, &cmd);
 
-err:
-    res->app_status = rc;
-    res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-    res->enc_cb = 1;
+    ble_hs_lock();
+
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
+                            &prev);
+    if (proc == NULL) {
+        res->app_status = BLE_HS_ENOENT;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else {
+        proc->rx_key_flags &= ~BLE_SM_KE_F_MASTER_IDEN;
+        proc->peer_keys.ediv_rand_valid = 1;
+        proc->peer_keys.ediv = cmd.ediv;
+        proc->peer_keys.rand_val = cmd.rand_val;
+
+        ble_sm_key_rxed(proc, res);
+    }
+
+    ble_hs_unlock();
+}
+
+static void
+ble_sm_rx_id_info(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+                  struct ble_sm_result *res)
+{
+    struct ble_sm_iden_info cmd;
+    struct ble_sm_proc *proc;
+    struct ble_sm_proc *prev;
+
+    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_IDEN_INFO_SZ);
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
+    }
+
+    ble_sm_iden_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+
+    ble_hs_lock();
+
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
+                            &prev);
+    if (proc == NULL) {
+        res->app_status = BLE_HS_ENOENT;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else {
+        proc->rx_key_flags &= ~BLE_SM_KE_F_IDEN_INFO;
+        proc->peer_keys.irk_valid = 1;
+        memcpy(proc->peer_keys.irk, cmd.irk_le, 16);
+
+        ble_sm_key_rxed(proc, res);
+    }
+
+    ble_hs_unlock();
+}
+
+static void
+ble_sm_rx_id_addr_info(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+                       struct ble_sm_result *res)
+{
+    struct ble_sm_iden_addr_info cmd;
+    struct ble_sm_proc *proc;
+    struct ble_sm_proc *prev;
+
+    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_IDEN_ADDR_INFO_SZ);
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
+    }
+
+    ble_sm_iden_addr_parse((*om)->om_data, (*om)->om_len, &cmd);
+
+    ble_hs_lock();
+
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
+                            &prev);
+    if (proc == NULL) {
+        res->app_status = BLE_HS_ENOENT;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else {
+        proc->rx_key_flags &= ~BLE_SM_KE_F_ADDR_INFO;
+        proc->peer_keys.addr_valid = 1;
+        proc->peer_keys.addr_type = cmd.addr_type;
+        memcpy(proc->peer_keys.addr, cmd.bd_addr_le, 6);
+
+        ble_sm_key_rxed(proc, res);
+    }
+
+    ble_hs_unlock();
+}
+
+static void
+ble_sm_rx_sign_info(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+                    struct ble_sm_result *res)
+{
+    struct ble_sm_signing_info cmd;
+    struct ble_sm_proc *proc;
+    struct ble_sm_proc *prev;
+
+    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_SIGNING_INFO_SZ);
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
+    }
+
+    ble_sm_signing_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+
+    ble_hs_lock();
+
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
+                            &prev);
+    if (proc == NULL) {
+        res->app_status = BLE_HS_ENOENT;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else {
+        proc->rx_key_flags &= ~BLE_SM_KE_F_SIGN_INFO;
+        proc->peer_keys.csrk_valid = 1;
+        memcpy(proc->peer_keys.csrk, cmd.sig_key_le, 16);
+
+        ble_sm_key_rxed(proc, res);
+    }
+
+    ble_hs_unlock();
 }
 
 /*****************************************************************************
