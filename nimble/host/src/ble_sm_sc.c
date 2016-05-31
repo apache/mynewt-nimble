@@ -241,10 +241,6 @@ ble_sm_sc_rx_public_key(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     ble_hs_unlock();
 }
 
-/*****************************************************************************
- * $dhkey check                                                              *
- *****************************************************************************/
-
 void
 ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
                          void *arg)
