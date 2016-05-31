@@ -22,16 +22,17 @@
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
+#include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
 /**
  * Create some shortened names for the passkey actions so that the table is
  * easier to read.
  */
-#define PKACT_NONE  BLE_GAP_PKACT_NONE
-#define PKACT_OOB   BLE_GAP_PKACT_OOB
-#define PKACT_INPUT BLE_GAP_PKACT_INPUT
-#define PKACT_DISP  BLE_GAP_PKACT_DISP
+#define PKACT_NONE  BLE_SM_PKACT_NONE
+#define PKACT_OOB   BLE_SM_PKACT_OOB
+#define PKACT_INPUT BLE_SM_PKACT_INPUT
+#define PKACT_DISP  BLE_SM_PKACT_DISP
 
 /* This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
@@ -62,11 +63,11 @@ ble_sm_lgcy_passkey_action(struct ble_sm_proc *proc)
     int action;
 
     if (proc->pair_req.oob_data_flag && proc->pair_rsp.oob_data_flag) {
-        action = BLE_GAP_PKACT_OOB;
+        action = BLE_SM_PKACT_OOB;
     } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) ||
                !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
-        action = BLE_GAP_PKACT_NONE;
+        action = BLE_SM_PKACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         action = ble_sm_lgcy_init_pka[proc->pair_req.io_cap]
                                      [proc->pair_rsp.io_cap];
@@ -76,17 +77,17 @@ ble_sm_lgcy_passkey_action(struct ble_sm_proc *proc)
     }
 
     switch (action) {
-    case BLE_GAP_PKACT_NONE:
+    case BLE_SM_PKACT_NONE:
         proc->pair_alg = BLE_SM_PAIR_ALG_JW;
         break;
 
-    case BLE_GAP_PKACT_OOB:
+    case BLE_SM_PKACT_OOB:
         proc->pair_alg = BLE_SM_PAIR_ALG_OOB;
         proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
         break;
 
-    case BLE_GAP_PKACT_INPUT:
-    case BLE_GAP_PKACT_DISP:
+    case BLE_SM_PKACT_INPUT:
+    case BLE_SM_PKACT_DISP:
         proc->pair_alg = BLE_SM_PAIR_ALG_PASSKEY;
         proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
         break;
@@ -224,7 +225,7 @@ ble_sm_lgcy_random_go(struct ble_sm_proc *proc,
 }
 
 void
-ble_sm_lgcy_random_handle(struct ble_sm_proc *proc, struct ble_sm_result *res)
+ble_sm_lgcy_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     uint8_t preq[BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ];
     uint8_t pres[BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ];
@@ -279,5 +280,5 @@ ble_sm_lgcy_random_handle(struct ble_sm_proc *proc, struct ble_sm_result *res)
         proc->state = BLE_SM_PROC_STATE_ENC_START;
     }
 
-    res->do_state = 1;
+    res->execute = 1;
 }

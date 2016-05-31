@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 #include "ble_sm_priv.h"
 
@@ -109,7 +110,7 @@ ble_sm_sc_random_go(struct ble_sm_proc *proc,
 }
 
 void
-ble_sm_sc_random_handle(struct ble_sm_proc *proc,
+ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc,
                         struct ble_sm_result *res)
 {
     uint8_t confirm_val[16];
@@ -152,7 +153,7 @@ ble_sm_sc_random_handle(struct ble_sm_proc *proc,
         proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
     }
 
-    res->do_state = 1;
+    res->execute = 1;
 }
 
 void
@@ -181,7 +182,7 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
         (!initiator_txes && !is_initiator)) {
 
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
-        res->do_state = 1;
+        res->execute = 1;
     }
 
     return;
@@ -203,10 +204,10 @@ ble_sm_sc_public_key_handle(struct ble_sm_proc *proc,
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
 
         if (ble_sm_sc_initiator_txes_confirm(proc)) {
-            res->do_state = 1;
+            res->execute = 1;
         }
     } else {
-        res->do_state = 1;
+        res->execute = 1;
     }
 }
 
@@ -297,7 +298,7 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
         proc->state = BLE_SM_PROC_STATE_ENC_START;
     }
 
-    res->do_state = 1;
+    res->execute = 1;
 }
 
 void

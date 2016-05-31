@@ -22,6 +22,7 @@
 #include "console/console.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
+#include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
 #if NIMBLE_OPT(SM)
@@ -189,8 +190,7 @@ ble_sm_pair_confirm_write(void *payload, int len,
 }
 
 int
-ble_sm_pair_confirm_tx(uint16_t conn_handle,
-                       struct ble_sm_pair_confirm *cmd)
+ble_sm_pair_confirm_tx(uint16_t conn_handle, struct ble_sm_pair_confirm *cmd)
 {
     struct os_mbuf *txom;
     int rc;
@@ -238,8 +238,7 @@ ble_sm_pair_random_write(void *payload, int len,
 }
 
 int
-ble_sm_pair_random_tx(uint16_t conn_handle,
-                      struct ble_sm_pair_random *cmd)
+ble_sm_pair_random_tx(uint16_t conn_handle, struct ble_sm_pair_random *cmd)
 {
     struct os_mbuf *txom;
     int rc;
@@ -261,8 +260,7 @@ done:
 }
 
 void
-ble_sm_pair_fail_parse(void *payload, int len,
-                       struct ble_sm_pair_fail *cmd)
+ble_sm_pair_fail_parse(void *payload, int len, struct ble_sm_pair_fail *cmd)
 {
     uint8_t *u8ptr;
 
@@ -316,12 +314,11 @@ void
 ble_sm_enc_info_parse(void *payload, int len, struct ble_sm_enc_info *cmd)
 {
     uint8_t *u8ptr = payload;
-    memcpy(cmd->ltk_le, u8ptr, 16);
+    memcpy(cmd->ltk, u8ptr, 16);
 }
 
 int
-ble_sm_enc_info_tx(uint16_t conn_handle,
-                         struct ble_sm_enc_info *cmd)
+ble_sm_enc_info_tx(uint16_t conn_handle, struct ble_sm_enc_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
@@ -333,7 +330,7 @@ ble_sm_enc_info_tx(uint16_t conn_handle,
     }
 
     txom->om_data[0] = BLE_SM_OP_ENC_INFO;
-    memcpy(txom->om_data + 1, cmd->ltk_le, sizeof cmd->ltk_le);
+    memcpy(txom->om_data + 1, cmd->ltk, sizeof cmd->ltk);
     
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
@@ -344,8 +341,7 @@ done:
 }
 
 void
-ble_sm_master_iden_parse(void *payload, int len,
-                         struct ble_sm_master_iden *cmd)
+ble_sm_master_id_parse(void *payload, int len, struct ble_sm_master_id *cmd)
 {
     uint8_t *u8ptr = payload;
     cmd->ediv = le16toh(u8ptr);
@@ -353,12 +349,12 @@ ble_sm_master_iden_parse(void *payload, int len,
 }
 
 int
-ble_sm_master_iden_tx(uint16_t conn_handle, struct ble_sm_master_iden *cmd)
+ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd)
 {
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_MASTER_IDEN_SZ, &txom);
+    rc = ble_sm_init_req(BLE_SM_MASTER_ID_SZ, &txom);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -376,26 +372,26 @@ done:
 }
 
 void
-ble_sm_iden_info_parse(void *payload, int len, struct ble_sm_iden_info *cmd)
+ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd)
 {
     uint8_t *u8ptr = payload;
-    memcpy(cmd->irk_le, u8ptr, 16);
+    memcpy(cmd->irk, u8ptr, 16);
 }
 
 int
-ble_sm_iden_info_tx(uint16_t conn_handle, struct ble_sm_iden_info *cmd)
+ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_IDEN_INFO_SZ, &txom);
+    rc = ble_sm_init_req(BLE_SM_ID_INFO_SZ, &txom);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto done;
     }
 
     txom->om_data[0] = BLE_SM_OP_IDENTITY_INFO;
-    memcpy(txom->om_data + 1, cmd->irk_le, sizeof cmd->irk_le);
+    memcpy(txom->om_data + 1, cmd->irk, sizeof cmd->irk);
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
 
@@ -406,20 +402,20 @@ done:
 
 void
 ble_sm_iden_addr_parse(void *payload, int len,
-                       struct ble_sm_iden_addr_info *cmd)
+                       struct ble_sm_id_addr_info *cmd)
 {
     uint8_t *u8ptr = payload;
     cmd->addr_type = *u8ptr;
-    memcpy(cmd->bd_addr_le, u8ptr + 1, 6);
+    memcpy(cmd->bd_addr, u8ptr + 1, 6);
 }
 
 int
-ble_sm_iden_addr_tx(uint16_t conn_handle, struct ble_sm_iden_addr_info *cmd)
+ble_sm_iden_addr_tx(uint16_t conn_handle, struct ble_sm_id_addr_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_IDEN_ADDR_INFO_SZ, &txom);
+    rc = ble_sm_init_req(BLE_SM_ID_ADDR_INFO_SZ, &txom);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -427,7 +423,7 @@ ble_sm_iden_addr_tx(uint16_t conn_handle, struct ble_sm_iden_addr_info *cmd)
 
     txom->om_data[0] = BLE_SM_OP_IDENTITY_ADDR_INFO;
     txom->om_data[1] = cmd->addr_type;
-    memcpy(txom->om_data + 2, cmd->bd_addr_le, sizeof cmd->bd_addr_le);
+    memcpy(txom->om_data + 2, cmd->bd_addr, sizeof cmd->bd_addr);
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
 
@@ -437,27 +433,26 @@ done:
 }
 
 void
-ble_sm_signing_info_parse(void *payload, int len,
-                         struct ble_sm_signing_info *cmd)
+ble_sm_sign_info_parse(void *payload, int len, struct ble_sm_sign_info *cmd)
 {
     uint8_t *u8ptr = payload;
-    memcpy(cmd->sig_key_le, u8ptr, 16);
+    memcpy(cmd->sig_key, u8ptr, 16);
 }
 
 int
-ble_sm_signing_info_tx(uint16_t conn_handle, struct ble_sm_signing_info *cmd)
+ble_sm_sign_info_tx(uint16_t conn_handle, struct ble_sm_sign_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_SIGNING_INFO_SZ, &txom);
+    rc = ble_sm_init_req(BLE_SM_SIGN_INFO_SZ, &txom);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto done;
     }
 
     txom->om_data[0] = BLE_SM_OP_SIGN_INFO;
-    memcpy(txom->om_data + 1, cmd->sig_key_le, sizeof cmd->sig_key_le);
+    memcpy(txom->om_data + 1, cmd->sig_key, sizeof cmd->sig_key);
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
 

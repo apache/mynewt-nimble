@@ -24,6 +24,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/nimble_opt.h"
 #include "host/host_hci.h"
+#include "host/ble_sm.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
@@ -56,9 +57,9 @@ struct ble_sm_test_lgcy_params {
     struct ble_sm_pair_random random_req;
     struct ble_sm_pair_random random_rsp;
     struct ble_sm_enc_info enc_info_req;
-    struct ble_sm_master_iden master_id_req;
+    struct ble_sm_master_id master_id_req;
     struct ble_sm_enc_info enc_info_rsp;
-    struct ble_sm_master_iden master_id_rsp;
+    struct ble_sm_master_id master_id_rsp;
     int pair_alg;
     unsigned authenticated:1;
     uint8_t tk[16];
@@ -500,7 +501,7 @@ ble_sm_test_util_verify_tx_enc_info(
                                               BLE_SM_ENC_INFO_SZ);
     ble_sm_enc_info_parse(om->om_data, om->om_len, &cmd);
 
-    TEST_ASSERT(memcmp(cmd.ltk_le, exp_cmd->ltk_le, sizeof cmd.ltk_le) == 0);
+    TEST_ASSERT(memcmp(cmd.ltk, exp_cmd->ltk, sizeof cmd.ltk) == 0);
 }
 
 static void
@@ -1002,7 +1003,7 @@ ble_sm_test_util_peer_lgcy_good(
     ble_sm_dbg_set_next_start_rand(params->r);
 
     if (params->has_enc_info_req) {
-        ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk_le);
+        ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
     }
 
     ble_hs_test_util_create_conn(2, params->init_addr,
@@ -1223,11 +1224,11 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
         .ediv = 61621,
 
         .passkey = {
-            .action = BLE_GAP_PKACT_INPUT,
+            .action = BLE_SM_PKACT_INPUT,
             .passkey = 884570,
         },
         .enc_info_req = {
-            .ltk_le = {
+            .ltk = {
                 0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
                 0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
             },
@@ -1241,7 +1242,7 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
         .has_master_id_req = 1,
 
         .enc_info_rsp = {
-            .ltk_le = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
+            .ltk = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
         },
         .has_enc_info_rsp = 1,
 
@@ -1708,7 +1709,7 @@ ble_sm_test_util_us_lgcy_good(
     ble_sm_dbg_set_next_start_rand(params->r);
 
     if (params->has_enc_info_req) {
-        ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk_le);
+        ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
     }
 
     ble_hs_test_util_create_conn(2, params->rsp_addr,
@@ -2169,12 +2170,12 @@ TEST_CASE(ble_sm_test_case_us_sec_req_pair)
         .ediv = 61621,
 
         .passkey = {
-            .action = BLE_GAP_PKACT_INPUT,
+            .action = BLE_SM_PKACT_INPUT,
             .passkey = 884570,
         },
 
         .enc_info_req = {
-            .ltk_le = {
+            .ltk = {
                 0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
                 0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
             },
@@ -2188,7 +2189,7 @@ TEST_CASE(ble_sm_test_case_us_sec_req_pair)
         .has_master_id_req = 1,
 
         .enc_info_rsp = {
-            .ltk_le = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
+            .ltk = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
         },
         .has_enc_info_rsp = 1,
 
