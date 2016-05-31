@@ -386,8 +386,7 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
 }
 
 int
-ble_sm_gen_pub_priv(struct ble_sm_proc *proc,
-                          uint8_t *pub, uint8_t *priv)
+ble_sm_gen_pub_priv(uint8_t *pub, uint8_t *priv)
 {
     int rc;
 
@@ -518,6 +517,51 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
         memcpy(value_sec->csrk, keys->csrk, sizeof value_sec->csrk);
         value_sec->csrk_present = 1;
     }
+}
+
+int
+ble_sm_peer_addr(struct ble_sm_proc *proc,
+                 uint8_t *out_type, uint8_t **out_addr)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    *out_type = conn->bhc_addr_type;
+    *out_addr = conn->bhc_addr;
+
+    return 0;
+}
+
+int
+ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t **out_ia,
+             uint8_t *out_rat, uint8_t **out_ra)
+{
+    struct ble_hs_conn *conn;
+
+    conn = ble_hs_conn_find(proc->conn_handle);
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        *out_iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
+        *out_ia = ble_hs_our_dev.public_addr;
+
+        *out_rat = conn->bhc_addr_type;
+        *out_ra = conn->bhc_addr;
+    } else {
+        *out_rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
+        *out_ra = ble_hs_our_dev.public_addr;
+
+        *out_iat = conn->bhc_addr_type;
+        *out_ia = conn->bhc_addr;
+    }
+
+    return 0;
 }
 
 static void

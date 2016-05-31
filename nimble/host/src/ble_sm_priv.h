@@ -257,7 +257,6 @@ struct ble_sm_proc {
 
     struct ble_sm_pair_cmd pair_req;
     struct ble_sm_pair_cmd pair_rsp;
-    struct ble_sm_public_key pub_key_our;
     struct ble_sm_public_key pub_key_their;
     uint8_t priv_key_our[32];
     uint8_t tk[16];
@@ -266,6 +265,7 @@ struct ble_sm_proc {
     uint8_t rands[16];
     uint8_t ltk[16];
     uint8_t mackey[16];
+    uint8_t dhkey[32];
 
     uint16_t ediv;
     uint64_t rand_num;
@@ -291,6 +291,7 @@ void ble_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
 void ble_sm_dbg_set_next_ltk(uint8_t *next_ltk);
 void ble_sm_dbg_set_next_irk(uint8_t *next_irk);
 void ble_sm_dbg_set_next_csrk(uint8_t *next_csrk);
+void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 int ble_sm_dbg_num_procs(void);
 #endif
 
@@ -339,6 +340,8 @@ int ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
 int ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
                   uint8_t *iocap, uint8_t a1t, uint8_t *a1,
                   uint8_t a2t, uint8_t *a2, uint8_t *check);
+int ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
+                         uint8_t *our_priv_key, void *out_dhkey);
 int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
 
 void ble_sm_enc_info_parse(void *payload, int len,
@@ -400,15 +403,20 @@ void ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc,
                               struct ble_sm_result *res, void *arg);
 void ble_sm_sc_rx_dhkey_check(uint16_t conn_handle, uint8_t op,
                               struct os_mbuf **om, struct ble_sm_result *res);
+void ble_sm_sc_init(void);
 
 struct ble_sm_proc *ble_sm_proc_find(uint16_t conn_handle, uint8_t state,
                                      int is_initiator,
                                      struct ble_sm_proc **out_prev);
-int ble_sm_gen_pub_priv(struct ble_sm_proc *proc, uint8_t *pub, uint8_t *priv);
+int ble_sm_gen_pub_priv(uint8_t *pub, uint8_t *priv);
 uint8_t *ble_sm_our_pair_rand(struct ble_sm_proc *proc);
 uint8_t *ble_sm_their_pair_rand(struct ble_sm_proc *proc);
 void ble_sm_go(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg);
 void ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res);
+int ble_sm_peer_addr(struct ble_sm_proc *proc,
+                     uint8_t *out_type, uint8_t **out_addr);
+int ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t **out_ia,
+                 uint8_t *out_rat, uint8_t **out_ra);
 
 void ble_sm_heartbeat(void);
 void ble_sm_connection_broken(uint16_t conn_handle);

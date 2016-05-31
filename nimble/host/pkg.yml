@@ -32,6 +32,7 @@ pkg.deps:
     - libs/util
     - libs/mbedtls
     - net/nimble
+    - libs/tinycrypt
 
 pkg.req_apis:
     - console
