@@ -1288,6 +1288,7 @@ ble_sm_key_exch_go(struct ble_sm_proc *proc,
         /* The procedure is now complete. */
         proc->flags |= BLE_SM_PROC_F_BONDED;
         proc->state = BLE_SM_PROC_STATE_NONE;
+        res->persist_keys = 1;
         res->enc_cb = 1;
     }
 
@@ -1407,6 +1408,7 @@ ble_sm_rx_key_exchange(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                 /* The procedure is now complete. */
                 proc->flags |= BLE_SM_PROC_F_BONDED;
                 proc->state = BLE_SM_PROC_STATE_NONE;
+                res->persist_keys = 1;
                 res->enc_cb = 1;
             }
         }
