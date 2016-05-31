@@ -52,10 +52,16 @@
 #define NIMBLE_OPT_WHITELIST                    1
 #endif
 
-/** HOST / CONTROLLER: Security manager.  Enabled by default. */
+/** HOST: Security manager.  Enabled by default. */
 
 #ifndef NIMBLE_OPT_SM
 #define NIMBLE_OPT_SM                           1
+#endif
+
+/** HOST: Security connections (4.2).  Enabled by default. */
+
+#ifndef NIMBLE_OPT_SM_SC
+#define NIMBLE_OPT_SM_SC                        1
 #endif
 
 /** HOST: Supported GATT procedures.  By default, all are enabled. */

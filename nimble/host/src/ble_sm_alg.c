@@ -21,8 +21,11 @@
 #include <inttypes.h>
 #include <string.h>
 #include "mbedtls/aes.h"
-#include "mbedtls/cmac.h"
-#include "mbedtls/ecdsa.h"
+#include "tinycrypt/aes.h"
+#include "tinycrypt/constants.h"
+#include "tinycrypt/utils.h"
+#include "tinycrypt/cmac_mode.h"
+#include "tinycrypt/ecc_dh.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
@@ -30,8 +33,6 @@
 #if NIMBLE_OPT(SM)
 
 static mbedtls_aes_context ble_sm_alg_ctxt;
-//static mbedtls_ecdh_context ble_sm_alg_ecdh_ctx;
-//static mbedtls_cmac_context ble_sm_alg_cmac_ctxt;
 
 /* based on Core Specification 4.2 Vol 3. Part H 2.3.5.6.1 */
 static const uint32_t ble_sm_alg_dbg_priv_key[8] = {
@@ -67,7 +68,6 @@ static const uint8_t ble_sm_alg_dbg_f6[16] = {
     0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3,
 };
 
-#if 0
 static void
 ble_sm_alg_log_buf(char *name, uint8_t *buf, int len)
 {
@@ -75,7 +75,6 @@ ble_sm_alg_log_buf(char *name, uint8_t *buf, int len)
     ble_hs_misc_log_flat_buf(buf, len);
     BLE_HS_LOG(DEBUG, "\n");
 }
-#endif
 
 static void
 ble_sm_alg_xor_128(uint8_t *p, uint8_t *q, uint8_t *r)
@@ -110,6 +109,36 @@ ble_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
     }
 
     swap_in_place(enc_data, 16);
+
+    return 0;
+}
+
+/**
+ * Cypher based Message Authentication Code (CMAC) with AES 128 bit
+ *
+ * @param key                   128-bit key.
+ * @param in                    Message to be authenticated.
+ * @param len                   Length of the message in octets.
+ * @param out                   Output; message authentication code.
+ */
+static int
+ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
+                    uint8_t *out)
+{
+    struct tc_aes_key_sched_struct sched;
+    struct tc_cmac_struct state;
+
+    if (tc_cmac_setup(&state, key, &sched) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    if (tc_cmac_update(&state, in, len) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    if (tc_cmac_final(out, &state) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
 
     return 0;
 }
@@ -223,7 +252,6 @@ int
 ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
               uint8_t *out_enc_data)
 {
-#if 0
     uint8_t xs[16];
     uint8_t m[65];
     int rc;
@@ -236,8 +264,6 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
     ble_hs_misc_log_flat_buf(x, 16);
     BLE_HS_LOG(DEBUG, "\n    z=0x%02x\n", z);
 
-    mbedtls_cmac_init(&ble_sm_alg_cmac_ctxt);
-
     /*
      * U, V and Z are concatenated and used as input m to the function
      * AES-CMAC and X is used as the key k.
@@ -245,7 +271,7 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
      * Core Spec 4.2 Vol 3 Part H 2.2.5
      *
      * note:
-     * XXX bt_smp_aes_cmac uses BE data and smp_f4 accept LE so we swap
+     * ble_sm_alg_aes_cmac uses BE data; ble_sm_alg_f4 accepts LE so we swap.
      */
     swap_buf(m, u, 32);
     swap_buf(m + 32, v, 32);
@@ -253,8 +279,7 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
 
     swap_buf(xs, x, 16);
 
-    rc = mbedtls_aes_cmac_prf_128(&ble_sm_alg_cmac_ctxt, xs, sizeof xs,
-                                  m, sizeof m, out_enc_data);
+    rc = ble_sm_alg_aes_cmac(xs, m, sizeof(m), out_enc_data);
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
@@ -264,46 +289,6 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
     BLE_HS_LOG(DEBUG, "    out_enc_data=");
     ble_hs_misc_log_flat_buf(out_enc_data, 16);
     BLE_HS_LOG(DEBUG, "\n");
-#endif
-
-    memcpy(out_enc_data, ble_sm_alg_dbg_f4,
-           sizeof ble_sm_alg_dbg_f4);
-    return 0;
-}
-
-int
-ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
-              uint32_t *passkey)
-{
-#if 0
-    uint8_t m[80], xs[16];
-    int rc;
-
-    ble_sm_alg_log_buf("u", u, 32);
-    ble_sm_alg_log_buf("v", v, 32);
-    ble_sm_alg_log_buf("x", x, 16);
-    ble_sm_alg_log_buf("y", y, 16);
-
-    mbedtls_cmac_init(&ble_sm_alg_cmac_ctxt);
-
-    swap_buf(m, u, 32);
-    swap_buf(m + 32, v, 32);
-    swap_buf(m + 64, y, 16);
-
-    swap_buf(xs, x, 16);
-
-    /* reuse xs (key) as buffer for result */
-    rc = mbedtls_aes_cmac_prf_128(&ble_sm_alg_cmac_ctxt, xs, sizeof xs,
-                                  m, sizeof m, xs);
-    if (rc != 0) {
-        return BLE_HS_EUNKNOWN;
-    }
-
-    ble_sm_alg_log_buf("res", xs, 16);
-
-    *passkey = be32toh(xs + 12) % 1000000;
-    BLE_HS_LOG(DEBUG, "    passkey=%u", *passkey);
-#endif
 
     return 0;
 }
@@ -313,7 +298,6 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
               uint8_t *a1, uint8_t a2t, uint8_t *a2, uint8_t *mackey,
               uint8_t *ltk)
 {
-#if 0
     static const uint8_t salt[16] = { 0x6c, 0x88, 0x83, 0x91, 0xaa, 0xf5,
                       0xa5, 0x38, 0x60, 0x37, 0x0b, 0xdb,
                       0x5a, 0x60, 0x83, 0xbe };
@@ -336,12 +320,9 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
 
-    mbedtls_cmac_init(&ble_sm_alg_cmac_ctxt);
-
     swap_buf(ws, w, 32);
 
-    rc = mbedtls_aes_cmac_prf_128(&ble_sm_alg_cmac_ctxt,
-                                  salt, sizeof salt, ws, sizeof ws, t);
+    rc = ble_sm_alg_aes_cmac(salt, ws, 32, t);
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
@@ -355,8 +336,7 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
     m[44] = a2t;
     swap_buf(m + 45, a2, 6);
 
-    rc = mbedtls_aes_cmac_prf_128(&ble_sm_alg_cmac_ctxt,
-                                  t, sizeof t, m, sizeof m, mackey);
+    rc = ble_sm_alg_aes_cmac(t, m, sizeof(m), mackey);
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
@@ -365,11 +345,10 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
 
     swap_in_place(mackey, 16);
 
-    /* counter for ltk is 1 */
+    /* Counter for ltk is 1. */
     m[0] = 0x01;
 
-    rc = mbedtls_aes_cmac_prf_128(&ble_sm_alg_cmac_ctxt,
-                                  t, sizeof t, m, sizeof m, ltk);
+    rc = ble_sm_alg_aes_cmac(t, m, sizeof(m), ltk);
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
@@ -377,10 +356,7 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
     ble_sm_alg_log_buf("ltk", ltk, 16);
 
     swap_in_place(ltk, 16);
-#endif
 
-    memcpy(mackey, ble_sm_alg_dbg_f5 + 16, 16);
-    memcpy(ltk, ble_sm_alg_dbg_f5, 16);
     return 0;
 }
 
@@ -389,7 +365,6 @@ ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
               uint8_t *iocap, uint8_t a1t, uint8_t *a1,
               uint8_t a2t, uint8_t *a2, uint8_t *check)
 {
-#if 0
     uint8_t ws[16];
     uint8_t m[65];
     int rc;
@@ -403,8 +378,6 @@ ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
     ble_sm_alg_log_buf("a1", a1, 6);
     ble_sm_alg_log_buf("a2t", &a2t, 1);
     ble_sm_alg_log_buf("a2", a2, 6);
-
-    mbedtls_cmac_init(&ble_sm_alg_cmac_ctxt);
 
     swap_buf(m, n1, 16);
     swap_buf(m + 16, n2, 16);
@@ -421,8 +394,7 @@ ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
 
     swap_buf(ws, w, 16);
 
-    rc = mbedtls_aes_cmac_prf_128(&ble_sm_alg_cmac_ctxt,
-                                  ws, sizeof ws, m, sizeof m, check);
+    rc = ble_sm_alg_aes_cmac(ws, m, sizeof(m), check);
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
@@ -430,23 +402,65 @@ ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
     ble_sm_alg_log_buf("res", check, 16);
 
     swap_in_place(check, 16);
-#endif
 
-    memcpy(check, ble_sm_alg_dbg_f6, sizeof ble_sm_alg_dbg_f6);
     return 0;
 }
 
-/**
- * Passed to mbedtls ecc function.
- */
-#if 0
-static int
-ble_sm_alg_rnd(void *arg, unsigned char *dst, size_t len)
+int
+ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y, uint32_t *passkey)
 {
-    // XXX
+    uint8_t m[80], xs[16];
+    int rc;
+
+    ble_sm_alg_log_buf("u", u, 32);
+    ble_sm_alg_log_buf("v", v, 32);
+    ble_sm_alg_log_buf("x", x, 16);
+    ble_sm_alg_log_buf("y", y, 16);
+
+    swap_buf(m, u, 32);
+    swap_buf(m + 32, v, 32);
+    swap_buf(m + 64, y, 16);
+
+    swap_buf(xs, x, 16);
+
+    /* reuse xs (key) as buffer for result */
+    rc = ble_sm_alg_aes_cmac(xs, m, sizeof(m), xs);
+    if (rc != 0) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    ble_sm_alg_log_buf("res", xs, 16);
+
+    *passkey = be32toh(xs + 12) % 1000000;
+    BLE_HS_LOG(DEBUG, "    passkey=%u", *passkey);
+
     return 0;
 }
-#endif
+
+int
+ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
+                     uint8_t *our_priv_key, void *out_dhkey)
+{
+    uint32_t priv_key32[8];
+    uint32_t dh[8];
+    EccPoint pk;
+
+    memcpy(pk.x, peer_pub_key_x, 32);
+    memcpy(pk.y, peer_pub_key_y, 32);
+
+    if (ecc_valid_public_key(&pk) < 0) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    memcpy(priv_key32, our_priv_key, sizeof priv_key32);
+    if (ecdh_shared_secret(dh, &pk, priv_key32) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    memcpy(out_dhkey, dh, 32);
+
+    return 0;
+}
 
 /**
  * pub: 64 bytes
@@ -455,8 +469,31 @@ ble_sm_alg_rnd(void *arg, unsigned char *dst, size_t len)
 int
 ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
 {
-    memcpy(pub, ble_sm_alg_dbg_pub_key, sizeof ble_sm_alg_dbg_pub_key);
-    memcpy(priv, ble_sm_alg_dbg_priv_key, sizeof ble_sm_alg_dbg_priv_key);
+    //memcpy(pub, ble_sm_alg_dbg_pub_key, sizeof ble_sm_alg_dbg_pub_key);
+    //memcpy(priv, ble_sm_alg_dbg_priv_key, sizeof ble_sm_alg_dbg_priv_key);
+
+    uint32_t temp_priv[8];
+    uint32_t random[16];
+    EccPoint pkey;
+    int rc;
+
+    do {
+        rc = ble_hci_util_rand(random, sizeof random);
+        if (rc != 0) {
+            return rc;
+        }
+
+        rc = ecc_make_key(&pkey, temp_priv, random);
+        if (rc != TC_CRYPTO_SUCCESS) {
+            return BLE_HS_EUNKNOWN;
+        }
+
+        /* Make sure generated key isn't debug key. */
+    } while (memcmp(temp_priv, ble_sm_alg_dbg_priv_key, 32) == 0);
+
+    memcpy(priv, temp_priv, sizeof temp_priv);
+    memcpy(pub + 0, pkey.x, 32);
+    memcpy(pub + 32, pkey.y, 32);
 
     return 0;
 }

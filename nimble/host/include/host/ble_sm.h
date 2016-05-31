@@ -78,6 +78,7 @@
 #define BLE_SM_PKACT_OOB                        1
 #define BLE_SM_PKACT_INPUT                      2
 #define BLE_SM_PKACT_DISP                       3
+#define BLE_SM_PKACT_NUMCMP                     4
 
 struct ble_sm_passkey {
     uint8_t action;
