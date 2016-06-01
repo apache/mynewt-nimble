@@ -1957,6 +1957,7 @@ done:
         ble_att_read_group_type_rsp_write(rsp_buf,
                                           BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ,
                                           &rsp);
+        rc = 0;
     }
 
     *out_txom = txom;
