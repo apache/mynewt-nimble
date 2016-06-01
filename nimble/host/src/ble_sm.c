@@ -832,6 +832,20 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
     }
 }
 
+static void
+ble_sm_key_dist(struct ble_sm_proc *proc,
+                uint8_t *out_init_key_dist, uint8_t *out_resp_key_dist)
+{
+    *out_init_key_dist = proc->pair_req.init_key_dist;
+    *out_resp_key_dist = proc->pair_rsp.resp_key_dist;
+
+    /* Encryption info and master ID are only sent in legacy pairing. */
+    if (proc->flags & BLE_SM_PROC_F_SC) {
+        *out_init_key_dist &= ~BLE_SM_PAIR_KEY_DIST_ENC;
+        *out_resp_key_dist &= ~BLE_SM_PAIR_KEY_DIST_ENC;
+    }
+}
+
 /*****************************************************************************
  * $enc                                                                      *
  *****************************************************************************/
@@ -1294,15 +1308,9 @@ ble_sm_state_after_pair(struct ble_sm_proc *proc)
 static void
 ble_sm_pair_cfg(struct ble_sm_proc *proc)
 {
+    uint8_t init_key_dist;
+    uint8_t resp_key_dist;
     uint8_t rx_key_dist;
-
-    if (proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
-        proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
-        proc->pair_rsp.init_key_dist                      &&
-        proc->pair_rsp.resp_key_dist) {
-
-        proc->flags |= BLE_SM_PROC_F_KEY_EXCHANGE;
-    }
 
     if (proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_SC &&
         proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_SC) {
@@ -1310,13 +1318,22 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
         proc->flags |= BLE_SM_PROC_F_SC;
     }
 
+    ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
+    if (proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
+        proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
+        init_key_dist != 0 && resp_key_dist != 0) {
+
+        proc->flags |= BLE_SM_PROC_F_KEY_EXCHANGE;
+    }
+
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        rx_key_dist = proc->pair_rsp.resp_key_dist;
+        rx_key_dist = resp_key_dist;
     } else {
-        rx_key_dist = proc->pair_rsp.init_key_dist;
+        rx_key_dist = init_key_dist;
     }
 
     proc->rx_key_flags = 0;
+
     if (rx_key_dist & BLE_SM_PAIR_KEY_DIST_ENC) {
         proc->rx_key_flags |= BLE_SM_KE_F_ENC_INFO |
                               BLE_SM_KE_F_MASTER_ID;
@@ -1597,13 +1614,16 @@ ble_sm_key_exch_go(struct ble_sm_proc *proc,
     struct ble_sm_master_id master_iden;
     struct ble_sm_id_info iden_info;
     struct ble_sm_enc_info enc_info;
+    uint8_t init_key_dist;
+    uint8_t resp_key_dist;
     uint8_t our_key_dist;
     int rc;
 
+    ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        our_key_dist = proc->pair_rsp.init_key_dist;
+        our_key_dist = init_key_dist;
     } else {
-        our_key_dist = proc->pair_rsp.resp_key_dist;
+        our_key_dist = resp_key_dist;
     }
 
     if (our_key_dist == 0) {
