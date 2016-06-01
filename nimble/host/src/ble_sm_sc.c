@@ -183,11 +183,33 @@ ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 }
 
+static void
+ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
+{
+    uint8_t *pka;
+    uint8_t *pkb;
+
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        pka = ble_sm_sc_pub_key;
+        pkb = proc->pub_key_their.x;
+    } else {
+        pka = proc->pub_key_their.x;
+        pkb = ble_sm_sc_pub_key;
+    }
+
+    res->app_status = ble_sm_alg_g2(pka, pkb, proc->randm, proc->rands,
+                                    &res->passkey_action.numcmp);
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+    }
+}
+
 void
-ble_sm_sc_random_go(struct ble_sm_proc *proc,
-                    struct ble_sm_result *res)
+ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     struct ble_sm_pair_random cmd;
+    uint8_t pkact;
     int rc;
 
     memcpy(cmd.value, ble_sm_our_pair_rand(proc), 16);
@@ -202,6 +224,13 @@ ble_sm_sc_random_go(struct ble_sm_proc *proc,
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
         proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
+
+        pkact = ble_sm_sc_passkey_action(proc);
+        if (ble_sm_pkact_state(pkact) == proc->state) {
+            res->passkey_action.action = pkact;
+            BLE_HS_DBG_ASSERT(pkact == BLE_SM_PKACT_NUMCMP);
+            ble_sm_sc_gen_numcmp(proc, res);
+        }
     }
 }
 
@@ -211,6 +240,7 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
     uint8_t confirm_val[16];
     uint8_t *ia;
     uint8_t *ra;
+    uint8_t pkact;
     uint8_t iat;
     uint8_t rat;
     int rc;
@@ -257,12 +287,17 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
 
-        if (proc->pair_alg == BLE_SM_PAIR_ALG_NUMCMP) {
-
+        pkact = ble_sm_sc_passkey_action(proc);
+        if (ble_sm_pkact_state(pkact) == proc->state) {
+            res->passkey_action.action = pkact;
+            BLE_HS_DBG_ASSERT(pkact == BLE_SM_PKACT_NUMCMP);
+            ble_sm_sc_gen_numcmp(proc, res);
+        } else {
+            res->execute = 1;
         }
+    } else {
+        res->execute = 1;
     }
-
-    res->execute = 1;
 }
 
 void

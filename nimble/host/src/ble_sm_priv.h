@@ -277,7 +277,7 @@ struct ble_sm_proc {
 struct ble_sm_result {
     int app_status;
     uint8_t sm_err;
-    uint8_t passkey_action;
+    struct ble_gap_passkey_action passkey_action;
     void *state_arg;
     unsigned execute:1;
     unsigned enc_cb:1;
@@ -411,7 +411,7 @@ struct ble_sm_proc *ble_sm_proc_find(uint16_t conn_handle, uint8_t state,
 int ble_sm_gen_pub_priv(uint8_t *pub, uint8_t *priv);
 uint8_t *ble_sm_our_pair_rand(struct ble_sm_proc *proc);
 uint8_t *ble_sm_their_pair_rand(struct ble_sm_proc *proc);
-void ble_sm_go(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg);
+int ble_sm_pkact_state(uint8_t action);
 void ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res);
 int ble_sm_peer_addr(struct ble_sm_proc *proc,
                      uint8_t *out_type, uint8_t **out_addr);

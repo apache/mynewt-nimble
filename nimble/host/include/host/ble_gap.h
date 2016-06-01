@@ -156,24 +156,14 @@ struct ble_gap_notify_params {
     unsigned indication:1;
 };
 
-/*
- * when the l2cap calls to the application, it will ask the application
- * to perform one of they key generation roles. In all cases, the
- * application must pass the passkey back to the l2cap via
- * ble_sm_set_tk
- */
-#define BLE_GAP_PKACT_NONE          0
-#define BLE_GAP_PKACT_OOB           1
-#define BLE_GAP_PKACT_INPUT         2
-#define BLE_GAP_PKACT_DISP          3
-
-struct ble_gap_passkey_action {
-    uint8_t action;
-};
-
 struct ble_gap_enhanced_conn {
     uint8_t peer_rpa[6];
     uint8_t local_rpa[6];
+};
+
+struct ble_gap_passkey_action {
+    uint8_t action;
+    uint32_t numcmp;
 };
 
 struct ble_gap_conn_ctxt {
@@ -206,10 +196,7 @@ struct ble_gap_conn_ctxt {
             int status;
         } enc_change;
 
-        struct {
-            uint8_t action;
-            uint32_t numcmp;
-        } passkey_action;
+        struct ble_gap_passkey_action passkey_action;
 
         struct {
             uint16_t attr_handle;
