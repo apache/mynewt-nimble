@@ -23,6 +23,10 @@
 #include "ble_hs_priv.h"
 #include "ble_sm_priv.h"
 
+static uint8_t ble_sm_sc_pub_key[64];
+static uint8_t ble_sm_sc_priv_key[32];
+static uint8_t ble_sm_sc_keys_generated;
+
 /**
  * Create some shortened names for the passkey actions so that the table is
  * easier to read.
@@ -57,9 +61,53 @@ static const uint8_t ble_sm_lgcy_resp_pka[5 /*init*/ ][5 /*resp */] =
     {PKACT_INPUT,   PKACT_NUMCMP, PKACT_DISP,  PKACT_NONE, PKACT_NUMCMP},
 };
 
-static uint8_t ble_sm_sc_pub_key[64];
-static uint8_t ble_sm_sc_priv_key[32];
-static uint8_t ble_sm_sc_keys_generated;
+int
+ble_sm_sc_passkey_action(struct ble_sm_proc *proc)
+{
+    int action;
+
+    if (proc->pair_req.oob_data_flag || proc->pair_rsp.oob_data_flag) {
+        action = BLE_SM_PKACT_OOB;
+    } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
+               !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
+
+        action = BLE_SM_PKACT_NONE;
+    } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        action = ble_sm_lgcy_init_pka[proc->pair_rsp.io_cap]
+                                     [proc->pair_req.io_cap];
+    } else {
+        action = ble_sm_lgcy_resp_pka[proc->pair_rsp.io_cap]
+                                     [proc->pair_req.io_cap];
+    }
+
+    switch (action) {
+    case BLE_SM_PKACT_NONE:
+        proc->pair_alg = BLE_SM_PAIR_ALG_JW;
+        break;
+
+    case BLE_SM_PKACT_OOB:
+        proc->pair_alg = BLE_SM_PAIR_ALG_OOB;
+        proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        break;
+
+    case BLE_SM_PKACT_INPUT:
+    case BLE_SM_PKACT_DISP:
+        proc->pair_alg = BLE_SM_PAIR_ALG_PASSKEY;
+        proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        break;
+
+    case BLE_SM_PKACT_NUMCMP:
+        proc->pair_alg = BLE_SM_PAIR_ALG_NUMCMP;
+        proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
+    }
+
+    return action;
+}
 
 static int
 ble_sm_sc_ensure_keys_generated(void)
@@ -89,7 +137,7 @@ ble_sm_sc_initiator_txes_confirm(struct ble_sm_proc *proc)
      * (vol. 3, part H, 2.3.5.6.2)
      */
     return proc->pair_alg != BLE_SM_PAIR_ALG_JW &&
-           proc->pair_alg != BLE_SM_PAIR_ALG_NUM_CMP;
+           proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP;
 }
 
 static int
@@ -104,13 +152,7 @@ ble_sm_sc_responder_verifies_random(struct ble_sm_proc *proc)
      * (vol. 3, part H, 2.3.5.6.2)
      */
     return proc->pair_alg != BLE_SM_PAIR_ALG_JW &&
-           proc->pair_alg != BLE_SM_PAIR_ALG_NUM_CMP;
-}
-
-int
-ble_sm_sc_passkey_action(struct ble_sm_proc *proc)
-{
-    return 0;
+           proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP;
 }
 
 void
@@ -214,6 +256,10 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
+
+        if (proc->pair_alg == BLE_SM_PAIR_ALG_NUMCMP) {
+
+        }
     }
 
     res->execute = 1;
