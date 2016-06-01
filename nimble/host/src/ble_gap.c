@@ -2148,7 +2148,8 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
 #endif
 
 void
-ble_gap_passkey_event(uint16_t conn_handle, uint8_t passkey_action)
+ble_gap_passkey_event(uint16_t conn_handle,
+                      struct ble_gap_passkey_action *passkey_action)
 {
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
@@ -2172,7 +2173,7 @@ ble_gap_passkey_event(uint16_t conn_handle, uint8_t passkey_action)
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
-    ctxt.passkey_action.action = passkey_action;
+    ctxt.passkey_action = *passkey_action;
     ble_gap_call_event_cb(BLE_GAP_EVENT_PASSKEY_ACTION, &ctxt,
                           snap.cb, snap.cb_arg);
 }

@@ -34,7 +34,7 @@
 #define BLE_SM_ERR_REPEATED                     0x09
 #define BLE_SM_ERR_INVAL                        0x0a
 #define BLE_SM_ERR_DHKEY                        0x0b
-#define BLE_SM_ERR_NUM_CMP                      0x0c
+#define BLE_SM_ERR_NUMCMP                       0x0c
 #define BLE_SM_ERR_ALREADY                      0x0d
 #define BLE_SM_ERR_CROSS_TRANS                  0x0e
 #define BLE_SM_ERR_MAX_PLUS_1                   0x0f
@@ -85,6 +85,7 @@ struct ble_sm_passkey {
     union {
         uint32_t passkey;
         uint8_t  oob[16];
+        uint8_t  numcmp_accept;
     };
 };
 
