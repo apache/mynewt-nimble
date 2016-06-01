@@ -2169,7 +2169,8 @@ ble_gap_passkey_event(uint16_t conn_handle,
         return;
     }
 
-    BLE_HS_LOG(DEBUG, "send passkey action request %d\n", passkey_action);
+    BLE_HS_LOG(DEBUG, "send passkey action request %d\n",
+               passkey_action->action);
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
