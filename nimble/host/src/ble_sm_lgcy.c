@@ -37,24 +37,25 @@
 /* This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
  */
-static const uint8_t ble_sm_lgcy_init_pka[5 /*init*/ ][5 /*resp */] =
+static const uint8_t ble_sm_lgcy_init_pka[5 /*resp*/ ][5 /*init */] =
 {
     {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
     {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
     {PKACT_DISP,    PKACT_DISP,   PKACT_INPUT, PKACT_NONE, PKACT_DISP},
     {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-    {PKACT_DISP,    PKACT_DISP,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
+    {PKACT_DISP,    PKACT_DISP,   PKACT_INPUT, PKACT_NONE, PKACT_DISP},
 };
 
-/* This is the initiator passkey action action depending on the io
- * capabilities of both parties */
+/* This is the responder passkey action action depending on the io
+ * capabilities of both parties
+ */
 static const uint8_t ble_sm_lgcy_resp_pka[5 /*init*/ ][5 /*resp */] =
 {
     {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
     {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
     {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
     {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-    {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
+    {PKACT_INPUT,   PKACT_INPUT,  PKACT_DISP,  PKACT_NONE, PKACT_INPUT},
 };
 
 int
@@ -69,11 +70,11 @@ ble_sm_lgcy_passkey_action(struct ble_sm_proc *proc)
 
         action = BLE_SM_PKACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_lgcy_init_pka[proc->pair_req.io_cap]
-                                     [proc->pair_rsp.io_cap];
+        action = ble_sm_lgcy_init_pka[proc->pair_rsp.io_cap]
+                                     [proc->pair_req.io_cap];
     } else {
-        action = ble_sm_lgcy_resp_pka[proc->pair_req.io_cap]
-                                     [proc->pair_rsp.io_cap];
+        action = ble_sm_lgcy_resp_pka[proc->pair_rsp.io_cap]
+                                     [proc->pair_req.io_cap];
     }
 
     switch (action) {
