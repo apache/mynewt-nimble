@@ -47,6 +47,9 @@ struct ble_store_key_sec {
     uint64_t rand_num;
 
     unsigned ediv_rand_present:1;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
 };
 
 struct ble_store_value_sec {
