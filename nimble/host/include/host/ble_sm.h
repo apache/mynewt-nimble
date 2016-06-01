@@ -42,7 +42,7 @@
 #define BLE_SM_PAIR_ALG_JW                      0
 #define BLE_SM_PAIR_ALG_PASSKEY                 1
 #define BLE_SM_PAIR_ALG_OOB                     2
-#define BLE_SM_PAIR_ALG_NUM_CMP                 3
+#define BLE_SM_PAIR_ALG_NUMCMP                  3
 
 #define BLE_SM_PAIR_KEY_DIST_ENC                0x01
 #define BLE_SM_PAIR_KEY_DIST_ID                 0x02
