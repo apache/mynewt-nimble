@@ -859,7 +859,7 @@ static void
 ble_sm_key_dist(struct ble_sm_proc *proc,
                 uint8_t *out_init_key_dist, uint8_t *out_resp_key_dist)
 {
-    *out_init_key_dist = proc->pair_req.init_key_dist;
+    *out_init_key_dist = proc->pair_rsp.init_key_dist;
     *out_resp_key_dist = proc->pair_rsp.resp_key_dist;
 
     /* Encryption info and master ID are only sent in legacy pairing. */
