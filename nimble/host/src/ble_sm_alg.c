@@ -432,7 +432,7 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y, uint32_t *passkey)
     ble_sm_alg_log_buf("res", xs, 16);
 
     *passkey = be32toh(xs + 12) % 1000000;
-    BLE_HS_LOG(DEBUG, "    passkey=%u", *passkey);
+    BLE_HS_LOG(DEBUG, "    passkey=%u\n", *passkey);
 
     return 0;
 }
