@@ -40,7 +40,7 @@ static uint8_t ble_sm_sc_keys_generated;
 /* This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
  */
-static const uint8_t ble_sm_lgcy_init_pka[5 /*resp*/ ][5 /*init */] =
+static const uint8_t ble_sm_sc_init_pka[5 /*resp*/ ][5 /*init */] =
 {
     {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
     {PKACT_NONE,    PKACT_NUMCMP, PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
@@ -52,7 +52,7 @@ static const uint8_t ble_sm_lgcy_init_pka[5 /*resp*/ ][5 /*init */] =
 /* This is the responder passkey action action depending on the io
  * capabilities of both parties
  */
-static const uint8_t ble_sm_lgcy_resp_pka[5 /*init*/ ][5 /*resp */] =
+static const uint8_t ble_sm_sc_resp_pka[5 /*init*/ ][5 /*resp */] =
 {
     {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
     {PKACT_NONE,    PKACT_NUMCMP, PKACT_DISP,  PKACT_NONE, PKACT_NUMCMP},
@@ -73,11 +73,11 @@ ble_sm_sc_passkey_action(struct ble_sm_proc *proc)
 
         action = BLE_SM_PKACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_lgcy_init_pka[proc->pair_rsp.io_cap]
-                                     [proc->pair_req.io_cap];
+        action = ble_sm_sc_init_pka[proc->pair_rsp.io_cap]
+                                   [proc->pair_req.io_cap];
     } else {
-        action = ble_sm_lgcy_resp_pka[proc->pair_rsp.io_cap]
-                                     [proc->pair_req.io_cap];
+        action = ble_sm_sc_resp_pka[proc->pair_rsp.io_cap]
+                                   [proc->pair_req.io_cap];
     }
 
     switch (action) {
@@ -453,6 +453,7 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
     uint8_t iocap[3];
     uint8_t *peer_addr;
     uint8_t peer_addr_type;
+    uint8_t pkact;
 
     uint8_t zeros[16] = { 0 };
 
@@ -493,11 +494,19 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
         return;
     }
 
-    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        proc->state = BLE_SM_PROC_STATE_ENC_START;
+
+    pkact = ble_sm_sc_passkey_action(proc);
+    if (ble_sm_pkact_state(pkact) == proc->state) {
+        proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
     }
 
-    res->execute = 1;
+    if (pkact == BLE_SM_PKACT_NONE || proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
+        if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+            proc->state = BLE_SM_PROC_STATE_ENC_START;
+        }
+
+        res->execute = 1;
+    }
 }
 
 void

@@ -1276,7 +1276,7 @@ ble_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_pair_confirm cmd;
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
-    uint8_t passkey_action;
+    uint8_t pkact;
 
     res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_CONFIRM_SZ);
     if (res->app_status != 0) {
@@ -1301,11 +1301,12 @@ ble_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
             proc->state = BLE_SM_PROC_STATE_RANDOM;
             res->execute = 1;
         } else {
-            proc->flags |= BLE_SM_PROC_F_RX_CONFIRM;
-
-            passkey_action = ble_sm_passkey_action(proc);
-            if (passkey_action == BLE_SM_PKACT_NONE ||
-                proc->flags & BLE_SM_PROC_F_TK_VALID) {
+            pkact = ble_sm_passkey_action(proc);
+            if (ble_sm_pkact_state(pkact) == proc->state) {
+                proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
+            }
+            if (pkact == BLE_SM_PKACT_NONE ||
+                proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
 
                 res->execute = 1;
             }
@@ -2195,7 +2196,7 @@ ble_sm_set_tk(uint16_t conn_handle, struct ble_sm_passkey *pkey)
 
     if (proc == NULL) {
         res.app_status = BLE_HS_ENOENT;
-    } else if (proc->flags & BLE_SM_PROC_F_TK_VALID) {
+    } else if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
         res.app_status = BLE_HS_EALREADY;
     } else if (pkey->action != ble_sm_passkey_action(proc)) {
         /* Response doesn't match what we asked for. */
@@ -2213,10 +2214,10 @@ ble_sm_set_tk(uint16_t conn_handle, struct ble_sm_passkey *pkey)
                 res.app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB);
                 res.sm_err = BLE_SM_ERR_OOB;
             } else {
-                proc->flags |= BLE_SM_PROC_F_TK_VALID;
+                proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
                 memcpy(proc->tk, pkey->oob, 16);
                 if ((proc->flags & BLE_SM_PROC_F_INITIATOR) ||
-                    (proc->flags & BLE_SM_PROC_F_RX_CONFIRM)) {
+                    (proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO)) {
 
                     res.execute = 1;
                 }
@@ -2229,14 +2230,14 @@ ble_sm_set_tk(uint16_t conn_handle, struct ble_sm_passkey *pkey)
                 res.app_status = BLE_HS_EINVAL;
                 res.sm_err = BLE_SM_ERR_PASSKEY;
             } else {
-                proc->flags |= BLE_SM_PROC_F_TK_VALID;
+                proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
                 memset(proc->tk, 0, 16);
                 proc->tk[0] = (pkey->passkey >> 0) & 0xff;
                 proc->tk[1] = (pkey->passkey >> 8) & 0xff;
                 proc->tk[2] = (pkey->passkey >> 16) & 0xff;
                 proc->tk[3] = (pkey->passkey >> 24) & 0xff;
                 if ((proc->flags & BLE_SM_PROC_F_INITIATOR) ||
-                    (proc->flags & BLE_SM_PROC_F_RX_CONFIRM)) {
+                    (proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO)) {
 
                     res.execute = 1;
                 }
@@ -2248,8 +2249,10 @@ ble_sm_set_tk(uint16_t conn_handle, struct ble_sm_passkey *pkey)
                 res.app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_NUMCMP);
                 res.sm_err = BLE_SM_ERR_NUMCMP;
             } else {
-                proc->flags |= BLE_SM_PROC_F_TK_VALID;
-                if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+                proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
+                if (proc->flags & BLE_SM_PROC_F_INITIATOR ||
+                    proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO) {
+
                     res.execute = 1;
                 }
             }

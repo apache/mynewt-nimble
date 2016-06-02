@@ -214,8 +214,8 @@ struct ble_sm_dhkey_check {
 #define BLE_SM_PROC_STATE_CNT               11
 
 #define BLE_SM_PROC_F_INITIATOR             0x01
-#define BLE_SM_PROC_F_TK_VALID              0x02
-#define BLE_SM_PROC_F_RX_CONFIRM            0x04
+#define BLE_SM_PROC_F_IO_INJECTED           0x02
+#define BLE_SM_PROC_F_ADVANCE_ON_IO         0x04
 #define BLE_SM_PROC_F_AUTHENTICATED         0x08
 #define BLE_SM_PROC_F_KEY_EXCHANGE          0x10
 #define BLE_SM_PROC_F_BONDED                0x20
