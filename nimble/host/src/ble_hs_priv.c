@@ -25,6 +25,8 @@ int identity_initalized;
 static uint8_t identity_addr[6];
 static uint8_t identity_addr_type;
 
+static uint8_t nrpa[6];
+
 uint8_t g_irk[16];
 
 
@@ -43,14 +45,21 @@ ble_hs_generate_static_random_addr(uint8_t *addr) {
     return rc;
 }
 
-int ble_hs_priv_set_nrpa(void) {
+int 
+ble_hs_priv_set_nrpa(void) {
     int rc;
     uint8_t addr[6];
     rc = ble_hci_util_rand(addr, 6);
     assert(rc == 0);
     addr[5] &= ~(0xc0);
+    memcpy(nrpa, addr, 6);
     return ble_hs_util_set_random_addr(addr);
 }
+
+void ble_hs_priv_get_nrpa(uint8_t *addr) {
+    memcpy(addr,nrpa, 6);
+}
+
 
 int
 ble_hs_priv_get_identity_addr_type(uint8_t *addr_type) {

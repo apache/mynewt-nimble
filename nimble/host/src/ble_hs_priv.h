@@ -104,6 +104,7 @@ int ble_hci_cmd_tx_empty_ack(void *cmd);
 void ble_hci_cmd_rx_ack(uint8_t *ack_ev);
 void ble_hci_cmd_init(void);
 int ble_hs_priv_set_nrpa(void);
+void ble_hs_priv_get_nrpa(uint8_t *addr);
 void ble_hs_priv_update_identity(uint8_t *addr);
 void ble_hs_priv_update_irk(uint8_t *irk);
 void bls_hs_priv_copy_local_identity_addr(uint8_t *pdst, uint8_t* addr_type);
