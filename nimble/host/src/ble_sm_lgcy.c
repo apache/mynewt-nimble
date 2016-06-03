@@ -256,7 +256,7 @@ ble_sm_lgcy_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
-    if (memcmp(proc->confirm_their, confirm_val, 16) != 0) {
+    if (memcmp(proc->confirm_peer, confirm_val, 16) != 0) {
         /* Random number mismatch. */
         res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CONFIRM_MISMATCH);
         res->sm_err = BLE_SM_ERR_CONFIRM_MISMATCH;
