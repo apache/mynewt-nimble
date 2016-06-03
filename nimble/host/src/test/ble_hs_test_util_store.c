@@ -87,7 +87,10 @@ ble_hs_test_util_store_read_sec(struct ble_store_value_sec *store,
                                 struct ble_store_value_sec *value)
 {
     struct ble_store_value_sec *cur;
+    int skipped;
     int i;
+
+    skipped = 0;
 
     for (i = 0; i < num_values; i++) {
         cur = store + i;
@@ -111,6 +114,11 @@ ble_hs_test_util_store_read_sec(struct ble_store_value_sec *store,
             if (cur->rand_num != key->rand_num) {
                 continue;
             }
+        }
+
+        if (key->idx > skipped) {
+            skipped++;
+            continue;
         }
 
         *value = *cur;
@@ -180,15 +188,15 @@ ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
     switch (obj_type) {
     case BLE_STORE_OBJ_TYPE_MST_SEC:
         return ble_hs_test_util_store_read_sec(
-            ble_hs_test_util_store_slv_secs,
-            ble_hs_test_util_store_num_slv_secs,
+            ble_hs_test_util_store_mst_secs,
+            ble_hs_test_util_store_num_mst_secs,
             &key->sec,
             &dst->sec);
 
     case BLE_STORE_OBJ_TYPE_SLV_SEC:
         return ble_hs_test_util_store_read_sec(
-            ble_hs_test_util_store_mst_secs,
-            ble_hs_test_util_store_num_mst_secs,
+            ble_hs_test_util_store_slv_secs,
+            ble_hs_test_util_store_num_slv_secs,
             &key->sec,
             &dst->sec);
 
@@ -210,16 +218,16 @@ ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
     switch (obj_type) {
     case BLE_STORE_OBJ_TYPE_MST_SEC:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
-            ble_hs_test_util_store_slv_secs,
-            ble_hs_test_util_store_num_slv_secs,
-            ble_hs_test_util_store_max_slv_secs,
+            ble_hs_test_util_store_mst_secs,
+            ble_hs_test_util_store_num_mst_secs,
+            ble_hs_test_util_store_max_mst_secs,
             value->sec, -1);
 
     case BLE_STORE_OBJ_TYPE_SLV_SEC:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
-            ble_hs_test_util_store_mst_secs,
-            ble_hs_test_util_store_num_mst_secs,
-            ble_hs_test_util_store_max_mst_secs,
+            ble_hs_test_util_store_slv_secs,
+            ble_hs_test_util_store_num_slv_secs,
+            ble_hs_test_util_store_max_slv_secs,
             value->sec, -1);
 
     case BLE_STORE_OBJ_TYPE_CCCD:

@@ -79,14 +79,38 @@ ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
     return rc;
 }
 
+static int
+ble_store_persist_sec(int obj_type, struct ble_store_value_sec *value_sec)
+{
+    struct ble_store_key_sec key_sec;
+    union ble_store_value *store_value;
+    union ble_store_key *store_key;
+    int rc;
+
+    /* If the value contains no keys, delete the corresponding entry.
+     * Otherwise, write it.
+     */
+    if (!value_sec->ltk_present &&
+        !value_sec->irk_present &&
+        !value_sec->csrk_present) {
+
+        ble_store_key_from_value_sec(&key_sec, value_sec);
+        store_key = (void *)&key_sec;
+        rc = ble_store_delete(obj_type, store_key);
+    } else {
+        store_value = (void *)value_sec;
+        rc = ble_store_write(obj_type, store_value);
+    }
+
+    return rc;
+}
+
 int
 ble_store_write_slv_sec(struct ble_store_value_sec *value_sec)
 {
-    union ble_store_value *store_value;
     int rc;
 
-    store_value = (void *)value_sec;
-    rc = ble_store_write(BLE_STORE_OBJ_TYPE_SLV_SEC, store_value);
+    rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_SLV_SEC, value_sec);
     return rc;
 }
 
@@ -102,32 +126,37 @@ ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
     store_value = (void *)value_sec;
     rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_SEC, store_key, store_value);
 
-    if (rc) {
+    if (rc != 0) {
         return rc;
     }
 
-    return rc;
+    return 0;
 }
 
 int
 ble_store_write_mst_sec(struct ble_store_value_sec *value_sec)
 {
-    union ble_store_value *store_value;
     int rc;
 
-    store_value = (void *)value_sec;
-    rc = ble_store_write(BLE_STORE_OBJ_TYPE_MST_SEC, store_value);
+    rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_MST_SEC, value_sec);
+    if (rc != 0) {
+        return rc;
+    }
 
-    if ((value_sec->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) &&
-       (value_sec->irk_present)) {
+    if (value_sec->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE &&
+        value_sec->irk_present) {
+
         /* Write the peer IRK to the controller keycache
          * There is not much to do here if it fails */
         rc = ble_keycache_write_irk_entry(value_sec->peer_addr,
                                           value_sec->peer_addr_type,
                                           value_sec->irk);
+        if (rc != 0) {
+            return rc;
+        }
     }
 
-    return rc;
+    return 0;
 }
 
 int

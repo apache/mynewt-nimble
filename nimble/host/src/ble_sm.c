@@ -465,9 +465,9 @@ ble_sm_sec_state(struct ble_sm_proc *proc,
 
 static void
 ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
-                              int authenticated,
-                              struct ble_sm_keys *keys,
-                              struct ble_store_value_sec *value_sec)
+                        int authenticated,
+                        struct ble_sm_keys *keys,
+                        struct ble_store_value_sec *value_sec)
 {
     memset(value_sec, 0, sizeof *value_sec);
 
@@ -480,7 +480,7 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
         memcpy(value_sec->ltk, keys->ltk, sizeof value_sec->ltk);
         value_sec->ltk_present = 1;
 
-        value_sec->authenticated = authenticated;
+        value_sec->authenticated = !!authenticated;
         value_sec->sc = 0;
     }
 
@@ -813,7 +813,8 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
             ble_gap_passkey_event(conn_handle, &res->passkey_action);
         }
 
-        if (res->persist_keys) {
+        /* Persist keys if pairing has successfully completed. */
+        if (res->app_status == 0 && rm) {
             BLE_HS_DBG_ASSERT(rm);
             ble_sm_persist_keys(proc);
         }
@@ -930,8 +931,8 @@ ble_sm_rx_encryption_change(struct hci_encrypt_change *evt)
         res.app_status = BLE_HS_ENOENT;
     }
 
-    if (proc != NULL) {
-        if (do_key_exchange && enc_enabled) {
+    if (res.app_status == 0 && enc_enabled) {
+        if (do_key_exchange) {
             proc->state = BLE_SM_PROC_STATE_KEY_EXCH;
 
             /* The responder sends its keys first. */
@@ -1010,13 +1011,12 @@ ble_sm_lt_key_req_neg_reply_tx(uint16_t conn_handle)
 }
 
 static void
-ble_sm_ltk_start_go(struct ble_sm_proc *proc,
-                          struct ble_sm_result *res, void *arg)
+ble_sm_ltk_start_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
+                    void *arg)
 {
     BLE_HS_DBG_ASSERT(!(proc->flags & BLE_SM_PROC_F_INITIATOR));
 
-    res->app_status = ble_sm_lt_key_req_reply_tx(proc->conn_handle,
-                                                       proc->ltk);
+    res->app_status = ble_sm_lt_key_req_reply_tx(proc->conn_handle, proc->ltk);
     if (res->app_status == 0) {
         proc->state = BLE_SM_PROC_STATE_ENC_START;
     } else {
@@ -1025,9 +1025,8 @@ ble_sm_ltk_start_go(struct ble_sm_proc *proc,
 }
 
 static void
-ble_sm_ltk_restore_go(struct ble_sm_proc *proc,
-                            struct ble_sm_result *res,
-                            void *arg)
+ble_sm_ltk_restore_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
+                      void *arg)
 {
     struct ble_store_value_sec *value_sec;
 
@@ -1093,15 +1092,14 @@ ble_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
     memset(&res, 0, sizeof res);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(evt->connection_handle,
-                                  BLE_SM_PROC_STATE_NONE, 0, NULL);
+    proc = ble_sm_proc_find(evt->connection_handle, BLE_SM_PROC_STATE_NONE,
+                            0, NULL);
     if (proc == NULL) {
         /* The peer is attempting to restore a encrypted connection via the
          * encryption procedure (bonding).  Create a proc entry to indicate
          * that security establishment is in progress and execute the procedure
          * after the mutex gets unlocked.
          */
-        /* XXX: Ensure we are the master. */
         bonding = 1;
         proc = ble_sm_proc_alloc();
         if (proc == NULL) {
@@ -1615,8 +1613,8 @@ ble_sm_rx_sec_req(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
  *****************************************************************************/
 
 static void
-ble_sm_key_exch_go(struct ble_sm_proc *proc,
-                   struct ble_sm_result *res, void *arg)
+ble_sm_key_exch_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
+                   void *arg)
 {
     struct ble_sm_id_addr_info addr_info;
     struct ble_sm_sign_info sign_info;
@@ -1715,7 +1713,6 @@ ble_sm_key_exch_go(struct ble_sm_proc *proc,
         /* The procedure is now complete. */
         proc->flags |= BLE_SM_PROC_F_BONDED;
         proc->state = BLE_SM_PROC_STATE_NONE;
-        res->persist_keys = 1;
         res->enc_cb = 1;
     }
 
@@ -1742,7 +1739,6 @@ ble_sm_key_rxed(struct ble_sm_proc *proc, struct ble_sm_result *res)
         } else {
             proc->flags |= BLE_SM_PROC_F_BONDED;
             proc->state = BLE_SM_PROC_STATE_NONE;
-            res->persist_keys = 1;
             res->enc_cb = 1;
         }
     }

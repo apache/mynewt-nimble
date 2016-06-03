@@ -373,6 +373,13 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
+    /* Ensure the ltk gets persisted when the pairing procedure succeeds. */
+    memcpy(proc->our_keys.ltk, proc->ltk, sizeof proc->our_keys.ltk);
+    proc->our_keys.ltk_valid = 1;
+    proc->our_keys.ediv = 0;
+    proc->our_keys.rand_val = 0;
+    proc->our_keys.ediv_rand_valid = 1;
+
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         ble_sm_sc_random_advance(proc);
 
@@ -392,8 +399,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 void
-ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
-                        struct ble_sm_result *res,
+ble_sm_sc_public_key_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
                         void *arg)
 {
     struct ble_sm_public_key cmd;
