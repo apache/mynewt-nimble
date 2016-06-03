@@ -342,28 +342,6 @@ ble_sm_gen_ltk(struct ble_sm_proc *proc, uint8_t *ltk)
 }
 
 static int
-ble_sm_gen_irk(struct ble_sm_proc *proc, uint8_t *irk)
-{
-    int rc;
-
-#ifdef BLE_HS_DEBUG
-    if (ble_sm_dbg_next_irk_set) {
-        ble_sm_dbg_next_irk_set = 0;
-        memcpy(irk, ble_sm_dbg_next_irk,
-               sizeof ble_sm_dbg_next_irk);
-        return 0;
-    }
-#endif
-
-    rc = ble_hci_util_rand(irk, 16);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
 ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
 {
     int rc;
@@ -535,8 +513,8 @@ ble_sm_peer_addr(struct ble_sm_proc *proc,
 }
 
 int
-ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t **out_ia,
-             uint8_t *out_rat, uint8_t **out_ra)
+ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t *out_ia,
+             uint8_t *out_rat, uint8_t *out_ra)
 {
     struct ble_hs_conn *conn;
 
@@ -546,49 +524,51 @@ ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t **out_ia,
     }
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        *out_iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-        *out_ia = ble_hs_our_dev.public_addr;
-
+        bls_hs_priv_copy_local_identity_addr(out_ia, out_iat);
         *out_rat = conn->bhc_addr_type;
-        *out_ra = conn->bhc_addr;
+        memcpy(out_ra, conn->bhc_addr, 6);
     } else {
-        *out_rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-        *out_ra = ble_hs_our_dev.public_addr;
-
+        bls_hs_priv_copy_local_identity_addr(out_ra, out_rat);
         *out_iat = conn->bhc_addr_type;
-        *out_ia = conn->bhc_addr;
+        memcpy(out_ia, conn->bhc_addr, 6);
     }
 
     return 0;
 }
 
 static void
-ble_sm_persist_keys(uint16_t conn_handle,
-                    struct ble_sm_keys *our_keys,
-                    struct ble_sm_keys *peer_keys,
-                    int authenticated)
+ble_sm_persist_keys(struct ble_sm_proc *proc)
 {
     struct ble_store_value_sec value_sec;
     struct ble_hs_conn *conn;
     uint8_t peer_addr[8];
     uint8_t peer_addr_type;
+    int authenticated;
 
     ble_hs_lock();
 
-    conn = ble_hs_conn_find(conn_handle);
+    conn = ble_hs_conn_find(proc->conn_handle);
     BLE_HS_DBG_ASSERT(conn != NULL);
 
-    peer_addr_type = conn->bhc_addr_type;
-    memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
+    /* If we got an identity address, use that for key storage. */
+    if (proc->peer_keys.addr_valid) {
+        peer_addr_type = proc->peer_keys.addr_type;
+        memcpy(peer_addr, proc->peer_keys.addr, sizeof peer_addr);
+    } else {
+        peer_addr_type = conn->bhc_addr_type;
+        memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
+    }
 
     ble_hs_unlock();
 
+    authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
+
     ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
-                                  our_keys, &value_sec);
+                            &proc->our_keys, &value_sec);
     ble_store_write_slv_sec(&value_sec);
 
     ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
-                                  peer_keys, &value_sec);
+                            &proc->peer_keys, &value_sec);
     ble_store_write_mst_sec(&value_sec);
 }
 
@@ -835,8 +815,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
 
         if (res->persist_keys) {
             BLE_HS_DBG_ASSERT(rm);
-            ble_sm_persist_keys(conn_handle, &proc->our_keys, &proc->peer_keys,
-                                proc->flags & BLE_SM_PROC_F_AUTHENTICATED);
+            ble_sm_persist_keys(proc);
         }
 
         if (rm) {
@@ -1693,31 +1672,29 @@ ble_sm_key_exch_go(struct ble_sm_proc *proc,
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
         /* Send identity information. */
-        rc = ble_sm_gen_irk(proc, iden_info.irk);
-        if (rc != 0) {
-            goto err;
-        }
+        uint8_t *irk = ble_hs_priv_get_local_irk();
+
+        memcpy(iden_info.irk, irk, 16);
+
         rc = ble_sm_id_info_tx(proc->conn_handle, &iden_info);
         if (rc != 0) {
             goto err;
         }
-        proc->our_keys.irk_valid = 1;
-        memcpy(proc->our_keys.irk, iden_info.irk, 16);
 
-        /* Send identity address information. */
-        if (ble_hs_our_dev.has_random_addr) {
-            addr_info.addr_type = BLE_ADDR_TYPE_RANDOM;
-            memcpy(addr_info.bd_addr, ble_hs_our_dev.random_addr, 6);
-        } else {
-            addr_info.addr_type = BLE_ADDR_TYPE_PUBLIC;
-            memcpy(addr_info.bd_addr, ble_hs_our_dev.public_addr, 6);
-        }
+        bls_hs_priv_copy_local_identity_addr(addr_info.bd_addr,
+                                             &addr_info.addr_type);
         rc = ble_sm_iden_addr_tx(proc->conn_handle, &addr_info);
         if (rc != 0) {
             goto err;
         }
+
+        /* copy data to pass to application */
+        proc->our_keys.irk_valid = 1;
+        proc->our_keys.addr_valid = 1;
+        memcpy(proc->our_keys.irk, irk, 16);
         proc->our_keys.addr_type = addr_info.addr_type;
         memcpy(proc->our_keys.addr, addr_info.bd_addr, 6);
+        memcpy(proc->our_keys.ltk, enc_info.ltk, 16);
     }
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN) {
