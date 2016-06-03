@@ -323,7 +323,7 @@ ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
 uint32_t
 ble_ll_resolv_get_rpa_tmo(void)
 {
-    return OS_TICKS_PER_SEC * g_ble_ll_resolv_rpa_tmo;
+    return g_ble_ll_resolv_rpa_tmo;
 }
 
 /**
