@@ -973,6 +973,8 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
     struct ble_hs_conn *conn;
     uint8_t our_addr[6];
     uint8_t our_addr_type;
+    uint8_t peer_addr[6];
+    uint8_t peer_addr_type;
 
     BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
 
@@ -1010,16 +1012,31 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
                 break;
         }
 
+        peer_addr_type = (conn->bhc_addr_type ? 1 : 0);
+        switch(conn->bhc_addr_type) {
+            case BLE_ADDR_TYPE_PUBLIC:
+                memcpy(peer_addr, conn->bhc_addr, 6);
+                break;
+            case BLE_ADDR_TYPE_RANDOM:
+                memcpy(peer_addr, conn->bhc_addr, 6);
+                break;
+            case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
+            case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
+                memcpy(peer_addr, conn->peer_rpa_addr, 6);
+                break;
+
+        }
+
         if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
             memcpy(ia, our_addr, 6);
             *iat = our_addr_type;
-            *rat = (conn->bhc_addr_type ? 1 : 0);
-            memcpy(ra, conn->bhc_addr, 6);
+            *rat = peer_addr_type;
+            memcpy(ra, peer_addr, 6);
         } else {
             memcpy(ra, our_addr, 6);
             *rat = our_addr_type;
-            *iat = (conn->bhc_addr_type ? 1 : 0);
-            memcpy(ia, conn->bhc_addr, 6);
+            *iat = peer_addr_type;
+            memcpy(ia, peer_addr, 6);
         }
     }
 
