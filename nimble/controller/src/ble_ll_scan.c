@@ -160,21 +160,22 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
 
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        rl = NULL;
         if (ble_ll_is_rpa(adv_addr, adv_addr_type)) {
-            rl = NULL;
             if (scansm->scan_rpa_index >= 0) {
                 /* Generate a RPA to use for scana */
                 rl = &g_ble_ll_resolv_list[scansm->scan_rpa_index];
-            } else {
-                if (ble_ll_resolv_enabled()) {
-                    rl = ble_ll_resolv_list_find(adv_addr, adv_addr_type);
-                }
             }
+        } else {
+            if (ble_ll_resolv_enabled()) {
+                rl = ble_ll_resolv_list_find(adv_addr, adv_addr_type);
+            }
+        }
 
-            if (rl) {
-                ble_ll_resolv_gen_priv_addr(rl, 1, rpa);
-                scana = rpa;
-            }
+        if (rl) {
+            ble_ll_resolv_gen_priv_addr(rl, 1, rpa);
+            scana = rpa;
+            pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
         }
     }
 #endif
