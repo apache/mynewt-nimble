@@ -79,6 +79,7 @@ struct ble_ll_adv_sm
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
     uint8_t adv_directed;
+    uint8_t adv_txadd;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
@@ -126,7 +127,7 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 
     if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         now = os_time_get();
-        if ((int32_t)(now >= advsm->adv_rpa_timer)) {
+        if ((int32_t)(now - advsm->adv_rpa_timer) >= 0) {
             ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                                   advsm->adva, 1);
 
@@ -135,6 +136,17 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
                                       advsm->initiator_addr, 0);
             }
             advsm->adv_rpa_timer = now + ble_ll_resolv_get_rpa_tmo();
+
+            /* May have to reset txadd bit */
+            if (ble_ll_is_rpa(advsm->adva, 1)) {
+                advsm->adv_txadd = 1;
+            } else {
+                if (advsm->own_addr_type & 1) {
+                    advsm->adv_txadd = 1;
+                } else {
+                    advsm->adv_txadd = 0;
+                }
+            }
         }
     }
 }
@@ -222,8 +234,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
     /* Set TxAdd to random if needed. */
-    if (ble_ll_is_rpa(advsm->adva, 1) ||
-        (advsm->own_addr_type & 1)) {
+    if (advsm->adv_txadd) {
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -273,7 +284,7 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     /* Set BLE transmit header */
     pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
     hdr = BLE_ADV_PDU_TYPE_SCAN_RSP;
-    if (advsm->own_addr_type & 1) {
+    if (advsm->adv_txadd) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -359,7 +370,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 #endif
 
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
-    advsm->adv_rpa_index = 0;
+    advsm->adv_rpa_index = -1;
     if (ble_ll_resolv_enabled()) {
         ble_phy_resolv_list_enable();
     } else {
@@ -659,8 +670,10 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     /* Set advertising address */
     if ((advsm->own_addr_type & 1) == 0) {
         addr = g_dev_addr;
+        advsm->adv_txadd = 0;
     } else {
         addr = g_random_addr;
+        advsm->adv_txadd = 1;
     }
     memcpy(advsm->adva, addr, BLE_DEV_ADDR_LEN);
 
