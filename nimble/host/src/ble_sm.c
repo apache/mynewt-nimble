@@ -86,8 +86,8 @@ static ble_sm_rx_fn * const ble_sm_dispatch[] = {
    [BLE_SM_OP_SEC_REQ] = ble_sm_rx_sec_req,
    [BLE_SM_OP_PAIR_KEYPRESS_NOTIFY] = ble_sm_rx_noop,
 #if NIMBLE_OPT_SM_SC
-   [BLE_SM_OP_PAIR_PUBLIC_KEY] = ble_sm_sc_rx_public_key,
-   [BLE_SM_OP_PAIR_DHKEY_CHECK] = ble_sm_sc_rx_dhkey_check,
+   [BLE_SM_OP_PAIR_PUBLIC_KEY] = ble_sm_sc_public_key_rx,
+   [BLE_SM_OP_PAIR_DHKEY_CHECK] = ble_sm_sc_dhkey_check_rx,
 #else
    [BLE_SM_OP_PAIR_PUBLIC_KEY] = ble_sm_rx_noop,
    [BLE_SM_OP_PAIR_DHKEY_CHECK] = ble_sm_rx_noop,
@@ -386,17 +386,15 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
 }
 
 int
-ble_sm_gen_pub_priv(uint8_t *pub, uint8_t *priv)
+ble_sm_gen_pub_priv(void *pub, uint32_t *priv)
 {
     int rc;
 
 #ifdef BLE_HS_DEBUG
     if (ble_sm_dbg_sc_keys_set) {
         ble_sm_dbg_sc_keys_set = 0;
-        memcpy(pub, ble_sm_dbg_sc_pub_key,
-               sizeof ble_sm_dbg_sc_pub_key);
-        memcpy(priv, ble_sm_dbg_sc_priv_key,
-               sizeof ble_sm_dbg_sc_priv_key);
+        memcpy(pub, ble_sm_dbg_sc_pub_key, sizeof ble_sm_dbg_sc_pub_key);
+        memcpy(priv, ble_sm_dbg_sc_priv_key, sizeof ble_sm_dbg_sc_priv_key);
         return 0;
     }
 #endif
@@ -1245,7 +1243,7 @@ ble_sm_rx_pair_random(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         memcpy(ble_sm_their_pair_rand(proc), cmd.value, 16);
 
         if (proc->flags & BLE_SM_PROC_F_SC) {
-            ble_sm_sc_rx_pair_random(proc, res);
+            ble_sm_sc_random_rx(proc, res);
         } else {
             ble_sm_lgcy_rx_pair_random(proc, res);
         }
@@ -1300,7 +1298,7 @@ ble_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
-        memcpy(proc->confirm_their, cmd.value, 16);
+        memcpy(proc->confirm_peer, cmd.value, 16);
 
         if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
             proc->state = BLE_SM_PROC_STATE_RANDOM;

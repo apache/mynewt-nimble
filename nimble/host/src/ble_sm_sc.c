@@ -26,8 +26,23 @@
 #define BLE_SM_SC_PASSKEY_BYTES     4
 #define BLE_SM_SC_PASSKEY_BITS      20
 
-static uint8_t ble_sm_sc_pub_key[64];
-static uint8_t ble_sm_sc_priv_key[32];
+/**
+ * The public and private keys are stored in unions.  Some crypto functions
+ * accept pointers to uint32_t; others accept pointers to uint8_t.
+ */
+static union {
+    uint32_t u32[16];
+    uint8_t u8[64];
+} ble_sm_sc_pub_key;
+static union {
+    uint32_t u32[8];
+    uint8_t u8[32];
+} ble_sm_sc_priv_key;
+
+/**
+ * Whether our public-private key pair has been generated.  We generate it on
+ * startup for now until we have a non-volatile storage mechanism.
+ */
 static uint8_t ble_sm_sc_keys_generated;
 
 /**
@@ -40,7 +55,8 @@ static uint8_t ble_sm_sc_keys_generated;
 #define PKACT_DISP      BLE_SM_PKACT_DISP
 #define PKACT_NUMCMP    BLE_SM_PKACT_NUMCMP
 
-/* This is the initiator passkey action action dpeneding on the io
+/**
+ * This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
  */
 static const uint8_t ble_sm_sc_init_pka[5 /*resp*/ ][5 /*init */] =
@@ -52,7 +68,8 @@ static const uint8_t ble_sm_sc_init_pka[5 /*resp*/ ][5 /*init */] =
     {PKACT_DISP,    PKACT_NUMCMP, PKACT_INPUT, PKACT_NONE, PKACT_NUMCMP},
 };
 
-/* This is the responder passkey action action depending on the io
+/**
+ * This is the responder passkey action action depending on the io
  * capabilities of both parties
  */
 static const uint8_t ble_sm_sc_resp_pka[5 /*init*/ ][5 /*resp */] =
@@ -118,7 +135,8 @@ ble_sm_sc_ensure_keys_generated(void)
     int rc;
 
     if (!ble_sm_sc_keys_generated) {
-        rc = ble_sm_gen_pub_priv(ble_sm_sc_pub_key, ble_sm_sc_priv_key);
+        rc = ble_sm_gen_pub_priv(ble_sm_sc_pub_key.u32,
+                                 ble_sm_sc_priv_key.u32);
         if (rc != 0) {
             return rc;
         }
@@ -129,35 +147,39 @@ ble_sm_sc_ensure_keys_generated(void)
     return 0;
 }
 
+/* Initiator does not send a confirm when pairing algorithm is any of:
+ *     o just works
+ *     o numeric comparison
+ * (vol. 3, part H, 2.3.5.6.2)
+ */
 static int
 ble_sm_sc_initiator_txes_confirm(struct ble_sm_proc *proc)
 {
     BLE_HS_DBG_ASSERT(proc->flags & BLE_SM_PROC_F_SC);
 
-    /* Initiator does not send a confirm when pairing algorithm is any of:
-     *     o just works
-     *     o numeric comparison
-     * (vol. 3, part H, 2.3.5.6.2)
-     */
     return proc->pair_alg != BLE_SM_PAIR_ALG_JW &&
            proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP;
 }
 
+/* Responder does not verify the initiator's random number when pairing
+ * algorithm is any of:
+ *     o just works
+ *     o numeric comparison
+ * (vol. 3, part H, 2.3.5.6.2)
+ */
 static int
 ble_sm_sc_responder_verifies_random(struct ble_sm_proc *proc)
 {
     BLE_HS_DBG_ASSERT(proc->flags & BLE_SM_PROC_F_SC);
 
-    /* Responder does not verify the initiator's random number when pairing
-     * algorithm is any of:
-     *     o just works
-     *     o numeric comparison
-     * (vol. 3, part H, 2.3.5.6.2)
-     */
     return proc->pair_alg != BLE_SM_PAIR_ALG_JW &&
            proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP;
 }
 
+/**
+ * Generates the Ri byte used in the confirm message.  On success, the byte is
+ * written to the supplied procedure object.
+ */
 static int
 ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
 {
@@ -175,7 +197,6 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
         BLE_HS_DBG_ASSERT(proc->passkey_bits_exchanged <
                           BLE_SM_SC_PASSKEY_BITS);
 
-        //byte = BLE_SM_SC_PASSKEY_BYTES - proc->passkey_bits_exchanged / 8 - 1;
         byte = proc->passkey_bits_exchanged / 8;
         bit = proc->passkey_bits_exchanged % 8;
         proc->ri = 0x80 | !!(proc->tk[byte] & (1 << bit));
@@ -207,7 +228,7 @@ ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
-    rc = ble_sm_alg_f4(ble_sm_sc_pub_key, proc->pub_key_their.x,
+    rc = ble_sm_alg_f4(ble_sm_sc_pub_key.u8, proc->pub_key_peer.x,
                        ble_sm_our_pair_rand(proc), proc->ri, cmd.value);
     if (rc != 0) {
         res->app_status = rc;
@@ -230,24 +251,18 @@ ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 static void
-ble_sm_sc_public_keys(struct ble_sm_proc *proc, uint8_t **pka, uint8_t **pkb)
-{
-    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        *pka = ble_sm_sc_pub_key;
-        *pkb = proc->pub_key_their.x;
-    } else {
-        *pka = proc->pub_key_their.x;
-        *pkb = ble_sm_sc_pub_key;
-    }
-}
-
-static void
 ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     uint8_t *pka;
     uint8_t *pkb;
 
-    ble_sm_sc_public_keys(proc, &pka, &pkb);
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        pka = ble_sm_sc_pub_key.u8;
+        pkb = proc->pub_key_peer.x;
+    } else {
+        pka = proc->pub_key_peer.x;
+        pkb = ble_sm_sc_pub_key.u8;
+    }
     res->app_status = ble_sm_alg_g2(pka, pkb, proc->randm, proc->rands,
                                     &res->passkey_action.numcmp);
     if (res->app_status != 0) {
@@ -256,6 +271,10 @@ ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 }
 
+/**
+ * Advances the supplied procedure object to the next state after it is
+ * completed the random state.
+ */
 static void
 ble_sm_sc_random_advance(struct ble_sm_proc *proc)
 {
@@ -300,7 +319,7 @@ ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 void
-ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
+ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     uint8_t confirm_val[16];
     uint8_t *ia;
@@ -317,7 +336,7 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
         ble_hs_misc_log_flat_buf(proc->tk, 32);
         BLE_HS_LOG(DEBUG, "\n");
 
-        rc = ble_sm_alg_f4(proc->pub_key_their.x, ble_sm_sc_pub_key,
+        rc = ble_sm_alg_f4(proc->pub_key_peer.x, ble_sm_sc_pub_key.u8,
                            ble_sm_their_pair_rand(proc), proc->ri,
                            confirm_val);
         if (rc != 0) {
@@ -327,7 +346,7 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
             return;
         }
 
-        if (memcmp(proc->confirm_their, confirm_val, 16) != 0) {
+        if (memcmp(proc->confirm_peer, confirm_val, 16) != 0) {
             /* Random number mismatch. */
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CONFIRM_MISMATCH);
             res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -389,8 +408,8 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
         return;
     }
 
-    memcpy(cmd.x, ble_sm_sc_pub_key + 0, 32);
-    memcpy(cmd.y, ble_sm_sc_pub_key + 32, 32);
+    memcpy(cmd.x, ble_sm_sc_pub_key.u8 + 0, 32);
+    memcpy(cmd.y, ble_sm_sc_pub_key.u8 + 32, 32);
     res->app_status = ble_sm_public_key_tx(proc->conn_handle, &cmd);
     if (res->app_status != 0) {
         res->enc_cb = 1;
@@ -415,7 +434,7 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
 }
 
 void
-ble_sm_sc_rx_public_key(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                         struct ble_sm_result *res)
 {
     struct ble_sm_public_key cmd;
@@ -447,10 +466,11 @@ ble_sm_sc_rx_public_key(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
     } else {
-        proc->pub_key_their = cmd;
-        rc = ble_sm_alg_gen_dhkey(proc->pub_key_their.x,
-                                  proc->pub_key_their.y,
-                                  ble_sm_sc_priv_key, proc->dhkey);
+        proc->pub_key_peer = cmd;
+        rc = ble_sm_alg_gen_dhkey(proc->pub_key_peer.x,
+                                  proc->pub_key_peer.y,
+                                  ble_sm_sc_priv_key.u32,
+                                  proc->dhkey);
         if (rc != 0) {
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_DHKEY);
             res->sm_err = BLE_SM_ERR_DHKEY;
@@ -470,6 +490,15 @@ ble_sm_sc_rx_public_key(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     ble_hs_unlock();
 }
 
+static void
+ble_sm_sc_dhkey_check_iocap(struct ble_sm_pair_cmd *pair_cmd,
+                            uint8_t *out_iocap)
+{
+    out_iocap[0] = pair_cmd->io_cap;
+    out_iocap[1] = pair_cmd->oob_data_flag;
+    out_iocap[2] = pair_cmd->authreq;
+}
+
 void
 ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
                          void *arg)
@@ -480,16 +509,10 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
     uint8_t peer_addr_type;
     int rc;
 
-    //uint8_t zeros[16] = { 0 };
-
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        iocap[0] = proc->pair_req.io_cap;
-        iocap[1] = proc->pair_req.oob_data_flag;
-        iocap[2] = proc->pair_req.authreq;
+        ble_sm_sc_dhkey_check_iocap(&proc->pair_req, iocap);
     } else {
-        iocap[0] = proc->pair_rsp.io_cap;
-        iocap[1] = proc->pair_rsp.oob_data_flag;
-        iocap[2] = proc->pair_rsp.authreq;
+        ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
     }
 
     rc = ble_sm_peer_addr(proc, &peer_addr_type, &peer_addr);
@@ -524,9 +547,9 @@ err:
 }
 
 static void
-ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
-                          struct ble_sm_dhkey_check *cmd,
-                          struct ble_sm_result *res)
+ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
+                           struct ble_sm_dhkey_check *cmd,
+                           struct ble_sm_result *res)
 {
     uint8_t exp_value[16];
     uint8_t iocap[3];
@@ -535,13 +558,9 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
     uint8_t pkact;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        iocap[0] = proc->pair_rsp.io_cap;
-        iocap[1] = proc->pair_rsp.oob_data_flag;
-        iocap[2] = proc->pair_rsp.authreq;
+        ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
     } else {
-        iocap[0] = proc->pair_req.io_cap;
-        iocap[1] = proc->pair_req.oob_data_flag;
-        iocap[2] = proc->pair_req.authreq;
+        ble_sm_sc_dhkey_check_iocap(&proc->pair_req, iocap);
     }
 
     res->app_status = ble_sm_peer_addr(proc, &peer_addr_type, &peer_addr);
@@ -591,7 +610,7 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
 }
 
 void
-ble_sm_sc_rx_dhkey_check(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                          struct ble_sm_result *res)
 {
     struct ble_sm_dhkey_check cmd;
@@ -601,6 +620,7 @@ ble_sm_sc_rx_dhkey_check(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_DHKEY_CHECK_SZ);
     if (res->app_status != 0) {
         res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         return;
     }
 
@@ -608,6 +628,7 @@ ble_sm_sc_rx_dhkey_check(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                                                &cmd);
     if (res->app_status != 0) {
         res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         return;
     }
 
@@ -619,7 +640,7 @@ ble_sm_sc_rx_dhkey_check(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
-        ble_sm_dhkey_check_handle(proc, &cmd, res);
+        ble_sm_dhkey_check_process(proc, &cmd, res);
     }
     ble_hs_unlock();
 }

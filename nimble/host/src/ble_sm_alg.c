@@ -439,9 +439,8 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y, uint32_t *passkey)
 
 int
 ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
-                     uint8_t *our_priv_key, void *out_dhkey)
+                     uint32_t *our_priv_key, void *out_dhkey)
 {
-    uint32_t priv_key32[8];
     uint32_t dh[8];
     EccPoint pk;
 
@@ -452,8 +451,7 @@ ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
         return BLE_HS_EUNKNOWN;
     }
 
-    memcpy(priv_key32, our_priv_key, sizeof priv_key32);
-    if (ecdh_shared_secret(dh, &pk, priv_key32) == TC_FAIL) {
+    if (ecdh_shared_secret(dh, &pk, our_priv_key) == TC_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
@@ -467,12 +465,8 @@ ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
  * priv: 32 bytes
  */
 int
-ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
+ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv)
 {
-    //memcpy(pub, ble_sm_alg_dbg_pub_key, sizeof ble_sm_alg_dbg_pub_key);
-    //memcpy(priv, ble_sm_alg_dbg_priv_key, sizeof ble_sm_alg_dbg_priv_key);
-
-    uint32_t temp_priv[8];
     uint32_t random[16];
     EccPoint pkey;
     int rc;
@@ -483,15 +477,14 @@ ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
             return rc;
         }
 
-        rc = ecc_make_key(&pkey, temp_priv, random);
+        rc = ecc_make_key(&pkey, priv, random);
         if (rc != TC_CRYPTO_SUCCESS) {
             return BLE_HS_EUNKNOWN;
         }
 
         /* Make sure generated key isn't debug key. */
-    } while (memcmp(temp_priv, ble_sm_alg_dbg_priv_key, 32) == 0);
+    } while (memcmp(priv, ble_sm_alg_dbg_priv_key, 32) == 0);
 
-    memcpy(priv, temp_priv, sizeof temp_priv);
     memcpy(pub + 0, pkey.x, 32);
     memcpy(pub + 32, pkey.y, 32);
 
