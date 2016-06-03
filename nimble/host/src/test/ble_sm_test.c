@@ -765,9 +765,118 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
 }
 
-/*****************************************************************************
- * $peer                                                                     *
- *****************************************************************************/
+static void
+ble_sm_test_util_us_lgcy_good(
+    struct ble_sm_test_lgcy_params *params)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_sm_test_util_init();
+    ble_hs_test_util_set_public_addr(params->init_addr);
+    ble_sm_dbg_set_next_pair_rand(params->random_req.value);
+    ble_sm_dbg_set_next_ediv(params->ediv);
+    ble_sm_dbg_set_next_start_rand(params->r);
+
+    if (params->has_enc_info_req) {
+        ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
+    }
+
+    ble_hs_test_util_create_conn(2, params->rsp_addr,
+                                 ble_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object after unlocking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
+    if (params->has_sec_req) {
+        ble_sm_test_util_rx_sec_req(2, &params->sec_req, 0);
+    } else {
+        /* Initiate the pairing procedure. */
+        rc = ble_gap_security_initiate(2);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    /* Ensure we sent the expected pair request. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair response from the peer. */
+    ble_sm_test_util_rx_pair_rsp(2, &params->pair_rsp, 0);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected pair confirm. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_pair_confirm(&params->confirm_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair confirm from the peer. */
+    ble_sm_test_util_rx_confirm(2, &params->confirm_rsp);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected pair random. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_pair_random(&params->random_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair random from the peer. */
+    ble_sm_test_util_rx_random(2, &params->random_rsp, 0);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Ensure keys are distributed, if necessary. */
+    if (params->has_enc_info_req) {
+        ble_sm_test_util_verify_tx_enc_info(&params->enc_info_req);
+    }
+
+    /* Ensure we sent the expected start encryption command. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_start_enc(2, params->r, params->ediv,
+                                               params->stk);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive an encryption changed event. */
+    ble_sm_test_util_rx_enc_change(2, 0, 1);
+
+    /* Pairing should now be complete. */
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == 0);
+    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
+    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
+                conn->bhc_sec_state.pair_alg);
+    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
+                conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
+                conn->bhc_sec_state.authenticated);
+
+    /* Verify the appropriate security material was persisted. */
+    ble_sm_test_util_verify_lgcy_persist(params);
+}
 
 static void
 ble_sm_test_util_peer_fail_inval(
@@ -820,171 +929,6 @@ ble_sm_test_util_peer_fail_inval(
     /* Verify that connection has correct security state. */
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(!conn->bhc_sec_state.authenticated);
-}
-
-TEST_CASE(ble_sm_test_case_peer_fail_inval)
-{
-    /* Invalid role detected before other arguments. */
-    ble_sm_test_util_peer_fail_inval(
-        1,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x14,
-            .oob_data_flag = 0,
-            .authreq = 0x12,
-            .max_enc_key_size = 20,
-            .init_key_dist = 0x0b,
-            .resp_key_dist = 0x11,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_CMD_NOT_SUPP,
-        } })
-    );
-
-    /* Invalid IO capabiltiies. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x14,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid OOB flag. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 2,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid authreq - reserved bonding flag. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x2,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid authreq - reserved other flag. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x20,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid key size - too small. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 6,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid key size - too large. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid init key dist. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x10,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid resp key dist. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x10,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
 }
 
 static void
@@ -1067,57 +1011,6 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 conn->bhc_sec_state.authenticated);
-}
-
-TEST_CASE(ble_sm_test_case_peer_lgcy_fail_confirm)
-{
-    ble_sm_test_util_peer_lgcy_fail_confirm(
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        } }),
-        ((struct ble_sm_pair_confirm[1]) { {
-            .value = {
-                0x0a, 0xac, 0xa2, 0xae, 0xa6, 0x98, 0xdc, 0x6d,
-                0x65, 0x84, 0x11, 0x69, 0x47, 0x36, 0x8d, 0xa0,
-            },
-        } }),
-        ((struct ble_sm_pair_confirm[1]) { {
-            .value = {
-                0x45, 0xd2, 0x2c, 0x38, 0xd8, 0x91, 0x4f, 0x19,
-                0xa2, 0xd4, 0xfc, 0x7d, 0xad, 0x37, 0x79, 0xe0
-            },
-        } }),
-        ((struct ble_sm_pair_random[1]) { {
-            .value = {
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            },
-        } }),
-        ((struct ble_sm_pair_random[1]) { {
-            .value = {
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            },
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_CONFIRM_MISMATCH,
-        } })
-    );
 }
 
 static void
@@ -1266,160 +1159,6 @@ ble_sm_test_util_peer_lgcy_good(struct ble_sm_test_lgcy_params *params)
     ble_sm_test_util_peer_lgcy_good_once(params);
 }
 
-TEST_CASE(ble_sm_test_case_peer_lgcy_jw_good)
-{
-    struct ble_sm_test_lgcy_params params;
-
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .confirm_req = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x0a, 0xac, 0xa2, 0xae, 0xa6, 0x98, 0xdc, 0x6d,
-                0x65, 0x84, 0x11, 0x69, 0x47, 0x36, 0x8d, 0xa0,
-            },
-        },
-        .confirm_rsp = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x45, 0xd2, 0x2c, 0x38, 0xd8, 0x91, 0x4f, 0x19,
-                0xa2, 0xd4, 0xfc, 0x7d, 0xad, 0x37, 0x79, 0xe0
-            },
-        },
-        .random_req = (struct ble_sm_pair_random) {
-            .value = {
-                0x2b, 0x3b, 0x69, 0xe4, 0xef, 0xab, 0xcc, 0x48,
-                0x78, 0x20, 0x1a, 0x54, 0x7a, 0x91, 0x5d, 0xfb,
-            },
-        },
-        .random_rsp = (struct ble_sm_pair_random) {
-            .value = {
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            },
-        },
-        .pair_alg = BLE_SM_PAIR_ALG_JW,
-        .authenticated = 0,
-        .tk = { 0 },
-        .stk = {
-            0xa4, 0x8e, 0x51, 0x0d, 0x33, 0xe7, 0x8f, 0x38,
-            0x45, 0xf0, 0x67, 0xc3, 0xd4, 0x05, 0xb3, 0xe6,
-        },
-        .r = 0,
-        .ediv = 0,
-    };
-    ble_sm_test_util_peer_lgcy_good(&params);
-}
-
-TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
-{
-    struct ble_sm_test_lgcy_params params;
-
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0, .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x02,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x01,
-            .resp_key_dist = 0x01,
-        },
-        .confirm_req = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x54, 0xed, 0x7c, 0x65, 0xc5, 0x3a, 0xee, 0x87,
-                0x8e, 0xf8, 0x04, 0xd8, 0x93, 0xb0, 0xfa, 0xa4,
-            },
-        },
-        .confirm_rsp = (struct ble_sm_pair_confirm) {
-            .value = {
-                0xdf, 0x96, 0x88, 0x73, 0x49, 0x24, 0x3f, 0xe8,
-                0xb0, 0xaf, 0xb3, 0xf6, 0xc8, 0xf4, 0xe2, 0x36,
-            },
-        },
-        .random_req = (struct ble_sm_pair_random) {
-            .value = {
-                0x4d, 0x2c, 0xf2, 0xb7, 0x11, 0x56, 0xbd, 0x4f,
-                0xfc, 0xde, 0xa9, 0x86, 0x4d, 0xfd, 0x77, 0x03,
-            },
-        },
-        .random_rsp = {
-            .value = {
-                0x12, 0x45, 0x65, 0x2c, 0x85, 0x56, 0x32, 0x8f,
-                0xf4, 0x7f, 0x44, 0xd0, 0x17, 0x35, 0x41, 0xed
-            },
-        },
-        .pair_alg = BLE_SM_PAIR_ALG_PASSKEY,
-        .authenticated = 1,
-        .tk = {
-            0x5a, 0x7f, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        },
-        .stk = {
-            0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
-            0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
-        },
-        .r = 4107344270811490869,
-        .ediv = 61621,
-
-        .passkey_info = {
-            .passkey = {
-                .action = BLE_SM_PKACT_INPUT,
-                .passkey = 884570,
-            },
-        },
-
-        .enc_info_req = {
-            .ltk = {
-                0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
-                0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
-            },
-        },
-        .has_enc_info_req = 1,
-
-        .master_id_req = {
-            .ediv = 61621,
-            .rand_val = 4107344270811490869,
-        },
-        .has_master_id_req = 1,
-
-        .enc_info_rsp = {
-            .ltk = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
-        },
-        .has_enc_info_rsp = 1,
-
-        .master_id_rsp = {
-            .ediv = 61621,
-            .rand_val = 4107344270811490869,
-        },
-        .has_master_id_rsp = 1,
-    };
-    ble_sm_test_util_peer_lgcy_good(&params);
-}
-
 /**
  * @param send_enc_req          Whether this procedure is initiated by a slave
  *                                  security request;
@@ -1558,837 +1297,6 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
     TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(!conn->bhc_sec_state.authenticated);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-}
-
-TEST_CASE(ble_sm_test_case_peer_bonding_good)
-{
-    /* Unauthenticated. */
-    ble_sm_test_util_peer_bonding_good(
-        0,
-        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
-        0,
-        0x1234,
-        0x5678);
-
-    /* Authenticated. */
-    ble_sm_test_util_peer_bonding_good(
-        0,
-        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
-        1,
-        0x4325,
-        0x543892375);
-}
-
-TEST_CASE(ble_sm_test_case_peer_bonding_bad)
-{
-    ble_sm_test_util_peer_bonding_bad(0x5684, 32);
-    ble_sm_test_util_peer_bonding_bad(54325, 65437);
-}
-
-/*****************************************************************************
- * $us                                                                       *
- *****************************************************************************/
-
-static void
-ble_sm_test_util_us_fail_inval(
-    struct ble_sm_test_lgcy_params *params)
-{
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(params->rsp_addr);
-
-    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
-
-    ble_hs_test_util_create_conn(2, params->init_addr,
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
-
-    /* This test inspects and modifies the connection object after unlocking
-     * the host mutex.  It is not OK for real code to do this, but this test
-     * can assume the connection list is unchanging.
-     */
-    ble_hs_lock();
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-    ble_hs_unlock();
-
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    /* Initiate the pairing procedure. */
-    rc = ble_hs_test_util_security_initiate(2, 0);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    /* Ensure we sent the expected pair request. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Receive a pair response from the peer. */
-    ble_sm_test_util_rx_pair_rsp(
-        2, &params->pair_rsp, BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL));
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    /* Ensure we sent the expected pair fail. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_pair_fail(&params->pair_fail);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    /* Verify that security callback was not executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == -1);
-    TEST_ASSERT(ble_sm_test_gap_status == -1);
-
-    /* Verify that connection has correct security state. */
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(!conn->bhc_sec_state.authenticated);
-}
-
-TEST_CASE(ble_sm_test_case_us_fail_inval)
-{
-    struct ble_sm_test_lgcy_params params;
-
-    /* Invalid IO capabiltiies. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x14,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid OOB flag. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x14,
-            .oob_data_flag = 2,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid authreq - reserved bonding flag. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x02,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid authreq - reserved other flag. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x20,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid key size - too small. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 6,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid key size - too large. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid init key dist. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x10,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid resp key dist. */
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x10,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-}
-
-static void
-ble_sm_test_util_us_lgcy_good(
-    struct ble_sm_test_lgcy_params *params)
-{
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(params->init_addr);
-    ble_sm_dbg_set_next_pair_rand(params->random_req.value);
-    ble_sm_dbg_set_next_ediv(params->ediv);
-    ble_sm_dbg_set_next_start_rand(params->r);
-
-    if (params->has_enc_info_req) {
-        ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
-    }
-
-    ble_hs_test_util_create_conn(2, params->rsp_addr,
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
-
-    /* This test inspects and modifies the connection object after unlocking
-     * the host mutex.  It is not OK for real code to do this, but this test
-     * can assume the connection list is unchanging.
-     */
-    ble_hs_lock();
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-    ble_hs_unlock();
-
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
-    if (params->has_sec_req) {
-        ble_sm_test_util_rx_sec_req(2, &params->sec_req, 0);
-    } else {
-        /* Initiate the pairing procedure. */
-        rc = ble_gap_security_initiate(2);
-        TEST_ASSERT_FATAL(rc == 0);
-    }
-
-    /* Ensure we sent the expected pair request. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Receive a pair response from the peer. */
-    ble_sm_test_util_rx_pair_rsp(2, &params->pair_rsp, 0);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Ensure we sent the expected pair confirm. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_pair_confirm(&params->confirm_req);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Receive a pair confirm from the peer. */
-    ble_sm_test_util_rx_confirm(2, &params->confirm_rsp);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Ensure we sent the expected pair random. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_pair_random(&params->random_req);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Receive a pair random from the peer. */
-    ble_sm_test_util_rx_random(2, &params->random_rsp, 0);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Ensure keys are distributed, if necessary. */
-    if (params->has_enc_info_req) {
-        ble_sm_test_util_verify_tx_enc_info(&params->enc_info_req);
-    }
-
-    /* Ensure we sent the expected start encryption command. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_start_enc(2, params->r, params->ediv,
-                                               params->stk);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Receive an encryption changed event. */
-    ble_sm_test_util_rx_enc_change(2, 0, 1);
-
-    /* Pairing should now be complete. */
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
-    TEST_ASSERT(ble_sm_test_gap_status == 0);
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
-    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
-    TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
-
-    /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                conn->bhc_sec_state.pair_alg);
-    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
-                conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
-                conn->bhc_sec_state.authenticated);
-
-    /* Verify the appropriate security material was persisted. */
-    ble_sm_test_util_verify_lgcy_persist(params);
-}
-
-TEST_CASE(ble_sm_test_case_us_lgcy_jw_good)
-{
-    struct ble_sm_test_lgcy_params params;
-
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
-        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .confirm_req = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
-                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
-            },
-        },
-        .confirm_rsp = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
-                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
-            },
-        },
-        .random_req = (struct ble_sm_pair_random) {
-            .value = {
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            },
-        },
-        .random_rsp = (struct ble_sm_pair_random) {
-            .value = {
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            },
-        },
-        .pair_alg = BLE_SM_PAIR_ALG_JW,
-        .tk = { 0 },
-        .stk = {
-            0x2e, 0x2b, 0x34, 0xca, 0x59, 0xfa, 0x4c, 0x88,
-            0x3b, 0x2c, 0x8a, 0xef, 0xd4, 0x4b, 0xe9, 0x66,
-        },
-        .r = 0,
-        .ediv = 0,
-    };
-
-    ble_sm_test_util_us_lgcy_good(&params);
-}
-
-TEST_CASE(ble_sm_test_case_conn_broken)
-{
-    struct hci_disconn_complete disconn_evt;
-    int rc;
-
-    ble_sm_test_util_init();
-
-    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
-                                 ble_sm_test_util_conn_cb, NULL);
-
-    /* Initiate the pairing procedure. */
-    rc = ble_hs_test_util_security_initiate(2, 0);
-    TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Terminate the connection. */
-    disconn_evt.connection_handle = 2;
-    disconn_evt.status = 0;
-    disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
-    ble_gap_rx_disconn_complete(&disconn_evt);
-
-    /* Verify security callback got called. */
-    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_ENOTCONN);
-    TEST_ASSERT(!ble_sm_test_sec_state.enc_enabled);
-    TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
-}
-
-TEST_CASE(ble_sm_test_case_peer_sec_req_inval)
-{
-    struct ble_sm_pair_fail fail;
-    struct ble_sm_sec_req sec_req;
-    int rc;
-
-    ble_sm_test_util_init();
-
-    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
-
-    /*** We are the slave; reject the security request. */
-    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
-
-    sec_req.authreq = 0;
-    ble_sm_test_util_rx_sec_req(
-        2, &sec_req, BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP));
-
-    ble_hs_test_util_tx_all();
-
-    fail.reason = BLE_SM_ERR_CMD_NOT_SUPP;
-    ble_sm_test_util_verify_tx_pair_fail(&fail);
-
-    /*** Pairing already in progress; ignore security request. */
-    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 1);
-    rc = ble_sm_pair_initiate(2);
-    TEST_ASSERT_FATAL(rc == 0);
-    ble_hs_test_util_tx_all();
-    ble_hs_test_util_prev_tx_queue_clear();
-
-    ble_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
-    ble_hs_test_util_tx_all();
-    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
-}
-
-/**
- * Master: us.
- * Peer sends a security request.
- * We respond by initiating the pairing procedure.
- */
-TEST_CASE(ble_sm_test_case_peer_sec_req_pair)
-{
-    struct ble_sm_test_lgcy_params params;
-
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
-        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
-        .sec_req = (struct ble_sm_sec_req) {
-            .authreq = 0,
-        },
-        .has_sec_req = 1,
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .confirm_req = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
-                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
-            },
-        },
-        .confirm_rsp = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
-                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
-            },
-        },
-        .random_req = (struct ble_sm_pair_random) {
-            .value = {
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            },
-        },
-        .random_rsp = (struct ble_sm_pair_random) {
-            .value = {
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            },
-        },
-        .pair_alg = BLE_SM_PAIR_ALG_JW,
-        .tk = { 0 },
-        .stk = {
-            0x2e, 0x2b, 0x34, 0xca, 0x59, 0xfa, 0x4c, 0x88,
-            0x3b, 0x2c, 0x8a, 0xef, 0xd4, 0x4b, 0xe9, 0x66,
-        },
-        .r = 0,
-        .ediv = 0,
-    };
-
-    ble_sm_test_util_us_lgcy_good(&params);
-}
-
-/**
- * @param send_enc_req          Whether this procedure is initiated by a slave
- *                                  security request;
- *                                  1: Peer sends a security request at start.
- *                                  0: No security request; we initiate.
- */
-static void
-ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
-                                 int authenticated, uint16_t ediv,
-                                 uint64_t rand_num)
-{
-    struct ble_sm_sec_req sec_req;
-    struct ble_store_value_sec value_sec;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    ble_sm_test_util_init();
-
-    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
-
-    /* This test inspects and modifies the connection object after unlocking
-     * the host mutex.  It is not OK for real code to do this, but this test
-     * can assume the connection list is unchanging.
-     */
-    ble_hs_lock();
-    conn = ble_hs_conn_find(2);
-    TEST_ASSERT_FATAL(conn != NULL);
-    ble_hs_unlock();
-
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    /* Populate the SM database with an LTK for this peer. */
-    value_sec.peer_addr_type = conn->bhc_addr_type;
-    memcpy(value_sec.peer_addr, conn->bhc_addr, sizeof value_sec.peer_addr);
-    value_sec.ediv = ediv;
-    value_sec.rand_num = rand_num;
-    memcpy(value_sec.ltk, ltk, sizeof value_sec.ltk);
-    value_sec.ltk_present = 1;
-    value_sec.authenticated = authenticated;
-    value_sec.sc = 0;
-
-    rc = ble_store_write_mst_sec(&value_sec);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    if (send_enc_req) {
-        sec_req.authreq = 0;
-        sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_BOND;
-        if (authenticated) {
-            sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_MITM;
-        }
-        ble_hs_test_util_set_ack(
-            host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT),
-            0);
-        ble_sm_test_util_rx_sec_req(2, &sec_req, 0);
-    }
-
-    /* Ensure we sent the expected start encryption command. */
-    ble_hs_test_util_tx_all();
-    ble_sm_test_util_verify_tx_start_enc(2, rand_num, ediv, ltk);
-    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
-
-    /* Receive an encryption changed event. */
-    ble_sm_test_util_rx_enc_change(2, 0, 1);
-
-    /* Pairing should now be complete. */
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
-
-    /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
-    TEST_ASSERT(ble_sm_test_gap_status == 0);
-    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
-                authenticated);
-
-    /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
-    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
-                authenticated);
-}
-
-/**
- * Master: us.
- * Peer sends a security request.
- * We respond by initiating the encryption procedure.
- */
-TEST_CASE(ble_sm_test_case_peer_sec_req_enc)
-{
-    /* Unauthenticated. */
-    ble_sm_test_util_us_bonding_good(
-        1,
-        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
-        0,
-        0x1234,
-        0x5678);
-}
-
-/**
- * Master: peer.
- * We send a security request.
- * We accept pairing request sent in response.
- */
-TEST_CASE(ble_sm_test_case_us_sec_req_pair)
-{
-    struct ble_sm_test_lgcy_params params;
-
-    params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
-        .sec_req = (struct ble_sm_sec_req) {
-            .authreq = 0x05,
-        },
-        .has_sec_req = 1,
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x02,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x01,
-            .resp_key_dist = 0x01,
-        },
-        .confirm_req = (struct ble_sm_pair_confirm) {
-            .value = {
-                0x54, 0xed, 0x7c, 0x65, 0xc5, 0x3a, 0xee, 0x87,
-                0x8e, 0xf8, 0x04, 0xd8, 0x93, 0xb0, 0xfa, 0xa4,
-            },
-        },
-        .confirm_rsp = (struct ble_sm_pair_confirm) {
-            .value = {
-                0xdf, 0x96, 0x88, 0x73, 0x49, 0x24, 0x3f, 0xe8,
-                0xb0, 0xaf, 0xb3, 0xf6, 0xc8, 0xf4, 0xe2, 0x36,
-            },
-        },
-        .random_req = (struct ble_sm_pair_random) {
-            .value = {
-                0x4d, 0x2c, 0xf2, 0xb7, 0x11, 0x56, 0xbd, 0x4f,
-                0xfc, 0xde, 0xa9, 0x86, 0x4d, 0xfd, 0x77, 0x03,
-            },
-        },
-        .random_rsp = {
-            .value = {
-                0x12, 0x45, 0x65, 0x2c, 0x85, 0x56, 0x32, 0x8f,
-                0xf4, 0x7f, 0x44, 0xd0, 0x17, 0x35, 0x41, 0xed
-            },
-        },
-        .pair_alg = BLE_SM_PAIR_ALG_PASSKEY,
-        .authenticated = 1,
-        .tk = {
-            0x5a, 0x7f, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        },
-        .stk = {
-            0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
-            0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
-        },
-        .r = 4107344270811490869,
-        .ediv = 61621,
-
-        .passkey_info = {
-            .passkey = {
-                .action = BLE_SM_PKACT_INPUT,
-                .passkey = 884570,
-            },
-            .io_before_rx = 1,
-        },
-
-        .enc_info_req = {
-            .ltk = {
-                0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
-                0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
-            },
-        },
-        .has_enc_info_req = 1,
-
-        .master_id_req = {
-            .ediv = 61621,
-            .rand_val = 4107344270811490869,
-        },
-        .has_master_id_req = 1,
-
-        .enc_info_rsp = {
-            .ltk = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
-        },
-        .has_enc_info_rsp = 1,
-
-        .master_id_rsp = {
-            .ediv = 61621,
-            .rand_val = 4107344270811490869,
-        },
-        .has_master_id_rsp = 1,
-    };
-
-    ble_sm_test_util_peer_lgcy_good(&params);
-}
-
-/**
- * Master: peer.
- * We send a security request.
- * We accept an encryption-changed event in response.
- */
-TEST_CASE(ble_sm_test_case_us_sec_req_enc)
-{
-    ble_sm_test_util_peer_bonding_good(
-        1,
-        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
-        1,
-        0x4325,
-        0x543892375);
 }
 
 static void
@@ -2581,6 +1489,804 @@ ble_sm_test_util_peer_sc_good(struct ble_sm_test_sc_params *params)
     params->passkey_info.io_before_rx = 1;
     ble_sm_test_util_peer_sc_good_once(params);
 
+}
+
+static void
+ble_sm_test_util_us_fail_inval(
+    struct ble_sm_test_lgcy_params *params)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_sm_test_util_init();
+    ble_hs_test_util_set_public_addr(params->rsp_addr);
+
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
+
+    ble_hs_test_util_create_conn(2, params->init_addr,
+                                 ble_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object after unlocking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Initiate the pairing procedure. */
+    rc = ble_hs_test_util_security_initiate(2, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure we sent the expected pair request. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair response from the peer. */
+    ble_sm_test_util_rx_pair_rsp(
+        2, &params->pair_rsp, BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL));
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Ensure we sent the expected pair fail. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_pair_fail(&params->pair_fail);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was not executed. */
+    TEST_ASSERT(ble_sm_test_gap_event == -1);
+    TEST_ASSERT(ble_sm_test_gap_status == -1);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(!conn->bhc_sec_state.authenticated);
+}
+
+/**
+ * @param send_enc_req          Whether this procedure is initiated by a slave
+ *                                  security request;
+ *                                  1: Peer sends a security request at start.
+ *                                  0: No security request; we initiate.
+ */
+static void
+ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
+                                 int authenticated, uint16_t ediv,
+                                 uint64_t rand_num)
+{
+    struct ble_sm_sec_req sec_req;
+    struct ble_store_value_sec value_sec;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_sm_test_util_init();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,4,5,6}),
+                                 ble_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object after unlocking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Populate the SM database with an LTK for this peer. */
+    value_sec.peer_addr_type = conn->bhc_addr_type;
+    memcpy(value_sec.peer_addr, conn->bhc_addr, sizeof value_sec.peer_addr);
+    value_sec.ediv = ediv;
+    value_sec.rand_num = rand_num;
+    memcpy(value_sec.ltk, ltk, sizeof value_sec.ltk);
+    value_sec.ltk_present = 1;
+    value_sec.authenticated = authenticated;
+    value_sec.sc = 0;
+
+    rc = ble_store_write_mst_sec(&value_sec);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    if (send_enc_req) {
+        sec_req.authreq = 0;
+        sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_BOND;
+        if (authenticated) {
+            sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_MITM;
+        }
+        ble_hs_test_util_set_ack(
+            host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT),
+            0);
+        ble_sm_test_util_rx_sec_req(2, &sec_req, 0);
+    }
+
+    /* Ensure we sent the expected start encryption command. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_start_enc(2, rand_num, ediv, ltk);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive an encryption changed event. */
+    ble_sm_test_util_rx_enc_change(2, 0, 1);
+
+    /* Pairing should now be complete. */
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == 0);
+    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
+                authenticated);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
+                authenticated);
+}
+
+/*****************************************************************************
+ * $misc                                                                     *
+ *****************************************************************************/
+
+TEST_CASE(ble_sm_test_case_f4)
+{
+	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+			  0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+			  0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
+	uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
+			  0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
+			  0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
+			  0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
+	uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+			  0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+	uint8_t z = 0x00;
+	uint8_t exp[16] = { 0x2d, 0x87, 0x74, 0xa9, 0xbe, 0xa1, 0xed, 0xf1,
+			    0x1c, 0xbd, 0xa9, 0x07, 0xf1, 0x16, 0xc9, 0xf2 };
+	uint8_t res[16];
+	int err;
+
+	err = ble_sm_alg_f4(u, v, x, z, res);
+	TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(res, exp, 16) == 0);
+}
+
+TEST_CASE(ble_sm_test_case_f5)
+{
+	uint8_t w[32] = { 0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
+			  0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
+			  0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
+			  0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec };
+	uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+			   0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+	uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+			   0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
+    uint8_t a1t = 0x00;
+	uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
+    uint8_t a2t = 0x00;
+    uint8_t a2[6] = { 0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7 };
+	uint8_t exp_ltk[16] = { 0x38, 0x0a, 0x75, 0x94, 0xb5, 0x22, 0x05,
+				0x98, 0x23, 0xcd, 0xd7, 0x69, 0x11, 0x79,
+				0x86, 0x69 };
+	uint8_t exp_mackey[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f,
+				   0xfd, 0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1,
+				   0x65, 0x29 };
+	uint8_t mackey[16], ltk[16];
+	int err;
+
+	err = ble_sm_alg_f5(w, n1, n2, a1t, a1, a2t, a2, mackey, ltk);
+	TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(mackey, exp_mackey, 16) == 0);
+    TEST_ASSERT(memcmp(ltk, exp_ltk, 16) == 0);
+}
+
+TEST_CASE(ble_sm_test_case_f6)
+{
+	uint8_t w[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
+			  0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29 };
+	uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+			   0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+	uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+			   0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
+	uint8_t r[16] = { 0xc8, 0x0f, 0x2d, 0x0c, 0xd2, 0x42, 0xda, 0x08,
+			  0x54, 0xbb, 0x53, 0xb4, 0x3b, 0x34, 0xa3, 0x12 };
+	uint8_t io_cap[3] = { 0x02, 0x01, 0x01 };
+    uint8_t a1t = 0x00;
+	uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
+    uint8_t a2t = 0x00;
+    uint8_t a2[6] = { 0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7 };
+	uint8_t exp[16] = { 0x61, 0x8f, 0x95, 0xda, 0x09, 0x0b, 0x6c, 0xd2,
+			    0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3 };
+	uint8_t res[16];
+	int err;
+
+	err = ble_sm_alg_f6(w, n1, n2, r, io_cap, a1t, a1, a2t, a2, res);
+	TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(res, exp, 16) == 0);
+}
+
+TEST_CASE(ble_sm_test_case_g2)
+{
+	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+			  0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+			  0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
+	uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
+			  0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
+			  0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
+			  0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
+	uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+			  0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+	uint8_t y[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+			  0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
+	uint32_t exp_val = 0x2f9ed5ba % 1000000;
+	uint32_t val;
+	int err;
+
+	err = ble_sm_alg_g2(u, v, x, y, &val);
+	TEST_ASSERT_FATAL(err == 0);
+	TEST_ASSERT(val == exp_val);
+}
+
+TEST_CASE(ble_sm_test_case_conn_broken)
+{
+    struct hci_disconn_complete disconn_evt;
+    int rc;
+
+    ble_sm_test_util_init();
+
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
+                                 ble_sm_test_util_conn_cb, NULL);
+
+    /* Initiate the pairing procedure. */
+    rc = ble_hs_test_util_security_initiate(2, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Terminate the connection. */
+    disconn_evt.connection_handle = 2;
+    disconn_evt.status = 0;
+    disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
+    ble_gap_rx_disconn_complete(&disconn_evt);
+
+    /* Verify security callback got called. */
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(!ble_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
+}
+
+/*****************************************************************************
+ * $peer                                                                     *
+ *****************************************************************************/
+
+TEST_CASE(ble_sm_test_case_peer_fail_inval)
+{
+    /* Invalid role detected before other arguments. */
+    ble_sm_test_util_peer_fail_inval(
+        1,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x14,
+            .oob_data_flag = 0,
+            .authreq = 0x12,
+            .max_enc_key_size = 20,
+            .init_key_dist = 0x0b,
+            .resp_key_dist = 0x11,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_CMD_NOT_SUPP,
+        } })
+    );
+
+    /* Invalid IO capabiltiies. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x14,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid OOB flag. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 2,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid authreq - reserved bonding flag. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x2,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid authreq - reserved other flag. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x20,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid key size - too small. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 6,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid key size - too large. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 17,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid init key dist. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x10,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+
+    /* Invalid resp key dist. */
+    ble_sm_test_util_peer_fail_inval(
+        0,
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x5,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x10,
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_INVAL,
+        } })
+    );
+}
+
+TEST_CASE(ble_sm_test_case_peer_lgcy_fail_confirm)
+{
+    ble_sm_test_util_peer_lgcy_fail_confirm(
+        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
+        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        } }),
+        ((struct ble_sm_pair_cmd[1]) { {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        } }),
+        ((struct ble_sm_pair_confirm[1]) { {
+            .value = {
+                0x0a, 0xac, 0xa2, 0xae, 0xa6, 0x98, 0xdc, 0x6d,
+                0x65, 0x84, 0x11, 0x69, 0x47, 0x36, 0x8d, 0xa0,
+            },
+        } }),
+        ((struct ble_sm_pair_confirm[1]) { {
+            .value = {
+                0x45, 0xd2, 0x2c, 0x38, 0xd8, 0x91, 0x4f, 0x19,
+                0xa2, 0xd4, 0xfc, 0x7d, 0xad, 0x37, 0x79, 0xe0
+            },
+        } }),
+        ((struct ble_sm_pair_random[1]) { {
+            .value = {
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            },
+        } }),
+        ((struct ble_sm_pair_random[1]) { {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        } }),
+        ((struct ble_sm_pair_fail[1]) { {
+            .reason = BLE_SM_ERR_CONFIRM_MISMATCH,
+        } })
+    );
+}
+
+TEST_CASE(ble_sm_test_case_peer_lgcy_jw_good)
+{
+    struct ble_sm_test_lgcy_params params;
+
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .confirm_req = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x0a, 0xac, 0xa2, 0xae, 0xa6, 0x98, 0xdc, 0x6d,
+                0x65, 0x84, 0x11, 0x69, 0x47, 0x36, 0x8d, 0xa0,
+            },
+        },
+        .confirm_rsp = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x45, 0xd2, 0x2c, 0x38, 0xd8, 0x91, 0x4f, 0x19,
+                0xa2, 0xd4, 0xfc, 0x7d, 0xad, 0x37, 0x79, 0xe0
+            },
+        },
+        .random_req = (struct ble_sm_pair_random) {
+            .value = {
+                0x2b, 0x3b, 0x69, 0xe4, 0xef, 0xab, 0xcc, 0x48,
+                0x78, 0x20, 0x1a, 0x54, 0x7a, 0x91, 0x5d, 0xfb,
+            },
+        },
+        .random_rsp = (struct ble_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .pair_alg = BLE_SM_PAIR_ALG_JW,
+        .authenticated = 0,
+        .tk = { 0 },
+        .stk = {
+            0xa4, 0x8e, 0x51, 0x0d, 0x33, 0xe7, 0x8f, 0x38,
+            0x45, 0xf0, 0x67, 0xc3, 0xd4, 0x05, 0xb3, 0xe6,
+        },
+        .r = 0,
+        .ediv = 0,
+    };
+    ble_sm_test_util_peer_lgcy_good(&params);
+}
+
+TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
+{
+    struct ble_sm_test_lgcy_params params;
+
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0, .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x02,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x01,
+            .resp_key_dist = 0x01,
+        },
+        .confirm_req = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x54, 0xed, 0x7c, 0x65, 0xc5, 0x3a, 0xee, 0x87,
+                0x8e, 0xf8, 0x04, 0xd8, 0x93, 0xb0, 0xfa, 0xa4,
+            },
+        },
+        .confirm_rsp = (struct ble_sm_pair_confirm) {
+            .value = {
+                0xdf, 0x96, 0x88, 0x73, 0x49, 0x24, 0x3f, 0xe8,
+                0xb0, 0xaf, 0xb3, 0xf6, 0xc8, 0xf4, 0xe2, 0x36,
+            },
+        },
+        .random_req = (struct ble_sm_pair_random) {
+            .value = {
+                0x4d, 0x2c, 0xf2, 0xb7, 0x11, 0x56, 0xbd, 0x4f,
+                0xfc, 0xde, 0xa9, 0x86, 0x4d, 0xfd, 0x77, 0x03,
+            },
+        },
+        .random_rsp = {
+            .value = {
+                0x12, 0x45, 0x65, 0x2c, 0x85, 0x56, 0x32, 0x8f,
+                0xf4, 0x7f, 0x44, 0xd0, 0x17, 0x35, 0x41, 0xed
+            },
+        },
+        .pair_alg = BLE_SM_PAIR_ALG_PASSKEY,
+        .authenticated = 1,
+        .tk = {
+            0x5a, 0x7f, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        },
+        .stk = {
+            0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+            0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+        },
+        .r = 4107344270811490869,
+        .ediv = 61621,
+
+        .passkey_info = {
+            .passkey = {
+                .action = BLE_SM_PKACT_INPUT,
+                .passkey = 884570,
+            },
+        },
+
+        .enc_info_req = {
+            .ltk = {
+                0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+                0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+            },
+        },
+        .has_enc_info_req = 1,
+
+        .master_id_req = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_req = 1,
+
+        .enc_info_rsp = {
+            .ltk = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
+        },
+        .has_enc_info_rsp = 1,
+
+        .master_id_rsp = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_rsp = 1,
+    };
+    ble_sm_test_util_peer_lgcy_good(&params);
+}
+
+TEST_CASE(ble_sm_test_case_peer_bonding_good)
+{
+    /* Unauthenticated. */
+    ble_sm_test_util_peer_bonding_good(
+        0,
+        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
+        0,
+        0x1234,
+        0x5678);
+
+    /* Authenticated. */
+    ble_sm_test_util_peer_bonding_good(
+        0,
+        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
+        1,
+        0x4325,
+        0x543892375);
+}
+
+TEST_CASE(ble_sm_test_case_peer_bonding_bad)
+{
+    ble_sm_test_util_peer_bonding_bad(0x5684, 32);
+    ble_sm_test_util_peer_bonding_bad(54325, 65437);
+}
+
+TEST_CASE(ble_sm_test_case_peer_sec_req_inval)
+{
+    struct ble_sm_pair_fail fail;
+    struct ble_sm_sec_req sec_req;
+    int rc;
+
+    ble_sm_test_util_init();
+
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
+                                 ble_sm_test_util_conn_cb,
+                                 NULL);
+
+    /*** We are the slave; reject the security request. */
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
+
+    sec_req.authreq = 0;
+    ble_sm_test_util_rx_sec_req(
+        2, &sec_req, BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP));
+
+    ble_hs_test_util_tx_all();
+
+    fail.reason = BLE_SM_ERR_CMD_NOT_SUPP;
+    ble_sm_test_util_verify_tx_pair_fail(&fail);
+
+    /*** Pairing already in progress; ignore security request. */
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 1);
+    rc = ble_sm_pair_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_tx_all();
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    ble_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+}
+
+/**
+ * Master: us.
+ * Peer sends a security request.
+ * We respond by initiating the pairing procedure.
+ */
+TEST_CASE(ble_sm_test_case_peer_sec_req_pair)
+{
+    struct ble_sm_test_lgcy_params params;
+
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
+        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .sec_req = (struct ble_sm_sec_req) {
+            .authreq = 0,
+        },
+        .has_sec_req = 1,
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .confirm_req = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
+                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
+            },
+        },
+        .confirm_rsp = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
+                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
+            },
+        },
+        .random_req = (struct ble_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .random_rsp = (struct ble_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .pair_alg = BLE_SM_PAIR_ALG_JW,
+        .tk = { 0 },
+        .stk = {
+            0x2e, 0x2b, 0x34, 0xca, 0x59, 0xfa, 0x4c, 0x88,
+            0x3b, 0x2c, 0x8a, 0xef, 0xd4, 0x4b, 0xe9, 0x66,
+        },
+        .r = 0,
+        .ediv = 0,
+    };
+
+    ble_sm_test_util_us_lgcy_good(&params);
+}
+
+/**
+ * Master: us.
+ * Peer sends a security request.
+ * We respond by initiating the encryption procedure.
+ */
+TEST_CASE(ble_sm_test_case_peer_sec_req_enc)
+{
+    /* Unauthenticated. */
+    ble_sm_test_util_us_bonding_good(
+        1,
+        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
+        0,
+        0x1234,
+        0x5678);
 }
 
 TEST_CASE(ble_sm_test_case_peer_sc_jw_good)
@@ -2787,29 +2493,6 @@ TEST_CASE(ble_sm_test_case_peer_sc_numcmp_good)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
-}
-
-TEST_CASE(ble_sm_test_case_f4)
-{
-	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
-			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
-			  0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
-			  0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
-	uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
-			  0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
-			  0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
-			  0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
-	uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			  0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t z = 0x00;
-	uint8_t exp[16] = { 0x2d, 0x87, 0x74, 0xa9, 0xbe, 0xa1, 0xed, 0xf1,
-			    0x1c, 0xbd, 0xa9, 0x07, 0xf1, 0x16, 0xc9, 0xf2 };
-	uint8_t res[16];
-	int err;
-
-	err = ble_sm_alg_f4(u, v, x, z, res);
-	TEST_ASSERT_FATAL(err == 0);
-    TEST_ASSERT(memcmp(res, exp, 16) == 0);
 }
 
 TEST_CASE(ble_sm_test_case_peer_sc_passkey_good)
@@ -3380,83 +3063,403 @@ TEST_CASE(ble_sm_test_case_peer_sc_passkey_good)
     ble_sm_test_util_peer_sc_good(&params);
 }
 
-TEST_CASE(ble_sm_test_case_f5)
-{
-	uint8_t w[32] = { 0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
-			  0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
-			  0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
-			  0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec };
-	uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			   0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
-			   0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
-    uint8_t a1t = 0x00;
-	uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
-    uint8_t a2t = 0x00;
-    uint8_t a2[6] = { 0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7 };
-	uint8_t exp_ltk[16] = { 0x38, 0x0a, 0x75, 0x94, 0xb5, 0x22, 0x05,
-				0x98, 0x23, 0xcd, 0xd7, 0x69, 0x11, 0x79,
-				0x86, 0x69 };
-	uint8_t exp_mackey[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f,
-				   0xfd, 0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1,
-				   0x65, 0x29 };
-	uint8_t mackey[16], ltk[16];
-	int err;
+/*****************************************************************************
+ * $us                                                                       *
+ *****************************************************************************/
 
-	err = ble_sm_alg_f5(w, n1, n2, a1t, a1, a2t, a2, mackey, ltk);
-	TEST_ASSERT_FATAL(err == 0);
-    TEST_ASSERT(memcmp(mackey, exp_mackey, 16) == 0);
-    TEST_ASSERT(memcmp(ltk, exp_ltk, 16) == 0);
+TEST_CASE(ble_sm_test_case_us_fail_inval)
+{
+    struct ble_sm_test_lgcy_params params;
+
+    /* Invalid IO capabiltiies. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x14,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid OOB flag. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x14,
+            .oob_data_flag = 2,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid authreq - reserved bonding flag. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x02,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid authreq - reserved other flag. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x20,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid key size - too small. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 6,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid key size - too large. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 17,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid init key dist. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 17,
+            .init_key_dist = 0x10,
+            .resp_key_dist = 0x07,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
+
+    /* Invalid resp key dist. */
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 17,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x10,
+        },
+        .pair_fail = (struct ble_sm_pair_fail) {
+            .reason = BLE_SM_ERR_INVAL,
+        },
+    };
+    ble_sm_test_util_us_fail_inval(&params);
 }
 
-TEST_CASE(ble_sm_test_case_f6)
+TEST_CASE(ble_sm_test_case_us_lgcy_jw_good)
 {
-	uint8_t w[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
-			  0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29 };
-	uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			   0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
-			   0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
-	uint8_t r[16] = { 0xc8, 0x0f, 0x2d, 0x0c, 0xd2, 0x42, 0xda, 0x08,
-			  0x54, 0xbb, 0x53, 0xb4, 0x3b, 0x34, 0xa3, 0x12 };
-	uint8_t io_cap[3] = { 0x02, 0x01, 0x01 };
-    uint8_t a1t = 0x00;
-	uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
-    uint8_t a2t = 0x00;
-    uint8_t a2[6] = { 0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7 };
-	uint8_t exp[16] = { 0x61, 0x8f, 0x95, 0xda, 0x09, 0x0b, 0x6c, 0xd2,
-			    0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3 };
-	uint8_t res[16];
-	int err;
+    struct ble_sm_test_lgcy_params params;
 
-	err = ble_sm_alg_f6(w, n1, n2, r, io_cap, a1t, a1, a2t, a2, res);
-	TEST_ASSERT_FATAL(err == 0);
-    TEST_ASSERT(memcmp(res, exp, 16) == 0);
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
+        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 3,
+            .oob_data_flag = 0,
+            .authreq = 0,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0,
+            .resp_key_dist = 0,
+        },
+        .confirm_req = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
+                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
+            },
+        },
+        .confirm_rsp = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x04, 0x4e, 0xaf, 0xce, 0x30, 0x79, 0x2c, 0x9e,
+                0xa2, 0xeb, 0x53, 0x6a, 0xdf, 0xf7, 0x99, 0xb2,
+            },
+        },
+        .random_req = (struct ble_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .random_rsp = (struct ble_sm_pair_random) {
+            .value = {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            },
+        },
+        .pair_alg = BLE_SM_PAIR_ALG_JW,
+        .tk = { 0 },
+        .stk = {
+            0x2e, 0x2b, 0x34, 0xca, 0x59, 0xfa, 0x4c, 0x88,
+            0x3b, 0x2c, 0x8a, 0xef, 0xd4, 0x4b, 0xe9, 0x66,
+        },
+        .r = 0,
+        .ediv = 0,
+    };
+
+    ble_sm_test_util_us_lgcy_good(&params);
 }
 
-TEST_CASE(ble_sm_test_case_g2)
+/**
+ * Master: peer.
+ * We send a security request.
+ * We accept pairing request sent in response.
+ */
+TEST_CASE(ble_sm_test_case_us_sec_req_pair)
 {
-	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
-			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
-			  0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
-			  0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
-	uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
-			  0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
-			  0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
-			  0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
-	uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			  0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t y[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
-			  0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
-	uint32_t exp_val = 0x2f9ed5ba % 1000000;
-	uint32_t val;
-	int err;
+    struct ble_sm_test_lgcy_params params;
 
-	err = ble_sm_alg_g2(u, v, x, y, &val);
-	TEST_ASSERT_FATAL(err == 0);
-	TEST_ASSERT(val == exp_val);
+    params = (struct ble_sm_test_lgcy_params) {
+        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .sec_req = (struct ble_sm_sec_req) {
+            .authreq = 0x05,
+        },
+        .has_sec_req = 1,
+        .pair_req = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x04,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = (struct ble_sm_pair_cmd) {
+            .io_cap = 0x02,
+            .oob_data_flag = 0,
+            .authreq = 0x05,
+            .max_enc_key_size = 16,
+            .init_key_dist = 0x01,
+            .resp_key_dist = 0x01,
+        },
+        .confirm_req = (struct ble_sm_pair_confirm) {
+            .value = {
+                0x54, 0xed, 0x7c, 0x65, 0xc5, 0x3a, 0xee, 0x87,
+                0x8e, 0xf8, 0x04, 0xd8, 0x93, 0xb0, 0xfa, 0xa4,
+            },
+        },
+        .confirm_rsp = (struct ble_sm_pair_confirm) {
+            .value = {
+                0xdf, 0x96, 0x88, 0x73, 0x49, 0x24, 0x3f, 0xe8,
+                0xb0, 0xaf, 0xb3, 0xf6, 0xc8, 0xf4, 0xe2, 0x36,
+            },
+        },
+        .random_req = (struct ble_sm_pair_random) {
+            .value = {
+                0x4d, 0x2c, 0xf2, 0xb7, 0x11, 0x56, 0xbd, 0x4f,
+                0xfc, 0xde, 0xa9, 0x86, 0x4d, 0xfd, 0x77, 0x03,
+            },
+        },
+        .random_rsp = {
+            .value = {
+                0x12, 0x45, 0x65, 0x2c, 0x85, 0x56, 0x32, 0x8f,
+                0xf4, 0x7f, 0x44, 0xd0, 0x17, 0x35, 0x41, 0xed
+            },
+        },
+        .pair_alg = BLE_SM_PAIR_ALG_PASSKEY,
+        .authenticated = 1,
+        .tk = {
+            0x5a, 0x7f, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        },
+        .stk = {
+            0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+            0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+        },
+        .r = 4107344270811490869,
+        .ediv = 61621,
+
+        .passkey_info = {
+            .passkey = {
+                .action = BLE_SM_PKACT_INPUT,
+                .passkey = 884570,
+            },
+            .io_before_rx = 1,
+        },
+
+        .enc_info_req = {
+            .ltk = {
+                0x2b, 0x9c, 0x1e, 0x42, 0xa8, 0xcb, 0xab, 0xd1,
+                0x4b, 0xde, 0x50, 0x05, 0x50, 0xd9, 0x95, 0xc6
+            },
+        },
+        .has_enc_info_req = 1,
+
+        .master_id_req = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_req = 1,
+
+        .enc_info_rsp = {
+            .ltk = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }
+        },
+        .has_enc_info_rsp = 1,
+
+        .master_id_rsp = {
+            .ediv = 61621,
+            .rand_val = 4107344270811490869,
+        },
+        .has_master_id_rsp = 1,
+    };
+
+    ble_sm_test_util_peer_lgcy_good(&params);
 }
 
+/**
+ * Master: peer.
+ * We send a security request.
+ * We accept an encryption-changed event in response.
+ */
+TEST_CASE(ble_sm_test_case_us_sec_req_enc)
+{
+    ble_sm_test_util_peer_bonding_good(
+        1,
+        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
+        1,
+        0x4325,
+        0x543892375);
+}
 
 TEST_SUITE(ble_sm_test_suite)
 {
