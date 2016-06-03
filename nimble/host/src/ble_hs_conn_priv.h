@@ -40,6 +40,7 @@ struct ble_hs_conn {
     uint8_t our_addr_type;
     uint8_t bhc_addr[6];
     uint8_t our_rpa_addr[6];
+    uint8_t peer_rpa_addr[6];
 
     uint16_t bhc_itvl;
     uint16_t bhc_latency;
