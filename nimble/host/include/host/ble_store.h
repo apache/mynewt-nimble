@@ -22,8 +22,11 @@
 
 #include <inttypes.h>
 
-/* XXX: Rethink our/peer distinction.  Might make sense to unify keys such that
- * each entry contains both peers' addresses.
+/* XXX: It probably doesn't make sense to persist all security material as a
+ * single record.  We may need to separate IRK from LTK and CSRK.
+ *
+ * Also, the master / slave distinction is not right.  It makes sense for the
+ * LTK in legacy pairing, but not for other security operations.
  */
 #define BLE_STORE_OBJ_TYPE_MST_SEC      1
 #define BLE_STORE_OBJ_TYPE_SLV_SEC      2
