@@ -65,7 +65,7 @@ ble_sm_lgcy_passkey_action(struct ble_sm_proc *proc)
 
     if (proc->pair_req.oob_data_flag && proc->pair_rsp.oob_data_flag) {
         action = BLE_SM_PKACT_OOB;
-    } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) ||
+    } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
                !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
         action = BLE_SM_PKACT_NONE;
@@ -107,29 +107,11 @@ ble_sm_lgcy_confirm_prepare_args(struct ble_sm_proc *proc,
                                  uint8_t *iat, uint8_t *rat,
                                  uint8_t *ia, uint8_t *ra)
 {
-    struct ble_hs_conn *conn;
+    int rc;
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
-
-    conn = ble_hs_conn_find(proc->conn_handle);
-    if (conn != NULL) {
-        if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-            *iat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-            memcpy(ia, ble_hs_our_dev.public_addr, 6);
-
-            *rat = conn->bhc_addr_type;
-            memcpy(ra, conn->bhc_addr, 6);
-        } else {
-            *rat = BLE_ADDR_TYPE_PUBLIC; /* XXX: Support random addresses. */
-            memcpy(ra, ble_hs_our_dev.public_addr, 6);
-
-            *iat = conn->bhc_addr_type;
-            memcpy(ia, conn->bhc_addr, 6);
-        }
-    }
-
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
+    rc = ble_sm_addrs(proc, iat, ia, rat, ra);
+    if (rc != 0) {
+        return rc;
     }
 
     memcpy(k, proc->tk, sizeof proc->tk);

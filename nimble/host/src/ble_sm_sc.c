@@ -322,8 +322,8 @@ void
 ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     uint8_t confirm_val[16];
-    uint8_t *ia;
-    uint8_t *ra;
+    uint8_t ia[6];
+    uint8_t ra[6];
     uint8_t pkact;
     uint8_t iat;
     uint8_t rat;
@@ -356,7 +356,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 
     /* Calculate the mac key and ltk. */
-    rc = ble_sm_addrs(proc, &iat, &ia, &rat, &ra);
+    rc = ble_sm_addrs(proc, &iat, ia, &rat, ra);
     if (rc != 0) {
         res->app_status = rc;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -504,9 +504,11 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
                          void *arg)
 {
     struct ble_sm_dhkey_check cmd;
+    uint8_t our_addr[6];
     uint8_t iocap[3];
     uint8_t *peer_addr;
     uint8_t peer_addr_type;
+    uint8_t our_addr_type;
     int rc;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
@@ -515,6 +517,8 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
         ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
     }
 
+    bls_hs_priv_copy_local_identity_addr(our_addr, &our_addr_type);
+
     rc = ble_sm_peer_addr(proc, &peer_addr_type, &peer_addr);
     if (rc != 0) {
         goto err;
@@ -522,8 +526,7 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
                        ble_sm_their_pair_rand(proc), proc->tk, iocap,
-                       0, ble_hs_our_dev.public_addr,
-                       peer_addr_type, peer_addr,
+                       our_addr_type, our_addr, peer_addr_type, peer_addr,
                        cmd.value);
     if (rc != 0) {
         goto err;
@@ -552,9 +555,11 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
                            struct ble_sm_result *res)
 {
     uint8_t exp_value[16];
+    uint8_t our_addr[6];
     uint8_t iocap[3];
     uint8_t *peer_addr;
     uint8_t peer_addr_type;
+    uint8_t our_addr_type;
     uint8_t pkact;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
@@ -562,6 +567,8 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     } else {
         ble_sm_sc_dhkey_check_iocap(&proc->pair_req, iocap);
     }
+
+    bls_hs_priv_copy_local_identity_addr(our_addr, &our_addr_type);
 
     res->app_status = ble_sm_peer_addr(proc, &peer_addr_type, &peer_addr);
     if (res->app_status != 0) {
@@ -578,8 +585,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
                                     ble_sm_their_pair_rand(proc),
                                     ble_sm_our_pair_rand(proc), proc->tk,
                                     iocap, peer_addr_type, peer_addr,
-                                    0, ble_hs_our_dev.public_addr,
-                                    exp_value);
+                                    our_addr_type, our_addr, exp_value);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
