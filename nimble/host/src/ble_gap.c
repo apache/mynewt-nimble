@@ -1311,10 +1311,6 @@ ble_gap_adv_params_tx(const struct ble_gap_adv_params *adv_params,
             sizeof(hci_adv_params.peer_addr));
     }
 
-    BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
-    ble_gap_log_adv(adv_params, peer, peer_addr_type);
-    BLE_HS_LOG(INFO, "\n");
-
     rc = host_hci_cmd_build_le_set_adv_params(&hci_adv_params, buf, sizeof buf);
     if (rc != 0) {
         return rc;
@@ -1418,10 +1414,6 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
         goto done;
     }
 
-    BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
-    ble_gap_log_adv(&gap_adv_params, peer_addr, peer_addr_type);
-    BLE_HS_LOG(INFO, "\n");
-
     ble_gap_slave.cb = cb;
     ble_gap_slave.cb_arg = cb_arg;
     ble_gap_slave.conn_mode = connectable_mode;
@@ -1433,7 +1425,7 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       &gap_adv_params.adv_itvl_max);
 
     /* set a new private address for random advertisements */
-    if(gap_adv_params.own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+    if (gap_adv_params.own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         ble_hs_priv_set_nrpa();
     }
 
@@ -1454,6 +1446,10 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
         BLE_HS_DBG_ASSERT(0);
         break;
     }
+
+    BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
+    ble_gap_log_adv(&gap_adv_params, peer_addr, peer_addr_type);
+    BLE_HS_LOG(INFO, "\n");
 
     rc = ble_gap_adv_params_tx(&gap_adv_params, peer_addr, peer_addr_type);
     if (rc != 0) {
