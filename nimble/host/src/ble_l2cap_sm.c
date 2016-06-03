@@ -517,9 +517,14 @@ ble_l2cap_sm_key_exchange_events(struct ble_l2cap_sm_proc *proc)
     conn = ble_hs_conn_find(proc->conn_handle);
     BLE_HS_DBG_ASSERT(conn != NULL);
 
-    peer_addr_type = conn->bhc_addr_type;
-    memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
-
+    /* if we got an identity address, use that for key storage */
+    if(proc->peer_keys.addr_valid) {
+        peer_addr_type = proc->peer_keys.addr_type;
+        memcpy(peer_addr, proc->peer_keys.addr, sizeof peer_addr);
+    } else {
+        peer_addr_type = conn->bhc_addr_type;
+        memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
+    }
     ble_hs_unlock();
 
     authenticated = !!(proc->flags & BLE_L2CAP_SM_PROC_F_AUTHENTICATED);
