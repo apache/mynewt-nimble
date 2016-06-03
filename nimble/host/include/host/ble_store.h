@@ -30,7 +30,6 @@
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
 #define BLE_STORE_ADDR_TYPE_NONE        0xff
-#define BLE_STORE_AUTHREQ_NONE          0xff
 
 struct ble_store_key_sec {
     /**

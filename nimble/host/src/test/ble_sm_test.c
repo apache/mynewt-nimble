@@ -675,6 +675,96 @@ ble_sm_test_util_io_check_post(struct ble_sm_test_passkey_info *passkey_info,
     TEST_ASSERT_FATAL(rc == 0);
 }
 
+static void
+ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
+{
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    int rc;
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+
+    if (params->pair_rsp.init_key_dist == 0) {
+        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        TEST_ASSERT(rc == BLE_HS_ENOENT);
+    } else {
+        rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+        TEST_ASSERT_FATAL(rc == 0);
+        TEST_ASSERT(value_sec.peer_addr_type == 0);
+        TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
+        TEST_ASSERT(value_sec.ediv == params->ediv);
+        TEST_ASSERT(value_sec.rand_num == params->r);
+        TEST_ASSERT(value_sec.authenticated == params->authenticated);
+        TEST_ASSERT(value_sec.ltk_present == 1);
+        TEST_ASSERT(memcmp(value_sec.ltk, params->enc_info_req.ltk, 16) == 0);
+        TEST_ASSERT(value_sec.irk_present == 0);
+        TEST_ASSERT(value_sec.csrk_present == 0);
+
+        /* Verify no other keys were persisted. */
+        key_sec.idx++;
+        rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+        TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+    }
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+
+    if (params->pair_rsp.resp_key_dist == 0) {
+        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        TEST_ASSERT(rc == BLE_HS_ENOENT);
+    } else {
+        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        TEST_ASSERT_FATAL(rc == 0);
+        TEST_ASSERT(value_sec.peer_addr_type == 0);
+        TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
+        TEST_ASSERT(value_sec.ediv == params->ediv);
+        TEST_ASSERT(value_sec.rand_num == params->r);
+        TEST_ASSERT(value_sec.authenticated == params->authenticated);
+        TEST_ASSERT(value_sec.ltk_present == 1);
+        TEST_ASSERT(memcmp(value_sec.ltk, params->enc_info_req.ltk, 16) == 0);
+        TEST_ASSERT(value_sec.irk_present == 0);
+        TEST_ASSERT(value_sec.csrk_present == 0);
+
+        /* Verify no other keys were persisted. */
+        key_sec.idx++;
+        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+    }
+}
+
+static void
+ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params)
+{
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    int rc;
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+
+    /* Verify no master keys were persisted. */
+    rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+
+    rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(value_sec.peer_addr_type == 0);
+    TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
+    TEST_ASSERT(value_sec.ediv == 0);
+    TEST_ASSERT(value_sec.rand_num == 0);
+    TEST_ASSERT(value_sec.authenticated == params->authenticated);
+    TEST_ASSERT(value_sec.ltk_present == 1);
+    TEST_ASSERT(memcmp(value_sec.ltk, params->ltk, 16) == 0);
+    TEST_ASSERT(value_sec.irk_present == 0);
+    TEST_ASSERT(value_sec.csrk_present == 0);
+
+    /* Verify no other keys were persisted. */
+    key_sec.idx++;
+    rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+}
+
 /*****************************************************************************
  * $peer                                                                     *
  *****************************************************************************/
@@ -695,7 +785,7 @@ ble_sm_test_util_peer_fail_inval(
     ble_hs_test_util_create_conn(2, init_addr, ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -918,7 +1008,7 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     ble_hs_test_util_create_conn(2, init_addr, ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -1063,7 +1153,7 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -1161,6 +1251,9 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 conn->bhc_sec_state.authenticated);
+
+    /* Verify the appropriate security material was persisted. */
+    ble_sm_test_util_verify_lgcy_persist(params);
 }
 
 static void
@@ -1348,7 +1441,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -1367,6 +1460,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     value_sec.ediv = ediv;
     value_sec.rand_num = rand_num;
     memcpy(value_sec.ltk, ltk, sizeof value_sec.ltk);
+    value_sec.ltk_present = 1;
     value_sec.authenticated = authenticated;
     value_sec.sc = 0;
 
@@ -1430,7 +1524,7 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -1511,7 +1605,7 @@ ble_sm_test_util_us_fail_inval(
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -1788,7 +1882,7 @@ ble_sm_test_util_us_lgcy_good(
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -1875,6 +1969,9 @@ ble_sm_test_util_us_lgcy_good(
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 conn->bhc_sec_state.authenticated);
+
+    /* Verify the appropriate security material was persisted. */
+    ble_sm_test_util_verify_lgcy_persist(params);
 }
 
 TEST_CASE(ble_sm_test_case_us_lgcy_jw_good)
@@ -2095,7 +2192,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -2113,6 +2210,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
     value_sec.ediv = ediv;
     value_sec.rand_num = rand_num;
     memcpy(value_sec.ltk, ltk, sizeof value_sec.ltk);
+    value_sec.ltk_present = 1;
     value_sec.authenticated = authenticated;
     value_sec.sc = 0;
 
@@ -2324,7 +2422,7 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
-    /* This test inspects and modifies the connection object without locking
+    /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
      * can assume the connection list is unchanging.
      */
@@ -2469,6 +2567,9 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 conn->bhc_sec_state.authenticated);
+
+    /* Verify the appropriate security material was persisted. */
+    ble_sm_test_util_verify_sc_persist(params);
 }
 
 static void
