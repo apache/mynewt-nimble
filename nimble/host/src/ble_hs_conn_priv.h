@@ -37,7 +37,9 @@ struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
     uint8_t bhc_addr_type;
+    uint8_t our_addr_type;
     uint8_t bhc_addr[6];
+    uint8_t our_rpa_addr[6];
 
     uint16_t bhc_itvl;
     uint16_t bhc_latency;

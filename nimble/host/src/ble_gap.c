@@ -110,6 +110,7 @@ static bssnz_t struct {
             void *cb_arg;
 
             unsigned using_wl:1;
+            unsigned our_addr_type:2;
         } conn;
 
         struct {
@@ -129,6 +130,7 @@ static bssnz_t struct {
 
     uint8_t conn_mode;
     uint8_t disc_mode;
+    unsigned our_addr_type:2;
     ble_gap_event_fn *cb;
     void *cb_arg;
 
@@ -896,17 +898,20 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     conn->bhc_handle = evt->connection_handle;
     memcpy(conn->bhc_addr, evt->peer_addr, sizeof conn->bhc_addr);
     conn->bhc_addr_type = evt->peer_addr_type;
+    memcpy(conn->our_rpa_addr, evt->local_rpa, sizeof(conn->our_rpa_addr));
     conn->bhc_itvl = evt->conn_itvl;
     conn->bhc_latency = evt->conn_latency;
     conn->bhc_supervision_timeout = evt->supervision_timeout;
     if (evt->role == BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER) {
         conn->bhc_flags |= BLE_HS_CONN_F_MASTER;
         conn->bhc_cb = ble_gap_master.conn.cb;
+        conn->our_addr_type = ble_gap_master.conn.our_addr_type;
         conn->bhc_cb_arg = ble_gap_master.conn.cb_arg;
         ble_gap_master.op = BLE_GAP_OP_NULL;
     } else {
         conn->bhc_cb = ble_gap_slave.cb;
         conn->bhc_cb_arg = ble_gap_slave.cb_arg;
+        conn->our_addr_type = ble_gap_slave.our_addr_type;
         ble_gap_slave.op = BLE_GAP_OP_NULL;
     }
 
@@ -1420,6 +1425,7 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     ble_gap_slave.cb_arg = cb_arg;
     ble_gap_slave.conn_mode = connectable_mode;
     ble_gap_slave.disc_mode = discoverable_mode;
+    ble_gap_slave.our_addr_type = gap_adv_params.own_addr_type;
 
     ble_gap_adv_itvls(discoverable_mode, connectable_mode,
                       &gap_adv_params.adv_itvl_min,
@@ -1806,6 +1812,7 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
     ble_gap_master.conn.cb = cb;
     ble_gap_master.conn.cb_arg = cb_arg;
     ble_gap_master.conn.using_wl = addr_type == BLE_GAP_ADDR_TYPE_WL;
+    ble_gap_master.conn.our_addr_type = params->our_addr_type;
 
     rc = ble_gap_conn_create_tx(addr_type, addr, params);
     if (rc != 0) {

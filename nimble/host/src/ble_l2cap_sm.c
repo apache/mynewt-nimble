@@ -971,18 +971,54 @@ ble_l2cap_sm_confirm_prepare_args(struct ble_l2cap_sm_proc *proc,
                                   uint8_t *ia, uint8_t *ra)
 {
     struct ble_hs_conn *conn;
+    uint8_t our_addr[6];
+    uint8_t our_addr_type;
 
     BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
 
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn != NULL) {
+
+        /* this is tricky because the address we use here for our sec
+         * calcs depends on the type used in the connection . NOTE
+         * The security algorithm uses 1-bit iat and rat */
+        our_addr_type = conn->our_addr_type;
+        switch(conn->our_addr_type) {
+            case BLE_ADDR_TYPE_PUBLIC:
+                bls_hs_priv_copy_local_identity_addr(our_addr, NULL);
+                break;
+            case BLE_ADDR_TYPE_RANDOM:
+                ble_hs_priv_get_nrpa(our_addr);
+                break;
+            case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
+                bls_hs_priv_copy_local_identity_addr(our_addr, NULL);
+                if(memcmp(our_addr, conn->our_rpa_addr, 6) == 0) {
+                    our_addr_type = 0;
+                } else {
+                    memcpy(our_addr, conn->our_rpa_addr, sizeof(our_addr));
+                    our_addr_type = 1;
+                }
+                break;
+            case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
+                ble_hs_priv_get_nrpa(our_addr);
+                if(memcmp(our_addr, conn->our_rpa_addr, 6) == 0) {
+                    our_addr_type = 1;
+                } else {
+                    memcpy(our_addr, conn->our_rpa_addr, sizeof(our_addr));
+                    our_addr_type = 1;
+                }
+                break;
+        }
+
         if (proc->flags & BLE_L2CAP_SM_PROC_F_INITIATOR) {
-            bls_hs_priv_copy_local_identity_addr(ia, iat);
-            *rat = conn->bhc_addr_type;
+            memcpy(ia, our_addr, 6);
+            *iat = our_addr_type;
+            *rat = (conn->bhc_addr_type ? 1 : 0);
             memcpy(ra, conn->bhc_addr, 6);
         } else {
-            bls_hs_priv_copy_local_identity_addr(ra, rat);
-            *iat = conn->bhc_addr_type;
+            memcpy(ra, our_addr, 6);
+            *rat = our_addr_type;
+            *iat = (conn->bhc_addr_type ? 1 : 0);
             memcpy(ia, conn->bhc_addr, 6);
         }
     }
