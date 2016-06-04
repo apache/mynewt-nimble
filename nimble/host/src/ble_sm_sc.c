@@ -202,6 +202,7 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
         proc->ri = 0x80 | !!(proc->tk[byte] & (1 << bit));
 
         proc->passkey_bits_exchanged++;
+
         return 0;
 
     case BLE_SM_PAIR_ALG_OOB:
@@ -275,16 +276,24 @@ ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
  * Advances the supplied procedure object to the next state after it is
  * completed the random state.
  */
-static void
+static int
 ble_sm_sc_random_advance(struct ble_sm_proc *proc)
 {
+    int rc;
+
     if (proc->pair_alg != BLE_SM_PAIR_ALG_PASSKEY ||
         proc->passkey_bits_exchanged >= BLE_SM_SC_PASSKEY_BITS) {
 
         proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
     } else {
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
+        rc = ble_sm_gen_pair_rand(ble_sm_our_pair_rand(proc));
+        if (rc != 0) {
+            return rc;
+        }
     }
+
+    return 0;
 }
 
 void
@@ -305,7 +314,13 @@ ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
-        ble_sm_sc_random_advance(proc);
+        rc = ble_sm_sc_random_advance(proc);
+        if (rc != 0) {
+            res->app_status = rc;
+            res->enc_cb = 1;
+            res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+            return;
+        }
 
         pkact = ble_sm_sc_passkey_action(proc);
         if (ble_sm_pkact_state(pkact) == proc->state &&
@@ -423,11 +438,13 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
         return;
     }
 
-    proc->state = BLE_SM_PROC_STATE_CONFIRM;
-
     pkact = ble_sm_sc_passkey_action(proc);
     if (ble_sm_pkact_state(pkact) == proc->state) {
         res->passkey_action.action = pkact;
+    }
+
+    if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
+        proc->state = BLE_SM_PROC_STATE_CONFIRM;
     }
 
     initiator_txes = ble_sm_sc_initiator_txes_confirm(proc);
