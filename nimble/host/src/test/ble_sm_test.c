@@ -1389,10 +1389,6 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
                                   BLE_SM_PROC_STATE_CONFIRM);
 
     for (i = 0; i < num_iters; i++) {
-        if (i != 0) {
-            ble_sm_dbg_set_next_pair_rand(params->random_rsp[i].value);
-        }
-
         if (params->pair_alg != BLE_SM_PAIR_ALG_JW      &&
             params->pair_alg != BLE_SM_PAIR_ALG_NUMCMP) {
 
@@ -1400,6 +1396,11 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
             ble_sm_test_util_rx_confirm(2, params->confirm_req + i);
             TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
             TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+            if (i < num_iters - 1) {
+                ble_sm_dbg_set_next_pair_rand(
+                    params->random_rsp[i + 1].value);
+            }
         }
 
         if (i == 0) {
@@ -1490,6 +1491,175 @@ ble_sm_test_util_peer_sc_good(struct ble_sm_test_sc_params *params)
     ble_sm_test_util_peer_sc_good_once(params);
 
 }
+
+#if 0
+static void
+ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
+{
+    struct ble_hs_conn *conn;
+    int num_iters;
+    int rc;
+    int i;
+
+    ble_sm_test_util_init();
+
+    ble_hs_cfg.sm_io_cap = params->pair_req.io_cap;
+    ble_hs_cfg.sm_oob_data_flag = params->pair_req.oob_data_flag;
+    ble_hs_cfg.sm_bonding = !!(params->pair_req.authreq &
+                               BLE_SM_PAIR_AUTHREQ_BOND);
+    ble_hs_cfg.sm_mitm = !!(params->pair_req.authreq &
+                            BLE_SM_PAIR_AUTHREQ_MITM);
+    ble_hs_cfg.sm_sc = 1;
+    ble_hs_cfg.sm_keypress = !!(params->pair_req.authreq &
+                                BLE_SM_PAIR_AUTHREQ_KEYPRESS);
+    ble_hs_cfg.sm_our_key_dist = params->pair_req.init_key_dist;
+    ble_hs_cfg.sm_their_key_dist = params->pair_req.resp_key_dist;
+
+    ble_hs_test_util_set_public_addr(params->init_addr);
+    ble_sm_dbg_set_next_pair_rand(params->random_req[0].value);
+
+    ble_sm_dbg_set_sc_keys(params->public_key_req.x, params->our_priv_key);
+
+    ble_hs_test_util_create_conn(2, params->rsp_addr,
+                                 ble_sm_test_util_conn_cb,
+                                 NULL);
+
+    /* This test inspects and modifies the connection object after unlocking
+     * the host mutex.  It is not OK for real code to do this, but this test
+     * can assume the connection list is unchanging.
+     */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
+    if (params->has_sec_req) {
+        ble_sm_test_util_rx_sec_req(2, &params->sec_req, 0);
+    } else {
+        /* Initiate the pairing procedure. */
+        rc = ble_gap_security_initiate(2);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    /* Ensure we sent the expected pair request. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a pair response from the peer. */
+    ble_sm_test_util_rx_pair_rsp(2, &params->pair_rsp, 0);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected public key. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_public_key(&params->public_key_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a public key from the peer. */
+    ble_sm_test_util_rx_public_key(2, &params->public_key_rsp);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    switch (params->pair_alg) {
+    case BLE_SM_PAIR_ALG_PASSKEY:
+        num_iters = 20;
+        break;
+
+    default:
+        num_iters = 1;
+        break;
+    }
+
+    ble_sm_test_util_io_check_pre(&params->passkey_info,
+                                  BLE_SM_PROC_STATE_CONFIRM);
+
+    for (i = 0; i < num_iters; i++) {
+        if (params->pair_alg != BLE_SM_PAIR_ALG_JW      &&
+            params->pair_alg != BLE_SM_PAIR_ALG_NUMCMP) {
+
+            if (i < num_iters - 1) {
+                ble_sm_dbg_set_next_pair_rand(
+                    params->random_req[i + 1].value);
+            }
+
+            /* Ensure we sent the expected pair confirm. */
+            ble_hs_test_util_tx_all();
+            ble_sm_test_util_verify_tx_pair_confirm(params->confirm_req + i);
+            TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+            TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        }
+
+        /* Receive a pair confirm from the peer. */
+        ble_sm_test_util_rx_confirm(2, params->confirm_rsp + i);
+        TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+        TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+        /* Ensure we sent the expected pair random. */
+        ble_hs_test_util_tx_all();
+        ble_sm_test_util_verify_tx_pair_random(params->random_req + i);
+        TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+        TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+        /* Receive a pair random from the peer. */
+        ble_sm_test_util_rx_random(2, params->random_rsp + i, 0);
+        TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+        TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    }
+
+    ble_sm_test_util_io_check_pre(&params->passkey_info,
+                                  BLE_SM_PROC_STATE_DHKEY_CHECK);
+
+    /* Ensure we sent the expected dhkey check. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_dhkey_check(&params->dhkey_check_req);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive a dhkey check from the peer. */
+    ble_sm_test_util_rx_dhkey_check(2, &params->dhkey_check_rsp, 0);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Ensure we sent the expected start encryption command. */
+    ble_hs_test_util_tx_all();
+    ble_sm_test_util_verify_tx_start_enc(2, 0, 0, params->ltk);
+    TEST_ASSERT(!conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+
+    /* Receive an encryption changed event. */
+    ble_sm_test_util_rx_enc_change(2, 0, 1);
+
+    /* Pairing should now be complete. */
+    TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
+
+    /* Verify that security callback was executed. */
+    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == 0);
+    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
+    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
+                params->authenticated);
+
+    /* Verify that connection has correct security state. */
+    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
+                conn->bhc_sec_state.pair_alg);
+    TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
+                conn->bhc_sec_state.enc_enabled);
+    TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
+                conn->bhc_sec_state.authenticated);
+
+    /* Verify the appropriate security material was persisted. */
+    ble_sm_test_util_verify_sc_persist(params);
+}
+#endif
 
 static void
 ble_sm_test_util_us_fail_inval(
@@ -3485,6 +3655,7 @@ TEST_SUITE(ble_sm_test_suite)
     ble_sm_test_case_peer_sc_jw_good();
     ble_sm_test_case_peer_sc_numcmp_good();
     ble_sm_test_case_peer_sc_passkey_good();
+    //ble_sm_test_case_us_sc_jw_good();
 }
 #endif
 

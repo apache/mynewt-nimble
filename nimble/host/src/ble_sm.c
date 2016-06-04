@@ -255,7 +255,7 @@ ble_sm_dbg_assert_not_inserted(struct ble_sm_proc *proc)
  * $misc                                                                     *
  *****************************************************************************/
 
-static int
+int
 ble_sm_gen_pair_rand(uint8_t *pair_rand)
 {
     int rc;
@@ -1236,13 +1236,6 @@ static void
 ble_sm_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
                   void *arg)
 {
-    res->app_status = ble_sm_gen_pair_rand(ble_sm_our_pair_rand(proc));
-    if (res->app_status != 0) {
-        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-        res->enc_cb = 1;
-        return;
-    }
-
     if (!(proc->flags & BLE_SM_PROC_F_SC)) {
         ble_sm_lgcy_confirm_go(proc, res);
     } else {
@@ -1396,6 +1389,13 @@ ble_sm_pair_go(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg)
         if (ble_sm_pkact_state(pkact) == proc->state) {
             res->passkey_action.action = pkact;
         }
+    }
+
+    res->app_status = ble_sm_gen_pair_rand(ble_sm_our_pair_rand(proc));
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
     }
 
     return;

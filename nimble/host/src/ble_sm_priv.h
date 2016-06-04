@@ -410,6 +410,7 @@ void ble_sm_sc_init(void);
 struct ble_sm_proc *ble_sm_proc_find(uint16_t conn_handle, uint8_t state,
                                      int is_initiator,
                                      struct ble_sm_proc **out_prev);
+int ble_sm_gen_pair_rand(uint8_t *pair_rand);
 int ble_sm_gen_pub_priv(void *pub, uint32_t *priv);
 uint8_t *ble_sm_our_pair_rand(struct ble_sm_proc *proc);
 uint8_t *ble_sm_their_pair_rand(struct ble_sm_proc *proc);
