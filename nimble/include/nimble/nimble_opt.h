@@ -58,10 +58,10 @@
 #define NIMBLE_OPT_SM                           1
 #endif
 
-/** HOST: Security connections (4.2).  Enabled by default. */
+/** HOST: Security connections (4.2).  Disabled by default. */
 
 #ifndef NIMBLE_OPT_SM_SC
-#define NIMBLE_OPT_SM_SC                        1
+#define NIMBLE_OPT_SM_SC                        0
 #endif
 
 /** HOST: Supported GATT procedures.  By default, all are enabled. */

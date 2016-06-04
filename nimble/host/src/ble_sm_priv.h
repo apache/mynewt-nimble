@@ -268,12 +268,14 @@ struct ble_sm_proc {
     uint16_t ediv;
     uint64_t rand_num;
 
+#if NIMBLE_OPT(SM_SC)
     /* Secure connections. */
     uint8_t passkey_bits_exchanged;
     uint8_t ri;
     struct ble_sm_public_key pub_key_peer;
     uint8_t mackey[16];
     uint8_t dhkey[32];
+#endif
 };
 
 struct ble_sm_result {
@@ -378,7 +380,6 @@ int ble_sm_dhkey_check_tx(uint16_t conn_handle,
 void ble_sm_rx_encryption_change(struct hci_encrypt_change *evt);
 int ble_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt);
 
-int ble_sm_lgcy_next_state(struct ble_sm_proc *proc);
 int ble_sm_lgcy_passkey_action(struct ble_sm_proc *proc);
 void ble_sm_lgcy_confirm_go(struct ble_sm_proc *proc,
                             struct ble_sm_result *res);
@@ -387,7 +388,7 @@ void ble_sm_lgcy_random_go(struct ble_sm_proc *proc,
 void ble_sm_lgcy_rx_pair_random(struct ble_sm_proc *proc,
                                struct ble_sm_result *res);
 
-int ble_sm_sc_next_state(struct ble_sm_proc *proc);
+#if NIMBLE_OPT(SM_SC)
 int ble_sm_sc_passkey_action(struct ble_sm_proc *proc);
 void ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res);
 void ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res);
@@ -396,9 +397,6 @@ void ble_sm_sc_random_rx(struct ble_sm_proc *proc,
 void ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
                              struct ble_sm_result *res,
                              void *arg);
-void ble_sm_sc_public_key_handle(struct ble_sm_proc *proc,
-                                 struct ble_sm_public_key *cmd,
-                                 struct ble_sm_result *res);
 void ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op,
                              struct os_mbuf **om, struct ble_sm_result *res);
 void ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc,
@@ -406,6 +404,18 @@ void ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc,
 void ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op,
                               struct os_mbuf **om, struct ble_sm_result *res);
 void ble_sm_sc_init(void);
+#else
+#define ble_sm_sc_passkey_action(proc) (BLE_SM_PKACT_NONE)
+#define ble_sm_sc_confirm_go(proc, res)
+#define ble_sm_sc_random_go(proc, res)
+#define ble_sm_sc_random_rx(proc, res)
+#define ble_sm_sc_public_key_go(proc, res, arg)
+#define ble_sm_sc_public_key_rx(conn_handle, op, om, res)
+#define ble_sm_sc_dhkey_check_go(proc, res, arg)
+#define ble_sm_sc_dhkey_check_rx(conn_handle, op, om, res)
+#define ble_sm_sc_init()
+
+#endif
 
 struct ble_sm_proc *ble_sm_proc_find(uint16_t conn_handle, uint8_t state,
                                      int is_initiator,
@@ -438,15 +448,6 @@ int ble_sm_init(void);
 #endif
 
 #define ble_sm_create_chan() NULL
-
-#define ble_sm_pair_cmd_tx(conn_handle, is_req, cmd) BLE_HS_ENOTSUP
-#define ble_sm_pair_confirm_tx(conn_handle, cmd) BLE_HS_ENOTSUP
-#define ble_sm_pair_random_tx(conn_handle, cmd) BLE_HS_ENOTSUP
-#define ble_sm_pair_fail_tx(conn_handle, cmd) BLE_HS_ENOTSUP
-
-#define ble_sm_alg_s1(k, r1, r2, out) BLE_HS_ENOTSUP
-#define ble_sm_alg_c1(k, r, preq, pres, iat, rat, ia, ra, out_enc_data) \
-    BLE_HS_ENOTSUP
 
 #define ble_sm_rx_encryption_change(evt) ((void)(evt))
 #define ble_sm_rx_lt_key_req(evt) ((void)(evt))

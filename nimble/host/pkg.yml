@@ -32,6 +32,11 @@ pkg.deps:
     - libs/util
     - libs/mbedtls
     - net/nimble
+
+    # Tinycrypt is only required when secure connections (NIMBPLE_OPT_SM_SC)
+    # is enabled.  It always gets built as a dependency, but not is not
+    # included by the linker unless SC is enabled.  XXX: We should not build
+    # this library if it is not requiresd.
     - libs/tinycrypt
 
 pkg.req_apis:
