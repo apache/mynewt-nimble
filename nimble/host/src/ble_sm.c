@@ -2286,6 +2286,8 @@ ble_sm_init(void)
         }
     }
 
+    ble_sm_sc_init();
+
     return 0;
 
 err:

@@ -433,8 +433,6 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
     ble_hs_dbg_mutex_locked = 0;
 #endif
 
-    ble_sm_sc_init();
-
     return 0;
 
 err:

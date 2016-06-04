@@ -19,9 +19,12 @@
 
 #include <string.h>
 
+#include "nimble/nimble_opt.h"
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 #include "ble_sm_priv.h"
+
+#if NIMBLE_OPT(SM_SC)
 
 #define BLE_SM_SC_PASSKEY_BYTES     4
 #define BLE_SM_SC_PASSKEY_BITS      20
@@ -679,3 +682,5 @@ ble_sm_sc_init(void)
 {
     ble_sm_sc_keys_generated = 0;
 }
+
+#endif  /* NIMBLE_OPT_SM_SC */

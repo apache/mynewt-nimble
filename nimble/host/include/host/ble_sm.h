@@ -92,7 +92,7 @@ struct ble_sm_passkey {
 #if NIMBLE_OPT(SM)
 int ble_sm_set_tk(uint16_t conn_handle, struct ble_sm_passkey *pkey);
 #else
-#define ble_sm_set_tk(conn_handle, pkey) (BLE_HS_ENOTSUP)
+#define ble_sm_set_tk(conn_handle, pkey) ((void)(conn_handle), BLE_HS_ENOTSUP)
 #endif
 
 #endif
