@@ -253,6 +253,9 @@ struct ble_sm_proc {
     uint8_t pair_alg;
     uint8_t state;
     uint8_t rx_key_flags;
+    uint8_t passkey_bits_exchanged;
+    uint8_t ri;
+
     /* XXX: Minimum security requirements. */
 
     struct ble_sm_pair_cmd pair_req;
@@ -413,6 +416,7 @@ uint8_t *ble_sm_our_pair_rand(struct ble_sm_proc *proc);
 uint8_t *ble_sm_their_pair_rand(struct ble_sm_proc *proc);
 int ble_sm_pkact_state(uint8_t action);
 void ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res);
+void ble_sm_confirm_advance(struct ble_sm_proc *proc);
 int ble_sm_peer_addr(struct ble_sm_proc *proc,
                      uint8_t *out_type, uint8_t **out_addr);
 int ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t **out_ia,

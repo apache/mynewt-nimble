@@ -1257,11 +1257,17 @@ ble_sm_rx_pair_random(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
  * $confirm                                                                  *
  *****************************************************************************/
 
-
 static void
-ble_sm_confirm_go(struct ble_sm_proc *proc,
-                        struct ble_sm_result *res, void *arg)
+ble_sm_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
+                  void *arg)
 {
+    res->app_status = ble_sm_gen_pair_rand(ble_sm_our_pair_rand(proc));
+    if (res->app_status != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
+    }
+
     if (!(proc->flags & BLE_SM_PROC_F_SC)) {
         ble_sm_lgcy_confirm_go(proc, res);
     } else {
@@ -1290,8 +1296,7 @@ ble_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     BLE_HS_LOG(DEBUG, "rxed sm confirm cmd\n");
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM,
-                                  -1, &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM, -1, &prev);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
@@ -1416,11 +1421,6 @@ ble_sm_pair_go(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg)
         if (ble_sm_pkact_state(pkact) == proc->state) {
             res->passkey_action.action = pkact;
         }
-    }
-
-    rc = ble_sm_gen_pair_rand(ble_sm_our_pair_rand(proc));
-    if (rc != 0) {
-        goto err;
     }
 
     return;

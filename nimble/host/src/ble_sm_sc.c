@@ -23,6 +23,9 @@
 #include "ble_hs_priv.h"
 #include "ble_sm_priv.h"
 
+#define BLE_SM_SC_PASSKEY_BYTES     4
+#define BLE_SM_SC_PASSKEY_BITS      20
+
 static uint8_t ble_sm_sc_pub_key[64];
 static uint8_t ble_sm_sc_priv_key[32];
 static uint8_t ble_sm_sc_keys_generated;
@@ -155,14 +158,57 @@ ble_sm_sc_responder_verifies_random(struct ble_sm_proc *proc)
            proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP;
 }
 
+static int
+ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
+{
+    int byte;
+    int bit;
+    int rc;
+
+    switch (proc->pair_alg) {
+    case BLE_SM_PAIR_ALG_JW:
+    case BLE_SM_PAIR_ALG_NUMCMP:
+        proc->ri = 0;
+        return 0;
+
+    case BLE_SM_PAIR_ALG_PASSKEY:
+        BLE_HS_DBG_ASSERT(proc->passkey_bits_exchanged <
+                          BLE_SM_SC_PASSKEY_BITS);
+
+        //byte = BLE_SM_SC_PASSKEY_BYTES - proc->passkey_bits_exchanged / 8 - 1;
+        byte = proc->passkey_bits_exchanged / 8;
+        bit = proc->passkey_bits_exchanged % 8;
+        proc->ri = 0x80 | !!(proc->tk[byte] & (1 << bit));
+
+        proc->passkey_bits_exchanged++;
+        return 0;
+
+    case BLE_SM_PAIR_ALG_OOB:
+        rc = ble_hci_util_rand(&proc->ri, 1);
+        return rc;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
+    }
+}
+
 void
 ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     struct ble_sm_pair_confirm cmd;
     int rc;
 
+    rc = ble_sm_sc_gen_ri(proc);
+    if (rc != 0) {
+        res->app_status = rc;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
+
     rc = ble_sm_alg_f4(ble_sm_sc_pub_key, proc->pub_key_their.x,
-                       ble_sm_our_pair_rand(proc), 0, cmd.value);
+                       ble_sm_our_pair_rand(proc), proc->ri, cmd.value);
     if (rc != 0) {
         res->app_status = rc;
         res->enc_cb = 1;
@@ -184,24 +230,41 @@ ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 static void
+ble_sm_sc_public_keys(struct ble_sm_proc *proc, uint8_t **pka, uint8_t **pkb)
+{
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        *pka = ble_sm_sc_pub_key;
+        *pkb = proc->pub_key_their.x;
+    } else {
+        *pka = proc->pub_key_their.x;
+        *pkb = ble_sm_sc_pub_key;
+    }
+}
+
+static void
 ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     uint8_t *pka;
     uint8_t *pkb;
 
-    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        pka = ble_sm_sc_pub_key;
-        pkb = proc->pub_key_their.x;
-    } else {
-        pka = proc->pub_key_their.x;
-        pkb = ble_sm_sc_pub_key;
-    }
-
+    ble_sm_sc_public_keys(proc, &pka, &pkb);
     res->app_status = ble_sm_alg_g2(pka, pkb, proc->randm, proc->rands,
                                     &res->passkey_action.numcmp);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
+    }
+}
+
+static void
+ble_sm_sc_random_advance(struct ble_sm_proc *proc)
+{
+    if (proc->pair_alg != BLE_SM_PAIR_ALG_PASSKEY ||
+        proc->passkey_bits_exchanged >= BLE_SM_SC_PASSKEY_BITS) {
+
+        proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
+    } else {
+        proc->state = BLE_SM_PROC_STATE_CONFIRM;
     }
 }
 
@@ -223,10 +286,12 @@ ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
-        proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
+        ble_sm_sc_random_advance(proc);
 
         pkact = ble_sm_sc_passkey_action(proc);
-        if (ble_sm_pkact_state(pkact) == proc->state) {
+        if (ble_sm_pkact_state(pkact) == proc->state &&
+            !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
+
             res->passkey_action.action = pkact;
             BLE_HS_DBG_ASSERT(pkact == BLE_SM_PKACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
@@ -248,8 +313,13 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
     if (proc->flags & BLE_SM_PROC_F_INITIATOR ||
         ble_sm_sc_responder_verifies_random(proc)) {
 
-        rc = ble_sm_alg_f4(ble_sm_sc_pub_key, proc->pub_key_their.x,
-                           ble_sm_their_pair_rand(proc), 0, confirm_val);
+        BLE_HS_LOG(DEBUG, "tk=");
+        ble_hs_misc_log_flat_buf(proc->tk, 32);
+        BLE_HS_LOG(DEBUG, "\n");
+
+        rc = ble_sm_alg_f4(proc->pub_key_their.x, ble_sm_sc_pub_key,
+                           ble_sm_their_pair_rand(proc), proc->ri,
+                           confirm_val);
         if (rc != 0) {
             res->app_status = rc;
             res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -285,10 +355,12 @@ ble_sm_sc_rx_pair_random(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        proc->state = BLE_SM_PROC_STATE_DHKEY_CHECK;
+        ble_sm_sc_random_advance(proc);
 
         pkact = ble_sm_sc_passkey_action(proc);
-        if (ble_sm_pkact_state(pkact) == proc->state) {
+        if (ble_sm_pkact_state(pkact) == proc->state &&
+            !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
+
             res->passkey_action.action = pkact;
             BLE_HS_DBG_ASSERT(pkact == BLE_SM_PKACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
@@ -306,6 +378,7 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
                         void *arg)
 {
     struct ble_sm_public_key cmd;
+    uint8_t pkact;
     int initiator_txes;
     int is_initiator;
 
@@ -325,12 +398,18 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc,
         return;
     }
 
+    proc->state = BLE_SM_PROC_STATE_CONFIRM;
+
+    pkact = ble_sm_sc_passkey_action(proc);
+    if (ble_sm_pkact_state(pkact) == proc->state) {
+        res->passkey_action.action = pkact;
+    }
+
     initiator_txes = ble_sm_sc_initiator_txes_confirm(proc);
     is_initiator = proc->flags & BLE_SM_PROC_F_INITIATOR;
     if ((initiator_txes  && is_initiator) ||
         (!initiator_txes && !is_initiator)) {
 
-        proc->state = BLE_SM_PROC_STATE_CONFIRM;
         res->execute = 1;
     }
 }
@@ -401,7 +480,7 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
     uint8_t peer_addr_type;
     int rc;
 
-    uint8_t zeros[16] = { 0 };
+    //uint8_t zeros[16] = { 0 };
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         iocap[0] = proc->pair_req.io_cap;
@@ -419,7 +498,7 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
     }
 
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
-                       ble_sm_their_pair_rand(proc), zeros, iocap,
+                       ble_sm_their_pair_rand(proc), proc->tk, iocap,
                        0, ble_hs_our_dev.public_addr,
                        peer_addr_type, peer_addr,
                        cmd.value);
@@ -455,8 +534,6 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
     uint8_t peer_addr_type;
     uint8_t pkact;
 
-    uint8_t zeros[16] = { 0 };
-
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         iocap[0] = proc->pair_rsp.io_cap;
         iocap[1] = proc->pair_rsp.oob_data_flag;
@@ -474,10 +551,14 @@ ble_sm_dhkey_check_handle(struct ble_sm_proc *proc,
         return;
     }
 
+    BLE_HS_LOG(DEBUG, "tk=");
+    ble_hs_misc_log_flat_buf(proc->tk, 32);
+    BLE_HS_LOG(DEBUG, "\n");
+
     res->app_status = ble_sm_alg_f6(proc->mackey,
                                     ble_sm_their_pair_rand(proc),
-                                    ble_sm_our_pair_rand(proc), zeros, iocap,
-                                    peer_addr_type, peer_addr,
+                                    ble_sm_our_pair_rand(proc), proc->tk,
+                                    iocap, peer_addr_type, peer_addr,
                                     0, ble_hs_our_dev.public_addr,
                                     exp_value);
     if (res->app_status != 0) {
