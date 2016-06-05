@@ -152,6 +152,8 @@ ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **om)
     }
 
     ble_att_error_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
+    BLE_ATT_LOG_CMD(0, "error rsp", ble_att_error_rsp_log, &rsp);
+
     ble_gattc_rx_err(conn_handle, &rsp);
 
     return 0;
@@ -224,7 +226,7 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, struct ble_att_mtu_cmd *req)
 int
 ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 {
-    struct ble_att_mtu_cmd rsp;
+    struct ble_att_mtu_cmd cmd;
     struct ble_l2cap_chan *chan;
     uint16_t mtu;
     int rc;
@@ -233,13 +235,14 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
 
     rc = ble_hs_misc_pullup_base(om, BLE_ATT_MTU_CMD_SZ);
     if (rc == 0) {
-        ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
+        ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
+        BLE_ATT_LOG_CMD(0, "mtu rsp", ble_att_mtu_cmd_log, &cmd);
 
         ble_hs_lock();
 
         rc = ble_att_conn_chan_find(conn_handle, NULL, &chan);
         if (rc == 0) {
-            ble_att_set_peer_mtu(chan, rsp.bamc_mtu);
+            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
             mtu = ble_l2cap_chan_mtu(chan);
         }
 

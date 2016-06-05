@@ -95,6 +95,13 @@ ble_att_error_rsp_write(void *payload, int len, struct ble_att_error_rsp *src)
     ble_att_error_rsp_swap(dst, src);
 }
 
+void
+ble_att_error_rsp_log(struct ble_att_error_rsp *cmd)
+{
+    BLE_HS_LOG(DEBUG, "req_op=%d attr_handle=0x%04x error_code=%d",
+               cmd->baep_req_op, cmd->baep_handle, cmd->baep_error_code);
+}
+
 static void
 ble_att_mtu_cmd_swap(struct ble_att_mtu_cmd *dst, struct ble_att_mtu_cmd *src)
 {
@@ -129,6 +136,12 @@ ble_att_mtu_rsp_write(void *payload, int len, struct ble_att_mtu_cmd *src)
     dst = ble_att_init_write(BLE_ATT_OP_MTU_RSP, payload,
                              BLE_ATT_MTU_CMD_SZ, len);
     ble_att_mtu_cmd_swap(dst, src);
+}
+
+void
+ble_att_mtu_cmd_log(struct ble_att_mtu_cmd *cmd)
+{
+    BLE_HS_LOG(DEBUG, "mtu=%d", cmd->bamc_mtu);
 }
 
 static void

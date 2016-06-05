@@ -308,12 +308,14 @@ void ble_att_error_rsp_parse(void *payload, int len,
                               struct ble_att_error_rsp *rsp);
 void ble_att_error_rsp_write(void *payload, int len,
                               struct ble_att_error_rsp *rsp);
+void ble_att_error_rsp_log(struct ble_att_error_rsp *cmd);
 void ble_att_mtu_cmd_parse(void *payload, int len,
                             struct ble_att_mtu_cmd *cmd);
 void ble_att_mtu_req_write(void *payload, int len,
                             struct ble_att_mtu_cmd *cmd);
 void ble_att_mtu_rsp_write(void *payload, int len,
                            struct ble_att_mtu_cmd *cmd);
+void ble_att_mtu_cmd_log(struct ble_att_mtu_cmd *cmd);
 void ble_att_find_info_req_parse(void *payload, int len,
                                  struct ble_att_find_info_req *req);
 void ble_att_find_info_req_write(void *payload, int len,

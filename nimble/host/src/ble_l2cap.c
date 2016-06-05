@@ -286,9 +286,6 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    BLE_HS_LOG(DEBUG, "ble_l2cap_tx(): ");
-    ble_hs_misc_log_mbuf(om);
-    BLE_HS_LOG(DEBUG, "\n");
     rc = host_hci_data_tx(conn, om);
     om = NULL;
     if (rc != 0) {
