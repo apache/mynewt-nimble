@@ -209,14 +209,21 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 
         chan = ble_hs_conn_chan_find(conn, l2cap_hdr.blh_cid);
         if (chan == NULL) {
-            BLE_HS_LOG(DEBUG, "rx on unknown L2CAP channel: %d\n",
-                       l2cap_hdr.blh_cid);
             rc = BLE_HS_ENOENT;
 
-            chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_SIG);
-            if (chan != NULL) {
-                ble_l2cap_sig_reject_invalid_cid_tx(conn, chan, 0, 0,
-                                                    l2cap_hdr.blh_cid);
+            /* Unsupported channel. If the target CID is the black hole
+             * channel, quietly drop the packet.  Otherwise, send an invalid
+             * CID response.
+             */
+            if (l2cap_hdr.blh_cid != BLE_L2CAP_CID_BLACK_HOLE) {
+                BLE_HS_LOG(DEBUG, "rx on unknown L2CAP channel: %d\n",
+                           l2cap_hdr.blh_cid);
+
+                chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_SIG);
+                if (chan != NULL) {
+                    ble_l2cap_sig_reject_invalid_cid_tx(conn, chan, 0, 0,
+                                                        l2cap_hdr.blh_cid);
+                }
             }
             goto err;
         }
