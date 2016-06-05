@@ -32,6 +32,7 @@ struct ble_phy_obj
     uint8_t phy_state;
     uint8_t phy_transition;
     uint8_t phy_rx_started;
+    uint8_t phy_privacy;
     uint32_t phy_access_address;
     struct os_mbuf *rxpdu;
     void *txend_arg;
@@ -508,3 +509,17 @@ ble_phy_max_data_pdu_pyld(void)
 {
     return BLE_LL_DATA_PDU_MAX_PYLD;
 }
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+void
+ble_phy_resolv_list_enable(void)
+{
+    g_ble_phy_data.phy_privacy = 1;
+}
+
+void
+ble_phy_resolv_list_disable(void)
+{
+    g_ble_phy_data.phy_privacy = 0;
+}
+#endif
