@@ -428,8 +428,6 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
 {
     struct ble_sm_public_key cmd;
     uint8_t pkact;
-    int initiator_txes;
-    int is_initiator;
 
     res->app_status = ble_sm_sc_ensure_keys_generated();
     if (res->app_status != 0) {
@@ -448,20 +446,18 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
     }
 
     pkact = ble_sm_sc_passkey_action(proc);
-    if (ble_sm_pkact_state(pkact) == proc->state) {
+    if (ble_sm_pkact_state(pkact) == BLE_SM_PROC_STATE_CONFIRM) {
         res->passkey_action.action = pkact;
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
-    }
 
-    initiator_txes = ble_sm_sc_initiator_txes_confirm(proc);
-    is_initiator = proc->flags & BLE_SM_PROC_F_INITIATOR;
-    if ((initiator_txes  && is_initiator) ||
-        (!initiator_txes && !is_initiator)) {
+        if (ble_sm_proc_can_advance(proc) &&
+            !ble_sm_sc_initiator_txes_confirm(proc)) {
 
-        res->execute = 1;
+            res->execute = 1;
+        }
     }
 }
 
@@ -511,7 +507,9 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
             if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
                 proc->state = BLE_SM_PROC_STATE_CONFIRM;
 
-                if (ble_sm_sc_initiator_txes_confirm(proc)) {
+                if (ble_sm_proc_can_advance(proc) &&
+                    ble_sm_sc_initiator_txes_confirm(proc)) {
+
                     res->execute = 1;
                 }
             } else {
@@ -638,7 +636,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
         proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
     }
 
-    if (pkact == BLE_SM_PKACT_NONE || proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
+    if (ble_sm_proc_can_advance(proc)) {
         if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
             proc->state = BLE_SM_PROC_STATE_ENC_START;
         }

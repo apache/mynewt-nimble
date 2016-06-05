@@ -453,8 +453,8 @@ ble_sm_proc_remove(struct ble_sm_proc *proc,
 
 static void
 ble_sm_sec_state(struct ble_sm_proc *proc,
-                       struct ble_gap_sec_state *out_sec_state,
-                       int enc_enabled)
+                 struct ble_gap_sec_state *out_sec_state,
+                 int enc_enabled)
 {
     out_sec_state->pair_alg = proc->pair_alg;
     out_sec_state->enc_enabled = enc_enabled;
@@ -742,6 +742,25 @@ ble_sm_pkact_state(uint8_t action)
         BLE_HS_DBG_ASSERT(0);
         return BLE_SM_PROC_STATE_NONE;
     }
+}
+
+int
+ble_sm_proc_can_advance(struct ble_sm_proc *proc)
+{
+    uint8_t pkact;
+
+    pkact = ble_sm_sc_passkey_action(proc);
+    if (ble_sm_pkact_state(pkact) != proc->state) {
+        return 1;
+    }
+
+    if (proc->flags & BLE_SM_PROC_F_IO_INJECTED &&
+        proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO) {
+
+        return 1;
+    }
+
+    return 0;
 }
 
 static void
@@ -1288,9 +1307,7 @@ ble_sm_rx_pair_confirm(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
             if (ble_sm_pkact_state(pkact) == proc->state) {
                 proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
             }
-            if (pkact == BLE_SM_PKACT_NONE ||
-                proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
-
+            if (ble_sm_proc_can_advance(proc)) {
                 res->execute = 1;
             }
         }
