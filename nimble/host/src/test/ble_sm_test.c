@@ -743,9 +743,17 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params)
     memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
 
-    /* Verify no master keys were persisted. */
     rc = ble_store_read_mst_sec(&key_sec, &value_sec);
-    TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(value_sec.peer_addr_type == 0);
+    TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
+    TEST_ASSERT(value_sec.ediv == 0);
+    TEST_ASSERT(value_sec.rand_num == 0);
+    TEST_ASSERT(value_sec.authenticated == params->authenticated);
+    TEST_ASSERT(value_sec.ltk_present == 1);
+    TEST_ASSERT(memcmp(value_sec.ltk, params->ltk, 16) == 0);
+    TEST_ASSERT(value_sec.irk_present == 0);
+    TEST_ASSERT(value_sec.csrk_present == 0);
 
     rc = ble_store_read_slv_sec(&key_sec, &value_sec);
     TEST_ASSERT_FATAL(rc == 0);
@@ -762,6 +770,8 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params)
     /* Verify no other keys were persisted. */
     key_sec.idx++;
     rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+    rc = ble_store_read_mst_sec(&key_sec, &value_sec);
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
 }
 
@@ -1220,7 +1230,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     TEST_ASSERT(ble_sm_test_store_obj_type ==
                 BLE_STORE_OBJ_TYPE_SLV_SEC);
     TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr_type ==
-                BLE_STORE_ADDR_TYPE_NONE);
+                BLE_ADDR_TYPE_PUBLIC);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv == ediv);
     TEST_ASSERT(ble_sm_test_store_key.sec.rand_num == rand_num);

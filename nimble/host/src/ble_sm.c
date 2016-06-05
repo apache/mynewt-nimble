@@ -1062,16 +1062,16 @@ ble_sm_ltk_restore_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 static int
-ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt,
-                    struct ble_store_value_sec *value_sec)
+ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt, uint8_t peer_addr_type,
+                    uint8_t *peer_addr, struct ble_store_value_sec *value_sec)
 {
     struct ble_store_key_sec key_sec;
     int rc;
 
-    /* Tell applicaiton to look up LTK by ediv/rand pair. */
-    /* XXX: Also filter by peer address? */
+    /* Tell applicaiton to look up LTK by peer address and ediv/rand pair. */
     memset(&key_sec, 0, sizeof key_sec);
-    key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key_sec.peer_addr_type = peer_addr_type;
+    memcpy(key_sec.peer_addr, peer_addr, 6);
     key_sec.ediv = evt->encrypted_diversifier;
     key_sec.rand_num = evt->random_number;
     key_sec.ediv_rand_present = 1;
@@ -1086,8 +1086,14 @@ ble_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
     struct ble_store_value_sec value_sec;
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
+    struct ble_hs_conn *conn;
     int store_rc;
     int bonding;
+    uint8_t peer_addr[6];
+    uint8_t peer_addr_type;
+
+    /* Silence gcc warning. */
+    peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
 
     memset(&res, 0, sizeof res);
 
@@ -1125,6 +1131,17 @@ ble_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
     } else {
         /* The request is unexpected.  Quietly ignore it. */
         proc = NULL;
+        bonding = 0;
+    }
+
+    if (bonding) {
+        conn = ble_hs_conn_find(evt->connection_handle);
+        if (conn == NULL) {
+            res.app_status = BLE_HS_ENOTCONN;
+        } else {
+            peer_addr_type = conn->bhc_addr_type;
+            memcpy(peer_addr, conn->bhc_addr, 6);
+        }
     }
 
     ble_hs_unlock();
@@ -1133,23 +1150,16 @@ ble_sm_rx_lt_key_req(struct hci_le_lt_key_req *evt)
         return res.app_status;
     }
 
-    if (bonding) {
-        store_rc = ble_sm_retrieve_ltk(evt, &value_sec);
-        if (store_rc == 0) {
-            res.state_arg = &value_sec;
-        }
-    }
-
     if (res.app_status == 0) {
-        ble_hs_lock();
-
-        proc = ble_sm_proc_find(evt->connection_handle,
-                                      BLE_SM_PROC_STATE_NONE, 0, NULL);
-        if (proc != NULL) {
-            res.execute = 1;
+        if (bonding) {
+            store_rc = ble_sm_retrieve_ltk(evt, peer_addr_type, peer_addr,
+                                           &value_sec);
+            if (store_rc == 0) {
+                res.state_arg = &value_sec;
+            }
         }
 
-        ble_hs_unlock();
+        res.execute = 1;
     }
 
     ble_sm_process_result(evt->connection_handle, &res);
