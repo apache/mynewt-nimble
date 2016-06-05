@@ -1719,7 +1719,6 @@ ble_sm_key_exch_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
         memcpy(proc->our_keys.irk, irk, 16);
         proc->our_keys.addr_type = addr_info.addr_type;
         memcpy(proc->our_keys.addr, addr_info.bd_addr, 6);
-        memcpy(proc->our_keys.ltk, enc_info.ltk, 16);
     }
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN) {
