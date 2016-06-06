@@ -260,7 +260,7 @@ struct ble_sm_proc {
     uint8_t confirm_peer[16];
     uint8_t randm[16];
     uint8_t rands[16];
-    uint8_t ltk[16];
+    uint8_t ltk[16]; /* Little endian. */
     struct ble_sm_keys our_keys;
     struct ble_sm_keys peer_keys;
 
