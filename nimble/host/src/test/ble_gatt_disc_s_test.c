@@ -33,7 +33,7 @@ struct ble_gatt_disc_s_test_svc {
 };
 
 #define BLE_GATT_DISC_S_TEST_MAX_SERVICES  256
-static struct ble_gatt_service
+static struct ble_gatt_svc
     ble_gatt_disc_s_test_svcs[BLE_GATT_DISC_S_TEST_MAX_SERVICES];
 static int ble_gatt_disc_s_test_num_svcs;
 static int ble_gatt_disc_s_test_rx_complete;
@@ -220,7 +220,7 @@ ble_gatt_disc_s_test_misc_verify_services(
 static int
 ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle,
                                   struct ble_gatt_error *error,
-                                  struct ble_gatt_service *service, void *arg)
+                                  struct ble_gatt_svc *service, void *arg)
 {
     TEST_ASSERT(error == NULL);
     TEST_ASSERT(!ble_gatt_disc_s_test_rx_complete);
