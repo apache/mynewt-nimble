@@ -991,6 +991,8 @@ ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt)
     struct ble_sm_proc *proc;
     int do_key_exchange;
 
+    memset(&res, 0, sizeof res);
+
     ble_hs_lock();
     proc = ble_sm_proc_find(evt->connection_handle,
                             BLE_SM_PROC_STATE_ENC_START, -1, NULL);
