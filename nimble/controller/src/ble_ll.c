@@ -824,7 +824,6 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
             STATS_INC(ble_ll_stats, rx_adv_malformed_pkts);
             os_mbuf_free_chain(rxpdu);
             rxpdu = NULL;
-            rc = -1;
         }
     }
 

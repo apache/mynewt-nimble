@@ -2153,6 +2153,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
      * the phy does not get disabled.
      */
     if (!rxpdu) {
+        ble_phy_disable();
         ble_phy_rx();
         return 0;
     }
