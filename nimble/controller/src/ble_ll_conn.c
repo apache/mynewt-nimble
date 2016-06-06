@@ -172,6 +172,7 @@ STATS_SECT_START(ble_ll_conn_stats)
     STATS_SECT_ENTRY(l2cap_enqueued)
     STATS_SECT_ENTRY(rx_ctrl_pdus)
     STATS_SECT_ENTRY(rx_l2cap_pdus)
+    STATS_SECT_ENTRY(rx_l2cap_bytes)
     STATS_SECT_ENTRY(rx_malformed_ctrl_pdus)
     STATS_SECT_ENTRY(rx_bad_llid)
     STATS_SECT_ENTRY(tx_ctrl_pdus)
@@ -201,6 +202,7 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, l2cap_enqueued)
     STATS_NAME(ble_ll_conn_stats, rx_ctrl_pdus)
     STATS_NAME(ble_ll_conn_stats, rx_l2cap_pdus)
+    STATS_NAME(ble_ll_conn_stats, rx_l2cap_bytes)
     STATS_NAME(ble_ll_conn_stats, rx_malformed_ctrl_pdus)
     STATS_NAME(ble_ll_conn_stats, rx_bad_llid)
     STATS_NAME(ble_ll_conn_stats, tx_ctrl_pdus)
@@ -2445,8 +2447,9 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                         STATS_INC(ble_ll_conn_stats, rx_malformed_ctrl_pdus);
                     }
                 } else {
-                    /* Count # of data frames */
+                    /* Count # of received l2cap frames and byes */
                     STATS_INC(ble_ll_conn_stats, rx_l2cap_pdus);
+                    STATS_INCN(ble_ll_conn_stats, rx_l2cap_bytes, acl_len);
 
                     /* NOTE: there should be at least two bytes available */
                     assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
