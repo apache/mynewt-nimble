@@ -52,7 +52,9 @@
 #if NIMBLE_OPT(SM)
 
 /** Procedure timeout; 30 seconds. */
-#define BLE_SM_TIMEOUT_OS_TICKS           (30 * OS_TICKS_PER_SEC)
+#define BLE_SM_TIMEOUT_OS_TICKS             (30 * OS_TICKS_PER_SEC)
+
+#define BLE_SM_ENC_STATE_NO_CHANGE          (-1)
 
 STAILQ_HEAD(ble_sm_proc_list, ble_sm_proc);
 
@@ -573,11 +575,11 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 }
 
 static void
-ble_sm_enc_event(struct ble_sm_proc *proc, int status, int enc_enabled)
+ble_sm_enc_event(struct ble_sm_proc *proc, int status, int enc_state)
 {
     struct ble_gap_sec_state sec_state;
 
-    ble_sm_sec_state(proc, &sec_state, enc_enabled);
+    ble_sm_sec_state(proc, &sec_state, enc_state);
     ble_gap_enc_event(proc->conn_handle, status, &sec_state);
 }
 
@@ -782,6 +784,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
 {
     struct ble_sm_proc *prev;
     struct ble_sm_proc *proc;
+    struct ble_hs_conn *conn;
     int rm;
 
     rm = 0;
@@ -809,6 +812,15 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
             } else {
                 ble_sm_proc_set_timer(proc);
             }
+
+            if (res->enc_cb && res->enc_state == BLE_SM_ENC_STATE_NO_CHANGE) {
+                conn = ble_hs_conn_find(conn_handle);
+                if (conn != NULL) {
+                    res->enc_state = conn->bhc_sec_state.enc_enabled;
+                } else {
+                    res->enc_state = 0;
+                }
+            }
         }
 
         if (res->sm_err != 0) {
@@ -823,7 +835,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
 
         if (res->enc_cb) {
             BLE_HS_DBG_ASSERT(rm);
-            ble_sm_enc_event(proc, res->app_status, res->app_status == 0);
+            ble_sm_enc_event(proc, res->app_status, res->enc_state);
         }
 
         if (res->app_status == 0 &&
@@ -926,23 +938,21 @@ ble_sm_enc_change_rx(struct hci_encrypt_change *evt)
 {
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
-    int enc_enabled = 0;
     int do_key_exchange = 0;
 
     memset(&res, 0, sizeof res);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(evt->connection_handle, BLE_SM_PROC_STATE_NONE, -1,
-                            &prev);
+                            NULL);
     if (proc == NULL) {
         res.app_status = BLE_HS_ENOENT;
     } else if (proc->state == BLE_SM_PROC_STATE_ENC_START) {
-        enc_enabled = evt->encryption_enabled & 0x01; /* LE bit. */
+        res.enc_state = evt->encryption_enabled & 0x01; /* LE bit. */
         do_key_exchange = proc->flags & BLE_SM_PROC_F_KEY_EXCHANGE;
         res.app_status = 0;
     } else if (proc->state == BLE_SM_PROC_STATE_ENC_RESTORE) {
-        enc_enabled = evt->encryption_enabled & 0x01; /* LE bit. */
+        res.enc_state = evt->encryption_enabled & 0x01; /* LE bit. */
         do_key_exchange = 0;
         res.app_status = 0;
     } else {
@@ -950,8 +960,54 @@ ble_sm_enc_change_rx(struct hci_encrypt_change *evt)
         res.app_status = BLE_HS_ENOENT;
     }
 
-    if (res.app_status == 0 && enc_enabled) {
-        if (do_key_exchange) {
+    if (res.app_status == 0) {
+        if (evt->status != 0) {
+            res.app_status = BLE_HS_HCI_ERR(evt->status);
+            res.enc_cb = 1;
+        } else {
+            if (res.enc_state == 1 && do_key_exchange) {
+                proc->state = BLE_SM_PROC_STATE_KEY_EXCH;
+
+                /* The responder sends its keys first. */
+                if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
+                    res.execute = 1;
+                }
+            } else {
+                proc->state = BLE_SM_PROC_STATE_NONE;
+                res.enc_cb = 1;
+            }
+        }
+    }
+
+    ble_hs_unlock();
+
+    ble_sm_process_result(evt->connection_handle, &res);
+}
+
+void
+ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt)
+{
+    struct ble_sm_result res;
+    struct ble_sm_proc *proc;
+    int do_key_exchange;
+
+    ble_hs_lock();
+    proc = ble_sm_proc_find(evt->connection_handle,
+                            BLE_SM_PROC_STATE_ENC_START, -1, NULL);
+    if (proc == NULL) {
+        res.app_status = BLE_HS_ENOENT;
+        do_key_exchange = 0;
+    } else {
+        res.app_status = 0;
+        do_key_exchange = proc->flags & BLE_SM_PROC_F_KEY_EXCHANGE;
+    }
+
+    if (res.app_status == 0) {
+        res.enc_state = BLE_SM_ENC_STATE_NO_CHANGE;
+        if (evt->status != 0) {
+            res.app_status = BLE_HS_HCI_ERR(evt->status);
+            res.enc_cb = 1;
+        } else if (do_key_exchange) {
             proc->state = BLE_SM_PROC_STATE_KEY_EXCH;
 
             /* The responder sends its keys first. */

@@ -465,6 +465,8 @@
 
 /* Event encryption change (code=0x08) */
 #define BLE_HCI_EVENT_ENCRYPT_CHG_LEN       (4)
+
+/* Event key refresh complete (code=0x30) */
 #define BLE_HCI_EVENT_ENC_KEY_REFRESH_LEN   (3)
 
 /* Event command complete */
@@ -641,6 +643,13 @@ struct hci_encrypt_change
 {
     uint8_t status;
     uint8_t encryption_enabled;
+    uint16_t connection_handle;
+};
+
+/* Encryption key refresh complete event (code=0x30) */
+struct hci_encrypt_key_refresh
+{
+    uint8_t status;
     uint16_t connection_handle;
 };
 
