@@ -31,7 +31,8 @@
 
 /**
  * The public and private keys are stored in unions.  Some crypto functions
- * accept pointers to uint32_t; others accept pointers to uint8_t.
+ * accept pointers to uint32_t; others accept pointers to uint8_t.  The use of
+ * unions ensures the keys are properly aligned for pointers to uint32_t.
  */
 static union {
     uint32_t u32[16];
@@ -52,74 +53,74 @@ static uint8_t ble_sm_sc_keys_generated;
  * Create some shortened names for the passkey actions so that the table is
  * easier to read.
  */
-#define PKACT_NONE      BLE_SM_PKACT_NONE
-#define PKACT_OOB       BLE_SM_PKACT_OOB
-#define PKACT_INPUT     BLE_SM_PKACT_INPUT
-#define PKACT_DISP      BLE_SM_PKACT_DISP
-#define PKACT_NUMCMP    BLE_SM_PKACT_NUMCMP
+#define IOACT_NONE      BLE_SM_IOACT_NONE
+#define IOACT_OOB       BLE_SM_IOACT_OOB
+#define IOACT_INPUT     BLE_SM_IOACT_INPUT
+#define IOACT_DISP      BLE_SM_IOACT_DISP
+#define IOACT_NUMCMP    BLE_SM_IOACT_NUMCMP
 
 /**
  * This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
  */
-static const uint8_t ble_sm_sc_init_pka[5 /*resp*/ ][5 /*init */] =
+static const uint8_t ble_sm_sc_init_ioa[5 /*resp*/ ][5 /*init */] =
 {
-    {PKACT_NONE,    PKACT_NONE,   PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-    {PKACT_NONE,    PKACT_NUMCMP, PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-    {PKACT_DISP,    PKACT_DISP,   PKACT_INPUT, PKACT_NONE, PKACT_DISP},
-    {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-    {PKACT_DISP,    PKACT_NUMCMP, PKACT_INPUT, PKACT_NONE, PKACT_NUMCMP},
+    {IOACT_NONE,    IOACT_NONE,   IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
+    {IOACT_NONE,    IOACT_NUMCMP, IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
+    {IOACT_DISP,    IOACT_DISP,   IOACT_INPUT, IOACT_NONE, IOACT_DISP},
+    {IOACT_NONE,    IOACT_NONE,   IOACT_NONE,  IOACT_NONE, IOACT_NONE},
+    {IOACT_DISP,    IOACT_NUMCMP, IOACT_INPUT, IOACT_NONE, IOACT_NUMCMP},
 };
 
 /**
  * This is the responder passkey action action depending on the io
  * capabilities of both parties
  */
-static const uint8_t ble_sm_sc_resp_pka[5 /*init*/ ][5 /*resp */] =
+static const uint8_t ble_sm_sc_resp_ioa[5 /*init*/ ][5 /*resp */] =
 {
-    {PKACT_NONE,    PKACT_NONE,   PKACT_DISP,  PKACT_NONE, PKACT_DISP},
-    {PKACT_NONE,    PKACT_NUMCMP, PKACT_DISP,  PKACT_NONE, PKACT_NUMCMP},
-    {PKACT_INPUT,   PKACT_INPUT,  PKACT_INPUT, PKACT_NONE, PKACT_INPUT},
-    {PKACT_NONE,    PKACT_NONE,   PKACT_NONE,  PKACT_NONE, PKACT_NONE},
-    {PKACT_INPUT,   PKACT_NUMCMP, PKACT_DISP,  PKACT_NONE, PKACT_NUMCMP},
+    {IOACT_NONE,    IOACT_NONE,   IOACT_DISP,  IOACT_NONE, IOACT_DISP},
+    {IOACT_NONE,    IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
+    {IOACT_INPUT,   IOACT_INPUT,  IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
+    {IOACT_NONE,    IOACT_NONE,   IOACT_NONE,  IOACT_NONE, IOACT_NONE},
+    {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
 };
 
 int
-ble_sm_sc_passkey_action(struct ble_sm_proc *proc)
+ble_sm_sc_io_action(struct ble_sm_proc *proc)
 {
     int action;
 
     if (proc->pair_req.oob_data_flag || proc->pair_rsp.oob_data_flag) {
-        action = BLE_SM_PKACT_OOB;
+        action = BLE_SM_IOACT_OOB;
     } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
                !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
-        action = BLE_SM_PKACT_NONE;
+        action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_sc_init_pka[proc->pair_rsp.io_cap]
+        action = ble_sm_sc_init_ioa[proc->pair_rsp.io_cap]
                                    [proc->pair_req.io_cap];
     } else {
-        action = ble_sm_sc_resp_pka[proc->pair_rsp.io_cap]
+        action = ble_sm_sc_resp_ioa[proc->pair_rsp.io_cap]
                                    [proc->pair_req.io_cap];
     }
 
     switch (action) {
-    case BLE_SM_PKACT_NONE:
+    case BLE_SM_IOACT_NONE:
         proc->pair_alg = BLE_SM_PAIR_ALG_JW;
         break;
 
-    case BLE_SM_PKACT_OOB:
+    case BLE_SM_IOACT_OOB:
         proc->pair_alg = BLE_SM_PAIR_ALG_OOB;
         proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
         break;
 
-    case BLE_SM_PKACT_INPUT:
-    case BLE_SM_PKACT_DISP:
+    case BLE_SM_IOACT_INPUT:
+    case BLE_SM_IOACT_DISP:
         proc->pair_alg = BLE_SM_PAIR_ALG_PASSKEY;
         proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
         break;
 
-    case BLE_SM_PKACT_NUMCMP:
+    case BLE_SM_IOACT_NUMCMP:
         proc->pair_alg = BLE_SM_PAIR_ALG_NUMCMP;
         proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
         break;
@@ -219,7 +220,7 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
 }
 
 void
-ble_sm_sc_confirm_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
+ble_sm_sc_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     struct ble_sm_pair_confirm cmd;
     int rc;
@@ -276,7 +277,7 @@ ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 /**
- * Advances the supplied procedure object to the next state after it is
+ * Advances the supplied procedure object to the next state after it has
  * completed the random state.
  */
 static int
@@ -300,10 +301,10 @@ ble_sm_sc_random_advance(struct ble_sm_proc *proc)
 }
 
 void
-ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
+ble_sm_sc_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     struct ble_sm_pair_random cmd;
-    uint8_t pkact;
+    uint8_t ioact;
     int rc;
 
     memcpy(cmd.value, ble_sm_our_pair_rand(proc), 16);
@@ -325,12 +326,12 @@ ble_sm_sc_random_go(struct ble_sm_proc *proc, struct ble_sm_result *res)
             return;
         }
 
-        pkact = ble_sm_sc_passkey_action(proc);
-        if (ble_sm_pkact_state(pkact) == proc->state &&
+        ioact = ble_sm_sc_io_action(proc);
+        if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
-            res->passkey_action.action = pkact;
-            BLE_HS_DBG_ASSERT(pkact == BLE_SM_PKACT_NUMCMP);
+            res->passkey_action.action = ioact;
+            BLE_HS_DBG_ASSERT(ioact == BLE_SM_IOACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
         }
     }
@@ -342,7 +343,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     uint8_t confirm_val[16];
     uint8_t ia[6];
     uint8_t ra[6];
-    uint8_t pkact;
+    uint8_t ioact;
     uint8_t iat;
     uint8_t rat;
     int rc;
@@ -355,7 +356,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         BLE_HS_LOG(DEBUG, "\n");
 
         rc = ble_sm_alg_f4(proc->pub_key_peer.x, ble_sm_sc_pub_key.u8,
-                           ble_sm_their_pair_rand(proc), proc->ri,
+                           ble_sm_peer_pair_rand(proc), proc->ri,
                            confirm_val);
         if (rc != 0) {
             res->app_status = rc;
@@ -407,12 +408,12 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         ble_sm_sc_random_advance(proc);
 
-        pkact = ble_sm_sc_passkey_action(proc);
-        if (ble_sm_pkact_state(pkact) == proc->state &&
+        ioact = ble_sm_sc_io_action(proc);
+        if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
-            res->passkey_action.action = pkact;
-            BLE_HS_DBG_ASSERT(pkact == BLE_SM_PKACT_NUMCMP);
+            res->passkey_action.action = ioact;
+            BLE_HS_DBG_ASSERT(ioact == BLE_SM_IOACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
         } else {
             res->execute = 1;
@@ -423,11 +424,11 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 void
-ble_sm_sc_public_key_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
-                        void *arg)
+ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
+                          void *arg)
 {
     struct ble_sm_public_key cmd;
-    uint8_t pkact;
+    uint8_t ioact;
 
     res->app_status = ble_sm_sc_ensure_keys_generated();
     if (res->app_status != 0) {
@@ -445,9 +446,9 @@ ble_sm_sc_public_key_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
         return;
     }
 
-    pkact = ble_sm_sc_passkey_action(proc);
-    if (ble_sm_pkact_state(pkact) == BLE_SM_PROC_STATE_CONFIRM) {
-        res->passkey_action.action = pkact;
+    ioact = ble_sm_sc_io_action(proc);
+    if (ble_sm_ioact_state(ioact) == BLE_SM_PROC_STATE_CONFIRM) {
+        res->passkey_action.action = ioact;
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
@@ -530,8 +531,8 @@ ble_sm_sc_dhkey_check_iocap(struct ble_sm_pair_cmd *pair_cmd,
 }
 
 void
-ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
-                         void *arg)
+ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
+                           void *arg)
 {
     struct ble_sm_dhkey_check cmd;
     uint8_t our_addr[6];
@@ -555,7 +556,7 @@ ble_sm_sc_dhkey_check_go(struct ble_sm_proc *proc, struct ble_sm_result *res,
     }
 
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
-                       ble_sm_their_pair_rand(proc), proc->tk, iocap,
+                       ble_sm_peer_pair_rand(proc), proc->tk, iocap,
                        our_addr_type, our_addr, peer_addr_type, peer_addr,
                        cmd.value);
     if (rc != 0) {
@@ -590,7 +591,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     uint8_t *peer_addr;
     uint8_t peer_addr_type;
     uint8_t our_addr_type;
-    uint8_t pkact;
+    uint8_t ioact;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
@@ -612,7 +613,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     BLE_HS_LOG(DEBUG, "\n");
 
     res->app_status = ble_sm_alg_f6(proc->mackey,
-                                    ble_sm_their_pair_rand(proc),
+                                    ble_sm_peer_pair_rand(proc),
                                     ble_sm_our_pair_rand(proc), proc->tk,
                                     iocap, peer_addr_type, peer_addr,
                                     our_addr_type, our_addr, exp_value);
@@ -631,8 +632,8 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     }
 
 
-    pkact = ble_sm_sc_passkey_action(proc);
-    if (ble_sm_pkact_state(pkact) == proc->state) {
+    ioact = ble_sm_sc_io_action(proc);
+    if (ble_sm_ioact_state(ioact) == proc->state) {
         proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
     }
 
