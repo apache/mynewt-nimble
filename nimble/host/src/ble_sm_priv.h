@@ -286,6 +286,9 @@ struct ble_sm_result {
     unsigned execute:1;
     unsigned enc_cb:1;
     unsigned persist_keys:1;
+
+    /* 0=disabled; 1=enabled; -1=no-change. */
+    uint8_t enc_state;
 };
 
 #ifdef BLE_HS_DEBUG
@@ -390,6 +393,7 @@ int ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
 int ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv);
 
 void ble_sm_enc_change_rx(struct hci_encrypt_change *evt);
+void ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt);
 int ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt);
 
 int ble_sm_lgcy_io_action(struct ble_sm_proc *proc);
