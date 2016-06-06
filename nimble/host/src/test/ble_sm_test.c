@@ -46,14 +46,14 @@ static ble_store_write_fn ble_sm_test_util_store_write;
  *****************************************************************************/
 
 struct ble_sm_test_passkey_info {
-    struct ble_sm_passkey passkey;
+    struct ble_sm_io passkey;
     uint32_t exp_numcmp;
     unsigned io_before_rx:1;
 };
 
 struct ble_sm_test_lgcy_params {
     uint8_t init_addr[6];
-    uint8_t rsp_addr[6];
+    uint8_t resp_addr[6];
     struct ble_sm_sec_req sec_req;
     struct ble_sm_pair_cmd pair_req;
     struct ble_sm_pair_cmd pair_rsp;
@@ -84,7 +84,7 @@ struct ble_sm_test_lgcy_params {
 
 struct ble_sm_test_sc_params {
     uint8_t init_addr[6];
-    uint8_t rsp_addr[6];
+    uint8_t resp_addr[6];
     struct ble_sm_sec_req sec_req;
     struct ble_sm_pair_cmd pair_req;
     struct ble_sm_pair_cmd pair_rsp;
@@ -157,7 +157,7 @@ struct ble_sm_test_ltk_info {
     unsigned authenticated:1;
 };
 
-struct ble_gap_passkey_action ble_sm_test_pkact;
+struct ble_gap_passkey_action ble_sm_test_ioact;
 
 static int
 ble_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt, void *arg)
@@ -172,7 +172,7 @@ ble_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt, void *arg)
         break;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-        ble_sm_test_pkact = ctxt->passkey_action;
+        ble_sm_test_ioact = ctxt->passkey_action;
         break;
 
     default:
@@ -225,9 +225,8 @@ ble_sm_test_util_rx_pair_req(uint16_t conn_handle,
 }
 
 static void
-ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle,
-                                   struct ble_sm_pair_cmd *rsp,
-                                   int rx_status)
+ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle, struct ble_sm_pair_cmd *rsp,
+                             int rx_status)
 {
     ble_sm_test_util_rx_pair_cmd(conn_handle, BLE_SM_OP_PAIR_RSP,
                                        rsp, rx_status);
@@ -235,7 +234,7 @@ ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle,
 
 static void
 ble_sm_test_util_rx_confirm(uint16_t conn_handle,
-                                  struct ble_sm_pair_confirm *cmd)
+                            struct ble_sm_pair_confirm *cmd)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -264,8 +263,8 @@ ble_sm_test_util_rx_confirm(uint16_t conn_handle,
 
 static void
 ble_sm_test_util_rx_random(uint16_t conn_handle,
-                                 struct ble_sm_pair_random *cmd,
-                                 int exp_status)
+                           struct ble_sm_pair_random *cmd,
+                           int exp_status)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -293,8 +292,7 @@ ble_sm_test_util_rx_random(uint16_t conn_handle,
 }
 
 static void
-ble_sm_test_util_rx_sec_req(uint16_t conn_handle,
-                            struct ble_sm_sec_req *cmd,
+ble_sm_test_util_rx_sec_req(uint16_t conn_handle, struct ble_sm_sec_req *cmd,
                             int exp_status)
 {
     struct hci_data_hdr hci_hdr;
@@ -324,7 +322,7 @@ ble_sm_test_util_rx_sec_req(uint16_t conn_handle,
 
 static void
 ble_sm_test_util_rx_public_key(uint16_t conn_handle,
-                                     struct ble_sm_public_key *cmd)
+                               struct ble_sm_public_key *cmd)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -353,8 +351,8 @@ ble_sm_test_util_rx_public_key(uint16_t conn_handle,
 
 static void
 ble_sm_test_util_rx_dhkey_check(uint16_t conn_handle,
-                                      struct ble_sm_dhkey_check *cmd,
-                                      int exp_status)
+                                struct ble_sm_dhkey_check *cmd,
+                                int exp_status)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -547,7 +545,7 @@ ble_sm_test_util_rx_lt_key_req(uint16_t conn_handle, uint64_t r,
     evt.random_number = r;
     evt.encrypted_diversifier = ediv;
 
-    rc = ble_sm_rx_lt_key_req(&evt);
+    rc = ble_sm_ltk_req_rx(&evt);
     TEST_ASSERT_FATAL(rc == 0);
 }
 
@@ -601,7 +599,7 @@ ble_sm_test_util_rx_enc_change(uint16_t conn_handle, uint8_t status,
     evt.encryption_enabled = encryption_enabled;
     evt.connection_handle = conn_handle;
 
-    ble_sm_rx_encryption_change(&evt);
+    ble_sm_enc_change_rx(&evt);
 }
 
 static void
@@ -630,16 +628,16 @@ ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
     uint8_t io_sm_state;
     int rc;
 
-    io_sm_state = ble_sm_pkact_state(passkey_info->passkey.action);
+    io_sm_state = ble_sm_ioact_state(passkey_info->passkey.action);
     if (io_sm_state != cur_sm_state) {
         return;
     }
 
-    if (passkey_info->passkey.action == BLE_SM_PKACT_NUMCMP) {
-        TEST_ASSERT(ble_sm_test_pkact.numcmp == passkey_info->exp_numcmp);
+    if (passkey_info->passkey.action == BLE_SM_IOACT_NUMCMP) {
+        TEST_ASSERT(ble_sm_test_ioact.numcmp == passkey_info->exp_numcmp);
     }
 
-    rc = ble_sm_set_tk(2, &passkey_info->passkey);
+    rc = ble_sm_inject_io(2, &passkey_info->passkey);
     TEST_ASSERT(rc == 0);
 }
 
@@ -650,7 +648,7 @@ ble_sm_test_util_io_check_pre(struct ble_sm_test_passkey_info *passkey_info,
     uint8_t io_sm_state;
     int rc;
 
-    io_sm_state = ble_sm_pkact_state(passkey_info->passkey.action);
+    io_sm_state = ble_sm_ioact_state(passkey_info->passkey.action);
     if (io_sm_state != cur_sm_state) {
         return;
     }
@@ -659,11 +657,11 @@ ble_sm_test_util_io_check_pre(struct ble_sm_test_passkey_info *passkey_info,
         return;
     }
 
-    if (passkey_info->passkey.action == BLE_SM_PKACT_NUMCMP) {
-        TEST_ASSERT(ble_sm_test_pkact.numcmp == passkey_info->exp_numcmp);
+    if (passkey_info->passkey.action == BLE_SM_IOACT_NUMCMP) {
+        TEST_ASSERT(ble_sm_test_ioact.numcmp == passkey_info->exp_numcmp);
     }
 
-    rc = ble_sm_set_tk(2, &passkey_info->passkey);
+    rc = ble_sm_inject_io(2, &passkey_info->passkey);
     TEST_ASSERT(rc == 0);
 }
 
@@ -674,7 +672,7 @@ ble_sm_test_util_io_check_post(struct ble_sm_test_passkey_info *passkey_info,
     uint8_t io_sm_state;
     int rc;
 
-    io_sm_state = ble_sm_pkact_state(passkey_info->passkey.action);
+    io_sm_state = ble_sm_ioact_state(passkey_info->passkey.action);
     if (io_sm_state != cur_sm_state) {
         return;
     }
@@ -683,15 +681,15 @@ ble_sm_test_util_io_check_post(struct ble_sm_test_passkey_info *passkey_info,
         return;
     }
 
-    if (passkey_info->passkey.action == BLE_SM_PKACT_NUMCMP) {
-        TEST_ASSERT(ble_sm_test_pkact.numcmp == passkey_info->exp_numcmp);
+    if (passkey_info->passkey.action == BLE_SM_IOACT_NUMCMP) {
+        TEST_ASSERT(ble_sm_test_ioact.numcmp == passkey_info->exp_numcmp);
     }
 
     /* Ensure response not sent until user performs IO. */
     ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 
-    rc = ble_sm_set_tk(2, &passkey_info->passkey);
+    rc = ble_sm_inject_io(2, &passkey_info->passkey);
     TEST_ASSERT_FATAL(rc == 0);
 }
 
@@ -765,7 +763,7 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
 
     if (we_are_initiator) {
         peer_addr_type = 0;
-        peer_addr = params->rsp_addr;
+        peer_addr = params->resp_addr;
     } else {
         peer_addr_type = 0;
         peer_addr = params->init_addr;
@@ -823,7 +821,7 @@ ble_sm_test_util_us_lgcy_good(
         ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
     }
 
-    ble_hs_test_util_create_conn(2, params->rsp_addr,
+    ble_hs_test_util_create_conn(2, params->resp_addr,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
@@ -923,14 +921,14 @@ static void
 ble_sm_test_util_peer_fail_inval(
     int we_are_master,
     uint8_t *init_addr,
-    uint8_t *rsp_addr,
+    uint8_t *resp_addr,
     struct ble_sm_pair_cmd *pair_req,
     struct ble_sm_pair_fail *pair_fail)
 {
     struct ble_hs_conn *conn;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(rsp_addr);
+    ble_hs_test_util_set_public_addr(resp_addr);
 
     ble_hs_test_util_create_conn(2, init_addr, ble_sm_test_util_conn_cb,
                                  NULL);
@@ -975,7 +973,7 @@ ble_sm_test_util_peer_fail_inval(
 static void
 ble_sm_test_util_peer_lgcy_fail_confirm(
     uint8_t *init_addr,
-    uint8_t *rsp_addr,
+    uint8_t *resp_addr,
     struct ble_sm_pair_cmd *pair_req,
     struct ble_sm_pair_cmd *pair_rsp,
     struct ble_sm_pair_confirm *confirm_req,
@@ -987,7 +985,7 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     struct ble_hs_conn *conn;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(rsp_addr);
+    ble_hs_test_util_set_public_addr(resp_addr);
     ble_sm_dbg_set_next_pair_rand(random_rsp->value);
 
     ble_hs_test_util_create_conn(2, init_addr, ble_sm_test_util_conn_cb,
@@ -1074,7 +1072,7 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
     ble_hs_cfg.sm_our_key_dist = params->pair_rsp.resp_key_dist;
     ble_hs_cfg.sm_their_key_dist = params->pair_rsp.init_key_dist;
 
-    ble_hs_test_util_set_public_addr(params->rsp_addr);
+    ble_hs_test_util_set_public_addr(params->resp_addr);
     ble_sm_dbg_set_next_pair_rand(params->random_rsp.value);
     ble_sm_dbg_set_next_ediv(params->ediv);
     ble_sm_dbg_set_next_start_rand(params->r);
@@ -1362,7 +1360,7 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
     ble_hs_cfg.sm_our_key_dist = params->pair_rsp.resp_key_dist;
     ble_hs_cfg.sm_their_key_dist = params->pair_rsp.init_key_dist;
 
-    ble_hs_test_util_set_public_addr(params->rsp_addr);
+    ble_hs_test_util_set_public_addr(params->resp_addr);
     ble_sm_dbg_set_next_pair_rand(params->random_rsp[0].value);
 
     ble_sm_dbg_set_sc_keys(params->public_key_rsp.x, params->our_priv_key);
@@ -1560,7 +1558,7 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
 
     ble_sm_dbg_set_sc_keys(params->public_key_req.x, params->our_priv_key);
 
-    ble_hs_test_util_create_conn(2, params->rsp_addr,
+    ble_hs_test_util_create_conn(2, params->resp_addr,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
@@ -1708,7 +1706,7 @@ ble_sm_test_util_us_fail_inval(
     int rc;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(params->rsp_addr);
+    ble_hs_test_util_set_public_addr(params->resp_addr);
 
     ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
 
@@ -2202,7 +2200,7 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_jw_good)
 
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0,
@@ -2262,7 +2260,7 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
 
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .resp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0, .authreq = 0x05,
@@ -2317,7 +2315,7 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
 
         .passkey_info = {
             .passkey = {
-                .action = BLE_SM_PKACT_INPUT,
+                .action = BLE_SM_IOACT_INPUT,
                 .passkey = 884570,
             },
         },
@@ -2424,7 +2422,7 @@ TEST_CASE(ble_sm_test_case_peer_sec_req_pair)
 
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
-        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .resp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
         .sec_req = (struct ble_sm_sec_req) {
             .authreq = 0,
         },
@@ -2504,7 +2502,7 @@ TEST_CASE(ble_sm_test_case_peer_sc_jw_good)
 
     params = (struct ble_sm_test_sc_params) {
         .init_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
-        .rsp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x03,
             .oob_data_flag = 0x00,
@@ -2601,7 +2599,7 @@ TEST_CASE(ble_sm_test_case_peer_sc_numcmp_good)
 
     params = (struct ble_sm_test_sc_params) {
         .init_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
-        .rsp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x01,
             .oob_data_flag = 0x00,
@@ -2693,7 +2691,7 @@ TEST_CASE(ble_sm_test_case_peer_sc_numcmp_good)
 
         .passkey_info = {
             .passkey = {
-                .action = BLE_SM_PKACT_NUMCMP,
+                .action = BLE_SM_IOACT_NUMCMP,
                 .numcmp_accept = 1,
             },
 
@@ -2710,7 +2708,7 @@ TEST_CASE(ble_sm_test_case_peer_sc_passkey_good)
 
     params = (struct ble_sm_test_sc_params) {
         .init_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
-        .rsp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0x00,
@@ -3262,7 +3260,7 @@ TEST_CASE(ble_sm_test_case_peer_sc_passkey_good)
 
         .passkey_info = {
             .passkey = {
-                .action = BLE_SM_PKACT_INPUT,
+                .action = BLE_SM_IOACT_INPUT,
                 .passkey = 873559,
             },
 
@@ -3283,7 +3281,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid IO capabiltiies. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3309,7 +3307,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid OOB flag. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3335,7 +3333,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid authreq - reserved bonding flag. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3361,7 +3359,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid authreq - reserved other flag. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3387,7 +3385,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid key size - too small. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3413,7 +3411,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid key size - too large. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3439,7 +3437,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid init key dist. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3465,7 +3463,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
     /* Invalid resp key dist. */
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3495,7 +3493,7 @@ TEST_CASE(ble_sm_test_case_us_lgcy_jw_good)
 
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
-        .rsp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .resp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -3560,7 +3558,7 @@ TEST_CASE(ble_sm_test_case_us_sec_req_pair)
 
     params = (struct ble_sm_test_lgcy_params) {
         .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .rsp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .resp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
         .sec_req = (struct ble_sm_sec_req) {
             .authreq = 0x05,
         },
@@ -3620,7 +3618,7 @@ TEST_CASE(ble_sm_test_case_us_sec_req_pair)
 
         .passkey_info = {
             .passkey = {
-                .action = BLE_SM_PKACT_INPUT,
+                .action = BLE_SM_IOACT_INPUT,
                 .passkey = 884570,
             },
             .io_before_rx = 1,
@@ -3666,7 +3664,7 @@ TEST_CASE(ble_sm_test_case_us_sc_jw_good)
 
     params = (struct ble_sm_test_sc_params) {
         .init_addr = { 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 },
-        .rsp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x03,
             .oob_data_flag = 0x00,
@@ -3768,7 +3766,7 @@ TEST_CASE(ble_sm_test_case_us_sc_numcmp_good)
 
     params = (struct ble_sm_test_sc_params) {
         .init_addr = { 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 },
-        .rsp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x01,
             .oob_data_flag = 0x00,
@@ -3859,7 +3857,7 @@ TEST_CASE(ble_sm_test_case_us_sc_numcmp_good)
 
         .passkey_info = {
             .passkey = {
-                .action = BLE_SM_PKACT_NUMCMP,
+                .action = BLE_SM_IOACT_NUMCMP,
                 .numcmp_accept = 1,
             },
 
@@ -3881,7 +3879,7 @@ TEST_CASE(ble_sm_test_case_us_sc_passkey_good)
 
     params = (struct ble_sm_test_sc_params) {
         .init_addr = { 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 },
-        .rsp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0x00,
@@ -4434,7 +4432,7 @@ TEST_CASE(ble_sm_test_case_us_sc_passkey_good)
 
         .passkey_info = {
             .passkey = {
-                .action = BLE_SM_PKACT_DISP,
+                .action = BLE_SM_IOACT_DISP,
                 .passkey = 85212,
             },
         },

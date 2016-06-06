@@ -72,15 +72,16 @@
 
 /*
  * The security manager asks the application to perform a key generation
- * action.  The application passes the passkey back to SM via ble_sm_set_tk().
+ * action.  The application passes the passkey back to SM via
+ * ble_sm_inject_io().
  */
-#define BLE_SM_PKACT_NONE                       0
-#define BLE_SM_PKACT_OOB                        1
-#define BLE_SM_PKACT_INPUT                      2
-#define BLE_SM_PKACT_DISP                       3
-#define BLE_SM_PKACT_NUMCMP                     4
+#define BLE_SM_IOACT_NONE                       0
+#define BLE_SM_IOACT_OOB                        1
+#define BLE_SM_IOACT_INPUT                      2
+#define BLE_SM_IOACT_DISP                       3
+#define BLE_SM_IOACT_NUMCMP                     4
 
-struct ble_sm_passkey {
+struct ble_sm_io {
     uint8_t action;
     union {
         uint32_t passkey;
@@ -90,9 +91,10 @@ struct ble_sm_passkey {
 };
 
 #if NIMBLE_OPT(SM)
-int ble_sm_set_tk(uint16_t conn_handle, struct ble_sm_passkey *pkey);
+int ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey);
 #else
-#define ble_sm_set_tk(conn_handle, pkey) ((void)(conn_handle), BLE_HS_ENOTSUP)
+#define ble_sm_inject_io(conn_handle, pkey) \
+    ((void)(conn_handle), BLE_HS_ENOTSUP)
 #endif
 
 #endif
