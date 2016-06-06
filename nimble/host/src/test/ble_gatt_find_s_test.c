@@ -25,7 +25,7 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_test_util.h"
 
-static struct ble_gatt_service ble_gatt_find_s_test_svcs[256];
+static struct ble_gatt_svc ble_gatt_find_s_test_svcs[256];
 static int ble_gatt_find_s_test_num_svcs;
 static int ble_gatt_find_s_test_proc_complete;
 
@@ -47,7 +47,7 @@ ble_gatt_find_s_test_misc_init(void)
 static int
 ble_gatt_find_s_test_misc_cb(uint16_t conn_handle,
                              struct ble_gatt_error *error,
-                             struct ble_gatt_service *service,
+                             struct ble_gatt_svc *service,
                              void *arg)
 {
     TEST_ASSERT(!ble_gatt_find_s_test_proc_complete);
@@ -180,7 +180,7 @@ ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
                                    uint16_t start_handle, uint16_t end_handle,
                                    struct ble_gatt_find_s_test_entry *entries)
 {
-    struct ble_gatt_service service;
+    struct ble_gatt_svc service;
     int cur_start;
     int num_found;
     int idx;

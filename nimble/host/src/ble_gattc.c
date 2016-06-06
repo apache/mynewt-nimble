@@ -1011,7 +1011,7 @@ done:
 static int
 ble_gattc_disc_all_svcs_cb(struct ble_gattc_proc *proc,
                            uint16_t status, uint16_t att_handle,
-                           struct ble_gatt_service *service)
+                           struct ble_gatt_svc *service)
 {
     int rc;
 
@@ -1088,7 +1088,7 @@ static int
 ble_gattc_disc_all_svcs_rx_adata(struct ble_gattc_proc *proc,
                                  struct ble_att_read_group_type_adata *adata)
 {
-    struct ble_gatt_service service;
+    struct ble_gatt_svc service;
     uint16_t uuid16;
     int cbrc;
     int rc;
@@ -1225,7 +1225,7 @@ done:
 static int
 ble_gattc_disc_svc_uuid_cb(struct ble_gattc_proc *proc, int status,
                            uint16_t att_handle,
-                           struct ble_gatt_service *service)
+                           struct ble_gatt_svc *service)
 {
     int rc;
 
@@ -1300,7 +1300,7 @@ static int
 ble_gattc_disc_svc_uuid_rx_hinfo(struct ble_gattc_proc *proc,
                                  struct ble_att_find_type_value_hinfo *hinfo)
 {
-    struct ble_gatt_service service;
+    struct ble_gatt_svc service;
     int cbrc;
     int rc;
 
@@ -1420,7 +1420,7 @@ done:
 static int
 ble_gattc_find_inc_svcs_cb(struct ble_gattc_proc *proc, int status,
                            uint16_t att_handle,
-                           struct ble_gatt_service *service)
+                           struct ble_gatt_svc *service)
 {
     int rc;
 
@@ -1510,7 +1510,7 @@ static int
 ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_proc *proc, int status,
                                     void *value, int value_len)
 {
-    struct ble_gatt_service service;
+    struct ble_gatt_svc service;
     int cbrc;
     int rc;
 
@@ -1564,7 +1564,7 @@ static int
 ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
                                  struct ble_att_read_type_adata *adata)
 {
-    struct ble_gatt_service service;
+    struct ble_gatt_svc service;
     uint16_t uuid16;
     int call_cb;
     int cbrc;
@@ -1813,7 +1813,7 @@ ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     memset(&chr, 0, sizeof chr);
-    chr.decl_handle = adata->att_handle;
+    chr.def_handle = adata->att_handle;
 
     switch (adata->value_len) {
     case BLE_GATT_CHR_DECL_SZ_16:
@@ -1835,7 +1835,7 @@ ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
     }
 
     chr.properties = adata->value[0];
-    chr.value_handle = le16toh(adata->value + 1);
+    chr.val_handle = le16toh(adata->value + 1);
 
     if (adata->att_handle <= proc->disc_all_chrs.prev_handle) {
         /* Peer sent characteristics out of order; terminate procedure. */
@@ -2038,7 +2038,7 @@ ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_proc *proc,
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     memset(&chr, 0, sizeof chr);
-    chr.decl_handle = adata->att_handle;
+    chr.def_handle = adata->att_handle;
 
     switch (adata->value_len) {
     case BLE_GATT_CHR_DECL_SZ_16:
@@ -2060,7 +2060,7 @@ ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_proc *proc,
     }
 
     chr.properties = adata->value[0];
-    chr.value_handle = le16toh(adata->value + 1);
+    chr.val_handle = le16toh(adata->value + 1);
 
     if (adata->att_handle <= proc->disc_chr_uuid.prev_handle) {
         /* Peer sent characteristics out of order; terminate procedure. */

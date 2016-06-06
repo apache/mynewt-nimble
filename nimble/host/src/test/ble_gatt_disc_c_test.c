@@ -28,8 +28,8 @@
 #include "ble_hs_test_util.h"
 
 struct ble_gatt_disc_c_test_char {
-    uint16_t decl_handle;
-    uint16_t value_handle;
+    uint16_t def_handle;
+    uint16_t val_handle;
     uint16_t uuid16; /* 0 if not present. */
     uint8_t properties;
     uint8_t uuid128[16];
@@ -75,7 +75,7 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
 
     off = BLE_ATT_READ_TYPE_RSP_BASE_SZ;
     for (i = 0; ; i++) {
-        if (chars[i].decl_handle == 0) {
+        if (chars[i].def_handle == 0) {
             /* No more services. */
             break;
         }
@@ -85,13 +85,13 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
             break;
         }
 
-        htole16(buf + off, chars[i].decl_handle);
+        htole16(buf + off, chars[i].def_handle);
         off += 2;
 
         buf[off] = chars[i].properties;
         off++;
 
-        htole16(buf + off, chars[i].value_handle);
+        htole16(buf + off, chars[i].val_handle);
         off += 2;
 
         if (chars[i].uuid16 != 0) {
@@ -119,7 +119,7 @@ ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle,
     int idx;
 
     idx = 0;
-    while (chars[idx].decl_handle != 0) {
+    while (chars[idx].def_handle != 0) {
         count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn_handle,
                                                       chars + idx);
         if (count == 0) {
@@ -128,12 +128,12 @@ ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle,
         idx += count;
     }
 
-    if (chars[idx - 1].decl_handle != end_handle) {
+    if (chars[idx - 1].def_handle != end_handle) {
         /* Send the pending ATT Request. */
         ble_hs_test_util_tx_all();
         ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
-                                        chars[idx - 1].decl_handle);
+                                        chars[idx - 1].def_handle);
     }
 }
 
@@ -148,11 +148,11 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
         stop_after = INT_MAX;
     }
 
-    for (i = 0; i < stop_after && chars[i].decl_handle != 0; i++) {
-        TEST_ASSERT(chars[i].decl_handle ==
-                    ble_gatt_disc_c_test_chars[i].decl_handle);
-        TEST_ASSERT(chars[i].value_handle ==
-                    ble_gatt_disc_c_test_chars[i].value_handle);
+    for (i = 0; i < stop_after && chars[i].def_handle != 0; i++) {
+        TEST_ASSERT(chars[i].def_handle ==
+                    ble_gatt_disc_c_test_chars[i].def_handle);
+        TEST_ASSERT(chars[i].val_handle ==
+                    ble_gatt_disc_c_test_chars[i].val_handle);
         if (chars[i].uuid16 != 0) {
             uuid16 = ble_uuid_128_to_16(ble_gatt_disc_c_test_chars[i].uuid128);
             TEST_ASSERT(chars[i].uuid16 == uuid16);
@@ -252,8 +252,8 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, { 0 }
     });
@@ -262,12 +262,12 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 57,
-            .value_handle = 58,
+            .def_handle = 57,
+            .val_handle = 58,
             .uuid16 = 0x64ba,
         }, { 0 }
     });
@@ -276,24 +276,24 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 57,
-            .value_handle = 58,
+            .def_handle = 57,
+            .val_handle = 58,
             .uuid16 = 0x64ba,
         }, {
-            .decl_handle = 59,
-            .value_handle = 60,
+            .def_handle = 59,
+            .val_handle = 60,
             .uuid16 = 0x5372,
         }, {
-            .decl_handle = 61,
-            .value_handle = 62,
+            .def_handle = 61,
+            .val_handle = 62,
             .uuid16 = 0xab93,
         }, {
-            .decl_handle = 63,
-            .value_handle = 64,
+            .def_handle = 63,
+            .val_handle = 64,
             .uuid16 = 0x0023,
         }, { 0 }
     });
@@ -302,24 +302,24 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 83,
-            .value_handle = 84,
+            .def_handle = 83,
+            .val_handle = 84,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 87,
-            .value_handle = 88,
+            .def_handle = 87,
+            .val_handle = 88,
             .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
         }, {
-            .decl_handle = 91,
-            .value_handle = 92,
+            .def_handle = 91,
+            .val_handle = 92,
             .uuid16 = 0x0003,
         }, {
-            .decl_handle = 93,
-            .value_handle = 94,
+            .def_handle = 93,
+            .val_handle = 94,
             .uuid128 = { 1,0,4,0,6,9,17,7,8,43,7,4,12,43,19,35 },
         }, {
-            .decl_handle = 98,
-            .value_handle = 99,
+            .def_handle = 98,
+            .val_handle = 99,
             .uuid16 = 0xabfa,
         }, { 0 }
     });
@@ -328,12 +328,12 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 99,
-            .value_handle = 100,
+            .def_handle = 99,
+            .val_handle = 100,
             .uuid16 = 0x64ba,
         }, { 0 }
     });
@@ -342,24 +342,24 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     ble_gatt_disc_c_test_misc_all(50, 100, 2,
                                   (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 57,
-            .value_handle = 58,
+            .def_handle = 57,
+            .val_handle = 58,
             .uuid16 = 0x64ba,
         }, {
-            .decl_handle = 59,
-            .value_handle = 60,
+            .def_handle = 59,
+            .val_handle = 60,
             .uuid16 = 0x5372,
         }, {
-            .decl_handle = 61,
-            .value_handle = 62,
+            .def_handle = 61,
+            .val_handle = 62,
             .uuid16 = 0xab93,
         }, {
-            .decl_handle = 63,
-            .value_handle = 64,
+            .def_handle = 63,
+            .val_handle = 64,
             .uuid16 = 0x0023,
         }, { 0 }
     });
@@ -371,14 +371,14 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x2010),
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, { 0 } },
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, { 0 } }
     );
@@ -387,8 +387,8 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x2010),
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x1234,
         }, { 0 } },
         (struct ble_gatt_disc_c_test_char[]) {
@@ -399,34 +399,34 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x2010),
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 57,
-            .value_handle = 58,
+            .def_handle = 57,
+            .val_handle = 58,
             .uuid16 = 0x64ba,
         }, {
-            .decl_handle = 59,
-            .value_handle = 60,
+            .def_handle = 59,
+            .val_handle = 60,
             .uuid16 = 0x5372,
         }, {
-            .decl_handle = 61,
-            .value_handle = 62,
+            .def_handle = 61,
+            .val_handle = 62,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 63,
-            .value_handle = 64,
+            .def_handle = 63,
+            .val_handle = 64,
             .uuid16 = 0x0023,
         }, { 0 } },
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 61,
-            .value_handle = 62,
+            .def_handle = 61,
+            .val_handle = 62,
             .uuid16 = 0x2010,
         }, { 0 } }
     );
@@ -437,34 +437,34 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
         ((uint8_t[]){ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 }),
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 83,
-            .value_handle = 84,
+            .def_handle = 83,
+            .val_handle = 84,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 87,
-            .value_handle = 88,
+            .def_handle = 87,
+            .val_handle = 88,
             .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
         }, {
-            .decl_handle = 91,
-            .value_handle = 92,
+            .def_handle = 91,
+            .val_handle = 92,
             .uuid16 = 0x0003,
         }, {
-            .decl_handle = 93,
-            .value_handle = 94,
+            .def_handle = 93,
+            .val_handle = 94,
             .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
         }, {
-            .decl_handle = 98,
-            .value_handle = 99,
+            .def_handle = 98,
+            .val_handle = 99,
             .uuid16 = 0xabfa,
         }, { 0 } },
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 87,
-            .value_handle = 88,
+            .def_handle = 87,
+            .val_handle = 88,
             .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
         }, {
-            .decl_handle = 93,
-            .value_handle = 94,
+            .def_handle = 93,
+            .val_handle = 94,
             .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
         }, { 0 } }
     );
@@ -473,18 +473,18 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16(0x64ba),
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 99,
-            .value_handle = 100,
+            .def_handle = 99,
+            .val_handle = 100,
             .uuid16 = 0x64ba,
         }, { 0 } },
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 99,
-            .value_handle = 100,
+            .def_handle = 99,
+            .val_handle = 100,
             .uuid16 = 0x64ba,
         }, { 0 } }
     );
@@ -493,30 +493,30 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
     ble_gatt_disc_c_test_misc_uuid(50, 100, 1, BLE_UUID16(0x2010),
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 57,
-            .value_handle = 58,
+            .def_handle = 57,
+            .val_handle = 58,
             .uuid16 = 0x64ba,
         }, {
-            .decl_handle = 59,
-            .value_handle = 60,
+            .def_handle = 59,
+            .val_handle = 60,
             .uuid16 = 0x5372,
         }, {
-            .decl_handle = 61,
-            .value_handle = 62,
+            .def_handle = 61,
+            .val_handle = 62,
             .uuid16 = 0x2010,
         }, {
-            .decl_handle = 63,
-            .value_handle = 64,
+            .def_handle = 63,
+            .val_handle = 64,
             .uuid16 = 0x0023,
         }, { 0 } },
         (struct ble_gatt_disc_c_test_char[]) {
         {
-            .decl_handle = 55,
-            .value_handle = 56,
+            .def_handle = 55,
+            .val_handle = 56,
             .uuid16 = 0x2010,
         }, { 0 } }
     );

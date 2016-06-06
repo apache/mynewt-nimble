@@ -34,7 +34,7 @@ struct ble_gatt_error {
     uint16_t att_handle;
 };
 
-struct ble_gatt_service {
+struct ble_gatt_svc {
     uint16_t start_handle;
     uint16_t end_handle;
     uint8_t uuid128[16];
@@ -48,8 +48,8 @@ struct ble_gatt_attr {
 };
 
 struct ble_gatt_chr {
-    uint16_t decl_handle;
-    uint16_t value_handle;
+    uint16_t def_handle;
+    uint16_t val_handle;
     uint8_t properties;
     uint8_t uuid128[16];
 };
@@ -63,7 +63,7 @@ typedef int ble_gatt_mtu_fn(uint16_t conn_handle, struct ble_gatt_error *error,
                             uint16_t mtu, void *arg);
 typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
                                  struct ble_gatt_error *error,
-                                 struct ble_gatt_service *service,
+                                 struct ble_gatt_svc *service,
                                  void *arg);
 typedef int ble_gatt_attr_fn(uint16_t conn_handle,
                              struct ble_gatt_error *error,

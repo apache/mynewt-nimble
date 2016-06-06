@@ -75,7 +75,7 @@ ble_gatt_conn_test_mtu_cb(uint16_t conn_handle, struct ble_gatt_error *error,
 static int
 ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
                                    struct ble_gatt_error *error,
-                                   struct ble_gatt_service *service,
+                                   struct ble_gatt_svc *service,
                                    void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -96,7 +96,7 @@ ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
                                     struct ble_gatt_error *error,
-                                    struct ble_gatt_service *service,
+                                    struct ble_gatt_svc *service,
                                     void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -117,7 +117,7 @@ ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_find_inc_svcs_cb(uint16_t conn_handle,
                                     struct ble_gatt_error *error,
-                                    struct ble_gatt_service *service,
+                                    struct ble_gatt_svc *service,
                                     void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
