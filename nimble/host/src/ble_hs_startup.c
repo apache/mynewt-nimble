@@ -83,8 +83,17 @@ ble_hs_startup_le_set_evmask_tx(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_LE_EVENT_MASK_LEN];
     int rc;
 
-    /* [ Default event set ]. */
-    host_hci_cmd_build_le_set_event_mask(0x000000000000021f, buf, sizeof buf);
+    /**
+     * Enable the following LE events:
+     *     0x0000000000000001 LE Connection Complete Event
+     *     0x0000000000000002 LE Advertising Report Event
+     *     0x0000000000000004 LE Connection Update Complete Event
+     *     0x0000000000000008 LE Read Remote Used Features Complete Event
+     *     0x0000000000000010 LE Long Term Key Request Event
+     *     0x0000000000000020 LE Remote Connection Parameter Request Event
+     *     0x0000000000000200 LE Enhanced Connection Complete Event
+     */
+    host_hci_cmd_build_le_set_event_mask(0x000000000000023f, buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
@@ -99,8 +108,49 @@ ble_hs_startup_set_evmask_tx(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_EVENT_MASK_LEN];
     int rc;
 
-    /* [ Default event set | LE-meta event ]. */
-    host_hci_cmd_build_set_event_mask(0x20001fffffffffff, buf, sizeof buf);
+    /**
+     * Enable the following events:
+     *     0x0000000000000001 Inquiry Complete Event
+     *     0x0000000000000002 Inquiry Result Event
+     *     0x0000000000000004 Connection Complete Event
+     *     0x0000000000000008 Connection Request Event
+     *     0x0000000000000010 Disconnection Complete Event
+     *     0x0000000000000020 Authentication Complete Event
+     *     0x0000000000000040 Remote Name Request Complete Event
+     *     0x0000000000000080 Encryption Change Event
+     *     0x0000000000000100 Change Connection Link Key Complete Event
+     *     0x0000000000000200 Master Link Key Complete Event
+     *     0x0000000000000400 Read Remote Supported Features Complete Event
+     *     0x0000000000000800 Read Remote Version Information Complete Event
+     *     0x0000000000001000 QoS Setup Complete Event
+     *     0x0000000000002000 Reserved
+     *     0x0000000000004000 Reserved
+     *     0x0000000000008000 Hardware Error Event
+     *     0x0000000000010000 Flush Occurred Event
+     *     0x0000000000020000 Role Change Event
+     *     0x0000000000040000 Reserved
+     *     0x0000000000080000 Mode Change Event
+     *     0x0000000000100000 Return Link Keys Event
+     *     0x0000000000200000 PIN Code Request Event
+     *     0x0000000000400000 Link Key Request Event
+     *     0x0000000000800000 Link Key Notification Event
+     *     0x0000000001000000 Loopback Command Event
+     *     0x0000000002000000 Data Buffer Overflow Event
+     *     0x0000000004000000 Max Slots Change Event
+     *     0x0000000008000000 Read Clock Offset Complete Event
+     *     0x0000000010000000 Connection Packet Type Changed Event
+     *     0x0000000020000000 QoS Violation Event
+     *     0x0000000040000000 Page Scan Mode Change Event [deprecated]
+     *     0x0000000080000000 Page Scan Repetition Mode Change Event
+     *     0x0000000100000000 Flow Specification Complete Event
+     *     0x0000000200000000 Inquiry Result with RSSI Event
+     *     0x0000000400000000 Read Remote Extended Features Complete Event
+     *     0x0000080000000000 Synchronous Connection Complete Event
+     *     0x0000100000000000 Synchronous Connection Changed Event
+     *     0x0000800000000000 Encryption Key Refresh Complete Event
+     *     0x2000000000000000 LE Meta-Event
+     */
+    host_hci_cmd_build_set_event_mask(0x20009fffffffffff, buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
