@@ -1164,6 +1164,7 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 #endif
 
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    features |= (BLE_LL_FEAT_LL_PRIVACY | BLE_LL_FEAT_EXT_SCAN_FILT);
     ble_ll_resolv_init();
 #endif
 
