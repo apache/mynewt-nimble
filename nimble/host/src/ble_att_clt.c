@@ -152,7 +152,7 @@ ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **om)
     }
 
     ble_att_error_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
-    BLE_ATT_LOG_CMD(0, "error rsp", ble_att_error_rsp_log, &rsp);
+    BLE_ATT_LOG_CMD(0, "error rsp", conn_handle, ble_att_error_rsp_log, &rsp);
 
     ble_gattc_rx_err(conn_handle, &rsp);
 
@@ -236,7 +236,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
     rc = ble_hs_misc_pullup_base(om, BLE_ATT_MTU_CMD_SZ);
     if (rc == 0) {
         ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
-        BLE_ATT_LOG_CMD(0, "mtu rsp", ble_att_mtu_cmd_log, &cmd);
+        BLE_ATT_LOG_CMD(0, "mtu rsp", conn_handle, ble_att_mtu_cmd_log, &cmd);
 
         ble_hs_lock();
 

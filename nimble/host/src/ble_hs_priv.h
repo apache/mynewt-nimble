@@ -125,6 +125,23 @@ void ble_hci_set_phony_ack_cb(ble_hci_cmd_phony_ack_fn *cb);
                (addr)[0], (addr)[1], (addr)[2],         \
                (addr)[3], (addr)[4], (addr)[5])
 
+#if LOG_LEVEL <= LOG_LEVEL_DEBUG
+
+#define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,          \
+                       log_cb, cmd) do                                  \
+{                                                                       \
+    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d",                   \
+               is_tx ? "tx" : "rx", cmd_type, cmd_name);                \
+    (log_cb)(cmd);                                                      \
+    BLE_HS_LOG(DEBUG, "\n");                                            \
+} while (0)
+
+#else
+
+#define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle, log_cb, cmd)
+
+#endif
+
 #if BLE_HS_DEBUG
     #define BLE_HS_DBG_ASSERT(x) assert(x)
     #define BLE_HS_DBG_ASSERT_EVAL(x) assert(x)
