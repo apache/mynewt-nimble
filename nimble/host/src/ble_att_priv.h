@@ -134,11 +134,6 @@ struct ble_att_svr_entry {
     void *ha_cb_arg;
 };
 
-#define HA_OPCODE_METHOD_START (0)
-#define HA_OPCODE_METHOD_END (5)
-#define HA_OPCODE_COMMAND_FLAG (1 << 6)
-#define HA_OPCODE_AUTH_SIG_FLAG (1 << 7)
-
 SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 
 /*** @gen */
@@ -152,21 +147,8 @@ uint16_t ble_att_mtu(uint16_t conn_handle);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 int ble_att_init(void);
 
-#if LOG_LEVEL <= LOG_LEVEL_DEBUG
-
-#define BLE_ATT_LOG_CMD(is_tx, cmd_name, log_cb, cmd) do                \
-{                                                                       \
-    BLE_HS_LOG(DEBUG, "%sed att command: %s; ", is_tx ? "tx" : "rx",    \
-               cmd_name);                                               \
-    (log_cb)(cmd);                                                      \
-    BLE_HS_LOG(DEBUG, "\n");                                            \
-} while (0)
-
-#else
-
-#define BLE_ATT_LOG_CMD(is_tx, cmd_name, log_cb, cmd)
-
-#endif
+#define BLE_ATT_LOG_CMD(is_tx, cmd_name, conn_handle, log_cb, cmd) \
+    BLE_HS_LOG_CMD((is_tx), "att", (cmd_name), (conn_handle), (log_cb), (cmd))
 
 /*** @svr */
 

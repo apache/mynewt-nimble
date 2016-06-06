@@ -1237,12 +1237,10 @@ ble_sm_random_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_pair_random_parse((*om)->om_data, (*om)->om_len, &cmd);
-
-    BLE_HS_LOG(DEBUG, "rxed sm random cmd\n");
+    BLE_SM_LOG_CMD(0, "random", conn_handle, ble_sm_pair_random_log, &cmd);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_RANDOM,
-                                  -1, &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_RANDOM, -1, &prev);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
@@ -1289,8 +1287,7 @@ ble_sm_confirm_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_pair_confirm_parse((*om)->om_data, (*om)->om_len, &cmd);
-
-    BLE_HS_LOG(DEBUG, "rxed sm confirm cmd\n");
+    BLE_SM_LOG_CMD(0, "confirm", conn_handle, ble_sm_pair_confirm_log, &cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM, -1, &prev);
@@ -1451,12 +1448,7 @@ ble_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_pair_cmd_parse((*om)->om_data, (*om)->om_len, &req);
-
-    BLE_HS_LOG(DEBUG, "rxed sm pair req; io_cap=0x%02x oob_data_flag=%d "
-                      "authreq=0x%02x max_enc_key_size=%d "
-                      "init_key_dist=0x%02x resp_key_dist=0x%02x\n",
-               req.io_cap, req.oob_data_flag, req.authreq,
-               req.max_enc_key_size, req.init_key_dist, req.resp_key_dist);
+    BLE_SM_LOG_CMD(0, "pair req", conn_handle, ble_sm_pair_cmd_log, &req);
 
     ble_hs_lock();
 
@@ -1514,16 +1506,10 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_pair_cmd_parse((*om)->om_data, (*om)->om_len, &rsp);
-
-    BLE_HS_LOG(DEBUG, "rxed sm pair rsp; io_cap=0x%02x oob_data_flag=%d "
-                      "authreq=0x%02x max_enc_key_size=%d "
-                      "init_key_dist=0x%02x resp_key_dist=0x%02x\n",
-               rsp.io_cap, rsp.oob_data_flag, rsp.authreq,
-               rsp.max_enc_key_size, rsp.init_key_dist, rsp.resp_key_dist);
+    BLE_SM_LOG_CMD(0, "pair rsp", conn_handle, ble_sm_pair_cmd_log, &rsp);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1,
-                                  &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, &prev);
     if (proc != NULL) {
         proc->pair_rsp = rsp;
         if (!ble_sm_pair_cmd_is_valid(&rsp)) {
@@ -1580,13 +1566,12 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_sec_req_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "sec req", conn_handle, ble_sm_sec_req_log, &cmd);
 
     /* XXX: Reject if:
      *     o authreq-bonded flag not set?
      *     o authreq-reserved flags set?
      */
-
-    BLE_HS_LOG(DEBUG, "rxed sm sec req; authreq=%d\n", cmd.authreq);
 
     ble_hs_lock();
 
@@ -1709,7 +1694,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
         bls_hs_priv_copy_local_identity_addr(addr_info.bd_addr,
                                              &addr_info.addr_type);
-        rc = ble_sm_iden_addr_tx(proc->conn_handle, &addr_info);
+        rc = ble_sm_id_addr_info_tx(proc->conn_handle, &addr_info);
         if (rc != 0) {
             goto err;
         }
@@ -1754,8 +1739,7 @@ err:
 static void
 ble_sm_key_rxed(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    BLE_HS_LOG(DEBUG, "key received; rx_key_flags=0x%02x\n",
-               proc->rx_key_flags);
+    BLE_HS_LOG(DEBUG, "rx_key_flags=0x%02x\n", proc->rx_key_flags);
 
     if (proc->rx_key_flags == 0) {
         /* The peer is done sending keys.  If we are the initiator, we need to
@@ -1787,6 +1771,7 @@ ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_enc_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "enc info", conn_handle, ble_sm_enc_info_log, &cmd);
 
     ble_hs_lock();
 
@@ -1822,6 +1807,7 @@ ble_sm_master_id_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_master_id_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "master id", conn_handle, ble_sm_master_id_log, &cmd);
 
     ble_hs_lock();
 
@@ -1858,6 +1844,7 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_id_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "id info", conn_handle, ble_sm_id_info_log, &cmd);
 
     ble_hs_lock();
 
@@ -1892,7 +1879,9 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         return;
     }
 
-    ble_sm_iden_addr_parse((*om)->om_data, (*om)->om_len, &cmd);
+    ble_sm_id_addr_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "id addr info", conn_handle, ble_sm_id_addr_info_log,
+                   &cmd);
 
     ble_hs_lock();
 
@@ -1929,6 +1918,7 @@ ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_sign_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "sign info", conn_handle, ble_sm_sign_info_log, &cmd);
 
     ble_hs_lock();
 
@@ -1963,7 +1953,7 @@ ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_FAIL_SZ);
     if (res->app_status == 0) {
         ble_sm_pair_fail_parse((*om)->om_data, (*om)->om_len, &cmd);
-        BLE_HS_LOG(DEBUG, "rxed sm fail cmd; reason=%d\n", cmd.reason);
+        BLE_SM_LOG_CMD(0, "fail", conn_handle, ble_sm_pair_fail_log, &cmd);
 
         res->app_status = BLE_HS_SM_THEM_ERR(cmd.reason);
     }
@@ -2135,9 +2125,6 @@ ble_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
     int rc;
 
     STATS_INC(ble_l2cap_stats, sm_rx);
-    BLE_HS_LOG(DEBUG, "L2CAP - rxed security manager msg: ");
-    ble_hs_misc_log_mbuf(*om);
-    BLE_HS_LOG(DEBUG, "\n");
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {

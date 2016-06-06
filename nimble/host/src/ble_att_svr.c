@@ -595,7 +595,7 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om)
     }
 
     ble_att_mtu_cmd_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_ATT_LOG_CMD(0, "mtu req", ble_att_mtu_cmd_log, &cmd);
+    BLE_ATT_LOG_CMD(0, "mtu req", conn_handle, ble_att_mtu_cmd_log, &cmd);
 
     rc = ble_att_svr_build_mtu_rsp(conn_handle, &txom, &att_err);
     if (rc != 0) {

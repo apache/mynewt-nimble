@@ -485,8 +485,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     }
 
     ble_sm_public_key_parse((*om)->om_data, (*om)->om_len, &cmd);
-
-    BLE_HS_LOG(DEBUG, "rxed sm public key cmd\n");
+    BLE_SM_LOG_CMD(0, "public key", conn_handle, ble_sm_public_key_log, &cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PUBLIC_KEY, -1,
@@ -661,15 +660,9 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         return;
     }
 
-    res->app_status = ble_sm_dhkey_check_parse((*om)->om_data, (*om)->om_len,
-                                               &cmd);
-    if (res->app_status != 0) {
-        res->enc_cb = 1;
-        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-        return;
-    }
-
-    BLE_HS_LOG(DEBUG, "rxed sm dhkey check cmd\n");
+    ble_sm_dhkey_check_parse((*om)->om_data, (*om)->om_len, &cmd);
+    BLE_SM_LOG_CMD(0, "dhkey check", conn_handle, ble_sm_dhkey_check_log,
+                   &cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_DHKEY_CHECK, -1,
