@@ -923,6 +923,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (scansm->scan_rsp_pending) {
             ble_ll_scan_req_backoff(scansm, 0);
         }
+        ble_phy_disable();
         ble_phy_rx();
         return 0;
     }
