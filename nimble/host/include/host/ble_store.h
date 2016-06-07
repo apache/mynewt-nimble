@@ -37,6 +37,10 @@
 struct ble_store_key_sec {
     /**
      * Key by peer identity address;
+     * Valid peer_addr_type values;
+     *    o BLE_ADDR_TYPE_PUBLIC
+     *    o BLE_ADDR_TYPE_RANDOM
+     *    o BLE_STORE_ADDR_TYPE_NONE
      * peer_addr_type=BLE_STORE_ADDR_TYPE_NONE means don't key off peer.
      */
     uint8_t peer_addr[6];

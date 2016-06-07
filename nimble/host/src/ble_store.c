@@ -73,6 +73,10 @@ ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
     union ble_store_key *store_key;
     int rc;
 
+    BLE_HS_DBG_ASSERT(key_sec->peer_addr_type == BLE_ADDR_TYPE_PUBLIC ||
+                      key_sec->peer_addr_type == BLE_ADDR_TYPE_RANDOM ||
+                      key_sec->peer_addr_type == BLE_STORE_ADDR_TYPE_NONE);
+
     store_key = (void *)key_sec;
     store_value = (void *)value_sec;
     rc = ble_store_read(BLE_STORE_OBJ_TYPE_SLV_SEC, store_key, store_value);
@@ -86,6 +90,9 @@ ble_store_persist_sec(int obj_type, struct ble_store_value_sec *value_sec)
     union ble_store_value *store_value;
     union ble_store_key *store_key;
     int rc;
+
+    BLE_HS_DBG_ASSERT(value_sec->peer_addr_type == BLE_ADDR_TYPE_PUBLIC ||
+                      value_sec->peer_addr_type == BLE_ADDR_TYPE_RANDOM);
 
     /* If the value contains no keys, delete the corresponding entry.
      * Otherwise, write it.
@@ -121,6 +128,10 @@ ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
     union ble_store_value *store_value;
     union ble_store_key *store_key;
     int rc;
+
+    BLE_HS_DBG_ASSERT(key_sec->peer_addr_type == BLE_ADDR_TYPE_PUBLIC ||
+                      key_sec->peer_addr_type == BLE_ADDR_TYPE_RANDOM ||
+                      key_sec->peer_addr_type == BLE_STORE_ADDR_TYPE_NONE);
 
     store_key = (void *)key_sec;
     store_value = (void *)value_sec;

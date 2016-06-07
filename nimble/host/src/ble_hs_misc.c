@@ -161,3 +161,21 @@ ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
 
     return rc;
 }
+
+uint8_t
+ble_hs_misc_addr_type_to_ident(uint8_t addr_type)
+{
+    switch (addr_type) {
+    case BLE_ADDR_TYPE_PUBLIC:
+    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
+         return BLE_ADDR_TYPE_PUBLIC;
+
+    case BLE_ADDR_TYPE_RANDOM:
+    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
+         return BLE_ADDR_TYPE_RANDOM;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_ADDR_TYPE_PUBLIC;
+    }
+}
