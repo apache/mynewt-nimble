@@ -91,9 +91,10 @@ ble_hs_startup_le_set_evmask_tx(void)
      *     0x0000000000000008 LE Read Remote Used Features Complete Event
      *     0x0000000000000010 LE Long Term Key Request Event
      *     0x0000000000000020 LE Remote Connection Parameter Request Event
+     *     0x0000000000000040 LE Data Length Change Event
      *     0x0000000000000200 LE Enhanced Connection Complete Event
      */
-    host_hci_cmd_build_le_set_event_mask(0x000000000000023f, buf, sizeof buf);
+    host_hci_cmd_build_le_set_event_mask(0x000000000000027f, buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
