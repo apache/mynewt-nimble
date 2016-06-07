@@ -127,20 +127,20 @@ void ble_hci_set_phony_ack_cb(ble_hci_cmd_phony_ack_fn *cb);
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 
-#define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,          \
-                       log_cb, cmd) do                                  \
-{                                                                       \
-    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d",                   \
-               is_tx ? "tx" : "rx", cmd_type, cmd_name);                \
-    (log_cb)(cmd);                                                      \
-    BLE_HS_LOG(DEBUG, "\n");                                            \
+#define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,                \
+                       log_cb, cmd) do                                        \
+{                                                                             \
+    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d ",                        \
+               (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name), (conn_handle)); \
+    (log_cb)(cmd);                                                            \
+    BLE_HS_LOG(DEBUG, "\n");                                                  \
 } while (0)
 
-#define BLE_HS_LOG_EMPTY_CMD(is_tx, cmd_type, cmd_name, conn_handle) do \
-{                                                                       \
-    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d",                   \
-               is_tx ? "tx" : "rx", cmd_type, cmd_name);                \
-    BLE_HS_LOG(DEBUG, "\n");                                            \
+#define BLE_HS_LOG_EMPTY_CMD(is_tx, cmd_type, cmd_name, conn_handle) do       \
+{                                                                             \
+    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d ",                        \
+               (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name), (conn_handle)); \
+    BLE_HS_LOG(DEBUG, "\n");                                                  \
 } while (0)
 
 #else

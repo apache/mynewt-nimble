@@ -440,7 +440,8 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     rsp.baep_error_code = error_code;
 
     ble_att_error_rsp_write(dst, BLE_ATT_ERROR_RSP_SZ, &rsp);
-    BLE_ATT_LOG_CMD(1, "error rsp", conn_handle, ble_att_error_rsp_log, &rsp);
+    BLE_ATT_LOG_CMD(1, "error rsp", conn->bhc_handle,
+                    ble_att_error_rsp_log, &rsp);
 
     rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
@@ -1510,7 +1511,6 @@ ble_att_svr_build_read_blob_rsp(void *attr_data, int attr_len, uint16_t mtu,
         goto done;
     }
 
-    BLE_ATT_LOG_EMPTY_CMD(1, "read blob rsp", conn_handle);
     rc = 0;
 
 done:
@@ -1575,6 +1575,7 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
         err_handle = req.babq_handle;
         goto done;
     }
+    BLE_ATT_LOG_EMPTY_CMD(1, "read blob rsp", conn_handle);
 
     rc = 0;
 
@@ -2086,7 +2087,6 @@ ble_att_svr_build_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
 
     *dst = BLE_ATT_OP_WRITE_RSP;
 
-    BLE_ATT_LOG_EMPTY_CMD(1, "write rsp", conn_handle);
     rc = 0;
 
 done:
@@ -2142,6 +2142,7 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
         err_handle = req.bawq_handle;
         goto done;
     }
+    BLE_ATT_LOG_EMPTY_CMD(1, "write rsp", conn_handle);
 
     rc = 0;
 
@@ -2687,7 +2688,6 @@ ble_att_svr_build_indicate_rsp(struct os_mbuf **out_txom)
     }
 
     ble_att_indicate_rsp_write(dst, BLE_ATT_INDICATE_RSP_SZ);
-    BLE_ATT_LOG_EMPTY_CMD(1, "indicate rsp", conn_handle);
 
     rc = 0;
 
@@ -2744,6 +2744,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     if (rc != 0) {
         goto done;
     }
+    BLE_ATT_LOG_EMPTY_CMD(1, "indicate rsp", conn_handle);
 
     rc = 0;
 
