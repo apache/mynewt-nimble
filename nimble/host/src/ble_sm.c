@@ -520,6 +520,7 @@ ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t *out_ia,
              uint8_t *out_rat, uint8_t *out_ra)
 {
     struct ble_hs_conn *conn;
+    uint8_t our_addr_type;
 
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
@@ -527,13 +528,17 @@ ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t *out_ia,
     }
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        bls_hs_priv_copy_local_identity_addr(out_ia, out_iat);
-        *out_rat = conn->bhc_addr_type;
-        memcpy(out_ra, conn->bhc_addr, 6);
+        ble_hs_conn_our_effective_addr(conn, &our_addr_type, out_ia);
+        *out_iat = ble_hs_misc_addr_type_to_ident(our_addr_type);
+
+        ble_hs_conn_peer_effective_addr(conn, out_ra);
+        *out_rat = ble_hs_misc_addr_type_to_ident(conn->bhc_addr_type);
     } else {
-        bls_hs_priv_copy_local_identity_addr(out_ra, out_rat);
-        *out_iat = conn->bhc_addr_type;
-        memcpy(out_ia, conn->bhc_addr, 6);
+        ble_hs_conn_our_effective_addr(conn, &our_addr_type, out_ra);
+        *out_rat = ble_hs_misc_addr_type_to_ident(our_addr_type);
+
+        ble_hs_conn_peer_effective_addr(conn, out_ia);
+        *out_iat = ble_hs_misc_addr_type_to_ident(conn->bhc_addr_type);
     }
 
     return 0;
@@ -558,7 +563,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         peer_addr_type = proc->peer_keys.addr_type;
         memcpy(peer_addr, proc->peer_keys.addr, sizeof peer_addr);
     } else {
-        peer_addr_type = conn->bhc_addr_type;
+        peer_addr_type = ble_hs_misc_addr_type_to_ident(conn->bhc_addr_type);
         memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
     }
 
@@ -2141,7 +2146,7 @@ ble_sm_enc_initiate(uint16_t conn_handle, uint8_t *ltk, uint16_t ediv,
     /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE,
-                                  -1, NULL);
+                            -1, NULL);
     if (proc != NULL) {
         res.app_status = BLE_HS_EALREADY;
 

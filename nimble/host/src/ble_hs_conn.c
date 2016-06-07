@@ -31,6 +31,8 @@ static struct os_mempool ble_hs_conn_pool;
 
 static os_membuf_t *ble_hs_conn_elem_mem;
 
+static const uint8_t ble_hs_conn_null_addr[6];
+
 int
 ble_hs_conn_can_alloc(void)
 {
@@ -311,6 +313,56 @@ ble_hs_conn_first(void)
 
     BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
     return SLIST_FIRST(&ble_hs_conns);
+}
+
+void
+ble_hs_conn_peer_effective_addr(struct ble_hs_conn *conn, uint8_t *out_addr)
+{
+    switch (conn->bhc_addr_type) {
+    case BLE_ADDR_TYPE_PUBLIC:
+    case BLE_ADDR_TYPE_RANDOM:
+        memcpy(out_addr, conn->bhc_addr, 6);
+        break;
+
+    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
+    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
+        memcpy(out_addr, conn->peer_rpa_addr, 6);
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
+    }
+}
+
+void
+ble_hs_conn_our_effective_addr(struct ble_hs_conn *conn,
+                               uint8_t *out_addr_type, uint8_t *out_addr)
+{
+    uint8_t ident_addr_type;
+    uint8_t *ident_addr;
+
+    ident_addr = bls_hs_priv_get_local_identity_addr(&ident_addr_type);
+
+    if (memcmp(conn->our_rpa_addr, ble_hs_conn_null_addr, 6) == 0) {
+        *out_addr_type = ident_addr_type;
+        memcpy(out_addr, ident_addr, 6);
+    } else {
+        switch (ident_addr_type) {
+        case BLE_ADDR_TYPE_PUBLIC:
+            *out_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT;
+            break;
+
+        case BLE_ADDR_TYPE_RANDOM:
+            *out_addr_type = BLE_ADDR_TYPE_RPA_RND_DEFAULT;
+            break;
+
+        default:
+            BLE_HS_DBG_ASSERT(0);
+        }
+
+        memcpy(out_addr, conn->our_rpa_addr, 6);
+    }
 }
 
 static void

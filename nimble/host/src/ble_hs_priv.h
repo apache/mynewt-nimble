@@ -85,6 +85,7 @@ int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
 int ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
                                     struct ble_hs_conn **out_conn,
                                     struct ble_l2cap_chan **out_chan);
+uint8_t ble_hs_misc_addr_type_to_ident(uint8_t addr_type);
 
 void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
@@ -107,6 +108,7 @@ int ble_hs_priv_set_nrpa(void);
 void ble_hs_priv_get_nrpa(uint8_t *addr);
 void ble_hs_priv_update_identity(uint8_t *addr);
 void ble_hs_priv_update_irk(uint8_t *irk);
+uint8_t *bls_hs_priv_get_local_identity_addr(uint8_t *type);
 void bls_hs_priv_copy_local_identity_addr(uint8_t *pdst, uint8_t* addr_type);
 uint8_t *ble_hs_priv_get_local_irk(void);
 int ble_keycache_remove_irk_entry(uint8_t addr_type, uint8_t *addr);
