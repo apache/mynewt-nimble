@@ -333,6 +333,11 @@
 
 /* --- LE set data length (OCF 0x0022) */
 #define BLE_HCI_SET_DATALEN_LEN             (6)
+#define BLE_HCI_SET_DATALEN_ACK_PARAM_LEN   (2)  /* No status byte. */
+#define BLE_HCI_SET_DATALEN_TX_OCTETS_MIN   (0x001b)
+#define BLE_HCI_SET_DATALEN_TX_OCTETS_MAX   (0x00fb)
+#define BLE_HCI_SET_DATALEN_TX_TIME_MIN     (0x0148)
+#define BLE_HCI_SET_DATALEN_TX_TIME_MAX     (0x0848)
 
 /* --- LE read suggested default data length (OCF 0x0023) */
 #define BLE_HCI_RD_SUGG_DATALEN_RSPLEN      (4)
