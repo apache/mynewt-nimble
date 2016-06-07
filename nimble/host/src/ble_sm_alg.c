@@ -316,6 +316,7 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
     uint8_t t[16];
     int rc;
 
+    BLE_HS_LOG(DEBUG, "ble_sm_alg_f5()\n");
     ble_sm_alg_log_buf("w", w, 32);
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
@@ -369,6 +370,7 @@ ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
     uint8_t m[65];
     int rc;
 
+    BLE_HS_LOG(DEBUG, "ble_sm_alg_f6()\n");
     ble_sm_alg_log_buf("w", w, 16);
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
@@ -412,6 +414,7 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y, uint32_t *passkey)
     uint8_t m[80], xs[16];
     int rc;
 
+    BLE_HS_LOG(DEBUG, "ble_sm_alg_g2()\n");
     ble_sm_alg_log_buf("u", u, 32);
     ble_sm_alg_log_buf("v", v, 32);
     ble_sm_alg_log_buf("x", x, 16);

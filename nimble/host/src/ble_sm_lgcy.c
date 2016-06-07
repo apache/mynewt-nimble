@@ -111,7 +111,7 @@ ble_sm_lgcy_confirm_prepare_args(struct ble_sm_proc *proc,
 {
     int rc;
 
-    rc = ble_sm_addrs(proc, iat, ia, rat, ra);
+    rc = ble_sm_ia_ra(proc, iat, ia, rat, ra);
     if (rc != 0) {
         return rc;
     }

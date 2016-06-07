@@ -447,7 +447,8 @@ void ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res);
 void ble_sm_confirm_advance(struct ble_sm_proc *proc);
 int ble_sm_peer_addr(struct ble_sm_proc *proc,
                      uint8_t *out_type, uint8_t **out_addr);
-int ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t *out_ia,
+int ble_sm_ia_ra(struct ble_sm_proc *proc,
+                 uint8_t *out_iat, uint8_t *out_ia,
                  uint8_t *out_rat, uint8_t *out_ra);
 
 void ble_sm_heartbeat(void);

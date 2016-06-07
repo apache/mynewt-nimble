@@ -316,52 +316,101 @@ ble_hs_conn_first(void)
 }
 
 void
-ble_hs_conn_peer_effective_addr(struct ble_hs_conn *conn, uint8_t *out_addr)
+ble_hs_conn_addrs(struct ble_hs_conn *conn,
+                  uint8_t *out_our_effective_addr_type,
+                  uint8_t **out_our_effective_addr,
+                  uint8_t *out_our_identity_addr_type,
+                  uint8_t **out_our_identity_addr,
+                  uint8_t *out_peer_effective_addr_type,
+                  uint8_t **out_peer_effective_addr,
+                  uint8_t *out_peer_identity_addr_type,
+                  uint8_t **out_peer_identity_addr)
 {
-    switch (conn->bhc_addr_type) {
-    case BLE_ADDR_TYPE_PUBLIC:
-    case BLE_ADDR_TYPE_RANDOM:
-        memcpy(out_addr, conn->bhc_addr, 6);
-        break;
 
-    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
-    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
-        memcpy(out_addr, conn->peer_rpa_addr, 6);
-        break;
+    uint8_t peer_effective_addr_type;
+    uint8_t peer_identity_addr_type;
+    uint8_t our_effective_addr_type;
+    uint8_t our_identity_addr_type;
+    uint8_t *peer_effective_addr;
+    uint8_t *peer_identity_addr;
+    uint8_t *our_effective_addr;
+    uint8_t *our_identity_addr;
 
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        break;
-    }
-}
-
-void
-ble_hs_conn_our_effective_addr(struct ble_hs_conn *conn,
-                               uint8_t *out_addr_type, uint8_t *out_addr)
-{
-    uint8_t ident_addr_type;
-    uint8_t *ident_addr;
-
-    ident_addr = bls_hs_priv_get_local_identity_addr(&ident_addr_type);
-
+    /* Determine our address information. */
+    our_identity_addr =
+        bls_hs_priv_get_local_identity_addr(&our_identity_addr_type);
     if (memcmp(conn->our_rpa_addr, ble_hs_conn_null_addr, 6) == 0) {
-        *out_addr_type = ident_addr_type;
-        memcpy(out_addr, ident_addr, 6);
+        our_effective_addr_type = our_identity_addr_type;
+        our_effective_addr = our_identity_addr;
     } else {
-        switch (ident_addr_type) {
+        switch (our_identity_addr_type) {
         case BLE_ADDR_TYPE_PUBLIC:
-            *out_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT;
+            our_effective_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT;
             break;
 
         case BLE_ADDR_TYPE_RANDOM:
-            *out_addr_type = BLE_ADDR_TYPE_RPA_RND_DEFAULT;
+            our_effective_addr_type = BLE_ADDR_TYPE_RPA_RND_DEFAULT;
             break;
 
         default:
             BLE_HS_DBG_ASSERT(0);
         }
 
-        memcpy(out_addr, conn->our_rpa_addr, 6);
+        our_effective_addr = conn->our_rpa_addr;
+    }
+
+    /* Determine peer address information. */
+    peer_effective_addr_type = conn->bhc_addr_type;
+    peer_identity_addr = conn->bhc_addr;
+    switch (conn->bhc_addr_type) {
+    case BLE_ADDR_TYPE_PUBLIC:
+        peer_identity_addr_type = BLE_ADDR_TYPE_PUBLIC;
+        peer_effective_addr = conn->bhc_addr;
+        break;
+
+    case BLE_ADDR_TYPE_RANDOM:
+        peer_identity_addr_type = BLE_ADDR_TYPE_RANDOM;
+        peer_effective_addr = conn->bhc_addr;
+        break;
+
+    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
+        peer_identity_addr_type = BLE_ADDR_TYPE_PUBLIC;
+        peer_effective_addr = conn->peer_rpa_addr;
+        break;
+
+    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
+        peer_identity_addr_type = BLE_ADDR_TYPE_RANDOM;
+        peer_effective_addr = conn->peer_rpa_addr;
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
+    }
+
+    if (out_our_effective_addr_type != NULL) {
+        *out_our_effective_addr_type = our_effective_addr_type;
+    }
+    if (out_our_effective_addr != NULL) {
+        *out_our_effective_addr = our_effective_addr;
+    }
+    if (out_our_identity_addr_type != NULL) {
+        *out_our_identity_addr_type = our_identity_addr_type;
+    }
+    if (out_our_identity_addr != NULL) {
+        *out_our_identity_addr = our_identity_addr;
+    }
+    if (out_peer_effective_addr_type != NULL) {
+        *out_peer_effective_addr_type = peer_effective_addr_type;
+    }
+    if (out_peer_effective_addr != NULL) {
+        *out_peer_effective_addr = peer_effective_addr;
+    }
+    if (out_peer_identity_addr_type != NULL) {
+        *out_peer_identity_addr_type = peer_identity_addr_type;
+    }
+    if (out_peer_identity_addr != NULL) {
+        *out_peer_identity_addr = peer_identity_addr;
     }
 }
 
