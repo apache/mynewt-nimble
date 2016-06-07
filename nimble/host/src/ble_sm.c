@@ -516,29 +516,39 @@ ble_sm_peer_addr(struct ble_sm_proc *proc,
 }
 
 int
-ble_sm_addrs(struct ble_sm_proc *proc, uint8_t *out_iat, uint8_t *out_ia,
+ble_sm_ia_ra(struct ble_sm_proc *proc,
+             uint8_t *out_iat, uint8_t *out_ia,
              uint8_t *out_rat, uint8_t *out_ra)
 {
     struct ble_hs_conn *conn;
-    uint8_t our_addr_type;
+    uint8_t *peer_effective_addr;
+    uint8_t *our_effective_addr;
+    uint8_t peer_id_addr_type;
+    uint8_t our_id_addr_type;
 
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
+    ble_hs_conn_addrs(conn,
+                      NULL, &our_effective_addr,
+                      &our_id_addr_type, NULL,
+                      NULL, &peer_effective_addr,
+                      &peer_id_addr_type, NULL);
+
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        ble_hs_conn_our_effective_addr(conn, &our_addr_type, out_ia);
-        *out_iat = ble_hs_misc_addr_type_to_ident(our_addr_type);
+        *out_iat = our_id_addr_type;
+        memcpy(out_ia, our_effective_addr, 6);
 
-        ble_hs_conn_peer_effective_addr(conn, out_ra);
-        *out_rat = ble_hs_misc_addr_type_to_ident(conn->bhc_addr_type);
+        *out_rat = peer_id_addr_type;
+        memcpy(out_ra, peer_effective_addr, 6);
     } else {
-        ble_hs_conn_our_effective_addr(conn, &our_addr_type, out_ra);
-        *out_rat = ble_hs_misc_addr_type_to_ident(our_addr_type);
+        *out_iat = peer_id_addr_type;
+        memcpy(out_ia, peer_effective_addr, 6);
 
-        ble_hs_conn_peer_effective_addr(conn, out_ia);
-        *out_iat = ble_hs_misc_addr_type_to_ident(conn->bhc_addr_type);
+        *out_rat = our_id_addr_type;
+        memcpy(out_ra, our_effective_addr, 6);
     }
 
     return 0;

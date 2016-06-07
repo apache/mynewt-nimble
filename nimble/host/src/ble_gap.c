@@ -917,7 +917,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     }
 
     memcpy(conn->our_rpa_addr, evt->local_rpa, 6);
-    memcpy(conn->peer_rpa_addr, evt->local_rpa, 6);
+    memcpy(conn->peer_rpa_addr, evt->peer_rpa, 6);
 
     ble_gap_conn_to_snapshot(conn, &snap);
 

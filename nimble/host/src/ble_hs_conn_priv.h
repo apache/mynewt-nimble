@@ -75,10 +75,16 @@ struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);
 int ble_hs_conn_chan_insert(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);
-void ble_hs_conn_peer_effective_addr(struct ble_hs_conn *conn,
-                                     uint8_t *out_addr);
-void ble_hs_conn_our_effective_addr(struct ble_hs_conn *conn,
-                                    uint8_t *out_addr_type, uint8_t *out_addr);
+void ble_hs_conn_addrs(struct ble_hs_conn *conn,
+                       uint8_t *our_effective_addr_type,
+                       uint8_t **our_effective_addr,
+                       uint8_t *our_identity_addr_type,
+                       uint8_t **our_identity_addr,
+                       uint8_t *peer_effective_addr_type,
+                       uint8_t **peer_effective_addr,
+                       uint8_t *peer_identity_addr_type,
+                       uint8_t **peer_identity_addr);
+
 int ble_hs_conn_init(void);
 
 #endif
