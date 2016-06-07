@@ -473,9 +473,10 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
 {
     memset(value_sec, 0, sizeof *value_sec);
 
+    value_sec->peer_addr_type = peer_addr_type;
+    memcpy(value_sec->peer_addr, peer_addr, sizeof value_sec->peer_addr);
+
     if (keys->ediv_rand_valid && keys->ltk_valid) {
-        value_sec->peer_addr_type = peer_addr_type;
-        memcpy(value_sec->peer_addr, peer_addr, sizeof value_sec->peer_addr);
         value_sec->ediv = keys->ediv;
         value_sec->rand_num = keys->rand_val;
 
