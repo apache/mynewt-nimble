@@ -929,6 +929,9 @@ host_hci_cmd_body_le_start_encrypt(struct hci_start_encrypt *cmd, uint8_t *dst)
     memcpy(dst + 12, cmd->long_term_key, sizeof cmd->long_term_key);
 }
 
+/*
+ * OGF=0x08 OCF=0x0019
+ */
 void
 host_hci_cmd_build_le_start_encrypt(struct hci_start_encrypt *cmd,
                                     uint8_t *dst, int dst_len)
@@ -972,6 +975,56 @@ host_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst, int dst_len)
 }
 
 static int
+host_hci_cmd_body_set_data_len(uint16_t connection_handle, uint16_t tx_octets,
+                               uint16_t tx_time, uint8_t *dst)
+{
+
+    if (tx_octets < BLE_HCI_SET_DATALEN_TX_OCTETS_MIN ||
+        tx_octets > BLE_HCI_SET_DATALEN_TX_OCTETS_MAX) {
+
+        return BLE_HS_EINVAL;
+    }
+
+    if (tx_time < BLE_HCI_SET_DATALEN_TX_TIME_MIN ||
+        tx_time > BLE_HCI_SET_DATALEN_TX_TIME_MAX) {
+
+        return BLE_HS_EINVAL;
+    }
+
+    htole16(dst + 0, connection_handle);
+    htole16(dst + 2, tx_octets);
+    htole16(dst + 4, tx_time);
+
+    return 0;
+}
+
+/*
+ * OGF=0x08 OCF=0x0022
+ */
+int
+host_hci_cmd_build_set_data_len(uint16_t connection_handle,
+                                uint16_t tx_octets, uint16_t tx_time,
+                                uint8_t *dst, int dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_DATALEN_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_DATA_LEN,
+                       BLE_HCI_SET_DATALEN_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = host_hci_cmd_body_set_data_len(connection_handle, tx_octets, tx_time,
+                                        dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
 host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
                                                uint8_t *addr,
                                                uint8_t *peer_irk,
@@ -990,11 +1043,14 @@ host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
     return 0;
 }
 
+/*
+ * OGF=0x08 OCF=0x0027
+ */
 int
 host_hci_cmd_add_device_to_resolving_list(
-                                struct hci_add_dev_to_resolving_list *padd,
-                                uint8_t *dst,
-                                int dst_len)
+    struct hci_add_dev_to_resolving_list *padd,
+    uint8_t *dst,
+    int dst_len)
 {
     int rc;
 
@@ -1113,9 +1169,9 @@ host_hci_cmd_read_peer_resolvable_address(uint8_t peer_identity_addr_type,
 }
 
 static int
-host_hci_cmd_body_read_local_resolvable_address(uint8_t local_identity_addr_type,
-                                                uint8_t *local_identity_addr,
-                                                uint8_t *dst)
+host_hci_cmd_body_read_local_resolvable_address(
+    uint8_t local_identity_addr_type, uint8_t *local_identity_addr,
+    uint8_t *dst)
 {
     if (local_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1126,11 +1182,14 @@ host_hci_cmd_body_read_local_resolvable_address(uint8_t local_identity_addr_type
     return 0;
 }
 
+/*
+ * OGF=0x08 OCF=0x002c
+ */
 int
 host_hci_cmd_read_local_resolvable_address(uint8_t local_identity_addr_type,
-                                          uint8_t *local_identity_addr,
-                                          uint8_t *dst,
-                                          int dst_len)
+                                           uint8_t *local_identity_addr,
+                                           uint8_t *dst,
+                                           int dst_len)
 {
     int rc;
 
@@ -1162,10 +1221,12 @@ host_hci_cmd_body_set_addr_resolution_enable(uint8_t enable,
     return 0;
 }
 
+/*
+ * OGF=0x08 OCF=0x002d
+ */
 int
-host_hci_cmd_set_addr_resolution_enable(uint8_t enable,
-                                          uint8_t *dst,
-                                          int dst_len)
+host_hci_cmd_set_addr_resolution_enable(uint8_t enable, uint8_t *dst,
+                                        int dst_len)
 {
     int rc;
 
@@ -1195,10 +1256,13 @@ host_hci_cmd_body_set_resolvable_private_address_timeout(uint16_t timeout,
     return 0;
 }
 
+/*
+ * OGF=0x08 OCF=0x002e
+ */
 int
 host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
-                                                      uint8_t *dst,
-                                                      int dst_len)
+                                                    uint8_t *dst,
+                                                    int dst_len)
 {
     int rc;
 
@@ -1217,17 +1281,14 @@ host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
 }
 
 static int
-host_hci_cmd_body_set_random_addr(struct hci_rand_addr *paddr,
-                                uint8_t *dst)
+host_hci_cmd_body_set_random_addr(struct hci_rand_addr *paddr, uint8_t *dst)
 {
     memcpy(dst, paddr->addr, BLE_DEV_ADDR_LEN);
     return 0;
 }
 
 int
-host_hci_cmd_set_random_addr(uint8_t *addr,
-                              uint8_t *dst,
-                              int dst_len)
+host_hci_cmd_set_random_addr(uint8_t *addr, uint8_t *dst, int dst_len)
 {
     struct hci_rand_addr r_addr;
     int rc;

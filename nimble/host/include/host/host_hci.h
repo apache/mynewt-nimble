@@ -96,6 +96,9 @@ uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);
 int host_hci_data_rx(struct os_mbuf *om);
 int host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om);
 
+int host_hci_cmd_build_set_data_len(uint16_t connection_handle,
+                                    uint16_t tx_octets, uint16_t tx_time,
+                                    uint8_t *dst, int dst_len);
 int host_hci_cmd_add_device_to_resolving_list(
                                     struct hci_add_dev_to_resolving_list *padd,
                                     uint8_t *dst, int dst_len);
