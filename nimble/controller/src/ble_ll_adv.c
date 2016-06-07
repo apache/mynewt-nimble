@@ -78,8 +78,9 @@ struct ble_ll_adv_sm
     uint8_t scan_rsp_len;
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
-    uint8_t adv_directed;
-    uint8_t adv_txadd;
+    uint8_t adv_directed;           /* note: can be 1 bit */
+    uint8_t adv_txadd;              /* note: can be 1 bit */
+    uint8_t adv_rxadd;              /* note: can be 1 bit */
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
@@ -134,6 +135,15 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
             if (advsm->adv_directed) {
                 ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                                       advsm->initiator_addr, 0);
+                if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
+                    advsm->adv_rxadd = 1;
+                } else {
+                    if (advsm->own_addr_type & 1) {
+                        advsm->adv_rxadd = 1;
+                    } else {
+                        advsm->adv_rxadd = 0;
+                    }
+                }
             }
             advsm->adv_rpa_timer = now + ble_ll_resolv_get_rpa_tmo();
 
@@ -213,8 +223,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
-
-        if (advsm->peer_addr_type == BLE_HCI_ADV_PEER_ADDR_RANDOM) {
+        if (advsm->adv_rxadd) {
             pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
         }
         break;
