@@ -2034,9 +2034,11 @@ ble_sm_heartbeat(void)
 
     /* Notify application of each failure and free the corresponding procedure
      * object.
+     * XXX: Mark connection as tainted; don't allow any subsequent SMP
+     * procedures without reconnect.
      */
     while ((proc = STAILQ_FIRST(&exp_list)) != NULL) {
-        ble_sm_enc_event(proc, BLE_HS_ETIMEOUT, 0);
+        ble_sm_enc_event(proc, BLE_HS_ETIMEOUT, BLE_SM_ENC_STATE_NO_CHANGE);
 
         STAILQ_REMOVE_HEAD(&exp_list, next);
         ble_sm_proc_free(proc);
