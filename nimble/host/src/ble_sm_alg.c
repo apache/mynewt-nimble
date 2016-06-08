@@ -491,6 +491,13 @@ ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv)
     memcpy(pub + 0, pkey.x, 32);
     memcpy(pub + 32, pkey.y, 32);
 
+    BLE_HS_LOG(DEBUG, "our pubkey=");
+    ble_hs_misc_log_flat_buf(pub, 64);
+    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG(DEBUG, "our privkey=");
+    ble_hs_misc_log_flat_buf(priv, 32);
+    BLE_HS_LOG(DEBUG, "\n");
+
     return 0;
 }
 
