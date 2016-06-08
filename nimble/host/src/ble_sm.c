@@ -1176,11 +1176,11 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
     struct ble_hs_conn *conn;
-    int store_rc;
-    int bonding;
     uint8_t peer_addr[6];
     uint8_t *peer_id_addr;
     uint8_t peer_addr_type;
+    int store_rc;
+    int restore;
 
     /* Silence gcc warning. */
     peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -1192,11 +1192,11 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
                             0, NULL);
     if (proc == NULL) {
         /* The peer is attempting to restore a encrypted connection via the
-         * encryption procedure (bonding).  Create a proc entry to indicate
-         * that security establishment is in progress and execute the procedure
-         * after the mutex gets unlocked.
+         * encryption procedure.  Create a proc entry to indicate that security
+         * establishment is in progress and execute the procedure after the
+         * mutex gets unlocked.
          */
-        bonding = 1;
+        restore = 1;
         proc = ble_sm_proc_alloc();
         if (proc == NULL) {
             res.app_status = BLE_HS_ENOMEM;
@@ -1204,25 +1204,30 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
             proc->conn_handle = evt->connection_handle;
             proc->state = BLE_SM_PROC_STATE_LTK_RESTORE;
             ble_sm_insert(proc);
+
+            res.execute = 1;
         }
     } else if (proc->state == BLE_SM_PROC_STATE_SEC_REQ) {
         /* Same as above, except we solicited the encryption procedure by
          * sending a security request.
          */
-        bonding = 1;
+        restore = 1;
         proc->state = BLE_SM_PROC_STATE_LTK_RESTORE;
+        res.execute = 1;
     } else if (proc->state == BLE_SM_PROC_STATE_LTK_START) {
-        /* Short-term key pairing just completed.  Send the short term key to
-         * the controller.
+        /* Legacy pairing just completed.  Send the short term key to the
+         * controller.
          */
-        bonding = 0;
+        restore = 0;
+        res.execute = 1;
     } else {
-        /* The request is unexpected.  Quietly ignore it. */
+        /* The request is unexpected; nack and forget. */
+        restore = 0;
+        ble_sm_ltk_req_neg_reply_tx(evt->connection_handle);
         proc = NULL;
-        bonding = 0;
     }
 
-    if (bonding) {
+    if (restore) {
         conn = ble_hs_conn_find(evt->connection_handle);
         if (conn == NULL) {
             res.app_status = BLE_HS_ENOTCONN;
@@ -1241,15 +1246,17 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     }
 
     if (res.app_status == 0) {
-        if (bonding) {
+        if (restore) {
             store_rc = ble_sm_retrieve_ltk(evt, peer_addr_type, peer_addr,
                                            &value_sec);
             if (store_rc == 0) {
+                /* Send the key to the controller. */
                 res.state_arg = &value_sec;
+            } else {
+                /* Send a nack to the controller. */
+                res.state_arg = NULL;
             }
         }
-
-        res.execute = 1;
     }
 
     ble_sm_process_result(evt->connection_handle, &res);
