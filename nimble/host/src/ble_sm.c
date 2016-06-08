@@ -1428,7 +1428,7 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
     ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
     if (proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
         proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
-        init_key_dist != 0 && resp_key_dist != 0) {
+        (init_key_dist != 0 || resp_key_dist != 0)) {
 
         proc->flags |= BLE_SM_PROC_F_KEY_EXCHANGE;
     }
@@ -2201,7 +2201,7 @@ ble_sm_enc_initiate(uint16_t conn_handle, uint8_t *ltk, uint16_t ediv,
             res.state_arg = &cmd;
         }
     }
-    
+
     ble_hs_unlock();
 
     ble_sm_process_result(conn_handle, &res);
