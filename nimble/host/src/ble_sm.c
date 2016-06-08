@@ -527,8 +527,8 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
              uint8_t *out_rat, uint8_t *out_ra)
 {
     struct ble_hs_conn *conn;
-    uint8_t *peer_effective_addr;
-    uint8_t *our_effective_addr;
+    uint8_t *peer_ota_addr;
+    uint8_t *our_ota_addr;
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
 
@@ -538,23 +538,23 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
     }
 
     ble_hs_conn_addrs(conn,
-                      NULL, &our_effective_addr,
+                      NULL, &our_ota_addr,
                       &our_id_addr_type, NULL,
-                      NULL, &peer_effective_addr,
+                      NULL, &peer_ota_addr,
                       &peer_id_addr_type, NULL);
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         *out_iat = our_id_addr_type;
-        memcpy(out_ia, our_effective_addr, 6);
+        memcpy(out_ia, our_ota_addr, 6);
 
         *out_rat = peer_id_addr_type;
-        memcpy(out_ra, peer_effective_addr, 6);
+        memcpy(out_ra, peer_ota_addr, 6);
     } else {
         *out_iat = peer_id_addr_type;
-        memcpy(out_ia, peer_effective_addr, 6);
+        memcpy(out_ia, peer_ota_addr, 6);
 
         *out_rat = our_id_addr_type;
-        memcpy(out_ra, our_effective_addr, 6);
+        memcpy(out_ra, our_ota_addr, 6);
     }
 
     return 0;
