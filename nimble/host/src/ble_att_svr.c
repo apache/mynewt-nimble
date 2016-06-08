@@ -261,7 +261,7 @@ ble_att_svr_check_security(uint16_t conn_handle, int is_read,
         return rc;
     }
 
-    if (enc && !sec_state.enc_enabled) {
+    if (enc && !sec_state.encrypted) {
         /* XXX: Check security database; if required key present, respond with
          * insufficient encryption error code.
          */
