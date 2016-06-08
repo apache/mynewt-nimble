@@ -688,6 +688,11 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 
     if (advsm->adv_directed) {
         memcpy(advsm->initiator_addr, advsm->peer_addr, BLE_DEV_ADDR_LEN);
+        if (advsm->peer_addr_type & 1) {
+            advsm->adv_rxadd = 1;
+        } else {
+            advsm->adv_rxadd = 0;
+        }
     }
 
     /* This will generate an RPA for both initiator addr and adva */
