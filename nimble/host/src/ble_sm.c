@@ -1674,7 +1674,6 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                           NULL, NULL, NULL, NULL,
                           NULL, NULL, &key_sec.peer_addr_type, &peer_id_addr);
         memset(&key_sec, 0, sizeof key_sec);
-        key_sec.peer_addr_type = conn->bhc_addr_type;
         memcpy(key_sec.peer_addr, peer_id_addr, 6);
     }
 
