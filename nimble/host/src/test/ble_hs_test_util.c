@@ -819,4 +819,6 @@ ble_hs_test_util_init(void)
     ble_hs_cfg.max_outstanding_pkts_per_conn = 0;
 
     ble_hs_test_util_prev_hci_tx_clear();
+
+    ble_hs_test_util_set_public_addr(g_dev_addr);
 }
