@@ -102,7 +102,6 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_NOTIFY                12
 
 struct ble_gap_sec_state {
-    uint8_t pair_alg;
     unsigned enc_enabled:1;
     unsigned authenticated:1;
     unsigned bonded:1;
