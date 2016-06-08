@@ -901,13 +901,10 @@ ble_sm_test_util_us_lgcy_good(
     /* Verify that security callback was executed. */
     TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
 
     /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                conn->bhc_sec_state.pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -1038,14 +1035,10 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status ==
                 BLE_HS_SM_US_ERR(BLE_SM_ERR_CONFIRM_MISMATCH));
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                BLE_SM_PAIR_ALG_JW);
     TEST_ASSERT(!ble_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
 
     /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                conn->bhc_sec_state.pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -1171,14 +1164,11 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
     /* Verify that security callback was executed. */
     TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 params->authenticated);
 
     /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                conn->bhc_sec_state.pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -1503,14 +1493,11 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
     /* Verify that security callback was executed. */
     TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 params->authenticated);
 
     /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                conn->bhc_sec_state.pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -1681,14 +1668,11 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
     /* Verify that security callback was executed. */
     TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg == params->pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
                 params->authenticated);
 
     /* Verify that connection has correct security state. */
-    TEST_ASSERT(ble_sm_test_sec_state.pair_alg ==
-                conn->bhc_sec_state.pair_alg);
     TEST_ASSERT(ble_sm_test_sec_state.enc_enabled ==
                 conn->bhc_sec_state.enc_enabled);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==

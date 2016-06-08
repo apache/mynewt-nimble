@@ -218,8 +218,7 @@ struct ble_sm_dhkey_check {
 #define BLE_SM_PROC_F_ADVANCE_ON_IO         0x04
 #define BLE_SM_PROC_F_AUTHENTICATED         0x08
 #define BLE_SM_PROC_F_KEY_EXCHANGE          0x10
-#define BLE_SM_PROC_F_BONDED                0x20
-#define BLE_SM_PROC_F_SC                    0x40
+#define BLE_SM_PROC_F_SC                    0x20
 
 #define BLE_SM_KE_F_ENC_INFO                0x01
 #define BLE_SM_KE_F_MASTER_ID               0x02
@@ -286,9 +285,7 @@ struct ble_sm_result {
     unsigned execute:1;
     unsigned enc_cb:1;
     unsigned persist_keys:1;
-
-    /* 0=disabled; 1=enabled; -1=no-change. */
-    uint8_t enc_state;
+    unsigned restore:1;
 };
 
 #ifdef BLE_HS_DEBUG

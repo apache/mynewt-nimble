@@ -2200,8 +2200,7 @@ ble_gap_passkey_event(uint16_t conn_handle,
 }
 
 void
-ble_gap_enc_event(uint16_t conn_handle, int status,
-                    struct ble_gap_sec_state *sec_state)
+ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
 {
 #if !NIMBLE_OPT(SM)
     return;
@@ -2209,19 +2208,10 @@ ble_gap_enc_event(uint16_t conn_handle, int status,
 
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
-    struct ble_hs_conn *conn;
+    int rc;
 
-    ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn != NULL) {
-        conn->bhc_sec_state = *sec_state;
-        ble_gap_conn_to_snapshot(conn, &snap);
-    }
-
-    ble_hs_unlock();
-
-    if (conn == NULL) {
+    rc = ble_gap_find_snapshot(conn_handle, &snap);
+    if (rc != 0) {
         /* No longer connected. */
         return;
     }
@@ -2232,7 +2222,8 @@ ble_gap_enc_event(uint16_t conn_handle, int status,
     ble_gap_call_event_cb(BLE_GAP_EVENT_ENC_CHANGE, &ctxt,
                           snap.cb, snap.cb_arg);
 
-    if (sec_state->bonded) {
+    if (security_restored) {
+        BLE_HS_DBG_ASSERT(snap.desc.sec_state.bonded);
         ble_gatts_bonding_restored(conn_handle);
     }
 }
