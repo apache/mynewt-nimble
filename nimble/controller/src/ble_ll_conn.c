@@ -2188,9 +2188,18 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, addr_type);
         }
 
-        if (!inita_is_rpa && ble_ll_is_our_devaddr(init_addr, addr_type)) {
-            /* We should not respond if we expect the device to be private */
-            if (connsm->own_addr_type <= BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        /*
+         * If we expect our address to be private and the INITA is not,
+         * we dont respond!
+         */
+        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            if (!inita_is_rpa) {
+                goto init_rx_isr_exit;
+            } else {
+                chk_send_req = 1;
+            }
+        } else {
+            if (ble_ll_is_our_devaddr(init_addr, addr_type)) {
                 chk_send_req = 1;
             }
         }
