@@ -642,6 +642,41 @@ ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
 }
 
 static void
+ble_sm_test_util_io_inject_bad(uint16_t conn_handle, uint8_t correct_io_act)
+{
+    struct ble_sm_proc *proc;
+    struct ble_sm_io io;
+    uint8_t io_sm_state;
+    int rc;
+    int i;
+
+    /* Lock mutex to prevent thread-safety assert from failing. */
+    ble_hs_lock();
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT_FATAL(proc != NULL);
+
+    io_sm_state = ble_sm_ioact_state(correct_io_act);
+
+    for (i = 1; i < BLE_SM_IOACT_MAX_PLUS_ONE; i++) {
+        if (io_sm_state != proc->state  ||
+            i != correct_io_act         ||
+            proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
+
+            io.action = i;
+            rc = ble_sm_inject_io(conn_handle, &io);
+
+            if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
+                TEST_ASSERT(rc == BLE_HS_EALREADY);
+            } else {
+                TEST_ASSERT(rc == BLE_HS_EINVAL);
+            }
+        }
+    }
+}
+
+static void
 ble_sm_test_util_io_check_pre(struct ble_sm_test_passkey_info *passkey_info,
                               uint8_t cur_sm_state)
 {
@@ -852,33 +887,39 @@ ble_sm_test_util_us_lgcy_good(
     ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a pair response from the peer. */
     ble_sm_test_util_rx_pair_rsp(2, &params->pair_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected pair confirm. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_confirm(&params->confirm_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a pair confirm from the peer. */
     ble_sm_test_util_rx_confirm(2, &params->confirm_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected pair random. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_random(&params->random_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a pair random from the peer. */
     ble_sm_test_util_rx_random(2, &params->random_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure keys are distributed, if necessary. */
     if (params->has_enc_info_req) {
@@ -888,9 +929,10 @@ ble_sm_test_util_us_lgcy_good(
     /* Ensure we sent the expected start encryption command. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_start_enc(2, params->r, params->ediv,
-                                               params->stk);
+                                         params->stk);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1005,20 +1047,24 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     /* Receive a pair request from the peer. */
     ble_sm_test_util_rx_pair_req(2, pair_req, 0);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Ensure we sent the expected pair response. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_rsp(pair_rsp);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Receive a pair confirm from the peer. */
     ble_sm_test_util_rx_confirm(2, confirm_req);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Ensure we sent the expected pair confirm. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_confirm(confirm_rsp);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Receive a pair random from the peer. */
     ble_sm_test_util_rx_random(
@@ -1105,12 +1151,14 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
     ble_sm_test_util_rx_pair_req(2, &params->pair_req, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected pair response. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_rsp(&params->pair_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     ble_sm_test_util_io_check_pre(&params->passkey_info,
                                   BLE_SM_PROC_STATE_CONFIRM);
@@ -1119,6 +1167,7 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
     ble_sm_test_util_rx_confirm(2, &params->confirm_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     ble_sm_test_util_io_check_post(&params->passkey_info,
                                    BLE_SM_PROC_STATE_CONFIRM);
@@ -1128,28 +1177,33 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
     ble_sm_test_util_verify_tx_pair_confirm(&params->confirm_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a pair random from the peer. */
     ble_sm_test_util_rx_random(2, &params->random_req, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected pair random. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_random(&params->random_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a long term key request from the controller. */
     ble_sm_test_util_set_lt_key_req_reply_ack(0, 2);
     ble_sm_test_util_rx_lt_key_req(2, params->r, params->ediv);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected long term key request reply command. */
     ble_sm_test_util_verify_tx_lt_key_req_reply(2, params->stk);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1256,11 +1310,13 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
 
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Ensure we sent the expected long term key request reply command. */
     ble_sm_test_util_verify_tx_lt_key_req_reply(2, value_sec.ltk);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1386,23 +1442,27 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
     ble_sm_test_util_rx_pair_req(2, &params->pair_req, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected pair response. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_pair_rsp(&params->pair_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a public key from the peer. */
     ble_sm_test_util_rx_public_key(2, &params->public_key_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected public key. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_public_key(&params->public_key_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     switch (params->pair_alg) {
     case BLE_SM_PAIR_ALG_PASSKEY:
@@ -1425,6 +1485,8 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
             ble_sm_test_util_rx_confirm(2, params->confirm_req + i);
             TEST_ASSERT(!conn->bhc_sec_state.encrypted);
             TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+            ble_sm_test_util_io_inject_bad(
+                2, params->passkey_info.passkey.action);
 
             if (i < num_iters - 1) {
                 ble_sm_dbg_set_next_pair_rand(
@@ -1442,17 +1504,20 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
         ble_sm_test_util_verify_tx_pair_confirm(params->confirm_rsp + i);
         TEST_ASSERT(!conn->bhc_sec_state.encrypted);
         TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
         /* Receive a pair random from the peer. */
         ble_sm_test_util_rx_random(2, params->random_req + i, 0);
         TEST_ASSERT(!conn->bhc_sec_state.encrypted);
         TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
         /* Ensure we sent the expected pair random. */
         ble_hs_test_util_tx_all();
         ble_sm_test_util_verify_tx_pair_random(params->random_rsp + i);
         TEST_ASSERT(!conn->bhc_sec_state.encrypted);
         TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     }
 
@@ -1463,6 +1528,7 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
     ble_sm_test_util_rx_dhkey_check(2, &params->dhkey_check_req, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     ble_sm_test_util_io_check_post(&params->passkey_info,
                                    BLE_SM_PROC_STATE_DHKEY_CHECK);
@@ -1472,17 +1538,20 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
     ble_sm_test_util_verify_tx_dhkey_check(&params->dhkey_check_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a long term key request from the controller. */
     ble_sm_test_util_set_lt_key_req_reply_ack(0, 2);
     ble_sm_test_util_rx_lt_key_req(2, 0, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected long term key request reply command. */
     ble_sm_test_util_verify_tx_lt_key_req_reply(2, params->ltk);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1576,22 +1645,26 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
     ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a pair response from the peer. */
     ble_sm_test_util_rx_pair_rsp(2, &params->pair_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected public key. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_public_key(&params->public_key_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a public key from the peer. */
     ble_sm_test_util_rx_public_key(2, &params->public_key_rsp);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     switch (params->pair_alg) {
     case BLE_SM_PAIR_ALG_PASSKEY:
@@ -1620,23 +1693,28 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
             ble_sm_test_util_verify_tx_pair_confirm(params->confirm_req + i);
             TEST_ASSERT(!conn->bhc_sec_state.encrypted);
             TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+            ble_sm_test_util_io_inject_bad(
+                2, params->passkey_info.passkey.action);
         }
 
         /* Receive a pair confirm from the peer. */
         ble_sm_test_util_rx_confirm(2, params->confirm_rsp + i);
         TEST_ASSERT(!conn->bhc_sec_state.encrypted);
         TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
         /* Ensure we sent the expected pair random. */
         ble_hs_test_util_tx_all();
         ble_sm_test_util_verify_tx_pair_random(params->random_req + i);
         TEST_ASSERT(!conn->bhc_sec_state.encrypted);
         TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
         /* Receive a pair random from the peer. */
         ble_sm_test_util_rx_random(2, params->random_rsp + i, 0);
         TEST_ASSERT(!conn->bhc_sec_state.encrypted);
         TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+        ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
     }
 
     ble_sm_test_util_io_inject(&params->passkey_info,
@@ -1647,17 +1725,20 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
     ble_sm_test_util_verify_tx_dhkey_check(&params->dhkey_check_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a dhkey check from the peer. */
     ble_sm_test_util_rx_dhkey_check(2, &params->dhkey_check_rsp, 0);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Ensure we sent the expected start encryption command. */
     ble_hs_test_util_tx_all();
     ble_sm_test_util_verify_tx_start_enc(2, 0, 0, params->ltk);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1719,6 +1800,7 @@ ble_sm_test_util_us_fail_inval(
     ble_sm_test_util_verify_tx_pair_req(&params->pair_req);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, params->passkey_info.passkey.action);
 
     /* Receive a pair response from the peer. */
     ble_sm_test_util_rx_pair_rsp(
@@ -1806,6 +1888,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
     ble_sm_test_util_verify_tx_start_enc(2, rand_num, ediv, ltk);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1946,6 +2029,7 @@ TEST_CASE(ble_sm_test_case_conn_broken)
     rc = ble_hs_test_util_security_initiate(2, 0);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Terminate the connection. */
     disconn_evt.connection_handle = 2;

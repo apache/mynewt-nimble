@@ -80,6 +80,7 @@
 #define BLE_SM_IOACT_INPUT                      2
 #define BLE_SM_IOACT_DISP                       3
 #define BLE_SM_IOACT_NUMCMP                     4
+#define BLE_SM_IOACT_MAX_PLUS_ONE               5
 
 struct ble_sm_io {
     uint8_t action;
