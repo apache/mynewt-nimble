@@ -102,7 +102,7 @@ struct hci_adv_params;
 #define BLE_GAP_EVENT_NOTIFY                12
 
 struct ble_gap_sec_state {
-    unsigned enc_enabled:1;
+    unsigned encrypted:1;
     unsigned authenticated:1;
     unsigned bonded:1;
 };

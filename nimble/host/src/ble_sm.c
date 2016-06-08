@@ -459,7 +459,7 @@ ble_sm_update_sec_state(uint16_t conn_handle, int encrypted,
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-        conn->bhc_sec_state.enc_enabled = encrypted;
+        conn->bhc_sec_state.encrypted = encrypted;
 
         /* Authentication and bonding are never revoked from a secure link */
         if (authenticated) {

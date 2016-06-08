@@ -149,7 +149,7 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
         ble_hs_lock();
         conn = ble_hs_conn_find(2);
         TEST_ASSERT_FATAL(conn != NULL);
-        conn->bhc_sec_state.enc_enabled = 1;
+        conn->bhc_sec_state.encrypted = 1;
         conn->bhc_sec_state.authenticated = 1;
         conn->bhc_sec_state.bonded = 1;
         ble_hs_unlock();
@@ -197,7 +197,7 @@ ble_gatts_restore_bonding(uint16_t conn_handle)
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
-    conn->bhc_sec_state.enc_enabled = 1;
+    conn->bhc_sec_state.encrypted = 1;
     conn->bhc_sec_state.authenticated = 1;
     conn->bhc_sec_state.bonded = 1;
     ble_hs_unlock();
