@@ -992,7 +992,9 @@ ble_sm_enc_change_rx(struct hci_encrypt_change *evt)
                 proc->state = BLE_SM_PROC_STATE_KEY_EXCH;
 
                 /* The responder sends its keys first. */
-                if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
+                if (!(proc->flags & BLE_SM_PROC_F_INITIATOR) ||
+                    proc->rx_key_flags == 0) {
+
                     res.execute = 1;
                 }
             } else {
@@ -1174,7 +1176,7 @@ ble_sm_ltk_restore_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         res->app_status = BLE_HS_ENOENT;
     }
 
-    
+
     if (res->app_status == 0) {
         proc->state = BLE_SM_PROC_STATE_ENC_RESTORE;
     }
