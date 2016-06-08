@@ -108,8 +108,8 @@ ble_gap_direct_connect_test_connect_cb(int event,
     TEST_ASSERT(event == BLE_GAP_EVENT_CONNECT);
     TEST_ASSERT(ctxt->connect.status == 0);
     TEST_ASSERT(ctxt->desc->conn_handle == 2);
-    TEST_ASSERT(ctxt->desc->peer_addr_type == BLE_ADDR_TYPE_PUBLIC);
-    TEST_ASSERT(memcmp(ctxt->desc->peer_addr, ble_os_test_peer_addr, 6) == 0);
+    TEST_ASSERT(ctxt->desc->peer_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(memcmp(ctxt->desc->peer_id_addr, ble_os_test_peer_addr, 6) == 0);
 
     return 0;
 }

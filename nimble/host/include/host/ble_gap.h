@@ -119,12 +119,14 @@ struct ble_gap_adv_params {
 
 struct ble_gap_conn_desc {
     struct ble_gap_sec_state sec_state;
-    uint8_t peer_addr[6];
+    uint8_t peer_effective_addr[6];
+    uint8_t peer_id_addr[6];
     uint16_t conn_handle;
     uint16_t conn_itvl;
     uint16_t conn_latency;
     uint16_t supervision_timeout;
-    uint8_t peer_addr_type;
+    uint8_t peer_effective_addr_type;
+    uint8_t peer_id_addr_type;
 };
 
 struct ble_gap_crt_params {
