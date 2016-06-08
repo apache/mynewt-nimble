@@ -397,7 +397,7 @@ ble_sm_proc_set_timer(struct ble_sm_proc *proc)
 static ble_sm_rx_fn *
 ble_sm_dispatch_get(uint8_t op)
 {
-    if (op > sizeof ble_sm_dispatch / sizeof ble_sm_dispatch[0]) {
+    if (op >= sizeof ble_sm_dispatch / sizeof ble_sm_dispatch[0]) {
         return NULL;
     }
 
