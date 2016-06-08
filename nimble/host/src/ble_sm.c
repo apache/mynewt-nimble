@@ -2264,6 +2264,7 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
+    int rc;
 
     memset(&res, 0, sizeof res);
 
@@ -2272,19 +2273,19 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, &prev);
 
     if (proc == NULL) {
-        res.app_status = BLE_HS_ENOENT;
+        rc = BLE_HS_ENOENT;
     } else if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
-        res.app_status = BLE_HS_EALREADY;
+        rc = BLE_HS_EALREADY;
     } else if (pkey->action != ble_sm_io_action(proc)) {
-        /* Response doesn't match what we asked for. */
-        res.app_status = BLE_HS_EINVAL;
-        res.sm_err = BLE_SM_ERR_PASSKEY;
+        /* Application provided incorrect IO type. */
+        rc = BLE_HS_EINVAL;
     } else if (ble_sm_ioact_state(pkey->action) != proc->state) {
         /* Procedure is not ready for user input. */
-        res.app_status = BLE_HS_EINVAL;
-        res.sm_err = BLE_SM_ERR_UNSPECIFIED;
+        rc = BLE_HS_EINVAL;
     } else {
-        /* Add the passkey range. */
+        /* Assume valid input. */
+        rc = 0;
+
         switch (pkey->action) {
         case BLE_SM_IOACT_OOB:
             if (pkey->oob == NULL) {
@@ -2304,8 +2305,7 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
         case BLE_SM_IOACT_INPUT:
         case BLE_SM_IOACT_DISP:
             if (pkey->passkey > 999999) {
-                res.app_status = BLE_HS_EINVAL;
-                res.sm_err = BLE_SM_ERR_PASSKEY;
+                rc = BLE_HS_EINVAL;
             } else {
                 proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
                 memset(proc->tk, 0, 16);
@@ -2336,12 +2336,20 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
             break;
 
         default:
-            res.sm_err = BLE_SM_ERR_UNSPECIFIED;
-            res.app_status = BLE_HS_EINVAL;
+            BLE_HS_DBG_ASSERT(0);
+            rc = BLE_HS_EINVAL;
+            break;
         }
     }
 
     ble_hs_unlock();
+
+    /* If application provided invalid input, return error without modifying
+     * SMP state.
+     */
+    if (rc != 0) {
+        return rc;
+    }
 
     ble_sm_process_result(conn_handle, &res);
     return res.app_status;
