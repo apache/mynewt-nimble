@@ -587,6 +587,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
 
+    proc->our_keys.irk_valid = 0;
     ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
                             &proc->our_keys, &value_sec);
     ble_store_write_slv_sec(&value_sec);
