@@ -273,18 +273,18 @@ static void
 ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
                        struct ble_gap_conn_desc *desc)
 {
-    uint8_t *peer_effective_addr;
+    uint8_t *peer_ota_addr;
     uint8_t *peer_id_addr;
-    uint8_t *our_effective_addr;
+    uint8_t *our_ota_addr;
 
     ble_hs_conn_addrs(conn,
-                      NULL, &our_effective_addr,
+                      NULL, &our_ota_addr,
                       NULL, NULL,
-                      &desc->peer_effective_addr_type, &peer_effective_addr,
+                      &desc->peer_ota_addr_type, &peer_ota_addr,
                       &desc->peer_id_addr_type, &peer_id_addr);
 
     desc->conn_handle = conn->bhc_handle;
-    memcpy(desc->peer_effective_addr, peer_effective_addr, 6);
+    memcpy(desc->peer_ota_addr, peer_ota_addr, 6);
     memcpy(desc->peer_id_addr, peer_id_addr, 6);
     desc->conn_itvl = conn->bhc_itvl;
     desc->conn_latency = conn->bhc_latency;
