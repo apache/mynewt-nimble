@@ -189,6 +189,7 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
     while (off < attr_len) {
         /* Send the pending ATT Prep Write Command. */
         ble_hs_test_util_tx_all();
+        TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
 
         /* Receive Prep Write response. */
         len = BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
@@ -498,6 +499,57 @@ TEST_CASE(ble_gatt_write_test_reliable_good)
         } }));
 }
 
+TEST_CASE(ble_gatt_write_test_long_queue_full)
+{
+    int off;
+    int len;
+    int rc;
+    int i;
+
+    ble_gatt_write_test_init();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    rc = ble_gattc_write_long(2, 100, ble_gatt_write_test_attr_value,
+                              128, ble_gatt_write_test_cb_good, NULL);
+    TEST_ASSERT(rc == 0);
+
+    off = 0;
+    for (i = 0; i < 2; i++) {
+        /* Verify prep write request was sent. */
+        ble_hs_test_util_tx_all();
+        TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
+
+        /* Receive Prep Write response. */
+        len = BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+        ble_gatt_write_test_rx_prep_rsp(
+            2, 100, off, ble_gatt_write_test_attr_value + off, len);
+
+        /* Verify callback hasn't gotten called. */
+        TEST_ASSERT(!ble_gatt_write_test_cb_called);
+
+        off += len;
+    }
+
+    /* Verify prep write request was sent. */
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
+
+    /* Receive queue full error. */
+    ble_hs_test_util_rx_att_err_rsp(2, BLE_ATT_OP_PREP_WRITE_REQ,
+                                    BLE_ATT_ERR_PREPARE_QUEUE_FULL, 100);
+
+    /* Verify callback was called. */
+    TEST_ASSERT(ble_gatt_write_test_cb_called);
+    TEST_ASSERT(ble_gatt_write_test_error.status ==
+                BLE_HS_ATT_ERR(BLE_ATT_ERR_PREPARE_QUEUE_FULL));
+    TEST_ASSERT(ble_gatt_write_test_error.att_handle == 100);
+
+    /* Verify clear queue command got sent. */
+    ble_hs_test_util_verify_tx_exec_write(0);
+}
+
 TEST_SUITE(ble_gatt_write_test_suite)
 {
     ble_gatt_write_test_no_rsp();
@@ -507,6 +559,7 @@ TEST_SUITE(ble_gatt_write_test_suite)
     ble_gatt_write_test_long_bad_offset();
     ble_gatt_write_test_long_bad_value();
     ble_gatt_write_test_long_bad_length();
+    ble_gatt_write_test_long_queue_full();
     ble_gatt_write_test_reliable_good();
 }
 

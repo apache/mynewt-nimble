@@ -776,6 +776,20 @@ ble_hs_test_util_set_public_addr(uint8_t *addr)
     ble_hs_priv_update_identity(addr);
 }
 
+void
+ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags)
+{
+    struct ble_att_exec_write_req req;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om != NULL);
+    TEST_ASSERT(om->om_len == BLE_ATT_EXEC_WRITE_REQ_SZ);
+
+    ble_att_exec_write_req_parse(om->om_data, om->om_len, &req);
+    TEST_ASSERT(req.baeq_flags == expected_flags);
+}
 
 void
 ble_hs_test_util_init(void)
