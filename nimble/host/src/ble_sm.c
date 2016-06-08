@@ -460,9 +460,15 @@ ble_sm_sec_state(struct ble_sm_proc *proc,
 {
     out_sec_state->pair_alg = proc->pair_alg;
     out_sec_state->enc_enabled = enc_enabled;
-    out_sec_state->authenticated =
-            (proc->flags & BLE_SM_PROC_F_AUTHENTICATED) ? 1 : 0;
-    out_sec_state->bonded = (proc->flags & BLE_SM_PROC_F_BONDED) ? 1 : 0;
+
+    if (enc_enabled) {
+        out_sec_state->authenticated =
+                (proc->flags & BLE_SM_PROC_F_AUTHENTICATED) ? 1 : 0;
+        out_sec_state->bonded = (proc->flags & BLE_SM_PROC_F_BONDED) ? 1 : 0;
+    } else {
+        out_sec_state->authenticated = 0;
+        out_sec_state->bonded = 0;
+    }
 }
 
 static void
@@ -1799,6 +1805,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         /* The procedure is now complete. */
         proc->flags |= BLE_SM_PROC_F_BONDED;
         proc->state = BLE_SM_PROC_STATE_NONE;
+        res->enc_state = 1;
         res->enc_cb = 1;
     }
 
@@ -1824,6 +1831,7 @@ ble_sm_key_rxed(struct ble_sm_proc *proc, struct ble_sm_result *res)
         } else {
             proc->flags |= BLE_SM_PROC_F_BONDED;
             proc->state = BLE_SM_PROC_STATE_NONE;
+            res->enc_state = 1;
             res->enc_cb = 1;
         }
     }
