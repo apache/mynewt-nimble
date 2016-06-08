@@ -1189,6 +1189,7 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     int store_rc;
     int bonding;
     uint8_t peer_addr[6];
+    uint8_t *peer_id_addr;
     uint8_t peer_addr_type;
 
     /* Silence gcc warning. */
@@ -1238,8 +1239,10 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
         if (conn == NULL) {
             res.app_status = BLE_HS_ENOTCONN;
         } else {
-            peer_addr_type = conn->bhc_addr_type;
-            memcpy(peer_addr, conn->bhc_addr, 6);
+            ble_hs_conn_addrs(conn,
+                              NULL, NULL, NULL, NULL,
+                              NULL, NULL, &peer_addr_type, &peer_id_addr);
+            memcpy(peer_addr, peer_id_addr, 6);
         }
     }
 
@@ -1638,6 +1641,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_store_value_sec value_sec;
     struct ble_store_key_sec key_sec;
     struct ble_hs_conn *conn;
+    uint8_t *peer_id_addr;
     int authreq_mitm;
 
     res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_SEC_REQ_SZ);
@@ -1666,9 +1670,12 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
          * sender; remember the sender's address while the connection list is
          * locked.
          */
+        ble_hs_conn_addrs(conn,
+                          NULL, NULL, NULL, NULL,
+                          NULL, NULL, &key_sec.peer_addr_type, &peer_id_addr);
         memset(&key_sec, 0, sizeof key_sec);
         key_sec.peer_addr_type = conn->bhc_addr_type;
-        memcpy(key_sec.peer_addr, conn->bhc_addr, 6);
+        memcpy(key_sec.peer_addr, peer_id_addr, 6);
     }
 
     ble_hs_unlock();
