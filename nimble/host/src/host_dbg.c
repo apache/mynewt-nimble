@@ -325,17 +325,29 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     uint8_t status;
     uint16_t opcode;
 
+    if (len < 3) {
+        BLE_HS_LOG(DEBUG, "Invalid command complete: len=%d "
+                          "(expected >= 3)", len);
+        goto done;
+    }
+
     cmd_pkts = evdata[0];
     opcode = le16toh(evdata + 1);
     ogf = BLE_HCI_OGF(opcode);
     ocf = BLE_HCI_OCF(opcode);
+
+    BLE_HS_LOG(DEBUG, "Command complete: cmd_pkts=%u ogf=0x%x ocf=0x%x",
+               cmd_pkts, ogf, ocf);
+
+    if (len == 3) {
+        goto done;
+    }
+
     status = evdata[3];
+    BLE_HS_LOG(DEBUG, " status=%u ", status);
 
     /* Move past header and status */
     evdata += 4;
-
-    BLE_HS_LOG(DEBUG, "Command Complete: cmd_pkts=%u ogf=0x%x ocf=0x%x "
-                      "status=%u ", cmd_pkts, ogf, ocf, status);
 
     /* Display parameters based on command. */
     switch (ogf) {
@@ -398,6 +410,8 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     default:
         break;
     }
+
+done:
     BLE_HS_LOG(DEBUG, "\n");
 }
 
