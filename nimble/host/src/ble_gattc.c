@@ -3398,7 +3398,21 @@ static void
 ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
                              uint16_t att_handle)
 {
+    struct ble_att_exec_write_req exec_req;
+
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
     ble_gattc_write_reliable_cb(proc, status, att_handle);
+
+    /* If we have successfully queued any data, and the failure occurred before
+     * we could send the execute write command, then erase all queued data.
+     */
+    if (proc->write_reliable.attr.offset > 0 &&
+        proc->write_reliable.attr.offset <
+            proc->write_reliable.attr.value_len) {
+
+        exec_req.baeq_flags = 0;
+        ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
+    }
 }
 
 /**
