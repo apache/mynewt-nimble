@@ -385,7 +385,7 @@ ble_hs_conn_addrs(struct ble_hs_conn *conn,
 
     default:
         BLE_HS_DBG_ASSERT(0);
-        break;
+        return;
     }
 
     if (out_our_ota_addr_type != NULL) {
