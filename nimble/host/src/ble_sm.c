@@ -587,7 +587,6 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
 
-    proc->our_keys.irk_valid = 0;
     ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
                             &proc->our_keys, &value_sec);
     ble_store_write_slv_sec(&value_sec);
@@ -847,9 +846,11 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
             ble_gap_passkey_event(conn_handle, &res->passkey_action);
         }
 
-        /* Persist keys if pairing has successfully completed. */
-        if (res->app_status == 0 && rm) {
-            BLE_HS_DBG_ASSERT(rm);
+        /* Persist keys if bonding has successfully completed. */
+        if (res->app_status == 0    &&
+            rm                      &&
+            proc->flags & BLE_SM_PROC_F_BONDING) {
+
             ble_sm_persist_keys(proc);
         }
 
@@ -1417,11 +1418,14 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
         proc->flags |= BLE_SM_PROC_F_SC;
     }
 
-    ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
     if (proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
-        proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
-        (init_key_dist != 0 || resp_key_dist != 0)) {
+        proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND) {
 
+        proc->flags |= BLE_SM_PROC_F_BONDING;
+    }
+
+    ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
+    if (init_key_dist != 0 || resp_key_dist != 0) {
         proc->flags |= BLE_SM_PROC_F_KEY_EXCHANGE;
     }
 
@@ -1794,7 +1798,6 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         }
 
         /* copy data to pass to application */
-        proc->our_keys.irk_valid = 1;
         proc->our_keys.addr_valid = 1;
         memcpy(proc->our_keys.irk, irk, 16);
         proc->our_keys.addr_type = addr_info.addr_type;
@@ -1946,7 +1949,9 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ID_INFO;
         proc->peer_keys.irk_valid = 1;
-        memcpy(proc->peer_keys.irk, cmd.irk, 16);
+
+        /* Store IRK in little endian. */
+        swap_buf(proc->peer_keys.irk, cmd.irk, 16);
 
         ble_sm_key_rxed(proc, res);
     }
