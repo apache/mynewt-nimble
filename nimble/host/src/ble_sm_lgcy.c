@@ -39,7 +39,7 @@
 /* This is the initiator passkey action action dpeneding on the io
  * capabilties of both parties
  */
-static const uint8_t ble_sm_lgcy_init_pka[5 /*resp*/ ][5 /*init */] =
+static const uint8_t ble_sm_lgcy_init_ioa[5 /*resp*/ ][5 /*init*/] =
 {
     {IOACT_NONE,    IOACT_NONE,   IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
     {IOACT_NONE,    IOACT_NONE,   IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
@@ -51,7 +51,7 @@ static const uint8_t ble_sm_lgcy_init_pka[5 /*resp*/ ][5 /*init */] =
 /* This is the responder passkey action action depending on the io
  * capabilities of both parties
  */
-static const uint8_t ble_sm_lgcy_resp_pka[5 /*init*/ ][5 /*resp */] =
+static const uint8_t ble_sm_lgcy_resp_ioa[5 /*resp*/ ][5 /*init*/] =
 {
     {IOACT_NONE,    IOACT_NONE,   IOACT_DISP,  IOACT_NONE, IOACT_DISP},
     {IOACT_NONE,    IOACT_NONE,   IOACT_DISP,  IOACT_NONE, IOACT_DISP},
@@ -72,10 +72,10 @@ ble_sm_lgcy_io_action(struct ble_sm_proc *proc)
 
         action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_lgcy_init_pka[proc->pair_rsp.io_cap]
+        action = ble_sm_lgcy_init_ioa[proc->pair_rsp.io_cap]
                                      [proc->pair_req.io_cap];
     } else {
-        action = ble_sm_lgcy_resp_pka[proc->pair_rsp.io_cap]
+        action = ble_sm_lgcy_resp_ioa[proc->pair_rsp.io_cap]
                                      [proc->pair_req.io_cap];
     }
 

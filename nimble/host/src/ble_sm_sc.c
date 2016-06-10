@@ -60,29 +60,33 @@ static uint8_t ble_sm_sc_keys_generated;
 #define IOACT_NUMCMP    BLE_SM_IOACT_NUMCMP
 
 /**
- * This is the initiator passkey action action dpeneding on the io
- * capabilties of both parties
+ * This table expresses the required initiator IO action.  Inputs are:
+ *     o Responder IO capabilities (from pair response).
+ *     o Initiator IO capabilities (from pair request).
  */
-static const uint8_t ble_sm_sc_init_ioa[5 /*resp*/ ][5 /*init */] =
+static const uint8_t ble_sm_sc_init_ioa[5 /*resp*/ ][5 /*init*/ ] =
 {
-    {IOACT_NONE,    IOACT_NONE,   IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
-    {IOACT_NONE,    IOACT_NUMCMP, IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
-    {IOACT_DISP,    IOACT_DISP,   IOACT_INPUT, IOACT_NONE, IOACT_DISP},
-    {IOACT_NONE,    IOACT_NONE,   IOACT_NONE,  IOACT_NONE, IOACT_NONE},
-    {IOACT_DISP,    IOACT_NUMCMP, IOACT_INPUT, IOACT_NONE, IOACT_NUMCMP},
+      /* init */
+/*r*/ {IOACT_NONE,    IOACT_NONE,   IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
+/*e*/ {IOACT_NONE,    IOACT_NUMCMP, IOACT_INPUT, IOACT_NONE, IOACT_NUMCMP},
+/*s*/ {IOACT_DISP,    IOACT_DISP,   IOACT_INPUT, IOACT_NONE, IOACT_DISP},
+/*p*/ {IOACT_NONE,    IOACT_NONE,   IOACT_NONE,  IOACT_NONE, IOACT_NONE},
+      {IOACT_DISP,    IOACT_NUMCMP, IOACT_INPUT, IOACT_NONE, IOACT_NUMCMP},
 };
 
 /**
- * This is the responder passkey action action depending on the io
- * capabilities of both parties
+ * This table expresses the required responder IO action.  Inputs are:
+ *     o Responder IO capabilities (from pair response).
+ *     o Initiator IO capabilities (from pair request).
  */
-static const uint8_t ble_sm_sc_resp_ioa[5 /*init*/ ][5 /*resp */] =
+static const uint8_t ble_sm_sc_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
 {
-    {IOACT_NONE,    IOACT_NONE,   IOACT_DISP,  IOACT_NONE, IOACT_DISP},
-    {IOACT_NONE,    IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
-    {IOACT_INPUT,   IOACT_INPUT,  IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
-    {IOACT_NONE,    IOACT_NONE,   IOACT_NONE,  IOACT_NONE, IOACT_NONE},
-    {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
+      /* init */
+/*r*/ {IOACT_NONE,    IOACT_NONE,   IOACT_DISP,  IOACT_NONE, IOACT_DISP},
+/*e*/ {IOACT_NONE,    IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
+/*s*/ {IOACT_INPUT,   IOACT_INPUT,  IOACT_INPUT, IOACT_NONE, IOACT_INPUT},
+/*p*/ {IOACT_NONE,    IOACT_NONE,   IOACT_NONE,  IOACT_NONE, IOACT_NONE},
+      {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
 };
 
 int
