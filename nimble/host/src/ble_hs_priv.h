@@ -124,8 +124,8 @@ void ble_hci_set_phony_ack_cb(ble_hci_cmd_phony_ack_fn *cb);
 
 #define BLE_HS_LOG_ADDR(lvl, addr)                      \
     BLE_HS_LOG(lvl, "%02x:%02x:%02x:%02x:%02x:%02x",    \
-               (addr)[0], (addr)[1], (addr)[2],         \
-               (addr)[3], (addr)[4], (addr)[5])
+               (addr)[5], (addr)[4], (addr)[3],         \
+               (addr)[2], (addr)[1], (addr)[0])
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 
