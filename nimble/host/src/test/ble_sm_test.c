@@ -1798,6 +1798,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
     value_sec.rand_num = rand_num;
     memcpy(value_sec.ltk, ltk, sizeof value_sec.ltk);
     value_sec.ltk_present = 1;
+    value_sec.irk_present = 0;
     value_sec.authenticated = authenticated;
     value_sec.sc = 0;
 

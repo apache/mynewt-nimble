@@ -91,4 +91,16 @@
 #undef NIMBLE_OPT_ATT_CLT_INDICATE
 #define NIMBLE_OPT_ATT_CLT_INDICATE             (NIMBLE_OPT_GATT_INDICATE)
 
+/** Security manager settings. */
+
+/* Secure connections implies security manager support
+ * Note: For now, security manager is synonymous with legacy pairing.  In the
+ * future, a new setting for legacy pairing may be introduced as a sibling of
+ * the SC setting.
+ */
+#if NIMBLE_OPT_SM_SC
+#undef NIMBLE_OPT_SM
+#define NIMBLE_OPT_SM                           1
+#endif
+
 #endif
