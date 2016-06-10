@@ -270,4 +270,5 @@ ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
                             uint16_t ediv, uint64_t rand_val, int auth);
 int ble_gap_provide_ltk(uint16_t conn_handle, uint8_t *ltk);
 void ble_gap_init_identity_addr(uint8_t *addr);
+
 #endif

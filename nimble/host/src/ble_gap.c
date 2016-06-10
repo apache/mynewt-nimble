@@ -2094,10 +2094,13 @@ done:
  * $security                                                                 *
  *****************************************************************************/
 
-#if NIMBLE_OPT(SM)
 int
 ble_gap_security_initiate(uint16_t conn_handle)
 {
+#if !NIMBLE_OPT(SM)
+    return BLE_HS_ENOTSUP;
+#endif
+
     ble_hs_conn_flags_t conn_flags;
     int rc;
 
@@ -2126,6 +2129,10 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
                             uint64_t rand_val,
                             int auth)
 {
+#if !NIMBLE_OPT(SM)
+    return BLE_HS_ENOTSUP;
+#endif
+
     ble_hs_conn_flags_t conn_flags;
     int rc;
 
@@ -2141,12 +2148,15 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
     rc = ble_sm_enc_initiate(conn_handle, ltk, ediv, rand_val, auth);
     return rc;
 }
-#endif
 
 void
 ble_gap_passkey_event(uint16_t conn_handle,
                       struct ble_gap_passkey_action *passkey_action)
 {
+#if !NIMBLE_OPT(SM)
+    return;
+#endif
+
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
@@ -2179,6 +2189,10 @@ void
 ble_gap_enc_event(uint16_t conn_handle, int status,
                     struct ble_gap_sec_state *sec_state)
 {
+#if !NIMBLE_OPT(SM)
+    return;
+#endif
+
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;

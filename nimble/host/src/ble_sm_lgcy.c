@@ -25,6 +25,8 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
+#if NIMBLE_OPT(SM)
+
 /**
  * Create some shortened names for the passkey actions so that the table is
  * easier to read.
@@ -264,3 +266,5 @@ ble_sm_lgcy_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 
     res->execute = 1;
 }
+
+#endif
