@@ -219,6 +219,7 @@ struct ble_sm_dhkey_check {
 #define BLE_SM_PROC_F_AUTHENTICATED         0x08
 #define BLE_SM_PROC_F_KEY_EXCHANGE          0x10
 #define BLE_SM_PROC_F_SC                    0x20
+#define BLE_SM_PROC_F_BONDING               0x40
 
 #define BLE_SM_KE_F_ENC_INFO                0x01
 #define BLE_SM_KE_F_MASTER_ID               0x02
@@ -237,8 +238,8 @@ struct ble_sm_keys {
     uint16_t ediv;
     uint64_t rand_val;
     uint8_t addr_type;
-    uint8_t ltk[16];
-    uint8_t irk[16];
+    uint8_t ltk[16];    /* Little endian. */
+    uint8_t irk[16];    /* Little endian. */
     uint8_t csrk[16];
     uint8_t addr[6];
 };
