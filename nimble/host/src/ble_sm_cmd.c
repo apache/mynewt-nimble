@@ -440,7 +440,7 @@ ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd)
     }
 
     txom->om_data[0] = BLE_SM_OP_IDENTITY_INFO;
-    memcpy(txom->om_data + 1, cmd->irk, sizeof cmd->irk);
+    swap_buf(txom->om_data + 1, cmd->irk, sizeof cmd->irk);
 
     BLE_SM_LOG_CMD(1, "id info", conn_handle, ble_sm_id_info_log, cmd);
 
@@ -461,7 +461,7 @@ ble_sm_id_info_log(struct ble_sm_id_info *cmd)
 
 void
 ble_sm_id_addr_info_parse(void *payload, int len,
-                       struct ble_sm_id_addr_info *cmd)
+                          struct ble_sm_id_addr_info *cmd)
 {
     uint8_t *u8ptr = payload;
     cmd->addr_type = *u8ptr;

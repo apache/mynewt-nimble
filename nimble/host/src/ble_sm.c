@@ -960,7 +960,7 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
             /* We are completing a pairing procedure; keys may need to be
              * exchanged.
              */
-            if (evt_status == 0 && proc->flags & BLE_SM_PROC_F_KEY_EXCHANGE) {
+            if (evt_status == 0) {
                 /* If the responder has any keys to send, it sends them
                  * first.
                  */
@@ -984,7 +984,7 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
              * procedure.  Keys were exchanged during pairing; they don't
              * get exchanged again now.  Procedure is complete.
              */
-            BLE_HS_DBG_ASSERT(!(proc->flags & BLE_SM_PROC_F_KEY_EXCHANGE));
+            BLE_HS_DBG_ASSERT(proc->rx_key_flags == 0);
             proc->state = BLE_SM_PROC_STATE_NONE;
             if (proc->flags & BLE_SM_PROC_F_AUTHENTICATED) {
                 authenticated = 1;
@@ -1425,10 +1425,6 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
     }
 
     ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
-    if (init_key_dist != 0 || resp_key_dist != 0) {
-        proc->flags |= BLE_SM_PROC_F_KEY_EXCHANGE;
-    }
-
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         rx_key_dist = resp_key_dist;
     } else {
@@ -1436,7 +1432,6 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
     }
 
     proc->rx_key_flags = 0;
-
     if (rx_key_dist & BLE_SM_PAIR_KEY_DIST_ENC) {
         proc->rx_key_flags |= BLE_SM_KE_F_ENC_INFO |
                               BLE_SM_KE_F_MASTER_ID;
@@ -1735,6 +1730,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
     uint8_t our_key_dist;
+    uint8_t *irk;
     int rc;
 
     ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
@@ -1742,10 +1738,6 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         our_key_dist = init_key_dist;
     } else {
         our_key_dist = resp_key_dist;
-    }
-
-    if (our_key_dist == 0) {
-        return;
     }
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_ENC) {
@@ -1781,7 +1773,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
         /* Send identity information. */
-        uint8_t *irk = ble_hs_priv_get_local_irk();
+        irk = ble_hs_priv_get_local_irk();
 
         memcpy(iden_info.irk, irk, 16);
 
@@ -1790,6 +1782,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             goto err;
         }
 
+        /* Send identity address information. */
         bls_hs_priv_copy_local_identity_addr(addr_info.bd_addr,
                                              &addr_info.addr_type);
         rc = ble_sm_id_addr_info_tx(proc->conn_handle, &addr_info);
@@ -1797,7 +1790,6 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             goto err;
         }
 
-        /* copy data to pass to application */
         proc->our_keys.addr_valid = 1;
         memcpy(proc->our_keys.irk, irk, 16);
         proc->our_keys.addr_type = addr_info.addr_type;
@@ -1818,7 +1810,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         memcpy(proc->our_keys.csrk, sign_info.sig_key, 16);
     }
 
-    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR || proc->rx_key_flags == 0) {
         /* The procedure is now complete. */
         ble_sm_key_exch_success(proc, res);
     }
