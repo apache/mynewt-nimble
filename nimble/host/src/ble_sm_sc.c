@@ -372,7 +372,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         if (memcmp(proc->confirm_peer, confirm_val, 16) != 0) {
             /* Random number mismatch. */
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CONFIRM_MISMATCH);
-            res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+            res->sm_err = BLE_SM_ERR_CONFIRM_MISMATCH;
             res->enc_cb = 1;
             return;
         }
