@@ -273,20 +273,18 @@ static void
 ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
                        struct ble_gap_conn_desc *desc)
 {
-    uint8_t *peer_ota_addr;
-    uint8_t *peer_id_addr;
-    uint8_t *our_ota_addr;
+    struct ble_hs_conn_addrs addrs;
 
-    ble_hs_conn_addrs(conn,
-                      &desc->our_ota_addr_type, &our_ota_addr,
-                      NULL, NULL,
-                      &desc->peer_ota_addr_type, &peer_ota_addr,
-                      &desc->peer_id_addr_type, &peer_id_addr);
+    ble_hs_conn_addrs(conn, &addrs);
+
+    desc->our_ota_addr_type = addrs.our_ota_addr_type;
+    memcpy(desc->our_ota_addr, addrs.our_ota_addr, 6);
+    desc->peer_ota_addr_type = addrs.peer_ota_addr_type;
+    memcpy(desc->peer_ota_addr, addrs.peer_ota_addr, 6);
+    desc->peer_id_addr_type = addrs.peer_id_addr_type;
+    memcpy(desc->peer_id_addr, addrs.peer_id_addr, 6);
 
     desc->conn_handle = conn->bhc_handle;
-    memcpy(desc->peer_ota_addr, peer_ota_addr, 6);
-    memcpy(desc->peer_id_addr, peer_id_addr, 6);
-    memcpy(desc->our_ota_addr, our_ota_addr, 6);
     desc->conn_itvl = conn->bhc_itvl;
     desc->conn_latency = conn->bhc_latency;
     desc->supervision_timeout = conn->bhc_supervision_timeout;
