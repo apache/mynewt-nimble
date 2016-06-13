@@ -293,7 +293,6 @@ void ble_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
 void ble_sm_dbg_set_next_ediv(uint16_t next_ediv);
 void ble_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
 void ble_sm_dbg_set_next_ltk(uint8_t *next_ltk);
-void ble_sm_dbg_set_next_irk(uint8_t *next_irk);
 void ble_sm_dbg_set_next_csrk(uint8_t *next_csrk);
 void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 int ble_sm_dbg_num_procs(void);
@@ -341,15 +340,20 @@ int ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd);
 void ble_sm_master_id_log(struct ble_sm_master_id *cmd);
 void ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd);
 int ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd);
+void ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd);
 void ble_sm_id_info_log(struct ble_sm_id_info *cmd);
 void ble_sm_id_addr_info_parse(void *payload, int len,
                             struct ble_sm_id_addr_info *cmd);
 int ble_sm_id_addr_info_tx(uint16_t conn_handle,
                            struct ble_sm_id_addr_info *cmd);
+void ble_sm_id_addr_info_write(void *payload, int len,
+                               struct ble_sm_id_addr_info *cmd);
 void ble_sm_id_addr_info_log(struct ble_sm_id_addr_info *cmd);
 void ble_sm_sign_info_parse(void *payload, int len,
                             struct ble_sm_sign_info *cmd);
 int ble_sm_sign_info_tx(uint16_t conn_handle, struct ble_sm_sign_info *cmd);
+void ble_sm_sign_info_write(void *payload, int len,
+                            struct ble_sm_sign_info *cmd);
 void ble_sm_sign_info_log(struct ble_sm_sign_info *cmd);
 void ble_sm_sec_req_parse(void *payload, int len, struct ble_sm_sec_req *cmd);
 void ble_sm_sec_req_write(void *payload, int len, struct ble_sm_sec_req *cmd);

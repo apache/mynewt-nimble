@@ -150,8 +150,6 @@ static uint64_t ble_sm_dbg_next_start_rand;
 static uint8_t ble_sm_dbg_next_start_rand_set;
 static uint8_t ble_sm_dbg_next_ltk[16];
 static uint8_t ble_sm_dbg_next_ltk_set;
-static uint8_t ble_sm_dbg_next_irk[16];
-static uint8_t ble_sm_dbg_next_irk_set;
 static uint8_t ble_sm_dbg_next_csrk[16];
 static uint8_t ble_sm_dbg_next_csrk_set;
 static uint8_t ble_sm_dbg_sc_pub_key[64];
@@ -186,14 +184,6 @@ ble_sm_dbg_set_next_ltk(uint8_t *next_ltk)
     memcpy(ble_sm_dbg_next_ltk, next_ltk,
            sizeof ble_sm_dbg_next_ltk);
     ble_sm_dbg_next_ltk_set = 1;
-}
-
-void
-ble_sm_dbg_set_next_irk(uint8_t *next_irk)
-{
-    memcpy(ble_sm_dbg_next_irk, next_irk,
-           sizeof ble_sm_dbg_next_irk);
-    ble_sm_dbg_next_irk_set = 1;
 }
 
 void
@@ -526,35 +516,28 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
              uint8_t *out_iat, uint8_t *out_ia,
              uint8_t *out_rat, uint8_t *out_ra)
 {
+    struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
-    uint8_t *peer_ota_addr;
-    uint8_t *our_ota_addr;
-    uint8_t peer_id_addr_type;
-    uint8_t our_id_addr_type;
 
     conn = ble_hs_conn_find(proc->conn_handle);
     if (conn == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    ble_hs_conn_addrs(conn,
-                      NULL, &our_ota_addr,
-                      &our_id_addr_type, NULL,
-                      NULL, &peer_ota_addr,
-                      &peer_id_addr_type, NULL);
+    ble_hs_conn_addrs(conn, &addrs);
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        *out_iat = our_id_addr_type;
-        memcpy(out_ia, our_ota_addr, 6);
+        *out_iat = addrs.our_id_addr_type;
+        memcpy(out_ia, addrs.our_ota_addr, 6);
 
-        *out_rat = peer_id_addr_type;
-        memcpy(out_ra, peer_ota_addr, 6);
+        *out_rat = addrs.peer_id_addr_type;
+        memcpy(out_ra, addrs.peer_ota_addr, 6);
     } else {
-        *out_iat = peer_id_addr_type;
-        memcpy(out_ia, peer_ota_addr, 6);
+        *out_iat = addrs.peer_id_addr_type;
+        memcpy(out_ia, addrs.peer_ota_addr, 6);
 
-        *out_rat = our_id_addr_type;
-        memcpy(out_ra, our_ota_addr, 6);
+        *out_rat = addrs.our_id_addr_type;
+        memcpy(out_ra, addrs.our_ota_addr, 6);
     }
 
     return 0;
@@ -1174,17 +1157,13 @@ int
 ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
 {
     struct ble_store_value_sec value_sec;
+    struct ble_hs_conn_addrs addrs;
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
     struct ble_hs_conn *conn;
-    uint8_t peer_addr[6];
-    uint8_t *peer_id_addr;
-    uint8_t peer_addr_type;
+    uint8_t peer_id_addr[6];
     int store_rc;
     int restore;
-
-    /* Silence gcc warning. */
-    peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
 
     memset(&res, 0, sizeof res);
 
@@ -1233,10 +1212,8 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
         if (conn == NULL) {
             res.app_status = BLE_HS_ENOTCONN;
         } else {
-            ble_hs_conn_addrs(conn,
-                              NULL, NULL, NULL, NULL,
-                              NULL, NULL, &peer_addr_type, &peer_id_addr);
-            memcpy(peer_addr, peer_id_addr, 6);
+            ble_hs_conn_addrs(conn, &addrs);
+            memcpy(peer_id_addr, addrs.peer_id_addr, 6);
         }
     }
 
@@ -1248,8 +1225,8 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
 
     if (res.app_status == 0) {
         if (restore) {
-            store_rc = ble_sm_retrieve_ltk(evt, peer_addr_type, peer_addr,
-                                           &value_sec);
+            store_rc = ble_sm_retrieve_ltk(evt, addrs.peer_id_addr_type,
+                                           peer_id_addr, &value_sec);
             if (store_rc == 0) {
                 /* Send the key to the controller. */
                 res.state_arg = &value_sec;
@@ -1631,11 +1608,11 @@ static void
 ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                   struct ble_sm_result *res)
 {
-    struct ble_sm_sec_req cmd;
     struct ble_store_value_sec value_sec;
     struct ble_store_key_sec key_sec;
+    struct ble_hs_conn_addrs addrs;
+    struct ble_sm_sec_req cmd;
     struct ble_hs_conn *conn;
-    uint8_t *peer_id_addr;
     int authreq_mitm;
 
     res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_SEC_REQ_SZ);
@@ -1664,11 +1641,10 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
          * sender; remember the sender's address while the connection list is
          * locked.
          */
-        ble_hs_conn_addrs(conn,
-                          NULL, NULL, NULL, NULL,
-                          NULL, NULL, &key_sec.peer_addr_type, &peer_id_addr);
+        ble_hs_conn_addrs(conn, &addrs);
         memset(&key_sec, 0, sizeof key_sec);
-        memcpy(key_sec.peer_addr, peer_id_addr, 6);
+        key_sec.peer_addr_type = addrs.peer_id_addr_type;
+        memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
     }
 
     ble_hs_unlock();

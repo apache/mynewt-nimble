@@ -531,6 +531,7 @@ ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
                       uint8_t *out_peer_id_addr_type,
                       uint8_t **out_peer_ota_addr)
 {
+    struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
 
     conn = ble_hs_conn_find(proc->conn_handle);
@@ -538,11 +539,11 @@ ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
         return BLE_HS_ENOTCONN;
     }
 
-    ble_hs_conn_addrs(conn,
-                      NULL, out_our_ota_addr,
-                      out_our_id_addr_type, NULL,
-                      NULL, out_peer_ota_addr,
-                      out_peer_id_addr_type, NULL);
+    ble_hs_conn_addrs(conn, &addrs);
+    *out_our_id_addr_type = addrs.our_id_addr_type;
+    *out_our_ota_addr = addrs.our_ota_addr;
+    *out_peer_id_addr_type = addrs.peer_id_addr_type;
+    *out_peer_ota_addr = addrs.peer_ota_addr;
 
     return 0;
 }
