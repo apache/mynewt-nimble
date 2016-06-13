@@ -152,6 +152,13 @@ ble_sm_sc_ensure_keys_generated(void)
         ble_sm_sc_keys_generated = 1;
     }
 
+    BLE_HS_LOG(DEBUG, "our pubkey=");
+    ble_hs_misc_log_flat_buf(&ble_sm_sc_pub_key, 64);
+    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG(DEBUG, "our privkey=");
+    ble_hs_misc_log_flat_buf(&ble_sm_sc_priv_key, 32);
+    BLE_HS_LOG(DEBUG, "\n");
+
     return 0;
 }
 

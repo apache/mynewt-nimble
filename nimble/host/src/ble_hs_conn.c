@@ -323,6 +323,7 @@ ble_hs_conn_addrs(struct ble_hs_conn *conn,
     addrs->our_id_addr =
         bls_hs_priv_get_local_identity_addr(&addrs->our_id_addr_type);
     if (memcmp(conn->our_rpa_addr, ble_hs_conn_null_addr, 6) == 0) {
+        addrs->our_ota_addr_type = addrs->our_id_addr_type;
         addrs->our_ota_addr = addrs->our_id_addr;
     } else {
         switch (addrs->our_id_addr_type) {

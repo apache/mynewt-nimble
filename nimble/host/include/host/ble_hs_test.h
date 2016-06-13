@@ -26,24 +26,25 @@ struct os_mbuf;
 void ble_hs_test_pkt_txed(struct os_mbuf *om);
 void ble_hs_test_hci_txed(uint8_t *cmdbuf);
 
-int ble_l2cap_test_all(void);
-int ble_sm_test_all(void);
-int ble_att_svr_test_all(void);
 int ble_att_clt_test_all(void);
-int ble_host_hci_test_all(void);
-int ble_hs_conn_test_all(void);
-int ble_os_test_all(void);
-int ble_uuid_test_all(void);
-int ble_gatt_disc_s_test_all(void);
+int ble_att_svr_test_all(void);
+int ble_gap_test_all(void);
+int ble_gatt_conn_test_all(void);
 int ble_gatt_disc_c_test_all(void);
 int ble_gatt_disc_d_test_all(void);
+int ble_gatt_disc_s_test_all(void);
+int ble_gatt_find_s_test_all(void);
 int ble_gatt_read_test_all(void);
 int ble_gatt_write_test_all(void);
-int ble_gatt_conn_test_all(void);
-int ble_hs_adv_test_all(void);
-int ble_gatts_reg_test_all(void);
 int ble_gatts_notify_test_all(void);
-int ble_gatt_find_s_test_all(void);
-int ble_gap_test_all(void);
+int ble_gatts_reg_test_all(void);
+int ble_host_hci_test_all(void);
+int ble_hs_adv_test_all(void);
+int ble_hs_conn_test_all(void);
+int ble_l2cap_test_all(void);
+int ble_os_test_all(void);
+int ble_sm_sc_test_all(void);
+int ble_sm_test_all(void);
+int ble_uuid_test_all(void);
 
 #endif
