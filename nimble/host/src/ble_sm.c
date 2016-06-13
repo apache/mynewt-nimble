@@ -1918,8 +1918,8 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         proc->rx_key_flags &= ~BLE_SM_KE_F_ID_INFO;
         proc->peer_keys.irk_valid = 1;
 
-        /* Store IRK in little endian. */
-        swap_buf(proc->peer_keys.irk, cmd.irk, 16);
+        /* Store IRK in big endian. */
+        memcpy(proc->peer_keys.irk, cmd.irk, 16);
 
         ble_sm_key_rxed(proc, res);
     }

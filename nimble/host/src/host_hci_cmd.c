@@ -1024,6 +1024,9 @@ host_hci_cmd_build_set_data_len(uint16_t connection_handle,
     return 0;
 }
 
+/**
+ * IRKs are in little endian.
+ */
 static int
 host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
                                                uint8_t *addr,
@@ -1043,8 +1046,10 @@ host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
     return 0;
 }
 
-/*
+/**
  * OGF=0x08 OCF=0x0027
+ *
+ * IRKs are in little endian.
  */
 int
 host_hci_cmd_add_device_to_resolving_list(
@@ -1060,11 +1065,9 @@ host_hci_cmd_add_device_to_resolving_list(
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
                        BLE_HCI_ADD_TO_RESOLV_LIST_LEN, dst);
 
-    rc = host_hci_cmd_body_add_device_to_resolving_list(padd->addr_type,
-                                                padd->addr,
-                                                padd->peer_irk,
-                                                padd->local_irk,
-                                                dst + BLE_HCI_CMD_HDR_LEN);
+    rc = host_hci_cmd_body_add_device_to_resolving_list(
+        padd->addr_type, padd->addr, padd->peer_irk, padd->local_irk,
+        dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
         return rc;
     }
