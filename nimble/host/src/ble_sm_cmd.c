@@ -427,11 +427,26 @@ ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd)
     memcpy(cmd->irk, u8ptr, 16);
 }
 
+void
+ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_ID_INFO_SZ);
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_IDENTITY_INFO;
+    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->irk, sizeof cmd->irk);
+}
+
 int
 ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
+
+    BLE_SM_LOG_CMD(1, "id info", conn_handle, ble_sm_id_info_log, cmd);
 
     rc = ble_sm_init_req(BLE_SM_ID_INFO_SZ, &txom);
     if (rc != 0) {
@@ -439,10 +454,7 @@ ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd)
         goto done;
     }
 
-    txom->om_data[0] = BLE_SM_OP_IDENTITY_INFO;
-    swap_buf(txom->om_data + 1, cmd->irk, sizeof cmd->irk);
-
-    BLE_SM_LOG_CMD(1, "id info", conn_handle, ble_sm_id_info_log, cmd);
+    ble_sm_id_info_write(txom->om_data, txom->om_len, cmd);
 
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
@@ -468,11 +480,29 @@ ble_sm_id_addr_info_parse(void *payload, int len,
     memcpy(cmd->bd_addr, u8ptr + 1, 6);
 }
 
+void
+ble_sm_id_addr_info_write(void *payload, int len,
+                          struct ble_sm_id_addr_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_ID_ADDR_INFO_SZ);
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_IDENTITY_ADDR_INFO;
+    u8ptr[1] = cmd->addr_type;
+    memcpy(u8ptr + 2, cmd->bd_addr, sizeof cmd->bd_addr);
+}
+
 int
 ble_sm_id_addr_info_tx(uint16_t conn_handle, struct ble_sm_id_addr_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
+
+    BLE_SM_LOG_CMD(1, "id addr info", conn_handle, ble_sm_id_addr_info_log,
+                   cmd);
 
     rc = ble_sm_init_req(BLE_SM_ID_ADDR_INFO_SZ, &txom);
     if (rc != 0) {
@@ -480,12 +510,7 @@ ble_sm_id_addr_info_tx(uint16_t conn_handle, struct ble_sm_id_addr_info *cmd)
         goto done;
     }
 
-    txom->om_data[0] = BLE_SM_OP_IDENTITY_ADDR_INFO;
-    txom->om_data[1] = cmd->addr_type;
-    memcpy(txom->om_data + 2, cmd->bd_addr, sizeof cmd->bd_addr);
-
-    BLE_SM_LOG_CMD(1, "id addr info", conn_handle, ble_sm_id_addr_info_log,
-                   cmd);
+    ble_sm_id_addr_info_write(txom->om_data, txom->om_len, cmd);
 
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
@@ -509,14 +534,26 @@ ble_sm_sign_info_parse(void *payload, int len, struct ble_sm_sign_info *cmd)
     memcpy(cmd->sig_key, u8ptr, 16);
 }
 
+void
+ble_sm_sign_info_write(void *payload, int len, struct ble_sm_sign_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_SIGN_INFO_SZ);
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_SIGN_INFO;
+    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->sig_key, sizeof cmd->sig_key);
+}
+
 int
 ble_sm_sign_info_tx(uint16_t conn_handle, struct ble_sm_sign_info *cmd)
 {
     struct os_mbuf *txom;
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_sign_info_tx(); conn_handle=%d irk=");
-    ble_hs_misc_log_flat_buf(cmd->sig_key, sizeof cmd->sig_key);
+    BLE_SM_LOG_CMD(1, "sign info", conn_handle, ble_sm_sign_info_log, cmd);
 
     rc = ble_sm_init_req(BLE_SM_SIGN_INFO_SZ, &txom);
     if (rc != 0) {
@@ -524,10 +561,7 @@ ble_sm_sign_info_tx(uint16_t conn_handle, struct ble_sm_sign_info *cmd)
         goto done;
     }
 
-    txom->om_data[0] = BLE_SM_OP_SIGN_INFO;
-    memcpy(txom->om_data + 1, cmd->sig_key, sizeof cmd->sig_key);
-
-    BLE_SM_LOG_CMD(1, "sign info", conn_handle, ble_sm_sign_info_log, cmd);
+    ble_sm_sign_info_write(txom->om_data, txom->om_len, cmd);
 
     rc = ble_sm_tx(conn_handle, txom);
     txom = NULL;
