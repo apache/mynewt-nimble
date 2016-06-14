@@ -2157,6 +2157,16 @@ ble_gap_security_initiate(uint16_t conn_handle)
 }
 
 int
+ble_gap_pair_initiate(uint16_t conn_handle)
+{
+    int rc;
+
+    rc = ble_sm_pair_initiate(conn_handle);
+
+    return rc;
+}
+
+int
 ble_gap_encryption_initiate(uint16_t conn_handle,
                             uint8_t *ltk,
                             uint16_t ediv,

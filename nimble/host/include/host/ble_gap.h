@@ -268,9 +268,9 @@ int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
 int ble_gap_update_params(uint16_t conn_handle,
                           struct ble_gap_upd_params *params);
 int ble_gap_security_initiate(uint16_t conn_handle);
-int
-ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
-                            uint16_t ediv, uint64_t rand_val, int auth);
+int ble_gap_pair_initiate(uint16_t conn_handle);
+int ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
+                                uint16_t ediv, uint64_t rand_val, int auth);
 int ble_gap_provide_ltk(uint16_t conn_handle, uint8_t *ltk);
 void ble_gap_init_identity_addr(uint8_t *addr);
 
