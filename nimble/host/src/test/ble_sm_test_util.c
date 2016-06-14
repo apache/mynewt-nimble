@@ -812,10 +812,10 @@ ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
     key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
 
     if (params->pair_rsp.init_key_dist == 0) {
-        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        rc = ble_store_read_our_sec(&key_sec, &value_sec);
         TEST_ASSERT(rc == BLE_HS_ENOENT);
     } else {
-        rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+        rc = ble_store_read_peer_sec(&key_sec, &value_sec);
         TEST_ASSERT_FATAL(rc == 0);
         TEST_ASSERT(value_sec.peer_addr_type == 0);
         TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
@@ -829,7 +829,7 @@ ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
 
         /* Verify no other keys were persisted. */
         key_sec.idx++;
-        rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+        rc = ble_store_read_peer_sec(&key_sec, &value_sec);
         TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
     }
 
@@ -837,10 +837,10 @@ ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
     key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
 
     if (params->pair_rsp.resp_key_dist == 0) {
-        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        rc = ble_store_read_our_sec(&key_sec, &value_sec);
         TEST_ASSERT(rc == BLE_HS_ENOENT);
     } else {
-        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        rc = ble_store_read_our_sec(&key_sec, &value_sec);
         TEST_ASSERT_FATAL(rc == 0);
         TEST_ASSERT(value_sec.peer_addr_type == 0);
         TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
@@ -854,7 +854,7 @@ ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
 
         /* Verify no other keys were persisted. */
         key_sec.idx++;
-        rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+        rc = ble_store_read_our_sec(&key_sec, &value_sec);
         TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
     }
 }
@@ -908,7 +908,7 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
     bonding = params->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
               params->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND;
 
-    rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+    rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     if (!bonding) {
         TEST_ASSERT(rc == BLE_HS_ENOENT);
     } else {
@@ -939,7 +939,7 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
         }
     }
 
-    rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+    rc = ble_store_read_our_sec(&key_sec, &value_sec);
     if (!bonding) {
         TEST_ASSERT(rc == BLE_HS_ENOENT);
     } else {
@@ -970,9 +970,9 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
 
     /* Verify no other keys were persisted. */
     key_sec.idx++;
-    rc = ble_store_read_slv_sec(&key_sec, &value_sec);
+    rc = ble_store_read_our_sec(&key_sec, &value_sec);
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
-    rc = ble_store_read_mst_sec(&key_sec, &value_sec);
+    rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
 }
 
@@ -1423,7 +1423,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
     value_sec.authenticated = authenticated;
     value_sec.sc = 0;
 
-    rc = ble_store_write_slv_sec(&value_sec);
+    rc = ble_store_write_our_sec(&value_sec);
     TEST_ASSERT_FATAL(rc == 0);
 
     if (send_enc_req) {
@@ -1438,7 +1438,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req, uint8_t *ltk,
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_SLV_SEC);
+                BLE_STORE_OBJ_TYPE_OUR_SEC);
     TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr_type ==
                 BLE_ADDR_TYPE_PUBLIC);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
@@ -1505,7 +1505,7 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_SLV_SEC);
+                BLE_STORE_OBJ_TYPE_OUR_SEC);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv == ediv);
     TEST_ASSERT(ble_sm_test_store_key.sec.rand_num == rand_num);
@@ -2050,7 +2050,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *ltk,
     value_sec.authenticated = authenticated;
     value_sec.sc = 0;
 
-    rc = ble_store_write_mst_sec(&value_sec);
+    rc = ble_store_write_peer_sec(&value_sec);
     TEST_ASSERT_FATAL(rc == 0);
 
     if (send_enc_req) {

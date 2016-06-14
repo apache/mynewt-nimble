@@ -22,14 +22,8 @@
 
 #include <inttypes.h>
 
-/* XXX: It probably doesn't make sense to persist all security material as a
- * single record.  We may need to separate IRK from LTK and CSRK.
- *
- * Also, the master / slave distinction is not right.  It makes sense for the
- * LTK in legacy pairing, but not for other security operations.
- */
-#define BLE_STORE_OBJ_TYPE_MST_SEC      1
-#define BLE_STORE_OBJ_TYPE_SLV_SEC      2
+#define BLE_STORE_OBJ_TYPE_OUR_SEC      1
+#define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
 #define BLE_STORE_ADDR_TYPE_NONE        0xff
@@ -125,12 +119,12 @@ int ble_store_read(int obj_type, union ble_store_key *key,
 int ble_store_write(int obj_type, union ble_store_value *val);
 int ble_store_delete(int obj_type, union ble_store_key *key);
 
-int ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
+int ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec);
-int ble_store_write_slv_sec(struct ble_store_value_sec *value_sec);
-int ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
-                           struct ble_store_value_sec *value_sec);
-int ble_store_write_mst_sec(struct ble_store_value_sec *value_sec);
+int ble_store_write_our_sec(struct ble_store_value_sec *value_sec);
+int ble_store_read_peer_sec(struct ble_store_key_sec *key_sec,
+                            struct ble_store_value_sec *value_sec);
+int ble_store_write_peer_sec(struct ble_store_value_sec *value_sec);
 
 int ble_store_read_cccd(struct ble_store_key_cccd *key,
                         struct ble_store_value_cccd *out_value);

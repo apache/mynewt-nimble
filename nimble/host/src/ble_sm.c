@@ -572,11 +572,11 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 
     ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
                             &proc->our_keys, &value_sec);
-    ble_store_write_slv_sec(&value_sec);
+    ble_store_write_our_sec(&value_sec);
 
     ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
                             &proc->peer_keys, &value_sec);
-    ble_store_write_mst_sec(&value_sec);
+    ble_store_write_peer_sec(&value_sec);
 }
 
 static int
@@ -1043,7 +1043,7 @@ ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt, uint8_t peer_addr_type,
     key_sec.rand_num = evt->random_number;
     key_sec.ediv_rand_present = 1;
 
-    rc = ble_store_read_slv_sec(&key_sec, value_sec);
+    rc = ble_store_read_our_sec(&key_sec, value_sec);
     return rc;
 }
 
@@ -1653,7 +1653,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         /* Query database for an LTK corresponding to the sender.  We are the
          * master, so retrieve a master key.
          */
-        res->app_status = ble_store_read_mst_sec(&key_sec, &value_sec);
+        res->app_status = ble_store_read_peer_sec(&key_sec, &value_sec);
         if (res->app_status == 0) {
             /* Found a key corresponding to this peer.  Make sure it meets the
              * requested minimum authreq.

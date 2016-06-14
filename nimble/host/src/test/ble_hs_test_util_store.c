@@ -23,15 +23,15 @@
 #include "ble_hs_test_util.h"
 #include "ble_hs_test_util_store.h"
 
-static int ble_hs_test_util_store_max_slv_secs;
-static int ble_hs_test_util_store_max_mst_secs;
+static int ble_hs_test_util_store_max_our_secs;
+static int ble_hs_test_util_store_max_peer_secs;
 static int ble_hs_test_util_store_max_cccds;
 
-static struct ble_store_value_sec *ble_hs_test_util_store_slv_secs;
-static struct ble_store_value_sec *ble_hs_test_util_store_mst_secs;
+static struct ble_store_value_sec *ble_hs_test_util_store_our_secs;
+static struct ble_store_value_sec *ble_hs_test_util_store_peer_secs;
 static struct ble_store_value_cccd *ble_hs_test_util_store_cccds;
-int ble_hs_test_util_store_num_slv_secs;
-int ble_hs_test_util_store_num_mst_secs;
+int ble_hs_test_util_store_num_our_secs;
+int ble_hs_test_util_store_num_peer_secs;
 int ble_hs_test_util_store_num_cccds;
 
 
@@ -51,32 +51,32 @@ int ble_hs_test_util_store_num_cccds;
 } while (0) 
 
 void
-ble_hs_test_util_store_init(int max_slv_secs, int max_mst_secs, int max_cccds)
+ble_hs_test_util_store_init(int max_our_secs, int max_peer_secs, int max_cccds)
 {
-    free(ble_hs_test_util_store_slv_secs);
-    free(ble_hs_test_util_store_mst_secs);
+    free(ble_hs_test_util_store_our_secs);
+    free(ble_hs_test_util_store_peer_secs);
     free(ble_hs_test_util_store_cccds);
 
-    ble_hs_test_util_store_slv_secs = malloc(
-        ble_hs_test_util_store_max_slv_secs *
-        sizeof *ble_hs_test_util_store_slv_secs);
-    TEST_ASSERT_FATAL(ble_hs_test_util_store_slv_secs != NULL);
+    ble_hs_test_util_store_our_secs = malloc(
+        ble_hs_test_util_store_max_our_secs *
+        sizeof *ble_hs_test_util_store_our_secs);
+    TEST_ASSERT_FATAL(ble_hs_test_util_store_our_secs != NULL);
 
-    ble_hs_test_util_store_mst_secs = malloc(
-        ble_hs_test_util_store_max_mst_secs *
-        sizeof *ble_hs_test_util_store_mst_secs);
-    TEST_ASSERT_FATAL(ble_hs_test_util_store_mst_secs != NULL);
+    ble_hs_test_util_store_peer_secs = malloc(
+        ble_hs_test_util_store_max_peer_secs *
+        sizeof *ble_hs_test_util_store_peer_secs);
+    TEST_ASSERT_FATAL(ble_hs_test_util_store_peer_secs != NULL);
 
     ble_hs_test_util_store_cccds = malloc(
         ble_hs_test_util_store_max_cccds *
         sizeof *ble_hs_test_util_store_cccds);
     TEST_ASSERT_FATAL(ble_hs_test_util_store_cccds != NULL);
 
-    ble_hs_test_util_store_max_slv_secs = max_slv_secs;
-    ble_hs_test_util_store_max_mst_secs = max_mst_secs;
+    ble_hs_test_util_store_max_our_secs = max_our_secs;
+    ble_hs_test_util_store_max_peer_secs = max_peer_secs;
     ble_hs_test_util_store_max_cccds = max_cccds;
-    ble_hs_test_util_store_num_slv_secs = 0;
-    ble_hs_test_util_store_num_mst_secs = 0;
+    ble_hs_test_util_store_num_our_secs = 0;
+    ble_hs_test_util_store_num_peer_secs = 0;
     ble_hs_test_util_store_num_cccds = 0;
 }
 
@@ -186,17 +186,17 @@ ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
                             union ble_store_value *dst)
 {
     switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_MST_SEC:
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
         return ble_hs_test_util_store_read_sec(
-            ble_hs_test_util_store_mst_secs,
-            ble_hs_test_util_store_num_mst_secs,
+            ble_hs_test_util_store_peer_secs,
+            ble_hs_test_util_store_num_peer_secs,
             &key->sec,
             &dst->sec);
 
-    case BLE_STORE_OBJ_TYPE_SLV_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
         return ble_hs_test_util_store_read_sec(
-            ble_hs_test_util_store_slv_secs,
-            ble_hs_test_util_store_num_slv_secs,
+            ble_hs_test_util_store_our_secs,
+            ble_hs_test_util_store_num_our_secs,
             &key->sec,
             &dst->sec);
 
@@ -216,18 +216,18 @@ ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
     int idx;
 
     switch (obj_type) {
-    case BLE_STORE_OBJ_TYPE_MST_SEC:
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
-            ble_hs_test_util_store_mst_secs,
-            ble_hs_test_util_store_num_mst_secs,
-            ble_hs_test_util_store_max_mst_secs,
+            ble_hs_test_util_store_peer_secs,
+            ble_hs_test_util_store_num_peer_secs,
+            ble_hs_test_util_store_max_peer_secs,
             value->sec, -1);
 
-    case BLE_STORE_OBJ_TYPE_SLV_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
         BLE_HS_TEST_UTIL_STORE_WRITE_GEN(
-            ble_hs_test_util_store_slv_secs,
-            ble_hs_test_util_store_num_slv_secs,
-            ble_hs_test_util_store_max_slv_secs,
+            ble_hs_test_util_store_our_secs,
+            ble_hs_test_util_store_num_our_secs,
+            ble_hs_test_util_store_max_our_secs,
             value->sec, -1);
 
     case BLE_STORE_OBJ_TYPE_CCCD:

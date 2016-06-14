@@ -66,7 +66,7 @@ ble_store_delete(int obj_type, union ble_store_key *key)
 }
 
 int
-ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
+ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
                        struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
@@ -79,7 +79,7 @@ ble_store_read_slv_sec(struct ble_store_key_sec *key_sec,
 
     store_key = (void *)key_sec;
     store_value = (void *)value_sec;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_SLV_SEC, store_key, store_value);
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, store_key, store_value);
     return rc;
 }
 
@@ -113,17 +113,17 @@ ble_store_persist_sec(int obj_type, struct ble_store_value_sec *value_sec)
 }
 
 int
-ble_store_write_slv_sec(struct ble_store_value_sec *value_sec)
+ble_store_write_our_sec(struct ble_store_value_sec *value_sec)
 {
     int rc;
 
-    rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_SLV_SEC, value_sec);
+    rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_OUR_SEC, value_sec);
     return rc;
 }
 
 int
-ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
-                       struct ble_store_value_sec *value_sec)
+ble_store_read_peer_sec(struct ble_store_key_sec *key_sec,
+                        struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
     union ble_store_key *store_key;
@@ -135,7 +135,7 @@ ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
 
     store_key = (void *)key_sec;
     store_value = (void *)value_sec;
-    rc = ble_store_read(BLE_STORE_OBJ_TYPE_MST_SEC, store_key, store_value);
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_PEER_SEC, store_key, store_value);
 
     if (rc != 0) {
         return rc;
@@ -145,11 +145,11 @@ ble_store_read_mst_sec(struct ble_store_key_sec *key_sec,
 }
 
 int
-ble_store_write_mst_sec(struct ble_store_value_sec *value_sec)
+ble_store_write_peer_sec(struct ble_store_value_sec *value_sec)
 {
     int rc;
 
-    rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_MST_SEC, value_sec);
+    rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_PEER_SEC, value_sec);
     if (rc != 0) {
         return rc;
     }
@@ -171,13 +171,13 @@ ble_store_write_mst_sec(struct ble_store_value_sec *value_sec)
 }
 
 int
-ble_store_delete_mst_sec(struct ble_store_key_sec *key_sec)
+ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec)
 {
     union ble_store_key *store_key;
     int rc;
 
     store_key = (void *)key_sec;
-    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_MST_SEC, store_key);
+    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_PEER_SEC, store_key);
 
     if(key_sec->peer_addr_type == BLE_STORE_ADDR_TYPE_NONE) {
         /* don't error check this since we don't know without looking up
@@ -260,8 +260,8 @@ void ble_store_iterate(int obj_type,
     /* a magic value to retrieve anything */
     memset(&key, 0, sizeof(key));
     switch(obj_type) {
-        case BLE_STORE_OBJ_TYPE_MST_SEC:
-        case BLE_STORE_OBJ_TYPE_SLV_SEC:
+        case BLE_STORE_OBJ_TYPE_PEER_SEC:
+        case BLE_STORE_OBJ_TYPE_OUR_SEC:
             key.sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
             pidx = &key.sec.idx;
             break;
