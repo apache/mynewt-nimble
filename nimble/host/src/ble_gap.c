@@ -2113,20 +2113,42 @@ ble_gap_security_initiate(uint16_t conn_handle)
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_hs_conn_addrs addrs;
     ble_hs_conn_flags_t conn_flags;
+    struct ble_hs_conn *conn;
     int rc;
 
-    rc = ble_hs_atomic_conn_flags(conn_handle, &conn_flags);
-    if (rc != 0) {
-        return rc;
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        conn_flags = conn->bhc_flags;
+        ble_hs_conn_addrs(conn, &addrs);
+
+        memset(&key_sec, 0, sizeof key_sec);
+        key_sec.peer_addr_type = addrs.peer_id_addr_type;
+        memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
+    }
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
     }
 
     if (conn_flags & BLE_HS_CONN_F_MASTER) {
-        /* XXX: Search the security database for an LTK for this peer.  If one
+        /* Search the security database for an LTK for this peer.  If one
          * is found, perform the encryption procedure rather than the pairing
          * procedure.
          */
-        rc = ble_sm_pair_initiate(conn_handle);
+        rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+        if (rc == 0 && value_sec.ltk_present) {
+            rc = ble_sm_enc_initiate(conn_handle, value_sec.ltk,
+                                     value_sec.ediv, value_sec.rand_num,
+                                     value_sec.authenticated);
+        } else {
+            rc = ble_sm_pair_initiate(conn_handle);
+        }
     } else {
         rc = ble_sm_slave_initiate(conn_handle);
     }
