@@ -539,25 +539,6 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
     ble_sm_test_util_peer_lgcy_good(&params);
 }
 
-TEST_CASE(ble_sm_test_case_peer_bonding_good)
-{
-    /* Unauthenticated. */
-    ble_sm_test_util_peer_bonding_good(
-        0,
-        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
-        0,
-        0x1234,
-        0x5678);
-
-    /* Authenticated. */
-    ble_sm_test_util_peer_bonding_good(
-        0,
-        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
-        1,
-        0x4325,
-        0x543892375);
-}
-
 TEST_CASE(ble_sm_test_case_peer_bonding_bad)
 {
     ble_sm_test_util_peer_bonding_bad(0x5684, 32);
@@ -669,22 +650,6 @@ TEST_CASE(ble_sm_test_case_peer_sec_req_pair)
     };
 
     ble_sm_test_util_us_lgcy_good(&params);
-}
-
-/**
- * Master: us.
- * Peer sends a security request.
- * We respond by initiating the encryption procedure.
- */
-TEST_CASE(ble_sm_test_case_peer_sec_req_enc)
-{
-    /* Unauthenticated. */
-    ble_sm_test_util_us_bonding_good(
-        1,
-        ((uint8_t[16]){ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 }),
-        0,
-        0x1234,
-        0x5678);
 }
 
 TEST_CASE(ble_sm_test_case_peer_sc_numcmp_good)
@@ -2581,21 +2546,6 @@ TEST_CASE(ble_sm_test_case_us_sc_passkey_good)
     ble_sm_test_util_us_sc_good(&params);
 }
 
-/**
- * Master: peer.
- * We send a security request.
- * We accept an encryption-changed event in response.
- */
-TEST_CASE(ble_sm_test_case_us_sec_req_enc)
-{
-    ble_sm_test_util_peer_bonding_good(
-        1,
-        ((uint8_t[16]){ 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 }),
-        1,
-        0x4325,
-        0x543892375);
-}
-
 TEST_SUITE(ble_sm_test_suite)
 {
     ble_sm_test_case_f4();
@@ -2609,19 +2559,11 @@ TEST_SUITE(ble_sm_test_suite)
     ble_sm_test_case_peer_lgcy_passkey_good();
     ble_sm_test_case_us_fail_inval();
     ble_sm_test_case_us_lgcy_jw_good();
-    ble_sm_test_case_peer_bonding_good();
     ble_sm_test_case_peer_bonding_bad();
     ble_sm_test_case_conn_broken();
     ble_sm_test_case_peer_sec_req_inval();
     ble_sm_test_case_peer_sec_req_pair();
-    ble_sm_test_case_peer_sec_req_enc();
     ble_sm_test_case_us_sec_req_pair();
-    ble_sm_test_case_us_sec_req_enc();
-    ble_sm_test_case_peer_sc_numcmp_good();
-    ble_sm_test_case_peer_sc_passkey_good();
-    ble_sm_test_case_us_sc_jw_good();
-    ble_sm_test_case_us_sc_numcmp_good();
-    ble_sm_test_case_us_sc_passkey_good();
 }
 #endif
 
