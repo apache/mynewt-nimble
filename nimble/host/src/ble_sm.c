@@ -1757,6 +1757,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         if (rc != 0) {
             goto err;
         }
+        proc->our_keys.irk_valid = 1;
 
         /* Send identity address information. */
         bls_hs_priv_copy_local_identity_addr(addr_info.bd_addr,
