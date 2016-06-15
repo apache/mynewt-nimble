@@ -110,6 +110,7 @@ union ble_ll_conn_sm_flags {
         uint32_t send_ltk_req:1;
         uint32_t encrypted:1;
         uint32_t encrypt_chg_sent:1;
+        uint32_t le_ping_supp:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -178,6 +179,7 @@ struct ble_ll_conn_sm
     uint16_t completed_pkts;
     uint16_t comp_id;
     uint16_t sub_vers_nr;
+    uint16_t auth_pyld_tmo;         /* could be ifdef'd. 10 msec units */
 
     uint32_t access_addr;
     uint32_t crcinit;               /* only low 24 bits used */
@@ -230,6 +232,10 @@ struct ble_ll_conn_sm
     /* For scheduling connections */
     struct ble_ll_sched_item conn_sch;
 
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+    struct os_callout_func auth_pyld_timer;
+#endif
+
     /*
      * XXX: a note on all these structures for control procedures. First off,
      * all of these need to be ifdef'd to save memory. Another thing to
@@ -261,6 +267,7 @@ struct ble_ll_conn_sm
 #define CONN_F_CONN_REQ_TXD(csm)    ((csm)->csmflags.cfbit.conn_req_txd)
 #define CONN_F_ENCRYPTED(csm)       ((csm)->csmflags.cfbit.encrypted)
 #define CONN_F_ENC_CHANGE_SENT(csm) ((csm)->csmflags.cfbit.encrypt_chg_sent)
+#define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
 
 /* Role */
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)

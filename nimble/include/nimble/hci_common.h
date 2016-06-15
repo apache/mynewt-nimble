@@ -61,8 +61,10 @@
 /* List of OCF for Controller and Baseband commands (OGF=0x03) */
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_CB_RESET                (0x0003)
-#define BLE_HCI_OCF_CB_SET_EV_FILT          (0x0005)
 #define BLE_HCI_OCF_CB_READ_TX_PWR          (0x002D)
+#define BLE_HCI_OCF_CB_SET_EVENT_MASK2      (0x0063)
+#define BLE_HCI_OCF_CB_RD_AUTH_PYLD_TMO     (0x007B)
+#define BLE_HCI_OCF_CB_WR_AUTH_PYLD_TMO     (0x007C)
 
 /* List of OCF for Info Param commands (OGF=0x04) */
 #define BLE_HCI_OCF_IP_RD_LOCAL_VER         (0x0001)
@@ -128,6 +130,10 @@
 
 /* --- Set event mask (OGF 0x03, OCF 0x0001 --- */
 #define BLE_HCI_SET_EVENT_MASK_LEN          (8)
+
+/* --- Read/Write authenticated payload timeout (ocf 0x007B/0x007C) */
+#define BLE_HCI_RD_AUTH_PYLD_TMO_LEN        (4)
+#define BLE_HCI_WR_AUTH_PYLD_TMO_LEN        (2)
 
 /* --- Read local version information (OGF 0x04, OCF 0x0001) --- */
 /* NOTE: does not include status field in command complete event! */

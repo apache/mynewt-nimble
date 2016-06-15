@@ -298,6 +298,31 @@ ble_ll_conn_num_comp_pkts_event_send(void)
     }
 }
 
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+/**
+ * Send a authenticated payload timeout event
+ *
+ * NOTE: we currently only send this event when we have a reason to send it;
+ * not when it fails.
+ *
+ * @param reason The BLE error code to send as a disconnect reason
+ */
+void
+ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_AUTH_PYLD_TMO)) {
+        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_AUTH_PYLD_TMO;
+            evbuf[1] = sizeof(uint16_t);
+            htole16(evbuf + 2, connsm->conn_handle);
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+#endif
 
 /**
  * Send a disconnection complete event.
@@ -1032,6 +1057,87 @@ ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf)
 
 ltk_key_cmd_complete:
     htole16(rspbuf, handle);
+    return rc;
+}
+#endif
+
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+/**
+ * Read authenticated payload timeout (OGF=3, OCF==0x007B)
+ *
+ * @param cmdbuf
+ * @param rsplen
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_rd_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else {
+        htole16(rsp + 2, connsm->auth_pyld_tmo);
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    htole16(rsp, handle);
+    *rsplen = BLE_HCI_RD_AUTH_PYLD_TMO_LEN;
+    return rc;
+}
+
+/**
+ * Write authenticated payload timeout (OGF=3, OCF=00x7C)
+ *
+ * @param cmdbuf
+ * @param rsplen
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    uint16_t tmo;
+    uint32_t min_tmo;
+    struct ble_ll_conn_sm *connsm;
+
+    rc = BLE_ERR_SUCCESS;
+
+    handle = le16toh(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto wr_auth_exit;
+    }
+
+    /*
+     * The timeout is in units of 10 msecs. We need to make sure that the
+     * timeout is greater than or equal to connItvl * (1 + slaveLatency)
+     */
+    tmo = le16toh(cmdbuf + 2);
+    min_tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+    min_tmo *= (connsm->slave_latency + 1);
+    min_tmo /= 10000;
+
+    if (tmo < min_tmo) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    } else {
+        connsm->auth_pyld_tmo = tmo;
+        if (os_callout_queued(&connsm->auth_pyld_timer.cf_c)) {
+            ble_ll_conn_auth_pyld_timer_start(connsm);
+        }
+    }
+
+wr_auth_exit:
+    htole16(rsp, handle);
+    *rsplen = BLE_HCI_WR_AUTH_PYLD_TMO_LEN;
     return rc;
 }
 #endif

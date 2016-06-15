@@ -1167,6 +1167,10 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     ble_ll_resolv_init();
 #endif
 
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+    features |= BLE_LL_FEAT_LE_PING;
+#endif
+
     /* Initialize random number generation */
     ble_ll_rand_init();
 
