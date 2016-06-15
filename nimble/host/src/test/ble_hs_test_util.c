@@ -307,15 +307,17 @@ ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks)
 }
 
 void
-ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
-                             ble_gap_event_fn *cb, void *cb_arg)
+ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t *our_rpa,
+                                 uint8_t peer_addr_type, uint8_t *peer_id_addr,
+                                 uint8_t *peer_rpa,
+                                 ble_gap_event_fn *cb, void *cb_arg)
 {
     struct hci_le_conn_complete evt;
     int rc;
 
     ble_hs_test_util_set_ack(
         BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CREATE_CONN), 0);
-    rc = ble_gap_conn_initiate(0, addr, NULL, cb, cb_arg);
+    rc = ble_gap_conn_initiate(peer_addr_type, peer_id_addr, NULL, cb, cb_arg);
     TEST_ASSERT(rc == 0);
 
     memset(&evt, 0, sizeof evt);
@@ -323,15 +325,28 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = handle;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
-    evt.peer_addr_type = BLE_ADDR_TYPE_PUBLIC;
-    memcpy(evt.peer_addr, addr, 6);
+    evt.peer_addr_type = peer_addr_type;
+    memcpy(evt.peer_addr, peer_id_addr, 6);
     evt.conn_itvl = BLE_GAP_INITIAL_CONN_ITVL_MAX;
     evt.conn_latency = BLE_GAP_INITIAL_CONN_LATENCY;
     evt.supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT;
+    memcpy(evt.local_rpa, our_rpa, 6);
+    memcpy(evt.peer_rpa, peer_rpa, 6);
+
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_prev_hci_tx_clear();
+}
+
+void
+ble_hs_test_util_create_conn(uint16_t handle, uint8_t *peer_id_addr,
+                             ble_gap_event_fn *cb, void *cb_arg)
+{
+    static uint8_t null_addr[6];
+
+    ble_hs_test_util_create_rpa_conn(handle, null_addr, BLE_ADDR_TYPE_PUBLIC,
+                                     peer_id_addr, null_addr, cb, cb_arg);
 }
 
 int

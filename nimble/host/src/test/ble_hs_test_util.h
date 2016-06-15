@@ -54,6 +54,11 @@ void ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
 void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
                                        uint8_t status, uint8_t num_pkts,
                                        uint16_t opcode);
+void ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t *our_rpa,
+                                      uint8_t peer_addr_type,
+                                      uint8_t *peer_id_addr,
+                                      uint8_t *peer_rpa,
+                                      ble_gap_event_fn *cb, void *cb_arg);
 void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
                                   ble_gap_event_fn *cb, void *cb_arg);
 int ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,

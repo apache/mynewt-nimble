@@ -27,8 +27,12 @@ struct ble_sm_test_passkey_info {
 };
 
 struct ble_sm_test_lgcy_params {
-    uint8_t init_addr[6];
-    uint8_t resp_addr[6];
+    uint8_t init_addr_type;
+    uint8_t init_id_addr[6];
+    uint8_t init_rpa[6];
+    uint8_t resp_addr_type;
+    uint8_t resp_id_addr[6];
+    uint8_t resp_rpa[6];
     struct ble_sm_sec_req sec_req;
     struct ble_sm_pair_cmd pair_req;
     struct ble_sm_pair_cmd pair_rsp;
@@ -58,8 +62,12 @@ struct ble_sm_test_lgcy_params {
 };
 
 struct ble_sm_test_sc_params {
-    uint8_t init_addr[6];
-    uint8_t resp_addr[6];
+    uint8_t init_addr_type;
+    uint8_t init_id_addr[6];
+    uint8_t init_rpa[6];
+    uint8_t resp_addr_type;
+    uint8_t resp_id_addr[6];
+    uint8_t resp_rpa[6];
     struct ble_sm_sec_req sec_req;
     struct ble_sm_pair_cmd pair_req;
     struct ble_sm_pair_cmd pair_rsp;
