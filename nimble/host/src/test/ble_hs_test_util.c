@@ -674,6 +674,10 @@ ble_hs_test_util_set_startup_acks(void)
                                            BLE_HCI_OCF_CB_SET_EVENT_MASK),
         },
         {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
+                                           BLE_HCI_OCF_CB_SET_EVENT_MASK2),
+        },
+        {
             .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_SET_EVENT_MASK),
         },
