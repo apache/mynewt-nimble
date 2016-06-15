@@ -348,7 +348,7 @@
  * has no effect.
  */
 #ifndef BLE_LL_CFG_FEAT_LE_PING
-#define  BLE_LL_CFG_FEAT_LE_PING                (0)
+#define  BLE_LL_CFG_FEAT_LE_PING                (1)
 #endif
 
 /*
