@@ -137,6 +137,21 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 /**
+ * Process a received LL_PING_RSP control pdu.
+ *
+ * NOTE: we dont have to reset the callout since this packet will have had a
+ * valid MIC and that will restart the authenticated payload timer
+ *
+ * @param connsm
+ */
+static void
+ble_ll_ctrl_rx_ping_rsp(struct ble_ll_conn_sm *connsm)
+{
+    /* Stop the control procedure */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_LE_PING);
+}
+
+/**
  * Called when we receive either a connection parameter request or response.
  *
  * @param connsm
@@ -274,7 +289,6 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     /* Get opcode of unknown LL control frame */
     opcode = dptr[0];
 
-    /* XXX: add others here */
     /* Convert opcode to control procedure id */
     switch (opcode) {
     case BLE_LL_CTRL_LENGTH_REQ:
@@ -290,13 +304,18 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     case BLE_LL_CTRL_CONN_PARM_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
         break;
+    case BLE_LL_CTRL_PING_REQ:
+        CONN_F_LE_PING_SUPP(connsm) = 0;
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+        os_callout_stop(&connsm->auth_pyld_timer.cf_c);
+#endif
+        ctrl_proc = BLE_LL_CTRL_PROC_LE_PING;
+        break;
     default:
         ctrl_proc = BLE_LL_CTRL_PROC_NUM;
         break;
     }
 
-    /* XXX: are there any other events that we need to send when we get
-       the unknown response? */
     /* If we are running this one currently, stop it */
     if (connsm->cur_ctrl_proc == ctrl_proc) {
         /* Stop the control procedure */
@@ -304,7 +323,6 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         if (ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
-            /* XXX: should only get this if a slave initiated this */
             ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         }
     }
@@ -679,6 +697,9 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
         /* We are encrypted */
         connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+        ble_ll_conn_auth_pyld_timer_start(connsm);
+#endif
         rc = BLE_ERR_MAX;
     } else {
         /* Procedure has completed but slave needs to send START_ENC_RSP */
@@ -1274,6 +1295,9 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             opcode = BLE_LL_CTRL_CONN_PARM_REQ;
             ble_ll_ctrl_conn_param_pdu_make(connsm, ctrdata, NULL);
             break;
+        case BLE_LL_CTRL_PROC_LE_PING:
+            opcode = BLE_LL_CTRL_PING_REQ;
+            break;
         case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
             opcode = BLE_LL_CTRL_LENGTH_REQ;
             ble_ll_ctrl_datalen_upd_make(connsm, dptr);
@@ -1559,6 +1583,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
         feature = BLE_LL_FEAT_LE_ENCRYPTION;
         break;
+    case BLE_LL_CTRL_PING_REQ:
+        feature = BLE_LL_FEAT_LE_PING;
+        break;
     default:
         feature = 0;
         break;
@@ -1670,8 +1697,10 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
 #endif
     case BLE_LL_CTRL_PING_REQ:
-        /* XXX: implement */
-        rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
+        rsp_opcode = BLE_LL_CTRL_PING_RSP;
+        break;
+    case BLE_LL_CTRL_PING_RSP:
+        ble_ll_ctrl_rx_ping_rsp(connsm);
         break;
     case BLE_LL_CTRL_CONN_PARM_REQ:
         rsp_opcode = ble_ll_ctrl_rx_conn_param_req(connsm, dptr, rspbuf);
@@ -1817,6 +1846,9 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_START_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
+            if (CONN_F_LE_PING_SUPP(connsm)) {
+                ble_ll_conn_auth_pyld_timer_start(connsm);
+            }
         }
         break;
     case BLE_LL_CTRL_PAUSE_ENC_RSP:

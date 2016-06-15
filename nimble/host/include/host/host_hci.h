@@ -32,6 +32,8 @@ int host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata);
 int host_hci_cmd_send_buf(void *cmddata);
 void host_hci_cmd_build_set_event_mask(uint64_t event_mask,
                                        uint8_t *dst, int dst_len);
+void host_hci_cmd_build_set_event_mask2(uint64_t event_mask, uint8_t *dst,
+                                        int dst_len);
 void host_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
                                    uint8_t *dst, int dst_len);
 int host_hci_cmd_disconnect(uint16_t handle, uint8_t reason);

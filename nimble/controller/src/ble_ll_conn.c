@@ -1265,6 +1265,44 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime)
     return rc;
 }
 
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+/**
+ * Callback for the Authenticated payload timer. This function is called
+ * when the authenticated payload timer expires. When the authenticated
+ * payload timeout expires, we should
+ *  -> Send the authenticated payload timeout event.
+ *  -> Start the LE ping procedure.
+ *  -> Restart the timer.
+ *
+ * @param arg
+ */
+void
+ble_ll_conn_auth_pyld_timer_cb(void *arg)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)arg;
+    ble_ll_auth_pyld_tmo_event_send(connsm);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
+    ble_ll_conn_auth_pyld_timer_start(connsm);
+}
+
+/**
+ * Start (or restart) the authenticated payload timer
+ *
+ * @param connsm
+ */
+void
+ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm)
+{
+    int32_t tmo;
+
+    /* Timeout in is in 10 msec units */
+    tmo = (int32_t)BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
+    os_callout_reset(&connsm->auth_pyld_timer.cf_c, tmo);
+}
+#endif
+
 /**
  * Connection supervision timer callback; means that the connection supervision
  * timeout has been reached and we should perform the appropriate actions.
@@ -1434,6 +1472,15 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
 #endif
 
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+    connsm->auth_pyld_tmo = BLE_LL_CONN_DEF_AUTH_PYLD_TMO;
+    CONN_F_LE_PING_SUPP(connsm) = 1;
+    os_callout_func_init(&connsm->auth_pyld_timer,
+                         &g_ble_ll_data.ll_evq,
+                         ble_ll_conn_auth_pyld_timer_cb,
+                         connsm);
+#endif
+
     /* Add to list of active connections */
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
 }
@@ -1512,6 +1559,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 
     /* Stop any control procedures that might be running */
     os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
+
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+    os_callout_stop(&connsm->auth_pyld_timer.cf_c);
+#endif
 
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
@@ -1841,6 +1892,20 @@ ble_ll_conn_event_end(void *arg)
     if (connsm->csmflags.cfbit.pkt_rxd) {
         connsm->slave_cur_tx_win_usecs = 0;
     }
+
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+    /*
+     * If we are encrypted and have passed the authenticated payload timeout
+     * we need to send an event to tell the host. Unfortunately, I think we
+     * need one of these per connection and we have to set this timer
+     * fairly accurately. So we need to another event in the connection.
+     * This sucks.
+     *
+     * The way this works is that whenever the timer expires it just gets reset
+     * and we send the autheticated payload timeout event. Note that this timer
+     * should run even when encryption is paused.
+     */
+#endif
 
     /* Move to next connection event */
     if (ble_ll_conn_next_event(connsm)) {
@@ -2409,6 +2474,18 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 STATS_INC(ble_ll_conn_stats, rx_bad_llid);
                 goto conn_rx_data_pdu_end;
             }
+
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+            /*
+             * Reset authenticated payload timeout if valid MIC. NOTE: we dont
+             * check the MIC failure bit as that would have terminated the
+             * connection
+             */
+            if ((connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) &&
+                CONN_F_LE_PING_SUPP(connsm) && (acl_len != 0)) {
+                ble_ll_conn_auth_pyld_timer_start(connsm);
+            }
+#endif
 
             /* Update RSSI */
             connsm->conn_rssi = hdr->rxinfo.rssi;

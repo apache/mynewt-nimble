@@ -51,6 +51,11 @@
 /* Offset (in bytes) of advertising address in connect request */
 #define BLE_LL_CONN_REQ_ADVA_OFF    (BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN)
 
+/* Default authenticated payload timeout (30 seconds; in 10 msecs increments) */
+#define BLE_LL_CONN_DEF_AUTH_PYLD_TMO       (3000)
+#define BLE_LL_CONN_AUTH_PYLD_OS_TMO(x)     \
+    ((((uint32_t)(x)) * 10 * OS_TICKS_PER_SEC) / 1000)
+
 /* Global Link Layer connection parameters */
 struct ble_ll_conn_global_params
 {
@@ -115,6 +120,7 @@ uint8_t ble_ll_conn_calc_used_chans(uint8_t *chmap);
 /* HCI */
 void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
                                     uint8_t reason);
+void ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm);
 int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
 int ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf);
 int ble_ll_conn_create(uint8_t *cmdbuf);
@@ -135,4 +141,13 @@ int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf,
                                  uint8_t *rsplen);
 int ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf);
 int ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf);
+int ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
+                                     uint8_t *rsplen);
+int ble_ll_conn_hci_rd_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
+                                     uint8_t *rsplen);
+#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
+#else
+#define ble_ll_conn_auth_pyld_timer_start(x)
+#endif
 #endif /* H_BLE_LL_CONN_PRIV_ */

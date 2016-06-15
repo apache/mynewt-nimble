@@ -275,6 +275,28 @@ host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
     }
 }
 
+/**
+ * Display the authenticated payload timeout event
+ *
+ * @param evdata
+ * @param len
+ */
+static void
+host_hci_dbg_auth_pyld_tmo_disp(uint8_t *evdata, uint8_t len)
+{
+    uint16_t handle;
+
+    if (len != sizeof(uint16_t)) {
+        BLE_HS_LOG(DEBUG, "ERR: AuthPyldTmoEvent bad length %u\n", len);
+        return;
+
+    }
+
+    handle = le16toh(evdata);
+    BLE_HS_LOG(DEBUG, "AuthPyldTmo: handle=%u\n", handle);
+}
+
+
 static void
 host_hci_dbg_cmd_comp_info_params(uint8_t status, uint8_t ocf, uint8_t *evdata)
 {
@@ -470,6 +492,9 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
         break;
     case BLE_HCI_EVCODE_LE_META:
         host_hci_dbg_le_event_disp(evdata[0], len, evdata + 1);
+        break;
+    case BLE_HCI_EVCODE_AUTH_PYLD_TMO:
+        host_hci_dbg_auth_pyld_tmo_disp(evdata, len);
         break;
     default:
         BLE_HS_LOG(DEBUG, "Unknown event 0x%x len=%u\n", evcode, len);

@@ -32,7 +32,7 @@
 #define BLE_LL_CTRL_PROC_VERSION_XCHG   (4)
 #define BLE_LL_CTRL_PROC_TERMINATE      (5)
 #define BLE_LL_CTRL_PROC_CONN_PARAM_REQ (6)
-#define BLE_LL_CRTL_PROC_LE_PING        (7)
+#define BLE_LL_CTRL_PROC_LE_PING        (7)
 #define BLE_LL_CTRL_PROC_DATA_LEN_UPD   (8)
 #define BLE_LL_CTRL_PROC_NUM            (9)
 #define BLE_LL_CTRL_PROC_IDLE           (255)

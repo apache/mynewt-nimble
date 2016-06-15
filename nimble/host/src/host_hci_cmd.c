@@ -323,6 +323,21 @@ host_hci_cmd_build_set_event_mask(uint64_t event_mask,
     host_hci_cmd_body_set_event_mask(event_mask, dst);
 }
 
+void
+host_hci_cmd_build_set_event_mask2(uint64_t event_mask,
+                                  uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_EVENT_MASK_LEN);
+
+    host_hci_write_hdr(BLE_HCI_OGF_CTLR_BASEBAND,
+                       BLE_HCI_OCF_CB_SET_EVENT_MASK2,
+                       BLE_HCI_SET_EVENT_MASK_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    host_hci_cmd_body_set_event_mask(event_mask, dst);
+}
+
 static void
 host_hci_cmd_body_disconnect(uint16_t handle, uint8_t reason, uint8_t *dst)
 {

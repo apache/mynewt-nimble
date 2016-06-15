@@ -157,6 +157,16 @@ ble_hs_startup_set_evmask_tx(void)
         return rc;
     }
 
+    /**
+     * Enable the following events:
+     *     0x0000000000800000 Authenticated Payload Timeout Event
+     */
+    host_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
     return 0;
 }
 
