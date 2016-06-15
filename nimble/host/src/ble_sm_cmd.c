@@ -344,8 +344,7 @@ ble_sm_pair_fail_log(struct ble_sm_pair_fail *cmd)
 void
 ble_sm_enc_info_parse(void *payload, int len, struct ble_sm_enc_info *cmd)
 {
-    uint8_t *u8ptr = payload;
-    memcpy(cmd->ltk, u8ptr, 16);
+    memcpy(cmd->ltk, payload, sizeof cmd->ltk);
 }
 
 int
@@ -423,7 +422,7 @@ ble_sm_master_id_log(struct ble_sm_master_id *cmd)
 void
 ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd)
 {
-    swap_buf(cmd->irk, payload, 16);
+    memcpy(cmd->irk, payload, 16);
 }
 
 void
@@ -436,7 +435,7 @@ ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd)
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_IDENTITY_INFO;
-    swap_buf(u8ptr + BLE_SM_HDR_SZ, cmd->irk, sizeof cmd->irk);
+    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->irk, sizeof cmd->irk);
 }
 
 int
@@ -529,7 +528,7 @@ ble_sm_id_addr_info_log(struct ble_sm_id_addr_info *cmd)
 void
 ble_sm_sign_info_parse(void *payload, int len, struct ble_sm_sign_info *cmd)
 {
-    swap_buf(cmd->sig_key, payload, 16);
+    memcpy(cmd->sig_key, payload, 16);
 }
 
 void
@@ -542,7 +541,7 @@ ble_sm_sign_info_write(void *payload, int len, struct ble_sm_sign_info *cmd)
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_SIGN_INFO;
-    swap_buf(u8ptr + BLE_SM_HDR_SZ, cmd->sig_key, sizeof cmd->sig_key);
+    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->sig_key, sizeof cmd->sig_key);
 }
 
 int

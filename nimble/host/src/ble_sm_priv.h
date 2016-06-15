@@ -133,7 +133,7 @@ struct ble_sm_master_id {
  */
 #define BLE_SM_ID_INFO_SZ           16
 struct ble_sm_id_info {
-    /* Stored in little-endian. */
+    /* Sent and stored in little-endian. */
     uint8_t irk[16];
 };
 

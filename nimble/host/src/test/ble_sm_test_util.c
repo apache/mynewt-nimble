@@ -514,7 +514,6 @@ ble_sm_test_util_verify_tx_id_info(struct ble_sm_id_info *exp_cmd)
 {
     struct ble_sm_id_info cmd;
     struct os_mbuf *om;
-    uint8_t irk[16];
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_INFO,
@@ -523,9 +522,8 @@ ble_sm_test_util_verify_tx_id_info(struct ble_sm_id_info *exp_cmd)
 
     TEST_ASSERT(memcmp(cmd.irk, exp_cmd->irk, 16) == 0);
 
-    /* Ensure IRK is sent in big endian. */
-    swap_buf(irk, om->om_data, 16);
-    TEST_ASSERT(memcmp(irk, cmd.irk, 16) == 0);
+    /* Ensure IRK is sent in little endian. */
+    TEST_ASSERT(memcmp(om->om_data, cmd.irk, 16) == 0);
 }
 
 static void
@@ -555,7 +553,6 @@ ble_sm_test_util_verify_tx_sign_info(struct ble_sm_sign_info *exp_cmd)
 {
     struct ble_sm_sign_info cmd;
     struct os_mbuf *om;
-    uint8_t csrk[16];
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_SIGN_INFO,
@@ -564,9 +561,8 @@ ble_sm_test_util_verify_tx_sign_info(struct ble_sm_sign_info *exp_cmd)
 
     TEST_ASSERT(memcmp(cmd.sig_key, exp_cmd->sig_key, 16) == 0);
 
-    /* Ensure CSRK is sent in big endian. */
-    swap_buf(csrk, om->om_data, 16);
-    TEST_ASSERT(memcmp(csrk, cmd.sig_key, 16) == 0);
+    /* Ensure CSRK is sent in little endian. */
+    TEST_ASSERT(memcmp(om->om_data, cmd.sig_key, 16) == 0);
 }
 
 static void
@@ -704,7 +700,6 @@ ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
                                             uint8_t *peer_irk,
                                             uint8_t *our_irk)
 {
-    uint8_t buf[16];
     uint8_t param_len;
     uint8_t *param;
 
@@ -716,10 +711,8 @@ ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
     TEST_ASSERT(memcmp(param + 1, peer_id_addr, 6) == 0);
 
     /* Ensure IRKs are sent in little endian. */
-    memcpy(buf, peer_irk, 16);
-    TEST_ASSERT(memcmp(param + 7, buf, 16) == 0);
-    memcpy(buf, our_irk, 16);
-    TEST_ASSERT(memcmp(param + 23, buf, 16) == 0);
+    TEST_ASSERT(memcmp(param + 7, peer_irk, 16) == 0);
+    TEST_ASSERT(memcmp(param + 23, our_irk, 16) == 0);
 }
 
 void
@@ -957,8 +950,6 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
         TEST_ASSERT(value_sec.ediv == 0);
         TEST_ASSERT(value_sec.rand_num == 0);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
-
-        /*** All keys get persisted in big endian. */
 
         TEST_ASSERT(value_sec.ltk_present == 1);
         TEST_ASSERT(memcmp(value_sec.ltk, params->ltk, 16) == 0);
