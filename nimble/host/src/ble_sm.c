@@ -562,7 +562,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         peer_addr_type = proc->peer_keys.addr_type;
         memcpy(peer_addr, proc->peer_keys.addr, sizeof peer_addr);
     } else {
-        peer_addr_type = ble_hs_misc_addr_type_to_ident(conn->bhc_addr_type);
+        peer_addr_type = ble_hs_misc_addr_type_to_id(conn->bhc_addr_type);
         memcpy(peer_addr, conn->bhc_addr, sizeof peer_addr);
     }
 

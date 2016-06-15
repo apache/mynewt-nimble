@@ -279,6 +279,8 @@ ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
 
     desc->our_ota_addr_type = addrs.our_ota_addr_type;
     memcpy(desc->our_ota_addr, addrs.our_ota_addr, 6);
+    desc->our_id_addr_type = addrs.our_id_addr_type;
+    memcpy(desc->our_id_addr, addrs.our_id_addr, 6);
     desc->peer_ota_addr_type = addrs.peer_ota_addr_type;
     memcpy(desc->peer_ota_addr, addrs.peer_ota_addr, 6);
     desc->peer_id_addr_type = addrs.peer_id_addr_type;

@@ -163,7 +163,7 @@ ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
 }
 
 uint8_t
-ble_hs_misc_addr_type_to_ident(uint8_t addr_type)
+ble_hs_misc_addr_type_to_id(uint8_t addr_type)
 {
     switch (addr_type) {
     case BLE_ADDR_TYPE_PUBLIC:
