@@ -469,6 +469,7 @@ int ble_sm_init(void);
 #define ble_sm_create_chan() NULL
 #define ble_sm_enc_change_rx(evt) ((void)(evt))
 #define ble_sm_ltk_req_rx(evt) ((void)(evt))
+#define ble_sm_enc_key_refresh_rx(evt) ((void)(evt))
 
 #define ble_sm_heartbeat()
 #define ble_sm_connection_broken(conn_handle)
