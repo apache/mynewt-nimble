@@ -533,6 +533,10 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
 {
     struct ble_sm_id_addr_info cmd;
     struct os_mbuf *om;
+    uint8_t *our_id_addr;
+    uint8_t our_id_addr_type;
+
+    our_id_addr = bls_hs_priv_get_local_identity_addr(&our_id_addr_type);
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_ADDR_INFO,
@@ -541,6 +545,9 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
 
     TEST_ASSERT(cmd.addr_type == exp_cmd->addr_type);
     TEST_ASSERT(memcmp(cmd.bd_addr, exp_cmd->bd_addr, 6) == 0);
+
+    TEST_ASSERT(cmd.addr_type == our_id_addr_type);
+    TEST_ASSERT(memcmp(cmd.bd_addr, our_id_addr, 6) == 0);
 }
 
 static void
@@ -691,6 +698,30 @@ ble_sm_test_util_verify_tx_start_enc(uint16_t conn_handle,
     TEST_ASSERT(memcmp(param + 12, ltk, 16) == 0);
 }
 
+static void
+ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
+                                            uint8_t *peer_id_addr,
+                                            uint8_t *peer_irk,
+                                            uint8_t *our_irk)
+{
+    uint8_t buf[16];
+    uint8_t param_len;
+    uint8_t *param;
+
+    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
+                                           &param_len);
+    TEST_ASSERT(param_len == BLE_HCI_ADD_TO_RESOLV_LIST_LEN);
+    TEST_ASSERT(param[0] == peer_id_addr_type);
+    TEST_ASSERT(memcmp(param + 1, peer_id_addr, 6) == 0);
+
+    /* Ensure IRKs are sent in little endian. */
+    memcpy(buf, peer_irk, 16);
+    TEST_ASSERT(memcmp(param + 7, buf, 16) == 0);
+    memcpy(buf, our_irk, 16);
+    TEST_ASSERT(memcmp(param + 23, buf, 16) == 0);
+}
+
 void
 ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
                            uint8_t cur_sm_state)
@@ -818,7 +849,7 @@ ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
         rc = ble_store_read_peer_sec(&key_sec, &value_sec);
         TEST_ASSERT_FATAL(rc == 0);
         TEST_ASSERT(value_sec.peer_addr_type == 0);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
+        TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == params->ediv);
         TEST_ASSERT(value_sec.rand_num == params->r);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -843,7 +874,7 @@ ble_sm_test_util_verify_lgcy_persist(struct ble_sm_test_lgcy_params *params)
         rc = ble_store_read_our_sec(&key_sec, &value_sec);
         TEST_ASSERT_FATAL(rc == 0);
         TEST_ASSERT(value_sec.peer_addr_type == 0);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_addr, 6) == 0);
+        TEST_ASSERT(memcmp(value_sec.peer_addr, params->init_id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == params->ediv);
         TEST_ASSERT(value_sec.rand_num == params->r);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -865,16 +896,18 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
 {
     struct ble_store_value_sec value_sec;
     struct ble_store_key_sec key_sec;
-    uint8_t *peer_addr;
-    uint8_t *mst_csrk;
-    uint8_t *slv_csrk;
-    uint8_t *mst_irk;
-    uint8_t *slv_irk;
+    uint8_t *peer_id_addr;
+    uint8_t *peer_csrk;
+    uint8_t *our_csrk;
+    uint8_t *peer_irk;
+    uint8_t *our_irk;
+    uint8_t peer_id_addr_type;
     uint8_t peer_addr_type;
     uint8_t peer_key_dist;
     uint8_t our_key_dist;
     int csrk_expected;
-    int irk_expected;
+    int peer_irk_expected;
+    int our_irk_expected;
     int bonding;
     int rc;
 
@@ -882,25 +915,26 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
         our_key_dist = params->pair_rsp.init_key_dist;
         peer_key_dist = params->pair_rsp.resp_key_dist;
 
-        peer_addr_type = 0;
-        peer_addr = params->resp_addr;
+        peer_addr_type = params->resp_addr_type;
+        peer_id_addr = params->resp_id_addr;
 
-        mst_irk = params->id_info_req.irk;
-        mst_csrk = params->sign_info_req.sig_key;
-        slv_irk = params->id_info_rsp.irk;
-        slv_csrk = params->sign_info_rsp.sig_key;
+        peer_irk = params->id_info_req.irk;
+        peer_csrk = params->sign_info_req.sig_key;
+        our_irk = params->id_info_rsp.irk;
+        our_csrk = params->sign_info_rsp.sig_key;
     } else {
         our_key_dist = params->pair_rsp.resp_key_dist;
         peer_key_dist = params->pair_rsp.init_key_dist;
 
-        peer_addr_type = 0;
-        peer_addr = params->init_addr;
+        peer_addr_type = params->init_addr_type;
+        peer_id_addr = params->init_id_addr;
 
-        mst_irk = params->id_info_rsp.irk;
-        mst_csrk = params->sign_info_rsp.sig_key;
-        slv_irk = params->id_info_req.irk;
-        slv_csrk = params->sign_info_req.sig_key;
+        peer_irk = params->id_info_rsp.irk;
+        peer_csrk = params->sign_info_rsp.sig_key;
+        our_irk = params->id_info_req.irk;
+        our_csrk = params->sign_info_req.sig_key;
     }
+    peer_id_addr_type = ble_hs_misc_addr_type_to_id(peer_addr_type);
 
     memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -911,14 +945,15 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
     rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     if (!bonding) {
         TEST_ASSERT(rc == BLE_HS_ENOENT);
+        peer_irk_expected = 0;
     } else {
         TEST_ASSERT_FATAL(rc == 0);
 
-        irk_expected = !!(peer_key_dist & BLE_SM_PAIR_KEY_DIST_ID);
+        peer_irk_expected = !!(peer_key_dist & BLE_SM_PAIR_KEY_DIST_ID);
         csrk_expected = !!(peer_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN);
 
-        TEST_ASSERT(value_sec.peer_addr_type == peer_addr_type);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_addr, 6) == 0);
+        TEST_ASSERT(value_sec.peer_addr_type == peer_id_addr_type);
+        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == 0);
         TEST_ASSERT(value_sec.rand_num == 0);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -928,14 +963,14 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
         TEST_ASSERT(value_sec.ltk_present == 1);
         TEST_ASSERT(memcmp(value_sec.ltk, params->ltk, 16) == 0);
 
-        TEST_ASSERT(value_sec.irk_present == irk_expected);
-        if (irk_expected) {
-            TEST_ASSERT(memcmp(value_sec.irk, mst_irk, 16) == 0);
+        TEST_ASSERT(value_sec.irk_present == peer_irk_expected);
+        if (peer_irk_expected) {
+            TEST_ASSERT(memcmp(value_sec.irk, peer_irk, 16) == 0);
         }
 
         TEST_ASSERT(value_sec.csrk_present == csrk_expected);
         if (csrk_expected) {
-            TEST_ASSERT(memcmp(value_sec.csrk, mst_csrk, 16) == 0);
+            TEST_ASSERT(memcmp(value_sec.csrk, peer_csrk, 16) == 0);
         }
     }
 
@@ -945,11 +980,11 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
     } else {
         TEST_ASSERT_FATAL(rc == 0);
 
-        irk_expected = !!(our_key_dist & BLE_SM_PAIR_KEY_DIST_ID);
+        our_irk_expected = !!(our_key_dist & BLE_SM_PAIR_KEY_DIST_ID);
         csrk_expected = !!(our_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN);
 
-        TEST_ASSERT(value_sec.peer_addr_type == peer_addr_type);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_addr, 6) == 0);
+        TEST_ASSERT(value_sec.peer_addr_type == peer_id_addr_type);
+        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == 0);
         TEST_ASSERT(value_sec.rand_num == 0);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -957,14 +992,14 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
         TEST_ASSERT(value_sec.ltk_present == 1);
         TEST_ASSERT(memcmp(value_sec.ltk, params->ltk, 16) == 0);
 
-        TEST_ASSERT(value_sec.irk_present == irk_expected);
-        if (irk_expected) {
-            TEST_ASSERT(memcmp(value_sec.irk, slv_irk, 16) == 0);
+        TEST_ASSERT(value_sec.irk_present == our_irk_expected);
+        if (our_irk_expected) {
+            TEST_ASSERT(memcmp(value_sec.irk, our_irk, 16) == 0);
         }
 
         TEST_ASSERT(value_sec.csrk_present == csrk_expected);
         if (csrk_expected) {
-            TEST_ASSERT(memcmp(value_sec.csrk, slv_csrk, 16) == 0);
+            TEST_ASSERT(memcmp(value_sec.csrk, our_csrk, 16) == 0);
         }
     }
 
@@ -974,6 +1009,13 @@ ble_sm_test_util_verify_sc_persist(struct ble_sm_test_sc_params *params,
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
     rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
+
+    /* Verify we sent the peer's IRK to the controller. */
+    if (peer_irk_expected) {
+        ble_sm_test_util_verify_tx_add_resolve_list(peer_id_addr_type,
+                                                    peer_id_addr,
+                                                    peer_irk, our_irk);
+    }
 }
 
 void
@@ -984,7 +1026,7 @@ ble_sm_test_util_us_lgcy_good(
     int rc;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(params->init_addr);
+    ble_hs_test_util_set_public_addr(params->init_id_addr);
     ble_sm_dbg_set_next_pair_rand(params->random_req.value);
     ble_sm_dbg_set_next_ediv(params->ediv);
     ble_sm_dbg_set_next_start_rand(params->r);
@@ -993,7 +1035,7 @@ ble_sm_test_util_us_lgcy_good(
         ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
     }
 
-    ble_hs_test_util_create_conn(2, params->resp_addr,
+    ble_hs_test_util_create_conn(2, params->resp_id_addr,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
@@ -1096,7 +1138,7 @@ ble_sm_test_util_us_lgcy_good(
 void
 ble_sm_test_util_peer_fail_inval(
     int we_are_master,
-    uint8_t *init_addr,
+    uint8_t *init_id_addr,
     uint8_t *resp_addr,
     struct ble_sm_pair_cmd *pair_req,
     struct ble_sm_pair_fail *pair_fail)
@@ -1106,7 +1148,7 @@ ble_sm_test_util_peer_fail_inval(
     ble_sm_test_util_init();
     ble_hs_test_util_set_public_addr(resp_addr);
 
-    ble_hs_test_util_create_conn(2, init_addr, ble_sm_test_util_conn_cb,
+    ble_hs_test_util_create_conn(2, init_id_addr, ble_sm_test_util_conn_cb,
                                  NULL);
 
     /* This test inspects and modifies the connection object after unlocking
@@ -1148,7 +1190,7 @@ ble_sm_test_util_peer_fail_inval(
 
 void
 ble_sm_test_util_peer_lgcy_fail_confirm(
-    uint8_t *init_addr,
+    uint8_t *init_id_addr,
     uint8_t *resp_addr,
     struct ble_sm_pair_cmd *pair_req,
     struct ble_sm_pair_cmd *pair_rsp,
@@ -1164,7 +1206,7 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     ble_hs_test_util_set_public_addr(resp_addr);
     ble_sm_dbg_set_next_pair_rand(random_rsp->value);
 
-    ble_hs_test_util_create_conn(2, init_addr, ble_sm_test_util_conn_cb,
+    ble_hs_test_util_create_conn(2, init_id_addr, ble_sm_test_util_conn_cb,
                                  NULL);
 
     /* This test inspects and modifies the connection object after unlocking
@@ -1248,7 +1290,7 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
     ble_hs_cfg.sm_our_key_dist = params->pair_rsp.resp_key_dist;
     ble_hs_cfg.sm_their_key_dist = params->pair_rsp.init_key_dist;
 
-    ble_hs_test_util_set_public_addr(params->resp_addr);
+    ble_hs_test_util_set_public_addr(params->resp_id_addr);
     ble_sm_dbg_set_next_pair_rand(params->random_rsp.value);
     ble_sm_dbg_set_next_ediv(params->ediv);
     ble_sm_dbg_set_next_start_rand(params->r);
@@ -1257,7 +1299,7 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_lgcy_params *params)
         ble_sm_dbg_set_next_ltk(params->enc_info_req.ltk);
     }
 
-    ble_hs_test_util_create_conn(2, params->init_addr,
+    ble_hs_test_util_create_conn(2, params->init_id_addr,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 
@@ -1599,7 +1641,7 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
     ble_hs_cfg.sm_our_key_dist = params->pair_rsp.resp_key_dist;
     ble_hs_cfg.sm_their_key_dist = params->pair_rsp.init_key_dist;
 
-    ble_hs_test_util_set_public_addr(params->resp_addr);
+    ble_hs_test_util_set_public_addr(params->resp_id_addr);
     ble_sm_dbg_set_next_pair_rand(params->random_rsp[0].value);
 
     ble_sm_dbg_set_sc_keys(params->public_key_rsp.x, params->our_priv_key);
@@ -1609,9 +1651,12 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
         ble_sm_dbg_set_next_csrk(params->sign_info_req.sig_key);
     }
 
-    ble_hs_test_util_create_conn(2, params->init_addr,
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
+    ble_hs_test_util_create_rpa_conn(2, params->resp_rpa,
+                                     params->init_addr_type,
+                                     params->init_id_addr,
+                                     params->init_rpa,
+                                     ble_sm_test_util_conn_cb,
+                                     NULL);
 
     /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
@@ -1765,6 +1810,9 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_sc_params *params)
 
     /* Receive key material from peer. */
     if (params->pair_rsp.init_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
+        ble_hs_test_util_set_ack(
+            host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                 BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
         ble_sm_test_util_rx_id_info(2, &params->id_info_rsp, 0);
         ble_sm_test_util_rx_id_addr_info(2, &params->id_addr_info_rsp, 0);
     }
@@ -1810,22 +1858,22 @@ ble_sm_test_util_peer_sc_good(struct ble_sm_test_sc_params *params)
     /*** Verify link can be restored via the encryption procedure. */
 
     /* Peer is master; peer initiates procedure. */
-    ble_sm_test_util_peer_bonding_good(0, 0, params->init_addr,
+    ble_sm_test_util_peer_bonding_good(0, 0, params->init_id_addr,
                                        params->ltk, params->authenticated,
                                        0, 0);
 
     /* Peer is master; we initiate procedure via security request. */
-    ble_sm_test_util_peer_bonding_good(1, 0, params->init_addr,
+    ble_sm_test_util_peer_bonding_good(1, 0, params->init_id_addr,
                                        params->ltk, params->authenticated,
                                        0, 0);
 
     /* We are master; we initiate procedure. */
-    ble_sm_test_util_us_bonding_good(0, 0, params->init_addr,
+    ble_sm_test_util_us_bonding_good(0, 0, params->init_id_addr,
                                      params->ltk, params->authenticated,
                                      0, 0);
 
     /* We are master; peer initiates procedure via security request. */
-    ble_sm_test_util_us_bonding_good(1, 0, params->init_addr,
+    ble_sm_test_util_us_bonding_good(1, 0, params->init_id_addr,
                                      params->ltk, params->authenticated,
                                      0, 0);
 }
@@ -1852,7 +1900,7 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
     ble_hs_cfg.sm_our_key_dist = params->pair_req.init_key_dist;
     ble_hs_cfg.sm_their_key_dist = params->pair_req.resp_key_dist;
 
-    ble_hs_test_util_set_public_addr(params->init_addr);
+    ble_hs_test_util_set_public_addr(params->init_id_addr);
     ble_sm_dbg_set_next_pair_rand(params->random_req[0].value);
 
     ble_sm_dbg_set_sc_keys(params->public_key_req.x, params->our_priv_key);
@@ -1862,9 +1910,12 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_sc_params *params)
         ble_sm_dbg_set_next_csrk(params->sign_info_rsp.sig_key);
     }
 
-    ble_hs_test_util_create_conn(2, params->resp_addr,
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
+    ble_hs_test_util_create_rpa_conn(2, params->init_rpa,
+                                     params->resp_addr_type,
+                                     params->resp_id_addr,
+                                     params->resp_rpa,
+                                     ble_sm_test_util_conn_cb,
+                                     NULL);
 
     /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
@@ -2037,11 +2088,11 @@ ble_sm_test_util_us_fail_inval(
     int rc;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(params->resp_addr);
+    ble_hs_test_util_set_public_addr(params->resp_id_addr);
 
     ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
 
-    ble_hs_test_util_create_conn(2, params->init_addr,
+    ble_hs_test_util_create_conn(2, params->init_id_addr,
                                  ble_sm_test_util_conn_cb,
                                  NULL);
 

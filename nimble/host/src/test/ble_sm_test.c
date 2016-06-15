@@ -390,8 +390,8 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_jw_good)
     struct ble_sm_test_lgcy_params params;
 
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0,
@@ -450,8 +450,8 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_passkey_good)
     struct ble_sm_test_lgcy_params params;
 
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0, .authreq = 0x05,
@@ -593,8 +593,8 @@ TEST_CASE(ble_sm_test_case_peer_sec_req_pair)
     struct ble_sm_test_lgcy_params params;
 
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
-        .resp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .init_id_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
+        .resp_id_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
         .sec_req = (struct ble_sm_sec_req) {
             .authreq = 0,
         },
@@ -657,8 +657,8 @@ TEST_CASE(ble_sm_test_case_peer_sc_numcmp_good)
     struct ble_sm_test_sc_params params;
 
     params = (struct ble_sm_test_sc_params) {
-        .init_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
-        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .init_id_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
+        .resp_id_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x01,
             .oob_data_flag = 0x00,
@@ -766,8 +766,8 @@ TEST_CASE(ble_sm_test_case_peer_sc_passkey_good)
     struct ble_sm_test_sc_params params;
 
     params = (struct ble_sm_test_sc_params) {
-        .init_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
-        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .init_id_addr = { 0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0 },
+        .resp_id_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x04,
             .oob_data_flag = 0x00,
@@ -1339,8 +1339,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid IO capabiltiies. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1365,8 +1365,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid OOB flag. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1391,8 +1391,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid authreq - reserved bonding flag. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1417,8 +1417,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid authreq - reserved other flag. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1443,8 +1443,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid key size - too small. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1469,8 +1469,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid key size - too large. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1495,8 +1495,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid init key dist. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1521,8 +1521,8 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 
     /* Invalid resp key dist. */
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1551,8 +1551,8 @@ TEST_CASE(ble_sm_test_case_us_lgcy_jw_good)
     struct ble_sm_test_lgcy_params params;
 
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
-        .resp_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
+        .init_id_addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
+        .resp_id_addr = {0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a},
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 3,
             .oob_data_flag = 0,
@@ -1616,8 +1616,8 @@ TEST_CASE(ble_sm_test_case_us_sec_req_pair)
     struct ble_sm_test_lgcy_params params;
 
     params = (struct ble_sm_test_lgcy_params) {
-        .init_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
+        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
+        .resp_id_addr = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07},
         .sec_req = (struct ble_sm_sec_req) {
             .authreq = 0x05,
         },
@@ -1722,10 +1722,10 @@ TEST_CASE(ble_sm_test_case_us_sc_jw_good)
     struct ble_sm_test_sc_params params;
 
     params = (struct ble_sm_test_sc_params) {
-        .init_addr = {
+        .init_id_addr = {
             0xd9, 0x38, 0x0c, 0x57, 0x0b, 0x00,
         },
-        .resp_addr = {
+        .resp_id_addr = {
             0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
         },
         .pair_req = {
@@ -1833,8 +1833,8 @@ TEST_CASE(ble_sm_test_case_us_sc_numcmp_good)
     struct ble_sm_test_sc_params params;
 
     params = (struct ble_sm_test_sc_params) {
-        .init_addr = { 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 },
-        .resp_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
+        .init_id_addr = { 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 },
+        .resp_id_addr = { 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07 },
         .pair_req = (struct ble_sm_pair_cmd) {
             .io_cap = 0x01,
             .oob_data_flag = 0x00,
@@ -1946,10 +1946,10 @@ TEST_CASE(ble_sm_test_case_us_sc_passkey_good)
     struct ble_sm_test_sc_params params;
 
     params = (struct ble_sm_test_sc_params) {
-        .init_addr = {
+        .init_id_addr = {
             0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
         },
-        .resp_addr = {
+        .resp_id_addr = {
             0x5d, 0xab, 0xaa, 0x67, 0x11, 0x00,
         },
         .pair_req = {
