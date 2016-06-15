@@ -120,6 +120,7 @@ struct ble_gap_conn_desc {
     struct ble_gap_sec_state sec_state;
     uint8_t peer_ota_addr[6];
     uint8_t peer_id_addr[6];
+    uint8_t our_id_addr[6];
     uint8_t our_ota_addr[6];
     uint16_t conn_handle;
     uint16_t conn_itvl;
@@ -127,6 +128,7 @@ struct ble_gap_conn_desc {
     uint16_t supervision_timeout;
     uint8_t peer_ota_addr_type;
     uint8_t peer_id_addr_type;
+    uint8_t our_id_addr_type;
     uint8_t our_ota_addr_type;
 };
 
