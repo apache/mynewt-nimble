@@ -1700,9 +1700,9 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 {
     struct ble_sm_id_addr_info addr_info;
     struct ble_sm_sign_info sign_info;
-    struct ble_sm_master_id master_iden;
-    struct ble_sm_id_info iden_info;
+    struct ble_sm_master_id master_id;
     struct ble_sm_enc_info enc_info;
+    struct ble_sm_id_info id_info;
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
     uint8_t our_key_dist;
@@ -1730,30 +1730,30 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         memcpy(proc->our_keys.ltk, enc_info.ltk, 16);
 
         /* Send master identification. */
-        rc = ble_sm_gen_ediv(&master_iden.ediv);
+        rc = ble_sm_gen_ediv(&master_id.ediv);
         if (rc != 0) {
             goto err;
         }
-        rc = ble_sm_gen_start_rand(&master_iden.rand_val);
+        rc = ble_sm_gen_start_rand(&master_id.rand_val);
         if (rc != 0) {
             goto err;
         }
-        rc = ble_sm_master_id_tx(proc->conn_handle, &master_iden);
+        rc = ble_sm_master_id_tx(proc->conn_handle, &master_id);
         if (rc != 0) {
             goto err;
         }
         proc->our_keys.ediv_rand_valid = 1;
-        proc->our_keys.rand_val = master_iden.rand_val;
-        proc->our_keys.ediv = master_iden.ediv;
+        proc->our_keys.rand_val = master_id.rand_val;
+        proc->our_keys.ediv = master_id.ediv;
     }
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
         /* Send identity information. */
         irk = ble_hs_priv_get_local_irk();
 
-        memcpy(iden_info.irk, irk, 16);
+        memcpy(id_info.irk, irk, 16);
 
-        rc = ble_sm_id_info_tx(proc->conn_handle, &iden_info);
+        rc = ble_sm_id_info_tx(proc->conn_handle, &id_info);
         if (rc != 0) {
             goto err;
         }
@@ -1917,10 +1917,9 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ID_INFO;
-        proc->peer_keys.irk_valid = 1;
 
-        /* Store IRK in big endian. */
         memcpy(proc->peer_keys.irk, cmd.irk, 16);
+        proc->peer_keys.irk_valid = 1;
 
         ble_sm_key_rxed(proc, res);
     }
@@ -1993,8 +1992,9 @@ ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_SIGN_INFO;
-        proc->peer_keys.csrk_valid = 1;
+
         memcpy(proc->peer_keys.csrk, cmd.sig_key, 16);
+        proc->peer_keys.csrk_valid = 1;
 
         ble_sm_key_rxed(proc, res);
     }
