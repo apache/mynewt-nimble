@@ -263,10 +263,6 @@ struct ble_sm_proc {
     struct ble_sm_keys our_keys;
     struct ble_sm_keys peer_keys;
 
-    /* Legacy. */
-    uint16_t ediv;
-    uint64_t rand_num;
-
 #if NIMBLE_OPT(SM_SC)
     /* Secure connections. */
     uint8_t passkey_bits_exchanged;
@@ -332,9 +328,13 @@ int ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason);
 void ble_sm_pair_fail_log(struct ble_sm_pair_fail *cmd);
 void ble_sm_enc_info_parse(void *payload, int len,
                            struct ble_sm_enc_info *cmd);
+void ble_sm_enc_info_write(void *payload, int len,
+                           struct ble_sm_enc_info *cmd);
 int ble_sm_enc_info_tx(uint16_t conn_handle, struct ble_sm_enc_info *cmd);
 void ble_sm_enc_info_log(struct ble_sm_enc_info *cmd);
 void ble_sm_master_id_parse(void *payload, int len,
+                            struct ble_sm_master_id *cmd);
+void ble_sm_master_id_write(void *payload, int len,
                             struct ble_sm_master_id *cmd);
 int ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd);
 void ble_sm_master_id_log(struct ble_sm_master_id *cmd);
