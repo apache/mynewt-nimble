@@ -347,6 +347,19 @@ ble_sm_enc_info_parse(void *payload, int len, struct ble_sm_enc_info *cmd)
     memcpy(cmd->ltk, payload, sizeof cmd->ltk);
 }
 
+void
+ble_sm_enc_info_write(void *payload, int len, struct ble_sm_enc_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_ENC_INFO_SZ);
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_ENC_INFO;
+    memcpy(u8ptr + 1, cmd->ltk, sizeof cmd->ltk);
+}
+
 int
 ble_sm_enc_info_tx(uint16_t conn_handle, struct ble_sm_enc_info *cmd)
 {
@@ -359,8 +372,7 @@ ble_sm_enc_info_tx(uint16_t conn_handle, struct ble_sm_enc_info *cmd)
         goto done;
     }
 
-    txom->om_data[0] = BLE_SM_OP_ENC_INFO;
-    memcpy(txom->om_data + 1, cmd->ltk, sizeof cmd->ltk);
+    ble_sm_enc_info_write(txom->om_data, txom->om_len, cmd);
 
     BLE_SM_LOG_CMD(1, "enc info", conn_handle, ble_sm_enc_info_log, cmd);
     
@@ -382,9 +394,26 @@ ble_sm_enc_info_log(struct ble_sm_enc_info *cmd)
 void
 ble_sm_master_id_parse(void *payload, int len, struct ble_sm_master_id *cmd)
 {
-    uint8_t *u8ptr = payload;
+    uint8_t *u8ptr;
+
+    u8ptr = payload;
+
     cmd->ediv = le16toh(u8ptr);
     cmd->rand_val = le64toh(u8ptr + 2);
+}
+
+void
+ble_sm_master_id_write(void *payload, int len, struct ble_sm_master_id *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_MASTER_ID_SZ);
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_MASTER_ID;
+    htole16(u8ptr + 1, cmd->ediv);
+    htole64(u8ptr + 3, cmd->rand_val);
 }
 
 int

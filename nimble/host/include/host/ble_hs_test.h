@@ -43,8 +43,10 @@ int ble_hs_adv_test_all(void);
 int ble_hs_conn_test_all(void);
 int ble_l2cap_test_all(void);
 int ble_os_test_all(void);
-int ble_sm_sc_test_all(void);
 int ble_sm_test_all(void);
 int ble_uuid_test_all(void);
+
+int ble_sm_lgcy_test_suite(void);
+int ble_sm_sc_test_suite(void);
 
 #endif

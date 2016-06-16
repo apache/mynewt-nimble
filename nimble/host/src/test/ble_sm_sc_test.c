@@ -45,9 +45,9 @@
  */
 TEST_CASE(ble_sm_sc_peer_jw_iio3_rio3_b1_iat0_rat0_ik5_rk7)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0,
         },
@@ -187,9 +187,9 @@ TEST_CASE(ble_sm_sc_peer_jw_iio3_rio3_b1_iat0_rat0_ik5_rk7)
  */
 TEST_CASE(ble_sm_sc_peer_pk_iio0_rio2_b1_iat0_rat0_ik5_rk7)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0,
         },
@@ -792,9 +792,9 @@ TEST_CASE(ble_sm_sc_peer_pk_iio0_rio2_b1_iat0_rat0_ik5_rk7)
  */
 TEST_CASE(ble_sm_sc_peer_pk_iio2_rio0_b1_iat0_rat0_ik5_rk7)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0,
         },
@@ -1397,9 +1397,9 @@ TEST_CASE(ble_sm_sc_peer_pk_iio2_rio0_b1_iat0_rat0_ik5_rk7)
  */
 TEST_CASE(ble_sm_sc_peer_nc_iio1_rio1_b1_iat0_rat0_ik5_rk7)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0,
         },
@@ -1541,9 +1541,9 @@ TEST_CASE(ble_sm_sc_peer_nc_iio1_rio1_b1_iat0_rat0_ik5_rk7)
  */
 TEST_CASE(ble_sm_sc_us_jw_iio3_rio4_b1_iat0_rat0_ik7_rk5)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
         },
@@ -1683,9 +1683,9 @@ TEST_CASE(ble_sm_sc_us_jw_iio3_rio4_b1_iat0_rat0_ik7_rk5)
  */
 TEST_CASE(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
         },
@@ -2288,9 +2288,9 @@ TEST_CASE(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5)
  */
 TEST_CASE(ble_sm_sc_us_pk_iio0_rio4_b1_iat0_rat0_ik7_rk5)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
         },
@@ -2893,9 +2893,9 @@ TEST_CASE(ble_sm_sc_us_pk_iio0_rio4_b1_iat0_rat0_ik7_rk5)
  */
 TEST_CASE(ble_sm_sc_us_nc_iio1_rio4_b1_iat0_rat0_ik7_rk5)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_id_addr = {
             0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
         },
@@ -3037,9 +3037,9 @@ TEST_CASE(ble_sm_sc_us_nc_iio1_rio4_b1_iat0_rat0_ik7_rk5)
  */
 TEST_CASE(ble_sm_sc_peer_jw_iio3_rio3_b1_iat2_rat2_ik7_rk7)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
         .init_id_addr = {
             0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
@@ -3199,9 +3199,9 @@ TEST_CASE(ble_sm_sc_peer_jw_iio3_rio3_b1_iat2_rat2_ik7_rk7)
  */
 TEST_CASE(ble_sm_sc_peer_nc_iio1_rio1_b1_iat2_rat2_ik3_rk3)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
         .init_id_addr = {
             0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
@@ -3351,9 +3351,9 @@ TEST_CASE(ble_sm_sc_peer_nc_iio1_rio1_b1_iat2_rat2_ik3_rk3)
  */
 TEST_CASE(ble_sm_sc_peer_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
         .init_id_addr = {
             0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
@@ -3970,9 +3970,9 @@ TEST_CASE(ble_sm_sc_peer_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
  */
 TEST_CASE(ble_sm_sc_us_jw_iio3_rio3_b1_iat2_rat2_ik3_rk3)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
         .init_id_addr = {
             0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
@@ -4120,9 +4120,9 @@ TEST_CASE(ble_sm_sc_us_jw_iio3_rio3_b1_iat2_rat2_ik3_rk3)
  */
 TEST_CASE(ble_sm_sc_us_nc_iio1_rio1_b1_iat2_rat2_ik3_rk3)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
         .init_id_addr = {
             0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
@@ -4272,9 +4272,9 @@ TEST_CASE(ble_sm_sc_us_nc_iio1_rio1_b1_iat2_rat2_ik3_rk3)
  */
 TEST_CASE(ble_sm_sc_us_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
 {
-    struct ble_sm_test_sc_params params;
+    struct ble_sm_test_params params;
 
-    params = (struct ble_sm_test_sc_params) {
+    params = (struct ble_sm_test_params) {
         .init_addr_type = BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
         .init_id_addr = {
             0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
@@ -4907,15 +4907,3 @@ TEST_SUITE(ble_sm_sc_test_suite)
 }
 
 #endif /* NIMBLE_OPT_SM */
-
-int
-ble_sm_sc_test_all(void)
-{
-#if !NIMBLE_OPT(SM_SC)
-    return 0;
-#else
-    ble_sm_sc_test_suite();
-
-    return tu_any_failed;
-#endif
-}
