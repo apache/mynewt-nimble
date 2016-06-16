@@ -1572,11 +1572,12 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         } else {
             ble_sm_pair_cfg(proc);
 
+            proc->state = ble_sm_state_after_pair(proc);
             ioact = ble_sm_io_action(proc);
             if (ble_sm_ioact_state(ioact) == proc->state) {
                 res->passkey_action.action = ioact;
-            } else {
-                proc->state = ble_sm_state_after_pair(proc);
+            }
+            if (ble_sm_proc_can_advance(proc)) {
                 res->execute = 1;
             }
         }
