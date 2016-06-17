@@ -1624,7 +1624,6 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     BLE_SM_LOG_CMD(0, "sec req", conn_handle, ble_sm_sec_req_log, &cmd);
 
     /* XXX: Reject if:
-     *     o authreq-bonded flag not set?
      *     o authreq-reserved flags set?
      */
 
@@ -1650,10 +1649,14 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     ble_hs_unlock();
 
     if (res->app_status == 0) {
-        /* Query database for an LTK corresponding to the sender.  We are the
-         * master, so retrieve a master key.
+        /* If the peer is requesting a bonded connection, query database for an
+         * LTK corresponding to the sender.
          */
-        res->app_status = ble_store_read_peer_sec(&key_sec, &value_sec);
+        if (cmd.authreq & BLE_SM_PAIR_AUTHREQ_BOND) {
+            res->app_status = ble_store_read_peer_sec(&key_sec, &value_sec);
+        } else {
+            res->app_status = BLE_HS_ENOENT;
+        }
         if (res->app_status == 0) {
             /* Found a key corresponding to this peer.  Make sure it meets the
              * requested minimum authreq.
