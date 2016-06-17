@@ -287,7 +287,7 @@ struct ble_sm_result {
 #ifdef BLE_HS_DEBUG
 void ble_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand);
 void ble_sm_dbg_set_next_ediv(uint16_t next_ediv);
-void ble_sm_dbg_set_next_start_rand(uint64_t next_start_rand);
+void ble_sm_dbg_set_next_master_id_rand(uint64_t next_master_id_rand);
 void ble_sm_dbg_set_next_ltk(uint8_t *next_ltk);
 void ble_sm_dbg_set_next_csrk(uint8_t *next_csrk);
 void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);

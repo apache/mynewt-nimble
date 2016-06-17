@@ -146,8 +146,8 @@ static uint8_t ble_sm_dbg_next_pair_rand[16];
 static uint8_t ble_sm_dbg_next_pair_rand_set;
 static uint16_t ble_sm_dbg_next_ediv;
 static uint8_t ble_sm_dbg_next_ediv_set;
-static uint64_t ble_sm_dbg_next_start_rand;
-static uint8_t ble_sm_dbg_next_start_rand_set;
+static uint64_t ble_sm_dbg_next_master_id_rand;
+static uint8_t ble_sm_dbg_next_master_id_rand_set;
 static uint8_t ble_sm_dbg_next_ltk[16];
 static uint8_t ble_sm_dbg_next_ltk_set;
 static uint8_t ble_sm_dbg_next_csrk[16];
@@ -172,10 +172,10 @@ ble_sm_dbg_set_next_ediv(uint16_t next_ediv)
 }
 
 void
-ble_sm_dbg_set_next_start_rand(uint64_t next_start_rand)
+ble_sm_dbg_set_next_master_id_rand(uint64_t next_master_id_rand)
 {
-    ble_sm_dbg_next_start_rand = next_start_rand;
-    ble_sm_dbg_next_start_rand_set = 1;
+    ble_sm_dbg_next_master_id_rand = next_master_id_rand;
+    ble_sm_dbg_next_master_id_rand_set = 1;
 }
 
 void
@@ -289,19 +289,19 @@ ble_sm_gen_ediv(uint16_t *ediv)
 }
 
 static int
-ble_sm_gen_start_rand(uint64_t *start_rand)
+ble_sm_gen_master_id_rand(uint64_t *master_id_rand)
 {
     int rc;
 
 #ifdef BLE_HS_DEBUG
-    if (ble_sm_dbg_next_start_rand_set) {
-        ble_sm_dbg_next_start_rand_set = 0;
-        *start_rand = ble_sm_dbg_next_start_rand;
+    if (ble_sm_dbg_next_master_id_rand_set) {
+        ble_sm_dbg_next_master_id_rand_set = 0;
+        *master_id_rand = ble_sm_dbg_next_master_id_rand;
         return 0;
     }
 #endif
 
-    rc = ble_hci_util_rand(start_rand, sizeof *start_rand);
+    rc = ble_hci_util_rand(master_id_rand, sizeof *master_id_rand);
     if (rc != 0) {
         return rc;
     }
@@ -1737,7 +1737,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         if (rc != 0) {
             goto err;
         }
-        rc = ble_sm_gen_start_rand(&master_id.rand_val);
+        rc = ble_sm_gen_master_id_rand(&master_id.rand_val);
         if (rc != 0) {
             goto err;
         }
