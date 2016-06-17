@@ -416,7 +416,11 @@ done:
 void
 ble_sm_master_id_log(struct ble_sm_master_id *cmd)
 {
-    BLE_HS_LOG(DEBUG, "ediv=0x%04x rand=0x%016llx", cmd->ediv, cmd->rand_val);
+    /* These get logged separately to accommodate a bug in the va_args
+     * implementation related to 64-bit integers.
+     */
+    BLE_HS_LOG(DEBUG, "ediv=0x%04x ", cmd->ediv);
+    BLE_HS_LOG(DEBUG, "rand=0x%016llx", cmd->rand_val);
 }
 
 void
