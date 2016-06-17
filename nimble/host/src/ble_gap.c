@@ -2254,7 +2254,7 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
     ble_gap_call_event_cb(BLE_GAP_EVENT_ENC_CHANGE, &ctxt,
                           snap.cb, snap.cb_arg);
 
-    if (security_restored) {
+    if (status == 0 && security_restored) {
         BLE_HS_DBG_ASSERT(snap.desc.sec_state.bonded);
         ble_gatts_bonding_restored(conn_handle);
     }
