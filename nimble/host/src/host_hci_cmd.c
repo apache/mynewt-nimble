@@ -1043,11 +1043,9 @@ host_hci_cmd_build_set_data_len(uint16_t connection_handle,
  * IRKs are in little endian.
  */
 static int
-host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
-                                               uint8_t *addr,
-                                               uint8_t *peer_irk,
-                                               uint8_t *local_irk,
-                                               uint8_t *dst)
+host_hci_cmd_body_add_to_resolv_list(uint8_t addr_type, uint8_t *addr,
+                                     uint8_t *peer_irk, uint8_t *local_irk,
+                                     uint8_t *dst)
 {
     if (addr_type > BLE_ADDR_TYPE_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1067,7 +1065,7 @@ host_hci_cmd_body_add_device_to_resolving_list(uint8_t addr_type,
  * IRKs are in little endian.
  */
 int
-host_hci_cmd_add_device_to_resolving_list(
+host_hci_cmd_build_add_to_resolv_list(
     struct hci_add_dev_to_resolving_list *padd,
     uint8_t *dst,
     int dst_len)
@@ -1080,7 +1078,7 @@ host_hci_cmd_add_device_to_resolving_list(
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
                        BLE_HCI_ADD_TO_RESOLV_LIST_LEN, dst);
 
-    rc = host_hci_cmd_body_add_device_to_resolving_list(
+    rc = host_hci_cmd_body_add_to_resolv_list(
         padd->addr_type, padd->addr, padd->peer_irk, padd->local_irk,
         dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
@@ -1091,9 +1089,8 @@ host_hci_cmd_add_device_to_resolving_list(
 }
 
 static int
-host_hci_cmd_body_remove_device_from_resolving_list(uint8_t addr_type,
-                                                   uint8_t *addr,
-                                                   uint8_t *dst)
+host_hci_cmd_body_remove_from_resolv_list(uint8_t addr_type, uint8_t *addr,
+                                          uint8_t *dst)
 {
     if (addr_type > BLE_ADDR_TYPE_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1106,10 +1103,8 @@ host_hci_cmd_body_remove_device_from_resolving_list(uint8_t addr_type,
 
 
 int
-host_hci_cmd_remove_device_from_resolving_list(uint8_t addr_type,
-                                              uint8_t *addr,
-                                              uint8_t *dst,
-                                              int dst_len)
+host_hci_cmd_build_remove_from_resolv_list(uint8_t addr_type, uint8_t *addr,
+                                           uint8_t *dst, int dst_len)
 {
     int rc;
 
@@ -1119,7 +1114,7 @@ host_hci_cmd_remove_device_from_resolving_list(uint8_t addr_type,
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RMV_RESOLV_LIST,
                        BLE_HCI_RMV_FROM_RESOLV_LIST_LEN, dst);
 
-    rc = host_hci_cmd_body_remove_device_from_resolving_list(addr_type, addr,
+    rc = host_hci_cmd_body_remove_from_resolv_list(addr_type, addr,
                                                 dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
         return rc;
@@ -1128,7 +1123,7 @@ host_hci_cmd_remove_device_from_resolving_list(uint8_t addr_type,
 }
 
 int
-host_hci_cmd_clear_resolving_list(uint8_t *dst, int dst_len)
+host_hci_cmd_build_clear_resolv_list(uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
 
@@ -1139,7 +1134,7 @@ host_hci_cmd_clear_resolving_list(uint8_t *dst, int dst_len)
 }
 
 int
-host_hci_cmd_read_resolving_list_size(uint8_t *dst, int dst_len)
+host_hci_cmd_build_read_resolv_list_size(uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
 
@@ -1150,9 +1145,9 @@ host_hci_cmd_read_resolving_list_size(uint8_t *dst, int dst_len)
 }
 
 static int
-host_hci_cmd_body_read_peer_resolvable_address (uint8_t peer_identity_addr_type,
-                                                uint8_t *peer_identity_addr,
-                                                uint8_t *dst)
+host_hci_cmd_body_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
+                                        uint8_t *peer_identity_addr,
+                                        uint8_t *dst)
 {
     if (peer_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1164,10 +1159,10 @@ host_hci_cmd_body_read_peer_resolvable_address (uint8_t peer_identity_addr_type,
 }
 
 int
-host_hci_cmd_read_peer_resolvable_address(uint8_t peer_identity_addr_type,
-                                          uint8_t *peer_identity_addr,
-                                          uint8_t *dst,
-                                          int dst_len)
+host_hci_cmd_build_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
+                                         uint8_t *peer_identity_addr,
+                                         uint8_t *dst,
+                                         int dst_len)
 {
     int rc;
 
@@ -1177,7 +1172,7 @@ host_hci_cmd_read_peer_resolvable_address(uint8_t peer_identity_addr_type,
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR,
                        BLE_HCI_RD_PEER_RESOLV_ADDR_LEN, dst);
 
-    rc = host_hci_cmd_body_read_peer_resolvable_address(peer_identity_addr_type,
+    rc = host_hci_cmd_body_read_peer_resolv_addr(peer_identity_addr_type,
                                                 peer_identity_addr,
                                                 dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
@@ -1187,8 +1182,9 @@ host_hci_cmd_read_peer_resolvable_address(uint8_t peer_identity_addr_type,
 }
 
 static int
-host_hci_cmd_body_read_local_resolvable_address(
-    uint8_t local_identity_addr_type, uint8_t *local_identity_addr,
+host_hci_cmd_body_read_lcl_resolv_addr(
+    uint8_t local_identity_addr_type,
+    uint8_t *local_identity_addr,
     uint8_t *dst)
 {
     if (local_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
@@ -1204,10 +1200,10 @@ host_hci_cmd_body_read_local_resolvable_address(
  * OGF=0x08 OCF=0x002c
  */
 int
-host_hci_cmd_read_local_resolvable_address(uint8_t local_identity_addr_type,
-                                           uint8_t *local_identity_addr,
-                                           uint8_t *dst,
-                                           int dst_len)
+host_hci_cmd_build_read_lcl_resolv_addr(uint8_t local_identity_addr_type,
+                                        uint8_t *local_identity_addr,
+                                        uint8_t *dst,
+                                        int dst_len)
 {
     int rc;
 
@@ -1217,8 +1213,7 @@ host_hci_cmd_read_local_resolvable_address(uint8_t local_identity_addr_type,
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR,
                        BLE_HCI_RD_LOC_RESOLV_ADDR_LEN, dst);
 
-    rc = host_hci_cmd_body_read_local_resolvable_address
-                                               (local_identity_addr_type,
+    rc = host_hci_cmd_body_read_lcl_resolv_addr(local_identity_addr_type,
                                                 local_identity_addr,
                                                 dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
@@ -1228,8 +1223,7 @@ host_hci_cmd_read_local_resolvable_address(uint8_t local_identity_addr_type,
 }
 
 static int
-host_hci_cmd_body_set_addr_resolution_enable(uint8_t enable,
-                                            uint8_t *dst)
+host_hci_cmd_body_set_addr_res_en(uint8_t enable, uint8_t *dst)
 {
     if (enable > 1) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1243,8 +1237,7 @@ host_hci_cmd_body_set_addr_resolution_enable(uint8_t enable,
  * OGF=0x08 OCF=0x002d
  */
 int
-host_hci_cmd_set_addr_resolution_enable(uint8_t enable, uint8_t *dst,
-                                        int dst_len)
+host_hci_cmd_build_set_addr_res_en(uint8_t enable, uint8_t *dst, int dst_len)
 {
     int rc;
 
@@ -1254,8 +1247,7 @@ host_hci_cmd_set_addr_resolution_enable(uint8_t enable, uint8_t *dst,
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN,
                        BLE_HCI_SET_ADDR_RESOL_ENA_LEN, dst);
 
-    rc = host_hci_cmd_body_set_addr_resolution_enable(enable,
-                                                    dst + BLE_HCI_CMD_HDR_LEN);
+    rc = host_hci_cmd_body_set_addr_res_en(enable, dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
         return rc;
     }
@@ -1263,10 +1255,9 @@ host_hci_cmd_set_addr_resolution_enable(uint8_t enable, uint8_t *dst,
 }
 
 static int
-host_hci_cmd_body_set_resolvable_private_address_timeout(uint16_t timeout,
-                                                        uint8_t *dst)
+host_hci_cmd_body_set_resolv_priv_addr_timeout(uint16_t timeout, uint8_t *dst)
 {
-    if ((timeout == 0) || (timeout > 0xA1B8)) {
+    if (timeout == 0 || timeout > 0xA1B8) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1278,9 +1269,8 @@ host_hci_cmd_body_set_resolvable_private_address_timeout(uint16_t timeout,
  * OGF=0x08 OCF=0x002e
  */
 int
-host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
-                                                    uint8_t *dst,
-                                                    int dst_len)
+host_hci_cmd_build_set_resolv_priv_addr_timeout(uint16_t timeout, uint8_t *dst,
+                                                int dst_len)
 {
     int rc;
 
@@ -1290,8 +1280,8 @@ host_hci_cmd_set_resolvable_private_address_timeout(uint16_t timeout,
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RPA_TMO,
                        BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN, dst);
 
-    rc = host_hci_cmd_body_set_resolvable_private_address_timeout(timeout,
-                                                    dst + BLE_HCI_CMD_HDR_LEN);
+    rc = host_hci_cmd_body_set_resolv_priv_addr_timeout(
+        timeout, dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
         return rc;
     }
@@ -1306,7 +1296,7 @@ host_hci_cmd_body_set_random_addr(struct hci_rand_addr *paddr, uint8_t *dst)
 }
 
 int
-host_hci_cmd_set_random_addr(uint8_t *addr, uint8_t *dst, int dst_len)
+host_hci_cmd_build_set_random_addr(uint8_t *addr, uint8_t *dst, int dst_len)
 {
     struct hci_rand_addr r_addr;
     int rc;
@@ -1319,10 +1309,10 @@ host_hci_cmd_set_random_addr(uint8_t *addr, uint8_t *dst, int dst_len)
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RAND_ADDR,
                        BLE_HCI_SET_RAND_ADDR_LEN, dst);
 
-    rc = host_hci_cmd_body_set_random_addr(&r_addr,
-                                                dst + BLE_HCI_CMD_HDR_LEN);
+    rc = host_hci_cmd_body_set_random_addr(&r_addr, dst + BLE_HCI_CMD_HDR_LEN);
     if (rc != 0) {
         return rc;
     }
+
     return 0;
 }

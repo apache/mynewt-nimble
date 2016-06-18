@@ -1710,6 +1710,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
     uint8_t our_key_dist;
+    uint8_t *our_id_addr;
     uint8_t *irk;
     int rc;
 
@@ -1753,7 +1754,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
         /* Send identity information. */
-        irk = ble_hs_priv_get_local_irk();
+        irk = ble_hs_pvcy_our_irk();
 
         memcpy(id_info.irk, irk, 16);
 
@@ -1764,8 +1765,8 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         proc->our_keys.irk_valid = 1;
 
         /* Send identity address information. */
-        bls_hs_priv_copy_local_identity_addr(addr_info.bd_addr,
-                                             &addr_info.addr_type);
+        our_id_addr = ble_hs_pvcy_our_id_addr(&addr_info.addr_type);
+        memcpy(addr_info.bd_addr, our_id_addr, 6);
         rc = ble_sm_id_addr_info_tx(proc->conn_handle, &addr_info);
         if (rc != 0) {
             goto err;

@@ -114,7 +114,7 @@ ble_hs_util_set_random_addr(uint8_t *addr)
 
     /* set the address in the controller */
 
-    rc = host_hci_cmd_set_random_addr(addr, buf, sizeof(buf));
+    rc = host_hci_cmd_build_set_random_addr(addr, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
