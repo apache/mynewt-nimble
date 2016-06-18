@@ -80,7 +80,7 @@ int ble_l2cap_sig_reject_invalid_cid_tx(struct ble_hs_conn *conn,
                                         uint8_t id,
                                         uint16_t src_cid, uint16_t dst_cid);
 
-void ble_l2cap_sig_heartbeat(void);
+uint32_t ble_l2cap_sig_heartbeat(void);
 struct ble_l2cap_chan *ble_l2cap_sig_create_chan(void);
 int ble_l2cap_sig_init(void);
 

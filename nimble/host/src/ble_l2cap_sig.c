@@ -573,15 +573,16 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
 /**
  * Applies periodic checks and actions to all active procedures.
  *
- * All procedures that failed due to memory exaustion have their pending flag
- * set so they can be retried.
+ * All procedures that have been expecting a response for longer than 30
+ * seconds are aborted and their corresponding connection is terminated.
  *
- * All procedures that have been expecting a response for longer than five
- * seconds are aborted, and their corresponding connection is terminated.
+ * Called by the heartbeat timer; executed at least once a second.
  *
- * Called by the heartbeat timer; executed every second.
+ * @return                      The number of ticks until this function should
+ *                                  be called again; currently always
+ *                                  UINT32_MAX.
  */
-void
+uint32_t
 ble_l2cap_sig_heartbeat(void)
 {
     struct ble_l2cap_sig_proc_list temp_list;
@@ -597,6 +598,8 @@ ble_l2cap_sig_heartbeat(void)
         STATS_INC(ble_l2cap_stats, proc_timeout);
         ble_gap_terminate(proc->conn_handle);
     }
+
+    return UINT32_MAX;
 }
 
 int

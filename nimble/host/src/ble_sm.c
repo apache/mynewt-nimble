@@ -2032,7 +2032,19 @@ ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
  * $api                                                                      *
  *****************************************************************************/
 
-void
+/**
+ * Applies periodic checks and actions to all active procedures.
+ *
+ * All procedures that have been expecting a response for longer than 30
+ * seconds are aborted.
+ *
+ * Called by the heartbeat timer; executed at least once a second.
+ *
+ * @return                      The number of ticks until this function should
+ *                                  be called again; currently always
+ *                                  UINT32_MAX.
+ */
+uint32_t
 ble_sm_heartbeat(void)
 {
     struct ble_sm_proc_list exp_list;
@@ -2054,6 +2066,8 @@ ble_sm_heartbeat(void)
         STAILQ_REMOVE_HEAD(&exp_list, next);
         ble_sm_proc_free(proc);
     }
+
+    return UINT32_MAX;
 }
 
 /**

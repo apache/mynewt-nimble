@@ -845,15 +845,16 @@ ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
 /**
  * Applies periodic checks and actions to all active procedures.
  *
- * All procedures that failed due to memory exaustion have their pending flag
- * set so they can be retried.
- *
  * All procedures that have been expecting a response for longer than 30
- * seconds are aborted, and their corresponding connection is terminated.
+ * seconds are aborted and their corresponding connection is terminated.
  *
- * Called by the host heartbeat timer; executed every second.
+ * Called by the heartbeat timer; executed at least once a second.
+ *
+ * @return                      The number of ticks until this function should
+ *                                  be called again; currently always
+ *                                  UINT32_MAX.
  */
-void
+uint32_t
 ble_gattc_heartbeat(void)
 {
     struct ble_gattc_proc_list exp_list;
@@ -873,6 +874,8 @@ ble_gattc_heartbeat(void)
         STAILQ_REMOVE_HEAD(&exp_list, next);
         ble_gattc_proc_free(proc);
     }
+
+    return UINT32_MAX;
 }
 
 /**

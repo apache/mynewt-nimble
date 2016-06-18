@@ -970,41 +970,65 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
     return rc;
 }
 
+static uint32_t
+ble_gap_master_ticks_until_exp(void)
+{
+    int32_t ticks;
+
+    if (ble_gap_master.op == BLE_GAP_OP_NULL || !ble_gap_master.exp_set) {
+        /* Timer not set; infinity ticks until next event. */
+        return UINT32_MAX;
+    }
+
+    ticks = ble_gap_master.exp_os_ticks - os_time_get();
+    if (ticks > 0) {
+        /* Timer not expired yet. */
+        return ticks;
+    }
+
+    /* Timer just expired. */
+    return 0;
+}
+
 /**
- * Called by the ble_hs heartbeat timer.  Handles timed out master procedures.
+ * Handles timed-out master procedures.
+ *
+ * Called by the heartbeat timer; executed at least once a second.
+ *
+ * @return                      The number of ticks until this function should
+ *                                  be called again.
  */
-void
+uint32_t
 ble_gap_heartbeat(void)
 {
-    int timer_expired;
+    uint32_t ticks_until_exp;
     int rc;
 
-    if (ble_gap_master.op != BLE_GAP_OP_NULL &&
-        ble_gap_master.exp_set &&
-        (int32_t)(os_time_get() - ble_gap_master.exp_os_ticks) >= 0) {
-
-        timer_expired = 1;
-
-        /* Clear the timer. */
-        ble_gap_master.exp_set = 0;
-    } else {
-        timer_expired = 0;
+    ticks_until_exp = ble_gap_master_ticks_until_exp();
+    if (ticks_until_exp != 0) {
+        /* Timer not expired yet. */
+        return ticks_until_exp;
     }
 
-    if (timer_expired) {
-        switch (ble_gap_master.op) {
-        case BLE_GAP_OP_M_DISC:
-            /* When a discovery procedure times out, it is not a failure. */
-            rc = ble_gap_disc_tx_disable();
-            ble_gap_call_master_disc_cb(BLE_GAP_EVENT_DISC_COMPLETE, rc,
-                                        NULL, NULL, 1);
-            break;
+    /*** Timer expired; process event. */
 
-        default:
-            ble_gap_master_failed(BLE_HS_ETIMEOUT);
-            break;
-        }
+    /* Clear the timer. */
+    ble_gap_master.exp_set = 0;
+
+    switch (ble_gap_master.op) {
+    case BLE_GAP_OP_M_DISC:
+        /* When a discovery procedure times out, it is not a failure. */
+        rc = ble_gap_disc_tx_disable();
+        ble_gap_call_master_disc_cb(BLE_GAP_EVENT_DISC_COMPLETE, rc,
+                                    NULL, NULL, 1);
+        break;
+
+    default:
+        ble_gap_master_failed(BLE_HS_ETIMEOUT);
+        break;
     }
+
+    return UINT32_MAX;
 }
 
 /*****************************************************************************
