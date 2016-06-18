@@ -679,7 +679,8 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
 }
 
 static int
-ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
+ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
+                       const struct ble_gatt_chr_def *chr,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
 {
     union ble_gatt_register_ctxt register_ctxt;
@@ -718,6 +719,7 @@ ble_gatts_register_chr(const struct ble_gatt_chr_def *chr,
     if (register_cb != NULL) {
         register_ctxt.chr_reg.def_handle = def_handle;
         register_ctxt.chr_reg.val_handle = val_handle;
+        register_ctxt.svc_reg.svc = svc;
         register_ctxt.chr_reg.chr = chr;
         register_cb(BLE_GATT_REGISTER_OP_CHR, &register_ctxt, cb_arg);
     }
@@ -836,7 +838,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     /* Register each characteristic. */
     if (svc->characteristics != NULL) {
         for (chr = svc->characteristics; chr->uuid128 != NULL; chr++) {
-            rc = ble_gatts_register_chr(chr, register_cb, cb_arg);
+            rc = ble_gatts_register_chr(svc, chr, register_cb, cb_arg);
             if (rc != 0) {
                 return rc;
             }
