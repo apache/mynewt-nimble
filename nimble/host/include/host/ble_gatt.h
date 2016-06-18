@@ -236,6 +236,7 @@ union ble_gatt_register_ctxt {
     struct {
         uint16_t def_handle;
         uint16_t val_handle;
+        const struct ble_gatt_svc_def *svc;
         const struct ble_gatt_chr_def *chr;
     } chr_reg;
 
