@@ -104,15 +104,14 @@ int ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
 int ble_hci_cmd_tx_empty_ack(void *cmd);
 void ble_hci_cmd_rx_ack(uint8_t *ack_ev);
 void ble_hci_cmd_init(void);
-int ble_hs_priv_set_nrpa(void);
-void ble_hs_priv_get_nrpa(uint8_t *addr);
-void ble_hs_priv_update_identity(uint8_t *addr);
-void ble_hs_priv_update_irk(uint8_t *irk);
-uint8_t *bls_hs_priv_get_local_identity_addr(uint8_t *type);
-void bls_hs_priv_copy_local_identity_addr(uint8_t *pdst, uint8_t* addr_type);
-uint8_t *ble_hs_priv_get_local_irk(void);
-int ble_keycache_remove_irk_entry(uint8_t addr_type, uint8_t *addr);
-int ble_keycache_write_irk_entry(uint8_t *addr, uint8_t addrtype, uint8_t *irk);
+int ble_hs_pvcy_set_our_nrpa(void);
+void ble_hs_pvcy_our_nrpa(uint8_t *addr);
+void ble_hs_pvcy_set_our_id_addr(uint8_t *addr);
+void ble_hs_pvcy_set_our_irk(uint8_t *irk);
+uint8_t *ble_hs_pvcy_our_id_addr(uint8_t *type);
+uint8_t *ble_hs_pvcy_our_irk(void);
+int ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr);
+int ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addrtype, uint8_t *irk);
 #if PHONY_HCI_ACKS
 typedef int ble_hci_cmd_phony_ack_fn(uint8_t *ack, int ack_buf_len);
 

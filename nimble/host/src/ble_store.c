@@ -159,7 +159,7 @@ ble_store_write_peer_sec(struct ble_store_value_sec *value_sec)
 
         /* Write the peer IRK to the controller keycache
          * There is not much to do here if it fails */
-        rc = ble_keycache_write_irk_entry(value_sec->peer_addr,
+        rc = ble_hs_pvcy_add_entry(value_sec->peer_addr,
                                           value_sec->peer_addr_type,
                                           value_sec->irk);
         if (rc != 0) {
@@ -182,7 +182,7 @@ ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec)
     if(key_sec->peer_addr_type == BLE_STORE_ADDR_TYPE_NONE) {
         /* don't error check this since we don't know without looking up
          * the value whether it had a valid IRK */
-        ble_keycache_remove_irk_entry(key_sec->peer_addr_type,
+        ble_hs_pvcy_remove_entry(key_sec->peer_addr_type,
                                     key_sec->peer_addr);
     }
 

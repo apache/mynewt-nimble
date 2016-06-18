@@ -228,7 +228,7 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
     ble_sm_dbg_set_next_ediv(out_us->ediv);
     ble_sm_dbg_set_next_master_id_rand(out_us->rand_num);
     ble_sm_dbg_set_next_ltk(out_us->ltk);
-    ble_hs_priv_update_irk(out_us->id_info->irk);
+    ble_hs_pvcy_set_our_irk(out_us->id_info->irk);
     ble_sm_dbg_set_next_csrk(out_us->sign_info->sig_key);
 
     if (out_us->public_key != NULL) {
@@ -800,7 +800,7 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
     uint8_t *our_id_addr;
     uint8_t our_id_addr_type;
 
-    our_id_addr = bls_hs_priv_get_local_identity_addr(&our_id_addr_type);
+    our_id_addr = ble_hs_pvcy_our_id_addr(&our_id_addr_type);
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_ADDR_INFO,

@@ -119,7 +119,7 @@ struct ble_hs_cfg {
     #define BLE_HS_PRIVACY_MODE_NONE            (0)
     #define BLE_HS_PRIVACY_MODE_RANDOM_STATIC   (1)
     #define BLE_HS_PRIVACY_MODE_RESOLV_RAND     (2)
-    uint16_t privacy_resolvable_addr_timeout;
+    uint16_t rpa_timeout;
 };
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;

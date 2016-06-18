@@ -792,7 +792,7 @@ ble_hs_test_util_tx_all(void)
 void
 ble_hs_test_util_set_public_addr(uint8_t *addr)
 {
-    ble_hs_priv_update_identity(addr);
+    ble_hs_pvcy_set_our_id_addr(addr);
 }
 
 void

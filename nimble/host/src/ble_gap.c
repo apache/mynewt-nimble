@@ -1438,9 +1438,8 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
                       &gap_adv_params.adv_itvl_min,
                       &gap_adv_params.adv_itvl_max);
 
-    /* set a new private address for random advertisements */
     if (gap_adv_params.own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        ble_hs_priv_set_nrpa();
+        ble_hs_pvcy_set_our_nrpa();
     }
 
     switch (connectable_mode) {
@@ -1689,9 +1688,8 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
     ble_gap_log_disc(scan_type, filter_policy, addr_mode);
     BLE_HS_LOG(INFO, "\n");
 
-        /* set a new random address for this mode */
-    if(addr_mode == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        ble_hs_priv_set_nrpa();
+    if (addr_mode == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        ble_hs_pvcy_set_our_nrpa();
     }
 
     rc = ble_gap_disc_tx_params(scan_type, filter_policy, addr_mode);
@@ -2290,7 +2288,7 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
 
 void ble_gap_init_identity_addr(uint8_t *addr)
 {
-    ble_hs_priv_update_identity(addr);
+    ble_hs_pvcy_set_our_id_addr(addr);
 }
 
 /*****************************************************************************
