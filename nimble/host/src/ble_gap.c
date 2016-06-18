@@ -102,7 +102,7 @@ static bssnz_t struct {
     uint8_t op;
 
     unsigned exp_set:1;
-    uint32_t exp_os_ticks;
+    os_time_t exp_os_ticks;
 
     union {
         struct {
@@ -531,10 +531,9 @@ ble_gap_update_notify(uint16_t conn_handle, int status)
 }
 
 static void
-ble_gap_master_set_timer(uint32_t ms_from_now)
+ble_gap_master_set_timer(uint32_t ticks_from_now)
 {
-    ble_gap_master.exp_os_ticks =
-        os_time_get() + ms_from_now * OS_TICKS_PER_SEC / 1000;
+    ble_gap_master.exp_os_ticks = os_time_get() + ticks_from_now;
     ble_gap_master.exp_set = 1;
 }
 
@@ -1662,6 +1661,7 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
     return BLE_HS_ENOTSUP;
 #endif
 
+    uint32_t duration_ticks;
     int rc;
 
     ble_hs_lock();
@@ -1704,6 +1704,13 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
         duration_ms = BLE_GAP_GEN_DISC_SCAN_MIN;
     }
 
+    rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+    if (rc != 0) {
+        /* Duration too great. */
+        rc = BLE_HS_EINVAL;
+        goto done;
+    }
+
     ble_gap_master.disc.disc_mode = discovery_mode;
     ble_gap_master.disc.cb = cb;
     ble_gap_master.disc.cb_arg = cb_arg;
@@ -1726,7 +1733,7 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
         goto done;
     }
 
-    ble_gap_master_set_timer(duration_ms);
+    ble_gap_master_set_timer(duration_ticks);
     ble_gap_master.op = BLE_GAP_OP_M_DISC;
 
     rc = 0;
