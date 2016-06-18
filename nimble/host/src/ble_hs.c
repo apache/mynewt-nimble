@@ -179,12 +179,11 @@ ble_hs_process_rx_data_queue(void)
 }
 
 static void
-ble_hs_heartbeat_timer_reset(void)
+ble_hs_heartbeat_timer_reset(uint32_t ticks)
 {
     int rc;
 
-    rc = os_callout_reset(&ble_hs_heartbeat_timer.cf_c,
-                          BLE_HS_HEARTBEAT_OS_TICKS);
+    rc = os_callout_reset(&ble_hs_heartbeat_timer.cf_c, ticks);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
@@ -195,12 +194,24 @@ ble_hs_heartbeat_timer_reset(void)
 static void
 ble_hs_heartbeat(void *unused)
 {
-    ble_gattc_heartbeat();
-    ble_gap_heartbeat();
-    ble_l2cap_sig_heartbeat();
-    ble_sm_heartbeat();
+    uint32_t lcl_ticks_until_next;
+    uint32_t ticks_until_next;
 
-    ble_hs_heartbeat_timer_reset();
+    ticks_until_next = BLE_HS_HEARTBEAT_OS_TICKS;
+
+    lcl_ticks_until_next = ble_gattc_heartbeat();
+    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+
+    lcl_ticks_until_next = ble_gap_heartbeat();
+    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+
+    lcl_ticks_until_next = ble_l2cap_sig_heartbeat();
+    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+
+    lcl_ticks_until_next = ble_sm_heartbeat();
+    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+
+    ble_hs_heartbeat_timer_reset(ticks_until_next);
 }
 
 static void
@@ -258,7 +269,7 @@ ble_hs_start(void)
 
     ble_hs_parent_task = os_sched_get_current_task();
 
-    ble_hs_heartbeat_timer_reset();
+    ble_hs_heartbeat_timer_reset(BLE_HS_HEARTBEAT_OS_TICKS);
 
     ble_gatts_start();
 
