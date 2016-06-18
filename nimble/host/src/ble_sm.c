@@ -746,7 +746,7 @@ ble_sm_proc_can_advance(struct ble_sm_proc *proc)
 {
     uint8_t ioact;
 
-    ioact = ble_sm_sc_io_action(proc);
+    ioact = ble_sm_io_action(proc);
     if (ble_sm_ioact_state(ioact) != proc->state) {
         return 1;
     }

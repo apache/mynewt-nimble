@@ -685,6 +685,141 @@ TEST_CASE(ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7)
     ble_sm_test_util_us_lgcy_good(&params);
 }
 
+/**
+ * Legacy pairing
+ * Master: peer
+ * Pair algorithm: passkey entry
+ * Initiator IO capabilities: 4
+ * Responder IO capabilities: 4
+ * Bonding: true
+ * Initiator address type: BLE_ADDR_TYPE_PUBLIC
+ * Responder address type: BLE_ADDR_TYPE_PUBLIC
+ * Initiator key distribution: 7
+ * Responder key distribution: 7
+ */
+TEST_CASE(ble_sm_lgcy_peer_pk_iio4_rio4_b1_iat0_rat0_ik7_rk7)
+{
+    struct ble_sm_test_params params;
+
+    params = (struct ble_sm_test_params) {
+        .init_id_addr = {
+            0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c,
+        },
+        .resp_id_addr = {
+            0x33, 0x22, 0x11, 0x00, 0x45, 0x0a,
+        },
+        .pair_req = {
+            .io_cap = 0x04,
+            .oob_data_flag = 0x00,
+            .authreq = 0x05,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = {
+            .io_cap = 0x04,
+            .oob_data_flag = 0x00,
+            .authreq = 0x0d,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .confirm_req[0] = {
+            .value = {
+                0x93, 0x64, 0xb1, 0xb0, 0x07, 0x41, 0x22, 0xe7,
+                0x3e, 0x5a, 0x87, 0xf5, 0x1f, 0x25, 0x79, 0x11,
+            },
+        },
+        .confirm_rsp[0] = {
+            .value = {
+                0x2d, 0x40, 0x15, 0xc4, 0x21, 0xeb, 0xd5, 0x73,
+                0xc8, 0x5d, 0xb8, 0xb9, 0x45, 0x31, 0xd5, 0x58,
+            },
+        },
+        .random_req[0] = {
+            .value = {
+                0x8c, 0x2c, 0x3b, 0xf3, 0x90, 0xaa, 0x2e, 0xcf,
+                0xc7, 0x5b, 0xf6, 0xae, 0xb6, 0x4c, 0xc3, 0x61,
+            },
+        },
+        .random_rsp[0] = {
+            .value = {
+                0x7a, 0x94, 0x97, 0x0a, 0xbe, 0xaf, 0xc0, 0x6b,
+                0xd4, 0xf4, 0x04, 0xd1, 0x21, 0x46, 0x34, 0xf3,
+            },
+        },
+        .enc_info_req = {
+            .ltk = {
+                0x3a, 0x10, 0xd1, 0xab, 0x13, 0xee, 0x16, 0xee,
+                0xcf, 0xae, 0xf1, 0x63, 0xf0, 0x6f, 0xb0, 0x89,
+            },
+        },
+        .master_id_req = {
+            .ediv = 0xb634,
+            .rand_val = 0xa99ac2007b4278a8,
+        },
+        .id_info_req = {
+            .irk = {
+                0xef, 0x8d, 0xe2, 0x16, 0x4f, 0xec, 0x43, 0x0d,
+                0xbf, 0x5b, 0xdd, 0x34, 0xc0, 0x53, 0x1e, 0xb8,
+            },
+        },
+        .id_addr_info_req = {
+            .addr_type = 0,
+            .bd_addr = {
+                0x33, 0x22, 0x11, 0x00, 0x45, 0x0a,
+            },
+        },
+        .sign_info_req = {
+            .sig_key = {
+                0x51, 0x4b, 0x7b, 0x31, 0xf7, 0xa6, 0x8a, 0x60,
+                0x4f, 0x10, 0x04, 0x5f, 0xb8, 0xee, 0xf6, 0xb3,
+            },
+        },
+        .enc_info_rsp = {
+            .ltk = {
+                0xa1, 0x1d, 0xdd, 0xee, 0x85, 0xcb, 0xe0, 0x48,
+                0x1e, 0xdd, 0xa4, 0x9d, 0xed, 0x3f, 0x15, 0x17,
+            },
+        },
+        .master_id_rsp = {
+            .ediv = 0x7e06,
+            .rand_val = 0xe6077f688c5ca67,
+        },
+        .id_info_rsp = {
+            .irk = {
+                0xeb, 0x8a, 0x06, 0xc4, 0x93, 0x51, 0x04, 0xb3,
+                0x8b, 0xbf, 0xe8, 0x1f, 0x0e, 0x96, 0x2a, 0x54,
+            },
+        },
+        .id_addr_info_rsp = {
+            .addr_type = 0,
+            .bd_addr = {
+                0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c,
+            },
+        },
+        .sign_info_rsp = {
+            .sig_key = {
+                0x16, 0x7a, 0x2e, 0x9d, 0x43, 0x4d, 0x7b, 0x0b,
+                0x88, 0xe2, 0x11, 0xb0, 0x4d, 0xa1, 0xed, 0x08,
+            },
+        },
+        .stk = {
+            0x6c, 0x3e, 0x78, 0x47, 0xe8, 0x57, 0x9f, 0xe9,
+            0x3a, 0x8f, 0x0a, 0xbb, 0xd4, 0x60, 0xf6, 0x0d,
+        },
+        .pair_alg = 1,
+        .authenticated = true,
+        .passkey_info = {
+            .passkey = {
+                .action = BLE_SM_IOACT_INPUT,
+                .passkey = 449182,
+            },
+        },
+    };
+    ble_sm_test_util_peer_lgcy_good(&params);
+}
+
 TEST_SUITE(ble_sm_lgcy_test_suite)
 {
     /*** No privacy. */
@@ -692,6 +827,7 @@ TEST_SUITE(ble_sm_lgcy_test_suite)
     /* Peer as initiator. */
     ble_sm_lgcy_peer_jw_iio4_rio3_b1_iat0_rat0_ik7_rk7();
     ble_sm_lgcy_peer_pk_iio4_rio0_b1_iat0_rat0_ik7_rk7();
+    ble_sm_lgcy_peer_pk_iio4_rio4_b1_iat0_rat0_ik7_rk7();
 
     /* Us as initiator. */
     ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5();
