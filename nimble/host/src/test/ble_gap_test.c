@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -251,17 +251,6 @@ ble_gap_test_util_verify_tx_adv_params(void)
 }
 
 static void
-ble_gap_test_util_verify_tx_rd_pwr(void)
-{
-    uint8_t param_len;
-
-    ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
-                                   BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR,
-                                   &param_len);
-    TEST_ASSERT(param_len == 0);
-}
-
-static void
 ble_gap_test_util_verify_tx_adv_data(void)
 {
     uint8_t param_len;
@@ -384,7 +373,7 @@ ble_gap_test_util_rx_param_req(struct ble_gap_upd_params *params, int pos,
     evt.itvl_max = params->itvl_max;
     evt.latency = params->latency;
     evt.timeout = params->supervision_timeout;
- 
+
     if (pos) {
         opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
                                       BLE_HCI_OCF_LE_REM_CONN_PARAM_RR);
@@ -988,6 +977,7 @@ ble_gap_test_util_adv(uint8_t disc_mode, uint8_t conn_mode,
 {
     struct hci_le_conn_complete evt;
     struct ble_hs_adv_fields adv_fields;
+    uint8_t hci_status;
     int cmd_idx;
     int rc;
 
@@ -995,20 +985,33 @@ ble_gap_test_util_adv(uint8_t disc_mode, uint8_t conn_mode,
 
     TEST_ASSERT(!ble_gap_slave_in_progress());
 
+    cmd_idx = 0;
+
     if (conn_mode != BLE_GAP_CONN_MODE_DIR) {
         memset(&adv_fields, 0, sizeof adv_fields);
         adv_fields.tx_pwr_lvl_is_present = 1;
-        rc = ble_gap_adv_set_fields(&adv_fields);
-        TEST_ASSERT_FATAL(rc == 0);
+        adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+
+        hci_status = ble_hs_test_util_exp_hci_status(cmd_idx, cmd_fail_idx,
+                                                     fail_status);
+        rc = ble_hs_test_util_adv_set_fields(&adv_fields, hci_status);
+
+        if (adv_fields.tx_pwr_lvl_is_present &&
+            adv_fields.tx_pwr_lvl == BLE_HS_ADV_TX_PWR_LVL_AUTO) {
+
+            TEST_ASSERT_FATAL(rc == BLE_HS_HCI_ERR(hci_status));
+            cmd_idx++;
+        }
     }
 
-    rc = ble_hs_test_util_adv_start(disc_mode, conn_mode, peer_addr,
-                                    peer_addr_type, NULL,
-                                    ble_gap_test_util_connect_cb, NULL,
-                                    cmd_fail_idx, fail_status);
-    TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
+    if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
+        rc = ble_hs_test_util_adv_start(disc_mode, conn_mode, peer_addr,
+                                        peer_addr_type, NULL,
+                                        ble_gap_test_util_connect_cb, NULL,
+                                        cmd_fail_idx - cmd_idx, fail_status);
 
-    cmd_idx = 0;
+        TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
+    }
 
     if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
         /* Verify tx of set advertising params command. */
@@ -1017,12 +1020,6 @@ ble_gap_test_util_adv(uint8_t disc_mode, uint8_t conn_mode,
     cmd_idx++;
 
     if (conn_mode != BLE_GAP_CONN_MODE_DIR) {
-        if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
-            /* Verify tx of read tx power command. */
-            ble_gap_test_util_verify_tx_rd_pwr();
-        }
-        cmd_idx++;
-
         if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
             /* Verify tx of set advertise data command. */
             ble_gap_test_util_verify_tx_adv_data();
