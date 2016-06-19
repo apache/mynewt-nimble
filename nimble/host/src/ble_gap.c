@@ -66,15 +66,11 @@
 
 /**
  * The maximum amount of user data that can be put into the advertising data.
- * The stack may automatically insert some fields on its own, limiting the
- * maximum amount of user data.  The following fields are automatically
- * inserted:
- *     o Flags (3 bytes)
- *     o Tx-power-level (3 bytes) - Only if the application specified a
- *       tx_pwr_llvl_present value of 1 in a call to ble_gap_set_adv_data().
+ * The stack will automatically insert the flags field on its own if requested
+ * by the application, limiting the maximum amount of user data.
  */
-#define BLE_GAP_ADV_DATA_LIMIT_PWR      (BLE_HCI_MAX_ADV_DATA_LEN - 6)
-#define BLE_GAP_ADV_DATA_LIMIT_NO_PWR   (BLE_HCI_MAX_ADV_DATA_LEN - 3)
+#define BLE_GAP_ADV_DATA_LIMIT_FLAGS    (BLE_HCI_MAX_ADV_DATA_LEN - 3)
+#define BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS BLE_HCI_MAX_ADV_DATA_LEN
 
 static const struct ble_gap_crt_params ble_gap_params_dflt = {
     .scan_itvl = 0x0010,
@@ -140,9 +136,8 @@ static bssnz_t struct {
     uint8_t rsp_data[BLE_HCI_MAX_ADV_DATA_LEN];
     uint8_t adv_data_len;
     uint8_t rsp_data_len;
-    int8_t tx_pwr_lvl;
 
-    unsigned adv_pwr_lvl:1;
+    unsigned adv_auto_flags:1;
 } ble_gap_slave;
 
 static int ble_gap_disc_tx_disable(void);
@@ -1261,11 +1256,9 @@ ble_gap_adv_rsp_data_tx(void)
     return 0;
 }
 
-static int
-ble_gap_adv_data_tx(void)
+static void
+ble_gap_adv_data_set_flags(void)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_DATA_LEN];
-    uint8_t adv_data_len;
     uint8_t flags;
     int rc;
 
@@ -1290,26 +1283,33 @@ ble_gap_adv_data_tx(void)
 
     flags |= BLE_HS_ADV_F_BREDR_UNSUP;
 
-    /* Encode the flags AD field if it is nonzero. */
-    adv_data_len = ble_gap_slave.adv_data_len;
     if (flags != 0) {
         rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
-                                 ble_gap_slave.adv_data, &adv_data_len,
-                                 BLE_HCI_MAX_ADV_DATA_LEN);
-        BLE_HS_DBG_ASSERT(rc == 0);
-    }
-
-    /* Encode the transmit power AD field. */
-    if (ble_gap_slave.adv_pwr_lvl) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LVL, 1,
-                                 &ble_gap_slave.tx_pwr_lvl,
                                  ble_gap_slave.adv_data,
-                                 &adv_data_len, BLE_HCI_MAX_ADV_DATA_LEN);
-        BLE_HS_DBG_ASSERT(rc == 0);
+                                 &ble_gap_slave.adv_data_len,
+                                 BLE_HCI_MAX_ADV_DATA_LEN);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    }
+}
+
+static int
+ble_gap_adv_data_tx(void)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_DATA_LEN];
+    int rc;
+
+    /* Calculate the flags AD field if requested by application.  Clear the
+     * auto flag after encoding the flags so that we don't get repeated flags
+     * fields on subsequent advertising procedures.
+     */
+    if (ble_gap_slave.adv_auto_flags) {
+        ble_gap_adv_data_set_flags();
+        ble_gap_slave.adv_auto_flags = 0;
     }
 
     rc = host_hci_cmd_build_le_set_adv_data(ble_gap_slave.adv_data,
-                                            adv_data_len, buf, sizeof buf);
+                                            ble_gap_slave.adv_data_len,
+                                            buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
@@ -1444,13 +1444,13 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
         goto done;
     }
 
-    if(adv_params == NULL) {
+    if (adv_params == NULL) {
         gap_adv_params = ble_gap_adv_params_dflt;
     } else {
         gap_adv_params = *adv_params;
     }
 
-    if(gap_adv_params.own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+    if (gap_adv_params.own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
         rc = BLE_HS_EINVAL;
         goto done;
     }
@@ -1494,13 +1494,6 @@ ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
     rc = ble_gap_adv_params_tx(&gap_adv_params, peer_addr, peer_addr_type);
     if (rc != 0) {
         goto done;
-    }
-
-    if (ble_gap_slave.adv_pwr_lvl) {
-        rc = ble_hci_util_read_adv_tx_pwr(&ble_gap_slave.tx_pwr_lvl);
-        if (rc != 0) {
-            goto done;
-        }
     }
 
     if (ble_gap_slave.conn_mode != BLE_GAP_CONN_MODE_DIR) {
@@ -1548,17 +1541,20 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
 
     STATS_INC(ble_gap_stats, adv_set_fields);
 
-    if (adv_fields->tx_pwr_lvl_is_present) {
-        max_sz = BLE_GAP_ADV_DATA_LIMIT_PWR;
+    /* If application has requested the stack to calculate the flags field
+     * automatically (flags == 0), there is less room for user data.
+     */
+    if (adv_fields->flags_is_present && adv_fields->flags == 0) {
+        max_sz = BLE_GAP_ADV_DATA_LIMIT_FLAGS;
+        ble_gap_slave.adv_auto_flags = 1;
     } else {
-        max_sz = BLE_GAP_ADV_DATA_LIMIT_NO_PWR;
+        max_sz = BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS;
+        ble_gap_slave.adv_auto_flags = 0;
     }
 
     rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
                                &ble_gap_slave.adv_data_len, max_sz);
-    if (rc == 0) {
-        ble_gap_slave.adv_pwr_lvl = adv_fields->tx_pwr_lvl_is_present;
-    } else {
+    if (rc != 0) {
         STATS_INC(ble_gap_stats, adv_set_fields_fail);
     }
 

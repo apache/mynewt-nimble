@@ -410,6 +410,16 @@ ble_hs_test_util_conn_disconnect(uint16_t conn_handle)
 }
 
 int
+ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx, uint8_t fail_status)
+{
+    if (cmd_idx == fail_idx) {
+        return BLE_HS_HCI_ERR(fail_status);
+    } else {
+        return 0;
+    }
+}
+
+int
 ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t scan_type, uint8_t filter_policy,
                       ble_gap_disc_fn *cb, void *cb_arg, int fail_idx,
@@ -420,11 +430,11 @@ ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
     ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
         {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
-            fail_idx == 0 ? fail_status : 0,
+            ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
         },
         {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-            fail_idx == 1 ? fail_status : 0,
+            ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
         },
 
         { 0 }
@@ -433,6 +443,43 @@ ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
     rc = ble_gap_disc(duration_ms, discovery_mode, scan_type, filter_policy, 
                       BLE_ADDR_TYPE_PUBLIC,
                       cb, cb_arg);
+    return rc;
+}
+
+static void
+ble_hs_test_util_verify_tx_rd_pwr(void)
+{
+    uint8_t param_len;
+
+    ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+                                   BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR,
+                                   &param_len);
+    TEST_ASSERT(param_len == 0);
+}
+
+int
+ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
+                                uint8_t hci_status)
+{
+    int auto_pwr;
+    int rc;
+
+    auto_pwr = adv_fields->tx_pwr_lvl_is_present &&
+               adv_fields->tx_pwr_lvl == BLE_HS_ADV_TX_PWR_LVL_AUTO;
+
+    if (auto_pwr) {
+        ble_hs_test_util_set_ack_params(
+            host_hci_opcode_join(BLE_HCI_OGF_LE,
+                                 BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR), hci_status,
+            ((uint8_t[1]){0}), 1);
+    }
+
+    rc = ble_gap_adv_set_fields(adv_fields);
+    if (rc == 0 && auto_pwr) {
+        /* Verify tx of set advertising params command. */
+        ble_hs_test_util_verify_tx_rd_pwr();
+    }
+
     return rc;
 }
 
@@ -459,7 +506,7 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
     if (connectable_mode != BLE_GAP_CONN_MODE_DIR) {
         acks[i] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
-            fail_idx == i ? fail_status : 0,
+            ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
             { 0 },
             1,
         };
@@ -467,20 +514,20 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
 
         acks[i] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_DATA),
-            fail_idx == i ? fail_status : 0,
+            ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
         };
         i++;
 
         acks[i] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA),
-            fail_idx == i ? fail_status : 0,
+            ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
         };
         i++;
     }
 
     acks[i] = (struct ble_hs_test_util_phony_ack) {
         BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE),
-        fail_idx == i ? fail_status : 0,
+        ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
     };
     i++;
 
@@ -523,14 +570,14 @@ ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,
     cmd_idx = 0;
     acks[cmd_idx] = (struct ble_hs_test_util_phony_ack) {
         BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CLEAR_WHITE_LIST),
-        fail_idx == cmd_idx ? fail_status : 0,
+        ble_hs_test_util_exp_hci_status(cmd_idx, fail_idx, fail_status),
     };
     cmd_idx++;
 
     for (i = 0; i < white_list_count; i++) {
         acks[cmd_idx] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_WHITE_LIST),
-            fail_idx == cmd_idx ? fail_status : 0,
+            ble_hs_test_util_exp_hci_status(cmd_idx, fail_idx, fail_status),
         };
 
         cmd_idx++;
