@@ -59,6 +59,8 @@ STATS_SECT_START(ble_gap_stats)
     STATS_SECT_ENTRY(rx_update_complete)
     STATS_SECT_ENTRY(rx_adv_report)
     STATS_SECT_ENTRY(rx_conn_complete)
+    STATS_SECT_ENTRY(discover_cancel)
+    STATS_SECT_ENTRY(discover_cancel_fail)
 STATS_SECT_END
 
 extern STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;

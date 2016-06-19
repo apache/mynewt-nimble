@@ -43,8 +43,10 @@
  * callback.  The callback is executed when the procedure completes.
  *
  * Notes on thread-safety:
- * 1. The ble_hs mutex must never be locked when an application callback is
- *    executed.  A callback is free to initiate additional host procedures.
+ * 1. The ble_hs mutex must always be unlocked when an application callback is
+ *    executed.  The purpose of this requirement is to allow callbacks to
+ *    initiate additional host procedures, which may require locking of the
+ *    mutex.
  * 2. Functions called directly by the application never call callbacks.
  *    Generally, these functions lock the ble_hs mutex at the start, and only
  *    unlock it at return.
@@ -180,6 +182,8 @@ STATS_NAME_START(ble_gap_stats)
     STATS_NAME(ble_gap_stats, rx_update_complete)
     STATS_NAME(ble_gap_stats, rx_adv_report)
     STATS_NAME(ble_gap_stats, rx_conn_complete)
+    STATS_NAME(ble_gap_stats, discover_cancel)
+    STATS_NAME(ble_gap_stats, discover_cancel_fail)
 STATS_NAME_END(ble_gap_stats)
 
 /*****************************************************************************
@@ -1624,7 +1628,7 @@ ble_gap_disc_tx_enable(void)
 
 static int
 ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy,
-                        uint8_t addr_mode)
+                       uint8_t addr_mode)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN];
     int rc;
@@ -1644,6 +1648,46 @@ ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy,
     }
 
     return 0;
+}
+
+/**
+ * Cancels the discovery procedure currently in progress.  A success return
+ * code indicates that scanning has been fully aborted; a new discovery or
+ * connect procedure can be initiated immediately.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if there is no discovery
+ *                                  procedure to cancel;
+ *                              Other nonzero on unexpected error.
+ */
+int
+ble_gap_disc_cancel(void)
+{
+    int rc;
+
+    ble_hs_lock();
+
+    STATS_INC(ble_gap_stats, discover_cancel);
+
+    if (ble_gap_master.op != BLE_GAP_OP_M_DISC) {
+        rc = BLE_HS_EALREADY;
+        goto done;
+    }
+
+    rc = ble_gap_disc_tx_disable();
+    if (rc != 0) {
+        goto done;
+    }
+
+    ble_gap_master.op = BLE_GAP_OP_NULL;
+
+done:
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, discover_cancel_fail);
+    }
+    ble_hs_unlock();
+
+    return rc;
 }
 
 /**
