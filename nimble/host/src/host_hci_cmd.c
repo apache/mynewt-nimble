@@ -32,6 +32,8 @@
 #include "host/ble_hs_test.h"
 #endif
 
+uint8_t host_hci_cmd_buf[HCI_CMD_BUF_SIZE];
+
 static int
 host_hci_cmd_transport(uint8_t *cmdbuf)
 {
@@ -72,25 +74,17 @@ int
 host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
 {
     int rc;
-    uint8_t *cmd;
-    uint16_t opcode;
 
-    cmd = os_memblock_get(&g_hci_cmd_pool);
-    if (cmd == NULL) {
-        /* XXX: Increment stat. */
-        return BLE_HS_ENOMEM_HCI;
+    htole16(host_hci_cmd_buf, ogf << 10 | ocf);
+    host_hci_cmd_buf[2] = len;
+    if (len != 0) {
+        memcpy(host_hci_cmd_buf + BLE_HCI_CMD_HDR_LEN, cmddata, len);
     }
 
-    opcode = (ogf << 10) | ocf;
-    htole16(cmd, opcode);
-    cmd[2] = len;
-    if (len) {
-        memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
-    }
-    rc = host_hci_cmd_transport(cmd);
+    rc = host_hci_cmd_transport(host_hci_cmd_buf);
     BLE_HS_LOG(DEBUG, "host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d "
                       "rc=%d\n", ogf, ocf, len, rc);
-    ble_hs_misc_log_flat_buf(cmd, len + BLE_HCI_CMD_HDR_LEN);
+    ble_hs_misc_log_flat_buf(host_hci_cmd_buf, len + BLE_HCI_CMD_HDR_LEN);
     BLE_HS_LOG(DEBUG, "\n");
 
     if (rc == 0) {

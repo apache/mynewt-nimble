@@ -24,6 +24,10 @@
 struct ble_hs_conn;
 struct os_mbuf;
 
+#define HCI_CMD_BUF_SIZE        260
+
+extern uint8_t host_hci_cmd_buf[HCI_CMD_BUF_SIZE];
+
 int host_hci_os_event_proc(struct os_event *ev);
 int host_hci_event_rx(uint8_t *data);
 uint16_t host_hci_opcode_join(uint8_t ogf, uint16_t ocf);
