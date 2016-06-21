@@ -39,7 +39,6 @@
 static struct log_handler ble_hs_log_console_handler;
 struct log ble_hs_log;
 
-#define HCI_CMD_BUF_SIZE    (260)       /* XXX: temporary, Fix later */
 struct os_mempool g_hci_cmd_pool;
 static void *ble_hs_hci_cmd_buf;
 
