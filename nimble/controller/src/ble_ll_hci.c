@@ -982,7 +982,10 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     ble_ll_hci_event_send(cmdbuf);
 }
 
-/* XXX: For now, put this here */
+/**
+ * @return                      0 on success;
+ *                              BLE_ERR_MEM_CAPACITY on HCI buffer exhaustion.
+ */
 int
 ble_hci_transport_host_cmd_send(uint8_t *cmd)
 {
@@ -994,7 +997,7 @@ ble_hci_transport_host_cmd_send(uint8_t *cmd)
     if (!ev) {
         err = os_memblock_put(&g_hci_cmd_pool, cmd);
         assert(err == OS_OK);
-        return -1;
+        return BLE_ERR_MEM_CAPACITY;
     }
 
     /* Fill out the event and post to Link Layer */
