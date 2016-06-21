@@ -418,13 +418,20 @@ ble_gap_adv_finished(int event)
 }
 
 static void
+ble_gap_master_reset_state(void)
+{
+    ble_gap_master.op = BLE_GAP_OP_NULL;
+    ble_gap_master.exp_set = 0;
+}
+
+static void
 ble_gap_master_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg)
 {
     ble_hs_lock();
 
     *out_cb = ble_gap_master.conn.cb;
     *out_cb_arg = ble_gap_master.conn.cb_arg;
-    ble_gap_master.op = BLE_GAP_OP_NULL;
+    ble_gap_master_reset_state();
 
     ble_hs_unlock();
 }
@@ -505,7 +512,7 @@ ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
     cb_arg = ble_gap_master.disc.cb_arg;
 
     if (reset_state) {
-        ble_gap_master.op = BLE_GAP_OP_NULL;
+        ble_gap_master_reset_state();
     }
 
     ble_hs_unlock();
@@ -922,7 +929,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         conn->bhc_cb = ble_gap_master.conn.cb;
         conn->our_addr_type = ble_gap_master.conn.our_addr_type;
         conn->bhc_cb_arg = ble_gap_master.conn.cb_arg;
-        ble_gap_master.op = BLE_GAP_OP_NULL;
+        ble_gap_master_reset_state();
     } else {
         conn->bhc_cb = ble_gap_slave.cb;
         conn->bhc_cb_arg = ble_gap_slave.cb_arg;
@@ -1679,7 +1686,7 @@ ble_gap_disc_cancel(void)
         goto done;
     }
 
-    ble_gap_master.op = BLE_GAP_OP_NULL;
+    ble_gap_master_reset_state();
 
 done:
     if (rc != 0) {
