@@ -186,7 +186,7 @@ ble_l2cap_sig_proc_insert(struct ble_l2cap_sig_proc *proc)
 {
     ble_l2cap_sig_dbg_assert_proc_not_inserted(proc);
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
     STAILQ_INSERT_HEAD(&ble_l2cap_sig_procs, proc, next);
 }
 

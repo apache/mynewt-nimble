@@ -104,12 +104,6 @@ ble_hs_locked_by_cur_task(void)
     return owner != NULL && owner == os_sched_get_current_task();
 }
 
-int
-ble_hs_thread_safe(void)
-{
-    return ble_hs_locked_by_cur_task();
-}
-
 /**
  * Indicates whether the host's parent task is currently running.
  */
