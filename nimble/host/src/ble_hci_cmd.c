@@ -199,7 +199,7 @@ ble_hci_cmd_wait_for_ack(void)
 
 #if PHONY_HCI_ACKS
     if (ble_hci_cmd_phony_ack_cb == NULL) {
-        rc = BLE_HS_ETIMEOUT;
+        rc = BLE_HS_ETIMEOUT_HCI;
     } else {
         BLE_HS_DBG_ASSERT(ble_hci_cmd_ack_ev == NULL);
         ble_hci_cmd_ack_ev = os_memblock_get(&g_hci_cmd_pool);
@@ -211,6 +211,16 @@ ble_hci_cmd_wait_for_ack(void)
     }
 #else
     rc = os_sem_pend(&ble_hci_cmd_sem, BLE_HCI_CMD_TIMEOUT);
+    switch (rc) {
+    case 0:
+        break;
+    case OS_TIMEOUT:
+        rc = BLE_HS_ETIMEOUT_HCI;
+        break;
+    default:
+        rc = BLE_HS_EOS;
+        break;
+    }
 #endif
 
     return rc;

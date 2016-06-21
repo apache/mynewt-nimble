@@ -245,7 +245,7 @@ ble_hs_test_util_phony_ack_cb(uint8_t *ack, int ack_buf_len)
     struct ble_hs_test_util_phony_ack *entry;
 
     if (ble_hs_test_util_num_phony_acks == 0) {
-        return BLE_HS_ETIMEOUT;
+        return BLE_HS_ETIMEOUT_HCI;
     }
 
     entry = ble_hs_test_util_phony_acks;

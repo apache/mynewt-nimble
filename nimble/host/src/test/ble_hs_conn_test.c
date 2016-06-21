@@ -98,7 +98,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
 
     /* Initiate connection; receive no HCI ack. */
     rc = ble_gap_conn_initiate(0, addr, NULL, NULL, NULL);
-    TEST_ASSERT(rc == BLE_HS_ETIMEOUT);
+    TEST_ASSERT(rc == BLE_HS_ETIMEOUT_HCI);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_hs_conn_test_util_any());
