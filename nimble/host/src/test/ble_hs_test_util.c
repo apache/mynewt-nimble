@@ -858,6 +858,32 @@ ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags)
 }
 
 void
+ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len)
+{
+    struct os_mbuf *om;
+    uint8_t u8;
+    int rc;
+    int i;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, 1, &u8);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(u8 == BLE_ATT_OP_READ_RSP);
+
+    for (i = 0; i < attr_len; i++) {
+        rc = os_mbuf_copydata(om, i + 1, 1, &u8);
+        TEST_ASSERT(rc == 0);
+        TEST_ASSERT(u8 == attr_data[i]);
+    }
+
+    rc = os_mbuf_copydata(om, i + 1, 1, &u8);
+    TEST_ASSERT(rc != 0);
+}
+
+void
 ble_hs_test_util_init(void)
 {
     struct ble_hs_cfg cfg;

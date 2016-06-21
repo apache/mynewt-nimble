@@ -352,32 +352,6 @@ ble_att_svr_test_misc_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
 }
 
 static void
-ble_att_svr_test_misc_verify_tx_read_rsp(uint8_t *attr_data, int attr_len)
-{
-    struct os_mbuf *om;
-    uint8_t u8;
-    int rc;
-    int i;
-
-    ble_hs_test_util_tx_all();
-
-    om = ble_hs_test_util_prev_tx_dequeue();
-
-    rc = os_mbuf_copydata(om, 0, 1, &u8);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(u8 == BLE_ATT_OP_READ_RSP);
-
-    for (i = 0; i < attr_len; i++) {
-        rc = os_mbuf_copydata(om, i + 1, 1, &u8);
-        TEST_ASSERT(rc == 0);
-        TEST_ASSERT(u8 == attr_data[i]);
-    }
-
-    rc = os_mbuf_copydata(om, i + 1, 1, &u8);
-    TEST_ASSERT(rc != 0);
-}
-
-static void
 ble_att_svr_test_misc_verify_tx_read_blob_rsp(uint8_t *attr_data, int attr_len)
 {
     struct os_mbuf *om;
@@ -1054,7 +1028,7 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(
+    ble_hs_test_util_verify_tx_read_rsp(
         ble_att_svr_test_attr_r_1, ble_att_svr_test_attr_r_1_len);
 
     /*** Partial read. */

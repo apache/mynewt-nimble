@@ -72,7 +72,7 @@ ble_att_svr_next_id(void)
  * @return 0 on success, non-zero error code on failure.
  */
 int
-ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
+ble_att_svr_register(const uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
                      ble_att_svr_access_fn *cb, void *cb_arg)
 {
     struct ble_att_svr_entry *entry;

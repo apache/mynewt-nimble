@@ -76,7 +76,7 @@ ble_gatts_reg_test_misc_reg_cb(uint8_t op, union ble_gatt_register_ctxt *ctxt,
 }
 
 static void
-ble_gatts_reg_test_misc_verify_entry(uint8_t op, uint8_t *uuid128)
+ble_gatts_reg_test_misc_verify_entry(uint8_t op, const uint8_t *uuid128)
 {
     struct ble_gatts_reg_test_entry *entry;
     int i;
@@ -249,9 +249,9 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
 static void
 ble_gatts_reg_test_misc_svcs(struct ble_gatt_svc_def *svcs)
 {
-    struct ble_gatt_svc_def *svc;
-    struct ble_gatt_chr_def *chr;
-    struct ble_gatt_dsc_def *dsc;
+    const struct ble_gatt_svc_def *svc;
+    const struct ble_gatt_chr_def *chr;
+    const struct ble_gatt_dsc_def *dsc;
     int rc;
 
     ble_gatts_reg_test_init();
