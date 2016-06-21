@@ -174,7 +174,7 @@ typedef uint16_t ble_gatt_chr_flags;
 #define BLE_GATT_CHR_F_WRITE_AUTHOR         0x4000
 
 struct ble_gatt_chr_def {
-    uint8_t *uuid128;   /* NULL if no more characteristics. */
+    const uint8_t *uuid128;   /* NULL if no more characteristics. */
     ble_gatt_access_fn *access_cb;
     void *arg;
     struct ble_gatt_dsc_def *descriptors;
@@ -187,23 +187,92 @@ struct ble_gatt_chr_def {
 
 struct ble_gatt_svc_def {
     uint8_t type;
-    uint8_t *uuid128;
+    const uint8_t *uuid128;
     const struct ble_gatt_svc_def **includes; /* Terminated with null. */
-    struct ble_gatt_chr_def *characteristics;
+    const struct ble_gatt_chr_def *characteristics;
+};
+
+/**
+ * Context for reads of characteristics and descriptors.  An instance of this
+ * gets passed to an application callback whenever a local characteristic or
+ * descriptor is read.
+ */
+struct ble_gatt_read_ctxt {
+    /**
+     * (stack --> app)
+     * Maximum number of data bytes the stack can send in the read response.
+     * This is based on the connection's ATT MTU.
+     */
+    uint16_t max_data_len;
+
+    /**
+     * (stack --> app)
+     * A buffer that the app can use to write the characteristic response value
+     * to.
+     */
+    uint8_t *buf;
+
+    /**
+     * (app --> stack)
+     * App points this at the characteristic data to respond with.  Initially
+     * this points to "buf".
+     */
+    const void *data;
+
+    /**
+     * (app --> stack)
+     * App fills this with the number of data bytes contained in characteristic
+     * response.
+     */
+    uint16_t len;
+};
+
+/**
+ * Context for writes of characteristics and descriptors.  An instance of this
+ * gets passed to an application callback whenever a local characteristic or
+ * descriptor is written.
+ */
+struct ble_gatt_write_ctxt {
+    /**
+     * (stack --> app)
+     * The data that the peer is writing to the characteristic.
+     */
+    const void *data;
+
+    /**
+     * (stack --> app)
+     * The number of bytes of characteristic data being written.
+     */
+    int len;
 };
 
 union ble_gatt_access_ctxt {
     struct {
-        const struct ble_gatt_chr_def *chr;
-        void *data;
-        int len;
-    } chr_access;
+        /**
+         * Points to the characteristic defintion corresponding to the
+         * characteristic being accessed.  This is what the app registered at
+         * startup.
+         */
+        const struct ble_gatt_chr_def *def;
+
+        union {
+            struct ble_gatt_read_ctxt read;
+            struct ble_gatt_write_ctxt write;
+        };
+    } chr;
 
     struct {
-        const struct ble_gatt_dsc_def *dsc;
-        void *data;
-        int len;
-    } dsc_access;
+        /**
+         * Points to the descriptor defintion corresponding to the descriptor
+         * being accessed.  This is what the app registered at startup.
+         */
+        const struct ble_gatt_dsc_def *def;
+
+        union {
+            struct ble_gatt_read_ctxt read;
+            struct ble_gatt_write_ctxt write;
+        };
+    } dsc;
 };
 
 struct ble_gatt_dsc_def {

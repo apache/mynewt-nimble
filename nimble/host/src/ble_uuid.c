@@ -39,10 +39,10 @@ static uint8_t ble_uuid_base[16] = {
  *                                  0 if the UUID could not be converted.
  */
 uint16_t
-ble_uuid_128_to_16(void *uuid128)
+ble_uuid_128_to_16(const void *uuid128)
 {
+    const uint8_t *u8ptr;
     uint16_t uuid16;
-    uint8_t *u8ptr;
     int rc;
 
     u8ptr = uuid128;

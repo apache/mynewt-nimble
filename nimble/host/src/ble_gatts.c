@@ -84,7 +84,8 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
         ctxt->attr_data = &uuid16;
         ctxt->data_len = 2;
     } else {
-        ctxt->attr_data = svc->uuid128;
+        /* Cast away const. */
+        ctxt->attr_data = (void *)svc->uuid128;
         ctxt->data_len = 16;
     }
 
@@ -292,6 +293,23 @@ ble_gatts_chr_inc_val_stat(uint8_t gatt_op)
     }
 }
 
+static uint16_t
+ble_gatts_max_read_len(uint16_t conn_handle)
+{
+    uint16_t mtu;
+
+    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        /* The application is reading from itself; no MTU. */
+        mtu = BLE_ATT_MTU_MAX;
+    } else {
+        mtu = ble_att_mtu(conn_handle);
+    }
+
+    /* Subtract one to account for the att-read-response header. */
+    BLE_HS_DBG_ASSERT(mtu > 0);
+    return mtu - 1;
+}
+
 static int
 ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t *uuid128, uint8_t att_op,
@@ -302,13 +320,32 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     uint8_t gatt_op;
     int rc;
 
+
     chr = arg;
     BLE_HS_DBG_ASSERT(chr != NULL && chr->access_cb != NULL);
+    gatt_ctxt.chr.def = chr;
 
     gatt_op = ble_gatts_chr_op(att_op);
-    gatt_ctxt.chr_access.chr = chr;
-    gatt_ctxt.chr_access.data = att_ctxt->attr_data;
-    gatt_ctxt.chr_access.len = att_ctxt->data_len;
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_CHR:
+        gatt_ctxt.chr.read.max_data_len = ble_gatts_max_read_len(conn_handle);
+        gatt_ctxt.chr.read.len = 0;
+
+        /* Give the application access to the ATT flat buffer in case it needs
+         * to generate the read response dynamically. */
+        gatt_ctxt.chr.read.buf = ble_att_get_flat_buf();
+        gatt_ctxt.chr.read.data = gatt_ctxt.chr.read.buf;
+        break;
+
+    case BLE_GATT_ACCESS_OP_WRITE_CHR:
+        gatt_ctxt.chr.write.data = att_ctxt->attr_data;
+        gatt_ctxt.chr.write.len = att_ctxt->data_len;
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
+    }
 
     ble_gatts_chr_inc_val_stat(gatt_op);
 
@@ -318,14 +355,27 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc;
     }
 
-    if (att_op == BLE_ATT_ACCESS_OP_WRITE &&
-        ble_gatts_chr_clt_cfg_allowed(chr)) {
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_CHR:
+        /* Cast-away const. */
+        att_ctxt->attr_data = (void *)gatt_ctxt.chr.read.data;
+        att_ctxt->data_len = gatt_ctxt.chr.read.len;
+        break;
 
-        ble_gatts_chr_updated(attr_handle - 1);
+    case BLE_GATT_ACCESS_OP_WRITE_CHR:
+        /* Cast-away const. */
+        att_ctxt->attr_data = (void *)gatt_ctxt.chr.write.data;
+        att_ctxt->data_len = gatt_ctxt.chr.write.len;
+
+        if (ble_gatts_chr_clt_cfg_allowed(chr)) {
+            ble_gatts_chr_updated(attr_handle - 1);
+        }
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
     }
-
-    att_ctxt->attr_data = gatt_ctxt.chr_access.data;
-    att_ctxt->data_len = gatt_ctxt.chr_access.len;
 
     return 0;
 }
@@ -428,11 +478,30 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     dsc = arg;
     BLE_HS_DBG_ASSERT(dsc != NULL && dsc->access_cb != NULL);
+    gatt_ctxt.dsc.def = dsc;
 
     gatt_op = ble_gatts_dsc_op(att_op);
-    gatt_ctxt.dsc_access.dsc = dsc;
-    gatt_ctxt.dsc_access.data = att_ctxt->attr_data;
-    gatt_ctxt.dsc_access.len = att_ctxt->data_len;
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_DSC:
+        gatt_ctxt.dsc.read.max_data_len = ble_gatts_max_read_len(conn_handle);
+
+        gatt_ctxt.dsc.read.len = 0;
+
+        /* Give the application access to the ATT flat buffer in case it needs
+         * to generate the read response dynamically. */
+        gatt_ctxt.dsc.read.buf = ble_att_get_flat_buf();
+        gatt_ctxt.dsc.read.data = gatt_ctxt.dsc.read.buf;
+        break;
+
+    case BLE_GATT_ACCESS_OP_WRITE_DSC:
+        gatt_ctxt.dsc.write.data = att_ctxt->attr_data;
+        gatt_ctxt.dsc.write.len = att_ctxt->data_len;
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
+    }
 
     ble_gatts_dsc_inc_stat(gatt_op);
 
@@ -442,8 +511,23 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc;
     }
 
-    att_ctxt->attr_data = gatt_ctxt.dsc_access.data;
-    att_ctxt->data_len = gatt_ctxt.dsc_access.len;
+    switch (gatt_op) {
+    case BLE_GATT_ACCESS_OP_READ_DSC:
+        /* Cast-away const. */
+        att_ctxt->attr_data = (void *)gatt_ctxt.dsc.read.data;
+        att_ctxt->data_len = gatt_ctxt.dsc.read.len;
+        break;
+
+    case BLE_GATT_ACCESS_OP_WRITE_DSC:
+        /* Cast-away const. */
+        att_ctxt->attr_data = (void *)gatt_ctxt.dsc.write.data;
+        att_ctxt->data_len = gatt_ctxt.dsc.write.len;
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
+    }
 
     return 0;
 }
@@ -695,7 +779,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
         return BLE_HS_EINVAL;
     }
 
-    /* Register characteristic declaration attribute (cast away const on
+    /* Register characteristic definition attribute (cast away const on
      * callback arg).
      */
     rc = ble_att_svr_register_uuid16(BLE_ATT_UUID_CHARACTERISTIC,
