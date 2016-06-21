@@ -39,7 +39,19 @@ host_hci_cmd_transport(uint8_t *cmdbuf)
     ble_hs_test_hci_txed(cmdbuf);
     return 0;
 #else
-    return ble_hci_transport_host_cmd_send(cmdbuf);
+    int rc;
+
+    rc = ble_hci_transport_host_cmd_send(cmdbuf);
+    switch (rc) {
+    case 0:
+        return 0;
+
+    case BLE_ERR_MEM_CAPACITY:
+        return BLE_HS_ENOMEM_EVT;
+
+    default:
+        return BLE_HS_EUNKNOWN;
+    }
 #endif
 }
 
@@ -63,21 +75,23 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
     uint8_t *cmd;
     uint16_t opcode;
 
-    rc = -1;
     cmd = os_memblock_get(&g_hci_cmd_pool);
-    if (cmd) {
-        opcode = (ogf << 10) | ocf;
-        htole16(cmd, opcode);
-        cmd[2] = len;
-        if (len) {
-            memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
-        }
-        rc = host_hci_cmd_transport(cmd);
-        BLE_HS_LOG(DEBUG, "host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d\n",
-                   ogf, ocf, len);
-        ble_hs_misc_log_flat_buf(cmd, len + BLE_HCI_CMD_HDR_LEN);
-        BLE_HS_LOG(DEBUG, "\n");
+    if (cmd == NULL) {
+        /* XXX: Increment stat. */
+        return BLE_HS_ENOMEM_HCI;
     }
+
+    opcode = (ogf << 10) | ocf;
+    htole16(cmd, opcode);
+    cmd[2] = len;
+    if (len) {
+        memcpy(cmd + BLE_HCI_CMD_HDR_LEN, cmddata, len);
+    }
+    rc = host_hci_cmd_transport(cmd);
+    BLE_HS_LOG(DEBUG, "host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d "
+                      "rc=%d\n", ogf, ocf, len, rc);
+    ble_hs_misc_log_flat_buf(cmd, len + BLE_HCI_CMD_HDR_LEN);
+    BLE_HS_LOG(DEBUG, "\n");
 
     if (rc == 0) {
         STATS_INC(ble_hs_stats, hci_cmd);

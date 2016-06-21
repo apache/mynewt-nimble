@@ -204,7 +204,7 @@ ble_hci_cmd_wait_for_ack(void)
         BLE_HS_DBG_ASSERT(ble_hci_cmd_ack_ev == NULL);
         ble_hci_cmd_ack_ev = os_memblock_get(&g_hci_cmd_pool);
         if (ble_hci_cmd_ack_ev == NULL) {
-            rc = BLE_HS_ENOMEM;
+            rc = BLE_HS_ENOMEM_HCI;
         } else {
             rc = ble_hci_cmd_phony_ack_cb(ble_hci_cmd_ack_ev, 260);
         }
