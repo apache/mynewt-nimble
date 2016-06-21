@@ -24,14 +24,10 @@ const struct ble_hs_cfg ble_hs_cfg_dflt = {
     .max_hci_bufs = 8,
 
     /** Connection settings. */
-    .max_outstanding_pkts_per_conn = 5,
-
 #if NIMBLE_OPT(CONNECT)
     .max_connections = NIMBLE_OPT(MAX_CONNECTIONS),
-    .max_conn_update_entries = 4,
 #else
     .max_connections = 0,
-    .max_conn_update_entries = 0,
 #endif
 
     /** GATT server settings. */
