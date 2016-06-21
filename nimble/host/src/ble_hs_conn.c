@@ -208,7 +208,7 @@ ble_hs_conn_insert(struct ble_hs_conn *conn)
     return;
 #endif
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     BLE_HS_DBG_ASSERT_EVAL(ble_hs_conn_find(conn->bhc_handle) == NULL);
     SLIST_INSERT_HEAD(&ble_hs_conns, conn, bhc_next);
@@ -221,7 +221,7 @@ ble_hs_conn_remove(struct ble_hs_conn *conn)
     return;
 #endif
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     SLIST_REMOVE(&ble_hs_conns, conn, ble_hs_conn, bhc_next);
 }
@@ -235,7 +235,7 @@ ble_hs_conn_find(uint16_t conn_handle)
 
     struct ble_hs_conn *conn;
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
         if (conn->bhc_handle == conn_handle) {
@@ -255,7 +255,7 @@ ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr)
 
     struct ble_hs_conn *conn;
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
         if (conn->bhc_addr_type == addr_type &&
@@ -278,7 +278,7 @@ ble_hs_conn_find_by_idx(int idx)
     struct ble_hs_conn *conn;
     int i;
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     i = 0;
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
@@ -311,7 +311,7 @@ ble_hs_conn_first(void)
     return NULL;
 #endif
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
     return SLIST_FIRST(&ble_hs_conns);
 }
 

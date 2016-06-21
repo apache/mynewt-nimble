@@ -624,7 +624,7 @@ ble_sm_proc_find(uint16_t conn_handle, uint8_t state, int is_initiator,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     prev = NULL;
     STAILQ_FOREACH(proc, &ble_sm_procs, next) {

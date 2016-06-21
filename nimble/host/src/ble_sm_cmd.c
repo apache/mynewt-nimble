@@ -34,7 +34,7 @@ ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
     struct ble_hs_conn *conn;
     int rc;
 
-    BLE_HS_DBG_ASSERT(ble_hs_thread_safe());
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     STATS_INC(ble_l2cap_stats, sm_tx);
 

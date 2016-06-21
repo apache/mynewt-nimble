@@ -90,7 +90,6 @@ uint8_t ble_hs_misc_addr_type_to_id(uint8_t addr_type);
 void ble_hs_cfg_init(struct ble_hs_cfg *cfg);
 
 int ble_hs_locked_by_cur_task(void);
-int ble_hs_thread_safe(void);
 int ble_hs_is_parent_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
