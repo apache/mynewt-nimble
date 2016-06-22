@@ -450,7 +450,8 @@ TEST_CASE(ble_gap_test_case_conn_wl_bad_args)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** White-list-using connection in progress. */
-    rc = ble_hs_test_util_conn_initiate(BLE_GAP_ADDR_TYPE_WL, NULL, NULL,
+    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+                                        BLE_GAP_ADDR_TYPE_WL, NULL, NULL,
                                         ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
 
@@ -555,7 +556,8 @@ TEST_CASE(ble_gap_test_case_conn_disc_bad_args)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Master operation already in progress. */
-    rc = ble_hs_test_util_conn_initiate(BLE_GAP_ADDR_TYPE_WL, NULL, NULL,
+    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+                                        BLE_GAP_ADDR_TYPE_WL, NULL, NULL,
                                         ble_gap_test_util_connect_cb, NULL, 0);
     rc = ble_gap_disc(0, BLE_GAP_DISC_MODE_GEN, BLE_HCI_SCAN_TYPE_ACTIVE,
                       BLE_HCI_SCAN_FILT_NO_WL, BLE_ADDR_TYPE_PUBLIC, ble_gap_test_util_disc_cb,
@@ -670,7 +672,8 @@ TEST_CASE(ble_gap_test_case_conn_dir_good)
 
     TEST_ASSERT(!ble_gap_master_in_progress());
 
-    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, peer_addr, NULL,
+    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+                                        BLE_ADDR_TYPE_PUBLIC, peer_addr, NULL,
                                         ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
 
@@ -709,20 +712,20 @@ TEST_CASE(ble_gap_test_case_conn_dir_bad_args)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /*** Invalid address type. */
-    rc = ble_gap_conn_initiate(5, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), NULL,
+    rc = ble_gap_conn_initiate(BLE_ADDR_TYPE_PUBLIC, 5, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), NULL,
                                ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /*** Connection already in progress. */
-    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                         ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }),
                                         NULL, ble_gap_test_util_connect_cb,
                                         NULL, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
 
-    rc = ble_gap_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+    rc = ble_gap_conn_initiate(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                ((uint8_t[]){ 2, 3, 4, 5, 6, 7 }), NULL,
                                ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
@@ -747,7 +750,8 @@ ble_gap_test_util_conn_cancel(uint8_t *peer_addr, uint8_t hci_status)
     ble_gap_test_util_init();
 
     /* Begin creating a connection. */
-    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, peer_addr, NULL,
+    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+                                        BLE_ADDR_TYPE_PUBLIC, peer_addr, NULL,
                                         ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());

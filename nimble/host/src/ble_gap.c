@@ -72,7 +72,7 @@
 #define BLE_GAP_ADV_DATA_LIMIT_FLAGS    (BLE_HCI_MAX_ADV_DATA_LEN - 3)
 #define BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS BLE_HCI_MAX_ADV_DATA_LEN
 
-static const struct ble_gap_conn_params ble_gap_params_dflt = {
+static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
     .scan_itvl = 0x0010,
     .scan_window = 0x0010,
     .itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN,
@@ -186,22 +186,23 @@ STATS_NAME_END(ble_gap_stats)
  *****************************************************************************/
 
 static void
-ble_gap_log_conn(uint8_t addr_type, uint8_t *addr,
-                 struct ble_gap_conn_params *params)
+ble_gap_log_conn(uint8_t own_addr_type,
+                 uint8_t peer_addr_type, const uint8_t *peer_addr,
+                 const struct ble_gap_conn_params *params)
 {
-    BLE_HS_LOG(INFO, "addr_type=%d addr=", addr_type);
-    if (addr == NULL) {
+    BLE_HS_LOG(INFO, "peer_addr_type=%d peer_addr=", peer_addr_type);
+    if (peer_addr == NULL) {
         BLE_HS_LOG(INFO, "N/A");
     } else {
-        BLE_HS_LOG_ADDR(INFO, addr);
+        BLE_HS_LOG_ADDR(INFO, peer_addr);
     }
 
     BLE_HS_LOG(INFO, " scan_itvl=%d scan_window=%d itvl_min=%d itvl_max=%d "
                      "latency=%d supervision_timeout=%d min_ce_len=%d "
-                     "max_ce_len=%d our_addr_type=%d",
+                     "max_ce_len=%d own_addr_type=%d",
                params->scan_itvl, params->scan_window, params->itvl_min,
                params->itvl_max, params->latency, params->supervision_timeout,
-               params->min_ce_len, params->max_ce_len, params->our_addr_type);
+               params->min_ce_len, params->max_ce_len, own_addr_type);
 }
 
 static void
@@ -1789,8 +1790,9 @@ done:
  *****************************************************************************/
 
 static int
-ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
-                       struct ble_gap_conn_params *params)
+ble_gap_conn_create_tx(uint8_t own_addr_type,
+                       uint8_t peer_addr_type, const uint8_t *peer_addr,
+                       const struct ble_gap_conn_params *params)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CREATE_CONN_LEN];
     struct hci_create_conn hcc;
@@ -1799,18 +1801,21 @@ ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
     hcc.scan_itvl = params->scan_itvl;
     hcc.scan_window = params->scan_window;
 
-    if (addr_type == BLE_GAP_ADDR_TYPE_WL) {
+    if (peer_addr_type == BLE_GAP_ADDR_TYPE_WL) {
+        /* Application wants to connect to any device in the white list.  The
+         * peer address type and peer address fields are ignored by the
+         * controller; fill them with dummy values.
+         */
         hcc.filter_policy = BLE_HCI_CONN_FILT_USE_WL;
-        hcc.peer_addr_type = BLE_HCI_ADV_PEER_ADDR_PUBLIC;
+        hcc.peer_addr_type = 0;
         memset(hcc.peer_addr, 0, sizeof hcc.peer_addr);
     } else {
         hcc.filter_policy = BLE_HCI_CONN_FILT_NO_WL;
-        hcc.peer_addr_type = addr_type;
-        memcpy(hcc.peer_addr, addr, sizeof hcc.peer_addr);
+        hcc.peer_addr_type = peer_addr_type;
+        memcpy(hcc.peer_addr, peer_addr, sizeof hcc.peer_addr);
     }
-    /* TODO error check our_addr_type */
-    hcc.own_addr_type = params->our_addr_type;
 
+    hcc.own_addr_type = own_addr_type;
     hcc.conn_itvl_min = params->itvl_min;
     hcc.conn_itvl_max = params->itvl_max;
     hcc.conn_latency = params->latency;
@@ -1846,8 +1851,9 @@ ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_conn_initiate(int addr_type, uint8_t *addr,
-                      struct ble_gap_conn_params *params,
+ble_gap_conn_initiate(uint8_t own_addr_type,
+                      uint8_t peer_addr_type, const uint8_t *peer_addr,
+                      const struct ble_gap_conn_params *params,
                       ble_gap_event_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(ROLE_CENTRAL)
@@ -1863,34 +1869,40 @@ ble_gap_conn_initiate(int addr_type, uint8_t *addr,
         goto done;
     }
 
+    if (!ble_hs_conn_can_alloc()) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
     STATS_INC(ble_gap_stats, initiate);
 
-    if (addr_type != BLE_HCI_CONN_PEER_ADDR_PUBLIC &&
-        addr_type != BLE_HCI_CONN_PEER_ADDR_RANDOM &&
-        addr_type != BLE_HCI_CONN_PEER_ADDR_PUB_ID &&
-        addr_type != BLE_HCI_CONN_PEER_ADDR_RAND_ID &&
-        addr_type != BLE_GAP_ADDR_TYPE_WL) {
+    if (peer_addr_type != BLE_HCI_CONN_PEER_ADDR_PUBLIC &&
+        peer_addr_type != BLE_HCI_CONN_PEER_ADDR_RANDOM &&
+        peer_addr_type != BLE_HCI_CONN_PEER_ADDR_PUB_ID &&
+        peer_addr_type != BLE_HCI_CONN_PEER_ADDR_RAND_ID &&
+        peer_addr_type != BLE_GAP_ADDR_TYPE_WL) {
 
         rc = BLE_HS_EINVAL;
         goto done;
     }
 
     if (params == NULL) {
-        params = (void *)&ble_gap_params_dflt;
+        params = &ble_gap_conn_params_dflt;
     }
 
     /* XXX: Verify params. */
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: connect; ");
-    ble_gap_log_conn(addr_type, addr, params);
+    ble_gap_log_conn(own_addr_type, peer_addr_type, peer_addr, params);
     BLE_HS_LOG(INFO, "\n");
 
     ble_gap_master.conn.cb = cb;
     ble_gap_master.conn.cb_arg = cb_arg;
-    ble_gap_master.conn.using_wl = addr_type == BLE_GAP_ADDR_TYPE_WL;
-    ble_gap_master.conn.our_addr_type = params->our_addr_type;
+    ble_gap_master.conn.using_wl = peer_addr_type == BLE_GAP_ADDR_TYPE_WL;
+    ble_gap_master.conn.our_addr_type = own_addr_type;
 
-    rc = ble_gap_conn_create_tx(addr_type, addr, params);
+    rc = ble_gap_conn_create_tx(own_addr_type, peer_addr_type, peer_addr,
+                                params);
     if (rc != 0) {
         goto done;
     }
