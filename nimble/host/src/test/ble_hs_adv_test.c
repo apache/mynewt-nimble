@@ -140,9 +140,13 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     struct ble_hs_adv_fields *rsp_fields,
     struct ble_hs_adv_test_field *test_rsp_fields)
 {
+    struct ble_gap_adv_params adv_params;
     int rc;
 
     ble_hs_test_util_init();
+
+    adv_params = ble_hs_test_util_adv_params;
+    adv_params.disc_mode = disc_mode;
 
     rc = ble_hs_test_util_adv_set_fields(adv_fields, 0);
     TEST_ASSERT_FATAL(rc == 0);
@@ -150,8 +154,8 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     rc = ble_gap_adv_rsp_set_fields(rsp_fields);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_hs_test_util_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0,
-                                    NULL, NULL, NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 0, NULL, &adv_params,
+                                    NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard the adv-enable command. */
@@ -164,8 +168,8 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     rc = ble_hs_test_util_adv_stop(0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_hs_test_util_adv_start(disc_mode, BLE_GAP_CONN_MODE_UND, NULL, 0,
-                                    NULL, NULL, NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 0, NULL, &adv_params,
+                                    NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard the adv-enable command. */

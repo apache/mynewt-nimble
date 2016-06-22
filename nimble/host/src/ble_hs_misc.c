@@ -23,6 +23,8 @@
 #include "console/console.h"
 #include "ble_hs_priv.h"
 
+const uint8_t ble_hs_misc_null_addr[6];
+
 int
 ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                            int num_entries, int entry_size, char *name)
