@@ -348,6 +348,27 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+int
+ble_att_svr_read_local(uint16_t attr_handle, void **out_data,
+                       uint16_t *out_attr_len)
+{
+    struct ble_att_svr_access_ctxt ctxt;
+    int rc;
+
+    ctxt.offset = 0;
+
+    rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, attr_handle, &ctxt,
+                                 NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    *out_attr_len = ctxt.data_len;
+    *out_data = ctxt.attr_data;
+
+    return 0;
+}
+
 static int
 ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
                   struct ble_att_svr_access_ctxt *ctxt, uint8_t *out_att_err)
@@ -357,8 +378,12 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
 
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
-    if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
-        !(entry->ha_flags & BLE_ATT_F_WRITE)) {
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        if (!(entry->ha_flags & BLE_ATT_F_WRITE)) {
+            att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+            rc = BLE_HS_ENOTSUP;
+            goto err;
+        }
 
         rc = ble_att_svr_check_security(conn_handle, 0, entry, &att_err);
         if (rc != 0) {

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -1021,9 +1021,13 @@ TEST_CASE(ble_att_svr_test_mtu)
 TEST_CASE(ble_att_svr_test_read)
 {
     struct ble_att_read_req req;
+    struct ble_hs_conn *conn;
     uint16_t conn_handle;
+    uint16_t attr_len;
     uint8_t buf[BLE_ATT_READ_REQ_SZ];
+    uint8_t uuid_sec[16] = {1};
     uint8_t uuid[16] = {0};
+    void *attr_data;
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(0);
@@ -1060,6 +1064,44 @@ TEST_CASE(ble_att_svr_test_read)
     ble_att_svr_test_attr_r_1_len = 40;
 
     ble_att_read_req_write(buf, sizeof buf, &req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
+                                             BLE_ATT_MTU_DFLT - 1);
+
+    /*** Read requires encryption. */
+    /* Insufficient authentication. */
+    rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_READ | BLE_ATT_F_READ_ENC,
+                              &req.barq_handle,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    ble_att_read_req_write(buf, sizeof buf, &req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHENT));
+    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ,
+                                            req.barq_handle,
+                                            BLE_ATT_ERR_INSUFFICIENT_AUTHENT);
+
+    /* Security check bypassed for local reads. */
+    rc = ble_att_svr_read_local(req.barq_handle, &attr_data, &attr_len);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(attr_len == ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(attr_data == ble_att_svr_test_attr_r_1);
+
+    /* Ensure no response got sent. */
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    /* Encrypt link; success. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    conn->bhc_sec_state.encrypted = 1;
+    ble_hs_unlock();
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
@@ -1210,9 +1252,12 @@ TEST_CASE(ble_att_svr_test_read_mult)
 TEST_CASE(ble_att_svr_test_write)
 {
     struct ble_att_write_req req;
+    struct ble_hs_conn *conn;
     uint16_t conn_handle;
     uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + 8];
-    uint8_t uuid[16] = {0};
+    uint8_t uuid_sec[16] = {2};
+    uint8_t uuid_rw[16] = {0};
+    uint8_t uuid_r[16] = {1};
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(0);
@@ -1228,14 +1273,76 @@ TEST_CASE(ble_att_svr_test_write)
     ble_att_svr_test_misc_verify_tx_err_rsp(
         BLE_ATT_OP_WRITE_REQ, 0, BLE_ATT_ERR_INVALID_HANDLE);
 
-    /*** Successful write. */
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &req.bawq_handle,
+    /*** Write not permitted if non-local. */
+    /* Non-local write (fail). */
+    rc = ble_att_svr_register(uuid_r, BLE_ATT_F_READ, &req.bawq_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
     ble_att_write_req_write(buf, sizeof buf, &req);
     memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ,
            ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == BLE_HS_ENOTSUP);
+    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
+                                            req.bawq_handle,
+                                            BLE_ATT_ERR_WRITE_NOT_PERMITTED);
+
+    /* Local write (success). */
+    rc = ble_att_svr_write_local(req.bawq_handle, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    /* Ensure no response got sent. */
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    /*** Successful write. */
+    rc = ble_att_svr_register(uuid_rw, HA_FLAG_PERM_RW, &req.bawq_handle,
+                              ble_att_svr_test_misc_attr_fn_w_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    ble_att_write_req_write(buf, sizeof buf, &req);
+    memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ,
+           ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_write_rsp();
+
+    /*** Write requires encryption. */
+    /* Insufficient authentication. */
+    rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC,
+                              &req.bawq_handle,
+                              ble_att_svr_test_misc_attr_fn_w_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    ble_att_write_req_write(buf, sizeof buf, &req);
+    memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ,
+           ((uint8_t[]){0,1,2,3,4,5,6,7}), 8);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHENT));
+    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
+                                            req.bawq_handle,
+                                            BLE_ATT_ERR_INSUFFICIENT_AUTHENT);
+
+    /* Security check bypassed for local writes. */
+    rc = ble_att_svr_write_local(req.bawq_handle, buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    /* Ensure no response got sent. */
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    /* Encrypt link; success. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    conn->bhc_sec_state.encrypted = 1;
+    ble_hs_unlock();
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
