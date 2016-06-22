@@ -119,6 +119,8 @@ typedef int ble_att_svr_notify_fn(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *attr_val, uint16_t attr_len,
                                   void *arg);
 
+int ble_att_svr_read_local(uint16_t attr_handle, void **out_data,
+                           uint16_t *out_attr_len);
 int ble_att_svr_write_local(uint16_t attr_handle, void *data,
                             uint16_t data_len);
 
