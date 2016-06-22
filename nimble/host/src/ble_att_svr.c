@@ -366,11 +366,6 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
         }
     }
 
-    rc = ble_att_svr_check_security(conn_handle, 0, entry, &att_err);
-    if (rc != 0) {
-        goto err;
-    }
-
     BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);
     rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
                       entry->ha_uuid, BLE_ATT_ACCESS_OP_WRITE, ctxt,
