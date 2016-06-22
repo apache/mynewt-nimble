@@ -65,9 +65,11 @@ static const struct ble_gatt_svc_def ble_gatts_read_test_svcs[] = { {
 
 
 static uint16_t ble_gatts_read_test_chr_1_def_handle;
+static uint16_t ble_gatts_read_test_chr_1_val_handle;
 static uint8_t ble_gatts_read_test_chr_1_val[1024];
 static int ble_gatts_read_test_chr_1_len;
 static uint16_t ble_gatts_read_test_chr_2_def_handle;
+static uint16_t ble_gatts_read_test_chr_2_val_handle;
 
 static void
 ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
@@ -80,7 +82,11 @@ ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
                                  ble_gatts_read_test_misc_reg_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_1_def_handle != 0);
+    TEST_ASSERT_FATAL(ble_gatts_read_test_chr_1_val_handle ==
+                      ble_gatts_read_test_chr_1_def_handle + 1);
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_2_def_handle != 0);
+    TEST_ASSERT_FATAL(ble_gatts_read_test_chr_2_val_handle ==
+                      ble_gatts_read_test_chr_2_def_handle + 1);
 
     ble_gatts_start();
 
@@ -99,14 +105,16 @@ ble_gatts_read_test_misc_reg_cb(uint8_t op,
     uint16_t uuid16;
 
     if (op == BLE_GATT_REGISTER_OP_CHR) {
-        uuid16 = ble_uuid_128_to_16(ctxt->chr_reg.chr->uuid128);
+        uuid16 = ble_uuid_128_to_16(ctxt->chr.chr_def->uuid128);
         switch (uuid16) {
         case BLE_GATTS_READ_TEST_CHR_1_UUID:
-            ble_gatts_read_test_chr_1_def_handle = ctxt->chr_reg.def_handle;
+            ble_gatts_read_test_chr_1_def_handle = ctxt->chr.def_handle;
+            ble_gatts_read_test_chr_1_val_handle = ctxt->chr.val_handle;
             break;
 
         case BLE_GATTS_READ_TEST_CHR_2_UUID:
-            ble_gatts_read_test_chr_2_def_handle = ctxt->chr_reg.def_handle;
+            ble_gatts_read_test_chr_2_def_handle = ctxt->chr.def_handle;
+            ble_gatts_read_test_chr_2_val_handle = ctxt->chr.val_handle;
             break;
 
         default:
@@ -123,7 +131,7 @@ ble_gatts_read_test_util_access_1(uint16_t conn_handle,
                                   void *arg)
 {
     TEST_ASSERT_FATAL(op == BLE_GATT_ACCESS_OP_READ_CHR);
-    TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_1_def_handle + 1);
+    TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_1_val_handle);
 
     TEST_ASSERT(ctxt->chr.def ==
                 &ble_gatts_read_test_svcs[0].characteristics[0]);
@@ -189,7 +197,7 @@ TEST_CASE(ble_gatts_read_test_case_basic)
     ble_gatts_read_test_chr_1_val[2] = 3;
     ble_gatts_read_test_chr_1_len = 3;
     ble_gatts_read_test_once(conn_handle,
-                             ble_gatts_read_test_chr_1_def_handle + 1,
+                             ble_gatts_read_test_chr_1_val_handle,
                              ble_gatts_read_test_chr_1_val,
                              ble_gatts_read_test_chr_1_len);
 
