@@ -351,7 +351,7 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *peer_id_addr,
 
 int
 ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,
-                               struct ble_gap_crt_params *params,
+                               struct ble_gap_conn_params *params,
                                ble_gap_event_fn *cb, void *cb_arg,
                                uint8_t ack_status)
 {

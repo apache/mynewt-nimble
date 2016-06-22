@@ -72,7 +72,7 @@
 #define BLE_GAP_ADV_DATA_LIMIT_FLAGS    (BLE_HCI_MAX_ADV_DATA_LEN - 3)
 #define BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS BLE_HCI_MAX_ADV_DATA_LEN
 
-static const struct ble_gap_crt_params ble_gap_params_dflt = {
+static const struct ble_gap_conn_params ble_gap_params_dflt = {
     .scan_itvl = 0x0010,
     .scan_window = 0x0010,
     .itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN,
@@ -187,7 +187,7 @@ STATS_NAME_END(ble_gap_stats)
 
 static void
 ble_gap_log_conn(uint8_t addr_type, uint8_t *addr,
-                 struct ble_gap_crt_params *params)
+                 struct ble_gap_conn_params *params)
 {
     BLE_HS_LOG(INFO, "addr_type=%d addr=", addr_type);
     if (addr == NULL) {
@@ -1790,7 +1790,7 @@ done:
 
 static int
 ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
-                       struct ble_gap_crt_params *params)
+                       struct ble_gap_conn_params *params)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CREATE_CONN_LEN];
     struct hci_create_conn hcc;
@@ -1847,7 +1847,7 @@ ble_gap_conn_create_tx(int addr_type, uint8_t *addr,
  */
 int
 ble_gap_conn_initiate(int addr_type, uint8_t *addr,
-                      struct ble_gap_crt_params *params,
+                      struct ble_gap_conn_params *params,
                       ble_gap_event_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(ROLE_CENTRAL)

@@ -132,7 +132,7 @@ struct ble_gap_conn_desc {
     uint8_t our_ota_addr_type;
 };
 
-struct ble_gap_crt_params {
+struct ble_gap_conn_params {
     uint16_t scan_window;
     uint16_t scan_itvl;
     uint8_t our_addr_type;
@@ -256,7 +256,7 @@ int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
 int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
-                          struct ble_gap_crt_params *params,
+                          struct ble_gap_conn_params *params,
                           ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_terminate(uint16_t handle);
 int ble_gap_cancel(void);
