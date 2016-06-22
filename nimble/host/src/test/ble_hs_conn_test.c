@@ -53,7 +53,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection. */
-    rc = ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC,
+    rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
                                         BLE_ADDR_TYPE_PUBLIC,
                                         addr, NULL, NULL, NULL, 0);
     TEST_ASSERT(rc == 0);
@@ -99,7 +99,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_hci_errors)
     TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection; receive no HCI ack. */
-    rc = ble_gap_conn_initiate(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+    rc = ble_gap_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                addr, NULL, NULL, NULL);
     TEST_ASSERT(rc == BLE_HS_ETIMEOUT_HCI);
 
