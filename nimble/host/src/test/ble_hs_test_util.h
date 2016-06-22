@@ -62,7 +62,7 @@ void ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t *our_rpa,
 void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
                                   ble_gap_event_fn *cb, void *cb_arg);
 int ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,
-                                   struct ble_gap_crt_params *params,
+                                   struct ble_gap_conn_params *params,
                                    ble_gap_event_fn *cb, void *cb_arg,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
