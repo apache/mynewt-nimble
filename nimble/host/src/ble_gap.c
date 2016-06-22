@@ -1967,7 +1967,7 @@ done:
  *****************************************************************************/
 
 int
-ble_gap_cancel(void)
+ble_gap_conn_cancel(void)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
