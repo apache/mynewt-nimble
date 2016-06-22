@@ -161,11 +161,6 @@ struct ble_gap_notify_params {
     unsigned indication:1;
 };
 
-struct ble_gap_enhanced_conn {
-    uint8_t peer_rpa[6];
-    uint8_t local_rpa[6];
-};
-
 struct ble_gap_passkey_action {
     uint8_t action;
     uint32_t numcmp;
@@ -177,7 +172,6 @@ struct ble_gap_conn_ctxt {
     union {
         struct {
             int status;
-            struct ble_gap_enhanced_conn *enhanced_conn;
         } connect;
 
         struct {
