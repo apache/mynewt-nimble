@@ -834,7 +834,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     struct ble_gap_conn_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
-    struct ble_gap_enhanced_conn enhanced_conn;
     int rc;
 
     STATS_INC(ble_gap_stats, rx_conn_complete);
@@ -934,9 +933,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
-    memcpy(enhanced_conn.local_rpa, evt->local_rpa,6);
-    memcpy(enhanced_conn.peer_rpa, evt->peer_rpa,6);
-    ctxt.connect.enhanced_conn = &enhanced_conn;
     ctxt.connect.status = 0;
     ble_gap_call_event_cb(BLE_GAP_EVENT_CONNECT, &ctxt, snap.cb, snap.cb_arg);
 
