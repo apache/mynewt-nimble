@@ -133,7 +133,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
 
     /* Initiate a direct connection. */
-    ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                    addr, NULL,
                                    ble_gap_direct_connect_test_connect_cb,
                                    &cb_called, 0);
@@ -295,7 +295,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Create two direct connections. */
-    ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                    addr1, NULL, ble_gap_terminate_cb,
                                    &disconn_handle, 0);
     memset(&conn_evt, 0, sizeof conn_evt);
@@ -306,7 +306,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     rc = ble_gap_rx_conn_complete(&conn_evt);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_conn_initiate(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                    addr2, NULL, ble_gap_terminate_cb,
                                    &disconn_handle, 0);
     memset(&conn_evt, 0, sizeof conn_evt);

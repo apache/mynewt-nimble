@@ -1851,10 +1851,10 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_conn_initiate(uint8_t own_addr_type,
-                      uint8_t peer_addr_type, const uint8_t *peer_addr,
-                      const struct ble_gap_conn_params *params,
-                      ble_gap_event_fn *cb, void *cb_arg)
+ble_gap_connect(uint8_t own_addr_type,
+                uint8_t peer_addr_type, const uint8_t *peer_addr,
+                const struct ble_gap_conn_params *params,
+                ble_gap_event_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(ROLE_CENTRAL)
     return BLE_HS_ENOTSUP;

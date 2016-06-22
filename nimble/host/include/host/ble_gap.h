@@ -254,10 +254,10 @@ int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t addr_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
-int ble_gap_conn_initiate(uint8_t own_addr_type,
-                          uint8_t peer_addr_type, const uint8_t *peer_addr,
-                          const struct ble_gap_conn_params *params,
-                          ble_gap_event_fn *cb, void *cb_arg);
+int ble_gap_connect(uint8_t own_addr_type,
+                    uint8_t peer_addr_type, const uint8_t *peer_addr,
+                    const struct ble_gap_conn_params *params,
+                    ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_terminate(uint16_t handle);
 int ble_gap_cancel(void);
 int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
