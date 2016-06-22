@@ -133,9 +133,8 @@ struct ble_gap_conn_desc {
 };
 
 struct ble_gap_conn_params {
-    uint16_t scan_window;
     uint16_t scan_itvl;
-    uint8_t our_addr_type;
+    uint16_t scan_window;
     uint16_t itvl_min;
     uint16_t itvl_max;
     uint16_t latency;
@@ -255,8 +254,9 @@ int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
                       uint8_t addr_mode,
                       ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
-int ble_gap_conn_initiate(int addr_type, uint8_t *addr,
-                          struct ble_gap_conn_params *params,
+int ble_gap_conn_initiate(uint8_t own_addr_type,
+                          uint8_t peer_addr_type, const uint8_t *peer_addr,
+                          const struct ble_gap_conn_params *params,
                           ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_terminate(uint16_t handle);
 int ble_gap_cancel(void);

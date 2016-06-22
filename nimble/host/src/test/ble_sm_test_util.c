@@ -235,7 +235,7 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
         ble_sm_dbg_set_sc_keys(out_us->public_key->x, params->our_priv_key);
     }
 
-    ble_hs_test_util_create_rpa_conn(2, out_us->rpa,
+    ble_hs_test_util_create_rpa_conn(2, out_us->addr_type, out_us->rpa,
                                      out_peer->addr_type,
                                      out_peer->id_addr, out_peer->rpa,
                                      ble_sm_test_util_conn_cb,
@@ -1193,6 +1193,7 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
 
 static void
 ble_sm_test_util_peer_bonding_good(int send_enc_req,
+                                   uint8_t our_addr_type,
                                    uint8_t *our_rpa,
                                    uint8_t peer_addr_type,
                                    uint8_t *peer_id_addr,
@@ -1203,8 +1204,9 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
     struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_test_util_create_rpa_conn(2, our_rpa, peer_addr_type, peer_id_addr,
-                                     peer_rpa, ble_sm_test_util_conn_cb, NULL);
+    ble_hs_test_util_create_rpa_conn(2, our_addr_type, our_rpa, peer_addr_type,
+                                     peer_id_addr, peer_rpa,
+                                     ble_sm_test_util_conn_cb, NULL);
 
     /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
@@ -1323,7 +1325,8 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
  *                                  0: No security request; we initiate.
  */
 static void
-ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *our_rpa,
+ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
+                                 uint8_t *our_rpa,
                                  uint8_t peer_addr_type,
                                  uint8_t *peer_id_addr, uint8_t *peer_rpa,
                                  uint8_t *ltk, int authenticated,
@@ -1332,7 +1335,8 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t *our_rpa,
     struct ble_sm_sec_req sec_req;
     struct ble_hs_conn *conn;
 
-    ble_hs_test_util_create_rpa_conn(2, our_rpa, peer_addr_type, peer_id_addr,
+    ble_hs_test_util_create_rpa_conn(2, our_addr_type, our_rpa,
+                                     peer_addr_type, peer_id_addr,
                                      peer_rpa, ble_sm_test_util_conn_cb, NULL);
 
     /* This test inspects and modifies the connection object after unlocking
@@ -1548,7 +1552,8 @@ ble_sm_test_util_bonding_all(struct ble_sm_test_params *params,
 
     if (sc || peer_entity.key_dist & BLE_SM_PAIR_KEY_DIST_ENC) {
         /* We are master; we initiate procedure. */
-        ble_sm_test_util_us_bonding_good(0, our_entity.rpa,
+        ble_sm_test_util_us_bonding_good(0, our_entity.addr_type,
+                                         our_entity.rpa,
                                          peer_entity.addr_type,
                                          peer_entity.id_addr,
                                          peer_entity.rpa,
@@ -1558,7 +1563,8 @@ ble_sm_test_util_bonding_all(struct ble_sm_test_params *params,
                                          peer_entity.rand_num);
 
         /* We are master; peer initiates procedure via security request. */
-        ble_sm_test_util_us_bonding_good(1, our_entity.rpa,
+        ble_sm_test_util_us_bonding_good(1, our_entity.addr_type,
+                                         our_entity.rpa,
                                          peer_entity.addr_type,
                                          peer_entity.id_addr,
                                          peer_entity.rpa,
@@ -1570,7 +1576,8 @@ ble_sm_test_util_bonding_all(struct ble_sm_test_params *params,
 
     if (sc || our_entity.key_dist & BLE_SM_PAIR_KEY_DIST_ENC) {
         /* Peer is master; peer initiates procedure. */
-        ble_sm_test_util_peer_bonding_good(0, our_entity.rpa,
+        ble_sm_test_util_peer_bonding_good(0, our_entity.addr_type,
+                                           our_entity.rpa,
                                            peer_entity.addr_type,
                                            peer_entity.id_addr,
                                            peer_entity.rpa,
@@ -1580,7 +1587,8 @@ ble_sm_test_util_bonding_all(struct ble_sm_test_params *params,
                                            our_entity.rand_num);
 
         /* Peer is master; we initiate procedure via security request. */
-        ble_sm_test_util_peer_bonding_good(1, our_entity.rpa,
+        ble_sm_test_util_peer_bonding_good(1, our_entity.addr_type,
+                                           our_entity.rpa,
                                            peer_entity.addr_type,
                                            peer_entity.id_addr,
                                            peer_entity.rpa,
