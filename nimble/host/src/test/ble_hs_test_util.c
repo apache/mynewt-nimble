@@ -381,7 +381,7 @@ ble_hs_test_util_conn_cancel(uint8_t ack_status)
                              BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
         ack_status);
 
-    rc = ble_gap_cancel();
+    rc = ble_gap_conn_cancel();
     return rc;
 }
 
