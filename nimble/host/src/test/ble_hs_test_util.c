@@ -54,6 +54,17 @@ int ble_hs_test_util_num_prev_hci_txes;
 
 uint8_t ble_hs_test_util_cur_hci_tx[260];
 
+const struct ble_gap_adv_params ble_hs_test_util_adv_params = {
+    .conn_mode = BLE_GAP_CONN_MODE_UND,
+    .disc_mode = BLE_GAP_DISC_MODE_GEN,
+
+    .itvl_min = 0,
+    .itvl_max = 0,
+    .channel_map = 0,
+    .filter_policy = 0,
+    .high_duty_cycle = 0,
+};
+
 void
 ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om)
 {
@@ -490,10 +501,9 @@ ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
 }
 
 int
-ble_hs_test_util_adv_start(uint8_t discoverable_mode,
-                           uint8_t connectable_mode,
-                           uint8_t *peer_addr, uint8_t peer_addr_type,
-                           struct ble_gap_adv_params *adv_params,
+ble_hs_test_util_adv_start(uint8_t own_addr_type,
+                           uint8_t peer_addr_type, const uint8_t *peer_addr, 
+                           const struct ble_gap_adv_params *adv_params,
                            ble_gap_event_fn *cb, void *cb_arg,
                            int fail_idx, uint8_t fail_status)
 {
@@ -509,7 +519,7 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
     };
     i++;
 
-    if (connectable_mode != BLE_GAP_CONN_MODE_DIR) {
+    if (adv_params->conn_mode != BLE_GAP_CONN_MODE_DIR) {
         acks[i] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
             ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
@@ -541,9 +551,8 @@ ble_hs_test_util_adv_start(uint8_t discoverable_mode,
 
     ble_hs_test_util_set_ack_seq(acks);
     
-    rc = ble_gap_adv_start(discoverable_mode, connectable_mode, 
-                        peer_addr, peer_addr_type,
-                        adv_params, cb, cb_arg);
+    rc = ble_gap_adv_start(own_addr_type, peer_addr_type, peer_addr, 
+                           adv_params, cb, cb_arg);
 
     return rc;
 }

@@ -64,12 +64,11 @@ struct ble_hci_ack {
     uint8_t bha_hci_handle;
 };
 
-extern struct ble_hs_dev ble_hs_our_dev;
 extern struct ble_hs_cfg ble_hs_cfg;
-
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
-
 extern struct log ble_hs_log;
+
+extern const uint8_t ble_hs_misc_null_addr[6];
 
 void ble_hs_process_tx_data_queue(void);
 int ble_hs_rx_data(struct os_mbuf *om);

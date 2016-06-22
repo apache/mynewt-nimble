@@ -24,7 +24,6 @@
 #include "host/ble_hs.h"
 struct hci_le_conn_complete;
 struct hci_conn_update;
-struct hci_adv_params;
 
 /** 30 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MIN      (30 * 1000 / BLE_HCI_ADV_ITVL)
@@ -71,6 +70,8 @@ struct hci_adv_params;
 /* 50 ms. */
 #define BLE_GAP_INITIAL_CONN_ITVL_MAX       (50 * 1000 / BLE_HCI_CONN_ITVL)
 
+#define BLE_GAP_ADV_DFLT_CHANNEL_MAP        0x07 /* All three channels. */
+
 #define BLE_GAP_INITIAL_CONN_LATENCY        0
 #define BLE_GAP_INITIAL_SUPERVISION_TIMEOUT 0x0100
 #define BLE_GAP_INITIAL_CONN_MIN_CE_LEN     0x0010
@@ -107,13 +108,33 @@ struct ble_gap_sec_state {
     unsigned bonded:1;
 };
 
+/**
+ * @param discoverable_mode     One of the following constants:
+ *                                  o BLE_GAP_DISC_MODE_NON
+ *                                      (non-discoverable; 3.C.9.2.2).
+ *                                  o BLE_GAP_DISC_MODE_LTD
+ *                                      (limited-discoverable; 3.C.9.2.3).
+ *                                  o BLE_GAP_DISC_MODE_GEN
+ *                                      (general-discoverable; 3.C.9.2.4).
+ * @param connectable_mode      One of the following constants:
+ *                                  o BLE_GAP_CONN_MODE_NON
+ *                                      (non-connectable; 3.C.9.3.2).
+ *                                  o BLE_GAP_CONN_MODE_DIR
+ *                                      (directed-connectable; 3.C.9.3.3).
+ *                                  o BLE_GAP_CONN_MODE_UND
+ *                                      (undirected-connectable; 3.C.9.3.4).
+ */
 struct ble_gap_adv_params {
-    uint8_t adv_type;
-    uint8_t adv_channel_map;
-    uint8_t own_addr_type;
-    uint8_t adv_filter_policy;
-    uint16_t adv_itvl_min;
-    uint16_t adv_itvl_max;
+    /*** Mandatory fields. */
+    uint8_t conn_mode;
+    uint8_t disc_mode;
+
+    /*** Optional fields; assign 0 to make the stack calculate them. */
+    uint16_t itvl_min;
+    uint16_t itvl_max;
+    uint8_t channel_map;
+    uint8_t filter_policy;
+    uint8_t high_duty_cycle:1;
 };
 
 struct ble_gap_conn_desc {
@@ -241,11 +262,10 @@ struct ble_gap_white_entry {
 
 int ble_gap_find_conn(uint16_t handle, struct ble_gap_conn_desc *out_desc);
 
-int ble_gap_adv_start(uint8_t discoverable_mode, uint8_t connectable_mode,
-                      uint8_t *peer_addr, uint8_t peer_addr_type,
+int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
+                      const uint8_t *peer_addr,
                       const struct ble_gap_adv_params *adv_params,
                       ble_gap_event_fn *cb, void *cb_arg);
-
 int ble_gap_adv_stop(void);
 int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
@@ -268,7 +288,6 @@ int ble_gap_security_initiate(uint16_t conn_handle);
 int ble_gap_pair_initiate(uint16_t conn_handle);
 int ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
                                 uint16_t ediv, uint64_t rand_val, int auth);
-int ble_gap_provide_ltk(uint16_t conn_handle, uint8_t *ltk);
 void ble_gap_init_identity_addr(uint8_t *addr);
 
 #endif

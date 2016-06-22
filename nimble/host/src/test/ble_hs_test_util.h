@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -28,7 +28,8 @@ struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct hci_disconn_complete;
 
-struct os_eventq ble_hs_test_util_evq;
+extern struct os_eventq ble_hs_test_util_evq;
+extern const struct ble_gap_adv_params ble_hs_test_util_adv_params;
 
 struct ble_hs_test_util_num_completed_pkts_entry {
     uint16_t handle_id; /* 0 for terminating entry in array. */
@@ -79,10 +80,10 @@ int ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
                           uint8_t fail_status);
 int ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
                                     uint8_t hci_status);
-int ble_hs_test_util_adv_start(uint8_t discoverable_mode,
-                               uint8_t connectable_mode,
-                               uint8_t *peer_addr, uint8_t peer_addr_type,
-                               struct ble_gap_adv_params *adv_params,
+int ble_hs_test_util_adv_start(uint8_t own_addr_type,
+                               uint8_t peer_addr_type,
+                               const uint8_t *peer_addr,
+                               const struct ble_gap_adv_params *adv_params,
                                ble_gap_event_fn *cb, void *cb_arg,
                                int fail_idx, uint8_t fail_status);
 int ble_hs_test_util_adv_stop(uint8_t hci_status);
