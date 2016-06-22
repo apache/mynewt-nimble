@@ -567,10 +567,11 @@ ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
     }
 
     if (register_cb != NULL) {
-        register_ctxt.dsc_reg.dsc_handle = dsc_handle;
-        register_ctxt.dsc_reg.dsc = dsc;
-        register_ctxt.dsc_reg.chr_def_handle = chr_def_handle;
-        register_ctxt.dsc_reg.chr = chr;
+        register_ctxt.dsc.dsc_handle = dsc_handle;
+        register_ctxt.dsc.dsc_def = dsc;
+        register_ctxt.dsc.chr_def_handle = chr_def_handle;
+        register_ctxt.dsc.chr_val_handle = chr_def_handle + 1;
+        register_ctxt.dsc.chr_def = chr;
         register_cb(BLE_GATT_REGISTER_OP_DSC, &register_ctxt, cb_arg);
     }
 
@@ -801,10 +802,10 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     BLE_HS_DBG_ASSERT(val_handle == def_handle + 1);
 
     if (register_cb != NULL) {
-        register_ctxt.chr_reg.def_handle = def_handle;
-        register_ctxt.chr_reg.val_handle = val_handle;
-        register_ctxt.svc_reg.svc = svc;
-        register_ctxt.chr_reg.chr = chr;
+        register_ctxt.chr.def_handle = def_handle;
+        register_ctxt.chr.val_handle = val_handle;
+        register_ctxt.svc.svc_def = svc;
+        register_ctxt.chr.chr_def = chr;
         register_cb(BLE_GATT_REGISTER_OP_CHR, &register_ctxt, cb_arg);
     }
 
@@ -901,8 +902,8 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     }
 
     if (register_cb != NULL) {
-        register_ctxt.svc_reg.handle = *out_handle;
-        register_ctxt.svc_reg.svc = svc;
+        register_ctxt.svc.handle = *out_handle;
+        register_ctxt.svc.svc_def = svc;
         register_cb(BLE_GATT_REGISTER_OP_SVC, &register_ctxt, cb_arg);
     }
 

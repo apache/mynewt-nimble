@@ -208,7 +208,7 @@ struct ble_gatt_read_ctxt {
     /**
      * (stack --> app)
      * A buffer that the app can use to write the characteristic response value
-     * to.
+     * to.  This buffer can hold up to max_data_len bytes.
      */
     uint8_t *buf;
 
@@ -299,22 +299,23 @@ void ble_gatts_chr_updated(uint16_t chr_def_handle);
 union ble_gatt_register_ctxt {
     struct {
         uint16_t handle;
-        const struct ble_gatt_svc_def *svc;
-    } svc_reg;
+        const struct ble_gatt_svc_def *svc_def;
+    } svc;
 
     struct {
         uint16_t def_handle;
         uint16_t val_handle;
-        const struct ble_gatt_svc_def *svc;
-        const struct ble_gatt_chr_def *chr;
-    } chr_reg;
+        const struct ble_gatt_svc_def *svc_def;
+        const struct ble_gatt_chr_def *chr_def;
+    } chr;
 
     struct {
         uint16_t dsc_handle;
-        const struct ble_gatt_dsc_def *dsc;
+        const struct ble_gatt_dsc_def *dsc_def;
         uint16_t chr_def_handle;
-        const struct ble_gatt_chr_def *chr;
-    } dsc_reg;
+        uint16_t chr_val_handle;
+        const struct ble_gatt_chr_def *chr_def;
+    } dsc;
 };
 
 #endif

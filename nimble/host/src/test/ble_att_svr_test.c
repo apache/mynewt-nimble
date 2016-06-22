@@ -1042,8 +1042,8 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
-                                             BLE_ATT_MTU_DFLT - 1);
+    ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
+                                        BLE_ATT_MTU_DFLT - 1);
 
     /*** Read requires encryption. */
     /* Insufficient authentication. */
@@ -1080,8 +1080,8 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
-                                             BLE_ATT_MTU_DFLT - 1);
+    ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
+                                        BLE_ATT_MTU_DFLT - 1);
 }
 
 TEST_CASE(ble_att_svr_test_read_blob)

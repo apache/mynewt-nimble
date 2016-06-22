@@ -58,15 +58,15 @@ ble_gatts_reg_test_misc_reg_cb(uint8_t op, union ble_gatt_register_ctxt *ctxt,
     entry->op = op;
     switch (op) {
     case BLE_GATT_REGISTER_OP_SVC:
-        memcpy(entry->uuid128, ctxt->svc_reg.svc->uuid128, 16);
+        memcpy(entry->uuid128, ctxt->svc.svc_def->uuid128, 16);
         break;
 
     case BLE_GATT_REGISTER_OP_CHR:
-        memcpy(entry->uuid128, ctxt->chr_reg.chr->uuid128, 16);
+        memcpy(entry->uuid128, ctxt->chr.chr_def->uuid128, 16);
         break;
 
     case BLE_GATT_REGISTER_OP_DSC:
-        memcpy(entry->uuid128, ctxt->dsc_reg.dsc->uuid128, 16);
+        memcpy(entry->uuid128, ctxt->dsc.dsc_def->uuid128, 16);
         break;
 
     default:

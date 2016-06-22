@@ -214,14 +214,14 @@ ble_gatts_notify_test_misc_reg_cb(uint8_t op,
     uint16_t uuid16;
 
     if (op == BLE_GATT_REGISTER_OP_CHR) {
-        uuid16 = ble_uuid_128_to_16(ctxt->chr_reg.chr->uuid128);
+        uuid16 = ble_uuid_128_to_16(ctxt->chr.chr_def->uuid128);
         switch (uuid16) {
         case BLE_GATTS_NOTIFY_TEST_CHR_1_UUID:
-            ble_gatts_notify_test_chr_1_def_handle = ctxt->chr_reg.def_handle;
+            ble_gatts_notify_test_chr_1_def_handle = ctxt->chr.def_handle;
             break;
 
         case BLE_GATTS_NOTIFY_TEST_CHR_2_UUID:
-            ble_gatts_notify_test_chr_2_def_handle = ctxt->chr_reg.def_handle;
+            ble_gatts_notify_test_chr_2_def_handle = ctxt->chr.def_handle;
             break;
 
         default:
