@@ -180,6 +180,23 @@ ble_hs_heartbeat_timer_reset(uint32_t ticks)
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
+void
+ble_hs_heartbeat_sched(int32_t ticks_from_now)
+{
+    if (ticks_from_now == BLE_HS_FOREVER) {
+        return;
+    }
+
+    /* Reset heartbeat timer if it is not currently scheduled or if the
+     * specified time is sooner than the current expiration time.
+     */
+    if (!os_callout_queued(&ble_hs_heartbeat_timer.cf_c) ||
+        OS_TIME_TICK_LT(ticks_from_now, ble_hs_heartbeat_timer.cf_c.c_ticks)) {
+
+        ble_hs_heartbeat_timer_reset(ticks_from_now);
+    }
+}
+
 /**
  * Called once a second by the ble_hs heartbeat timer.  Handles unresponsive
  * timeouts and periodic retries in case of resource shortage.
@@ -187,24 +204,26 @@ ble_hs_heartbeat_timer_reset(uint32_t ticks)
 static void
 ble_hs_heartbeat(void *unused)
 {
-    uint32_t lcl_ticks_until_next;
-    uint32_t ticks_until_next;
+    int32_t ticks_until_next;
 
+    /* Ensure the timer expires at least once in the next second.
+     * XXX: This is not very power efficient.  We will need separate timers for
+     * each module.
+     */
     ticks_until_next = BLE_HS_HEARTBEAT_OS_TICKS;
+    ble_hs_heartbeat_sched(ticks_until_next);
 
-    lcl_ticks_until_next = ble_gattc_heartbeat();
-    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+    ticks_until_next = ble_gattc_heartbeat();
+    ble_hs_heartbeat_sched(ticks_until_next);
 
-    lcl_ticks_until_next = ble_gap_heartbeat();
-    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+    ticks_until_next = ble_gap_heartbeat();
+    ble_hs_heartbeat_sched(ticks_until_next);
 
-    lcl_ticks_until_next = ble_l2cap_sig_heartbeat();
-    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
+    ticks_until_next = ble_l2cap_sig_heartbeat();
+    ble_hs_heartbeat_sched(ticks_until_next);
 
-    lcl_ticks_until_next = ble_sm_heartbeat();
-    ticks_until_next = min(ticks_until_next, lcl_ticks_until_next);
-
-    ble_hs_heartbeat_timer_reset(ticks_until_next);
+    ticks_until_next = ble_sm_heartbeat();
+    ble_hs_heartbeat_sched(ticks_until_next);
 }
 
 static void

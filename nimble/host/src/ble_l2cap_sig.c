@@ -582,7 +582,7 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
  *                                  be called again; currently always
  *                                  UINT32_MAX.
  */
-uint32_t
+int32_t
 ble_l2cap_sig_heartbeat(void)
 {
     struct ble_l2cap_sig_proc_list temp_list;
@@ -599,7 +599,7 @@ ble_l2cap_sig_heartbeat(void)
         ble_gap_terminate(proc->conn_handle);
     }
 
-    return UINT32_MAX;
+    return BLE_HS_FOREVER;
 }
 
 int

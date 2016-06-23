@@ -32,6 +32,8 @@
 struct os_eventq;
 struct os_event;
 
+#define BLE_HS_FOREVER              INT32_MAX
+
 #define BLE_HS_CONN_HANDLE_NONE     0xffff
 
 #define BLE_HS_EAGAIN               1

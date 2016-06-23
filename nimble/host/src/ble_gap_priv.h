@@ -86,7 +86,7 @@ void ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
 int ble_gap_master_in_progress(void);
 int ble_gap_slave_in_progress(void);
 
-uint32_t ble_gap_heartbeat(void);
+int32_t ble_gap_heartbeat(void);
 
 int ble_gap_init(void);
 

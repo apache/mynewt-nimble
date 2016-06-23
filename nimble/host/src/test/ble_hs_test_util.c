@@ -552,7 +552,7 @@ ble_hs_test_util_adv_start(uint8_t own_addr_type,
     ble_hs_test_util_set_ack_seq(acks);
     
     rc = ble_gap_adv_start(own_addr_type, peer_addr_type, peer_addr, 
-                           adv_params, cb, cb_arg);
+                           BLE_HS_FOREVER, adv_params, cb, cb_arg);
 
     return rc;
 }
