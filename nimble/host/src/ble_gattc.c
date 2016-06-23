@@ -854,7 +854,7 @@ ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
  *                                  be called again; currently always
  *                                  UINT32_MAX.
  */
-uint32_t
+int32_t
 ble_gattc_heartbeat(void)
 {
     struct ble_gattc_proc_list exp_list;
@@ -875,7 +875,7 @@ ble_gattc_heartbeat(void)
         ble_gattc_proc_free(proc);
     }
 
-    return UINT32_MAX;
+    return BLE_HS_FOREVER;
 }
 
 /**

@@ -130,7 +130,7 @@ void ble_gattc_rx_find_info_idata(uint16_t conn_handle,
 void ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status);
 void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
-uint32_t ble_gattc_heartbeat(void);
+int32_t ble_gattc_heartbeat(void);
 
 int ble_gattc_any_jobs(void);
 int ble_gattc_init(void);

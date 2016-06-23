@@ -117,6 +117,9 @@ static bssnz_t struct {
 static bssnz_t struct {
     uint8_t op;
 
+    unsigned exp_set:1;
+    os_time_t exp_os_ticks;
+
     uint8_t conn_mode;
     uint8_t disc_mode;
     unsigned our_addr_type:2;
@@ -132,6 +135,7 @@ static bssnz_t struct {
 } ble_gap_slave;
 
 static int ble_gap_disc_tx_disable(void);
+static int ble_gap_adv_disable_tx(void);
 
 struct ble_gap_snapshot {
     struct ble_gap_conn_desc desc;
@@ -375,40 +379,17 @@ ble_gap_call_event_cb(int event, struct ble_gap_conn_ctxt *ctxt,
 }
 
 static void
-ble_gap_slave_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg)
-{
-    ble_hs_lock();
-
-    *out_cb = ble_gap_slave.cb;
-    *out_cb_arg = ble_gap_slave.cb_arg;
-    ble_gap_slave.op = BLE_GAP_OP_NULL;
-
-    ble_hs_unlock();
-}
-
-static void
-ble_gap_adv_finished(int event)
-{
-    struct ble_gap_conn_ctxt ctxt;
-    struct ble_gap_conn_desc desc;
-    ble_gap_event_fn *cb;
-    void *cb_arg;
-
-    ble_gap_slave_extract_cb(&cb, &cb_arg);
-    if (cb != NULL) {
-        memset(&ctxt, 0, sizeof ctxt);
-        desc.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-        ctxt.desc = &desc;
-
-        cb(event, &ctxt, cb_arg);
-    }
-}
-
-static void
 ble_gap_master_reset_state(void)
 {
     ble_gap_master.op = BLE_GAP_OP_NULL;
     ble_gap_master.exp_set = 0;
+}
+
+static void
+ble_gap_slave_reset_state(void)
+{
+    ble_gap_slave.op = BLE_GAP_OP_NULL;
+    ble_gap_slave.exp_set = 0;
 }
 
 static void
@@ -421,6 +402,36 @@ ble_gap_master_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg)
     ble_gap_master_reset_state();
 
     ble_hs_unlock();
+}
+
+static void
+ble_gap_slave_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg)
+{
+    ble_hs_lock();
+
+    *out_cb = ble_gap_slave.cb;
+    *out_cb_arg = ble_gap_slave.cb_arg;
+    ble_gap_slave_reset_state();
+
+    ble_hs_unlock();
+}
+
+static void
+ble_gap_adv_finished(void)
+{
+    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_conn_desc desc;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+
+    ble_gap_slave_extract_cb(&cb, &cb_arg);
+    if (cb != NULL) {
+        memset(&ctxt, 0, sizeof ctxt);
+        desc.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        ctxt.desc = &desc;
+
+        cb(BLE_GAP_EVENT_ADV_COMPLETE, &ctxt, cb_arg);
+    }
 }
 
 static int
@@ -528,11 +539,76 @@ ble_gap_update_notify(uint16_t conn_handle, int status)
                           snap.cb, snap.cb_arg);
 }
 
+static uint32_t
+ble_gap_master_ticks_until_exp(void)
+{
+    int32_t ticks;
+
+    if (ble_gap_master.op == BLE_GAP_OP_NULL || !ble_gap_master.exp_set) {
+        /* Timer not set; infinity ticks until next event. */
+        return BLE_HS_FOREVER;
+    }
+
+    ticks = ble_gap_master.exp_os_ticks - os_time_get();
+    if (ticks > 0) {
+        /* Timer not expired yet. */
+        return ticks;
+    }
+
+    /* Timer just expired. */
+    return 0;
+}
+
+static uint32_t
+ble_gap_slave_ticks_until_exp(void)
+{
+    int32_t ticks;
+
+    if (ble_gap_slave.op == BLE_GAP_OP_NULL || !ble_gap_slave.exp_set) {
+        /* Timer not set; infinity ticks until next event. */
+        return BLE_HS_FOREVER;
+    }
+
+    ticks = ble_gap_slave.exp_os_ticks - os_time_get();
+    if (ticks > 0) {
+        /* Timer not expired yet. */
+        return ticks;
+    }
+
+    /* Timer just expired. */
+    return 0;
+}
+
+static void
+ble_gap_heartbeat_sched(void)
+{
+    int32_t mst_ticks;
+    int32_t slv_ticks;
+    int32_t ticks;
+
+    mst_ticks = ble_gap_master_ticks_until_exp();
+    slv_ticks = ble_gap_slave_ticks_until_exp();
+    ticks = min(mst_ticks, slv_ticks);
+
+    ble_hs_heartbeat_sched(ticks);
+}
+
 static void
 ble_gap_master_set_timer(uint32_t ticks_from_now)
 {
     ble_gap_master.exp_os_ticks = os_time_get() + ticks_from_now;
     ble_gap_master.exp_set = 1;
+
+    ble_gap_heartbeat_sched();
+}
+
+static void
+ble_gap_slave_set_timer(uint32_t ticks_from_now)
+{
+    ble_gap_slave.exp_os_ticks = os_time_get() + ticks_from_now;
+    ble_gap_slave.exp_set = 1;
+
+    ble_gap_heartbeat_sched();
 }
 
 /**
@@ -574,7 +650,7 @@ ble_gap_conn_broken(struct ble_gap_snapshot *snap, int reason)
     struct ble_gap_conn_ctxt ctxt;
 
     /* XXX: Consider removing the connection from the list and handing it to
-     * each fo the "connection_broken" functions below.
+     * each of the "connection_broken" functions below.
      */
 
     ble_sm_connection_broken(snap->desc.conn_handle);
@@ -852,7 +928,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         switch (evt->status) {
         case BLE_ERR_DIR_ADV_TMO:
             if (ble_gap_slave_in_progress()) {
-                ble_gap_adv_finished(BLE_GAP_EVENT_ADV_COMPLETE);
+                ble_gap_adv_finished();
             }
             break;
 
@@ -913,7 +989,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         conn->bhc_cb = ble_gap_slave.cb;
         conn->bhc_cb_arg = ble_gap_slave.cb_arg;
         conn->our_addr_type = ble_gap_slave.our_addr_type;
-        ble_gap_slave.op = BLE_GAP_OP_NULL;
+        ble_gap_slave_reset_state();
     }
 
     memcpy(conn->our_rpa_addr, evt->local_rpa, 6);
@@ -956,36 +1032,8 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
     return rc;
 }
 
-static uint32_t
-ble_gap_master_ticks_until_exp(void)
-{
-    int32_t ticks;
-
-    if (ble_gap_master.op == BLE_GAP_OP_NULL || !ble_gap_master.exp_set) {
-        /* Timer not set; infinity ticks until next event. */
-        return UINT32_MAX;
-    }
-
-    ticks = ble_gap_master.exp_os_ticks - os_time_get();
-    if (ticks > 0) {
-        /* Timer not expired yet. */
-        return ticks;
-    }
-
-    /* Timer just expired. */
-    return 0;
-}
-
-/**
- * Handles timed-out master procedures.
- *
- * Called by the heartbeat timer; executed at least once a second.
- *
- * @return                      The number of ticks until this function should
- *                                  be called again.
- */
-uint32_t
-ble_gap_heartbeat(void)
+static int32_t
+ble_gap_master_heartbeat(void)
 {
     uint32_t ticks_until_exp;
     int rc;
@@ -998,13 +1046,15 @@ ble_gap_heartbeat(void)
 
     /*** Timer expired; process event. */
 
-    /* Clear the timer. */
-    ble_gap_master.exp_set = 0;
-
     switch (ble_gap_master.op) {
     case BLE_GAP_OP_M_DISC:
         /* When a discovery procedure times out, it is not a failure. */
         rc = ble_gap_disc_tx_disable();
+        if (rc != 0) {
+            /* Failed to stop discovery; try again in 100 ms. */
+            return 100;
+        }
+
         ble_gap_call_master_disc_cb(BLE_GAP_EVENT_DISC_COMPLETE, rc,
                                     NULL, NULL, 1);
         break;
@@ -1014,7 +1064,60 @@ ble_gap_heartbeat(void)
         break;
     }
 
-    return UINT32_MAX;
+    /* Clear the timer and cancel the current procedure. */
+    ble_gap_master_reset_state();
+
+    return BLE_HS_FOREVER;
+}
+
+static int32_t
+ble_gap_slave_heartbeat(void)
+{
+    uint32_t ticks_until_exp;
+    int rc;
+
+    ticks_until_exp = ble_gap_slave_ticks_until_exp();
+    if (ticks_until_exp != 0) {
+        /* Timer not expired yet. */
+        return ticks_until_exp;
+    }
+
+    /*** Timer expired; process event. */
+
+    /* Stop advertising. */
+    rc = ble_gap_adv_disable_tx();
+    if (rc != 0) {
+        /* Failed to stop advertising; try again in 100 ms. */
+        return 100;
+    }
+
+    /* Clear the timer and cancel the current procedure. */
+    ble_gap_slave_reset_state();
+
+    /* Indicate to application that advertising has stopped. */
+    ble_gap_adv_finished();
+
+    return BLE_HS_FOREVER;
+}
+
+/**
+ * Handles timed-out master procedures.
+ *
+ * Called by the heartbeat timer; executed at least once a second.
+ *
+ * @return                      The number of ticks until this function should
+ *                                  be called again.
+ */
+int32_t
+ble_gap_heartbeat(void)
+{
+    int32_t master_ticks;
+    int32_t slave_ticks;
+
+    master_ticks = ble_gap_master_heartbeat();
+    slave_ticks = ble_gap_slave_heartbeat();
+
+    return min(master_ticks, slave_ticks);
 }
 
 /*****************************************************************************
@@ -1168,7 +1271,7 @@ ble_gap_adv_stop(void)
         goto err;
     }
 
-    ble_gap_slave.op = BLE_GAP_OP_NULL;
+    ble_gap_slave_reset_state();
 
     return 0;
 
@@ -1467,7 +1570,7 @@ ble_gap_adv_validate(uint8_t own_addr_type, uint8_t peer_addr_type,
  */
 int
 ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
-                  const uint8_t *peer_addr,
+                  const uint8_t *peer_addr, int32_t duration_ms,
                   const struct ble_gap_adv_params *adv_params,
                   ble_gap_event_fn *cb, void *cb_arg)
 {
@@ -1475,6 +1578,7 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
     return BLE_HS_ENOTSUP;
 #endif
 
+    uint32_t duration_ticks;
     int rc;
 
     ble_hs_lock();
@@ -1485,6 +1589,15 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
                               adv_params);
     if (rc != 0) {
         goto done;
+    }
+
+    if (duration_ms != BLE_HS_FOREVER) {
+        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        if (rc != 0) {
+            /* Duration too great. */
+            rc = BLE_HS_EINVAL;
+            goto done;
+        }
     }
 
     if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
@@ -1522,6 +1635,10 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
     rc = ble_gap_adv_enable_tx();
     if (rc != 0) {
         goto done;
+    }
+
+    if (duration_ms != BLE_HS_FOREVER) {
+        ble_gap_slave_set_timer(duration_ticks);
     }
 
     ble_gap_slave.op = BLE_GAP_OP_S_ADV;

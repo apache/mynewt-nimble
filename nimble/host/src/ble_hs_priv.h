@@ -92,6 +92,7 @@ int ble_hs_locked_by_cur_task(void);
 int ble_hs_is_parent_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
+void ble_hs_heartbeat_sched(int32_t ticks);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 

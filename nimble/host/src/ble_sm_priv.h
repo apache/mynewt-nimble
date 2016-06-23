@@ -452,7 +452,7 @@ int ble_sm_ia_ra(struct ble_sm_proc *proc,
                  uint8_t *out_iat, uint8_t *out_ia,
                  uint8_t *out_rat, uint8_t *out_ra);
 
-uint32_t ble_sm_heartbeat(void);
+int32_t ble_sm_heartbeat(void);
 void ble_sm_connection_broken(uint16_t conn_handle);
 int ble_sm_pair_initiate(uint16_t conn_handle);
 int ble_sm_slave_initiate(uint16_t conn_handle);
@@ -471,7 +471,7 @@ int ble_sm_init(void);
 #define ble_sm_ltk_req_rx(evt) ((void)(evt))
 #define ble_sm_enc_key_refresh_rx(evt) ((void)(evt))
 
-#define ble_sm_heartbeat() UINT32_MAX
+#define ble_sm_heartbeat() BLE_HS_FOREVER
 #define ble_sm_connection_broken(conn_handle)
 #define ble_sm_pair_initiate(conn_handle)   BLE_HS_ENOTSUP
 #define ble_sm_slave_initiate(conn_handle)  BLE_HS_ENOTSUP

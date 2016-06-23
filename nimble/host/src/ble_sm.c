@@ -2044,7 +2044,7 @@ ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
  *                                  be called again; currently always
  *                                  UINT32_MAX.
  */
-uint32_t
+int32_t
 ble_sm_heartbeat(void)
 {
     struct ble_sm_proc_list exp_list;
@@ -2067,7 +2067,7 @@ ble_sm_heartbeat(void)
         ble_sm_proc_free(proc);
     }
 
-    return UINT32_MAX;
+    return BLE_HS_FOREVER;
 }
 
 /**
