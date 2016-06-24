@@ -1612,10 +1612,6 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
         }
     }
 
-    if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        ble_hs_pvcy_set_our_nrpa();
-    }
-
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
     ble_gap_log_adv(own_addr_type, peer_addr_type, peer_addr, adv_params);
     BLE_HS_LOG(INFO, "\n");
@@ -1915,10 +1911,6 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
             rc = BLE_HS_EINVAL;
             goto done;
         }
-    }
-
-    if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        ble_hs_pvcy_set_our_nrpa();
     }
 
     ble_gap_master.disc.limited = params.limited;
