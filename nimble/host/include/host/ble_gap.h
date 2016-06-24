@@ -43,6 +43,9 @@ struct hci_conn_update;
 /** 60 ms; active scanning. */
 #define BLE_GAP_SCAN_FAST_INTERVAL_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
 
+/** 11.25 seconds; limited discovery interval. */
+#define BLE_GAP_LIM_DISC_SCAN_INT           (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
+
 /** 30 ms; active scanning. */
 #define BLE_GAP_SCAN_FAST_WINDOW            (30 * 1000 / BLE_HCI_SCAN_ITVL)
 
@@ -56,7 +59,7 @@ struct hci_conn_update;
 #define BLE_GAP_SCAN_SLOW_WINDOW1           (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
 
 /** 10.24 seconds. */
-#define BLE_GAP_GEN_DISC_SCAN_MIN           (10.24 * 1000)
+#define BLE_GAP_DISC_DUR_DFLT               (10.24 * 1000)
 
 /** 1 second. */
 #define BLE_GAP_CONN_PAUSE_CENTRAL          (1 * 1000)
@@ -164,6 +167,15 @@ struct ble_gap_conn_params {
     uint16_t max_ce_len;
 };
 
+struct ble_gap_disc_params {
+    uint16_t itvl;
+    uint16_t window;
+    uint8_t filter_policy;
+    uint8_t limited:1;
+    uint8_t passive:1;
+    uint8_t filter_duplicates:1;
+};
+
 struct ble_gap_upd_params {
     uint16_t itvl_min;
     uint16_t itvl_max;
@@ -269,10 +281,9 @@ int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
 int ble_gap_adv_stop(void);
 int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
 int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
-int ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
-                      uint8_t scan_type, uint8_t filter_policy,
-                      uint8_t addr_mode,
-                      ble_gap_disc_fn *cb, void *cb_arg);
+int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
+                 const struct ble_gap_disc_params *disc_params,
+                 ble_gap_disc_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
 int ble_gap_connect(uint8_t own_addr_type,
                     uint8_t peer_addr_type, const uint8_t *peer_addr,

@@ -90,7 +90,7 @@ static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
 static bssnz_t struct {
     uint8_t op;
 
-    unsigned exp_set:1;
+    uint8_t exp_set:1;
     os_time_t exp_os_ticks;
 
     union {
@@ -98,12 +98,12 @@ static bssnz_t struct {
             ble_gap_event_fn *cb;
             void *cb_arg;
 
-            unsigned using_wl:1;
-            unsigned our_addr_type:2;
+            uint8_t using_wl:1;
+            uint8_t our_addr_type:2;
         } conn;
 
         struct {
-            uint8_t disc_mode;
+            uint8_t limited:1;
             ble_gap_disc_fn *cb;
             void *cb_arg;
         } disc;
@@ -181,6 +181,16 @@ STATS_NAME_END(ble_gap_stats)
  *****************************************************************************/
 
 static void
+ble_gap_log_duration(int32_t duration_ms)
+{
+    if (duration_ms == BLE_HS_FOREVER) {
+        BLE_HS_LOG(INFO, "duration=forever");
+    } else {
+        BLE_HS_LOG(INFO, "duration=%dms", duration_ms);
+    }
+}
+
+static void
 ble_gap_log_conn(uint8_t own_addr_type,
                  uint8_t peer_addr_type, const uint8_t *peer_addr,
                  const struct ble_gap_conn_params *params)
@@ -201,11 +211,13 @@ ble_gap_log_conn(uint8_t own_addr_type,
 }
 
 static void
-ble_gap_log_disc(uint8_t scan_type, uint8_t filter_policy, uint8_t addr_mode)
+ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
+                 const struct ble_gap_disc_params *disc_params)
 {
-    BLE_HS_LOG(INFO, "disc_mode=%d filter_policy=%d scan_type=%d addr_node %d",
-               ble_gap_master.disc.disc_mode,
-               filter_policy, scan_type, addr_mode);
+    BLE_HS_LOG(INFO, "own_addr_type=%d filter_policy=%d passive=%d limited=%d",
+               own_addr_type, disc_params->filter_policy, disc_params->passive,
+               disc_params->limited);
+    ble_gap_log_duration(duration_ms);
 }
 
 static void
@@ -879,7 +891,7 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
         return;
     }
 
-    if (ble_gap_master.disc.disc_mode == BLE_GAP_DISC_MODE_LTD &&
+    if (ble_gap_master.disc.limited &&
         !(fields.flags & BLE_HS_ADV_F_DISC_LTD)) {
 
         return;
@@ -1750,19 +1762,25 @@ ble_gap_disc_tx_enable(void)
 }
 
 static int
-ble_gap_disc_tx_params(uint8_t scan_type, uint8_t filter_policy,
-                       uint8_t addr_mode)
+ble_gap_disc_tx_params(uint8_t own_addr_type,
+                       const struct ble_gap_disc_params *disc_params)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN];
+    uint8_t scan_type;
     int rc;
 
-    rc = host_hci_cmd_build_le_set_scan_params(
-        scan_type,
-        BLE_GAP_SCAN_FAST_INTERVAL_MIN,
-        BLE_GAP_SCAN_FAST_WINDOW,
-        addr_mode,
-        filter_policy,
-        buf, sizeof buf);
+    if (disc_params->passive) {
+        scan_type = BLE_HCI_SCAN_TYPE_PASSIVE;
+    } else {
+        scan_type = BLE_HCI_SCAN_TYPE_ACTIVE;
+    }
+
+    rc = host_hci_cmd_build_le_set_scan_params(scan_type,
+                                               disc_params->itvl,
+                                               disc_params->window,
+                                               own_addr_type,
+                                               disc_params->filter_policy,
+                                               buf, sizeof buf);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     rc = ble_hci_cmd_tx_empty_ack(buf);
@@ -1813,6 +1831,45 @@ done:
     return rc;
 }
 
+static void
+ble_gap_disc_fill_dflts(struct ble_gap_disc_params *disc_params)
+{
+   if (disc_params->itvl == 0) {
+        if (disc_params->limited) {
+            disc_params->itvl = BLE_GAP_LIM_DISC_SCAN_INT;
+        } else {
+            disc_params->itvl = BLE_GAP_SCAN_SLOW_INTERVAL1;
+        }
+    }
+
+    if (disc_params->window == 0) {
+        disc_params->window = BLE_GAP_SCAN_SLOW_WINDOW1;
+    }
+}
+
+static int
+ble_gap_disc_validate(uint8_t own_addr_type, 
+                      const struct ble_gap_disc_params *disc_params)
+{
+    if (disc_params == NULL) {
+        return BLE_HS_EINVAL;
+    }
+
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        return BLE_HS_EINVAL;
+    }
+
+    if (disc_params->filter_policy > BLE_HCI_SCAN_FILT_MAX) {
+        return BLE_HS_EINVAL;
+    }
+
+    if (ble_gap_master.op != BLE_GAP_OP_NULL) {
+        return BLE_HS_EALREADY;
+    }
+
+    return 0;
+}
+
 /**
  * Performs the Limited or General Discovery Procedures, as described in
  * vol. 3, part C, section 9.2.5 / 9.2.6.
@@ -1820,77 +1877,59 @@ done:
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
-             uint8_t scan_type, uint8_t filter_policy, uint8_t addr_mode,
+ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
+             const struct ble_gap_disc_params *in_disc_params,
              ble_gap_disc_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(ROLE_OBSERVER)
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_gap_disc_params params;
     uint32_t duration_ticks;
     int rc;
 
-    ble_hs_lock();
-
-    if (ble_gap_master.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EALREADY;
-        goto done;
-    }
-
     STATS_INC(ble_gap_stats, discover);
 
-    if (discovery_mode != BLE_GAP_DISC_MODE_LTD &&
-        discovery_mode != BLE_GAP_DISC_MODE_GEN) {
+    ble_hs_lock();
 
-        rc = BLE_HS_EINVAL;
-        goto done;
-    }
+    /* Make a copy of the parameter strcuture and fill unspecified values with
+     * defaults.
+     */
+    params = *in_disc_params;
+    ble_gap_disc_fill_dflts(&params);
 
-    if (scan_type != BLE_HCI_SCAN_TYPE_PASSIVE &&
-        scan_type != BLE_HCI_SCAN_TYPE_ACTIVE) {
-
-        rc = BLE_HS_EINVAL;
-        goto done;
-    }
-
-    if((addr_mode != BLE_HCI_ADV_OWN_ADDR_PUBLIC) &&
-       (addr_mode != BLE_HCI_ADV_OWN_ADDR_RANDOM) &&
-       (addr_mode != BLE_HCI_ADV_OWN_ADDR_PRIV_PUB) &&
-       (addr_mode != BLE_HCI_ADV_OWN_ADDR_PRIV_RAND)) {
-          rc = BLE_HS_EINVAL;
-          goto done;
-      }
-
-    if (filter_policy > BLE_HCI_SCAN_FILT_MAX) {
-        rc = BLE_HS_EINVAL;
+    rc = ble_gap_disc_validate(own_addr_type, &params);
+    if (rc != 0) {
         goto done;
     }
 
     if (duration_ms == 0) {
-        duration_ms = BLE_GAP_GEN_DISC_SCAN_MIN;
+        duration_ms = BLE_GAP_DISC_DUR_DFLT;
     }
 
-    rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
-    if (rc != 0) {
-        /* Duration too great. */
-        rc = BLE_HS_EINVAL;
-        goto done;
+    if (duration_ms != BLE_HS_FOREVER) {
+        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        if (rc != 0) {
+            /* Duration too great. */
+            rc = BLE_HS_EINVAL;
+            goto done;
+        }
     }
 
-    ble_gap_master.disc.disc_mode = discovery_mode;
+    if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        ble_hs_pvcy_set_our_nrpa();
+    }
+
+    ble_gap_master.disc.limited = params.limited;
     ble_gap_master.disc.cb = cb;
     ble_gap_master.disc.cb_arg = cb_arg;
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: discovery; ");
-    ble_gap_log_disc(scan_type, filter_policy, addr_mode);
+    ble_gap_log_disc(own_addr_type, duration_ms, &params);
     BLE_HS_LOG(INFO, "\n");
 
-    if (addr_mode == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        ble_hs_pvcy_set_our_nrpa();
-    }
-
-    rc = ble_gap_disc_tx_params(scan_type, filter_policy, addr_mode);
+    rc = ble_gap_disc_tx_params(own_addr_type, &params);
     if (rc != 0) {
         goto done;
     }
@@ -1900,17 +1939,20 @@ ble_gap_disc(uint32_t duration_ms, uint8_t discovery_mode,
         goto done;
     }
 
-    ble_gap_master_set_timer(duration_ticks);
+    if (duration_ms != BLE_HS_FOREVER) {
+        ble_gap_master_set_timer(duration_ticks);
+    }
+
     ble_gap_master.op = BLE_GAP_OP_M_DISC;
 
     rc = 0;
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, discover_fail);
     }
-
-    ble_hs_unlock();
 
     return rc;
 }
