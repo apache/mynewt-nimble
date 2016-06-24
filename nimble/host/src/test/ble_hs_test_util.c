@@ -437,8 +437,8 @@ ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx, uint8_t fail_status)
 }
 
 int
-ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
-                      uint8_t scan_type, uint8_t filter_policy,
+ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
+                      const struct ble_gap_disc_params *disc_params,
                       ble_gap_disc_fn *cb, void *cb_arg, int fail_idx,
                       uint8_t fail_status)
 {
@@ -457,9 +457,22 @@ ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
         { 0 }
     }));
 
-    rc = ble_gap_disc(duration_ms, discovery_mode, scan_type, filter_policy, 
-                      BLE_ADDR_TYPE_PUBLIC,
+    rc = ble_gap_disc(own_addr_type, duration_ms, disc_params,
                       cb, cb_arg);
+    return rc;
+}
+
+int
+ble_hs_test_util_disc_cancel(uint8_t ack_status)
+{
+    int rc;
+
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+        ack_status);
+
+    rc = ble_gap_disc_cancel();
     return rc;
 }
 

@@ -26,13 +26,8 @@
 #include "host/ble_gap.h"
 #include "ble_hs_test_util.h"
 
-#ifdef ARCH_sim
-#define BLE_OS_TEST_STACK_SIZE      1024
-#define BLE_OS_TEST_APP_STACK_SIZE  1024
-#else
 #define BLE_OS_TEST_STACK_SIZE      256
 #define BLE_OS_TEST_APP_STACK_SIZE  256
-#endif
 
 #define BLE_OS_TEST_APP_PRIO         9
 #define BLE_OS_TEST_TASK_PRIO        10
@@ -185,6 +180,7 @@ ble_gap_gen_disc_test_connect_cb(int event, int status,
 static void
 ble_gap_gen_disc_test_task_handler(void *arg)
 {
+    struct ble_gap_disc_params disc_params;
     int cb_called;
     int rc;
 
@@ -204,10 +200,9 @@ ble_gap_gen_disc_test_task_handler(void *arg)
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!ble_gap_master_in_progress());
 
-    /* Initiate the general discovery procedure with a 200 ms timeout. */
-    rc = ble_hs_test_util_disc(300, BLE_GAP_DISC_MODE_GEN,
-                               BLE_HCI_SCAN_TYPE_ACTIVE,
-                               BLE_HCI_SCAN_FILT_NO_WL,
+    /* Initiate the general discovery procedure with a 300 ms timeout. */
+    memset(&disc_params, 0, sizeof disc_params);
+    rc = ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC, 300, &disc_params,
                                ble_gap_gen_disc_test_connect_cb,
                                &cb_called, 0, 0);
     TEST_ASSERT(rc == 0);

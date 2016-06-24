@@ -165,7 +165,9 @@ ble_gap_test_util_verify_tx_add_wl(struct ble_gap_white_entry *entry)
 }
 
 static void
-ble_gap_test_util_verify_tx_set_scan_params(uint16_t itvl,
+ble_gap_test_util_verify_tx_set_scan_params(uint8_t own_addr_type,
+                                            uint8_t scan_type,
+                                            uint16_t itvl,
                                             uint16_t scan_window,
                                             uint8_t filter_policy)
 {
@@ -176,15 +178,16 @@ ble_gap_test_util_verify_tx_set_scan_params(uint16_t itvl,
                                            BLE_HCI_OCF_LE_SET_SCAN_PARAMS,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_SCAN_PARAM_LEN);
-    TEST_ASSERT(param[0] == BLE_HCI_SCAN_TYPE_ACTIVE);
+    TEST_ASSERT(param[0] == scan_type);
     TEST_ASSERT(le16toh(param + 1) == itvl);
     TEST_ASSERT(le16toh(param + 3) == scan_window);
-    TEST_ASSERT(param[5] == BLE_HCI_ADV_OWN_ADDR_PUBLIC);
+    TEST_ASSERT(param[5] == own_addr_type);
     TEST_ASSERT(param[6] == filter_policy);
 }
 
 static void
-ble_gap_test_util_verify_tx_scan_enable(uint8_t enable)
+ble_gap_test_util_verify_tx_scan_enable(uint8_t enable,
+                                        uint8_t filter_duplicates)
 {
     uint8_t param_len;
     uint8_t *param;
@@ -194,6 +197,7 @@ ble_gap_test_util_verify_tx_scan_enable(uint8_t enable)
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_SCAN_ENABLE_LEN);
     TEST_ASSERT(param[0] == enable);
+    TEST_ASSERT(param[1] == filter_duplicates);
 }
 
 static void
@@ -506,7 +510,8 @@ TEST_SUITE(ble_gap_test_suite_conn_wl)
  *****************************************************************************/
 
 static int
-ble_gap_test_util_disc(uint8_t disc_mode, uint8_t *peer_addr,
+ble_gap_test_util_disc(uint8_t own_addr_type,
+                       const struct ble_gap_disc_params *disc_params,
                        struct ble_hs_adv *adv, int cmd_fail_idx,
                        uint8_t fail_status)
 {
@@ -515,8 +520,7 @@ ble_gap_test_util_disc(uint8_t disc_mode, uint8_t *peer_addr,
     ble_gap_test_util_init();
 
     /* Begin the discovery procedure. */
-    rc = ble_hs_test_util_disc(0, disc_mode, BLE_HCI_SCAN_TYPE_ACTIVE,
-                               BLE_HCI_SCAN_FILT_NO_WL,
+    rc = ble_hs_test_util_disc(own_addr_type, BLE_HS_FOREVER, disc_params,
                                ble_gap_test_util_disc_cb, NULL, cmd_fail_idx,
                                fail_status);
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
@@ -530,49 +534,63 @@ ble_gap_test_util_disc(uint8_t disc_mode, uint8_t *peer_addr,
     if (cmd_fail_idx > 0) {
         /* Verify tx of set scan parameters command. */
         ble_gap_test_util_verify_tx_set_scan_params(
-            30 * 1000 / BLE_HCI_ADV_ITVL,
-            30 * 1000 / BLE_HCI_SCAN_ITVL,
-            BLE_HCI_SCAN_FILT_NO_WL);
+            own_addr_type,
+            disc_params->passive ?
+                BLE_HCI_SCAN_TYPE_PASSIVE :
+                BLE_HCI_SCAN_TYPE_ACTIVE,
+            disc_params->itvl,
+            disc_params->window,
+            disc_params->filter_policy);
     }
 
     if (cmd_fail_idx > 1) {
         /* Verify tx of scan enable command. */
-        ble_gap_test_util_verify_tx_scan_enable(1);
+        ble_gap_test_util_verify_tx_scan_enable(
+            1, disc_params->filter_duplicates);
     }
 
     return rc;
 }
 
-TEST_CASE(ble_gap_test_case_conn_disc_bad_args)
+TEST_CASE(ble_gap_test_case_disc_bad_args)
 {
+    struct ble_gap_disc_params params;
     int rc;
+
+    params.itvl = 0;
+    params.window = 0;
+    params.filter_policy = BLE_HCI_SCAN_FILT_NO_WL;
+    params.limited = 0;
+    params.passive = 0;
+    params.filter_duplicates = 0;
 
     ble_gap_test_util_init();
 
-    /*** Invalid discovery mode. */
-    rc = ble_gap_disc(0, BLE_GAP_DISC_MODE_NON, BLE_HCI_SCAN_TYPE_ACTIVE,
-                      BLE_HCI_SCAN_FILT_NO_WL, BLE_ADDR_TYPE_PUBLIC,
+    /*** Invalid filter policy. */
+    params.filter_policy = 6;
+    rc = ble_gap_disc(BLE_ADDR_TYPE_PUBLIC, 0, &params,
                       ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Master operation already in progress. */
+    params.filter_policy = BLE_HCI_SCAN_FILT_NO_WL;
     rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
                                   BLE_GAP_ADDR_TYPE_WL, NULL, NULL,
                                   ble_gap_test_util_connect_cb, NULL, 0);
-    rc = ble_gap_disc(0, BLE_GAP_DISC_MODE_GEN, BLE_HCI_SCAN_TYPE_ACTIVE,
-                      BLE_HCI_SCAN_FILT_NO_WL, BLE_ADDR_TYPE_PUBLIC,
+    rc = ble_gap_disc(BLE_ADDR_TYPE_PUBLIC, 0, &params,
                       ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_disc_good)
+TEST_CASE(ble_gap_test_case_disc_good)
 {
     uint8_t adv_data[32];
     uint8_t flags;
+    uint8_t own_addr_type;
+    int passive;
+    int limited;
     int rc;
-    int d;
 
-    uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     struct ble_hs_adv adv = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
@@ -581,6 +599,14 @@ TEST_CASE(ble_gap_test_case_conn_disc_good)
         .addr = { 1, 2, 3, 4, 5, 6 },
         .data = adv_data,
     };
+    struct ble_gap_disc_params disc_params = {
+        .itvl = BLE_GAP_SCAN_SLOW_INTERVAL1,
+        .window = BLE_GAP_SCAN_SLOW_WINDOW1,
+        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
+        .limited = 0,
+        .passive = 0,
+        .filter_duplicates = 0,
+    };
 
     flags = BLE_HS_ADV_F_DISC_LTD;
     rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
@@ -588,15 +614,22 @@ TEST_CASE(ble_gap_test_case_conn_disc_good)
                              sizeof adv_data);
     TEST_ASSERT_FATAL(rc == 0);
 
-    for (d = BLE_GAP_DISC_MODE_LTD; d < BLE_GAP_DISC_MODE_MAX; d++) {
-        ble_gap_test_util_disc(d, peer_addr, &adv, -1, 0);
+    for (own_addr_type = 0;
+         own_addr_type <= BLE_ADDR_TYPE_RPA_RND_DEFAULT;
+         own_addr_type++)
+    for (passive = 0; passive <= 1; passive++)
+    for (limited = 0; limited <= 1; limited++) {
+        disc_params.passive = passive;
+        disc_params.limited = limited;
+        ble_gap_test_util_disc(own_addr_type, &disc_params, &adv, -1, 0);
 
         TEST_ASSERT(ble_gap_master_in_progress());
         TEST_ASSERT(ble_gap_test_disc_event == BLE_GAP_EVENT_DISC_SUCCESS);
         TEST_ASSERT(ble_gap_test_disc_status == 0);
         TEST_ASSERT(ble_gap_test_disc_desc.event_type ==
                     BLE_HCI_ADV_TYPE_ADV_IND);
-        TEST_ASSERT(ble_gap_test_disc_desc.addr_type == BLE_ADDR_TYPE_PUBLIC);
+        TEST_ASSERT(ble_gap_test_disc_desc.addr_type ==
+                    BLE_ADDR_TYPE_PUBLIC);
         TEST_ASSERT(ble_gap_test_disc_desc.length_data == 3);
         TEST_ASSERT(ble_gap_test_disc_desc.rssi == 0);
         TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr, adv.addr, 6) == 0);
@@ -604,32 +637,61 @@ TEST_CASE(ble_gap_test_case_conn_disc_good)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_disc_bad_flags)
+TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
 {
-    uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
     struct ble_hs_adv adv = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
         .length_data = 0,
         .rssi = 0,
         .addr = { 1, 2, 3, 4, 5, 6 },
-        .data = NULL,
+        .data = (uint8_t[BLE_HCI_MAX_ADV_DATA_LEN]){
+            2, 
+            BLE_HS_ADV_TYPE_FLAGS,
+            BLE_HS_ADV_F_DISC_GEN,
+        },
+    };
+    struct ble_gap_disc_params disc_params = {
+        .itvl = BLE_GAP_SCAN_SLOW_INTERVAL1,
+        .window = BLE_GAP_SCAN_SLOW_WINDOW1,
+        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
+        .limited = 1,
+        .passive = 0,
+        .filter_duplicates = 0,
     };
 
-    ble_gap_test_util_disc(BLE_GAP_DISC_MODE_LTD, peer_addr, &adv, -1, 0);
+    rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params, &adv,
+                                -1, 0);
+    TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
 
-    /* Verify that the report was ignored becuase of a mismatched LTD flag. */
+    /* Verify that the report was ignored because of a mismatched LTD flag. */
     TEST_ASSERT(ble_gap_test_disc_event == -1);
+
+    /* Stop the scan and swap the flags. */
+    rc = ble_hs_test_util_disc_cancel(0);
+    TEST_ASSERT(rc == 0);
+
+    adv.data[2] = BLE_HS_ADV_F_DISC_LTD;
+    disc_params.limited = 0;
+    rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params, &adv,
+                                -1, 0);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(ble_gap_master_in_progress());
+
+    /* This time we should have reported the advertisement; general discovery
+     * hears everything.
+     */
+    TEST_ASSERT(ble_gap_test_disc_event == BLE_GAP_EVENT_DISC_SUCCESS);
 }
 
-TEST_CASE(ble_gap_test_case_conn_disc_hci_fail)
+TEST_CASE(ble_gap_test_case_disc_hci_fail)
 {
     int fail_idx;
+    int limited;
     int rc;
-    int d;
 
-    uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     struct ble_hs_adv adv = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
@@ -638,23 +700,71 @@ TEST_CASE(ble_gap_test_case_conn_disc_hci_fail)
         .addr = { 1, 2, 3, 4, 5, 6 },
         .data = NULL,
     };
+    struct ble_gap_disc_params disc_params = {
+        .itvl = BLE_GAP_SCAN_SLOW_INTERVAL1,
+        .window = BLE_GAP_SCAN_SLOW_WINDOW1,
+        .filter_policy = BLE_HCI_CONN_FILT_NO_WL,
+        .limited = 0,
+        .passive = 0,
+        .filter_duplicates = 0,
+    };
 
-    for (d = BLE_GAP_DISC_MODE_LTD; d < BLE_GAP_DISC_MODE_MAX; d++) {
+    for (limited = 0; limited <= 1; limited++) {
+        disc_params.limited = limited;
+
         for (fail_idx = 0; fail_idx < 2; fail_idx++) {
-            rc = ble_gap_test_util_disc(d, peer_addr, &adv, fail_idx,
-                                        BLE_ERR_UNSUPPORTED);
+            rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params,
+                                        &adv, fail_idx, BLE_ERR_UNSUPPORTED);
             TEST_ASSERT(rc == BLE_HS_HCI_ERR(BLE_ERR_UNSUPPORTED));
             TEST_ASSERT(!ble_gap_master_in_progress());
         }
     }
 }
 
-TEST_SUITE(ble_gap_test_suite_conn_disc)
+static void
+ble_gap_test_util_disc_dflts_once(int limited)
 {
-    ble_gap_test_case_conn_disc_bad_args();
-    ble_gap_test_case_conn_disc_good();
-    ble_gap_test_case_conn_disc_bad_flags();
-    ble_gap_test_case_conn_disc_hci_fail();
+    struct ble_gap_disc_params params;
+    uint16_t exp_itvl;
+    int rc;
+
+    ble_gap_test_util_init();
+
+    memset(&params, 0, sizeof params);
+    params.limited = limited;
+
+    rc = ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC, 0, &params,
+                               ble_gap_test_util_disc_cb, NULL, -1, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    if (limited) {
+        exp_itvl = BLE_GAP_LIM_DISC_SCAN_INT;
+    } else {
+        exp_itvl = BLE_GAP_SCAN_SLOW_INTERVAL1;
+    }
+    ble_gap_test_util_verify_tx_set_scan_params(
+        BLE_ADDR_TYPE_PUBLIC,
+        BLE_HCI_SCAN_TYPE_ACTIVE,
+        exp_itvl,
+        BLE_GAP_SCAN_SLOW_WINDOW1,
+        BLE_HCI_SCAN_FILT_NO_WL);
+
+    ble_gap_test_util_verify_tx_scan_enable(1, 0);
+}
+
+TEST_CASE(ble_gap_test_case_disc_dflts)
+{
+    ble_gap_test_util_disc_dflts_once(0);
+    ble_gap_test_util_disc_dflts_once(1);
+}
+
+TEST_SUITE(ble_gap_test_suite_disc)
+{
+    ble_gap_test_case_disc_bad_args();
+    ble_gap_test_case_disc_good();
+    ble_gap_test_case_disc_ltd_mismatch();
+    ble_gap_test_case_disc_hci_fail();
+    ble_gap_test_case_disc_dflts();
 }
 
 /*****************************************************************************
@@ -1948,7 +2058,7 @@ int
 ble_gap_test_all(void)
 {
     ble_gap_test_suite_conn_wl();
-    ble_gap_test_suite_conn_disc();
+    ble_gap_test_suite_disc();
     ble_gap_test_suite_conn_dir();
     ble_gap_test_suite_conn_cancel();
     ble_gap_test_suite_conn_terminate();
