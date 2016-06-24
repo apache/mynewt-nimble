@@ -263,7 +263,7 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
 struct ble_gap_passkey_action ble_sm_test_ioact;
 
 int
-ble_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt, void *arg)
+ble_sm_test_util_conn_cb(int event, struct ble_gap_event_ctxt *ctxt, void *arg)
 {
     int rc;
 

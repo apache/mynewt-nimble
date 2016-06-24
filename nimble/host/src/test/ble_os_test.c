@@ -92,7 +92,7 @@ ble_os_test_misc_conn_exists(uint16_t conn_handle)
 
 static int
 ble_gap_direct_connect_test_connect_cb(int event,
-                                       struct ble_gap_conn_ctxt *ctxt,
+                                       struct ble_gap_event_ctxt *ctxt,
                                        void *arg)
 {
     int *cb_called;
@@ -248,7 +248,7 @@ TEST_CASE(ble_gap_gen_disc_test_case)
 }
 
 static int
-ble_gap_terminate_cb(int event, struct ble_gap_conn_ctxt *ctxt, void *arg)
+ble_gap_terminate_cb(int event, struct ble_gap_event_ctxt *ctxt, void *arg)
 {
     int *disconn_handle;
 

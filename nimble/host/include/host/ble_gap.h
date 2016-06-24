@@ -202,7 +202,7 @@ struct ble_gap_passkey_action {
     uint32_t numcmp;
 };
 
-struct ble_gap_conn_ctxt {
+struct ble_gap_event_ctxt {
     struct ble_gap_conn_desc *desc;
 
     union {
@@ -245,7 +245,7 @@ struct ble_gap_conn_ctxt {
     };
 };
 
-typedef int ble_gap_event_fn(int event, struct ble_gap_conn_ctxt *ctxt,
+typedef int ble_gap_event_fn(int event, struct ble_gap_event_ctxt *ctxt,
                              void *arg);
 
 struct ble_gap_disc_desc {

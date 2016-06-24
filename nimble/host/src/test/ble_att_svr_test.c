@@ -43,7 +43,7 @@ static int ble_att_svr_test_attr_n_len;
 
 static int
 ble_att_svr_test_misc_gap_cb(int event,
-                             struct ble_gap_conn_ctxt *ctxt, void *arg)
+                             struct ble_gap_event_ctxt *ctxt, void *arg)
 {
     switch (event) {
     case BLE_GAP_EVENT_NOTIFY:
