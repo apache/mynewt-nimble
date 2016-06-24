@@ -22,6 +22,7 @@
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "host/ble_hs_adv.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
@@ -512,7 +513,7 @@ TEST_SUITE(ble_gap_test_suite_conn_wl)
 static int
 ble_gap_test_util_disc(uint8_t own_addr_type,
                        const struct ble_gap_disc_params *disc_params,
-                       struct ble_hs_adv *adv, int cmd_fail_idx,
+                       struct ble_gap_disc_desc *desc, int cmd_fail_idx,
                        uint8_t fail_status)
 {
     int rc;
@@ -526,7 +527,7 @@ ble_gap_test_util_disc(uint8_t own_addr_type,
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
     if (rc == 0) {
         TEST_ASSERT(ble_gap_master_in_progress());
-        ble_gap_rx_adv_report(adv);
+        ble_gap_rx_adv_report(desc);
     } else {
         TEST_ASSERT(ble_gap_test_disc_status == -1);
     }
@@ -591,7 +592,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
     int limited;
     int rc;
 
-    struct ble_hs_adv adv = {
+    struct ble_gap_disc_desc desc = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
         .length_data = 0,
@@ -610,7 +611,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
 
     flags = BLE_HS_ADV_F_DISC_LTD;
     rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
-                             adv.data, &adv.length_data,
+                             desc.data, &desc.length_data,
                              sizeof adv_data);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -621,7 +622,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
     for (limited = 0; limited <= 1; limited++) {
         disc_params.passive = passive;
         disc_params.limited = limited;
-        ble_gap_test_util_disc(own_addr_type, &disc_params, &adv, -1, 0);
+        ble_gap_test_util_disc(own_addr_type, &disc_params, &desc, -1, 0);
 
         TEST_ASSERT(ble_gap_master_in_progress());
         TEST_ASSERT(ble_gap_test_disc_event == BLE_GAP_EVENT_DISC_SUCCESS);
@@ -632,7 +633,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
                     BLE_ADDR_TYPE_PUBLIC);
         TEST_ASSERT(ble_gap_test_disc_desc.length_data == 3);
         TEST_ASSERT(ble_gap_test_disc_desc.rssi == 0);
-        TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr, adv.addr, 6) == 0);
+        TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr, desc.addr, 6) == 0);
         TEST_ASSERT(ble_gap_test_disc_arg == NULL);
     }
 }
@@ -640,7 +641,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
 TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
 {
     int rc;
-    struct ble_hs_adv adv = {
+    struct ble_gap_disc_desc desc = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
         .length_data = 0,
@@ -661,7 +662,7 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
         .filter_duplicates = 0,
     };
 
-    rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params, &adv,
+    rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params, &desc,
                                 -1, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
@@ -673,9 +674,9 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
     rc = ble_hs_test_util_disc_cancel(0);
     TEST_ASSERT(rc == 0);
 
-    adv.data[2] = BLE_HS_ADV_F_DISC_LTD;
+    desc.data[2] = BLE_HS_ADV_F_DISC_LTD;
     disc_params.limited = 0;
-    rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params, &adv,
+    rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params, &desc,
                                 -1, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
@@ -692,7 +693,7 @@ TEST_CASE(ble_gap_test_case_disc_hci_fail)
     int limited;
     int rc;
 
-    struct ble_hs_adv adv = {
+    struct ble_gap_disc_desc desc = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
         .length_data = 0,
@@ -714,7 +715,7 @@ TEST_CASE(ble_gap_test_case_disc_hci_fail)
 
         for (fail_idx = 0; fail_idx < 2; fail_idx++) {
             rc = ble_gap_test_util_disc(BLE_ADDR_TYPE_PUBLIC, &disc_params,
-                                        &adv, fail_idx, BLE_ERR_UNSUPPORTED);
+                                        &desc, fail_idx, BLE_ERR_UNSUPPORTED);
             TEST_ASSERT(rc == BLE_HS_HCI_ERR(BLE_ERR_UNSUPPORTED));
             TEST_ASSERT(!ble_gap_master_in_progress());
         }
@@ -725,6 +726,7 @@ static void
 ble_gap_test_util_disc_dflts_once(int limited)
 {
     struct ble_gap_disc_params params;
+    uint16_t exp_window;
     uint16_t exp_itvl;
     int rc;
 
@@ -739,14 +741,16 @@ ble_gap_test_util_disc_dflts_once(int limited)
 
     if (limited) {
         exp_itvl = BLE_GAP_LIM_DISC_SCAN_INT;
+        exp_window = BLE_GAP_LIM_DISC_SCAN_WINDOW;
     } else {
-        exp_itvl = BLE_GAP_SCAN_SLOW_INTERVAL1;
+        exp_itvl = BLE_GAP_SCAN_FAST_INTERVAL_MIN;
+        exp_window = BLE_GAP_SCAN_FAST_WINDOW;
     }
     ble_gap_test_util_verify_tx_set_scan_params(
         BLE_ADDR_TYPE_PUBLIC,
         BLE_HCI_SCAN_TYPE_ACTIVE,
         exp_itvl,
-        BLE_GAP_SCAN_SLOW_WINDOW1,
+        exp_window,
         BLE_HCI_SCAN_FILT_NO_WL);
 
     ble_gap_test_util_verify_tx_scan_enable(1, 0);

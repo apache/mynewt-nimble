@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include "nimble/ble.h"
+#include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
 static int

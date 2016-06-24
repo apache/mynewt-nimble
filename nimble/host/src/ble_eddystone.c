@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include "host/ble_eddystone.h"
+#include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
 #define BLE_EDDYSTONE_MAX_SVC_DATA_LEN  23
