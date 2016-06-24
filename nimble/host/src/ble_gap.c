@@ -175,6 +175,8 @@ STATS_NAME_START(ble_gap_stats)
     STATS_NAME(ble_gap_stats, rx_conn_complete)
     STATS_NAME(ble_gap_stats, discover_cancel)
     STATS_NAME(ble_gap_stats, discover_cancel_fail)
+    STATS_NAME(ble_gap_stats, security_initiate)
+    STATS_NAME(ble_gap_stats, security_initiate_fail)
 STATS_NAME_END(ble_gap_stats)
 
 /*****************************************************************************
@@ -1190,9 +1192,11 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
 
     STATS_INC(ble_gap_stats, wl_set);
 
+    ble_hs_lock();
+
     if (white_list_count == 0) {
         rc = BLE_HS_EINVAL;
-        goto err;
+        goto done;
     }
 
     for (i = 0; i < white_list_count; i++) {
@@ -1200,13 +1204,13 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
             white_list[i].addr_type != BLE_ADDR_TYPE_RANDOM) {
 
             rc = BLE_HS_EINVAL;
-            goto err;
+            goto done;
         }
     }
 
     if (ble_gap_wl_busy()) {
         rc = BLE_HS_EBUSY;
-        goto err;
+        goto done;
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: set whitelist; ");
@@ -1215,20 +1219,24 @@ ble_gap_wl_set(struct ble_gap_white_entry *white_list,
 
     rc = ble_gap_wl_tx_clear();
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
     for (i = 0; i < white_list_count; i++) {
         rc = ble_gap_wl_tx_add(white_list + i);
         if (rc != 0) {
-            goto err;
+            goto done;
         }
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    STATS_INC(ble_gap_stats, wl_set_fail);
+done:
+    ble_hs_unlock();
+
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, wl_set_fail);
+    }
     return rc;
 }
 
@@ -1262,25 +1270,31 @@ ble_gap_adv_stop(void)
 
     STATS_INC(ble_gap_stats, adv_stop);
 
+    ble_hs_lock();
+
     /* Do nothing if advertising is already disabled. */
     if (!ble_gap_currently_advertising()) {
         rc = BLE_HS_EALREADY;
-        goto err;
+        goto done;
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: stop advertising.\n");
 
     rc = ble_gap_adv_disable_tx();
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
     ble_gap_slave_reset_state();
 
-    return 0;
+    rc = 0;
 
-err:
-    STATS_INC(ble_gap_stats, adv_set_fields_fail);
+done:
+    ble_hs_unlock();
+
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+    }
     return rc;
 }
 
@@ -1585,9 +1599,9 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
     uint32_t duration_ticks;
     int rc;
 
-    ble_hs_lock();
-
     STATS_INC(ble_gap_stats, adv_start);
+
+    ble_hs_lock();
 
     rc = ble_gap_adv_validate(own_addr_type, peer_addr_type, peer_addr,
                               adv_params);
@@ -1645,12 +1659,11 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
     rc = 0;
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, adv_start_fail);
     }
-
-    ble_hs_unlock();
-
     return rc;
 }
 
@@ -1664,9 +1677,15 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
     int max_sz;
     int rc;
 
+    STATS_INC(ble_gap_stats, adv_set_fields);
+
     ble_hs_lock();
 
-    STATS_INC(ble_gap_stats, adv_set_fields);
+    /* Don't allow advertising fields to be set while advertising is active. */
+    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
 
     /* If application has requested the stack to calculate the flags field
      * automatically (flags == 0), there is less room for user data.
@@ -1682,11 +1701,15 @@ ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
     rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
                                &ble_gap_slave.adv_data_len, max_sz);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+        goto done;
     }
 
+done:
     ble_hs_unlock();
 
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+    }
     return rc;
 }
 
@@ -1699,19 +1722,29 @@ ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields)
 
     int rc;
 
+    STATS_INC(ble_gap_stats, adv_rsp_set_fields);
+
     ble_hs_lock();
 
-    STATS_INC(ble_gap_stats, adv_rsp_set_fields);
+    /* Don't allow response fields to be set while advertising is active. */
+    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
 
     rc = ble_hs_adv_set_fields(rsp_fields, ble_gap_slave.rsp_data,
                                &ble_gap_slave.rsp_data_len,
                                BLE_HCI_MAX_ADV_DATA_LEN);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_rsp_set_fields_fail);
+        goto done;
     }
 
+done:
     ble_hs_unlock();
 
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, adv_rsp_set_fields_fail);
+    }
     return rc;
 }
 
@@ -1796,9 +1829,9 @@ ble_gap_disc_cancel(void)
 {
     int rc;
 
-    ble_hs_lock();
-
     STATS_INC(ble_gap_stats, discover_cancel);
+
+    ble_hs_lock();
 
     if (ble_gap_master.op != BLE_GAP_OP_M_DISC) {
         rc = BLE_HS_EALREADY;
@@ -1813,11 +1846,11 @@ ble_gap_disc_cancel(void)
     ble_gap_master_reset_state();
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, discover_cancel_fail);
     }
-    ble_hs_unlock();
-
     return rc;
 }
 
@@ -1939,7 +1972,6 @@ done:
     if (rc != 0) {
         STATS_INC(ble_gap_stats, discover_fail);
     }
-
     return rc;
 }
 
@@ -2020,6 +2052,8 @@ ble_gap_connect(uint8_t own_addr_type,
 
     int rc;
 
+    STATS_INC(ble_gap_stats, initiate);
+
     ble_hs_lock();
 
     if (ble_gap_master.op != BLE_GAP_OP_NULL) {
@@ -2031,8 +2065,6 @@ ble_gap_connect(uint8_t own_addr_type,
         rc = BLE_HS_ENOMEM;
         goto done;
     }
-
-    STATS_INC(ble_gap_stats, initiate);
 
     if (peer_addr_type != BLE_HCI_CONN_PEER_ADDR_PUBLIC &&
         peer_addr_type != BLE_HCI_CONN_PEER_ADDR_RANDOM &&
@@ -2070,12 +2102,11 @@ ble_gap_connect(uint8_t own_addr_type,
     rc = 0;
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, initiate_fail);
     }
-
-    ble_hs_unlock();
-
     return rc;
 }
 
@@ -2089,9 +2120,9 @@ ble_gap_terminate(uint16_t conn_handle)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_DISCONNECT_CMD_LEN];
     int rc;
 
-    ble_hs_lock();
-
     STATS_INC(ble_gap_stats, terminate);
+
+    ble_hs_lock();
 
     if (!ble_hs_conn_exists(conn_handle)) {
         rc = BLE_HS_ENOTCONN;
@@ -2111,12 +2142,11 @@ ble_gap_terminate(uint16_t conn_handle)
     rc = 0;
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, terminate_fail);
     }
-
-    ble_hs_unlock();
-
     return rc;
 }
 
@@ -2130,9 +2160,9 @@ ble_gap_conn_cancel(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    ble_hs_lock();
-
     STATS_INC(ble_gap_stats, cancel);
+
+    ble_hs_lock();
 
     if (!ble_gap_master_in_progress()) {
         rc = BLE_HS_ENOENT;
@@ -2150,12 +2180,11 @@ ble_gap_conn_cancel(void)
     rc = 0;
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, cancel_fail);
     }
-
-    ble_hs_unlock();
-
     return rc;
 }
 
@@ -2303,9 +2332,9 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
     struct ble_hs_conn *conn;
     int rc;
 
-    ble_hs_lock();
-
     STATS_INC(ble_gap_stats, update);
+
+    ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
@@ -2330,12 +2359,11 @@ ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
     conn->bhc_flags |= BLE_HS_CONN_F_UPDATE;
 
 done:
+    ble_hs_unlock();
+
     if (rc != 0) {
         STATS_INC(ble_gap_stats, update_fail);
     }
-
-    ble_hs_unlock();
-
     return rc;
 }
 
@@ -2357,6 +2385,8 @@ ble_gap_security_initiate(uint16_t conn_handle)
     struct ble_hs_conn *conn;
     int rc;
 
+    STATS_INC(ble_gap_stats, security_initiate);
+
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
@@ -2370,7 +2400,8 @@ ble_gap_security_initiate(uint16_t conn_handle)
     ble_hs_unlock();
 
     if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
+        rc = BLE_HS_ENOTCONN;
+        goto done;
     }
 
     if (conn_flags & BLE_HS_CONN_F_MASTER) {
@@ -2383,11 +2414,27 @@ ble_gap_security_initiate(uint16_t conn_handle)
             rc = ble_sm_enc_initiate(conn_handle, value_sec.ltk,
                                      value_sec.ediv, value_sec.rand_num,
                                      value_sec.authenticated);
+            if (rc != 0) {
+                goto done;
+            }
         } else {
             rc = ble_sm_pair_initiate(conn_handle);
+            if (rc != 0) {
+                goto done;
+            }
         }
     } else {
         rc = ble_sm_slave_initiate(conn_handle);
+        if (rc != 0) {
+            goto done;
+        }
+    }
+
+    rc = 0;
+
+done:
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, security_initiate_fail);
     }
 
     return rc;
@@ -2523,7 +2570,8 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
     ble_gap_call_event_cb(BLE_GAP_EVENT_NOTIFY, &ctxt, snap.cb, snap.cb_arg);
 }
 
-void ble_gap_init_identity_addr(uint8_t *addr)
+void
+ble_gap_init_identity_addr(uint8_t *addr)
 {
     ble_hs_pvcy_set_our_id_addr(addr);
 }
