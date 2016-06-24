@@ -1436,6 +1436,8 @@ TEST_CASE(ble_hs_adv_test_case_user_full_payload)
     struct ble_hs_adv_fields rsp_fields;
     int rc;
 
+    ble_hs_test_util_init();
+
     memset(&rsp_fields, 0, sizeof rsp_fields);
 
     /***
@@ -1457,6 +1459,9 @@ TEST_CASE(ble_hs_adv_test_case_user_full_payload)
         }, &rsp_fields, NULL);
 
     /*** Fail with 30 bytes. */
+    rc = ble_hs_test_util_adv_stop(0);
+    TEST_ASSERT_FATAL(rc == 0);
+
     adv_fields.mfg_data_len = 30;
     rc = ble_gap_adv_set_fields(&adv_fields);
     TEST_ASSERT(rc == BLE_HS_EMSGSIZE);
