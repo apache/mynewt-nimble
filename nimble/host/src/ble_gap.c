@@ -24,6 +24,7 @@
 #include "os/os.h"
 #include "nimble/nimble_opt.h"
 #include "host/host_hci.h"
+#include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
 /**
@@ -497,26 +498,14 @@ ble_gap_master_connect_cancel(void)
 }
 
 static void
-ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
+ble_gap_call_master_disc_cb(int event, int status,
+                            struct ble_gap_disc_desc *desc,
                             struct ble_hs_adv_fields *fields, int reset_state)
 {
-    struct ble_gap_disc_desc desc;
     ble_gap_disc_fn *cb;
     void *cb_arg;
 
     ble_hs_lock();
-
-    if (adv != NULL) {
-        desc.event_type = adv->event_type;
-        desc.addr_type = adv->addr_type;
-        desc.length_data = adv->length_data;
-        desc.rssi = adv->rssi;
-        memcpy(desc.addr, adv->addr, sizeof adv->addr);
-        desc.data = adv->data;
-        desc.fields = fields;
-    } else {
-        memset(&desc, 0, sizeof desc);
-    }
 
     cb = ble_gap_master.disc.cb;
     cb_arg = ble_gap_master.disc.cb_arg;
@@ -528,7 +517,7 @@ ble_gap_call_master_disc_cb(int event, int status, struct ble_hs_adv *adv,
     ble_hs_unlock();
 
     if (cb != NULL) {
-        cb(event, status, &desc, cb_arg);
+        cb(event, status, desc, cb_arg);
     }
 }
 
@@ -870,7 +859,7 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
 }
 
 void
-ble_gap_rx_adv_report(struct ble_hs_adv *adv)
+ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
 {
 #if !NIMBLE_OPT(ROLE_OBSERVER)
     return;
@@ -885,19 +874,22 @@ ble_gap_rx_adv_report(struct ble_hs_adv *adv)
         return;
     }
 
-    rc = ble_hs_adv_parse_fields(&fields, adv->data, adv->length_data);
+    rc = ble_hs_adv_parse_fields(&fields, desc->data, desc->length_data);
     if (rc != 0) {
         /* XXX: Increment stat. */
         return;
     }
 
+    /* If a limited discovery procedure is active, discard non-limited
+     * advertisements.
+     */
     if (ble_gap_master.disc.limited &&
         !(fields.flags & BLE_HS_ADV_F_DISC_LTD)) {
 
         return;
     }
 
-    ble_gap_call_master_disc_cb(BLE_GAP_EVENT_DISC_SUCCESS, 0, adv,
+    ble_gap_call_master_disc_cb(BLE_GAP_EVENT_DISC_SUCCESS, 0, desc,
                                 &fields, 0);
 }
 
@@ -1777,7 +1769,9 @@ ble_gap_disc_tx_params(uint8_t own_addr_type,
                                                own_addr_type,
                                                disc_params->filter_policy,
                                                buf, sizeof buf);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    if (rc != 0) {
+        return BLE_HS_EINVAL;
+    }
 
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
@@ -1834,12 +1828,16 @@ ble_gap_disc_fill_dflts(struct ble_gap_disc_params *disc_params)
         if (disc_params->limited) {
             disc_params->itvl = BLE_GAP_LIM_DISC_SCAN_INT;
         } else {
-            disc_params->itvl = BLE_GAP_SCAN_SLOW_INTERVAL1;
+            disc_params->itvl = BLE_GAP_SCAN_FAST_INTERVAL_MIN;
         }
     }
 
     if (disc_params->window == 0) {
-        disc_params->window = BLE_GAP_SCAN_SLOW_WINDOW1;
+        if (disc_params->limited) {
+            disc_params->window = BLE_GAP_LIM_DISC_SCAN_WINDOW;
+        } else {
+            disc_params->window = BLE_GAP_SCAN_FAST_WINDOW;
+        }
     }
 }
 
@@ -1852,10 +1850,6 @@ ble_gap_disc_validate(uint8_t own_addr_type,
     }
 
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
-        return BLE_HS_EINVAL;
-    }
-
-    if (disc_params->filter_policy > BLE_HCI_SCAN_FILT_MAX) {
         return BLE_HS_EINVAL;
     }
 

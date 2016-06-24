@@ -43,8 +43,11 @@ struct hci_conn_update;
 /** 60 ms; active scanning. */
 #define BLE_GAP_SCAN_FAST_INTERVAL_MAX      (60 * 1000 / BLE_HCI_ADV_ITVL)
 
-/** 11.25 seconds; limited discovery interval. */
+/** 11.25 ms; limited discovery interval. */
 #define BLE_GAP_LIM_DISC_SCAN_INT           (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
+
+/** 11.25 ms; limited discovery window (not from the spec). */
+#define BLE_GAP_LIM_DISC_SCAN_WINDOW        (11.25 * 1000 / BLE_HCI_SCAN_ITVL)
 
 /** 30 ms; active scanning. */
 #define BLE_GAP_SCAN_FAST_WINDOW            (30 * 1000 / BLE_HCI_SCAN_ITVL)
@@ -90,6 +93,7 @@ struct hci_conn_update;
 #define BLE_GAP_APPEARANCE_GEN_COMPUTER                 128
 
 #define BLE_GAP_ADDR_TYPE_WL                0xff
+#define BLE_GAP_ADDR_TYPE_NONE              0xfe
 
 #define BLE_GAP_EVENT_CONNECT               0
 #define BLE_GAP_EVENT_DISCONNECT            1
@@ -245,13 +249,23 @@ typedef int ble_gap_event_fn(int event, struct ble_gap_conn_ctxt *ctxt,
                              void *arg);
 
 struct ble_gap_disc_desc {
+    /*** Common fields. */
     uint8_t event_type;
     uint8_t addr_type;
     uint8_t length_data;
     int8_t rssi;
     uint8_t addr[6];
+
+    /*** LE advertising report fields; both null if no data present. */
     uint8_t *data;
     struct ble_hs_adv_fields *fields;
+
+    /***
+     * LE direct advertising report fields; direct_addr_type is
+     * BLE_GAP_ADDR_TYPE_NONE if direct address fields are not present.
+     */
+    uint8_t direct_addr_type;
+    uint8_t direct_addr[6];
 };
 
 typedef void ble_gap_disc_fn(int event, int status,

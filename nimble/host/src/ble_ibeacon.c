@@ -18,6 +18,7 @@
  */
 
 #include <string.h>
+#include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
 #define BLE_IBEACON_MFG_DATA_SIZE       25

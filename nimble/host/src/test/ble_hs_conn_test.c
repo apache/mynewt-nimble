@@ -22,6 +22,7 @@
 #include <string.h>
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
+#include "host/ble_hs_adv.h"
 #include "host/ble_hs_test.h"
 #include "host/host_hci.h"
 #include "ble_hs_test_util.h"
