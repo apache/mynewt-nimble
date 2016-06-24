@@ -45,6 +45,7 @@ struct ble_hs_conn {
     uint16_t bhc_itvl;
     uint16_t bhc_latency;
     uint16_t bhc_supervision_timeout;
+    uint8_t bhc_master_clock_accuracy;
 
     ble_hs_conn_flags_t bhc_flags;
 

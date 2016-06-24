@@ -95,6 +95,9 @@ struct hci_conn_update;
 #define BLE_GAP_ADDR_TYPE_WL                0xff
 #define BLE_GAP_ADDR_TYPE_NONE              0xfe
 
+#define BLE_GAP_ROLE_MASTER                 0
+#define BLE_GAP_ROLE_SLAVE                  1
+
 #define BLE_GAP_EVENT_CONNECT               0
 #define BLE_GAP_EVENT_DISCONNECT            1
 #define BLE_GAP_EVENT_CONN_CANCEL           2
@@ -158,6 +161,8 @@ struct ble_gap_conn_desc {
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
     uint8_t our_ota_addr_type;
+    uint8_t role;
+    uint8_t master_clock_accuracy;
 };
 
 struct ble_gap_conn_params {
@@ -286,7 +291,7 @@ struct ble_gap_white_entry {
     uint8_t addr[6];
 };
 
-int ble_gap_find_conn(uint16_t handle, struct ble_gap_conn_desc *out_desc);
+int ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc);
 
 int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
                       const uint8_t *peer_addr, int32_t duration_ms,
