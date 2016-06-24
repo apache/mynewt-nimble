@@ -300,7 +300,14 @@ ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
     desc->conn_itvl = conn->bhc_itvl;
     desc->conn_latency = conn->bhc_latency;
     desc->supervision_timeout = conn->bhc_supervision_timeout;
+    desc->master_clock_accuracy = conn->bhc_master_clock_accuracy;
     desc->sec_state = conn->bhc_sec_state;
+
+    if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
+        desc->role = BLE_GAP_ROLE_MASTER;
+    } else {
+        desc->role = BLE_GAP_ROLE_SLAVE;
+    }
 }
 
 static void
@@ -347,7 +354,7 @@ ble_gap_find_snapshot(uint16_t handle, struct ble_gap_snapshot *snap)
  *                                  connection was found.
  */
 int
-ble_gap_find_conn(uint16_t handle, struct ble_gap_conn_desc *out_desc)
+ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc)
 {
     struct ble_hs_conn *conn;
 
@@ -985,6 +992,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     conn->bhc_itvl = evt->conn_itvl;
     conn->bhc_latency = evt->conn_latency;
     conn->bhc_supervision_timeout = evt->supervision_timeout;
+    conn->bhc_master_clock_accuracy = evt->master_clk_acc;
     if (evt->role == BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER) {
         conn->bhc_flags |= BLE_HS_CONN_F_MASTER;
         conn->bhc_cb = ble_gap_master.conn.cb;

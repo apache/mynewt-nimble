@@ -436,7 +436,7 @@ ble_gap_test_util_wl_set(struct ble_gap_white_entry *white_list,
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_wl_bad_args)
+TEST_CASE(ble_gap_test_case_wl_bad_args)
 {
     int rc;
 
@@ -468,7 +468,7 @@ TEST_CASE(ble_gap_test_case_conn_wl_bad_args)
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_wl_ctlr_fail)
+TEST_CASE(ble_gap_test_case_wl_ctlr_fail)
 {
     int i;
 
@@ -486,7 +486,7 @@ TEST_CASE(ble_gap_test_case_conn_wl_ctlr_fail)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_wl_good)
+TEST_CASE(ble_gap_test_case_wl_good)
 {
     struct ble_gap_white_entry white_list[] = {
         { BLE_ADDR_TYPE_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
@@ -499,11 +499,11 @@ TEST_CASE(ble_gap_test_case_conn_wl_good)
     ble_gap_test_util_wl_set(white_list, white_list_count, 0, 0);
 }
 
-TEST_SUITE(ble_gap_test_suite_conn_wl)
+TEST_SUITE(ble_gap_test_suite_wl)
 {
-    ble_gap_test_case_conn_wl_good();
-    ble_gap_test_case_conn_wl_bad_args();
-    ble_gap_test_case_conn_wl_ctlr_fail();
+    ble_gap_test_case_wl_good();
+    ble_gap_test_case_wl_bad_args();
+    ble_gap_test_case_wl_ctlr_fail();
 }
 
 /*****************************************************************************
@@ -1088,6 +1088,112 @@ TEST_SUITE(ble_gap_test_suite_conn_terminate)
 }
 
 /*****************************************************************************
+ * $conn find                                                                *
+ *****************************************************************************/
+
+TEST_CASE(ble_gap_test_case_conn_find)
+{
+
+    struct ble_gap_conn_desc desc;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    /*** We are master; public addresses. */
+    ble_gap_test_util_init();
+
+    ble_hs_test_util_create_rpa_conn(8,
+                                     BLE_ADDR_TYPE_PUBLIC,
+                                     ((uint8_t[6]){0,0,0,0,0,0}),
+                                     BLE_ADDR_TYPE_PUBLIC,
+                                     ((uint8_t[6]){2,3,4,5,6,7}),
+                                     ((uint8_t[6]){0,0,0,0,0,0}),
+                                     ble_gap_test_util_connect_cb,
+                                     NULL);
+
+    rc = ble_gap_conn_find(8, &desc);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(desc.conn_handle == 8);
+    TEST_ASSERT(desc.our_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(desc.our_ota_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(desc.peer_ota_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(desc.role == BLE_GAP_ROLE_MASTER);
+    TEST_ASSERT(memcmp(desc.our_ota_addr, g_dev_addr, 6) == 0);
+    TEST_ASSERT(memcmp(desc.our_id_addr, g_dev_addr, 6) == 0);
+    TEST_ASSERT(memcmp(desc.peer_ota_addr,
+                       ((uint8_t[6]){2,3,4,5,6,7}), 6) == 0);
+    TEST_ASSERT(memcmp(desc.peer_id_addr,
+                       ((uint8_t[6]){2,3,4,5,6,7}), 6) == 0);
+    TEST_ASSERT(desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
+    TEST_ASSERT(desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
+    TEST_ASSERT(desc.supervision_timeout ==
+                BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
+    TEST_ASSERT(desc.master_clock_accuracy == 0);
+    TEST_ASSERT(!desc.sec_state.encrypted);
+    TEST_ASSERT(!desc.sec_state.authenticated);
+    TEST_ASSERT(!desc.sec_state.bonded);
+
+    /*** Swap roles. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(8);
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+    ble_hs_unlock();
+
+    rc = ble_gap_conn_find(8, &desc);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(desc.role == BLE_GAP_ROLE_SLAVE);
+
+    /*** We are master; RPAs. */
+    ble_gap_test_util_init();
+
+    ble_hs_test_util_create_rpa_conn(54,
+                                     BLE_ADDR_TYPE_RPA_PUB_DEFAULT,
+                                     ((uint8_t[6]){0x40,1,2,3,4,5}),
+                                     BLE_ADDR_TYPE_RPA_RND_DEFAULT,
+                                     ((uint8_t[6]){3,4,5,6,7,8}),
+                                     ((uint8_t[6]){0x50,1,2,3,4,5}),
+                                     ble_gap_test_util_connect_cb,
+                                     NULL);
+
+    rc = ble_gap_conn_find(54, &desc);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(desc.conn_handle == 54);
+    TEST_ASSERT(desc.our_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(desc.our_ota_addr_type == BLE_ADDR_TYPE_RPA_PUB_DEFAULT);
+    TEST_ASSERT(desc.peer_ota_addr_type == BLE_ADDR_TYPE_RPA_RND_DEFAULT);
+    TEST_ASSERT(desc.role == BLE_GAP_ROLE_MASTER);
+    TEST_ASSERT(memcmp(desc.our_ota_addr,
+                       ((uint8_t[6]){0x40,1,2,3,4,5}), 6) == 0);
+    TEST_ASSERT(memcmp(desc.our_id_addr, g_dev_addr, 6) == 0);
+    TEST_ASSERT(memcmp(desc.peer_ota_addr,
+                       ((uint8_t[6]){0x50,1,2,3,4,5}), 6) == 0);
+    TEST_ASSERT(memcmp(desc.peer_id_addr,
+                       ((uint8_t[6]){3,4,5,6,7,8}), 6) == 0);
+    TEST_ASSERT(desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
+    TEST_ASSERT(desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
+    TEST_ASSERT(desc.supervision_timeout ==
+                BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
+    TEST_ASSERT(desc.master_clock_accuracy == 0);
+    TEST_ASSERT(!desc.sec_state.encrypted);
+    TEST_ASSERT(!desc.sec_state.authenticated);
+    TEST_ASSERT(!desc.sec_state.bonded);
+
+    /*** Swap roles. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(54);
+    conn->bhc_flags &= ~BLE_HS_CONN_F_MASTER;
+    ble_hs_unlock();
+
+    rc = ble_gap_conn_find(54, &desc);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(desc.role == BLE_GAP_ROLE_SLAVE);
+}
+
+TEST_SUITE(ble_gap_test_suite_conn_find)
+{
+    ble_gap_test_case_conn_find();
+}
+
+/*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
 
@@ -1193,7 +1299,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_adv_bad_args)
+TEST_CASE(ble_gap_test_case_adv_bad_args)
 {
     struct ble_gap_adv_params adv_params;
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
@@ -1328,7 +1434,7 @@ TEST_CASE(ble_gap_test_case_adv_dflt_params)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_adv_good)
+TEST_CASE(ble_gap_test_case_adv_good)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int d;
@@ -1352,7 +1458,7 @@ TEST_CASE(ble_gap_test_case_conn_adv_good)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_adv_ctlr_fail)
+TEST_CASE(ble_gap_test_case_adv_ctlr_fail)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int d;
@@ -1372,7 +1478,7 @@ TEST_CASE(ble_gap_test_case_conn_adv_ctlr_fail)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_adv_hci_fail)
+TEST_CASE(ble_gap_test_case_adv_hci_fail)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int num_hci_cmds;
@@ -1400,13 +1506,13 @@ TEST_CASE(ble_gap_test_case_conn_adv_hci_fail)
     }
 }
 
-TEST_SUITE(ble_gap_test_suite_conn_adv)
+TEST_SUITE(ble_gap_test_suite_adv)
 {
-    ble_gap_test_case_conn_adv_bad_args();
+    ble_gap_test_case_adv_bad_args();
     ble_gap_test_case_adv_dflt_params();
-    ble_gap_test_case_conn_adv_good();
-    ble_gap_test_case_conn_adv_ctlr_fail();
-    ble_gap_test_case_conn_adv_hci_fail();
+    ble_gap_test_case_adv_good();
+    ble_gap_test_case_adv_ctlr_fail();
+    ble_gap_test_case_adv_hci_fail();
 }
 
 /*****************************************************************************
@@ -1439,7 +1545,7 @@ ble_gap_test_util_stop_adv(uint8_t peer_addr_type, const uint8_t *peer_addr,
     ble_gap_test_util_verify_tx_adv_enable(0);
 }
 
-TEST_CASE(ble_gap_test_case_conn_stop_adv_good)
+TEST_CASE(ble_gap_test_case_stop_adv_good)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int d;
@@ -1458,7 +1564,7 @@ TEST_CASE(ble_gap_test_case_conn_stop_adv_good)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_stop_adv_hci_fail)
+TEST_CASE(ble_gap_test_case_stop_adv_hci_fail)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int d;
@@ -1477,10 +1583,10 @@ TEST_CASE(ble_gap_test_case_conn_stop_adv_hci_fail)
     }
 }
 
-TEST_SUITE(ble_gap_test_suite_conn_stop_adv)
+TEST_SUITE(ble_gap_test_suite_stop_adv)
 {
-    ble_gap_test_case_conn_stop_adv_good();
-    ble_gap_test_case_conn_stop_adv_hci_fail();
+    ble_gap_test_case_stop_adv_good();
+    ble_gap_test_case_stop_adv_hci_fail();
 }
 
 /*****************************************************************************
@@ -2061,13 +2167,14 @@ TEST_SUITE(ble_gap_test_suite_update_conn)
 int
 ble_gap_test_all(void)
 {
-    ble_gap_test_suite_conn_wl();
+    ble_gap_test_suite_wl();
     ble_gap_test_suite_disc();
     ble_gap_test_suite_conn_dir();
     ble_gap_test_suite_conn_cancel();
     ble_gap_test_suite_conn_terminate();
-    ble_gap_test_suite_conn_adv();
-    ble_gap_test_suite_conn_stop_adv();
+    ble_gap_test_suite_conn_find();
+    ble_gap_test_suite_adv();
+    ble_gap_test_suite_stop_adv();
     ble_gap_test_suite_update_conn();
 
     return tu_any_failed;
