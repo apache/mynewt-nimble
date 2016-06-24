@@ -480,7 +480,7 @@ TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
  *****************************************************************************/
 
 static int
-ble_l2cap_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
+ble_l2cap_test_util_conn_cb(int event, struct ble_gap_event_ctxt *ctxt,
                             void *arg)
 {
     int *accept;

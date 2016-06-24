@@ -372,7 +372,7 @@ ble_gap_find_conn(uint16_t handle, struct ble_gap_conn_desc *out_desc)
  *****************************************************************************/
 
 static int
-ble_gap_call_event_cb(int event, struct ble_gap_conn_ctxt *ctxt,
+ble_gap_call_event_cb(int event, struct ble_gap_event_ctxt *ctxt,
                       ble_gap_event_fn *cb, void *cb_arg)
 {
     int rc;
@@ -434,7 +434,7 @@ ble_gap_slave_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg)
 static void
 ble_gap_adv_finished(void)
 {
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_conn_desc desc;
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -452,7 +452,7 @@ ble_gap_adv_finished(void)
 static int
 ble_gap_master_connect_failure(int status)
 {
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_conn_desc desc;
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -478,7 +478,7 @@ ble_gap_master_connect_failure(int status)
 static int
 ble_gap_master_connect_cancel(void)
 {
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_conn_desc desc;
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -526,7 +526,7 @@ ble_gap_call_master_disc_cb(int event, int status,
 static void
 ble_gap_update_notify(uint16_t conn_handle, int status)
 {
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int rc;
 
@@ -650,7 +650,7 @@ ble_gap_update_failed(uint16_t conn_handle, int status)
 static void
 ble_gap_conn_broken(struct ble_gap_snapshot *snap, int reason)
 {
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
 
     /* XXX: Consider removing the connection from the list and handing it to
      * each of the "connection_broken" functions below.
@@ -677,7 +677,7 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
     return;
 #endif
 
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int status;
     int rc;
@@ -709,7 +709,7 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
     return;
 #endif
 
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
 
@@ -905,7 +905,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
     int rc;
@@ -1017,7 +1017,7 @@ int
 ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                             struct ble_gap_upd_params *params)
 {
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int rc;
 
@@ -2245,7 +2245,7 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 
     struct ble_gap_upd_params peer_params;
     struct ble_gap_upd_params self_params;
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     uint8_t reject_reason;
     int rc;
@@ -2485,7 +2485,7 @@ ble_gap_passkey_event(uint16_t conn_handle,
     return;
 #endif
 
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
 
@@ -2520,7 +2520,7 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
     return;
 #endif
 
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int rc;
 
@@ -2551,7 +2551,7 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
                      void *attr_data, uint16_t attr_len, int is_indication)
 {
     /* XXX: Early return if notifications and indications disabled. */
-    struct ble_gap_conn_ctxt ctxt;
+    struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int rc;
 

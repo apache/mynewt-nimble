@@ -84,7 +84,7 @@ ble_gap_test_util_disc_cb(int event, int status,
 }
 
 static int
-ble_gap_test_util_connect_cb(int event, struct ble_gap_conn_ctxt *ctxt,
+ble_gap_test_util_connect_cb(int event, struct ble_gap_event_ctxt *ctxt,
                              void *arg)
 {
     int *fail_reason;
