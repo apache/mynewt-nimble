@@ -86,10 +86,69 @@
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2
 
+/**
+ * Context for reads of characteristics and descriptors.  An instance of this
+ * gets passed to an application callback whenever a local characteristic or
+ * descriptor is read.
+ */
+struct ble_att_read_ctxt {
+    /**
+     * (stack --> app)
+     * Maximum number of data bytes the stack can send in the read response.
+     * This is based on the connection's ATT MTU.
+     */
+    uint16_t max_data_len;
+
+    /**
+     * (stack --> app)
+     * A buffer that the app can use to write the characteristic response value
+     * to.  This buffer can hold up to max_data_len bytes.
+     */
+    uint8_t *buf;
+
+    /**
+     * (app --> stack)
+     * App points this at the characteristic data to respond with.  Initially
+     * this points to "buf".
+     */
+    const void *data;
+
+    /**
+     * (app --> stack)
+     * App fills this with the number of data bytes contained in characteristic
+     * response.
+     */
+    uint16_t len;
+
+    uint16_t offset;
+};
+
+/**
+ * Context for writes of characteristics and descriptors.  An instance of this
+ * gets passed to an application callback whenever a local characteristic or
+ * descriptor is written.
+ */
+struct ble_att_write_ctxt {
+    /**
+     * (stack --> app)
+     * The data that the peer is writing to the characteristic.
+     */
+    const void *data;
+
+    /**
+     * (stack --> app)
+     * The number of bytes of characteristic data being written.
+     */
+    int len;
+
+    uint16_t offset;
+};
+
 struct ble_att_svr_access_ctxt {
-    void *attr_data;
-    uint16_t data_len;
-    uint16_t offset; /* Only used for read-blob requests. */
+    union {
+        struct ble_att_read_ctxt read;
+        struct ble_att_write_ctxt write;
+    };
 };
 
 /**
@@ -120,9 +179,9 @@ typedef int ble_att_svr_notify_fn(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t *attr_val, uint16_t attr_len,
                                   void *arg);
 
-int ble_att_svr_read_local(uint16_t attr_handle, void **out_data,
+int ble_att_svr_read_local(uint16_t attr_handle, const void **out_data,
                            uint16_t *out_attr_len);
-int ble_att_svr_write_local(uint16_t attr_handle, void *data,
+int ble_att_svr_write_local(uint16_t attr_handle, const void *data,
                             uint16_t data_len);
 
 int ble_att_set_preferred_mtu(uint16_t mtu);

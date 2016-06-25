@@ -224,7 +224,8 @@ ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
 }
 
 static void
-ble_gap_log_update(uint16_t conn_handle, struct ble_gap_upd_params *params)
+ble_gap_log_update(uint16_t conn_handle,
+                   const struct ble_gap_upd_params *params)
 {
     BLE_HS_LOG(INFO, "connection parameter update; "
                      "conn_handle=%d itvl_min=%d itvl_max=%d latency=%d "
@@ -235,10 +236,10 @@ ble_gap_log_update(uint16_t conn_handle, struct ble_gap_upd_params *params)
 }
 
 static void
-ble_gap_log_wl(struct ble_gap_white_entry *white_list,
+ble_gap_log_wl(const struct ble_gap_white_entry *white_list,
                uint8_t white_list_count)
 {
-    struct ble_gap_white_entry *entry;
+    const struct ble_gap_white_entry *entry;
     int i;
 
     BLE_HS_LOG(INFO, "count=%d ", white_list_count);
@@ -1153,7 +1154,7 @@ ble_gap_wl_busy(void)
 }
 
 static int
-ble_gap_wl_tx_add(struct ble_gap_white_entry *entry)
+ble_gap_wl_tx_add(const struct ble_gap_white_entry *entry)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CHG_WHITE_LIST_LEN];
     int rc;
@@ -1188,7 +1189,7 @@ ble_gap_wl_tx_clear(void)
 }
 
 int
-ble_gap_wl_set(struct ble_gap_white_entry *white_list,
+ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
                uint8_t white_list_count)
 {
 #if !NIMBLE_OPT(WHITELIST)
@@ -1676,7 +1677,7 @@ done:
 }
 
 int
-ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields)
+ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields)
 {
 #if !NIMBLE_OPT(ADVERTISE)
     return BLE_HS_ENOTSUP;
@@ -1722,7 +1723,7 @@ done:
 }
 
 int
-ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields)
+ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields)
 {
 #if !NIMBLE_OPT(ADVERTISE)
     return BLE_HS_ENOTSUP;
@@ -2303,7 +2304,8 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 }
 
 static int
-ble_gap_update_tx(uint16_t conn_handle, struct ble_gap_upd_params *params)
+ble_gap_update_tx(uint16_t conn_handle,
+                  const struct ble_gap_upd_params *params)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_UPDATE_LEN];
     struct hci_conn_update cmd;
@@ -2331,7 +2333,8 @@ ble_gap_update_tx(uint16_t conn_handle, struct ble_gap_upd_params *params)
 }
 
 int
-ble_gap_update_params(uint16_t conn_handle, struct ble_gap_upd_params *params)
+ble_gap_update_params(uint16_t conn_handle,
+                      const struct ble_gap_upd_params *params)
 {
 #if !NIMBLE_OPT(CONNECT)
     return BLE_HS_ENOTSUP;
@@ -2460,7 +2463,7 @@ ble_gap_pair_initiate(uint16_t conn_handle)
 
 int
 ble_gap_encryption_initiate(uint16_t conn_handle,
-                            uint8_t *ltk,
+                            const uint8_t *ltk,
                             uint16_t ediv,
                             uint64_t rand_val,
                             int auth)
@@ -2579,7 +2582,7 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 void
-ble_gap_init_identity_addr(uint8_t *addr)
+ble_gap_init_identity_addr(const uint8_t *addr)
 {
     ble_hs_pvcy_set_our_id_addr(addr);
 }

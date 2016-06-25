@@ -71,7 +71,7 @@ host_hci_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len, void *buf)
 }
 
 int
-host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, void *cmddata)
+host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, const void *cmddata)
 {
     int rc;
 
@@ -131,7 +131,7 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
 }
 
 static int
-host_hci_cmd_body_le_whitelist_chg(uint8_t *addr, uint8_t addr_type,
+host_hci_cmd_body_le_whitelist_chg(const uint8_t *addr, uint8_t addr_type,
                                    uint8_t *dst)
 {
     if (addr_type > BLE_ADDR_TYPE_RANDOM) {
@@ -145,7 +145,8 @@ host_hci_cmd_body_le_whitelist_chg(uint8_t *addr, uint8_t addr_type,
 }
 
 static int
-host_hci_cmd_body_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst)
+host_hci_cmd_body_le_set_adv_params(const struct hci_adv_params *adv,
+                                    uint8_t *dst)
 {
     uint16_t itvl;
 
@@ -192,8 +193,8 @@ host_hci_cmd_body_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst)
 }
 
 int
-host_hci_cmd_build_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst,
-                                     int dst_len)
+host_hci_cmd_build_le_set_adv_params(const struct hci_adv_params *adv,
+                                     uint8_t *dst, int dst_len)
 {
     int rc;
 
@@ -225,7 +226,8 @@ host_hci_cmd_build_le_set_adv_params(struct hci_adv_params *adv, uint8_t *dst,
  * @return int
  */
 static int
-host_hci_cmd_body_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst)
+host_hci_cmd_body_le_set_adv_data(const uint8_t *data, uint8_t len,
+                                  uint8_t *dst)
 {
     /* Check for valid parameters */
     if (((data == NULL) && (len != 0)) || (len > BLE_HCI_MAX_ADV_DATA_LEN)) {
@@ -252,8 +254,8 @@ host_hci_cmd_body_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst)
  * @return int
  */
 int
-host_hci_cmd_build_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst,
-                                   int dst_len)
+host_hci_cmd_build_le_set_adv_data(const uint8_t *data, uint8_t len,
+                                   uint8_t *dst, int dst_len)
 {
     int rc;
 
@@ -273,7 +275,7 @@ host_hci_cmd_build_le_set_adv_data(uint8_t *data, uint8_t len, uint8_t *dst,
 }
 
 static int
-host_hci_cmd_body_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
+host_hci_cmd_body_le_set_scan_rsp_data(const uint8_t *data, uint8_t len,
                                        uint8_t *dst)
 {
     /* Check for valid parameters */
@@ -290,7 +292,7 @@ host_hci_cmd_body_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
 }
 
 int
-host_hci_cmd_build_le_set_scan_rsp_data(uint8_t *data, uint8_t len,
+host_hci_cmd_build_le_set_scan_rsp_data(const uint8_t *data, uint8_t len,
                                         uint8_t *dst, int dst_len)
 {
     int rc;
@@ -333,7 +335,7 @@ host_hci_cmd_build_set_event_mask(uint64_t event_mask,
 
 void
 host_hci_cmd_build_set_event_mask2(uint64_t event_mask,
-                                  uint8_t *dst, int dst_len)
+                                   uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(
         dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_EVENT_MASK_LEN);
@@ -509,20 +511,20 @@ host_hci_cmd_build_le_set_scan_params(uint8_t scan_type, uint16_t scan_itvl,
                                       uint16_t scan_window,
                                       uint8_t own_addr_type,
                                       uint8_t filter_policy,
-                                      uint8_t *cmd, int cmd_len)
+                                      uint8_t *dst, int dst_len)
 {
     int rc;
 
     BLE_HS_DBG_ASSERT(
-        cmd_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN);
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN);
 
     host_hci_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_PARAMS,
-                       BLE_HCI_SET_SCAN_PARAM_LEN, cmd);
-    cmd += BLE_HCI_CMD_HDR_LEN;
+                       BLE_HCI_SET_SCAN_PARAM_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
 
     rc = host_hci_cmd_body_le_set_scan_params(scan_type, scan_itvl,
                                               scan_window, own_addr_type,
-                                              filter_policy, cmd);
+                                              filter_policy, dst);
     if (rc != 0) {
         return rc;
     }
@@ -553,7 +555,7 @@ host_hci_cmd_build_le_set_scan_enable(uint8_t enable, uint8_t filter_dups,
 }
 
 static int
-host_hci_cmd_body_le_create_connection(struct hci_create_conn *hcc,
+host_hci_cmd_body_le_create_connection(const struct hci_create_conn *hcc,
                                        uint8_t *cmd)
 {
     /* Check scan interval and scan window */
@@ -627,7 +629,7 @@ host_hci_cmd_body_le_create_connection(struct hci_create_conn *hcc,
 }
 
 int
-host_hci_cmd_build_le_create_connection(struct hci_create_conn *hcc,
+host_hci_cmd_build_le_create_connection(const struct hci_create_conn *hcc,
                                         uint8_t *cmd, int cmd_len)
 {
     int rc;
@@ -656,7 +658,7 @@ host_hci_cmd_build_le_clear_whitelist(uint8_t *dst, int dst_len)
 }
 
 int
-host_hci_cmd_build_le_add_to_whitelist(uint8_t *addr, uint8_t addr_type,
+host_hci_cmd_build_le_add_to_whitelist(const uint8_t *addr, uint8_t addr_type,
                                        uint8_t *dst, int dst_len)
 {
     int rc;
@@ -741,7 +743,8 @@ host_hci_cmd_le_create_conn_cancel(void)
 }
 
 static int
-host_hci_cmd_body_le_conn_update(struct hci_conn_update *hcu, uint8_t *dst)
+host_hci_cmd_body_le_conn_update(const struct hci_conn_update *hcu,
+                                 uint8_t *dst)
 {
     /* XXX: add parameter checking later */
     htole16(dst + 0, hcu->handle);
@@ -756,8 +759,8 @@ host_hci_cmd_body_le_conn_update(struct hci_conn_update *hcu, uint8_t *dst)
 }
 
 int
-host_hci_cmd_build_le_conn_update(struct hci_conn_update *hcu, uint8_t *dst,
-                                  int dst_len)
+host_hci_cmd_build_le_conn_update(const struct hci_conn_update *hcu,
+                                  uint8_t *dst, int dst_len)
 {
     int rc;
 
@@ -777,7 +780,7 @@ host_hci_cmd_build_le_conn_update(struct hci_conn_update *hcu, uint8_t *dst,
 }
 
 int
-host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
+host_hci_cmd_le_conn_update(const struct hci_conn_update *hcu)
 {
     uint8_t cmd[BLE_HCI_CONN_UPDATE_LEN];
     int rc;
@@ -797,7 +800,7 @@ host_hci_cmd_le_conn_update(struct hci_conn_update *hcu)
 }
 
 static void
-host_hci_cmd_body_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr,
+host_hci_cmd_body_le_lt_key_req_reply(const struct hci_lt_key_req_reply *hkr,
                                       uint8_t *dst)
 {
     htole16(dst + 0, hkr->conn_handle);
@@ -819,7 +822,7 @@ host_hci_cmd_body_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr,
  * @return int
  */
 void
-host_hci_cmd_build_le_lt_key_req_reply(struct hci_lt_key_req_reply *hkr,
+host_hci_cmd_build_le_lt_key_req_reply(const struct hci_lt_key_req_reply *hkr,
                                        uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(
@@ -847,7 +850,7 @@ host_hci_cmd_build_le_lt_key_req_neg_reply(uint16_t conn_handle,
 }
 
 static void
-host_hci_cmd_body_le_conn_param_reply(struct hci_conn_param_reply *hcr,
+host_hci_cmd_body_le_conn_param_reply(const struct hci_conn_param_reply *hcr,
                                       uint8_t *dst)
 {
     htole16(dst + 0, hcr->handle);
@@ -860,7 +863,7 @@ host_hci_cmd_body_le_conn_param_reply(struct hci_conn_param_reply *hcr,
 }
 
 void
-host_hci_cmd_build_le_conn_param_reply(struct hci_conn_param_reply *hcr,
+host_hci_cmd_build_le_conn_param_reply(const struct hci_conn_param_reply *hcr,
                                        uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(
@@ -874,7 +877,7 @@ host_hci_cmd_build_le_conn_param_reply(struct hci_conn_param_reply *hcr,
 }
 
 int
-host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr)
+host_hci_cmd_le_conn_param_reply(const struct hci_conn_param_reply *hcr)
 {
     uint8_t cmd[BLE_HCI_CONN_PARAM_REPLY_LEN];
     int rc;
@@ -893,8 +896,8 @@ host_hci_cmd_le_conn_param_reply(struct hci_conn_param_reply *hcr)
 }
 
 static void
-host_hci_cmd_body_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn,
-                                          uint8_t *dst)
+host_hci_cmd_body_le_conn_param_neg_reply(
+    const struct hci_conn_param_neg_reply *hcn, uint8_t *dst)
 {
     htole16(dst + 0, hcn->handle);
     dst[2] = hcn->reason;
@@ -903,7 +906,7 @@ host_hci_cmd_body_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn,
 
 void
 host_hci_cmd_build_le_conn_param_neg_reply(
-    struct hci_conn_param_neg_reply *hcn, uint8_t *dst, int dst_len)
+    const struct hci_conn_param_neg_reply *hcn, uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(
         dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_PARAM_NEG_REPLY_LEN);
@@ -916,7 +919,8 @@ host_hci_cmd_build_le_conn_param_neg_reply(
 }
 
 int
-host_hci_cmd_le_conn_param_neg_reply(struct hci_conn_param_neg_reply *hcn)
+host_hci_cmd_le_conn_param_neg_reply(
+    const struct hci_conn_param_neg_reply *hcn)
 {
     uint8_t cmd[BLE_HCI_CONN_PARAM_NEG_REPLY_LEN];
     int rc;
@@ -944,7 +948,8 @@ host_hci_cmd_build_le_rand(uint8_t *dst, int dst_len)
 }
 
 static void
-host_hci_cmd_body_le_start_encrypt(struct hci_start_encrypt *cmd, uint8_t *dst)
+host_hci_cmd_body_le_start_encrypt(const struct hci_start_encrypt *cmd,
+                                   uint8_t *dst)
 {
     htole16(dst + 0, cmd->connection_handle);
     htole64(dst + 2, cmd->random_number);
@@ -956,7 +961,7 @@ host_hci_cmd_body_le_start_encrypt(struct hci_start_encrypt *cmd, uint8_t *dst)
  * OGF=0x08 OCF=0x0019
  */
 void
-host_hci_cmd_build_le_start_encrypt(struct hci_start_encrypt *cmd,
+host_hci_cmd_build_le_start_encrypt(const struct hci_start_encrypt *cmd,
                                     uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(
@@ -1051,8 +1056,9 @@ host_hci_cmd_build_set_data_len(uint16_t connection_handle,
  * IRKs are in little endian.
  */
 static int
-host_hci_cmd_body_add_to_resolv_list(uint8_t addr_type, uint8_t *addr,
-                                     uint8_t *peer_irk, uint8_t *local_irk,
+host_hci_cmd_body_add_to_resolv_list(uint8_t addr_type, const uint8_t *addr,
+                                     const uint8_t *peer_irk,
+                                     const uint8_t *local_irk,
                                      uint8_t *dst)
 {
     if (addr_type > BLE_ADDR_TYPE_RANDOM) {
@@ -1074,7 +1080,7 @@ host_hci_cmd_body_add_to_resolv_list(uint8_t addr_type, uint8_t *addr,
  */
 int
 host_hci_cmd_build_add_to_resolv_list(
-    struct hci_add_dev_to_resolving_list *padd,
+    const struct hci_add_dev_to_resolving_list *padd,
     uint8_t *dst,
     int dst_len)
 {
@@ -1097,7 +1103,8 @@ host_hci_cmd_build_add_to_resolv_list(
 }
 
 static int
-host_hci_cmd_body_remove_from_resolv_list(uint8_t addr_type, uint8_t *addr,
+host_hci_cmd_body_remove_from_resolv_list(uint8_t addr_type,
+                                          const uint8_t *addr,
                                           uint8_t *dst)
 {
     if (addr_type > BLE_ADDR_TYPE_RANDOM) {
@@ -1111,7 +1118,8 @@ host_hci_cmd_body_remove_from_resolv_list(uint8_t addr_type, uint8_t *addr,
 
 
 int
-host_hci_cmd_build_remove_from_resolv_list(uint8_t addr_type, uint8_t *addr,
+host_hci_cmd_build_remove_from_resolv_list(uint8_t addr_type,
+                                           const uint8_t *addr,
                                            uint8_t *dst, int dst_len)
 {
     int rc;
@@ -1154,7 +1162,7 @@ host_hci_cmd_build_read_resolv_list_size(uint8_t *dst, int dst_len)
 
 static int
 host_hci_cmd_body_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
-                                        uint8_t *peer_identity_addr,
+                                        const uint8_t *peer_identity_addr,
                                         uint8_t *dst)
 {
     if (peer_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
@@ -1168,7 +1176,7 @@ host_hci_cmd_body_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
 
 int
 host_hci_cmd_build_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
-                                         uint8_t *peer_identity_addr,
+                                         const uint8_t *peer_identity_addr,
                                          uint8_t *dst,
                                          int dst_len)
 {
@@ -1192,7 +1200,7 @@ host_hci_cmd_build_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
 static int
 host_hci_cmd_body_read_lcl_resolv_addr(
     uint8_t local_identity_addr_type,
-    uint8_t *local_identity_addr,
+    const uint8_t *local_identity_addr,
     uint8_t *dst)
 {
     if (local_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
@@ -1209,7 +1217,7 @@ host_hci_cmd_body_read_lcl_resolv_addr(
  */
 int
 host_hci_cmd_build_read_lcl_resolv_addr(uint8_t local_identity_addr_type,
-                                        uint8_t *local_identity_addr,
+                                        const uint8_t *local_identity_addr,
                                         uint8_t *dst,
                                         int dst_len)
 {
@@ -1297,14 +1305,16 @@ host_hci_cmd_build_set_resolv_priv_addr_timeout(uint16_t timeout, uint8_t *dst,
 }
 
 static int
-host_hci_cmd_body_set_random_addr(struct hci_rand_addr *paddr, uint8_t *dst)
+host_hci_cmd_body_set_random_addr(const struct hci_rand_addr *paddr,
+                                  uint8_t *dst)
 {
     memcpy(dst, paddr->addr, BLE_DEV_ADDR_LEN);
     return 0;
 }
 
 int
-host_hci_cmd_build_set_random_addr(uint8_t *addr, uint8_t *dst, int dst_len)
+host_hci_cmd_build_set_random_addr(const uint8_t *addr,
+                                   uint8_t *dst, int dst_len)
 {
     struct hci_rand_addr r_addr;
     int rc;

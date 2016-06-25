@@ -2153,7 +2153,7 @@ ble_sm_slave_initiate(uint16_t conn_handle)
  * Initiates the encryption procedure for the specified connection.
  */
 int
-ble_sm_enc_initiate(uint16_t conn_handle, uint8_t *ltk, uint16_t ediv,
+ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
                     uint64_t rand_val, int auth)
 {
     struct ble_sm_result res;

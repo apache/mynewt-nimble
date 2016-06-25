@@ -34,7 +34,7 @@ static uint8_t ble_gatts_notify_test_peer_addr[6] = {2,3,4,5,6,7};
 static int
 ble_gatts_notify_test_misc_access(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 static void
 ble_gatts_notify_test_misc_reg_cb(uint8_t op,
@@ -234,22 +234,22 @@ ble_gatts_notify_test_misc_reg_cb(uint8_t op,
 static int
 ble_gatts_notify_test_misc_access(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
     TEST_ASSERT_FATAL(op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT(conn_handle == 0xffff);
 
     if (attr_handle == ble_gatts_notify_test_chr_1_def_handle + 1) {
-        TEST_ASSERT(ctxt->chr.def ==
+        TEST_ASSERT(ctxt->chr ==
                     &ble_gatts_notify_test_svcs[0].characteristics[0]);
-        ctxt->chr.read.data = ble_gatts_notify_test_chr_1_val;
-        ctxt->chr.read.len = ble_gatts_notify_test_chr_1_len;
+        ctxt->att->read.data = ble_gatts_notify_test_chr_1_val;
+        ctxt->att->read.len = ble_gatts_notify_test_chr_1_len;
     } else if (attr_handle == ble_gatts_notify_test_chr_2_def_handle + 1) {
-        TEST_ASSERT(ctxt->chr.def ==
+        TEST_ASSERT(ctxt->chr ==
                     &ble_gatts_notify_test_svcs[0].characteristics[1]);
-        ctxt->chr.read.data = ble_gatts_notify_test_chr_2_val;
-        ctxt->chr.read.len = ble_gatts_notify_test_chr_2_len;
+        ctxt->att->read.data = ble_gatts_notify_test_chr_2_val;
+        ctxt->att->read.len = ble_gatts_notify_test_chr_2_len;
     } else {
         TEST_ASSERT(0);
     }

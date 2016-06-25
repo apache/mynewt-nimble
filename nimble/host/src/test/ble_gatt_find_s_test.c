@@ -46,8 +46,8 @@ ble_gatt_find_s_test_misc_init(void)
 
 static int
 ble_gatt_find_s_test_misc_cb(uint16_t conn_handle,
-                             struct ble_gatt_error *error,
-                             struct ble_gatt_svc *service,
+                             const struct ble_gatt_error *error,
+                             const struct ble_gatt_svc *service,
                              void *arg)
 {
     TEST_ASSERT(!ble_gatt_find_s_test_proc_complete);

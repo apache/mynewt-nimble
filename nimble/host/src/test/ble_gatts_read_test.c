@@ -32,13 +32,13 @@ static uint8_t ble_gatts_read_test_peer_addr[6] = {2,3,4,5,6,7};
 static int
 ble_gatts_read_test_util_access_1(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 
 static int
 ble_gatts_read_test_util_access_2(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 static void
 ble_gatts_read_test_misc_reg_cb(uint8_t op,
@@ -127,16 +127,16 @@ ble_gatts_read_test_misc_reg_cb(uint8_t op,
 static int
 ble_gatts_read_test_util_access_1(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
     TEST_ASSERT_FATAL(op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_1_val_handle);
 
-    TEST_ASSERT(ctxt->chr.def ==
+    TEST_ASSERT(ctxt->chr ==
                 &ble_gatts_read_test_svcs[0].characteristics[0]);
-    ctxt->chr.read.data = ble_gatts_read_test_chr_1_val;
-    ctxt->chr.read.len = ble_gatts_read_test_chr_1_len;
+    ctxt->att->read.data = ble_gatts_read_test_chr_1_val;
+    ctxt->att->read.len = ble_gatts_read_test_chr_1_len;
 
     return 0;
 }
@@ -144,25 +144,25 @@ ble_gatts_read_test_util_access_1(uint16_t conn_handle,
 static int
 ble_gatts_read_test_util_access_2(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
     TEST_ASSERT_FATAL(op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_2_def_handle + 1);
 
-    TEST_ASSERT(ctxt->chr.def ==
+    TEST_ASSERT(ctxt->chr ==
                 &ble_gatts_read_test_svcs[0].characteristics[1]);
 
-    TEST_ASSERT_FATAL(ctxt->chr.read.data == ctxt->chr.read.buf);
-    TEST_ASSERT(ctxt->chr.read.max_data_len == BLE_ATT_MTU_DFLT - 1);
+    TEST_ASSERT_FATAL(ctxt->att->read.data == ctxt->att->read.buf);
+    TEST_ASSERT(ctxt->att->read.max_data_len == BLE_ATT_MTU_DFLT - 1);
 
-    ctxt->chr.read.buf[0] = 0;
-    ctxt->chr.read.buf[1] = 10;
-    ctxt->chr.read.buf[2] = 20;
-    ctxt->chr.read.buf[3] = 30;
-    ctxt->chr.read.buf[4] = 40;
-    ctxt->chr.read.buf[5] = 50;
-    ctxt->chr.read.len = 6;
+    ctxt->att->read.buf[0] = 0;
+    ctxt->att->read.buf[1] = 10;
+    ctxt->att->read.buf[2] = 20;
+    ctxt->att->read.buf[3] = 30;
+    ctxt->att->read.buf[4] = 40;
+    ctxt->att->read.buf[5] = 50;
+    ctxt->att->read.len = 6;
 
     return 0;
 }

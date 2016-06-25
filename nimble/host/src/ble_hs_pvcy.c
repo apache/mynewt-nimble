@@ -176,7 +176,7 @@ ble_hs_pvcy_our_id_addr(uint8_t *type)
 }
 
 void
-ble_hs_pvcy_set_our_id_addr(uint8_t *addr)
+ble_hs_pvcy_set_our_id_addr(const uint8_t *addr)
 {
     uint8_t random_addr[6];
     int rc;
@@ -204,7 +204,7 @@ ble_hs_pvcy_set_our_id_addr(uint8_t *addr)
 }
 
 void
-ble_hs_pvcy_set_our_irk(uint8_t *irk)
+ble_hs_pvcy_set_our_irk(const uint8_t *irk)
 {
     uint8_t tmp_addr[6];
     uint8_t new_irk[16];

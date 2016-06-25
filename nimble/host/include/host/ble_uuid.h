@@ -25,7 +25,7 @@ struct os_mbuf;
 
 uint16_t ble_uuid_128_to_16(const void *uuid128);
 int ble_uuid_16_to_128(uint16_t uuid16, void *dst);
-int ble_uuid_append(struct os_mbuf *om, void *uuid128);
+int ble_uuid_append(struct os_mbuf *om, const void *uuid128);
 int ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
 
 #define BLE_UUID16_ARR(uuid16) {                                            \

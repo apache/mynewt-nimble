@@ -169,8 +169,8 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
 
 static int
 ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle,
-                             struct ble_gatt_error *error,
-                             struct ble_gatt_chr *chr, void *arg)
+                             const struct ble_gatt_error *error,
+                             const struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_chr *dst;
     int *stop_after;

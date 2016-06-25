@@ -182,7 +182,7 @@ struct ble_gattc_proc {
         } write_long;
 
         struct {
-            struct ble_gatt_attr *attrs;
+            const struct ble_gatt_attr *attrs;
             int num_attrs;
             int cur_attr;
             ble_gatt_reliable_attr_fn *cb;
@@ -393,9 +393,9 @@ ble_gattc_log_proc_init(char *name)
 }
 
 static void
-ble_gattc_log_uuid(void *uuid128)
+ble_gattc_log_uuid(const void *uuid128)
 {
-    uint8_t *u8p;
+    const uint8_t *u8p;
 
     u8p = uuid128;
     BLE_HS_LOG(INFO, "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
@@ -461,7 +461,7 @@ ble_gattc_log_read(uint16_t att_handle)
 
 static void
 ble_gattc_log_read_uuid(uint16_t start_handle, uint16_t end_handle,
-                        uint8_t *uuid128)
+                        const uint8_t *uuid128)
 {
     uint16_t uuid16;
 
@@ -486,7 +486,7 @@ ble_gattc_log_read_long(struct ble_gattc_proc *proc)
 }
 
 static void
-ble_gattc_log_read_mult(uint16_t *handles, uint8_t num_handles)
+ble_gattc_log_read_mult(const uint16_t *handles, uint8_t num_handles)
 {
     int i;
 
@@ -1368,7 +1368,7 @@ ble_gattc_disc_svc_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
+ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const void *svc_uuid128,
                            ble_gatt_disc_svc_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(GATT_DISC_SVC_UUID)
@@ -1388,7 +1388,7 @@ ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
 
     proc->op = BLE_GATT_OP_DISC_SVC_UUID;
     proc->conn_handle = conn_handle;
-    memcpy(proc->disc_svc_uuid.service_uuid, service_uuid128, 16);
+    memcpy(proc->disc_svc_uuid.service_uuid, svc_uuid128, 16);
     proc->disc_svc_uuid.prev_handle = 0x0000;
     proc->disc_svc_uuid.cb = cb;
     proc->disc_svc_uuid.cb_arg = cb_arg;
@@ -2135,7 +2135,7 @@ ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
  */
 int
 ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                            uint16_t end_handle, void *uuid128,
+                            uint16_t end_handle, const void *uuid128,
                             ble_gatt_chr_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(GATT_DISC_CHR_UUID)
@@ -2603,7 +2603,7 @@ ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
  */
 int
 ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                       uint16_t end_handle, void *uuid128,
+                       uint16_t end_handle, const void *uuid128,
                        ble_gatt_attr_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(GATT_READ_UUID)
@@ -2894,7 +2894,7 @@ ble_gattc_read_mult_err(struct ble_gattc_proc *proc, int status,
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
+ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                     uint8_t num_handles, ble_gatt_attr_fn *cb,
                     void *cb_arg)
 {
@@ -2952,8 +2952,8 @@ done:
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                       uint16_t value_len)
+ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
+                       const void *value, uint16_t value_len)
 {
 #if !NIMBLE_OPT(GATT_WRITE_NO_RSP)
     return BLE_HS_ENOTSUP;
@@ -3039,7 +3039,7 @@ ble_gattc_write_err(struct ble_gattc_proc *proc, int status,
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
+ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, const void *value,
                 uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(GATT_WRITE)
@@ -3126,7 +3126,7 @@ ble_gattc_write_long_go(struct ble_gattc_proc *proc, int cb_on_err)
 {
     struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
-    void *value;
+    const void *value;
     int max_sz;
     int rc;
 
@@ -3276,8 +3276,9 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                     uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg)
+ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
+                     const void *value, uint16_t value_len,
+                     ble_gatt_attr_fn *cb, void *cb_arg)
 {
 #if !NIMBLE_OPT(GATT_WRITE_LONG)
     return BLE_HS_ENOTSUP;
@@ -3365,7 +3366,7 @@ ble_gattc_write_reliable_go(struct ble_gattc_proc *proc, int cb_on_err)
 {
     struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
-    struct ble_gatt_attr *attr;
+    const struct ble_gatt_attr *attr;
     int attr_idx;
     int rc;
 
@@ -3427,7 +3428,7 @@ ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
                                  struct ble_att_prep_write_cmd *rsp,
                                  void *attr_data, uint16_t attr_len)
 {
-    struct ble_gatt_attr *attr;
+    const struct ble_gatt_attr *attr;
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
@@ -3502,7 +3503,8 @@ ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc, int status)
  * @param cb_arg                The argument to pass to the callback function.
  */
 int
-ble_gattc_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
+ble_gattc_write_reliable(uint16_t conn_handle,
+                         const struct ble_gatt_attr *attrs,
                          int num_attrs, ble_gatt_reliable_attr_fn *cb,
                          void *cb_arg)
 {
@@ -3555,7 +3557,7 @@ done:
  */
 int
 ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
-                        void *attr_data, uint16_t attr_data_len)
+                        const void *attr_data, uint16_t attr_data_len)
 {
 #if !NIMBLE_OPT(GATT_NOTIFY)
     return BLE_HS_ENOTSUP;
@@ -3580,15 +3582,13 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
             rc = BLE_HS_EAPP;
             goto err;
         }
-    } else {
-        ctxt.attr_data = attr_data;
-        ctxt.data_len = attr_data_len;
-        ctxt.offset = 0;
+
+        attr_data = ctxt.read.data;
+        attr_data_len = ctxt.read.len;
     }
 
     req.banq_handle = att_handle;
-    rc = ble_att_clt_tx_notify(conn_handle, &req,
-                               ctxt.attr_data, ctxt.data_len);
+    rc = ble_att_clt_tx_notify(conn_handle, &req, attr_data, attr_data_len);
     if (rc != 0) {
         goto err;
     }
@@ -3735,7 +3735,7 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
 
     req.baiq_handle = chr_val_handle;
     rc = ble_att_clt_tx_indicate(conn_handle, &req,
-                                 ctxt.attr_data, ctxt.data_len);
+                                 ctxt.read.data, ctxt.read.len);
 
     if (rc != 0) {
         goto done;

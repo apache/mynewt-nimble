@@ -44,7 +44,7 @@ struct ble_gatt_attr {
     uint16_t handle;
     uint16_t offset;
     uint16_t value_len;
-    void *value;
+    const void *value;
 };
 
 struct ble_gatt_chr {
@@ -59,32 +59,37 @@ struct ble_gatt_dsc {
     uint8_t uuid128[16];
 };
 
-typedef int ble_gatt_mtu_fn(uint16_t conn_handle, struct ble_gatt_error *error,
+typedef int ble_gatt_mtu_fn(uint16_t conn_handle,
+                            const struct ble_gatt_error *error,
                             uint16_t mtu, void *arg);
 typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
-                                 struct ble_gatt_error *error,
-                                 struct ble_gatt_svc *service,
+                                 const struct ble_gatt_error *error,
+                                 const struct ble_gatt_svc *service,
                                  void *arg);
 typedef int ble_gatt_attr_fn(uint16_t conn_handle,
-                             struct ble_gatt_error *error,
-                             struct ble_gatt_attr *attr, void *arg);
+                             const struct ble_gatt_error *error,
+                             const struct ble_gatt_attr *attr,
+                             void *arg);
 typedef int ble_gatt_reliable_attr_fn(uint16_t conn_handle,
-                                      struct ble_gatt_error *error,
-                                      struct ble_gatt_attr *attrs,
+                                      const struct ble_gatt_error *error,
+                                      const struct ble_gatt_attr *attrs,
                                       uint8_t num_attrs, void *arg);
 
-typedef int ble_gatt_chr_fn(uint16_t conn_handle, struct ble_gatt_error *error,
-                            struct ble_gatt_chr *chr, void *arg);
+typedef int ble_gatt_chr_fn(uint16_t conn_handle,
+                            const struct ble_gatt_error *error,
+                            const struct ble_gatt_chr *chr, void *arg);
 
-typedef int ble_gatt_dsc_fn(uint16_t conn_handle, struct ble_gatt_error *error,
-                            uint16_t chr_def_handle, struct ble_gatt_dsc *dsc,
+typedef int ble_gatt_dsc_fn(uint16_t conn_handle,
+                            const struct ble_gatt_error *error,
+                            uint16_t chr_def_handle,
+                            const struct ble_gatt_dsc *dsc,
                             void *arg);
 
 int ble_gattc_exchange_mtu(uint16_t conn_handle,
                            ble_gatt_mtu_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
                             ble_gatt_disc_svc_fn *cb, void *cb_arg);
-int ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, void *service_uuid128,
+int ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const void *svc_uuid128,
                                ble_gatt_disc_svc_fn *cb, void *cb_arg);
 int ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
                             uint16_t end_handle,
@@ -93,7 +98,7 @@ int ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
                             uint16_t end_handle, ble_gatt_chr_fn *cb,
                             void *cb_arg);
 int ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                               uint16_t end_handle, void *uuid128,
+                               uint16_t end_handle, const void *uuid128,
                                ble_gatt_chr_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
                             uint16_t chr_end_handle,
@@ -101,21 +106,23 @@ int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                           uint16_t end_handle, void *uuid128,
+                           uint16_t end_handle, const void *uuid128,
                            ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
                         ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_read_mult(uint16_t conn_handle, uint16_t *handles,
+int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
                         void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                           void *value, uint16_t value_len);
-int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                    uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
+                           const void *value, uint16_t value_len);
+int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
+                    const void *value, uint16_t value_len,
+                    ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                         void *value, uint16_t value_len, ble_gatt_attr_fn *cb,
-                         void *cb_arg);
-int ble_gattc_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
+                         const void *value, uint16_t value_len,
+                         ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_write_reliable(uint16_t conn_handle,
+                             const struct ble_gatt_attr *attrs,
                              int num_attrs, ble_gatt_reliable_attr_fn *cb,
                              void *cb_arg);
 int ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
@@ -123,14 +130,14 @@ int ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
 int ble_gattc_read_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
                             ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_dsc(uint16_t conn_handle, uint16_t attr_handle,
-                        void *value, uint16_t value_len,
+                        const void *value, uint16_t value_len,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
-                             void *value, uint16_t value_len,
+                             const void *value, uint16_t value_len,
                              ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
-                            void *attr_data, uint16_t attr_data_len);
+                            const void *attr_data, uint16_t attr_data_len);
 
 int ble_gattc_init(void);
 
@@ -150,9 +157,9 @@ int ble_gattc_init(void);
 #define BLE_GATT_ACCESS_OP_READ_DSC         2
 #define BLE_GATT_ACCESS_OP_WRITE_DSC        3
 
-union ble_gatt_access_ctxt;
+struct ble_gatt_access_ctxt;
 typedef int ble_gatt_access_fn(uint16_t conn_handle, uint16_t attr_handle,
-                               uint8_t op, union ble_gatt_access_ctxt *ctxt,
+                               uint8_t op, struct ble_gatt_access_ctxt *ctxt,
                                void *arg);
 
 typedef uint16_t ble_gatt_chr_flags;
@@ -192,87 +199,23 @@ struct ble_gatt_svc_def {
     const struct ble_gatt_chr_def *characteristics;
 };
 
-/**
- * Context for reads of characteristics and descriptors.  An instance of this
- * gets passed to an application callback whenever a local characteristic or
- * descriptor is read.
- */
-struct ble_gatt_read_ctxt {
-    /**
-     * (stack --> app)
-     * Maximum number of data bytes the stack can send in the read response.
-     * This is based on the connection's ATT MTU.
-     */
-    uint16_t max_data_len;
-
-    /**
-     * (stack --> app)
-     * A buffer that the app can use to write the characteristic response value
-     * to.  This buffer can hold up to max_data_len bytes.
-     */
-    uint8_t *buf;
-
-    /**
-     * (app --> stack)
-     * App points this at the characteristic data to respond with.  Initially
-     * this points to "buf".
-     */
-    const void *data;
-
-    /**
-     * (app --> stack)
-     * App fills this with the number of data bytes contained in characteristic
-     * response.
-     */
-    uint16_t len;
-};
-
-/**
- * Context for writes of characteristics and descriptors.  An instance of this
- * gets passed to an application callback whenever a local characteristic or
- * descriptor is written.
- */
-struct ble_gatt_write_ctxt {
-    /**
-     * (stack --> app)
-     * The data that the peer is writing to the characteristic.
-     */
-    const void *data;
-
-    /**
-     * (stack --> app)
-     * The number of bytes of characteristic data being written.
-     */
-    int len;
-};
-
-union ble_gatt_access_ctxt {
-    struct {
+struct ble_gatt_access_ctxt {
+    union {
         /**
          * Points to the characteristic defintion corresponding to the
          * characteristic being accessed.  This is what the app registered at
          * startup.
          */
-        const struct ble_gatt_chr_def *def;
+        const struct ble_gatt_chr_def *chr;
 
-        union {
-            struct ble_gatt_read_ctxt read;
-            struct ble_gatt_write_ctxt write;
-        };
-    } chr;
-
-    struct {
         /**
          * Points to the descriptor defintion corresponding to the descriptor
          * being accessed.  This is what the app registered at startup.
          */
-        const struct ble_gatt_dsc_def *def;
+        const struct ble_gatt_dsc_def *dsc;
+    };
 
-        union {
-            struct ble_gatt_read_ctxt read;
-            struct ble_gatt_write_ctxt write;
-        };
-    } dsc;
+    struct ble_att_svr_access_ctxt *att;
 };
 
 struct ble_gatt_dsc_def {
