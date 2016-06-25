@@ -44,8 +44,8 @@ ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle,
 
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->attr_data = &data;
-        ctxt->data_len = 1;
+        ctxt->read.data = &data;
+        ctxt->read.len = 1;
         return 0;
 
     default:
@@ -54,7 +54,8 @@ ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 static int
-ble_gatt_conn_test_mtu_cb(uint16_t conn_handle, struct ble_gatt_error *error,
+ble_gatt_conn_test_mtu_cb(uint16_t conn_handle,
+                          const struct ble_gatt_error *error,
                           uint16_t mtu, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -74,9 +75,9 @@ ble_gatt_conn_test_mtu_cb(uint16_t conn_handle, struct ble_gatt_error *error,
 
 static int
 ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
-                                   struct ble_gatt_error *error,
-                                   struct ble_gatt_svc *service,
-                                   void *arg)
+                                    const struct ble_gatt_error *error,
+                                    const struct ble_gatt_svc *service,
+                                    void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -95,8 +96,8 @@ ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
-                                    struct ble_gatt_error *error,
-                                    struct ble_gatt_svc *service,
+                                    const struct ble_gatt_error *error,
+                                    const struct ble_gatt_svc *service,
                                     void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -116,8 +117,8 @@ ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_find_inc_svcs_cb(uint16_t conn_handle,
-                                    struct ble_gatt_error *error,
-                                    struct ble_gatt_svc *service,
+                                    const struct ble_gatt_error *error,
+                                    const struct ble_gatt_svc *service,
                                     void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -137,8 +138,8 @@ ble_gatt_conn_test_find_inc_svcs_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_disc_all_chrs_cb(uint16_t conn_handle,
-                                    struct ble_gatt_error *error,
-                                    struct ble_gatt_chr *chr, void *arg)
+                                    const struct ble_gatt_error *error,
+                                    const struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -157,8 +158,8 @@ ble_gatt_conn_test_disc_all_chrs_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_disc_chr_uuid_cb(uint16_t conn_handle,
-                                    struct ble_gatt_error *error,
-                                    struct ble_gatt_chr *chr, void *arg)
+                                    const struct ble_gatt_error *error,
+                                    const struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -177,9 +178,9 @@ ble_gatt_conn_test_disc_chr_uuid_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
-                                    struct ble_gatt_error *error,
+                                    const struct ble_gatt_error *error,
                                     uint16_t chr_def_handle,
-                                    struct ble_gatt_dsc *dsc,
+                                    const struct ble_gatt_dsc *dsc,
                                     void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -198,8 +199,9 @@ ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
 }
 
 static int
-ble_gatt_conn_test_read_cb(uint16_t conn_handle, struct ble_gatt_error *error,
-                           struct ble_gatt_attr *attr, void *arg)
+ble_gatt_conn_test_read_cb(uint16_t conn_handle,
+                           const struct ble_gatt_error *error,
+                           const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -218,8 +220,8 @@ ble_gatt_conn_test_read_cb(uint16_t conn_handle, struct ble_gatt_error *error,
 
 static int
 ble_gatt_conn_test_read_uuid_cb(uint16_t conn_handle,
-                                struct ble_gatt_error *error,
-                                struct ble_gatt_attr *attr, void *arg)
+                                const struct ble_gatt_error *error,
+                                const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -238,8 +240,8 @@ ble_gatt_conn_test_read_uuid_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_read_long_cb(uint16_t conn_handle,
-                                struct ble_gatt_error *error,
-                                struct ble_gatt_attr *attr, void *arg)
+                                const struct ble_gatt_error *error,
+                                const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -257,8 +259,8 @@ ble_gatt_conn_test_read_long_cb(uint16_t conn_handle,
 }
 static int
 ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
-                                struct ble_gatt_error *error,
-                                struct ble_gatt_attr *attr, void *arg)
+                                const struct ble_gatt_error *error,
+                                const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -276,8 +278,10 @@ ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
 }
 
 static int
-ble_gatt_conn_test_write_cb(uint16_t conn_handle, struct ble_gatt_error *error,
-                            struct ble_gatt_attr *attr, void *arg)
+ble_gatt_conn_test_write_cb(uint16_t conn_handle,
+                            const struct ble_gatt_error *error,
+                            const struct ble_gatt_attr *attr,
+                            void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -297,8 +301,8 @@ ble_gatt_conn_test_write_cb(uint16_t conn_handle, struct ble_gatt_error *error,
 
 static int
 ble_gatt_conn_test_write_long_cb(uint16_t conn_handle,
-                                 struct ble_gatt_error *error,
-                                 struct ble_gatt_attr *attr, void *arg)
+                                 const struct ble_gatt_error *error,
+                                 const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -318,8 +322,9 @@ ble_gatt_conn_test_write_long_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
-                                struct ble_gatt_error *error,
-                                struct ble_gatt_attr *attrs, uint8_t num_attrs,
+                                const struct ble_gatt_error *error,
+                                const struct ble_gatt_attr *attrs,
+                                uint8_t num_attrs,
                                 void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -339,8 +344,8 @@ ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
 
 static int
 ble_gatt_conn_test_indicate_cb(uint16_t conn_handle,
-                               struct ble_gatt_error *error,
-                               struct ble_gatt_attr *attr, void *arg)
+                               const struct ble_gatt_error *error,
+                               const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 

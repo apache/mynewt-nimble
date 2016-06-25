@@ -33,7 +33,7 @@ static int ble_gatt_write_test_cb_called;
 static uint8_t ble_gatt_write_test_attr_value[BLE_ATT_ATTR_MAX_LEN];
 static struct ble_gatt_error ble_gatt_write_test_error;
 
-static struct ble_gatt_attr *
+static const struct ble_gatt_attr *
 ble_gatt_write_test_attrs[BLE_GATT_WRITE_TEST_MAX_ATTRS];
 static int ble_gatt_write_test_num_attrs;
 
@@ -52,8 +52,9 @@ ble_gatt_write_test_init(void)
 }
 
 static int
-ble_gatt_write_test_cb_good(uint16_t conn_handle, struct ble_gatt_error *error,
-                            struct ble_gatt_attr *attr, void *arg)
+ble_gatt_write_test_cb_good(uint16_t conn_handle,
+                            const struct ble_gatt_error *error,
+                            const struct ble_gatt_attr *attr, void *arg)
 {
     int *attr_len;
 
@@ -88,7 +89,7 @@ ble_gatt_write_test_rx_rsp(uint16_t conn_handle)
 static void
 ble_gatt_write_test_rx_prep_rsp(uint16_t conn_handle, uint16_t attr_handle,
                                 uint16_t offset,
-                                void *attr_data, uint16_t attr_data_len)
+                                const void *attr_data, uint16_t attr_data_len)
 {
     struct ble_att_prep_write_cmd rsp;
     uint8_t buf[512];
@@ -255,8 +256,8 @@ ble_gatt_write_test_misc_long_fail_length(uint16_t conn_handle,
 
 static int
 ble_gatt_write_test_reliable_cb_good(uint16_t conn_handle,
-                                     struct ble_gatt_error *error,
-                                     struct ble_gatt_attr *attrs,
+                                     const struct ble_gatt_error *error,
+                                     const struct ble_gatt_attr *attrs,
                                      uint8_t num_attrs, void *arg)
 {
     int i;

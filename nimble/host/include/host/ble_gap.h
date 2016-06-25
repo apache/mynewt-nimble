@@ -298,8 +298,8 @@ int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
                       const struct ble_gap_adv_params *adv_params,
                       ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_adv_stop(void);
-int ble_gap_adv_set_fields(struct ble_hs_adv_fields *adv_fields);
-int ble_gap_adv_rsp_set_fields(struct ble_hs_adv_fields *rsp_fields);
+int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields);
+int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
                  ble_gap_disc_fn *cb, void *cb_arg);
@@ -310,14 +310,14 @@ int ble_gap_connect(uint8_t own_addr_type,
                     ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_terminate(uint16_t handle);
 int ble_gap_conn_cancel(void);
-int ble_gap_wl_set(struct ble_gap_white_entry *white_list,
+int ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
                    uint8_t white_list_count);
 int ble_gap_update_params(uint16_t conn_handle,
-                          struct ble_gap_upd_params *params);
+                          const struct ble_gap_upd_params *params);
 int ble_gap_security_initiate(uint16_t conn_handle);
 int ble_gap_pair_initiate(uint16_t conn_handle);
-int ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t *ltk,
+int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
                                 uint16_t ediv, uint64_t rand_val, int auth);
-void ble_gap_init_identity_addr(uint8_t *addr);
+void ble_gap_init_identity_addr(const uint8_t *addr);
 
 #endif

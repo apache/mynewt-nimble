@@ -156,8 +156,9 @@ ble_gatt_disc_d_test_misc_verify_dscs(struct ble_gatt_disc_d_test_dsc *dscs,
 
 static int
 ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle,
-                             struct ble_gatt_error *error,
-                             uint16_t chr_def_handle, struct ble_gatt_dsc *dsc,
+                             const struct ble_gatt_error *error,
+                             uint16_t chr_def_handle,
+                             const struct ble_gatt_dsc *dsc,
                              void *arg)
 {
     struct ble_gatt_disc_d_test_dsc *dst;

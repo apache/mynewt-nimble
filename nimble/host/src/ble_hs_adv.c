@@ -40,7 +40,7 @@ ble_hs_adv_set_hdr(uint8_t type, uint8_t data_len, uint8_t max_len,
 }
 
 int
-ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
+ble_hs_adv_set_flat(uint8_t type, int data_len, const void *data,
                     uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
 #if !NIMBLE_OPT(ADVERTISE)
@@ -63,7 +63,7 @@ ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
 }
 
 static int
-ble_hs_adv_set_array16(uint8_t type, uint8_t num_elems, uint16_t *elems,
+ble_hs_adv_set_array16(uint8_t type, uint8_t num_elems, const uint16_t *elems,
                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
     int rc;
@@ -84,7 +84,7 @@ ble_hs_adv_set_array16(uint8_t type, uint8_t num_elems, uint16_t *elems,
 }
 
 static int
-ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, uint32_t *elems,
+ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, const uint32_t *elems,
                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
     int rc;
@@ -110,7 +110,7 @@ ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, uint32_t *elems,
  * @return                      0 on success;  on failure.
  */
 int
-ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
+ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
                       uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
 #if !NIMBLE_OPT(ADVERTISE)

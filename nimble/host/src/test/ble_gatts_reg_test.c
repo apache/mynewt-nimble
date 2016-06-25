@@ -94,7 +94,7 @@ ble_gatts_reg_test_misc_verify_entry(uint8_t op, const uint8_t *uuid128)
 static int
 ble_gatts_reg_test_misc_dummy_access(uint16_t conn_handle,
                                      uint16_t attr_handle, uint8_t op,
-                                     union ble_gatt_access_ctxt *ctxt,
+                                     struct ble_gatt_access_ctxt *ctxt,
                                      void *arg)
 {
     return 0;
