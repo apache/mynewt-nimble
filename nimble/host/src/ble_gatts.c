@@ -716,6 +716,10 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     }
     BLE_HS_DBG_ASSERT(val_handle == def_handle + 1);
 
+    if (chr->val_handle != NULL) {
+        *chr->val_handle = val_handle;
+    }
+
     if (register_cb != NULL) {
         register_ctxt.chr.def_handle = def_handle;
         register_ctxt.chr.val_handle = val_handle;
