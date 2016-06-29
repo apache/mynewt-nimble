@@ -65,7 +65,9 @@ ble_gatt_read_test_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
 
     stop_after = arg;
 
-    if (error != NULL) {
+    TEST_ASSERT_FATAL(error != NULL);
+
+    if (error->status != 0) {
         ble_gatt_read_test_bad_conn_handle = conn_handle;
         ble_gatt_read_test_bad_status = error->status;
         ble_gatt_read_test_complete = 1;
@@ -111,7 +113,9 @@ ble_gatt_read_test_long_cb(uint16_t conn_handle,
 
     reads_left = arg;
 
-    if (error != NULL) {
+    TEST_ASSERT_FATAL(error != NULL);
+
+    if (error->status != 0) {
         ble_gatt_read_test_bad_conn_handle = conn_handle;
         ble_gatt_read_test_bad_status = error->status;
         ble_gatt_read_test_complete = 1;
