@@ -35,7 +35,7 @@ struct ble_gatts_svc_entry {
 };
 
 static struct ble_gatts_svc_entry *ble_gatts_svc_entries;
-static int ble_gatts_num_svc_entries;
+static uint16_t ble_gatts_num_svc_entries;
 
 static os_membuf_t *ble_gatts_clt_cfg_mem;
 static struct os_mempool ble_gatts_clt_cfg_pool;
@@ -95,8 +95,6 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint8_t *uuid128, uint8_t op,
                      struct ble_att_svr_access_ctxt *ctxt, void *arg)
 {
-    static uint8_t buf[BLE_GATTS_INCLUDE_SZ];
-
     const struct ble_gatts_svc_entry *entry;
     uint16_t uuid16;
 
@@ -106,18 +104,17 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     entry = arg;
 
-    htole16(buf + 0, entry->handle);
-    htole16(buf + 2, entry->end_group_handle);
+    htole16(ctxt->read.buf + 0, entry->handle);
+    htole16(ctxt->read.buf + 2, entry->end_group_handle);
 
     /* Only include the service UUID if it has a 16-bit representation. */
     uuid16 = ble_uuid_128_to_16(entry->svc->uuid128);
     if (uuid16 != 0) {
-        htole16(buf + 4, uuid16);
+        htole16(ctxt->read.buf + 4, uuid16);
         ctxt->read.len = 6;
     } else {
         ctxt->read.len = 4;
     }
-    ctxt->read.data = buf;
 
     return 0;
 }
@@ -323,7 +320,7 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 static int
-ble_gatts_find_svc(const struct ble_gatt_svc_def *svc)
+ble_gatts_find_svc_entry_idx(const struct ble_gatt_svc_def *svc)
 {
     int i;
 
@@ -348,7 +345,7 @@ ble_gatts_svc_incs_satisfied(const struct ble_gatt_svc_def *svc)
     }
 
     for (i = 0; svc->includes[i] != NULL; i++) {
-        idx = ble_gatts_find_svc(svc->includes[i]);
+        idx = ble_gatts_find_svc_entry_idx(svc->includes[i]);
         if (idx == -1 || ble_gatts_svc_entries[idx].handle == 0) {
             return 0;
         }
@@ -462,8 +459,9 @@ ble_gatts_dsc_is_sane(const struct ble_gatt_dsc_def *dsc)
 }
 
 static int
-ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
+ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
                        const struct ble_gatt_chr_def *chr,
+                       const struct ble_gatt_dsc_def *dsc,
                        uint16_t chr_def_handle,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
 {
@@ -482,11 +480,10 @@ ble_gatts_register_dsc(const struct ble_gatt_dsc_def *dsc,
     }
 
     if (register_cb != NULL) {
-        register_ctxt.dsc.dsc_handle = dsc_handle;
-        register_ctxt.dsc.dsc_def = dsc;
-        register_ctxt.dsc.chr_def_handle = chr_def_handle;
-        register_ctxt.dsc.chr_val_handle = chr_def_handle + 1;
+        register_ctxt.dsc.handle = dsc_handle;
+        register_ctxt.dsc.svc_def = svc;
         register_ctxt.dsc.chr_def = chr;
+        register_ctxt.dsc.dsc_def = dsc;
         register_cb(BLE_GATT_REGISTER_OP_DSC, &register_ctxt, cb_arg);
     }
 
@@ -695,6 +692,13 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
         return BLE_HS_EINVAL;
     }
 
+    if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
+        if (ble_gatts_num_cfgable_chrs > ble_hs_cfg.max_client_configs) {
+            return BLE_HS_ENOMEM;
+        }
+        ble_gatts_num_cfgable_chrs++;
+    }
+
     /* Register characteristic definition attribute (cast away const on
      * callback arg).
      */
@@ -723,7 +727,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     if (register_cb != NULL) {
         register_ctxt.chr.def_handle = def_handle;
         register_ctxt.chr.val_handle = val_handle;
-        register_ctxt.svc.svc_def = svc;
+        register_ctxt.chr.svc_def = svc;
         register_ctxt.chr.chr_def = chr;
         register_cb(BLE_GATT_REGISTER_OP_CHR, &register_ctxt, cb_arg);
     }
@@ -739,7 +743,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     /* Register each descriptor. */
     if (chr->descriptors != NULL) {
         for (dsc = chr->descriptors; dsc->uuid128 != NULL; dsc++) {
-            rc = ble_gatts_register_dsc(dsc, chr, def_handle, register_cb,
+            rc = ble_gatts_register_dsc(svc, chr, dsc, def_handle, register_cb,
                                         cb_arg);
             if (rc != 0) {
                 return rc;
@@ -829,7 +833,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     /* Register each include. */
     if (svc->includes != NULL) {
         for (i = 0; svc->includes[i] != NULL; i++) {
-            idx = ble_gatts_find_svc(svc->includes[i]);
+            idx = ble_gatts_find_svc_entry_idx(svc->includes[i]);
             BLE_HS_DBG_ASSERT_EVAL(idx != -1);
 
             rc = ble_gatts_register_inc(ble_gatts_svc_entries + idx);
@@ -879,7 +883,7 @@ ble_gatts_register_round(int *out_num_registered, ble_gatt_register_fn *cb,
 
             case BLE_HS_EAGAIN:
                 /* Service could not be registered due to unsatisfied includes.
-                 * Try again on the next itereation.
+                 * Try again on the next iteration.
                  */
                 break;
 
@@ -959,24 +963,8 @@ ble_gatts_start(void)
     int idx;
     int rc;
 
-    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-
-    /* Count the number of client-configurable characteristics. */
-    ble_gatts_num_cfgable_chrs = 0;
-    ha = NULL;
-    while ((ha = ble_att_svr_find_by_uuid(ha, uuid128)) != NULL) {
-        chr = ha->ha_cb_arg;
-        if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
-            ble_gatts_num_cfgable_chrs++;
-        }
-    }
     if (ble_gatts_num_cfgable_chrs == 0) {
         return 0;
-    }
-
-    if (ble_gatts_num_cfgable_chrs > ble_hs_cfg.max_client_configs) {
-        return BLE_HS_ENOMEM;
     }
 
     /* Initialize client-configuration memory pool. */
@@ -997,9 +985,11 @@ ble_gatts_start(void)
     }
 
     /* Fill the cache. */
+    rc = ble_uuid_16_to_128(BLE_ATT_UUID_CHARACTERISTIC, uuid128);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     idx = 0;
     ha = NULL;
-    while ((ha = ble_att_svr_find_by_uuid(ha, uuid128)) != NULL) {
+    while ((ha = ble_att_svr_find_by_uuid(ha, uuid128, 0xffff)) != NULL) {
         chr = ha->ha_cb_arg;
         allowed_flags = ble_gatts_chr_clt_cfg_allowed(chr);
         if (allowed_flags != 0) {
@@ -1400,6 +1390,199 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
         }
 
         cccd_key.idx++;
+    }
+}
+
+static struct ble_gatts_svc_entry *
+ble_gatts_find_svc_entry(const void *uuid128)
+{
+    struct ble_gatts_svc_entry *entry;
+    int i;
+
+    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
+        entry = ble_gatts_svc_entries + i;
+        if (memcmp(uuid128, entry->svc->uuid128, 16) == 0) {
+            return entry;
+        }
+    }
+
+    return NULL;
+}
+
+static int
+ble_gatts_find_svc_chr_attr(const void *svc_uuid128, const void *chr_uuid128,
+                            struct ble_gatts_svc_entry **out_svc_entry,
+                            struct ble_att_svr_entry **out_att_chr)
+{
+    struct ble_gatts_svc_entry *svc_entry;
+    struct ble_att_svr_entry *att_svc;
+    struct ble_att_svr_entry *next;
+    struct ble_att_svr_entry *cur;
+    uint16_t uuid16;
+
+    svc_entry = ble_gatts_find_svc_entry(svc_uuid128);
+    if (svc_entry == NULL) {
+        return BLE_HS_ENOENT;
+    }
+
+    att_svc = ble_att_svr_find_by_handle(svc_entry->handle);
+    if (att_svc == NULL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    cur = STAILQ_NEXT(att_svc, ha_next);
+    while (1) {
+        if (cur == NULL) {
+            /* Reached end of attribute list without a match. */
+            return BLE_HS_ENOENT;
+        }
+        next = STAILQ_NEXT(cur, ha_next);
+
+        if (cur->ha_handle_id == svc_entry->end_group_handle) {
+            /* Reached end of service without a match. */
+            return BLE_HS_ENOENT;
+        }
+
+        uuid16 = ble_uuid_128_to_16(cur->ha_uuid);
+        if (uuid16 == BLE_ATT_UUID_CHARACTERISTIC &&
+            next != NULL &&
+            memcmp(next->ha_uuid, chr_uuid128, 16) == 0) {
+
+            if (out_svc_entry != NULL) {
+                *out_svc_entry = svc_entry;
+            }
+            if (out_att_chr != NULL) {
+                *out_att_chr = next;
+            }
+            return 0;
+        }
+
+        cur = next;
+    }
+}
+
+/**
+ * Retrieves the attribute handle associated with a local GATT service.
+ *
+ * @param uuid128               The UUID of the service to look up.
+ * @param out_handle            On success, populated with the handle of the
+ *                                  service attribute.  Pass null if you don't
+ *                                  need this value.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT if the specified service could
+ *                                  not be found.
+ */
+int
+ble_gatts_find_svc(const void *uuid128, uint16_t *out_handle)
+{
+    struct ble_gatts_svc_entry *entry;
+
+    entry = ble_gatts_find_svc_entry(uuid128);
+    if (entry == NULL) {
+        return BLE_HS_ENOENT;
+    }
+
+    if (out_handle != NULL) {
+        *out_handle = entry->handle;
+    }
+    return 0;
+}
+
+/**
+ * Retrieves the pair of attribute handles associated with a local GATT
+ * characteristic.
+ *
+ * @param svc_uuid128           The UUID of the parent service.
+ * @param chr_uuid128           The UUID of the characteristic to look up.
+ * @param out_def_handle        On success, populated with the handle
+ *                                  of the characteristic definition attribute.
+ *                                  Pass null if you don't need this value.
+ * @param out_val_handle        On success, populated with the handle
+ *                                  of the characteristic value attribute.
+ *                                  Pass null if you don't need this value.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT if the specified service or
+ *                                  characteristic could not be found.
+ */
+int
+ble_gatts_find_chr(const void *svc_uuid128, const void *chr_uuid128,
+                   uint16_t *out_def_handle, uint16_t *out_val_handle)
+{
+    struct ble_att_svr_entry *att_chr;
+    int rc;
+
+    rc = ble_gatts_find_svc_chr_attr(svc_uuid128, chr_uuid128, NULL, &att_chr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (out_def_handle) {
+        *out_def_handle = att_chr->ha_handle_id - 1;
+    }
+    if (out_val_handle) {
+        *out_val_handle = att_chr->ha_handle_id;
+    }
+    return 0;
+}
+
+/**
+ * Retrieves the attribute handle associated with a local GATT descriptor.
+ *
+ * @param svc_uuid128           The UUID of the grandparent service.
+ * @param chr_uuid128           The UUID of the parent characteristic.
+ * @param dsc_uuid128           The UUID of the descriptor ro look up.
+ * @param out_handle            On success, populated with the handle
+ *                                  of the descripytor attribute.  Pass null if
+ *                                  you don't need this value.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT if the specified service,
+ *                                  characteristic, or descriptor could not be
+ *                                  found.
+ */
+int
+ble_gatts_find_dsc(const void *svc_uuid128, const void *chr_uuid128,
+                   const void *dsc_uuid128, uint16_t *out_handle)
+{
+    struct ble_gatts_svc_entry *svc_entry;
+    struct ble_att_svr_entry *att_chr;
+    struct ble_att_svr_entry *cur;
+    uint16_t uuid16;
+    int rc;
+
+    rc = ble_gatts_find_svc_chr_attr(svc_uuid128, chr_uuid128, &svc_entry,
+                                     &att_chr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    cur = STAILQ_NEXT(att_chr, ha_next);
+    while (1) {
+        if (cur == NULL) {
+            /* Reached end of attribute list without a match. */
+            return BLE_HS_ENOENT;
+        }
+
+        if (cur->ha_handle_id == svc_entry->end_group_handle) {
+            /* Reached end of service without a match. */
+            return BLE_HS_ENOENT;
+        }
+
+        uuid16 = ble_uuid_128_to_16(cur->ha_uuid);
+        if (uuid16 == BLE_ATT_UUID_CHARACTERISTIC) {
+            /* Reached end of characteristic without a match. */
+            return BLE_HS_ENOENT;
+        }
+
+        if (memcmp(cur->ha_uuid, dsc_uuid128, 16) == 0) {
+            if (out_handle != NULL) {
+                *out_handle = cur->ha_handle_id;
+                return 0;
+            }
+        }
+        cur = STAILQ_NEXT(cur, ha_next);
     }
 }
 

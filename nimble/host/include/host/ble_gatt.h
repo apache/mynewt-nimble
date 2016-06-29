@@ -356,6 +356,13 @@ typedef void ble_gatt_register_fn(uint8_t op,
 int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                             ble_gatt_register_fn *register_cb,
                             void *cb_arg);
+
 void ble_gatts_chr_updated(uint16_t chr_def_handle);
+
+int ble_gatts_find_svc(const void *uuid128, uint16_t *out_handle);
+int ble_gatts_find_chr(const void *svc_uuid128, const void *chr_uuid128,
+                       uint16_t *out_def_handle, uint16_t *out_val_handle);
+int ble_gatts_find_dsc(const void *svc_uuid128, const void *chr_uuid128,
+                       const void *dsc_uuid128, uint16_t *out_dsc_handle);
 
 #endif

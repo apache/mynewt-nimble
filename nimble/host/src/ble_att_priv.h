@@ -156,9 +156,12 @@ int ble_att_init(void);
 /*** @svr */
 
 struct ble_att_svr_entry *
-ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at, uint8_t *uuid);
+ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at,
+                         const uint8_t *uuid,
+                         uint16_t end_handle);
 uint16_t ble_att_svr_prev_handle(void);
 int ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **om);
+struct ble_att_svr_entry *ble_att_svr_find_by_handle(uint16_t handle_id);
 int ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_svr_rx_find_type_value(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
