@@ -888,8 +888,9 @@ ble_gattc_error(int status, uint16_t att_handle)
 {
     static struct ble_gatt_error error;
 
+    /* For consistency, always indicate a handle of 0 on success. */
     if (status == 0) {
-        return NULL;
+        att_handle = 0;
     }
 
     error.status = status;

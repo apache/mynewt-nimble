@@ -51,7 +51,7 @@ ble_gatt_find_s_test_misc_cb(uint16_t conn_handle,
                              void *arg)
 {
     TEST_ASSERT(!ble_gatt_find_s_test_proc_complete);
-    TEST_ASSERT(error == NULL);
+    TEST_ASSERT(error != NULL && error->status == 0);
 
     if (service == NULL) {
         ble_gatt_find_s_test_proc_complete = 1;

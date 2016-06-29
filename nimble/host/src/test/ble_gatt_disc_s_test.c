@@ -223,7 +223,7 @@ ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle,
                                   const struct ble_gatt_svc *service,
                                   void *arg)
 {
-    TEST_ASSERT(error == NULL);
+    TEST_ASSERT(error != NULL && error->status == 0);
     TEST_ASSERT(!ble_gatt_disc_s_test_rx_complete);
 
     if (service == NULL) {

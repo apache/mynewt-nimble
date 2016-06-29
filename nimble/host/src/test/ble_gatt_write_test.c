@@ -60,13 +60,14 @@ ble_gatt_write_test_cb_good(uint16_t conn_handle,
 
     attr_len = arg;
 
+    TEST_ASSERT(error != NULL);
     TEST_ASSERT(conn_handle == 2);
+
+    ble_gatt_write_test_error = *error;
+
     if (attr_len != NULL) {
-        TEST_ASSERT(error == NULL);
+        TEST_ASSERT(error->status == 0);
         TEST_ASSERT(attr->handle == 100);
-    } else {
-        TEST_ASSERT(error != NULL);
-        ble_gatt_write_test_error = *error;
     }
 
     ble_gatt_write_test_cb_called = 1;
