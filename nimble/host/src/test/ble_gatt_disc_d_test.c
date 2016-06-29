@@ -164,14 +164,13 @@ ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle,
     struct ble_gatt_disc_d_test_dsc *dst;
     int *stop_after;
 
-    TEST_ASSERT(error != NULL && error->status == 0);
+    TEST_ASSERT(error != NULL);
     TEST_ASSERT(!ble_gatt_disc_d_test_rx_complete);
 
     stop_after = arg;
 
-    if (dsc == NULL) {
-        ble_gatt_disc_d_test_rx_complete = 1;
-    } else {
+    switch (error->status) {
+    case 0:
         TEST_ASSERT_FATAL(ble_gatt_disc_d_test_num_dscs <
                           BLE_GATT_DISC_D_TEST_MAX_DSCS);
 
@@ -179,6 +178,15 @@ ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle,
         dst->chr_def_handle = chr_def_handle;
         dst->dsc_handle = dsc->handle;
         memcpy(dst->dsc_uuid128, dsc->uuid128, 16);
+        break;
+
+    case BLE_HS_EDONE:
+        ble_gatt_disc_d_test_rx_complete = 1;
+        break;
+
+    default:
+        TEST_ASSERT(0);
+        break;
     }
 
     if (*stop_after > 0) {

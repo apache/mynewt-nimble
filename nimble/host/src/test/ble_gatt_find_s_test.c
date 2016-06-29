@@ -51,12 +51,20 @@ ble_gatt_find_s_test_misc_cb(uint16_t conn_handle,
                              void *arg)
 {
     TEST_ASSERT(!ble_gatt_find_s_test_proc_complete);
-    TEST_ASSERT(error != NULL && error->status == 0);
+    TEST_ASSERT(error != NULL);
 
-    if (service == NULL) {
-        ble_gatt_find_s_test_proc_complete = 1;
-    } else {
+    switch (error->status) {
+    case 0:
         ble_gatt_find_s_test_svcs[ble_gatt_find_s_test_num_svcs++] = *service;
+        break;
+
+    case BLE_HS_EDONE:
+        ble_gatt_find_s_test_proc_complete = 1;
+        break;
+
+    default:
+        TEST_ASSERT(0);
+        break;
     }
 
     return 0;
