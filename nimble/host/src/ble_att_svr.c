@@ -25,7 +25,9 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
-static STAILQ_HEAD(, ble_att_svr_entry) ble_att_svr_list;
+STAILQ_HEAD(ble_att_svr_entry_list, ble_att_svr_entry);
+static struct ble_att_svr_entry_list ble_att_svr_list;
+
 static uint16_t ble_att_svr_id;
 
 static void *ble_att_svr_entry_mem;
@@ -159,7 +161,7 @@ ble_att_svr_find_by_handle(uint16_t handle_id)
  * Find a host attribute by UUID.
  *
  * @param uuid                  The ble_uuid_t to search for
- * @param ha_ptr                On input: Indicates the starting point of the
+ * @param prev                  On input: Indicates the starting point of the
  *                                  walk; null means start at the beginning of
  *                                  the list, non-null means start at the
  *                                  following entry.
@@ -170,7 +172,8 @@ ble_att_svr_find_by_handle(uint16_t handle_id)
  * @return                      0 on success; BLE_HS_ENOENT on not found.
  */
 struct ble_att_svr_entry *
-ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, uint8_t *uuid)
+ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, const uint8_t *uuid,
+                         uint16_t end_handle)
 {
     struct ble_att_svr_entry *entry;
 
@@ -180,7 +183,10 @@ ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, uint8_t *uuid)
         entry = STAILQ_NEXT(prev, ha_next);
     }
 
-    for (; entry != NULL; entry = STAILQ_NEXT(entry, ha_next)) {
+    for (;
+         entry != NULL && entry->ha_handle_id <= end_handle;
+         entry = STAILQ_NEXT(entry, ha_next)) {
+
         if (memcmp(entry->ha_uuid, uuid, sizeof entry->ha_uuid) == 0) {
             return entry;
         }
@@ -1247,13 +1253,9 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     /* Find all matching attributes, writing a record for each. */
     entry = NULL;
     while (1) {
-        entry = ble_att_svr_find_by_uuid(entry, uuid128);
+        entry = ble_att_svr_find_by_uuid(entry, uuid128, req->batq_end_handle);
         if (entry == NULL) {
             rc = BLE_HS_ENOENT;
-            break;
-        }
-
-        if (entry->ha_handle_id > req->batq_end_handle) {
             break;
         }
 
