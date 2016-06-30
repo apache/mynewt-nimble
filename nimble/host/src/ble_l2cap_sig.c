@@ -596,7 +596,7 @@ ble_l2cap_sig_heartbeat(void)
     /* Terminate the connection associated with each timed-out procedure. */
     STAILQ_FOREACH(proc, &temp_list, next) {
         STATS_INC(ble_l2cap_stats, proc_timeout);
-        ble_gap_terminate(proc->conn_handle);
+        ble_gap_terminate(proc->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     }
 
     return BLE_HS_FOREVER;

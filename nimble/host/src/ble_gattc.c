@@ -869,7 +869,7 @@ ble_gattc_heartbeat(void)
     /* Terminate the connection associated with each timed-out procedure. */
     while ((proc = STAILQ_FIRST(&exp_list)) != NULL) {
         STATS_INC(ble_gattc_stats, proc_timeout);
-        ble_gap_terminate(proc->conn_handle);
+        ble_gap_terminate(proc->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 
         STAILQ_REMOVE_HEAD(&exp_list, next);
         ble_gattc_proc_free(proc);

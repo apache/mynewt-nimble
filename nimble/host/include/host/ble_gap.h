@@ -312,7 +312,7 @@ int ble_gap_connect(uint8_t own_addr_type,
                     ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_conn_cancel(void);
 int ble_gap_conn_active(void);
-int ble_gap_terminate(uint16_t handle);
+int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
 int ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
                    uint8_t white_list_count);
 int ble_gap_update_params(uint16_t conn_handle,
