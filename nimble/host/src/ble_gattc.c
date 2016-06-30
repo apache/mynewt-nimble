@@ -883,7 +883,7 @@ ble_gattc_heartbeat(void)
  * returned object is statically allocated, so this function is not reentrant.
  * This function should only ever be called by the ble_hs task.
  */
-struct ble_gatt_error *
+static struct ble_gatt_error *
 ble_gattc_error(int status, uint16_t att_handle)
 {
     static struct ble_gatt_error error;
@@ -951,6 +951,8 @@ ble_gattc_mtu_err(struct ble_gattc_proc *proc, int status, uint16_t att_handle)
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
  * @param cb_arg                The argument to pass to the callback function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
