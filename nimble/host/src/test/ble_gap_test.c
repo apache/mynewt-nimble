@@ -907,7 +907,8 @@ TEST_CASE(ble_gap_test_case_conn_terminate_good)
     ble_gap_test_util_terminate(peer_addr, 0);
 
     TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_DISCONNECT);
-    TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(ble_gap_test_conn_status ==
+                BLE_HS_HCI_ERR(BLE_ERR_CONN_TERM_LOCAL));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
     TEST_ASSERT(ble_gap_test_conn_desc.peer_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
     TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr, peer_addr, 6) == 0);
