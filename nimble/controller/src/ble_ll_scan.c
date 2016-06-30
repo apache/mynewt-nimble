@@ -1289,6 +1289,11 @@ ble_ll_scan_set_enable(uint8_t *cmd)
             /* Start the scanning state machine */
             scansm->scan_filt_dups = filter_dups;
             rc = ble_ll_scan_sm_start(scansm);
+        } else {
+            /* Controller does not allow initiating and scanning.*/
+            if (scansm->scan_type == BLE_SCAN_TYPE_INITIATE) {
+                rc = BLE_ERR_CMD_DISALLOWED;
+            }
         }
     } else {
         if (scansm->scan_enabled) {
