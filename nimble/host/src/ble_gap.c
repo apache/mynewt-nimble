@@ -759,21 +759,6 @@ ble_gap_master_in_progress(void)
 }
 
 /**
- * Tells you if the BLE host is in the process of creating a slave connection.
- */
-int
-ble_gap_slave_in_progress(void)
-{
-    return ble_gap_slave.op != BLE_GAP_OP_NULL;
-}
-
-static int
-ble_gap_currently_advertising(void)
-{
-    return ble_gap_slave.op == BLE_GAP_OP_S_ADV;
-}
-
-/**
  * Attempts to complete the master connection process in response to a
  * "connection complete" event from the controller.  If the master connection
  * FSM is in a state that can accept this event, and the peer device address is
@@ -838,7 +823,7 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
 {
     int rc;
 
-    if (!ble_gap_currently_advertising()) {
+    if (!ble_gap_adv_active()) {
         rc = BLE_HS_ENOENT;
     } else {
         switch (ble_gap_slave.conn_mode) {
@@ -941,7 +926,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         /* Determine the role from the status code. */
         switch (evt->status) {
         case BLE_ERR_DIR_ADV_TMO:
-            if (ble_gap_slave_in_progress()) {
+            if (ble_gap_adv_active()) {
                 ble_gap_adv_finished();
             }
             break;
@@ -1282,7 +1267,7 @@ ble_gap_adv_stop(void)
     ble_hs_lock();
 
     /* Do nothing if advertising is already disabled. */
-    if (!ble_gap_currently_advertising()) {
+    if (!ble_gap_adv_active()) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
@@ -1757,6 +1742,19 @@ done:
     return rc;
 }
 
+/**
+ * Indicates whether an advertisement procedure is currently in progress.
+ *
+ * @return                      0: No advertisement procedure in progress;
+ *                              1: Advertisement procedure in progress.
+ */
+int
+ble_gap_adv_active(void)
+{
+    /* Assume read is atomic; mutex not necessary. */
+    return ble_gap_slave.op == BLE_GAP_OP_S_ADV;
+}
+
 /*****************************************************************************
  * $discovery procedures                                                     *
  *****************************************************************************/
@@ -1984,6 +1982,19 @@ done:
     return rc;
 }
 
+/**
+ * Indicates whether a discovery procedure is currently in progress.
+ *
+ * @return                      0: No discovery procedure in progress;
+ *                              1: Discovery procedure in progress.
+ */
+int
+ble_gap_disc_active(void)
+{
+    /* Assume read is atomic; mutex not necessary. */
+    return ble_gap_master.op == BLE_GAP_OP_M_DISC;
+}
+
 /*****************************************************************************
  * $connection establishment procedures                                      *
  *****************************************************************************/
@@ -2117,6 +2128,19 @@ done:
         STATS_INC(ble_gap_stats, initiate_fail);
     }
     return rc;
+}
+
+/**
+ * Indicates whether a connect procedure is currently in progress.
+ *
+ * @return                      0: No connect procedure in progress;
+ *                              1: Connect procedure in progress.
+ */
+int
+ble_gap_conn_active(void)
+{
+    /* Assume read is atomic; mutex not necessary. */
+    return ble_gap_master.op == BLE_GAP_OP_M_CONN;
 }
 
 /*****************************************************************************
@@ -2561,7 +2585,10 @@ void
 ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
                      void *attr_data, uint16_t attr_len, int is_indication)
 {
-    /* XXX: Early return if notifications and indications disabled. */
+#if !NIMBLE_OPT(GATT_NOTIFY) && !NIMBLE_OPT(GATT_INDICATE)
+    return;
+#endif
+
     struct ble_gap_event_ctxt ctxt;
     struct ble_gap_snapshot snap;
     int rc;
@@ -2580,6 +2607,10 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
     ctxt.notify.indication = is_indication;
     ble_gap_call_event_cb(BLE_GAP_EVENT_NOTIFY, &ctxt, snap.cb, snap.cb_arg);
 }
+
+/*****************************************************************************
+ * $privacy                                                                  *
+ *****************************************************************************/
 
 void
 ble_gap_init_identity_addr(const uint8_t *addr)

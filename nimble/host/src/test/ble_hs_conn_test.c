@@ -101,7 +101,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
     TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate advertising. */
@@ -112,7 +112,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_gap_slave_in_progress());
+    TEST_ASSERT(ble_gap_adv_active());
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -124,7 +124,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     ble_hs_lock();
 
@@ -156,7 +156,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
     /* Ensure no current or pending connections. */
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
     TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate advertising. */
@@ -172,7 +172,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(ble_gap_slave_in_progress());
+    TEST_ASSERT(ble_gap_adv_active());
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -184,7 +184,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     ble_hs_lock();
 

@@ -520,6 +520,8 @@ ble_gap_test_util_disc(uint8_t own_addr_type,
 
     ble_gap_test_util_init();
 
+    TEST_ASSERT(!ble_gap_disc_active());
+
     /* Begin the discovery procedure. */
     rc = ble_hs_test_util_disc(own_addr_type, BLE_HS_FOREVER, disc_params,
                                ble_gap_test_util_disc_cb, NULL, cmd_fail_idx,
@@ -548,6 +550,10 @@ ble_gap_test_util_disc(uint8_t own_addr_type,
         /* Verify tx of scan enable command. */
         ble_gap_test_util_verify_tx_scan_enable(
             1, disc_params->filter_duplicates);
+    }
+
+    if (rc == 0) {
+        TEST_ASSERT(ble_gap_disc_active());
     }
 
     return rc;
@@ -785,6 +791,7 @@ TEST_CASE(ble_gap_test_case_conn_dir_good)
     ble_gap_test_util_init();
 
     TEST_ASSERT(!ble_gap_master_in_progress());
+    TEST_ASSERT(!ble_gap_conn_active());
 
     rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
                                   BLE_ADDR_TYPE_PUBLIC, peer_addr, NULL,
@@ -792,6 +799,7 @@ TEST_CASE(ble_gap_test_case_conn_dir_good)
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(ble_gap_master_in_progress());
+    TEST_ASSERT(ble_gap_conn_active());
 
     /* Verify tx of create connection command. */
     ble_gap_test_util_verify_tx_create_conn(BLE_HCI_CONN_FILT_NO_WL);
@@ -1216,7 +1224,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
     adv_params.conn_mode = conn_mode;
     adv_params.disc_mode = disc_mode;
 
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     cmd_idx = 0;
 
@@ -1275,7 +1283,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
     if (connect_status != -1 &&
         (fail_status == 0 || cmd_fail_idx >= cmd_idx)) {
 
-        TEST_ASSERT(ble_gap_slave_in_progress());
+        TEST_ASSERT(ble_gap_adv_active());
 
         /* Receive a connection complete event. */
         if (conn_mode != BLE_GAP_CONN_MODE_NON) {
@@ -1291,9 +1299,9 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
             if (connect_status == 0 ||
                 connect_status == BLE_ERR_DIR_ADV_TMO) {
 
-                TEST_ASSERT(!ble_gap_slave_in_progress());
+                TEST_ASSERT(!ble_gap_adv_active());
             } else {
-                TEST_ASSERT(ble_gap_slave_in_progress());
+                TEST_ASSERT(ble_gap_adv_active());
             }
         }
     }
@@ -1305,7 +1313,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     /*** Invalid discoverable mode. */
     adv_params = ble_hs_test_util_adv_params;
@@ -1314,7 +1322,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
                                     peer_addr, &adv_params,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     /*** Invalid connectable mode. */
     adv_params = ble_hs_test_util_adv_params;
@@ -1323,7 +1331,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
                                     peer_addr, &adv_params,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     /*** Invalid peer address type with directed advertisable mode. */
     adv_params = ble_hs_test_util_adv_params;
@@ -1332,7 +1340,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
                                     peer_addr, &adv_params,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     /*** Advertising already in progress. */
     adv_params = ble_hs_test_util_adv_params;
@@ -1340,13 +1348,13 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
                                     peer_addr, &adv_params,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_gap_slave_in_progress());
+    TEST_ASSERT(ble_gap_adv_active());
 
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                     peer_addr, &adv_params,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
-    TEST_ASSERT(ble_gap_slave_in_progress());
+    TEST_ASSERT(ble_gap_adv_active());
 }
 
 static void
@@ -1364,7 +1372,7 @@ ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
 
     ble_gap_test_util_init();
 
-    TEST_ASSERT(!ble_gap_slave_in_progress());
+    TEST_ASSERT(!ble_gap_adv_active());
 
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = conn_mode;
@@ -1446,7 +1454,7 @@ TEST_CASE(ble_gap_test_case_adv_good)
                                   peer_addr, c, d, BLE_ERR_SUCCESS, -1, 0);
 
             if (c != BLE_GAP_CONN_MODE_NON) {
-                TEST_ASSERT(!ble_gap_slave_in_progress());
+                TEST_ASSERT(!ble_gap_adv_active());
                 TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_CONNECT);
                 TEST_ASSERT(ble_gap_test_conn_status == 0);
                 TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
@@ -1469,7 +1477,7 @@ TEST_CASE(ble_gap_test_case_adv_ctlr_fail)
             ble_gap_test_util_adv(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
                                   peer_addr, c, d, BLE_ERR_DIR_ADV_TMO, -1, 0);
 
-            TEST_ASSERT(!ble_gap_slave_in_progress());
+            TEST_ASSERT(!ble_gap_adv_active());
             TEST_ASSERT(ble_gap_test_conn_event == BLE_GAP_EVENT_ADV_COMPLETE);
             TEST_ASSERT(ble_gap_test_conn_desc.conn_handle ==
                         BLE_HS_CONN_HANDLE_NONE);
@@ -1499,7 +1507,7 @@ TEST_CASE(ble_gap_test_case_adv_hci_fail)
                                       BLE_ADDR_TYPE_PUBLIC, peer_addr,
                                       c, d, 0, fail_idx, BLE_ERR_UNSUPPORTED);
 
-                TEST_ASSERT(!ble_gap_slave_in_progress());
+                TEST_ASSERT(!ble_gap_adv_active());
                 TEST_ASSERT(ble_gap_test_conn_event == -1);
             }
         }
@@ -1533,7 +1541,7 @@ ble_gap_test_util_stop_adv(uint8_t peer_addr_type, const uint8_t *peer_addr,
     ble_gap_test_util_adv(BLE_ADDR_TYPE_PUBLIC, peer_addr_type, peer_addr,
                           conn_mode, disc_mode, -1, -1, 0);
 
-    TEST_ASSERT(ble_gap_slave_in_progress());
+    TEST_ASSERT(ble_gap_adv_active());
 
     /* Stop advertising. */
     hci_status = cmd_fail_idx == 0 ? fail_status : 0;
@@ -1555,7 +1563,7 @@ TEST_CASE(ble_gap_test_case_stop_adv_good)
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
             ble_gap_test_util_stop_adv(BLE_ADDR_TYPE_PUBLIC, peer_addr, c, d,
                                        -1, 0);
-            TEST_ASSERT(!ble_gap_slave_in_progress());
+            TEST_ASSERT(!ble_gap_adv_active());
             TEST_ASSERT(ble_gap_test_conn_event == -1);
             TEST_ASSERT(ble_gap_test_conn_status == -1);
             TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == (uint16_t)-1);
@@ -1574,7 +1582,7 @@ TEST_CASE(ble_gap_test_case_stop_adv_hci_fail)
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
             ble_gap_test_util_stop_adv(BLE_ADDR_TYPE_PUBLIC, peer_addr, c, d,
                                        0, BLE_ERR_UNSUPPORTED);
-            TEST_ASSERT(ble_gap_slave_in_progress());
+            TEST_ASSERT(ble_gap_adv_active());
             TEST_ASSERT(ble_gap_test_conn_event == -1);
             TEST_ASSERT(ble_gap_test_conn_status == -1);
             TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == (uint16_t)-1);
