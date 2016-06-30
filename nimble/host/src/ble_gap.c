@@ -2148,7 +2148,7 @@ ble_gap_conn_active(void)
  *****************************************************************************/
 
 int
-ble_gap_terminate(uint16_t conn_handle)
+ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_DISCONNECT_CMD_LEN];
     int rc;
@@ -2163,9 +2163,10 @@ ble_gap_terminate(uint16_t conn_handle)
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: terminate connection; "
-                     "conn_handle=%d\n", conn_handle);
+                     "conn_handle=%d hci_reason=%d\n",
+               conn_handle, hci_reason);
 
-    host_hci_cmd_build_disconnect(conn_handle, BLE_ERR_REM_USER_CONN_TERM,
+    host_hci_cmd_build_disconnect(conn_handle, hci_reason,
                                   buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {

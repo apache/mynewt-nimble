@@ -407,7 +407,7 @@ ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
                              BLE_HCI_OCF_DISCONNECT_CMD),
         hci_status);
 
-    rc = ble_gap_terminate(conn_handle);
+    rc = ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     return rc;
 }
 
