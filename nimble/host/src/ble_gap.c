@@ -625,14 +625,7 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
     }
 
     if (evt->status == 0) {
-        if (evt->reason == BLE_ERR_CONN_TERM_LOCAL) {
-            /* Don't confuse the application with an HCI error code in the
-             * success case.
-             */
-            status = BLE_HS_ENOTCONN;
-        } else {
-            status = BLE_HS_HCI_ERR(evt->reason);
-        }
+        status = BLE_HS_HCI_ERR(evt->reason);
         ble_gap_conn_broken(&snap, status);
     } else {
         memset(&ctxt, 0, sizeof ctxt);
