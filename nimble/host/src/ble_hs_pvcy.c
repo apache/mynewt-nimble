@@ -158,7 +158,7 @@ ble_hs_pvcy_set_our_nrpa(void)
     addr[5] &= ~(0xc0);
     memcpy(ble_hs_pvcy_nrpa, addr, 6);
 
-    return ble_hs_util_set_random_addr(addr);
+    return ble_hci_util_set_random_addr(addr);
 }
 
 uint8_t *
@@ -193,7 +193,7 @@ ble_hs_pvcy_set_our_id_addr(const uint8_t *addr)
     } else {
         /* Generate a new static random address. */
         ble_hs_pvcy_gen_static_random_addr(random_addr);
-        rc = ble_hs_util_set_random_addr(random_addr);
+        rc = ble_hci_util_set_random_addr(random_addr);
         assert(rc == 0);
 
         ble_hs_pvcy_id_addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
