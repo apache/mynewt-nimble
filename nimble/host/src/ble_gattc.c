@@ -950,7 +950,8 @@ ble_gattc_mtu_err(struct ble_gattc_proc *proc, int status, uint16_t att_handle)
  *                                  procedure.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
  *
  * @return                      0 on success; nonzero on failure.
  */
@@ -1180,7 +1181,8 @@ ble_gattc_disc_all_svcs_rx_complete(struct ble_gattc_proc *proc, int status)
  *                                  procedure.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
  */
 int
 ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
@@ -1381,7 +1383,10 @@ ble_gattc_disc_svc_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
  * @param service_uuid128       The 128-bit UUID of the service to discover.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const void *svc_uuid128,
@@ -1694,7 +1699,10 @@ ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_proc *proc, int status)
  *                                  last handle in the service).
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
@@ -1923,7 +1931,10 @@ ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc, int status)
  *                                  last handle in the service).
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
@@ -2165,7 +2176,10 @@ ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
  *                                  discover.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
@@ -2368,7 +2382,10 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc, int status)
  *                                  definition.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_def_handle,
@@ -2493,7 +2510,10 @@ ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc, int status,
  * @param attr_handle           The handle of the characteristic value to read.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
@@ -2649,7 +2669,10 @@ ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
  *                                  last handle in the service definition).
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
@@ -2830,7 +2853,10 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
  * @param handle                The handle of the characteristic value to read.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
@@ -2944,7 +2970,10 @@ ble_gattc_read_mult_err(struct ble_gattc_proc *proc, int status,
  * @param num_handles           The number of entries in the "handles" array.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
@@ -3000,9 +3029,8 @@ done:
  *                                  to.
  * @param value                 The value to write to the characteristic.
  * @param value_len             The number of bytes to write.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
@@ -3089,7 +3117,10 @@ ble_gattc_write_err(struct ble_gattc_proc *proc, int status,
  * @param value_len             The number of bytes to write.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, const void *value,
@@ -3328,7 +3359,10 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
  * @param value_len             The number of bytes to write.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
@@ -3549,13 +3583,16 @@ ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc, int status)
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to write
- *                                  to.
- * @param value                 The value to write to the characteristic.
- * @param value_len             The number of bytes to write.
+ * @param attrs                 An array of attribute descriptors; specifies
+ *                                  which characteristics to write to and what
+ *                                  data to write to them.
+ * @param num_attrs             The number of characteristics to write; equal
+ *                                  to the number of elements in the 'attrs'
+ *                                  array.
  * @param cb                    The function to call to report procedure status
  *                                  updates; null for no callback.
- * @param cb_arg                The argument to pass to the callback function.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
  */
 int
 ble_gattc_write_reliable(uint16_t conn_handle,
@@ -3607,11 +3644,22 @@ done:
  *****************************************************************************/
 
 /**
- * Sends an attribute notification.  The content of the message is specified
- * in the attr parameter.
+ * Sends a "free-form" characteristic notification.  The content of the message
+ * is specified in the attr parameter.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_val_handle        The attribute handle to indicate in the
+ *                                  outgoing notification.
+ * @param attr_data             The characteristic value to include in the
+ *                                  outgoing notification.
+ * @param attr_data_len         The number of bytes of attribute data to include
+ *                                  in the notification.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
+ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                         const void *attr_data, uint16_t attr_data_len)
 {
 #if !NIMBLE_OPT(GATT_NOTIFY)
@@ -3624,14 +3672,14 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
 
     STATS_INC(ble_gattc_stats, notify);
 
-    ble_gattc_log_notify(att_handle);
+    ble_gattc_log_notify(chr_val_handle);
 
     if (attr_data == NULL) {
         /* No custom attribute data; read the value from the specified
          * attribute.
          */
         rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
-                                     att_handle, &ctxt, NULL);
+                                     chr_val_handle, &ctxt, NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
             rc = BLE_HS_EAPP;
@@ -3642,7 +3690,7 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
         attr_data_len = ctxt.read.len;
     }
 
-    req.banq_handle = att_handle;
+    req.banq_handle = chr_val_handle;
     rc = ble_att_clt_tx_notify(conn_handle, &req, attr_data, attr_data_len);
     if (rc != 0) {
         goto err;
@@ -3656,8 +3704,16 @@ err:
 }
 
 /**
- * Sends an attribute notification.  The content of the message is read from
+ * Sends a characteristic notification.  The content of the message is read from
  * the specified characteristic.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_val_handle        The value attribute handle of the
+ *                                  characteristic to include in the outgoing
+ *                                  notification.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
@@ -3747,7 +3803,20 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 }
 
 /**
- * Sends an attribute indication.
+ * Sends a characteristic indication.  The content of the message is read from
+ * the specified characteristic.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_val_handle        The value attribute handle of the
+ *                                  characteristic to include in the outgoing
+ *                                  indication.
+ * @param cb                    The function to call to report procedure status;
+ *                                  null for no callback.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,

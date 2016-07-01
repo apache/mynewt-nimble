@@ -28,6 +28,12 @@
 
 #define BLE_STORE_ADDR_TYPE_NONE        0xff
 
+/**
+ * Used as a key for lookups of security material.  This struct corresponds to
+ * the following store object types:
+ *     o BLE_STORE_OBJ_TYPE_OUR_SEC
+ *     o BLE_STORE_OBJ_TYPE_PEER_SEC
+ */
 struct ble_store_key_sec {
     /**
      * Key by peer identity address;
@@ -52,6 +58,12 @@ struct ble_store_key_sec {
     uint8_t idx;
 };
 
+/**
+ * Represents stored security material.  This struct corresponds to the
+ * following store object types:
+ *     o BLE_STORE_OBJ_TYPE_OUR_SEC
+ *     o BLE_STORE_OBJ_TYPE_PEER_SEC
+ */
 struct ble_store_value_sec {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
@@ -71,6 +83,11 @@ struct ble_store_value_sec {
     unsigned sc:1;
 };
 
+/**
+ * Used as a key for lookups of stored client characteristic configuration
+ * descriptors (CCCDs).  This struct corresponds to the BLE_STORE_OBJ_TYPE_CCCD
+ * store object type.
+ */
 struct ble_store_key_cccd {
     /**
      * Key by peer identity address;
@@ -89,6 +106,10 @@ struct ble_store_key_cccd {
     uint8_t idx;
 };
 
+/**
+ * Represents a stored client characteristic configuration descriptor (CCCD).
+ * This struct corresponds to the BLE_STORE_OBJ_TYPE_CCCD store object type.
+ */
 struct ble_store_value_cccd {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
@@ -97,21 +118,72 @@ struct ble_store_value_cccd {
     unsigned value_changed:1;
 };
 
+/**
+ * Used as a key for store lookups.  This union must be accompanied by an
+ * object type code to indicate which field is valid.
+ */
 union ble_store_key {
     struct ble_store_key_sec sec;
     struct ble_store_key_cccd cccd;
 };
 
+/**
+ * Represents stored data.  This union must be accompanied by an object type
+ * code to indicate which field is valid.
+ */
 union ble_store_value {
     struct ble_store_value_sec sec;
     struct ble_store_value_cccd cccd;
 };
 
+/**
+ * Searches the store for an object matching the specified criteria.  If a
+ * match is found, it is read from the store and the dst parameter is populated
+ * with the retrieved object.
+ *
+ * @param obj_type              The type of object to search for; one of the
+ *                                  BLE_STORE_OBJ_TYPE_[...] codes.
+ * @param key                   Specifies properties of the object to search
+ *                                  for.  An object is retrieved if it matches
+ *                                  these criteria.
+ * @param dst                   On success, this is populated with the
+ *                                  retrieved object.
+ *
+ * @return                      0 if an object was successfully retreived;
+ *                              BLE_HS_ENOENT if no matching object was found;
+ *                              Other nonzero on error.
+ */
 typedef int ble_store_read_fn(int obj_type, union ble_store_key *key,
                               union ble_store_value *dst);
 
+/**
+ * Writes the specified object to the store.  If an object with the same
+ * identity is already in the store, it is replaced.  If the store lacks
+ * sufficient capacity to write the object, this function may remove previously
+ * stored values to make room.
+ *
+ * @param obj_type              The type of object being written; one of the
+ *                                  BLE_STORE_OBJ_TYPE_[...] codes.
+ * @param val                   The object to persist.
+ *
+ * @return                      0 if the object was successfully written;
+ *                              Other nonzero on error.
+ */
 typedef int ble_store_write_fn(int obj_type, union ble_store_value *val);
 
+/**
+ * Searches the store for the first object matching the specified criteria.  If
+ * a match is found, it is deleted from the store.
+ *
+ * @param obj_type              The type of object to delete; one of the
+ *                                  BLE_STORE_OBJ_TYPE_[...] codes.
+ * @param key                   Specifies properties of the object to search
+ *                                  for.  An object is deleted if it matches
+ *                                  these criteria.
+ * @return                      0 if an object was successfully retreived;
+ *                              BLE_HS_ENOENT if no matching object was found;
+ *                              Other nonzero on error.
+ */
 typedef int ble_store_delete_fn(int obj_type, union ble_store_key *key);
 
 int ble_store_read(int obj_type, union ble_store_key *key,

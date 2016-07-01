@@ -34,9 +34,13 @@ static uint8_t ble_uuid_base[16] = {
  * Attempts to convert the supplied 128-bit UUID into its shortened 16-bit
  * form.
  *
+ * @param uuid128                   The 128-bit UUID to attempt to convert.
+ *                                      This must point to 16 contiguous bytes.
+ *
  * @return                          Positive 16-bit unsigned integer on
  *                                      success;
- *                                  0 if the UUID could not be converted.
+ *                                  0 if the UUID cannot be represented in 16
+ *                                      bits.
  */
 uint16_t
 ble_uuid_128_to_16(const void *uuid128)
@@ -68,8 +72,19 @@ ble_uuid_128_to_16(const void *uuid128)
     return uuid16;
 }
 
+/**
+ * Expands a 16-bit UUID into its 128-bit form.
+ *
+ * @param uuid16                The 16-bit UUID to convert.
+ * @param out_uuid128           On success, the resulting 128-bit UUID gets
+ *                                  written here.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EINVAL if uuid16 is not a valid 16-bit
+ *                                  UUID.
+ */
 int
-ble_uuid_16_to_128(uint16_t uuid16, void *uuid128)
+ble_uuid_16_to_128(uint16_t uuid16, void *out_uuid128)
 {
     uint8_t *u8ptr;
 
@@ -77,7 +92,7 @@ ble_uuid_16_to_128(uint16_t uuid16, void *uuid128)
         return BLE_HS_EINVAL;
     }
 
-    u8ptr = uuid128;
+    u8ptr = out_uuid128;
 
     memcpy(u8ptr, ble_uuid_base, 16);
     htole16(u8ptr + 12, uuid16);

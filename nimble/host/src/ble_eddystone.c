@@ -113,7 +113,11 @@ ble_eddystone_set_adv_data_gen(struct ble_hs_adv_fields *adv_fields,
  *                                  this struct before calling this function.
  * @param uid                   The 16-byte UID to advertise.
  *
- * @return                      0 on success; BLE_HS_E... on failure.
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              BLE_HS_EMSGSIZE if the specified data is too
+ *                                  large to fit in an advertisement;
+ *                              Other nonzero on failure.
  */
 int
 ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
@@ -152,7 +156,11 @@ ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
  *                                  BLE_EDDYSTONE_URL_SUFFIX_NONE if the suffix
  *                                  is embedded in the body argument.
  *
- * @return                      0 on success; BLE_HS_E... on failure.
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              BLE_HS_EMSGSIZE if the specified data is too
+ *                                  large to fit in an advertisement;
+ *                              Other nonzero on failure.
  */
 int
 ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
