@@ -107,7 +107,7 @@ ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, const uint32_t *elems,
 /**
  * Sets the significant part of the data in outgoing advertisements.
  *
- * @return                      0 on success;  on failure.
+ * @return                      0 on success; nonzero on failure.
  */
 int
 ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,

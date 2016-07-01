@@ -901,6 +901,24 @@ ble_gatts_register_round(int *out_num_registered, ble_gatt_register_fn *cb,
     return 0;
 }
 
+/**
+ * Registers a set of services, characteristics, and descriptors to be accessed
+ * by GATT clients.
+ *
+ * @param svcs                  A table of the service definitions to be
+ *                                  registered.
+ * @param cb                    The function to call for each service,
+ *                                  characteristic, and descriptor that gets
+ *                                  registered.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOMEM if registration failed due to
+ *                                  resource exhaustion;
+ *                              BLE_HS_EINVAL if the service definition table
+ *                                  contains an invalid element.
+ */
 int
 ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                         ble_gatt_register_fn *cb, void *cb_arg)

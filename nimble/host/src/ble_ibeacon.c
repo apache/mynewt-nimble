@@ -23,6 +23,19 @@
 
 #define BLE_IBEACON_MFG_DATA_SIZE       25
 
+/**
+ * Configures the device to advertise iBeacons.
+ *
+ * @param uuid                  The 128-bit UUID to advertise.
+ * @param major                 The major version number to include in
+ *                                  iBeacons.
+ * @param minor                 The minor version number to include in
+ *                                  iBeacons.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              Other nonzero on failure.
+ */
 int
 ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
 {
