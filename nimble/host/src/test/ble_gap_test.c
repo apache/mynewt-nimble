@@ -914,7 +914,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_bad_args)
     /* Initiate cancel procedure with no connection in progress. */
     TEST_ASSERT(!ble_gap_master_in_progress());
     rc = ble_hs_test_util_conn_cancel(0);
-    TEST_ASSERT(rc == BLE_HS_ENOENT);
+    TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
 TEST_CASE(ble_gap_test_case_conn_cancel_good)

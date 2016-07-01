@@ -2199,7 +2199,7 @@ ble_gap_conn_cancel(void)
     ble_hs_lock();
 
     if (!ble_gap_master_in_progress()) {
-        rc = BLE_HS_ENOENT;
+        rc = BLE_HS_EALREADY;
         goto done;
     }
 
