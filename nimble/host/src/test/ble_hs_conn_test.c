@@ -77,7 +77,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
+    TEST_ASSERT(memcmp(conn->bhc_peer_addr, addr, 6) == 0);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
@@ -131,7 +131,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
+    TEST_ASSERT(memcmp(conn->bhc_peer_addr, addr, 6) == 0);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
@@ -191,7 +191,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(memcmp(conn->bhc_addr, addr, 6) == 0);
+    TEST_ASSERT(memcmp(conn->bhc_peer_addr, addr, 6) == 0);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);

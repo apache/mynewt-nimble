@@ -971,10 +971,12 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     BLE_HS_DBG_ASSERT(conn != NULL);
 
     conn->bhc_handle = evt->connection_handle;
-    memcpy(conn->bhc_addr, evt->peer_addr, sizeof conn->bhc_addr);
-    conn->bhc_addr_type = evt->peer_addr_type;
-    memcpy(conn->our_rpa_addr, evt->local_rpa, sizeof(conn->our_rpa_addr));
-    memcpy(conn->peer_rpa_addr, evt->peer_rpa, sizeof(conn->peer_rpa_addr));
+    memcpy(conn->bhc_peer_addr, evt->peer_addr, sizeof conn->bhc_peer_addr);
+    conn->bhc_peer_addr_type = evt->peer_addr_type;
+    memcpy(conn->bhc_our_rpa_addr, evt->local_rpa,
+           sizeof conn->bhc_our_rpa_addr);
+    memcpy(conn->bhc_peer_rpa_addr, evt->peer_rpa,
+           sizeof conn->bhc_peer_rpa_addr);
     conn->bhc_itvl = evt->conn_itvl;
     conn->bhc_latency = evt->conn_latency;
     conn->bhc_supervision_timeout = evt->supervision_timeout;
@@ -982,22 +984,25 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     if (evt->role == BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER) {
         conn->bhc_flags |= BLE_HS_CONN_F_MASTER;
         conn->bhc_cb = ble_gap_master.conn.cb;
-        conn->our_addr_type = ble_gap_master.conn.our_addr_type;
+        conn->bhc_our_addr_type = ble_gap_master.conn.our_addr_type;
         conn->bhc_cb_arg = ble_gap_master.conn.cb_arg;
         ble_gap_master_reset_state();
     } else {
         conn->bhc_cb = ble_gap_slave.cb;
         conn->bhc_cb_arg = ble_gap_slave.cb_arg;
-        conn->our_addr_type = ble_gap_slave.our_addr_type;
+        conn->bhc_our_addr_type = ble_gap_slave.our_addr_type;
         ble_gap_slave_reset_state();
     }
 
-    memcpy(conn->our_rpa_addr, evt->local_rpa, 6);
-    memcpy(conn->peer_rpa_addr, evt->peer_rpa, 6);
+    memcpy(conn->bhc_our_rpa_addr, evt->local_rpa, 6);
+    memcpy(conn->bhc_peer_rpa_addr, evt->peer_rpa, 6);
+
+    ble_hs_lock();
 
     ble_gap_conn_to_snapshot(conn, &snap);
+    ble_hs_conn_insert(conn);
 
-    ble_hs_atomic_conn_insert(conn);
+    ble_hs_unlock();
 
     memset(&ctxt, 0, sizeof ctxt);
     ctxt.desc = &snap.desc;
@@ -1660,6 +1665,11 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
         }
     }
 
+    rc = ble_hs_id_use_addr(own_addr_type);
+    if (rc != 0) {
+        return rc;
+    }
+
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
     ble_gap_log_adv(own_addr_type, peer_addr_type, peer_addr, adv_params);
     BLE_HS_LOG(INFO, "\n");
@@ -1974,10 +1984,10 @@ ble_gap_disc_validate(uint8_t own_addr_type,
  * Performs the Limited or General Discovery Procedures (vol. 3, part C,
  * section 9.2.5 / 9.2.6).
  *
- * @param own_addr_type         This parameter is ignored unless active scanning
- *                                  is being used. The type of address the
- *                                  stack should use for itself when sending
- *                                  scan requests.  Valid values are:
+ * @param own_addr_type         This parameter is ignored unless active
+ *                                  scanning is being used. The type of address
+ *                                  the stack should use for itself when
+ *                                  sending scan requests.  Valid values are:
  *                                      o BLE_ADDR_TYPE_PUBLIC
  *                                      o BLE_ADDR_TYPE_RANDOM
  *                                      o BLE_ADDR_TYPE_RPA_PUB_DEFAULT
@@ -1990,9 +2000,9 @@ ble_gap_disc_validate(uint8_t own_addr_type,
  * @param disc_params           Additional arguments specifying the particulars
  *                                  of the discovery procedure.
  * @param cb                    The callback to associate with this discovery
- *                                  procedure.  Advertising reports and discovery
- *                                  termination events are reported through
- *                                  this callback.
+ *                                  procedure.  Advertising reports and
+ *                                  discovery termination events are reported
+ *                                  through this callback.
  * @param cb_arg                The optional argument to pass to the callback
  *                                  function.
  *
@@ -2036,6 +2046,13 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
             /* Duration too great. */
             rc = BLE_HS_EINVAL;
             goto done;
+        }
+    }
+
+    if (!params.passive) {
+        rc = ble_hs_id_use_addr(own_addr_type);
+        if (rc != 0) {
+            return rc;
         }
     }
 
@@ -2207,6 +2224,11 @@ ble_gap_connect(uint8_t own_addr_type,
     }
 
     /* XXX: Verify conn_params. */
+
+    rc = ble_hs_id_use_addr(own_addr_type);
+    if (rc != 0) {
+        return rc;
+    }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: connect; ");
     ble_gap_log_conn(own_addr_type, peer_addr_type, peer_addr, conn_params);
@@ -2763,16 +2785,6 @@ ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
     ctxt.notify.attr_len = attr_len;
     ctxt.notify.indication = is_indication;
     ble_gap_call_event_cb(BLE_GAP_EVENT_NOTIFY, &ctxt, snap.cb, snap.cb_arg);
-}
-
-/*****************************************************************************
- * $privacy                                                                  *
- *****************************************************************************/
-
-void
-ble_gap_init_identity_addr(const uint8_t *addr)
-{
-    ble_hs_pvcy_set_our_id_addr(addr);
 }
 
 /*****************************************************************************

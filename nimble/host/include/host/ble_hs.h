@@ -58,6 +58,7 @@ struct os_event;
 #define BLE_HS_ETIMEOUT_HCI         20
 #define BLE_HS_ENOMEM_HCI           21
 #define BLE_HS_ENOMEM_EVT           22
+#define BLE_HS_ENOADDR              23
 
 #define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)

@@ -46,7 +46,7 @@ ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
 }
 
 void
-ble_hs_misc_log_mbuf(struct os_mbuf *om)
+ble_hs_misc_log_mbuf(const struct os_mbuf *om)
 {
     uint8_t u8;
     int i;
@@ -58,9 +58,9 @@ ble_hs_misc_log_mbuf(struct os_mbuf *om)
 }
 
 void
-ble_hs_misc_log_flat_buf(void *data, int len)
+ble_hs_misc_log_flat_buf(const void *data, int len)
 {
-    uint8_t *u8ptr;
+    const uint8_t *u8ptr;
     int i;
 
     u8ptr = data;

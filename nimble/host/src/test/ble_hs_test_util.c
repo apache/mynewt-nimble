@@ -25,6 +25,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/hci_transport.h"
 #include "host/ble_hs_adv.h"
+#include "host/ble_hs_id.h"
 #include "host/host_hci.h"
 #include "ble_hs_test_util.h"
 
@@ -866,12 +867,6 @@ ble_hs_test_util_tx_all(void)
 }
 
 void
-ble_hs_test_util_set_public_addr(uint8_t *addr)
-{
-    ble_hs_pvcy_set_our_id_addr(addr);
-}
-
-void
 ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags)
 {
     struct ble_att_exec_write_req req;
@@ -910,6 +905,21 @@ ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len)
 
     rc = os_mbuf_copydata(om, i + 1, 1, &u8);
     TEST_ASSERT(rc != 0);
+}
+
+void
+ble_hs_test_util_set_static_rnd_addr(void)
+{
+    uint8_t addr[6] = { 1, 2, 3, 4, 5, 0xc1 };
+    int rc;
+
+    ble_hs_test_util_set_ack(
+        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_RAND_ADDR), 0);
+
+    rc = ble_hs_id_set_rnd(addr);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_hs_test_util_get_first_hci_tx();
 }
 
 void
@@ -952,5 +962,5 @@ ble_hs_test_util_init(void)
 
     ble_hs_test_util_prev_hci_tx_clear();
 
-    ble_hs_test_util_set_public_addr(g_dev_addr);
+    ble_hs_id_set_pub(g_dev_addr);
 }

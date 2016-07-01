@@ -36,11 +36,11 @@ typedef uint8_t ble_hs_conn_flags_t;
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
-    uint8_t bhc_addr_type;
-    uint8_t our_addr_type;
-    uint8_t bhc_addr[6];
-    uint8_t our_rpa_addr[6];
-    uint8_t peer_rpa_addr[6];
+    uint8_t bhc_peer_addr_type;
+    uint8_t bhc_our_addr_type;
+    uint8_t bhc_peer_addr[6];
+    uint8_t bhc_our_rpa_addr[6];
+    uint8_t bhc_peer_rpa_addr[6];
 
     uint16_t bhc_itvl;
     uint16_t bhc_latency;
@@ -67,10 +67,10 @@ struct ble_hs_conn_addrs {
     uint8_t our_id_addr_type;
     uint8_t peer_ota_addr_type;
     uint8_t peer_id_addr_type;
-    uint8_t *our_ota_addr;
-    uint8_t *our_id_addr;
-    uint8_t *peer_ota_addr;
-    uint8_t *peer_id_addr;
+    const uint8_t *our_ota_addr;
+    const uint8_t *our_id_addr;
+    const uint8_t *peer_ota_addr;
+    const uint8_t *peer_id_addr;
 };
 
 int ble_hs_conn_can_alloc(void);
@@ -87,7 +87,7 @@ struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
                                              uint16_t cid);
 int ble_hs_conn_chan_insert(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);
-void ble_hs_conn_addrs(struct ble_hs_conn *conn,
+void ble_hs_conn_addrs(const struct ble_hs_conn *conn,
                        struct ble_hs_conn_addrs *addrs);
 
 int ble_hs_conn_init(void);

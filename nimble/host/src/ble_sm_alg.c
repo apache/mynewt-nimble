@@ -69,7 +69,7 @@ static const uint8_t ble_sm_alg_dbg_f6[16] = {
 };
 
 static void
-ble_sm_alg_log_buf(char *name, uint8_t *buf, int len)
+ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
 {
     BLE_HS_LOG(DEBUG, "    %s=", name);
     ble_hs_misc_log_flat_buf(buf, len);
@@ -362,9 +362,10 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
 }
 
 int
-ble_sm_alg_f6(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t *r,
-              uint8_t *iocap, uint8_t a1t, uint8_t *a1,
-              uint8_t a2t, uint8_t *a2, uint8_t *check)
+ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
+              const uint8_t *r, const uint8_t *iocap, uint8_t a1t,
+              const uint8_t *a1, uint8_t a2t, const uint8_t *a2,
+              uint8_t *check)
 {
     uint8_t ws[16];
     uint8_t m[65];

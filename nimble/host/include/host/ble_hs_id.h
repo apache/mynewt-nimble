@@ -17,15 +17,14 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_PVCY_PRIV_
-#define H_BLE_HS_PVCY_PRIV_
+#ifndef H_BLE_HS_ID_
+#define H_BLE_HS_ID_
 
 #include <inttypes.h>
 
-void ble_hs_pvcy_set_our_irk(const uint8_t *irk);
-int ble_hs_pvcy_our_irk(const uint8_t **out_irk);
-int ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr);
-int ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addrtype, uint8_t *irk);
-int ble_hs_pvcy_ensure_started(void);
+int ble_hs_id_gen_rnd(int nrpa, uint8_t *out_addr);
+int ble_hs_id_set_rnd(const uint8_t *rnd_addr);
+int ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
+                        int *out_is_nrpa);
 
 #endif
