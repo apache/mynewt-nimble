@@ -21,30 +21,14 @@
 #include <string.h>
 #include "ble_hs_priv.h"
 
-static int ble_hs_pvcy_initialized;
-static uint8_t ble_hs_pvcy_id_addr[6];
-static uint8_t ble_hs_pvcy_id_addr_type;
-static uint8_t ble_hs_pvcy_nrpa[6];
+static uint8_t ble_hs_pvcy_started;
 uint8_t ble_hs_pvcy_irk[16];
-
 
 /** Use this as a default IRK if none gets set. */
 const uint8_t default_irk[16] = {
     0xef, 0x8d, 0xe2, 0x16, 0x4f, 0xec, 0x43, 0x0d,
     0xbf, 0x5b, 0xdd, 0x34, 0xc0, 0x53, 0x1e, 0xb8,
 };
-
-static int
-ble_hs_pvcy_gen_static_random_addr(uint8_t *addr)
-{
-    int rc;
-
-    rc = ble_hci_util_rand(addr, 6);
-    /* TODO -- set bits properly */
-    addr[5] |= 0xc0;
-
-    return rc;
-}
 
 static int
 ble_hs_pvcy_set_addr_timeout(uint16_t timeout)
@@ -125,7 +109,7 @@ ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addr_type, uint8_t *irk)
 
     add.addr_type = addr_type;
     memcpy(add.addr, addr, 6);
-    memcpy(add.local_irk, ble_hs_pvcy_our_irk(), 16);
+    memcpy(add.local_irk, ble_hs_pvcy_irk, 16);
     memcpy(add.peer_irk, irk, 16);
 
     rc = host_hci_cmd_build_add_to_resolv_list(&add, buf, sizeof(buf));
@@ -141,66 +125,24 @@ ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addr_type, uint8_t *irk)
     return 0;
 }
 
-void
-ble_hs_pvcy_our_nrpa(uint8_t *addr)
-{
-    memcpy(addr, ble_hs_pvcy_nrpa, 6);
-}
-
-int 
-ble_hs_pvcy_set_our_nrpa(void)
+int
+ble_hs_pvcy_ensure_started(void)
 {
     int rc;
-    uint8_t addr[6];
 
-    rc = ble_hci_util_rand(addr, 6);
-    assert(rc == 0);
-    addr[5] &= ~(0xc0);
-    memcpy(ble_hs_pvcy_nrpa, addr, 6);
-
-    return ble_hci_util_set_random_addr(addr);
-}
-
-uint8_t *
-ble_hs_pvcy_our_id_addr(uint8_t *type)
-{
-    if (!ble_hs_pvcy_initialized) {
-        ble_hs_pvcy_set_our_id_addr(NULL);
+    if (ble_hs_pvcy_started) {
+        return 0;
     }
 
-    if (type != NULL) {
-        *type = ble_hs_pvcy_id_addr_type;
+    /* Set up the periodic change of our RPA. */
+    rc = ble_hs_pvcy_set_addr_timeout(ble_hs_cfg.rpa_timeout);
+    if (rc != 0) {
+        return rc;
     }
 
-    return ble_hs_pvcy_id_addr;
-}
+    ble_hs_pvcy_started = 1;
 
-void
-ble_hs_pvcy_set_our_id_addr(const uint8_t *addr)
-{
-    uint8_t random_addr[6];
-    int rc;
-
-    if (!ble_hs_pvcy_initialized) {
-        /* Set up the periodic change of our RPA. */
-        rc = ble_hs_pvcy_set_addr_timeout(ble_hs_cfg.rpa_timeout);
-        assert(rc == 0);
-    }
-
-    if (addr != NULL) {
-        memcpy(ble_hs_pvcy_id_addr, addr, 6);
-        ble_hs_pvcy_id_addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-    } else {
-        /* Generate a new static random address. */
-        ble_hs_pvcy_gen_static_random_addr(random_addr);
-        rc = ble_hci_util_set_random_addr(random_addr);
-        assert(rc == 0);
-
-        ble_hs_pvcy_id_addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
-        memcpy(ble_hs_pvcy_id_addr, random_addr, 6);
-    }
-
-    ble_hs_pvcy_initialized = 1;
+    return 0;
 }
 
 void
@@ -225,21 +167,20 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
         ble_hs_pvcy_clear_entries();
         ble_hs_pvcy_set_resolve_enabled(1);
 
-        /* Push our identity to the controller as a keycache entry with a null
-         * MAC address. The controller uses this entry to generate an RPA when
-         * we do advertising with own-addr-type = rpa.
+        /* Push a null address identity to the controller.  The controller uses
+         * this entry to generate an RPA when we do advertising with
+         * own-addr-type = rpa.
          */
         memset(tmp_addr, 0, 6);
         ble_hs_pvcy_add_entry(tmp_addr, 0, ble_hs_pvcy_irk);
     }
 }
 
-uint8_t *
-ble_hs_pvcy_our_irk(void)
+int
+ble_hs_pvcy_our_irk(const uint8_t **out_irk)
 {
-    if (!ble_hs_pvcy_initialized) {
-        ble_hs_pvcy_set_our_id_addr(NULL);
-    }
+    /* XXX: Return error if privacy not supported. */
 
-    return ble_hs_pvcy_irk;
+    *out_irk = ble_hs_pvcy_irk;
+    return 0;
 }

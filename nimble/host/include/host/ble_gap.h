@@ -321,6 +321,5 @@ int ble_gap_security_initiate(uint16_t conn_handle);
 int ble_gap_pair_initiate(uint16_t conn_handle);
 int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
                                 uint16_t ediv, uint64_t rand_val, int auth);
-void ble_gap_init_identity_addr(const uint8_t *addr);
 
 #endif

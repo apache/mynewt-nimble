@@ -150,7 +150,7 @@ uint16_t be16toh(const void *buf);
 uint32_t be32toh(const void *buf);
 uint64_t be64toh(const void *buf);
 void swap_in_place(void *buf, int len);
-void swap_buf(uint8_t *dst, uint8_t *src, int len);
+void swap_buf(uint8_t *dst, const uint8_t *src, int len);
 /* XXX */
 
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */

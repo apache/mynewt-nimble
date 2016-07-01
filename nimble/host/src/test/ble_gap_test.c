@@ -70,6 +70,7 @@ static void
 ble_gap_test_util_init(void)
 {
     ble_hs_test_util_init();
+    ble_hs_test_util_set_static_rnd_addr();
     ble_gap_test_util_reset_cb_info();
 }
 

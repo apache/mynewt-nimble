@@ -26,6 +26,7 @@
 #include "host/host_hci.h"
 #include "host/ble_sm.h"
 #include "host/ble_hs_test.h"
+#include "host/ble_hs_id.h"
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"
 
@@ -223,7 +224,7 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
         ble_hs_cfg.sm_their_key_dist = out_us->pair_cmd->init_key_dist;
     }
 
-    ble_hs_test_util_set_public_addr(out_us->id_addr);
+    ble_hs_id_set_pub(out_us->id_addr);
     ble_sm_dbg_set_next_pair_rand(out_us->randoms[0].value);
     ble_sm_dbg_set_next_ediv(out_us->ediv);
     ble_sm_dbg_set_next_master_id_rand(out_us->rand_num);
@@ -797,10 +798,14 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
 {
     struct ble_sm_id_addr_info cmd;
     struct os_mbuf *om;
-    uint8_t *our_id_addr;
-    uint8_t our_id_addr_type;
+    const uint8_t *our_id_addr;
+    int rc;
 
-    our_id_addr = ble_hs_pvcy_our_id_addr(&our_id_addr_type);
+    ble_hs_lock();
+    rc = ble_hs_id_addr(exp_cmd->addr_type, &our_id_addr, NULL);
+    ble_hs_unlock();
+
+    TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_ADDR_INFO,
@@ -809,8 +814,6 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
 
     TEST_ASSERT(cmd.addr_type == exp_cmd->addr_type);
     TEST_ASSERT(memcmp(cmd.bd_addr, exp_cmd->bd_addr, 6) == 0);
-
-    TEST_ASSERT(cmd.addr_type == our_id_addr_type);
     TEST_ASSERT(memcmp(cmd.bd_addr, our_id_addr, 6) == 0);
 }
 
@@ -1405,7 +1408,7 @@ ble_sm_test_util_peer_fail_inval(
     struct ble_hs_conn *conn;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(resp_addr);
+    ble_hs_id_set_pub(resp_addr);
 
     ble_hs_test_util_create_conn(2, init_id_addr, ble_sm_test_util_conn_cb,
                                  NULL);
@@ -1462,7 +1465,7 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     struct ble_hs_conn *conn;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(resp_addr);
+    ble_hs_id_set_pub(resp_addr);
     ble_sm_dbg_set_next_pair_rand(random_rsp->value);
 
     ble_hs_test_util_create_conn(2, init_id_addr, ble_sm_test_util_conn_cb,
@@ -2329,7 +2332,7 @@ ble_sm_test_util_us_fail_inval(struct ble_sm_test_params *params)
     int rc;
 
     ble_sm_test_util_init();
-    ble_hs_test_util_set_public_addr(params->resp_id_addr);
+    ble_hs_id_set_pub(params->resp_id_addr);
 
     ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
 

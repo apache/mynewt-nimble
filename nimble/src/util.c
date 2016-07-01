@@ -208,7 +208,7 @@ swap_in_place(void *buf, int len)
 
 /* swap octets */
 void
-swap_buf(uint8_t *dst, uint8_t *src, int len)
+swap_buf(uint8_t *dst, const uint8_t *src, int len)
 {
     int i;
 

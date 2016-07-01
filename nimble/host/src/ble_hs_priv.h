@@ -37,6 +37,7 @@
 #include "ble_sm_priv.h"
 #include "ble_hs_adv_priv.h"
 #include "ble_hs_pvcy_priv.h"
+#include "ble_hs_id_priv.h"
 #include "ble_uuid_priv.h"
 #include "host/ble_hs.h"
 #include "log/log.h"
@@ -71,8 +72,8 @@ int ble_hs_tx_data(struct os_mbuf *om);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
-void ble_hs_misc_log_mbuf(struct os_mbuf *om);
-void ble_hs_misc_log_flat_buf(void *data, int len);
+void ble_hs_misc_log_mbuf(const struct os_mbuf *om);
+void ble_hs_misc_log_flat_buf(const void *data, int len);
 int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
                                struct ble_hs_conn **out_conn,
                                struct ble_l2cap_chan **out_chan);

@@ -107,7 +107,7 @@ ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
 }
 
 int
-ble_hci_util_set_random_addr(uint8_t *addr)
+ble_hci_util_set_random_addr(const uint8_t *addr)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RAND_ADDR_LEN];
     int rc;
