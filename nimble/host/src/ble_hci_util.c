@@ -87,7 +87,7 @@ ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
     int rc;
 
     host_hci_cmd_build_read_rssi(conn_handle, buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, params, 1, &params_len);
+    rc = ble_hci_cmd_tx(buf, params, sizeof params, &params_len);
     if (rc != 0) {
         return rc;
     }
