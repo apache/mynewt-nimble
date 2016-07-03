@@ -70,7 +70,7 @@ ble_hci_cmd_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len,
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
         /* XXX: Increment stat. */
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     num_pkts = data[2];
@@ -113,7 +113,7 @@ ble_hci_cmd_rx_cmd_status(uint8_t event_code, uint8_t *data, int len,
 
     if (len < BLE_HCI_EVENT_CMD_STATUS_LEN) {
         /* XXX: Increment stat. */
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     status = data[2];
@@ -182,7 +182,7 @@ ble_hci_cmd_process_ack(uint8_t *params_buf, uint8_t params_buf_len,
         } else {
             if (out_ack->bha_params_len > params_buf_len) {
                 out_ack->bha_params_len = params_buf_len;
-                rc = BLE_HS_EMSGSIZE;
+                rc = BLE_HS_ECONTROLLER;
             }
             memcpy(params_buf, out_ack->bha_params, out_ack->bha_params_len);
         }

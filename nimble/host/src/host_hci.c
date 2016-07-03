@@ -151,7 +151,7 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     struct hci_disconn_complete evt;
 
     if (len < BLE_HCI_EVENT_DISCONN_COMPLETE_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     evt.status = data[2];
@@ -208,14 +208,14 @@ host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
     int i;
 
     if (len < BLE_HCI_EVENT_HDR_LEN + BLE_HCI_EVENT_NUM_COMP_PKTS_HDR_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     off = BLE_HCI_EVENT_HDR_LEN;
     num_handles = data[off];
     if (len < BLE_HCI_EVENT_NUM_COMP_PKTS_HDR_LEN +
               num_handles * BLE_HCI_EVENT_NUM_COMP_PKTS_ENT_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
     off++;
 
@@ -240,7 +240,7 @@ host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len)
 
     if (len < BLE_HCI_EVENT_HDR_LEN + BLE_HCI_LE_MIN_LEN) {
         /* XXX: Increment stat. */
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     subevent = data[2];
@@ -264,13 +264,13 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
     int rc;
 
     if (len < BLE_HCI_LE_CONN_COMPLETE_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     /* this code processes two different events that are really similar */
     if ((subevent == BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE) &&
         ( len < BLE_HCI_LE_ENH_CONN_COMPLETE_LEN)) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     evt.subevent_code = data[0];
@@ -322,7 +322,7 @@ host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
     int i;
 
     if (len < BLE_HCI_LE_ADV_RPT_MIN_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     num_reports = data[1];
@@ -338,7 +338,7 @@ host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
            6        /* Address. */
           ) * num_reports;
     if (off + num_reports >= len) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     data_len = 0;
@@ -351,7 +351,7 @@ host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
 
     /* Check if RSSI fields fit in the packet. */
     if (off + num_reports > len) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     *out_num_reports = num_reports;
@@ -409,7 +409,7 @@ host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
     struct hci_le_conn_upd_complete evt;
 
     if (len < BLE_HCI_LE_CONN_UPD_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     evt.subevent_code = data[0];
@@ -467,7 +467,7 @@ host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
     struct hci_le_conn_param_req evt;
 
     if (len < BLE_HCI_LE_REM_CONN_PARM_REQ_LEN) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     evt.subevent_code = data[0];
@@ -615,7 +615,7 @@ host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
 
     rc = os_mbuf_copydata(om, 0, BLE_HCI_DATA_HDR_SZ, hdr);
     if (rc != 0) {
-        return BLE_HS_EMSGSIZE;
+        return BLE_HS_ECONTROLLER;
     }
 
     /* Strip HCI ACL data header from the front of the packet. */
