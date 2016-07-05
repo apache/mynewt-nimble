@@ -70,8 +70,8 @@ struct os_event;
 #define BLE_HS_ERR_SM_US_BASE       0x400   /* 1024 */
 #define BLE_HS_SM_US_ERR(x)         ((x) ? BLE_HS_ERR_SM_US_BASE + (x) : 0)
 
-#define BLE_HS_ERR_SM_THEM_BASE     0x500   /* 1280 */
-#define BLE_HS_SM_THEM_ERR(x)       ((x) ? BLE_HS_ERR_SM_THEM_BASE + (x) : 0)
+#define BLE_HS_ERR_SM_PEER_BASE     0x500   /* 1280 */
+#define BLE_HS_SM_PEER_ERR(x)       ((x) ? BLE_HS_ERR_SM_PEER_BASE + (x) : 0)
 
 /* defines the input output (io) capabilities for the host device */
 #define BLE_HS_IO_DISPLAY_ONLY              0x00

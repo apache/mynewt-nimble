@@ -2035,7 +2035,7 @@ ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         ble_sm_pair_fail_parse((*om)->om_data, (*om)->om_len, &cmd);
         BLE_SM_LOG_CMD(0, "fail", conn_handle, ble_sm_pair_fail_log, &cmd);
 
-        res->app_status = BLE_HS_SM_THEM_ERR(cmd.reason);
+        res->app_status = BLE_HS_SM_PEER_ERR(cmd.reason);
     }
 }
 
