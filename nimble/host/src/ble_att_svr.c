@@ -271,12 +271,12 @@ ble_att_svr_check_security(uint16_t conn_handle, int is_read,
         /* XXX: Check security database; if required key present, respond with
          * insufficient encryption error code.
          */
-        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
         return BLE_HS_ATT_ERR(*out_att_err);
     }
 
     if (authen && !sec_state.authenticated) {
-        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
         return BLE_HS_ATT_ERR(*out_att_err);
     }
 

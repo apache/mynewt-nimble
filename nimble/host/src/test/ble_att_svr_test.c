@@ -1056,10 +1056,10 @@ TEST_CASE(ble_att_svr_test_read)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
-    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHENT));
+    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
     ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ,
                                             req.barq_handle,
-                                            BLE_ATT_ERR_INSUFFICIENT_AUTHENT);
+                                            BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
     /* Security check bypassed for local reads. */
     rc = ble_att_svr_read_local(req.barq_handle, &attr_data, &attr_len);
@@ -1299,10 +1299,10 @@ TEST_CASE(ble_att_svr_test_write)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
-    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHENT));
+    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
     ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
                                             req.bawq_handle,
-                                            BLE_ATT_ERR_INSUFFICIENT_AUTHENT);
+                                            BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
     /* Security check bypassed for local writes. */
     rc = ble_att_svr_write_local(req.bawq_handle, buf, sizeof buf);
