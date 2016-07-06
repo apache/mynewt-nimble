@@ -219,7 +219,6 @@ extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
 int ble_hs_start(void);
 void ble_hs_event_enqueue(struct os_event *ev);
-int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
 int ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg);
 
 #endif
