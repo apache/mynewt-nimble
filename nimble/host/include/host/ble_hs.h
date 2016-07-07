@@ -73,16 +73,12 @@ struct os_event;
 #define BLE_HS_ERR_SM_PEER_BASE     0x500   /* 1280 */
 #define BLE_HS_SM_PEER_ERR(x)       ((x) ? BLE_HS_ERR_SM_PEER_BASE + (x) : 0)
 
-/* defines the input output (io) capabilities for the host device */
+/* Defines the IO capabilities for the local device. */
 #define BLE_HS_IO_DISPLAY_ONLY              0x00
 #define BLE_HS_IO_DISPLAY_YESNO             0x01
 #define BLE_HS_IO_KEYBOARD_ONLY             0x02
 #define BLE_HS_IO_NO_INPUT_OUTPUT           0x03
 #define BLE_HS_IO_KEYBOARD_DISPLAY          0x04
-
-#define BLE_HS_PRIVACY_MODE_NONE            0
-#define BLE_HS_PRIVACY_MODE_RANDOM_STATIC   1
-#define BLE_HS_PRIVACY_MODE_RESOLV_RAND     2
 
 struct ble_hs_cfg {
     /*** HCI settings. */

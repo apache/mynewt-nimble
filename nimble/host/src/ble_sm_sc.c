@@ -280,7 +280,7 @@ ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
         pkb = ble_sm_sc_pub_key.u8;
     }
     res->app_status = ble_sm_alg_g2(pka, pkb, proc->randm, proc->rands,
-                                    &res->passkey_action.numcmp);
+                                    &res->passkey_params.numcmp);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -341,7 +341,7 @@ ble_sm_sc_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
         if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
-            res->passkey_action.action = ioact;
+            res->passkey_params.action = ioact;
             BLE_HS_DBG_ASSERT(ioact == BLE_SM_IOACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
         }
@@ -423,7 +423,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
-            res->passkey_action.action = ioact;
+            res->passkey_params.action = ioact;
             BLE_HS_DBG_ASSERT(ioact == BLE_SM_IOACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
         } else {
@@ -459,7 +459,7 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     ioact = ble_sm_sc_io_action(proc);
     if (ble_sm_ioact_state(ioact) == BLE_SM_PROC_STATE_CONFIRM) {
-        res->passkey_action.action = ioact;
+        res->passkey_params.action = ioact;
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {

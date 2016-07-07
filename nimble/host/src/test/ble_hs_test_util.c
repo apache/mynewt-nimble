@@ -377,7 +377,7 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
         ack_status);
 
     rc = ble_gap_connect(own_addr_type, peer_addr_type, peer_addr,
-                               params, cb, cb_arg);
+                         params, cb, cb_arg);
 
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(ack_status));
 
@@ -441,7 +441,7 @@ ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx, uint8_t fail_status)
 int
 ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
                       const struct ble_gap_disc_params *disc_params,
-                      ble_gap_disc_fn *cb, void *cb_arg, int fail_idx,
+                      ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                       uint8_t fail_status)
 {
     int rc;

@@ -30,7 +30,7 @@
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"
 
-int ble_sm_test_gap_event;
+int ble_sm_test_gap_event_type;
 int ble_sm_test_gap_status;
 struct ble_gap_sec_state ble_sm_test_sec_state;
 
@@ -103,7 +103,7 @@ ble_sm_test_util_init(void)
     ble_hs_cfg.store_write_cb = ble_sm_test_util_store_write;
 
     ble_sm_test_store_obj_type = -1;
-    ble_sm_test_gap_event = -1;
+    ble_sm_test_gap_event_type = -1;
     ble_sm_test_gap_status = -1;
 
     memset(&ble_sm_test_sec_state, 0xff, sizeof ble_sm_test_sec_state);
@@ -261,29 +261,29 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
     }
 }
 
-struct ble_gap_passkey_action ble_sm_test_ioact;
+struct ble_gap_passkey_params ble_sm_test_ioact;
 
 int
-ble_sm_test_util_conn_cb(int event, struct ble_gap_event_ctxt *ctxt, void *arg)
+ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
 {
     int rc;
 
-    switch (event) {
+    switch (event->type) {
     case BLE_GAP_EVENT_ENC_CHANGE:
-        ble_sm_test_gap_status = ctxt->enc_change.status;
-        ble_sm_test_sec_state = ctxt->desc->sec_state;
+        ble_sm_test_gap_status = event->enc_change.status;
+        ble_sm_test_sec_state = event->enc_change.conn.sec_state;
         rc = 0;
         break;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-        ble_sm_test_ioact = ctxt->passkey_action;
+        ble_sm_test_ioact = event->passkey.params;
         break;
 
     default:
         return 0;
     }
 
-    ble_sm_test_gap_event = event;
+    ble_sm_test_gap_event_type = event->type;
 
     return rc;
 }
@@ -1260,7 +1260,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
     TEST_ASSERT(ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -1383,7 +1383,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
     TEST_ASSERT(ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -1442,7 +1442,7 @@ ble_sm_test_util_peer_fail_inval(
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was not executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == -1);
+    TEST_ASSERT(ble_sm_test_gap_event_type == -1);
     TEST_ASSERT(ble_sm_test_gap_status == -1);
 
     /* Verify that connection has correct security state. */
@@ -1519,7 +1519,7 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status ==
                 BLE_HS_SM_US_ERR(BLE_SM_ERR_CONFIRM_MISMATCH));
     TEST_ASSERT(!ble_sm_test_sec_state.encrypted);
@@ -1779,7 +1779,7 @@ ble_sm_test_util_us_lgcy_good_once(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
     TEST_ASSERT(ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated == params->authenticated);
@@ -1905,7 +1905,7 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
     TEST_ASSERT(ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -2090,7 +2090,7 @@ ble_sm_test_util_us_sc_good_once(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
     TEST_ASSERT(ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -2278,7 +2278,7 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
     TEST_ASSERT(ble_sm_test_gap_status == 0);
     TEST_ASSERT(ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(ble_sm_test_sec_state.authenticated ==
@@ -2376,7 +2376,7 @@ ble_sm_test_util_us_fail_inval(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Verify that security callback was not executed. */
-    TEST_ASSERT(ble_sm_test_gap_event == -1);
+    TEST_ASSERT(ble_sm_test_gap_event_type == -1);
     TEST_ASSERT(ble_sm_test_gap_status == -1);
 
     /* Verify that connection has correct security state. */

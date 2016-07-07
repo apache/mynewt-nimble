@@ -824,9 +824,9 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
         }
 
         if (res->app_status == 0 &&
-            res->passkey_action.action != BLE_SM_IOACT_NONE) {
+            res->passkey_params.action != BLE_SM_IOACT_NONE) {
 
-            ble_gap_passkey_event(conn_handle, &res->passkey_action);
+            ble_gap_passkey_event(conn_handle, &res->passkey_params);
         }
 
         /* Persist keys if bonding has successfully completed. */
@@ -1466,7 +1466,7 @@ ble_sm_pair_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
         ioact = ble_sm_io_action(proc);
         if (ble_sm_ioact_state(ioact) == proc->state) {
-            res->passkey_action.action = ioact;
+            res->passkey_params.action = ioact;
         }
     }
 
@@ -1575,7 +1575,7 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
             proc->state = ble_sm_state_after_pair(proc);
             ioact = ble_sm_io_action(proc);
             if (ble_sm_ioact_state(ioact) == proc->state) {
-                res->passkey_action.action = ioact;
+                res->passkey_params.action = ioact;
             }
             if (ble_sm_proc_can_advance(proc)) {
                 res->execute = 1;

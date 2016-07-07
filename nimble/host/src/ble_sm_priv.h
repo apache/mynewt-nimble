@@ -276,7 +276,7 @@ struct ble_sm_proc {
 struct ble_sm_result {
     int app_status;
     uint8_t sm_err;
-    struct ble_gap_passkey_action passkey_action;
+    struct ble_gap_passkey_params passkey_params;
     void *state_arg;
     unsigned execute:1;
     unsigned enc_cb:1;
