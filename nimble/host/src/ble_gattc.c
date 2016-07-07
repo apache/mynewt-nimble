@@ -3579,7 +3579,7 @@ ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc, int status)
 }
 
 /**
- * Initiates GATT procedure: Write Long Characteristic Values.
+ * Initiates GATT procedure: Reliable Writes.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.

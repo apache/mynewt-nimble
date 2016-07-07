@@ -105,7 +105,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_CONN_UPDATE_REQ       4
 #define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      5
 #define BLE_GAP_EVENT_TERM_FAILURE          6
-#define BLE_GAP_EVENT_DISC_SUCCESS          7
+#define BLE_GAP_EVENT_DISC                  7
 #define BLE_GAP_EVENT_DISC_COMPLETE         8
 #define BLE_GAP_EVENT_ADV_COMPLETE          9
 #define BLE_GAP_EVENT_ENC_CHANGE            10
@@ -194,64 +194,10 @@ struct ble_gap_upd_params {
     uint16_t max_ce_len;
 };
 
-struct ble_gap_notify_params {
-    uint16_t attr_handle;
-    void *attr_data;
-    uint16_t attr_len;
-
-    unsigned indication:1;
-};
-
-struct ble_gap_passkey_action {
+struct ble_gap_passkey_params {
     uint8_t action;
     uint32_t numcmp;
 };
-
-struct ble_gap_event_ctxt {
-    struct ble_gap_conn_desc *desc;
-
-    union {
-        struct {
-            int status;
-        } connect;
-
-        struct {
-            int reason;
-        } disconnect;
-
-        struct {
-            int status;
-        } conn_update;
-
-        struct {
-            struct ble_gap_upd_params *self_params;
-            struct ble_gap_upd_params *peer_params;
-        } conn_update_req;
-
-        struct {
-            int status;
-        } term_failure;
-
-        struct {
-            int status;
-        } enc_change;
-
-        struct ble_gap_passkey_action passkey_action;
-
-        struct {
-            uint16_t attr_handle;
-            void *attr_data;
-            uint16_t attr_len;
-
-            unsigned indication:1;
-        } notify;
-
-        struct ble_gap_ltk_params *ltk_params;
-    };
-};
-
-typedef int ble_gap_event_fn(int event, struct ble_gap_event_ctxt *ctxt,
-                             void *arg);
 
 struct ble_gap_disc_desc {
     /*** Common fields. */
@@ -273,10 +219,200 @@ struct ble_gap_disc_desc {
     uint8_t direct_addr[6];
 };
 
-typedef void ble_gap_disc_fn(int event, int status,
-                             struct ble_gap_disc_desc *desc, void *arg);
+/**
+ * Represents a GAP-related event.  When such an event occurs, the host
+ * notifies the application by passing an instance of this structure to an
+ * application-specified callback.
+ */
+struct ble_gap_event {
+    /**
+     * Indicates the type of GAP event that occurred.  This is one of the
+     * BLE_GAP_EVENT codes.
+     */
+    uint8_t type;
 
-typedef void ble_gap_wl_fn(int status, void *arg);
+    /**
+     * A discriminated union containing additional details concerning the GAP
+     * event.  The 'type' field indicates which member of the union is valid.
+     */
+    union {
+        /**
+         * Represents a connection attempt.  Valid for the following event
+         * types:
+         *     o BLE_GAP_EVENT_CONNECT
+         */
+        struct {
+            /**
+             * The status of the connection attempt;
+             *     o 0: the connection was successfully established.
+             *     o BLE host error code: the connection attempt failed for
+             *       the specified reason.
+             */
+            int status;
+
+            /**
+             * Information about the established connection.  Only valid on
+             * success.
+             */
+            struct ble_gap_conn_desc conn;
+        } connect;
+
+        /**
+         * Represents a terminated connection.  Valid for the following event
+         * types:
+         *     o BLE_GAP_EVENT_DISCONNECT
+         */
+        struct {
+            /**
+             * A BLE host return code indicating the reason for the
+             * disconnect.
+             */
+            int reason;
+
+            /** Information about the terminated connection. */
+            struct ble_gap_conn_desc conn;
+        } disconnect;
+
+        /**
+         * Represents an advertising report received during a discovery
+         * procedure.  Valid for the following event types:
+         *     o BLE_GAP_EVENT_DISC
+         */
+        struct ble_gap_disc_desc disc;
+
+        /**
+         * Represents an attempt to update a connection's parameters.  Valid
+         * for the following event types:
+         *     o BLE_GAP_EVENT_CONN_UPDATE
+         */
+        struct {
+            /**
+             * The result of the connection update attempt;
+             *     o 0: the connection was successfully updated.
+             *     o BLE host error code: the connection update attempt failed
+             *       for the specified reason.
+             */
+            int status;
+
+            /**
+             * Information about the relevant connection.  If the connection
+             * update attempt was successful, this descriptor contains the
+             * updated parameters.
+             */
+            struct ble_gap_conn_desc conn;
+        } conn_update;
+
+        /**
+         * Represents a peer's request to update the connection parameters.
+         * This event is generated when a peer performs any of the following
+         * procedures:
+         *     o L2CAP Connection Parameter Update Procedure
+         *     o Link-Layer Connection Parameters Request Procedure
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_L2CAP_UPDATE_REQ
+         *     o BLE_GAP_EVENT_CONN_UPDATE_REQ
+         * 
+         */
+        struct {
+            /**
+             * Indicates the connection parameters that the peer would like to
+             * use.
+             */
+            const struct ble_gap_upd_params *peer_params;
+
+            /**
+             * Indicates the connection parameters that the local device would
+             * like to use.  The application callback should fill this in.  By
+             * default, this struct contains the requested parameters (i.e.,
+             * it is a copy of 'peer_params').
+             */
+            struct ble_gap_upd_params *self_params;
+
+            /** Information about the relevant connection. */
+            struct ble_gap_conn_desc conn;
+        } conn_update_req;
+
+        /**
+         * Represents a failed attempt to terminate an established connection.
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_TERM_FAILURE
+         */
+        struct {
+            /**
+             * A BLE host return code indicating the reason for the failure.
+             */
+            int status;
+
+            /** Information about the relevant connection. */
+            struct ble_gap_conn_desc conn;
+        } term_failure;
+
+        /**
+         * Represents an attempt to change the encrypted state of a
+         * connection.  Valid for the following event types:
+         *     o BLE_GAP_EVENT_ENC_CHANGE
+         */
+        struct {
+            /**
+             * Indicates the result of the encryption state change attempt;
+             *     o 0: the encrypted state was successfully updated;
+             *     o BLE host error code: the encryption state change attempt
+             *       failed for the specified reason.
+             */
+            int status;
+
+            /**
+             * Information about the relevant connection.  If the encryption
+             * state change attempt was successful, this descriptor reflects
+             * the updated state.
+             */
+            struct ble_gap_conn_desc conn;
+        } enc_change;
+
+        /**
+         * Represents a passkey query needed to complete a pairing procedure.
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_PASSKEY_ACTION
+         */
+        struct {
+            /** Contains details about the passkey query. */
+            struct ble_gap_passkey_params params;
+
+            /** Information about the relevant connection. */
+            struct ble_gap_conn_desc conn;
+        } passkey;
+
+        /**
+         * Represents a received ATT notification or indication.
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_NOTIFY
+         */
+        struct {
+            /** The handle of the relevant ATT attribute. */
+            uint16_t attr_handle;
+
+            /** The contents of the notification or indication. */
+            void *attr_data;
+
+            /** The number of data bytes contained in the message. */
+            uint16_t attr_len;
+
+            /** Information about the relevant connection. */
+            struct ble_gap_conn_desc conn;
+
+            /**
+             * Whether the received command is a notification or an
+             * indication;
+             *     o 0: Notification;
+             *     o 1: Indication.
+             */
+            unsigned indication:1;
+        } notify;
+    };
+};
+
+typedef int ble_gap_event_fn(struct ble_gap_event *ctxt, void *arg);
 
 #define BLE_GAP_CONN_MODE_NON               0
 #define BLE_GAP_CONN_MODE_DIR               1
@@ -303,7 +439,7 @@ int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields);
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
-                 ble_gap_disc_fn *cb, void *cb_arg);
+                 ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
 int ble_gap_disc_active(void);
 int ble_gap_connect(uint8_t own_addr_type,

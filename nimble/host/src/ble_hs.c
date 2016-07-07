@@ -286,12 +286,11 @@ ble_hs_event_enqueue(struct os_event *ev)
 }
 
 /**
- * Sends a sequence of HCI commands to the controller.  This sequence of
- * commands is necessary for the host and controller to remain in sync.  This
- * function must be called before any other host functionality is used, but it
- * must be called after both the host and controller are initialized.
- * Typically, the host-parent-task calls this function at the top of its task
- * routine.
+ * Synchronizes the host with the controller by sending a sequence of HCI
+ * commands.  This function must be called before any other host functionality
+ * is used, but it must be called after both the host and controller are
+ * initialized.  Typically, the host-parent-task calls this function at the top
+ * of its task routine.
  *
  * @return                      0 on success; nonzero on error.
  */

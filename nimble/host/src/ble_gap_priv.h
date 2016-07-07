@@ -81,7 +81,7 @@ int ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
 void ble_gap_enc_event(uint16_t conn_handle, int status,
                        int security_restored);
 void ble_gap_passkey_event(uint16_t conn_handle,
-                           struct ble_gap_passkey_action *passkey_action);
+                           struct ble_gap_passkey_params *passkey_params);
 void ble_gap_notify_event(uint16_t conn_handle, uint16_t attr_handle,
                           void *attr_data, uint16_t attr_len,
                           int is_indication);
