@@ -2410,9 +2410,11 @@ ble_ll_conn_spvn_timeout(void *arg)
  * been checked yet.
  *
  * Context: Interrupt
+ *
+ * @param rxhdr
  */
-void
-ble_ll_conn_rx_isr_start(void)
+int
+ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
 {
     struct ble_ll_conn_sm *connsm;
 
@@ -2425,8 +2427,30 @@ ble_ll_conn_rx_isr_start(void)
     ble_ll_wfr_disable();
     connsm = g_ble_ll_conn_cur_sm;
     if (connsm) {
+        /* Double check access address. Better match connection state machine */
+        if (aa != connsm->access_addr) {
+            STATS_INC(ble_ll_conn_stats, rx_data_pdu_bad_aa);
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+            ble_ll_event_send(&connsm->conn_ev_end);
+            g_ble_ll_conn_cur_sm = NULL;
+            return -1;
+        }
+
+        /* Set connection handle in mbuf header */
+        rxhdr->rxinfo.handle = connsm->conn_handle;
+
+        /* Set flag denoting we have received a packet in connection event */
         connsm->csmflags.cfbit.pkt_rxd = 1;
+
+        /* Set anchor point (and last) if 1st rxd frame in connection event */
+        if (connsm->csmflags.cfbit.slave_set_last_anchor) {
+            connsm->csmflags.cfbit.slave_set_last_anchor = 0;
+            connsm->last_anchor_point = rxhdr->beg_cputime;
+            connsm->anchor_point = connsm->last_anchor_point;
+        }
     }
+
+    return 1;
 }
 
 /**
@@ -2577,7 +2601,7 @@ conn_rx_data_pdu_end:
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
+ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu)
 {
     int rc;
     int is_ctrl;
@@ -2607,15 +2631,8 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
         goto conn_exit;
     }
 
-    /* Double check access address. Better match connection state machine! */
-    if (aa != connsm->access_addr) {
-        STATS_INC(ble_ll_conn_stats, rx_data_pdu_bad_aa);
-        goto conn_exit;
-    }
-
     /* Set the handle in the ble mbuf header */
     rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
-    rxhdr->rxinfo.handle = connsm->conn_handle;
     hdr_byte = rxpdu->om_data[0];
     rx_pyld_len = rxpdu->om_data[1];
 
@@ -2725,7 +2742,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu, uint32_t aa)
                         rc = ble_ll_ctrl_tx_done(txpdu, connsm);
                         if (rc) {
                             /* Means we transmitted a TERMINATE_IND */
-                            goto conn_rx_pdu_end;
+                            goto conn_exit;
                         } else {
                             goto chk_rx_terminate_ind;
                         }
@@ -2792,16 +2809,8 @@ chk_rx_terminate_ind:
         rc = ble_ll_conn_tx_data_pdu(connsm);
     }
 
-conn_rx_pdu_end:
-    /* Set anchor point (and last) if 1st received frame in connection event */
-    if (connsm->csmflags.cfbit.slave_set_last_anchor) {
-        connsm->csmflags.cfbit.slave_set_last_anchor = 0;
-        connsm->last_anchor_point = rxhdr->beg_cputime;
-        connsm->anchor_point = connsm->last_anchor_point;
-    }
-
-    /* Send link layer a connection end event if over */
 conn_exit:
+    /* Send link layer a connection end event if over */
     if (rc) {
         ble_ll_conn_current_sm_over();
         if (connsm) {
