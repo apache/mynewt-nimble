@@ -457,5 +457,6 @@ int ble_gap_security_initiate(uint16_t conn_handle);
 int ble_gap_pair_initiate(uint16_t conn_handle);
 int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
                                 uint16_t ediv, uint64_t rand_val, int auth);
+int ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi);
 
 #endif

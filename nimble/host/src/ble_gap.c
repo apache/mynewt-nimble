@@ -2774,6 +2774,32 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
 }
 
 /*****************************************************************************
+ * $rssi                                                                     *
+ *****************************************************************************/
+
+/**
+ * Retrieves the most-recently measured RSSI for the specified connection.  A
+ * connection's RSSI is updated whenever a data channel PDU is received.
+ *
+ * @param conn_handle           Specifies the connection to query.
+ * @param out_rssi              On success, the retrieved RSSI is written here.
+ *
+ * @return                      0 on success;
+ *                              A BLE host HCI return code if the controller
+ *                                  rejected the request;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
+int
+ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi)
+{
+    int rc;
+
+    rc = ble_hci_util_read_rssi(conn_handle, out_rssi);
+    return rc;
+}
+
+/*****************************************************************************
  * $notify                                                                   *
  *****************************************************************************/
 
