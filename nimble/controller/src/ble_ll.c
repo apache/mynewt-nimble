@@ -667,6 +667,7 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
     int rc;
     uint8_t pdu_type;
     uint8_t *rxbuf;
+    struct ble_mbuf_hdr *ble_hdr;
 
     ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, 0, (uint32_t)rxpdu);
 
@@ -678,11 +679,8 @@ ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan)
          * ongoing connection
          */
         if (g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION) {
-            /* Call conection pdu rx start function */
-            ble_ll_conn_rx_isr_start();
-
-            /* Set up to go from rx to tx */
-            rc = 1;
+            ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+            rc = ble_ll_conn_rx_isr_start(ble_hdr, ble_phy_access_addr_get());
         } else {
             STATS_INC(ble_ll_stats, bad_ll_state);
             rc = 0;
@@ -778,7 +776,7 @@ ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr)
          * Data channel pdu. We should be in CONNECTION state with an
          * ongoing connection.
          */
-        rc = ble_ll_conn_rx_isr_end(rxpdu, ble_phy_access_addr_get());
+        rc = ble_ll_conn_rx_isr_end(rxpdu);
         return rc;
     }
 
