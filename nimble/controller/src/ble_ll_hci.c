@@ -983,20 +983,24 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
 }
 
 /**
+ * Sends an HCI command to the controller.  On success, the supplied buffer is
+ * relinquished to the controller task.  On failure, the caller must free the
+ * buffer.
+ *
+ * @param cmd                   A flat buffer containing the HCI command to
+ *                                  send.
+ *
  * @return                      0 on success;
  *                              BLE_ERR_MEM_CAPACITY on HCI buffer exhaustion.
  */
 int
 ble_hci_transport_host_cmd_send(uint8_t *cmd)
 {
-    os_error_t err;
     struct os_event *ev;
 
     /* Get an event structure off the queue */
     ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
     if (!ev) {
-        err = os_memblock_put(&g_hci_cmd_pool, cmd);
-        assert(err == OS_OK);
         return BLE_ERR_MEM_CAPACITY;
     }
 
