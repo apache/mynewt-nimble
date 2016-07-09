@@ -698,47 +698,59 @@ host_hci_data_rx(struct os_mbuf *om)
     int rc;
 
     rc = ble_hci_util_data_hdr_strip(om, &hci_hdr);
-    if (rc == 0) {
-#if (BLETEST_THROUGHPUT_TEST == 0)
-        BLE_HS_LOG(DEBUG, "host_hci_data_rx(): handle=%u pb=%x len=%u data=",
-                   BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
-                   BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
-                   hci_hdr.hdh_len);
-        ble_hs_misc_log_mbuf(om);
-        BLE_HS_LOG(DEBUG, "\n");
-#endif
-
-        if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
-            rc = BLE_HS_EBADDATA;
-        } else {
-            handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
-
-            ble_hs_lock();
-
-            conn = ble_hs_conn_find(handle);
-            if (conn == NULL) {
-                rc = BLE_HS_ENOTCONN;
-            } else {
-                rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &rx_buf);
-                om = NULL;
-            }
-
-            ble_hs_unlock();
-        }
+    if (rc != 0) {
+        goto err;
     }
 
-    os_mbuf_free_chain(om);
+#if (BLETEST_THROUGHPUT_TEST == 0)
+    BLE_HS_LOG(DEBUG, "host_hci_data_rx(): handle=%u pb=%x len=%u data=",
+               BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
+               BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
+               hci_hdr.hdh_len);
+    ble_hs_misc_log_mbuf(om);
+    BLE_HS_LOG(DEBUG, "\n");
+#endif
 
-    if (rc == 0) {
+    if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
+
+    handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &rx_buf);
+        om = NULL;
+    }
+
+    ble_hs_unlock();
+
+    switch (rc) {
+    case 0:
+        /* Final fragment received. */
         BLE_HS_DBG_ASSERT(rx_cb != NULL);
         BLE_HS_DBG_ASSERT(rx_buf != NULL);
         rc = rx_cb(handle, &rx_buf);
         os_mbuf_free_chain(rx_buf);
-    } else if (rc == BLE_HS_EAGAIN) {
+        break;
+
+    case BLE_HS_EAGAIN:
         /* More fragments on the way. */
-        rc = 0;
+        break;
+
+    default:
+        goto err;
     }
 
+    return 0;
+
+err:
+    os_mbuf_free_chain(om);
     return rc;
 }
 
