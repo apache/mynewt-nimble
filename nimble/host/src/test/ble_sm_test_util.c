@@ -638,7 +638,7 @@ ble_sm_test_util_verify_tx_hdr(uint8_t sm_op, uint16_t payload_len)
 {
     struct os_mbuf *om;
 
-    om = ble_hs_test_util_prev_tx_dequeue();
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
 
     TEST_ASSERT(OS_MBUF_PKTLEN(om) == BLE_SM_HDR_SZ + payload_len);

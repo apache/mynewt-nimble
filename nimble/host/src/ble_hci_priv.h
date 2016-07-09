@@ -45,5 +45,7 @@ int ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi);
 int ble_hci_util_set_random_addr(const uint8_t *addr);
 int ble_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
                               uint16_t tx_time);
+int ble_hci_util_data_hdr_strip(struct os_mbuf *om,
+                                struct hci_data_hdr *out_hdr);
 
 #endif

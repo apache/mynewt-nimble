@@ -157,3 +157,22 @@ ble_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
 
     return 0;
 }
+
+int
+ble_hci_util_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *out_hdr)
+{
+    int rc;
+
+    rc = os_mbuf_copydata(om, 0, BLE_HCI_DATA_HDR_SZ, out_hdr);
+    if (rc != 0) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    /* Strip HCI ACL data header from the front of the packet. */
+    os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ);
+
+    out_hdr->hdh_handle_pb_bc = le16toh(&out_hdr->hdh_handle_pb_bc);
+    out_hdr->hdh_len = le16toh(&out_hdr->hdh_len);
+
+    return 0;
+}
