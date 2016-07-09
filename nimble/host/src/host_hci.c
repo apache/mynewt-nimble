@@ -677,24 +677,6 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     return 0;
 }
 
-static int
-host_hci_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *hdr)
-{
-    int rc;
-
-    rc = os_mbuf_copydata(om, 0, BLE_HCI_DATA_HDR_SZ, hdr);
-    if (rc != 0) {
-        return BLE_HS_ECONTROLLER;
-    }
-
-    /* Strip HCI ACL data header from the front of the packet. */
-    os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ);
-
-    hdr->hdh_handle_pb_bc = le16toh(&hdr->hdh_handle_pb_bc);
-    hdr->hdh_len = le16toh(&hdr->hdh_len);
-
-    return 0;
-}
 
 /**
  * Called when a data packet is received from the controller.  This function
@@ -715,7 +697,7 @@ host_hci_data_rx(struct os_mbuf *om)
     uint16_t handle;
     int rc;
 
-    rc = host_hci_data_hdr_strip(om, &hci_hdr);
+    rc = ble_hci_util_data_hdr_strip(om, &hci_hdr);
     if (rc == 0) {
 #if (BLETEST_THROUGHPUT_TEST == 0)
         BLE_HS_LOG(DEBUG, "host_hci_data_rx(): handle=%u pb=%x len=%u data=",
@@ -782,33 +764,121 @@ host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
 }
 
 /**
+ * Splits an appropriately-sized fragment from the front of an outgoing ACL
+ * data packet, if necessary.  If the packet size is within the controller's
+ * buffer size requirements, no splitting is performed.  The fragment data is
+ * removed from the data packet mbuf.
+ *
+ * @param om                    The ACL data packet.
+ * @param out_frag              On success, this points to the fragment to
+ *                                  send.  If the entire packet can fit within
+ *                                  a single fragment, this will point to the
+ *                                  ACL data packet itself ('om').
+ *
+ * @return                      BLE_HS_EDONE: success; this is the final
+ *                                  fragment.
+ *                              BLE_HS_EAGAIN: success; more data remains in
+ *                                  the original mbuf.
+ *                              Other BLE host core return code on error.
+ */
+int
+host_hci_split_frag(struct os_mbuf *om, struct os_mbuf **out_frag)
+{
+    struct os_mbuf *frag;
+    int rc;
+
+    if (OS_MBUF_PKTLEN(om) <= host_hci_buffer_sz) {
+        /* Final fragment. */
+        *out_frag = om;
+        return BLE_HS_EDONE;
+    }
+
+    frag = os_msys_get_pkthdr(host_hci_buffer_sz, 0);
+    if (frag == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    /* Move data from the front of the packet into the fragment mbuf. */
+    rc = os_mbuf_appendfrom(frag, om, 0, host_hci_buffer_sz);
+    if (rc != 0) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+    os_mbuf_adj(om, host_hci_buffer_sz);
+
+    /* More fragments to follow. */
+    *out_frag = frag;
+    return BLE_HS_EAGAIN;
+
+err:
+    os_mbuf_free_chain(frag);
+    return rc;
+}
+
+/**
  * Transmits an HCI ACL data packet.  This function consumes the supplied mbuf,
  * regardless of the outcome.
+ *
+ * XXX: Ensure the controller has sufficient buffer capacity for the outgoing
+ * fragments.
  */
 int
 host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
 {
+    struct os_mbuf *frag;
+    uint8_t pb;
+    int done;
     int rc;
 
-    /* XXX: Different transport mechanisms have different fragmentation
-     * requirements.  For now, never fragment.
+    /* The first fragment uses the first-non-flush packet boundary value.
+     * After sending the first fragment, pb gets set appropriately for all
+     * subsequent fragments in this packet.
      */
-    om = host_hci_data_hdr_prepend(om, connection->bhc_handle,
-                                   BLE_HCI_PB_FIRST_NON_FLUSH);
-    if (om == NULL) {
-        return BLE_HS_ENOMEM;
+    pb = BLE_HCI_PB_FIRST_NON_FLUSH;
+
+    /* Send fragments until the entire packet has been sent. */
+    done = 0;
+    while (!done) {
+        rc = host_hci_split_frag(om, &frag);
+        switch (rc) {
+        case BLE_HS_EDONE:
+            /* This is the final fragment. */
+            done = 1;
+            break;
+
+        case BLE_HS_EAGAIN:
+            /* More fragments to follow. */
+            break;
+
+        default:
+            goto err;
+        }
+
+        frag = host_hci_data_hdr_prepend(frag, connection->bhc_handle, pb);
+        if (frag == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+        pb = BLE_HCI_PB_MIDDLE;
+
+        BLE_HS_LOG(DEBUG, "host_hci_data_tx(): ");
+        ble_hs_misc_log_mbuf(frag);
+        BLE_HS_LOG(DEBUG, "\n");
+
+        rc = ble_hs_tx_data(frag);
+        if (rc != 0) {
+            goto err;
+        }
+
+        connection->bhc_outstanding_pkts++;
     }
-
-    BLE_HS_LOG(DEBUG, "host_hci_data_tx(): ");
-    ble_hs_misc_log_mbuf(om);
-    BLE_HS_LOG(DEBUG, "\n");
-
-    rc = ble_hs_tx_data(om);
-    if (rc != 0) {
-        return rc;
-    }
-
-    connection->bhc_outstanding_pkts++;
 
     return 0;
+
+err:
+    BLE_HS_DBG_ASSERT(rc != 0);
+
+    os_mbuf_free_chain(om);
+    return rc;
 }

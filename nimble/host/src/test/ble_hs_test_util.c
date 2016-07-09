@@ -82,20 +82,65 @@ ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om)
     }
 }
 
+static struct os_mbuf *
+ble_hs_test_util_prev_tx_dequeue_once(struct hci_data_hdr *out_hci_hdr)
+{
+    struct os_mbuf_pkthdr *omp;
+    struct os_mbuf *om;
+    int rc;
+
+    omp = STAILQ_FIRST(&ble_hs_test_util_prev_tx_queue);
+    if (omp == NULL) {
+        return NULL;
+    }
+    STAILQ_REMOVE_HEAD(&ble_hs_test_util_prev_tx_queue, omp_next);
+
+    om = OS_MBUF_PKTHDR_TO_MBUF(omp);
+
+    rc = ble_hci_util_data_hdr_strip(om, out_hci_hdr);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(out_hci_hdr->hdh_len == OS_MBUF_PKTLEN(om));
+
+    return om;
+}
+
 struct os_mbuf *
 ble_hs_test_util_prev_tx_dequeue(void)
 {
-    struct os_mbuf_pkthdr *omp;
+    struct ble_l2cap_hdr l2cap_hdr;
+    struct hci_data_hdr hci_hdr;
+    struct os_mbuf *om;
+    uint8_t pb;
+    int rc;
 
     os_mbuf_free_chain(ble_hs_test_util_prev_tx_cur);
 
-    omp = STAILQ_FIRST(&ble_hs_test_util_prev_tx_queue);
-    if (omp != NULL) {
-        STAILQ_REMOVE_HEAD(&ble_hs_test_util_prev_tx_queue, omp_next);
-        ble_hs_test_util_prev_tx_cur = OS_MBUF_PKTHDR_TO_MBUF(omp);
+    om = ble_hs_test_util_prev_tx_dequeue_once(&hci_hdr);
+    if (om != NULL) {
+        pb = BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc);
+        TEST_ASSERT_FATAL(pb == BLE_HCI_PB_FIRST_NON_FLUSH);
+
+        rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
+        TEST_ASSERT_FATAL(rc == 0);
+
+        os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
+
+        ble_hs_test_util_prev_tx_cur = om;
+        while (OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx_cur) <
+               l2cap_hdr.blh_len) {
+
+            om = ble_hs_test_util_prev_tx_dequeue_once(&hci_hdr);
+            TEST_ASSERT_FATAL(om != NULL);
+
+            pb = BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc);
+            TEST_ASSERT_FATAL(pb == BLE_HCI_PB_MIDDLE);
+
+            os_mbuf_concat(ble_hs_test_util_prev_tx_cur, om);
+        }
     } else {
         ble_hs_test_util_prev_tx_cur = NULL;
     }
+
     return ble_hs_test_util_prev_tx_cur;
 }
 
@@ -963,4 +1008,7 @@ ble_hs_test_util_init(void)
     ble_hs_test_util_prev_hci_tx_clear();
 
     ble_hs_id_set_pub(g_dev_addr);
+
+    /* Use a very low buffer size (16) to test fragmentation. */
+    host_hci_set_buf_size(16, 64);
 }
