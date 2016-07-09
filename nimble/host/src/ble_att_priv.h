@@ -123,6 +123,30 @@ struct ble_att_svr_conn {
     uint32_t basc_prep_write_rx_time;
 };
 
+/**
+ * Handles a host attribute request.
+ *
+ * @param entry                 The host attribute being requested.
+ * @param op                    The operation being performed on the attribute.
+ * @param arg                   The request data associated with that host
+ *                                  attribute.
+ *
+ * @return                      0 on success;
+ *                              One of the BLE_ATT_ERR_[...] codes on
+ *                                  failure.
+ */
+typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint8_t *uuid128, uint8_t op,
+                                  struct ble_att_svr_access_ctxt *ctxt,
+                                  void *arg);
+
+int ble_att_svr_register(const uint8_t *uuid, uint8_t flags,
+                         uint16_t *handle_id,
+                         ble_att_svr_access_fn *cb, void *cb_arg);
+int ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
+                                uint16_t *handle_id, ble_att_svr_access_fn *cb,
+                                void *cb_arg);
+
 struct ble_att_svr_entry {
     STAILQ_ENTRY(ble_att_svr_entry) ha_next;
 

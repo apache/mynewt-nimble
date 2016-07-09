@@ -378,6 +378,23 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Reads a locally registered attribute.  If the specified attribute handle
+ * coresponds to a GATT characteristic value or descriptor, the read is
+ * performed by calling the registered GATT access callback.
+ *
+ * @param attr_handle           The 16-bit handle of the attribute to read.
+ * @param out_data              On success, this points to the attribute data
+ *                                  just read.
+ * @param out_attr_len          On success, this points to the number of bytes
+ *                                  of attribute data just read.
+ *
+ * @return                      0 on success
+ *                              NimBLE host ATT return code if the attribute
+ *                                  access callback reports failure;
+ *                              NimBLE host core return code on unexpected
+ *                                  error.
+ */
 int
 ble_att_svr_read_local(uint16_t attr_handle, const void **out_data,
                        uint16_t *out_attr_len)
@@ -2243,6 +2260,22 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     return 0;
 }
 
+/**
+ * Writes a locally registered attribute.  If the specified attribute handle
+ * coresponds to a GATT characteristic value or descriptor, the write is
+ * performed by calling the registered GATT access callback.
+ *
+ * @param attr_handle           The 16-bit handle of the attribute to write.
+ * @param data                  Buffer containing the data to write to the
+ *                                  attribute.
+ * @param data_len              The number of bytes to write.
+ *
+ * @return                      0 on success
+ *                              NimBLE host ATT return code if the attribute
+ *                                  access callback reports failure;
+ *                              NimBLE host core return code on unexpected
+ *                                  error.
+ */
 int
 ble_att_svr_write_local(uint16_t attr_handle, const void *data,
                         uint16_t data_len)

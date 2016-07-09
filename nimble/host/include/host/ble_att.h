@@ -90,97 +90,78 @@
 #define BLE_ATT_ACCESS_OP_WRITE             2
 
 /**
- * Context for reads of characteristics and descriptors.  An instance of this
- * gets passed to an application callback whenever a local characteristic or
- * descriptor is read.
+ * Context for an access to an ATT attribute.  When a client reads or writes a
+ * locally registered attribute, an instance of this struct gets passed to the
+ * access callback.
  */
-struct ble_att_read_ctxt {
-    /**
-     * (stack --> app)
-     * Maximum number of data bytes the stack can send in the read response.
-     * This is based on the connection's ATT MTU.
-     */
-    uint16_t max_data_len;
-
-    /**
-     * (stack --> app)
-     * A buffer that the app can use to write the characteristic response value
-     * to.  This buffer can hold up to max_data_len bytes.
-     */
-    uint8_t *buf;
-
-    /**
-     * (app --> stack)
-     * App points this at the characteristic data to respond with.  Initially
-     * this points to "buf".
-     */
-    const void *data;
-
-    /**
-     * (app --> stack)
-     * App fills this with the number of data bytes contained in characteristic
-     * response.
-     */
-    uint16_t len;
-
-    uint16_t offset;
-};
-
-/**
- * Context for writes of characteristics and descriptors.  An instance of this
- * gets passed to an application callback whenever a local characteristic or
- * descriptor is written.
- */
-struct ble_att_write_ctxt {
-    /**
-     * (stack --> app)
-     * The data that the peer is writing to the characteristic.
-     */
-    const void *data;
-
-    /**
-     * (stack --> app)
-     * The number of bytes of characteristic data being written.
-     */
-    int len;
-
-    uint16_t offset;
-};
-
 struct ble_att_svr_access_ctxt {
+    /**
+     * The ATT operation being performed dictates which field in this union is
+     * valid.  If a read is being performed, the read field is valid.
+     * Otherwise, a write is being performed, in which case the write field is
+     * valid.
+     */
     union {
-        struct ble_att_read_ctxt read;
-        struct ble_att_write_ctxt write;
+        /** Context for reads of ATT attributes. */
+        struct {
+            /**
+             * (stack --> app)
+             * The offset within the attribute that the client is reading from.
+             */
+            uint16_t offset;
+
+            /**
+             * (stack --> app)
+             * Maximum number of data bytes the stack can send in the read
+             * response.  This is based on the connection's ATT MTU.
+             */
+            uint16_t max_data_len;
+
+            /**
+             * (stack --> app)
+             * A buffer that the app can use to write the characteristic
+             * response value to.  This buffer can hold up to max_data_len
+             * bytes.
+             */
+            uint8_t *buf;
+
+            /**
+             * (app --> stack)
+             * App points this at the characteristic data to respond with.
+             * Initially this points to "buf".
+             */
+            const void *data;
+
+            /**
+             * (app --> stack)
+             * App fills this with the number of data bytes contained in
+             * characteristic response.
+             */
+            uint16_t len;
+        } read;
+
+        /** Context for writes of ATT attributes. */
+        struct {
+            /**
+             * (stack --> app)
+             * The data that the peer is writing to the characteristic.
+             */
+            const void *data;
+
+            /**
+             * (stack --> app)
+             * The offset within the attribute that the client is writing to.
+             */
+            uint16_t offset;
+
+            /**
+             * (stack --> app)
+             * The number of bytes of characteristic data being written.
+             */
+            int len;
+        } write;
     };
 };
-
-/**
- * Handles a host attribute request.
- *
- * @param entry                 The host attribute being requested.
- * @param op                    The operation being performed on the attribute.
- * @param arg                   The request data associated with that host
- *                                  attribute.
- *
- * @return                      0 on success;
- *                              One of the BLE_ATT_ERR_[...] codes on
- *                                  failure.
- */
-typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
-                                  uint8_t *uuid128, uint8_t op,
-                                  struct ble_att_svr_access_ctxt *ctxt,
-                                  void *arg);
-
-int ble_att_svr_register(const uint8_t *uuid, uint8_t flags,
-                         uint16_t *handle_id,
-                         ble_att_svr_access_fn *cb, void *cb_arg);
-int ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
-                                uint16_t *handle_id, ble_att_svr_access_fn *cb,
-                                void *cb_arg);
-
-typedef int ble_att_svr_notify_fn(uint16_t conn_handle, uint16_t attr_handle,
-                                  uint8_t *attr_val, uint16_t attr_len,
-                                  void *arg);
 
 int ble_att_svr_read_local(uint16_t attr_handle, const void **out_data,
                            uint16_t *out_attr_len);
