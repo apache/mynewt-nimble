@@ -250,7 +250,18 @@ struct ble_gatt_svc_def {
     const struct ble_gatt_chr_def *characteristics;
 };
 
+/**
+ * Context for an access to a GATT characteristic or descriptor.  When a client
+ * reads or writes a locally registered characteristic or descriptor, an
+ * instance of this struct gets passed to the application callback.
+ */
 struct ble_gatt_access_ctxt {
+    /**
+     * The GATT operation being performed dictates which field in this union is
+     * valid.  If a characteristic is being accessed, the chr field is valid.
+     * Otherwise, a descriptor is being accessed, in which case the dsc field
+     * is valid.
+     */
     union {
         /**
          * The characteristic definition corresponding to the characteristic
@@ -265,6 +276,10 @@ struct ble_gatt_access_ctxt {
         const struct ble_gatt_dsc_def *dsc;
     };
 
+    /**
+     * Context describing the underlying ATT access.  Specifies additional
+     * details about the read or write being performed.
+     */
     struct ble_att_svr_access_ctxt *att;
 };
 
