@@ -745,6 +745,10 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
         }
 
         ble_gap_conn_to_snapshot(conn, &snap);
+    } else {
+        /* Silence spurious maybe-uninitialized warning. */
+        snap.cb = NULL;
+        snap.cb_arg = NULL;
     }
 
     conn->bhc_flags &= ~BLE_HS_CONN_F_UPDATE;
