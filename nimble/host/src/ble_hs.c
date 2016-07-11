@@ -30,11 +30,11 @@
 #include "host/ble_hs_test.h"
 #endif
 
-#ifdef ARCH_sim
-#define BLE_HS_STACK_SIZE   (1024)
-#else
-#define BLE_HS_STACK_SIZE   (512)//(250)
-#endif
+/**
+ * The maximum number of events the host will process in a row before returning
+ * control to the parent task.
+ */
+#define BLE_HS_MAX_EVS_IN_A_ROW 2
 
 static struct log_handler ble_hs_log_console_handler;
 struct log ble_hs_log;
@@ -213,8 +213,20 @@ ble_hs_event_handle(void *unused)
     struct os_callout_func *cf;
     struct os_event *ev;
     os_sr_t sr;
+    int i;
 
+    i = 0;
     while (1) {
+        /* If the host has already processed several consecutive events, stop
+         * and return control to the parent task.  Put an event on the parent
+         * task's eventq so indicate that more host events are enqueued.
+         */
+        if (i >= BLE_HS_MAX_EVS_IN_A_ROW) {
+            os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+            break;
+        }
+        i++;
+
         OS_ENTER_CRITICAL(sr);
         ev = STAILQ_FIRST(&ble_hs_evq.evq_list);
         OS_EXIT_CRITICAL(sr);
@@ -232,7 +244,6 @@ ble_hs_event_handle(void *unused)
             break;
 
         case BLE_HOST_HCI_EVENT_CTLR_EVENT:
-            /* Process HCI event from controller */
             host_hci_os_event_proc(ev);
             break;
 
