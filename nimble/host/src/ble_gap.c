@@ -66,6 +66,12 @@
 #define BLE_GAP_OP_S_ADV                                1
 
 /**
+ * If an attempt to cancel an active procedure fails, the attempt is retried
+ * at this rate (ms).
+ */
+#define BLE_GAP_CANCEL_RETRY_RATE                              100 /* ms */
+
+/**
  * The maximum amount of user data that can be put into the advertising data.
  * The stack will automatically insert the flags field on its own if requested
  * by the application, limiting the maximum amount of user data.
@@ -134,8 +140,9 @@ static bssnz_t struct {
     unsigned adv_auto_flags:1;
 } ble_gap_slave;
 
-static int ble_gap_disc_tx_disable(void);
+static int ble_gap_disc_disable_tx(void);
 static int ble_gap_adv_disable_tx(void);
+static int ble_gap_conn_cancel_tx(void);
 
 struct ble_gap_snapshot {
     struct ble_gap_conn_desc *desc;
@@ -1064,15 +1071,21 @@ ble_gap_master_heartbeat(void)
 
     switch (ble_gap_master.op) {
     case BLE_GAP_OP_M_CONN:
+        rc = ble_gap_conn_cancel_tx();
+        if (rc != 0) {
+            /* Failed to stop connecting; try again in 100 ms. */
+            return BLE_GAP_CANCEL_RETRY_RATE;
+        }
+
         ble_gap_master_failed(BLE_HS_ETIMEOUT);
         break;
 
     case BLE_GAP_OP_M_DISC:
         /* When a discovery procedure times out, it is not a failure. */
-        rc = ble_gap_disc_tx_disable();
+        rc = ble_gap_disc_disable_tx();
         if (rc != 0) {
             /* Failed to stop discovery; try again in 100 ms. */
-            return 100;
+            return BLE_GAP_CANCEL_RETRY_RATE;
         }
 
         ble_gap_disc_complete();
@@ -1851,7 +1864,7 @@ ble_gap_adv_active(void)
  *****************************************************************************/
 
 static int
-ble_gap_disc_tx_disable(void)
+ble_gap_disc_disable_tx(void)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_ENABLE_LEN];
     int rc;
@@ -1936,7 +1949,7 @@ ble_gap_disc_cancel(void)
         goto done;
     }
 
-    rc = ble_gap_disc_tx_disable();
+    rc = ble_gap_disc_disable_tx();
     if (rc != 0) {
         goto done;
     }
@@ -2205,6 +2218,7 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
 int
 ble_gap_connect(uint8_t own_addr_type,
                 uint8_t peer_addr_type, const uint8_t *peer_addr,
+                int32_t duration_ms,
                 const struct ble_gap_conn_params *conn_params,
                 ble_gap_event_fn *cb, void *cb_arg)
 {
@@ -2212,6 +2226,7 @@ ble_gap_connect(uint8_t own_addr_type,
     return BLE_HS_ENOTSUP;
 #endif
 
+    uint32_t duration_ticks;
     int rc;
 
     STATS_INC(ble_gap_stats, initiate);
@@ -2242,6 +2257,19 @@ ble_gap_connect(uint8_t own_addr_type,
         conn_params = &ble_gap_conn_params_dflt;
     }
 
+    if (duration_ms == 0) {
+        duration_ms = BLE_GAP_CONN_DUR_DFLT;
+    }
+
+    if (duration_ms != BLE_HS_FOREVER) {
+        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        if (rc != 0) {
+            /* Duration too great. */
+            rc = BLE_HS_EINVAL;
+            goto done;
+        }
+    }
+
     /* XXX: Verify conn_params. */
 
     rc = ble_hs_id_use_addr(own_addr_type);
@@ -2262,6 +2290,10 @@ ble_gap_connect(uint8_t own_addr_type,
                                 conn_params);
     if (rc != 0) {
         goto done;
+    }
+
+    if (duration_ms != BLE_HS_FOREVER) {
+        ble_gap_master_set_timer(duration_ticks);
     }
 
     ble_gap_master.op = BLE_GAP_OP_M_CONN;
@@ -2348,6 +2380,21 @@ done:
  * $cancel                                                                   *
  *****************************************************************************/
 
+static int
+ble_gap_conn_cancel_tx(void)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
+    int rc;
+
+    host_hci_cmd_build_le_create_conn_cancel(buf, sizeof buf);
+    rc = ble_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 /**
  * Aborts a connect procedure in progress.
  *
@@ -2359,7 +2406,6 @@ done:
 int
 ble_gap_conn_cancel(void)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
     STATS_INC(ble_gap_stats, cancel);
@@ -2373,8 +2419,7 @@ ble_gap_conn_cancel(void)
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: cancel connection\n");
 
-    host_hci_cmd_build_le_create_conn_cancel(buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_gap_conn_cancel_tx();
     if (rc != 0) {
         goto done;
     }

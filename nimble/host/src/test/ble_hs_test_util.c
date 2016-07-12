@@ -376,7 +376,7 @@ ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
     int rc;
 
     ble_hs_test_util_connect(own_addr_type, peer_addr_type,
-                                   peer_id_addr, NULL, cb, cb_arg, 0);
+                             peer_id_addr, 0, NULL, cb, cb_arg, 0);
 
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -410,10 +410,10 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *peer_id_addr,
 
 int
 ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
-                               const uint8_t *peer_addr,
-                               const struct ble_gap_conn_params *params,
-                               ble_gap_event_fn *cb, void *cb_arg,
-                               uint8_t ack_status)
+                         const uint8_t *peer_addr, int32_t duration_ms,
+                         const struct ble_gap_conn_params *params,
+                         ble_gap_event_fn *cb, void *cb_arg,
+                         uint8_t ack_status)
 {
     int rc;
 
@@ -421,7 +421,7 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
         host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN),
         ack_status);
 
-    rc = ble_gap_connect(own_addr_type, peer_addr_type, peer_addr,
+    rc = ble_gap_connect(own_addr_type, peer_addr_type, peer_addr, duration_ms,
                          params, cb, cb_arg);
 
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(ack_status));

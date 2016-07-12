@@ -56,7 +56,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     /* Initiate connection. */
     rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
                                         BLE_ADDR_TYPE_PUBLIC,
-                                        addr, NULL, NULL, NULL, 0);
+                                        addr, 0, NULL, NULL, NULL, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(ble_gap_master_in_progress());
