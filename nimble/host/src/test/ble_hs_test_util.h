@@ -66,8 +66,10 @@ void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
 int ble_hs_test_util_connect(uint8_t own_addr_type,
                                    uint8_t peer_addr_type,
                                    const uint8_t *peer_addr,
+                                   int32_t duration_ms,
                                    const struct ble_gap_conn_params *params,
-                                   ble_gap_event_fn *cb, void *cb_arg,
+                                   ble_gap_event_fn *cb,
+                                   void *cb_arg,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);

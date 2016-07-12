@@ -64,6 +64,9 @@ struct hci_conn_update;
 /** 10.24 seconds. */
 #define BLE_GAP_DISC_DUR_DFLT               (10.24 * 1000)
 
+/** 30 seconds (not from the spec). */
+#define BLE_GAP_CONN_DUR_DFLT               (30 * 1000)
+
 /** 1 second. */
 #define BLE_GAP_CONN_PAUSE_CENTRAL          (1 * 1000)
 
@@ -444,6 +447,7 @@ int ble_gap_disc_cancel(void);
 int ble_gap_disc_active(void);
 int ble_gap_connect(uint8_t own_addr_type,
                     uint8_t peer_addr_type, const uint8_t *peer_addr,
+                    int32_t duration_ms,
                     const struct ble_gap_conn_params *params,
                     ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_conn_cancel(void);
