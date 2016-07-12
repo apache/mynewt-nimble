@@ -42,6 +42,9 @@ pkg.deps:
 pkg.req_apis:
     - console
 
+pkg.features:
+    - BLE_HOST
+
 # Satisfy capability dependencies for the self-contained test executable.
 pkg.deps.SELFTEST: libs/console/stub
 pkg.cflags.SELFTEST:
