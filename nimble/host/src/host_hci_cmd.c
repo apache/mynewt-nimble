@@ -32,7 +32,13 @@
 #include "host/ble_hs_test.h"
 #endif
 
-uint8_t host_hci_cmd_buf[HCI_CMD_BUF_SIZE];
+/**
+ * This buffer holds one of the following:
+ * 1. The current outgoing HCI command.
+ * 2. The current incoming HCI acknowledgement (command complete or command
+ *    status event).
+ */
+uint8_t host_hci_cmd_buf[HCI_EVT_BUF_SIZE];
 
 static int
 host_hci_cmd_transport(uint8_t *cmdbuf)

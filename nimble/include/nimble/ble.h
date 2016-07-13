@@ -35,7 +35,7 @@ struct ble_encryption_block
 };
 
 /* Shared command pool for transort between host and controller */
-extern struct os_mempool g_hci_cmd_pool;
+extern struct os_mempool g_hci_evt_pool;
 extern struct os_mempool g_hci_os_event_pool;
 
 /*
