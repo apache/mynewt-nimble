@@ -1604,6 +1604,115 @@ ble_gatts_find_dsc(const void *svc_uuid128, const void *chr_uuid128,
     }
 }
 
+/**
+ * Accumulates counts of each resource type required by the specified service
+ * definition array.  This function is generally used to calculate some host
+ * configuration values prior to initialization.  This function adds the counts
+ * to the appropriate fields in the supplied ble_gatt_resources object without
+ * clearing them first, so it can be called repeatedly with different inputs to
+ * calculate totals.  Be sure to zero the resource struct prior to the first
+ * call to this function.
+ *
+ * @param svcs                  The service array containing the resource
+ *                                  definitions to be counted.
+ * @param res                   The resource counts are accumulated in this
+ *                                  struct.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EINVAL if the svcs array contains an
+ *                                  invalid resource definition.
+ */
+int
+ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
+                          struct ble_gatt_resources *res)
+{
+    const struct ble_gatt_svc_def *svc;
+    const struct ble_gatt_chr_def *chr;
+    int s;
+    int i;
+    int c;
+    int d;
+
+    for (s = 0; svcs[s].type != BLE_GATT_SVC_TYPE_END; s++) {
+        svc = svcs + s;
+
+        if (!ble_gatts_svc_is_sane(svc)) {
+            BLE_HS_DBG_ASSERT(0);
+            return BLE_HS_EINVAL;
+        }
+
+        /* Each service requires:
+         *     o 1 service
+         *     o 1 attribute
+         */
+        res->svcs++;
+        res->attrs++;
+
+        if (svc->includes != NULL) {
+            for (i = 0; svc->includes[i] != NULL; i++) {
+                /* Each include requires:
+                 *     o 1 include
+                 *     o 1 attribute
+                 */
+                res->incs++;
+                res->attrs++;
+            }
+        }
+
+        if (svc->characteristics != NULL) {
+            for (c = 0; svc->characteristics[c].uuid128 != NULL; c++) {
+                chr = svc->characteristics + c;
+
+                if (!ble_gatts_chr_is_sane(chr)) {
+                    BLE_HS_DBG_ASSERT(0);
+                    return BLE_HS_EINVAL;
+                }
+
+                /* Each characteristic requires:
+                 *     o 1 characteristic
+                 *     o 2 attributes
+                 */
+                res->chrs++;
+                res->attrs += 2;
+
+                /* If the characteristic permits notifications or indications,
+                 * it has a CCCD.
+                 */
+                if (chr->flags & BLE_GATT_CHR_F_NOTIFY ||
+                    chr->flags & BLE_GATT_CHR_F_INDICATE) {
+
+                    /* Each CCCD requires:
+                     *     o 1 descriptor
+                     *     o 1 CCCD
+                     *     o 1 attribute
+                     */
+                    res->dscs++;
+                    res->cccds++;
+                    res->attrs++;
+                }
+
+                if (chr->descriptors != NULL) {
+                    for (d = 0; chr->descriptors[d].uuid128 != NULL; d++) {
+                        if (!ble_gatts_dsc_is_sane(chr->descriptors + d)) {
+                            BLE_HS_DBG_ASSERT(0);
+                            return BLE_HS_EINVAL;
+                        }
+
+                        /* Each descriptor requires:
+                         *     o 1 descriptor
+                         *     o 1 attribute
+                         */
+                        res->dscs++;
+                        res->attrs++;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 static void
 ble_gatts_free_mem(void)
 {

@@ -363,6 +363,34 @@ union ble_gatt_register_ctxt {
     } dsc;
 };
 
+/**
+ * Contains counts of resources required by the GATT server.  The contents of
+ * this struct are generally used to populate a configuration struct before
+ * the host is initialized.
+ */
+struct ble_gatt_resources {
+    /** Number of services. */
+    uint16_t svcs;
+
+    /** Number of included services. */
+    uint16_t incs;
+
+    /** Number of characteristics. */
+    uint16_t chrs;
+
+    /** Number of descriptors. */
+    uint16_t dscs;
+
+    /**
+     * Number of client characteristic configuration descriptors.  Each of
+     * these also contributes to the total descriptor count.
+     */
+    uint16_t cccds;
+
+    /** Total number of ATT attributes. */
+    uint16_t attrs;
+};
+
 union ble_gatt_register_ctxt;
 typedef void ble_gatt_register_fn(uint8_t op,
                                   union ble_gatt_register_ctxt *ctxt,
@@ -371,6 +399,8 @@ typedef void ble_gatt_register_fn(uint8_t op,
 int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                             ble_gatt_register_fn *register_cb,
                             void *cb_arg);
+int ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
+                              struct ble_gatt_resources *res);
 
 void ble_gatts_chr_updated(uint16_t chr_def_handle);
 
