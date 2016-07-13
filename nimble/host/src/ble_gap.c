@@ -141,7 +141,7 @@ static bssnz_t struct {
 } ble_gap_slave;
 
 static int ble_gap_disc_disable_tx(void);
-static int ble_gap_adv_disable_tx(void);
+static int ble_gap_adv_enable_tx(int enable);
 static int ble_gap_conn_cancel_tx(void);
 
 struct ble_gap_snapshot {
@@ -1114,7 +1114,7 @@ ble_gap_slave_heartbeat(void)
     /*** Timer expired; process event. */
 
     /* Stop advertising. */
-    rc = ble_gap_adv_disable_tx();
+    rc = ble_gap_adv_enable_tx(0);
     if (rc != 0) {
         /* Failed to stop advertising; try again in 100 ms. */
         return 100;
@@ -1276,12 +1276,12 @@ done:
  *****************************************************************************/
 
 static int
-ble_gap_adv_disable_tx(void)
+ble_gap_adv_enable_tx(int enable)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_ENABLE_LEN];
     int rc;
 
-    host_hci_cmd_build_le_set_adv_enable(0, buf, sizeof buf);
+    host_hci_cmd_build_le_set_adv_enable(!!enable, buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
@@ -1321,7 +1321,7 @@ ble_gap_adv_stop(void)
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: stop advertising.\n");
 
-    rc = ble_gap_adv_disable_tx();
+    rc = ble_gap_adv_enable_tx(0);
     if (rc != 0) {
         goto done;
     }
@@ -1342,22 +1342,6 @@ done:
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
-
-static int
-ble_gap_adv_enable_tx(void)
-{
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_PARAM_LEN];
-    int rc;
-
-    host_hci_cmd_build_le_set_adv_enable(1, buf, sizeof buf);
-
-    rc = ble_hci_cmd_tx_empty_ack(buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
 
 static int
 ble_gap_adv_rsp_data_tx(void)
@@ -1722,7 +1706,7 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
         }
     }
 
-    rc = ble_gap_adv_enable_tx();
+    rc = ble_gap_adv_enable_tx(1);
     if (rc != 0) {
         goto done;
     }
