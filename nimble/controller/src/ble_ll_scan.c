@@ -424,7 +424,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
     }
 
     if (ble_ll_hci_is_le_event_enabled(subev)) {
-        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        evbuf = os_memblock_get(&g_hci_evt_pool);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = event_len;

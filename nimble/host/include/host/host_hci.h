@@ -25,6 +25,7 @@ struct ble_hs_conn;
 struct os_mbuf;
 
 #define HCI_CMD_BUF_SIZE        260
+#define HCI_EVT_BUF_SIZE        260
 
 extern uint8_t host_hci_cmd_buf[HCI_CMD_BUF_SIZE];
 
