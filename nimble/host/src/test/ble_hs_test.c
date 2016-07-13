@@ -38,7 +38,7 @@ void
 ble_hs_test_hci_txed(uint8_t *cmdbuf)
 {
     ble_hs_test_util_enqueue_hci_tx(cmdbuf);
-    os_memblock_put(&g_hci_cmd_pool, cmdbuf);
+    os_memblock_put(&g_hci_evt_pool, cmdbuf);
 }
 
 #ifdef MYNEWT_SELFTEST

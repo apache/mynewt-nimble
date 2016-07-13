@@ -188,7 +188,7 @@ ble_hs_test_util_rx_hci_evt(uint8_t *evt)
     TEST_ASSERT_FATAL(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
 
     if (os_started()) {
-        evbuf = os_memblock_get(&g_hci_cmd_pool);
+        evbuf = os_memblock_get(&g_hci_evt_pool);
         TEST_ASSERT_FATAL(evbuf != NULL);
 
         memcpy(evbuf, evt, totlen);

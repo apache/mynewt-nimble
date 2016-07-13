@@ -39,8 +39,8 @@
 static struct log_handler ble_hs_log_console_handler;
 struct log ble_hs_log;
 
-struct os_mempool g_hci_cmd_pool;
-static void *ble_hs_hci_cmd_buf;
+struct os_mempool g_hci_evt_pool;
+static void *ble_hs_hci_evt_buf;
 
 /* XXX: this might be transport layer */
 #define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
@@ -321,8 +321,8 @@ ble_hs_tx_data(struct os_mbuf *om)
 static void
 ble_hs_free_mem(void)
 {
-    free(ble_hs_hci_cmd_buf);
-    ble_hs_hci_cmd_buf = NULL;
+    free(ble_hs_hci_evt_buf);
+    ble_hs_hci_evt_buf = NULL;
 
     free(ble_hs_hci_os_event_buf);
     ble_hs_hci_os_event_buf = NULL;
@@ -350,16 +350,16 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
     log_console_handler_init(&ble_hs_log_console_handler);
     log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
 
-    ble_hs_hci_cmd_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
-                                                 HCI_CMD_BUF_SIZE));
-    if (ble_hs_hci_cmd_buf == NULL) {
+    ble_hs_hci_evt_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
+                                                 HCI_EVT_BUF_SIZE));
+    if (ble_hs_hci_evt_buf == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
 
     /* Create memory pool of command buffers */
-    rc = os_mempool_init(&g_hci_cmd_pool, ble_hs_cfg.max_hci_bufs,
-                         HCI_CMD_BUF_SIZE, ble_hs_hci_cmd_buf,
+    rc = os_mempool_init(&g_hci_evt_pool, ble_hs_cfg.max_hci_bufs,
+                         HCI_EVT_BUF_SIZE, ble_hs_hci_evt_buf,
                          "HCICmdPool");
     assert(rc == 0);
 
