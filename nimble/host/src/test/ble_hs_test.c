@@ -24,13 +24,11 @@
 #include "ble_hs_test_util.h"
 
 /* Our global device address. */
-uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
+uint8_t g_dev_addr[BLE_DEV_ADDR_LEN] = { 0x0a, 0x54, 0xab, 0x49, 0x7f, 0x06 };
 
 void
 ble_hs_test_pkt_txed(struct os_mbuf *om)
 {
-    /* XXX: For now, just strip the HCI ACL data and L2CAP headers. */
-    os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ + BLE_L2CAP_HDR_SZ);
     ble_hs_test_util_prev_tx_enqueue(om);
 }
 
@@ -62,6 +60,7 @@ main(int argc, char **argv)
     ble_gatt_read_test_all();
     ble_gatt_write_test_all();
     ble_gatts_notify_test_all();
+    ble_gatts_read_test_suite();
     ble_gatts_reg_test_all();
     ble_host_hci_test_all();
     ble_hs_adv_test_all();

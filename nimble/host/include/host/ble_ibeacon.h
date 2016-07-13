@@ -17,14 +17,9 @@
  * under the License.
  */
 
-#ifndef H_BLE_HCI_UTIL_
-#define H_BLE_HCI_UTIL_
+#ifndef H_BLE_IBEACON_
+#define H_BLE_IBEACON_
 
-int ble_hci_util_read_adv_tx_pwr(int8_t *out_pwr);
-int ble_hci_util_rand(void *dst, int len);
-int ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi);
-int ble_hs_util_set_random_addr(uint8_t *addr);
-int ble_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
-                              uint16_t tx_time);
+int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
 
 #endif

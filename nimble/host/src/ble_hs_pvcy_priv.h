@@ -17,14 +17,15 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_ADV_PRIV_
-#define H_BLE_HS_ADV_PRIV_
+#ifndef H_BLE_HS_PVCY_PRIV_
+#define H_BLE_HS_PVCY_PRIV_
 
-int ble_hs_adv_set_flat(uint8_t type, int data_len, const void *data,
-                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
-                          uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
-                            uint8_t src_len);
+#include <inttypes.h>
+
+void ble_hs_pvcy_set_our_irk(const uint8_t *irk);
+int ble_hs_pvcy_our_irk(const uint8_t **out_irk);
+int ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr);
+int ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addrtype, uint8_t *irk);
+int ble_hs_pvcy_ensure_started(void);
 
 #endif

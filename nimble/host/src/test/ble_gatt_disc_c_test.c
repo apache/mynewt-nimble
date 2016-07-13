@@ -169,25 +169,33 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
 
 static int
 ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle,
-                             struct ble_gatt_error *error,
-                             struct ble_gatt_chr *chr, void *arg)
+                             const struct ble_gatt_error *error,
+                             const struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_chr *dst;
     int *stop_after;
 
-    TEST_ASSERT(error == NULL);
+    TEST_ASSERT(error != NULL);
     TEST_ASSERT(!ble_gatt_disc_c_test_rx_complete);
 
     stop_after = arg;
 
-    if (chr == NULL) {
-        ble_gatt_disc_c_test_rx_complete = 1;
-    } else {
+    switch (error->status) {
+    case 0:
         TEST_ASSERT_FATAL(ble_gatt_disc_c_test_num_chars <
                           BLE_GATT_DISC_C_TEST_MAX_CHARS);
 
         dst = ble_gatt_disc_c_test_chars + ble_gatt_disc_c_test_num_chars++;
         *dst = *chr;
+        break;
+
+    case BLE_HS_EDONE:
+        ble_gatt_disc_c_test_rx_complete = 1;
+        break;
+
+    default:
+        TEST_ASSERT(0);
+        break;
     }
 
     if (*stop_after > 0) {

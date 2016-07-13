@@ -280,7 +280,7 @@ ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
         pkb = ble_sm_sc_pub_key.u8;
     }
     res->app_status = ble_sm_alg_g2(pka, pkb, proc->randm, proc->rands,
-                                    &res->passkey_action.numcmp);
+                                    &res->passkey_params.numcmp);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -341,7 +341,7 @@ ble_sm_sc_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
         if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
-            res->passkey_action.action = ioact;
+            res->passkey_params.action = ioact;
             BLE_HS_DBG_ASSERT(ioact == BLE_SM_IOACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
         }
@@ -423,7 +423,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
-            res->passkey_action.action = ioact;
+            res->passkey_params.action = ioact;
             BLE_HS_DBG_ASSERT(ioact == BLE_SM_IOACT_NUMCMP);
             ble_sm_sc_gen_numcmp(proc, res);
         } else {
@@ -459,7 +459,7 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     ioact = ble_sm_sc_io_action(proc);
     if (ble_sm_ioact_state(ioact) == BLE_SM_PROC_STATE_CONFIRM) {
-        res->passkey_action.action = ioact;
+        res->passkey_params.action = ioact;
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
@@ -534,9 +534,9 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 static int
 ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
                       uint8_t *out_our_id_addr_type,
-                      uint8_t **out_our_ota_addr,
+                      const uint8_t **out_our_ota_addr,
                       uint8_t *out_peer_id_addr_type,
-                      uint8_t **out_peer_ota_addr)
+                      const uint8_t **out_peer_ota_addr)
 {
     struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
@@ -569,8 +569,8 @@ ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                            void *arg)
 {
     struct ble_sm_dhkey_check cmd;
-    uint8_t *our_ota_addr;
-    uint8_t *peer_ota_addr;
+    const uint8_t *our_ota_addr;
+    const uint8_t *peer_ota_addr;
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
     uint8_t iocap[3];
@@ -621,8 +621,8 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
                            struct ble_sm_result *res)
 {
     uint8_t exp_value[16];
-    uint8_t *peer_ota_addr;
-    uint8_t *our_ota_addr;
+    const uint8_t *peer_ota_addr;
+    const uint8_t *our_ota_addr;
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
     uint8_t iocap[3];

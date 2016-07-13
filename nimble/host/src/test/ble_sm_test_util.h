@@ -78,8 +78,7 @@ extern union ble_store_key ble_sm_test_store_key;
 extern union ble_store_value ble_sm_test_store_value;
 
 void ble_sm_test_util_init(void);
-int ble_sm_test_util_conn_cb(int event, struct ble_gap_conn_ctxt *ctxt,
-                             void *arg);
+int ble_sm_test_util_conn_cb(struct ble_gap_event *ctxt, void *arg);
 void ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
                                 uint8_t cur_sm_state);
 void ble_sm_test_util_io_inject_bad(uint16_t conn_handle,

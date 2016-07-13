@@ -32,6 +32,8 @@
 struct os_eventq;
 struct os_event;
 
+#define BLE_HS_FOREVER              INT32_MAX
+
 #define BLE_HS_CONN_HANDLE_NONE     0xffff
 
 #define BLE_HS_EAGAIN               1
@@ -45,17 +47,16 @@ struct os_event;
 #define BLE_HS_EAPP                 9
 #define BLE_HS_EBADDATA             10
 #define BLE_HS_EOS                  11
-#define BLE_HS_ECONGESTED           12
-#define BLE_HS_ECONTROLLER          13
-#define BLE_HS_ETIMEOUT             14
-#define BLE_HS_EDONE                15
-#define BLE_HS_EBUSY                16
-#define BLE_HS_EREJECT              17
-#define BLE_HS_EUNKNOWN             18
-#define BLE_HS_EROLE                19
-#define BLE_HS_ETIMEOUT_HCI         20
-#define BLE_HS_ENOMEM_HCI           21
-#define BLE_HS_ENOMEM_EVT           22
+#define BLE_HS_ECONTROLLER          12
+#define BLE_HS_ETIMEOUT             13
+#define BLE_HS_EDONE                14
+#define BLE_HS_EBUSY                15
+#define BLE_HS_EREJECT              16
+#define BLE_HS_EUNKNOWN             17
+#define BLE_HS_EROLE                18
+#define BLE_HS_ETIMEOUT_HCI         19
+#define BLE_HS_ENOMEM_EVT           20
+#define BLE_HS_ENOADDR              21
 
 #define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
@@ -69,19 +70,15 @@ struct os_event;
 #define BLE_HS_ERR_SM_US_BASE       0x400   /* 1024 */
 #define BLE_HS_SM_US_ERR(x)         ((x) ? BLE_HS_ERR_SM_US_BASE + (x) : 0)
 
-#define BLE_HS_ERR_SM_THEM_BASE     0x500   /* 1280 */
-#define BLE_HS_SM_THEM_ERR(x)       ((x) ? BLE_HS_ERR_SM_THEM_BASE + (x) : 0)
+#define BLE_HS_ERR_SM_PEER_BASE     0x500   /* 1280 */
+#define BLE_HS_SM_PEER_ERR(x)       ((x) ? BLE_HS_ERR_SM_PEER_BASE + (x) : 0)
 
-/* defines the input output (io) capabilities for the host device */
+/* Defines the IO capabilities for the local device. */
 #define BLE_HS_IO_DISPLAY_ONLY              0x00
 #define BLE_HS_IO_DISPLAY_YESNO             0x01
 #define BLE_HS_IO_KEYBOARD_ONLY             0x02
 #define BLE_HS_IO_NO_INPUT_OUTPUT           0x03
 #define BLE_HS_IO_KEYBOARD_DISPLAY          0x04
-
-#define BLE_HS_PRIVACY_MODE_NONE            0
-#define BLE_HS_PRIVACY_MODE_RANDOM_STATIC   1
-#define BLE_HS_PRIVACY_MODE_RESOLV_RAND     2
 
 struct ble_hs_cfg {
     /*** HCI settings. */
@@ -218,7 +215,6 @@ extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
 int ble_hs_start(void);
 void ble_hs_event_enqueue(struct os_event *ev);
-int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
 int ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg);
 
 #endif

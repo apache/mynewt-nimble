@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -28,7 +28,8 @@ struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct hci_disconn_complete;
 
-struct os_eventq ble_hs_test_util_evq;
+extern struct os_eventq ble_hs_test_util_evq;
+extern const struct ble_gap_adv_params ble_hs_test_util_adv_params;
 
 struct ble_hs_test_util_num_completed_pkts_entry {
     uint16_t handle_id; /* 0 for terminating entry in array. */
@@ -54,28 +55,38 @@ void ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
 void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
                                        uint8_t status, uint8_t num_pkts,
                                        uint16_t opcode);
-void ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t *our_rpa,
+void ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
+                                      const uint8_t *our_rpa,
                                       uint8_t peer_addr_type,
-                                      uint8_t *peer_id_addr,
-                                      uint8_t *peer_rpa,
+                                      const uint8_t *peer_id_addr,
+                                      const uint8_t *peer_rpa,
                                       ble_gap_event_fn *cb, void *cb_arg);
 void ble_hs_test_util_create_conn(uint16_t handle, uint8_t *addr,
                                   ble_gap_event_fn *cb, void *cb_arg);
-int ble_hs_test_util_conn_initiate(int addr_type, uint8_t *addr,
-                                   struct ble_gap_crt_params *params,
-                                   ble_gap_event_fn *cb, void *cb_arg,
+int ble_hs_test_util_connect(uint8_t own_addr_type,
+                                   uint8_t peer_addr_type,
+                                   const uint8_t *peer_addr,
+                                   int32_t duration_ms,
+                                   const struct ble_gap_conn_params *params,
+                                   ble_gap_event_fn *cb,
+                                   void *cb_arg,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
 void ble_hs_test_util_conn_disconnect(uint16_t conn_handle);
-int ble_hs_test_util_disc(uint32_t duration_ms, uint8_t discovery_mode,
-                          uint8_t scan_type, uint8_t filter_policy,
-                          ble_gap_disc_fn *cb, void *cb_arg, int fail_idx,
+int ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx,
+                                    uint8_t fail_status);
+int ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
+                          const struct ble_gap_disc_params *disc_params,
+                          ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                           uint8_t fail_status);
-int ble_hs_test_util_adv_start(uint8_t discoverable_mode,
-                               uint8_t connectable_mode,
-                               uint8_t *peer_addr, uint8_t peer_addr_type,
-                               struct ble_gap_adv_params *adv_params,
+int ble_hs_test_util_disc_cancel(uint8_t ack_status);
+int ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
+                                    uint8_t hci_status);
+int ble_hs_test_util_adv_start(uint8_t own_addr_type,
+                               uint8_t peer_addr_type,
+                               const uint8_t *peer_addr,
+                               const struct ble_gap_adv_params *adv_params,
                                ble_gap_event_fn *cb, void *cb_arg,
                                int fail_idx, uint8_t fail_status);
 int ble_hs_test_util_adv_stop(uint8_t hci_status);
@@ -106,8 +117,9 @@ void ble_hs_test_util_rx_disconn_complete_event(
 uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
                                         uint8_t *out_param_len);
 void ble_hs_test_util_tx_all(void);
-void ble_hs_test_util_set_public_addr(uint8_t *addr);
 void ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags);
+void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
+void ble_hs_test_util_set_static_rnd_addr(void);
 void ble_hs_test_util_init(void);
 
 #endif

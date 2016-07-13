@@ -225,7 +225,8 @@ ble_hs_startup_go(void)
     }
 
     /* XXX: Read BD_ADDR. */
-    ble_hs_pvcy_set_our_id_addr(g_dev_addr);
+
+    ble_hs_id_set_pub(g_dev_addr);
     ble_hs_pvcy_set_our_irk(NULL);
 
     return rc;

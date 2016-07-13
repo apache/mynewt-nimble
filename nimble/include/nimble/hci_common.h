@@ -515,6 +515,9 @@
 #define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN     (1)
 #define BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX     (0x19)
 
+/* Length of each record in an LE direct advertising report event. */
+#define BLE_HCI_LE_ADV_DIRECT_RPT_SUB_LEN   (16)
+
 /* LE connection update complete event (sub event 0x03) */
 #define BLE_HCI_LE_CONN_UPD_LEN             (10)
 

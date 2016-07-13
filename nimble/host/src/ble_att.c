@@ -459,6 +459,22 @@ ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
     chan->blc_peer_mtu = peer_mtu;
 }
 
+/**
+ * Sets the preferred ATT MTU; the device will indicate this value in all
+ * subseqeunt ATT MTU exchanges.  The ATT MTU of a connection is equal to the
+ * lower of the two peers' preferred MTU values.  The ATT MTU is what dictates
+ * the maximum size of any message sent during a GATT procedure.
+ *
+ * The specified MTU must be within the following range: [23, BLE_ATT_MTU_MAX].
+ * 23 is a minimum imposed by the Bluetooth specification; BLE_ATT_MTU_MAX is a
+ * NimBLE compile-time setting.
+ *
+ * @param mtu                   The preferred ATT MTU.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EINVAL if the specifeid value is not
+ *                                  within the allowed range.
+ */
 int
 ble_att_set_preferred_mtu(uint16_t mtu)
 {

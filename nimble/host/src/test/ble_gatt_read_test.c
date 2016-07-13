@@ -57,15 +57,17 @@ ble_gatt_read_test_misc_init(void)
 }
 
 static int
-ble_gatt_read_test_cb(uint16_t conn_handle, struct ble_gatt_error *error,
-                      struct ble_gatt_attr *attr, void *arg)
+ble_gatt_read_test_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
+                      const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_read_test_attr *dst;
     int *stop_after;
 
     stop_after = arg;
 
-    if (error != NULL) {
+    TEST_ASSERT_FATAL(error != NULL);
+
+    if (error->status != 0) {
         ble_gatt_read_test_bad_conn_handle = conn_handle;
         ble_gatt_read_test_bad_status = error->status;
         ble_gatt_read_test_complete = 1;
@@ -102,15 +104,18 @@ ble_gatt_read_test_cb(uint16_t conn_handle, struct ble_gatt_error *error,
 }
 
 static int
-ble_gatt_read_test_long_cb(uint16_t conn_handle, struct ble_gatt_error *error,
-                           struct ble_gatt_attr *attr, void *arg)
+ble_gatt_read_test_long_cb(uint16_t conn_handle,
+                           const struct ble_gatt_error *error,
+                           const struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_read_test_attr *dst;
     int *reads_left;
 
     reads_left = arg;
 
-    if (error != NULL) {
+    TEST_ASSERT_FATAL(error != NULL);
+
+    if (error->status != 0) {
         ble_gatt_read_test_bad_conn_handle = conn_handle;
         ble_gatt_read_test_bad_status = error->status;
         ble_gatt_read_test_complete = 1;
@@ -151,7 +156,7 @@ ble_gatt_read_test_long_cb(uint16_t conn_handle, struct ble_gatt_error *error,
 static void
 ble_gatt_read_test_misc_rx_rsp_good_raw(uint16_t conn_handle,
                                         uint8_t att_op,
-                                        void *data, int data_len)
+                                        const void *data, int data_len)
 {
     uint8_t buf[1024];
     int rc;

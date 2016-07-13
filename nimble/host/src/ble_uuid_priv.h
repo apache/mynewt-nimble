@@ -17,14 +17,12 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_ADV_PRIV_
-#define H_BLE_HS_ADV_PRIV_
+#ifndef H_BLE_UUID_PRIV_
+#define H_BLE_UUID_PRIV_
 
-int ble_hs_adv_set_flat(uint8_t type, int data_len, const void *data,
-                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
-                          uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
-                            uint8_t src_len);
+struct os_mbuf;
+
+int ble_uuid_append(struct os_mbuf *om, const void *uuid128);
+int ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
 
 #endif
