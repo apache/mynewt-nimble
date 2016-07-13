@@ -140,9 +140,9 @@ static bssnz_t struct {
     unsigned adv_auto_flags:1;
 } ble_gap_slave;
 
-static int ble_gap_disc_disable_tx(void);
 static int ble_gap_adv_enable_tx(int enable);
 static int ble_gap_conn_cancel_tx(void);
+static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
 
 struct ble_gap_snapshot {
     struct ble_gap_conn_desc *desc;
@@ -223,9 +223,10 @@ static void
 ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params)
 {
-    BLE_HS_LOG(INFO, "own_addr_type=%d filter_policy=%d passive=%d limited=%d",
+    BLE_HS_LOG(INFO, "own_addr_type=%d filter_policy=%d passive=%d limited=%d "
+                     "filter_duplicates=%d ",
                own_addr_type, disc_params->filter_policy, disc_params->passive,
-               disc_params->limited);
+               disc_params->limited, disc_params->filter_duplicates);
     ble_gap_log_duration(duration_ms);
 }
 
@@ -1082,7 +1083,7 @@ ble_gap_master_heartbeat(void)
 
     case BLE_GAP_OP_M_DISC:
         /* When a discovery procedure times out, it is not a failure. */
-        rc = ble_gap_disc_disable_tx();
+        rc = ble_gap_disc_enable_tx(0, 0);
         if (rc != 0) {
             /* Failed to stop discovery; try again in 100 ms. */
             return BLE_GAP_CANCEL_RETRY_RATE;
@@ -1848,27 +1849,13 @@ ble_gap_adv_active(void)
  *****************************************************************************/
 
 static int
-ble_gap_disc_disable_tx(void)
+ble_gap_disc_enable_tx(int enable, int filter_duplicates)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_ENABLE_LEN];
     int rc;
 
-    host_hci_cmd_build_le_set_scan_enable(0, 0, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
-ble_gap_disc_tx_enable(void)
-{
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_ENABLE_LEN];
-    int rc;
-
-    host_hci_cmd_build_le_set_scan_enable(1, 0, buf, sizeof buf);
+    host_hci_cmd_build_le_set_scan_enable(!!enable, !!filter_duplicates,
+                                          buf, sizeof buf);
     rc = ble_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
@@ -1933,7 +1920,7 @@ ble_gap_disc_cancel(void)
         goto done;
     }
 
-    rc = ble_gap_disc_disable_tx();
+    rc = ble_gap_disc_enable_tx(0, 0);
     if (rc != 0) {
         goto done;
     }
@@ -2077,7 +2064,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
         goto done;
     }
 
-    rc = ble_gap_disc_tx_enable();
+    rc = ble_gap_disc_enable_tx(1, params.filter_duplicates);
     if (rc != 0) {
         goto done;
     }
