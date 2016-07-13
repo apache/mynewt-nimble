@@ -140,17 +140,17 @@ extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 void htole16(void *buf, uint16_t x);
 void htole32(void *buf, uint32_t x);
 void htole64(void *buf, uint64_t x);
-uint16_t le16toh(void *buf);
-uint32_t le32toh(void *buf);
-uint64_t le64toh(void *buf);
+uint16_t le16toh(const void *buf);
+uint32_t le32toh(const void *buf);
+uint64_t le64toh(const void *buf);
 void htobe16(void *buf, uint16_t x);
 void htobe32(void *buf, uint32_t x);
 void htobe64(void *buf, uint64_t x);
-uint16_t be16toh(void *buf);
-uint32_t be32toh(void *buf);
-uint64_t be64toh(void *buf);
+uint16_t be16toh(const void *buf);
+uint32_t be32toh(const void *buf);
+uint64_t be64toh(const void *buf);
 void swap_in_place(void *buf, int len);
-void swap_buf(uint8_t *dst, uint8_t *src, int len);
+void swap_buf(uint8_t *dst, const uint8_t *src, int len);
 /* XXX */
 
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */
@@ -222,7 +222,6 @@ enum ble_error_codes
     BLE_ERR_CONN_ESTABLISHMENT  = 62,
     BLE_ERR_MAC_CONN_FAIL       = 63,
     BLE_ERR_COARSE_CLK_ADJ      = 64,
-    BLE_ERR_ATTR_NOT_FOUND      = 65,
     BLE_ERR_MAX                 = 255
 };
 

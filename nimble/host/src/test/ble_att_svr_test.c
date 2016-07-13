@@ -42,18 +42,17 @@ static uint8_t ble_att_svr_test_attr_n[1024];
 static int ble_att_svr_test_attr_n_len;
 
 static int
-ble_att_svr_test_misc_gap_cb(int event,
-                             struct ble_gap_conn_ctxt *ctxt, void *arg)
+ble_att_svr_test_misc_gap_cb(struct ble_gap_event *event, void *arg)
 {
-    switch (event) {
+    switch (event->type) {
     case BLE_GAP_EVENT_NOTIFY:
-        ble_att_svr_test_n_conn_handle = ctxt->desc->conn_handle;
-        ble_att_svr_test_n_attr_handle = ctxt->notify.attr_handle;
-        TEST_ASSERT_FATAL(ctxt->notify.attr_len <=
+        ble_att_svr_test_n_conn_handle = event->notify.conn.conn_handle;
+        ble_att_svr_test_n_attr_handle = event->notify.attr_handle;
+        TEST_ASSERT_FATAL(event->notify.attr_len <=
                           sizeof ble_att_svr_test_attr_n);
-        ble_att_svr_test_attr_n_len = ctxt->notify.attr_len;
-        memcpy(ble_att_svr_test_attr_n, ctxt->notify.attr_data,
-               ctxt->notify.attr_len);
+        ble_att_svr_test_attr_n_len = event->notify.attr_len;
+        memcpy(ble_att_svr_test_attr_n, event->notify.attr_data,
+               event->notify.attr_len);
         break;
 
     default:
@@ -104,14 +103,14 @@ ble_att_svr_test_misc_attr_fn_r_1(uint16_t conn_handle, uint16_t attr_handle,
                                   struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
-    if (ctxt->offset > ble_att_svr_test_attr_r_1_len) {
-        return BLE_ATT_ERR_INVALID_OFFSET;
-    }
-
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->attr_data = ble_att_svr_test_attr_r_1 + ctxt->offset;
-        ctxt->data_len = ble_att_svr_test_attr_r_1_len - ctxt->offset;
+        if (ctxt->read.offset > ble_att_svr_test_attr_r_1_len) {
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        }
+
+        ctxt->read.data = ble_att_svr_test_attr_r_1 + ctxt->read.offset;
+        ctxt->read.len = ble_att_svr_test_attr_r_1_len - ctxt->read.offset;
         return 0;
 
     default:
@@ -125,14 +124,14 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
                                   struct ble_att_svr_access_ctxt *ctxt,
                                   void *arg)
 {
-    if (ctxt->offset > ble_att_svr_test_attr_r_2_len) {
-        return BLE_ATT_ERR_INVALID_OFFSET;
-    }
 
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->attr_data = ble_att_svr_test_attr_r_2 + ctxt->offset;
-        ctxt->data_len = ble_att_svr_test_attr_r_2_len - ctxt->offset;
+        if (ctxt->read.offset > ble_att_svr_test_attr_r_2_len) {
+            return BLE_ATT_ERR_INVALID_OFFSET;
+        }
+        ctxt->read.data = ble_att_svr_test_attr_r_2 + ctxt->read.offset;
+        ctxt->read.len = ble_att_svr_test_attr_r_2_len - ctxt->read.offset;
         return 0;
 
     default:
@@ -190,11 +189,11 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
     TEST_ASSERT_FATAL(attr_handle >= 1 &&
                       attr_handle <= BLE_ATT_SVR_TEST_LAST_ATTR);
 
-    ctxt->attr_data = vals + attr_handle;
-    if (memcmp(ctxt->attr_data + 2, zeros, 14) == 0) {
-        ctxt->data_len = 2;
+    ctxt->read.data = vals + attr_handle;
+    if (memcmp(ctxt->read.data + 2, zeros, 14) == 0) {
+        ctxt->read.len = 2;
     } else {
-        ctxt->data_len = 16;
+        ctxt->read.len = 16;
     }
 
     return 0;
@@ -288,8 +287,8 @@ ble_att_svr_test_misc_attr_fn_w_1(uint16_t conn_handle, uint16_t attr_handle,
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        memcpy(ble_att_svr_test_attr_w_1, ctxt->attr_data, ctxt->data_len);
-        ble_att_svr_test_attr_w_1_len = ctxt->data_len;
+        memcpy(ble_att_svr_test_attr_w_1, ctxt->write.data, ctxt->write.len);
+        ble_att_svr_test_attr_w_1_len = ctxt->write.len;
         return 0;
 
     default:
@@ -305,8 +304,8 @@ ble_att_svr_test_misc_attr_fn_w_2(uint16_t conn_handle, uint16_t attr_handle,
 {
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        memcpy(ble_att_svr_test_attr_w_2, ctxt->attr_data, ctxt->data_len);
-        ble_att_svr_test_attr_w_2_len = ctxt->data_len;
+        memcpy(ble_att_svr_test_attr_w_2, ctxt->write.data, ctxt->write.len);
+        ble_att_svr_test_attr_w_2_len = ctxt->write.len;
         return 0;
 
     default:
@@ -349,32 +348,6 @@ ble_att_svr_test_misc_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
     TEST_ASSERT(rsp.baep_req_op == req_op);
     TEST_ASSERT(rsp.baep_handle == handle);
     TEST_ASSERT(rsp.baep_error_code == error_code);
-}
-
-static void
-ble_att_svr_test_misc_verify_tx_read_rsp(uint8_t *attr_data, int attr_len)
-{
-    struct os_mbuf *om;
-    uint8_t u8;
-    int rc;
-    int i;
-
-    ble_hs_test_util_tx_all();
-
-    om = ble_hs_test_util_prev_tx_dequeue();
-
-    rc = os_mbuf_copydata(om, 0, 1, &u8);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(u8 == BLE_ATT_OP_READ_RSP);
-
-    for (i = 0; i < attr_len; i++) {
-        rc = os_mbuf_copydata(om, i + 1, 1, &u8);
-        TEST_ASSERT(rc == 0);
-        TEST_ASSERT(u8 == attr_data[i]);
-    }
-
-    rc = os_mbuf_copydata(om, i + 1, 1, &u8);
-    TEST_ASSERT(rc != 0);
 }
 
 static void
@@ -438,7 +411,7 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(uint16_t conn_handle,
     struct ble_l2cap_chan *chan;
     struct os_mbuf *om;
     uint16_t mtu;
-    uint8_t *attr_value;
+    const uint8_t *attr_value;
     uint8_t u8;
     int rc;
     int off;
@@ -1027,7 +1000,7 @@ TEST_CASE(ble_att_svr_test_read)
     uint8_t buf[BLE_ATT_READ_REQ_SZ];
     uint8_t uuid_sec[16] = {1};
     uint8_t uuid[16] = {0};
-    void *attr_data;
+    const void *attr_data;
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(0);
@@ -1054,7 +1027,7 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(
+    ble_hs_test_util_verify_tx_read_rsp(
         ble_att_svr_test_attr_r_1, ble_att_svr_test_attr_r_1_len);
 
     /*** Partial read. */
@@ -1068,8 +1041,8 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
-                                             BLE_ATT_MTU_DFLT - 1);
+    ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
+                                        BLE_ATT_MTU_DFLT - 1);
 
     /*** Read requires encryption. */
     /* Insufficient authentication. */
@@ -1082,10 +1055,10 @@ TEST_CASE(ble_att_svr_test_read)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
-    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHENT));
+    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
     ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ,
                                             req.barq_handle,
-                                            BLE_ATT_ERR_INSUFFICIENT_AUTHENT);
+                                            BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
     /* Security check bypassed for local reads. */
     rc = ble_att_svr_read_local(req.barq_handle, &attr_data, &attr_len);
@@ -1106,8 +1079,8 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
-                                             BLE_ATT_MTU_DFLT - 1);
+    ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
+                                        BLE_ATT_MTU_DFLT - 1);
 }
 
 TEST_CASE(ble_att_svr_test_read_blob)
@@ -1193,7 +1166,7 @@ TEST_CASE(ble_att_svr_test_read_mult)
 
     attr1.value = (uint8_t[]){ 1, 2, 3, 4 };
     attr1.value_len = 4;
-    ble_att_svr_test_attr_r_1 = attr1.value;
+    ble_att_svr_test_attr_r_1 = (void *)attr1.value;
     ble_att_svr_test_attr_r_1_len = attr1.value_len;
     rc = ble_att_svr_register(BLE_UUID16(0x1111), HA_FLAG_PERM_RW,
                               &attr1.handle,
@@ -1202,7 +1175,7 @@ TEST_CASE(ble_att_svr_test_read_mult)
 
     attr2.value = (uint8_t[]){ 2, 3, 4, 5, 6 };
     attr2.value_len = 5;
-    ble_att_svr_test_attr_r_2 = attr2.value;
+    ble_att_svr_test_attr_r_2 = (void *)attr2.value;
     ble_att_svr_test_attr_r_2_len = attr2.value_len;
     rc = ble_att_svr_register(BLE_UUID16(0x2222), HA_FLAG_PERM_RW,
                               &attr2.handle,
@@ -1236,13 +1209,13 @@ TEST_CASE(ble_att_svr_test_read_mult)
     attr1.value =
         (uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
     attr1.value_len = 20;
-    ble_att_svr_test_attr_r_1 = attr1.value;
+    ble_att_svr_test_attr_r_1 = (void *)attr1.value;
     ble_att_svr_test_attr_r_1_len = attr1.value_len;
 
     attr2.value =
         (uint8_t[]){22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
     attr2.value_len = 20;
-    ble_att_svr_test_attr_r_2 = attr2.value;
+    ble_att_svr_test_attr_r_2 = (void *)attr2.value;
     ble_att_svr_test_attr_r_2_len = attr2.value_len;
 
     ble_att_svr_test_misc_verify_all_read_mult(
@@ -1325,10 +1298,10 @@ TEST_CASE(ble_att_svr_test_write)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
-    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHENT));
+    TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
     ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
                                             req.bawq_handle,
-                                            BLE_ATT_ERR_INSUFFICIENT_AUTHENT);
+                                            BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
     /* Security check bypassed for local writes. */
     rc = ble_att_svr_write_local(req.bawq_handle, buf, sizeof buf);

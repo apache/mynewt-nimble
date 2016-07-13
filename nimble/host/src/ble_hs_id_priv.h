@@ -17,14 +17,14 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_ADV_PRIV_
-#define H_BLE_HS_ADV_PRIV_
+#ifndef H_BLE_HS_ID_PRIV_
+#define H_BLE_HS_ID_PRIV_
 
-int ble_hs_adv_set_flat(uint8_t type, int data_len, const void *data,
-                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
-                          uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
-                            uint8_t src_len);
+#include <inttypes.h>
+
+void ble_hs_id_set_pub(const uint8_t *pub_addr);
+int ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
+                   int *out_is_nrpa);
+int ble_hs_id_use_addr(uint8_t addr_type);
 
 #endif

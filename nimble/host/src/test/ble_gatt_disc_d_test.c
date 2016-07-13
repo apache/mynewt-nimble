@@ -28,7 +28,7 @@
 #include "ble_hs_test_util.h"
 
 struct ble_gatt_disc_d_test_dsc {
-    uint16_t chr_def_handle; /* 0 if last entry. */
+    uint16_t chr_val_handle; /* 0 if last entry. */
     uint16_t dsc_handle;
     uint8_t dsc_uuid128[16];
 };
@@ -74,7 +74,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
 
     off = BLE_ATT_FIND_INFO_RSP_BASE_SZ;
     for (i = 0; ; i++) {
-        if (dscs[i].chr_def_handle == 0) {
+        if (dscs[i].chr_val_handle == 0) {
             /* No more descriptors. */
             break;
         }
@@ -113,7 +113,7 @@ ble_gatt_disc_d_test_misc_rx_rsp(uint16_t conn_handle,
     int idx;
 
     idx = 0;
-    while (dscs[idx].chr_def_handle != 0) {
+    while (dscs[idx].chr_val_handle != 0) {
         count = ble_gatt_disc_d_test_misc_rx_rsp_once(conn_handle, dscs + idx);
         if (count == 0) {
             break;
@@ -140,9 +140,9 @@ ble_gatt_disc_d_test_misc_verify_dscs(struct ble_gatt_disc_d_test_dsc *dscs,
         stop_after = INT_MAX;
     }
 
-    for (i = 0; i < stop_after && dscs[i].chr_def_handle != 0; i++) {
-        TEST_ASSERT(dscs[i].chr_def_handle ==
-                    ble_gatt_disc_d_test_dscs[i].chr_def_handle);
+    for (i = 0; i < stop_after && dscs[i].chr_val_handle != 0; i++) {
+        TEST_ASSERT(dscs[i].chr_val_handle ==
+                    ble_gatt_disc_d_test_dscs[i].chr_val_handle);
         TEST_ASSERT(dscs[i].dsc_handle ==
                     ble_gatt_disc_d_test_dscs[i].dsc_handle);
         TEST_ASSERT(memcmp(dscs[i].dsc_uuid128,
@@ -156,28 +156,37 @@ ble_gatt_disc_d_test_misc_verify_dscs(struct ble_gatt_disc_d_test_dsc *dscs,
 
 static int
 ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle,
-                             struct ble_gatt_error *error,
-                             uint16_t chr_def_handle, struct ble_gatt_dsc *dsc,
+                             const struct ble_gatt_error *error,
+                             uint16_t chr_val_handle,
+                             const struct ble_gatt_dsc *dsc,
                              void *arg)
 {
     struct ble_gatt_disc_d_test_dsc *dst;
     int *stop_after;
 
-    TEST_ASSERT(error == NULL);
+    TEST_ASSERT(error != NULL);
     TEST_ASSERT(!ble_gatt_disc_d_test_rx_complete);
 
     stop_after = arg;
 
-    if (dsc == NULL) {
-        ble_gatt_disc_d_test_rx_complete = 1;
-    } else {
+    switch (error->status) {
+    case 0:
         TEST_ASSERT_FATAL(ble_gatt_disc_d_test_num_dscs <
                           BLE_GATT_DISC_D_TEST_MAX_DSCS);
 
         dst = ble_gatt_disc_d_test_dscs + ble_gatt_disc_d_test_num_dscs++;
-        dst->chr_def_handle = chr_def_handle;
+        dst->chr_val_handle = chr_val_handle;
         dst->dsc_handle = dsc->handle;
         memcpy(dst->dsc_uuid128, dsc->uuid128, 16);
+        break;
+
+    case BLE_HS_EDONE:
+        ble_gatt_disc_d_test_rx_complete = 1;
+        break;
+
+    default:
+        TEST_ASSERT(0);
+        break;
     }
 
     if (*stop_after > 0) {
@@ -192,7 +201,7 @@ ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle,
 }
 
 static void
-ble_gatt_disc_d_test_misc_all(uint16_t chr_def_handle, uint16_t end_handle,
+ble_gatt_disc_d_test_misc_all(uint16_t chr_val_handle, uint16_t end_handle,
                               int stop_after,
                               struct ble_gatt_disc_d_test_dsc *dscs)
 {
@@ -205,7 +214,7 @@ ble_gatt_disc_d_test_misc_all(uint16_t chr_def_handle, uint16_t end_handle,
                                  NULL, NULL);
 
     num_left = stop_after;
-    rc = ble_gattc_disc_all_dscs(2, chr_def_handle, end_handle,
+    rc = ble_gattc_disc_all_dscs(2, chr_val_handle, end_handle,
                                  ble_gatt_disc_d_test_misc_cb, &num_left);
     TEST_ASSERT(rc == 0);
 
@@ -216,9 +225,9 @@ ble_gatt_disc_d_test_misc_all(uint16_t chr_def_handle, uint16_t end_handle,
 TEST_CASE(ble_gatt_disc_d_test_1)
 {
     /*** One 16-bit descriptor. */
-    ble_gatt_disc_d_test_misc_all(4, 10, 0,
+    ble_gatt_disc_d_test_misc_all(5, 10, 0,
         ((struct ble_gatt_disc_d_test_dsc[]) { {
-            .chr_def_handle = 4,
+            .chr_val_handle = 5,
             .dsc_handle = 6,
             .dsc_uuid128 = BLE_UUID16_ARR(0x1234),
         }, {
@@ -227,13 +236,13 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 
     /*** Two 16-bit descriptors. */
-    ble_gatt_disc_d_test_misc_all(49, 100, 0,
+    ble_gatt_disc_d_test_misc_all(50, 100, 0,
         ((struct ble_gatt_disc_d_test_dsc[]) { {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 51,
             .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 52,
             .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
         }, {
@@ -242,25 +251,25 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 
     /*** Five 16-bit descriptors. */
-    ble_gatt_disc_d_test_misc_all(49, 100, 0,
+    ble_gatt_disc_d_test_misc_all(50, 100, 0,
         ((struct ble_gatt_disc_d_test_dsc[]) { {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 51,
             .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 52,
             .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 53,
             .dsc_uuid128 = BLE_UUID16_ARR(0x3333),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 54,
             .dsc_uuid128 = BLE_UUID16_ARR(0x4444),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 55,
             .dsc_uuid128 = BLE_UUID16_ARR(0x5555),
         }, {
@@ -269,25 +278,25 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 
     /*** Interleaved 16-bit and 128-bit descriptors. */
-    ble_gatt_disc_d_test_misc_all(49, 100, 0,
+    ble_gatt_disc_d_test_misc_all(50, 100, 0,
         ((struct ble_gatt_disc_d_test_dsc[]) { {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 51,
             .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 52,
             .dsc_uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 53,
             .dsc_uuid128 = BLE_UUID16_ARR(0x3333),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 54,
             .dsc_uuid128 = { 1,0,4,0,6,9,17,7,8,43,7,4,12,43,19,35 },
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 55,
             .dsc_uuid128 = BLE_UUID16_ARR(0x5555),
         }, {
@@ -296,13 +305,13 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 
     /*** Ends with final handle ID. */
-    ble_gatt_disc_d_test_misc_all(49, 52, 0,
+    ble_gatt_disc_d_test_misc_all(50, 52, 0,
         ((struct ble_gatt_disc_d_test_dsc[]) { {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 51,
             .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 52,
             .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
         }, {
@@ -311,25 +320,25 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 
     /*** Stop after two descriptors. */
-    ble_gatt_disc_d_test_misc_all(49, 100, 2,
+    ble_gatt_disc_d_test_misc_all(50, 100, 2,
         ((struct ble_gatt_disc_d_test_dsc[]) { {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 51,
             .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 52,
             .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 53,
             .dsc_uuid128 = BLE_UUID16_ARR(0x3333),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 54,
             .dsc_uuid128 = BLE_UUID16_ARR(0x4444),
         }, {
-            .chr_def_handle = 49,
+            .chr_val_handle = 50,
             .dsc_handle = 55,
             .dsc_uuid128 = BLE_UUID16_ARR(0x5555),
         }, {

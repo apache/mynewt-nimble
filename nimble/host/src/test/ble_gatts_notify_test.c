@@ -29,12 +29,12 @@
 #define BLE_GATTS_NOTIFY_TEST_CHR_1_UUID    0x1111
 #define BLE_GATTS_NOTIFY_TEST_CHR_2_UUID    0x2222
 
-static uint8_t ble_gatts_peer_addr[6] = {2,3,4,5,6,7};
+static uint8_t ble_gatts_notify_test_peer_addr[6] = {2,3,4,5,6,7};
 
 static int
 ble_gatts_notify_test_misc_access(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 static void
 ble_gatts_notify_test_misc_reg_cb(uint8_t op,
@@ -142,7 +142,8 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
 
     ble_gatts_start();
 
-    ble_hs_test_util_create_conn(2, ble_gatts_peer_addr, NULL, NULL);
+    ble_hs_test_util_create_conn(2, ble_gatts_notify_test_peer_addr,
+                                 NULL, NULL);
     *out_conn_handle = 2;
 
     if (bonding) {
@@ -213,14 +214,14 @@ ble_gatts_notify_test_misc_reg_cb(uint8_t op,
     uint16_t uuid16;
 
     if (op == BLE_GATT_REGISTER_OP_CHR) {
-        uuid16 = ble_uuid_128_to_16(ctxt->chr_reg.chr->uuid128);
+        uuid16 = ble_uuid_128_to_16(ctxt->chr.chr_def->uuid128);
         switch (uuid16) {
         case BLE_GATTS_NOTIFY_TEST_CHR_1_UUID:
-            ble_gatts_notify_test_chr_1_def_handle = ctxt->chr_reg.def_handle;
+            ble_gatts_notify_test_chr_1_def_handle = ctxt->chr.def_handle;
             break;
 
         case BLE_GATTS_NOTIFY_TEST_CHR_2_UUID:
-            ble_gatts_notify_test_chr_2_def_handle = ctxt->chr_reg.def_handle;
+            ble_gatts_notify_test_chr_2_def_handle = ctxt->chr.def_handle;
             break;
 
         default:
@@ -233,22 +234,22 @@ ble_gatts_notify_test_misc_reg_cb(uint8_t op,
 static int
 ble_gatts_notify_test_misc_access(uint16_t conn_handle,
                                   uint16_t attr_handle, uint8_t op,
-                                  union ble_gatt_access_ctxt *ctxt,
+                                  struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
     TEST_ASSERT_FATAL(op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT(conn_handle == 0xffff);
 
     if (attr_handle == ble_gatts_notify_test_chr_1_def_handle + 1) {
-        TEST_ASSERT(ctxt->chr_access.chr ==
+        TEST_ASSERT(ctxt->chr ==
                     &ble_gatts_notify_test_svcs[0].characteristics[0]);
-        ctxt->chr_access.data = ble_gatts_notify_test_chr_1_val;
-        ctxt->chr_access.len = ble_gatts_notify_test_chr_1_len;
+        ctxt->att->read.data = ble_gatts_notify_test_chr_1_val;
+        ctxt->att->read.len = ble_gatts_notify_test_chr_1_len;
     } else if (attr_handle == ble_gatts_notify_test_chr_2_def_handle + 1) {
-        TEST_ASSERT(ctxt->chr_access.chr ==
+        TEST_ASSERT(ctxt->chr ==
                     &ble_gatts_notify_test_svcs[0].characteristics[1]);
-        ctxt->chr_access.data = ble_gatts_notify_test_chr_2_val;
-        ctxt->chr_access.len = ble_gatts_notify_test_chr_2_len;
+        ctxt->att->read.data = ble_gatts_notify_test_chr_2_val;
+        ctxt->att->read.len = ble_gatts_notify_test_chr_2_len;
     } else {
         TEST_ASSERT(0);
     }

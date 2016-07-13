@@ -48,7 +48,7 @@ struct ble_hs_adv_fields {
     unsigned name_is_complete:1;
 
     /*** 0x0a - Tx power level. */
-    uint8_t tx_pwr_lvl;
+    int8_t tx_pwr_lvl;
     unsigned tx_pwr_lvl_is_present:1;
 
     /*** 0x0d - Class of device. */
@@ -141,6 +141,12 @@ struct ble_hs_adv_fields {
 
 #define BLE_HS_ADV_TX_PWR_LVL_LEN               1
 
+/**
+ * Set the tx_pwr_lvl field to this if you want the stack to fill in the tx
+ * power level field.
+ */
+#define BLE_HS_ADV_TX_PWR_LVL_AUTO              (-128)
+
 #define BLE_HS_ADV_DEVICE_CLASS_LEN             3
 
 #define BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN         4
@@ -165,10 +171,4 @@ struct ble_hs_adv_fields {
 
 #define BLE_HS_ADV_SVC_DATA_UUID128_MIN_LEN     16
 
-int ble_hs_adv_set_flat(uint8_t type, int data_len, void *data,
-                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
-                          uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
-int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
-                            uint8_t src_len);
 #endif

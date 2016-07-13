@@ -97,8 +97,6 @@ struct ble_gatts_conn {
 
 /*** @client. */
 int ble_gattc_locked_by_cur_task(void);
-int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle, void *value,
-                    uint16_t value_len, ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
                        ble_gatt_attr_fn *cb, void *cb_arg);
 
@@ -130,7 +128,7 @@ void ble_gattc_rx_find_info_idata(uint16_t conn_handle,
 void ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status);
 void ble_gattc_connection_txable(uint16_t conn_handle);
 void ble_gattc_connection_broken(uint16_t conn_handle);
-uint32_t ble_gattc_heartbeat(void);
+int32_t ble_gattc_heartbeat(void);
 
 int ble_gattc_any_jobs(void);
 int ble_gattc_init(void);

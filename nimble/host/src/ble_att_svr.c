@@ -25,7 +25,9 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
-static STAILQ_HEAD(, ble_att_svr_entry) ble_att_svr_list;
+STAILQ_HEAD(ble_att_svr_entry_list, ble_att_svr_entry);
+static struct ble_att_svr_entry_list ble_att_svr_list;
+
 static uint16_t ble_att_svr_id;
 
 static void *ble_att_svr_entry_mem;
@@ -72,7 +74,7 @@ ble_att_svr_next_id(void)
  * @return 0 on success, non-zero error code on failure.
  */
 int
-ble_att_svr_register(uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
+ble_att_svr_register(const uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
                      ble_att_svr_access_fn *cb, void *cb_arg)
 {
     struct ble_att_svr_entry *entry;
@@ -159,7 +161,7 @@ ble_att_svr_find_by_handle(uint16_t handle_id)
  * Find a host attribute by UUID.
  *
  * @param uuid                  The ble_uuid_t to search for
- * @param ha_ptr                On input: Indicates the starting point of the
+ * @param prev                  On input: Indicates the starting point of the
  *                                  walk; null means start at the beginning of
  *                                  the list, non-null means start at the
  *                                  following entry.
@@ -170,7 +172,8 @@ ble_att_svr_find_by_handle(uint16_t handle_id)
  * @return                      0 on success; BLE_HS_ENOENT on not found.
  */
 struct ble_att_svr_entry *
-ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, uint8_t *uuid)
+ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, const uint8_t *uuid,
+                         uint16_t end_handle)
 {
     struct ble_att_svr_entry *entry;
 
@@ -180,7 +183,10 @@ ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, uint8_t *uuid)
         entry = STAILQ_NEXT(prev, ha_next);
     }
 
-    for (; entry != NULL; entry = STAILQ_NEXT(entry, ha_next)) {
+    for (;
+         entry != NULL && entry->ha_handle_id <= end_handle;
+         entry = STAILQ_NEXT(entry, ha_next)) {
+
         if (memcmp(entry->ha_uuid, uuid, sizeof entry->ha_uuid) == 0) {
             return entry;
         }
@@ -265,12 +271,12 @@ ble_att_svr_check_security(uint16_t conn_handle, int is_read,
         /* XXX: Check security database; if required key present, respond with
          * insufficient encryption error code.
          */
-        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
         return BLE_HS_ATT_ERR(*out_att_err);
     }
 
     if (authen && !sec_state.authenticated) {
-        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHENT;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
         return BLE_HS_ATT_ERR(*out_att_err);
     }
 
@@ -279,6 +285,23 @@ ble_att_svr_check_security(uint16_t conn_handle, int is_read,
     }
 
     return 0;
+}
+
+static uint16_t
+ble_att_max_read_len(uint16_t conn_handle)
+{
+    uint16_t mtu;
+
+    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        /* The application is reading from itself; no MTU. */
+        mtu = BLE_ATT_MTU_MAX;
+    } else {
+        mtu = ble_att_mtu(conn_handle);
+    }
+
+    /* Subtract one to account for the att-read-response header. */
+    BLE_HS_DBG_ASSERT(mtu > 0);
+    return mtu - 1;
 }
 
 static int
@@ -304,6 +327,13 @@ ble_att_svr_read(uint16_t conn_handle,
             goto err;
         }
     }
+
+    /* Give the application access to the ATT flat buffer in case it needs
+     * to generate the read response dynamically.
+     */
+    ctxt->read.buf = ble_att_get_flat_buf();
+    ctxt->read.data = ctxt->read.buf;
+    ctxt->read.max_data_len = ble_att_max_read_len(conn_handle);
 
     BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);
     rc = entry->ha_cb(conn_handle, entry->ha_handle_id,
@@ -348,14 +378,31 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+/**
+ * Reads a locally registered attribute.  If the specified attribute handle
+ * coresponds to a GATT characteristic value or descriptor, the read is
+ * performed by calling the registered GATT access callback.
+ *
+ * @param attr_handle           The 16-bit handle of the attribute to read.
+ * @param out_data              On success, this points to the attribute data
+ *                                  just read.
+ * @param out_attr_len          On success, this points to the number of bytes
+ *                                  of attribute data just read.
+ *
+ * @return                      0 on success
+ *                              NimBLE host ATT return code if the attribute
+ *                                  access callback reports failure;
+ *                              NimBLE host core return code on unexpected
+ *                                  error.
+ */
 int
-ble_att_svr_read_local(uint16_t attr_handle, void **out_data,
+ble_att_svr_read_local(uint16_t attr_handle, const void **out_data,
                        uint16_t *out_attr_len)
 {
     struct ble_att_svr_access_ctxt ctxt;
     int rc;
 
-    ctxt.offset = 0;
+    ctxt.read.offset = 0;
 
     rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, attr_handle, &ctxt,
                                  NULL);
@@ -363,8 +410,8 @@ ble_att_svr_read_local(uint16_t attr_handle, void **out_data,
         return rc;
     }
 
-    *out_attr_len = ctxt.data_len;
-    *out_data = ctxt.attr_data;
+    *out_attr_len = ctxt.read.len;
+    *out_data = ctxt.read.data;
 
     return 0;
 }
@@ -1016,13 +1063,13 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
              */
             uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
             if (uuid16 == req->bavq_attr_type) {
-                ctxt.offset = 0;
+                ctxt.read.offset = 0;
                 rc = ble_att_svr_read(conn_handle, ha, &ctxt, out_att_err);
                 if (rc != 0) {
                     goto done;
                 }
                 rc = os_mbuf_memcmp(rxom, BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                    ctxt.attr_data, ctxt.data_len);
+                                    ctxt.read.data, ctxt.read.len);
                 if (rc == 0) {
                     match = 1;
                 }
@@ -1178,8 +1225,8 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
                                 uint8_t *att_err,
                                 uint16_t *err_handle)
 {
-    struct ble_att_read_type_rsp rsp;
     struct ble_att_svr_access_ctxt ctxt;
+    struct ble_att_read_type_rsp rsp;
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint16_t mtu;
@@ -1223,28 +1270,24 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     /* Find all matching attributes, writing a record for each. */
     entry = NULL;
     while (1) {
-        entry = ble_att_svr_find_by_uuid(entry, uuid128);
+        entry = ble_att_svr_find_by_uuid(entry, uuid128, req->batq_end_handle);
         if (entry == NULL) {
             rc = BLE_HS_ENOENT;
             break;
         }
 
-        if (entry->ha_handle_id > req->batq_end_handle) {
-            break;
-        }
-
         if (entry->ha_handle_id >= req->batq_start_handle) {
-            ctxt.offset = 0;
+            ctxt.read.offset = 0;
             rc = ble_att_svr_read(conn_handle, entry, &ctxt, att_err);
             if (rc != 0) {
                 *err_handle = entry->ha_handle_id;
                 goto done;
             }
 
-            if (ctxt.data_len > mtu - 4) {
+            if (ctxt.read.len > mtu - 4) {
                 attr_len = mtu - 4;
             } else {
-                attr_len = ctxt.data_len;
+                attr_len = ctxt.read.len;
             }
 
             if (prev_attr_len == 0) {
@@ -1267,7 +1310,7 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
             }
 
             htole16(dptr + 0, entry->ha_handle_id);
-            memcpy(dptr + 2, ctxt.attr_data, attr_len);
+            memcpy(dptr + 2, ctxt.read.data, attr_len);
             entry_written = 1;
         }
     }
@@ -1385,8 +1428,9 @@ done:
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_build_read_rsp(uint16_t conn_handle, void *attr_data, int attr_len,
-                           struct os_mbuf **out_txom, uint8_t *att_err)
+ble_att_svr_build_read_rsp(uint16_t conn_handle, const void *attr_data,
+                           int attr_len, struct os_mbuf **out_txom,
+                           uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint16_t data_len;
@@ -1467,7 +1511,7 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
     ble_att_read_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     BLE_ATT_LOG_CMD(0, "read req", conn_handle, ble_att_read_req_log, &req);
 
-    ctxt.offset = 0;
+    ctxt.read.offset = 0;
     rc = ble_att_svr_read_handle(conn_handle, req.barq_handle, &ctxt,
                                  &att_err);
     if (rc != 0) {
@@ -1475,7 +1519,7 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_att_svr_build_read_rsp(conn_handle, ctxt.attr_data, ctxt.data_len,
+    rc = ble_att_svr_build_read_rsp(conn_handle, ctxt.read.data, ctxt.read.len,
                                     &txom, &att_err);
     if (rc != 0) {
         err_handle = req.barq_handle;
@@ -1494,8 +1538,9 @@ done:
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_build_read_blob_rsp(void *attr_data, int attr_len, uint16_t mtu,
-                                struct os_mbuf **out_txom, uint8_t *att_err)
+ble_att_svr_build_read_blob_rsp(const void *attr_data, int attr_len,
+                                uint16_t mtu, struct os_mbuf **out_txom,
+                                uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint16_t data_len;
@@ -1574,7 +1619,7 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     BLE_ATT_LOG_CMD(0, "read blob req", conn_handle, ble_att_read_blob_req_log,
                     &req);
 
-    ctxt.offset = req.babq_offset;
+    ctxt.read.offset = req.babq_offset;
     rc = ble_att_svr_read_handle(conn_handle, req.babq_handle, &ctxt,
                                  &att_err);
     if (rc != 0) {
@@ -1582,14 +1627,14 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    if (ctxt.offset + ctxt.data_len <= mtu - 3) {
+    if (ctxt.read.offset + ctxt.read.len <= mtu - 3) {
         att_err = BLE_ATT_ERR_ATTR_NOT_LONG;
         err_handle = req.babq_handle;
         rc = BLE_HS_ENOTSUP;
         goto done;
     }
 
-    rc = ble_att_svr_build_read_blob_rsp(ctxt.attr_data, ctxt.data_len, mtu,
+    rc = ble_att_svr_build_read_blob_rsp(ctxt.read.data, ctxt.read.len, mtu,
                                          &txom, &att_err);
     if (rc != 0) {
         err_handle = req.babq_handle;
@@ -1668,20 +1713,20 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
         handle = le16toh((*rxom)->om_data);
         os_mbuf_adj(*rxom, 2);
 
-        ctxt.offset = 0;
+        ctxt.read.offset = 0;
         rc = ble_att_svr_read_handle(conn_handle, handle, &ctxt, att_err);
         if (rc != 0) {
             *err_handle = handle;
             goto done;
         }
 
-        if (ctxt.data_len > tx_space) {
+        if (ctxt.read.len > tx_space) {
             chunk_sz = tx_space;
         } else {
-            chunk_sz = ctxt.data_len;
+            chunk_sz = ctxt.read.len;
         }
 
-        rc = os_mbuf_append(txom, ctxt.attr_data, chunk_sz);
+        rc = os_mbuf_append(txom, ctxt.read.data, chunk_sz);
         if (rc != 0) {
             *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
             *err_handle = handle;
@@ -1763,20 +1808,20 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
     struct ble_att_svr_access_ctxt ctxt;
     int rc;
 
-    ctxt.offset = 0;
+    ctxt.read.offset = 0;
     rc = ble_att_svr_read(BLE_HS_CONN_HANDLE_NONE, entry, &ctxt, NULL);
     if (rc != 0) {
         return rc;
     }
 
-    switch (ctxt.data_len) {
+    switch (ctxt.read.len) {
     case 16:
         *uuid16 = 0;
-        memcpy(uuid128, ctxt.attr_data, 16);
+        memcpy(uuid128, ctxt.read.data, 16);
         return 0;
 
     case 2:
-        *uuid16 = le16toh(ctxt.attr_data);
+        *uuid16 = le16toh(ctxt.read.data);
         if (*uuid16 == 0) {
             return BLE_HS_EINVAL;
         }
@@ -2124,6 +2169,7 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_write_req req;
     struct os_mbuf *txom;
+    void *buf;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
@@ -2147,9 +2193,11 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
-    ctxt.attr_data = ble_att_get_flat_buf();
-    ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
-    os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
+    buf = ble_att_get_flat_buf();
+    ctxt.write.len = OS_MBUF_PKTLEN(*rxom);
+    ctxt.write.data = buf;
+    os_mbuf_copydata(*rxom, 0, ctxt.write.len, buf);
+
     rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, &ctxt,
                                   &att_err);
     if (rc != 0) {
@@ -2182,6 +2230,7 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_svr_access_ctxt ctxt;
     struct ble_att_write_req req;
     uint8_t att_err;
+    void *buf;
     int rc;
 
     rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_WRITE_REQ_BASE_SZ,
@@ -2197,9 +2246,11 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
-    ctxt.attr_data = ble_att_get_flat_buf();
-    ctxt.data_len = OS_MBUF_PKTLEN(*rxom);
-    os_mbuf_copydata(*rxom, 0, ctxt.data_len, ctxt.attr_data);
+    buf = ble_att_get_flat_buf();
+    ctxt.write.len = OS_MBUF_PKTLEN(*rxom);
+    ctxt.write.data = buf;
+    os_mbuf_copydata(*rxom, 0, ctxt.write.len, buf);
+
     rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, &ctxt,
                                   &att_err);
     if (rc != 0) {
@@ -2209,15 +2260,32 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     return 0;
 }
 
+/**
+ * Writes a locally registered attribute.  If the specified attribute handle
+ * coresponds to a GATT characteristic value or descriptor, the write is
+ * performed by calling the registered GATT access callback.
+ *
+ * @param attr_handle           The 16-bit handle of the attribute to write.
+ * @param data                  Buffer containing the data to write to the
+ *                                  attribute.
+ * @param data_len              The number of bytes to write.
+ *
+ * @return                      0 on success
+ *                              NimBLE host ATT return code if the attribute
+ *                                  access callback reports failure;
+ *                              NimBLE host core return code on unexpected
+ *                                  error.
+ */
 int
-ble_att_svr_write_local(uint16_t attr_handle, void *data, uint16_t data_len)
+ble_att_svr_write_local(uint16_t attr_handle, const void *data,
+                        uint16_t data_len)
 {
     struct ble_att_svr_access_ctxt ctxt;
     int rc;
 
-    ctxt.attr_data = data;
-    ctxt.data_len = data_len;
-    ctxt.offset = 0;
+    ctxt.write.data = data;
+    ctxt.write.len = data_len;
+    ctxt.write.offset = 0;
 
     rc = ble_att_svr_write_handle(BLE_HS_CONN_HANDLE_NONE, attr_handle, &ctxt,
                                   NULL);
@@ -2374,8 +2442,8 @@ ble_att_svr_prep_write(uint16_t conn_handle,
                 return BLE_ATT_ERR_INVALID_HANDLE;
             }
 
-            ctxt.attr_data = flat_buf;
-            ctxt.data_len = buf_off;
+            ctxt.write.data = flat_buf;
+            ctxt.write.len = buf_off;
             rc = ble_att_svr_write(conn_handle, attr, &ctxt, &att_err);
             if (rc != 0) {
                 *err_handle = entry->bape_handle;

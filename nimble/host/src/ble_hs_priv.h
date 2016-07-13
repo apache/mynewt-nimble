@@ -26,15 +26,19 @@
 #include "ble_att_priv.h"
 #include "ble_gap_priv.h"
 #include "ble_gatt_priv.h"
-#include "ble_hci_util_priv.h"
-#include "ble_hs_adv_priv.h"
+#include "ble_hci_priv.h"
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_conn_priv.h"
+#include "ble_hs_atomic_priv.h"
 #include "ble_hs_endian_priv.h"
 #include "ble_hs_startup_priv.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig_priv.h"
 #include "ble_sm_priv.h"
+#include "ble_hs_adv_priv.h"
+#include "ble_hs_pvcy_priv.h"
+#include "ble_hs_id_priv.h"
+#include "ble_uuid_priv.h"
 #include "host/ble_hs.h"
 #include "log/log.h"
 #include "nimble/nimble_opt.h"
@@ -56,20 +60,11 @@ STATS_SECT_START(ble_hs_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 
-struct ble_hci_ack {
-    int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
-    uint8_t *bha_params;
-    int bha_params_len;
-    uint16_t bha_opcode;
-    uint8_t bha_hci_handle;
-};
-
-extern struct ble_hs_dev ble_hs_our_dev;
 extern struct ble_hs_cfg ble_hs_cfg;
-
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
-
 extern struct log ble_hs_log;
+
+extern const uint8_t ble_hs_misc_null_addr[6];
 
 void ble_hs_process_tx_data_queue(void);
 int ble_hs_rx_data(struct os_mbuf *om);
@@ -77,8 +72,8 @@ int ble_hs_tx_data(struct os_mbuf *om);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
-void ble_hs_misc_log_mbuf(struct os_mbuf *om);
-void ble_hs_misc_log_flat_buf(void *data, int len);
+void ble_hs_misc_log_mbuf(const struct os_mbuf *om);
+void ble_hs_misc_log_flat_buf(const void *data, int len);
 int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
                                struct ble_hs_conn **out_conn,
                                struct ble_l2cap_chan **out_chan);
@@ -93,29 +88,11 @@ int ble_hs_locked_by_cur_task(void);
 int ble_hs_is_parent_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
+void ble_hs_heartbeat_sched(int32_t ticks);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
 int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
-
-int ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
-                   uint8_t *out_evt_buf_len);
-int ble_hci_cmd_tx_empty_ack(void *cmd);
-void ble_hci_cmd_rx_ack(uint8_t *ack_ev);
-void ble_hci_cmd_init(void);
-int ble_hs_pvcy_set_our_nrpa(void);
-void ble_hs_pvcy_our_nrpa(uint8_t *addr);
-void ble_hs_pvcy_set_our_id_addr(uint8_t *addr);
-void ble_hs_pvcy_set_our_irk(uint8_t *irk);
-uint8_t *ble_hs_pvcy_our_id_addr(uint8_t *type);
-uint8_t *ble_hs_pvcy_our_irk(void);
-int ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr);
-int ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addrtype, uint8_t *irk);
-#if PHONY_HCI_ACKS
-typedef int ble_hci_cmd_phony_ack_fn(uint8_t *ack, int ack_buf_len);
-
-void ble_hci_set_phony_ack_cb(ble_hci_cmd_phony_ack_fn *cb);
-#endif
 
 #define BLE_HS_LOG(lvl, ...) \
     LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)

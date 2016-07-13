@@ -58,10 +58,10 @@ htole64(void *buf, uint64_t x)
 }
 
 uint16_t
-le16toh(void *buf)
+le16toh(const void *buf)
 {
+    const uint8_t *u8ptr;
     uint16_t x;
-    uint8_t *u8ptr;
 
     u8ptr = buf;
     x = u8ptr[0];
@@ -71,10 +71,10 @@ le16toh(void *buf)
 }
 
 uint32_t
-le32toh(void *buf)
+le32toh(const void *buf)
 {
+    const uint8_t *u8ptr;
     uint32_t x;
-    uint8_t *u8ptr;
 
     u8ptr = buf;
     x = u8ptr[0];
@@ -86,10 +86,10 @@ le32toh(void *buf)
 }
 
 uint64_t
-le64toh(void *buf)
+le64toh(const void *buf)
 {
+    const uint8_t *u8ptr;
     uint64_t x;
-    uint8_t *u8ptr;
 
     u8ptr = buf;
     x = u8ptr[0];
@@ -143,10 +143,10 @@ htobe64(void *buf, uint64_t x)
 }
 
 uint16_t
-be16toh(void *buf)
+be16toh(const void *buf)
 {
+    const uint8_t *u8ptr;
     uint16_t x;
-    uint8_t *u8ptr;
 
     u8ptr = buf;
     x = (uint16_t)u8ptr[0] << 8;
@@ -156,10 +156,10 @@ be16toh(void *buf)
 }
 
 uint32_t
-be32toh(void *buf)
+be32toh(const void *buf)
 {
+    const uint8_t *u8ptr;
     uint32_t x;
-    uint8_t *u8ptr;
 
     u8ptr = buf;
     x = (uint32_t)u8ptr[0] << 24;
@@ -171,10 +171,10 @@ be32toh(void *buf)
 }
 
 uint64_t
-be64toh(void *buf)
+be64toh(const void *buf)
 {
+    const uint8_t *u8ptr;
     uint64_t x;
-    uint8_t *u8ptr;
 
     u8ptr = buf;
     x = (uint64_t)u8ptr[0] << 56;
@@ -208,7 +208,7 @@ swap_in_place(void *buf, int len)
 
 /* swap octets */
 void
-swap_buf(uint8_t *dst, uint8_t *src, int len)
+swap_buf(uint8_t *dst, const uint8_t *src, int len)
 {
     int i;
 
