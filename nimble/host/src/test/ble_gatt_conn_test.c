@@ -428,12 +428,12 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
 
     /* Connection 2. */
     disc_all_dscs_arg.exp_conn_handle = 2;
-    rc = ble_gattc_disc_all_dscs(2, 1, 0xffff,
+    rc = ble_gattc_disc_all_dscs(2, 3, 0xffff,
                                  ble_gatt_conn_test_disc_all_dscs_cb,
                                  &disc_all_dscs_arg);
 
     disc_chr_uuid_arg.exp_conn_handle = 2;
-    rc = ble_gattc_disc_chrs_by_uuid(2, 1, 0xffff, BLE_UUID16(0x2222),
+    rc = ble_gattc_disc_chrs_by_uuid(2, 2, 0xffff, BLE_UUID16(0x2222),
                                      ble_gatt_conn_test_disc_chr_uuid_cb,
                                      &disc_chr_uuid_arg);
 
