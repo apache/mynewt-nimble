@@ -89,6 +89,10 @@
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2
 
+#define BLE_ATT_MTU_DFLT                23  /* Also the minimum. */
+#define BLE_ATT_MTU_MAX                 240
+#define BLE_ATT_MTU_PREFERRED_DFLT      240
+
 /**
  * Context for an access to an ATT attribute.  When a client reads or writes a
  * locally registered attribute, an instance of this struct gets passed to the

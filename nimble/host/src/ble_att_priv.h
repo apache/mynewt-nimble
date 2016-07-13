@@ -100,10 +100,6 @@ STATS_SECT_START(ble_att_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_att_stats) ble_att_stats;
 
-#define BLE_ATT_MTU_DFLT                23  /* Also the minimum. */
-#define BLE_ATT_MTU_MAX                 240
-#define BLE_ATT_MTU_PREFERRED_DFLT      240
-
 struct ble_att_prep_entry {
     SLIST_ENTRY(ble_att_prep_entry) bape_next;
     uint16_t bape_handle;
