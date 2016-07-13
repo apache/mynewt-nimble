@@ -622,7 +622,7 @@ host_hci_os_event_proc(struct os_event *ev)
     rc = host_hci_event_rx(ev->ev_arg);
 
     /* Free the command buffer */
-    err = os_memblock_put(&g_hci_cmd_pool, ev->ev_arg);
+    err = os_memblock_put(&g_hci_evt_pool, ev->ev_arg);
     BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
 
     /* Free the event */
@@ -662,7 +662,7 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
         /* Get an event structure off the queue */
         ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
         if (!ev) {
-            err = os_memblock_put(&g_hci_cmd_pool, hci_ev);
+            err = os_memblock_put(&g_hci_evt_pool, hci_ev);
             BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
             return -1;
         }

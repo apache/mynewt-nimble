@@ -86,7 +86,7 @@ ble_ll_hci_send_noop(void)
     uint8_t *evbuf;
     uint16_t opcode;
 
-    evbuf = os_memblock_get(&g_hci_cmd_pool);
+    evbuf = os_memblock_get(&g_hci_evt_pool);
     if (evbuf) {
         /* Create a command complete event with a NO-OP opcode */
         opcode = 0;
