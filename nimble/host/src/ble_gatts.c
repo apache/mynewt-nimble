@@ -293,24 +293,23 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     const struct ble_gatt_chr_def *chr_def;
     struct ble_gatt_access_ctxt gatt_ctxt;
-    uint8_t gatt_op;
     int rc;
 
     chr_def = arg;
     BLE_HS_DBG_ASSERT(chr_def != NULL && chr_def->access_cb != NULL);
 
-    gatt_op = ble_gatts_chr_op(att_op);
-    ble_gatts_chr_inc_val_stat(gatt_op);
+    gatt_ctxt.op = ble_gatts_chr_op(att_op);
+    ble_gatts_chr_inc_val_stat(gatt_ctxt.op);
 
     gatt_ctxt.chr = chr_def;
     gatt_ctxt.att = att_ctxt;
-    rc = chr_def->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
+    rc = chr_def->access_cb(conn_handle, attr_handle, &gatt_ctxt,
                             chr_def->arg);
     if (rc != 0) {
         return rc;
     }
 
-    if (gatt_op == BLE_GATT_ACCESS_OP_WRITE_CHR &&
+    if (gatt_ctxt.op == BLE_GATT_ACCESS_OP_WRITE_CHR &&
         ble_gatts_chr_clt_cfg_allowed(chr_def)) {
 
         ble_gatts_chr_updated(attr_handle - 1);
@@ -412,14 +411,13 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     struct ble_gatt_access_ctxt gatt_ctxt;
     const struct ble_gatt_dsc_def *dsc_def;
-    uint8_t gatt_op;
     int rc;
 
     dsc_def = arg;
     BLE_HS_DBG_ASSERT(dsc_def != NULL && dsc_def->access_cb != NULL);
 
-    gatt_op = ble_gatts_dsc_op(att_op);
-    switch (gatt_op) {
+    gatt_ctxt.op = ble_gatts_dsc_op(att_op);
+    switch (gatt_ctxt.op) {
     case BLE_GATT_ACCESS_OP_READ_DSC:
         break;
 
@@ -431,11 +429,11 @@ ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_HS_EUNKNOWN;
     }
 
-    ble_gatts_dsc_inc_stat(gatt_op);
+    ble_gatts_dsc_inc_stat(gatt_ctxt.op);
 
     gatt_ctxt.dsc = dsc_def;
     gatt_ctxt.att = att_ctxt;
-    rc = dsc_def->access_cb(conn_handle, attr_handle, gatt_op, &gatt_ctxt,
+    rc = dsc_def->access_cb(conn_handle, attr_handle, &gatt_ctxt,
                             dsc_def->arg);
     if (rc != 0) {
         return rc;
