@@ -183,8 +183,7 @@ int ble_gattc_init(void);
 
 struct ble_gatt_access_ctxt;
 typedef int ble_gatt_access_fn(uint16_t conn_handle, uint16_t attr_handle,
-                               uint8_t op, struct ble_gatt_access_ctxt *ctxt,
-                               void *arg);
+                               struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 typedef uint16_t ble_gatt_chr_flags;
 
@@ -256,6 +255,16 @@ struct ble_gatt_svc_def {
  * instance of this struct gets passed to the application callback.
  */
 struct ble_gatt_access_ctxt {
+    /**
+     * Indicates the gatt operation being performed.  This is equal to one of
+     * the following values:
+     *     o  BLE_GATT_ACCESS_OP_READ_CHR
+     *     o  BLE_GATT_ACCESS_OP_WRITE_CHR
+     *     o  BLE_GATT_ACCESS_OP_READ_DSC
+     *     o  BLE_GATT_ACCESS_OP_WRITE_DSC
+     */
+    uint8_t op;
+
     /**
      * The GATT operation being performed dictates which field in this union is
      * valid.  If a characteristic is being accessed, the chr field is valid.
