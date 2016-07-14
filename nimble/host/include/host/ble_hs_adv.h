@@ -28,12 +28,12 @@ struct ble_hs_adv_fields {
     unsigned flags_is_present:1;
 
     /*** 0x02,0x03 - 16-bit service class UUIDs. */
-    void *uuids16;
+    uint16_t *uuids16;
     uint8_t num_uuids16;
     unsigned uuids16_is_complete:1;
 
     /*** 0x04,0x05 - 32-bit service class UUIDs. */
-    void *uuids32;
+    uint32_t *uuids32;
     uint8_t num_uuids32;
     unsigned uuids32_is_complete:1;
 
