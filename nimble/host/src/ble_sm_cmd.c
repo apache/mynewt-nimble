@@ -226,7 +226,7 @@ void
 ble_sm_pair_confirm_log(struct ble_sm_pair_confirm *cmd)
 {
     BLE_HS_LOG(DEBUG, "value=");
-    ble_hs_misc_log_flat_buf(cmd->value, sizeof cmd->value);
+    ble_hs_log_flat_buf(cmd->value, sizeof cmd->value);
 }
 
 void
@@ -279,7 +279,7 @@ void
 ble_sm_pair_random_log(struct ble_sm_pair_random *cmd)
 {
     BLE_HS_LOG(DEBUG, "value=");
-    ble_hs_misc_log_flat_buf(cmd->value, sizeof cmd->value);
+    ble_hs_log_flat_buf(cmd->value, sizeof cmd->value);
 }
 
 void
@@ -388,7 +388,7 @@ void
 ble_sm_enc_info_log(struct ble_sm_enc_info *cmd)
 {
     BLE_HS_LOG(DEBUG, "ltk=");
-    ble_hs_misc_log_flat_buf(cmd->ltk, sizeof cmd->ltk);
+    ble_hs_log_flat_buf(cmd->ltk, sizeof cmd->ltk);
 }
 
 void
@@ -499,7 +499,7 @@ void
 ble_sm_id_info_log(struct ble_sm_id_info *cmd)
 {
     BLE_HS_LOG(DEBUG, "irk=");
-    ble_hs_misc_log_flat_buf(cmd->irk, sizeof cmd->irk);
+    ble_hs_log_flat_buf(cmd->irk, sizeof cmd->irk);
 }
 
 void
@@ -605,7 +605,7 @@ void
 ble_sm_sign_info_log(struct ble_sm_sign_info *cmd)
 {
     BLE_HS_LOG(DEBUG, "sig_key=");
-    ble_hs_misc_log_flat_buf(cmd->sig_key, sizeof cmd->sig_key);
+    ble_hs_log_flat_buf(cmd->sig_key, sizeof cmd->sig_key);
 }
 
 void
@@ -725,9 +725,9 @@ void
 ble_sm_public_key_log(struct ble_sm_public_key *cmd)
 {
     BLE_HS_LOG(DEBUG, "x=");
-    ble_hs_misc_log_flat_buf(cmd->x, sizeof cmd->x);
+    ble_hs_log_flat_buf(cmd->x, sizeof cmd->x);
     BLE_HS_LOG(DEBUG, "y=");
-    ble_hs_misc_log_flat_buf(cmd->y, sizeof cmd->y);
+    ble_hs_log_flat_buf(cmd->y, sizeof cmd->y);
 }
 
 void
@@ -786,7 +786,7 @@ void
 ble_sm_dhkey_check_log(struct ble_sm_dhkey_check *cmd)
 {
     BLE_HS_LOG(DEBUG, "value=");
-    ble_hs_misc_log_flat_buf(cmd->value, sizeof cmd->value);
+    ble_hs_log_flat_buf(cmd->value, sizeof cmd->value);
 }
 
 #endif

@@ -37,7 +37,6 @@
 #define BLE_HS_MAX_EVS_IN_A_ROW 2
 
 static struct log_handler ble_hs_log_console_handler;
-struct log ble_hs_log;
 
 struct os_mempool g_hci_evt_pool;
 static void *ble_hs_hci_evt_buf;

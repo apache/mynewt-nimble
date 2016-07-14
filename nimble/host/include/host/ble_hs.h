@@ -25,9 +25,12 @@
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
+#include "host/ble_hs_adv.h"
+#include "host/ble_hs_log.h"
 #include "host/ble_hs_test.h"
-#include "host/ble_uuid.h"
+#include "host/ble_sm.h"
 #include "host/ble_store.h"
+#include "host/ble_uuid.h"
 #include "host/host_hci.h"
 struct os_eventq;
 struct os_event;

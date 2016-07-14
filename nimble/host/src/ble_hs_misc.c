@@ -45,30 +45,6 @@ ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
     return 0;
 }
 
-void
-ble_hs_misc_log_mbuf(const struct os_mbuf *om)
-{
-    uint8_t u8;
-    int i;
-
-    for (i = 0; i < OS_MBUF_PKTLEN(om); i++) {
-        os_mbuf_copydata(om, i, 1, &u8);
-        BLE_HS_LOG(DEBUG, "0x%02x ", u8);
-    }
-}
-
-void
-ble_hs_misc_log_flat_buf(const void *data, int len)
-{
-    const uint8_t *u8ptr;
-    int i;
-
-    u8ptr = data;
-    for (i = 0; i < len; i++) {
-        BLE_HS_LOG(DEBUG, "0x%02x ", u8ptr[i]);
-    }
-}
-
 /**
  * Allocates an mbuf for use by the nimble host.
  */
