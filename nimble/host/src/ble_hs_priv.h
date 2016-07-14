@@ -40,7 +40,6 @@
 #include "ble_hs_id_priv.h"
 #include "ble_uuid_priv.h"
 #include "host/ble_hs.h"
-#include "log/log.h"
 #include "nimble/nimble_opt.h"
 #include "stats/stats.h"
 struct ble_hs_conn;
@@ -62,7 +61,6 @@ extern STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 
 extern struct ble_hs_cfg ble_hs_cfg;
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
-extern struct log ble_hs_log;
 
 extern const uint8_t ble_hs_misc_null_addr[6];
 
@@ -72,8 +70,6 @@ int ble_hs_tx_data(struct os_mbuf *om);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);
-void ble_hs_misc_log_mbuf(const struct os_mbuf *om);
-void ble_hs_misc_log_flat_buf(const void *data, int len);
 int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
                                struct ble_hs_conn **out_conn,
                                struct ble_l2cap_chan **out_chan);
@@ -93,14 +89,6 @@ void ble_hs_heartbeat_sched(int32_t ticks);
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
 int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
-
-#define BLE_HS_LOG(lvl, ...) \
-    LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
-
-#define BLE_HS_LOG_ADDR(lvl, addr)                      \
-    BLE_HS_LOG(lvl, "%02x:%02x:%02x:%02x:%02x:%02x",    \
-               (addr)[5], (addr)[4], (addr)[3],         \
-               (addr)[2], (addr)[1], (addr)[0])
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 

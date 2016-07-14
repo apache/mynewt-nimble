@@ -89,7 +89,7 @@ host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, const void *cmddata)
 
     BLE_HS_LOG(DEBUG, "host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d\n",
                ogf, ocf, len);
-    ble_hs_misc_log_flat_buf(host_hci_cmd_buf, len + BLE_HCI_CMD_HDR_LEN);
+    ble_hs_log_flat_buf(host_hci_cmd_buf, len + BLE_HCI_CMD_HDR_LEN);
     BLE_HS_LOG(DEBUG, "\n");
     rc = host_hci_cmd_transport(host_hci_cmd_buf);
 

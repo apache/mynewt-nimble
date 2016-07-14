@@ -707,7 +707,7 @@ host_hci_data_rx(struct os_mbuf *om)
                BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
                BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
                hci_hdr.hdh_len);
-    ble_hs_misc_log_mbuf(om);
+    ble_hs_log_mbuf(om);
     BLE_HS_LOG(DEBUG, "\n");
 #endif
 
@@ -875,7 +875,7 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
         pb = BLE_HCI_PB_MIDDLE;
 
         BLE_HS_LOG(DEBUG, "host_hci_data_tx(): ");
-        ble_hs_misc_log_mbuf(frag);
+        ble_hs_log_mbuf(frag);
         BLE_HS_LOG(DEBUG, "\n");
 
         rc = ble_hs_tx_data(frag);
