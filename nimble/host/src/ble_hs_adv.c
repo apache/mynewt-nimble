@@ -480,6 +480,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
             return BLE_HS_EBADDATA;
         }
         adv_fields->svc_data_uuid16 = data;
+        adv_fields->svc_data_uuid16_len = data_len;
         break;
 
     case BLE_HS_ADV_TYPE_PUBLIC_TGT_ADDR:
@@ -527,6 +528,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
             return BLE_HS_EBADDATA;
         }
         adv_fields->svc_data_uuid32 = data;
+        adv_fields->svc_data_uuid32_len = data_len;
         break;
 
     case BLE_HS_ADV_TYPE_SVC_DATA_UUID128:
@@ -534,6 +536,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
             return BLE_HS_EBADDATA;
         }
         adv_fields->svc_data_uuid128 = data;
+        adv_fields->svc_data_uuid128_len = data_len;
         break;
 
     case BLE_HS_ADV_TYPE_URI:
