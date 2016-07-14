@@ -463,7 +463,7 @@ ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
                        uint16_t chr_def_handle,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
 {
-    union ble_gatt_register_ctxt register_ctxt;
+    struct ble_gatt_register_ctxt register_ctxt;
     uint16_t dsc_handle;
     int rc;
 
@@ -478,11 +478,12 @@ ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
     }
 
     if (register_cb != NULL) {
+        register_ctxt.op = BLE_GATT_REGISTER_OP_DSC;
         register_ctxt.dsc.handle = dsc_handle;
         register_ctxt.dsc.svc_def = svc;
         register_ctxt.dsc.chr_def = chr;
         register_ctxt.dsc.dsc_def = dsc;
-        register_cb(BLE_GATT_REGISTER_OP_DSC, &register_ctxt, cb_arg);
+        register_cb(&register_ctxt, cb_arg);
     }
 
     STATS_INC(ble_gatts_stats, dscs);
@@ -678,7 +679,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
                        const struct ble_gatt_chr_def *chr,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
 {
-    union ble_gatt_register_ctxt register_ctxt;
+    struct ble_gatt_register_ctxt register_ctxt;
     struct ble_gatt_dsc_def *dsc;
     uint16_t def_handle;
     uint16_t val_handle;
@@ -723,11 +724,12 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     }
 
     if (register_cb != NULL) {
+        register_ctxt.op = BLE_GATT_REGISTER_OP_CHR;
         register_ctxt.chr.def_handle = def_handle;
         register_ctxt.chr.val_handle = val_handle;
         register_ctxt.chr.svc_def = svc;
         register_ctxt.chr.chr_def = chr;
-        register_cb(BLE_GATT_REGISTER_OP_CHR, &register_ctxt, cb_arg);
+        register_cb(&register_ctxt, cb_arg);
     }
 
     if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
@@ -793,7 +795,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
 {
     const struct ble_gatt_chr_def *chr;
-    union ble_gatt_register_ctxt register_ctxt;
+    struct ble_gatt_register_ctxt register_ctxt;
     uint16_t uuid16;
     int idx;
     int rc;
@@ -823,9 +825,10 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     }
 
     if (register_cb != NULL) {
+        register_ctxt.op = BLE_GATT_REGISTER_OP_SVC;
         register_ctxt.svc.handle = *out_handle;
         register_ctxt.svc.svc_def = svc;
-        register_cb(BLE_GATT_REGISTER_OP_SVC, &register_ctxt, cb_arg);
+        register_cb(&register_ctxt, cb_arg);
     }
 
     /* Register each include. */

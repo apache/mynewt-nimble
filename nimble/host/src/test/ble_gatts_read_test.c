@@ -41,8 +41,7 @@ ble_gatts_read_test_util_access_2(uint16_t conn_handle,
                                   struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 static void
-ble_gatts_read_test_misc_reg_cb(uint8_t op,
-                                union ble_gatt_register_ctxt *ctxt,
+ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
                                 void *arg);
 
 static const struct ble_gatt_svc_def ble_gatts_read_test_svcs[] = { {
@@ -98,13 +97,12 @@ ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
 }
 
 static void
-ble_gatts_read_test_misc_reg_cb(uint8_t op,
-                                union ble_gatt_register_ctxt *ctxt,
+ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
                                 void *arg)
 {
     uint16_t uuid16;
 
-    if (op == BLE_GATT_REGISTER_OP_CHR) {
+    if (ctxt->op == BLE_GATT_REGISTER_OP_CHR) {
         uuid16 = ble_uuid_128_to_16(ctxt->chr.chr_def->uuid128);
         switch (uuid16) {
         case BLE_GATTS_READ_TEST_CHR_1_UUID:
