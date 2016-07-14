@@ -51,8 +51,7 @@ ble_gatts_reg_test_init(void)
 }
 
 static void
-ble_gatts_reg_test_misc_reg_cb(uint8_t op, union ble_gatt_register_ctxt *ctxt,
-                               void *arg)
+ble_gatts_reg_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
     struct ble_gatts_reg_test_entry *entry;
 
@@ -62,8 +61,8 @@ ble_gatts_reg_test_misc_reg_cb(uint8_t op, union ble_gatt_register_ctxt *ctxt,
     entry = ble_gatts_reg_test_entries + ble_gatts_reg_test_num_entries++;
     memset(entry, 0, sizeof *entry);
 
-    entry->op = op;
-    switch (op) {
+    entry->op = ctxt->op;
+    switch (ctxt->op) {
     case BLE_GATT_REGISTER_OP_SVC:
         memcpy(entry->uuid128, ctxt->svc.svc_def->uuid128, 16);
         entry->handle = ctxt->svc.handle;
