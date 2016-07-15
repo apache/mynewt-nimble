@@ -723,12 +723,64 @@ TEST_CASE(ble_gatt_read_test_mult)
         } });
 }
 
+TEST_CASE(ble_gatt_read_test_concurrent)
+{
+    struct ble_gatt_attr attrs[3];
+    int rc;
+    int i;
+
+    ble_gatt_read_test_misc_init();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /***
+     * Perform three concurrent reads.  Assert that each response is correctly
+     * matched up with its corresponding GATT procedure.
+     */
+
+    attrs[0].handle = 1;
+    attrs[0].offset = 0;
+    attrs[0].value_len = 3;
+    attrs[0].value = (uint8_t[3]){ 1, 2, 3 };
+    rc = ble_gattc_read(2, attrs[0].handle, ble_gatt_read_test_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    attrs[1].handle = 2;
+    attrs[1].offset = 0;
+    attrs[1].value_len = 4;
+    attrs[1].value = (uint8_t[4]){ 2, 3, 4, 5 };
+    rc = ble_gattc_read(2, attrs[1].handle, ble_gatt_read_test_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    attrs[2].handle = 3;
+    attrs[2].offset = 0;
+    attrs[2].value_len = 5;
+    attrs[2].value = (uint8_t[5]){ 3, 4, 5, 6, 7 };
+    rc = ble_gattc_read(2, attrs[2].handle, ble_gatt_read_test_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatt_read_test_misc_rx_rsp_good(2, attrs + 0);
+    ble_gatt_read_test_misc_rx_rsp_good(2, attrs + 1);
+    ble_gatt_read_test_misc_rx_rsp_good(2, attrs + 2);
+
+    TEST_ASSERT(ble_gatt_read_test_num_attrs == 3);
+
+    for (i = 0; i < 3; i++) {
+        TEST_ASSERT(ble_gatt_read_test_attrs[i].handle == attrs[i].handle);
+        TEST_ASSERT(ble_gatt_read_test_attrs[i].value_len ==
+                    attrs[i].value_len);
+        TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[i].value, attrs[i].value,
+                           attrs[i].value_len) == 0);
+    }
+}
+
 TEST_SUITE(ble_gatt_read_test_suite)
 {
     ble_gatt_read_test_by_handle();
     ble_gatt_read_test_by_uuid();
     ble_gatt_read_test_long();
     ble_gatt_read_test_mult();
+    ble_gatt_read_test_concurrent();
 }
 
 int
