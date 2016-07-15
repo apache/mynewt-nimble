@@ -1714,6 +1714,27 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
     return 0;
 }
 
+int
+ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,
+                    struct ble_hs_cfg *cfg)
+{
+    struct ble_gatt_resources res = { 0 };
+    int rc;
+
+    rc = ble_gatts_count_resources(defs, &res);
+    if (rc != 0) {
+        return rc;
+    }
+
+    cfg->max_services += res.svcs;
+    cfg->max_attrs += res.attrs;
+
+    /* Reserve an extra CCCD for the cache. */
+    cfg->max_client_configs += res.cccds * (cfg->max_connections + 1);
+
+    return 0;
+}
+
 static void
 ble_gatts_free_mem(void)
 {

@@ -86,15 +86,6 @@ struct hci_conn_update;
 #define BLE_GAP_INITIAL_CONN_MIN_CE_LEN     0x0010
 #define BLE_GAP_INITIAL_CONN_MAX_CE_LEN     0x0300
 
-#define BLE_GAP_SVC_UUID16                              0x1800
-#define BLE_GAP_CHR_UUID16_DEVICE_NAME                  0x2a00
-#define BLE_GAP_CHR_UUID16_APPEARANCE                   0x2a01
-#define BLE_GAP_CHR_UUID16_PERIPH_PRIV_FLAG             0x2a02
-#define BLE_GAP_CHR_UUID16_RECONNECT_ADDR               0x2a03
-#define BLE_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS      0x2a04
-
-#define BLE_GAP_APPEARANCE_GEN_COMPUTER                 128
-
 #define BLE_GAP_ADDR_TYPE_WL                0xff
 #define BLE_GAP_ADDR_TYPE_NONE              0xfe
 

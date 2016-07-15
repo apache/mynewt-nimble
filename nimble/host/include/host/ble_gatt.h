@@ -24,13 +24,14 @@
 #include "host/ble_att.h"
 struct ble_hs_conn;
 struct ble_att_error_rsp;
+struct ble_hs_cfg;
 
 #define BLE_GATT_REGISTER_OP_SVC                        1
 #define BLE_GATT_REGISTER_OP_CHR                        2
 #define BLE_GATT_REGISTER_OP_DSC                        3
 
 #define BLE_GATT_SVC_UUID16                             0x1801
-#define BLE_GATT_CHR_SERVICE_CHANGED_UUID16             0x2a05
+#define BLE_GATT_DSC_CLT_CFG_UUID16                     0x2902
 
 #define BLE_GATT_CHR_PROP_BROADCAST                     0x01
 #define BLE_GATT_CHR_PROP_READ                          0x02
@@ -423,6 +424,8 @@ int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                             void *cb_arg);
 int ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
                               struct ble_gatt_resources *res);
+int ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,
+                        struct ble_hs_cfg *cfg);
 
 void ble_gatts_chr_updated(uint16_t chr_def_handle);
 
