@@ -84,8 +84,6 @@ extern STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 #define BLE_GATT_CHR_DECL_SZ_16     5
 #define BLE_GATT_CHR_DECL_SZ_128    19
 
-#define BLE_GATT_DSC_CLT_CFG_UUID16 0x2902
-
 typedef uint8_t ble_gatts_conn_flags;
 
 struct ble_gatts_conn {
