@@ -618,7 +618,7 @@ ble_gattc_proc_insert(struct ble_gattc_proc *proc)
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     ble_hs_lock();
-    STAILQ_INSERT_HEAD(&ble_gattc_procs, proc, next);
+    STAILQ_INSERT_TAIL(&ble_gattc_procs, proc, next);
     ble_hs_unlock();
 }
 
