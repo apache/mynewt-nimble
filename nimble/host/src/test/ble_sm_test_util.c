@@ -266,12 +266,16 @@ struct ble_gap_passkey_params ble_sm_test_ioact;
 int
 ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
 {
+    struct ble_gap_conn_desc desc;
     int rc;
 
     switch (event->type) {
     case BLE_GAP_EVENT_ENC_CHANGE:
         ble_sm_test_gap_status = event->enc_change.status;
-        ble_sm_test_sec_state = event->enc_change.conn.sec_state;
+
+        rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
+        TEST_ASSERT_FATAL(rc == 0);
+        ble_sm_test_sec_state = desc.sec_state;
         rc = 0;
         break;
 

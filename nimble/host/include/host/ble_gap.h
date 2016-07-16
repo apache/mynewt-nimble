@@ -245,11 +245,8 @@ struct ble_gap_event {
              */
             int status;
 
-            /**
-             * Information about the established connection.  Only valid on
-             * success.
-             */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
         } connect;
 
         /**
@@ -264,7 +261,7 @@ struct ble_gap_event {
              */
             int reason;
 
-            /** Information about the terminated connection. */
+            /** Information about the connection prior to termination. */
             struct ble_gap_conn_desc conn;
         } disconnect;
 
@@ -276,8 +273,11 @@ struct ble_gap_event {
         struct ble_gap_disc_desc disc;
 
         /**
-         * Represents an attempt to update a connection's parameters.  Valid
-         * for the following event types:
+         * Represents an attempt to update a connection's parameters.  If the
+         * attempt was successful, the connection's descriptor reflects the
+         * updated parameters.
+         *
+         * Valid for the following event types:
          *     o BLE_GAP_EVENT_CONN_UPDATE
          */
         struct {
@@ -289,12 +289,8 @@ struct ble_gap_event {
              */
             int status;
 
-            /**
-             * Information about the relevant connection.  If the connection
-             * update attempt was successful, this descriptor contains the
-             * updated parameters.
-             */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
         } conn_update;
 
         /**
@@ -307,7 +303,6 @@ struct ble_gap_event {
          * Valid for the following event types:
          *     o BLE_GAP_EVENT_L2CAP_UPDATE_REQ
          *     o BLE_GAP_EVENT_CONN_UPDATE_REQ
-         * 
          */
         struct {
             /**
@@ -324,8 +319,8 @@ struct ble_gap_event {
              */
             struct ble_gap_upd_params *self_params;
 
-            /** Information about the relevant connection. */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
         } conn_update_req;
 
         /**
@@ -339,13 +334,16 @@ struct ble_gap_event {
              */
             int status;
 
-            /** Information about the relevant connection. */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
         } term_failure;
 
         /**
          * Represents an attempt to change the encrypted state of a
-         * connection.  Valid for the following event types:
+         * connection.  If the attempt was successful, the connection
+         * descriptor reflects the updated encrypted state.
+         *
+         * Valid for the following event types:
          *     o BLE_GAP_EVENT_ENC_CHANGE
          */
         struct {
@@ -357,16 +355,13 @@ struct ble_gap_event {
              */
             int status;
 
-            /**
-             * Information about the relevant connection.  If the encryption
-             * state change attempt was successful, this descriptor reflects
-             * the updated state.
-             */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
         } enc_change;
 
         /**
          * Represents a passkey query needed to complete a pairing procedure.
+         *
          * Valid for the following event types:
          *     o BLE_GAP_EVENT_PASSKEY_ACTION
          */
@@ -374,8 +369,8 @@ struct ble_gap_event {
             /** Contains details about the passkey query. */
             struct ble_gap_passkey_params params;
 
-            /** Information about the relevant connection. */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
         } passkey;
 
         /**
@@ -384,17 +379,17 @@ struct ble_gap_event {
          *     o BLE_GAP_EVENT_NOTIFY_RX
          */
         struct {
-            /** The handle of the relevant ATT attribute. */
-            uint16_t attr_handle;
-
             /** The contents of the notification or indication. */
             void *attr_data;
+
+            /** The handle of the relevant ATT attribute. */
+            uint16_t attr_handle;
 
             /** The number of data bytes contained in the message. */
             uint16_t attr_len;
 
-            /** Information about the relevant connection. */
-            struct ble_gap_conn_desc conn;
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
 
             /**
              * Whether the received command is a notification or an
@@ -422,11 +417,11 @@ struct ble_gap_event {
              */
             int status;
 
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+
             /** The handle of the relevant characterstic value. */
             uint16_t attr_handle;
-
-            /** Information about the relevant connection. */
-            struct ble_gap_conn_desc conn;
 
             /**
              * Whether the transmitted command is a notification or an

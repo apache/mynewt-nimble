@@ -93,7 +93,7 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         ble_gap_test_conn_status = event->connect.status;
-        ble_gap_test_conn_desc = event->connect.conn;
+        ble_gap_conn_find(event->connect.conn_handle, &ble_gap_test_conn_desc);
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
@@ -103,7 +103,8 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         ble_gap_test_conn_status = event->conn_update.status;
-        ble_gap_test_conn_desc = event->conn_update.conn;
+        ble_gap_conn_find(event->conn_update.conn_handle,
+                          &ble_gap_test_conn_desc);
         break;
 
     case BLE_GAP_EVENT_CONN_CANCEL:
@@ -111,7 +112,8 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_TERM_FAILURE:
         ble_gap_test_conn_status = event->term_failure.status;
-        ble_gap_test_conn_desc = event->term_failure.conn;
+        ble_gap_conn_find(event->term_failure.conn_handle,
+                          &ble_gap_test_conn_desc);
         break;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -121,7 +123,8 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_CONN_UPDATE_REQ:
         ble_gap_test_conn_peer_params = *event->conn_update_req.peer_params;
         *event->conn_update_req.self_params = ble_gap_test_conn_self_params;
-        ble_gap_test_conn_desc = event->conn_update.conn;
+        ble_gap_conn_find(event->conn_update_req.conn_handle,
+                          &ble_gap_test_conn_desc);
 
         fail_reason = arg;
         if (fail_reason == NULL) {
