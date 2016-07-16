@@ -3683,7 +3683,7 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
             rc = BLE_HS_EAPP;
-            goto err;
+            goto done;
         }
 
         attr_data = ctxt.read.data;
@@ -3693,13 +3693,19 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
     req.banq_handle = chr_val_handle;
     rc = ble_att_clt_tx_notify(conn_handle, &req, attr_data, attr_data_len);
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
 
-err:
-    STATS_INC(ble_gattc_stats, notify_fail);
+done:
+    if (rc != 0) {
+        STATS_INC(ble_gattc_stats, notify_fail);
+    }
+
+    /* Tell the application that a notification transmission was attempted. */
+    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
+
     return rc;
 }
 
@@ -3878,6 +3884,9 @@ done:
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, indicate_fail);
     }
+
+    /* Tell the application that an indication transmission was attempted. */
+    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 1);
 
     ble_gattc_process_status(proc, rc);
     return rc;

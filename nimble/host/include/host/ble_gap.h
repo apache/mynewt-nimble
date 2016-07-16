@@ -104,7 +104,8 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_ADV_COMPLETE          9
 #define BLE_GAP_EVENT_ENC_CHANGE            10
 #define BLE_GAP_EVENT_PASSKEY_ACTION        11
-#define BLE_GAP_EVENT_NOTIFY                12
+#define BLE_GAP_EVENT_NOTIFY_RX             12
+#define BLE_GAP_EVENT_NOTIFY_TX             13
 
 struct ble_gap_sec_state {
     unsigned encrypted:1;
@@ -380,7 +381,7 @@ struct ble_gap_event {
         /**
          * Represents a received ATT notification or indication.
          * Valid for the following event types:
-         *     o BLE_GAP_EVENT_NOTIFY
+         *     o BLE_GAP_EVENT_NOTIFY_RX
          */
         struct {
             /** The handle of the relevant ATT attribute. */
@@ -401,8 +402,40 @@ struct ble_gap_event {
              *     o 0: Notification;
              *     o 1: Indication.
              */
-            unsigned indication:1;
-        } notify;
+            uint8_t indication:1;
+        } notify_rx;
+
+        /**
+         * Represents a transmitted ATT notification or indication, or a
+         * completed indication transaction.  Valid for the following event
+         * types:
+         *     o BLE_GAP_EVENT_NOTIFY_TX
+         */
+        struct {
+            /**
+             * The status of the notification or indication transaction;
+             *     o 0:                 Command successfully sent;
+             *     o BLE_HS_EDONE:      Confirmation (indication ack) received;
+             *     o BLE_HS_ETIMEOUT:   Confirmation (indication ack) never
+             *                              received;
+             *     o Other return code: Error.
+             */
+            int status;
+
+            /** The handle of the relevant characterstic value. */
+            uint16_t attr_handle;
+
+            /** Information about the relevant connection. */
+            struct ble_gap_conn_desc conn;
+
+            /**
+             * Whether the transmitted command is a notification or an
+             * indication;
+             *     o 0: Notification;
+             *     o 1: Indication.
+             */
+            uint8_t indication:1;
+        } notify_tx;
     };
 };
 

@@ -45,14 +45,14 @@ static int
 ble_att_svr_test_misc_gap_cb(struct ble_gap_event *event, void *arg)
 {
     switch (event->type) {
-    case BLE_GAP_EVENT_NOTIFY:
-        ble_att_svr_test_n_conn_handle = event->notify.conn.conn_handle;
-        ble_att_svr_test_n_attr_handle = event->notify.attr_handle;
-        TEST_ASSERT_FATAL(event->notify.attr_len <=
+    case BLE_GAP_EVENT_NOTIFY_RX:
+        ble_att_svr_test_n_conn_handle = event->notify_rx.conn.conn_handle;
+        ble_att_svr_test_n_attr_handle = event->notify_rx.attr_handle;
+        TEST_ASSERT_FATAL(event->notify_rx.attr_len <=
                           sizeof ble_att_svr_test_attr_n);
-        ble_att_svr_test_attr_n_len = event->notify.attr_len;
-        memcpy(ble_att_svr_test_attr_n, event->notify.attr_data,
-               event->notify.attr_len);
+        ble_att_svr_test_attr_n_len = event->notify_rx.attr_len;
+        memcpy(ble_att_svr_test_attr_n, event->notify_rx.attr_data,
+               event->notify_rx.attr_len);
         break;
 
     default:
