@@ -106,6 +106,21 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PASSKEY_ACTION        11
 #define BLE_GAP_EVENT_NOTIFY_RX             12
 #define BLE_GAP_EVENT_NOTIFY_TX             13
+#define BLE_GAP_EVENT_SUBSCRIBE             14
+
+/*** Reason codes for the subscribe GAP event. */
+
+/** Peer's CCCD subscription state changed due to a descriptor write. */
+#define BLE_GAP_SUBSCRIBE_REASON_WRITE      1
+
+/** Peer's CCCD subscription state cleared due to connection termination. */
+#define BLE_GAP_SUBSCRIBE_REASON_TERM       2
+
+/**
+ * Peer's CCCD subscription state changed due to restore from persistence
+ * (bonding restored).
+ */
+#define BLE_GAP_SUBSCRIBE_REASON_RESTORE    3
 
 struct ble_gap_sec_state {
     unsigned encrypted:1;
@@ -375,6 +390,7 @@ struct ble_gap_event {
 
         /**
          * Represents a received ATT notification or indication.
+         *
          * Valid for the following event types:
          *     o BLE_GAP_EVENT_NOTIFY_RX
          */
@@ -402,8 +418,9 @@ struct ble_gap_event {
 
         /**
          * Represents a transmitted ATT notification or indication, or a
-         * completed indication transaction.  Valid for the following event
-         * types:
+         * completed indication transaction.
+         *
+         * Valid for the following event types:
          *     o BLE_GAP_EVENT_NOTIFY_TX
          */
         struct {
@@ -431,10 +448,47 @@ struct ble_gap_event {
              */
             uint8_t indication:1;
         } notify_tx;
+
+        /**
+         * Represents a state change in a peer's subscription status.  In this
+         * comment, the term "update" is used to refer to either a notification
+         * or an indication.  This event is triggered by any of the following
+         * occurrences:
+         *     o Peer enables or disables updates via a CCCD write.
+         *     o Connection is about to be terminated and the peer is
+         *       subscribed to updates.
+         *     o Peer is now subscribed to updates after its state was restored
+         *       from persistence.  This happens when bonding is restored.
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_SUBSCRIBE
+         */
+        struct {
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+
+            /** The value handle of the relevant characteristic. */
+            uint16_t attr_handle;
+
+            /** One of the BLE_GAP_SUBSCRIBE_REASON codes. */
+            uint8_t reason;
+
+            /** Whether the peer was previously subscribed to notifications. */
+            uint8_t prev_notify:1;
+
+            /** Whether the peer is currently subscribed to notifications. */
+            uint8_t cur_notify:1;
+
+            /** Whether the peer was previously subscribed to indications. */
+            uint8_t prev_indicate:1;
+
+            /** Whether the peer is currently subscribed to indications. */
+            uint8_t cur_indicate:1;
+        } subscribe;
     };
 };
 
-typedef int ble_gap_event_fn(struct ble_gap_event *ctxt, void *arg);
+typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
 
 #define BLE_GAP_CONN_MODE_NON               0
 #define BLE_GAP_CONN_MODE_DIR               1

@@ -726,6 +726,7 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
 
     ble_sm_connection_broken(conn_handle);
     ble_gattc_connection_broken(conn_handle);
+    ble_gatts_connection_broken(conn_handle);
 
     ble_hs_atomic_conn_delete(conn_handle);
 
@@ -2839,6 +2840,36 @@ ble_gap_notify_tx_event(int status, uint16_t conn_handle, uint16_t attr_handle,
     event.notify_tx.status = status;
     event.notify_tx.attr_handle = attr_handle;
     event.notify_tx.indication = is_indication;
+    ble_gap_call_conn_event_cb(&event, conn_handle);
+}
+
+/*****************************************************************************
+ * $subscribe                                                                *
+ *****************************************************************************/
+
+void
+ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
+                        uint8_t reason,
+                        uint8_t prev_notify, uint8_t cur_notify,
+                        uint8_t prev_indicate, uint8_t cur_indicate)
+{
+    struct ble_gap_event event;
+
+    BLE_HS_DBG_ASSERT(prev_notify != cur_notify ||
+                      prev_indicate != cur_indicate);
+    BLE_HS_DBG_ASSERT(reason == BLE_GAP_SUBSCRIBE_REASON_WRITE ||
+                      reason == BLE_GAP_SUBSCRIBE_REASON_TERM  ||
+                      reason == BLE_GAP_SUBSCRIBE_REASON_RESTORE);
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_SUBSCRIBE;
+    event.subscribe.conn_handle = conn_handle;
+    event.subscribe.attr_handle = attr_handle;
+    event.subscribe.reason = reason;
+    event.subscribe.prev_notify = !!prev_notify;
+    event.subscribe.cur_notify = !!cur_notify;
+    event.subscribe.prev_indicate = !!prev_indicate;
+    event.subscribe.cur_indicate = !!cur_indicate;
     ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
