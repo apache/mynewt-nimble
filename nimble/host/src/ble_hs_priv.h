@@ -48,6 +48,7 @@ struct os_mbuf;
 struct os_mempool;
 
 #define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
+#define BLE_HS_EVENT_TX_NOTIFICATIONS   (OS_EVENT_T_PERUSER + 1)
 
 STATS_SECT_START(ble_hs_stats)
     STATS_SECT_ENTRY(conn_create)
@@ -85,6 +86,7 @@ int ble_hs_is_parent_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
 void ble_hs_heartbeat_sched(int32_t ticks);
+void ble_hs_notifications_sched(void);
 
 struct os_mbuf *ble_hs_misc_pkthdr(void);
 
