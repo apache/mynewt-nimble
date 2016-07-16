@@ -2748,7 +2748,7 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
-    ble_gap_notify_event(conn_handle, req.banq_handle, attr_data, attr_len, 0);
+    ble_gap_notify_rx_event(conn_handle, req.banq_handle, attr_data, attr_len, 0);
 
     return 0;
 }
@@ -2826,7 +2826,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     attr_len = OS_MBUF_PKTLEN(*rxom);
     os_mbuf_copydata(*rxom, 0, attr_len, attr_data);
 
-    ble_gap_notify_event(conn_handle, req.baiq_handle, attr_data, attr_len, 1);
+    ble_gap_notify_rx_event(conn_handle, req.baiq_handle, attr_data, attr_len, 1);
 
     rc = ble_att_svr_build_indicate_rsp(&txom);
     if (rc != 0) {

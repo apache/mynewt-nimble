@@ -190,7 +190,7 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
 }
 
 static void
-ble_gatts_restore_bonding(uint16_t conn_handle)
+ble_gatts_notify_test_restore_bonding(uint16_t conn_handle)
 {
     struct ble_hs_conn *conn;
 
@@ -532,7 +532,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_n)
     TEST_ASSERT(flags == 0);
 
     /* Simulate a successful encryption procedure (bonding restoration). */
-    ble_gatts_restore_bonding(conn_handle);
+    ble_gatts_notify_test_restore_bonding(conn_handle);
 
     /* Verify notifications sent properly. */
     ble_gatts_notify_test_misc_verify_tx_n(ble_gatts_notify_test_chr_1_val,
@@ -597,7 +597,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i)
     TEST_ASSERT(flags == 0);
 
     /* Simulate a successful encryption procedure (bonding restoration). */
-    ble_gatts_restore_bonding(conn_handle);
+    ble_gatts_notify_test_restore_bonding(conn_handle);
 
     /* Verify first indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_1_val,
@@ -676,7 +676,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
                                  NULL, NULL);
 
     /* Simulate a successful encryption procedure (bonding restoration). */
-    ble_gatts_restore_bonding(conn_handle);
+    ble_gatts_notify_test_restore_bonding(conn_handle);
 
     /* Verify indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(ble_gatts_notify_test_chr_1_val,

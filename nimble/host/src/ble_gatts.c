@@ -1213,6 +1213,9 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
         }
     }
 
+    /* Tell the application about the received acknowledgment. */
+    ble_gap_notify_tx_event(BLE_HS_EDONE, conn_handle, chr_val_handle, 1);
+
     return 0;
 }
 
