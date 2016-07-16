@@ -47,6 +47,11 @@ static void *ble_hs_hci_evt_buf;
 struct os_mempool g_hci_os_event_pool;
 static void *ble_hs_hci_os_event_buf;
 
+static struct os_event ble_hs_event_tx_notifications = {
+    .ev_type = BLE_HS_EVENT_TX_NOTIFICATIONS,
+    .ev_arg = NULL,
+};
+
 #if MYNEWT_SELFTEST
 /** Use a higher frequency timer to allow tests to run faster. */
 #define BLE_HS_HEARTBEAT_OS_TICKS         (OS_TICKS_PER_SEC / 10)
@@ -265,6 +270,9 @@ ble_hs_event_handle(void *unused)
             host_hci_os_event_proc(ev);
             break;
 
+        case BLE_HS_EVENT_TX_NOTIFICATIONS:
+            ble_gatts_tx_notifications();
+
         case OS_EVENT_T_MQUEUE_DATA:
             ble_hs_process_tx_data_queue();
             ble_hs_process_rx_data_queue();
@@ -282,6 +290,23 @@ ble_hs_event_enqueue(struct os_event *ev)
 {
     os_eventq_put(&ble_hs_evq, ev);
     os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+}
+
+/**
+ * Schedules for all pending notifications and indications to be sent in the
+ * host parent task.
+ */
+void
+ble_hs_notifications_sched(void)
+{
+#if MYNEWT_SELFTEST
+    if (!os_started()) {
+        ble_gatts_tx_notifications();
+        return;
+    }
+#endif
+
+    ble_hs_event_enqueue(&ble_hs_event_tx_notifications);
 }
 
 /**

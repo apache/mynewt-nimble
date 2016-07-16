@@ -1052,9 +1052,7 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
 
 /**
  * Schedules a notification or indication for the specified peer-CCCD pair.  If
- * the udpate should be sent immediately, it is indicated in the return code.
- * If the update can only be sent in the future, the appropriate flags are set
- * to ensure this happens.
+ * the update should be sent immediately, it is indicated in the return code.
  *
  * @param conn                  The connection to schedule the update for.
  * @param clt_cfg               The client config entry corresponding to the
@@ -1069,7 +1067,10 @@ ble_gatts_schedule_update(struct ble_hs_conn *conn,
 {
     uint8_t att_op;
 
-    if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
+    if (!(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED)) {
+        /* Characteristic not modified.  Nothing to send. */
+        att_op = 0;
+    } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_NOTIFY) {
         /* Notifications always get sent immediately. */
         att_op = BLE_ATT_OP_NOTIFY_REQ;
     } else if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE) {
@@ -1079,14 +1080,22 @@ ble_gatts_schedule_update(struct ble_hs_conn *conn,
          * If there isn't an outstanding indication, send this one now.
          */
         if (conn->bhc_gatt_svr.indicate_val_handle != 0) {
-            clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_INDICATE_PENDING;
             att_op = 0;
         } else {
             att_op = BLE_ATT_OP_INDICATE_REQ;
         }
     } else {
-        BLE_HS_DBG_ASSERT(0);
+        /* Peer isn't subscribed to notifications or indications.  Nothing to
+         * send.
+         */
         att_op = 0;
+    }
+
+    /* If we will be sending an update, clear the modified flag so that we
+     * don't double-send.
+     */
+    if (att_op != 0) {
+        clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_MODIFIED;
     }
 
     return att_op;
@@ -1110,14 +1119,14 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
     if (conn != NULL) {
         for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
             clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
-            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE_PENDING) {
+            if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED) {
                 BLE_HS_DBG_ASSERT(clt_cfg->flags &
                                   BLE_GATTS_CLT_CFG_F_INDICATE);
 
                 chr_val_handle = clt_cfg->chr_val_handle;
 
                 /* Clear pending flag in anticipation of indication tx. */
-                clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_INDICATE_PENDING;
+                clt_cfg->flags &= ~BLE_GATTS_CLT_CFG_F_MODIFIED;
                 break;
             }
         }
@@ -1185,7 +1194,7 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
         BLE_HS_DBG_ASSERT(clt_cfg->chr_val_handle == chr_val_handle);
 
         persist = conn->bhc_sec_state.bonded &&
-                  !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_INDICATE_PENDING);
+                  !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED);
         if (persist) {
             cccd_value.peer_addr_type = conn->bhc_peer_addr_type;
             memcpy(cccd_value.peer_addr, conn->bhc_peer_addr, 6);
@@ -1194,7 +1203,7 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
             cccd_value.value_changed = 0;
         }
     } else {
-        /* This acknowledgement doesn't correspnod to the outstanding
+        /* This acknowledgement doesn't correspond to the outstanding
          * indication; ignore it.
          */
         rc = BLE_HS_ENOENT;
@@ -1226,15 +1235,14 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     struct ble_store_key_cccd cccd_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    uint16_t conn_handle;
-    uint8_t att_op;
+    int new_notifications;
     int clt_cfg_idx;
     int persist;
     int rc;
     int i;
 
-    /* Determine if notifications / indications are enabled for this
-     * characteristic.
+    /* Determine if notifications or indications are allowed for this
+     * characteristic.  If not, return immediately.
      */
     clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
                                              chr_val_handle);
@@ -1242,47 +1250,31 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
         return;
     }
 
-    /* Handle the connected devices. */
+    /*** Send notifications and indications to connected devices. */
+
+    ble_hs_lock();
     for (i = 0; ; i++) {
-        ble_hs_lock();
-
+        /* XXX: This is inefficient when there are a lot of connections.
+         * Consider using a "foreach" function to walk the connection list.
+         */
         conn = ble_hs_conn_find_by_idx(i);
-        if (conn != NULL) {
-            BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs >
-                                   clt_cfg_idx);
-            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
-            BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
-
-            /* Determine what kind of update should get sent immediately (if
-             * any).
-             */
-            att_op = ble_gatts_schedule_update(conn, clt_cfg);
-            conn_handle = conn->bhc_handle;
-        } else {
-            /* Silence some spurious gcc warnings. */
-            att_op = 0;
-            conn_handle = BLE_HS_CONN_HANDLE_NONE;
-        }
-        ble_hs_unlock();
-
         if (conn == NULL) {
-            /* No more connected devices. */
             break;
         }
 
-        switch (att_op) {
-        case 0:
-            break;
-        case BLE_ATT_OP_NOTIFY_REQ:
-            ble_gattc_notify(conn_handle, chr_val_handle);
-            break;
-        case BLE_ATT_OP_INDICATE_REQ:
-            ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
-            break;
-        default:
-            BLE_HS_DBG_ASSERT(0);
-            break;
-        }
+        BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs >
+                               clt_cfg_idx);
+        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
+        BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
+
+        /* Mark the CCCD entry as modified. */
+        clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_MODIFIED;
+        new_notifications = 1;
+    }
+    ble_hs_unlock();
+
+    if (new_notifications) {
+        ble_hs_notifications_sched();
     }
 
     /*** Persist updated flag for unconnected and not-yet-bonded devices. */
@@ -1337,6 +1329,89 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
 }
 
 /**
+ * Sends notifications or indications for the specified characteristic to all
+ * connected devices.  The bluetooth spec does not allow more than one
+ * concurrent indication for a single peer, so this function will hold off on
+ * sending such indications.
+ */
+static void
+ble_gatts_tx_notifications_one_chr(uint16_t chr_val_handle)
+{
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+    uint16_t conn_handle;
+    uint8_t att_op;
+    int clt_cfg_idx;
+    int i;
+
+    /* Determine if notifications / indications are enabled for this
+     * characteristic.
+     */
+    clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
+                                             chr_val_handle);
+    if (clt_cfg_idx == -1) {
+        return;
+    }
+
+    for (i = 0; ; i++) {
+        ble_hs_lock();
+
+        conn = ble_hs_conn_find_by_idx(i);
+        if (conn != NULL) {
+            BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs >
+                                   clt_cfg_idx);
+            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
+            BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
+
+            /* Determine what type of command should get sent, if any. */
+            att_op = ble_gatts_schedule_update(conn, clt_cfg);
+            conn_handle = conn->bhc_handle;
+        } else {
+            /* Silence some spurious gcc warnings. */
+            att_op = 0;
+            conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        }
+        ble_hs_unlock();
+
+        if (conn == NULL) {
+            /* No more connected devices. */
+            break;
+        }
+
+        switch (att_op) {
+        case 0:
+            break;
+        case BLE_ATT_OP_NOTIFY_REQ:
+            ble_gattc_notify(conn_handle, chr_val_handle);
+            break;
+        case BLE_ATT_OP_INDICATE_REQ:
+            ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
+            break;
+        default:
+            BLE_HS_DBG_ASSERT(0);
+            break;
+        }
+    }
+}
+
+/**
+ * Sends all pending notifications and indications.  The bluetooth spec does
+ * not allow more than one concurrent indication for a single peer, so this
+ * function will hold off on sending such indications.
+ */
+void
+ble_gatts_tx_notifications(void)
+{
+    uint16_t chr_val_handle;
+    int i;
+
+    for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
+        chr_val_handle = ble_gatts_clt_cfgs[i].chr_val_handle;
+        ble_gatts_tx_notifications_one_chr(chr_val_handle);
+    }
+}
+
+/**
  * Called when bonding has been restored via the encryption procedure.  This
  * function:
  *     o Restores persisted CCCD entries for the connected peer.
@@ -1373,7 +1448,7 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
             break;
         }
 
-        /* Assume no immediate send for this characteristic. */
+        /* Assume no notification or indication will get sent. */
         att_op = 0;
 
         ble_hs_lock();
@@ -1386,6 +1461,11 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
         if (clt_cfg != NULL) {
             clt_cfg->flags = cccd_value.flags;
             if (cccd_value.value_changed) {
+                /* The characteristic's value changed while the device was
+                 * disconnected or unbonded.  Schedule the notification or
+                 * indication now.
+                 */
+                clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_MODIFIED;
                 att_op = ble_gatts_schedule_update(conn, clt_cfg);
             }
         }
