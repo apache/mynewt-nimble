@@ -190,9 +190,7 @@ struct ble_gattc_proc {
         } write_reliable;
 
         struct {
-            ble_gatt_attr_fn *cb;
             uint16_t chr_val_handle;
-            void *cb_arg;
         } indicate;
     };
 };
@@ -707,9 +705,26 @@ ble_gattc_extract(uint16_t conn_handle, uint8_t op)
     return proc;
 }
 
+static int
+ble_gattc_conn_op_matches(struct ble_gattc_proc *proc, uint16_t conn_handle,
+                          uint8_t op)
+{
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE &&
+        conn_handle != proc->conn_handle) {
+
+        return 0;
+    }
+
+    if (op != BLE_GATT_OP_NONE && op != proc->op) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static void
-ble_gattc_extract_by_conn(uint16_t conn_handle,
-                          struct ble_gattc_proc_list *dst_list)
+ble_gattc_extract_by_conn_op(uint16_t conn_handle, uint8_t op,
+                             struct ble_gattc_proc_list *dst_list)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
@@ -727,7 +742,7 @@ ble_gattc_extract_by_conn(uint16_t conn_handle,
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
 
-        if (proc->conn_handle == conn_handle) {
+        if (ble_gattc_conn_op_matches(proc, conn_handle, op)) {
             if (prev == NULL) {
                 STAILQ_REMOVE_HEAD(&ble_gattc_procs, next);
             } else {
@@ -841,6 +856,35 @@ ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
         (conn_handle), (rx_entries),                                          \
         sizeof (rx_entries) / sizeof (rx_entries)[0],                         \
         (const void **)(out_rx_entry))
+
+
+/**
+ * Causes all GATT procedures matching the specified criteria to fail with the
+ * specified status code.
+ */
+static void
+ble_gattc_fail_procs(uint16_t conn_handle, uint8_t op, int status)
+{
+    struct ble_gattc_proc_list temp_list;
+    struct ble_gattc_proc *proc;
+    ble_gattc_err_fn *err_cb;
+
+    /* Remove all procs with the specified conn handle-op-pair and insert them
+     * into the temporary list.
+     */
+    ble_gattc_extract_by_conn_op(conn_handle, op, &temp_list);
+
+    /* Notify application of failed procedures and free the corresponding proc
+     * entries.
+     */
+    while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
+        err_cb = ble_gattc_err_dispatch_get(proc->op);
+        err_cb(proc, status, 0);
+
+        STAILQ_REMOVE_HEAD(&temp_list, next);
+        ble_gattc_proc_free(proc);
+    }
+}
 
 /**
  * Applies periodic checks and actions to all active procedures.
@@ -3703,9 +3747,6 @@ done:
         STATS_INC(ble_gattc_stats, notify_fail);
     }
 
-    /* Tell the application that a notification transmission was attempted. */
-    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
-
     return rc;
 }
 
@@ -3731,11 +3772,11 @@ ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
     int rc;
 
     rc = ble_gattc_notify_custom(conn_handle, chr_val_handle, NULL, 0);
-    if (rc != 0) {
-        return rc;
-    }
 
-    return 0;
+    /* Tell the application that a notification transmission was attempted. */
+    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
+
+    return rc;
 }
 
 /*****************************************************************************
@@ -3743,48 +3784,33 @@ ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
  *****************************************************************************/
 
 /**
- * Calls an indication proc's callback with the specified parameters.  If the
- * proc has no callback, this function is a no-op.
- *
- * @return                      The return code of the callback (or 0 if there
- *                                  is no callback).
- */
-static int
-ble_gattc_indicate_cb(struct ble_gattc_proc *proc, int status,
-                      uint16_t att_handle)
-{
-    struct ble_gatt_attr attr;
-    int rc;
-
-    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
-    ble_gattc_dbg_assert_proc_not_inserted(proc);
-
-    if (status != 0 && status != BLE_HS_EDONE) {
-        STATS_INC(ble_gattc_stats, indicate_fail);
-    }
-
-    if (proc->indicate.cb == NULL) {
-        rc = 0;
-    } else {
-        memset(&attr, 0, sizeof attr);
-        attr.handle = proc->indicate.chr_val_handle;
-        rc = proc->indicate.cb(proc->conn_handle,
-                               ble_gattc_error(status, att_handle),
-                               &attr, proc->indicate.cb_arg);
-    }
-
-    return rc;
-}
-
-/**
  * Handles an incoming ATT error response for the specified indication proc.
+ * A device should never send an error in response to an indication.  If this
+ * happens, we treat it like a confirmation (indication ack), but report the
+ * error status to the application.
  */
 static void
 ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
                        uint16_t att_handle)
 {
+    int rc;
+
     ble_gattc_dbg_assert_proc_not_inserted(proc);
-    ble_gattc_indicate_cb(proc, status, att_handle);
+
+    if (status != BLE_HS_ENOTCONN) {
+        rc = ble_gatts_rx_indicate_ack(proc->conn_handle,
+                                       proc->indicate.chr_val_handle);
+        if (rc != 0) {
+            return;
+        }
+    }
+
+    /* Tell the application about the received acknowledgment. */
+    ble_gap_notify_tx_event(status, proc->conn_handle,
+                            proc->indicate.chr_val_handle, 1);
+
+    /* Send the next indication if one is pending. */
+    ble_gatts_send_next_indicate(proc->conn_handle);
 }
 
 /**
@@ -3800,12 +3826,26 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 
     rc = ble_gatts_rx_indicate_ack(proc->conn_handle,
                                    proc->indicate.chr_val_handle);
-    if (rc != BLE_HS_ENOTCONN && rc != BLE_HS_ENOENT) {
-        ble_gattc_indicate_cb(proc, rc, 0);
+    if (rc != 0) {
+        return;
     }
+
+    /* Tell the application about the received acknowledgment. */
+    ble_gap_notify_tx_event(BLE_HS_EDONE, proc->conn_handle,
+                            proc->indicate.chr_val_handle, 1);
 
     /* Send the next indication if one is pending. */
     ble_gatts_send_next_indicate(proc->conn_handle);
+}
+
+/**
+ * Causes the indication in progress for the specified connection (if any) to
+ * fail with a status code of BLE_HS_ENOTCONN;
+ */
+void
+ble_gatts_indicate_fail_notconn(uint16_t conn_handle)
+{
+    ble_gattc_fail_procs(conn_handle, BLE_GATT_OP_INDICATE, BLE_HS_ENOTCONN);
 }
 
 /**
@@ -3817,16 +3857,11 @@ ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
  * @param chr_val_handle        The value attribute handle of the
  *                                  characteristic to include in the outgoing
  *                                  indication.
- * @param cb                    The function to call to report procedure status;
- *                                  null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
  *
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
-                   ble_gatt_attr_fn *cb, void *cb_arg)
+ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
 {
 #if !NIMBLE_OPT(GATT_INDICATE)
     return BLE_HS_ENOTSUP;
@@ -3849,8 +3884,6 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
     proc->op = BLE_GATT_OP_INDICATE;
     proc->conn_handle = conn_handle;
     proc->indicate.chr_val_handle = chr_val_handle;
-    proc->indicate.cb = cb;
-    proc->indicate.cb_arg = cb_arg;
 
     ble_gattc_log_indicate(chr_val_handle);
 
@@ -4283,25 +4316,7 @@ ble_gattc_rx_indicate_rsp(uint16_t conn_handle)
 void
 ble_gattc_connection_broken(uint16_t conn_handle)
 {
-    struct ble_gattc_proc_list temp_list;
-    struct ble_gattc_proc *proc;
-    ble_gattc_err_fn *err_cb;
-
-    /* Remove all procs with the specified conn handle and insert them into the
-     * temporary list.
-     */
-    ble_gattc_extract_by_conn(conn_handle, &temp_list);
-
-    /* Notify application of failed procedures and free the corresponding proc
-     * entries.
-     */
-    while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
-        err_cb = ble_gattc_err_dispatch_get(proc->op);
-        err_cb(proc, BLE_HS_ENOTCONN, 0);
-
-        STAILQ_REMOVE_HEAD(&temp_list, next);
-        ble_gattc_proc_free(proc);
-    }
+    ble_gattc_fail_procs(conn_handle, BLE_GATT_OP_NONE, BLE_HS_ENOTCONN);
 }
 
 /**

@@ -342,26 +342,6 @@ ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
     return 0;
 }
 
-static int
-ble_gatt_conn_test_indicate_cb(uint16_t conn_handle,
-                               const struct ble_gatt_error *error,
-                               const struct ble_gatt_attr *attr, void *arg)
-{
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
-
-    cb_arg = arg;
-
-    TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
-    TEST_ASSERT(!cb_arg->called);
-    TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
-    TEST_ASSERT(attr != NULL);
-
-    cb_arg->called++;
-
-    return 0;
-}
-
 TEST_CASE(ble_gatt_conn_test_disconnect)
 {
     struct ble_gatt_conn_test_cb_arg mtu_arg            = { 0 };
@@ -378,7 +358,6 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     struct ble_gatt_conn_test_cb_arg write_arg          = { 0 };
     struct ble_gatt_conn_test_cb_arg write_long_arg     = { 0 };
     struct ble_gatt_conn_test_cb_arg write_rel_arg      = { 0 };
-    struct ble_gatt_conn_test_cb_arg indicate_arg       = { 0 };
     uint16_t attr_handle;
     int rc;
 
@@ -481,12 +460,6 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
                                   &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
-    indicate_arg.exp_conn_handle = 3;
-    rc = ble_gattc_indicate(3, attr_handle,
-                            ble_gatt_conn_test_indicate_cb,
-                            &indicate_arg);
-    TEST_ASSERT_FATAL(rc == 0);
-
     /*** Start the procedures. */
     ble_hs_test_util_tx_all();
 
@@ -507,7 +480,6 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_arg.called == 0);
     TEST_ASSERT(write_long_arg.called == 0);
     TEST_ASSERT(write_rel_arg.called == 0);
-    TEST_ASSERT(indicate_arg.called == 0);
 
     /* Connection 2. */
     ble_gattc_connection_broken(2);
@@ -525,7 +497,6 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_arg.called == 0);
     TEST_ASSERT(write_long_arg.called == 0);
     TEST_ASSERT(write_rel_arg.called == 0);
-    TEST_ASSERT(indicate_arg.called == 0);
 
     /* Connection 3. */
     ble_gattc_connection_broken(3);
@@ -543,7 +514,6 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_arg.called == 1);
     TEST_ASSERT(write_long_arg.called == 1);
     TEST_ASSERT(write_rel_arg.called == 1);
-    TEST_ASSERT(indicate_arg.called == 1);
 }
 
 TEST_SUITE(ble_gatt_break_suite)

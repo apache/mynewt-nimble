@@ -1015,7 +1015,17 @@ ble_gatts_connection_broken(uint16_t conn_handle)
     int rc;
     int i;
 
-    /* Find the specified connection and extract its CCCD entries. */
+    /* Find the specified connection and extract its CCCD entries.  Extracting
+     * the clt_cfg pointer and setting the original to null is done for two
+     * reasons:
+     *     1. So that the CCCD entries can be safely processed after unlocking
+     *        the mutex.
+     *     2. To ensure a subsequent indicate procedure for this peer is not
+     *        attempted, as the connection is about to be terminated.  This
+     *        avoids a spurious notify-tx GAP event callback to the
+     *        application.  By setting the clt_cfg pointer to null, it is
+     *        assured that the connection has no pending indications to send.
+     */
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
@@ -1030,6 +1040,11 @@ ble_gatts_connection_broken(uint16_t conn_handle)
     if (conn == NULL) {
         return;
     }
+
+    /* If there is an indicate procedure in progress for this connection,
+     * inform the application that it has failed.
+     */
+    ble_gatts_indicate_fail_notconn(conn_handle);
 
     /* Now that the mutex is unlocked, inform the application that the peer is
      * no longer subscribed to any characteristic updates.
@@ -1220,7 +1235,7 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
         return BLE_HS_ENOENT;
     }
 
-    rc = ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
+    rc = ble_gattc_indicate(conn_handle, chr_val_handle);
     if (rc != 0) {
         return rc;
     }
@@ -1296,12 +1311,9 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
     if (persist) {
         rc = ble_store_write_cccd(&cccd_value);
         if (rc != 0) {
-            return rc;
+            /* XXX: How should this error get reported? */
         }
     }
-
-    /* Tell the application about the received acknowledgment. */
-    ble_gap_notify_tx_event(BLE_HS_EDONE, conn_handle, chr_val_handle, 1);
 
     return 0;
 }
@@ -1459,12 +1471,15 @@ ble_gatts_tx_notifications_one_chr(uint16_t chr_val_handle)
         switch (att_op) {
         case 0:
             break;
+
         case BLE_ATT_OP_NOTIFY_REQ:
             ble_gattc_notify(conn_handle, chr_val_handle);
             break;
+
         case BLE_ATT_OP_INDICATE_REQ:
-            ble_gattc_indicate(conn_handle, chr_val_handle, NULL, NULL);
+            ble_gattc_indicate(conn_handle, chr_val_handle);
             break;
+
         default:
             BLE_HS_DBG_ASSERT(0);
             break;
@@ -1561,6 +1576,7 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
         switch (att_op) {
         case 0:
             break;
+
         case BLE_ATT_OP_NOTIFY_REQ:
             rc = ble_gattc_notify(conn_handle, cccd_value.chr_val_handle);
             if (rc == 0) {
@@ -1568,10 +1584,11 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
                 ble_store_write_cccd(&cccd_value);
             }
             break;
+
         case BLE_ATT_OP_INDICATE_REQ:
-            ble_gattc_indicate(conn_handle, cccd_value.chr_val_handle,
-                               NULL, NULL);
+            ble_gattc_indicate(conn_handle, cccd_value.chr_val_handle);
             break;
+
         default:
             BLE_HS_DBG_ASSERT(0);
             break;
