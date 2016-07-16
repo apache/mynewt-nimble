@@ -382,6 +382,34 @@ ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc)
     }
 }
 
+static int
+ble_gap_extract_conn_cb(uint16_t conn_handle,
+                        ble_gap_event_fn **out_cb, void **out_cb_arg)
+{
+    const struct ble_hs_conn *conn;
+
+    BLE_HS_DBG_ASSERT(conn_handle != 0);
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        *out_cb = conn->bhc_cb;
+        *out_cb_arg = conn->bhc_cb_arg;
+    } else {
+        *out_cb = NULL;
+        *out_cb_arg = NULL;
+    }
+
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    } else {
+        return 0;
+    }
+}
+
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
@@ -406,6 +434,27 @@ ble_gap_call_event_cb(struct ble_gap_event *event,
     }
 
     return rc;
+}
+
+
+static int
+ble_gap_call_conn_event_cb(struct ble_gap_event *event, uint16_t conn_handle)
+{
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+    int rc;
+
+    rc = ble_gap_extract_conn_cb(conn_handle, &cb, &cb_arg);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gap_call_event_cb(event, cb, cb_arg);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 static void
@@ -546,21 +595,14 @@ ble_gap_disc_complete(void)
 static void
 ble_gap_update_notify(uint16_t conn_handle, int status)
 {
-    struct ble_gap_snapshot snap;
     struct ble_gap_event event;
-    int rc;
 
     memset(&event, 0, sizeof event);
-
-    snap.desc = &event.conn_update.conn;
-    rc = ble_gap_find_snapshot(conn_handle, &snap);
-    if (rc != 0) {
-        return;
-    }
-
     event.type = BLE_GAP_EVENT_CONN_UPDATE;
+    event.conn_update.conn_handle = conn_handle;
     event.conn_update.status = status;
-    ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
 static uint32_t
@@ -702,27 +744,18 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 #endif
 
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
-    int status;
-    int rc;
 
     STATS_INC(ble_gap_stats, rx_disconnect);
 
     if (evt->status == 0) {
-        status = BLE_HS_HCI_ERR(evt->reason);
-        ble_gap_conn_broken(evt->connection_handle, status);
+        ble_gap_conn_broken(evt->connection_handle,
+                            BLE_HS_HCI_ERR(evt->reason));
     } else {
         memset(&event, 0, sizeof event);
-        snap.desc = &event.term_failure.conn;
-        rc = ble_gap_find_snapshot(evt->connection_handle, &snap);
-        if (rc != 0) {
-            /* No longer connected. */
-            return;
-        }
-
         event.type = BLE_GAP_EVENT_TERM_FAILURE;
+        event.term_failure.conn_handle = evt->connection_handle;
         event.term_failure.status = BLE_HS_HCI_ERR(evt->status);
-        ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+        ble_gap_call_conn_event_cb(&event, evt->connection_handle);
     }
 }
 
@@ -734,13 +767,11 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 #endif
 
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
 
     STATS_INC(ble_gap_stats, rx_update_complete);
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.conn_update.conn;
 
     ble_hs_lock();
 
@@ -751,23 +782,16 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
             conn->bhc_latency = evt->conn_latency;
             conn->bhc_supervision_timeout = evt->supervision_timeout;
         }
-
-        ble_gap_conn_to_snapshot(conn, &snap);
-    } else {
-        /* Silence spurious maybe-uninitialized warning. */
-        snap.cb = NULL;
-        snap.cb_arg = NULL;
     }
 
     conn->bhc_flags &= ~BLE_HS_CONN_F_UPDATE;
 
     ble_hs_unlock();
 
-    if (conn != NULL) {
-        event.type = BLE_GAP_EVENT_CONN_UPDATE;
-        event.conn_update.status = BLE_HS_HCI_ERR(evt->status);
-        ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
-    }
+    event.type = BLE_GAP_EVENT_CONN_UPDATE;
+    event.conn_update.conn_handle = evt->connection_handle;
+    event.conn_update.status = BLE_HS_HCI_ERR(evt->status);
+    ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 }
 
 /**
@@ -920,7 +944,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 #endif
 
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -1017,15 +1040,14 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     ble_hs_lock();
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.connect.conn;
-    ble_gap_conn_to_snapshot(conn, &snap);
     ble_hs_conn_insert(conn);
 
     ble_hs_unlock();
 
     event.type = BLE_GAP_EVENT_CONNECT;
+    event.connect.conn_handle = evt->connection_handle;
     event.connect.status = 0;
-    ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+    ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 
     return 0;
 }
@@ -1035,24 +1057,14 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                             struct ble_gap_upd_params *params)
 {
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
     int rc;
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.conn_update.conn;
-    rc = ble_gap_find_snapshot(conn_handle, &snap);
-    if (rc != 0) {
-        return rc;
-    }
+    event.type = BLE_GAP_EVENT_L2CAP_UPDATE_REQ;
+    event.conn_update_req.conn_handle = conn_handle;
+    event.conn_update_req.peer_params = params;
 
-    if (snap.cb != NULL) {
-        event.type = BLE_GAP_EVENT_L2CAP_UPDATE_REQ;
-        event.conn_update_req.peer_params = params;
-        rc = snap.cb(&event, snap.cb_arg);
-    } else {
-        rc = 0;
-    }
-
+    rc = ble_gap_call_conn_event_cb(&event, conn_handle);
     return rc;
 }
 
@@ -2464,19 +2476,12 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
     struct ble_gap_upd_params peer_params;
     struct ble_gap_upd_params self_params;
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
     uint8_t reject_reason;
     int rc;
 
     reject_reason = 0; /* Silence warning. */
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.conn_update_req.conn;
-    rc = ble_gap_find_snapshot(evt->connection_handle, &snap);
-    if (rc != 0) {
-        /* We are not connected to the sender. */
-        return;
-    }
 
     peer_params.itvl_min = evt->itvl_min;
     peer_params.itvl_max = evt->itvl_max;
@@ -2493,9 +2498,10 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_CONN_UPDATE_REQ;
+    event.conn_update_req.conn_handle = evt->connection_handle;
     event.conn_update_req.self_params = &self_params;
     event.conn_update_req.peer_params = &peer_params;
-    rc = ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+    rc = ble_gap_call_conn_event_cb(&event, evt->connection_handle);
     if (rc != 0) {
         reject_reason = rc;
     }
@@ -2736,32 +2742,15 @@ ble_gap_passkey_event(uint16_t conn_handle,
 #endif
 
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
-    struct ble_hs_conn *conn;
-
-    memset(&event, 0, sizeof event);
-    snap.desc = &event.passkey.conn;
-
-    ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn != NULL) {
-        ble_gap_conn_to_snapshot(conn, &snap);
-    }
-
-    ble_hs_unlock();
-
-    if (conn == NULL) {
-        /* No longer connected. */
-        return;
-    }
 
     BLE_HS_LOG(DEBUG, "send passkey action request %d\n",
                passkey_params->action);
 
+    memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_PASSKEY_ACTION;
+    event.passkey.conn_handle = conn_handle;
     event.passkey.params = *passkey_params;
-    ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
 void
@@ -2772,23 +2761,14 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
 #endif
 
     struct ble_gap_event event;
-    struct ble_gap_snapshot snap;
-    int rc;
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.enc_change.conn;
-    rc = ble_gap_find_snapshot(conn_handle, &snap);
-    if (rc != 0) {
-        /* No longer connected. */
-        return;
-    }
-
     event.type = BLE_GAP_EVENT_ENC_CHANGE;
+    event.enc_change.conn_handle = conn_handle;
     event.enc_change.status = status;
-    ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 
     if (status == 0 && security_restored) {
-        BLE_HS_DBG_ASSERT(snap.desc->sec_state.bonded);
         ble_gatts_bonding_restored(conn_handle);
     }
 }
@@ -2831,24 +2811,16 @@ ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
     return;
 #endif
 
-    struct ble_gap_snapshot snap;
     struct ble_gap_event event;
-    int rc;
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.notify_rx.conn;
-    rc = ble_gap_find_snapshot(conn_handle, &snap);
-    if (rc != 0) {
-        /* No longer connected. */
-        return;
-    }
-
     event.type = BLE_GAP_EVENT_NOTIFY_RX;
+    event.notify_rx.conn_handle = conn_handle;
     event.notify_rx.attr_handle = attr_handle;
     event.notify_rx.attr_data = attr_data;
     event.notify_rx.attr_len = attr_len;
     event.notify_rx.indication = is_indication;
-    ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
 void
@@ -2859,23 +2831,15 @@ ble_gap_notify_tx_event(int status, uint16_t conn_handle, uint16_t attr_handle,
     return;
 #endif
 
-    struct ble_gap_snapshot snap;
     struct ble_gap_event event;
-    int rc;
 
     memset(&event, 0, sizeof event);
-    snap.desc = &event.notify_tx.conn;
-    rc = ble_gap_find_snapshot(conn_handle, &snap);
-    if (rc != 0) {
-        /* No longer connected. */
-        return;
-    }
-
     event.type = BLE_GAP_EVENT_NOTIFY_TX;
+    event.notify_tx.conn_handle = conn_handle;
     event.notify_tx.status = status;
     event.notify_tx.attr_handle = attr_handle;
     event.notify_tx.indication = is_indication;
-    ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
 /*****************************************************************************

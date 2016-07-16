@@ -93,18 +93,21 @@ ble_os_test_misc_conn_exists(uint16_t conn_handle)
 static int
 ble_gap_direct_connect_test_connect_cb(struct ble_gap_event *event, void *arg)
 {
+    struct ble_gap_conn_desc desc;
     int *cb_called;
+    int rc;
 
     cb_called = arg;
     *cb_called = 1;
 
     TEST_ASSERT(event->type == BLE_GAP_EVENT_CONNECT);
     TEST_ASSERT(event->connect.status == 0);
-    TEST_ASSERT(event->connect.conn.conn_handle == 2);
-    TEST_ASSERT(event->connect.conn.peer_id_addr_type ==
-                BLE_ADDR_TYPE_PUBLIC);
-    TEST_ASSERT(memcmp(event->connect.conn.peer_id_addr,
-                       ble_os_test_peer_addr, 6) == 0);
+    TEST_ASSERT(event->connect.conn_handle == 2);
+
+    rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(desc.peer_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
+    TEST_ASSERT(memcmp(desc.peer_id_addr, ble_os_test_peer_addr, 6) == 0);
 
     return 0;
 }
