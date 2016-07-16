@@ -95,8 +95,9 @@ struct ble_gatts_conn {
 
 /*** @client. */
 int ble_gattc_locked_by_cur_task(void);
-int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle,
-                       ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
+void ble_gatts_indicate_fail_notconn(uint16_t conn_handle);
+int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 
 void ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
 void ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu);

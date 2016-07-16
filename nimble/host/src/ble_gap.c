@@ -720,13 +720,13 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
         return;
     }
 
-    /* XXX: Consider removing the connection from the list and handing it to
-     * each of the "connection_broken" functions below.
+    /* Indicate the connection termination to each module.  The order matters
+     * here: gatts must come before gattc to ensure the application does not
+     * get informed of spurious notify-tx events.
      */
-
     ble_sm_connection_broken(conn_handle);
-    ble_gattc_connection_broken(conn_handle);
     ble_gatts_connection_broken(conn_handle);
+    ble_gattc_connection_broken(conn_handle);
 
     ble_hs_atomic_conn_delete(conn_handle);
 
