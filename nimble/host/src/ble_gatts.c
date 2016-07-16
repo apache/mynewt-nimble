@@ -523,6 +523,22 @@ ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
     }
 }
 
+static void
+ble_gatts_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
+                          uint8_t reason,
+                          uint8_t prev_flags, uint8_t cur_flags)
+{
+    if (prev_flags != cur_flags) {
+        ble_gap_subscribe_event(conn_handle,
+                                attr_handle,
+                                reason,
+                                prev_flags  & BLE_GATTS_CLT_CFG_F_NOTIFY,
+                                cur_flags   & BLE_GATTS_CLT_CFG_F_NOTIFY,
+                                prev_flags  & BLE_GATTS_CLT_CFG_F_INDICATE,
+                                cur_flags   & BLE_GATTS_CLT_CFG_F_INDICATE);
+    }
+}
+
 /**
  * Performs a read or write access on a client characteritic configuration
  * descriptor (CCCD).
@@ -547,7 +563,9 @@ static int
 ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
                                 uint8_t att_op,
                                 struct ble_att_svr_access_ctxt *ctxt,
-                                struct ble_store_value_cccd *out_cccd)
+                                struct ble_store_value_cccd *out_cccd,
+                                uint8_t *out_prev_clt_cfg_flags,
+                                uint8_t *out_cur_clt_cfg_flags)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
     uint16_t chr_val_handle;
@@ -574,6 +592,10 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         return BLE_ATT_ERR_UNLIKELY;
     }
 
+    /* Assume no change in flags. */
+    *out_prev_clt_cfg_flags = clt_cfg->flags;
+    *out_cur_clt_cfg_flags = clt_cfg->flags;
+
     gatt_op = ble_gatts_dsc_op(att_op);
     ble_gatts_dsc_inc_stat(gatt_op);
 
@@ -596,15 +618,18 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
             return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
         }
 
-        clt_cfg->flags = flags;
+        if (clt_cfg->flags != flags) {
+            clt_cfg->flags = flags;
+            *out_cur_clt_cfg_flags = flags;
 
-        /* Successful writes get persisted for bonded connections. */
-        if (conn->bhc_sec_state.bonded) {
-            out_cccd->peer_addr_type = conn->bhc_peer_addr_type;
-            memcpy(out_cccd->peer_addr, conn->bhc_peer_addr, 6);
-            out_cccd->chr_val_handle = chr_val_handle;
-            out_cccd->flags = clt_cfg->flags;
-            out_cccd->value_changed = 0;
+            /* Successful writes get persisted for bonded connections. */
+            if (conn->bhc_sec_state.bonded) {
+                out_cccd->peer_addr_type = conn->bhc_peer_addr_type;
+                memcpy(out_cccd->peer_addr, conn->bhc_peer_addr, 6);
+                out_cccd->chr_val_handle = chr_val_handle;
+                out_cccd->flags = clt_cfg->flags;
+                out_cccd->value_changed = 0;
+            }
         }
         break;
 
@@ -625,6 +650,9 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     struct ble_store_value_cccd cccd_value;
     struct ble_store_key_cccd cccd_key;
     struct ble_hs_conn *conn;
+    uint16_t chr_val_handle;
+    uint8_t prev_flags;
+    uint8_t cur_flags;
     int rc;
 
     ble_hs_lock();
@@ -634,13 +662,27 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = BLE_ATT_ERR_UNLIKELY;
     } else {
         rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, op, ctxt,
-                                             &cccd_value);
+                                             &cccd_value,
+                                             &prev_flags,
+                                             &cur_flags);
     }
 
     ble_hs_unlock();
 
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* The value attribute is always immediately after the declaration. */
+    chr_val_handle = attr_handle - 1;
+
+    /* Tell the application if the peer changed its subscription state. */
+    ble_gatts_subscribe_event(conn_handle, chr_val_handle,
+                              BLE_GAP_SUBSCRIBE_REASON_WRITE,
+                              prev_flags, cur_flags);
+
     /* Persist the CCCD if required. */
-    if (rc == 0 && cccd_value.chr_val_handle != 0) {
+    if (cccd_value.chr_val_handle != 0) {
         if (cccd_value.flags == 0) {
             ble_store_key_from_value_cccd(&cccd_key, &cccd_value);
             rc = ble_store_delete_cccd(&cccd_key);
@@ -952,23 +994,56 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
     return 0;
 }
 
-void
-ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn)
-{
-    int rc;
-
-    if (gatts_conn->clt_cfgs != NULL) {
-        rc = os_memblock_put(&ble_gatts_clt_cfg_pool, gatts_conn->clt_cfgs);
-        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-
-        gatts_conn->clt_cfgs = NULL;
-    }
-}
-
 static int
 ble_gatts_clt_cfg_size(void)
 {
     return ble_gatts_num_cfgable_chrs * sizeof (struct ble_gatts_clt_cfg);
+}
+
+/**
+ * Handles GATT server clean up for a terminated connection:
+ *     o Informs the application that the peer is no longer subscribed to any
+ *       characteristic updates.
+ *     o Frees GATT server resources consumed by the connection (CCCDs).
+ */
+void
+ble_gatts_connection_broken(uint16_t conn_handle)
+{
+    struct ble_gatts_clt_cfg *clt_cfgs;
+    struct ble_hs_conn *conn;
+    int num_clt_cfgs;
+    int rc;
+    int i;
+
+    /* Find the specified connection and extract its CCCD entries. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        clt_cfgs = conn->bhc_gatt_svr.clt_cfgs;
+        num_clt_cfgs = conn->bhc_gatt_svr.num_clt_cfgs;
+
+        conn->bhc_gatt_svr.clt_cfgs = NULL;
+        conn->bhc_gatt_svr.num_clt_cfgs = 0;
+    }
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return;
+    }
+
+    /* Now that the mutex is unlocked, inform the application that the peer is
+     * no longer subscribed to any characteristic updates.
+     */
+    if (clt_cfgs != NULL) {
+        for (i = 0; i < num_clt_cfgs; i++) {
+            ble_gatts_subscribe_event(conn_handle, clt_cfgs[i].chr_val_handle,
+                                      BLE_GAP_SUBSCRIBE_REASON_TERM,
+                                      clt_cfgs[i].flags, 0);
+        }
+
+        rc = os_memblock_put(&ble_gatts_clt_cfg_pool, clt_cfgs);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    }
 }
 
 int
@@ -1035,16 +1110,19 @@ int
 ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
 {
     if (ble_gatts_num_cfgable_chrs > 0) {
-        ble_gatts_conn_deinit(gatts_conn);
         gatts_conn->clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
         if (gatts_conn->clt_cfgs == NULL) {
             return BLE_HS_ENOMEM;
         }
-    }
 
-    /* Initialize the client configuration with a copy of the cache. */
-    memcpy(gatts_conn->clt_cfgs, ble_gatts_clt_cfgs, ble_gatts_clt_cfg_size());
-    gatts_conn->num_clt_cfgs = ble_gatts_num_cfgable_chrs;
+        /* Initialize the client configuration with a copy of the cache. */
+        memcpy(gatts_conn->clt_cfgs, ble_gatts_clt_cfgs,
+               ble_gatts_clt_cfg_size());
+        gatts_conn->num_clt_cfgs = ble_gatts_num_cfgable_chrs;
+    } else {
+        gatts_conn->clt_cfgs = NULL;
+        gatts_conn->num_clt_cfgs = 0;
+    }
 
     return 0;
 }
@@ -1460,6 +1538,7 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
                                          cccd_value.chr_val_handle);
         if (clt_cfg != NULL) {
             clt_cfg->flags = cccd_value.flags;
+
             if (cccd_value.value_changed) {
                 /* The characteristic's value changed while the device was
                  * disconnected or unbonded.  Schedule the notification or
@@ -1471,6 +1550,13 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
         }
 
         ble_hs_unlock();
+
+        /* Tell the application if the peer changed its subscription state
+         * when it was restored from persistence.
+         */
+        ble_gatts_subscribe_event(conn_handle, cccd_value.chr_val_handle,
+                                  BLE_GAP_SUBSCRIBE_REASON_RESTORE,
+                                  0, cccd_value.flags);
 
         switch (att_op) {
         case 0:

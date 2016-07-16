@@ -144,9 +144,9 @@ int ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle);
 int ble_gatts_send_next_indicate(uint16_t conn_handle);
 void ble_gatts_tx_notifications(void);
 void ble_gatts_bonding_restored(uint16_t conn_handle);
+void ble_gatts_connection_broken(uint16_t conn_handle);
 
 /*** @misc. */
-void ble_gatts_conn_deinit(struct ble_gatts_conn *gatts_conn);
 int ble_gatts_conn_can_alloc(void);
 int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
 int ble_gatts_start(void);
