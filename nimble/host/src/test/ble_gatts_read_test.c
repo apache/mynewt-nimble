@@ -133,8 +133,10 @@ ble_gatts_read_test_util_access_1(uint16_t conn_handle,
 
     TEST_ASSERT(ctxt->chr ==
                 &ble_gatts_read_test_svcs[0].characteristics[0]);
-    ctxt->att->read.data = ble_gatts_read_test_chr_1_val;
-    ctxt->att->read.len = ble_gatts_read_test_chr_1_len;
+    ctxt->att->read.data = ble_gatts_read_test_chr_1_val +
+                           ctxt->att->read.offset;
+    ctxt->att->read.len = ble_gatts_read_test_chr_1_len -
+                          ctxt->att->read.offset;
 
     return 0;
 }
@@ -206,7 +208,49 @@ TEST_CASE(ble_gatts_read_test_case_basic)
 
 }
 
+TEST_CASE(ble_gatts_read_test_case_long)
+{
+    struct ble_att_read_blob_req read_blob_req;
+    struct ble_att_read_req read_req;
+    uint8_t buf[max(BLE_ATT_READ_REQ_SZ, BLE_ATT_READ_BLOB_REQ_SZ)];
+    uint16_t conn_handle;
+    int rc;
+    int i;
+
+    ble_gatts_read_test_misc_init(&conn_handle);
+
+    /*** Prepare characteristic value. */
+    ble_gatts_read_test_chr_1_len = 40;
+    for (i = 0; i < ble_gatts_read_test_chr_1_len; i++) {
+        ble_gatts_read_test_chr_1_val[i] = i;
+    }
+
+    /* Receive first read request. */
+    read_req.barq_handle = ble_gatts_read_test_chr_1_val_handle;
+    ble_att_read_req_write(buf, sizeof buf, &read_req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_verify_tx_read_rsp(ble_gatts_read_test_chr_1_val, 22);
+
+    /* Receive follow-up read blob request. */
+    read_blob_req.babq_handle = ble_gatts_read_test_chr_1_val_handle;
+    read_blob_req.babq_offset = 22;
+    ble_att_read_blob_req_write(buf, sizeof buf, &read_blob_req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+
+    /* Ensure response starts at appropriate offset (22). */
+    ble_hs_test_util_verify_tx_read_blob_rsp(
+        ble_gatts_read_test_chr_1_val + 22, 18);
+}
+
 TEST_SUITE(ble_gatts_read_test_suite)
 {
     ble_gatts_read_test_case_basic();
+    ble_gatts_read_test_case_long();
 }

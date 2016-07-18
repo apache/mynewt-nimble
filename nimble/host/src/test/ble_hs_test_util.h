@@ -119,6 +119,8 @@ uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
 void ble_hs_test_util_tx_all(void);
 void ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags);
 void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
+void ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data,
+                                              int attr_len);
 void ble_hs_test_util_set_static_rnd_addr(void);
 void ble_hs_test_util_init(void);
 
