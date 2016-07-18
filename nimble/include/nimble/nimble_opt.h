@@ -64,66 +64,70 @@
 #define NIMBLE_OPT_SM_SC                        0
 #endif
 
-/** HOST: Supported GATT procedures.  By default, all are enabled. */
+/**
+ * HOST: Supported GATT procedures.  By default:
+ *     o Notify and indicate are enabled;
+ *     o All other procedures are enabled for centrals.
+ */
 
 #ifndef NIMBLE_OPT_GATT_DISC_ALL_SVCS
-#define NIMBLE_OPT_GATT_DISC_ALL_SVCS           1
+#define NIMBLE_OPT_GATT_DISC_ALL_SVCS           NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_DISC_SVC_UUID
-#define NIMBLE_OPT_GATT_DISC_SVC_UUID           1
+#define NIMBLE_OPT_GATT_DISC_SVC_UUID           NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_FIND_INC_SVCS
-#define NIMBLE_OPT_GATT_FIND_INC_SVCS           1
+#define NIMBLE_OPT_GATT_FIND_INC_SVCS           NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_DISC_ALL_CHRS
-#define NIMBLE_OPT_GATT_DISC_ALL_CHRS           1
+#define NIMBLE_OPT_GATT_DISC_ALL_CHRS           NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_DISC_CHR_UUID
-#define NIMBLE_OPT_GATT_DISC_CHR_UUID           1
+#define NIMBLE_OPT_GATT_DISC_CHR_UUID           NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_DISC_ALL_DSCS
-#define NIMBLE_OPT_GATT_DISC_ALL_DSCS           1
+#define NIMBLE_OPT_GATT_DISC_ALL_DSCS           NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_READ
-#define NIMBLE_OPT_GATT_READ                    1
+#define NIMBLE_OPT_GATT_READ                    NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_READ_UUID
-#define NIMBLE_OPT_GATT_READ_UUID               1
+#define NIMBLE_OPT_GATT_READ_UUID               NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_READ_LONG
-#define NIMBLE_OPT_GATT_READ_LONG               1
+#define NIMBLE_OPT_GATT_READ_LONG               NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_READ_MULT
-#define NIMBLE_OPT_GATT_READ_MULT               1
+#define NIMBLE_OPT_GATT_READ_MULT               NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_WRITE_NO_RSP
-#define NIMBLE_OPT_GATT_WRITE_NO_RSP            1
+#define NIMBLE_OPT_GATT_WRITE_NO_RSP            NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_SIGNED_WRITE
-#define NIMBLE_OPT_GATT_SIGNED_WRITE            1
+#define NIMBLE_OPT_GATT_SIGNED_WRITE            NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_WRITE
-#define NIMBLE_OPT_GATT_WRITE                   1
+#define NIMBLE_OPT_GATT_WRITE                   NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_WRITE_LONG
-#define NIMBLE_OPT_GATT_WRITE_LONG              1
+#define NIMBLE_OPT_GATT_WRITE_LONG              NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_WRITE_RELIABLE
-#define NIMBLE_OPT_GATT_WRITE_RELIABLE          1
+#define NIMBLE_OPT_GATT_WRITE_RELIABLE          NIMBLE_OPT_ROLE_CENTRAL
 #endif
 
 #ifndef NIMBLE_OPT_GATT_NOTIFY
