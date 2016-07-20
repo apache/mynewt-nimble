@@ -838,11 +838,10 @@ ble_ll_scan_event_proc(void *arg)
  *  1: we may send a response to this frame.
  */
 int
-ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
+ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint8_t *rxflags)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
-    struct ble_mbuf_hdr *ble_hdr;
 
     rc = 0;
     scansm = &g_ble_ll_scan_sm;
@@ -864,8 +863,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
          */
         if (scansm->scan_rsp_pending) {
             if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-                ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+                *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
             } else {
                 ble_ll_scan_req_backoff(scansm, 0);
             }

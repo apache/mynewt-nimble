@@ -355,9 +355,7 @@
 #endif
 
 /*
- * This option allows a controller to send/receive LE pings. Currently,
- * this feature is not implemented by the controller so turning it on or off
- * has no effect.
+ * This option allows a controller to send/receive LE pings.
  */
 #ifndef BLE_LL_CFG_FEAT_LE_PING
 #define  BLE_LL_CFG_FEAT_LE_PING                (1)

@@ -313,12 +313,13 @@ int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
 void ble_ll_acl_data_in(struct os_mbuf *txpkt);
 
 /*--- PHY interfaces ---*/
+struct ble_mbuf_hdr;
+
 /* Called by the PHY when a packet has started */
-int ble_ll_rx_start(struct os_mbuf *rxpdu, uint8_t chan);
+int ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *hdr);
 
 /* Called by the PHY when a packet reception ends */
-struct ble_mbuf_hdr;
-int ble_ll_rx_end(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *ble_hdr);
+int ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 
 /*--- Controller API ---*/
 void ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr);
@@ -331,6 +332,9 @@ uint8_t ble_ll_state_get(void);
 
 /* Send an event to LL task */
 void ble_ll_event_send(struct os_event *ev);
+
+/* Hand received pdu's to LL task  */
+void ble_ll_rx_pdu_in(struct os_mbuf *rxpdu);
 
 /* Set random address */
 int ble_ll_set_random_addr(uint8_t *addr);
@@ -383,6 +387,7 @@ int ble_ll_rand_start(void);
 #define BLE_LL_LOG_ID_CONN_END          (30)
 #define BLE_LL_LOG_ID_ADV_TXBEG         (50)
 #define BLE_LL_LOG_ID_ADV_TXDONE        (60)
+#define BLE_LL_LOG_ID_SCHED             (80)
 
 #ifdef BLE_LL_LOG
 void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
