@@ -38,7 +38,7 @@
 /*
  * XXX: Maximum possible transmit time is 1 msec for a 60ppm crystal
  * and 16ms for a 30ppm crystal! We need to limit PDU size based on
- * crystal accuracy
+ * crystal accuracy. Look at this in the spec.
  */
 
 /* XXX: private header file? */
@@ -82,9 +82,10 @@ struct ble_phy_obj
     uint8_t phy_encrypted;
     uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
+    uint8_t *rxdptr;
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
-    struct os_mbuf *rxpdu;
+    struct ble_mbuf_hdr rxhdr;
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
 };
@@ -92,7 +93,8 @@ struct ble_phy_obj g_ble_phy_data;
 
 /* XXX: if 27 byte packets desired we can make this smaller */
 /* Global transmit/receive buffer */
-static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+static uint32_t g_ble_phy_tx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /* Make sure word-aligned for faster copies */
@@ -183,33 +185,104 @@ struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
 /**
- * ble phy rxpdu get
+ * Copies the data from the phy receive buffer into a mbuf chain.
  *
- * Gets a mbuf for PDU reception.
  *
- * @return struct os_mbuf* Pointer to retrieved mbuf or NULL if none available
+ * @param dptr Pointer to receive buffer
+ * @param len Length of receive buffer to copy.
+ *
+ * @return struct os_mbuf* Pointer to mbuf. NULL if no mbuf available.
  */
-static struct os_mbuf *
-ble_phy_rxpdu_get(void)
+struct os_mbuf *
+ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
 {
+    uint16_t rem_bytes;
+    uint16_t mb_bytes;
+    uint16_t copylen;
+    uint32_t *dst;
+    uint32_t *src;
     struct os_mbuf *m;
+    struct os_mbuf *n;
+    struct os_mbuf *p;
+    struct ble_mbuf_hdr *ble_hdr;
+    struct os_mbuf_pkthdr *pkthdr;
 
-    m = g_ble_phy_data.rxpdu;
-    if (m == NULL) {
-        m = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr));
-        if (!m) {
+    /* Better be aligned */
+    assert(((uint32_t)dptr & 3) == 0);
+
+    p = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
+    if (!p) {
+        STATS_INC(ble_phy_stats, no_bufs);
+        return NULL;
+    }
+
+    /*
+     * Fill in the mbuf pkthdr first. NOTE: first mbuf in chain will have data
+     * pre-pended to it so we adjust m_data by a word.
+     */
+    p->om_data += 4;
+    dst = (uint32_t *)(p->om_data);
+    src = (uint32_t *)dptr;
+
+    rem_bytes = len;
+    mb_bytes = (p->om_omp->omp_databuf_len - p->om_pkthdr_len - 4);
+    copylen = min(mb_bytes, rem_bytes);
+    copylen &= 0xFFFC;
+    rem_bytes -= copylen;
+    mb_bytes -= copylen;
+    p->om_len = copylen;
+    while (copylen > 0) {
+        *dst = *src;
+        ++dst;
+        ++src;
+        copylen -= 4;
+    }
+
+    /* Copy remaining bytes */
+    m = p;
+    while (rem_bytes > 0) {
+        /* If there are enough bytes in the mbuf, copy them and leave */
+        if (rem_bytes <= mb_bytes) {
+            memcpy(m->om_data + m->om_len, src, rem_bytes);
+            m->om_len += rem_bytes;
+            break;
+        }
+
+        n = os_msys_get(rem_bytes, 0);
+        if (!n) {
+            os_mbuf_free_chain(p);
             STATS_INC(ble_phy_stats, no_bufs);
-        } else {
-            /*
-             * NOTE: we add two bytes to the data pointer as we will prepend
-             * two bytes if we hand this received pdu up to host.
-             */
-            m->om_data += 2;
-            g_ble_phy_data.rxpdu = m;
+            return NULL;
+        }
+
+        /* Chain new mbuf to existing chain */
+        SLIST_NEXT(m, om_next) = n;
+        m = n;
+
+        mb_bytes = m->om_omp->omp_databuf_len;
+        copylen = min(mb_bytes, rem_bytes);
+        copylen &= 0xFFFC;
+        rem_bytes -= copylen;
+        mb_bytes -= copylen;
+        m->om_len = copylen;
+        dst = (uint32_t *)m->om_data;
+        while (copylen > 0) {
+            *dst = *src;
+            ++dst;
+            ++src;
+            copylen -= 4;
         }
     }
 
-    return m;
+    /* Set packet length */
+    pkthdr = OS_MBUF_PKTHDR(p);
+    pkthdr->omp_len = len;
+
+    /* Copy ble header */
+    ble_hdr = BLE_MBUF_HDR_PTR(p);
+    memcpy(ble_hdr, &g_ble_phy_data.rxhdr, sizeof(struct ble_mbuf_hdr));
+
+    return p;
 }
 
 /**
@@ -241,11 +314,16 @@ nrf_wait_disabled(void)
 static void
 ble_phy_rx_xcvr_setup(void)
 {
+    uint8_t *dptr;
+
+    dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
+
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     if (g_ble_phy_data.phy_encrypted) {
+        dptr += 3;
         NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-        NRF_CCM->OUTPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_CCM->OUTPTR = (uint32_t)dptr;
         NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
         NRF_CCM->MODE = CCM_MODE_MODE_Decryption;
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
@@ -254,20 +332,22 @@ ble_phy_rx_xcvr_setup(void)
         NRF_CCM->EVENTS_ENDCRYPT = 0;
         NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk | PPI_CHEN_CH25_Msk;
     } else {
-        NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_RADIO->PACKETPTR = (uint32_t)dptr;
     }
 #else
-    NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+    NRF_RADIO->PACKETPTR = (uint32_t)dptr;
 #endif
 
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     if (g_ble_phy_data.phy_privacy) {
+        dptr += 3;
+        NRF_RADIO->PACKETPTR = (uint32_t)dptr;
         NRF_RADIO->PCNF0 = (6 << RADIO_PCNF0_LFLEN_Pos) |
                            (2 << RADIO_PCNF0_S1LEN_Pos) |
                            (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
-        NRF_AAR->ADDRPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
+        NRF_AAR->ADDRPTR = (uint32_t)dptr;
         NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
         NRF_AAR->EVENTS_END = 0;
         NRF_AAR->EVENTS_RESOLVED = 0;
@@ -289,6 +369,7 @@ ble_phy_rx_xcvr_setup(void)
     /* Reset the rx started flag. Used for the wait for response */
     g_ble_phy_data.phy_rx_started = 0;
     g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
+    g_ble_phy_data.rxdptr = dptr;
 
     /* I want to know when 1st byte received (after address) */
     NRF_RADIO->BCC = 8; /* in bits */
@@ -313,16 +394,28 @@ ble_phy_rx_xcvr_setup(void)
 static void
 ble_phy_tx_end_isr(void)
 {
+    uint8_t was_encrypted;
     uint8_t transition;
     uint8_t txlen;
     uint32_t wfr_time;
+    uint32_t txstart;
+
+    /*
+     * Read captured tx start time. This is not the actual transmit start
+     * time but it is the time at which the address event occurred
+     * (after transmission of access address)
+     */
+    txstart = NRF_TIMER0->CC[1];
+
+    /* If this transmission was encrypted we need to remember it */
+    was_encrypted = g_ble_phy_data.phy_encrypted;
 
     /* Better be in TX state! */
     assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
 
     /* Log the event */
-    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_txrx_buf[0] >> 8) & 0xFF,
-               g_ble_phy_data.phy_encrypted, NRF_TIMER0->CC[1]);
+    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_tx_buf[0] >> 8) & 0xFF,
+               was_encrypted, txstart);
 
     /* Clear events and clear interrupt on disabled event */
     NRF_RADIO->EVENTS_DISABLED = 0;
@@ -335,7 +428,7 @@ ble_phy_tx_end_isr(void)
      * XXX: not sure what to do. We had a HW error during transmission.
      * For now I just count a stat but continue on like all is good.
      */
-    if (g_ble_phy_data.phy_encrypted) {
+    if (was_encrypted) {
         if (NRF_CCM->EVENTS_ERROR) {
             STATS_INC(ble_phy_stats, tx_hw_err);
             NRF_CCM->EVENTS_ERROR = 0;
@@ -343,26 +436,25 @@ ble_phy_tx_end_isr(void)
     }
 #endif
 
+    /* Call transmit end callback */
+    if (g_ble_phy_data.txend_cb) {
+        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
+    }
+
     transition = g_ble_phy_data.phy_transition;
     if (transition == BLE_PHY_TRANSITION_TX_RX) {
         /* Packet pointer needs to be reset. */
-        if (g_ble_phy_data.rxpdu != NULL) {
-            ble_phy_rx_xcvr_setup();
-        } else {
-            /* Disable the phy */
-            STATS_INC(ble_phy_stats, no_bufs);
-            ble_phy_disable();
-        }
+        ble_phy_rx_xcvr_setup();
 
         /*
          * Enable the wait for response timer. Note that cc #1 on
          * timer 0 contains the transmit start time
          */
         txlen = g_ble_phy_data.phy_tx_pyld_len;
-        if (txlen && g_ble_phy_data.phy_encrypted) {
+        if (txlen && was_encrypted) {
             txlen += BLE_LL_DATA_MIC_LEN;
         }
-        wfr_time = NRF_TIMER0->CC[1] - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
+        wfr_time = txstart - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
         wfr_time += BLE_TX_DUR_USECS_M(txlen);
         wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
         ble_ll_wfr_enable(wfr_time);
@@ -371,22 +463,14 @@ ble_phy_tx_end_isr(void)
         NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
         assert(transition == BLE_PHY_TRANSITION_NONE);
     }
-
-    /* Call transmit end callback */
-    if (g_ble_phy_data.txend_cb) {
-        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
-    }
 }
 
 static void
 ble_phy_rx_end_isr(void)
 {
     int rc;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
     uint8_t *dptr;
-#endif
     uint8_t crcok;
-    struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Clear events and clear interrupt */
@@ -397,12 +481,12 @@ ble_phy_rx_end_isr(void)
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
 
     /* Set RSSI and CRC status flag in header */
-    ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
+    ble_hdr = &g_ble_phy_data.rxhdr;
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
     ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
-    dptr = g_ble_phy_data.rxpdu->om_data;
-#endif
+
+    dptr = g_ble_phy_data.rxdptr;
+
     /* Count PHY crc errors and valid packets */
     crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
     if (!crcok) {
@@ -441,10 +525,6 @@ ble_phy_rx_end_isr(void)
 #endif
     }
 
-    /* Call Link Layer receive payload function */
-    rxpdu = g_ble_phy_data.rxpdu;
-    g_ble_phy_data.rxpdu = NULL;
-
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1) || (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     if (g_ble_phy_data.phy_encrypted || g_ble_phy_data.phy_privacy) {
         /*
@@ -454,10 +534,10 @@ ble_phy_rx_end_isr(void)
          */
         dptr[2] = dptr[1];
         dptr[1] = dptr[0];
-        rxpdu->om_data += 1;
+        ++dptr;
     }
 #endif
-    rc = ble_ll_rx_end(rxpdu, ble_hdr);
+    rc = ble_ll_rx_end(dptr, ble_hdr);
     if (rc < 0) {
         ble_phy_disable();
     }
@@ -473,8 +553,6 @@ ble_phy_rx_start_isr(void)
     /* Clear events and clear interrupt */
     NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
-
-    assert(g_ble_phy_data.rxpdu != NULL);
 
     /* Wait to get 1st byte of frame */
     while (1) {
@@ -495,7 +573,7 @@ ble_phy_rx_start_isr(void)
     }
 
     /* Initialize flags, channel and state in ble header at rx start */
-    ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
+    ble_hdr = &g_ble_phy_data.rxhdr;
     ble_hdr->rxinfo.flags = ble_ll_state_get();
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
@@ -503,7 +581,8 @@ ble_phy_rx_start_isr(void)
         BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
 
     /* Call Link Layer receive start function */
-    rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
+    rc = ble_ll_rx_start(g_ble_phy_data.rxdptr, g_ble_phy_data.phy_chan,
+                         &g_ble_phy_data.rxhdr);
     if (rc >= 0) {
         /* Set rx started flag and enable rx end ISR */
         g_ble_phy_data.phy_rx_started = 1;
@@ -670,11 +749,6 @@ ble_phy_rx(void)
         ble_phy_disable();
         STATS_INC(ble_phy_stats, radio_state_errs);
         return BLE_PHY_ERR_RADIO_STATE;
-    }
-
-    /* If no pdu, get one */
-    if (ble_phy_rxpdu_get() == NULL) {
-        return BLE_PHY_ERR_NO_BUFS;
     }
 
     /* Make sure all interrupts are disabled */
@@ -855,7 +929,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 
         NRF_CCM->SHORTS = 1;
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-        NRF_CCM->OUTPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
+        NRF_CCM->OUTPTR = (uint32_t)&g_ble_phy_tx_buf[0];
         NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
         NRF_CCM->EVENTS_ERROR = 0;
         NRF_CCM->MODE = CCM_MODE_MODE_Encryption;
@@ -872,7 +946,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
 #endif
         /* RAM representation has S0 and LENGTH fields (2 bytes) */
-        dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
+        dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
         dptr[0] = ble_hdr->txinfo.hdr_byte;
         dptr[1] = payload_len;
         dptr += 2;
@@ -887,13 +961,13 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 #endif
 
     /* RAM representation has S0 and LENGTH fields (2 bytes) */
-    dptr = (uint8_t *)&g_ble_phy_txrx_buf[0];
+    dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
     dptr[0] = ble_hdr->txinfo.hdr_byte;
     dptr[1] = payload_len;
     dptr += 2;
 #endif
 
-    NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_txrx_buf[0];
+    NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_tx_buf[0];
 
     /* Clear the ready, end and disabled events */
     NRF_RADIO->EVENTS_READY = 0;
@@ -903,13 +977,10 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     /* Enable shortcuts for transmit start/end. */
     shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
     if (end_trans == BLE_PHY_TRANSITION_TX_RX) {
-        /* If we are going into receive after this, try to get a buffer. */
-        if (ble_phy_rxpdu_get()) {
-            shortcuts |= RADIO_SHORTS_DISABLED_RXEN_Msk;
-        }
+        shortcuts |= RADIO_SHORTS_DISABLED_RXEN_Msk;
     }
-    NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     NRF_RADIO->SHORTS = shortcuts;
+    NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
 
     /* Set transmitted payload length */
     g_ble_phy_data.phy_tx_pyld_len = payload_len;

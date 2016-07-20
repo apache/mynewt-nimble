@@ -216,13 +216,13 @@ STATS_NAME_END(ble_ll_conn_stats)
  * Called to determine if the received PDU is an empty PDU or not.
  */
 static int
-ble_ll_conn_is_empty_pdu(struct os_mbuf *rxpdu)
+ble_ll_conn_is_empty_pdu(uint8_t *rxbuf)
 {
     int rc;
     uint8_t llid;
 
-    llid = rxpdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK;
-    if ((llid == BLE_LL_LLID_DATA_FRAG) && (rxpdu->om_data[1] == 0)) {
+    llid = rxbuf[0] & BLE_LL_DATA_HDR_LLID_MASK;
+    if ((llid == BLE_LL_LLID_DATA_FRAG) && (rxbuf[1] == 0)) {
         rc = 1;
     } else {
         rc = 0;
@@ -285,7 +285,7 @@ ble_ll_conn_get_ce_end_time(void)
  *  standby and set the current state machine pointer to NULL.
  */
 static void
-ble_ll_conn_current_sm_over(void)
+ble_ll_conn_current_sm_over(struct ble_ll_conn_sm *connsm)
 {
     /* Disable the PHY */
     ble_phy_disable();
@@ -298,6 +298,15 @@ ble_ll_conn_current_sm_over(void)
 
     /* Set current LL connection to NULL */
     g_ble_ll_conn_cur_sm = NULL;
+
+    /*
+     * NOTE: the connection state machine may be NULL if we are calling
+     * this when we are ending the connection. In that case, there is no
+     * need to post to the LL the connection event end event
+     */
+    if (connsm) {
+        ble_ll_event_send(&connsm->conn_ev_end);
+    }
 }
 
 /**
@@ -571,11 +580,8 @@ ble_ll_conn_wfr_timer_exp(void)
     struct ble_ll_conn_sm *connsm;
 
     connsm = g_ble_ll_conn_cur_sm;
-    ble_ll_conn_current_sm_over();
-    if (connsm) {
-        ble_ll_event_send(&connsm->conn_ev_end);
-        STATS_INC(ble_ll_conn_stats, wfr_expirations);
-    }
+    ble_ll_conn_current_sm_over(connsm);
+    STATS_INC(ble_ll_conn_stats, wfr_expirations);
 }
 
 /**
@@ -592,10 +598,8 @@ ble_ll_conn_wait_txend(void *arg)
 {
     struct ble_ll_conn_sm *connsm;
 
-    ble_ll_conn_current_sm_over();
-
     connsm = (struct ble_ll_conn_sm *)arg;
-    ble_ll_event_send(&connsm->conn_ev_end);
+    ble_ll_conn_current_sm_over(connsm);
 }
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
@@ -629,8 +633,7 @@ ble_ll_conn_txend_encrypt(void *arg)
 
     connsm = (struct ble_ll_conn_sm *)arg;
     CONN_F_ENCRYPTED(connsm) = 1;
-    ble_ll_conn_current_sm_over();
-    ble_ll_event_send(&connsm->conn_ev_end);
+    ble_ll_conn_current_sm_over(connsm);
 }
 
 static void
@@ -640,8 +643,7 @@ ble_ll_conn_rxend_unencrypt(void *arg)
 
     connsm = (struct ble_ll_conn_sm *)arg;
     CONN_F_ENCRYPTED(connsm) = 0;
-    ble_ll_conn_current_sm_over();
-    ble_ll_event_send(&connsm->conn_ev_end);
+    ble_ll_conn_current_sm_over(connsm);
 }
 
 static void
@@ -2375,7 +2377,7 @@ ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     was_current = 0;
     OS_ENTER_CRITICAL(sr);
     if (g_ble_ll_conn_cur_sm == connsm) {
-        ble_ll_conn_current_sm_over();
+        ble_ll_conn_current_sm_over(NULL);
         was_current = 1;
     }
     OS_EXIT_CRITICAL(sr);
@@ -2447,7 +2449,6 @@ ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
             connsm->anchor_point = connsm->last_anchor_point;
         }
     }
-
     return 1;
 }
 
@@ -2599,7 +2600,7 @@ conn_rx_data_pdu_end:
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu)
+ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     int is_ctrl;
@@ -2615,7 +2616,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu)
     uint32_t endtime;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
-    struct ble_mbuf_hdr *rxhdr;
+    struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *txhdr;
 
     /*
@@ -2630,9 +2631,8 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu)
     }
 
     /* Set the handle in the ble mbuf header */
-    rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
-    hdr_byte = rxpdu->om_data[0];
-    rx_pyld_len = rxpdu->om_data[1];
+    hdr_byte = rxbuf[0];
+    rx_pyld_len = rxbuf[1];
 
     /*
      * Check the packet CRC. A connection event can continue even if the
@@ -2659,15 +2659,13 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu)
         /* Reset consecutively received bad crcs (since this one was good!) */
         connsm->cons_rxd_bad_crc = 0;
 
-        /* Check for valid LLID before proceeding. */
+        /*
+         * Check for valid LLID before proceeding. We have seen some weird
+         * things with the PHY where the CRC is OK but we dont have a valid
+         * LLID. This should really never happen but if it does we will just
+         * bail. An error stat will get incremented at the LL.
+         */
         if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == 0) {
-            /*
-             * XXX: for now, just exit since we dont trust the length
-             * and may erroneously adjust anchor. Once we fix the anchor
-             * point issue we need to decide what to do on bad llid. Note
-             * that an error stat gets counted at the LL
-             */
-            reply = 0;
             goto conn_exit;
         }
 
@@ -2683,7 +2681,7 @@ ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu)
         if ((hdr_sn && conn_nesn) || (!hdr_sn && !conn_nesn)) {
             connsm->next_exp_seqnum ^= 1;
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
-            if (CONN_F_ENCRYPTED(connsm) && !ble_ll_conn_is_empty_pdu(rxpdu)) {
+            if (CONN_F_ENCRYPTED(connsm) && !ble_ll_conn_is_empty_pdu(rxbuf)) {
                 ++connsm->enc_data.rx_pkt_cntr;
             }
 #endif
@@ -2776,13 +2774,13 @@ chk_rx_terminate_ind:
         is_ctrl = 0;
         if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
             is_ctrl = 1;
-            opcode = rxpdu->om_data[2];
+            opcode = rxbuf[2];
         }
 
         /* If we received a terminate IND, we must set some flags */
         if (is_ctrl && (opcode == BLE_LL_CTRL_TERMINATE_IND)) {
             connsm->csmflags.cfbit.terminate_ind_rxd = 1;
-            connsm->rxd_disconnect_reason = rxpdu->om_data[3];
+            connsm->rxd_disconnect_reason = rxbuf[3];
             reply = 1;
         } else if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             reply = CONN_F_LAST_TXD_MD(connsm) || (hdr_byte & BLE_LL_DATA_HDR_MD_MASK);
@@ -2808,12 +2806,15 @@ chk_rx_terminate_ind:
     }
 
 conn_exit:
+    /* Copy the received pdu and hand it up */
+    rxpdu = ble_phy_rxpdu_get(rxbuf, rxbuf[1] + BLE_LL_PDU_HDR_LEN);
+    if (rxpdu) {
+        ble_ll_rx_pdu_in(rxpdu);
+    }
+
     /* Send link layer a connection end event if over */
     if (rc) {
-        ble_ll_conn_current_sm_over();
-        if (connsm) {
-            ble_ll_event_send(&connsm->conn_ev_end);
-        }
+        ble_ll_conn_current_sm_over(connsm);
     }
 
     return rc;
