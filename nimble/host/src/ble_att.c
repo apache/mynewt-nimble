@@ -22,8 +22,6 @@
 #include "bsp/bsp.h"
 #include "ble_hs_priv.h"
 
-static bssnz_t uint8_t ble_att_flat_buf[BLE_ATT_ATTR_MAX_LEN];
-
 static uint16_t ble_att_preferred_mtu;
 
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
@@ -390,17 +388,29 @@ ble_att_inc_rx_stat(uint8_t att_op)
     }
 }
 
-/**
- * Retrieves a pointer to the global ATT flat buffer.  This buffer is only used
- * by the host parent task, so users can assume exclusive access.
- */
-uint8_t *
-ble_att_get_flat_buf(void)
+void
+ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
+                        struct os_mbuf *txom)
 {
-    BLE_HS_DBG_ASSERT(ble_hs_is_parent_task());
-    return ble_att_flat_buf;
+    int32_t extra_len;
+    uint16_t mtu;
+
+    mtu = ble_l2cap_chan_mtu(att_chan);
+    extra_len = OS_MBUF_PKTLEN(txom) - mtu;
+    if (extra_len > 0) {
+        os_mbuf_adj(txom, -extra_len);
+    }
 }
 
+/**
+ * Retrieves the ATT MTU of the specified connection.  If an MTU exchange for
+ * this connection has occurred, the MTU is the lower of the two peers'
+ * preferred values.  Otherwise, the MTU is the default value of 23.
+ *
+ * @param conn_handle           The handle of the connection to query.
+ *
+ * @return                      The specified connection's ATT MTU.
+ */
 uint16_t
 ble_att_mtu(uint16_t conn_handle)
 {
@@ -420,6 +430,16 @@ ble_att_mtu(uint16_t conn_handle)
     ble_hs_unlock();
 
     return mtu;
+}
+
+void
+ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
+{
+    if (peer_mtu < BLE_ATT_MTU_DFLT) {
+        peer_mtu = BLE_ATT_MTU_DFLT;
+    }
+
+    chan->blc_peer_mtu = peer_mtu;
 }
 
 static int
@@ -447,16 +467,6 @@ ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
     }
 
     return 0;
-}
-
-void
-ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
-{
-    if (peer_mtu < BLE_ATT_MTU_DFLT) {
-        peer_mtu = BLE_ATT_MTU_DFLT;
-    }
-
-    chan->blc_peer_mtu = peer_mtu;
 }
 
 /**

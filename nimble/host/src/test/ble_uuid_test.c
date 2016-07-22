@@ -19,9 +19,10 @@
 
 #include <stddef.h>
 #include <string.h>
-#include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
+#include "host/ble_hs_test.h"
 #include "host/ble_uuid.h"
+#include "ble_hs_test_util.h"
 
 TEST_CASE(ble_uuid_test_128_to_16)
 {
@@ -78,6 +79,8 @@ TEST_CASE(ble_uuid_test_128_to_16)
 
 TEST_SUITE(ble_uuid_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_uuid_test_128_to_16();
 }
 

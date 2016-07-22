@@ -2806,7 +2806,7 @@ ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi)
 
 void
 ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
-                        void *attr_data, uint16_t attr_len, int is_indication)
+                        struct os_mbuf *om, int is_indication)
 {
 #if !NIMBLE_OPT(GATT_NOTIFY) && !NIMBLE_OPT(GATT_INDICATE)
     return;
@@ -2818,10 +2818,11 @@ ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
     event.type = BLE_GAP_EVENT_NOTIFY_RX;
     event.notify_rx.conn_handle = conn_handle;
     event.notify_rx.attr_handle = attr_handle;
-    event.notify_rx.attr_data = attr_data;
-    event.notify_rx.attr_len = attr_len;
+    event.notify_rx.om = om;
     event.notify_rx.indication = is_indication;
     ble_gap_call_conn_event_cb(&event, conn_handle);
+
+    os_mbuf_free_chain(event.notify_rx.om);
 }
 
 void

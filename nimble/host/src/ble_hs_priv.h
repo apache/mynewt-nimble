@@ -31,6 +31,7 @@
 #include "ble_hs_conn_priv.h"
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_endian_priv.h"
+#include "ble_hs_mbuf_priv.h"
 #include "ble_hs_startup_priv.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig_priv.h"
@@ -66,7 +67,7 @@ extern struct os_mbuf_pool ble_hs_mbuf_pool;
 extern const uint8_t ble_hs_misc_null_addr[6];
 
 void ble_hs_process_tx_data_queue(void);
-int ble_hs_rx_data(struct os_mbuf *om);
+void ble_hs_process_rx_data_queue(void);
 int ble_hs_tx_data(struct os_mbuf *om);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
@@ -87,10 +88,6 @@ void ble_hs_lock(void);
 void ble_hs_unlock(void);
 void ble_hs_heartbeat_sched(int32_t ticks);
 void ble_hs_notifications_sched(void);
-
-struct os_mbuf *ble_hs_misc_pkthdr(void);
-
-int ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len);
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 

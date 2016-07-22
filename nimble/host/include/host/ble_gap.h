@@ -315,6 +315,9 @@ struct ble_gap_event {
          *     o L2CAP Connection Parameter Update Procedure
          *     o Link-Layer Connection Parameters Request Procedure
          *
+         * To reject the request, return a non-zero HCI error code.  The value
+         * returned is the reject reason given to the controller.
+         *
          * Valid for the following event types:
          *     o BLE_GAP_EVENT_L2CAP_UPDATE_REQ
          *     o BLE_GAP_EVENT_CONN_UPDATE_REQ
@@ -395,14 +398,15 @@ struct ble_gap_event {
          *     o BLE_GAP_EVENT_NOTIFY_RX
          */
         struct {
-            /** The contents of the notification or indication. */
-            void *attr_data;
+            /**
+             * The contents of the notification or indication.  If the
+             * application wishes to retain this mbuf for later use, it must
+             * set this pointer to NULL to prevent the stack from freeing it.
+             */
+            struct os_mbuf *om;
 
             /** The handle of the relevant ATT attribute. */
             uint16_t attr_handle;
-
-            /** The number of data bytes contained in the message. */
-            uint16_t attr_len;
 
             /** The handle of the relevant connection. */
             uint16_t conn_handle;

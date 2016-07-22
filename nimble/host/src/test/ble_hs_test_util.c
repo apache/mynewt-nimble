@@ -719,6 +719,8 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
         rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf);
+    } else {
+        os_mbuf_free_chain(om);
     }
 
     ble_hs_unlock();
@@ -746,7 +748,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
     struct os_mbuf *om;
     int rc;
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = os_mbuf_append(om, data, len);
@@ -980,6 +982,206 @@ ble_hs_test_util_set_static_rnd_addr(void)
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_get_first_hci_tx();
+}
+
+struct os_mbuf *
+ble_hs_test_util_om_from_flat(const void *buf, uint16_t len)
+{
+    struct os_mbuf *om;
+
+    om = ble_hs_mbuf_from_flat(buf, len);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    return om;
+}
+
+int
+ble_hs_test_util_flat_attr_cmp(const struct ble_hs_test_util_flat_attr *a,
+                               const struct ble_hs_test_util_flat_attr *b)
+{
+    if (a->handle != b->handle) {
+        return -1;
+    }
+    if (a->offset != b->offset) {
+        return -1;
+    }
+    if (a->value_len != b->value_len) {
+        return -1;
+    }
+    return memcmp(a->value, b->value, a->value_len);
+}
+
+void
+ble_hs_test_util_attr_to_flat(struct ble_hs_test_util_flat_attr *flat,
+                              const struct ble_gatt_attr *attr)
+{
+    int rc;
+
+    flat->handle = attr->handle;
+    flat->offset = attr->offset;
+    rc = ble_hs_mbuf_to_flat(attr->om, flat->value, sizeof flat->value,
+                           &flat->value_len);
+    TEST_ASSERT_FATAL(rc == 0);
+}
+
+void
+ble_hs_test_util_attr_from_flat(struct ble_gatt_attr *attr,
+                                const struct ble_hs_test_util_flat_attr *flat)
+{
+    attr->handle = flat->handle;
+    attr->offset = flat->offset;
+    attr->om = ble_hs_test_util_om_from_flat(flat->value, flat->value_len);
+}
+
+int
+ble_hs_test_util_read_local_flat(uint16_t attr_handle, uint16_t max_len,
+                                 void *buf, uint16_t *out_len)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    rc = ble_att_svr_read_local(attr_handle, &om);
+    if (rc != 0) {
+        return rc;
+    }
+
+    TEST_ASSERT_FATAL(OS_MBUF_PKTLEN(om) <= max_len);
+
+    rc = os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), buf);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    *out_len = OS_MBUF_PKTLEN(om);
+
+    os_mbuf_free_chain(om);
+    return 0;
+}
+
+int
+ble_hs_test_util_write_local_flat(uint16_t attr_handle,
+                                  const void *buf, uint16_t buf_len)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = ble_hs_test_util_om_from_flat(buf, buf_len);
+    rc = ble_att_svr_write_local(attr_handle, &om);
+    TEST_ASSERT(om == NULL);
+    return rc;
+}
+
+int
+ble_hs_test_util_gatt_write_flat(uint16_t conn_handle, uint16_t attr_handle,
+                                 const void *data, uint16_t data_len,
+                                 ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = ble_hs_test_util_om_from_flat(data, data_len);
+    rc = ble_gattc_write(conn_handle, attr_handle, &om, cb, cb_arg);
+    TEST_ASSERT(om == NULL);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_gatt_write_no_rsp_flat(uint16_t conn_handle,
+                                        uint16_t attr_handle,
+                                        const void *data, uint16_t data_len)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = ble_hs_test_util_om_from_flat(data, data_len);
+    rc = ble_gattc_write_no_rsp(conn_handle, attr_handle, &om);
+    TEST_ASSERT(om == NULL);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
+                                      uint16_t attr_handle,
+                                      const void *data, uint16_t data_len,
+                                      ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = ble_hs_test_util_om_from_flat(data, data_len);
+    rc = ble_gattc_write_long(conn_handle, attr_handle, &om, cb, cb_arg);
+    TEST_ASSERT(om == NULL);
+    return rc;
+}
+
+static int
+ble_hs_test_util_mbuf_chain_len(const struct os_mbuf *om)
+{
+    int count;
+
+    count = 0;
+    while (om != NULL) {
+        count++;
+        om = SLIST_NEXT(om, om_next);
+    }
+
+    return count;
+}
+
+int
+ble_hs_test_util_mbuf_count(void)
+{
+    const struct ble_att_prep_entry *prep;
+    const struct os_mbuf_pkthdr *omp;
+    const struct ble_l2cap_chan *chan;
+    const struct ble_hs_conn *conn;
+    const struct os_mbuf *om;
+    int count;
+    int i;
+
+    count = ble_hs_test_util_mbuf_mpool.mp_num_free;
+    count += ble_hs_test_util_mbuf_chain_len(ble_hs_test_util_prev_tx_cur);
+
+    ble_hs_process_tx_data_queue();
+    ble_hs_process_rx_data_queue();
+    STAILQ_FOREACH(omp, &ble_hs_test_util_prev_tx_queue, omp_next) {
+        om = OS_MBUF_PKTHDR_TO_MBUF(omp);
+        count += ble_hs_test_util_mbuf_chain_len(om);
+    }
+
+    ble_hs_lock();
+    for (i = 0; ; i++) {
+        conn = ble_hs_conn_find_by_idx(i);
+        if (conn == NULL) {
+            break;
+        }
+
+        SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
+            count += ble_hs_test_util_mbuf_chain_len(chan->blc_rx_buf);
+        }
+
+        SLIST_FOREACH(prep, &conn->bhc_att_svr.basc_prep_list, bape_next) {
+            count += ble_hs_test_util_mbuf_chain_len(prep->bape_value);
+        }
+    }
+    ble_hs_unlock();
+
+    return count;
+}
+
+void
+ble_hs_test_util_assert_mbufs_freed(void)
+{
+    int count;
+
+    count = ble_hs_test_util_mbuf_count();
+    TEST_ASSERT(count == ble_hs_test_util_mbuf_mpool.mp_num_blocks);
+}
+
+void
+ble_hs_test_util_post_test(void *arg)
+{
+    ble_hs_test_util_assert_mbufs_freed();
 }
 
 void

@@ -128,15 +128,17 @@ ble_gatts_read_test_util_access_1(uint16_t conn_handle,
                                   struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
+    int rc;
+
     TEST_ASSERT_FATAL(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_1_val_handle);
 
     TEST_ASSERT(ctxt->chr ==
                 &ble_gatts_read_test_svcs[0].characteristics[0]);
-    ctxt->att->read.data = ble_gatts_read_test_chr_1_val +
-                           ctxt->att->read.offset;
-    ctxt->att->read.len = ble_gatts_read_test_chr_1_len -
-                          ctxt->att->read.offset;
+
+    rc = os_mbuf_append(ctxt->om, ble_gatts_read_test_chr_1_val,
+                        ble_gatts_read_test_chr_1_len);
+    TEST_ASSERT(rc == 0);
 
     return 0;
 }
@@ -147,22 +149,23 @@ ble_gatts_read_test_util_access_2(uint16_t conn_handle,
                                   struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
+    uint8_t *buf;
+
     TEST_ASSERT_FATAL(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_2_def_handle + 1);
 
     TEST_ASSERT(ctxt->chr ==
                 &ble_gatts_read_test_svcs[0].characteristics[1]);
 
-    TEST_ASSERT_FATAL(ctxt->att->read.data == ctxt->att->read.buf);
-    TEST_ASSERT(ctxt->att->read.max_data_len == BLE_ATT_MTU_DFLT - 1);
+    buf = os_mbuf_extend(ctxt->om, 6);
+    TEST_ASSERT_FATAL(buf != NULL);
 
-    ctxt->att->read.buf[0] = 0;
-    ctxt->att->read.buf[1] = 10;
-    ctxt->att->read.buf[2] = 20;
-    ctxt->att->read.buf[3] = 30;
-    ctxt->att->read.buf[4] = 40;
-    ctxt->att->read.buf[5] = 50;
-    ctxt->att->read.len = 6;
+    buf[0] = 0;
+    buf[1] = 10;
+    buf[2] = 20;
+    buf[3] = 30;
+    buf[4] = 40;
+    buf[5] = 50;
 
     return 0;
 }
@@ -251,6 +254,8 @@ TEST_CASE(ble_gatts_read_test_case_long)
 
 TEST_SUITE(ble_gatts_read_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gatts_read_test_case_basic();
     ble_gatts_read_test_case_long();
 }

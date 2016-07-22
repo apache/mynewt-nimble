@@ -385,6 +385,8 @@ TEST_CASE(ble_gap_terminate_test_case)
 
 TEST_SUITE(ble_os_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_os_disc_test_case();
     ble_gap_direct_connect_test_case();
     ble_gap_terminate_test_case();

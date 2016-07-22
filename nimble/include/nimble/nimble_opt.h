@@ -138,6 +138,14 @@
 #define NIMBLE_OPT_GATT_INDICATE                1
 #endif
 
+/** HOST: GATT options. */
+
+/* The maximum number of attributes that can be written with a single GATT
+ * Reliable Write procedure.
+ */
+#ifndef NIMBLE_OPT_GATT_WRITE_MAX_ATTRS
+#define NIMBLE_OPT_GATT_WRITE_MAX_ATTRS         4
+#endif
 
 /** HOST: Supported server ATT commands. */
 

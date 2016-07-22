@@ -36,6 +36,13 @@ struct ble_hs_test_util_num_completed_pkts_entry {
     uint16_t num_pkts;
 };
 
+struct ble_hs_test_util_flat_attr {
+    uint16_t handle;
+    uint16_t offset;
+    uint8_t value[BLE_ATT_ATTR_MAX_LEN];
+    uint16_t value_len;
+};
+
 void ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue(void);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue_pullup(void);
@@ -122,6 +129,32 @@ void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
 void ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data,
                                               int attr_len);
 void ble_hs_test_util_set_static_rnd_addr(void);
+struct os_mbuf *ble_hs_test_util_om_from_flat(const void *buf, uint16_t len);
+int ble_hs_test_util_flat_attr_cmp(const struct ble_hs_test_util_flat_attr *a,
+                                   const struct ble_hs_test_util_flat_attr *b);
+void ble_hs_test_util_attr_to_flat(struct ble_hs_test_util_flat_attr *flat,
+                                   const struct ble_gatt_attr *attr);
+void ble_hs_test_util_attr_from_flat(
+    struct ble_gatt_attr *attr, const struct ble_hs_test_util_flat_attr *flat);
+int ble_hs_test_util_read_local_flat(uint16_t attr_handle, uint16_t max_len,
+                                     void *buf, uint16_t *out_len);
+int ble_hs_test_util_write_local_flat(uint16_t attr_handle,
+                                      const void *buf, uint16_t buf_len);
+int ble_hs_test_util_gatt_write_flat(uint16_t conn_handle,
+                                     uint16_t attr_handle,
+                                     const void *data, uint16_t data_len,
+                                     ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_hs_test_util_gatt_write_no_rsp_flat(uint16_t conn_handle,
+                                            uint16_t attr_handle,
+                                            const void *data,
+                                            uint16_t data_len);
+int ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
+                                          uint16_t attr_handle,
+                                          const void *data, uint16_t data_len,
+                                          ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_hs_test_util_mbuf_count(void);
+void ble_hs_test_util_assert_mbufs_freed(void);
+void ble_hs_test_util_post_test(void *arg);
 void ble_hs_test_util_init(void);
 
 #endif

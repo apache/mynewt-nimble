@@ -82,8 +82,7 @@ struct ble_gatt_svc {
 struct ble_gatt_attr {
     uint16_t handle;
     uint16_t offset;
-    uint16_t value_len;
-    const void *value;
+    struct os_mbuf *om;
 };
 
 struct ble_gatt_chr {
@@ -107,11 +106,11 @@ typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
                                  void *arg);
 typedef int ble_gatt_attr_fn(uint16_t conn_handle,
                              const struct ble_gatt_error *error,
-                             const struct ble_gatt_attr *attr,
+                             struct ble_gatt_attr *attr,
                              void *arg);
 typedef int ble_gatt_reliable_attr_fn(uint16_t conn_handle,
                                       const struct ble_gatt_error *error,
-                                      const struct ble_gatt_attr *attrs,
+                                      struct ble_gatt_attr *attrs,
                                       uint8_t num_attrs, void *arg);
 
 typedef int ble_gatt_chr_fn(uint16_t conn_handle,
@@ -153,29 +152,26 @@ int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
                         void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                           const void *value, uint16_t value_len);
+                           struct os_mbuf **om);
+int ble_gattc_write_no_rsp_flat(uint16_t conn_handle, uint16_t attr_handle,
+                                const void *data, uint16_t data_len);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
-                    const void *value, uint16_t value_len,
+                    struct os_mbuf **om,
                     ble_gatt_attr_fn *cb, void *cb_arg);
+int ble_gattc_write_flat(uint16_t conn_handle, uint16_t attr_handle,
+                         const void *data, uint16_t data_len,
+                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                         const void *value, uint16_t value_len,
+                         struct os_mbuf **om,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_reliable(uint16_t conn_handle,
-                             const struct ble_gatt_attr *attrs,
+                             struct ble_gatt_attr *attrs,
                              int num_attrs, ble_gatt_reliable_attr_fn *cb,
                              void *cb_arg);
-int ble_gattc_read_dsc(uint16_t conn_handle, uint16_t attr_handle,
-                       ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_read_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
-                            ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_write_dsc(uint16_t conn_handle, uint16_t attr_handle,
-                        const void *value, uint16_t value_len,
-                        ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_write_long_dsc(uint16_t conn_handle, uint16_t attr_handle,
-                             const void *value, uint16_t value_len,
-                             ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
-                            const void *attr_data, uint16_t attr_data_len);
+                            struct os_mbuf **om);
+int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
+int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
 int ble_gattc_init(void);
 
@@ -266,9 +262,20 @@ struct ble_gatt_access_ctxt {
     uint8_t op;
 
     /**
+     * A container for the GATT access data.
+     *     o For reads: The application populates this with the value of the
+     *       characteristic or descriptor being read.
+     *     o For writes: This is already populated with the value being written
+     *       by the peer.  If the application wishes to retain this mbuf for
+     *       later use, it must set this pointer to NULL to prevent the stack
+     *       from freeing it.
+     */
+    struct os_mbuf *om;
+
+    /**
      * The GATT operation being performed dictates which field in this union is
      * valid.  If a characteristic is being accessed, the chr field is valid.
-     * Otherwise, a descriptor is being accessed, in which case the dsc field
+     * Otherwise a descriptor is being accessed, in which case the dsc field
      * is valid.
      */
     union {
@@ -284,12 +291,6 @@ struct ble_gatt_access_ctxt {
          */
         const struct ble_gatt_dsc_def *dsc;
     };
-
-    /**
-     * Context describing the underlying ATT access.  Specifies additional
-     * details about the read or write being performed.
-     */
-    struct ble_att_svr_access_ctxt *att;
 };
 
 struct ble_gatt_dsc_def {

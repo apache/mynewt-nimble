@@ -45,47 +45,6 @@ ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
     return 0;
 }
 
-/**
- * Allocates an mbuf for use by the nimble host.
- */
-struct os_mbuf *
-ble_hs_misc_pkthdr(void)
-{
-    struct os_mbuf *om;
-    int rc;
-
-    om = os_msys_get_pkthdr(0, 0);
-    if (om == NULL) {
-        return NULL;
-    }
-
-    /* Make room in the buffer for various headers.  XXX Check this number. */
-    if (om->om_omp->omp_databuf_len < 8) {
-        rc = os_mbuf_free_chain(om);
-        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-        return NULL;
-    }
-
-    om->om_data += 8;
-
-    return om;
-}
-
-int
-ble_hs_misc_pullup_base(struct os_mbuf **om, int base_len)
-{
-    if (OS_MBUF_PKTLEN(*om) < base_len) {
-        return BLE_HS_EBADDATA;
-    }
-
-    *om = os_mbuf_pullup(*om, base_len);
-    if (*om == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    return 0;
-}
-
 int
 ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
                            struct ble_hs_conn **out_conn,

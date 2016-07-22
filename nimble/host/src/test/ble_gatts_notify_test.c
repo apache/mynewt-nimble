@@ -378,21 +378,25 @@ ble_gatts_notify_test_misc_access(uint16_t conn_handle,
                                   struct ble_gatt_access_ctxt *ctxt,
                                   void *arg)
 {
+    int rc;
+
     TEST_ASSERT_FATAL(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT(conn_handle == 0xffff);
 
     if (attr_handle == ble_gatts_notify_test_chr_1_def_handle + 1) {
         TEST_ASSERT(ctxt->chr ==
                     &ble_gatts_notify_test_svcs[0].characteristics[0]);
-        ctxt->att->read.data = ble_gatts_notify_test_chr_1_val;
-        ctxt->att->read.len = ble_gatts_notify_test_chr_1_len;
+        rc = os_mbuf_copyinto(ctxt->om, 0, ble_gatts_notify_test_chr_1_val,
+                              ble_gatts_notify_test_chr_1_len);
+        TEST_ASSERT_FATAL(rc == 0);
     } else if (attr_handle == ble_gatts_notify_test_chr_2_def_handle + 1) {
         TEST_ASSERT(ctxt->chr ==
                     &ble_gatts_notify_test_svcs[0].characteristics[1]);
-        ctxt->att->read.data = ble_gatts_notify_test_chr_2_val;
-        ctxt->att->read.len = ble_gatts_notify_test_chr_2_len;
+        rc = os_mbuf_copyinto(ctxt->om, 0, ble_gatts_notify_test_chr_2_val,
+                              ble_gatts_notify_test_chr_2_len);
+        TEST_ASSERT_FATAL(rc == 0);
     } else {
-        TEST_ASSERT(0);
+        TEST_ASSERT_FATAL(0);
     }
 
     return 0;
@@ -954,6 +958,8 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
 
 TEST_SUITE(ble_gatts_notify_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gatts_notify_test_n();
     ble_gatts_notify_test_i();
 

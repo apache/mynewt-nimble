@@ -1285,7 +1285,7 @@ ble_sm_random_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_RANDOM_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_RANDOM_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -1335,7 +1335,7 @@ ble_sm_confirm_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *prev;
     uint8_t ioact;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_CONFIRM_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_CONFIRM_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -1496,7 +1496,7 @@ ble_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *prev;
     struct ble_hs_conn *conn;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_CMD_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_CMD_SZ);
     if (res->app_status != 0) {
         return;
     }
@@ -1553,7 +1553,7 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *prev;
     uint8_t ioact;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_CMD_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_CMD_SZ);
     if (res->app_status != 0) {
         res->enc_cb = 1;
         return;
@@ -1616,7 +1616,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_hs_conn *conn;
     int authreq_mitm;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_SEC_REQ_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_SEC_REQ_SZ);
     if (res->app_status != 0) {
         return;
     }
@@ -1841,7 +1841,7 @@ ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_ENC_INFO_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ENC_INFO_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -1877,7 +1877,7 @@ ble_sm_master_id_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_MASTER_ID_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_MASTER_ID_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -1914,7 +1914,7 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_ID_INFO_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ID_INFO_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -1951,7 +1951,7 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_ID_ADDR_INFO_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ID_ADDR_INFO_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -1989,7 +1989,7 @@ ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_SIGN_INFO_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_SIGN_INFO_SZ);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
@@ -2030,7 +2030,7 @@ ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     res->enc_cb = 1;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PAIR_FAIL_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_FAIL_SZ);
     if (res->app_status == 0) {
         ble_sm_pair_fail_parse((*om)->om_data, (*om)->om_len, &cmd);
         BLE_SM_LOG_CMD(0, "fail", conn_handle, ble_sm_pair_fail_log, &cmd);

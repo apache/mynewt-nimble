@@ -66,11 +66,13 @@ STATS_NAME_END(ble_gatts_stats)
 
 static int
 ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
-                     uint8_t *uuid128, uint8_t op,
-                     struct ble_att_svr_access_ctxt *ctxt, void *arg)
+                     uint8_t op, uint16_t offset, struct os_mbuf **om,
+                     void *arg)
 {
     const struct ble_gatt_svc_def *svc;
     uint16_t uuid16;
+    uint8_t *buf;
+    int rc;
 
     STATS_INC(ble_gatts_stats, svc_def_reads);
 
@@ -80,11 +82,16 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     uuid16 = ble_uuid_128_to_16(svc->uuid128);
     if (uuid16 != 0) {
-        htole16(ctxt->read.buf, uuid16);
-        ctxt->read.len = 2;
+        buf = os_mbuf_extend(*om, 2);
+        if (buf == NULL) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        htole16(buf, uuid16);
     } else {
-        ctxt->read.data = svc->uuid128;
-        ctxt->read.len = 16;
+        rc = os_mbuf_append(*om, svc->uuid128, 16);
+        if (rc != 0) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
     }
 
     return 0;
@@ -92,11 +99,12 @@ ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
-                     uint8_t *uuid128, uint8_t op,
-                     struct ble_att_svr_access_ctxt *ctxt, void *arg)
+                     uint8_t op, uint16_t offset, struct os_mbuf **om,
+                     void *arg)
 {
     const struct ble_gatts_svc_entry *entry;
     uint16_t uuid16;
+    uint8_t *buf;
 
     STATS_INC(ble_gatts_stats, svc_inc_reads);
 
@@ -104,16 +112,21 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     entry = arg;
 
-    htole16(ctxt->read.buf + 0, entry->handle);
-    htole16(ctxt->read.buf + 2, entry->end_group_handle);
+    buf = os_mbuf_extend(*om, 4);
+    if (buf == NULL) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    htole16(buf + 0, entry->handle);
+    htole16(buf + 2, entry->end_group_handle);
 
     /* Only include the service UUID if it has a 16-bit representation. */
     uuid16 = ble_uuid_128_to_16(entry->svc->uuid128);
     if (uuid16 != 0) {
-        htole16(ctxt->read.buf + 4, uuid16);
-        ctxt->read.len = 6;
-    } else {
-        ctxt->read.len = 4;
+        buf = os_mbuf_extend(*om, 2);
+        if (buf == NULL) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        htole16(buf, uuid16);
     }
 
     return 0;
@@ -208,11 +221,12 @@ ble_gatts_chr_properties(const struct ble_gatt_chr_def *chr)
 
 static int
 ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
-                         uint8_t *uuid128, uint8_t op,
-                         struct ble_att_svr_access_ctxt *ctxt, void *arg)
+                         uint8_t op, uint16_t offset, struct os_mbuf **om,
+                         void *arg)
 {
     const struct ble_gatt_chr_def *chr;
     uint16_t uuid16;
+    uint8_t *buf;
 
     STATS_INC(ble_gatts_stats, chr_def_reads);
 
@@ -220,18 +234,29 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
 
     chr = arg;
 
-    ctxt->read.buf[0] = ble_gatts_chr_properties(chr);
+    buf = os_mbuf_extend(*om, 3);
+    if (buf == NULL) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
+    buf[0] = ble_gatts_chr_properties(chr);
 
     /* The value attribute is always immediately after the declaration. */
-    htole16(ctxt->read.buf + 1, attr_handle + 1);
+    htole16(buf + 1, attr_handle + 1);
 
     uuid16 = ble_uuid_128_to_16(chr->uuid128);
     if (uuid16 != 0) {
-        htole16(ctxt->read.buf + 3, uuid16);
-        ctxt->read.len = 5;
+        buf = os_mbuf_extend(*om, 2);
+        if (buf == NULL) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        htole16(buf, uuid16);
     } else {
-        memcpy(ctxt->read.buf + 3, chr->uuid128, 16);
-        ctxt->read.len = 19;
+        buf = os_mbuf_extend(*om, 16);
+        if (buf == NULL) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        memcpy(buf, chr->uuid128, 16);
     }
 
     return 0;
@@ -287,9 +312,50 @@ ble_gatts_chr_inc_val_stat(uint8_t gatt_op)
 }
 
 static int
+ble_gatts_val_access(uint16_t conn_handle, uint16_t attr_handle,
+                     uint16_t offset, struct ble_gatt_access_ctxt *gatt_ctxt,
+                     struct os_mbuf **om, ble_gatt_access_fn *access_cb,
+                     void *cb_arg)
+{
+    int attr_len;
+    int rc;
+
+    switch (gatt_ctxt->op) {
+    case BLE_GATT_ACCESS_OP_READ_CHR:
+    case BLE_GATT_ACCESS_OP_READ_DSC:
+        gatt_ctxt->om = os_msys_get_pkthdr(0, 0);
+        if (gatt_ctxt->om == NULL) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+
+        rc = access_cb(conn_handle, attr_handle, gatt_ctxt, cb_arg);
+        if (rc == 0) {
+            attr_len = OS_MBUF_PKTLEN(gatt_ctxt->om) - offset;
+            if (attr_len > 0) {
+                os_mbuf_appendfrom(*om, gatt_ctxt->om, offset, attr_len);
+            }
+        }
+
+        os_mbuf_free_chain(gatt_ctxt->om);
+        return rc;
+
+    case BLE_GATT_ACCESS_OP_WRITE_CHR:
+    case BLE_GATT_ACCESS_OP_WRITE_DSC:
+        gatt_ctxt->om = *om;
+        rc = access_cb(conn_handle, attr_handle, gatt_ctxt, cb_arg);
+        *om = gatt_ctxt->om;
+        return rc;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+}
+
+static int
 ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
-                         uint8_t *uuid128, uint8_t att_op,
-                         struct ble_att_svr_access_ctxt *att_ctxt, void *arg)
+                         uint8_t att_op, uint16_t offset,
+                         struct os_mbuf **om, void *arg)
 {
     const struct ble_gatt_chr_def *chr_def;
     struct ble_gatt_access_ctxt gatt_ctxt;
@@ -299,23 +365,13 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     BLE_HS_DBG_ASSERT(chr_def != NULL && chr_def->access_cb != NULL);
 
     gatt_ctxt.op = ble_gatts_chr_op(att_op);
-    ble_gatts_chr_inc_val_stat(gatt_ctxt.op);
-
     gatt_ctxt.chr = chr_def;
-    gatt_ctxt.att = att_ctxt;
-    rc = chr_def->access_cb(conn_handle, attr_handle, &gatt_ctxt,
-                            chr_def->arg);
-    if (rc != 0) {
-        return rc;
-    }
 
-    if (gatt_ctxt.op == BLE_GATT_ACCESS_OP_WRITE_CHR &&
-        ble_gatts_chr_clt_cfg_allowed(chr_def)) {
+    ble_gatts_chr_inc_val_stat(gatt_ctxt.op);
+    rc = ble_gatts_val_access(conn_handle, attr_handle, offset, &gatt_ctxt, om,
+                              chr_def->access_cb, chr_def->arg);
 
-        ble_gatts_chr_updated(attr_handle - 1);
-    }
-
-    return 0;
+    return rc;
 }
 
 static int
@@ -406,40 +462,24 @@ ble_gatts_dsc_inc_stat(uint8_t gatt_op)
 
 static int
 ble_gatts_dsc_access(uint16_t conn_handle, uint16_t attr_handle,
-                     uint8_t *uuid128, uint8_t att_op,
-                     struct ble_att_svr_access_ctxt *att_ctxt, void *arg)
+                     uint8_t att_op, uint16_t offset, struct os_mbuf **om,
+                     void *arg)
 {
-    struct ble_gatt_access_ctxt gatt_ctxt;
     const struct ble_gatt_dsc_def *dsc_def;
+    struct ble_gatt_access_ctxt gatt_ctxt;
     int rc;
 
     dsc_def = arg;
     BLE_HS_DBG_ASSERT(dsc_def != NULL && dsc_def->access_cb != NULL);
 
     gatt_ctxt.op = ble_gatts_dsc_op(att_op);
-    switch (gatt_ctxt.op) {
-    case BLE_GATT_ACCESS_OP_READ_DSC:
-        break;
-
-    case BLE_GATT_ACCESS_OP_WRITE_DSC:
-        break;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        return BLE_HS_EUNKNOWN;
-    }
+    gatt_ctxt.dsc = dsc_def;
 
     ble_gatts_dsc_inc_stat(gatt_ctxt.op);
+    rc = ble_gatts_val_access(conn_handle, attr_handle, offset, &gatt_ctxt, om,
+                              dsc_def->access_cb, dsc_def->arg);
 
-    gatt_ctxt.dsc = dsc_def;
-    gatt_ctxt.att = att_ctxt;
-    rc = dsc_def->access_cb(conn_handle, attr_handle, &gatt_ctxt,
-                            dsc_def->arg);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return rc;
 }
 
 static int
@@ -561,8 +601,8 @@ ble_gatts_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
  */
 static int
 ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
-                                uint8_t att_op,
-                                struct ble_att_svr_access_ctxt *ctxt,
+                                uint8_t att_op, uint16_t offset,
+                                struct os_mbuf *om,
                                 struct ble_store_value_cccd *out_cccd,
                                 uint8_t *out_prev_clt_cfg_flags,
                                 uint8_t *out_cur_clt_cfg_flags)
@@ -571,8 +611,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     uint16_t chr_val_handle;
     uint16_t flags;
     uint8_t gatt_op;
-
-    static uint8_t buf[2];
+    uint8_t *buf;
 
     /* Assume nothing needs to be persisted. */
     out_cccd->chr_val_handle = 0;
@@ -602,18 +641,23 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     switch (gatt_op) {
     case BLE_GATT_ACCESS_OP_READ_DSC:
         STATS_INC(ble_gatts_stats, dsc_reads);
+        buf = os_mbuf_extend(om, 2);
+        if (buf == NULL) {
+            return BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
         htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
-        ctxt->read.data = buf;
-        ctxt->read.len = sizeof buf;
         break;
 
     case BLE_GATT_ACCESS_OP_WRITE_DSC:
         STATS_INC(ble_gatts_stats, dsc_writes);
-        if (ctxt->write.len != 2) {
+        if (OS_MBUF_PKTLEN(om) != 2) {
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
 
-        flags = le16toh(ctxt->write.data);
+        om = os_mbuf_pullup(om, 2);
+        BLE_HS_DBG_ASSERT(om != NULL);
+
+        flags = le16toh(om->om_data);
         if ((flags & ~clt_cfg->allowed) != 0) {
             return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
         }
@@ -643,8 +687,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
 
 static int
 ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
-                         uint8_t *uuid128, uint8_t op,
-                         struct ble_att_svr_access_ctxt *ctxt,
+                         uint8_t op, uint16_t offset, struct os_mbuf **om,
                          void *arg)
 {
     struct ble_store_value_cccd cccd_value;
@@ -661,9 +704,8 @@ ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
     if (conn == NULL) {
         rc = BLE_ATT_ERR_UNLIKELY;
     } else {
-        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, op, ctxt,
-                                             &cccd_value,
-                                             &prev_flags,
+        rc = ble_gatts_clt_cfg_access_locked(conn, attr_handle, op, offset,
+                                             *om, &cccd_value, &prev_flags,
                                              &cur_flags);
     }
 

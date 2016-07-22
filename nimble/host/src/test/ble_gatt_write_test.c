@@ -33,7 +33,7 @@ static int ble_gatt_write_test_cb_called;
 static uint8_t ble_gatt_write_test_attr_value[BLE_ATT_ATTR_MAX_LEN];
 static struct ble_gatt_error ble_gatt_write_test_error;
 
-static const struct ble_gatt_attr *
+static struct ble_hs_test_util_flat_attr
 ble_gatt_write_test_attrs[BLE_GATT_WRITE_TEST_MAX_ATTRS];
 static int ble_gatt_write_test_num_attrs;
 
@@ -54,7 +54,7 @@ ble_gatt_write_test_init(void)
 static int
 ble_gatt_write_test_cb_good(uint16_t conn_handle,
                             const struct ble_gatt_error *error,
-                            const struct ble_gatt_attr *attr, void *arg)
+                            struct ble_gatt_attr *attr, void *arg)
 {
     int *attr_len;
 
@@ -132,9 +132,9 @@ ble_gatt_write_test_misc_long_good(int attr_len)
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    rc = ble_gattc_write_long(2, 100, ble_gatt_write_test_attr_value,
-                              attr_len, ble_gatt_write_test_cb_good,
-                              &attr_len);
+    rc = ble_hs_test_util_gatt_write_long_flat(
+        2, 100, ble_gatt_write_test_attr_value, attr_len,
+        ble_gatt_write_test_cb_good, &attr_len);
     TEST_ASSERT(rc == 0);
 
     off = 0;
@@ -182,8 +182,9 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    rc = ble_gattc_write_long(2, 100, ble_gatt_write_test_attr_value,
-                              attr_len, ble_gatt_write_test_cb_good, NULL);
+    rc = ble_hs_test_util_gatt_write_long_flat(
+        2, 100, ble_gatt_write_test_attr_value, attr_len,
+        ble_gatt_write_test_cb_good, NULL);
     TEST_ASSERT(rc == 0);
 
     fail_now = 0;
@@ -258,7 +259,7 @@ ble_gatt_write_test_misc_long_fail_length(uint16_t conn_handle,
 static int
 ble_gatt_write_test_reliable_cb_good(uint16_t conn_handle,
                                      const struct ble_gatt_error *error,
-                                     const struct ble_gatt_attr *attrs,
+                                     struct ble_gatt_attr *attrs,
                                      uint8_t num_attrs, void *arg)
 {
     int i;
@@ -269,7 +270,8 @@ ble_gatt_write_test_reliable_cb_good(uint16_t conn_handle,
 
     ble_gatt_write_test_num_attrs = num_attrs;
     for (i = 0; i < num_attrs; i++) {
-        ble_gatt_write_test_attrs[i] = attrs + i;
+        ble_hs_test_util_attr_to_flat(ble_gatt_write_test_attrs + i,
+                                      attrs + i);
     }
 
     ble_gatt_write_test_cb_called = 1;
@@ -278,8 +280,10 @@ ble_gatt_write_test_reliable_cb_good(uint16_t conn_handle,
 }
 
 static void
-ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
+ble_gatt_write_test_misc_reliable_good(
+    struct ble_hs_test_util_flat_attr *flat_attrs)
 {
+    struct ble_gatt_attr attrs[16];
     int num_attrs;
     int attr_idx;
     int rc;
@@ -287,8 +291,11 @@ ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
 
     ble_gatt_write_test_init();
 
-    for (num_attrs = 0; attrs[num_attrs].handle != 0; num_attrs++)
-        ;
+    for (num_attrs = 0; flat_attrs[num_attrs].handle != 0; num_attrs++) {
+        TEST_ASSERT_FATAL(num_attrs < sizeof attrs / sizeof attrs[0]);
+        ble_hs_test_util_attr_from_flat(attrs + num_attrs,
+                                        flat_attrs + num_attrs);
+    }
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
@@ -302,9 +309,9 @@ ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
         ble_hs_test_util_tx_all();
 
         /* Receive Prep Write response. */
-        ble_gatt_write_test_rx_prep_rsp(2, attrs[attr_idx].handle, 0,
-                                        attrs[attr_idx].value,
-                                        attrs[attr_idx].value_len);
+        ble_gatt_write_test_rx_prep_rsp(2, flat_attrs[attr_idx].handle, 0,
+                                        flat_attrs[attr_idx].value,
+                                        flat_attrs[attr_idx].value_len);
 
         /* Verify callback hasn't gotten called. */
         TEST_ASSERT(!ble_gatt_write_test_cb_called);
@@ -318,7 +325,9 @@ ble_gatt_write_test_misc_reliable_good(struct ble_gatt_attr *attrs)
     TEST_ASSERT(ble_gatt_write_test_cb_called);
     TEST_ASSERT(ble_gatt_write_test_num_attrs == num_attrs);
     for (i = 0; i < num_attrs; i++) {
-        TEST_ASSERT(ble_gatt_write_test_attrs[i] == attrs + i);
+        rc = ble_hs_test_util_flat_attr_cmp(
+            ble_gatt_write_test_attrs + i, flat_attrs + i);
+        TEST_ASSERT(rc == 0);
     }
 }
 
@@ -333,8 +342,8 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
                                  NULL, NULL);
 
     attr_len = 4;
-    rc = ble_gattc_write_no_rsp(2, 100, ble_gatt_write_test_attr_value,
-                                attr_len);
+    rc = ble_hs_test_util_gatt_write_no_rsp_flat(
+        2, 100, ble_gatt_write_test_attr_value, attr_len);
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
@@ -354,8 +363,9 @@ TEST_CASE(ble_gatt_write_test_rsp)
                                  NULL, NULL);
 
     attr_len = 4;
-    ble_gattc_write(2, 100, ble_gatt_write_test_attr_value, attr_len,
-                    ble_gatt_write_test_cb_good, &attr_len);
+    ble_hs_test_util_gatt_write_flat(2, 100, ble_gatt_write_test_attr_value,
+                                     attr_len, ble_gatt_write_test_cb_good,
+                                     &attr_len);
 
     /* Send the pending ATT Write Command. */
     ble_hs_test_util_tx_all();
@@ -460,42 +470,42 @@ TEST_CASE(ble_gatt_write_test_reliable_good)
 {
     /*** 1 attribute. */
     ble_gatt_write_test_misc_reliable_good(
-        ((struct ble_gatt_attr[]) { {
+        ((struct ble_hs_test_util_flat_attr[]) { {
             .handle = 100,
             .value_len = 2,
-            .value = (uint8_t[]){ 1, 2 },
+            .value = { 1, 2 },
         }, {
             0
         } }));
 
     /*** 2 attributes. */
     ble_gatt_write_test_misc_reliable_good(
-        ((struct ble_gatt_attr[]) { {
+        ((struct ble_hs_test_util_flat_attr[]) { {
             .handle = 100,
             .value_len = 2,
-            .value = (uint8_t[]){ 1,2 },
+            .value = { 1,2 },
         }, {
             .handle = 113,
             .value_len = 6,
-            .value = (uint8_t[]){ 5,6,7,8,9,10 },
+            .value = { 5,6,7,8,9,10 },
         }, {
             0
         } }));
 
     /*** 3 attributes. */
     ble_gatt_write_test_misc_reliable_good(
-        ((struct ble_gatt_attr[]) { {
+        ((struct ble_hs_test_util_flat_attr[]) { {
             .handle = 100,
             .value_len = 2,
-            .value = (uint8_t[]){ 1,2 },
+            .value = { 1,2 },
         }, {
             .handle = 113,
             .value_len = 6,
-            .value = (uint8_t[]){ 5,6,7,8,9,10 },
+            .value = { 5,6,7,8,9,10 },
         }, {
             .handle = 144,
             .value_len = 1,
-            .value = (uint8_t[]){ 0xff },
+            .value = { 0xff },
         }, {
             0
         } }));
@@ -513,8 +523,9 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    rc = ble_gattc_write_long(2, 100, ble_gatt_write_test_attr_value,
-                              128, ble_gatt_write_test_cb_good, NULL);
+    rc = ble_hs_test_util_gatt_write_long_flat(
+        2, 100, ble_gatt_write_test_attr_value, 128,
+        ble_gatt_write_test_cb_good, NULL);
     TEST_ASSERT(rc == 0);
 
     off = 0;
@@ -554,6 +565,8 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
 
 TEST_SUITE(ble_gatt_write_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gatt_write_test_no_rsp();
     ble_gatt_write_test_rsp();
     ble_gatt_write_test_long_good();

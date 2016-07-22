@@ -63,14 +63,17 @@ ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle,
                                      struct ble_att_write_req *req,
                                      void *value, int value_len, int is_req)
 {
+    struct os_mbuf *om;
     int rc;
 
+    om = ble_hs_test_util_om_from_flat(value, value_len);
     if (is_req) {
-        rc = ble_att_clt_tx_write_req(conn_handle, req, value, value_len);
+        rc = ble_att_clt_tx_write_req(conn_handle, req, &om);
     } else {
-        rc = ble_att_clt_tx_write_cmd(conn_handle, req, value, value_len);
+        rc = ble_att_clt_tx_write_cmd(conn_handle, req, &om);
     }
     TEST_ASSERT(rc == 0);
+    TEST_ASSERT(om == NULL);
 }
 
 TEST_CASE(ble_att_clt_test_tx_find_info)
@@ -212,9 +215,10 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
 
     req.bapc_handle = handle;
     req.bapc_offset = offset;
-    rc = ble_att_clt_tx_prep_write(conn_handle, &req, attr_data,
-                                   attr_data_len);
+    om = ble_hs_test_util_om_from_flat(attr_data, attr_data_len);
+    rc = ble_att_clt_tx_prep_write(conn_handle, &req, &om);
     TEST_ASSERT(rc == 0);
+    TEST_ASSERT(om == NULL);
 
     ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
@@ -259,16 +263,19 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
                                int status)
 {
     struct ble_att_prep_write_cmd req;
+    struct os_mbuf *om;
     uint16_t conn_handle;
     int rc;
 
     conn_handle = ble_att_clt_test_misc_init();
 
+    om = ble_hs_test_util_om_from_flat(attr_data, attr_data_len);
+
     req.bapc_handle = handle;
     req.bapc_offset = offset;
-    rc = ble_att_clt_tx_prep_write(conn_handle, &req, attr_data,
-                                   attr_data_len);
+    rc = ble_att_clt_tx_prep_write(conn_handle, &req, &om);
     TEST_ASSERT(rc == status);
+    TEST_ASSERT(om == NULL);
 }
 
 TEST_CASE(ble_att_clt_test_tx_write)
@@ -504,6 +511,8 @@ TEST_CASE(ble_att_clt_test_tx_exec_write)
 
 TEST_SUITE(ble_att_clt_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_att_clt_test_tx_find_info();
     ble_att_clt_test_rx_find_info();
     ble_att_clt_test_tx_read();

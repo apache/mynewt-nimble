@@ -758,11 +758,18 @@ static struct os_mbuf *
 host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
 {
     struct hci_data_hdr hci_hdr;
+    struct os_mbuf *om2;
 
     hci_hdr.hdh_handle_pb_bc = host_hci_handle_pb_bc_join(handle, pb_flag, 0);
     htole16(&hci_hdr.hdh_len, OS_MBUF_PKTHDR(om)->omp_len);
 
-    om = os_mbuf_prepend(om, sizeof hci_hdr);
+    om2 = os_mbuf_prepend(om, sizeof hci_hdr);
+    if (om2 == NULL) {
+        return NULL;
+    }
+    BLE_HS_DBG_ASSERT(om2 == om);
+
+    om = os_mbuf_pullup(om, sizeof hci_hdr);
     if (om == NULL) {
         return NULL;
     }
@@ -805,7 +812,7 @@ host_hci_split_frag(struct os_mbuf *om, struct os_mbuf **out_frag)
         return BLE_HS_EDONE;
     }
 
-    frag = os_msys_get_pkthdr(host_hci_buffer_sz, 0);
+    frag = ble_hs_mbuf_acm_pkt();
     if (frag == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
@@ -836,12 +843,17 @@ err:
  * fragments.
  */
 int
-host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *om)
+host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
 {
     struct os_mbuf *frag;
+    struct os_mbuf *om;
     uint8_t pb;
     int done;
     int rc;
+
+    /* Consume mbuf from caller. */
+    om = *txom;
+    *txom = NULL;
 
     /* The first fragment uses the first-non-flush packet boundary value.
      * After sending the first fragment, pb gets set appropriately for all
