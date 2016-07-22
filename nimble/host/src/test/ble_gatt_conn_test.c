@@ -36,16 +36,16 @@ struct ble_gatt_conn_test_cb_arg {
 
 static int
 ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle,
-                           uint8_t *uuid128, uint8_t op,
-                           struct ble_att_svr_access_ctxt *ctxt,
+                           uint8_t op, uint16_t offset, struct os_mbuf **om,
                            void *arg)
 {
-    static uint8_t data = 1;
+    uint8_t *buf;
 
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
-        ctxt->read.data = &data;
-        ctxt->read.len = 1;
+        buf = os_mbuf_extend(*om, 1);
+        TEST_ASSERT_FATAL(buf != NULL);
+        *buf = 1;
         return 0;
 
     default:
@@ -201,7 +201,7 @@ ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_read_cb(uint16_t conn_handle,
                            const struct ble_gatt_error *error,
-                           const struct ble_gatt_attr *attr, void *arg)
+                           struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -221,7 +221,7 @@ ble_gatt_conn_test_read_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_read_uuid_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
-                                const struct ble_gatt_attr *attr, void *arg)
+                                struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -241,7 +241,7 @@ ble_gatt_conn_test_read_uuid_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_read_long_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
-                                const struct ble_gatt_attr *attr, void *arg)
+                                struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -260,7 +260,7 @@ ble_gatt_conn_test_read_long_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
-                                const struct ble_gatt_attr *attr, void *arg)
+                                struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -270,7 +270,7 @@ ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
     TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
-    TEST_ASSERT(attr == NULL);
+    TEST_ASSERT(attr->om == NULL);
 
     cb_arg->called++;
 
@@ -280,7 +280,7 @@ ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_write_cb(uint16_t conn_handle,
                             const struct ble_gatt_error *error,
-                            const struct ble_gatt_attr *attr,
+                            struct ble_gatt_attr *attr,
                             void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
@@ -302,7 +302,7 @@ ble_gatt_conn_test_write_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_write_long_cb(uint16_t conn_handle,
                                  const struct ble_gatt_error *error,
-                                 const struct ble_gatt_attr *attr, void *arg)
+                                 struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_cb_arg *cb_arg;
 
@@ -323,7 +323,7 @@ ble_gatt_conn_test_write_long_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
-                                const struct ble_gatt_attr *attrs,
+                                struct ble_gatt_attr *attrs,
                                 uint8_t num_attrs,
                                 void *arg)
 {
@@ -358,6 +358,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     struct ble_gatt_conn_test_cb_arg write_arg          = { 0 };
     struct ble_gatt_conn_test_cb_arg write_long_arg     = { 0 };
     struct ble_gatt_conn_test_cb_arg write_rel_arg      = { 0 };
+    struct ble_gatt_attr attr;
     uint16_t attr_handle;
     int rc;
 
@@ -439,25 +440,25 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     write_arg.exp_conn_handle = 3;
-    rc = ble_gattc_write(3, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
-                         ble_gatt_conn_test_write_value,
-                         sizeof ble_gatt_conn_test_write_value,
-                         ble_gatt_conn_test_write_cb, &write_arg);
+    rc = ble_hs_test_util_gatt_write_flat(
+        3, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
+        ble_gatt_conn_test_write_value, sizeof ble_gatt_conn_test_write_value,
+        ble_gatt_conn_test_write_cb, &write_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     write_long_arg.exp_conn_handle = 3;
-    rc = ble_gattc_write_long(3, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
-                              ble_gatt_conn_test_write_value,
-                              sizeof ble_gatt_conn_test_write_value,
-                              ble_gatt_conn_test_write_long_cb,
-                              &write_long_arg);
+    rc = ble_hs_test_util_gatt_write_long_flat(
+        3, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
+        ble_gatt_conn_test_write_value, sizeof ble_gatt_conn_test_write_value,
+        ble_gatt_conn_test_write_long_cb, &write_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
+    attr.handle = 8;
+    attr.offset = 0;
+    attr.om = os_msys_get_pkthdr(0, 0);
     write_rel_arg.exp_conn_handle = 3;
-    rc = ble_gattc_write_reliable(3,
-                                  ((struct ble_gatt_attr[]){{8, 0, 0, NULL}}),
-                                  1, ble_gatt_conn_test_write_rel_cb,
-                                  &write_rel_arg);
+    rc = ble_gattc_write_reliable(
+        3, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Start the procedures. */
@@ -518,6 +519,8 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
 
 TEST_SUITE(ble_gatt_break_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gatt_conn_test_disconnect();
 }
 

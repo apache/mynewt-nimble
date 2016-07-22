@@ -82,6 +82,8 @@ TEST_CASE(ble_host_hci_test_rssi)
 
 TEST_SUITE(ble_host_hci_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_host_hci_test_event_bad();
     ble_host_hci_test_rssi();
 }

@@ -307,7 +307,7 @@ ble_sm_test_util_rx_pair_cmd(uint16_t conn_handle, uint8_t op,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ;
@@ -354,7 +354,7 @@ ble_sm_test_util_rx_confirm(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PAIR_CONFIRM_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_PAIR_CONFIRM_SZ;
@@ -384,7 +384,7 @@ ble_sm_test_util_rx_random(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PAIR_RANDOM_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_PAIR_RANDOM_SZ;
@@ -413,7 +413,7 @@ ble_sm_test_util_rx_sec_req(uint16_t conn_handle, struct ble_sm_sec_req *cmd,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_SEC_REQ_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_SEC_REQ_SZ;
@@ -442,7 +442,7 @@ ble_sm_test_util_rx_public_key(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PUBLIC_KEY_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_PUBLIC_KEY_SZ;
@@ -472,7 +472,7 @@ ble_sm_test_util_rx_dhkey_check(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_DHKEY_CHECK_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_DHKEY_CHECK_SZ;
@@ -502,7 +502,7 @@ ble_sm_test_util_rx_enc_info(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_ENC_INFO_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_ENC_INFO_SZ;
@@ -532,7 +532,7 @@ ble_sm_test_util_rx_master_id(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_MASTER_ID_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_MASTER_ID_SZ;
@@ -562,7 +562,7 @@ ble_sm_test_util_rx_id_info(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_ID_INFO_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_ID_INFO_SZ;
@@ -592,7 +592,7 @@ ble_sm_test_util_rx_id_addr_info(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_ID_ADDR_INFO_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_ID_ADDR_INFO_SZ;
@@ -622,7 +622,7 @@ ble_sm_test_util_rx_sign_info(uint16_t conn_handle,
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_SIGN_INFO_SZ);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     payload_len = BLE_SM_HDR_SZ + BLE_SM_SIGN_INFO_SZ;

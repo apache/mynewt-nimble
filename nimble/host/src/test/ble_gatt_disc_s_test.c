@@ -391,6 +391,8 @@ TEST_CASE(ble_gatt_disc_s_test_disc_service_uuid)
 
 TEST_SUITE(ble_gatt_disc_s_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gatt_disc_s_test_disc_all();
     ble_gatt_disc_s_test_disc_service_uuid();
 }

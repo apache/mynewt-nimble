@@ -94,7 +94,7 @@ struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
-uint16_t ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan);
+uint16_t ble_l2cap_chan_mtu(const struct ble_l2cap_chan *chan);
 
 
 int ble_l2cap_rx(struct ble_hs_conn *conn,
@@ -103,7 +103,7 @@ int ble_l2cap_rx(struct ble_hs_conn *conn,
                  ble_l2cap_rx_fn **out_rx_cb,
                  struct os_mbuf **out_rx_buf);
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                 struct os_mbuf *om);
+                 struct os_mbuf **txom);
 
 int ble_l2cap_init(void);
 

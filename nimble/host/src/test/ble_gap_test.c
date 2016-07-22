@@ -549,6 +549,8 @@ TEST_CASE(ble_gap_test_case_wl_good)
 
 TEST_SUITE(ble_gap_test_suite_wl)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_wl_good();
     ble_gap_test_case_wl_bad_args();
     ble_gap_test_case_wl_ctlr_fail();
@@ -688,6 +690,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
         TEST_ASSERT(ble_gap_test_disc_desc.rssi == 0);
         TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr, desc.addr, 6) == 0);
         TEST_ASSERT(ble_gap_test_disc_arg == NULL);
+
     }
 }
 
@@ -738,6 +741,7 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
      * hears everything.
      */
     TEST_ASSERT(ble_gap_test_disc_event_type == BLE_GAP_EVENT_DISC);
+
 }
 
 TEST_CASE(ble_gap_test_case_disc_hci_fail)
@@ -817,6 +821,8 @@ TEST_CASE(ble_gap_test_case_disc_dflts)
 
 TEST_SUITE(ble_gap_test_suite_disc)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_disc_bad_args();
     ble_gap_test_case_disc_good();
     ble_gap_test_case_disc_ltd_mismatch();
@@ -940,6 +946,8 @@ TEST_CASE(ble_gap_test_case_conn_dir_dflt_params)
 
 TEST_SUITE(ble_gap_test_suite_conn_dir)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_conn_dir_good();
     ble_gap_test_case_conn_dir_bad_args();
     ble_gap_test_case_conn_dir_dflt_params();
@@ -1054,6 +1062,8 @@ TEST_CASE(ble_gap_test_case_conn_cancel_ctlr_fail)
 
 TEST_SUITE(ble_gap_test_suite_conn_cancel)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_conn_cancel_good();
     ble_gap_test_case_conn_cancel_bad_args();
     ble_gap_test_case_conn_cancel_ctlr_fail();
@@ -1180,6 +1190,8 @@ TEST_CASE(ble_gap_test_case_conn_terminate_hci_fail)
 
 TEST_SUITE(ble_gap_test_suite_conn_terminate)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_conn_terminate_bad_args();
     ble_gap_test_case_conn_terminate_good();
     ble_gap_test_case_conn_terminate_ctlr_fail();
@@ -1289,6 +1301,8 @@ TEST_CASE(ble_gap_test_case_conn_find)
 
 TEST_SUITE(ble_gap_test_suite_conn_find)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_conn_find();
 }
 
@@ -1607,6 +1621,8 @@ TEST_CASE(ble_gap_test_case_adv_hci_fail)
 
 TEST_SUITE(ble_gap_test_suite_adv)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_adv_bad_args();
     ble_gap_test_case_adv_dflt_params();
     ble_gap_test_case_adv_good();
@@ -1684,6 +1700,8 @@ TEST_CASE(ble_gap_test_case_stop_adv_hci_fail)
 
 TEST_SUITE(ble_gap_test_suite_stop_adv)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_stop_adv_good();
     ble_gap_test_case_stop_adv_hci_fail();
 }
@@ -2248,6 +2266,8 @@ TEST_CASE(ble_gap_test_case_update_concurrent_hci_fail)
 
 TEST_SUITE(ble_gap_test_suite_update_conn)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gap_test_case_update_conn_good();
     ble_gap_test_case_update_conn_bad();
     ble_gap_test_case_update_conn_hci_fail();

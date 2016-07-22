@@ -1469,6 +1469,8 @@ TEST_CASE(ble_hs_adv_test_case_user_full_payload)
 
 TEST_SUITE(ble_hs_adv_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_hs_adv_test_case_flags();
     ble_hs_adv_test_case_user();
     ble_hs_adv_test_case_user_rsp();

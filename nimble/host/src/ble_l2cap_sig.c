@@ -300,7 +300,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 
     l2cap_result = 0; /* Silence spurious gcc warning. */
 
-    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_UPDATE_REQ_SZ);
     if (rc != 0) {
         return rc;
     }
@@ -373,7 +373,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
         return BLE_HS_ENOENT;
     }
 
-    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
     if (rc != 0) {
         cb_status = rc;
         goto done;
@@ -482,7 +482,7 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
     ble_hs_log_mbuf(*om);
     BLE_HS_LOG(DEBUG, "\n");
 
-    rc = ble_hs_misc_pullup_base(om, BLE_L2CAP_SIG_HDR_SZ);
+    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_HDR_SZ);
     if (rc != 0) {
         return rc;
     }

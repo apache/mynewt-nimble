@@ -28,11 +28,16 @@
 #if NIMBLE_OPT(SM)
 
 static int
-ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
+ble_sm_tx(uint16_t conn_handle, struct os_mbuf **txom)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    struct os_mbuf *om;
     int rc;
+
+    /* Consume mbuf from caller. */
+    om = *txom;
+    *txom = NULL;
 
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
@@ -41,7 +46,7 @@ ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
                                          &conn, &chan);
     if (rc == 0) {
-        rc = ble_l2cap_tx(conn, chan, txom);
+        rc = ble_l2cap_tx(conn, chan, &om);
     }
 
     return rc;
@@ -53,7 +58,7 @@ ble_sm_init_req(uint16_t initial_sz, struct os_mbuf **out_txom)
     void *buf;
     int rc;
 
-    *out_txom = ble_hs_misc_pkthdr();
+    *out_txom = ble_hs_mbuf_l2cap_pkt();
     if (*out_txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
@@ -157,8 +162,10 @@ ble_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
                    ble_sm_pair_cmd_log, cmd);
     BLE_HS_DBG_ASSERT(ble_sm_pair_cmd_is_valid(cmd));
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -204,7 +211,6 @@ ble_sm_pair_confirm_tx(uint16_t conn_handle, struct ble_sm_pair_confirm *cmd)
     struct os_mbuf *txom;
     int rc;
 
-
     rc = ble_sm_init_req(BLE_SM_PAIR_CONFIRM_SZ, &txom);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
@@ -214,8 +220,10 @@ ble_sm_pair_confirm_tx(uint16_t conn_handle, struct ble_sm_pair_confirm *cmd)
     ble_sm_pair_confirm_write(txom->om_data, txom->om_len, cmd);
     BLE_SM_LOG_CMD(1, "confirm", conn_handle, ble_sm_pair_confirm_log, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -267,8 +275,10 @@ ble_sm_pair_random_tx(uint16_t conn_handle, struct ble_sm_pair_random *cmd)
     ble_sm_pair_random_write(txom->om_data, txom->om_len, cmd);
     BLE_SM_LOG_CMD(1, "random", conn_handle, ble_sm_pair_random_log, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -327,8 +337,10 @@ ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
     ble_sm_pair_fail_write(txom->om_data, txom->om_len, &cmd);
     BLE_SM_LOG_CMD(1, "fail", conn_handle, ble_sm_pair_fail_log, &cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -376,8 +388,10 @@ ble_sm_enc_info_tx(uint16_t conn_handle, struct ble_sm_enc_info *cmd)
 
     BLE_SM_LOG_CMD(1, "enc info", conn_handle, ble_sm_enc_info_log, cmd);
     
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -434,8 +448,10 @@ ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd)
 
     BLE_SM_LOG_CMD(1, "master id", conn_handle, ble_sm_master_id_log, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -487,8 +503,10 @@ ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd)
 
     ble_sm_id_info_write(txom->om_data, txom->om_len, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -543,8 +561,10 @@ ble_sm_id_addr_info_tx(uint16_t conn_handle, struct ble_sm_id_addr_info *cmd)
 
     ble_sm_id_addr_info_write(txom->om_data, txom->om_len, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -593,8 +613,10 @@ ble_sm_sign_info_tx(uint16_t conn_handle, struct ble_sm_sign_info *cmd)
 
     ble_sm_sign_info_write(txom->om_data, txom->om_len, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -648,8 +670,10 @@ ble_sm_sec_req_tx(uint16_t conn_handle, struct ble_sm_sec_req *cmd)
 
     BLE_SM_LOG_CMD(1, "sec req", conn_handle, ble_sm_sec_req_log, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -713,8 +737,10 @@ ble_sm_public_key_tx(uint16_t conn_handle, struct ble_sm_public_key *cmd)
 
     BLE_SM_LOG_CMD(1, "public key", conn_handle, ble_sm_public_key_log, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);
@@ -774,8 +800,10 @@ ble_sm_dhkey_check_tx(uint16_t conn_handle, struct ble_sm_dhkey_check *cmd)
 
     BLE_SM_LOG_CMD(1, "dhkey check", conn_handle, ble_sm_dhkey_check_log, cmd);
 
-    rc = ble_sm_tx(conn_handle, txom);
-    txom = NULL;
+    rc = ble_sm_tx(conn_handle, &txom);
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     os_mbuf_free_chain(txom);

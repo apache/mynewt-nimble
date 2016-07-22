@@ -21,6 +21,7 @@
 #define H_BLE_ATT_
 
 #include "os/queue.h"
+struct os_mbuf;
 
 #define BLE_ATT_UUID_PRIMARY_SERVICE        0x2800
 #define BLE_ATT_UUID_SECONDARY_SERVICE      0x2801
@@ -167,11 +168,10 @@ struct ble_att_svr_access_ctxt {
     };
 };
 
-int ble_att_svr_read_local(uint16_t attr_handle, const void **out_data,
-                           uint16_t *out_attr_len);
-int ble_att_svr_write_local(uint16_t attr_handle, const void *data,
-                            uint16_t data_len);
+int ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om);
+int ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf **om);
 
+uint16_t ble_att_mtu(uint16_t conn_handle);
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
 #endif

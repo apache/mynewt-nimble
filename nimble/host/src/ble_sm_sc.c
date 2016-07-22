@@ -482,7 +482,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *prev;
     int rc;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_PUBLIC_KEY_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PUBLIC_KEY_SZ);
     if (res->app_status != 0) {
         res->enc_cb = 1;
         return;
@@ -693,7 +693,7 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
 
-    res->app_status = ble_hs_misc_pullup_base(om, BLE_SM_DHKEY_CHECK_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_DHKEY_CHECK_SZ);
     if (res->app_status != 0) {
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;

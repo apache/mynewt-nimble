@@ -4879,6 +4879,8 @@ TEST_CASE(ble_sm_sc_us_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
 
 TEST_SUITE(ble_sm_sc_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     /*** No privacy. */
 
     /* Peer as initiator. */

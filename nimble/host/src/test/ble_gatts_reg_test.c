@@ -697,6 +697,8 @@ TEST_CASE(ble_gatts_reg_test_dsc_cb)
 
 TEST_SUITE(ble_gatts_reg_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_gatts_reg_test_svc_return();
     ble_gatts_reg_test_chr_return();
     ble_gatts_reg_test_dsc_return();

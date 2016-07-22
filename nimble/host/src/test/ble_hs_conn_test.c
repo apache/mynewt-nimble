@@ -204,6 +204,8 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
 TEST_SUITE(conn_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_hs_conn_test_direct_connect_success();
     ble_hs_conn_test_direct_connectable_success();
     ble_hs_conn_test_undirect_connectable_success();

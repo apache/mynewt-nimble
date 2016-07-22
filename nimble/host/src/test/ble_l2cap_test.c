@@ -242,7 +242,7 @@ ble_l2cap_test_util_rx_first_frag(uint16_t conn_handle,
     void *v;
     int rc;
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     v = os_mbuf_extend(om, l2cap_frag_len);
@@ -266,7 +266,7 @@ ble_l2cap_test_util_rx_next_frag(uint16_t conn_handle, uint16_t hci_len)
     void *v;
     int rc;
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     v = os_mbuf_extend(om, hci_len);
@@ -374,7 +374,7 @@ TEST_CASE(ble_l2cap_test_case_frag_single)
     /*** HCI header specifies middle fragment without start. */
     hci_hdr = BLE_L2CAP_TEST_UTIL_HCI_HDR(2, BLE_HCI_PB_MIDDLE, 10);
 
-    om = ble_hs_misc_pkthdr();
+    om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     om = ble_l2cap_prepend_hdr(om, 0, 5);
@@ -666,6 +666,8 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)
 
 TEST_SUITE(ble_l2cap_test_suite)
 {
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
     ble_l2cap_test_case_bad_header();
     ble_l2cap_test_case_frag_single();
     ble_l2cap_test_case_frag_multiple();

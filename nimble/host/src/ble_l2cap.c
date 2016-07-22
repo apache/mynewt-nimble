@@ -79,7 +79,7 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
 }
 
 uint16_t
-ble_l2cap_chan_mtu(struct ble_l2cap_chan *chan)
+ble_l2cap_chan_mtu(const struct ble_l2cap_chan *chan)
 {
     uint16_t mtu;
 
@@ -120,14 +120,16 @@ struct os_mbuf *
 ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
 {
     struct ble_l2cap_hdr hdr;
+    struct os_mbuf *om2;
 
     htole16(&hdr.blh_len, len);
     htole16(&hdr.blh_cid, cid);
 
-    om = os_mbuf_prepend(om, sizeof hdr);
-    if (om == NULL) {
+    om2 = os_mbuf_prepend(om, sizeof hdr);
+    if (om2 == NULL) {
         return NULL;
     }
+    BLE_HS_DBG_ASSERT(om2 == om);
 
     memcpy(om->om_data, &hdr, sizeof hdr);
 
@@ -276,9 +278,14 @@ err:
  */
 int
 ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-             struct os_mbuf *om)
+             struct os_mbuf **txom)
 {
+    struct os_mbuf *om;
     int rc;
+
+    /* Consume mbuf from caller. */
+    om = *txom;
+    *txom = NULL;
 
     om = ble_l2cap_prepend_hdr(om, chan->blc_cid, OS_MBUF_PKTLEN(om));
     if (om == NULL) {
@@ -286,8 +293,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         goto err;
     }
 
-    rc = host_hci_data_tx(conn, om);
-    om = NULL;
+    rc = host_hci_data_tx(conn, &om);
     if (rc != 0) {
         goto err;
     }

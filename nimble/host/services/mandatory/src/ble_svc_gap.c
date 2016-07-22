@@ -81,6 +81,7 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
+    int rc;
 
     uuid16 = ble_uuid_128_to_16(ctxt->chr->uuid128);
     assert(uuid16 != 0);
@@ -88,43 +89,41 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
     switch (uuid16) {
     case BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        ctxt->att->read.data = ble_svc_gap_name;
-        ctxt->att->read.len = strlen(ble_svc_gap_name);
-        break;
+        rc = os_mbuf_append(ctxt->om, ble_svc_gap_name,
+                            strlen(ble_svc_gap_name));
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_SVC_GAP_CHR_UUID16_APPEARANCE:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        ctxt->att->read.data = &ble_svc_gap_appearance;
-        ctxt->att->read.len = sizeof ble_svc_gap_appearance;
-        break;
+        rc = os_mbuf_append(ctxt->om, &ble_svc_gap_appearance,
+                            sizeof ble_svc_gap_appearance);
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_SVC_GAP_CHR_UUID16_PERIPH_PRIV_FLAG:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        ctxt->att->read.data = &ble_svc_gap_privacy_flag;
-        ctxt->att->read.len = sizeof ble_svc_gap_privacy_flag;
-        break;
+        rc = os_mbuf_append(ctxt->om, &ble_svc_gap_privacy_flag,
+                            sizeof ble_svc_gap_privacy_flag);
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR);
-        if (ctxt->att->write.len != sizeof ble_svc_gap_reconnect_addr) {
+        if (OS_MBUF_PKTLEN(ctxt->om) != sizeof ble_svc_gap_reconnect_addr) {
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
-        memcpy(ble_svc_gap_reconnect_addr, ctxt->att->write.data,
-               sizeof ble_svc_gap_reconnect_addr);
-        break;
+        ble_hs_mbuf_to_flat(ctxt->om, ble_svc_gap_reconnect_addr,
+                            sizeof ble_svc_gap_reconnect_addr, NULL);
+        return 0;
 
     case BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        ctxt->att->read.data = &ble_svc_gap_pref_conn_params;
-        ctxt->att->read.len = sizeof ble_svc_gap_pref_conn_params;
-        break;
+        rc = os_mbuf_append(ctxt->om, &ble_svc_gap_pref_conn_params,
+                            sizeof ble_svc_gap_pref_conn_params);
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     default:
         assert(0);
-        break;
+        return BLE_ATT_ERR_UNLIKELY;
     }
-
-    return 0;
 }
 
 const char *

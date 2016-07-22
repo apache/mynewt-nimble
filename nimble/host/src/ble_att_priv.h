@@ -132,9 +132,8 @@ struct ble_att_svr_conn {
  *                                  failure.
  */
 typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
-                                  uint8_t *uuid128, uint8_t op,
-                                  struct ble_att_svr_access_ctxt *ctxt,
-                                  void *arg);
+                                  uint8_t op, uint16_t offset,
+                                  struct os_mbuf **om, void *arg);
 
 int ble_att_svr_register(const uint8_t *uuid, uint8_t flags,
                          uint16_t *handle_id,
@@ -162,8 +161,8 @@ struct ble_l2cap_chan *ble_att_create_chan(void);
 int ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                            struct ble_l2cap_chan **out_chan);
 void ble_att_inc_tx_stat(uint8_t att_op);
-uint8_t *ble_att_get_flat_buf(void);
-uint16_t ble_att_mtu(uint16_t conn_handle);
+void ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
+                             struct os_mbuf *txom);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
 int ble_att_init(void);
 
@@ -208,7 +207,7 @@ int ble_att_svr_rx_indicate(uint16_t conn_handle,
                             struct os_mbuf **rxom);
 void ble_att_svr_prep_clear(struct ble_att_prep_entry_list *prep_list);
 int ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
-                            struct ble_att_svr_access_ctxt *ctxt,
+                            uint16_t offset, struct os_mbuf *om,
                             uint8_t *out_att_err);
 int ble_att_svr_init(void);
 
@@ -232,6 +231,7 @@ struct ble_att_read_type_adata {
     uint16_t att_handle;
     int value_len;
     uint8_t *value;
+
 };
 
 /** An attribute-data entry in a read by group type response. */
@@ -274,13 +274,13 @@ int ble_att_clt_rx_find_type_value(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
 int ble_att_clt_tx_write_req(uint16_t conn_handle,
                              const struct ble_att_write_req *req,
-                             const void *value, uint16_t value_len);
+                             struct os_mbuf **txom);
 int ble_att_clt_tx_write_cmd(uint16_t conn_handle,
                              const struct ble_att_write_req *req,
-                             const void *value, uint16_t value_len);
+                             struct os_mbuf **txom);
 int ble_att_clt_tx_prep_write(uint16_t conn_handle,
                               const struct ble_att_prep_write_cmd *req,
-                              const void *value, uint16_t value_len);
+                              struct os_mbuf **om);
 int ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_tx_exec_write(uint16_t conn_handle,
                               const struct ble_att_exec_write_req *req);
@@ -288,10 +288,10 @@ int ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_tx_notify(uint16_t conn_handle,
                           const struct ble_att_notify_req *req,
-                          const void *value, uint16_t value_len);
+                          struct os_mbuf **txom);
 int ble_att_clt_tx_indicate(uint16_t conn_handle,
                             const struct ble_att_indicate_req *req,
-                            const void *value, uint16_t value_len);
+                            struct os_mbuf **txom);
 int ble_att_clt_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom);
 
 #endif

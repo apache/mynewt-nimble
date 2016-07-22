@@ -26,8 +26,10 @@
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
 #include "host/ble_hs_adv.h"
+#include "host/ble_hs_id.h"
 #include "host/ble_hs_log.h"
 #include "host/ble_hs_test.h"
+#include "host/ble_hs_mbuf.h"
 #include "host/ble_sm.h"
 #include "host/ble_store.h"
 #include "host/ble_uuid.h"
@@ -216,6 +218,7 @@ struct ble_hs_cfg {
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
+int ble_hs_rx_data(struct os_mbuf **om);
 int ble_hs_start(void);
 void ble_hs_event_enqueue(struct os_event *ev);
 int ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg);

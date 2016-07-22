@@ -83,8 +83,7 @@ void ble_gap_enc_event(uint16_t conn_handle, int status,
 void ble_gap_passkey_event(uint16_t conn_handle,
                            struct ble_gap_passkey_params *passkey_params);
 void ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
-                             void *attr_data, uint16_t attr_len,
-                             int is_indication);
+                             struct os_mbuf *om, int is_indication);
 void ble_gap_notify_tx_event(int status, uint16_t conn_handle,
                              uint16_t attr_handle, int is_indication);
 void ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,

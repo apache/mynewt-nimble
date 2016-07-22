@@ -49,6 +49,8 @@ static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
                     struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
+    uint8_t *u8;
+
     /* The only operation allowed for this characteristic is indicate.  This
      * access callback gets called by the stack when it needs to read the
      * characteristic value to populate the outgoing indication command.
@@ -59,8 +61,12 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
     assert(ctxt->chr == &ble_svc_gatt_defs[0].characteristics[0]);
 
     /* XXX: For now, always respond with 0 (unchanged). */
-    ctxt->att->read.buf[0] = 0;
-    ctxt->att->read.len = 1;
+    u8 = os_mbuf_extend(ctxt->om, 1);
+    if (u8 == NULL) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
+    *u8 = 0;
 
     return 0;
 }
