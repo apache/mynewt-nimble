@@ -34,7 +34,7 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
 
 static const struct ble_gatt_svc_def ble_svc_lls_defs[] = {
     {
-        /*** Service: Link Lost Service (LLS). */
+        /*** Service: Link Loss Service (LLS). */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(BLE_SVC_LLS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
@@ -84,7 +84,7 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 /**
- * This function is the crux of the link lost service. The application
+ * This function is the crux of the link loss service. The application
  * developer must call this function inside the gap event callback
  * function when a BLE_GAP_EVENT_DISCONNECT event is received. Here,
  * we then check if the disconnect reason is due to a timout, and if
