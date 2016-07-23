@@ -37,7 +37,7 @@ static uint8_t ble_uuid_base[16] = {
  * @param uuid128                   The 128-bit UUID to attempt to convert.
  *                                      This must point to 16 contiguous bytes.
  *
- * @return                          Positive 16-bit unsigned integer on
+ * @return                          A positive 16-bit unsigned integer on
  *                                      success;
  *                                  0 if the UUID cannot be represented in 16
  *                                      bits.

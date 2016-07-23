@@ -104,10 +104,22 @@ typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
                                  const struct ble_gatt_error *error,
                                  const struct ble_gatt_svc *service,
                                  void *arg);
+
+/**
+ * The host will free the attribute mbuf automatically after the callback is
+ * executed.  The application can take ownership of the mbuf and prevent it
+ * from being freed by assigning NULL to attr->om.
+ */
 typedef int ble_gatt_attr_fn(uint16_t conn_handle,
                              const struct ble_gatt_error *error,
                              struct ble_gatt_attr *attr,
                              void *arg);
+
+/**
+ * The host will free the attribute mbufs automatically after the callback is
+ * executed.  The application can take ownership of the mbufs and prevent them
+ * from being freed by assigning NULL to each attribute's om field.
+ */
 typedef int ble_gatt_reliable_attr_fn(uint16_t conn_handle,
                                       const struct ble_gatt_error *error,
                                       struct ble_gatt_attr *attrs,
@@ -245,6 +257,23 @@ struct ble_gatt_svc_def {
     const struct ble_gatt_chr_def *characteristics;
 };
 
+struct ble_gatt_dsc_def {
+    /**
+     * The first element in a uint8_t[16]; use the BLE_UUID16 macro for 16-bit
+     * UUIDs; NULL if there are no more descriptors in the characteristic.
+     */
+    uint8_t *uuid128;
+
+    /** Specifies the set of permitted operations for this descriptor. */
+    uint8_t att_flags;
+
+    /** Callback that gets executed when the descriptor is read or written. */
+    ble_gatt_access_fn *access_cb;
+
+    /** Optional argument for callback. */
+    void *arg;
+};
+
 /**
  * Context for an access to a GATT characteristic or descriptor.  When a client
  * reads or writes a locally registered characteristic or descriptor, an
@@ -267,8 +296,8 @@ struct ble_gatt_access_ctxt {
      *       characteristic or descriptor being read.
      *     o For writes: This is already populated with the value being written
      *       by the peer.  If the application wishes to retain this mbuf for
-     *       later use, it must set this pointer to NULL to prevent the stack
-     *       from freeing it.
+     *       later use, the access callback must set this pointer to NULL to
+     *       prevent the stack from freeing it.
      */
     struct os_mbuf *om;
 
@@ -291,23 +320,6 @@ struct ble_gatt_access_ctxt {
          */
         const struct ble_gatt_dsc_def *dsc;
     };
-};
-
-struct ble_gatt_dsc_def {
-    /**
-     * The first element in a uint8_t[16]; use the BLE_UUID16 macro for 16-bit
-     * UUIDs; NULL if there are no more descriptors in the characteristic.
-     */
-    uint8_t *uuid128;
-
-    /** Specifies the set of permitted operations for this descriptor. */
-    uint8_t att_flags;
-
-    /** Callback that gets executed when the descriptor is read or written. */
-    ble_gatt_access_fn *access_cb;
-
-    /** Optional argument for callback. */
-    void *arg;
 };
 
 /**
@@ -415,7 +427,6 @@ struct ble_gatt_resources {
     uint16_t attrs;
 };
 
-struct ble_gatt_register_ctxt;
 typedef void ble_gatt_register_fn(struct ble_gatt_register_ctxt *ctxt,
                                   void *arg);
 
