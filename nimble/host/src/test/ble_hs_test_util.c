@@ -1201,6 +1201,12 @@ ble_hs_test_util_init(void)
 
     cfg = ble_hs_cfg_dflt;
     cfg.max_connections = 8;
+    cfg.max_l2cap_chans = 3 * cfg.max_connections;
+    cfg.max_services = 16;
+    cfg.max_client_configs = 32;
+    cfg.max_attrs = 64;
+    cfg.max_gattc_procs = 16;
+
     rc = ble_hs_init(&ble_hs_test_util_evq, &cfg);
     TEST_ASSERT_FATAL(rc == 0);
 
