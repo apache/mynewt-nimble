@@ -801,23 +801,23 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         }
     }
 
-    /* Get an mbuf and copy data into it */
-    if (badpkt) {
-        rxpdu = NULL;
-    } else {
-        rxpdu = ble_phy_rxpdu_get(rxbuf, len + BLE_LL_PDU_HDR_LEN);
-    }
-
     /* Hand packet to the appropriate state machine (if crc ok) */
+    rxpdu = NULL;
     switch (BLE_MBUF_HDR_RX_STATE(rxhdr)) {
     case BLE_LL_STATE_ADV:
+        if (!badpkt) {
+            rxpdu = ble_phy_rxpdu_get(rxbuf, len + BLE_LL_PDU_HDR_LEN);
+        }
         rc = ble_ll_adv_rx_isr_end(pdu_type, rxpdu, crcok);
         break;
     case BLE_LL_STATE_SCANNING:
+        if (!badpkt) {
+            rxpdu = ble_phy_rxpdu_get(rxbuf, len + BLE_LL_PDU_HDR_LEN);
+        }
         rc = ble_ll_scan_rx_isr_end(rxpdu, crcok);
         break;
     case BLE_LL_STATE_INITIATING:
-        rc = ble_ll_init_rx_isr_end(rxpdu, crcok);
+        rc = ble_ll_init_rx_isr_end(rxbuf, crcok, rxhdr);
         break;
     default:
         rc = -1;

@@ -113,7 +113,8 @@ int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
 int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
 void ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
-int ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
+int ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
+                           struct ble_mbuf_hdr *ble_hdr);
 void ble_ll_conn_wfr_timer_exp(void);
 int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
 uint32_t ble_ll_conn_get_ce_end_time(void);

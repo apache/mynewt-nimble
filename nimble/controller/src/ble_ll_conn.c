@@ -2195,7 +2195,8 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
  *       > 0: Do not disable PHY as that has already been done.
  */
 int
-ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
+ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
+                       struct ble_mbuf_hdr *ble_hdr)
 {
     int rc;
     int resolved;
@@ -2208,24 +2209,18 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     uint8_t *adv_addr;
     uint8_t *peer;
     uint8_t *init_addr;
-    uint8_t *rxbuf;
     uint8_t pyld_len;
     uint8_t inita_is_rpa;
     uint32_t endtime;
-    struct ble_mbuf_hdr *ble_hdr;
+    struct os_mbuf *rxpdu;
     struct ble_ll_conn_sm *connsm;
 
     /*
      * We have to restart receive if we cant hand up pdu. We return 0 so that
      * the phy does not get disabled.
      */
-    if (!rxpdu) {
-        ble_phy_disable();
-        ble_phy_rx();
-        return 0;
-    }
-
     rc = -1;
+    pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
     if (!crcok) {
         goto init_rx_isr_exit;
     }
@@ -2234,10 +2229,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     connsm = g_ble_ll_conn_create_sm;
 
     /* Only interested in ADV IND or ADV DIRECT IND */
-    rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-    pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-
     inita_is_rpa = 0;
 
     switch (pdu_type) {
@@ -2285,7 +2277,6 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         }
 
         index = -1;
-        ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
         peer = adv_addr;
         peer_addr_type = addr_type;
 
@@ -2303,7 +2294,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 resolved = 1;
             } else {
                 if (chk_wl) {
-                    return -1;
+                    goto init_rx_isr_exit;
                 }
             }
         }
@@ -2312,12 +2303,12 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         /* Check filter policy */
         if (chk_wl) {
             if (!ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
-                return -1;
+                goto init_rx_isr_exit;
             }
         } else {
             /* Must match the connection address */
             if (!ble_ll_conn_is_peer_adv(addr_type, adv_addr, index)) {
-                return -1;
+                goto init_rx_isr_exit;
             }
         }
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
@@ -2330,7 +2321,7 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             if ((index < 0) ||
                 !ble_ll_resolv_rpa(init_addr,
                                    g_ble_ll_resolv_list[index].rl_local_irk)) {
-                return -1;
+                goto init_rx_isr_exit;
             }
         }
 
@@ -2344,6 +2335,8 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             if (!rc) {
                 CONN_F_CONN_REQ_TXD(connsm) = 1;
                 STATS_INC(ble_ll_conn_stats, conn_req_txd);
+            } else {
+                ble_ll_sched_rmv_elem(&connsm->conn_sch);
             }
         } else {
             /* Count # of times we could not set schedule */
@@ -2352,9 +2345,23 @@ ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     }
 
 init_rx_isr_exit:
+    /*
+     * We have to restart receive if we cant hand up pdu. We return 0 so that
+     * the phy does not get disabled.
+     */
+    rxpdu = ble_phy_rxpdu_get(rxbuf, pyld_len + BLE_LL_PDU_HDR_LEN);
+    if (rxpdu == NULL) {
+        ble_phy_disable();
+        ble_phy_rx();
+        rc = 0;
+    } else {
+        ble_ll_rx_pdu_in(rxpdu);
+    }
+
     if (rc) {
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
     }
+
     return rc;
 }
 
