@@ -2047,6 +2047,7 @@ ble_gatts_init(void)
         }
     }
 
+    ble_gatts_num_svc_entries = 0;
     for (i = 0; i < ble_gatts_num_svc_defs; i++) {
         rc = ble_gatts_register_svcs(ble_gatts_svc_defs[i],
                                      ble_hs_cfg.gatts_register_cb,
