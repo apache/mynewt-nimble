@@ -989,7 +989,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* If whitelist enabled, check to see if device is in the white list */
     if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
-        return -1;
+        goto scan_rx_isr_exit;
     }
     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
 
@@ -997,7 +997,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     if (chk_send_req) {
         /* Dont send scan request if we have sent one to this advertiser */
         if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type)) {
-            return -1;
+            goto scan_rx_isr_exit;
         }
 
         /* Better not be a scan response pending */

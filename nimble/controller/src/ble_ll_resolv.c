@@ -340,6 +340,9 @@ ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local,
 {
     uint8_t *irk;
     uint8_t *prand;
+    uint32_t *irk32;
+    uint32_t *key32;
+    uint32_t *pt32;
     struct ble_encryption_block ecb;
 
     assert(rl != NULL);
@@ -356,13 +359,27 @@ ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local,
         irk = rl->rl_peer_irk;
     }
 
-    memcpy(ecb.key, irk, BLE_ENC_BLOCK_SIZE);
-    memset(ecb.plain_text, 0, BLE_ENC_BLOCK_SIZE);
-    swap_buf(&ecb.plain_text[13], prand, 3);
+    irk32 = (uint32_t *)irk;
+    key32 = (uint32_t *)&ecb.key[0];
+    key32[0] = irk32[0];
+    key32[1] = irk32[1];
+    key32[2] = irk32[2];
+    key32[3] = irk32[3];
+    pt32 = (uint32_t *)&ecb.plain_text[0];
+    pt32[0] = 0;
+    pt32[1] = 0;
+    pt32[2] = 0;
+    ecb.plain_text[12] = 0;
+    ecb.plain_text[13] = prand[2];
+    ecb.plain_text[14] = prand[1];
+    ecb.plain_text[15] = prand[0];
 
     /* Calculate hash */
     ble_hw_encrypt_block(&ecb);
-    swap_buf(addr, ecb.cipher_text + 13, 3);
+
+    addr[0] = ecb.cipher_text[15];
+    addr[1] = ecb.cipher_text[14];
+    addr[2] = ecb.cipher_text[13];
 }
 
 /**
