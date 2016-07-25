@@ -18,24 +18,32 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <assert.h>
 #include "os/os.h"
-#include "nimble/ble.h"             /* XXX: needed for ble mbuf header.*/
+#include "ble/xcvr.h"
+#include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 
 /* BLE PHY data structure */
 struct ble_phy_obj
 {
+    uint8_t phy_stats_initialized;
     int8_t  phy_txpwr_dbm;
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
     uint8_t phy_rx_started;
+    uint8_t phy_encrypted;
     uint8_t phy_privacy;
+    uint8_t phy_tx_pyld_len;
+    uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
-    struct os_mbuf *rxpdu;
+    struct ble_mbuf_hdr rxhdr;
     void *txend_arg;
+    uint8_t *rxdptr;
     ble_phy_tx_end_func txend_cb;
 };
 struct ble_phy_obj g_ble_phy_data;
@@ -75,6 +83,42 @@ static struct xcvr_data g_xcvr_data;
 #define BLE_XCVR_TX_PWR_MAX_DBM     (30)
 #define BLE_XCVR_TX_PWR_MIN_DBM     (-20)
 
+/* Statistics */
+STATS_SECT_START(ble_phy_stats)
+    STATS_SECT_ENTRY(phy_isrs)
+    STATS_SECT_ENTRY(tx_good)
+    STATS_SECT_ENTRY(tx_fail)
+    STATS_SECT_ENTRY(tx_late)
+    STATS_SECT_ENTRY(tx_bytes)
+    STATS_SECT_ENTRY(rx_starts)
+    STATS_SECT_ENTRY(rx_aborts)
+    STATS_SECT_ENTRY(rx_valid)
+    STATS_SECT_ENTRY(rx_crc_err)
+    STATS_SECT_ENTRY(rx_late)
+    STATS_SECT_ENTRY(no_bufs)
+    STATS_SECT_ENTRY(radio_state_errs)
+    STATS_SECT_ENTRY(rx_hw_err)
+    STATS_SECT_ENTRY(tx_hw_err)
+STATS_SECT_END
+STATS_SECT_DECL(ble_phy_stats) ble_phy_stats;
+
+STATS_NAME_START(ble_phy_stats)
+    STATS_NAME(ble_phy_stats, phy_isrs)
+    STATS_NAME(ble_phy_stats, tx_good)
+    STATS_NAME(ble_phy_stats, tx_fail)
+    STATS_NAME(ble_phy_stats, tx_late)
+    STATS_NAME(ble_phy_stats, tx_bytes)
+    STATS_NAME(ble_phy_stats, rx_starts)
+    STATS_NAME(ble_phy_stats, rx_aborts)
+    STATS_NAME(ble_phy_stats, rx_valid)
+    STATS_NAME(ble_phy_stats, rx_crc_err)
+    STATS_NAME(ble_phy_stats, rx_late)
+    STATS_NAME(ble_phy_stats, no_bufs)
+    STATS_NAME(ble_phy_stats, radio_state_errs)
+    STATS_NAME(ble_phy_stats, rx_hw_err)
+    STATS_NAME(ble_phy_stats, tx_hw_err)
+STATS_NAME_END(ble_phy_stats)
+
 /* XXX: TODO:
 
  * 1) Test the following to make sure it works: suppose an event is already
@@ -95,28 +139,104 @@ ble_xcvr_clear_irq(uint32_t mask)
 }
 
 /**
- * ble phy rxpdu get
+ * Copies the data from the phy receive buffer into a mbuf chain.
  *
- * Gets a mbuf for PDU reception.
  *
- * @return struct os_mbuf* Pointer to retrieved mbuf or NULL if none available
+ * @param dptr Pointer to receive buffer
+ * @param len Length of receive buffer to copy.
+ *
+ * @return struct os_mbuf* Pointer to mbuf. NULL if no mbuf available.
  */
-static struct os_mbuf *
-ble_phy_rxpdu_get(void)
+struct os_mbuf *
+ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
 {
+    uint16_t rem_bytes;
+    uint16_t mb_bytes;
+    uint16_t copylen;
+    uint32_t *dst;
+    uint32_t *src;
     struct os_mbuf *m;
+    struct os_mbuf *n;
+    struct os_mbuf *p;
+    struct ble_mbuf_hdr *ble_hdr;
+    struct os_mbuf_pkthdr *pkthdr;
 
-    m = g_ble_phy_data.rxpdu;
-    if (m == NULL) {
-        m = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr));
-        if (!m) {
-            ++g_ble_phy_stats.no_bufs;
-        } else {
-            g_ble_phy_data.rxpdu = m;
+    /* Better be aligned */
+    assert(((uint32_t)dptr & 3) == 0);
+
+    p = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
+    if (!p) {
+        STATS_INC(ble_phy_stats, no_bufs);
+        return NULL;
+    }
+
+    /*
+     * Fill in the mbuf pkthdr first. NOTE: first mbuf in chain will have data
+     * pre-pended to it so we adjust m_data by a word.
+     */
+    p->om_data += 4;
+    dst = (uint32_t *)(p->om_data);
+    src = (uint32_t *)dptr;
+
+    rem_bytes = len;
+    mb_bytes = (p->om_omp->omp_databuf_len - p->om_pkthdr_len - 4);
+    copylen = min(mb_bytes, rem_bytes);
+    copylen &= 0xFFFC;
+    rem_bytes -= copylen;
+    mb_bytes -= copylen;
+    p->om_len = copylen;
+    while (copylen > 0) {
+        *dst = *src;
+        ++dst;
+        ++src;
+        copylen -= 4;
+    }
+
+    /* Copy remaining bytes */
+    m = p;
+    while (rem_bytes > 0) {
+        /* If there are enough bytes in the mbuf, copy them and leave */
+        if (rem_bytes <= mb_bytes) {
+            memcpy(m->om_data + m->om_len, src, rem_bytes);
+            m->om_len += rem_bytes;
+            break;
+        }
+
+        n = os_msys_get(rem_bytes, 0);
+        if (!n) {
+            os_mbuf_free_chain(p);
+            STATS_INC(ble_phy_stats, no_bufs);
+            return NULL;
+        }
+
+        /* Chain new mbuf to existing chain */
+        SLIST_NEXT(m, om_next) = n;
+        m = n;
+
+        mb_bytes = m->om_omp->omp_databuf_len;
+        copylen = min(mb_bytes, rem_bytes);
+        copylen &= 0xFFFC;
+        rem_bytes -= copylen;
+        mb_bytes -= copylen;
+        m->om_len = copylen;
+        dst = (uint32_t *)m->om_data;
+        while (copylen > 0) {
+            *dst = *src;
+            ++dst;
+            ++src;
+            copylen -= 4;
         }
     }
 
-    return m;
+    /* Set packet length */
+    pkthdr = OS_MBUF_PKTHDR(p);
+    pkthdr->omp_len = len;
+
+    /* Copy ble header */
+    ble_hdr = BLE_MBUF_HDR_PTR(p);
+    memcpy(ble_hdr, &g_ble_phy_data.rxhdr, sizeof(struct ble_mbuf_hdr));
+
+    return p;
 }
 
 void
@@ -126,7 +246,6 @@ ble_phy_isr(void)
     uint8_t crcok;
     uint8_t transition;
     uint32_t irq_en;
-    struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Check for disabled event. This only happens for transmits now */
@@ -139,14 +258,9 @@ ble_phy_isr(void)
 
         transition = g_ble_phy_data.phy_transition;
         if (transition == BLE_PHY_TRANSITION_TX_RX) {
-            /* Packet pointer needs to be reset. */
-            if (g_ble_phy_data.rxpdu != NULL) {
-                g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
-            } else {
-                /* Disable the phy */
-                /* XXX: count no bufs? */
-                ble_phy_disable();
-            }
+            /* Disable the phy */
+            /* XXX: count no bufs? */
+            ble_phy_disable();
         } else {
             /* Better not be going from rx to tx! */
             assert(transition == BLE_PHY_TRANSITION_NONE);
@@ -158,11 +272,9 @@ ble_phy_isr(void)
 
         ble_xcvr_clear_irq(BLE_XCVR_IRQ_F_RX_START);
 
-        /* Better have a PDU! */
-        assert(g_ble_phy_data.rxpdu != NULL);
-
         /* Call Link Layer receive start function */
-        rc = ble_ll_rx_start(g_ble_phy_data.rxpdu, g_ble_phy_data.phy_chan);
+        rc = ble_ll_rx_start(g_ble_phy_data.rxdptr, g_ble_phy_data.phy_chan,
+                             &g_ble_phy_data.rxhdr);
         if (rc >= 0) {
             /* XXX: set rx end enable isr */
         } else {
@@ -182,7 +294,7 @@ ble_phy_isr(void)
         ble_xcvr_clear_irq(BLE_XCVR_IRQ_F_RX_END);
 
         /* Construct BLE header before handing up */
-        ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
+        ble_hdr = &g_ble_phy_data.rxhdr;
         ble_hdr->rxinfo.flags = 0;
         ble_hdr->rxinfo.rssi = -77;    /* XXX: dummy rssi */
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
@@ -197,9 +309,7 @@ ble_phy_isr(void)
         }
 
         /* Call Link Layer receive payload function */
-        rxpdu = g_ble_phy_data.rxpdu;
-        g_ble_phy_data.rxpdu = NULL;
-        rc = ble_ll_rx_end(rxpdu, ble_hdr);
+        rc = ble_ll_rx_end(g_ble_phy_data.rxdptr, ble_hdr);
         if (rc < 0) {
             /* Disable the PHY. */
             ble_phy_disable();
@@ -237,11 +347,6 @@ ble_phy_rx(void)
         ble_phy_disable();
         ++g_ble_phy_stats.radio_state_errs;
         return BLE_PHY_ERR_RADIO_STATE;
-    }
-
-    /* If no pdu, get one */
-    if (ble_phy_rxpdu_get() == NULL) {
-        return BLE_PHY_ERR_NO_BUFS;
     }
 
     g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
@@ -347,11 +452,6 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     } else {
     }
 
-
-    /* Enable shortcuts for transmit start/end. */
-    if (end_trans == BLE_PHY_TRANSITION_TX_RX) {
-        ble_phy_rxpdu_get();
-    }
 
     /* Set the PHY transition */
     g_ble_phy_data.phy_transition = end_trans;
