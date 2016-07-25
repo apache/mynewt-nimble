@@ -149,20 +149,16 @@ ble_svc_gap_device_name_set(const char *name)
 }
 
 int
-ble_svc_gap_register(void)
-{
-    int rc;
-
-    rc = ble_gatts_register_svcs(ble_svc_gap_defs, NULL, NULL);
-    return rc;
-}
-
-int
 ble_svc_gap_init(struct ble_hs_cfg *cfg)
 {
     int rc;
 
     rc = ble_gatts_count_cfg(ble_svc_gap_defs, cfg);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gatts_add_svcs(ble_svc_gap_defs);
     if (rc != 0) {
         return rc;
     }

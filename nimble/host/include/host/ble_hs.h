@@ -134,6 +134,18 @@ struct ble_hs_cfg {
      */
     uint16_t max_client_configs;
 
+    /**
+     * An optional callback that gets executed upon registration of each GATT
+     * resource (service, characteristic, or descriptor).
+     */
+    ble_gatt_register_fn *gatts_register_cb;
+
+    /**
+     * An optional argument that gets passed to the GATT registration
+     * callback.
+     */
+    void *gatts_register_arg;
+
     /*** GATT client settings. */
     /**
      * The maximum number of concurrent GATT client procedures.  When you
