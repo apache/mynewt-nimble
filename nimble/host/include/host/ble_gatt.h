@@ -433,6 +433,7 @@ typedef void ble_gatt_register_fn(struct ble_gatt_register_ctxt *ctxt,
 int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                             ble_gatt_register_fn *register_cb,
                             void *cb_arg);
+int ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs);
 int ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
                               struct ble_gatt_resources *res);
 int ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,

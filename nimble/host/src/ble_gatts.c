@@ -28,6 +28,9 @@
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
 
+static const struct ble_gatt_svc_def **ble_gatts_svc_defs;
+static int ble_gatts_num_svc_defs;
+
 struct ble_gatts_svc_entry {
     const struct ble_gatt_svc_def *svc;
     uint16_t handle;            /* 0 means unregistered. */
@@ -1010,22 +1013,26 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
 {
     int total_registered;
     int cur_registered;
+    int num_svcs;
+    int idx;
     int rc;
     int i;
 
     for (i = 0; svcs[i].type != BLE_GATT_SVC_TYPE_END; i++) {
-        ble_gatts_svc_entries[i].svc = svcs + i;
-        ble_gatts_svc_entries[i].handle = 0;
-        ble_gatts_svc_entries[i].end_group_handle = 0xffff;
-    }
-    if (i > ble_hs_cfg.max_services) {
-        return BLE_HS_ENOMEM;
-    }
+        idx = ble_gatts_num_svc_entries + i;
+        if (idx >= ble_hs_cfg.max_services) {
+            return BLE_HS_ENOMEM;
+        }
 
-    ble_gatts_num_svc_entries = i;
+        ble_gatts_svc_entries[idx].svc = svcs + i;
+        ble_gatts_svc_entries[idx].handle = 0;
+        ble_gatts_svc_entries[idx].end_group_handle = 0xffff;
+    }
+    num_svcs = i;
+    ble_gatts_num_svc_entries += num_svcs;
 
     total_registered = 0;
-    while (total_registered < ble_gatts_num_svc_entries) {
+    while (total_registered < num_svcs) {
         rc = ble_gatts_register_round(&cur_registered, cb, cb_arg);
         if (rc != 0) {
             return rc;
@@ -1834,6 +1841,36 @@ ble_gatts_find_dsc(const void *svc_uuid128, const void *chr_uuid128,
 }
 
 /**
+ * Queues a set of service definitions for registration.  All services queued
+ * in this manner get registered when ble_hs_init() is called.
+ *
+ * @param svcs                  An array of service definitions to queue for
+ *                                  registration.  This array must be
+ *                                  terminated with an entry whose 'type'
+ *                                  equals 0.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOMEM on heap exhaustion.
+ */
+int
+ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
+{
+    void *p;
+
+    p = realloc(ble_gatts_svc_defs,
+                (ble_gatts_num_svc_defs + 1) * sizeof *ble_gatts_svc_defs);
+    if (p == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    ble_gatts_svc_defs = p;
+    ble_gatts_svc_defs[ble_gatts_num_svc_defs] = svcs;
+    ble_gatts_num_svc_defs++;
+
+    return 0;
+}
+
+/**
  * Accumulates counts of each resource type required by the specified service
  * definition array.  This function is generally used to calculate some host
  * configuration values prior to initialization.  This function adds the counts
@@ -1964,6 +2001,14 @@ ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,
 }
 
 static void
+ble_gatts_free_svc_defs(void)
+{
+    free(ble_gatts_svc_defs);
+    ble_gatts_svc_defs = NULL;
+    ble_gatts_num_svc_defs = 0;
+}
+
+static void
 ble_gatts_free_mem(void)
 {
     free(ble_gatts_clt_cfg_mem);
@@ -1977,6 +2022,7 @@ int
 ble_gatts_init(void)
 {
     int rc;
+    int i;
 
     ble_gatts_free_mem();
     ble_gatts_num_cfgable_chrs = 0;
@@ -2001,6 +2047,16 @@ ble_gatts_init(void)
         }
     }
 
+    for (i = 0; i < ble_gatts_num_svc_defs; i++) {
+        rc = ble_gatts_register_svcs(ble_gatts_svc_defs[i],
+                                     ble_hs_cfg.gatts_register_cb,
+                                     ble_hs_cfg.gatts_register_arg);
+        if (rc != 0) {
+            goto err;
+        }
+    }
+    ble_gatts_free_svc_defs();
+
     rc = stats_init_and_reg(
         STATS_HDR(ble_gatts_stats), STATS_SIZE_INIT_PARMS(ble_gatts_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_gatts_stats), "ble_gatts");
@@ -2013,5 +2069,6 @@ ble_gatts_init(void)
 
 err:
     ble_gatts_free_mem();
+    ble_gatts_free_svc_defs();
     return rc;
 }

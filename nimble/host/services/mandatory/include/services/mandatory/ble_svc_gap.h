@@ -34,7 +34,6 @@ struct ble_hs_cfg;
 const char *ble_svc_gap_device_name(void);
 int ble_svc_gap_device_name_set(const char *name);
 
-int ble_svc_gap_register(void);
 int ble_svc_gap_init(struct ble_hs_cfg *cfg);
 
 #endif
