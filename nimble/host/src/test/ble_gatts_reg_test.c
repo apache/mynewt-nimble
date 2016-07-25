@@ -301,9 +301,8 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
 {
     int rc;
 
-    ble_gatts_reg_test_init();
-
     /*** Missing UUID. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_no_uuid[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
     }, {
@@ -314,6 +313,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Circular dependency. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_circ[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
@@ -330,6 +330,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_good[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
@@ -349,9 +350,8 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
 {
     int rc;
 
-    ble_gatts_reg_test_init();
-
     /*** Missing callback. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_no_chr_cb[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
@@ -369,6 +369,7 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_good[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
@@ -391,9 +392,8 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
 {
     int rc;
 
-    ble_gatts_reg_test_init();
-
     /*** Missing callback. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_no_dsc_cb[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
@@ -418,6 +418,7 @@ TEST_CASE(ble_gatts_reg_test_dsc_return)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success. */
+    ble_gatts_reg_test_init();
     struct ble_gatt_svc_def svcs_good[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(0x1234),
