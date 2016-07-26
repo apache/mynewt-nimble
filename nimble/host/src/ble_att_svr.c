@@ -1365,7 +1365,6 @@ done:
     return rc;
 }
 
-int yourmom;
 int
 ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -1403,10 +1402,6 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     BLE_ATT_LOG_CMD(0, "read type req", conn_handle, ble_att_read_type_req_log,
                     &req);
 
-
-    if (req.batq_start_handle == 29) {
-        yourmom++;
-    }
 
     if (req.batq_start_handle > req.batq_end_handle ||
         req.batq_start_handle == 0) {
