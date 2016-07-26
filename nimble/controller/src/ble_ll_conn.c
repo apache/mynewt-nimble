@@ -462,8 +462,8 @@ ble_ll_conn_calc_access_addr(void)
         transitions = 0;
         consecutive = 0;
         mask = 0x00000001;
-        prev_bit = aa & mask;
         while (mask < 0x80000000) {
+            prev_bit = aa & mask;
             mask <<= 1;
             if (mask & aa) {
                 if (prev_bit == 0) {
