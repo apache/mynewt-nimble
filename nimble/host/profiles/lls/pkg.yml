@@ -17,15 +17,15 @@
 # under the License.
 #
 
-pkg.name: net/nimble/profiles
-pkg.description: Adopted profiles/services of the nimble Bluetooth Smart stack.
+pkg.name: net/nimble/host/profiles/lls
+pkg.description: Link Loss Service adopted specification.
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble 
     - bluetooth
+    - lls
+    - nimble 
 
 pkg.deps:
-    - sys/stats
-    - libs/os
-    - net/nimble
+    - net/nimble/host

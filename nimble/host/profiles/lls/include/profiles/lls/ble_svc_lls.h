@@ -33,10 +33,9 @@ struct ble_hs_cfg;
 typedef int ble_svc_lls_event_fn(uint8_t alert_level); 
 
 uint8_t ble_svc_lls_alert_level_get(void);
-uint8_t ble_svc_lls_alert_level_set(uint8_t alert_level);
+int ble_svc_lls_alert_level_set(uint8_t alert_level);
 void ble_svc_lls_on_gap_event(struct ble_gap_event *event, void *arg); 
 
-int ble_svc_lls_register(void);
 int ble_svc_lls_init(struct ble_hs_cfg *cfg, 
                      uint8_t initial_alert_level,
                      ble_svc_lls_event_fn *cb);
