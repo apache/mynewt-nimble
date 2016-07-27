@@ -767,8 +767,8 @@ host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
     if (om2 == NULL) {
         return NULL;
     }
-    BLE_HS_DBG_ASSERT(om2 == om);
 
+    om = om2;
     om = os_mbuf_pullup(om, sizeof hci_hdr);
     if (om == NULL) {
         return NULL;
@@ -869,6 +869,7 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
         case BLE_HS_EDONE:
             /* This is the final fragment. */
             done = 1;
+            om = NULL;
             break;
 
         case BLE_HS_EAGAIN:
@@ -890,6 +891,12 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
         ble_hs_log_mbuf(frag);
         BLE_HS_LOG(DEBUG, "\n");
 
+        /* Next fragment */
+        frag = os_mbuf_pullup(frag, OS_MBUF_PKTLEN(frag));
+        if (frag == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
         rc = ble_hs_tx_data(frag);
         if (rc != 0) {
             goto err;
