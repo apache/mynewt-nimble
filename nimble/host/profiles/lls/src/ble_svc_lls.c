@@ -20,12 +20,18 @@
 #include <assert.h>
 #include <string.h>
 #include "host/ble_hs.h"
-#include "profiles/ble_svc_lls.h"
+#include "profiles/lls/ble_svc_lls.h"
 
 /* Callback function */
 ble_svc_lls_event_fn *cb_fn; 
 /* Alert level */
 uint8_t ble_svc_lls_alert_level;
+
+/* Write characteristic function */
+static int
+ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len, 
+                      uint16_t max_len, void *dst, 
+                      uint16_t *len);
 
 /* Access function */
 static int
@@ -52,6 +58,27 @@ static const struct ble_gatt_svc_def ble_svc_lls_defs[] = {
     },
 };
 
+static int
+ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len, 
+                      uint16_t max_len, void *dst, 
+                      uint16_t *len)
+{
+    uint16_t om_len;
+    int rc; 
+
+    om_len = OS_MBUF_PKTLEN(om);
+    if (om_len < min_len || om_len > max_len) {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }   
+
+    rc = ble_hs_mbuf_to_flat(om, dst, max_len, len);
+    if (rc != 0) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }   
+
+    return 0;
+}
+
 /**
  * Simple read/write access callback for the alert level
  * characteristic.
@@ -61,23 +88,23 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     assert(ctxt->chr == &ble_svc_lls_defs[0].characteristics[0]);
+    int rc;
     switch(ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
-        ctxt->att->read.data = &ble_svc_lls_alert_level;
-        ctxt->att->read.len = sizeof ble_svc_lls_alert_level;
-        break;
+        rc = os_mbuf_append(ctxt->om, &ble_svc_lls_alert_level,
+                            sizeof ble_svc_lls_alert_level);
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
-        if (ctxt->att->write.len != sizeof ble_svc_lls_alert_level) {
-            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-        }
-        memcpy(&ble_svc_lls_alert_level, ctxt->att->write.data, 
-            sizeof ble_svc_lls_alert_level);
-        break;
+        rc = ble_svc_lls_chr_write(ctxt->om, 
+                                sizeof ble_svc_lls_alert_level,
+                                sizeof ble_svc_lls_alert_level,
+                                &ble_svc_lls_alert_level, NULL);
+        return rc; 
 
     default:
         assert(0);
-        break;
+        return BLE_ATT_ERR_UNLIKELY;
     }
 
     return 0;
@@ -131,18 +158,6 @@ ble_svc_lls_alert_level_set(uint8_t alert_level)
 }
 
 /**
- * Registers the LLS with the GATT server.
- */
-int
-ble_svc_lls_register(void)
-{
-    int rc;
-
-    rc = ble_gatts_register_svcs(ble_svc_lls_defs, NULL, NULL);
-    return rc;
-}
-
-/**
  * Initialize the LLS. The developer must specify the event function
  * callback for the LLS to function properly.
  */
@@ -150,9 +165,10 @@ int
 ble_svc_lls_init(struct ble_hs_cfg *cfg, uint8_t initial_alert_level,
                  ble_svc_lls_event_fn *cb)
 {
-    if (*cb) {
+    if (!cb) {
         return BLE_HS_EINVAL;
     }
+    
     ble_svc_lls_alert_level = initial_alert_level;
     cb_fn = cb;
 
@@ -162,5 +178,10 @@ ble_svc_lls_init(struct ble_hs_cfg *cfg, uint8_t initial_alert_level,
         return rc;
     }
 
+    rc = ble_gatts_add_svcs(ble_svc_lls_defs);
+    if (rc != 0) {
+        return rc;
+    }
+    
     return 0;
 }
