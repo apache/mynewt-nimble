@@ -59,31 +59,29 @@ err:
 }
 
 static int
-ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf **txom)
+ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    struct os_mbuf *om;
     int rc;
 
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
-
-    BLE_HS_DBG_ASSERT_EVAL(om->om_len >= 1);
-    ble_att_inc_tx_stat(om->om_data[0]);
+    BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
+    ble_att_inc_tx_stat(txom->om_data[0]);
 
     ble_hs_lock();
 
     rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (rc == 0) {
-        ble_att_truncate_to_mtu(chan, om);
-        rc = ble_l2cap_tx(conn, chan, &om);
+        ble_att_truncate_to_mtu(chan, txom);
+        rc = ble_l2cap_tx(conn, chan, txom);
     }
 
     ble_hs_unlock();
 
-    os_mbuf_free_chain(om);
+    if (rc != 0) {
+        os_mbuf_free_chain(txom);
+    }
+
     return rc;
 }
 
@@ -134,7 +132,7 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     }
     ble_att_mtu_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -211,7 +209,7 @@ ble_att_clt_tx_find_info(uint16_t conn_handle,
     }
     ble_att_find_info_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -338,27 +336,30 @@ ble_att_clt_tx_find_type_value(uint16_t conn_handle,
         req->bavq_start_handle > req->bavq_end_handle) {
 
         rc = BLE_HS_EINVAL;
-        goto done;
+        goto err;
     }
 
     rc = ble_att_clt_init_req(BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ, &txom);
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
     ble_att_find_type_value_req_write(txom->om_data, txom->om_len, req);
     rc = os_mbuf_append(txom, attribute_value, value_len);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
-        goto done;
+        goto err;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
+    txom = NULL;
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
-done:
+    return 0;
+
+err:
     os_mbuf_free_chain(txom);
     return rc;
 }
@@ -441,27 +442,30 @@ ble_att_clt_tx_read_type(uint16_t conn_handle,
         req->batq_start_handle > req->batq_end_handle) {
 
         rc = BLE_HS_EINVAL;
-        goto done;
+        goto err;
     }
 
     rc = ble_att_clt_init_req(BLE_ATT_READ_TYPE_REQ_BASE_SZ, &txom);
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
     ble_att_read_type_req_write(txom->om_data, txom->om_len, req);
     rc = ble_uuid_append(txom, uuid128);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
-        goto done;
+        goto err;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
+    txom = NULL;
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
-done:
+    return 0;
+
+err:
     os_mbuf_free_chain(txom);
     return 0;
 }
@@ -551,7 +555,7 @@ ble_att_clt_tx_read(uint16_t conn_handle, const struct ble_att_read_req *req)
     }
     ble_att_read_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -606,7 +610,7 @@ ble_att_clt_tx_read_blob(uint16_t conn_handle,
     }
     ble_att_read_blob_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -695,7 +699,7 @@ ble_att_clt_tx_read_mult(uint16_t conn_handle, const uint16_t *att_handles,
         return rc;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -747,26 +751,29 @@ ble_att_clt_tx_read_group_type(uint16_t conn_handle,
         req->bagq_start_handle > req->bagq_end_handle) {
 
         rc = BLE_HS_EINVAL;
-        goto done;
+        goto err;
     }
 
     rc = ble_att_clt_init_req(BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, &txom);
     if (rc != 0) {
-        goto done;
+        goto err;
     }
     ble_att_read_group_type_req_write(txom->om_data, txom->om_len, req);
 
     rc = ble_uuid_append(txom, uuid128);
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
+    txom = NULL;
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
-done:
+    return 0;
+
+err:
     os_mbuf_free_chain(txom);
     return rc;
 }
@@ -843,27 +850,22 @@ done:
 static int
 ble_att_clt_tx_write_req_or_cmd(uint16_t conn_handle,
                                 const struct ble_att_write_req *req,
-                                struct os_mbuf **txom, int is_req)
+                                struct os_mbuf *txom, int is_req)
 {
-    struct os_mbuf *om;
     int rc;
 
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
-
-    om = os_mbuf_prepend_pullup(om, BLE_ATT_WRITE_REQ_BASE_SZ);
-    if (om == NULL) {
+    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_WRITE_REQ_BASE_SZ);
+    if (txom == NULL) {
         return BLE_HS_ENOMEM;
     }
 
     if (is_req) {
-        ble_att_write_req_write(om->om_data, BLE_ATT_WRITE_REQ_BASE_SZ, req);
+        ble_att_write_req_write(txom->om_data, BLE_ATT_WRITE_REQ_BASE_SZ, req);
     } else {
-        ble_att_write_cmd_write(om->om_data, BLE_ATT_WRITE_REQ_BASE_SZ, req);
+        ble_att_write_cmd_write(txom->om_data, BLE_ATT_WRITE_REQ_BASE_SZ, req);
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, &om);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -874,7 +876,7 @@ ble_att_clt_tx_write_req_or_cmd(uint16_t conn_handle,
 int
 ble_att_clt_tx_write_req(uint16_t conn_handle,
                          const struct ble_att_write_req *req,
-                         struct os_mbuf **txom)
+                         struct os_mbuf *txom)
 {
 #if !NIMBLE_OPT(ATT_CLT_WRITE)
     return BLE_HS_ENOTSUP;
@@ -891,7 +893,7 @@ ble_att_clt_tx_write_req(uint16_t conn_handle,
 int
 ble_att_clt_tx_write_cmd(uint16_t conn_handle,
                          const struct ble_att_write_req *req,
-                         struct os_mbuf **txom)
+                         struct os_mbuf *txom)
 {
 #if !NIMBLE_OPT(ATT_CLT_WRITE_NO_RSP)
     return BLE_HS_ENOTSUP;
@@ -926,55 +928,53 @@ ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 int
 ble_att_clt_tx_prep_write(uint16_t conn_handle,
                           const struct ble_att_prep_write_cmd *req,
-                          struct os_mbuf **txom)
+                          struct os_mbuf *txom)
 {
 #if !NIMBLE_OPT(ATT_CLT_PREP_WRITE)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct os_mbuf *om;
     int rc;
-
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
 
     BLE_ATT_LOG_CMD(1, "prep write req", conn_handle,
                     ble_att_prep_write_cmd_log, req);
 
     if (req->bapc_handle == 0) {
         rc = BLE_HS_EINVAL;
-        goto done;
+        goto err;
     }
 
-    if (req->bapc_offset + OS_MBUF_PKTLEN(om) > BLE_ATT_ATTR_MAX_LEN) {
+    if (req->bapc_offset + OS_MBUF_PKTLEN(txom) > BLE_ATT_ATTR_MAX_LEN) {
         rc = BLE_HS_EINVAL;
-        goto done;
+        goto err;
     }
 
-    if (OS_MBUF_PKTLEN(om) >
+    if (OS_MBUF_PKTLEN(txom) >
         ble_att_mtu(conn_handle) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
 
         rc = BLE_HS_EINVAL;
-        goto done;
+        goto err;
     }
 
-    om = os_mbuf_prepend_pullup(om, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
-    if (om == NULL) {
+    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
-        goto done;
+        goto err;
     }
 
-    ble_att_prep_write_req_write(om->om_data, BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
+    ble_att_prep_write_req_write(txom->om_data, BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
                                  req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &om);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
+    txom = NULL;
     if (rc != 0) {
-        goto done;
+        goto err;
     }
 
-done:
-    os_mbuf_free_chain(om);
+    return 0;
+
+err:
+    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1037,7 +1037,7 @@ ble_att_clt_tx_exec_write(uint16_t conn_handle,
     }
     ble_att_exec_write_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &txom);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -1072,18 +1072,13 @@ ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 int
 ble_att_clt_tx_notify(uint16_t conn_handle,
                       const struct ble_att_notify_req *req,
-                      struct os_mbuf **txom)
+                      struct os_mbuf *txom)
 {
 #if !NIMBLE_OPT(ATT_CLT_NOTIFY)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct os_mbuf *om;
     int rc;
-
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
 
     BLE_ATT_LOG_CMD(1, "notify req", conn_handle, ble_att_notify_req_log, req);
 
@@ -1092,14 +1087,15 @@ ble_att_clt_tx_notify(uint16_t conn_handle,
         goto err;
     }
 
-    om = os_mbuf_prepend_pullup(om, BLE_ATT_NOTIFY_REQ_BASE_SZ);
-    if (om == NULL) {
+    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
+    if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
-    ble_att_notify_req_write(om->om_data, BLE_ATT_NOTIFY_REQ_BASE_SZ, req);
+    ble_att_notify_req_write(txom->om_data, BLE_ATT_NOTIFY_REQ_BASE_SZ, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &om);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
+    txom = NULL;
     if (rc != 0) {
         goto err;
     }
@@ -1107,7 +1103,7 @@ ble_att_clt_tx_notify(uint16_t conn_handle,
     return 0;
 
 err:
-    os_mbuf_free_chain(om);
+    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1118,18 +1114,13 @@ err:
 int
 ble_att_clt_tx_indicate(uint16_t conn_handle,
                         const struct ble_att_indicate_req *req,
-                        struct os_mbuf **txom)
+                        struct os_mbuf *txom)
 {
 #if !NIMBLE_OPT(ATT_CLT_INDICATE)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct os_mbuf *om;
     int rc;
-
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
 
     BLE_ATT_LOG_CMD(1, "indicate req", conn_handle, ble_att_indicate_req_log,
                     req);
@@ -1139,15 +1130,17 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
         goto err;
     }
 
-    om = os_mbuf_prepend_pullup(om, BLE_ATT_INDICATE_REQ_BASE_SZ);
-    if (om == NULL) {
+    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_INDICATE_REQ_BASE_SZ);
+    if (txom == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
 
-    ble_att_indicate_req_write(om->om_data, BLE_ATT_INDICATE_REQ_BASE_SZ, req);
+    ble_att_indicate_req_write(txom->om_data, BLE_ATT_INDICATE_REQ_BASE_SZ,
+                               req);
 
-    rc = ble_att_clt_tx_req(conn_handle, &om);
+    rc = ble_att_clt_tx_req(conn_handle, txom);
+    txom = NULL;
     if (rc != 0) {
         goto err;
     }
@@ -1155,7 +1148,7 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
     return 0;
 
 err:
-    os_mbuf_free_chain(om);
+    os_mbuf_free_chain(txom);
     return rc;
 }
 

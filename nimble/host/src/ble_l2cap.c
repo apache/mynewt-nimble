@@ -272,37 +272,27 @@ err:
  * mbuf is consumed, regardless of the outcome of the function call.
  * 
  * @param chan                  The L2CAP channel to transmit over.
- * @param om                    The data to transmit.
+ * @param txom                  The data to transmit.
  *
  * @return                      0 on success; nonzero on error.
  */
 int
 ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-             struct os_mbuf **txom)
+             struct os_mbuf *txom)
 {
-    struct os_mbuf *om;
     int rc;
 
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
-
-    om = ble_l2cap_prepend_hdr(om, chan->blc_cid, OS_MBUF_PKTLEN(om));
-    if (om == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
+    txom = ble_l2cap_prepend_hdr(txom, chan->blc_cid, OS_MBUF_PKTLEN(txom));
+    if (txom == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    rc = host_hci_data_tx(conn, &om);
+    rc = host_hci_data_tx(conn, txom);
     if (rc != 0) {
-        goto err;
+        return rc;
     }
 
     return 0;
-
-err:
-    os_mbuf_free_chain(om);
-    return rc;
 }
 
 static void

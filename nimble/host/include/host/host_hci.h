@@ -104,7 +104,7 @@ int host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts);
 uint16_t host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc);
 
 int host_hci_data_rx(struct os_mbuf *om);
-int host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom);
+int host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *txom);
 
 int host_hci_cmd_build_set_data_len(uint16_t connection_handle,
                                     uint16_t tx_octets, uint16_t tx_time,
