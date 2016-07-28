@@ -58,6 +58,10 @@ static const struct ble_gatt_svc_def ble_svc_lls_defs[] = {
     },
 };
 
+/**
+ * Writes the received value from a characteristic write to 
+ * the given destination.
+ */
 static int
 ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len, 
                       uint16_t max_len, void *dst, 
@@ -134,6 +138,8 @@ ble_svc_lls_on_gap_event(int reason)
 
 /**
  * Gets the current alert level.
+ *
+ * @return The current alert level
  */
 uint8_t
 ble_svc_lls_alert_level_get(void)
@@ -142,8 +148,9 @@ ble_svc_lls_alert_level_get(void)
 }
 
 /**
- * Sets the current alert level. Returns 0 on success and
- * BLE_HS_EINVAL if the given alert level is not valid.
+ * Sets the current alert level. 
+ *
+ * @return 0 on success, BLE_HS_EINVAL if the given alert level is not valid.
  */
 int
 ble_svc_lls_alert_level_set(uint8_t alert_level)
