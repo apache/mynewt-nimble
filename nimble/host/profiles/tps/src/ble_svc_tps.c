@@ -36,7 +36,7 @@ static const struct ble_gatt_svc_def ble_svc_tps_defs[] = {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(BLE_SVC_TPS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
-            /*** Characteristic: Alert Level. */
+            /*** Characteristic: Tx Power Level. */
             .uuid128 = BLE_UUID16(BLE_SVC_TPS_CHR_UUID16_TX_POWER_LEVEL),
             .access_cb = ble_svc_tps_access,
             .flags = BLE_GATT_CHR_F_READ,
@@ -69,15 +69,14 @@ ble_svc_tps_access(uint16_t conn_handle, uint16_t attr_handle,
 
     default:
         assert(0);
-        break;
+        return BLE_ATT_ERR_UNLIKELY;
     }
 
     return 0;
 }
 
 /**
- * Initialize the TPS. The developer must specify the event function
- * callback for the TPS to function properly.
+ * Initialize the TPS
  */
 int
 ble_svc_tps_init(struct ble_hs_cfg *cfg)
