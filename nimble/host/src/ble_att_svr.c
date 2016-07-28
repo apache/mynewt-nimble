@@ -502,7 +502,7 @@ ble_att_svr_write_handle(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf **om, uint8_t req_op,
+                         struct os_mbuf *txom, uint8_t req_op,
                          uint16_t handle, uint8_t error_code)
 {
     struct ble_att_error_rsp rsp;
@@ -510,11 +510,12 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     int rc;
 
     BLE_HS_DBG_ASSERT(error_code != 0);
-    BLE_HS_DBG_ASSERT(OS_MBUF_PKTLEN(*om) == 0);
+    BLE_HS_DBG_ASSERT(OS_MBUF_PKTLEN(txom) == 0);
 
-    dst = os_mbuf_extend(*om, BLE_ATT_ERROR_RSP_SZ);
+    dst = os_mbuf_extend(txom, BLE_ATT_ERROR_RSP_SZ);
     if (dst == NULL) {
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        goto err;
     }
 
     rsp.baep_req_op = req_op;
@@ -525,12 +526,17 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     BLE_ATT_LOG_CMD(1, "error rsp", conn->bhc_handle,
                     ble_att_error_rsp_log, &rsp);
 
-    rc = ble_l2cap_tx(conn, chan, om);
+    rc = ble_l2cap_tx(conn, chan, txom);
+    txom = NULL;
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     return 0;
+
+err:
+    os_mbuf_free_chain(txom);
+    return rc;
 }
 
 /**
@@ -557,14 +563,12 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
  *                                  field.
  */
 static int
-ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf **om,
+ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
                    uint8_t att_op, uint8_t err_status, uint16_t err_handle)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     int do_tx;
-
-    BLE_HS_DBG_ASSERT(om != NULL);
 
     if (rc == BLE_HS_ENOTCONN) {
         /* No connection; tx is not possible. */
@@ -584,11 +588,10 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf **om,
             rc = BLE_HS_ENOTCONN;
         } else {
             if (rc == 0) {
-                BLE_HS_DBG_ASSERT(*om != NULL);
-
-                ble_att_inc_tx_stat((*om)->om_data[0]);
-                ble_att_truncate_to_mtu(chan, *om);
+                ble_att_inc_tx_stat(om->om_data[0]);
+                ble_att_truncate_to_mtu(chan, om);
                 rc = ble_l2cap_tx(conn, chan, om);
+                om = NULL;
                 if (rc != 0) {
                     err_status = BLE_ATT_ERR_UNLIKELY;
                 }
@@ -598,21 +601,24 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf **om,
                 STATS_INC(ble_att_stats, error_rsp_tx);
 
                 /* Reuse om for error response. */
-                if (*om == NULL) {
-                    *om = ble_hs_mbuf_l2cap_pkt();
+                if (om == NULL) {
+                    om = ble_hs_mbuf_l2cap_pkt();
                 } else {
-                    /* Remove response from mbuf. */
-                    os_mbuf_adj(*om, OS_MBUF_PKTLEN(*om));
+                    os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
                 }
                 if (om != NULL) {
                     ble_att_svr_tx_error_rsp(conn, chan, om, att_op,
                                              err_handle, err_status);
+                    om = NULL;
                 }
             }
         }
 
         ble_hs_unlock();
     }
+
+    /* Free mbuf if it was not consumed (send failed). */
+    os_mbuf_free_chain(om);
 
     return rc;
 }
@@ -696,10 +702,8 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_MTU_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_MTU_REQ,
                             att_err, 0);
-    os_mbuf_free_chain(txom);
-
     if (rc == 0) {
         ble_hs_lock();
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
@@ -916,9 +920,8 @@ ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_FIND_INFO_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_FIND_INFO_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1236,10 +1239,9 @@ ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom,
                             BLE_ATT_OP_FIND_TYPE_VALUE_REQ, att_err,
                             err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1444,9 +1446,8 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_READ_TYPE_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_TYPE_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1501,9 +1502,8 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_READ_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1570,9 +1570,8 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_READ_BLOB_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_BLOB_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -1689,9 +1688,8 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_READ_MULT_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -2027,10 +2025,9 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom,
                             BLE_ATT_OP_READ_GROUP_TYPE_REQ, att_err,
                             err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -2113,9 +2110,8 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_WRITE_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_WRITE_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -2159,9 +2155,7 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
  * performed by calling the registered GATT access callback.
  *
  * @param attr_handle           The 16-bit handle of the attribute to write.
- * @param om                    The value to write to the attribute.  Double
- *                                  indirection is used to effect a transfer of
- *                                  ownership from the caller.
+ * @param om                    The value to write to the attribute.
  *
  * @return                      0 on success;
  *                              NimBLE host ATT return code if the attribute
@@ -2170,16 +2164,15 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
  *                                  error.
  */
 int
-ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf **om)
+ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om)
 {
     int rc;
 
     rc = ble_att_svr_write_handle(BLE_HS_CONN_HANDLE_NONE, attr_handle, 0,
-                                  om, NULL);
+                                  &om, NULL);
 
-    /* Free the mbuf in case it wasn't consumed (i.e., something failed). */
-    os_mbuf_free_chain(*om);
-    *om = NULL;
+    /* Free the mbuf if it wasn't relinquished to the application. */
+    os_mbuf_free_chain(om);
 
     return rc;
 }
@@ -2505,9 +2498,8 @@ done:
         ble_hs_unlock();
     }
 
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_PREP_WRITE_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_PREP_WRITE_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
 
     return rc;
 }
@@ -2614,9 +2606,8 @@ done:
         }
     }
 
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_EXEC_WRITE_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_EXEC_WRITE_REQ,
                             att_err, err_handle);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 
@@ -2735,9 +2726,8 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, &txom, BLE_ATT_OP_INDICATE_REQ,
+    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_INDICATE_REQ,
                             0, 0);
-    os_mbuf_free_chain(txom);
     return rc;
 }
 

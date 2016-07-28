@@ -801,14 +801,15 @@ host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
  *                              Other BLE host core return code on error.
  */
 int
-host_hci_split_frag(struct os_mbuf *om, struct os_mbuf **out_frag)
+host_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
 {
     struct os_mbuf *frag;
     int rc;
 
-    if (OS_MBUF_PKTLEN(om) <= host_hci_buffer_sz) {
+    if (OS_MBUF_PKTLEN(*om) <= host_hci_buffer_sz) {
         /* Final fragment. */
-        *out_frag = om;
+        *out_frag = *om;
+        *om = NULL;
         return BLE_HS_EDONE;
     }
 
@@ -819,12 +820,12 @@ host_hci_split_frag(struct os_mbuf *om, struct os_mbuf **out_frag)
     }
 
     /* Move data from the front of the packet into the fragment mbuf. */
-    rc = os_mbuf_appendfrom(frag, om, 0, host_hci_buffer_sz);
+    rc = os_mbuf_appendfrom(frag, *om, 0, host_hci_buffer_sz);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
-    os_mbuf_adj(om, host_hci_buffer_sz);
+    os_mbuf_adj(*om, host_hci_buffer_sz);
 
     /* More fragments to follow. */
     *out_frag = frag;
@@ -843,17 +844,12 @@ err:
  * fragments.
  */
 int
-host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
+host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
 {
     struct os_mbuf *frag;
-    struct os_mbuf *om;
     uint8_t pb;
     int done;
     int rc;
-
-    /* Consume mbuf from caller. */
-    om = *txom;
-    *txom = NULL;
 
     /* The first fragment uses the first-non-flush packet boundary value.
      * After sending the first fragment, pb gets set appropriately for all
@@ -864,12 +860,11 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
     /* Send fragments until the entire packet has been sent. */
     done = 0;
     while (!done) {
-        rc = host_hci_split_frag(om, &frag);
+        rc = host_hci_split_frag(&txom, &frag);
         switch (rc) {
         case BLE_HS_EDONE:
             /* This is the final fragment. */
             done = 1;
-            om = NULL;
             break;
 
         case BLE_HS_EAGAIN:
@@ -891,12 +886,17 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
         ble_hs_log_mbuf(frag);
         BLE_HS_LOG(DEBUG, "\n");
 
-        /* Next fragment */
+        /* XXX: Try to pullup the entire fragment.  The controller currently
+         * requires the entire fragment to fit in a single buffer.  When this
+         * restriction is removed from the controller, this operation can be
+         * removed.
+         */
         frag = os_mbuf_pullup(frag, OS_MBUF_PKTLEN(frag));
         if (frag == NULL) {
             rc = BLE_HS_ENOMEM;
             goto err;
         }
+
         rc = ble_hs_tx_data(frag);
         if (rc != 0) {
             goto err;
@@ -910,6 +910,6 @@ host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf **txom)
 err:
     BLE_HS_DBG_ASSERT(rc != 0);
 
-    os_mbuf_free_chain(om);
+    os_mbuf_free_chain(txom);
     return rc;
 }

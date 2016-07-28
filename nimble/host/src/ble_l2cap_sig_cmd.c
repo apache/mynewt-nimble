@@ -129,7 +129,7 @@ ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                                data, data_len);
 
     STATS_INC(ble_l2cap_stats, sig_rx);
-    rc = ble_l2cap_tx(conn, chan, &txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         return rc;
     }
@@ -203,7 +203,7 @@ ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
     ble_l2cap_sig_update_req_write(payload_buf, BLE_L2CAP_SIG_UPDATE_REQ_SZ,
                                    req);
 
-    rc = ble_l2cap_tx(conn, chan, &txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         return rc;
     }
@@ -255,7 +255,7 @@ ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
     ble_l2cap_sig_update_rsp_write(payload_buf, BLE_L2CAP_SIG_UPDATE_RSP_SZ,
                                    &rsp);
 
-    rc = ble_l2cap_tx(conn, chan, &txom);
+    rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         return rc;
     }

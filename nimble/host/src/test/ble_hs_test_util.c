@@ -1064,8 +1064,7 @@ ble_hs_test_util_write_local_flat(uint16_t attr_handle,
     int rc;
 
     om = ble_hs_test_util_om_from_flat(buf, buf_len);
-    rc = ble_att_svr_write_local(attr_handle, &om);
-    TEST_ASSERT(om == NULL);
+    rc = ble_att_svr_write_local(attr_handle, om);
     return rc;
 }
 
@@ -1078,8 +1077,7 @@ ble_hs_test_util_gatt_write_flat(uint16_t conn_handle, uint16_t attr_handle,
     int rc;
 
     om = ble_hs_test_util_om_from_flat(data, data_len);
-    rc = ble_gattc_write(conn_handle, attr_handle, &om, cb, cb_arg);
-    TEST_ASSERT(om == NULL);
+    rc = ble_gattc_write(conn_handle, attr_handle, om, cb, cb_arg);
 
     return rc;
 }
@@ -1093,8 +1091,7 @@ ble_hs_test_util_gatt_write_no_rsp_flat(uint16_t conn_handle,
     int rc;
 
     om = ble_hs_test_util_om_from_flat(data, data_len);
-    rc = ble_gattc_write_no_rsp(conn_handle, attr_handle, &om);
-    TEST_ASSERT(om == NULL);
+    rc = ble_gattc_write_no_rsp(conn_handle, attr_handle, om);
 
     return rc;
 }
@@ -1109,8 +1106,8 @@ ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
     int rc;
 
     om = ble_hs_test_util_om_from_flat(data, data_len);
-    rc = ble_gattc_write_long(conn_handle, attr_handle, &om, cb, cb_arg);
-    TEST_ASSERT(om == NULL);
+    rc = ble_gattc_write_long(conn_handle, attr_handle, om, cb, cb_arg);
+
     return rc;
 }
 

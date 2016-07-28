@@ -68,12 +68,11 @@ ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle,
 
     om = ble_hs_test_util_om_from_flat(value, value_len);
     if (is_req) {
-        rc = ble_att_clt_tx_write_req(conn_handle, req, &om);
+        rc = ble_att_clt_tx_write_req(conn_handle, req, om);
     } else {
-        rc = ble_att_clt_tx_write_cmd(conn_handle, req, &om);
+        rc = ble_att_clt_tx_write_cmd(conn_handle, req, om);
     }
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(om == NULL);
 }
 
 TEST_CASE(ble_att_clt_test_tx_find_info)
@@ -216,9 +215,8 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
     req.bapc_handle = handle;
     req.bapc_offset = offset;
     om = ble_hs_test_util_om_from_flat(attr_data, attr_data_len);
-    rc = ble_att_clt_tx_prep_write(conn_handle, &req, &om);
+    rc = ble_att_clt_tx_prep_write(conn_handle, &req, om);
     TEST_ASSERT(rc == 0);
-    TEST_ASSERT(om == NULL);
 
     ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
@@ -273,9 +271,8 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
 
     req.bapc_handle = handle;
     req.bapc_offset = offset;
-    rc = ble_att_clt_tx_prep_write(conn_handle, &req, &om);
+    rc = ble_att_clt_tx_prep_write(conn_handle, &req, om);
     TEST_ASSERT(rc == status);
-    TEST_ASSERT(om == NULL);
 }
 
 TEST_CASE(ble_att_clt_test_tx_write)
