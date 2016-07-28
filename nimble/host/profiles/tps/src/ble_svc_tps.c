@@ -60,7 +60,7 @@ ble_svc_tps_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     assert(ctxt->chr == &ble_svc_tps_defs[0].characteristics[0]);
     int rc;
-    switch(ctxt->op) {
+    switch (ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
         ble_hci_util_read_adv_tx_pwr(&ble_svc_tps_tx_power_level);
         rc = os_mbuf_append(ctxt->om, &ble_svc_tps_tx_power_level,
