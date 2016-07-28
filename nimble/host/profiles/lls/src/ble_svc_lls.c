@@ -23,9 +23,9 @@
 #include "profiles/lls/ble_svc_lls.h"
 
 /* Callback function */
-ble_svc_lls_event_fn *cb_fn; 
+static ble_svc_lls_event_fn *cb_fn; 
 /* Alert level */
-uint8_t ble_svc_lls_alert_level;
+static uint8_t ble_svc_lls_alert_level;
 
 /* Write characteristic function */
 static int
@@ -89,7 +89,7 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     assert(ctxt->chr == &ble_svc_lls_defs[0].characteristics[0]);
     int rc;
-    switch(ctxt->op) {
+    switch (ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
         rc = os_mbuf_append(ctxt->om, &ble_svc_lls_alert_level,
                             sizeof ble_svc_lls_alert_level);
@@ -97,9 +97,9 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
         rc = ble_svc_lls_chr_write(ctxt->om, 
-                                sizeof ble_svc_lls_alert_level,
-                                sizeof ble_svc_lls_alert_level,
-                                &ble_svc_lls_alert_level, NULL);
+                                   sizeof ble_svc_lls_alert_level,
+                                   sizeof ble_svc_lls_alert_level,
+                                   &ble_svc_lls_alert_level, NULL);
         return rc; 
 
     default:
@@ -113,27 +113,27 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
 /**
  * This function is the crux of the link loss service. The application
  * developer must call this function inside the gap event callback
- * function when a BLE_GAP_EVENT_DISCONNECT event is received. Here,
- * we then check if the disconnect reason is due to a timout, and if
+ * function when a BLE_GAP_EVENT_DISCONNECT event is received and
+ * pass the disconnect reason into this function. 
+ * 
+ * Here, we then check if the disconnect reason is due to a timout, and if
  * so, we call the ble_svc_lls_event_fn callback with the current 
  * alert level. The actual alert implementation is left up to the 
  * developer.
  *
- * @param event                 The BLE GAP event from the GAP event
- *                                  callback.
- * @param arg                   The BLE GAP event arg from the GAP
- *                                  event callback.
+ * @param reason            The reason attatched to the GAP disconnect
+ *                              event.
  */
 void
-ble_svc_lls_on_gap_event(struct ble_gap_event *event, void *arg) {
-    if(event->disconnect.reason == 
-                BLE_HS_HCI_ERR(BLE_ERR_CONN_SPVN_TMO)) {
+ble_svc_lls_on_gap_event(int reason)
+{
+    if (reason == BLE_HS_HCI_ERR(BLE_ERR_CONN_SPVN_TMO)) {
             cb_fn(ble_svc_lls_alert_level);
     } 
 }
 
 /**
- * Get the current alert level.
+ * Gets the current alert level.
  */
 uint8_t
 ble_svc_lls_alert_level_get(void)
@@ -142,7 +142,8 @@ ble_svc_lls_alert_level_get(void)
 }
 
 /**
- * Set the current alert level.
+ * Sets the current alert level. Returns 0 on success and
+ * BLE_HS_EINVAL if the given alert level is not valid.
  */
 int
 ble_svc_lls_alert_level_set(uint8_t alert_level)
@@ -152,7 +153,7 @@ ble_svc_lls_alert_level_set(uint8_t alert_level)
     }
     
     memcpy(&ble_svc_lls_alert_level, &alert_level, 
-            sizeof alert_level);
+           sizeof alert_level);
 
     return 0;
 }
@@ -160,6 +161,11 @@ ble_svc_lls_alert_level_set(uint8_t alert_level)
 /**
  * Initialize the LLS. The developer must specify the event function
  * callback for the LLS to function properly.
+ *
+ * @param initial_alert_level       The initial alert value to set
+ * @param cb                        The callback function to call when 
+ *                                      connection has been lost due to 
+ *                                      link loss
  */
 int
 ble_svc_lls_init(struct ble_hs_cfg *cfg, uint8_t initial_alert_level,
