@@ -103,11 +103,11 @@ void ble_gattc_rx_read_type_adata(uint16_t conn_handle,
                                   struct ble_att_read_type_adata *adata);
 void ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status);
 void ble_gattc_rx_read_rsp(uint16_t conn_handle, int status,
-                           struct os_mbuf **om);
+                           struct os_mbuf **rxom);
 void ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
-                                struct os_mbuf **om);
+                                struct os_mbuf **rxom);
 void ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
-                                struct os_mbuf **om);
+                                struct os_mbuf **rxom);
 void ble_gattc_rx_read_group_type_adata(
     uint16_t conn_handle, struct ble_att_read_group_type_adata *adata);
 void ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int rc);
@@ -117,7 +117,7 @@ void ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status);
 void ble_gattc_rx_write_rsp(uint16_t conn_handle);
 void ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
                                  struct ble_att_prep_write_cmd *rsp,
-                                 struct os_mbuf **om);
+                                 struct os_mbuf **rxom);
 void ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status);
 void ble_gattc_rx_indicate_rsp(uint16_t conn_handle);
 void ble_gattc_rx_find_info_idata(uint16_t conn_handle,

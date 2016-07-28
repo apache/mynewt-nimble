@@ -164,24 +164,24 @@ int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
                         void *cb_arg);
 int ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                           struct os_mbuf **om);
+                           struct os_mbuf *om);
 int ble_gattc_write_no_rsp_flat(uint16_t conn_handle, uint16_t attr_handle,
                                 const void *data, uint16_t data_len);
 int ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
-                    struct os_mbuf **om,
+                    struct os_mbuf *om,
                     ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_flat(uint16_t conn_handle, uint16_t attr_handle,
                          const void *data, uint16_t data_len,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                         struct os_mbuf **om,
+                         struct os_mbuf *om,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_reliable(uint16_t conn_handle,
                              struct ble_gatt_attr *attrs,
                              int num_attrs, ble_gatt_reliable_attr_fn *cb,
                              void *cb_arg);
 int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
-                            struct os_mbuf **om);
+                            struct os_mbuf *om);
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
