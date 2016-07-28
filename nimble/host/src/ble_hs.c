@@ -343,19 +343,18 @@ ble_hs_start(void)
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_hs_rx_data(struct os_mbuf **om)
+ble_hs_rx_data(struct os_mbuf *om)
 {
     int rc;
 
-    rc = os_mqueue_put(&ble_hs_rx_q, &ble_hs_evq, *om);
-    if (rc == 0) {
-        *om = NULL;
-    } else {
-        rc = BLE_HS_EOS;
+    rc = os_mqueue_put(&ble_hs_rx_q, &ble_hs_evq, om);
+    if (rc != 0) {
+        os_mbuf_free_chain(om);
+        return BLE_HS_EOS;
     }
+
     os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
 
-    os_mbuf_free_chain(*om);
     return 0;
 }
 

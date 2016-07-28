@@ -417,11 +417,12 @@ void ble_sm_sc_public_key_exec(struct ble_sm_proc *proc,
                                struct ble_sm_result *res,
                                void *arg);
 void ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op,
-                             struct os_mbuf **om, struct ble_sm_result *res);
+                             struct os_mbuf **rxom, struct ble_sm_result *res);
 void ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc,
                                 struct ble_sm_result *res, void *arg);
 void ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op,
-                              struct os_mbuf **om, struct ble_sm_result *res);
+                              struct os_mbuf **rxom,
+                              struct ble_sm_result *res);
 void ble_sm_sc_init(void);
 #else
 #define ble_sm_sc_io_action(proc) (BLE_SM_IOACT_NONE)

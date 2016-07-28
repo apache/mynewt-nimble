@@ -230,7 +230,7 @@ struct ble_hs_cfg {
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
-int ble_hs_rx_data(struct os_mbuf **om);
+int ble_hs_rx_data(struct os_mbuf *om);
 int ble_hs_start(void);
 void ble_hs_event_enqueue(struct os_event *ev);
 int ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg);
