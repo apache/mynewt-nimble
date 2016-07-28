@@ -47,14 +47,14 @@ struct ble_hs_cfg;
 /* Alert Notification Service Category IDs
  *
  * TODO: Need to add remaining 2 categories */
-#define BLE_SVC_ANS_CAT_SIMPLE_ALERT                        0x1
-#define BLE_SVC_ANS_CAT_EMAIL                               0x2
-#define BLE_SVC_ANS_CAT_NEWS                                0x3
-#define BLE_SVC_ANS_CAT_CALL                                0x4
-#define BLE_SVC_ANS_CAT_MISSED_CALL                         0x5
-#define BLE_SVC_ANS_CAT_SMS                                 0x6
-#define BLE_SVC_ANS_CAT_VOICE_MAIL                          0x7
-#define BLE_SVC_ANS_CAT_SCHEDULE                            0x8
+#define BLE_SVC_ANS_CAT_SIMPLE_ALERT                        0
+#define BLE_SVC_ANS_CAT_EMAIL                               1
+#define BLE_SVC_ANS_CAT_NEWS                                2
+#define BLE_SVC_ANS_CAT_CALL                                3
+#define BLE_SVC_ANS_CAT_MISSED_CALL                         4
+#define BLE_SVC_ANS_CAT_SMS                                 5
+#define BLE_SVC_ANS_CAT_VOICE_MAIL                          6
+#define BLE_SVC_ANS_CAT_SCHEDULE                            7
 
 /* Number of valid ANS categories 
  *
@@ -66,16 +66,19 @@ struct ble_hs_cfg;
 #define BLE_SVC_ANS_CMD_EN_UNR_ALERT_CAT                    1
 #define BLE_SVC_ANS_CMD_DIS_NEW_ALERT_CAT                   2
 #define BLE_SVC_ANS_CMD_DIS_UNR_ALERT_CAT                   3
-#define BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEADIATE            4
-#define BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEADIATE            5
+#define BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEDIATE             4
+#define BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEDIATE             5
 
-int ble_svc_ans_new_alert_add(uint8_t category_flag, 
-                              char * info_str);
-int ble_svc_ans_unr_alert_add(uint8_t category_flag);
+/* Error Defeinitions */
+#define BLE_SVC_ANS_ERR_CMD_NOT_SUPPORTED                   0xA0
 
-int ble_svc_ans_init(struct ble_hs_cfg *cfg, 
-                     uint8_t new_alert_cat,
-                     uint8_t urn_alert_cat);
+#define BLE_SVC_ANS_INFO_STR_MAX_LEN                        18
+
+int ble_svc_ans_new_alert_add(uint8_t cat_id, 
+                              const char * info_str);
+int ble_svc_ans_unr_alert_add(uint8_t cat_id);
+
+int ble_svc_ans_init(struct ble_hs_cfg *cfg);
 
 #endif
 
