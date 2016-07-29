@@ -129,7 +129,7 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
  *                              event.
  */
 void
-ble_svc_lls_on_gap_event(int reason)
+ble_svc_lls_on_gap_disconnect(int reason)
 {
     if (reason == BLE_HS_HCI_ERR(BLE_ERR_CONN_SPVN_TMO)) {
             cb_fn(ble_svc_lls_alert_level);
