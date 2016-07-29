@@ -34,31 +34,32 @@ struct ble_hs_cfg;
 
 /* Alert Notification Service Category ID Bit Masks 
  *
- * TODO: Need to add remaining 2 categories */
-#define BLE_SVC_ANS_CAT_F_SIMPLE_ALERT                      0x01
-#define BLE_SVC_ANS_CAT_F_EMAIL                             0x02
-#define BLE_SVC_ANS_CAT_F_NEWS                              0x04
-#define BLE_SVC_ANS_CAT_F_CALL                              0x08
-#define BLE_SVC_ANS_CAT_F_MISSED_CALL                       0x10
-#define BLE_SVC_ANS_CAT_F_SMS                               0x20
-#define BLE_SVC_ANS_CAT_F_VOICE_MAIL                        0x40
-#define BLE_SVC_ANS_CAT_F_SCHEDULE                          0x80    
+ * TODO: Add remaining 2 optional categories */
+#define BLE_SVC_ANS_CAT_BM_NONE                             0x00
+#define BLE_SVC_ANS_CAT_BM_SIMPLE_ALERT                     0x01
+#define BLE_SVC_ANS_CAT_BM_EMAIL                            0x02
+#define BLE_SVC_ANS_CAT_BM_NEWS                             0x04
+#define BLE_SVC_ANS_CAT_BM_CALL                             0x08
+#define BLE_SVC_ANS_CAT_BM_MISSED_CALL                      0x10
+#define BLE_SVC_ANS_CAT_BM_SMS                              0x20
+#define BLE_SVC_ANS_CAT_BM_VOICE_MAIL                       0x40
+#define BLE_SVC_ANS_CAT_BM_SCHEDULE                         0x80    
 
 /* Alert Notification Service Category IDs
  *
- * TODO: Need to add remaining 2 categories */
-#define BLE_SVC_ANS_CAT_SIMPLE_ALERT                        0
-#define BLE_SVC_ANS_CAT_EMAIL                               1
-#define BLE_SVC_ANS_CAT_NEWS                                2
-#define BLE_SVC_ANS_CAT_CALL                                3
-#define BLE_SVC_ANS_CAT_MISSED_CALL                         4
-#define BLE_SVC_ANS_CAT_SMS                                 5
-#define BLE_SVC_ANS_CAT_VOICE_MAIL                          6
-#define BLE_SVC_ANS_CAT_SCHEDULE                            7
+ * TODO: Add remaining 2 optional categories */
+#define BLE_SVC_ANS_CAT_ID_SIMPLE_ALERT                     0
+#define BLE_SVC_ANS_CAT_ID_EMAIL                            1
+#define BLE_SVC_ANS_CAT_ID_NEWS                             2
+#define BLE_SVC_ANS_CAT_ID_CALL                             3
+#define BLE_SVC_ANS_CAT_ID_MISSED_CALL                      4
+#define BLE_SVC_ANS_CAT_ID_SMS                              5
+#define BLE_SVC_ANS_CAT_ID_VOICE_MAIL                       6
+#define BLE_SVC_ANS_CAT_ID_SCHEDULE                         7
 
 /* Number of valid ANS categories 
  *
- * TODO: Need to add remaining 2 categories */
+ * TODO: Add remaining 2 optional categories */
 #define BLE_SVC_ANS_CAT_NUM                                 8
 
 /* Alert Notification Control Point Command IDs */
@@ -72,13 +73,15 @@ struct ble_hs_cfg;
 /* Error Defeinitions */
 #define BLE_SVC_ANS_ERR_CMD_NOT_SUPPORTED                   0xA0
 
-#define BLE_SVC_ANS_INFO_STR_MAX_LEN                        18
+void ble_svc_ans_on_gap_connect(uint16_t conn_handle);
 
 int ble_svc_ans_new_alert_add(uint8_t cat_id, 
                               const char * info_str);
 int ble_svc_ans_unr_alert_add(uint8_t cat_id);
 
-int ble_svc_ans_init(struct ble_hs_cfg *cfg);
+int ble_svc_ans_init(struct ble_hs_cfg *cfg, 
+                     uint8_t initial_new_alert_cat,
+                     uint8_t initial_unr_alert_cat);
 
 #endif
 

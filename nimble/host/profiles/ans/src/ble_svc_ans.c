@@ -21,12 +21,54 @@
 #include <string.h>
 #include <math.h>
 #include "host/ble_hs.h"
+#include "host/ble_gap.h"
 #include "profiles/ans/ble_svc_ans.h"
+
+
+/* Max length of new alert info string */
+#define BLE_SVC_ANS_INFO_STR_MAX_LEN        18
+/* Max length of a new alert notification, max string length + 2 bytes
+ * for category ID and count. */
+#define BLE_SVC_ANS_NEW_ALERT_MAX_LEN   (BLE_SVC_ANS_INFO_STR_MAX_LEN + 2)
+
+/* Supported categories bitmasks */
+static uint8_t ble_svc_ans_new_alert_cat;
+static uint8_t ble_svc_ans_unr_alert_cat; 
+
+/* Characteristic values */
+static uint8_t ble_svc_ans_new_alert_val[BLE_SVC_ANS_NEW_ALERT_MAX_LEN];
+static uint16_t ble_svc_ans_new_alert_val_len;
+static uint8_t ble_svc_ans_unr_alert_stat[2];
+static uint8_t ble_svc_ans_alert_not_ctrl_pt[2];
+
+/* Alert counts, one value for each category */
+static uint8_t ble_svc_ans_new_alert_cnt[BLE_SVC_ANS_CAT_NUM];
+static uint8_t ble_svc_ans_unr_alert_cnt[BLE_SVC_ANS_CAT_NUM];
+
+/* Charachteristic value handles */
+static uint16_t ble_svc_ans_new_alert_val_handle;
+static uint16_t ble_svc_ans_unr_alert_val_handle;
+
+/* Connection handle */
+static uint16_t ble_svc_ans_conn_handle;
 
 /* Access function */
 static int
 ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+/* Notify new alert */
+static int
+ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str);
+
+/* Notify unread alert */
+static int
+ble_svc_ans_unr_alert_notify(uint8_t cat_id);
+
+/* Save written value to local characteristic value */
+static int
+ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len, 
+                      void *dst, uint16_t *len);
 
 static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
     {
@@ -34,47 +76,45 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid128 = BLE_UUID16(BLE_SVC_ANS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
-            /*** Supported New Alert Catagory 
+            /** Supported New Alert Catagory 
              * 
              * This characteristic exposes what categories of new 
              * alert are supported in the server.
-             * 
-             * */
+             */
             .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_SUP_NEW_ALERT_CAT),
             .access_cb = ble_svc_ans_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-            /*** New Alert 
+            /** New Alert 
              *
              * This characteristic exposes information about 
              * the count of new alerts (for a given category).
-             *
-             * */
+             */
             .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_NEW_ALERT),
             .access_cb = ble_svc_ans_access,
+            .val_handle = &ble_svc_ans_new_alert_val_handle,
             .flags = BLE_GATT_CHR_F_NOTIFY,
         }, {
-            /*** Supported Unread Alert Catagory 
+            /** Supported Unread Alert Catagory 
              *
              * This characteristic exposes what categories of 
              * unread alert are supported in the server.
-             *
-             * */
+             */
             .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_SUP_UNR_ALERT_CAT),
             .access_cb = ble_svc_ans_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-            /*** Unread Alert Status 
+            /** Unread Alert Status 
              *
              * This characteristic exposes the count of unread 
              * alert events existing in the server.
-             *
-             * */
+             */
             .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_UNR_ALERT_STAT),
             .access_cb = ble_svc_ans_access,
+            .val_handle = &ble_svc_ans_unr_alert_val_handle,
             .flags = BLE_GATT_CHR_F_NOTIFY,
         }, {
-            /*** Alert Notification Control Point 
+            /** Alert Notification Control Point 
              *
              * This characteristic allows the peer device to 
              * enable/disable the alert notification of new alert 
@@ -82,8 +122,7 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
              * by setting or clearing the notification bit in the 
              * Client Characteristic Configuration for each alert 
              * characteristic.
-             *
-             * */
+             */
             .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_ALERT_NOT_CTRL_PT),
             .access_cb = ble_svc_ans_access,
             .flags = BLE_GATT_CHR_F_WRITE,
@@ -97,51 +136,9 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
     },
 };
 
-static int
-ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len,
-                      uint16_t max_len, void *dst,
-                      uint16_t *len)
-{
-    uint16_t om_len;
-    int rc;
-
-    om_len = OS_MBUF_PKTLEN(om);
-    if (om_len < min_len || om_len > max_len) {
-        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-    }
-
-    rc = ble_hs_mbuf_to_flat(om, dst, max_len, len);
-    if (rc != 0) {
-        return BLE_ATT_ERR_UNLIKELY;
-    }
-
-    return 0;
-}
-
-/* Because the max length of the info string is 18 octets,
- * and the category ID and count take up 2 octets each, we
- * require a maximum of 20 octets of space.
+/**
+ * ANS access function
  */
-#define GATT_SVR_NEW_ALERT_VAL_MAX_LEN   20 
-
-/* Supported new alert categories bitmask */
-static uint8_t ble_svc_ans_new_alert_cat;
-/* New alert value */
-static uint8_t ble_svc_ans_new_alert_val[GATT_SVR_NEW_ALERT_VAL_MAX_LEN];
-static uint16_t ble_svc_ans_new_alert_val_len;
-/* New alert count, one value for each category */
-static uint8_t ble_svc_ans_new_alert_cnt[BLE_SVC_ANS_CAT_NUM];
-
-/* Supported unread alert catagories bitmask */ 
-static uint8_t ble_svc_ans_unr_alert_cat; 
-/* Unread alert status, contains supported catagories and count */
-static uint8_t ble_svc_ans_unr_alert_stat[2];
-/* Count of unread alerts. One value for each category */
-static uint8_t ble_svc_ans_unr_alert_cnt[BLE_SVC_ANS_CAT_NUM];
-
-/* Alert notification control point value */
-static uint8_t ble_svc_ans_alert_not_ctrl_pt[2];
-
 static int
 ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                           struct ble_gatt_access_ctxt *ctxt,
@@ -205,36 +202,53 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             /* Get command ID and category ID */
             uint8_t cmd_id = ble_svc_ans_alert_not_ctrl_pt[0];
             uint8_t cat_id = ble_svc_ans_alert_not_ctrl_pt[1];
-            uint8_t cat; 
+            uint8_t cat_bit_mask; 
 
-            /* Set cat to the appropriate bitmask based on cat_id or
-             * return error if the cat_id in an invalid range.
-             */
+            /* Set cat_bit_mask to the appropriate bitmask based on cat_id */
             if (cat_id < BLE_SVC_ANS_CAT_NUM) {
-                cat = (1 << cat_id); 
-            } else if (cat_id == 0xff) {
-                cat = cat_id;
+                cat_bit_mask = (1 << cat_id); 
+            } else if (cat_id == 0xff) { 
+                cat_bit_mask = cat_id;
             } else {
-                return BLE_SVC_ANS_ERR_CMD_NOT_SUPPORTED;
+                cat_bit_mask = 0;
             }
-            switch(cmd_id) {
+
+            switch (cmd_id) {
             case BLE_SVC_ANS_CMD_EN_NEW_ALERT_CAT:
-                ble_svc_ans_new_alert_cat |= cat; 
+                ble_svc_ans_new_alert_cat |= cat_bit_mask; 
                 break;
             case BLE_SVC_ANS_CMD_EN_UNR_ALERT_CAT:
-                ble_svc_ans_unr_alert_cat |= cat;
+                ble_svc_ans_unr_alert_cat |= cat_bit_mask;
                 break;
             case BLE_SVC_ANS_CMD_DIS_NEW_ALERT_CAT:
-                ble_svc_ans_new_alert_cat &= ~cat;
+                ble_svc_ans_new_alert_cat &= ~cat_bit_mask;
                 break;
             case BLE_SVC_ANS_CMD_DIS_UNR_ALERT_CAT:
-                ble_svc_ans_unr_alert_cat &= ~cat;
+                ble_svc_ans_unr_alert_cat &= ~cat_bit_mask;
                 break;
             case BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEDIATE:
-                /* TODO */
+                if (cat_id == 0xff) {
+                    int i;
+                    for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
+                        if ((ble_svc_ans_new_alert_cat >> i) & 0x01) {
+                            ble_svc_ans_new_alert_notify(i, NULL);
+                        }
+                    }
+                } else {
+                    ble_svc_ans_new_alert_notify(cat_id, NULL);
+                }
                 break;
             case BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEDIATE:
-                /* TODO */
+                if (cat_id == 0xff) {
+                    int i;
+                    for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
+                        if ((ble_svc_ans_unr_alert_cat >> i) & 0x01) {
+                            ble_svc_ans_unr_alert_notify(i);
+                        }
+                    }
+                } else {
+                    ble_svc_ans_unr_alert_notify(cat_id);
+                }
                 break;
             default:
                 return BLE_SVC_ANS_ERR_CMD_NOT_SUPPORTED;
@@ -252,18 +266,29 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 /**
- * Adds a new alert to the given category then sets the new 
- * alert val to the category, the new alert count for the given 
- * category, and the given info string. If set up for notification, 
- * setting this value will notify the client.
- * 
- * @param cat_flag              The flag for the category which should
+ * This function must be called with the connection handlewhen a gap 
+ * connect event is received in order to send notifications to the
+ * client
+ *
+ * @params conn_handle          The connection handle for the current
+ *                                  connection.
+ */
+void 
+ble_svc_ans_on_gap_connect(uint16_t conn_handle) 
+{
+    ble_svc_ans_conn_handle = conn_handle;
+}
+
+/**
+ * Adds a new alert to the given category then notifies the client
+ * if the given category is valid and enabled.
+ *
+ * @param cat_flag              The id for the category which should
  *                                  should be incremented and notified
  * @param info_str              The info string to be sent to the client
  *                                  with the notification.
  * 
- * @return 0 if success, BLE_HS_EINVAL if the category is not enabled 
- *         or if the flag is not valid.
+ * @return 0 if success, error code otherwise. 
  */
 int
 ble_svc_ans_new_alert_add(uint8_t cat_id, const char * info_str)
@@ -280,23 +305,12 @@ ble_svc_ans_new_alert_add(uint8_t cat_id, const char * info_str)
     }
 
     ble_svc_ans_new_alert_cnt[cat_id] += 1;
-    ble_svc_ans_new_alert_val[0] = cat_id;
-    ble_svc_ans_new_alert_val[1] = ble_svc_ans_new_alert_cnt[cat_id];
-    int n = sizeof info_str;
-    if (n > BLE_SVC_ANS_INFO_STR_MAX_LEN) {
-        memcpy(&ble_svc_ans_new_alert_val[2], info_str, 
-                BLE_SVC_ANS_INFO_STR_MAX_LEN);
-    } else {
-        memcpy(&ble_svc_ans_new_alert_val[2], info_str, n);
-    }
-    return 0;
+    return ble_svc_ans_new_alert_notify(cat_id, info_str);
 }
 
 /**
- * Adds an unread alert to the given category then sets the unread
- * alert stat to the category and the new unread alert value for
- * the given category. If set up for notification, setting this value
- * will notify the client.
+ * Adds an unread alert to the given category then notifies the client
+ * if the given category is valid and enabled.
  * 
  * @param cat_flag              The flag for the category which should
  *                                  should be incremented and notified
@@ -319,20 +333,32 @@ ble_svc_ans_unr_alert_add(uint8_t cat_id)
     }
 
     ble_svc_ans_unr_alert_cnt[cat_id] += 1;
-    ble_svc_ans_unr_alert_stat[0] = cat_id;
-    ble_svc_ans_unr_alert_stat[1] = ble_svc_ans_unr_alert_cnt[cat_id];
-    return 0;
+    return ble_svc_ans_unr_alert_notify(cat_id);
 }
 
 /**
- * Initialize the ANS 
+ * Initialize the ANS with initial values for enabled categories
+ * for new and unread alert characteristics. Bitwise or the 
+ * catagory bitmasks to enable multiple catagories.
  * 
  * XXX: We should technically be able to change the new alert and
  *      unread alert catagories when we have no active connections.
+ * 
+ * @param cfg                       The host configuration
+ * @param initial_new_alert_cat     Initial supported new alert category
+ *                                      bitmask.
+ * @param initial_unr_alert_cat     Initial supported unread alert category
+ *                                      bitmask.
+ *
+ * @return 0 on success, non-zero on error.
  */
 int
-ble_svc_ans_init(struct ble_hs_cfg *cfg)
+ble_svc_ans_init(struct ble_hs_cfg *cfg, uint8_t initial_new_alert_cat,
+                 uint8_t initial_unr_alert_cat)
 {
+    ble_svc_ans_new_alert_cat = initial_new_alert_cat;
+    ble_svc_ans_unr_alert_cat = initial_unr_alert_cat;
+
     int rc;
     rc = ble_gatts_count_cfg(ble_svc_ans_defs, cfg);
     if (rc != 0) {
@@ -347,3 +373,83 @@ ble_svc_ans_init(struct ble_hs_cfg *cfg)
     return 0;
 }
 
+/**
+ * Send a new alert notification to the given category with the 
+ * given info string.
+ *
+ * @param cat_id                The ID of the category to send the 
+ *                                  notification to.
+ * @param info_str              The info string to send with the 
+ *                                  notification
+ *
+ * @return 0 if success, non-zero if error.
+ */
+static int
+ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
+{
+    /* Clear notification to remove old infomation that may persist */
+    memset(&ble_svc_ans_new_alert_val, '\0', 
+           BLE_SVC_ANS_NEW_ALERT_MAX_LEN); 
+    
+    /* Set ID and count values */
+    ble_svc_ans_new_alert_val[0] = cat_id;
+    ble_svc_ans_new_alert_val[1] = ble_svc_ans_new_alert_cnt[cat_id];
+    
+    if (info_str) {
+        int n = strlen(info_str);
+        if (n > BLE_SVC_ANS_INFO_STR_MAX_LEN) {
+            /* If info_str is longer than the max string length only 
+             * write up to the maximum length */
+            memcpy(&ble_svc_ans_new_alert_val[2], info_str, 
+                   BLE_SVC_ANS_INFO_STR_MAX_LEN);
+        } else {
+            memcpy(&ble_svc_ans_new_alert_val[2], info_str, n);
+        }
+    }
+    int rc = ble_gattc_notify(ble_svc_ans_conn_handle, 
+                              ble_svc_ans_new_alert_val_handle);
+    return rc;
+}
+
+/**
+ * Send an unread alert notification to the given category.
+ *
+ * @param cat_id                The ID of the category to send the
+ *                                  notificaiton to.
+ *
+ * @return 0 if success, non-zero if error.
+ */
+static int
+ble_svc_ans_unr_alert_notify(uint8_t cat_id)
+{
+    ble_svc_ans_unr_alert_stat[0] = cat_id;
+    ble_svc_ans_unr_alert_stat[1] = ble_svc_ans_unr_alert_cnt[cat_id];
+    int rc = ble_gattc_notify(ble_svc_ans_conn_handle, 
+                              ble_svc_ans_unr_alert_val_handle);
+    return rc;
+}
+
+/**
+ * Writes the received value from a characteristic write to 
+ * the given destination.
+ */
+static int
+ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len,
+                      uint16_t max_len, void *dst,
+                      uint16_t *len)
+{
+    uint16_t om_len;
+    int rc;
+
+    om_len = OS_MBUF_PKTLEN(om);
+    if (om_len < min_len || om_len > max_len) {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    rc = ble_hs_mbuf_to_flat(om, dst, max_len, len);
+    if (rc != 0) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    return 0;
+}
