@@ -37,7 +37,8 @@ struct ble_ll_rnum_data
 struct ble_ll_rnum_data g_ble_ll_rnum_data;
 uint8_t g_ble_ll_rnum_buf[NIMBLE_OPT_LL_RNG_BUFSIZE];
 
-#define IS_RNUM_BUF_END(x)  (x == &g_ble_ll_rnum_buf[NIMBLE_OPT_LL_RNG_BUFSIZE])
+#define IS_RNUM_BUF_END(x)  \
+    (x == &g_ble_ll_rnum_buf[NIMBLE_OPT_LL_RNG_BUFSIZE - 1])
 
 void
 ble_ll_rand_sample(uint8_t rnum)
