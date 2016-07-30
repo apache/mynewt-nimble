@@ -228,6 +228,7 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                 break;
             case BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEDIATE:
                 if (cat_id == 0xff) {
+                    /* If cat_id is 0xff, notify on all enabled categories */
                     int i;
                     for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
                         if ((ble_svc_ans_new_alert_cat >> i) & 0x01) {
@@ -240,6 +241,7 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                 break;
             case BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEDIATE:
                 if (cat_id == 0xff) {
+                    /* If cat_id is 0xff, notify on all enabled categories */
                     int i;
                     for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
                         if ((ble_svc_ans_unr_alert_cat >> i) & 0x01) {
@@ -268,7 +270,7 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
 /**
  * This function must be called with the connection handlewhen a gap 
  * connect event is received in order to send notifications to the
- * client
+ * client.
  *
  * @params conn_handle          The connection handle for the current
  *                                  connection.
@@ -288,7 +290,7 @@ ble_svc_ans_on_gap_connect(uint16_t conn_handle)
  * @param info_str              The info string to be sent to the client
  *                                  with the notification.
  * 
- * @return 0 if success, error code otherwise. 
+ * @return 0 on success, non-zero error code otherwise. 
  */
 int
 ble_svc_ans_new_alert_add(uint8_t cat_id, const char * info_str)
@@ -315,8 +317,7 @@ ble_svc_ans_new_alert_add(uint8_t cat_id, const char * info_str)
  * @param cat_flag              The flag for the category which should
  *                                  should be incremented and notified
  * 
- * @return 0 if success, BLE_HS_EINVAL if the category is not enabled 
- *         or if the flag is not valid.
+ * @return 0 on success, non-zero error code otherwise. 
  */
 int
 ble_svc_ans_unr_alert_add(uint8_t cat_id)
@@ -350,7 +351,7 @@ ble_svc_ans_unr_alert_add(uint8_t cat_id)
  * @param initial_unr_alert_cat     Initial supported unread alert category
  *                                      bitmask.
  *
- * @return 0 on success, non-zero on error.
+ * @return 0 on success, non-zero error code otherwise.
  */
 int
 ble_svc_ans_init(struct ble_hs_cfg *cfg, uint8_t initial_new_alert_cat,
@@ -382,7 +383,7 @@ ble_svc_ans_init(struct ble_hs_cfg *cfg, uint8_t initial_new_alert_cat,
  * @param info_str              The info string to send with the 
  *                                  notification
  *
- * @return 0 if success, non-zero if error.
+ * @return 0 on success, non-zero error code otherwise.
  */
 static int
 ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
@@ -417,7 +418,7 @@ ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
  * @param cat_id                The ID of the category to send the
  *                                  notificaiton to.
  *
- * @return 0 if success, non-zero if error.
+ * @return 0 on success, non-zer0 error code otherwise.
  */
 static int
 ble_svc_ans_unr_alert_notify(uint8_t cat_id)
