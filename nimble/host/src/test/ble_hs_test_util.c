@@ -408,6 +408,70 @@ ble_hs_test_util_create_conn(uint16_t handle, uint8_t *peer_id_addr,
                                      null_addr, cb, cb_arg);
 }
 
+static void
+ble_hs_test_util_conn_params_dflt(struct ble_gap_conn_params *conn_params)
+{
+    conn_params->scan_itvl = 0x0010;
+    conn_params->scan_window = 0x0010;
+    conn_params->itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN;
+    conn_params->itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX;
+    conn_params->latency = BLE_GAP_INITIAL_CONN_LATENCY;
+    conn_params->supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT;
+    conn_params->min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
+    conn_params->max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
+}
+
+static void
+ble_hs_test_util_hcc_from_conn_params(
+    struct hci_create_conn *hcc, uint8_t own_addr_type, uint8_t peer_addr_type,
+    const uint8_t *peer_addr, const struct ble_gap_conn_params *conn_params)
+{
+    hcc->scan_itvl = conn_params->scan_itvl;
+    hcc->scan_window = conn_params->scan_window;
+
+    if (peer_addr_type == BLE_GAP_ADDR_TYPE_WL) {
+        hcc->filter_policy = BLE_HCI_CONN_FILT_USE_WL;
+        hcc->peer_addr_type = 0;
+        memset(hcc->peer_addr, 0, 6);
+    } else {
+        hcc->filter_policy = BLE_HCI_CONN_FILT_NO_WL;
+        hcc->peer_addr_type = peer_addr_type;
+        memcpy(hcc->peer_addr, peer_addr, 6);
+    }
+    hcc->own_addr_type = own_addr_type;
+    hcc->conn_itvl_min = conn_params->itvl_min;
+    hcc->conn_itvl_max = conn_params->itvl_max;
+    hcc->conn_latency = conn_params->latency;
+    hcc->supervision_timeout = conn_params->supervision_timeout;
+    hcc->min_ce_len = conn_params->min_ce_len;
+    hcc->max_ce_len = conn_params->max_ce_len;
+}
+
+void
+ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp)
+{
+    uint8_t param_len;
+    uint8_t *param;
+
+    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_CREATE_CONN,
+                                           &param_len);
+    TEST_ASSERT(param_len == BLE_HCI_CREATE_CONN_LEN);
+
+    TEST_ASSERT(le16toh(param + 0) == exp->scan_itvl);
+    TEST_ASSERT(le16toh(param + 2) == exp->scan_window);
+    TEST_ASSERT(param[4] == exp->filter_policy);
+    TEST_ASSERT(param[5] == exp->peer_addr_type);
+    TEST_ASSERT(memcmp(param + 6, exp->peer_addr, 6) == 0);
+    TEST_ASSERT(param[12] == exp->own_addr_type);
+    TEST_ASSERT(le16toh(param + 13) == exp->conn_itvl_min);
+    TEST_ASSERT(le16toh(param + 15) == exp->conn_itvl_max);
+    TEST_ASSERT(le16toh(param + 17) == exp->conn_latency);
+    TEST_ASSERT(le16toh(param + 19) == exp->supervision_timeout);
+    TEST_ASSERT(le16toh(param + 21) == exp->min_ce_len);
+    TEST_ASSERT(le16toh(param + 23) == exp->max_ce_len);
+}
+
 int
 ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
                          const uint8_t *peer_addr, int32_t duration_ms,
@@ -415,7 +479,15 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
                          ble_gap_event_fn *cb, void *cb_arg,
                          uint8_t ack_status)
 {
+    struct ble_gap_conn_params dflt_params;
+    struct hci_create_conn hcc;
     int rc;
+
+    /* This function ensures the most recently sent HCI command is the expected
+     * create connection command.  If the current test case has unverified HCI
+     * commands, assume we are not interested in them and clear the queue.
+     */
+    ble_hs_test_util_prev_hci_tx_clear();
 
     ble_hs_test_util_set_ack(
         host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN),
@@ -425,6 +497,15 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
                          params, cb, cb_arg);
 
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(ack_status));
+
+    if (params == NULL) {
+        ble_hs_test_util_conn_params_dflt(&dflt_params);
+        params = &dflt_params;
+    }
+
+    ble_hs_test_util_hcc_from_conn_params(&hcc, own_addr_type,
+                                          peer_addr_type, peer_addr, params);
+    ble_hs_test_util_verify_tx_create_conn(&hcc);
 
     return rc;
 }
@@ -441,6 +522,23 @@ ble_hs_test_util_conn_cancel(uint8_t ack_status)
 
     rc = ble_gap_conn_cancel();
     return rc;
+}
+
+void
+ble_hs_test_util_conn_cancel_full(void)
+{
+    struct hci_le_conn_complete evt;
+    int rc;
+
+    ble_hs_test_util_conn_cancel(0);
+
+    memset(&evt, 0, sizeof evt);
+    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+    evt.status = BLE_ERR_UNK_CONN_ID;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
+
+    rc = ble_gap_rx_conn_complete(&evt);
+    TEST_ASSERT_FATAL(rc == 0);
 }
 
 int
