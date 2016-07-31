@@ -76,8 +76,11 @@ static int
 ble_gap_test_util_disc_cb(struct ble_gap_event *event, void *arg)
 {
     ble_gap_test_disc_event_type = event->type;
-    ble_gap_test_disc_desc = event->disc;
     ble_gap_test_disc_arg = arg;
+
+    if (event->type == BLE_GAP_EVENT_DISC) {
+        ble_gap_test_disc_desc = event->disc;
+    }
 
     return 0;
 }
@@ -207,66 +210,7 @@ ble_gap_test_util_verify_tx_scan_enable(uint8_t enable,
 }
 
 static void
-ble_gap_test_util_verify_tx_create_conn(const struct hci_create_conn *exp)
-{
-    uint8_t param_len;
-    uint8_t *param;
-
-    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_CREATE_CONN,
-                                           &param_len);
-    TEST_ASSERT(param_len == BLE_HCI_CREATE_CONN_LEN);
-
-    TEST_ASSERT(le16toh(param + 0) == exp->scan_itvl);
-    TEST_ASSERT(le16toh(param + 2) == exp->scan_window);
-    TEST_ASSERT(param[4] == exp->filter_policy);
-    TEST_ASSERT(param[5] == exp->peer_addr_type);
-    TEST_ASSERT(memcmp(param + 6, exp->peer_addr, 6) == 0);
-    TEST_ASSERT(param[12] == exp->own_addr_type);
-    TEST_ASSERT(le16toh(param + 13) == exp->conn_itvl_min);
-    TEST_ASSERT(le16toh(param + 15) == exp->conn_itvl_max);
-    TEST_ASSERT(le16toh(param + 17) == exp->conn_latency);
-    TEST_ASSERT(le16toh(param + 19) == exp->supervision_timeout);
-    TEST_ASSERT(le16toh(param + 21) == exp->min_ce_len);
-    TEST_ASSERT(le16toh(param + 23) == exp->max_ce_len);
-}
-
-static void
-ble_gap_test_util_hcc_from_conn_params(
-    struct hci_create_conn *hcc, uint8_t own_addr_type, uint8_t peer_addr_type,
-    const uint8_t *peer_addr, const struct ble_gap_conn_params *conn_params)
-{
-    hcc->scan_itvl = conn_params->scan_itvl;
-    hcc->scan_window = conn_params->scan_window;
-    hcc->filter_policy = peer_addr_type == BLE_GAP_ADDR_TYPE_WL ?
-        BLE_HCI_CONN_FILT_USE_WL :
-        BLE_HCI_CONN_FILT_NO_WL;
-    hcc->peer_addr_type = peer_addr_type;
-    memcpy(hcc->peer_addr, peer_addr, 6);
-    hcc->own_addr_type = own_addr_type;
-    hcc->conn_itvl_min = conn_params->itvl_min;
-    hcc->conn_itvl_max = conn_params->itvl_max;
-    hcc->conn_latency = conn_params->latency;
-    hcc->supervision_timeout = conn_params->supervision_timeout;
-    hcc->min_ce_len = conn_params->min_ce_len;
-    hcc->max_ce_len = conn_params->max_ce_len;
-}
-
-static void
-ble_gap_test_util_conn_params_dflt(struct ble_gap_conn_params *conn_params)
-{
-    conn_params->scan_itvl = 0x0010;
-    conn_params->scan_window = 0x0010;
-    conn_params->itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN;
-    conn_params->itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX;
-    conn_params->latency = BLE_GAP_INITIAL_CONN_LATENCY;
-    conn_params->supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT;
-    conn_params->min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
-    conn_params->max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
-}
-
-static void
-ble_gap_test_util_verify_tx_create_conn_cancel(void)
+ble_hs_test_util_verify_tx_create_conn_cancel(void)
 {
     uint8_t param_len;
 
@@ -838,7 +782,6 @@ TEST_CASE(ble_gap_test_case_conn_dir_good)
 {
     struct hci_le_conn_complete evt;
     struct ble_gap_conn_params params;
-    struct hci_create_conn hcc;
     int rc;
 
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
@@ -865,11 +808,6 @@ TEST_CASE(ble_gap_test_case_conn_dir_good)
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_conn_active());
 
-    /* Verify tx of create connection command. */
-    ble_gap_test_util_hcc_from_conn_params(&hcc, BLE_ADDR_TYPE_PUBLIC,
-                                           BLE_ADDR_TYPE_PUBLIC, peer_addr,
-                                           &params);
-    ble_gap_test_util_verify_tx_create_conn(&hcc);
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == BLE_HS_ENOTCONN);
 
@@ -925,9 +863,6 @@ TEST_CASE(ble_gap_test_case_conn_dir_bad_args)
 TEST_CASE(ble_gap_test_case_conn_dir_dflt_params)
 {
     static const uint8_t peer_addr[6] = { 2, 3, 8, 6, 6, 1 };
-
-    struct ble_gap_conn_params conn_params;
-    struct hci_create_conn hcc;
     int rc;
 
     ble_gap_test_util_init();
@@ -936,12 +871,6 @@ TEST_CASE(ble_gap_test_case_conn_dir_dflt_params)
                                   BLE_ADDR_TYPE_PUBLIC, peer_addr, 0, NULL,
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
-
-    ble_gap_test_util_conn_params_dflt(&conn_params);
-    ble_gap_test_util_hcc_from_conn_params(&hcc, BLE_ADDR_TYPE_PUBLIC,
-                                           BLE_ADDR_TYPE_PUBLIC, peer_addr,
-                                           &conn_params);
-    ble_gap_test_util_verify_tx_create_conn(&hcc);
 }
 
 TEST_SUITE(ble_gap_test_suite_conn_dir)
@@ -958,11 +887,36 @@ TEST_SUITE(ble_gap_test_suite_conn_dir)
  *****************************************************************************/
 
 static void
-ble_gap_test_util_conn_cancel(uint8_t *peer_addr, uint8_t hci_status)
+ble_gap_test_util_conn_cancel(uint8_t hci_status)
 {
     struct hci_le_conn_complete evt;
-    struct ble_gap_conn_params conn_params;
-    struct hci_create_conn hcc;
+    int rc;
+
+    /* Initiate cancel procedure. */
+    rc = ble_hs_test_util_conn_cancel(hci_status);
+    TEST_ASSERT(rc == BLE_HS_HCI_ERR(hci_status));
+
+    /* Verify tx of cancel create connection command. */
+    ble_hs_test_util_verify_tx_create_conn_cancel();
+    if (rc != 0) {
+        return;
+    }
+    TEST_ASSERT(ble_gap_master_in_progress());
+
+    /* Receive connection complete event. */
+    memset(&evt, 0, sizeof evt);
+    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+    evt.status = BLE_ERR_UNK_CONN_ID;
+    rc = ble_gap_rx_conn_complete(&evt);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(!ble_gap_master_in_progress());
+
+    TEST_ASSERT(ble_gap_test_conn_event_type == BLE_GAP_EVENT_CONN_CANCEL);
+}
+
+static void
+ble_gap_test_util_conn_and_cancel(uint8_t *peer_addr, uint8_t hci_status)
+{
     int rc;
 
     ble_gap_test_util_init();
@@ -974,33 +928,8 @@ ble_gap_test_util_conn_cancel(uint8_t *peer_addr, uint8_t hci_status)
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
 
-    ble_gap_test_util_conn_params_dflt(&conn_params);
-    ble_gap_test_util_hcc_from_conn_params(&hcc, BLE_ADDR_TYPE_PUBLIC,
-                                           BLE_ADDR_TYPE_PUBLIC, peer_addr,
-                                           &conn_params);
-    ble_gap_test_util_verify_tx_create_conn(&hcc);
-
     /* Initiate cancel procedure. */
-    rc = ble_hs_test_util_conn_cancel(hci_status);
-    TEST_ASSERT(rc == BLE_HS_HCI_ERR(hci_status));
-
-    /* Verify tx of cancel create connection command. */
-    ble_gap_test_util_verify_tx_create_conn_cancel();
-    if (rc != 0) {
-        return;
-    }
-    TEST_ASSERT(ble_gap_master_in_progress());
-
-    /* Receive connection complete event. */
-    memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-    evt.status = BLE_ERR_UNK_CONN_ID;
-    evt.connection_handle = 2;
-    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
-    memcpy(evt.peer_addr, peer_addr, 6);
-    rc = ble_gap_rx_conn_complete(&evt);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(!ble_gap_master_in_progress());
+    ble_gap_test_util_conn_cancel(hci_status);
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == BLE_HS_ENOTCONN);
 }
 
@@ -1020,7 +949,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_good)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
-    ble_gap_test_util_conn_cancel(peer_addr, 0);
+    ble_gap_test_util_conn_and_cancel(peer_addr, 0);
 
     TEST_ASSERT(ble_gap_test_conn_event_type == BLE_GAP_EVENT_CONN_CANCEL);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
@@ -1033,7 +962,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_ctlr_fail)
 
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
-    ble_gap_test_util_conn_cancel(peer_addr, BLE_ERR_REPEATED_ATTEMPTS);
+    ble_gap_test_util_conn_and_cancel(peer_addr, BLE_ERR_REPEATED_ATTEMPTS);
 
     /* Make sure the host didn't invoke the application callback.  The cancel
      * failure was indicated via the return code from the gap call.
@@ -1583,7 +1512,8 @@ TEST_CASE(ble_gap_test_case_adv_ctlr_fail)
                                   peer_addr, c, d, BLE_ERR_DIR_ADV_TMO, -1, 0);
 
             TEST_ASSERT(!ble_gap_adv_active());
-            TEST_ASSERT(ble_gap_test_conn_event_type == BLE_GAP_EVENT_ADV_COMPLETE);
+            TEST_ASSERT(ble_gap_test_conn_event_type ==
+                        BLE_GAP_EVENT_ADV_COMPLETE);
             TEST_ASSERT(ble_gap_test_conn_desc.conn_handle ==
                         BLE_HS_CONN_HANDLE_NONE);
             TEST_ASSERT(ble_gap_test_conn_arg == NULL);
@@ -2280,6 +2210,259 @@ TEST_SUITE(ble_gap_test_suite_update_conn)
 }
 
 /*****************************************************************************
+ * $timeout                                                                  *
+ *****************************************************************************/
+
+static void
+ble_gap_test_util_conn_forever(void)
+{
+    int32_t ticks_from_now;
+
+    /* Initiate a connect procedure with no timeout. */
+    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
+                             BLE_ADDR_TYPE_PUBLIC,
+                             ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), BLE_HS_FOREVER,
+                             NULL, ble_gap_test_util_connect_cb,
+                             NULL, 0);
+
+    /* Ensure no pending GAP event. */
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Advance 100 seconds; ensure no timeout reported. */
+    os_time_advance(100 * OS_TICKS_PER_SEC);
+    TEST_ASSERT(ble_gap_test_conn_event_type == -1);
+    TEST_ASSERT(ble_gap_conn_active());
+}
+
+static void
+ble_gap_test_util_conn_timeout(int32_t duration_ms)
+{
+    struct hci_le_conn_complete evt;
+    uint32_t duration_ticks;
+    int32_t ticks_from_now;
+    int rc;
+
+    TEST_ASSERT_FATAL(duration_ms != BLE_HS_FOREVER);
+
+    /* Initiate a connect procedure with the specified timeout. */
+    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
+                             BLE_ADDR_TYPE_PUBLIC,
+                             ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), duration_ms,
+                             NULL, ble_gap_test_util_connect_cb,
+                             NULL, 0);
+
+    /* Ensure next GAP event is at the expected time. */
+    rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+    TEST_ASSERT_FATAL(rc == 0);
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == duration_ticks);
+
+    /* Advance duration ms; ensure timeout event does not get reported before
+     * connection complete event rxed.
+     */
+    os_time_advance(duration_ms);
+
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
+        0);
+
+    TEST_ASSERT(ble_gap_test_conn_event_type == -1);
+
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Ensure cancel create connection command was sent. */
+    ble_hs_test_util_verify_tx_create_conn_cancel();
+
+    /* Ensure timer has been stopped. */
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Receive the connection complete event indicating a successful cancel. */
+    memset(&evt, 0, sizeof evt);
+    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+    evt.status = BLE_ERR_UNK_CONN_ID;
+    rc = ble_gap_rx_conn_complete(&evt);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure the GAP event was triggered. */
+    TEST_ASSERT(ble_gap_test_conn_event_type == BLE_GAP_EVENT_CONNECT);
+    TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_ETIMEOUT);
+
+    /* Clear GAP event for remainder of test. */
+    ble_gap_test_util_reset_cb_info();
+}
+
+static void
+ble_gap_test_util_disc_forever(void)
+{
+    struct ble_gap_disc_params params;
+    int32_t ticks_from_now;
+
+    memset(&params, 0, sizeof params);
+
+    /* Initiate a discovery procedure with no timeout. */
+    ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC,
+                          BLE_HS_FOREVER, &params, ble_gap_test_util_disc_cb,
+                          NULL, -1, 0);
+
+    /* Ensure no pending GAP event. */
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Advance 100 seconds; ensure no timeout reported. */
+    os_time_advance(100 * OS_TICKS_PER_SEC);
+    TEST_ASSERT(ble_gap_test_disc_event_type == -1);
+    TEST_ASSERT(ble_gap_disc_active());
+}
+
+static void
+ble_gap_test_util_disc_timeout(int32_t duration_ms)
+{
+    struct ble_gap_disc_params params;
+    uint32_t duration_ticks;
+    int32_t ticks_from_now;
+    int rc;
+
+    TEST_ASSERT_FATAL(duration_ms != BLE_HS_FOREVER);
+
+    memset(&params, 0, sizeof params);
+
+    /* Initiate a discovery procedure with the specified timeout. */
+    ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC,
+                          duration_ms, &params, ble_gap_test_util_disc_cb,
+                          NULL, -1, 0);
+
+    /* Ensure next GAP event is at the expected time. */
+    rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+    TEST_ASSERT_FATAL(rc == 0);
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == duration_ticks);
+
+    /* Advance duration ms; ensure timeout event was reported. */
+    os_time_advance(duration_ms);
+
+    ble_hs_test_util_set_ack(
+        host_hci_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+        0);
+    ticks_from_now = ble_gap_heartbeat();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    TEST_ASSERT(ble_gap_test_disc_event_type == BLE_GAP_EVENT_DISC_COMPLETE);
+
+    /* Clear GAP event for remainder of test. */
+    ble_gap_test_util_reset_cb_info();
+}
+
+TEST_CASE(ble_gap_test_case_conn_timeout_conn_forever)
+{
+    ble_gap_test_util_init();
+
+    /* 3 ms. */
+    ble_gap_test_util_conn_timeout(3);
+
+    /* No timeout. */
+    ble_gap_test_util_conn_forever();
+
+}
+
+TEST_CASE(ble_gap_test_case_conn_timeout_conn_timeout)
+{
+    ble_gap_test_util_init();
+
+    /* 30 ms. */
+    ble_gap_test_util_conn_timeout(30);
+
+    /* 5 ms. */
+    ble_gap_test_util_conn_timeout(5);
+
+}
+
+TEST_CASE(ble_gap_test_case_conn_forever_conn_timeout)
+{
+    ble_gap_test_util_init();
+
+    /* No timeout. */
+    ble_gap_test_util_conn_forever();
+
+    /* Cancel connect procedure manually. */
+    ble_gap_test_util_conn_cancel(0);
+
+    /* Clear GAP event for remainder of test. */
+    ble_gap_test_util_reset_cb_info();
+
+    /* 3 ms. */
+    ble_gap_test_util_conn_timeout(3);
+}
+
+TEST_CASE(ble_gap_test_case_disc_timeout_disc_forever)
+{
+    ble_gap_test_util_init();
+
+    /* 3 ms. */
+    ble_gap_test_util_disc_timeout(3);
+
+    /* No timeout. */
+    ble_gap_test_util_disc_forever();
+
+}
+
+TEST_CASE(ble_gap_test_case_disc_timeout_disc_timeout)
+{
+    ble_gap_test_util_init();
+
+    /* 30 ms. */
+    ble_gap_test_util_disc_timeout(30);
+
+    /* 5 ms. */
+    ble_gap_test_util_disc_timeout(5);
+
+}
+
+TEST_CASE(ble_gap_test_case_disc_forever_disc_timeout)
+{
+    ble_gap_test_util_init();
+
+    /* No timeout. */
+    ble_gap_test_util_disc_forever();
+
+    /* Cancel discovery procedure manually. */
+    ble_hs_test_util_disc_cancel(0);
+
+    /* 3 ms. */
+    ble_gap_test_util_disc_timeout(3);
+}
+
+TEST_CASE(ble_gap_test_case_conn_timeout_disc_timeout)
+{
+    ble_gap_test_util_init();
+
+    /* 15 seconds. */
+    ble_gap_test_util_conn_timeout(15000);
+
+    /* 1285 ms. */
+    ble_gap_test_util_disc_timeout(1285);
+}
+
+TEST_SUITE(ble_gap_test_suite_timeout)
+{
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
+    ble_gap_test_case_conn_timeout_conn_forever();
+    ble_gap_test_case_conn_timeout_conn_timeout();
+    ble_gap_test_case_conn_forever_conn_timeout();
+
+    ble_gap_test_case_disc_timeout_disc_forever();
+    ble_gap_test_case_disc_timeout_disc_timeout();
+    ble_gap_test_case_disc_forever_disc_timeout();
+
+    ble_gap_test_case_conn_timeout_disc_timeout();
+}
+
+/*****************************************************************************
  * $all                                                                      *
  *****************************************************************************/
 
@@ -2295,6 +2478,7 @@ ble_gap_test_all(void)
     ble_gap_test_suite_adv();
     ble_gap_test_suite_stop_adv();
     ble_gap_test_suite_update_conn();
+    ble_gap_test_suite_timeout();
 
     return tu_any_failed;
 }

@@ -27,6 +27,7 @@
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct hci_disconn_complete;
+struct hci_create_conn;
 
 extern struct os_eventq ble_hs_test_util_evq;
 extern const struct ble_gap_adv_params ble_hs_test_util_adv_params;
@@ -79,6 +80,7 @@ int ble_hs_test_util_connect(uint8_t own_addr_type,
                                    void *cb_arg,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
+void ble_hs_test_util_conn_cancel_full(void);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
 void ble_hs_test_util_conn_disconnect(uint16_t conn_handle);
 int ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx,
@@ -88,6 +90,7 @@ int ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
                           ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                           uint8_t fail_status);
 int ble_hs_test_util_disc_cancel(uint8_t ack_status);
+void ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp);
 int ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
                                     uint8_t hci_status);
 int ble_hs_test_util_adv_start(uint8_t own_addr_type,

@@ -94,7 +94,7 @@ static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
  * The state of the in-progress master connection.  If no master connection is
  * currently in progress, then the op field is set to BLE_GAP_OP_NULL.
  */
-static bssnz_t struct {
+struct ble_gap_master_state {
     uint8_t op;
 
     uint8_t exp_set:1;
@@ -108,13 +108,15 @@ static bssnz_t struct {
         struct {
             uint8_t using_wl:1;
             uint8_t our_addr_type:2;
+            uint8_t cancel:1;
         } conn;
 
         struct {
             uint8_t limited:1;
         } disc;
     };
-} ble_gap_master;
+};
+static bssnz_t struct ble_gap_master_state ble_gap_master;
 
 /**
  * The state of the in-progress slave connection.  If no slave connection is
@@ -462,6 +464,7 @@ ble_gap_master_reset_state(void)
 {
     ble_gap_master.op = BLE_GAP_OP_NULL;
     ble_gap_master.exp_set = 0;
+    ble_gap_master.conn.cancel = 0;
 }
 
 static void
@@ -472,13 +475,12 @@ ble_gap_slave_reset_state(void)
 }
 
 static void
-ble_gap_master_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg,
-                          int reset_state)
+ble_gap_master_extract_state(struct ble_gap_master_state *out_state,
+                             int reset_state)
 {
     ble_hs_lock();
 
-    *out_cb = ble_gap_master.cb;
-    *out_cb_arg = ble_gap_master.cb_arg;
+    *out_state = ble_gap_master;
 
     if (reset_state) {
         ble_gap_master_reset_state();
@@ -518,38 +520,17 @@ ble_gap_adv_finished(void)
 static int
 ble_gap_master_connect_failure(int status)
 {
+    struct ble_gap_master_state state;
     struct ble_gap_event event;
-    ble_gap_event_fn *cb;
-    void *cb_arg;
     int rc;
 
-    ble_gap_master_extract_cb(&cb, &cb_arg, 1);
-    if (cb != NULL) {
+    ble_gap_master_extract_state(&state, 1);
+    if (state.cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_CONNECT;
         event.connect.status = status;
 
-        rc = cb(&event, cb_arg);
-    } else {
-        rc = 0;
-    }
-
-    return rc;
-}
-
-static int
-ble_gap_master_connect_cancel(void)
-{
-    struct ble_gap_event event;
-    ble_gap_event_fn *cb;
-    void *cb_arg;
-    int rc;
-
-    ble_gap_master_extract_cb(&cb, &cb_arg, 1);
-    if (cb != NULL) {
-        memset(&event, 0, sizeof event);
-        event.type = BLE_GAP_EVENT_CONN_CANCEL;
-        rc = cb(&event, cb_arg);
+        rc = state.cb(&event, state.cb_arg);
     } else {
         rc = 0;
     }
@@ -558,37 +539,60 @@ ble_gap_master_connect_cancel(void)
 }
 
 static void
+ble_gap_master_connect_cancelled(void)
+{
+    struct ble_gap_master_state state;
+    struct ble_gap_event event;
+
+    ble_gap_master_extract_state(&state, 1);
+    if (state.cb != NULL) {
+        /* The GAP event type depends on whether 1) the application manually
+         * cancelled the connect procedure or 2) the connect procedure timed
+         * out.
+         */
+        memset(&event, 0, sizeof event);
+        if (state.conn.cancel) {
+            event.type = BLE_GAP_EVENT_CONN_CANCEL;
+        } else {
+            event.type = BLE_GAP_EVENT_CONNECT;
+            event.connect.status = BLE_HS_ETIMEOUT;
+            event.connect.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
+        }
+        state.cb(&event, state.cb_arg);
+    }
+}
+
+static void
 ble_gap_disc_report(struct ble_gap_disc_desc *desc)
 {
+    struct ble_gap_master_state state;
     struct ble_gap_event event;
-    ble_gap_event_fn *cb;
-    void *cb_arg;
 
-    ble_gap_master_extract_cb(&cb, &cb_arg, 0);
+    ble_gap_master_extract_state(&state, 0);
 
-    if (cb != NULL) {
+    if (state.cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_DISC;
         event.disc = *desc;
 
-        cb(&event, cb_arg);
+        state.cb(&event, state.cb_arg);
     }
 }
 
 static void
 ble_gap_disc_complete(void)
 {
+    struct ble_gap_master_state state;
     struct ble_gap_event event;
-    ble_gap_event_fn *cb;
-    void *cb_arg;
 
-    ble_gap_master_extract_cb(&cb, &cb_arg, 1);
+    ble_gap_master_extract_state(&state, 1);
 
-    if (cb != NULL) {
+    if (state.cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_DISC_COMPLETE;
 
-        ble_gap_call_event_cb(&event, cb, cb_arg);
+        ble_gap_call_event_cb(&event, state.cb, state.cb_arg);
     }
 }
 
@@ -951,7 +955,9 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     STATS_INC(ble_gap_stats, rx_conn_complete);
 
     /* Apply the event to the existing connection if it exists. */
-    if (ble_hs_atomic_conn_flags(evt->connection_handle, NULL) == 0) {
+    if (evt->status != BLE_ERR_UNK_CONN_ID &&
+        ble_hs_atomic_conn_flags(evt->connection_handle, NULL) == 0) {
+
         /* XXX: Does this ever happen? */
 
         if (evt->status != 0) {
@@ -976,7 +982,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
             if (ble_gap_master_in_progress()) {
                 if (evt->status == BLE_ERR_UNK_CONN_ID) {
                     /* Connect procedure successfully cancelled. */
-                    ble_gap_master_connect_cancel();
+                    ble_gap_master_connect_cancelled();
                 } else {
                     ble_gap_master_failed(BLE_HS_HCI_ERR(evt->status));
                 }
@@ -1089,9 +1095,17 @@ ble_gap_master_heartbeat(void)
         if (rc != 0) {
             /* Failed to stop connecting; try again in 100 ms. */
             return BLE_GAP_CANCEL_RETRY_RATE;
-        }
+        } else {
+            /* Stop the timer now that the cancel command has been acked. */
+            ble_gap_master.exp_set = 0;
 
-        ble_gap_master_failed(BLE_HS_ETIMEOUT);
+            /* Timeout gets reported when we receive a connection complete
+             * event indicating the connect procedure has been cancelled.
+             */
+            /* XXX: Set a timer to reset the controller if a connection
+             * complete event isn't received within a reasonable interval.
+             */
+        }
         break;
 
     case BLE_GAP_OP_M_DISC:
@@ -1928,7 +1942,7 @@ ble_gap_disc_cancel(void)
 
     ble_hs_lock();
 
-    if (ble_gap_master.op != BLE_GAP_OP_M_DISC) {
+    if (!ble_gap_disc_active()) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
@@ -2396,7 +2410,7 @@ ble_gap_conn_cancel(void)
 
     ble_hs_lock();
 
-    if (!ble_gap_master_in_progress()) {
+    if (!ble_gap_conn_active()) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
@@ -2408,6 +2422,7 @@ ble_gap_conn_cancel(void)
         goto done;
     }
 
+    ble_gap_master.conn.cancel = 1;
     rc = 0;
 
 done:
