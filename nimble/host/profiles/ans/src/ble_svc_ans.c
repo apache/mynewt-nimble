@@ -49,7 +49,12 @@ static uint8_t ble_svc_ans_unr_alert_cnt[BLE_SVC_ANS_CAT_NUM];
 static uint16_t ble_svc_ans_new_alert_val_handle;
 static uint16_t ble_svc_ans_unr_alert_val_handle;
 
-/* Connection handle */
+/* Connection handle 
+ *
+ * TODO: In order to support multiple connections we would need to save
+ *       the handles for every connection, not just the most recent. Then
+ *       we would need to notify each connection when needed.
+ * */
 static uint16_t ble_svc_ans_conn_handle;
 
 /* Access function */
@@ -146,6 +151,12 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     uint16_t uuid16;
     int rc;
+    
+    /* ANS Control point command and catagory variables */
+    uint8_t cmd_id;
+    uint8_t cat_id;
+    uint8_t cat_bit_mask; 
+    int i;
 
     uuid16 = ble_uuid_128_to_16(ctxt->chr->uuid128);
     assert(uuid16 != 0);
@@ -200,9 +211,8 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                                        NULL);
 
             /* Get command ID and category ID */
-            uint8_t cmd_id = ble_svc_ans_alert_not_ctrl_pt[0];
-            uint8_t cat_id = ble_svc_ans_alert_not_ctrl_pt[1];
-            uint8_t cat_bit_mask; 
+            cmd_id = ble_svc_ans_alert_not_ctrl_pt[0];
+            cat_id = ble_svc_ans_alert_not_ctrl_pt[1];
 
             /* Set cat_bit_mask to the appropriate bitmask based on cat_id */
             if (cat_id < BLE_SVC_ANS_CAT_NUM) {
@@ -229,7 +239,6 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             case BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEDIATE:
                 if (cat_id == 0xff) {
                     /* If cat_id is 0xff, notify on all enabled categories */
-                    int i;
                     for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
                         if ((ble_svc_ans_new_alert_cat >> i) & 0x01) {
                             ble_svc_ans_new_alert_notify(i, NULL);
@@ -242,7 +251,6 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             case BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEDIATE:
                 if (cat_id == 0xff) {
                     /* If cat_id is 0xff, notify on all enabled categories */
-                    int i;
                     for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
                         if ((ble_svc_ans_unr_alert_cat >> i) & 0x01) {
                             ble_svc_ans_unr_alert_notify(i);
@@ -296,6 +304,7 @@ int
 ble_svc_ans_new_alert_add(uint8_t cat_id, const char * info_str)
 {
     uint8_t cat_bit_mask; 
+    
     if (cat_id < BLE_SVC_ANS_CAT_NUM) {
         cat_bit_mask = (1 << cat_id); 
     } else {
@@ -323,6 +332,7 @@ int
 ble_svc_ans_unr_alert_add(uint8_t cat_id)
 {
     uint8_t cat_bit_mask; 
+    
     if (cat_id < BLE_SVC_ANS_CAT_NUM) {
         cat_bit_mask = pow(2, cat_id);
     } else {
@@ -357,10 +367,11 @@ int
 ble_svc_ans_init(struct ble_hs_cfg *cfg, uint8_t initial_new_alert_cat,
                  uint8_t initial_unr_alert_cat)
 {
+    int rc;
+    
     ble_svc_ans_new_alert_cat = initial_new_alert_cat;
     ble_svc_ans_unr_alert_cat = initial_unr_alert_cat;
 
-    int rc;
     rc = ble_gatts_count_cfg(ble_svc_ans_defs, cfg);
     if (rc != 0) {
         return rc;
@@ -388,6 +399,8 @@ ble_svc_ans_init(struct ble_hs_cfg *cfg, uint8_t initial_new_alert_cat,
 static int
 ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
 {
+    int info_str_len;
+
     /* Clear notification to remove old infomation that may persist */
     memset(&ble_svc_ans_new_alert_val, '\0', 
            BLE_SVC_ANS_NEW_ALERT_MAX_LEN); 
@@ -397,19 +410,18 @@ ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
     ble_svc_ans_new_alert_val[1] = ble_svc_ans_new_alert_cnt[cat_id];
     
     if (info_str) {
-        int n = strlen(info_str);
-        if (n > BLE_SVC_ANS_INFO_STR_MAX_LEN) {
+        info_str_len = strlen(info_str);
+        if (info_str_len > BLE_SVC_ANS_INFO_STR_MAX_LEN) {
             /* If info_str is longer than the max string length only 
              * write up to the maximum length */
             memcpy(&ble_svc_ans_new_alert_val[2], info_str, 
                    BLE_SVC_ANS_INFO_STR_MAX_LEN);
         } else {
-            memcpy(&ble_svc_ans_new_alert_val[2], info_str, n);
+            memcpy(&ble_svc_ans_new_alert_val[2], info_str, info_str_len);
         }
     }
-    int rc = ble_gattc_notify(ble_svc_ans_conn_handle, 
-                              ble_svc_ans_new_alert_val_handle);
-    return rc;
+    return ble_gattc_notify(ble_svc_ans_conn_handle, 
+                            ble_svc_ans_new_alert_val_handle);
 }
 
 /**
@@ -425,9 +437,8 @@ ble_svc_ans_unr_alert_notify(uint8_t cat_id)
 {
     ble_svc_ans_unr_alert_stat[0] = cat_id;
     ble_svc_ans_unr_alert_stat[1] = ble_svc_ans_unr_alert_cnt[cat_id];
-    int rc = ble_gattc_notify(ble_svc_ans_conn_handle, 
-                              ble_svc_ans_unr_alert_val_handle);
-    return rc;
+    return ble_gattc_notify(ble_svc_ans_conn_handle, 
+                            ble_svc_ans_unr_alert_val_handle);
 }
 
 /**
