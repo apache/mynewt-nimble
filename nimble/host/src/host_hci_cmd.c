@@ -138,6 +138,20 @@ host_hci_le_cmd_send(uint16_t ocf, uint8_t len, void *cmddata)
     return rc;
 }
 
+/**
+ * Read BD_ADDR
+ *
+ * OGF = 0x04 (Informational parameters)
+ * OCF = 0x0009
+ */
+void
+host_hci_cmd_build_read_bd_addr(uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CMD_HDR_LEN);
+    host_hci_write_hdr(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BD_ADDR,
+                       0, dst);
+}
+
 static int
 host_hci_cmd_body_le_whitelist_chg(const uint8_t *addr, uint8_t addr_type,
                                    uint8_t *dst)

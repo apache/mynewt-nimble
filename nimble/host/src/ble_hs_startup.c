@@ -78,6 +78,28 @@ ble_hs_startup_le_read_buf_sz_tx(void)
 }
 
 static int
+ble_hs_startup_read_bd_addr(void)
+{
+    uint8_t ack_params[BLE_HCI_IP_RD_BD_ADDR_ACK_PARAM_LEN];
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
+    uint8_t ack_params_len;
+    int rc;
+
+    host_hci_cmd_build_read_bd_addr(buf, sizeof buf);
+    rc = ble_hci_cmd_tx(buf, ack_params, sizeof ack_params, &ack_params_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (ack_params_len != sizeof ack_params) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    ble_hs_id_set_pub(ack_params);
+    return 0;
+}
+
+static int
 ble_hs_startup_le_set_evmask_tx(void)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_LE_EVENT_MASK_LEN];
@@ -224,10 +246,12 @@ ble_hs_startup_go(void)
         return rc;
     }
 
-    /* XXX: Read BD_ADDR. */
+    rc = ble_hs_startup_read_bd_addr();
+    if (rc != 0) {
+        return rc;
+    }
 
-    ble_hs_id_set_pub(g_dev_addr);
     ble_hs_pvcy_set_our_irk(NULL);
 
-    return rc;
+    return 0;
 }
