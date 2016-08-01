@@ -58,8 +58,10 @@ static int
 ble_svc_tps_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
-    assert(ctxt->chr == &ble_svc_tps_defs[0].characteristics[0]);
     int rc;
+    
+    assert(ctxt->chr == &ble_svc_tps_defs[0].characteristics[0]);
+    
     switch (ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
         ble_hci_util_read_adv_tx_pwr(&ble_svc_tps_tx_power_level);
