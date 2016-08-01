@@ -178,6 +178,8 @@ int
 ble_svc_lls_init(struct ble_hs_cfg *cfg, uint8_t initial_alert_level,
                  ble_svc_lls_event_fn *cb)
 {
+    int rc;
+
     if (!cb) {
         return BLE_HS_EINVAL;
     }
@@ -185,7 +187,6 @@ ble_svc_lls_init(struct ble_hs_cfg *cfg, uint8_t initial_alert_level,
     ble_svc_lls_alert_level = initial_alert_level;
     cb_fn = cb;
 
-    int rc;
     rc = ble_gatts_count_cfg(ble_svc_lls_defs, cfg);
     if (rc != 0) {
         return rc;
