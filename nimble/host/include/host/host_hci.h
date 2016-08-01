@@ -36,6 +36,7 @@ void host_hci_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len, void *buf);
 int host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len,
                       const void *cmddata);
 int host_hci_cmd_send_buf(void *cmddata);
+void host_hci_cmd_build_read_bd_addr(uint8_t *dst, int dst_len);
 void host_hci_cmd_build_set_event_mask(uint64_t event_mask,
                                        uint8_t *dst, int dst_len);
 void host_hci_cmd_build_set_event_mask2(uint64_t event_mask, uint8_t *dst,
