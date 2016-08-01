@@ -131,6 +131,9 @@
 /* --- Set event mask (OGF 0x03, OCF 0x0001 --- */
 #define BLE_HCI_SET_EVENT_MASK_LEN          (8)
 
+/* --- Read BD_ADDR (OGF 0x04, OCF 0x0009 --- */
+#define BLE_HCI_IP_RD_BD_ADDR_ACK_PARAM_LEN (6)
+
 /* --- Read/Write authenticated payload timeout (ocf 0x007B/0x007C) */
 #define BLE_HCI_RD_AUTH_PYLD_TMO_LEN        (4)
 #define BLE_HCI_WR_AUTH_PYLD_TMO_LEN        (2)
