@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/profiles/ans
+pkg.name: net/nimble/host/services/ans
 pkg.description: Alert Notification Service Server.
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
