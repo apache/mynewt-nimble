@@ -22,7 +22,7 @@
 #include <math.h>
 #include "host/ble_hs.h"
 #include "host/ble_gap.h"
-#include "profiles/ans/ble_svc_ans.h"
+#include "services/ans/ble_svc_ans.h"
 
 
 /* Max length of new alert info string */
