@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "host/ble_hs.h"
-#include "profiles/tps/ble_svc_tps.h"
+#include "services/tps/ble_svc_tps.h"
 #include "../../../src/ble_hci_priv.h"
 
 int8_t ble_svc_tps_tx_power_level;
