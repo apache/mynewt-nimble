@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/profiles/tps
+pkg.name: net/nimble/host/services/tps
 pkg.description: Tx Power Service adopted specification.
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
