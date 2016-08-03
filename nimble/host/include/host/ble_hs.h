@@ -80,6 +80,10 @@ struct os_event;
 #define BLE_HS_ERR_SM_PEER_BASE     0x500   /* 1280 */
 #define BLE_HS_SM_PEER_ERR(x)       ((x) ? BLE_HS_ERR_SM_PEER_BASE + (x) : 0)
 
+/* Note: A hardware error of 0 is not success. */
+#define BLE_HS_ERR_HW_BASE          0x600   /* 1536 */
+#define BLE_HS_HW_ERR(x)            (BLE_HS_ERR_HW_BASE + (x))
+
 /* Defines the IO capabilities for the local device. */
 #define BLE_HS_IO_DISPLAY_ONLY              0x00
 #define BLE_HS_IO_DISPLAY_YESNO             0x01

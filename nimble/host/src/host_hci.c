@@ -35,6 +35,7 @@ _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
 typedef int host_hci_event_fn(uint8_t event_code, uint8_t *data, int len);
 static host_hci_event_fn host_hci_rx_disconn_complete;
 static host_hci_event_fn host_hci_rx_encrypt_change;
+static host_hci_event_fn host_hci_rx_hw_error;
 static host_hci_event_fn host_hci_rx_num_completed_pkts;
 static host_hci_event_fn host_hci_rx_enc_key_refresh;
 static host_hci_event_fn host_hci_rx_le_meta;
@@ -70,6 +71,7 @@ struct host_hci_event_dispatch_entry {
 static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
     { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
     { BLE_HCI_EVCODE_ENCRYPT_CHG, host_hci_rx_encrypt_change },
+    { BLE_HCI_EVCODE_HW_ERROR, host_hci_rx_hw_error },
     { BLE_HCI_EVCODE_NUM_COMP_PKTS, host_hci_rx_num_completed_pkts },
     { BLE_HCI_EVCODE_ENC_KEY_REFRESH, host_hci_rx_enc_key_refresh },
     { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
@@ -180,6 +182,21 @@ host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
     evt.encryption_enabled = data[5];
 
     ble_sm_enc_change_rx(&evt);
+
+    return 0;
+}
+
+static int
+host_hci_rx_hw_error(uint8_t event_code, uint8_t *data, int len)
+{
+    uint8_t hw_code;
+
+    if (len < BLE_HCI_EVENT_HW_ERROR_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    hw_code = data[0];
+    ble_hs_hw_error(hw_code);
 
     return 0;
 }
