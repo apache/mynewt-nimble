@@ -443,6 +443,12 @@ ble_hs_sched_reset(int reason)
     ble_hs_event_enqueue(&ble_hs_event_reset);
 }
 
+void
+ble_hs_hw_error(uint8_t hw_code)
+{
+    ble_hs_sched_reset(BLE_HS_HW_ERR(hw_code));
+}
+
 /**
  * Synchronizes the host with the controller by sending a sequence of HCI
  * commands.  This function must be called before any other host functionality
