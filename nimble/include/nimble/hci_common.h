@@ -480,6 +480,9 @@
 /* Event encryption change (code=0x08) */
 #define BLE_HCI_EVENT_ENCRYPT_CHG_LEN       (4)
 
+/* Event hardware error (code=0x10) */
+#define BLE_HCI_EVENT_HW_ERROR_LEN          (1)
+
 /* Event key refresh complete (code=0x30) */
 #define BLE_HCI_EVENT_ENC_KEY_REFRESH_LEN   (3)
 
