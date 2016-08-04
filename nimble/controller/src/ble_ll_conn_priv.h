@@ -81,6 +81,9 @@ extern struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 /* Pointer to connection state machine we are trying to create */
 extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 
+extern struct os_mempool g_ble_ll_hci_ev_pool;
+
+
 /* Generic interface */
 struct ble_ll_len_req;
 struct hci_create_conn;
@@ -150,4 +153,8 @@ void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 #else
 #define ble_ll_conn_auth_pyld_timer_start(x)
 #endif
+
+int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
+int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
+
 #endif /* H_BLE_LL_CONN_PRIV_ */

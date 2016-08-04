@@ -23,7 +23,7 @@
 #include "os/os.h"
 #include "console/console.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "host/host_hci.h"
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
@@ -582,7 +582,7 @@ host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts)
 }
 
 int
-host_hci_event_rx(uint8_t *data)
+host_hci_evt_process(uint8_t *data)
 {
     const struct host_hci_event_dispatch_entry *entry;
     uint8_t event_code;
@@ -604,40 +604,20 @@ host_hci_event_rx(uint8_t *data)
 
     entry = host_hci_dispatch_entry_find(event_code);
     if (entry == NULL) {
-        STATS_INC(ble_hs_stats, hci_invalid_ack);
+        STATS_INC(ble_hs_stats, hci_unknown_event);
         rc = BLE_HS_ENOTSUP;
     } else {
         rc = entry->hed_fn(event_code, data, event_len);
     }
 
-    return rc;
-}
-
-int
-host_hci_os_event_proc(struct os_event *ev)
-{
-    os_error_t err;
-    int rc;
-
-    rc = host_hci_event_rx(ev->ev_arg);
-
-    /* Free the command buffer */
-    err = os_memblock_put(&g_hci_evt_pool, ev->ev_arg);
-    BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
-
-    /* Free the event */
-    err = os_memblock_put(&g_hci_os_event_pool, ev);
-    BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
+    ble_hci_trans_buf_free(data);
 
     return rc;
 }
 
-/* XXX: For now, put this here */
 int
-ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
+host_hci_evt_rx(uint8_t *hci_ev, void *arg)
 {
-    struct os_event *ev;
-    os_error_t err;
     int enqueue;
 
     BLE_HS_DBG_ASSERT(hci_ev != NULL);
@@ -659,24 +639,11 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
     }
 
     if (enqueue) {
-        /* Get an event structure off the queue */
-        ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
-        if (!ev) {
-            err = os_memblock_put(&g_hci_evt_pool, hci_ev);
-            BLE_HS_DBG_ASSERT_EVAL(err == OS_OK);
-            return -1;
-        }
-
-        /* Fill out the event and post to host task. */
-        ev->ev_queued = 0;
-        ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
-        ev->ev_arg = hci_ev;
-        ble_hs_event_enqueue(ev);
+        ble_hs_enqueue_hci_event(hci_ev);
     }
 
     return 0;
 }
-
 
 /**
  * Called when a data packet is received from the controller.  This function
@@ -688,7 +655,7 @@ ble_hci_transport_ctlr_event_send(uint8_t *hci_ev)
  * @return                      0 on success; nonzero on failure.
  */
 int
-host_hci_data_rx(struct os_mbuf *om)
+host_hci_acl_process(struct os_mbuf *om)
 {
     struct hci_data_hdr hci_hdr;
     struct ble_hs_conn *conn;
@@ -703,7 +670,7 @@ host_hci_data_rx(struct os_mbuf *om)
     }
 
 #if (BLETEST_THROUGHPUT_TEST == 0)
-    BLE_HS_LOG(DEBUG, "host_hci_data_rx(): handle=%u pb=%x len=%u data=",
+    BLE_HS_LOG(DEBUG, "host_hci_acl_process(): handle=%u pb=%x len=%u data=",
                BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
                BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
                hci_hdr.hdh_len);

@@ -21,6 +21,7 @@
 #define H_BLE_HS_
 
 #include <inttypes.h>
+#include "nimble/hci_common.h"
 #include "host/ble_att.h"
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
@@ -62,6 +63,7 @@ struct os_event;
 #define BLE_HS_ETIMEOUT_HCI         19
 #define BLE_HS_ENOMEM_EVT           20
 #define BLE_HS_ENOADDR              21
+#define BLE_HS_ENOTSYNCED           22
 
 #define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
@@ -85,8 +87,10 @@ struct os_event;
 #define BLE_HS_IO_NO_INPUT_OUTPUT           0x03
 #define BLE_HS_IO_KEYBOARD_DISPLAY          0x04
 
+typedef void ble_hs_reset_fn(int reason);
+typedef void ble_hs_sync_fn(void);
+
 struct ble_hs_cfg {
-    /*** HCI settings. */
     /**
      * An HCI buffer is a "flat" 260-byte buffer.  HCI buffers are used by the
      * controller to send unsolicited events to the host.
@@ -104,6 +108,10 @@ struct ble_hs_cfg {
      * it is what wakes up the host-parent-task and indicates that an HCI event
      * needs to be processsed.  The pool of OS events is allocated with the
      * same number of elements as the HCI buffer pool.
+     */
+    /* XXX: This should either be renamed to indicate it is only used for OS
+     * events, or it should go away entirely (copy the number from the
+     * transport's config).
      */
     uint8_t max_hci_bufs;
 
@@ -211,6 +219,19 @@ struct ble_hs_cfg {
     uint8_t sm_our_key_dist;
     uint8_t sm_their_key_dist;
 
+    /*** HCI settings */
+    /**
+     * This callback is executed when the host resets itself and the controller
+     * due to fatal error.
+     */
+    ble_hs_reset_fn *reset_cb;
+
+    /**
+     * This callback is executed when the host and controller become synced.
+     * This happens at startup and after a reset.
+     */
+    ble_hs_sync_fn *sync_cb;
+
     /*** Store settings. */
     /**
      * These function callbacks handle persistence of sercurity material
@@ -220,7 +241,7 @@ struct ble_hs_cfg {
     ble_store_write_fn *store_write_cb;
     ble_store_delete_fn *store_delete_cb;
 
-    /*** privacy settings */
+    /*** Privacy settings. */
     /**
      * The frequency at which new resovlable private addresses are generated.
      * Units are seconds.
@@ -230,9 +251,8 @@ struct ble_hs_cfg {
 
 extern const struct ble_hs_cfg ble_hs_cfg_dflt;
 
-int ble_hs_rx_data(struct os_mbuf *om);
+int ble_hs_synced(void);
 int ble_hs_start(void);
-void ble_hs_event_enqueue(struct os_event *ev);
 int ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg);
 
 #endif

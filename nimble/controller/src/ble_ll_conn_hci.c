@@ -25,6 +25,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_conn.h"
@@ -140,7 +141,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
     enh_enabled = ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE);
 
     if (enabled || enh_enabled) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             /* Put common elements in event */
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
@@ -246,7 +247,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
             (connsm->completed_pkts || !STAILQ_EMPTY(&connsm->conn_txq))) {
             /* If no buffer, get one, If cant get one, leave. */
             if (!evbuf) {
-                evbuf = os_memblock_get(&g_hci_evt_pool);
+                evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
                 if (!evbuf) {
                     break;
                 }
@@ -313,7 +314,7 @@ ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_AUTH_PYLD_TMO)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_AUTH_PYLD_TMO;
             evbuf[1] = sizeof(uint16_t);
@@ -338,7 +339,7 @@ ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_DISCONN_CMP)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
             evbuf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;

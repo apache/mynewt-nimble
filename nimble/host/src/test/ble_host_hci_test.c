@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <string.h>
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "host/host_hci.h"
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
@@ -28,13 +29,16 @@
 
 TEST_CASE(ble_host_hci_test_event_bad)
 {
-    uint8_t buf[2];
+    uint8_t *buf;
     int rc;
 
     /*** Invalid event code. */
+    buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    TEST_ASSERT_FATAL(buf != NULL);
+
     buf[0] = 0xff;
     buf[1] = 0;
-    rc = host_hci_event_rx(buf);
+    rc = host_hci_evt_process(buf);
     TEST_ASSERT(rc == BLE_HS_ENOTSUP);
 }
 

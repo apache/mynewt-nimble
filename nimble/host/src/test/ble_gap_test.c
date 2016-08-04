@@ -1136,6 +1136,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
 
     struct ble_gap_conn_desc desc;
     struct ble_hs_conn *conn;
+    uint8_t pub_addr[6];
     int rc;
 
     /*** We are master; public addresses. */
@@ -1150,6 +1151,10 @@ TEST_CASE(ble_gap_test_case_conn_find)
                                      ble_gap_test_util_connect_cb,
                                      NULL);
 
+
+    rc = ble_hs_id_copy_addr(BLE_ADDR_TYPE_PUBLIC, pub_addr, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
     rc = ble_gap_conn_find(8, &desc);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(desc.conn_handle == 8);
@@ -1157,8 +1162,8 @@ TEST_CASE(ble_gap_test_case_conn_find)
     TEST_ASSERT(desc.our_ota_addr_type == BLE_ADDR_TYPE_PUBLIC);
     TEST_ASSERT(desc.peer_ota_addr_type == BLE_ADDR_TYPE_PUBLIC);
     TEST_ASSERT(desc.role == BLE_GAP_ROLE_MASTER);
-    TEST_ASSERT(memcmp(desc.our_ota_addr, g_dev_addr, 6) == 0);
-    TEST_ASSERT(memcmp(desc.our_id_addr, g_dev_addr, 6) == 0);
+    TEST_ASSERT(memcmp(desc.our_ota_addr, pub_addr, 6) == 0);
+    TEST_ASSERT(memcmp(desc.our_id_addr, pub_addr, 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_ota_addr,
                        ((uint8_t[6]){2,3,4,5,6,7}), 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_id_addr,
@@ -1203,7 +1208,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
     TEST_ASSERT(desc.role == BLE_GAP_ROLE_MASTER);
     TEST_ASSERT(memcmp(desc.our_ota_addr,
                        ((uint8_t[6]){0x40,1,2,3,4,5}), 6) == 0);
-    TEST_ASSERT(memcmp(desc.our_id_addr, g_dev_addr, 6) == 0);
+    TEST_ASSERT(memcmp(desc.our_id_addr, pub_addr, 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_ota_addr,
                        ((uint8_t[6]){0x50,1,2,3,4,5}), 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_id_addr,
