@@ -20,7 +20,6 @@
 #include <string.h>
 #include <errno.h>
 #include "os/os.h"
-#include "host/host_hci.h"
 #include "host/ble_hs_id.h"
 #include "ble_hs_priv.h"
 

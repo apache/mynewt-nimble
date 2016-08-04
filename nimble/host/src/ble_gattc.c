@@ -3754,7 +3754,9 @@ ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
     }
 
     if (proc->write_reliable.cur_attr >= proc->write_reliable.num_attrs) {
-        /* Expecting an execute write response, not a prepare write response. */
+        /* Expecting an execute write response, not a prepare write
+         * response.
+         */
         rc = BLE_HS_EBADDATA;
         goto err;
     }

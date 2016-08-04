@@ -214,7 +214,7 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
          * the explicitly specified value.
          */
         if (adv_fields->tx_pwr_lvl == BLE_HS_ADV_TX_PWR_LVL_AUTO) {
-            rc = ble_hci_util_read_adv_tx_pwr(&tx_pwr_lvl);
+            rc = ble_hs_hci_util_read_adv_tx_pwr(&tx_pwr_lvl);
             if (rc != 0) {
                 return rc;
             }

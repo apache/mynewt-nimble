@@ -221,7 +221,7 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
         return 0;
 
     case BLE_SM_PAIR_ALG_OOB:
-        rc = ble_hci_util_rand(&proc->ri, 1);
+        rc = ble_hs_hci_util_rand(&proc->ri, 1);
         return rc;
 
     default:

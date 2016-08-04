@@ -27,7 +27,7 @@
 #include "ble_hs_priv.h"
 
 static void
-host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
+ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 {
     int8_t rssi;
     uint8_t advlen;
@@ -158,7 +158,7 @@ host_hci_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
  * @param len
  */
 static void
-host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t status;
     uint8_t reason;
@@ -183,7 +183,7 @@ host_hci_dbg_disconn_comp_disp(uint8_t *evdata, uint8_t len)
  * @param len
  */
 static void
-host_hci_dbg_encrypt_chg_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_encrypt_chg_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t status;
     uint8_t enabled;
@@ -209,7 +209,7 @@ host_hci_dbg_encrypt_chg_disp(uint8_t *evdata, uint8_t len)
  * @param len
  */
 static void
-host_hci_dbg_encrypt_refresh_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_encrypt_refresh_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t status;
     uint16_t handle;
@@ -228,7 +228,7 @@ host_hci_dbg_encrypt_refresh_disp(uint8_t *evdata, uint8_t len)
  * @param len
  */
 static void
-host_hci_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
 {
     BLE_HS_LOG(DEBUG, "Remote Version Info: status=%u handle=%u vers_nr=%u "
                       "compid=%u subver=%u\n",
@@ -243,7 +243,7 @@ host_hci_dbg_rd_rem_ver_disp(uint8_t *evdata, uint8_t len)
  * @param len
  */
 static void
-host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t handles;
     uint8_t *handle_ptr;
@@ -282,7 +282,7 @@ host_hci_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
  * @param len
  */
 static void
-host_hci_dbg_auth_pyld_tmo_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_auth_pyld_tmo_disp(uint8_t *evdata, uint8_t len)
 {
     uint16_t handle;
 
@@ -298,7 +298,7 @@ host_hci_dbg_auth_pyld_tmo_disp(uint8_t *evdata, uint8_t len)
 
 
 static void
-host_hci_dbg_cmd_comp_info_params(uint8_t status, uint8_t ocf, uint8_t *evdata)
+ble_hs_dbg_cmd_comp_info_params(uint8_t status, uint8_t ocf, uint8_t *evdata)
 {
     int i;
     uint8_t *dptr;
@@ -339,7 +339,7 @@ host_hci_dbg_cmd_comp_info_params(uint8_t status, uint8_t ocf, uint8_t *evdata)
 }
 
 static void
-host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t cmd_pkts;
     uint8_t ogf;
@@ -374,7 +374,7 @@ host_hci_dbg_cmd_complete_disp(uint8_t *evdata, uint8_t len)
     /* Display parameters based on command. */
     switch (ogf) {
     case BLE_HCI_OGF_INFO_PARAMS:
-        host_hci_dbg_cmd_comp_info_params(status, ocf, evdata);
+        ble_hs_dbg_cmd_comp_info_params(status, ocf, evdata);
         break;
     case BLE_HCI_OGF_STATUS_PARAMS:
         switch (ocf) {
@@ -438,7 +438,7 @@ done:
 }
 
 static void
-host_hci_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
+ble_hs_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t ogf;
     uint8_t ocf;
@@ -453,7 +453,7 @@ host_hci_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
 }
 
 void
-host_hci_dbg_event_disp(uint8_t *evbuf)
+ble_hs_dbg_event_disp(uint8_t *evbuf)
 {
 #if LOG_LEVEL > LOG_LEVEL_DEBUG
     return;
@@ -470,34 +470,40 @@ host_hci_dbg_event_disp(uint8_t *evbuf)
 
     switch (evcode) {
     case BLE_HCI_EVCODE_DISCONN_CMP:
-        host_hci_dbg_disconn_comp_disp(evdata, len);
+        ble_hs_dbg_disconn_comp_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_ENC_KEY_REFRESH:
-        host_hci_dbg_encrypt_refresh_disp(evdata, len);
+        ble_hs_dbg_encrypt_refresh_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_ENCRYPT_CHG:
-        host_hci_dbg_encrypt_chg_disp(evdata, len);
+        ble_hs_dbg_encrypt_chg_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP:
-        host_hci_dbg_rd_rem_ver_disp(evdata, len);
+        ble_hs_dbg_rd_rem_ver_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
-        host_hci_dbg_cmd_complete_disp(evdata, len);
+        ble_hs_dbg_cmd_complete_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_COMMAND_STATUS:
-        host_hci_dbg_cmd_status_disp(evdata, len);
+        ble_hs_dbg_cmd_status_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_NUM_COMP_PKTS:
-        host_hci_dbg_num_comp_pkts_disp(evdata, len);
+        ble_hs_dbg_num_comp_pkts_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_LE_META:
-        host_hci_dbg_le_event_disp(evdata[0], len, evdata + 1);
+        ble_hs_dbg_le_event_disp(evdata[0], len, evdata + 1);
         break;
     case BLE_HCI_EVCODE_AUTH_PYLD_TMO:
-        host_hci_dbg_auth_pyld_tmo_disp(evdata, len);
+        ble_hs_dbg_auth_pyld_tmo_disp(evdata, len);
         break;
     default:
         BLE_HS_LOG(DEBUG, "Unknown event 0x%x len=%u\n", evcode, len);
         break;
     }
+}
+
+void
+ble_hs_dbg_set_sync_state(uint8_t sync_state)
+{
+    ble_hs_sync_state = sync_state;
 }

@@ -410,7 +410,8 @@ ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
 }
 
 int
-ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y, uint32_t *passkey)
+ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
+              uint32_t *passkey)
 {
     uint8_t m[80], xs[16];
     int rc;
@@ -476,7 +477,7 @@ ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv)
     int rc;
 
     do {
-        rc = ble_hci_util_rand(random, sizeof random);
+        rc = ble_hs_hci_util_rand(random, sizeof random);
         if (rc != 0) {
             return rc;
         }

@@ -61,7 +61,7 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
 
     /** Last byte (tx power level) filled in after HCI exchange. */
 
-    rc = ble_hci_util_read_adv_tx_pwr(&tx_pwr);
+    rc = ble_hs_hci_util_read_adv_tx_pwr(&tx_pwr);
     if (rc != 0) {
         return rc;
     }

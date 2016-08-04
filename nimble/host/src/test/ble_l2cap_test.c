@@ -21,7 +21,6 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
-#include "host/host_hci.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
@@ -74,7 +73,8 @@ ble_l2cap_test_util_rx_update_req(uint16_t conn_handle, uint8_t id,
     ble_l2cap_sig_update_req_write(v, BLE_L2CAP_SIG_UPDATE_REQ_SZ, &req);
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CONN_UPDATE), 0);
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_CONN_UPDATE), 0);
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
                                               &hci_hdr, om);
     TEST_ASSERT_FATAL(rc == 0);

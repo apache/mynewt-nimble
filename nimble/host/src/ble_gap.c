@@ -23,7 +23,6 @@
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/nimble_opt.h"
-#include "host/host_hci.h"
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
@@ -1201,13 +1200,13 @@ ble_gap_wl_tx_add(const struct ble_gap_white_entry *entry)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CHG_WHITE_LIST_LEN];
     int rc;
 
-    rc = host_hci_cmd_build_le_add_to_whitelist(entry->addr, entry->addr_type,
-                                                buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_add_to_whitelist(
+        entry->addr, entry->addr_type, buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1221,8 +1220,8 @@ ble_gap_wl_tx_clear(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    host_hci_cmd_build_le_clear_whitelist(buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_clear_whitelist(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1309,8 +1308,8 @@ ble_gap_adv_enable_tx(int enable)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_ENABLE_LEN];
     int rc;
 
-    host_hci_cmd_build_le_set_adv_enable(!!enable, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_set_adv_enable(!!enable, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1377,14 +1376,14 @@ ble_gap_adv_rsp_data_tx(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
     int rc;
 
-    rc = host_hci_cmd_build_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
-                                                 ble_gap_slave.rsp_data_len,
-                                                 buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
+                                                   ble_gap_slave.rsp_data_len,
+                                                   buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1443,14 +1442,14 @@ ble_gap_adv_data_tx(void)
         ble_gap_slave.adv_auto_flags = 0;
     }
 
-    rc = host_hci_cmd_build_le_set_adv_data(ble_gap_slave.adv_data,
-                                            ble_gap_slave.adv_data_len,
-                                            buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_set_adv_data(ble_gap_slave.adv_data,
+                                              ble_gap_slave.adv_data_len,
+                                              buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1549,13 +1548,13 @@ ble_gap_adv_params_tx(uint8_t own_addr_type,
     hci_adv_params.adv_filter_policy = adv_params->filter_policy;
 
     hci_adv_params.adv_type = ble_gap_adv_type(adv_params);
-    rc = host_hci_cmd_build_le_set_adv_params(&hci_adv_params,
-                                              buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_set_adv_params(&hci_adv_params,
+                                                buf, sizeof buf);
     if (rc != 0) {
         return BLE_HS_EINVAL;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1881,9 +1880,9 @@ ble_gap_disc_enable_tx(int enable, int filter_duplicates)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_ENABLE_LEN];
     int rc;
 
-    host_hci_cmd_build_le_set_scan_enable(!!enable, !!filter_duplicates,
-                                          buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_set_scan_enable(!!enable, !!filter_duplicates,
+                                            buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1905,17 +1904,17 @@ ble_gap_disc_tx_params(uint8_t own_addr_type,
         scan_type = BLE_HCI_SCAN_TYPE_ACTIVE;
     }
 
-    rc = host_hci_cmd_build_le_set_scan_params(scan_type,
-                                               disc_params->itvl,
-                                               disc_params->window,
-                                               own_addr_type,
-                                               disc_params->filter_policy,
-                                               buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_set_scan_params(scan_type,
+                                                 disc_params->itvl,
+                                                 disc_params->window,
+                                                 own_addr_type,
+                                                 disc_params->filter_policy,
+                                                 buf, sizeof buf);
     if (rc != 0) {
         return BLE_HS_EINVAL;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2164,12 +2163,12 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
     hcc.min_ce_len = params->min_ce_len;
     hcc.max_ce_len = params->max_ce_len;
 
-    rc = host_hci_cmd_build_le_create_connection(&hcc, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_create_connection(&hcc, buf, sizeof buf);
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2356,9 +2355,9 @@ ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason)
                      "conn_handle=%d hci_reason=%d\n",
                conn_handle, hci_reason);
 
-    host_hci_cmd_build_disconnect(conn_handle, hci_reason,
-                                  buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_disconnect(conn_handle, hci_reason,
+                                    buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         goto done;
     }
@@ -2384,8 +2383,8 @@ ble_gap_conn_cancel_tx(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    host_hci_cmd_build_le_create_conn_cancel(buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_create_conn_cancel(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2454,8 +2453,8 @@ ble_gap_tx_param_pos_reply(uint16_t conn_handle,
     pos_reply.min_ce_len = params->min_ce_len;
     pos_reply.max_ce_len = params->max_ce_len;
 
-    host_hci_cmd_build_le_conn_param_reply(&pos_reply, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_conn_param_reply(&pos_reply, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2473,8 +2472,8 @@ ble_gap_tx_param_neg_reply(uint16_t conn_handle, uint8_t reject_reason)
     neg_reply.handle = conn_handle;
     neg_reply.reason = reject_reason;
 
-    host_hci_cmd_build_le_conn_param_neg_reply(&neg_reply, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_conn_param_neg_reply(&neg_reply, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2551,12 +2550,12 @@ ble_gap_update_tx(uint16_t conn_handle,
     cmd.min_ce_len = params->min_ce_len;
     cmd.max_ce_len = params->max_ce_len;
 
-    rc = host_hci_cmd_build_le_conn_update(&cmd, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_build_le_conn_update(&cmd, buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -2811,7 +2810,7 @@ ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi)
 {
     int rc;
 
-    rc = ble_hci_util_read_rssi(conn_handle, out_rssi);
+    rc = ble_hs_hci_util_read_rssi(conn_handle, out_rssi);
     return rc;
 }
 

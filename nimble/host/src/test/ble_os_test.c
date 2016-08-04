@@ -225,7 +225,8 @@ ble_os_disc_test_task_handler(void *arg)
     TEST_ASSERT(!cb_called);
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
         0);
 
     /* Wait 250 more ms; verify scan completed. */

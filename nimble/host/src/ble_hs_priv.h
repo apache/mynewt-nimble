@@ -26,7 +26,8 @@
 #include "ble_att_priv.h"
 #include "ble_gap_priv.h"
 #include "ble_gatt_priv.h"
-#include "ble_hci_priv.h"
+#include "ble_hs_dbg_priv.h"
+#include "ble_hs_hci_priv.h"
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_conn_priv.h"
 #include "ble_hs_atomic_priv.h"
@@ -82,8 +83,8 @@ int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_enqueue_hci_event(uint8_t *hci_evt);
 void ble_hs_event_enqueue(struct os_event *ev);
 
-int host_hci_evt_rx(uint8_t *hci_ev, void *arg);
-int host_hci_acl_process(struct os_mbuf *om);
+int ble_hs_hci_rx_evt(uint8_t *hci_ev, void *arg);
+int ble_hs_hci_evt_acl_process(struct os_mbuf *om);
 
 int ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
                                int num_entries, int entry_size, char *name);

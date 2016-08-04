@@ -17,9 +17,10 @@
  * under the License.
  */
 
-#ifndef H_HOST_DBG_
-#define H_HOST_DBG_
+#ifndef H_BLE_HS_DBG_PRIV_
+#define H_BLE_HS_DBG_PRIV_
 
-void host_hci_dbg_event_disp(uint8_t *evbuf);
+void ble_hs_dbg_event_disp(uint8_t *evbuf);
+void ble_hs_dbg_set_sync_state(uint8_t sync_state);
 
 #endif /* H_HOST_DBG_ */
