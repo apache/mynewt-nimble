@@ -34,10 +34,6 @@ struct ble_encryption_block
     uint8_t     cipher_text[BLE_ENC_BLOCK_SIZE];
 };
 
-/* Shared command pool for transort between host and controller */
-extern struct os_mempool g_hci_evt_pool;
-extern struct os_mempool g_hci_os_event_pool;
-
 /*
  * BLE MBUF structure:
  *

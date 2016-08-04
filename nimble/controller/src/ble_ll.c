@@ -26,6 +26,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
@@ -181,6 +182,9 @@ STATS_NAME_END(ble_ll_stats)
 #define BLE_LL_STACK_SIZE   (80)
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
+
+struct os_mempool g_ble_ll_hci_ev_pool;
+static void *ble_ll_hci_os_event_buf;
 
 /* XXX: temporary logging until we transition to real logging */
 #ifdef BLE_LL_LOG
@@ -1129,6 +1133,16 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
                        NULL);
 
+    ble_ll_hci_os_event_buf = malloc(
+        OS_MEMPOOL_BYTES(16, sizeof (struct os_event)));
+    assert(ble_ll_hci_os_event_buf != NULL);
+
+    /* Create memory pool of OS events */
+    rc = os_mempool_init(&g_ble_ll_hci_ev_pool, 16,
+                         sizeof (struct os_event), ble_ll_hci_os_event_buf,
+                         "g_ble_ll_hci_ev_pool");
+    assert(rc == 0);
+
     /* Initialize LL HCI */
     ble_ll_hci_init();
 
@@ -1182,6 +1196,9 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
                             STATS_NAME_INIT_PARMS(ble_ll_stats),
                             "ble_ll");
+
+    ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL,
+                                    ble_ll_hci_acl_rx, NULL);
     return rc;
 }
 

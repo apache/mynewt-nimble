@@ -93,3 +93,23 @@ ble_hs_atomic_conn_set_flags(uint16_t conn_handle, ble_hs_conn_flags_t flags,
 
     return rc;
 }
+
+uint16_t
+ble_hs_atomic_first_conn_handle(void)
+{
+    const struct ble_hs_conn *conn;
+    uint16_t conn_handle;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_first();
+    if (conn != NULL) {
+        conn_handle = conn->bhc_handle;
+    } else {
+        conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    }
+
+    ble_hs_unlock();
+
+    return conn_handle;
+}

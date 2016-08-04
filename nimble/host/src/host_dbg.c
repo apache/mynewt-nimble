@@ -23,7 +23,7 @@
 #include "os/os.h"
 #include "console/console.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 
 static void

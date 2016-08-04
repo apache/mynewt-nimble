@@ -36,20 +36,23 @@ pkg.deps:
     # Tinycrypt is only required when secure connections (NIMBPLE_OPT_SM_SC)
     # is enabled.  It always gets built as a dependency, but not is not
     # included by the linker unless SC is enabled.  XXX: We should not build
-    # this library if it is not requiresd.
+    # this library if it is not required.
     - libs/tinycrypt
 
 pkg.req_apis:
+    - ble_transport
     - console
 
 pkg.features:
     - BLE_HOST
 
 # Satisfy capability dependencies for the self-contained test executable.
-pkg.deps.SELFTEST: libs/console/stub
+pkg.deps.SELFTEST:
+    - libs/console/stub
+    - net/nimble/transport/ram
+
 pkg.cflags.SELFTEST:
-    - -DPHONY_TRANSPORT=1
-    - -DPHONY_HCI_ACKS=1
-    - -DNIMBLE_OPT_SM=1
-    - -DNIMBLE_OPT_SM_SC=1
+    - "-DPHONY_HCI_ACKS=1"
+    - "-DNIMBLE_OPT_SM=1"
+    - "-DNIMBLE_OPT_SM_SC=1"
 pkg.cflags.TEST: -DBLE_HS_DEBUG

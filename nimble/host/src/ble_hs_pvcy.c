@@ -145,11 +145,12 @@ ble_hs_pvcy_ensure_started(void)
     return 0;
 }
 
-void
+int
 ble_hs_pvcy_set_our_irk(const uint8_t *irk)
 {
     uint8_t tmp_addr[6];
     uint8_t new_irk[16];
+    int rc;
 
     memset(new_irk, 0, sizeof(new_irk));
 
@@ -163,17 +164,33 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
     if (memcmp(ble_hs_pvcy_irk, new_irk, 16) != 0) {
         memcpy(ble_hs_pvcy_irk, new_irk, 16);
 
-        ble_hs_pvcy_set_resolve_enabled(0);
-        ble_hs_pvcy_clear_entries();
-        ble_hs_pvcy_set_resolve_enabled(1);
+        rc = ble_hs_pvcy_set_resolve_enabled(0);
+        if (rc != 0) {
+            return rc;
+        }
+
+        rc = ble_hs_pvcy_clear_entries();
+        if (rc != 0) {
+            return rc;
+        }
+
+        rc = ble_hs_pvcy_set_resolve_enabled(1);
+        if (rc != 0) {
+            return rc;
+        }
 
         /* Push a null address identity to the controller.  The controller uses
          * this entry to generate an RPA when we do advertising with
          * own-addr-type = rpa.
          */
         memset(tmp_addr, 0, 6);
-        ble_hs_pvcy_add_entry(tmp_addr, 0, ble_hs_pvcy_irk);
+        rc = ble_hs_pvcy_add_entry(tmp_addr, 0, ble_hs_pvcy_irk);
+        if (rc != 0) {
+            return rc;
+        }
     }
+
+    return 0;
 }
 
 int

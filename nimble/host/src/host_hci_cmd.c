@@ -24,32 +24,17 @@
 #include "os/os.h"
 #include "console/console.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "host/host_hci.h"
 #include "host_dbg_priv.h"
 #include "ble_hs_priv.h"
-#ifdef PHONY_TRANSPORT
-#include "host/ble_hs_test.h"
-#endif
-
-/**
- * This buffer holds one of the following:
- * 1. The current outgoing HCI command.
- * 2. The current incoming HCI acknowledgement (command complete or command
- *    status event).
- */
-uint8_t host_hci_cmd_buf[HCI_EVT_BUF_SIZE];
 
 static int
 host_hci_cmd_transport(uint8_t *cmdbuf)
 {
-#ifdef PHONY_TRANSPORT
-    ble_hs_test_hci_txed(cmdbuf);
-    return 0;
-#else
     int rc;
 
-    rc = ble_hci_transport_host_cmd_send(cmdbuf);
+    rc = ble_hci_trans_hs_cmd_tx(cmdbuf);
     switch (rc) {
     case 0:
         return 0;
@@ -60,7 +45,6 @@ host_hci_cmd_transport(uint8_t *cmdbuf)
     default:
         return BLE_HS_EUNKNOWN;
     }
-#endif
 }
 
 void
@@ -79,19 +63,23 @@ host_hci_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len, void *buf)
 int
 host_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, const void *cmddata)
 {
+    uint8_t *buf;
     int rc;
 
-    htole16(host_hci_cmd_buf, ogf << 10 | ocf);
-    host_hci_cmd_buf[2] = len;
+    buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+    BLE_HS_DBG_ASSERT(buf != NULL);
+
+    htole16(buf, ogf << 10 | ocf);
+    buf[2] = len;
     if (len != 0) {
-        memcpy(host_hci_cmd_buf + BLE_HCI_CMD_HDR_LEN, cmddata, len);
+        memcpy(buf + BLE_HCI_CMD_HDR_LEN, cmddata, len);
     }
 
     BLE_HS_LOG(DEBUG, "host_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d\n",
                ogf, ocf, len);
-    ble_hs_log_flat_buf(host_hci_cmd_buf, len + BLE_HCI_CMD_HDR_LEN);
+    ble_hs_log_flat_buf(buf, len + BLE_HCI_CMD_HDR_LEN);
     BLE_HS_LOG(DEBUG, "\n");
-    rc = host_hci_cmd_transport(host_hci_cmd_buf);
+    rc = host_hci_cmd_transport(buf);
 
     if (rc == 0) {
         STATS_INC(ble_hs_stats, hci_cmd);
@@ -109,6 +97,24 @@ host_hci_cmd_send_buf(void *buf)
     uint8_t *u8ptr;
     uint8_t len;
     int rc;
+
+    switch (ble_hs_sync_state) {
+    case BLE_HS_SYNC_STATE_BAD:
+        return BLE_HS_ENOTSYNCED;
+
+    case BLE_HS_SYNC_STATE_BRINGUP:
+        if (!ble_hs_is_parent_task()) {
+            return BLE_HS_ENOTSYNCED;
+        }
+        break;
+
+    case BLE_HS_SYNC_STATE_GOOD:
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        return BLE_HS_EUNKNOWN;
+    }
 
     u8ptr = buf;
 

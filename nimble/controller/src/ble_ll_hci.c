@@ -23,7 +23,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
@@ -68,7 +68,7 @@ ble_ll_hci_event_send(uint8_t *evbuf)
     STATS_INC(ble_ll_stats, hci_events_sent);
 
     /* Send the event to the host */
-    rc = ble_hci_transport_ctlr_event_send(evbuf);
+    rc = ble_hci_trans_ll_evt_tx(evbuf);
 
     return rc;
 }
@@ -86,7 +86,7 @@ ble_ll_hci_send_noop(void)
     uint8_t *evbuf;
     uint16_t opcode;
 
-    evbuf = os_memblock_get(&g_hci_evt_pool);
+    evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
     if (evbuf) {
         /* Create a command complete event with a NO-OP opcode */
         opcode = 0;
@@ -919,7 +919,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     assert(cmdbuf != NULL);
 
     /* Free the event */
-    err = os_memblock_put(&g_hci_os_event_pool, ev);
+    err = os_memblock_put(&g_ble_ll_hci_ev_pool, ev);
     assert(err == OS_OK);
 
     /* Get the opcode from the command buffer */
@@ -994,12 +994,12 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
  *                              BLE_ERR_MEM_CAPACITY on HCI buffer exhaustion.
  */
 int
-ble_hci_transport_host_cmd_send(uint8_t *cmd)
+ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg)
 {
     struct os_event *ev;
 
     /* Get an event structure off the queue */
-    ev = (struct os_event *)os_memblock_get(&g_hci_os_event_pool);
+    ev = (struct os_event *)os_memblock_get(&g_ble_ll_hci_ev_pool);
     if (!ev) {
         return BLE_ERR_MEM_CAPACITY;
     }
@@ -1015,7 +1015,7 @@ ble_hci_transport_host_cmd_send(uint8_t *cmd)
 
 /* Send ACL data from host to contoller */
 int
-ble_hci_transport_host_acl_data_send(struct os_mbuf *om)
+ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg)
 {
     ble_ll_acl_data_in(om);
     return 0;

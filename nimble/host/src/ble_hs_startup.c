@@ -222,19 +222,16 @@ ble_hs_startup_go(void)
 
     rc = ble_hs_startup_set_evmask_tx();
     if (rc != 0) {
-        assert(0);
         return rc;
     }
 
     rc = ble_hs_startup_le_set_evmask_tx();
     if (rc != 0) {
-        assert(0);
         return rc;
     }
 
     rc = ble_hs_startup_le_read_buf_sz_tx();
     if (rc != 0) {
-        assert(0);
         return rc;
     }
 
@@ -242,7 +239,6 @@ ble_hs_startup_go(void)
 
     rc = ble_hs_startup_le_read_sup_f_tx();
     if (rc != 0) {
-        assert(0);
         return rc;
     }
 

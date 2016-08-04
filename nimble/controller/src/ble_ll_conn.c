@@ -25,6 +25,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "ble/xcvr.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
@@ -102,9 +103,6 @@ extern void bletest_completed_pkt(uint16_t handle);
  *  expected. What to do? If we cant transmit at correct point in slot we
  *  are hosed. Well, anchor point can get really messed up!
  */
-
-/* XXX: this does not belong here! Move to transport? */
-extern int ble_hs_rx_data(struct os_mbuf *om);
 
 /*
  * The amount of time that we will wait to hear the start of a receive
@@ -2569,7 +2567,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                     acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
                     htole16(rxbuf, acl_hdr);
                     htole16(rxbuf + 2, acl_len);
-                    ble_hs_rx_data(rxpdu);
+                    ble_hci_trans_ll_acl_tx(rxpdu);
                 }
 
                 /* NOTE: we dont free the mbuf since we handed it off! */
