@@ -1382,7 +1382,6 @@ ble_hs_test_util_init(void)
                          ble_hs_test_util_pkt_txed, NULL);
 
     hci_cfg = ble_hci_ram_cfg_dflt;
-    hci_cfg.num_evt_bufs = cfg.max_hci_bufs;
     rc = ble_hci_ram_init(&hci_cfg);
     TEST_ASSERT_FATAL(rc == 0);
 

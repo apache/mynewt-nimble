@@ -27,13 +27,30 @@ struct os_mbuf;
 
 /*** Type of buffers for holding commands and events. */
 /**
- * Low-priority event (advertising reports).  A request to allocate a
- * high-priority event buffer may allocate one of these instead if no
- * high-priority buffers are available.
+ * Controller-to-host event buffers.  Events have one of two priorities:
+ * o Low-priority   (BLE_HCI_TRANS_BUF_EVT_LO)
+ * o High-priority  (BLE_HCI_TRANS_BUF_EVT_HI)
+ *
+ * Low-priority event buffers are only used for advertising reports.  If there
+ * are no free low-priority event buffers, then an incoming advertising report
+ * will get dropped.
+ *
+ * High-priority event buffers are for everything except advertising reports.
+ * If there are no free high-priority event buffers, a request to allocate one
+ * will try to allocate a low-priority buffer instead.
+ *
+ * If you want all events to be given equal treatment, then you should allocate
+ * low-priority events only.
+ *
+ * Event priorities solve the problem of critical events getting dropped due to
+ * a flood of advertising reports.  This solution is likely temporary: when
+ * HCI flow control is added, event priorities may become obsolete.
+ *
+ * Not all transports distinguish between low and high priority events.  If the
+ * transport does not have separate settings for low and high buffer counts,
+ * then it treats all events with equal priority.
  */
 #define BLE_HCI_TRANS_BUF_EVT_LO    1
-
-/* High-priority event (all events except advertising reports). */
 #define BLE_HCI_TRANS_BUF_EVT_HI    2
 
 /* Host-to-controller command. */
