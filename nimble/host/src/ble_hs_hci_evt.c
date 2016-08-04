@@ -24,32 +24,28 @@
 #include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
-#include "host/host_hci.h"
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
-#include "host_dbg_priv.h"
+#include "ble_hs_dbg_priv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
 
-typedef int host_hci_event_fn(uint8_t event_code, uint8_t *data, int len);
-static host_hci_event_fn host_hci_rx_disconn_complete;
-static host_hci_event_fn host_hci_rx_encrypt_change;
-static host_hci_event_fn host_hci_rx_hw_error;
-static host_hci_event_fn host_hci_rx_num_completed_pkts;
-static host_hci_event_fn host_hci_rx_enc_key_refresh;
-static host_hci_event_fn host_hci_rx_le_meta;
+typedef int ble_hs_hci_evt_fn(uint8_t event_code, uint8_t *data, int len);
+static ble_hs_hci_evt_fn ble_hs_hci_evt_disconn_complete;
+static ble_hs_hci_evt_fn ble_hs_hci_evt_encrypt_change;
+static ble_hs_hci_evt_fn ble_hs_hci_evt_hw_error;
+static ble_hs_hci_evt_fn ble_hs_hci_evt_num_completed_pkts;
+static ble_hs_hci_evt_fn ble_hs_hci_evt_enc_key_refresh;
+static ble_hs_hci_evt_fn ble_hs_hci_evt_le_meta;
 
-typedef int host_hci_le_event_fn(uint8_t subevent, uint8_t *data, int len);
-static host_hci_le_event_fn host_hci_rx_le_conn_complete;
-static host_hci_le_event_fn host_hci_rx_le_adv_rpt;
-static host_hci_le_event_fn host_hci_rx_le_conn_upd_complete;
-static host_hci_le_event_fn host_hci_rx_le_lt_key_req;
-static host_hci_le_event_fn host_hci_rx_le_conn_parm_req;
-static host_hci_le_event_fn host_hci_rx_le_dir_adv_rpt;
-
-static uint16_t host_hci_buffer_sz;
-static uint8_t host_hci_max_pkts;
+typedef int ble_hs_hci_evt_le_fn(uint8_t subevent, uint8_t *data, int len);
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_conn_complete;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_adv_rpt;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_conn_upd_complete;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_lt_key_req;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_conn_parm_req;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_dir_adv_rpt;
 
 /* Statistics */
 struct host_hci_stats
@@ -60,73 +56,56 @@ struct host_hci_stats
     uint32_t unknown_events_rxd;
 };
 
-#define HOST_HCI_TIMEOUT        50      /* Milliseconds. */
+#define BLE_HS_HCI_EVT_TIMEOUT        50      /* Milliseconds. */
 
 /** Dispatch table for incoming HCI events.  Sorted by event code field. */
-struct host_hci_event_dispatch_entry {
-    uint8_t hed_event_code;
-    host_hci_event_fn *hed_fn;
+struct ble_hs_hci_evt_dispatch_entry {
+    uint8_t event_code;
+    ble_hs_hci_evt_fn *cb;
 };
 
-static const struct host_hci_event_dispatch_entry host_hci_event_dispatch[] = {
-    { BLE_HCI_EVCODE_DISCONN_CMP, host_hci_rx_disconn_complete },
-    { BLE_HCI_EVCODE_ENCRYPT_CHG, host_hci_rx_encrypt_change },
-    { BLE_HCI_EVCODE_HW_ERROR, host_hci_rx_hw_error },
-    { BLE_HCI_EVCODE_NUM_COMP_PKTS, host_hci_rx_num_completed_pkts },
-    { BLE_HCI_EVCODE_ENC_KEY_REFRESH, host_hci_rx_enc_key_refresh },
-    { BLE_HCI_EVCODE_LE_META, host_hci_rx_le_meta },
+static const struct ble_hs_hci_evt_dispatch_entry ble_hs_hci_evt_dispatch[] = {
+    { BLE_HCI_EVCODE_DISCONN_CMP, ble_hs_hci_evt_disconn_complete },
+    { BLE_HCI_EVCODE_ENCRYPT_CHG, ble_hs_hci_evt_encrypt_change },
+    { BLE_HCI_EVCODE_HW_ERROR, ble_hs_hci_evt_hw_error },
+    { BLE_HCI_EVCODE_NUM_COMP_PKTS, ble_hs_hci_evt_num_completed_pkts },
+    { BLE_HCI_EVCODE_ENC_KEY_REFRESH, ble_hs_hci_evt_enc_key_refresh },
+    { BLE_HCI_EVCODE_LE_META, ble_hs_hci_evt_le_meta },
 };
 
-#define HOST_HCI_EVENT_DISPATCH_SZ \
-    (sizeof host_hci_event_dispatch / sizeof host_hci_event_dispatch[0])
+#define BLE_HS_HCI_EVT_DISPATCH_SZ \
+    (sizeof ble_hs_hci_evt_dispatch / sizeof ble_hs_hci_evt_dispatch[0])
 
 /** Dispatch table for incoming LE meta events.  Sorted by subevent field. */
-struct host_hci_le_event_dispatch_entry {
-    uint8_t hmd_subevent;
-    host_hci_le_event_fn *hmd_fn;
+struct ble_hs_hci_evt_le_dispatch_entry {
+    uint8_t subevent;
+    ble_hs_hci_evt_le_fn *cb;
 };
 
-static const struct host_hci_le_event_dispatch_entry
-        host_hci_le_event_dispatch[] = {
-    { BLE_HCI_LE_SUBEV_CONN_COMPLETE, host_hci_rx_le_conn_complete },
-    { BLE_HCI_LE_SUBEV_ADV_RPT, host_hci_rx_le_adv_rpt },
-    { BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE, host_hci_rx_le_conn_upd_complete },
-    { BLE_HCI_LE_SUBEV_LT_KEY_REQ, host_hci_rx_le_lt_key_req },
-    { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, host_hci_rx_le_conn_parm_req },
-    { BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE, host_hci_rx_le_conn_complete },
-    { BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT, host_hci_rx_le_dir_adv_rpt },
+static const struct ble_hs_hci_evt_le_dispatch_entry
+        ble_hs_hci_evt_le_dispatch[] = {
+    { BLE_HCI_LE_SUBEV_CONN_COMPLETE, ble_hs_hci_evt_le_conn_complete },
+    { BLE_HCI_LE_SUBEV_ADV_RPT, ble_hs_hci_evt_le_adv_rpt },
+    { BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE,
+          ble_hs_hci_evt_le_conn_upd_complete },
+    { BLE_HCI_LE_SUBEV_LT_KEY_REQ, ble_hs_hci_evt_le_lt_key_req },
+    { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, ble_hs_hci_evt_le_conn_parm_req },
+    { BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE, ble_hs_hci_evt_le_conn_complete },
+    { BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT, ble_hs_hci_evt_le_dir_adv_rpt },
 };
 
-#define HOST_HCI_LE_EVENT_DISPATCH_SZ \
-    (sizeof host_hci_le_event_dispatch / sizeof host_hci_le_event_dispatch[0])
+#define BLE_HS_HCI_EVT_LE_DISPATCH_SZ \
+    (sizeof ble_hs_hci_evt_le_dispatch / sizeof ble_hs_hci_evt_le_dispatch[0])
 
-uint16_t
-host_hci_opcode_join(uint8_t ogf, uint16_t ocf)
+static const struct ble_hs_hci_evt_dispatch_entry *
+ble_hs_hci_evt_dispatch_find(uint8_t event_code)
 {
-    return (ogf << 10) | ocf;
-}
-
-uint16_t
-host_hci_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
-{
-    BLE_HS_DBG_ASSERT(handle <= 0x0fff);
-    BLE_HS_DBG_ASSERT(pb <= 0x03);
-    BLE_HS_DBG_ASSERT(bc <= 0x03);
-
-    return (handle  << 0)   |
-           (pb      << 12)  |
-           (bc      << 14);
-}
-
-static const struct host_hci_event_dispatch_entry *
-host_hci_dispatch_entry_find(uint8_t event_code)
-{
-    const struct host_hci_event_dispatch_entry *entry;
+    const struct ble_hs_hci_evt_dispatch_entry *entry;
     int i;
 
-    for (i = 0; i < HOST_HCI_EVENT_DISPATCH_SZ; i++) {
-        entry = host_hci_event_dispatch + i;
-        if (entry->hed_event_code == event_code) {
+    for (i = 0; i < BLE_HS_HCI_EVT_DISPATCH_SZ; i++) {
+        entry = ble_hs_hci_evt_dispatch + i;
+        if (entry->event_code == event_code) {
             return entry;
         }
     }
@@ -134,15 +113,15 @@ host_hci_dispatch_entry_find(uint8_t event_code)
     return NULL;
 }
 
-static const struct host_hci_le_event_dispatch_entry *
-host_hci_le_dispatch_entry_find(uint8_t event_code)
+static const struct ble_hs_hci_evt_le_dispatch_entry *
+ble_hs_hci_evt_le_dispatch_find(uint8_t event_code)
 {
-    const struct host_hci_le_event_dispatch_entry *entry;
+    const struct ble_hs_hci_evt_le_dispatch_entry *entry;
     int i;
 
-    for (i = 0; i < HOST_HCI_LE_EVENT_DISPATCH_SZ; i++) {
-        entry = host_hci_le_event_dispatch + i;
-        if (entry->hmd_subevent == event_code) {
+    for (i = 0; i < BLE_HS_HCI_EVT_LE_DISPATCH_SZ; i++) {
+        entry = ble_hs_hci_evt_le_dispatch + i;
+        if (entry->subevent == event_code) {
             return entry;
         }
     }
@@ -151,7 +130,7 @@ host_hci_le_dispatch_entry_find(uint8_t event_code)
 }
 
 static int
-host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 {
     struct hci_disconn_complete evt;
 
@@ -169,7 +148,7 @@ host_hci_rx_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_encrypt_change(uint8_t event_code, uint8_t *data, int len)
 {
     struct hci_encrypt_change evt;
 
@@ -187,7 +166,7 @@ host_hci_rx_encrypt_change(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_hw_error(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_hw_error(uint8_t event_code, uint8_t *data, int len)
 {
     uint8_t hw_code;
 
@@ -202,7 +181,7 @@ host_hci_rx_hw_error(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_enc_key_refresh(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_enc_key_refresh(uint8_t event_code, uint8_t *data, int len)
 {
     struct hci_encrypt_key_refresh evt;
 
@@ -219,7 +198,7 @@ host_hci_rx_enc_key_refresh(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
 {
     uint16_t num_pkts;
     uint16_t handle;
@@ -252,21 +231,20 @@ host_hci_rx_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_le_meta(uint8_t event_code, uint8_t *data, int len)
 {
-    const struct host_hci_le_event_dispatch_entry *entry;
+    const struct ble_hs_hci_evt_le_dispatch_entry *entry;
     uint8_t subevent;
     int rc;
 
     if (len < BLE_HCI_EVENT_HDR_LEN + BLE_HCI_LE_MIN_LEN) {
-        /* XXX: Increment stat. */
         return BLE_HS_ECONTROLLER;
     }
 
     subevent = data[2];
-    entry = host_hci_le_dispatch_entry_find(subevent);
+    entry = ble_hs_hci_evt_le_dispatch_find(subevent);
     if (entry != NULL) {
-        rc = entry->hmd_fn(subevent, data + BLE_HCI_EVENT_HDR_LEN,
+        rc = entry->cb(subevent, data + BLE_HCI_EVENT_HDR_LEN,
                            len - BLE_HCI_EVENT_HDR_LEN);
         if (rc != 0) {
             return rc;
@@ -277,7 +255,7 @@ host_hci_rx_le_meta(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
+ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
 {
     struct hci_le_conn_complete evt;
     int extended_offset = 0;
@@ -333,8 +311,9 @@ host_hci_rx_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
 }
 
 static int
-host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
-                               uint8_t *out_num_reports, int *out_rssi_off)
+ble_hs_hci_evt_le_adv_rpt_first_pass(uint8_t *data, int len,
+                                     uint8_t *out_num_reports,
+                                     int *out_rssi_off)
 {
     uint8_t num_reports;
     int data_len;
@@ -381,7 +360,7 @@ host_hci_le_adv_rpt_first_pass(uint8_t *data, int len,
 }
 
 static int
-host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
+ble_hs_hci_evt_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 {
     struct ble_gap_disc_desc desc;
     uint8_t num_reports;
@@ -392,7 +371,8 @@ host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
     int rc;
     int i;
 
-    rc = host_hci_le_adv_rpt_first_pass(data, len, &num_reports, &rssi_off);
+    rc = ble_hs_hci_evt_le_adv_rpt_first_pass(data, len, &num_reports,
+                                             &rssi_off);
     if (rc != 0) {
         return rc;
     }
@@ -435,7 +415,7 @@ host_hci_rx_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_le_dir_adv_rpt(uint8_t subevent, uint8_t *data, int len)
+ble_hs_hci_evt_le_dir_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 {
     struct ble_gap_disc_desc desc;
     uint8_t num_reports;
@@ -490,7 +470,7 @@ host_hci_rx_le_dir_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
+ble_hs_hci_evt_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
 {
     struct hci_le_conn_upd_complete evt;
 
@@ -529,7 +509,7 @@ host_hci_rx_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_le_lt_key_req(uint8_t subevent, uint8_t *data, int len)
+ble_hs_hci_evt_le_lt_key_req(uint8_t subevent, uint8_t *data, int len)
 {
     struct hci_le_lt_key_req evt;
 
@@ -548,7 +528,7 @@ host_hci_rx_le_lt_key_req(uint8_t subevent, uint8_t *data, int len)
 }
 
 static int
-host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
+ble_hs_hci_evt_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
 {
     struct hci_le_conn_param_req evt;
 
@@ -586,22 +566,9 @@ host_hci_rx_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
 }
 
 int
-host_hci_set_buf_size(uint16_t pktlen, uint8_t max_pkts)
+ble_hs_hci_evt_process(uint8_t *data)
 {
-    if (pktlen == 0 || max_pkts == 0) {
-        return BLE_HS_EINVAL;
-    }
-
-    host_hci_buffer_sz = pktlen;
-    host_hci_max_pkts = max_pkts;
-
-    return 0;
-}
-
-int
-host_hci_evt_process(uint8_t *data)
-{
-    const struct host_hci_event_dispatch_entry *entry;
+    const struct ble_hs_hci_evt_dispatch_entry *entry;
     uint8_t event_code;
     uint8_t param_len;
     int event_len;
@@ -611,7 +578,7 @@ host_hci_evt_process(uint8_t *data)
     STATS_INC(ble_hs_stats, hci_event);
 
     /* Display to console */
-    host_hci_dbg_event_disp(data);
+    ble_hs_dbg_event_disp(data);
 
     /* Process the event */
     event_code = data[0];
@@ -619,47 +586,17 @@ host_hci_evt_process(uint8_t *data)
 
     event_len = param_len + 2;
 
-    entry = host_hci_dispatch_entry_find(event_code);
+    entry = ble_hs_hci_evt_dispatch_find(event_code);
     if (entry == NULL) {
         STATS_INC(ble_hs_stats, hci_unknown_event);
         rc = BLE_HS_ENOTSUP;
     } else {
-        rc = entry->hed_fn(event_code, data, event_len);
+        rc = entry->cb(event_code, data, event_len);
     }
 
     ble_hci_trans_buf_free(data);
 
     return rc;
-}
-
-int
-host_hci_evt_rx(uint8_t *hci_ev, void *arg)
-{
-    int enqueue;
-
-    BLE_HS_DBG_ASSERT(hci_ev != NULL);
-
-    switch (hci_ev[0]) {
-    case BLE_HCI_EVCODE_COMMAND_COMPLETE:
-    case BLE_HCI_EVCODE_COMMAND_STATUS:
-        if (hci_ev[3] == 0 && hci_ev[4] == 0) {
-            enqueue = 1;
-        } else {
-            ble_hci_cmd_rx_ack(hci_ev);
-            enqueue = 0;
-        }
-        break;
-
-    default:
-        enqueue = 1;
-        break;
-    }
-
-    if (enqueue) {
-        ble_hs_enqueue_hci_event(hci_ev);
-    }
-
-    return 0;
 }
 
 /**
@@ -672,7 +609,7 @@ host_hci_evt_rx(uint8_t *hci_ev, void *arg)
  * @return                      0 on success; nonzero on failure.
  */
 int
-host_hci_acl_process(struct os_mbuf *om)
+ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 {
     struct hci_data_hdr hci_hdr;
     struct ble_hs_conn *conn;
@@ -681,13 +618,14 @@ host_hci_acl_process(struct os_mbuf *om)
     uint16_t handle;
     int rc;
 
-    rc = ble_hci_util_data_hdr_strip(om, &hci_hdr);
+    rc = ble_hs_hci_util_data_hdr_strip(om, &hci_hdr);
     if (rc != 0) {
         goto err;
     }
 
 #if (BLETEST_THROUGHPUT_TEST == 0)
-    BLE_HS_LOG(DEBUG, "host_hci_acl_process(): handle=%u pb=%x len=%u data=",
+    BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): handle=%u pb=%x len=%u "
+                      "data=",
                BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
                BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
                hci_hdr.hdh_len);
@@ -735,165 +673,5 @@ host_hci_acl_process(struct os_mbuf *om)
 
 err:
     os_mbuf_free_chain(om);
-    return rc;
-}
-
-static struct os_mbuf *
-host_hci_data_hdr_prepend(struct os_mbuf *om, uint16_t handle, uint8_t pb_flag)
-{
-    struct hci_data_hdr hci_hdr;
-    struct os_mbuf *om2;
-
-    hci_hdr.hdh_handle_pb_bc = host_hci_handle_pb_bc_join(handle, pb_flag, 0);
-    htole16(&hci_hdr.hdh_len, OS_MBUF_PKTHDR(om)->omp_len);
-
-    om2 = os_mbuf_prepend(om, sizeof hci_hdr);
-    if (om2 == NULL) {
-        return NULL;
-    }
-
-    om = om2;
-    om = os_mbuf_pullup(om, sizeof hci_hdr);
-    if (om == NULL) {
-        return NULL;
-    }
-
-    memcpy(om->om_data, &hci_hdr, sizeof hci_hdr);
-
-    BLE_HS_LOG(DEBUG, "host tx hci data; handle=%d length=%d\n", handle,
-               le16toh(&hci_hdr.hdh_len));
-
-    return om;
-}
-
-/**
- * Splits an appropriately-sized fragment from the front of an outgoing ACL
- * data packet, if necessary.  If the packet size is within the controller's
- * buffer size requirements, no splitting is performed.  The fragment data is
- * removed from the data packet mbuf.
- *
- * @param om                    The ACL data packet.
- * @param out_frag              On success, this points to the fragment to
- *                                  send.  If the entire packet can fit within
- *                                  a single fragment, this will point to the
- *                                  ACL data packet itself ('om').
- *
- * @return                      BLE_HS_EDONE: success; this is the final
- *                                  fragment.
- *                              BLE_HS_EAGAIN: success; more data remains in
- *                                  the original mbuf.
- *                              Other BLE host core return code on error.
- */
-int
-host_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
-{
-    struct os_mbuf *frag;
-    int rc;
-
-    if (OS_MBUF_PKTLEN(*om) <= host_hci_buffer_sz) {
-        /* Final fragment. */
-        *out_frag = *om;
-        *om = NULL;
-        return BLE_HS_EDONE;
-    }
-
-    frag = ble_hs_mbuf_acm_pkt();
-    if (frag == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    /* Move data from the front of the packet into the fragment mbuf. */
-    rc = os_mbuf_appendfrom(frag, *om, 0, host_hci_buffer_sz);
-    if (rc != 0) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-    os_mbuf_adj(*om, host_hci_buffer_sz);
-
-    /* More fragments to follow. */
-    *out_frag = frag;
-    return BLE_HS_EAGAIN;
-
-err:
-    os_mbuf_free_chain(frag);
-    return rc;
-}
-
-/**
- * Transmits an HCI ACL data packet.  This function consumes the supplied mbuf,
- * regardless of the outcome.
- *
- * XXX: Ensure the controller has sufficient buffer capacity for the outgoing
- * fragments.
- */
-int
-host_hci_data_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
-{
-    struct os_mbuf *frag;
-    uint8_t pb;
-    int done;
-    int rc;
-
-    /* The first fragment uses the first-non-flush packet boundary value.
-     * After sending the first fragment, pb gets set appropriately for all
-     * subsequent fragments in this packet.
-     */
-    pb = BLE_HCI_PB_FIRST_NON_FLUSH;
-
-    /* Send fragments until the entire packet has been sent. */
-    done = 0;
-    while (!done) {
-        rc = host_hci_split_frag(&txom, &frag);
-        switch (rc) {
-        case BLE_HS_EDONE:
-            /* This is the final fragment. */
-            done = 1;
-            break;
-
-        case BLE_HS_EAGAIN:
-            /* More fragments to follow. */
-            break;
-
-        default:
-            goto err;
-        }
-
-        frag = host_hci_data_hdr_prepend(frag, connection->bhc_handle, pb);
-        if (frag == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-        pb = BLE_HCI_PB_MIDDLE;
-
-        BLE_HS_LOG(DEBUG, "host_hci_data_tx(): ");
-        ble_hs_log_mbuf(frag);
-        BLE_HS_LOG(DEBUG, "\n");
-
-        /* XXX: Try to pullup the entire fragment.  The controller currently
-         * requires the entire fragment to fit in a single buffer.  When this
-         * restriction is removed from the controller, this operation can be
-         * removed.
-         */
-        frag = os_mbuf_pullup(frag, OS_MBUF_PKTLEN(frag));
-        if (frag == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-
-        rc = ble_hs_tx_data(frag);
-        if (rc != 0) {
-            goto err;
-        }
-
-        connection->bhc_outstanding_pkts++;
-    }
-
-    return 0;
-
-err:
-    BLE_HS_DBG_ASSERT(rc != 0);
-
-    os_mbuf_free_chain(txom);
     return rc;
 }

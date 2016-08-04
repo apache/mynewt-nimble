@@ -50,7 +50,7 @@ ble_hs_id_gen_rnd(int nrpa, uint8_t *out_addr)
 {
     int rc;
 
-    rc = ble_hci_util_rand(out_addr, 6);
+    rc = ble_hs_hci_util_rand(out_addr, 6);
     if (rc != 0) {
         return rc;
     }
@@ -91,7 +91,7 @@ ble_hs_id_set_rnd(const uint8_t *rnd_addr)
         goto done;
     }
 
-    rc = ble_hci_util_set_random_addr(rnd_addr);
+    rc = ble_hs_hci_util_set_random_addr(rnd_addr);
     if (rc != 0) {
         goto done;
     }

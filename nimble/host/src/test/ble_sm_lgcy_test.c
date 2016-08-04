@@ -23,7 +23,6 @@
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
 #include "nimble/nimble_opt.h"
-#include "host/host_hci.h"
 #include "host/ble_sm.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"

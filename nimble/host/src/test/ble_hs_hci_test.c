@@ -22,12 +22,11 @@
 #include <string.h>
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
-#include "host/host_hci.h"
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
 
-TEST_CASE(ble_host_hci_test_event_bad)
+TEST_CASE(ble_hs_hci_test_event_bad)
 {
     uint8_t *buf;
     int rc;
@@ -38,18 +37,18 @@ TEST_CASE(ble_host_hci_test_event_bad)
 
     buf[0] = 0xff;
     buf[1] = 0;
-    rc = host_hci_evt_process(buf);
+    rc = ble_hs_hci_evt_process(buf);
     TEST_ASSERT(rc == BLE_HS_ENOTSUP);
 }
 
-TEST_CASE(ble_host_hci_test_rssi)
+TEST_CASE(ble_hs_hci_test_rssi)
 {
     uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
     uint16_t opcode;
     int8_t rssi;
     int rc;
 
-    opcode = host_hci_opcode_join(BLE_HCI_OGF_STATUS_PARAMS,
+    opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_STATUS_PARAMS,
                                   BLE_HCI_OCF_RD_RSSI);
 
     /*** Success. */
@@ -61,7 +60,7 @@ TEST_CASE(ble_host_hci_test_rssi)
 
     ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params);
 
-    rc = ble_hci_util_read_rssi(1, &rssi);
+    rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(rssi == -8);
 
@@ -70,31 +69,31 @@ TEST_CASE(ble_host_hci_test_rssi)
 
     ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params);
 
-    rc = ble_hci_util_read_rssi(1, &rssi);
+    rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
     /*** Failure: params too short. */
     ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params - 1);
-    rc = ble_hci_util_read_rssi(1, &rssi);
+    rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
     /*** Failure: params too long. */
     ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params + 1);
-    rc = ble_hci_util_read_rssi(1, &rssi);
+    rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 }
 
-TEST_SUITE(ble_host_hci_suite)
+TEST_SUITE(ble_hs_hci_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
-    ble_host_hci_test_event_bad();
-    ble_host_hci_test_rssi();
+    ble_hs_hci_test_event_bad();
+    ble_hs_hci_test_rssi();
 }
 
 int
-ble_host_hci_test_all(void)
+ble_hs_hci_test_all(void)
 {
-    ble_host_hci_suite();
+    ble_hs_hci_suite();
     return tu_any_failed;
 }

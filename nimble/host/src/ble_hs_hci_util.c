@@ -19,18 +19,35 @@
 
 #include <string.h>
 #include "nimble/hci_common.h"
-#include "host/host_hci.h"
 #include "ble_hs_priv.h"
 
+uint16_t
+ble_hs_hci_util_opcode_join(uint8_t ogf, uint16_t ocf)
+{
+    return (ogf << 10) | ocf;
+}
+
+uint16_t
+ble_hs_hci_util_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
+{
+    BLE_HS_DBG_ASSERT(handle <= 0x0fff);
+    BLE_HS_DBG_ASSERT(pb <= 0x03);
+    BLE_HS_DBG_ASSERT(bc <= 0x03);
+
+    return (handle  << 0)   |
+           (pb      << 12)  |
+           (bc      << 14);
+}
+
 int
-ble_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
+ble_hs_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t params_len;
     int rc;
 
-    host_hci_cmd_build_read_adv_pwr(buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, out_tx_pwr, 1, &params_len);
+    ble_hs_hci_cmd_build_read_adv_pwr(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, out_tx_pwr, 1, &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -46,7 +63,7 @@ ble_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
 }
 
 int
-ble_hci_util_rand(void *dst, int len)
+ble_hs_hci_util_rand(void *dst, int len)
 {
     uint8_t rsp_buf[BLE_HCI_LE_RAND_LEN];
     uint8_t req_buf[BLE_HCI_CMD_HDR_LEN];
@@ -55,11 +72,11 @@ ble_hci_util_rand(void *dst, int len)
     int chunk_sz;
     int rc;
 
-    host_hci_cmd_build_le_rand(req_buf, sizeof req_buf);
+    ble_hs_hci_cmd_build_le_rand(req_buf, sizeof req_buf);
 
     u8ptr = dst;
     while (len > 0) {
-        rc = ble_hci_cmd_tx(req_buf, rsp_buf, sizeof rsp_buf, &params_len);
+        rc = ble_hs_hci_cmd_tx(req_buf, rsp_buf, sizeof rsp_buf, &params_len);
         if (rc != 0) {
             return rc;
         }
@@ -78,7 +95,7 @@ ble_hci_util_rand(void *dst, int len)
 }
 
 int
-ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
+ble_hs_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_READ_RSSI_LEN];
     uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
@@ -86,8 +103,8 @@ ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
     uint8_t params_len;
     int rc;
 
-    host_hci_cmd_build_read_rssi(conn_handle, buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, params, sizeof params, &params_len);
+    ble_hs_hci_cmd_build_read_rssi(conn_handle, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, params, sizeof params, &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -107,25 +124,25 @@ ble_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
 }
 
 int
-ble_hci_util_set_random_addr(const uint8_t *addr)
+ble_hs_hci_util_set_random_addr(const uint8_t *addr)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RAND_ADDR_LEN];
     int rc;
 
     /* set the address in the controller */
 
-    rc = host_hci_cmd_build_set_random_addr(addr, buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_set_random_addr(addr, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     return rc;
 }
 
 int
-ble_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
-                          uint16_t tx_time)
+ble_hs_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
+                             uint16_t tx_time)
 {
 
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_DATALEN_LEN];
@@ -134,14 +151,14 @@ ble_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
     uint8_t params_len;
     int rc;
 
-    rc = host_hci_cmd_build_set_data_len(conn_handle, tx_octets, tx_time, buf,
-                                         sizeof buf);
+    rc = ble_hs_hci_cmd_build_set_data_len(conn_handle, tx_octets, tx_time,
+                                           buf, sizeof buf);
     if (rc != 0) {
         return BLE_HS_HCI_ERR(rc);
     }
 
-    rc = ble_hci_cmd_tx(buf, params, BLE_HCI_SET_DATALEN_ACK_PARAM_LEN,
-                        &params_len);
+    rc = ble_hs_hci_cmd_tx(buf, params, BLE_HCI_SET_DATALEN_ACK_PARAM_LEN,
+                           &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -159,7 +176,8 @@ ble_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
 }
 
 int
-ble_hci_util_data_hdr_strip(struct os_mbuf *om, struct hci_data_hdr *out_hdr)
+ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
+                               struct hci_data_hdr *out_hdr)
 {
     int rc;
 

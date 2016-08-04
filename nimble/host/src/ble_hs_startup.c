@@ -19,7 +19,6 @@
 
 #include <stddef.h>
 #include <string.h>
-#include "host/host_hci.h"
 #include "host/ble_hs.h"
 #include "ble_hs_priv.h"
 
@@ -31,8 +30,9 @@ ble_hs_startup_le_read_sup_f_tx(void)
     uint8_t ack_params_len;
     int rc;
 
-    host_hci_cmd_build_le_read_loc_supp_feat(buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, ack_params, sizeof ack_params, &ack_params_len);
+    ble_hs_hci_cmd_build_le_read_loc_supp_feat(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, ack_params, sizeof ack_params,
+                           &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -56,8 +56,9 @@ ble_hs_startup_le_read_buf_sz_tx(void)
     uint8_t max_pkts;
     int rc;
 
-    host_hci_cmd_build_le_read_buffer_size(buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, ack_params, sizeof ack_params, &ack_params_len);
+    ble_hs_hci_cmd_build_le_read_buffer_size(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, ack_params, sizeof ack_params,
+                           &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -69,7 +70,7 @@ ble_hs_startup_le_read_buf_sz_tx(void)
     pktlen = le16toh(ack_params + 0);
     max_pkts = ack_params[2];
 
-    rc = host_hci_set_buf_size(pktlen, max_pkts);
+    rc = ble_hs_hci_set_buf_sz(pktlen, max_pkts);
     if (rc != 0) {
         return rc;
     }
@@ -85,8 +86,9 @@ ble_hs_startup_read_bd_addr(void)
     uint8_t ack_params_len;
     int rc;
 
-    host_hci_cmd_build_read_bd_addr(buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, ack_params, sizeof ack_params, &ack_params_len);
+    ble_hs_hci_cmd_build_read_bd_addr(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, ack_params, sizeof ack_params,
+                           &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -116,8 +118,9 @@ ble_hs_startup_le_set_evmask_tx(void)
      *     0x0000000000000040 LE Data Length Change Event
      *     0x0000000000000200 LE Enhanced Connection Complete Event
      */
-    host_hci_cmd_build_le_set_event_mask(0x000000000000027f, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_set_event_mask(0x000000000000027f,
+                                           buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -173,8 +176,8 @@ ble_hs_startup_set_evmask_tx(void)
      *     0x0000800000000000 Encryption Key Refresh Complete Event
      *     0x2000000000000000 LE Meta-Event
      */
-    host_hci_cmd_build_set_event_mask(0x20009fffffffffff, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_set_event_mask(0x20009fffffffffff, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -183,8 +186,8 @@ ble_hs_startup_set_evmask_tx(void)
      * Enable the following events:
      *     0x0000000000800000 Authenticated Payload Timeout Event
      */
-    host_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -198,8 +201,8 @@ ble_hs_startup_reset_tx(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    host_hci_cmd_build_reset(buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_reset(buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }

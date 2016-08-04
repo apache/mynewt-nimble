@@ -36,7 +36,7 @@ ble_hs_pvcy_set_addr_timeout(uint16_t timeout)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN];
     int rc;
 
-    rc = host_hci_cmd_build_set_resolv_priv_addr_timeout(
+    rc = ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
             timeout, buf, sizeof(buf));
 
     return rc;
@@ -48,12 +48,12 @@ ble_hs_pvcy_set_resolve_enabled(int enable)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADDR_RESOL_ENA_LEN];
     int rc;
 
-    rc = host_hci_cmd_build_set_addr_res_en(enable, buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_set_addr_res_en(enable, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx(buf, NULL, 0, NULL);
+    rc = ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
         return rc;
     }
@@ -67,13 +67,13 @@ ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_RMV_FROM_RESOLV_LIST_LEN];
     int rc;
 
-    rc = host_hci_cmd_build_remove_from_resolv_list(
+    rc = ble_hs_hci_cmd_build_remove_from_resolv_list(
         addr_type, addr, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx(buf, NULL, 0, NULL);
+    rc = ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
         return rc;
     }
@@ -87,12 +87,12 @@ ble_hs_pvcy_clear_entries(void)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN ];
     int rc;
 
-    rc = host_hci_cmd_build_clear_resolv_list(buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_clear_resolv_list(buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx(buf, NULL, 0, NULL);
+    rc = ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
         return rc;
     }
@@ -112,12 +112,12 @@ ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addr_type, uint8_t *irk)
     memcpy(add.local_irk, ble_hs_pvcy_irk, 16);
     memcpy(add.peer_irk, irk, 16);
 
-    rc = host_hci_cmd_build_add_to_resolv_list(&add, buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_add_to_resolv_list(&add, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_hci_cmd_tx(buf, NULL, 0, NULL);
+    rc = ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
     if (rc != 0) {
         return rc;
     }

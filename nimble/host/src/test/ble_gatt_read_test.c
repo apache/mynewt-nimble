@@ -495,21 +495,24 @@ ble_gatt_read_test_misc_mult_verify_bad(
 TEST_CASE(ble_gatt_read_test_by_handle)
 {
     /* Read a seven-byte attribute. */
-    ble_gatt_read_test_misc_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 43,
         .value = { 1,2,3,4,5,6,7 },
         .value_len = 7
     } });
 
     /* Read a one-byte attribute. */
-    ble_gatt_read_test_misc_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 0x5432,
         .value = { 0xff },
         .value_len = 1
     } });
 
     /* Read a 200-byte attribute. */
-    ble_gatt_read_test_misc_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 815,
         .value = { 0 },
         .value_len = 200,
@@ -669,7 +672,8 @@ TEST_CASE(ble_gatt_read_test_mult)
     }
 
     /* Read one attribute. */
-    ble_gatt_read_test_misc_mult_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_mult_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 43,
         .value = { 0, 1, 2, 3, 4, 5, 6, 7 },
         .value_len = 7
@@ -678,7 +682,8 @@ TEST_CASE(ble_gatt_read_test_mult)
     } });
 
     /* Read two attributes. */
-    ble_gatt_read_test_misc_mult_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_mult_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 43,
         .value = { 0, 1, 2, 3, 4, 5, 6, 7 },
         .value_len = 7,
@@ -691,7 +696,8 @@ TEST_CASE(ble_gatt_read_test_mult)
     } });
 
     /* Read two attributes (swap order). */
-    ble_gatt_read_test_misc_mult_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_mult_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 44,
         .value = { 8, 9, 10, 11 },
         .value_len = 4,
@@ -704,7 +710,8 @@ TEST_CASE(ble_gatt_read_test_mult)
     } });
 
     /* Read five attributes. */
-    ble_gatt_read_test_misc_mult_verify_good((struct ble_hs_test_util_flat_attr[]) { {
+    ble_gatt_read_test_misc_mult_verify_good(
+        (struct ble_hs_test_util_flat_attr[]) { {
         .handle = 43,
         .value = { 0, 1, 2, 3, 4, 5, 6, 7 },
         .value_len = 7,

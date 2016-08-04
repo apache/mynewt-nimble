@@ -26,7 +26,6 @@
 #include "nimble/ble_hci_trans.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_id.h"
-#include "host/host_hci.h"
 #include "transport/ram/ble_hci_ram.h"
 #include "ble_hs_test_util.h"
 
@@ -47,7 +46,7 @@ static const uint8_t ble_hs_test_util_pub_addr[BLE_DEV_ADDR_LEN] =
     OS_MEMPOOL_SIZE(BLE_HS_TEST_UTIL_NUM_MBUFS, BLE_HS_TEST_UTIL_MEMBLOCK_SIZE)
 
 #define BLE_HS_TEST_UTIL_LE_OPCODE(ocf) \
-    host_hci_opcode_join(BLE_HCI_OGF_LE, (ocf))
+    ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, (ocf))
 
 struct os_eventq ble_hs_test_util_evq;
 
@@ -106,7 +105,7 @@ ble_hs_test_util_prev_tx_dequeue_once(struct hci_data_hdr *out_hci_hdr)
 
     om = OS_MBUF_PKTHDR_TO_MBUF(omp);
 
-    rc = ble_hci_util_data_hdr_strip(om, out_hci_hdr);
+    rc = ble_hs_hci_util_data_hdr_strip(om, out_hci_hdr);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(out_hci_hdr->hdh_len == OS_MBUF_PKTLEN(om));
 
@@ -262,7 +261,7 @@ ble_hs_test_util_rx_hci_evt(uint8_t *evt)
         memcpy(evbuf, evt, totlen);
         rc = ble_hci_trans_ll_evt_tx(evbuf);
     } else {
-        rc = host_hci_evt_process(evt);
+        rc = ble_hs_hci_evt_process(evt);
     }
 
     TEST_ASSERT_FATAL(rc == 0);
@@ -352,7 +351,7 @@ ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status, void *params,
     }
     ble_hs_test_util_num_phony_acks = 1;
 
-    ble_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
+    ble_hs_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
 }
 
 void
@@ -371,7 +370,7 @@ ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks)
     }
     ble_hs_test_util_num_phony_acks = i;
 
-    ble_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
+    ble_hs_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
 }
 
 void
@@ -500,7 +499,8 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
     ble_hs_test_util_prev_hci_tx_clear();
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_CREATE_CONN),
         ack_status);
 
     rc = ble_gap_connect(own_addr_type, peer_addr_type, peer_addr, duration_ms,
@@ -526,8 +526,8 @@ ble_hs_test_util_conn_cancel(uint8_t ack_status)
     int rc;
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
         ack_status);
 
     rc = ble_gap_conn_cancel();
@@ -557,8 +557,8 @@ ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
     int rc;
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LINK_CTRL,
-                             BLE_HCI_OCF_DISCONNECT_CMD),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LINK_CTRL,
+                                    BLE_HCI_OCF_DISCONNECT_CMD),
         hci_status);
 
     rc = ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
@@ -623,8 +623,8 @@ ble_hs_test_util_disc_cancel(uint8_t ack_status)
     int rc;
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
         ack_status);
 
     rc = ble_gap_disc_cancel();
@@ -654,8 +654,9 @@ ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
 
     if (auto_pwr) {
         ble_hs_test_util_set_ack_params(
-            host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                 BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR), hci_status,
+            ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
+            hci_status,
             ((uint8_t[1]){0}), 1);
     }
 
@@ -884,8 +885,8 @@ ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
     TEST_ASSERT_FATAL(rc == 0);
 
     hci_hdr.hdh_handle_pb_bc =
-        host_hci_handle_pb_bc_join(conn_handle,
-                                   BLE_HCI_PB_FIRST_FLUSH, 0);
+        ble_hs_hci_util_handle_pb_bc_join(conn_handle,
+                                          BLE_HCI_PB_FIRST_FLUSH, 0);
     hci_hdr.hdh_len = OS_MBUF_PKTHDR(om)->omp_len;
 
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, cid, &hci_hdr, om);
@@ -919,55 +920,55 @@ ble_hs_test_util_set_startup_acks(void)
      */
     ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
-                                           BLE_HCI_OCF_CB_RESET),
+            .opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
+                                                  BLE_HCI_OCF_CB_RESET),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
-                                           BLE_HCI_OCF_CB_SET_EVENT_MASK),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
-                                           BLE_HCI_OCF_CB_SET_EVENT_MASK2),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK2),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_SET_EVENT_MASK),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EVENT_MASK),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_RD_BUF_SIZE),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_BUF_SIZE),
             /* Use a very low buffer size (16) to test fragmentation. */
             .evt_params = { 0x10, 0x00, 0x20 },
             .evt_params_len = 3,
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
             .evt_params = { 0 },
             .evt_params_len = 8,
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_INFO_PARAMS,
-                                           BLE_HCI_OCF_IP_RD_BD_ADDR),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BD_ADDR),
             .evt_params = BLE_HS_TEST_UTIL_PUB_ADDR_VAL,
             .evt_params_len = 6,
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
         },
         {
-            .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
         },
         { 0 }
     }));
@@ -1375,10 +1376,10 @@ ble_hs_test_util_init(void)
     rc = os_msys_register(&ble_hs_test_util_mbuf_pool);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hci_set_phony_ack_cb(NULL);
+    ble_hs_hci_set_phony_ack_cb(NULL);
 
     ble_hci_trans_cfg_ll(ble_hs_test_util_hci_txed, NULL,
-                                ble_hs_test_util_pkt_txed, NULL);
+                         ble_hs_test_util_pkt_txed, NULL);
 
     hci_cfg = ble_hci_ram_cfg_dflt;
     hci_cfg.num_evt_bufs = cfg.max_hci_bufs;
