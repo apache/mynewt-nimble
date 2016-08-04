@@ -23,12 +23,9 @@
 #include "stats/stats.h"
 #include "util/tpq.h"
 #include "os/os.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "host/host_hci.h"
 #include "ble_hs_priv.h"
-#ifdef PHONY_TRANSPORT
-#include "host/ble_hs_test.h"
-#endif
 
 /**
  * The maximum number of events the host will process in a row before returning
@@ -38,26 +35,32 @@
 
 static struct log_handler ble_hs_log_console_handler;
 
-struct os_mempool g_hci_evt_pool;
-static void *ble_hs_hci_evt_buf;
-
-/* XXX: this might be transport layer */
-#define HCI_OS_EVENT_BUF_SIZE   (sizeof(struct os_event))
-
-struct os_mempool g_hci_os_event_pool;
+struct os_mempool ble_hs_hci_ev_pool;
 static void *ble_hs_hci_os_event_buf;
 
+/** OS event - triggers tx of pending notifications and indications. */
 static struct os_event ble_hs_event_tx_notifications = {
     .ev_type = BLE_HS_EVENT_TX_NOTIFICATIONS,
     .ev_arg = NULL,
 };
 
+/** OS event - triggers a full reset. */
+static struct os_event ble_hs_event_reset = {
+    .ev_type = BLE_HS_EVENT_RESET,
+    .ev_arg = NULL,
+};
+
+uint8_t ble_hs_sync_state;
+static int ble_hs_reset_reason;
+
 #if MYNEWT_SELFTEST
 /** Use a higher frequency timer to allow tests to run faster. */
-#define BLE_HS_HEARTBEAT_OS_TICKS         (OS_TICKS_PER_SEC / 10)
+#define BLE_HS_HEARTBEAT_OS_TICKS       (OS_TICKS_PER_SEC / 10)
 #else
-#define BLE_HS_HEARTBEAT_OS_TICKS         OS_TICKS_PER_SEC
+#define BLE_HS_HEARTBEAT_OS_TICKS       OS_TICKS_PER_SEC
 #endif
+
+#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)    
 
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource
@@ -90,6 +93,9 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, hci_event)
     STATS_NAME(ble_hs_stats, hci_invalid_ack)
     STATS_NAME(ble_hs_stats, hci_unknown_event)
+    STATS_NAME(ble_hs_stats, hci_timeout)
+    STATS_NAME(ble_hs_stats, reset)
+    STATS_NAME(ble_hs_stats, sync)
 STATS_NAME_END(ble_hs_stats)
 
 int
@@ -157,11 +163,7 @@ ble_hs_process_tx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_tx_q)) != NULL) {
-#ifdef PHONY_TRANSPORT
-        ble_hs_test_pkt_txed(om);
-#else
-        ble_hci_transport_host_acl_data_send(om);
-#endif
+        ble_hci_trans_hs_acl_tx(om);
     }
 }
 
@@ -171,9 +173,20 @@ ble_hs_process_rx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
-        host_hci_data_rx(om);
+        host_hci_acl_process(om);
     }
 }
+
+static void
+ble_hs_clear_data_queue(struct os_mqueue *mqueue)
+{
+    struct os_mbuf *om;
+
+    while ((om = os_mqueue_get(mqueue)) != NULL) {
+        os_mbuf_free_chain(om);
+    }
+}
+
 
 static void
 ble_hs_heartbeat_timer_reset(uint32_t ticks)
@@ -202,6 +215,85 @@ ble_hs_heartbeat_sched(int32_t ticks_from_now)
 }
 
 /**
+ * Indicates whether the host has synchronized with the controller.
+ * Synchronization must occur before any host procedures can be performed.
+ *
+ * @return                      1 if the host and controller are in sync;
+ *                              0 if the host and controller our out of sync.
+ */
+int
+ble_hs_synced(void)
+{
+    return ble_hs_sync_state == BLE_HS_SYNC_STATE_GOOD;
+}
+
+static int
+ble_hs_sync(void)
+{
+    int rc;
+
+    /* Set the sync state to "bringup."  This allows the parent task to send
+     * the startup sequence to the controller.  No other tasks are allowed to
+     * send any commands.
+     */
+    ble_hs_sync_state = BLE_HS_SYNC_STATE_BRINGUP;
+
+    rc = ble_hs_startup_go();
+    if (rc == 0) {
+        ble_hs_sync_state = BLE_HS_SYNC_STATE_GOOD;
+        if (ble_hs_cfg.sync_cb != NULL) {
+            ble_hs_cfg.sync_cb();
+        }
+    } else {
+        ble_hs_sync_state = BLE_HS_SYNC_STATE_BAD;
+    }
+
+    ble_hs_heartbeat_sched(BLE_HS_SYNC_RETRY_RATE);
+
+    if (rc == 0) {
+        STATS_INC(ble_hs_stats, sync);
+    }
+
+    return rc;
+}
+
+static int
+ble_hs_reset(void)
+{
+    uint16_t conn_handle;
+    int rc;
+
+    STATS_INC(ble_hs_stats, reset);
+
+    ble_hs_sync_state = 0;
+
+    rc = ble_hci_trans_reset();
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_hs_clear_data_queue(&ble_hs_tx_q);
+    ble_hs_clear_data_queue(&ble_hs_rx_q);
+
+    while (1) {
+        conn_handle = ble_hs_atomic_first_conn_handle();
+        if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            break;
+        }
+
+        ble_gap_conn_broken(conn_handle, ble_hs_reset_reason);
+    }
+
+    if (ble_hs_cfg.reset_cb != NULL && ble_hs_reset_reason != 0) {
+        ble_hs_cfg.reset_cb(ble_hs_reset_reason);
+    }
+    ble_hs_reset_reason = 0;
+
+    rc = ble_hs_sync();
+    return rc;
+}
+
+/**
  * Called once a second by the ble_hs heartbeat timer.  Handles unresponsive
  * timeouts and periodic retries in case of resource shortage.
  */
@@ -209,6 +301,11 @@ static void
 ble_hs_heartbeat(void *unused)
 {
     int32_t ticks_until_next;
+
+    if (!ble_hs_sync_state) {
+        ble_hs_reset();
+        return;
+    }
 
     /* Ensure the timer expires at least once in the next second.
      * XXX: This is not very power efficient.  We will need separate timers for
@@ -235,7 +332,9 @@ ble_hs_event_handle(void *unused)
 {
     struct os_callout_func *cf;
     struct os_event *ev;
+    uint8_t *hci_evt;
     os_sr_t sr;
+    int rc;
     int i;
 
     i = 0;
@@ -267,15 +366,25 @@ ble_hs_event_handle(void *unused)
             break;
 
         case BLE_HOST_HCI_EVENT_CTLR_EVENT:
-            host_hci_os_event_proc(ev);
+            hci_evt = ev->ev_arg;
+            rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
+            BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+            host_hci_evt_process(hci_evt);
             break;
 
         case BLE_HS_EVENT_TX_NOTIFICATIONS:
+            BLE_HS_DBG_ASSERT(ev == &ble_hs_event_tx_notifications);
             ble_gatts_tx_notifications();
 
         case OS_EVENT_T_MQUEUE_DATA:
             ble_hs_process_tx_data_queue();
             ble_hs_process_rx_data_queue();
+            break;
+
+        case BLE_HS_EVENT_RESET:
+            BLE_HS_DBG_ASSERT(ev == &ble_hs_event_reset);
+            ble_hs_reset();
             break;
 
         default:
@@ -290,6 +399,22 @@ ble_hs_event_enqueue(struct os_event *ev)
 {
     os_eventq_put(&ble_hs_evq, ev);
     os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+}
+
+void
+ble_hs_enqueue_hci_event(uint8_t *hci_evt)
+{
+    struct os_event *ev;
+
+    ev = os_memblock_get(&ble_hs_hci_ev_pool);
+    if (ev == NULL) {
+        ble_hci_trans_buf_free(ev->ev_arg);
+    } else {
+        ev->ev_queued = 0;
+        ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
+        ev->ev_arg = hci_evt;
+        ble_hs_event_enqueue(ev);
+    }
 }
 
 /**
@@ -309,12 +434,25 @@ ble_hs_notifications_sched(void)
     ble_hs_event_enqueue(&ble_hs_event_tx_notifications);
 }
 
+void
+ble_hs_sched_reset(int reason)
+{
+    BLE_HS_DBG_ASSERT(ble_hs_reset_reason == 0);
+
+    ble_hs_reset_reason = reason;
+    ble_hs_event_enqueue(&ble_hs_event_reset);
+}
+
 /**
  * Synchronizes the host with the controller by sending a sequence of HCI
  * commands.  This function must be called before any other host functionality
  * is used, but it must be called after both the host and controller are
  * initialized.  Typically, the host-parent-task calls this function at the top
  * of its task routine.
+ *
+ * If the host fails to synchronize with the controller (if the controller is
+ * not fully booted, for example), the host will attempt to resynchronize every
+ * 100 ms.  For this reason, an error return code is not necessarily fatal.
  *
  * @return                      0 on success; nonzero on error.
  */
@@ -325,11 +463,9 @@ ble_hs_start(void)
 
     ble_hs_parent_task = os_sched_get_current_task();
 
-    ble_hs_heartbeat_timer_reset(BLE_HS_HEARTBEAT_OS_TICKS);
-
     ble_gatts_start();
 
-    rc = ble_hs_startup_go();
+    rc = ble_hs_sync();
     return rc;
 }
 
@@ -343,19 +479,18 @@ ble_hs_start(void)
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_hs_rx_data(struct os_mbuf *om)
+ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
 
     rc = os_mqueue_put(&ble_hs_rx_q, &ble_hs_evq, om);
-    if (rc != 0) {
+    if (rc == 0) {
+        os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+    } else {
         os_mbuf_free_chain(om);
-        return BLE_HS_EOS;
+        rc = BLE_HS_EOS;
     }
-
-    os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
-
-    return 0;
+    return rc;
 }
 
 int
@@ -375,9 +510,6 @@ ble_hs_tx_data(struct os_mbuf *om)
 static void
 ble_hs_free_mem(void)
 {
-    free(ble_hs_hci_evt_buf);
-    ble_hs_hci_evt_buf = NULL;
-
     free(ble_hs_hci_os_event_buf);
     ble_hs_hci_os_event_buf = NULL;
 }
@@ -418,30 +550,17 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
     log_console_handler_init(&ble_hs_log_console_handler);
     log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
 
-    ble_hs_hci_evt_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
-                                                 HCI_EVT_BUF_SIZE));
-    if (ble_hs_hci_evt_buf == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    /* Create memory pool of command buffers */
-    rc = os_mempool_init(&g_hci_evt_pool, ble_hs_cfg.max_hci_bufs,
-                         HCI_EVT_BUF_SIZE, ble_hs_hci_evt_buf,
-                         "HCICmdPool");
-    assert(rc == 0);
-
-    ble_hs_hci_os_event_buf = malloc(OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs,
-                                                      HCI_OS_EVENT_BUF_SIZE));
+    ble_hs_hci_os_event_buf = malloc(
+        OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs, sizeof (struct os_event)));
     if (ble_hs_hci_os_event_buf == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
 
     /* Create memory pool of OS events */
-    rc = os_mempool_init(&g_hci_os_event_pool, ble_hs_cfg.max_hci_bufs,
-                         HCI_OS_EVENT_BUF_SIZE, ble_hs_hci_os_event_buf,
-                         "HCIOsEventPool");
+    rc = os_mempool_init(&ble_hs_hci_ev_pool, ble_hs_cfg.max_hci_bufs,
+                         sizeof (struct os_event), ble_hs_hci_os_event_buf,
+                         "ble_hs_hci_ev_pool");
     assert(rc == 0);
 
     /* Initialize eventq */
@@ -515,6 +634,9 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
 #if BLE_HS_DEBUG
     ble_hs_dbg_mutex_locked = 0;
 #endif
+
+    /* Configure the HCI transport to communicate with a host. */
+    ble_hci_trans_cfg_hs(host_hci_evt_rx, NULL, ble_hs_rx_data, NULL);
 
     return 0;
 

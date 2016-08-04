@@ -23,11 +23,20 @@
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_id.h"
 #include "host/host_hci.h"
+#include "transport/ram/ble_hci_ram.h"
 #include "ble_hs_test_util.h"
+
+/* Our global device address. */
+uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
+
+#define BLE_HS_TEST_UTIL_PUB_ADDR_VAL { 0x0a, 0x54, 0xab, 0x49, 0x7f, 0x06 }
+
+static const uint8_t ble_hs_test_util_pub_addr[BLE_DEV_ADDR_LEN] =
+    BLE_HS_TEST_UTIL_PUB_ADDR_VAL;
 
 /** Use lots of small mbufs to ensure correct mbuf usage. */
 #define BLE_HS_TEST_UTIL_NUM_MBUFS      (100)
@@ -246,13 +255,14 @@ ble_hs_test_util_rx_hci_evt(uint8_t *evt)
     TEST_ASSERT_FATAL(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
 
     if (os_started()) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(
+            BLE_HCI_TRANS_BUF_EVT_LO);
         TEST_ASSERT_FATAL(evbuf != NULL);
 
         memcpy(evbuf, evt, totlen);
-        rc = ble_hci_transport_ctlr_event_send(evbuf);
+        rc = ble_hci_trans_ll_evt_tx(evbuf);
     } else {
-        rc = host_hci_event_rx(evt);
+        rc = host_hci_evt_process(evt);
     }
 
     TEST_ASSERT_FATAL(rc == 0);
@@ -679,14 +689,6 @@ ble_hs_test_util_adv_start(uint8_t own_addr_type,
 
     if (adv_params->conn_mode != BLE_GAP_CONN_MODE_DIR) {
         acks[i] = (struct ble_hs_test_util_phony_ack) {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
-            ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
-            { 0 },
-            1,
-        };
-        i++;
-
-        acks[i] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_DATA),
             ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
         };
@@ -773,6 +775,35 @@ ble_hs_test_util_conn_update(uint16_t conn_handle,
         BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CONN_UPDATE), hci_status);
 
     rc = ble_gap_update_params(conn_handle, params);
+    return rc;
+}
+
+int
+ble_hs_test_util_set_our_irk(const uint8_t *irk, int fail_idx,
+                             uint8_t hci_status)
+{
+    int rc;
+
+    ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+            ble_hs_test_util_exp_hci_status(0, fail_idx, hci_status),
+        },
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
+            ble_hs_test_util_exp_hci_status(1, fail_idx, hci_status),
+        },
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+            ble_hs_test_util_exp_hci_status(2, fail_idx, hci_status),
+        },
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+            ble_hs_test_util_exp_hci_status(3, fail_idx, hci_status),
+        },
+    }));
+
+    rc = ble_hs_pvcy_set_our_irk(irk);
     return rc;
 }
 
@@ -906,7 +937,8 @@ ble_hs_test_util_set_startup_acks(void)
         {
             .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_RD_BUF_SIZE),
-            .evt_params = { 0xff, 0xff, 1 },
+            /* Use a very low buffer size (16) to test fragmentation. */
+            .evt_params = { 0x10, 0x00, 0x20 },
             .evt_params_len = 3,
         },
         {
@@ -914,6 +946,12 @@ ble_hs_test_util_set_startup_acks(void)
                                            BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
             .evt_params = { 0 },
             .evt_params_len = 8,
+        },
+        {
+            .opcode = host_hci_opcode_join(BLE_HCI_OGF_INFO_PARAMS,
+                                           BLE_HCI_OCF_IP_RD_BD_ADDR),
+            .evt_params = BLE_HS_TEST_UTIL_PUB_ADDR_VAL,
+            .evt_params_len = 6,
         },
         {
             .opcode = host_hci_opcode_join(BLE_HCI_OGF_LE,
@@ -1279,9 +1317,25 @@ ble_hs_test_util_post_test(void *arg)
     ble_hs_test_util_assert_mbufs_freed();
 }
 
+static int
+ble_hs_test_util_pkt_txed(struct os_mbuf *om, void *arg)
+{
+    ble_hs_test_util_prev_tx_enqueue(om);
+    return 0;
+}
+
+static int
+ble_hs_test_util_hci_txed(uint8_t *cmdbuf, void *arg)
+{
+    ble_hs_test_util_enqueue_hci_tx(cmdbuf);
+    ble_hci_trans_buf_free(cmdbuf);
+    return 0;
+}
+
 void
 ble_hs_test_util_init(void)
 {
+    struct ble_hci_ram_cfg hci_cfg;
     struct ble_hs_cfg cfg;
     int rc;
 
@@ -1323,10 +1377,18 @@ ble_hs_test_util_init(void)
 
     ble_hci_set_phony_ack_cb(NULL);
 
+    ble_hci_trans_cfg_ll(ble_hs_test_util_hci_txed, NULL,
+                                ble_hs_test_util_pkt_txed, NULL);
+
+    hci_cfg = ble_hci_ram_cfg_dflt;
+    hci_cfg.num_evt_bufs = cfg.max_hci_bufs;
+    rc = ble_hci_ram_init(&hci_cfg);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_hs_test_util_set_startup_acks();
+
+    rc = ble_hs_start();
+    TEST_ASSERT_FATAL(rc == 0);
+
     ble_hs_test_util_prev_hci_tx_clear();
-
-    ble_hs_id_set_pub(g_dev_addr);
-
-    /* Use a very low buffer size (16) to test fragmentation. */
-    host_hci_set_buf_size(16, 64);
 }

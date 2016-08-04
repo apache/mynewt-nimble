@@ -22,6 +22,7 @@
 
 #include "stats/stats.h"
 #include "hal/hal_cputime.h"
+#include "os/os_eventq.h"
 #include "nimble/nimble_opt.h"
 
 /* Controller revision. */

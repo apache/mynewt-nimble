@@ -23,9 +23,6 @@
 #include <inttypes.h>
 struct os_mbuf;
 
-void ble_hs_test_pkt_txed(struct os_mbuf *om);
-void ble_hs_test_hci_txed(uint8_t *cmdbuf);
-
 int ble_att_clt_test_all(void);
 int ble_att_svr_test_all(void);
 int ble_gap_test_all(void);
