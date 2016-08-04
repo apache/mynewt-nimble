@@ -330,17 +330,19 @@ static void
 ble_hs_event_handle(void *unused)
 {
     struct os_callout_func *cf;
+    struct os_eventq *evqp;
     struct os_event *ev;
     uint8_t *hci_evt;
-    os_sr_t sr;
     int rc;
     int i;
+
+    evqp = &ble_hs_evq;
 
     i = 0;
     while (1) {
         /* If the host has already processed several consecutive events, stop
          * and return control to the parent task.  Put an event on the parent
-         * task's eventq so indicate that more host events are enqueued.
+         * task's eventq to indicate that more host events are enqueued.
          */
         if (i >= BLE_HS_MAX_EVS_IN_A_ROW) {
             os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
@@ -348,15 +350,11 @@ ble_hs_event_handle(void *unused)
         }
         i++;
 
-        OS_ENTER_CRITICAL(sr);
-        ev = STAILQ_FIRST(&ble_hs_evq.evq_list);
-        OS_EXIT_CRITICAL(sr);
-
+        ev = os_eventq_poll(&evqp, 1, 0);
         if (ev == NULL) {
             break;
         }
 
-        ev = os_eventq_get(&ble_hs_evq);
         switch (ev->ev_type) {
         case OS_EVENT_T_TIMER:
             cf = (struct os_callout_func *)ev;
