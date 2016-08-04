@@ -23,7 +23,6 @@
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
 #include "nimble/nimble_opt.h"
-#include "host/host_hci.h"
 #include "host/ble_sm.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_hs_id.h"
@@ -916,8 +915,8 @@ ble_sm_test_util_set_lt_key_req_neg_reply_ack(uint8_t status,
 
     htole16(params, conn_handle);
     ble_hs_test_util_set_ack_params(
-        host_hci_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
         status, params, sizeof params);
 }
 
@@ -928,7 +927,8 @@ ble_sm_test_util_set_lt_key_req_reply_ack(uint8_t status, uint16_t conn_handle)
 
     htole16(params, conn_handle);
     ble_hs_test_util_set_ack_params(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
         status, params, sizeof params);
 }
 
@@ -1371,7 +1371,8 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_START_ENCRYPT),
         0);
 
     if (send_enc_req) {
@@ -1656,8 +1657,8 @@ ble_sm_test_util_rx_keys(struct ble_sm_test_params *params,
     }
     if (peer_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
         ble_hs_test_util_set_ack(
-            host_hci_opcode_join(BLE_HCI_OGF_LE,
-                                 BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
+            ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
         ble_sm_test_util_rx_id_info(2, peer_id_info, 0);
         ble_sm_test_util_rx_id_addr_info(2, peer_id_addr_info, 0);
     }
@@ -1724,7 +1725,8 @@ ble_sm_test_util_us_lgcy_good_once(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_START_ENCRYPT), 0);
     if (params->sec_req.authreq != 0) {
         ble_sm_test_util_rx_sec_req(2, &params->sec_req, 0);
     } else {
@@ -1984,7 +1986,8 @@ ble_sm_test_util_us_sc_good_once(struct ble_sm_test_params *params)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     ble_hs_test_util_set_ack(
-        host_hci_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                    BLE_HCI_OCF_LE_START_ENCRYPT), 0);
     if (params->sec_req.authreq != 0) {
         ble_sm_test_util_rx_sec_req(2, &params->sec_req, 0);
     } else {

@@ -259,7 +259,7 @@ ble_sm_gen_pair_rand(uint8_t *pair_rand)
     }
 #endif
 
-    rc = ble_hci_util_rand(pair_rand, 16);
+    rc = ble_hs_hci_util_rand(pair_rand, 16);
     if (rc != 0) {
         return rc;
     }
@@ -280,7 +280,7 @@ ble_sm_gen_ediv(uint16_t *ediv)
     }
 #endif
 
-    rc = ble_hci_util_rand(ediv, sizeof *ediv);
+    rc = ble_hs_hci_util_rand(ediv, sizeof *ediv);
     if (rc != 0) {
         return rc;
     }
@@ -301,7 +301,7 @@ ble_sm_gen_master_id_rand(uint64_t *master_id_rand)
     }
 #endif
 
-    rc = ble_hci_util_rand(master_id_rand, sizeof *master_id_rand);
+    rc = ble_hs_hci_util_rand(master_id_rand, sizeof *master_id_rand);
     if (rc != 0) {
         return rc;
     }
@@ -323,7 +323,7 @@ ble_sm_gen_ltk(struct ble_sm_proc *proc, uint8_t *ltk)
     }
 #endif
 
-    rc = ble_hci_util_rand(ltk, 16);
+    rc = ble_hs_hci_util_rand(ltk, 16);
     if (rc != 0) {
         return rc;
     }
@@ -345,7 +345,7 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
     }
 #endif
 
-    rc = ble_hci_util_rand(csrk, 16);
+    rc = ble_hs_hci_util_rand(csrk, 16);
     if (rc != 0) {
         return rc;
     }
@@ -875,8 +875,8 @@ ble_sm_start_encrypt_tx(struct hci_start_encrypt *cmd)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_START_ENCRYPT_LEN];
     int rc;
 
-    host_hci_cmd_build_le_start_encrypt(cmd, buf, sizeof buf);
-    rc = ble_hci_cmd_tx_empty_ack(buf);
+    ble_hs_hci_cmd_build_le_start_encrypt(cmd, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
     }
@@ -1059,9 +1059,9 @@ ble_sm_ltk_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
     cmd.conn_handle = conn_handle;
     memcpy(cmd.long_term_key, ltk, 16);
 
-    host_hci_cmd_build_le_lt_key_req_reply(&cmd, buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
-                        &ack_params_len);
+    ble_hs_hci_cmd_build_le_lt_key_req_reply(&cmd, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
+                           &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -1085,9 +1085,9 @@ ble_sm_ltk_req_neg_reply_tx(uint16_t conn_handle)
     uint8_t ack_params_len;
     int rc;
 
-    host_hci_cmd_build_le_lt_key_req_neg_reply(conn_handle, buf, sizeof buf);
-    rc = ble_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
-                        &ack_params_len);
+    ble_hs_hci_cmd_build_le_lt_key_req_neg_reply(conn_handle, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
+                           &ack_params_len);
     if (rc != 0) {
         return rc;
     }

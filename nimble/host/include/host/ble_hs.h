@@ -34,7 +34,6 @@
 #include "host/ble_sm.h"
 #include "host/ble_store.h"
 #include "host/ble_uuid.h"
-#include "host/host_hci.h"
 struct os_eventq;
 struct os_event;
 

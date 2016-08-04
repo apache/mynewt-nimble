@@ -36,7 +36,7 @@ int ble_gatt_write_test_all(void);
 int ble_gatts_notify_test_all(void);
 int ble_gatts_read_test_suite(void);
 int ble_gatts_reg_test_all(void);
-int ble_host_hci_test_all(void);
+int ble_hs_hci_test_all(void);
 int ble_hs_adv_test_all(void);
 int ble_hs_conn_test_all(void);
 int ble_l2cap_test_all(void);

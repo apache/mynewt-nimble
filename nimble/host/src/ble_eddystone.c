@@ -186,7 +186,7 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
 
     svc_data = ble_eddystone_set_svc_data_base(BLE_EDDYSTONE_FRAME_TYPE_URL);
     
-    rc = ble_hci_util_read_adv_tx_pwr(&tx_pwr);
+    rc = ble_hs_hci_util_read_adv_tx_pwr(&tx_pwr);
     if (rc != 0) {
         return rc;
     }
