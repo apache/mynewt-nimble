@@ -22,7 +22,6 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "host/host_hci.h"
 #include "ble_hs_priv.h"
 
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
@@ -287,7 +286,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return BLE_HS_ENOMEM;
     }
 
-    rc = host_hci_data_tx(conn, txom);
+    rc = ble_hs_hci_acl_tx(conn, txom);
     if (rc != 0) {
         return rc;
     }

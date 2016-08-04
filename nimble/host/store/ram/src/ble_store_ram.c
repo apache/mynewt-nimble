@@ -136,7 +136,8 @@ ble_store_ram_read_our_sec(struct ble_store_key_sec *key_sec,
 {
     int idx;
 
-    idx = ble_store_ram_find_sec(key_sec, ble_store_ram_our_secs, ble_store_ram_num_our_secs);
+    idx = ble_store_ram_find_sec(key_sec, ble_store_ram_our_secs,
+                                 ble_store_ram_num_our_secs);
     if (idx == -1) {
         return BLE_HS_ENOENT;
     }

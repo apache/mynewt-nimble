@@ -24,7 +24,6 @@
 #include "util/tpq.h"
 #include "os/os.h"
 #include "nimble/ble_hci_trans.h"
-#include "host/host_hci.h"
 #include "ble_hs_priv.h"
 
 /**
@@ -173,7 +172,7 @@ ble_hs_process_rx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
-        host_hci_acl_process(om);
+        ble_hs_hci_evt_acl_process(om);
     }
 }
 
@@ -370,7 +369,7 @@ ble_hs_event_handle(void *unused)
             rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
             BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-            host_hci_evt_process(hci_evt);
+            ble_hs_hci_evt_process(hci_evt);
             break;
 
         case BLE_HS_EVENT_TX_NOTIFICATIONS:
@@ -579,7 +578,7 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
         goto err;
     }
 
-    ble_hci_cmd_init();
+    ble_hs_hci_init();
 
     rc = ble_hs_conn_init();
     if (rc != 0) {
@@ -642,7 +641,7 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
 #endif
 
     /* Configure the HCI transport to communicate with a host. */
-    ble_hci_trans_cfg_hs(host_hci_evt_rx, NULL, ble_hs_rx_data, NULL);
+    ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
     return 0;
 

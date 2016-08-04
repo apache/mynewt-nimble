@@ -28,7 +28,7 @@ struct hci_le_conn_param_req;
 struct hci_le_conn_complete;
 struct hci_disconn_complete;
 struct hci_encrypt_change;
-struct ble_hci_ack;
+struct ble_hs_hci_ack;
 struct ble_hs_adv;
 
 STATS_SECT_START(ble_gap_stats)

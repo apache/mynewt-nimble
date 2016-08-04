@@ -412,7 +412,8 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
     htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 2);
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_READ_MULT_RSP_BASE_SZ + 2);
     TEST_ASSERT(rc == 0);
 
     /*** Larger response. */
@@ -420,12 +421,14 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
     htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 2, 43);
     htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 4, 91);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 6);
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_READ_MULT_RSP_BASE_SZ + 6);
     TEST_ASSERT(rc == 0);
 
     /*** Zero-length response. */
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 0);
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_READ_MULT_RSP_BASE_SZ + 0);
     TEST_ASSERT(rc == 0);
 }
 
