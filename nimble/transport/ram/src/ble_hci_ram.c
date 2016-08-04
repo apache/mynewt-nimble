@@ -7,7 +7,8 @@
 
 /** Default configuration. */
 const struct ble_hci_ram_cfg ble_hci_ram_cfg_dflt = {
-    .num_evt_bufs = 3,
+    .num_evt_hi_bufs = 1,
+    .num_evt_lo_bufs = 2,
     .evt_buf_sz = BLE_HCI_TRANS_CMD_SZ,
 };
 
@@ -23,17 +24,19 @@ static void *ble_hci_ram_rx_acl_hs_arg;
 static ble_hci_trans_rx_acl_fn *ble_hci_ram_rx_acl_ll_cb;
 static void *ble_hci_ram_rx_acl_ll_arg;
 
-static struct os_mempool ble_hci_ram_evt_pool;
-static void *ble_hci_ram_evt_buf;
+static struct os_mempool ble_hci_ram_evt_hi_pool;
+static void *ble_hci_ram_evt_hi_buf;
+static struct os_mempool ble_hci_ram_evt_lo_pool;
+static void *ble_hci_ram_evt_lo_buf;
 
 static uint8_t *ble_hci_ram_hs_cmd_buf;
 static uint8_t ble_hci_ram_hs_cmd_buf_alloced;
 
 void
 ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                                void *cmd_arg,
-                                ble_hci_trans_rx_acl_fn *acl_cb,
-                                void *acl_arg)
+                     void *cmd_arg,
+                     ble_hci_trans_rx_acl_fn *acl_cb,
+                     void *acl_arg)
 {
     ble_hci_ram_rx_cmd_hs_cb = cmd_cb;
     ble_hci_ram_rx_cmd_hs_arg = cmd_arg;
@@ -43,9 +46,9 @@ ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
 
 void
 ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                                void *cmd_arg,
-                                ble_hci_trans_rx_acl_fn *acl_cb,
-                                void *acl_arg)
+                     void *cmd_arg,
+                     ble_hci_trans_rx_acl_fn *acl_cb,
+                     void *acl_arg)
 {
     ble_hci_ram_rx_cmd_ll_cb = cmd_cb;
     ble_hci_ram_rx_cmd_ll_arg = cmd_arg;
@@ -78,7 +81,7 @@ ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
 int
 ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
 {
-    int rc;
+   int rc;
 
     assert(ble_hci_ram_rx_acl_ll_cb != NULL);
 
@@ -103,9 +106,18 @@ ble_hci_trans_buf_alloc(int type)
     uint8_t *buf;
 
     switch (type) {
-    case BLE_HCI_TRANS_BUF_EVT_LO:
     case BLE_HCI_TRANS_BUF_EVT_HI:
-        buf = os_memblock_get(&ble_hci_ram_evt_pool);
+        buf = os_memblock_get(&ble_hci_ram_evt_hi_pool);
+        if (buf == NULL) {
+            /* If no high-priority event buffers remain, try to grab a
+             * low-priority one.
+             */
+            buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+        }
+        break;
+
+    case BLE_HCI_TRANS_BUF_EVT_LO:
+        buf = os_memblock_get(&ble_hci_ram_evt_lo_pool);
         break;
 
     case BLE_HCI_TRANS_BUF_CMD:
@@ -130,8 +142,12 @@ ble_hci_trans_buf_free(uint8_t *buf)
     if (buf == ble_hci_ram_hs_cmd_buf) {
         assert(ble_hci_ram_hs_cmd_buf_alloced);
         ble_hci_ram_hs_cmd_buf_alloced = 0;
+    } else if (os_memblock_from(&ble_hci_ram_evt_hi_pool, buf)) {
+        rc = os_memblock_put(&ble_hci_ram_evt_hi_pool, buf);
+        assert(rc == 0);
     } else {
-        rc = os_memblock_put(&ble_hci_ram_evt_pool, buf);
+        assert(os_memblock_from(&ble_hci_ram_evt_lo_pool, buf));
+        rc = os_memblock_put(&ble_hci_ram_evt_lo_pool, buf);
         assert(rc == 0);
     }
 }
@@ -139,8 +155,11 @@ ble_hci_trans_buf_free(uint8_t *buf)
 static void
 ble_hci_ram_free_mem(void)
 {
-    free(ble_hci_ram_evt_buf);
-    ble_hci_ram_evt_buf = NULL;
+    free(ble_hci_ram_evt_hi_buf);
+    ble_hci_ram_evt_hi_buf = NULL;
+
+    free(ble_hci_ram_evt_lo_buf);
+    ble_hci_ram_evt_lo_buf = NULL;
 
     free(ble_hci_ram_hs_cmd_buf);
     ble_hci_ram_hs_cmd_buf = NULL;
@@ -150,9 +169,21 @@ ble_hci_ram_free_mem(void)
 int
 ble_hci_trans_reset(void)
 {
+    /* No work to do.  All allocated buffers are owned by the host or
+     * controller, and they will get freed by their owners.
+     */
     return 0;
 }
 
+/**
+ * Initializes the RAM HCI transport module.
+ *
+ * @param cfg                   The settings to initialize the HCI RAM
+ *                                  transport with.
+ *
+ * @return                      0 on success;
+ *                              A BLE_ERR_[...] error code on failure.
+ */
 int
 ble_hci_ram_init(const struct ble_hci_ram_cfg *cfg)
 {
@@ -160,17 +191,35 @@ ble_hci_ram_init(const struct ble_hci_ram_cfg *cfg)
 
     ble_hci_ram_free_mem();
 
-    ble_hci_ram_evt_buf = malloc(OS_MEMPOOL_BYTES(cfg->num_evt_bufs,
-                                                  cfg->evt_buf_sz));
-    if (ble_hci_ram_evt_buf == NULL) {
-        rc = ENOMEM;
+    if (cfg->num_evt_hi_bufs > 0) {
+        ble_hci_ram_evt_hi_buf = malloc(OS_MEMPOOL_BYTES(cfg->num_evt_hi_bufs,
+                                                         cfg->evt_buf_sz));
+        if (ble_hci_ram_evt_hi_buf == NULL) {
+            rc = ENOMEM;
+            goto err;
+        }
+    }
+
+    rc = os_mempool_init(&ble_hci_ram_evt_hi_pool, cfg->num_evt_hi_bufs,
+                         cfg->evt_buf_sz, ble_hci_ram_evt_hi_buf,
+                         "ble_hci_ram_evt_hi_pool");
+    if (rc != 0) {
+        rc = EINVAL;
         goto err;
     }
 
-    /* Create memory pool of command buffers */
-    rc = os_mempool_init(&ble_hci_ram_evt_pool, cfg->num_evt_bufs,
-                         cfg->evt_buf_sz, ble_hci_ram_evt_buf,
-                         "ble_hci_ram_evt_pool");
+    if (cfg->num_evt_lo_bufs > 0) {
+        ble_hci_ram_evt_lo_buf = malloc(OS_MEMPOOL_BYTES(cfg->num_evt_lo_bufs,
+                                                         cfg->evt_buf_sz));
+        if (ble_hci_ram_evt_lo_buf == NULL) {
+            rc = ENOMEM;
+            goto err;
+        }
+    }
+
+    rc = os_mempool_init(&ble_hci_ram_evt_lo_pool, cfg->num_evt_lo_bufs,
+                         cfg->evt_buf_sz, ble_hci_ram_evt_lo_buf,
+                         "ble_hci_ram_evt_lo_pool");
     if (rc != 0) {
         rc = EINVAL;
         goto err;
