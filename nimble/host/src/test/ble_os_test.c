@@ -21,7 +21,7 @@
 #include "os/os.h"
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_transport.h"
+#include "nimble/ble_hci_trans.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_gap.h"
 #include "ble_hs_test_util.h"

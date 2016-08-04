@@ -708,7 +708,7 @@ ble_gap_update_failed(uint16_t conn_handle, int status)
     ble_gap_update_notify(conn_handle, status);
 }
 
-static void
+void
 ble_gap_conn_broken(uint16_t conn_handle, int reason)
 {
     struct ble_gap_snapshot snap;

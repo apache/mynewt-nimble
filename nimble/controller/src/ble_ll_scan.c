@@ -25,6 +25,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
@@ -424,7 +425,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
     }
 
     if (ble_ll_hci_is_le_event_enabled(subev)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = event_len;

@@ -21,6 +21,7 @@
 #include <string.h>
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_ctrl.h"
@@ -41,7 +42,7 @@ ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_DATA_LEN_CHG)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_DATA_LEN_CHG_LEN;
@@ -68,7 +69,7 @@ ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_REM_CONN_PARM_REQ_LEN;
@@ -95,7 +96,7 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_CONN_UPD_LEN;
@@ -127,7 +128,7 @@ ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
     }
 
     if (ble_ll_hci_is_event_enabled(evcode)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = evcode;
             evbuf[1] = evlen;
@@ -158,7 +159,7 @@ ble_ll_hci_ev_ltk_req(struct ble_ll_conn_sm *connsm)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_LT_KEY_REQ)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_LT_KEY_REQ_LEN;
@@ -188,7 +189,7 @@ ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_RD_REM_USED_FEAT_LEN;
@@ -208,7 +209,7 @@ ble_ll_hci_ev_rd_rem_ver(struct ble_ll_conn_sm *connsm, uint8_t status)
     uint8_t *evbuf;
 
     if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP)) {
-        evbuf = os_memblock_get(&g_hci_evt_pool);
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP;
             evbuf[1] = BLE_HCI_EVENT_RD_RM_VER_LEN;

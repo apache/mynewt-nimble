@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include "os/os.h"
+#include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 #include "host_dbg_priv.h"
 
@@ -28,6 +29,8 @@
 
 static struct os_mutex ble_hci_cmd_mutex;
 static struct os_sem ble_hci_cmd_sem;
+
+static uint8_t *ble_hci_cmd_ack;
 
 #if PHONY_HCI_ACKS
 static ble_hci_cmd_phony_ack_fn *ble_hci_cmd_phony_ack_cb;
@@ -69,7 +72,6 @@ ble_hci_cmd_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len,
     uint8_t num_pkts;
 
     if (len < BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN) {
-        /* XXX: Increment stat. */
         return BLE_HS_ECONTROLLER;
     }
 
@@ -112,7 +114,6 @@ ble_hci_cmd_rx_cmd_status(uint8_t event_code, uint8_t *data, int len,
     uint8_t status;
 
     if (len < BLE_HCI_EVENT_CMD_STATUS_LEN) {
-        /* XXX: Increment stat. */
         return BLE_HS_ECONTROLLER;
     }
 
@@ -132,7 +133,8 @@ ble_hci_cmd_rx_cmd_status(uint8_t event_code, uint8_t *data, int len,
 }
 
 static int
-ble_hci_cmd_process_ack(uint8_t *params_buf, uint8_t params_buf_len,
+ble_hci_cmd_process_ack(uint16_t expected_opcode,
+                        uint8_t *params_buf, uint8_t params_buf_len,
                         struct ble_hci_ack *out_ack)
 {
     uint8_t event_code;
@@ -140,20 +142,16 @@ ble_hci_cmd_process_ack(uint8_t *params_buf, uint8_t params_buf_len,
     uint8_t event_len;
     int rc;
 
-    /***
-     * The controller always reuses the command buffer for its acknowledgement
-     * events.  This function processes the acknowledgement event contained in
-     * the command buffer.
-     */
+    BLE_HS_DBG_ASSERT(ble_hci_cmd_ack != NULL);
 
     /* Count events received */
     STATS_INC(ble_hs_stats, hci_event);
 
     /* Display to console */
-    host_hci_dbg_event_disp(host_hci_cmd_buf);
+    host_hci_dbg_event_disp(ble_hci_cmd_ack);
 
-    event_code = host_hci_cmd_buf[0];
-    param_len = host_hci_cmd_buf[1];
+    event_code = ble_hci_cmd_ack[0];
+    param_len = ble_hci_cmd_ack[1];
     event_len = param_len + 2;
 
     /* Clear ack fields up front to silence spurious gcc warnings. */
@@ -161,12 +159,12 @@ ble_hci_cmd_process_ack(uint8_t *params_buf, uint8_t params_buf_len,
 
     switch (event_code) {
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
-        rc = ble_hci_cmd_rx_cmd_complete(event_code, host_hci_cmd_buf,
+        rc = ble_hci_cmd_rx_cmd_complete(event_code, ble_hci_cmd_ack,
                                          event_len, out_ack);
         break;
 
     case BLE_HCI_EVCODE_COMMAND_STATUS:
-        rc = ble_hci_cmd_rx_cmd_status(event_code, host_hci_cmd_buf,
+        rc = ble_hci_cmd_rx_cmd_status(event_code, ble_hci_cmd_ack,
                                        event_len, out_ack);
         break;
 
@@ -187,6 +185,14 @@ ble_hci_cmd_process_ack(uint8_t *params_buf, uint8_t params_buf_len,
             memcpy(params_buf, out_ack->bha_params, out_ack->bha_params_len);
         }
         out_ack->bha_params = params_buf;
+
+        if (out_ack->bha_opcode != expected_opcode) {
+            rc = BLE_HS_ECONTROLLER;
+        }
+    }
+
+    if (rc != 0) {
+        STATS_INC(ble_hs_stats, hci_invalid_ack);
     }
 
     return rc;
@@ -201,15 +207,20 @@ ble_hci_cmd_wait_for_ack(void)
     if (ble_hci_cmd_phony_ack_cb == NULL) {
         rc = BLE_HS_ETIMEOUT_HCI;
     } else {
-        rc = ble_hci_cmd_phony_ack_cb(host_hci_cmd_buf, 260);
+        ble_hci_cmd_ack =
+            ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+        BLE_HS_DBG_ASSERT(ble_hci_cmd_ack != NULL);
+        rc = ble_hci_cmd_phony_ack_cb(ble_hci_cmd_ack, 260);
     }
 #else
     rc = os_sem_pend(&ble_hci_cmd_sem, BLE_HCI_CMD_TIMEOUT);
     switch (rc) {
     case 0:
+        BLE_HS_DBG_ASSERT(ble_hci_cmd_ack != NULL);
         break;
     case OS_TIMEOUT:
         rc = BLE_HS_ETIMEOUT_HCI;
+        STATS_INC(ble_hs_stats, hci_timeout);
         break;
     default:
         rc = BLE_HS_EOS;
@@ -225,8 +236,12 @@ ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
                uint8_t *out_evt_buf_len)
 {
     struct ble_hci_ack ack;
+    uint16_t opcode;
     int rc;
 
+    opcode = le16toh((uint8_t *)cmd);
+
+    BLE_HS_DBG_ASSERT(ble_hci_cmd_ack == NULL);
     ble_hci_cmd_lock();
 
     rc = host_hci_cmd_send_buf(cmd);
@@ -236,11 +251,13 @@ ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
 
     rc = ble_hci_cmd_wait_for_ack();
     if (rc != 0) {
+        ble_hs_sched_reset(rc);
         goto done;
     }
 
-    rc = ble_hci_cmd_process_ack(evt_buf, evt_buf_len, &ack);
+    rc = ble_hci_cmd_process_ack(opcode, evt_buf, evt_buf_len, &ack);
     if (rc != 0) {
+        ble_hs_sched_reset(rc);
         goto done;
     }
 
@@ -251,6 +268,11 @@ ble_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
     rc = ack.bha_status;
 
 done:
+    if (ble_hci_cmd_ack != NULL) {
+        ble_hci_trans_buf_free(ble_hci_cmd_ack);
+        ble_hci_cmd_ack = NULL;
+    }
+
     ble_hci_cmd_unlock();
     return rc;
 }
@@ -271,17 +293,17 @@ ble_hci_cmd_tx_empty_ack(void *cmd)
 void
 ble_hci_cmd_rx_ack(uint8_t *ack_ev)
 {
-    /* The controller should always reuse the command buffer for its acks. */
-    BLE_HS_DBG_ASSERT(ack_ev == host_hci_cmd_buf);
-
     if (ble_hci_cmd_sem.sem_tokens != 0) {
         /* This ack is unexpected; ignore it. */
+        ble_hci_trans_buf_free(ack_ev);
         return;
     }
+    BLE_HS_DBG_ASSERT(ble_hci_cmd_ack == NULL);
 
     /* Unblock the application now that the HCI command buffer is populated
      * with the acknowledgement.
      */
+    ble_hci_cmd_ack = ack_ev;
     os_sem_release(&ble_hci_cmd_sem);
 }
 

@@ -229,7 +229,7 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
     ble_sm_dbg_set_next_ediv(out_us->ediv);
     ble_sm_dbg_set_next_master_id_rand(out_us->rand_num);
     ble_sm_dbg_set_next_ltk(out_us->ltk);
-    ble_hs_pvcy_set_our_irk(out_us->id_info->irk);
+    ble_hs_test_util_set_our_irk(out_us->id_info->irk, 0, 0);
     ble_sm_dbg_set_next_csrk(out_us->sign_info->sig_key);
 
     if (out_us->public_key != NULL) {
@@ -909,8 +909,20 @@ ble_sm_test_util_verify_tx_lt_key_req_neg_reply(uint16_t conn_handle)
 }
 
 static void
-ble_sm_test_util_set_lt_key_req_reply_ack(uint8_t status,
-                                                uint16_t conn_handle)
+ble_sm_test_util_set_lt_key_req_neg_reply_ack(uint8_t status,
+                                              uint16_t conn_handle)
+{
+    static uint8_t params[BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN];
+
+    htole16(params, conn_handle);
+    ble_hs_test_util_set_ack_params(
+        host_hci_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
+        status, params, sizeof params);
+}
+
+static void
+ble_sm_test_util_set_lt_key_req_reply_ack(uint8_t status, uint16_t conn_handle)
 {
     static uint8_t params[BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN];
 
@@ -1303,7 +1315,7 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
     /* Receive a long term key request from the controller. */
-    ble_sm_test_util_set_lt_key_req_reply_ack(0, 2);
+    ble_sm_test_util_set_lt_key_req_neg_reply_ack(0, 2);
     ble_sm_test_util_rx_lt_key_req(2, rand_num, ediv);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
 

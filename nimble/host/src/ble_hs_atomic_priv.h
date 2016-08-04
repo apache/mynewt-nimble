@@ -28,5 +28,6 @@ int ble_hs_atomic_conn_flags(uint16_t conn_handle,
                              ble_hs_conn_flags_t *out_flags);
 int ble_hs_atomic_conn_set_flags(uint16_t conn_handle,
                                  ble_hs_conn_flags_t flags, int on);
+uint16_t ble_hs_atomic_first_conn_handle(void);
 
 #endif
