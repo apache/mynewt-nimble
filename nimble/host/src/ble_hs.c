@@ -496,6 +496,15 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
     return rc;
 }
 
+/**
+ * Enqueues an ACL data packet for transmission.  This function consumes the
+ * supplied mbuf, regardless of the outcome.
+ *
+ * @param om                    The outgoing data packet, beginning with the
+ *                                  HCI ACL data header.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int
 ble_hs_tx_data(struct os_mbuf *om)
 {
@@ -503,6 +512,7 @@ ble_hs_tx_data(struct os_mbuf *om)
 
     rc = os_mqueue_put(&ble_hs_tx_q, &ble_hs_evq, om);
     if (rc != 0) {
+        os_mbuf_free_chain(om);
         return BLE_HS_EOS;
     }
     os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
