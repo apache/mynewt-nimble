@@ -73,12 +73,6 @@ static void *ble_hci_uart_evt_buf;
 static struct os_mempool ble_hci_uart_pkt_pool;
 static void *ble_hci_uart_pkt_buf;
 
-#define BLE_HCI_UART_LOG_SZ 1024
-static uint8_t ble_hci_uart_tx_log[BLE_HCI_UART_LOG_SZ];
-static int ble_hci_uart_tx_log_sz;
-static uint8_t ble_hci_uart_rx_log[BLE_HCI_UART_LOG_SZ];
-static int ble_hci_uart_rx_log_sz;
-
 /**
  * An incoming or outgoing command or event.
  */
@@ -263,13 +257,6 @@ ble_hci_uart_tx_char(void *arg)
         break;
     }
 
-    if (rc != -1) {
-        ble_hci_uart_tx_log[ble_hci_uart_tx_log_sz++] = rc;
-        if (ble_hci_uart_tx_log_sz == sizeof ble_hci_uart_tx_log) {
-            ble_hci_uart_tx_log_sz = 0;
-        }
-    }
-
     return rc;
 }
 
@@ -410,11 +397,6 @@ ble_hci_uart_rx_acl(uint8_t data)
 static int
 ble_hci_uart_rx_char(void *arg, uint8_t data)
 {
-    ble_hci_uart_rx_log[ble_hci_uart_rx_log_sz++] = data;
-    if (ble_hci_uart_rx_log_sz == sizeof ble_hci_uart_rx_log) {
-        ble_hci_uart_rx_log_sz = 0;
-    }
-
     switch (ble_hci_uart_state.rx_type) {
     case BLE_HCI_UART_H4_NONE:
         return ble_hci_uart_rx_pkt_type(data);
