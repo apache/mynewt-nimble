@@ -617,7 +617,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
         ble_hs_unlock();
     }
 
-    /* Free mbuf if it was not consumed (send failed). */
+    /* Free mbuf if it was not consumed (i.e., if the send failed). */
     os_mbuf_free_chain(om);
 
     return rc;
@@ -2367,7 +2367,6 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_prep_entry *prep_prev;
     struct ble_att_svr_entry *attr_entry;
     struct ble_hs_conn *conn;
-    struct os_mbuf *srcom;
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t *buf;
@@ -2428,16 +2427,10 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
         }
 
         /* Append attribute value from request onto prep mbuf. */
-        for (srcom = *rxom;
-             srcom != NULL;
-             srcom = SLIST_NEXT(srcom, om_next)) {
-
-            rc = os_mbuf_append(prep_entry->bape_value, srcom->om_data,
-                                srcom->om_len);
-            if (rc != 0) {
-                att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
-                break;
-            }
+        rc = os_mbuf_appendfrom(prep_entry->bape_value, *rxom, 0,
+                                OS_MBUF_PKTLEN(*rxom));
+        if (rc != 0) {
+            att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         }
     }
 
