@@ -359,17 +359,16 @@ ble_hs_hci_rx_evt(uint8_t *hci_ev, void *arg)
  * buffer size requirements, no splitting is performed.  The fragment data is
  * removed from the data packet mbuf.
  *
- * @param om                    The ACL data packet.
+ * @param om                    The ACL data packet.  If this constitutes a
+ *                                  single fragment, it gets set to NULL on
+ *                                  success.
  * @param out_frag              On success, this points to the fragment to
  *                                  send.  If the entire packet can fit within
  *                                  a single fragment, this will point to the
  *                                  ACL data packet itself ('om').
  *
- * @return                      BLE_HS_EDONE: success; this is the final
- *                                  fragment.
- *                              BLE_HS_EAGAIN: success; more data remains in
- *                                  the original mbuf.
- *                              Other BLE host core return code on error.
+ * @return                      0 on success;
+ *                              BLE host core return code on error.
  */
 static int
 ble_hs_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
@@ -377,11 +376,14 @@ ble_hs_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
     struct os_mbuf *frag;
     int rc;
 
+    /* Assume failure. */
+    *out_frag = NULL;
+
     if (OS_MBUF_PKTLEN(*om) <= ble_hs_hci_buf_sz) {
         /* Final fragment. */
         *out_frag = *om;
         *om = NULL;
-        return BLE_HS_EDONE;
+        return 0;
     }
 
     frag = ble_hs_mbuf_acm_pkt();
@@ -400,7 +402,7 @@ ble_hs_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
 
     /* More fragments to follow. */
     *out_frag = frag;
-    return BLE_HS_EAGAIN;
+    return 0;
 
 err:
     os_mbuf_free_chain(frag);
@@ -449,7 +451,6 @@ ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
 {
     struct os_mbuf *frag;
     uint8_t pb;
-    int done;
     int rc;
 
     /* The first fragment uses the first-non-flush packet boundary value.
@@ -459,20 +460,9 @@ ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
     pb = BLE_HCI_PB_FIRST_NON_FLUSH;
 
     /* Send fragments until the entire packet has been sent. */
-    done = 0;
-    while (!done) {
+    while (txom != NULL) {
         rc = ble_hs_hci_split_frag(&txom, &frag);
-        switch (rc) {
-        case BLE_HS_EDONE:
-            /* This is the final fragment. */
-            done = 1;
-            break;
-
-        case BLE_HS_EAGAIN:
-            /* More fragments to follow. */
-            break;
-
-        default:
+        if (rc != 0) {
             goto err;
         }
 
