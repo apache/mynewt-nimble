@@ -119,16 +119,14 @@ struct os_mbuf *
 ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
 {
     struct ble_l2cap_hdr hdr;
-    struct os_mbuf *om2;
 
     htole16(&hdr.blh_len, len);
     htole16(&hdr.blh_cid, cid);
 
-    om2 = os_mbuf_prepend(om, sizeof hdr);
-    if (om2 == NULL) {
+    om = os_mbuf_prepend_pullup(om, sizeof hdr);
+    if (om == NULL) {
         return NULL;
     }
-    BLE_HS_DBG_ASSERT(om2 == om);
 
     memcpy(om->om_data, &hdr, sizeof hdr);
 
