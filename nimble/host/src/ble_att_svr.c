@@ -2347,9 +2347,11 @@ ble_att_svr_prep_write(uint16_t conn_handle,
             *err_handle = attr_handle;
         } else {
             rc = ble_att_svr_write(conn_handle, attr, 0, &om, &att_err);
+            os_mbuf_free_chain(om);
+            if (rc != 0) {
+                return att_err;
+            }
         }
-
-        os_mbuf_free_chain(om);
     }
 
     return 0;
