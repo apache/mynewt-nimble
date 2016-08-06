@@ -1994,7 +1994,11 @@ ble_gap_disc_validate(uint8_t own_addr_type,
         return BLE_HS_EINVAL;
     }
 
-    if (ble_gap_master.op != BLE_GAP_OP_NULL) {
+    if (ble_gap_conn_active()) {
+        return BLE_HS_EBUSY;
+    }
+
+    if (ble_gap_disc_active()) {
         return BLE_HS_EALREADY;
     }
 
@@ -2230,8 +2234,13 @@ ble_gap_connect(uint8_t own_addr_type,
 
     ble_hs_lock();
 
-    if (ble_gap_master.op != BLE_GAP_OP_NULL) {
+    if (ble_gap_conn_active()) {
         rc = BLE_HS_EALREADY;
+        goto done;
+    }
+
+    if (ble_gap_disc_active()) {
+        rc = BLE_HS_EBUSY;
         goto done;
     }
 

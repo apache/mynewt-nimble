@@ -572,15 +572,6 @@ TEST_CASE(ble_gap_test_case_disc_bad_args)
     rc = ble_gap_disc(BLE_ADDR_TYPE_PUBLIC, 0, &params,
                       ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
-
-    /*** Master operation already in progress. */
-    params.filter_policy = BLE_HCI_SCAN_FILT_NO_WL;
-    rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
-                                  BLE_GAP_ADDR_TYPE_WL, NULL, 0, NULL,
-                                  ble_gap_test_util_connect_cb, NULL, 0);
-    rc = ble_gap_disc(BLE_ADDR_TYPE_PUBLIC, 0, &params,
-                      ble_gap_test_util_disc_cb, NULL);
-    TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
 TEST_CASE(ble_gap_test_case_disc_good)
@@ -763,6 +754,45 @@ TEST_CASE(ble_gap_test_case_disc_dflts)
     ble_gap_test_util_disc_dflts_once(1);
 }
 
+TEST_CASE(ble_gap_test_case_disc_already)
+{
+    static const struct ble_gap_disc_params disc_params = { 0 };
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Start a discovery procedure. */
+    rc = ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC, BLE_HS_FOREVER,
+                               &disc_params, ble_gap_test_util_disc_cb,
+                               NULL, -1, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure host indicates BLE_HS_EALREADY if we try to discover. */
+    rc = ble_gap_disc(BLE_ADDR_TYPE_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_gap_test_util_disc_cb, NULL);
+    TEST_ASSERT(rc == BLE_HS_EALREADY);
+}
+
+TEST_CASE(ble_gap_test_case_disc_busy)
+{
+    static const struct ble_gap_disc_params disc_params = { 0 };
+    static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Start a connect procedure. */
+    rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+                                  peer_addr, 0, NULL,
+                                  ble_gap_test_util_connect_cb, NULL, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure host indicates BLE_HS_EBUSY if we try to discover. */
+    rc = ble_gap_disc(BLE_ADDR_TYPE_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_gap_test_util_disc_cb, NULL);
+    TEST_ASSERT(rc == BLE_HS_EBUSY);
+}
+
 TEST_SUITE(ble_gap_test_suite_disc)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -772,13 +802,15 @@ TEST_SUITE(ble_gap_test_suite_disc)
     ble_gap_test_case_disc_ltd_mismatch();
     ble_gap_test_case_disc_hci_fail();
     ble_gap_test_case_disc_dflts();
+    ble_gap_test_case_disc_already();
+    ble_gap_test_case_disc_busy();
 }
 
 /*****************************************************************************
  * $direct connect                                                           *
  *****************************************************************************/
 
-TEST_CASE(ble_gap_test_case_conn_dir_good)
+TEST_CASE(ble_gap_test_case_conn_gen_good)
 {
     struct hci_le_conn_complete evt;
     struct ble_gap_conn_params params;
@@ -831,7 +863,7 @@ TEST_CASE(ble_gap_test_case_conn_dir_good)
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
 }
 
-TEST_CASE(ble_gap_test_case_conn_dir_bad_args)
+TEST_CASE(ble_gap_test_case_conn_gen_bad_args)
 {
     int rc;
 
@@ -861,7 +893,7 @@ TEST_CASE(ble_gap_test_case_conn_dir_bad_args)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_dir_dflt_params)
+TEST_CASE(ble_gap_test_case_conn_gen_dflt_params)
 {
     static const uint8_t peer_addr[6] = { 2, 3, 8, 6, 6, 1 };
     int rc;
@@ -874,13 +906,58 @@ TEST_CASE(ble_gap_test_case_conn_dir_dflt_params)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_SUITE(ble_gap_test_suite_conn_dir)
+TEST_CASE(ble_gap_test_case_conn_gen_already)
+{
+    static const struct ble_gap_conn_params conn_params = { 0 };
+    static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Start a connect procedure. */
+    rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+                                  peer_addr, 0, NULL,
+                                  ble_gap_test_util_connect_cb, NULL, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure host indicates BLE_HS_EALREADY if we try to connect. */
+    rc = ble_gap_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+                         peer_addr, BLE_HS_FOREVER, &conn_params,
+                         ble_gap_test_util_connect_cb, NULL);
+    TEST_ASSERT(rc == BLE_HS_EALREADY);
+}
+
+TEST_CASE(ble_gap_test_case_conn_gen_busy)
+{
+    static const struct ble_gap_disc_params disc_params = { 0 };
+    static const struct ble_gap_conn_params conn_params = { 0 };
+    static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Start a discovery procedure. */
+    rc = ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC, BLE_HS_FOREVER,
+                               &disc_params, ble_gap_test_util_disc_cb,
+                               NULL, -1, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure host indicates BLE_HS_EBUSY if we try to connect. */
+    rc = ble_gap_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+                         peer_addr, BLE_HS_FOREVER, &conn_params,
+                         ble_gap_test_util_connect_cb, NULL);
+    TEST_ASSERT(rc == BLE_HS_EBUSY);
+}
+
+TEST_SUITE(ble_gap_test_suite_conn_gen)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
-    ble_gap_test_case_conn_dir_good();
-    ble_gap_test_case_conn_dir_bad_args();
-    ble_gap_test_case_conn_dir_dflt_params();
+    ble_gap_test_case_conn_gen_good();
+    ble_gap_test_case_conn_gen_bad_args();
+    ble_gap_test_case_conn_gen_dflt_params();
+    ble_gap_test_case_conn_gen_already();
+    ble_gap_test_case_conn_gen_busy();
 }
 
 /*****************************************************************************
@@ -2487,7 +2564,7 @@ ble_gap_test_all(void)
 {
     ble_gap_test_suite_wl();
     ble_gap_test_suite_disc();
-    ble_gap_test_suite_conn_dir();
+    ble_gap_test_suite_conn_gen();
     ble_gap_test_suite_conn_cancel();
     ble_gap_test_suite_conn_terminate();
     ble_gap_test_suite_conn_find();
