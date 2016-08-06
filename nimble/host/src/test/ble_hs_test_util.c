@@ -1051,6 +1051,29 @@ ble_hs_test_util_tx_all(void)
 }
 
 void
+ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle, uint16_t offset,
+                                      const void *data, int data_len)
+{
+    struct ble_att_prep_write_cmd req;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+    om = ble_hs_test_util_prev_tx_dequeue();
+    TEST_ASSERT_FATAL(om != NULL);
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) ==
+                BLE_ATT_PREP_WRITE_CMD_BASE_SZ + data_len);
+
+    om = os_mbuf_pullup(om, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    ble_att_prep_write_req_parse(om->om_data, om->om_len, &req);
+    TEST_ASSERT(req.bapc_handle == attr_handle);
+    TEST_ASSERT(req.bapc_offset == offset);
+    TEST_ASSERT(os_mbuf_cmpf(om, BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
+                             data, data_len) == 0);
+}
+
+void
 ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags)
 {
     struct ble_att_exec_write_req req;

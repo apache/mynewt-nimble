@@ -123,6 +123,7 @@ ble_gatt_write_test_rx_exec_rsp(uint16_t conn_handle)
 static void
 ble_gatt_write_test_misc_long_good(int attr_len)
 {
+    uint16_t mtu;
     int off;
     int len;
     int rc;
@@ -132,6 +133,8 @@ ble_gatt_write_test_misc_long_good(int attr_len)
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
+    mtu = ble_att_mtu(2);
+
     rc = ble_hs_test_util_gatt_write_long_flat(
         2, 100, ble_gatt_write_test_attr_value, attr_len,
         ble_gatt_write_test_cb_good, &attr_len);
@@ -139,23 +142,27 @@ ble_gatt_write_test_misc_long_good(int attr_len)
 
     off = 0;
     while (off < attr_len) {
-        /* Send the pending ATT Prep Write Command. */
-        ble_hs_test_util_tx_all();
-
-        /* Receive Prep Write response. */
-        len = BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+        len = mtu - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
         if (off + len > attr_len) {
             len = attr_len - off;
         }
-        ble_gatt_write_test_rx_prep_rsp(2, 100, off,
-                                        ble_gatt_write_test_attr_value + off,
-                                        len);
+
+        /* Send the pending ATT Prep Write Command. */
+        ble_hs_test_util_verify_tx_prep_write(
+            100, off, ble_gatt_write_test_attr_value + off, len);
+
+        /* Receive Prep Write response. */
+        ble_gatt_write_test_rx_prep_rsp(
+            2, 100, off, ble_gatt_write_test_attr_value + off, len);
 
         /* Verify callback hasn't gotten called. */
         TEST_ASSERT(!ble_gatt_write_test_cb_called);
 
         off += len;
     }
+
+    /* Verify execute write request sent. */
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
@@ -172,6 +179,7 @@ static void
 ble_gatt_write_test_misc_long_bad(int attr_len,
                                   ble_gatt_write_test_long_fail_fn *cb)
 {
+    uint16_t mtu;
     int fail_now;
     int off;
     int len;
@@ -181,6 +189,7 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
+    mtu = ble_att_mtu(2);
 
     rc = ble_hs_test_util_gatt_write_long_flat(
         2, 100, ble_gatt_write_test_attr_value, attr_len,
@@ -190,9 +199,14 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
     fail_now = 0;
     off = 0;
     while (off < attr_len) {
+        len = mtu - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+        if (off + len > attr_len) {
+            len = attr_len - off;
+        }
+
         /* Send the pending ATT Prep Write Command. */
-        ble_hs_test_util_tx_all();
-        TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
+        ble_hs_test_util_verify_tx_prep_write(
+            100, off, ble_gatt_write_test_attr_value + off, len);
 
         /* Receive Prep Write response. */
         len = BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
@@ -283,9 +297,13 @@ static void
 ble_gatt_write_test_misc_reliable_good(
     struct ble_hs_test_util_flat_attr *flat_attrs)
 {
+    const struct ble_hs_test_util_flat_attr *attr;
     struct ble_gatt_attr attrs[16];
+    uint16_t mtu;
     int num_attrs;
     int attr_idx;
+    int len;
+    int off;
     int rc;
     int i;
 
@@ -299,23 +317,42 @@ ble_gatt_write_test_misc_reliable_good(
 
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
+    mtu = ble_att_mtu(2);
 
     rc = ble_gattc_write_reliable(2, attrs, num_attrs,
                                   ble_gatt_write_test_reliable_cb_good, NULL);
     TEST_ASSERT(rc == 0);
 
-    for (attr_idx = 0; attr_idx < num_attrs; attr_idx++) {
+    attr_idx = 0;
+    off = 0;
+    while (attr_idx < num_attrs) {
+        attr = flat_attrs + attr_idx;
+
+        len = mtu - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+        if (off + len > attr->value_len) {
+            len = attr->value_len - off;
+        }
+
         /* Send the pending ATT Prep Write Command. */
-        ble_hs_test_util_tx_all();
+        ble_hs_test_util_verify_tx_prep_write(attr->handle, off,
+                                              attr->value + off, len);
 
         /* Receive Prep Write response. */
-        ble_gatt_write_test_rx_prep_rsp(2, flat_attrs[attr_idx].handle, 0,
-                                        flat_attrs[attr_idx].value,
-                                        flat_attrs[attr_idx].value_len);
+        ble_gatt_write_test_rx_prep_rsp(2, attr->handle, off,
+                                        attr->value + off, len);
 
         /* Verify callback hasn't gotten called. */
         TEST_ASSERT(!ble_gatt_write_test_cb_called);
+
+        off += len;
+        if (off >= attr->value_len) {
+            attr_idx++;
+            off = 0;
+        }
     }
+
+    /* Verify execute write request sent. */
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
@@ -506,6 +543,21 @@ TEST_CASE(ble_gatt_write_test_reliable_good)
             .handle = 144,
             .value_len = 1,
             .value = { 0xff },
+        }, {
+            0
+        } }));
+
+    /*** Long attributes. */
+    ble_gatt_write_test_misc_reliable_good(
+        ((struct ble_hs_test_util_flat_attr[]) { {
+            .handle = 100,
+            .value_len = 20,
+            .value = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 },
+        }, {
+            .handle = 144,
+            .value_len = 20,
+            .value = { 11,12,13,14,15,16,17,18,19,110,
+                       111,112,113,114,115,116,117,118,119,120 },
         }, {
             0
         } }));
