@@ -2083,11 +2083,15 @@ TEST_CASE(ble_att_svr_test_prep_write)
         data[i] = i;
     }
 
-    /* Register two attributes. */
+    /* Register two writable attributes. */
     ble_att_svr_test_misc_register_uuid16(0x1234, HA_FLAG_PERM_RW, 1,
                                           ble_att_svr_test_misc_attr_fn_w_1);
     ble_att_svr_test_misc_register_uuid16(0x8989, HA_FLAG_PERM_RW, 2,
                                           ble_att_svr_test_misc_attr_fn_w_2);
+
+    /* Register a third attribute that is not writable. */
+    ble_att_svr_test_misc_register_uuid16(0xabab, BLE_ATT_F_READ, 3,
+                                          ble_att_svr_test_misc_attr_fn_r_1);
 
     /*** Empty write succeeds. */
     ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
@@ -2130,6 +2134,14 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 400, data + 400, 200, 0);
     ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 1);
+    ble_att_svr_test_misc_verify_w_1(NULL, 0);
+
+    /*** Failure due to attribute callback. */
+    ble_att_svr_test_misc_prep_write(conn_handle, 3, 0, data, 35, 0);
+    ble_att_svr_test_misc_prep_write(conn_handle, 3, 35, data + 35, 43, 0);
+    ble_att_svr_test_misc_prep_write(conn_handle, 3, 78, data + 78, 1, 0);
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+                                     BLE_ATT_ERR_WRITE_NOT_PERMITTED, 0);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
     /*** Successful two part write. */
