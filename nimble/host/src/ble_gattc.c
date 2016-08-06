@@ -177,6 +177,7 @@ struct ble_gattc_proc {
         struct {
             struct ble_gatt_attr attr;
             uint16_t length;
+            uint8_t exec_sent:1;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } write_long;
@@ -186,6 +187,7 @@ struct ble_gattc_proc {
             uint8_t num_attrs;
             uint8_t cur_attr;
             uint16_t length;
+            uint8_t exec_sent:1;
             ble_gatt_reliable_attr_fn *cb;
             void *cb_arg;
         } write_reliable;
@@ -3528,6 +3530,12 @@ static int
 ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
 {
     ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    /* Ignore the response if we haven't sent the corresponding request yet. */
+    if (!proc->write_long.exec_sent) {
+        return 0;
+    }
+
     ble_gattc_write_long_cb(proc, status, 0);
     return BLE_HS_EDONE;
 }
