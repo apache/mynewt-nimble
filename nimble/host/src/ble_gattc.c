@@ -177,7 +177,6 @@ struct ble_gattc_proc {
         struct {
             struct ble_gatt_attr attr;
             uint16_t length;
-            uint8_t exec_sent:1;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } write_long;
@@ -187,7 +186,6 @@ struct ble_gattc_proc {
             uint8_t num_attrs;
             uint8_t cur_attr;
             uint16_t length;
-            uint8_t exec_sent:1;
             ble_gatt_reliable_attr_fn *cb;
             void *cb_arg;
         } write_reliable;
@@ -3370,20 +3368,13 @@ ble_gattc_write_long_go(struct ble_gattc_proc *proc, int cb_on_err)
     struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
     struct os_mbuf *om;
+    int write_len;
     int max_sz;
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     om = NULL;
-
-    if (proc->write_long.attr.offset +
-        OS_MBUF_PKTLEN(proc->write_long.attr.om) <= 0) {
-
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
-        rc = ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
-        goto done;
-    }
 
     max_sz = ble_att_mtu(proc->conn_handle) -
              BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
@@ -3393,11 +3384,17 @@ ble_gattc_write_long_go(struct ble_gattc_proc *proc, int cb_on_err)
         goto done;
     }
 
-    proc->write_long.length =
-        min(max_sz,
-            OS_MBUF_PKTLEN(proc->write_long.attr.om) -
-                proc->write_long.attr.offset);
+    write_len = min(max_sz,
+                    OS_MBUF_PKTLEN(proc->write_long.attr.om) -
+                        proc->write_long.attr.offset);
 
+    if (write_len <= 0) {
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        rc = ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
+        goto done;
+    }
+
+    proc->write_long.length = write_len;
     om = ble_hs_mbuf_att_pkt();
     if (om == NULL) {
         rc = BLE_HS_ENOMEM;
@@ -3481,6 +3478,15 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
     }
 
     /* Verify the response. */
+    if (proc->write_long.attr.offset >=
+        OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
+
+        /* Expecting a prepare write response, not an execute write
+         * response.
+         */
+        rc = BLE_HS_EBADDATA;
+        goto err;
+    }
     if (rsp->bapc_handle != proc->write_long.attr.handle) {
         rc = BLE_HS_EBADDATA;
         goto err;
@@ -3531,9 +3537,13 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
 {
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    /* Ignore the response if we haven't sent the corresponding request yet. */
-    if (!proc->write_long.exec_sent) {
-        return 0;
+    if (proc->write_long.attr.offset <
+        OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
+
+        /* Expecting an execute write response, not a prepare write
+         * response.
+         */
+        return BLE_HS_EBADDATA;
     }
 
     ble_gattc_write_long_cb(proc, status, 0);
