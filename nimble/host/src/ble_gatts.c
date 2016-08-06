@@ -1979,6 +1979,23 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
     return 0;
 }
 
+/**
+ * Adjusts a host configuration object's settings to accommodate the specified
+ * service definition array.  This function adds the counts to the appropriate
+ * fields in the supplied configuration object without clearing them first, so
+ * it can be called repeatedly with different inputs to calculate totals.  Be
+ * sure to zero the GATT server settings prior to the first call to this
+ * function.
+ *
+ * @param defs                  The service array containing the resource
+ *                                  definitions to be counted.
+ * @param cfg                   The resource counts are accumulated in this
+ *                                  configuration object.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EINVAL if the svcs array contains an
+ *                                  invalid resource definition.
+ */
 int
 ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,
                     struct ble_hs_cfg *cfg)
