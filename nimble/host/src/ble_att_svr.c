@@ -2342,15 +2342,18 @@ ble_att_svr_prep_write(uint16_t conn_handle,
         ble_att_svr_prep_extract(prep_list, &attr_handle, &om);
 
         attr = ble_att_svr_find_by_handle(attr_handle);
+        *err_handle = attr_handle;
         if (attr == NULL) {
             rc = BLE_ATT_ERR_INVALID_HANDLE;
-            *err_handle = attr_handle;
         } else {
             rc = ble_att_svr_write(conn_handle, attr, 0, &om, &att_err);
-            os_mbuf_free_chain(om);
             if (rc != 0) {
-                return att_err;
+                rc = att_err;
             }
+        }
+        os_mbuf_free_chain(om);
+        if (rc != 0) {
+            return rc;
         }
     }
 
