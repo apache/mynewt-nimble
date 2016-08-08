@@ -2324,6 +2324,7 @@ ble_gap_test_util_conn_forever(void)
 
     /* Advance 100 seconds; ensure no timeout reported. */
     os_time_advance(100 * OS_TICKS_PER_SEC);
+    ble_gap_heartbeat();
     TEST_ASSERT(ble_gap_test_conn_event_type == -1);
     TEST_ASSERT(ble_gap_conn_active());
 }
