@@ -2282,7 +2282,14 @@ TEST_CASE(ble_att_svr_test_indicate)
 
 TEST_SUITE(ble_att_svr_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+    /* When checking for mbuf leaks, ensure no stale prep entries. */
+    static struct ble_hs_test_util_mbuf_params mbuf_params = {
+        .prev_tx = 1,
+        .rx_queue = 1,
+        .prep_list = 0,
+    };
+
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, &mbuf_params);
 
     ble_att_svr_test_mtu();
     ble_att_svr_test_read();
