@@ -802,6 +802,9 @@ ble_hs_test_util_set_our_irk(const uint8_t *irk, int fail_idx,
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
             ble_hs_test_util_exp_hci_status(3, fail_idx, hci_status),
         },
+        {
+            0
+        }
     }));
 
     rc = ble_hs_pvcy_set_our_irk(irk);
