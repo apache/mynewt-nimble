@@ -44,6 +44,12 @@ struct ble_hs_test_util_flat_attr {
     uint16_t value_len;
 };
 
+struct ble_hs_test_util_mbuf_params {
+    unsigned prev_tx:1;
+    unsigned rx_queue:1;
+    unsigned prep_list:1;
+};
+
 void ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue(void);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue_pullup(void);
@@ -160,8 +166,10 @@ int ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
                                           uint16_t attr_handle,
                                           const void *data, uint16_t data_len,
                                           ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_hs_test_util_mbuf_count(void);
-void ble_hs_test_util_assert_mbufs_freed(void);
+int ble_hs_test_util_mbuf_count(
+    const struct ble_hs_test_util_mbuf_params *params);
+void ble_hs_test_util_assert_mbufs_freed(
+    const struct ble_hs_test_util_mbuf_params *params);
 void ble_hs_test_util_post_test(void *arg);
 void ble_hs_test_util_init(void);
 
