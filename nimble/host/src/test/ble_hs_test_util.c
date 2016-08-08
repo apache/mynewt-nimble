@@ -1286,7 +1286,7 @@ ble_hs_test_util_mbuf_chain_len(const struct os_mbuf *om)
 }
 
 int
-ble_hs_test_util_mbuf_count(void)
+ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
 {
     const struct ble_att_prep_entry *prep;
     const struct os_mbuf_pkthdr *omp;
@@ -1296,14 +1296,17 @@ ble_hs_test_util_mbuf_count(void)
     int count;
     int i;
 
-    count = ble_hs_test_util_mbuf_mpool.mp_num_free;
-    count += ble_hs_test_util_mbuf_chain_len(ble_hs_test_util_prev_tx_cur);
-
     ble_hs_process_tx_data_queue();
     ble_hs_process_rx_data_queue();
-    STAILQ_FOREACH(omp, &ble_hs_test_util_prev_tx_queue, omp_next) {
-        om = OS_MBUF_PKTHDR_TO_MBUF(omp);
-        count += ble_hs_test_util_mbuf_chain_len(om);
+
+    count = ble_hs_test_util_mbuf_mpool.mp_num_free;
+
+    if (params->prev_tx) {
+        count += ble_hs_test_util_mbuf_chain_len(ble_hs_test_util_prev_tx_cur);
+        STAILQ_FOREACH(omp, &ble_hs_test_util_prev_tx_queue, omp_next) {
+            om = OS_MBUF_PKTHDR_TO_MBUF(omp);
+            count += ble_hs_test_util_mbuf_chain_len(om);
+        }
     }
 
     ble_hs_lock();
@@ -1313,12 +1316,16 @@ ble_hs_test_util_mbuf_count(void)
             break;
         }
 
-        SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
-            count += ble_hs_test_util_mbuf_chain_len(chan->blc_rx_buf);
+        if (params->rx_queue) {
+            SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
+                count += ble_hs_test_util_mbuf_chain_len(chan->blc_rx_buf);
+            }
         }
 
-        SLIST_FOREACH(prep, &conn->bhc_att_svr.basc_prep_list, bape_next) {
-            count += ble_hs_test_util_mbuf_chain_len(prep->bape_value);
+        if (params->prep_list) {
+            SLIST_FOREACH(prep, &conn->bhc_att_svr.basc_prep_list, bape_next) {
+                count += ble_hs_test_util_mbuf_chain_len(prep->bape_value);
+            }
         }
     }
     ble_hs_unlock();
@@ -1327,18 +1334,29 @@ ble_hs_test_util_mbuf_count(void)
 }
 
 void
-ble_hs_test_util_assert_mbufs_freed(void)
+ble_hs_test_util_assert_mbufs_freed(
+    const struct ble_hs_test_util_mbuf_params *params)
 {
+    static const struct ble_hs_test_util_mbuf_params dflt = {
+        .prev_tx = 1,
+        .rx_queue = 1,
+        .prep_list = 1,
+    };
+
     int count;
 
-    count = ble_hs_test_util_mbuf_count();
+    if (params == NULL) {
+        params = &dflt;
+    }
+
+    count = ble_hs_test_util_mbuf_count(params);
     TEST_ASSERT(count == ble_hs_test_util_mbuf_mpool.mp_num_blocks);
 }
 
 void
 ble_hs_test_util_post_test(void *arg)
 {
-    ble_hs_test_util_assert_mbufs_freed();
+    ble_hs_test_util_assert_mbufs_freed(arg);
 }
 
 static int
