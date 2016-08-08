@@ -319,6 +319,15 @@ ble_att_svr_test_misc_attr_fn_w_2(uint16_t conn_handle, uint16_t attr_handle,
     }
 }
 
+static int
+ble_att_svr_test_misc_attr_fn_w_fail(uint16_t conn_handle,
+                                     uint16_t attr_handle,
+                                     uint8_t op, uint16_t offset,
+                                     struct os_mbuf **om, void *arg)
+{
+    return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+}
+
 static void
 ble_att_svr_test_misc_verify_w_1(void *data, int data_len)
 {
@@ -2071,6 +2080,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
 
 TEST_CASE(ble_att_svr_test_prep_write)
 {
+    struct ble_hs_conn *conn;
     uint16_t conn_handle;
     int i;
 
@@ -2089,9 +2099,22 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_register_uuid16(0x8989, HA_FLAG_PERM_RW, 2,
                                           ble_att_svr_test_misc_attr_fn_w_2);
 
-    /* Register a third attribute that is not writable. */
+    /* 3: not writable. */
     ble_att_svr_test_misc_register_uuid16(0xabab, BLE_ATT_F_READ, 3,
                                           ble_att_svr_test_misc_attr_fn_r_1);
+    /* 4: Encryption required. */
+    ble_att_svr_test_misc_register_uuid16(
+        0xabac, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC, 4,
+        ble_att_svr_test_misc_attr_fn_w_1);
+
+    /* 5: Encryption+authentication required. */
+    ble_att_svr_test_misc_register_uuid16(
+        0xabad, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC | BLE_ATT_F_WRITE_AUTHEN,
+        5, ble_att_svr_test_misc_attr_fn_w_1);
+
+    /* 6: Write callback always fails. */
+    ble_att_svr_test_misc_register_uuid16(
+        0xabae, BLE_ATT_F_WRITE, 6, ble_att_svr_test_misc_attr_fn_w_fail);
 
     /*** Empty write succeeds. */
     ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
@@ -2103,6 +2126,28 @@ TEST_CASE(ble_att_svr_test_prep_write)
     /*** Failure for prep write to nonexistent attribute. */
     ble_att_svr_test_misc_prep_write(conn_handle, 53525, 0, data, 10,
                                      BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Failure due to write-not-permitted. */
+    ble_att_svr_test_misc_prep_write(conn_handle, 3, 0, data, 35,
+                                     BLE_ATT_ERR_WRITE_NOT_PERMITTED);
+
+    /*** Failure due to insufficient authentication (encryption required). */
+    ble_att_svr_test_misc_prep_write(conn_handle, 4, 0, data, 1,
+                                     BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
+
+    /*** Encrypt connection; ensure previous prep write now succeeds. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    conn->bhc_sec_state.encrypted = 1;
+    ble_hs_unlock();
+
+    ble_att_svr_test_misc_prep_write(conn_handle, 4, 0, data, 1, 0);
+    ble_att_svr_test_misc_exec_write(conn_handle, 0, 0, 0);
+
+    /*** Failure due to insufficient authentication (not authenticated). */
+    ble_att_svr_test_misc_prep_write(conn_handle, 5, 0, data, 35,
+                                     BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
     /*** Failure for write starting at nonzero offset. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 1, data, 10, 0);
@@ -2134,14 +2179,6 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 400, data + 400, 200, 0);
     ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 1);
-    ble_att_svr_test_misc_verify_w_1(NULL, 0);
-
-    /*** Failure due to attribute callback. */
-    ble_att_svr_test_misc_prep_write(conn_handle, 3, 0, data, 35, 0);
-    ble_att_svr_test_misc_prep_write(conn_handle, 3, 35, data + 35, 43, 0);
-    ble_att_svr_test_misc_prep_write(conn_handle, 3, 78, data + 78, 1, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
-                                     BLE_ATT_ERR_WRITE_NOT_PERMITTED, 0);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
     /*** Successful two part write. */
@@ -2188,6 +2225,13 @@ TEST_CASE(ble_att_svr_test_prep_write)
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 12);
     ble_att_svr_test_misc_verify_w_2(data, 61);
+
+    /*** Fail due to attribute callback error. */
+    ble_att_svr_test_misc_prep_write(conn_handle, 6, 0, data, 35, 0);
+    ble_att_svr_test_misc_prep_write(conn_handle, 6, 35, data + 35, 43, 0);
+    ble_att_svr_test_misc_prep_write(conn_handle, 6, 78, data + 78, 1, 0);
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+                                     BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 6);
 }
 
 TEST_CASE(ble_att_svr_test_notify)

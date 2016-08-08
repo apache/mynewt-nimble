@@ -237,9 +237,9 @@ ble_att_svr_get_sec_state(uint16_t conn_handle,
 }
 
 static int
-ble_att_svr_check_security(uint16_t conn_handle, int is_read,
-                           struct ble_att_svr_entry *entry,
-                           uint8_t *out_att_err)
+ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
+                        struct ble_att_svr_entry *entry,
+                        uint8_t *out_att_err)
 {
     struct ble_gap_sec_state sec_state;
     int author;
@@ -248,10 +248,20 @@ ble_att_svr_check_security(uint16_t conn_handle, int is_read,
     int rc;
 
     if (is_read) {
+        if (!(entry->ha_flags & BLE_ATT_F_READ)) {
+            *out_att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
+            return BLE_HS_ENOTSUP;
+        }
+
         enc = entry->ha_flags & BLE_ATT_F_READ_ENC;
         authen = entry->ha_flags & BLE_ATT_F_READ_AUTHEN;
         author = entry->ha_flags & BLE_ATT_F_READ_AUTHOR;
     } else {
+        if (!(entry->ha_flags & BLE_ATT_F_WRITE)) {
+            *out_att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+            return BLE_HS_ENOTSUP;
+        }
+
         enc = entry->ha_flags & BLE_ATT_F_WRITE_ENC;
         authen = entry->ha_flags & BLE_ATT_F_WRITE_AUTHEN;
         author = entry->ha_flags & BLE_ATT_F_WRITE_AUTHOR;
@@ -264,6 +274,8 @@ ble_att_svr_check_security(uint16_t conn_handle, int is_read,
 
     rc = ble_att_svr_get_sec_state(conn_handle, &sec_state);
     if (rc != 0) {
+        /* Peer no longer connected. */
+        *out_att_err = 0;
         return rc;
     }
 
@@ -300,13 +312,7 @@ ble_att_svr_read(uint16_t conn_handle,
     att_err = 0;    /* Silence gcc warning. */
 
     if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
-        if (!(entry->ha_flags & BLE_ATT_F_READ)) {
-            att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
-            rc = BLE_HS_ENOTSUP;
-            goto err;
-        }
-
-        rc = ble_att_svr_check_security(conn_handle, 1, entry, &att_err);
+        rc = ble_att_svr_check_perms(conn_handle, 1, entry, &att_err);
         if (rc != 0) {
             goto err;
         }
@@ -448,13 +454,7 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
     if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
-        if (!(entry->ha_flags & BLE_ATT_F_WRITE)) {
-            att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
-            rc = BLE_HS_ENOTSUP;
-            goto done;
-        }
-
-        rc = ble_att_svr_check_security(conn_handle, 0, entry, &att_err);
+        rc = ble_att_svr_check_perms(conn_handle, 0, entry, &att_err);
         if (rc != 0) {
             goto done;
         }
@@ -2341,19 +2341,17 @@ ble_att_svr_prep_write(uint16_t conn_handle,
     while (!SLIST_EMPTY(prep_list)) {
         ble_att_svr_prep_extract(prep_list, &attr_handle, &om);
 
+        /* Attribute existence was verified during prepare-write request
+         * processing.
+         */
         attr = ble_att_svr_find_by_handle(attr_handle);
-        *err_handle = attr_handle;
-        if (attr == NULL) {
-            rc = BLE_ATT_ERR_INVALID_HANDLE;
-        } else {
-            rc = ble_att_svr_write(conn_handle, attr, 0, &om, &att_err);
-            if (rc != 0) {
-                rc = att_err;
-            }
-        }
+        BLE_HS_DBG_ASSERT(attr != NULL);
+
+        rc = ble_att_svr_write(conn_handle, attr, 0, &om, &att_err);
         os_mbuf_free_chain(om);
         if (rc != 0) {
-            return rc;
+            *err_handle = attr_handle;
+            return att_err;
         }
     }
 
@@ -2400,9 +2398,26 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     os_mbuf_adj(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
 
     attr_entry = ble_att_svr_find_by_handle(req.bapc_handle);
+
+    /* A prepare write request gets rejected for the following reasons:
+     * 1. Insufficient authorization.
+     * 2. Insufficient authentication.
+     * 3. Insufficient encryption key size (XXX: Not checked).
+     * 4. Insufficient encryption.
+     * 5. Invalid handle.
+     * 6. Write not permitted.
+     */
+
+    /* <5> */
     if (attr_entry == NULL) {
         rc = BLE_HS_ENOENT;
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        goto done;
+    }
+
+    /* <1>, <2>, <4>, <6> */
+    rc = ble_att_svr_check_perms(conn_handle, 0, attr_entry, &att_err);
+    if (rc != 0) {
         goto done;
     }
 
