@@ -588,6 +588,8 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
             rc = BLE_HS_ENOTCONN;
         } else {
             if (rc == 0) {
+                BLE_HS_DBG_ASSERT(om != NULL);
+
                 ble_att_inc_tx_stat(om->om_data[0]);
                 ble_att_truncate_to_mtu(chan, om);
                 rc = ble_l2cap_tx(conn, chan, om);
@@ -2372,7 +2374,6 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
     uint16_t err_handle;
-    uint8_t *buf;
     uint8_t att_err;
     int rc;
 
@@ -2394,16 +2395,13 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
                     ble_att_prep_write_cmd_log, &req);
     err_handle = req.bapc_handle;
 
-    /* Strip the request base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
-
     attr_entry = ble_att_svr_find_by_handle(req.bapc_handle);
 
     /* A prepare write request gets rejected for the following reasons:
      * 1. Insufficient authorization.
      * 2. Insufficient authentication.
      * 3. Insufficient encryption key size (XXX: Not checked).
-     * 4. Insufficient encryption.
+     * 4. Insufficient encryption (XXX: Not checked).
      * 5. Invalid handle.
      * 6. Write not permitted.
      */
@@ -2447,8 +2445,10 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
         }
 
         /* Append attribute value from request onto prep mbuf. */
-        rc = os_mbuf_appendfrom(prep_entry->bape_value, *rxom, 0,
-                                OS_MBUF_PKTLEN(*rxom));
+        rc = os_mbuf_appendfrom(prep_entry->bape_value, *rxom,
+                                BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
+                                OS_MBUF_PKTLEN(*rxom) -
+                                    BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
         if (rc != 0) {
             att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         }
@@ -2460,27 +2460,12 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
-
-    buf = os_mbuf_extend(txom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
-    if (buf == NULL) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
-    ble_att_prep_write_rsp_write(buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ, &req);
-
-    rc = os_mbuf_appendfrom(txom, *rxom, 0, OS_MBUF_PKTLEN(*rxom));
-    if (rc != 0) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
+    /* Reuse rxom for response.  Response is identical to request except for op
+     * code.
+     */
+    txom = *rxom;
+    *rxom = NULL;
+    txom->om_data[0] = BLE_ATT_OP_PREP_WRITE_RSP;
 
     BLE_ATT_LOG_CMD(1, "prep write rsp", conn_handle,
                     ble_att_prep_write_cmd_log, &req);
