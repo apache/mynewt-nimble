@@ -23,7 +23,7 @@
 #include <errno.h>
 #include "bsp/bsp.h"
 #include "os/os.h"
-#include "bsp/bsp.h"
+#include "util/mem.h"
 #include "hal/hal_gpio.h"
 #include "hal/hal_cputime.h"
 #include "hal/hal_uart.h"
@@ -705,39 +705,25 @@ ble_hci_uart_init(const struct ble_hci_uart_cfg *cfg)
 
     ble_hci_uart_cfg = *cfg;
 
-    ble_hci_uart_evt_buf = malloc(
-        OS_MEMPOOL_BYTES(ble_hci_uart_cfg.num_evt_bufs,
-                         ble_hci_uart_cfg.evt_buf_sz));
-    if (ble_hci_uart_evt_buf == NULL) {
-        rc = BLE_ERR_MEM_CAPACITY;
-        goto err;
-    }
-
     /* Create memory pool of HCI command / event buffers */
-    rc = os_mempool_init(&ble_hci_uart_evt_pool, ble_hci_uart_cfg.num_evt_bufs,
-                         ble_hci_uart_cfg.evt_buf_sz, ble_hci_uart_evt_buf,
-                         "ble_hci_uart_evt_pool");
+    rc = mem_malloc_mempool(&ble_hci_uart_evt_pool,
+                            cfg->num_evt_bufs,
+                            cfg->evt_buf_sz,
+                            "ble_hci_uart_evt_pool",
+                            &ble_hci_uart_evt_buf);
     if (rc != 0) {
-        rc = BLE_ERR_UNSPECIFIED;
-        goto err;
-    }
-
-    ble_hci_uart_pkt_buf = malloc(
-        OS_MEMPOOL_BYTES(ble_hci_uart_cfg.num_evt_bufs,
-        sizeof (struct os_event)));
-    if (ble_hci_uart_pkt_buf == NULL) {
-        rc = BLE_ERR_MEM_CAPACITY;
+        rc = ble_err_from_os(rc);
         goto err;
     }
 
     /* Create memory pool of packet list nodes. */
-    rc = os_mempool_init(&ble_hci_uart_pkt_pool,
-                         ble_hci_uart_cfg.num_evt_bufs,
-                         sizeof (struct ble_hci_uart_pkt),
-                         ble_hci_uart_pkt_buf,
-                         "ble_hci_uart_pkt_pool");
+    rc = mem_malloc_mempool(&ble_hci_uart_pkt_pool,
+                            cfg->num_evt_bufs,
+                            sizeof (struct ble_hci_uart_pkt),
+                            "ble_hci_uart_pkt_pool",
+                            &ble_hci_uart_pkt_buf);
     if (rc != 0) {
-        rc = BLE_ERR_UNSPECIFIED;
+        rc = ble_err_from_os(rc);
         goto err;
     }
 
