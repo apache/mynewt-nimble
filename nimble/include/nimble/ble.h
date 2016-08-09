@@ -227,4 +227,6 @@ enum ble_error_codes
 #define BLE_ADDR_TYPE_RPA_PUB_DEFAULT   (2)
 #define BLE_ADDR_TYPE_RPA_RND_DEFAULT   (3)
 
+int ble_err_from_os(int os_err);
+
 #endif /* H_BLE_ */

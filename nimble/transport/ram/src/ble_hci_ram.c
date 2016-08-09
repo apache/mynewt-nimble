@@ -2,6 +2,8 @@
 #include <errno.h>
 #include <stddef.h>
 #include "os/os.h"
+#include "util/mem.h"
+#include "nimble/ble.h"
 #include "nimble/ble_hci_trans.h"
 #include "transport/ram/ble_hci_ram.h"
 
@@ -191,43 +193,29 @@ ble_hci_ram_init(const struct ble_hci_ram_cfg *cfg)
 
     ble_hci_ram_free_mem();
 
-    if (cfg->num_evt_hi_bufs > 0) {
-        ble_hci_ram_evt_hi_buf = malloc(OS_MEMPOOL_BYTES(cfg->num_evt_hi_bufs,
-                                                         cfg->evt_buf_sz));
-        if (ble_hci_ram_evt_hi_buf == NULL) {
-            rc = ENOMEM;
-            goto err;
-        }
-    }
-
-    rc = os_mempool_init(&ble_hci_ram_evt_hi_pool, cfg->num_evt_hi_bufs,
-                         cfg->evt_buf_sz, ble_hci_ram_evt_hi_buf,
-                         "ble_hci_ram_evt_hi_pool");
+    rc = mem_malloc_mempool(&ble_hci_ram_evt_hi_pool,
+                            cfg->num_evt_hi_bufs,
+                            cfg->evt_buf_sz,
+                            "ble_hci_ram_evt_hi_pool",
+                            &ble_hci_ram_evt_hi_buf);
     if (rc != 0) {
-        rc = EINVAL;
+        rc = ble_err_from_os(rc);
         goto err;
     }
 
-    if (cfg->num_evt_lo_bufs > 0) {
-        ble_hci_ram_evt_lo_buf = malloc(OS_MEMPOOL_BYTES(cfg->num_evt_lo_bufs,
-                                                         cfg->evt_buf_sz));
-        if (ble_hci_ram_evt_lo_buf == NULL) {
-            rc = ENOMEM;
-            goto err;
-        }
-    }
-
-    rc = os_mempool_init(&ble_hci_ram_evt_lo_pool, cfg->num_evt_lo_bufs,
-                         cfg->evt_buf_sz, ble_hci_ram_evt_lo_buf,
-                         "ble_hci_ram_evt_lo_pool");
+    rc = mem_malloc_mempool(&ble_hci_ram_evt_lo_pool,
+                            cfg->num_evt_lo_bufs,
+                            cfg->evt_buf_sz,
+                            "ble_hci_ram_evt_lo_pool",
+                            &ble_hci_ram_evt_lo_buf);
     if (rc != 0) {
-        rc = EINVAL;
+        rc = ble_err_from_os(rc);
         goto err;
     }
 
     ble_hci_ram_hs_cmd_buf = malloc(BLE_HCI_TRANS_CMD_SZ);
     if (ble_hci_ram_hs_cmd_buf == NULL) {
-        rc = ENOMEM;
+        rc = BLE_ERR_MEM_CAPACITY;
         goto err;
     }
 
