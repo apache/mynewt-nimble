@@ -23,7 +23,8 @@
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
-#define BLE_HS_ADV_MAX_FIELD_SZ     (BLE_HCI_MAX_ADV_DATA_LEN - 3)
+/** Max field paylaod size (account for 2-byte header). */
+#define BLE_HS_ADV_MAX_FIELD_SZ     (BLE_HCI_MAX_ADV_DATA_LEN - 2)
 
 static uint16_t ble_hs_adv_uuids16[BLE_HS_ADV_MAX_FIELD_SZ / 2];
 static uint32_t ble_hs_adv_uuids32[BLE_HS_ADV_MAX_FIELD_SZ / 4];
