@@ -2182,8 +2182,10 @@ ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om)
 static void
 ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
 {
-    os_mbuf_free_chain(entry->bape_value);
-    os_memblock_put(&ble_att_svr_prep_entry_pool, entry);
+    if (entry != NULL) {
+        os_mbuf_free_chain(entry->bape_value);
+        os_memblock_put(&ble_att_svr_prep_entry_pool, entry);
+    }
 }
 
 static struct ble_att_prep_entry *
@@ -2360,6 +2362,56 @@ ble_att_svr_prep_write(uint16_t conn_handle,
     return 0;
 }
 
+static int
+ble_att_svr_insert_prep_entry(uint16_t conn_handle,
+                              const struct ble_att_prep_write_cmd *req,
+                              const struct os_mbuf *rxom,
+                              uint8_t *out_att_err)
+{
+    struct ble_att_prep_entry *prep_entry;
+    struct ble_att_prep_entry *prep_prev;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        *out_att_err = 0;
+        return BLE_HS_ENOTCONN;
+    }
+
+    prep_entry = ble_att_svr_prep_alloc();
+    if (prep_entry == NULL) {
+        *out_att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
+        return BLE_HS_ENOMEM;
+    }
+    prep_entry->bape_handle = req->bapc_handle;
+    prep_entry->bape_offset = req->bapc_offset;
+
+    /* Append attribute value from request onto prep mbuf. */
+    rc = os_mbuf_appendfrom(
+        prep_entry->bape_value,
+        rxom,
+        BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
+        OS_MBUF_PKTLEN(rxom) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    if (rc != 0) {
+        ble_att_svr_prep_free(prep_entry);
+        *out_att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
+        return rc;
+    }
+
+    prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr,
+                                           req->bapc_handle,
+                                           req->bapc_offset);
+    if (prep_prev == NULL) {
+        SLIST_INSERT_HEAD(&conn->bhc_att_svr.basc_prep_list, prep_entry,
+                          bape_next);
+    } else {
+        SLIST_INSERT_AFTER(prep_prev, prep_entry, bape_next);
+    }
+
+    return 0;
+}
+
 int
 ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2368,17 +2420,13 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_prep_write_cmd req;
-    struct ble_att_prep_entry *prep_entry;
-    struct ble_att_prep_entry *prep_prev;
     struct ble_att_svr_entry *attr_entry;
-    struct ble_hs_conn *conn;
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
 
     /* Initialize some values in case of early error. */
-    prep_entry = NULL;
     txom = NULL;
     att_err = 0;
     err_handle = 0;
@@ -2419,49 +2467,16 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    prep_entry = ble_att_svr_prep_alloc();
-    if (prep_entry == NULL) {
-        att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
-    prep_entry->bape_handle = req.bapc_handle;
-    prep_entry->bape_offset = req.bapc_offset;
-
     ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr,
-                                               req.bapc_handle,
-                                               req.bapc_offset);
-        if (prep_prev == NULL) {
-            SLIST_INSERT_HEAD(&conn->bhc_att_svr.basc_prep_list, prep_entry,
-                              bape_next);
-        } else {
-            SLIST_INSERT_AFTER(prep_prev, prep_entry, bape_next);
-        }
-
-        /* Append attribute value from request onto prep mbuf. */
-        rc = os_mbuf_appendfrom(prep_entry->bape_value, *rxom,
-                                BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
-                                OS_MBUF_PKTLEN(*rxom) -
-                                    BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
-        if (rc != 0) {
-            att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
-        }
-    }
-
+    rc = ble_att_svr_insert_prep_entry(conn_handle, &req, *rxom, &att_err);
     ble_hs_unlock();
 
     if (rc != 0) {
         goto done;
     }
 
-    /* Reuse rxom for response.  Response is identical to request except for op
-     * code.
+    /* Reuse rxom for response.  Response is identical to request except for
+     * op code.
      */
     txom = *rxom;
     *rxom = NULL;
@@ -2473,32 +2488,8 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = 0;
 
 done:
-    if (rc != 0 && rc != BLE_HS_ENOTCONN) {
-        ble_hs_lock();
-
-        conn = ble_hs_conn_find(conn_handle);
-        if (conn == NULL) {
-            rc = BLE_HS_ENOTCONN;
-        } else {
-            if (prep_entry != NULL) {
-                if (prep_prev == NULL) {
-                    SLIST_REMOVE_HEAD(&conn->bhc_att_svr.basc_prep_list,
-                                      bape_next);
-                } else {
-                    SLIST_NEXT(prep_prev, bape_next) =
-                        SLIST_NEXT(prep_entry, bape_next);
-                }
-
-                ble_att_svr_prep_free(prep_entry);
-            }
-        }
-
-        ble_hs_unlock();
-    }
-
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_PREP_WRITE_REQ,
                             att_err, err_handle);
-
     return rc;
 }
 
