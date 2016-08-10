@@ -494,24 +494,7 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
     }
 }
 
-int
-ble_sm_peer_addr(struct ble_sm_proc *proc,
-                 uint8_t *out_type, uint8_t **out_addr)
-{
-    struct ble_hs_conn *conn;
-
-    conn = ble_hs_conn_find(proc->conn_handle);
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
-
-    *out_type = conn->bhc_peer_addr_type;
-    *out_addr = conn->bhc_peer_addr;
-
-    return 0;
-}
-
-int
+void
 ble_sm_ia_ra(struct ble_sm_proc *proc,
              uint8_t *out_iat, uint8_t *out_ia,
              uint8_t *out_rat, uint8_t *out_ra)
@@ -519,10 +502,7 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
     struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
 
-    conn = ble_hs_conn_find(proc->conn_handle);
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
+    conn = ble_hs_conn_find_assert(proc->conn_handle);
 
     ble_hs_conn_addrs(conn, &addrs);
 
@@ -539,8 +519,6 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
         *out_rat = addrs.our_id_addr_type;
         memcpy(out_ra, addrs.our_ota_addr, 6);
     }
-
-    return 0;
 }
 
 static void
@@ -765,13 +743,16 @@ ble_sm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg)
 {
     ble_sm_state_fn *cb;
 
-    BLE_HS_DBG_ASSERT(proc->state < BLE_SM_PROC_STATE_CNT);
-    cb = ble_sm_state_dispatch[proc->state];
-    BLE_HS_DBG_ASSERT(cb != NULL);
-
     memset(res, 0, sizeof *res);
 
-    cb(proc, res, arg);
+    if (!ble_hs_conn_exists(proc->conn_handle)) {
+        res->app_status = BLE_HS_ENOTCONN;
+    } else {
+        BLE_HS_DBG_ASSERT(proc->state < BLE_SM_PROC_STATE_CNT);
+        cb = ble_sm_state_dispatch[proc->state];
+        BLE_HS_DBG_ASSERT(cb != NULL);
+        cb(proc, res, arg);
+    }
 }
 
 void
@@ -1208,13 +1189,9 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     }
 
     if (restore) {
-        conn = ble_hs_conn_find(evt->connection_handle);
-        if (conn == NULL) {
-            res.app_status = BLE_HS_ENOTCONN;
-        } else {
-            ble_hs_conn_addrs(conn, &addrs);
-            memcpy(peer_id_addr, addrs.peer_id_addr, 6);
-        }
+        conn = ble_hs_conn_find_assert(evt->connection_handle);
+        ble_hs_conn_addrs(conn, &addrs);
+        memcpy(peer_id_addr, addrs.peer_id_addr, 6);
     }
 
     ble_hs_unlock();
@@ -1526,11 +1503,8 @@ ble_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
         proc->pair_req = req;
 
-        conn = ble_hs_conn_find(proc->conn_handle);
-        if (conn == NULL) {
-            res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-            res->app_status = BLE_HS_ENOTCONN;
-        } else if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
+        conn = ble_hs_conn_find_assert(proc->conn_handle);
+        if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
             res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
         } else if (!ble_sm_pair_cmd_is_valid(&req)) {
@@ -1630,10 +1604,8 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
 
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        res->app_status = BLE_HS_ENOTCONN;
-    } else if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+    conn = ble_hs_conn_find_assert(conn_handle);
+    if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
         res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
         res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
     } else {
@@ -1769,11 +1741,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         proc->our_keys.irk_valid = 1;
 
         /* Send identity address information. */
-        conn = ble_hs_conn_find(proc->conn_handle);
-        if (conn == NULL) {
-            rc = BLE_HS_ENOTCONN;
-            goto err;
-        }
+        conn = ble_hs_conn_find_assert(proc->conn_handle);
 
         ble_hs_conn_addrs(conn, &addrs);
         addr_info.addr_type = addrs.our_id_addr_type;

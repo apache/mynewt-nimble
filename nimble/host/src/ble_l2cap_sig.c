@@ -338,18 +338,16 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 
     /* Send L2CAP response. */
     ble_hs_lock();
-    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                         &conn, &chan);
-    if (rc == 0) {
-        if (!sig_err) {
-            rc = ble_l2cap_sig_update_rsp_tx(conn, chan, hdr->identifier,
-                                             l2cap_result);
-        } else {
-            ble_l2cap_sig_reject_tx(conn, chan, hdr->identifier,
-                                    BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
-                                    NULL, 0);
-            rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
-        }
+    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                    &conn, &chan);
+    if (!sig_err) {
+        rc = ble_l2cap_sig_update_rsp_tx(conn, chan, hdr->identifier,
+                                         l2cap_result);
+    } else {
+        ble_l2cap_sig_reject_tx(conn, chan, hdr->identifier,
+                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
+                                NULL, 0);
+        rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
     }
     ble_hs_unlock();
 
@@ -421,11 +419,8 @@ ble_l2cap_sig_update(uint16_t conn_handle,
 
     ble_hs_lock();
 
-    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                         &conn, &chan);
-    if (rc != 0) {
-        goto done;
-    }
+    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                    &conn, &chan);
     if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
         /* Only the slave can initiate the L2CAP connection update
          * procedure.
@@ -499,16 +494,12 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
         ble_hs_lock();
-        rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                             &conn, &chan);
-        if (rc == 0) {
-            ble_l2cap_sig_reject_tx(conn, chan, hdr.identifier,
-                                    BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
-                                    NULL, 0);
-            rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
-        } else {
-            rc = BLE_HS_ENOTCONN;
-        }
+        ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                        &conn, &chan);
+        ble_l2cap_sig_reject_tx(conn, chan, hdr.identifier,
+                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
+                                NULL, 0);
+        rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
         ble_hs_unlock();
     } else {
         rc = rx_cb(conn_handle, &hdr, om);

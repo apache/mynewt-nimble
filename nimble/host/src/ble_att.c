@@ -143,15 +143,12 @@ ble_att_rx_dispatch_entry_find(uint8_t op)
     return NULL;
 }
 
-int
+void
 ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                        struct ble_l2cap_chan **out_chan)
 {
-    int rc;
-
-    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT,
-                                         out_conn, out_chan);
-    return rc;
+    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT,
+                                    out_conn, out_chan);
 }
 
 void

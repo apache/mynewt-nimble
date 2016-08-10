@@ -1042,15 +1042,9 @@ ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
     ble_gattc_log_proc_init("exchange mtu\n");
 
     ble_hs_lock();
-    rc = ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
-    if (rc == 0) {
-        req.bamc_mtu = chan->blc_my_mtu;
-    }
+    ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
+    req.bamc_mtu = chan->blc_my_mtu;
     ble_hs_unlock();
-
-    if (rc != 0) {
-        goto done;
-    }
 
     rc = ble_att_clt_tx_mtu(proc->conn_handle, &req);
     if (rc != 0) {
