@@ -216,24 +216,18 @@ ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
     return rc;
 }
 
-static int
+static void
 ble_att_svr_get_sec_state(uint16_t conn_handle,
                           struct ble_gap_sec_state *out_sec_state)
 {
     struct ble_hs_conn *conn;
 
     ble_hs_lock();
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn != NULL) {
-        *out_sec_state = conn->bhc_sec_state;
-    }
-    ble_hs_unlock();
 
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    } else {
-        return 0;
-    }
+    conn = ble_hs_conn_find_assert(conn_handle);
+    *out_sec_state = conn->bhc_sec_state;
+
+    ble_hs_unlock();
 }
 
 static int
@@ -245,7 +239,6 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     int author;
     int authen;
     int enc;
-    int rc;
 
     if (is_read) {
         if (!(entry->ha_flags & BLE_ATT_F_READ)) {
@@ -272,13 +265,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
         return 0;
     }
 
-    rc = ble_att_svr_get_sec_state(conn_handle, &sec_state);
-    if (rc != 0) {
-        /* Peer no longer connected. */
-        *out_att_err = 0;
-        return rc;
-    }
-
+    ble_att_svr_get_sec_state(conn_handle, &sec_state);
     if (enc && !sec_state.encrypted) {
         /* XXX: Check security database; if required key present, respond with
          * insufficient encryption error code.
@@ -542,10 +529,10 @@ err:
 /**
  * Transmits a response or error message over the specified connection.
  *
- * The specified rc value controls what gets sent as follows:
+ * The specified rc and err_status values control what gets sent as follows:
  *     o If rc == 0: tx an affirmative response.
- *     o If rc == BLE_HS_ENOTCONN: tx nothing.
- *     o Else: tx an error response.
+ *     o Else if err_status != 0: tx an error response.
+ *     o Else: tx nothing.
  *
  * In addition, if transmission of an affirmative response fails, an error is
  * sent instead.
@@ -570,10 +557,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
     struct ble_hs_conn *conn;
     int do_tx;
 
-    if (rc == BLE_HS_ENOTCONN) {
-        /* No connection; tx is not possible. */
-        do_tx = 0;
-    } else if (rc != 0 && err_status == 0) {
+    if (rc != 0 && err_status == 0) {
         /* Processing failed, but err_status of 0 means don't send error. */
         do_tx = 0;
     } else {
@@ -584,35 +568,33 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
         ble_hs_lock();
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
-        if (chan == NULL) {
-            rc = BLE_HS_ENOTCONN;
-        } else {
-            if (rc == 0) {
-                BLE_HS_DBG_ASSERT(om != NULL);
+        BLE_HS_DBG_ASSERT(chan != NULL);
 
-                ble_att_inc_tx_stat(om->om_data[0]);
-                ble_att_truncate_to_mtu(chan, om);
-                rc = ble_l2cap_tx(conn, chan, om);
-                om = NULL;
-                if (rc != 0) {
-                    err_status = BLE_ATT_ERR_UNLIKELY;
-                }
-            }
+        if (rc == 0) {
+            BLE_HS_DBG_ASSERT(om != NULL);
 
+            ble_att_inc_tx_stat(om->om_data[0]);
+            ble_att_truncate_to_mtu(chan, om);
+            rc = ble_l2cap_tx(conn, chan, om);
+            om = NULL;
             if (rc != 0) {
-                STATS_INC(ble_att_stats, error_rsp_tx);
+                err_status = BLE_ATT_ERR_UNLIKELY;
+            }
+        }
 
-                /* Reuse om for error response. */
-                if (om == NULL) {
-                    om = ble_hs_mbuf_l2cap_pkt();
-                } else {
-                    os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
-                }
-                if (om != NULL) {
-                    ble_att_svr_tx_error_rsp(conn, chan, om, att_op,
-                                             err_handle, err_status);
-                    om = NULL;
-                }
+        if (rc != 0) {
+            STATS_INC(ble_att_stats, error_rsp_tx);
+
+            /* Reuse om for error response. */
+            if (om == NULL) {
+                om = ble_hs_mbuf_l2cap_pkt();
+            } else {
+                os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
+            }
+            if (om != NULL) {
+                ble_att_svr_tx_error_rsp(conn, chan, om, att_op,
+                                         err_handle, err_status);
+                om = NULL;
             }
         }
 
@@ -640,15 +622,9 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
     txom = NULL;
 
     ble_hs_lock();
-    rc = ble_att_conn_chan_find(conn_handle, NULL, &chan);
-    if (rc == 0) {
-        mtu = chan->blc_my_mtu;
-    }
+    ble_att_conn_chan_find(conn_handle, NULL, &chan);
+    mtu = chan->blc_my_mtu;
     ble_hs_unlock();
-
-    if (rc != 0) {
-        goto done;
-    }
 
     txom = ble_hs_mbuf_l2cap_pkt();
     if (txom == NULL) {
@@ -708,11 +684,11 @@ done:
                             att_err, 0);
     if (rc == 0) {
         ble_hs_lock();
+
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
-        if (chan != NULL) {
-            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-            chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
-        }
+        ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
+        chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+
         ble_hs_unlock();
     }
     return rc;
@@ -830,10 +806,6 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     txom = NULL;
 
     mtu = ble_att_mtu(conn_handle);
-    if (mtu == 0) {
-        rc = BLE_HS_ENOTCONN;
-        goto done;
-    }
 
     txom = ble_hs_mbuf_l2cap_pkt();
     if (txom == NULL) {
@@ -1170,10 +1142,6 @@ ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
 
     /* Write the variable length Information Data field. */
     mtu = ble_att_mtu(conn_handle);
-    if (mtu == 0) {
-        rc = BLE_HS_ENOTCONN;
-        goto done;
-    }
 
     rc = ble_att_svr_fill_type_value(conn_handle, req, rxom, txom, mtu,
                                      out_att_err);
@@ -1274,9 +1242,6 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     prev_attr_len = 0;
 
     mtu = ble_att_mtu(conn_handle);
-    if (mtu == 0) {
-        return BLE_HS_ENOTCONN;
-    }
 
     txom = ble_hs_mbuf_l2cap_pkt();
     if (txom == NULL) {
@@ -1519,7 +1484,6 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_read_blob_req req;
     struct os_mbuf *txom;
     uint16_t err_handle;
-    uint16_t mtu;
     uint8_t *dptr;
     uint8_t att_err;
     int rc;
@@ -1528,12 +1492,6 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     txom = NULL;
     att_err = 0;
     err_handle = 0;
-
-    mtu = ble_att_mtu(conn_handle);
-    if (mtu == 0) {
-        rc = BLE_HS_ENOTCONN;
-        goto done;
-    }
 
     rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_READ_BLOB_REQ_SZ, &att_err);
     if (rc != 0) {
@@ -1590,13 +1548,7 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
     uint8_t *dptr;
     int rc;
 
-    txom = NULL;
-
     mtu = ble_att_mtu(conn_handle);
-    if (mtu == 0) {
-        rc = BLE_HS_ENOTCONN;
-        goto done;
-    }
 
     txom = ble_hs_mbuf_l2cap_pkt();
     if (txom == NULL) {
@@ -1801,13 +1753,7 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
     *att_err = 0;
     *err_handle = req->bagq_start_handle;
 
-    txom = NULL;
-
     mtu = ble_att_mtu(conn_handle);
-    if (mtu == 0) {
-        rc = BLE_HS_ENOTCONN;
-        goto done;
-    }
 
     txom = ble_hs_mbuf_l2cap_pkt();
     if (txom == NULL) {
@@ -2373,11 +2319,7 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
     struct ble_hs_conn *conn;
     int rc;
 
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        *out_att_err = 0;
-        return BLE_HS_ENOTCONN;
-    }
+    conn = ble_hs_conn_find_assert(conn_handle);
 
     prep_entry = ble_att_svr_prep_alloc();
     if (prep_entry == NULL) {
@@ -2566,33 +2508,28 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 done:
     if (rc == 0) {
         ble_hs_lock();
-        conn = ble_hs_conn_find(conn_handle);
-        if (conn == NULL) {
-            rc = BLE_HS_ENOTCONN;
-        } else {
-            /* Extract the list of prepared writes from the connection so
-             * that they can be processed after the mutex is unlocked.  They
-             * aren't processed now because attribute writes involve executing
-             * an application callback.
-             */
-            prep_list = conn->bhc_att_svr.basc_prep_list;
-            SLIST_INIT(&conn->bhc_att_svr.basc_prep_list);
-        }
+        conn = ble_hs_conn_find_assert(conn_handle);
+
+        /* Extract the list of prepared writes from the connection so
+         * that they can be processed after the mutex is unlocked.  They
+         * aren't processed now because attribute writes involve executing
+         * an application callback.
+         */
+        prep_list = conn->bhc_att_svr.basc_prep_list;
+        SLIST_INIT(&conn->bhc_att_svr.basc_prep_list);
         ble_hs_unlock();
 
-        if (conn != NULL) {
-            if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
-                /* Perform attribute writes. */
-                att_err = ble_att_svr_prep_write(conn_handle, &prep_list,
-                                                 &err_handle);
-                if (att_err != 0) {
-                    rc = BLE_HS_EAPP;
-                }
+        if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
+            /* Perform attribute writes. */
+            att_err = ble_att_svr_prep_write(conn_handle, &prep_list,
+                                             &err_handle);
+            if (att_err != 0) {
+                rc = BLE_HS_EAPP;
             }
-
-            /* Free the prep entries. */
-            ble_att_svr_prep_clear(&prep_list);
         }
+
+        /* Free the prep entries. */
+        ble_att_svr_prep_clear(&prep_list);
     }
 
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_EXEC_WRITE_REQ,

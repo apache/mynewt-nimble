@@ -158,8 +158,8 @@ SLIST_HEAD(ble_att_clt_entry_list, ble_att_clt_entry);
 /*** @gen */
 
 struct ble_l2cap_chan *ble_att_create_chan(void);
-int ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
-                           struct ble_l2cap_chan **out_chan);
+void ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
+                            struct ble_l2cap_chan **out_chan);
 void ble_att_inc_tx_stat(uint8_t att_op);
 void ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
                              struct os_mbuf *txom);
