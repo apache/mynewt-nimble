@@ -9,9 +9,11 @@
 
 /** Default configuration. */
 const struct ble_hci_ram_cfg ble_hci_ram_cfg_dflt = {
-    .num_evt_hi_bufs = 1,
-    .num_evt_lo_bufs = 2,
-    .evt_buf_sz = BLE_HCI_TRANS_CMD_SZ,
+    .num_evt_hi_bufs = 2,
+    .num_evt_lo_bufs = 12,
+
+    /* The largest event the nimble controller will send is 45 bytes. */
+    .evt_buf_sz = 45,
 };
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_ram_rx_cmd_hs_cb;

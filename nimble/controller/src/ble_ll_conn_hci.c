@@ -203,22 +203,25 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
     }
 }
 
+
 /**
  * Called to create and send the number of completed packets event to the
  * host.
  *
- * Because of the ridiculous spec, all the connection handles are contiguous and
- * then all the completed packets are contiguous. In order to avoid multiple
- * passes through the connection list or allocating a large stack variable or
- * malloc, I just use the event buffer and place the completed packets after
- * the last possible handle. I then copy the completed packets to make it
- * contiguous with the handles.
- *
- * @param connsm
+ * Because of the ridiculous spec, all the connection handles are contiguous
+ * and then all the completed packets are contiguous. In order to avoid
+ * multiple passes through the connection list or allocating a large stack
+ * variable or malloc, I just use the event buffer and place the completed
+ * packets after the last possible handle. I then copy the completed packets
+ * to make it contiguous with the handles.
  */
 void
 ble_ll_conn_num_comp_pkts_event_send(void)
 {
+    /** The maximum number of handles that will fit in an event buffer. */
+    static const int max_handles =
+        (BLE_LL_MAX_EVT_LEN - BLE_HCI_EVENT_HDR_LEN - 1) / 4;
+
     int event_sent;
     uint8_t *evbuf;
     uint8_t *handle_ptr;
@@ -253,7 +256,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
                 }
                 handles = 0;
                 handle_ptr = evbuf + 3;
-                comp_pkt_ptr = handle_ptr + (sizeof(uint16_t) * 60);
+                comp_pkt_ptr = handle_ptr + (sizeof(uint16_t) * max_handles);
             }
 
             /* Add handle and complete packets */
@@ -264,11 +267,8 @@ ble_ll_conn_num_comp_pkts_event_send(void)
             comp_pkt_ptr += sizeof(uint16_t);
             ++handles;
 
-            /*
-             * The event buffer should fit at least 255 bytes so this means we
-             * can fit up to 60 handles per event (a little more but who cares).
-             */
-            if (handles == 60) {
+            /* Send now if the buffer is full. */
+            if (handles == max_handles) {
                 evbuf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
                 evbuf[1] = (handles * 2 * sizeof(uint16_t)) + 1;
                 evbuf[2] = handles;
@@ -285,9 +285,9 @@ ble_ll_conn_num_comp_pkts_event_send(void)
         evbuf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
         evbuf[1] = (handles * 2 * sizeof(uint16_t)) + 1;
         evbuf[2] = handles;
-        if (handles < 60) {
+        if (handles < max_handles) {
             /* Make the pkt counts contiguous with handles */
-            memmove(handle_ptr, evbuf + 3 + (60 * 2), handles * 2);
+            memmove(handle_ptr, evbuf + 3 + (max_handles * 2), handles * 2);
         }
         ble_ll_hci_event_send(evbuf);
         event_sent = 1;
