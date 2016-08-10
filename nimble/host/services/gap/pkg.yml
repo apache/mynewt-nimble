@@ -17,15 +17,15 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/profiles/lls
-pkg.description: Link Loss Service adopted specification.
+pkg.name: net/nimble/host/services/gap
+pkg.description: Implements the GAP Service. 
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
-    - ble 
+    - ble
     - bluetooth
-    - lls
-    - nimble 
+    - nimble
+    - gap
 
 pkg.deps:
     - net/nimble/host

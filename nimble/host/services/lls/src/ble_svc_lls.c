@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "host/ble_hs.h"
-#include "profiles/lls/ble_svc_lls.h"
+#include "services/lls/ble_svc_lls.h"
 
 /* Callback function */
 static ble_svc_lls_event_fn *cb_fn; 
