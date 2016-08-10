@@ -95,26 +95,12 @@ typedef void ble_hs_sync_fn(void);
 
 struct ble_hs_cfg {
     /**
-     * An HCI buffer is a "flat" 260-byte buffer.  HCI buffers are used by the
-     * controller to send unsolicited events to the host.
-     *
-     * HCI buffers can get tied up when the controller sends lots of
-     * asynchronous / unsolicited events (i.e., non-acks).  When the controller
-     * needs to send one of these events, it allocates an HCI buffer, fills it
-     * with the event payload, and puts it on a host queue.  If the controller
-     * sends a quick burst of these events, the buffer pool may be exhausted,
-     * preventing the host from sending an HCI command to the controller.
-     *
      * Every time the controller sends a non-ack HCI event to the host, it also
      * allocates an OS event (it is unfortunate that these are both called
      * "events").  The OS event is put on the host-parent-task's event queue;
      * it is what wakes up the host-parent-task and indicates that an HCI event
-     * needs to be processsed.  The pool of OS events is allocated with the
-     * same number of elements as the HCI buffer pool.
-     */
-    /* XXX: This should either be renamed to indicate it is only used for OS
-     * events, or it should go away entirely (copy the number from the
-     * transport's config).
+     * needs to be processsed.  This setting should be equal to the total
+     * number of HCI event buffers that the transport is configured to use.
      */
     uint8_t max_hci_bufs;
 

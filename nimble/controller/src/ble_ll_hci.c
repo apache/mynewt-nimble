@@ -64,6 +64,8 @@ ble_ll_hci_event_send(uint8_t *evbuf)
 {
     int rc;
 
+    assert(BLE_HCI_EVENT_HDR_LEN + evbuf[1] <= BLE_LL_MAX_EVT_LEN);
+
     /* Count number of events sent */
     STATS_INC(ble_ll_stats, hci_events_sent);
 
