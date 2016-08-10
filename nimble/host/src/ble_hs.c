@@ -373,6 +373,7 @@ ble_hs_event_handle(void *unused)
         case BLE_HS_EVENT_TX_NOTIFICATIONS:
             BLE_HS_DBG_ASSERT(ev == &ble_hs_event_tx_notifications);
             ble_gatts_tx_notifications();
+            break;
 
         case OS_EVENT_T_MQUEUE_DATA:
             ble_hs_process_tx_data_queue();
