@@ -22,6 +22,9 @@
 
 #include <inttypes.h>
 
+/** Max field payload size (account for 2-byte header). */
+#define BLE_HS_ADV_MAX_FIELD_SZ     (BLE_HCI_MAX_ADV_DATA_LEN - 2)
+
 struct ble_hs_adv_fields {
     /*** 0x01 - Flags. */
     uint8_t flags;
