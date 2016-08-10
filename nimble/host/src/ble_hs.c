@@ -406,7 +406,7 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
 
     ev = os_memblock_get(&ble_hs_hci_ev_pool);
     if (ev == NULL) {
-        ble_hci_trans_buf_free(ev->ev_arg);
+        ble_hci_trans_buf_free(hci_evt);
     } else {
         ev->ev_queued = 0;
         ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
