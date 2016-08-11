@@ -1133,6 +1133,45 @@ ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data, int attr_len)
 }
 
 void
+ble_hs_test_util_verify_tx_write_rsp(void)
+{
+    struct os_mbuf *om;
+    uint8_t u8;
+    int rc;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, 1, &u8);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(u8 == BLE_ATT_OP_WRITE_RSP);
+}
+
+void
+ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
+                                   uint8_t error_code)
+{
+    struct ble_att_error_rsp rsp;
+    struct os_mbuf *om;
+    uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
+    int rc;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_att_error_rsp_parse(buf, sizeof buf, &rsp);
+
+    TEST_ASSERT(rsp.baep_req_op == req_op);
+    TEST_ASSERT(rsp.baep_handle == handle);
+    TEST_ASSERT(rsp.baep_error_code == error_code);
+}
+
+void
 ble_hs_test_util_set_static_rnd_addr(void)
 {
     uint8_t addr[6] = { 1, 2, 3, 4, 5, 0xc1 };

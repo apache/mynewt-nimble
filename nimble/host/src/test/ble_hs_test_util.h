@@ -142,6 +142,9 @@ void ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags);
 void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
 void ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data,
                                               int attr_len);
+void ble_hs_test_util_verify_tx_write_rsp(void);
+void ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
+                                        uint8_t error_code);
 void ble_hs_test_util_set_static_rnd_addr(void);
 struct os_mbuf *ble_hs_test_util_om_from_flat(const void *buf, uint16_t len);
 int ble_hs_test_util_flat_attr_cmp(const struct ble_hs_test_util_flat_attr *a,
