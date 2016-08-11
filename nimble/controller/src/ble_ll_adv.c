@@ -121,6 +121,23 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm;
 
 
 #if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+/**
+ * Called to change advertisers ADVA and INITA (for directed advertisements)
+ * as an advertiser needs to adhere to the resolvable private address generation
+ * timer.
+ *
+ * NOTE: the resolvable private address code uses its own timer to regenerate
+ * local resolvable private addresses. The advertising code uses its own
+ * timer to reset the INITA (for directed advertisements). This code also sets
+ * the appropriate txadd and rxadd bits that will go into the advertisement.
+ *
+ * Another thing to note: it is possible that an IRK is all zeroes in the
+ * resolving list. That is why we need to check if the generated address is
+ * in fact a RPA as a resolving list entry with all zeroes will use the
+ * identity address (which may be a private address or public).
+ *
+ * @param advsm
+ */
 void
 ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 {

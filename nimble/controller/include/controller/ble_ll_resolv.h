@@ -23,15 +23,18 @@
 /*
  * An entry in the resolving list.
  *      The identity address is stored in little endian format.
+ *      The local rpa is stored in little endian format.
  *      The IRKs are stored in big endian format.
  */
 struct ble_ll_resolv_entry
 {
-    uint8_t rl_reserved;
     uint8_t rl_addr_type;
-    uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
+    uint8_t rl_local_rpa_set;
+    uint16_t rl_reserved;
     uint8_t rl_local_irk[16];
     uint8_t rl_peer_irk[16];
+    uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
+    uint8_t rl_local_rpa[BLE_DEV_ADDR_LEN];
 };
 
 extern struct ble_ll_resolv_entry g_ble_ll_resolv_list[];
