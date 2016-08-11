@@ -25,7 +25,7 @@
 extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 
 /* The largest event the controller will send. */
-#define BLE_LL_MAX_EVT_LEN  (45)
+#define BLE_LL_MAX_EVT_LEN  (70)
 
 /*
  * This determines the number of outstanding commands allowed from the
