@@ -12,7 +12,7 @@ const struct ble_hci_ram_cfg ble_hci_ram_cfg_dflt = {
     .num_evt_hi_bufs = 2,
     .num_evt_lo_bufs = 8,
 
-    /* The largest event the nimble controller will send is 45 bytes. */
+    /* The largest event the nimble controller will send is 70 bytes. */
     .evt_buf_sz = 70,
 };
 
