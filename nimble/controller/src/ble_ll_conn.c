@@ -1904,6 +1904,7 @@ ble_ll_conn_event_end(void *arg)
      * The way this works is that whenever the timer expires it just gets reset
      * and we send the autheticated payload timeout event. Note that this timer
      * should run even when encryption is paused.
+     * XXX: what should be here? Was there code here that got deleted?
      */
 #endif
 

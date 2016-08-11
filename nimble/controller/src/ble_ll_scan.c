@@ -448,7 +448,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                  * are 2 greater than the unresolved ones in the spec, so
                  * we just add 2 here.
                  */
-                addr_type += 2;
+                addr_type = g_ble_ll_resolv_list[index].rl_addr_type + 2;
             } else{
                 adv_addr = rxbuf;
             }
