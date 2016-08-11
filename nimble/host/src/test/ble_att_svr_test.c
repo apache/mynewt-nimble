@@ -343,29 +343,6 @@ ble_att_svr_test_misc_verify_w_2(void *data, int data_len)
 }
 
 static void
-ble_att_svr_test_misc_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
-                                        uint8_t error_code)
-{
-    struct ble_att_error_rsp rsp;
-    struct os_mbuf *om;
-    uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
-    int rc;
-
-    ble_hs_test_util_tx_all();
-
-    om = ble_hs_test_util_prev_tx_dequeue();
-
-    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
-    TEST_ASSERT(rc == 0);
-
-    ble_att_error_rsp_parse(buf, sizeof buf, &rsp);
-
-    TEST_ASSERT(rsp.baep_req_op == req_op);
-    TEST_ASSERT(rsp.baep_handle == handle);
-    TEST_ASSERT(rsp.baep_error_code == error_code);
-}
-
-static void
 ble_att_svr_test_misc_verify_tx_read_blob_rsp(uint8_t *attr_data, int attr_len)
 {
     struct os_mbuf *om;
@@ -479,23 +456,6 @@ ble_att_svr_test_misc_verify_all_read_mult(
     ble_att_svr_test_misc_rx_read_mult_req(conn_handle, handles, num_attrs, 1);
     ble_att_svr_test_misc_verify_tx_read_mult_rsp(conn_handle,
                                                   attrs, num_attrs);
-}
-
-
-static void
-ble_att_svr_test_misc_verify_tx_write_rsp(void)
-{
-    struct os_mbuf *om;
-    uint8_t u8;
-    int rc;
-
-    ble_hs_test_util_tx_all();
-
-    om = ble_hs_test_util_prev_tx_dequeue();
-
-    rc = os_mbuf_copydata(om, 0, 1, &u8);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(u8 == BLE_ATT_OP_WRITE_RSP);
 }
 
 static void
@@ -845,7 +805,7 @@ ble_att_svr_test_misc_prep_write(uint16_t conn_handle, uint16_t attr_handle,
                                                        data, data_len);
     } else {
         TEST_ASSERT(rc != 0);
-        ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_PREP_WRITE_REQ,
+        ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_PREP_WRITE_REQ,
                                                 attr_handle, error_code);
     }
 }
@@ -869,7 +829,7 @@ ble_att_svr_test_misc_exec_write(uint16_t conn_handle, uint8_t flags,
         ble_att_svr_test_misc_verify_tx_exec_write_rsp();
     } else {
         TEST_ASSERT(rc != 0);
-        ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_EXEC_WRITE_REQ,
+        ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_EXEC_WRITE_REQ,
                                                 error_handle, error_code);
     }
 }
@@ -1022,7 +982,7 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, 0,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, 0,
                                             BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful read. */
@@ -1066,7 +1026,7 @@ TEST_CASE(ble_att_svr_test_read)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ,
                                             req.barq_handle,
                                             BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
@@ -1114,7 +1074,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_BLOB_REQ, 0,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_BLOB_REQ, 0,
                                             BLE_ATT_ERR_INVALID_HANDLE);
 
 
@@ -1198,7 +1158,7 @@ TEST_CASE(ble_att_svr_test_read_mult)
     /*** Single nonexistent attribute. */
     ble_att_svr_test_misc_rx_read_mult_req(
         conn_handle, ((uint16_t[]){ 100 }), 1, 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_MULT_REQ,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_MULT_REQ,
                                             100, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Single attribute. */
@@ -1213,7 +1173,7 @@ TEST_CASE(ble_att_svr_test_read_mult)
     /*** Second attribute nonexistent; verify only error txed. */
     ble_att_svr_test_misc_rx_read_mult_req(
         conn_handle, ((uint16_t[]){ attrs[0].handle, 100 }), 2, 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_READ_MULT_REQ,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_MULT_REQ,
                                             100, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Response too long; verify only MTU bytes sent. */
@@ -1256,7 +1216,7 @@ TEST_CASE(ble_att_svr_test_write)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_WRITE_REQ, 0, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Write not permitted if non-local. */
@@ -1272,7 +1232,7 @@ TEST_CASE(ble_att_svr_test_write)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == BLE_HS_ENOTSUP);
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
                                             req.bawq_handle,
                                             BLE_ATT_ERR_WRITE_NOT_PERMITTED);
 
@@ -1296,7 +1256,7 @@ TEST_CASE(ble_att_svr_test_write)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_write_rsp();
+    ble_hs_test_util_verify_tx_write_rsp();
 
     /*** Write requires encryption. */
     /* Insufficient authentication. */
@@ -1312,7 +1272,7 @@ TEST_CASE(ble_att_svr_test_write)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
-    ble_att_svr_test_misc_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
                                             req.bawq_handle,
                                             BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
@@ -1333,7 +1293,7 @@ TEST_CASE(ble_att_svr_test_write)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_write_rsp();
+    ble_hs_test_util_verify_tx_write_rsp();
 }
 
 TEST_CASE(ble_att_svr_test_find_info)
@@ -1363,7 +1323,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_INFO_REQ, 0, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Start handle > end handle. */
@@ -1375,7 +1335,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_INFO_REQ, 101, BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** No attributes. */
@@ -1387,7 +1347,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_INFO_REQ, 200, BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
@@ -1403,7 +1363,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_INFO_REQ, 200, BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** One 128-bit entry. */
@@ -1530,7 +1490,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 0,
         BLE_ATT_ERR_INVALID_HANDLE);
 
@@ -1543,7 +1503,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 101,
         BLE_ATT_ERR_INVALID_HANDLE);
 
@@ -1556,7 +1516,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 200,
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -1573,7 +1533,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 200,
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -1712,7 +1672,7 @@ ble_att_svr_test_misc_read_type(uint16_t mtu)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_TYPE_REQ, 0,
         BLE_ATT_ERR_INVALID_HANDLE);
 
@@ -1727,7 +1687,7 @@ ble_att_svr_test_misc_read_type(uint16_t mtu)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_TYPE_REQ, 101,
         BLE_ATT_ERR_INVALID_HANDLE);
 
@@ -1742,7 +1702,7 @@ ble_att_svr_test_misc_read_type(uint16_t mtu)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_TYPE_REQ, 1,
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -1758,7 +1718,7 @@ ble_att_svr_test_misc_read_type(uint16_t mtu)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_TYPE_REQ, 200,
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -1924,7 +1884,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_GROUP_TYPE_REQ, 0,
         BLE_ATT_ERR_INVALID_HANDLE);
 
@@ -1939,7 +1899,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_GROUP_TYPE_REQ, 101,
         BLE_ATT_ERR_INVALID_HANDLE);
 
@@ -1953,7 +1913,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_GROUP_TYPE_REQ, 110,
         BLE_ATT_ERR_UNSUPPORTED_GROUP);
 
@@ -1968,7 +1928,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_GROUP_TYPE_REQ, 1,
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -1984,7 +1944,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc != 0);
-    ble_att_svr_test_misc_verify_tx_err_rsp(
+    ble_hs_test_util_verify_tx_err_rsp(
         BLE_ATT_OP_READ_GROUP_TYPE_REQ, 200,
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
