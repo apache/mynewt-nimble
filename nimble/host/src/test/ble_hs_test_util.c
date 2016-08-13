@@ -407,7 +407,7 @@ ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
 }
 
 void
-ble_hs_test_util_create_conn(uint16_t handle, uint8_t *peer_id_addr,
+ble_hs_test_util_create_conn(uint16_t handle, const uint8_t *peer_id_addr,
                              ble_gap_event_fn *cb, void *cb_arg)
 {
     static uint8_t null_addr[6];
@@ -897,6 +897,26 @@ ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
 }
 
 void
+ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req, uint16_t mtu)
+{
+    struct ble_att_mtu_cmd cmd;
+    uint8_t buf[BLE_ATT_MTU_CMD_SZ];
+    int rc;
+
+    cmd.bamc_mtu = mtu;
+
+    if (is_req) {
+        ble_att_mtu_req_write(buf, sizeof buf, &cmd);
+    } else {
+        ble_att_mtu_rsp_write(buf, sizeof buf, &cmd);
+    }
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc == 0);
+}
+
+void
 ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
                                 uint8_t error_code, uint16_t err_handle)
 {
@@ -1146,6 +1166,26 @@ ble_hs_test_util_verify_tx_write_rsp(void)
     rc = os_mbuf_copydata(om, 0, 1, &u8);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(u8 == BLE_ATT_OP_WRITE_RSP);
+}
+
+void
+ble_hs_test_util_verify_tx_mtu_cmd(int is_req, uint16_t mtu)
+{
+    struct ble_att_mtu_cmd cmd;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om != NULL);
+
+    if (is_req) {
+        ble_att_mtu_req_parse(om->om_data, om->om_len, &cmd);
+    } else {
+        ble_att_mtu_rsp_parse(om->om_data, om->om_len, &cmd);
+    }
+
+    TEST_ASSERT(cmd.bamc_mtu == mtu);
 }
 
 void

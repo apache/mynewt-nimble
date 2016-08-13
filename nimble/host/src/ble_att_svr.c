@@ -659,6 +659,7 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
+    uint16_t mtu;
     uint8_t att_err;
     int rc;
 
@@ -669,7 +670,7 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    ble_att_mtu_cmd_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
+    ble_att_mtu_req_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
     BLE_ATT_LOG_CMD(0, "mtu req", conn_handle, ble_att_mtu_cmd_log, &cmd);
 
     rc = ble_att_svr_build_mtu_rsp(conn_handle, &txom, &att_err);
@@ -688,8 +689,11 @@ done:
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
         ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
         chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+        mtu = ble_l2cap_chan_mtu(chan);
 
         ble_hs_unlock();
+
+        ble_gap_mtu_event(conn_handle, BLE_L2CAP_CID_ATT, mtu);
     }
     return rc;
 }

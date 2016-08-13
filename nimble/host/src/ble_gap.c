@@ -2902,6 +2902,23 @@ ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 /*****************************************************************************
+ * $mtu                                                                      *
+ *****************************************************************************/
+
+void
+ble_gap_mtu_event(uint16_t conn_handle, uint16_t cid, uint16_t mtu)
+{
+    struct ble_gap_event event;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_MTU;
+    event.mtu.conn_handle = conn_handle;
+    event.mtu.channel_id = cid;
+    event.mtu.value = mtu;
+    ble_gap_call_conn_event_cb(&event, conn_handle);
+}
+
+/*****************************************************************************
  * $init                                                                     *
  *****************************************************************************/
 

@@ -173,7 +173,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
 
     rc = ble_hs_mbuf_pullup_base(rxom, BLE_ATT_MTU_CMD_SZ);
     if (rc == 0) {
-        ble_att_mtu_cmd_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
+        ble_att_mtu_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
         BLE_ATT_LOG_CMD(0, "mtu rsp", conn_handle, ble_att_mtu_cmd_log, &cmd);
 
         ble_hs_lock();
@@ -183,6 +183,8 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
         mtu = ble_l2cap_chan_mtu(chan);
 
         ble_hs_unlock();
+
+        ble_gap_mtu_event(conn_handle, BLE_L2CAP_CID_ATT, mtu);
     }
 
     ble_gattc_rx_mtu(conn_handle, rc, mtu);
