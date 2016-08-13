@@ -275,6 +275,22 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
     TEST_ASSERT(rc == status);
 }
 
+static void
+ble_att_clt_test_misc_tx_mtu(uint16_t conn_handle, uint16_t mtu, int status)
+{
+    struct ble_att_mtu_cmd req;
+    int rc;
+
+    req.bamc_mtu = mtu;
+    rc = ble_att_clt_tx_mtu(conn_handle, &req);
+    TEST_ASSERT(rc == status);
+
+    if (rc == 0) {
+        ble_hs_test_util_verify_tx_mtu_cmd(1, mtu);
+    }
+}
+
+
 TEST_CASE(ble_att_clt_test_tx_write)
 {
     ble_att_clt_test_case_tx_write_req_or_cmd(0);
@@ -509,6 +525,20 @@ TEST_CASE(ble_att_clt_test_tx_exec_write)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
+TEST_CASE(ble_att_clt_test_tx_mtu)
+{
+    uint16_t conn_handle;
+
+    conn_handle = ble_att_clt_test_misc_init();
+
+    /*** Success. */
+    ble_att_clt_test_misc_tx_mtu(conn_handle, 50, 0);
+
+    /*** Error: repeated sends. */
+    ble_att_clt_test_misc_tx_mtu(conn_handle, 50, BLE_HS_EALREADY);
+    ble_att_clt_test_misc_tx_mtu(conn_handle, 60, BLE_HS_EALREADY);
+}
+
 TEST_SUITE(ble_att_clt_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -525,6 +555,7 @@ TEST_SUITE(ble_att_clt_suite)
     ble_att_clt_test_tx_prep_write();
     ble_att_clt_test_rx_prep_write();
     ble_att_clt_test_tx_exec_write();
+    ble_att_clt_test_tx_mtu();
 }
 
 int

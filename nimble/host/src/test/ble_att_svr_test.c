@@ -475,7 +475,7 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(uint16_t conn_handle)
     rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
 
-    ble_att_mtu_cmd_parse(buf, sizeof buf, &rsp);
+    ble_att_mtu_rsp_parse(buf, sizeof buf, &rsp);
 
     ble_hs_lock();
     rc = ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
