@@ -118,8 +118,6 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     struct os_mbuf *txom;
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "mtu req", conn_handle, ble_att_mtu_cmd_log, req);
-
     if (req->bamc_mtu < BLE_ATT_MTU_DFLT) {
         return BLE_HS_EINVAL;
     }
@@ -150,6 +148,8 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     if (rc != 0) {
         return rc;
     }
+
+    BLE_ATT_LOG_CMD(1, "mtu req", conn_handle, ble_att_mtu_cmd_log, req);
 
     ble_hs_lock();
 
@@ -206,9 +206,6 @@ ble_att_clt_tx_find_info(uint16_t conn_handle,
     struct os_mbuf *txom;
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "find info req", conn_handle,
-                    ble_att_find_info_req_log, req);
-
     if (req->bafq_start_handle == 0 ||
         req->bafq_start_handle > req->bafq_end_handle) {
 
@@ -225,6 +222,9 @@ ble_att_clt_tx_find_info(uint16_t conn_handle,
     if (rc != 0) {
         return rc;
     }
+
+    BLE_ATT_LOG_CMD(1, "find info req", conn_handle,
+                    ble_att_find_info_req_log, req);
 
     return 0;
 }
@@ -336,9 +336,6 @@ ble_att_clt_tx_find_type_value(uint16_t conn_handle,
     return BLE_HS_ENOTSUP;
 #endif
 
-    BLE_ATT_LOG_CMD(1, "find type value req", conn_handle,
-                    ble_att_find_type_value_req_log, req);
-
     struct os_mbuf *txom;
     int rc;
 
@@ -368,6 +365,9 @@ ble_att_clt_tx_find_type_value(uint16_t conn_handle,
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "find type value req", conn_handle,
+                    ble_att_find_type_value_req_log, req);
 
     return 0;
 
@@ -447,9 +447,6 @@ ble_att_clt_tx_read_type(uint16_t conn_handle,
 
     txom = NULL;
 
-    BLE_ATT_LOG_CMD(1, "read type req", conn_handle,
-                    ble_att_read_type_req_log, req);
-
     if (req->batq_start_handle == 0 ||
         req->batq_start_handle > req->batq_end_handle) {
 
@@ -474,6 +471,9 @@ ble_att_clt_tx_read_type(uint16_t conn_handle,
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "read type req", conn_handle,
+                    ble_att_read_type_req_log, req);
 
     return 0;
 
@@ -555,8 +555,6 @@ ble_att_clt_tx_read(uint16_t conn_handle, const struct ble_att_read_req *req)
     struct os_mbuf *txom;
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "read req", conn_handle, ble_att_read_req_log, req);
-
     if (req->barq_handle == 0) {
         return BLE_HS_EINVAL;
     }
@@ -571,6 +569,8 @@ ble_att_clt_tx_read(uint16_t conn_handle, const struct ble_att_read_req *req)
     if (rc != 0) {
         return rc;
     }
+
+    BLE_ATT_LOG_CMD(1, "read req", conn_handle, ble_att_read_req_log, req);
 
     return 0;
 }
@@ -609,9 +609,6 @@ ble_att_clt_tx_read_blob(uint16_t conn_handle,
     struct os_mbuf *txom;
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "read blob req", conn_handle,
-                    ble_att_read_blob_req_log, req);
-
     if (req->babq_handle == 0) {
         return BLE_HS_EINVAL;
     }
@@ -626,6 +623,9 @@ ble_att_clt_tx_read_blob(uint16_t conn_handle,
     if (rc != 0) {
         return rc;
     }
+
+    BLE_ATT_LOG_CMD(1, "read blob req", conn_handle,
+                    ble_att_read_blob_req_log, req);
 
     return 0;
 }
@@ -756,9 +756,6 @@ ble_att_clt_tx_read_group_type(uint16_t conn_handle,
 
     txom = NULL;
 
-    BLE_ATT_LOG_CMD(1, "read group type req", conn_handle,
-                    ble_att_read_group_type_req_log, req);
-
     if (req->bagq_start_handle == 0 ||
         req->bagq_start_handle > req->bagq_end_handle) {
 
@@ -782,6 +779,9 @@ ble_att_clt_tx_read_group_type(uint16_t conn_handle,
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "read group type req", conn_handle,
+                    ble_att_read_group_type_req_log, req);
 
     return 0;
 
@@ -896,10 +896,14 @@ ble_att_clt_tx_write_req(uint16_t conn_handle,
 
     int rc;
 
+    rc = ble_att_clt_tx_write_req_or_cmd(conn_handle, req, txom, 1);
+    if (rc != 0) {
+        return rc;
+    }
+
     BLE_ATT_LOG_CMD(1, "write req", conn_handle, ble_att_write_cmd_log, req);
 
-    rc = ble_att_clt_tx_write_req_or_cmd(conn_handle, req, txom, 1);
-    return rc;
+    return 0;
 }
 
 int
@@ -913,10 +917,14 @@ ble_att_clt_tx_write_cmd(uint16_t conn_handle,
 
     int rc;
 
+    rc = ble_att_clt_tx_write_req_or_cmd(conn_handle, req, txom, 0);
+    if (rc != 0) {
+        return rc;
+    }
+
     BLE_ATT_LOG_CMD(1, "write cmd", conn_handle, ble_att_write_cmd_log, req);
 
-    rc = ble_att_clt_tx_write_req_or_cmd(conn_handle, req, txom, 0);
-    return rc;
+    return 0;
 }
 
 int
@@ -947,9 +955,6 @@ ble_att_clt_tx_prep_write(uint16_t conn_handle,
 #endif
 
     int rc;
-
-    BLE_ATT_LOG_CMD(1, "prep write req", conn_handle,
-                    ble_att_prep_write_cmd_log, req);
 
     if (req->bapc_handle == 0) {
         rc = BLE_HS_EINVAL;
@@ -982,6 +987,9 @@ ble_att_clt_tx_prep_write(uint16_t conn_handle,
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "prep write req", conn_handle,
+                    ble_att_prep_write_cmd_log, req);
 
     return 0;
 
@@ -1036,9 +1044,6 @@ ble_att_clt_tx_exec_write(uint16_t conn_handle,
     struct os_mbuf *txom;
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "exec write req", conn_handle,
-                    ble_att_exec_write_req_log, req);
-
     if ((req->baeq_flags & BLE_ATT_EXEC_WRITE_F_RESERVED) != 0) {
         return BLE_HS_EINVAL;
     }
@@ -1053,6 +1058,9 @@ ble_att_clt_tx_exec_write(uint16_t conn_handle,
     if (rc != 0) {
         return rc;
     }
+
+    BLE_ATT_LOG_CMD(1, "exec write req", conn_handle,
+                    ble_att_exec_write_req_log, req);
 
     return 0;
 }
@@ -1092,8 +1100,6 @@ ble_att_clt_tx_notify(uint16_t conn_handle,
 
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "notify req", conn_handle, ble_att_notify_req_log, req);
-
     if (req->banq_handle == 0) {
         rc = BLE_HS_EINVAL;
         goto err;
@@ -1111,6 +1117,8 @@ ble_att_clt_tx_notify(uint16_t conn_handle,
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "notify req", conn_handle, ble_att_notify_req_log, req);
 
     return 0;
 
@@ -1134,9 +1142,6 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
 
     int rc;
 
-    BLE_ATT_LOG_CMD(1, "indicate req", conn_handle, ble_att_indicate_req_log,
-                    req);
-
     if (req->baiq_handle == 0) {
         rc = BLE_HS_EINVAL;
         goto err;
@@ -1156,6 +1161,9 @@ ble_att_clt_tx_indicate(uint16_t conn_handle,
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "indicate req", conn_handle, ble_att_indicate_req_log,
+                    req);
 
     return 0;
 

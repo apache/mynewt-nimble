@@ -510,14 +510,15 @@ ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     rsp.baep_error_code = error_code;
 
     ble_att_error_rsp_write(dst, BLE_ATT_ERROR_RSP_SZ, &rsp);
-    BLE_ATT_LOG_CMD(1, "error rsp", conn->bhc_handle,
-                    ble_att_error_rsp_log, &rsp);
 
     rc = ble_l2cap_tx(conn, chan, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
     }
+
+    BLE_ATT_LOG_CMD(1, "error rsp", conn->bhc_handle,
+                    ble_att_error_rsp_log, &rsp);
 
     return 0;
 
@@ -829,8 +830,6 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     }
 
     ble_att_find_info_rsp_write(buf, BLE_ATT_FIND_INFO_RSP_BASE_SZ, &rsp);
-    BLE_ATT_LOG_CMD(1, "find info rsp", conn_handle, ble_att_find_info_rsp_log,
-                    &rsp);
 
     /* Write the variable length Information Data field, populating the format
      * field as appropriate.
@@ -841,6 +840,9 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
         rc = BLE_HS_ENOENT;
         goto done;
     }
+
+    BLE_ATT_LOG_CMD(1, "find info rsp", conn_handle, ble_att_find_info_rsp_log,
+                    &rsp);
 
     rc = 0;
 
