@@ -22,7 +22,7 @@
 #include "bsp/bsp.h"
 #include "ble_hs_priv.h"
 
-static uint16_t ble_att_preferred_mtu;
+static uint16_t ble_att_preferred_mtu_val;
 
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
 typedef int ble_att_rx_fn(uint16_t conn_handle, struct os_mbuf **om);
@@ -467,6 +467,17 @@ ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
 }
 
 /**
+ * Retrieves the preferred ATT MTU.
+ *
+ * @return                      The preferred ATT MTU.
+ */
+uint16_t
+ble_att_preferred_mtu(void)
+{
+    return ble_att_preferred_mtu_val;
+}
+
+/**
  * Sets the preferred ATT MTU; the device will indicate this value in all
  * subseqeunt ATT MTU exchanges.  The ATT MTU of a connection is equal to the
  * lower of the two peers' preferred MTU values.  The ATT MTU is what dictates
@@ -492,7 +503,7 @@ ble_att_set_preferred_mtu(uint16_t mtu)
         return BLE_HS_EINVAL;
     }
 
-    ble_att_preferred_mtu = mtu;
+    ble_att_preferred_mtu_val = mtu;
 
     /* XXX: Set my_mtu for established connections that haven't exchanged. */
 
@@ -510,7 +521,7 @@ ble_att_create_chan(void)
     }
 
     chan->blc_cid = BLE_L2CAP_CID_ATT;
-    chan->blc_my_mtu = ble_att_preferred_mtu;
+    chan->blc_my_mtu = ble_att_preferred_mtu_val;
     chan->blc_default_mtu = BLE_ATT_MTU_DFLT;
     chan->blc_rx_fn = ble_att_rx;
 
@@ -522,7 +533,7 @@ ble_att_init(void)
 {
     int rc;
 
-    ble_att_preferred_mtu = BLE_ATT_MTU_PREFERRED_DFLT;
+    ble_att_preferred_mtu_val = BLE_ATT_MTU_PREFERRED_DFLT;
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_att_stats), STATS_SIZE_INIT_PARMS(ble_att_stats,

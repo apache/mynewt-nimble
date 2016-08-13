@@ -98,6 +98,7 @@ int ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om);
 int ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om);
 
 uint16_t ble_att_mtu(uint16_t conn_handle);
+uint16_t ble_att_preferred_mtu(void);
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
 #endif
