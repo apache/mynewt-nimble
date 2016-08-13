@@ -124,6 +124,22 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
         return BLE_HS_EINVAL;
     }
 
+    ble_hs_lock();
+
+    ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (chan == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
+        rc = BLE_HS_EALREADY;
+    } else {
+        rc = 0;
+    }
+    ble_hs_unlock();
+
+    if (rc != 0) {
+        return rc;
+    }
+
     rc = ble_att_clt_init_req(BLE_ATT_MTU_CMD_SZ, &txom);
     if (rc != 0) {
         return rc;
