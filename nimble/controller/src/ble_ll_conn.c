@@ -2350,12 +2350,13 @@ init_rx_isr_exit:
      * We have to restart receive if we cant hand up pdu. We return 0 so that
      * the phy does not get disabled.
      */
-    rxpdu = ble_phy_rxpdu_get(rxbuf, pyld_len + BLE_LL_PDU_HDR_LEN);
+    rxpdu = ble_ll_rxpdu_alloc(pyld_len + BLE_LL_PDU_HDR_LEN);
     if (rxpdu == NULL) {
         ble_phy_disable();
         ble_phy_rx();
         rc = 0;
     } else {
+        ble_phy_rxpdu_copy(rxbuf, rxpdu);
         ble_ll_rx_pdu_in(rxpdu);
     }
 
@@ -2627,6 +2628,19 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *txhdr;
 
+    /* Retrieve the header and payload length */
+    hdr_byte = rxbuf[0];
+    rx_pyld_len = rxbuf[1];
+
+    /*
+     * We need to attempt to allocate a buffer here. The reason we do this
+     * now is that we should not ack the packet if we have no receive
+     * buffers available. We want to free up our transmit PDU if it was
+     * acked, but we should not ack the received frame if we cant hand it up.
+     * NOTE: we hand up empty pdu's to the LL task!
+     */
+    rxpdu = ble_ll_rxpdu_alloc(rx_pyld_len + BLE_LL_PDU_HDR_LEN);
+
     /*
      * We should have a current connection state machine. If we dont, we just
      * hand the packet to the higher layer to count it.
@@ -2637,10 +2651,6 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         STATS_INC(ble_ll_conn_stats, rx_data_pdu_no_conn);
         goto conn_exit;
     }
-
-    /* Set the handle in the ble mbuf header */
-    hdr_byte = rxbuf[0];
-    rx_pyld_len = rxbuf[1];
 
     /*
      * Check the packet CRC. A connection event can continue even if the
@@ -2686,7 +2696,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
          */
         hdr_sn = hdr_byte & BLE_LL_DATA_HDR_SN_MASK;
         conn_nesn = connsm->next_exp_seqnum;
-        if ((hdr_sn && conn_nesn) || (!hdr_sn && !conn_nesn)) {
+        if (rxpdu && ((hdr_sn && conn_nesn) || (!hdr_sn && !conn_nesn))) {
             connsm->next_exp_seqnum ^= 1;
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
             if (CONN_F_ENCRYPTED(connsm) && !ble_ll_conn_is_empty_pdu(rxbuf)) {
@@ -2815,8 +2825,8 @@ chk_rx_terminate_ind:
 
 conn_exit:
     /* Copy the received pdu and hand it up */
-    rxpdu = ble_phy_rxpdu_get(rxbuf, rxbuf[1] + BLE_LL_PDU_HDR_LEN);
     if (rxpdu) {
+        ble_phy_rxpdu_copy(rxbuf, rxpdu);
         ble_ll_rx_pdu_in(rxpdu);
     }
 
