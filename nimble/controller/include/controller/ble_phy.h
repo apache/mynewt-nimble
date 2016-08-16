@@ -97,12 +97,8 @@ int ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans);
 /* Place the PHY into receive mode */
 int ble_phy_rx(void);
 
-/*
- * Retrieve the received PDU from the PHY. This returns an mbuf with
- * the most recently received PDU in it. It also contains the ble_hdr
- * as well
- */
-struct os_mbuf *ble_phy_rxpdu_get(uint8_t *dptr, uint16_t mblen);
+/* Copies the received PHY buffer into the allocated pdu */
+void ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu);
 
 /* Get an RSSI reading */
 int ble_phy_rssi_get(void);

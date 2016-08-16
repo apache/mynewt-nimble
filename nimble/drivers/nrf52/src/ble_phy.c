@@ -29,11 +29,6 @@
 #include "controller/ble_ll.h"
 #include "mcu/nrf52_bitfields.h"
 
-/*
- * XXX: need to make the copy from mbuf into the PHY data structures 32-bit
- * copies or we are screwed.
- */
-
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /*
@@ -107,7 +102,6 @@ STATS_SECT_START(ble_phy_stats)
     STATS_SECT_ENTRY(rx_valid)
     STATS_SECT_ENTRY(rx_crc_err)
     STATS_SECT_ENTRY(rx_late)
-    STATS_SECT_ENTRY(no_bufs)
     STATS_SECT_ENTRY(radio_state_errs)
     STATS_SECT_ENTRY(rx_hw_err)
     STATS_SECT_ENTRY(tx_hw_err)
@@ -125,7 +119,6 @@ STATS_NAME_START(ble_phy_stats)
     STATS_NAME(ble_phy_stats, rx_valid)
     STATS_NAME(ble_phy_stats, rx_crc_err)
     STATS_NAME(ble_phy_stats, rx_late)
-    STATS_NAME(ble_phy_stats, no_bufs)
     STATS_NAME(ble_phy_stats, radio_state_errs)
     STATS_NAME(ble_phy_stats, rx_hw_err)
     STATS_NAME(ble_phy_stats, tx_hw_err)
@@ -188,14 +181,15 @@ struct nrf_ccm_data g_nrf_ccm_data;
 /**
  * Copies the data from the phy receive buffer into a mbuf chain.
  *
- *
  * @param dptr Pointer to receive buffer
- * @param len Length of receive buffer to copy.
+ * @param rxpdu Pointer to already allocated mbuf chain
  *
- * @return struct os_mbuf* Pointer to mbuf. NULL if no mbuf available.
+ * NOTE: the packet header already has the total mbuf length in it. The
+ * lengths of the individual mbufs are not set prior to calling.
+ *
  */
-struct os_mbuf *
-ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
+void
+ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
 {
     uint16_t rem_bytes;
     uint16_t mb_bytes;
@@ -203,35 +197,25 @@ ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
     uint32_t *dst;
     uint32_t *src;
     struct os_mbuf *m;
-    struct os_mbuf *n;
-    struct os_mbuf *p;
     struct ble_mbuf_hdr *ble_hdr;
     struct os_mbuf_pkthdr *pkthdr;
 
     /* Better be aligned */
     assert(((uint32_t)dptr & 3) == 0);
 
-    p = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
-    if (!p) {
-        STATS_INC(ble_phy_stats, no_bufs);
-        return NULL;
-    }
+    pkthdr = OS_MBUF_PKTHDR(rxpdu);
+    rem_bytes = pkthdr->omp_len;
 
-    /*
-     * Fill in the mbuf pkthdr first. NOTE: first mbuf in chain will have data
-     * pre-pended to it so we adjust m_data by a word.
-     */
-    p->om_data += 4;
-    dst = (uint32_t *)(p->om_data);
+    /* Fill in the mbuf pkthdr first. */
+    dst = (uint32_t *)(rxpdu->om_data);
     src = (uint32_t *)dptr;
 
-    rem_bytes = len;
-    mb_bytes = (p->om_omp->omp_databuf_len - p->om_pkthdr_len - 4);
+    mb_bytes = (rxpdu->om_omp->omp_databuf_len - rxpdu->om_pkthdr_len - 4);
     copylen = min(mb_bytes, rem_bytes);
     copylen &= 0xFFFC;
     rem_bytes -= copylen;
     mb_bytes -= copylen;
-    p->om_len = copylen;
+    rxpdu->om_len = copylen;
     while (copylen > 0) {
         *dst = *src;
         ++dst;
@@ -240,7 +224,7 @@ ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
     }
 
     /* Copy remaining bytes */
-    m = p;
+    m = rxpdu;
     while (rem_bytes > 0) {
         /* If there are enough bytes in the mbuf, copy them and leave */
         if (rem_bytes <= mb_bytes) {
@@ -249,16 +233,8 @@ ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
             break;
         }
 
-        n = os_msys_get(rem_bytes, 0);
-        if (!n) {
-            os_mbuf_free_chain(p);
-            STATS_INC(ble_phy_stats, no_bufs);
-            return NULL;
-        }
-
-        /* Chain new mbuf to existing chain */
-        SLIST_NEXT(m, om_next) = n;
-        m = n;
+        m = SLIST_NEXT(m, om_next);
+        assert(m != NULL);
 
         mb_bytes = m->om_omp->omp_databuf_len;
         copylen = min(mb_bytes, rem_bytes);
@@ -275,15 +251,9 @@ ble_phy_rxpdu_get(uint8_t *dptr, uint16_t len)
         }
     }
 
-    /* Set packet length */
-    pkthdr = OS_MBUF_PKTHDR(p);
-    pkthdr->omp_len = len;
-
     /* Copy ble header */
-    ble_hdr = BLE_MBUF_HDR_PTR(p);
+    ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
     memcpy(ble_hdr, &g_ble_phy_data.rxhdr, sizeof(struct ble_mbuf_hdr));
-
-    return p;
 }
 
 /**

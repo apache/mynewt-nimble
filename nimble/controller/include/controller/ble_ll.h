@@ -86,6 +86,7 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(hci_events_sent)
     STATS_SECT_ENTRY(bad_ll_state)
     STATS_SECT_ENTRY(bad_acl_hdr)
+    STATS_SECT_ENTRY(no_bufs)
     STATS_SECT_ENTRY(rx_adv_pdu_crc_ok)
     STATS_SECT_ENTRY(rx_adv_pdu_crc_err)
     STATS_SECT_ENTRY(rx_adv_bytes_crc_ok)
@@ -311,6 +312,16 @@ int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
  * @param txpdu Pointer to transmit packet
  */
 void ble_ll_acl_data_in(struct os_mbuf *txpkt);
+
+/**
+ * Allocate a pdu (chain) for reception.
+ *
+ * @param len Length of PDU. This includes the PDU header as well as payload.
+ * Does not include MIC if encrypted.
+ *
+ * @return struct os_mbuf* Pointer to mbuf chain to hold received packet
+ */
+struct os_mbuf *ble_ll_rxpdu_alloc(uint16_t len);
 
 /*--- PHY interfaces ---*/
 struct ble_mbuf_hdr;

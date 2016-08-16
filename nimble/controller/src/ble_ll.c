@@ -151,6 +151,7 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, hci_events_sent)
     STATS_NAME(ble_ll_stats, bad_ll_state)
     STATS_NAME(ble_ll_stats, bad_acl_hdr)
+    STATS_NAME(ble_ll_stats, no_bufs)
     STATS_NAME(ble_ll_stats, rx_adv_pdu_crc_ok)
     STATS_NAME(ble_ll_stats, rx_adv_pdu_crc_err)
     STATS_NAME(ble_ll_stats, rx_adv_bytes_crc_ok)
@@ -260,6 +261,68 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
     default:
         break;
     }
+}
+
+/**
+ * Allocate a pdu (chain) for reception.
+ *
+ * @param len
+ *
+ * @return struct os_mbuf*
+ */
+struct os_mbuf *
+ble_ll_rxpdu_alloc(uint16_t len)
+{
+    uint16_t mb_bytes;
+    struct os_mbuf *m;
+    struct os_mbuf *n;
+    struct os_mbuf *p;
+    struct os_mbuf_pkthdr *pkthdr;
+
+    p = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
+    if (!p) {
+        goto rxpdu_alloc_exit;
+    }
+
+    /* Set packet length */
+    pkthdr = OS_MBUF_PKTHDR(p);
+    pkthdr->omp_len = len;
+
+    /*
+     * NOTE: first mbuf in chain will have data pre-pended to it so we adjust
+     * m_data by a word.
+     */
+    p->om_data += 4;
+    mb_bytes = (p->om_omp->omp_databuf_len - p->om_pkthdr_len - 4);
+
+    if (mb_bytes < len) {
+        n = p;
+        len -= mb_bytes;
+        while (len) {
+            m = os_msys_get(len, 0);
+            if (!m) {
+                os_mbuf_free_chain(p);
+                p = NULL;
+                goto rxpdu_alloc_exit;
+            }
+            /* Chain new mbuf to existing chain */
+            SLIST_NEXT(n, om_next) = m;
+            n = m;
+            mb_bytes = m->om_omp->omp_databuf_len;
+            if (mb_bytes >= len) {
+                len = 0;
+            } else {
+                len -= mb_bytes;
+            }
+        }
+    }
+
+
+rxpdu_alloc_exit:
+    if (!p) {
+        STATS_INC(ble_ll_stats, no_bufs);
+    }
+    return p;
 }
 
 int
@@ -806,13 +869,19 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     switch (BLE_MBUF_HDR_RX_STATE(rxhdr)) {
     case BLE_LL_STATE_ADV:
         if (!badpkt) {
-            rxpdu = ble_phy_rxpdu_get(rxbuf, len + BLE_LL_PDU_HDR_LEN);
+            rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
+            if (rxpdu) {
+                ble_phy_rxpdu_copy(rxbuf, rxpdu);
+            }
         }
         rc = ble_ll_adv_rx_isr_end(pdu_type, rxpdu, crcok);
         break;
     case BLE_LL_STATE_SCANNING:
         if (!badpkt) {
-            rxpdu = ble_phy_rxpdu_get(rxbuf, len + BLE_LL_PDU_HDR_LEN);
+            rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
+            if (rxpdu) {
+                ble_phy_rxpdu_copy(rxbuf, rxpdu);
+            }
         }
         rc = ble_ll_scan_rx_isr_end(rxpdu, crcok);
         break;
