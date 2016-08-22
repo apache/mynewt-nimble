@@ -357,8 +357,13 @@
 /*
  * This option allows a controller to send/receive LE pings.
  */
+#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 0)
+#undef BLE_LL_CFG_FEAT_LE_PING
+#define BLE_LL_CFG_FEAT_LE_PING                 (0)
+#else
 #ifndef BLE_LL_CFG_FEAT_LE_PING
 #define  BLE_LL_CFG_FEAT_LE_PING                (1)
+#endif
 #endif
 
 /*
