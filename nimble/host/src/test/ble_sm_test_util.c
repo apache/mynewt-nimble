@@ -275,7 +275,6 @@ ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         TEST_ASSERT_FATAL(rc == 0);
         ble_sm_test_sec_state = desc.sec_state;
-        rc = 0;
         break;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
@@ -288,7 +287,7 @@ ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
 
     ble_sm_test_gap_event_type = event->type;
 
-    return rc;
+    return 0;
 }
 
 static void

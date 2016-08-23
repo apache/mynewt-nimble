@@ -2260,17 +2260,12 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
 
         switch (pkey->action) {
         case BLE_SM_IOACT_OOB:
-            if (pkey->oob == NULL) {
-                res.app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB);
-                res.sm_err = BLE_SM_ERR_OOB;
-            } else {
-                proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
-                memcpy(proc->tk, pkey->oob, 16);
-                if ((proc->flags & BLE_SM_PROC_F_INITIATOR) ||
-                    (proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO)) {
+            proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
+            memcpy(proc->tk, pkey->oob, 16);
+            if ((proc->flags & BLE_SM_PROC_F_INITIATOR) ||
+                (proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO)) {
 
-                    res.execute = 1;
-                }
+                res.execute = 1;
             }
             break;
 
