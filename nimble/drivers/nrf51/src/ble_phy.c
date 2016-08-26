@@ -26,7 +26,7 @@
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
-#include "mcu/nrf51_bitfields.h"
+#include "nrf51_bitfields.h"
 
 /*
  * XXX: need to make the copy from mbuf into the PHY data structures 32-bit
