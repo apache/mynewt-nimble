@@ -1953,13 +1953,16 @@ static void
 ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
                            uint16_t txoffset, int rpa_index)
 {
-    int is_rpa;
     uint8_t hdr;
     uint8_t *dptr;
     uint8_t *addr;
     struct ble_mbuf_hdr *ble_hdr;
-    struct ble_ll_resolv_entry *rl;
     struct ble_ll_conn_sm *connsm;
+
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+    int is_rpa;
+    struct ble_ll_resolv_entry *rl;
+#endif
 
     assert(m != NULL);
 
@@ -1983,6 +1986,7 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
     }
 
     /* XXX: do this ahead of time? Calculate the local rpa I mean */
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         rl = NULL;
         is_rpa = ble_ll_is_rpa(adva, addr_type);
@@ -2002,6 +2006,7 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
             addr = NULL;
         }
     }
+#endif
 
     if (addr) {
         memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
@@ -2130,7 +2135,9 @@ ble_ll_conn_event_halt(void)
 void
 ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
 {
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     int8_t rpa_index;
+#endif
     uint8_t addr_type;
     uint8_t payload_len;
     uint8_t *addr;
@@ -2151,6 +2158,7 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
                 addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
             }
 
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
             /*
              * Did we resolve this address? If so, set correct peer address
              * and peer address type.
@@ -2163,6 +2171,9 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
             } else {
                 addr = rxbuf + BLE_LL_PDU_HDR_LEN;
             }
+#else
+            addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+#endif
 
             connsm->peer_addr_type = addr_type;
             memcpy(connsm->peer_addr, addr, BLE_DEV_ADDR_LEN);

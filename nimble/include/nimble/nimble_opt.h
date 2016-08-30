@@ -377,8 +377,7 @@
 #endif
 
 /*
- * This option is used to enable/disable LL privacy. Currently, this feature
- * is not supported by the nimble controller.
+ * This option is used to enable/disable LL privacy.
  */
 #ifndef BLE_LL_CFG_FEAT_LL_PRIVACY
 #define BLE_LL_CFG_FEAT_LL_PRIVACY              (1)
