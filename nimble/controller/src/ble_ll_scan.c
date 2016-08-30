@@ -386,7 +386,9 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                            struct ble_ll_scan_sm *scansm)
 {
     int rc;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     int index;
+#endif
     uint8_t evtype;
     uint8_t subev;
     uint8_t *evbuf;
@@ -440,6 +442,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
             }
 
             rxbuf += BLE_LL_PDU_HDR_LEN;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
             if (BLE_MBUF_HDR_RESOLVED(hdr)) {
                 index = scansm->scan_rpa_index;
                 adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
@@ -449,9 +452,12 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                  * we just add 2 here.
                  */
                 addr_type = g_ble_ll_resolv_list[index].rl_addr_type + 2;
-            } else{
+            } else {
                 adv_addr = rxbuf;
             }
+#else
+            adv_addr = rxbuf;
+#endif
 
             orig_evbuf = evbuf;
             evbuf += 5;
@@ -1098,7 +1104,9 @@ ble_ll_scan_wfr_timer_exp(void)
 void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     int index;
+#endif
     uint8_t *adv_addr;
     uint8_t *adva;
     uint8_t *ident_addr;
@@ -1137,8 +1145,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
         ident_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
     }
-#else
-    index = -1;
 #endif
 
     /*

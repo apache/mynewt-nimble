@@ -988,7 +988,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int valid;
     uint8_t pyld_len;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     uint8_t resolved;
+#endif
     uint8_t addr_type;
     uint8_t *inita;
     uint8_t *ident_addr;
@@ -997,7 +999,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 
     /* Check filter policy. */
     valid = 0;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     resolved = BLE_MBUF_HDR_RESOLVED(hdr);
+#endif
     advsm = &g_ble_ll_adv_sm;
     inita = rxbuf + BLE_LL_PDU_HDR_LEN;
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_DEVMATCH) {
