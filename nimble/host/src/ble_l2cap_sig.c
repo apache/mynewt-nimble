@@ -213,7 +213,7 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
         return 0;
     }
 
-    if (id != proc->id) {
+    if (id != 0 && id != proc->id) {
         return 0;
     }
 
@@ -227,7 +227,8 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
  *
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against.
- * @param identifier            The identifier to match against.
+ * @param identifier            The identifier to match against;
+ *                                  0=ignore this criterion.
  *
  * @return                      The matching proc entry on success;
  *                                  null on failure.
@@ -280,7 +281,7 @@ ble_l2cap_sig_update_call_cb(struct ble_l2cap_sig_proc *proc, int status)
     }
 
     if (proc->update.cb != NULL) {
-        proc->update.cb(status, proc->update.cb_arg);
+        proc->update.cb(proc->conn_handle, status, proc->update.cb_arg);
     }
 }
 
@@ -561,6 +562,24 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
     ble_hs_unlock();
 }
 
+void
+ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
+{
+    struct ble_l2cap_sig_proc *proc;
+
+    /* If there was a connection update in progress, indicate to the
+     * application that it did not complete.
+     */
+
+    proc = ble_l2cap_sig_proc_extract(conn_handle,
+                                      BLE_L2CAP_SIG_PROC_OP_UPDATE, 0);
+
+    if (proc != NULL) {
+        ble_l2cap_sig_update_call_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+}
+
 /**
  * Applies periodic checks and actions to all active procedures.
  *
@@ -584,10 +603,13 @@ ble_l2cap_sig_heartbeat(void)
      */
     ble_l2cap_sig_extract_expired(&temp_list);
 
-    /* Terminate the connection associated with each timed-out procedure. */
-    STAILQ_FOREACH(proc, &temp_list, next) {
+    /* Report a failure for each timed out procedure. */
+    while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
         STATS_INC(ble_l2cap_stats, proc_timeout);
-        ble_gap_terminate(proc->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
+
+        STAILQ_REMOVE_HEAD(&temp_list, next);
+        ble_l2cap_sig_proc_free(proc);
     }
 
     return BLE_HS_FOREVER;

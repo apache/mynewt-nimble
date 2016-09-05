@@ -31,7 +31,6 @@ struct ble_l2cap_chan;
 typedef uint8_t ble_hs_conn_flags_t;
 
 #define BLE_HS_CONN_F_MASTER        0x01
-#define BLE_HS_CONN_F_UPDATE        0x02
 
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;

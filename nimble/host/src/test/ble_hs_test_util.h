@@ -50,6 +50,13 @@ struct ble_hs_test_util_mbuf_params {
     unsigned prep_list:1;
 };
 
+#define BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(handle, pb, len) \
+    ((struct hci_data_hdr) {                            \
+        .hdh_handle_pb_bc = ((handle)  << 0) |          \
+                            ((pb)      << 12),          \
+        .hdh_len = (len)                                \
+    })
+
 void ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue(void);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue_pullup(void);
@@ -87,6 +94,7 @@ int ble_hs_test_util_connect(uint8_t own_addr_type,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
 void ble_hs_test_util_conn_cancel_full(void);
+void ble_hs_test_util_set_ack_disconnect(uint8_t hci_status);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
 void ble_hs_test_util_conn_disconnect(uint16_t conn_handle);
 int ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx,
@@ -148,6 +156,12 @@ void ble_hs_test_util_verify_tx_write_rsp(void);
 void ble_hs_test_util_verify_tx_mtu_cmd(int is_req, uint16_t mtu);
 void ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
                                         uint8_t error_code);
+uint8_t ble_hs_test_util_verify_tx_l2cap_update_req(
+    struct ble_l2cap_sig_update_params *params);
+int ble_hs_test_util_rx_l2cap_update_rsp(uint16_t conn_handle,
+                                         uint8_t id, uint16_t result);
+void ble_hs_test_util_verify_tx_l2cap_update_rsp(uint8_t exp_id,
+                                                 uint16_t exp_result);
 void ble_hs_test_util_set_static_rnd_addr(void);
 struct os_mbuf *ble_hs_test_util_om_from_flat(const void *buf, uint16_t len);
 int ble_hs_test_util_flat_attr_cmp(const struct ble_hs_test_util_flat_attr *a,

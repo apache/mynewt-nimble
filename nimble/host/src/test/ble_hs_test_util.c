@@ -548,16 +548,21 @@ ble_hs_test_util_conn_cancel_full(void)
     TEST_ASSERT_FATAL(rc == 0);
 }
 
+void
+ble_hs_test_util_set_ack_disconnect(uint8_t hci_status)
+{
+    ble_hs_test_util_set_ack(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LINK_CTRL,
+                                    BLE_HCI_OCF_DISCONNECT_CMD),
+        hci_status);
+}
+
 int
 ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
 {
     int rc;
 
-    ble_hs_test_util_set_ack(
-        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LINK_CTRL,
-                                    BLE_HCI_OCF_DISCONNECT_CMD),
-        hci_status);
-
+    ble_hs_test_util_set_ack_disconnect(hci_status);
     rc = ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     return rc;
 }
@@ -1206,6 +1211,105 @@ ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
     TEST_ASSERT(rsp.baep_req_op == req_op);
     TEST_ASSERT(rsp.baep_handle == handle);
     TEST_ASSERT(rsp.baep_error_code == error_code);
+}
+
+static struct os_mbuf *
+ble_hs_test_util_verify_tx_l2cap_sig_hdr(uint8_t op, uint8_t id,
+                                   uint16_t payload_len,
+                                   struct ble_l2cap_sig_hdr *out_hdr)
+{
+    struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *om;
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+    TEST_ASSERT_FATAL(om != NULL);
+
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) == BLE_L2CAP_SIG_HDR_SZ + payload_len);
+    ble_l2cap_sig_hdr_parse(om->om_data, om->om_len, &hdr);
+    TEST_ASSERT(hdr.op == op);
+    if (id != 0) {
+        TEST_ASSERT(hdr.identifier == id);
+    }
+    TEST_ASSERT(hdr.length == payload_len);
+
+    om->om_data += BLE_L2CAP_SIG_HDR_SZ;
+    om->om_len -= BLE_L2CAP_SIG_HDR_SZ;
+
+    if (out_hdr != NULL) {
+        *out_hdr = hdr;
+    }
+
+    return om;
+}
+
+/**
+ * @return                      The L2CAP sig identifier in the request.
+ */
+uint8_t
+ble_hs_test_util_verify_tx_l2cap_update_req(
+    struct ble_l2cap_sig_update_params *params)
+{
+    struct ble_l2cap_sig_update_req req;
+    struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_verify_tx_l2cap_sig_hdr(BLE_L2CAP_SIG_OP_UPDATE_REQ,
+                                                  0,
+                                                  BLE_L2CAP_SIG_UPDATE_REQ_SZ,
+                                                  &hdr);
+
+    /* Verify payload. */
+    ble_l2cap_sig_update_req_parse(om->om_data, om->om_len, &req);
+    TEST_ASSERT(req.itvl_min == params->itvl_min);
+    TEST_ASSERT(req.itvl_max == params->itvl_max);
+    TEST_ASSERT(req.slave_latency == params->slave_latency);
+    TEST_ASSERT(req.timeout_multiplier == params->timeout_multiplier);
+
+    return hdr.identifier;
+}
+
+int
+ble_hs_test_util_rx_l2cap_update_rsp(uint16_t conn_handle,
+                                     uint8_t id, uint16_t result)
+{
+    struct ble_l2cap_sig_update_rsp rsp;
+    struct hci_data_hdr hci_hdr;
+    struct os_mbuf *om;
+    void *v;
+    int rc;
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
+        2, BLE_HCI_PB_FIRST_FLUSH,
+        BLE_L2CAP_HDR_SZ + BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+
+    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_RSP, id,
+                                BLE_L2CAP_SIG_UPDATE_RSP_SZ, &om, &v);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rsp.result = result;
+    ble_l2cap_sig_update_rsp_write(v, BLE_L2CAP_SIG_UPDATE_RSP_SZ, &rsp);
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
+                                              &hci_hdr, om);
+    return rc;
+}
+
+void
+ble_hs_test_util_verify_tx_l2cap_update_rsp(uint8_t exp_id,
+                                            uint16_t exp_result)
+{
+    struct ble_l2cap_sig_update_rsp rsp;
+    struct os_mbuf *om;
+
+    om = ble_hs_test_util_verify_tx_l2cap_sig_hdr(BLE_L2CAP_SIG_OP_UPDATE_RSP,
+                                            exp_id,
+                                            BLE_L2CAP_SIG_UPDATE_RSP_SZ,
+                                            NULL);
+
+    ble_l2cap_sig_update_rsp_parse(om->om_data, om->om_len, &rsp);
+    TEST_ASSERT(rsp.result == exp_result);
 }
 
 void
