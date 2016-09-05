@@ -22,6 +22,7 @@
 #include <errno.h>
 #include "bsp/bsp.h"
 #include "os/os.h"
+#include "util/mem.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
@@ -59,16 +60,18 @@
  */
 
 /** GAP procedure op codes. */
-#define BLE_GAP_OP_NULL                                 0
-#define BLE_GAP_OP_M_DISC                               1
-#define BLE_GAP_OP_M_CONN                               2
-#define BLE_GAP_OP_S_ADV                                1
+#define BLE_GAP_OP_NULL                         0
+#define BLE_GAP_OP_M_DISC                       1
+#define BLE_GAP_OP_M_CONN                       2
+#define BLE_GAP_OP_S_ADV                        1
 
 /**
  * If an attempt to cancel an active procedure fails, the attempt is retried
  * at this rate (ms).
  */
-#define BLE_GAP_CANCEL_RETRY_RATE                              100 /* ms */
+#define BLE_GAP_CANCEL_RETRY_RATE               100 /* ms */
+
+#define BLE_GAP_UPDATE_TIMEOUT                  (30 * OS_TICKS_PER_SEC)
 
 /**
  * The maximum amount of user data that can be put into the advertising data.
@@ -77,6 +80,8 @@
  */
 #define BLE_GAP_ADV_DATA_LIMIT_FLAGS    (BLE_HCI_MAX_ADV_DATA_LEN - 3)
 #define BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS BLE_HCI_MAX_ADV_DATA_LEN
+
+#define BLE_GAP_MAX_UPDATE_ENTRIES      1
 
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
     .scan_itvl = 0x0010,
@@ -141,15 +146,36 @@ static bssnz_t struct {
     unsigned adv_auto_flags:1;
 } ble_gap_slave;
 
-static int ble_gap_adv_enable_tx(int enable);
-static int ble_gap_conn_cancel_tx(void);
-static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
+struct ble_gap_update_entry {
+    SLIST_ENTRY(ble_gap_update_entry) next;
+    struct ble_gap_upd_params params;
+    os_time_t exp_os_ticks;
+    uint16_t conn_handle;
+};
+SLIST_HEAD(ble_gap_update_entry_list, ble_gap_update_entry);
 
 struct ble_gap_snapshot {
     struct ble_gap_conn_desc *desc;
     ble_gap_event_fn *cb;
     void *cb_arg;
 };
+
+static void *ble_gap_update_entry_mem;
+static struct os_mempool ble_gap_update_entry_pool;
+static struct ble_gap_update_entry_list ble_gap_update_entries;
+
+static void ble_gap_update_entry_free(struct ble_gap_update_entry *entry);
+static struct ble_gap_update_entry *
+ble_gap_update_entry_find(uint16_t conn_handle,
+                          struct ble_gap_update_entry **out_prev);
+static struct ble_gap_update_entry *
+ble_gap_update_entry_remove(uint16_t conn_handle);
+static void
+ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg);
+
+static int ble_gap_adv_enable_tx(int enable);
+static int ble_gap_conn_cancel_tx(void);
+static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
 
 STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;
 STATS_NAME_START(ble_gap_stats)
@@ -185,6 +211,24 @@ STATS_NAME_START(ble_gap_stats)
     STATS_NAME(ble_gap_stats, security_initiate)
     STATS_NAME(ble_gap_stats, security_initiate_fail)
 STATS_NAME_END(ble_gap_stats)
+
+/*****************************************************************************
+ * $debug                                                                    *
+ *****************************************************************************/
+
+#if BLE_HS_DEBUG
+int
+ble_gap_dbg_update_active(uint16_t conn_handle)
+{
+    const struct ble_gap_update_entry *entry;
+
+    ble_hs_lock();
+    entry = ble_gap_update_entry_find(conn_handle, NULL);
+    ble_hs_unlock();
+
+    return entry != NULL;
+}
+#endif
 
 /*****************************************************************************
  * $log                                                                      *
@@ -606,6 +650,11 @@ ble_gap_update_notify(uint16_t conn_handle, int status)
     event.conn_update.status = status;
 
     ble_gap_call_conn_event_cb(&event, conn_handle);
+
+    /* Terminate the connection on procedure timeout. */
+    if (status == BLE_HS_ETIMEOUT) {
+        ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+    }
 }
 
 static uint32_t
@@ -648,16 +697,62 @@ ble_gap_slave_ticks_until_exp(void)
     return 0;
 }
 
+static uint16_t
+ble_gap_update_next_exp(int32_t *out_ticks_from_now)
+{
+    struct ble_gap_update_entry *entry;
+    os_time_t now;
+    uint16_t conn_handle;
+    int32_t best_ticks;
+    int32_t ticks;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    best_ticks = BLE_HS_FOREVER;
+    now = os_time_get();
+
+    SLIST_FOREACH(entry, &ble_gap_update_entries, next) {
+        ticks = entry->exp_os_ticks - now;
+        if (ticks <= 0) {
+            ticks = 0;
+        }
+
+        if (ticks < best_ticks) {
+            conn_handle = entry->conn_handle;
+            best_ticks = ticks;
+        }
+    }
+
+    if (out_ticks_from_now != NULL) {
+        *out_ticks_from_now = best_ticks;
+    }
+
+    return conn_handle;
+
+}
+
+static uint32_t
+ble_gap_update_ticks_until_exp(void)
+{
+    int32_t ticks;
+
+    ble_gap_update_next_exp(&ticks);
+    return ticks;
+}
+
 static void
 ble_gap_heartbeat_sched(void)
 {
     int32_t mst_ticks;
     int32_t slv_ticks;
+    int32_t upd_ticks;
     int32_t ticks;
 
     mst_ticks = ble_gap_master_ticks_until_exp();
     slv_ticks = ble_gap_slave_ticks_until_exp();
-    ticks = min(mst_ticks, slv_ticks);
+    upd_ticks = ble_gap_update_ticks_until_exp();
+    ticks = min(min(mst_ticks, slv_ticks), upd_ticks);
 
     ble_hs_heartbeat_sched(ticks);
 }
@@ -702,14 +797,23 @@ ble_gap_master_failed(int status)
 static void
 ble_gap_update_failed(uint16_t conn_handle, int status)
 {
+    struct ble_gap_update_entry *entry;
+
     STATS_INC(ble_gap_stats, update_fail);
-    ble_hs_atomic_conn_set_flags(conn_handle, BLE_HS_CONN_F_UPDATE, 0);
+
+    ble_hs_lock();
+    entry = ble_gap_update_entry_remove(conn_handle);
+    ble_hs_unlock();
+
+    ble_gap_update_entry_free(entry);
+
     ble_gap_update_notify(conn_handle, status);
 }
 
 void
 ble_gap_conn_broken(uint16_t conn_handle, int reason)
 {
+    struct ble_gap_update_entry *entry;
     struct ble_gap_snapshot snap;
     struct ble_gap_event event;
     int rc;
@@ -723,10 +827,21 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
         return;
     }
 
+    /* If there was a connection update in progress, indicate to the
+     * application that it did not complete.
+     */
+    ble_hs_lock();
+    entry = ble_gap_update_entry_remove(conn_handle);
+    ble_hs_unlock();
+
+    ble_gap_update_notify(conn_handle, reason);
+    ble_gap_update_entry_free(entry);
+
     /* Indicate the connection termination to each module.  The order matters
      * here: gatts must come before gattc to ensure the application does not
      * get informed of spurious notify-tx events.
      */
+    ble_l2cap_sig_conn_broken(conn_handle, reason);
     ble_sm_connection_broken(conn_handle);
     ble_gatts_connection_broken(conn_handle);
     ble_gattc_connection_broken(conn_handle);
@@ -738,6 +853,16 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
 
     STATS_INC(ble_gap_stats, disconnect);
+}
+
+static void
+ble_gap_update_to_l2cap(const struct ble_gap_upd_params *params,
+                        struct ble_l2cap_sig_update_params *l2cap_params)
+{
+    l2cap_params->itvl_min = params->itvl_min;
+    l2cap_params->itvl_max = params->itvl_max;
+    l2cap_params->slave_latency = params->latency;
+    l2cap_params->timeout_multiplier = params->supervision_timeout;
 }
 
 void
@@ -766,36 +891,79 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 void
 ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 {
+    struct ble_gap_update_entry *entry;
+
 #if !NIMBLE_OPT(CONNECT)
     return;
 #endif
 
+    struct ble_l2cap_sig_update_params l2cap_params;
     struct ble_gap_event event;
     struct ble_hs_conn *conn;
+    int cb_status;
+    int call_cb;
+    int rc;
 
     STATS_INC(ble_gap_stats, rx_update_complete);
 
     memset(&event, 0, sizeof event);
+    memset(&l2cap_params, 0, sizeof l2cap_params);
 
     ble_hs_lock();
 
     conn = ble_hs_conn_find(evt->connection_handle);
     if (conn != NULL) {
-        if (evt->status == 0) {
+        switch (evt->status) {
+        case 0:
+            /* Connection successfully updated. */
             conn->bhc_itvl = evt->conn_itvl;
             conn->bhc_latency = evt->conn_latency;
             conn->bhc_supervision_timeout = evt->supervision_timeout;
+            break;
+
+        case BLE_ERR_UNSUPP_REM_FEATURE:
+            /* Peer reports that it doesn't support the procedure.  This should
+             * only happen if our controller sent the 4.1 Connection Parameters
+             * Request Procedure.  If we are the slave, fail over to the L2CAP
+             * update procedure.
+             */
+            entry = ble_gap_update_entry_find(evt->connection_handle, NULL);
+            if (entry != NULL && !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+                ble_gap_update_to_l2cap(&entry->params, &l2cap_params);
+            }
+            break;
+
+        default:
+            break;
         }
     }
 
-    conn->bhc_flags &= ~BLE_HS_CONN_F_UPDATE;
+    /* We aren't failing over to L2CAP, the update procedure is complete. */
+    if (l2cap_params.itvl_min == 0) {
+        entry = ble_gap_update_entry_remove(evt->connection_handle);
+        ble_gap_update_entry_free(entry);
+    }
 
     ble_hs_unlock();
 
-    event.type = BLE_GAP_EVENT_CONN_UPDATE;
-    event.conn_update.conn_handle = evt->connection_handle;
-    event.conn_update.status = BLE_HS_HCI_ERR(evt->status);
-    ble_gap_call_conn_event_cb(&event, evt->connection_handle);
+    if (l2cap_params.itvl_min != 0) {
+        rc = ble_l2cap_sig_update(evt->connection_handle,
+                                  &l2cap_params,
+                                  ble_gap_update_l2cap_cb, NULL);
+        if (rc == 0) {
+            call_cb = 0;
+        } else {
+            call_cb = 1;
+            cb_status = rc;
+        }
+    } else {
+        call_cb = 1;
+        cb_status = BLE_HS_HCI_ERR(evt->status);
+    }
+
+    if (call_cb) {
+        ble_gap_update_notify(evt->connection_handle, cb_status);
+    }
 }
 
 /**
@@ -1156,6 +1324,34 @@ ble_gap_slave_heartbeat(void)
     return BLE_HS_FOREVER;
 }
 
+static int32_t
+ble_gap_update_heartbeat(void)
+{
+    struct ble_gap_update_entry *entry;
+    int32_t ticks_until_exp;
+    uint16_t conn_handle;
+
+    do {
+        ble_hs_lock();
+
+        conn_handle = ble_gap_update_next_exp(&ticks_until_exp);
+        if (ticks_until_exp == 0) {
+            entry = ble_gap_update_entry_remove(conn_handle);
+        } else {
+            entry = NULL;
+        }
+
+        ble_hs_unlock();
+
+        if (entry != NULL) {
+            ble_gap_update_notify(conn_handle, BLE_HS_ETIMEOUT);
+            ble_gap_update_entry_free(entry);
+        }
+    } while (entry != NULL);
+
+    return ticks_until_exp;
+}
+
 /**
  * Handles timed-out master procedures.
  *
@@ -1167,13 +1363,15 @@ ble_gap_slave_heartbeat(void)
 int32_t
 ble_gap_heartbeat(void)
 {
+    int32_t update_ticks;
     int32_t master_ticks;
     int32_t slave_ticks;
 
     master_ticks = ble_gap_master_heartbeat();
     slave_ticks = ble_gap_slave_heartbeat();
+    update_ticks = ble_gap_update_heartbeat();
 
-    return min(master_ticks, slave_ticks);
+    return min(min(master_ticks, slave_ticks), update_ticks);
 }
 
 /*****************************************************************************
@@ -2450,6 +2648,93 @@ done:
  * $update connection parameters                                             *
  *****************************************************************************/
 
+static struct ble_gap_update_entry *
+ble_gap_update_entry_alloc(void)
+{
+    struct ble_gap_update_entry *entry;
+
+    entry = os_memblock_get(&ble_gap_update_entry_pool);
+    if (entry != NULL) {
+        memset(entry, 0, sizeof *entry);
+    }
+
+    return entry;
+}
+
+static void
+ble_gap_update_entry_free(struct ble_gap_update_entry *entry)
+{
+    int rc;
+
+    if (entry != NULL) {
+        rc = os_memblock_put(&ble_gap_update_entry_pool, entry);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    }
+}
+
+static struct ble_gap_update_entry *
+ble_gap_update_entry_find(uint16_t conn_handle,
+                          struct ble_gap_update_entry **out_prev)
+{
+    struct ble_gap_update_entry *entry;
+    struct ble_gap_update_entry *prev;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    prev = NULL;
+    SLIST_FOREACH(entry, &ble_gap_update_entries, next) {
+        if (entry->conn_handle == conn_handle) {
+            break;
+        }
+
+        prev = entry;
+    }
+
+    if (out_prev != NULL) {
+        *out_prev = prev;
+    }
+
+    return entry;
+}
+
+static struct ble_gap_update_entry *
+ble_gap_update_entry_remove(uint16_t conn_handle)
+{
+    struct ble_gap_update_entry *entry;
+    struct ble_gap_update_entry *prev;
+
+    entry = ble_gap_update_entry_find(conn_handle, &prev);
+    if (entry != NULL) {
+        if (prev == NULL) {
+            SLIST_REMOVE_HEAD(&ble_gap_update_entries, next);
+        } else {
+            SLIST_NEXT(prev, next) = SLIST_NEXT(entry, next);
+        }
+    }
+
+    return entry;
+}
+
+static void
+ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg)
+{
+    struct ble_gap_update_entry *entry;
+
+    /* Report failures and rejections.  Success gets reported when the
+     * controller sends the connection update complete event.
+     */
+    if (status != 0) {
+        ble_hs_lock();
+        entry = ble_gap_update_entry_remove(conn_handle);
+        ble_hs_unlock();
+
+        if (entry != NULL) {
+            ble_gap_update_entry_free(entry);
+            ble_gap_update_notify(conn_handle, status);
+        }
+    }
+}
+
 static int
 ble_gap_tx_param_pos_reply(uint16_t conn_handle,
                            struct ble_gap_upd_params *params)
@@ -2538,9 +2823,6 @@ ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
         rc = ble_gap_tx_param_pos_reply(evt->connection_handle, &self_params);
         if (rc != 0) {
             ble_gap_update_failed(evt->connection_handle, rc);
-        } else {
-            ble_hs_atomic_conn_set_flags(evt->connection_handle,
-                                         BLE_HS_CONN_F_UPDATE, 1);
         }
     } else {
         ble_gap_tx_param_neg_reply(evt->connection_handle, reject_reason);
@@ -2600,10 +2882,14 @@ ble_gap_update_params(uint16_t conn_handle,
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_l2cap_sig_update_params l2cap_params;
+    struct ble_gap_update_entry *entry;
     struct ble_hs_conn *conn;
     int rc;
 
     STATS_INC(ble_gap_stats, update);
+    memset(&l2cap_params, 0, sizeof l2cap_params);
+    entry = NULL;
 
     ble_hs_lock();
 
@@ -2613,28 +2899,58 @@ ble_gap_update_params(uint16_t conn_handle,
         goto done;
     }
 
-    if (conn->bhc_flags & BLE_HS_CONN_F_UPDATE) {
+    entry = ble_gap_update_entry_find(conn_handle, NULL);
+    if (entry != NULL) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
+
+    entry = ble_gap_update_entry_alloc();
+    if (entry == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    entry->conn_handle = conn_handle;
+    entry->params = *params;
+    entry->exp_os_ticks = os_time_get() + BLE_GAP_UPDATE_TIMEOUT;
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: ");
     ble_gap_log_update(conn_handle, params);
     BLE_HS_LOG(INFO, "\n");
 
     rc = ble_gap_update_tx(conn_handle, params);
-    if (rc != 0) {
-        goto done;
-    }
 
-    conn->bhc_flags |= BLE_HS_CONN_F_UPDATE;
+    /* If our controller reports that it doesn't support the update procedure,
+     * and we are the slave, fail over to the L2CAP update procedure.
+     */
+    if (rc == BLE_HS_HCI_ERR(BLE_ERR_UNKNOWN_HCI_CMD) &&
+        !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+
+        ble_gap_update_to_l2cap(params, &l2cap_params);
+    }
 
 done:
     ble_hs_unlock();
 
     if (rc != 0) {
+        ble_gap_update_entry_free(entry);
+
+        if (l2cap_params.itvl_min != 0) {
+            rc = ble_l2cap_sig_update(conn_handle,
+                                      &l2cap_params,
+                                      ble_gap_update_l2cap_cb, NULL);
+        }
+    }
+
+    ble_hs_lock();
+    if (rc == 0) {
+        SLIST_INSERT_HEAD(&ble_gap_update_entries, entry, next);
+    } else {
         STATS_INC(ble_gap_stats, update_fail);
     }
+    ble_hs_unlock();
+
     return rc;
 }
 
@@ -2927,15 +3243,41 @@ ble_gap_init(void)
 {
     int rc;
 
+    free(ble_gap_update_entry_mem);
+
     memset(&ble_gap_master, 0, sizeof ble_gap_master);
     memset(&ble_gap_slave, 0, sizeof ble_gap_slave);
+
+    SLIST_INIT(&ble_gap_update_entries);
+
+    rc = mem_malloc_mempool(&ble_gap_update_entry_pool,
+                            BLE_GAP_MAX_UPDATE_ENTRIES,
+                            sizeof (struct ble_gap_update_entry),
+                            "ble_gap_update",
+                            &ble_gap_update_entry_mem);
+    switch (rc) {
+    case 0:
+        break;
+    case OS_ENOMEM:
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    default:
+        rc = BLE_HS_EOS;
+        goto err;
+    }
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_gap_stats), STATS_SIZE_INIT_PARMS(ble_gap_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_gap_stats), "ble_gap");
     if (rc != 0) {
-        return BLE_HS_EOS;
+        goto err;
     }
 
     return 0;
+
+err:
+    free(ble_gap_update_entry_mem);
+    ble_gap_update_entry_mem = NULL;
+
+    return rc;
 }
