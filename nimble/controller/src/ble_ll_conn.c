@@ -1663,6 +1663,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* Set flag so we send connection update event */
         upd = &connsm->conn_update_req;
         if ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER)  ||
+            ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
+             IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) ||
             (connsm->conn_itvl != upd->interval)            ||
             (connsm->slave_latency != upd->latency)         ||
             (connsm->supervision_tmo != upd->timeout)) {
