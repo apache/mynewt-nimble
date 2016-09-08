@@ -32,8 +32,6 @@
  */
 #define BLE_HS_MAX_EVS_IN_A_ROW 2
 
-static struct log_handler ble_hs_log_console_handler;
-
 struct os_mempool ble_hs_hci_ev_pool;
 static void *ble_hs_hci_os_event_buf;
 
@@ -561,8 +559,7 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
     ble_hs_cfg_init(cfg);
 
     log_init();
-    log_console_handler_init(&ble_hs_log_console_handler);
-    log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
+    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL);
 
     ble_hs_hci_os_event_buf = malloc(
         OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs, sizeof (struct os_event)));
