@@ -38,7 +38,7 @@
  * Used to limit the rate at which we send the number of completed packets
  * event to the host. This is the os time at which we can send an event.
  */
-static uint32_t g_ble_ll_next_num_comp_pkt_evt;
+static uint32_t g_ble_ll_last_num_comp_pkt_evt;
 
 /**
  * Called to check that the connection parameters are within range
@@ -216,7 +216,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
  * to make it contiguous with the handles.
  */
 void
-ble_ll_conn_num_comp_pkts_event_send(void)
+ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
 {
     /** The maximum number of handles that will fit in an event buffer. */
     static const int max_handles =
@@ -227,11 +227,33 @@ ble_ll_conn_num_comp_pkts_event_send(void)
     uint8_t *handle_ptr;
     uint8_t *comp_pkt_ptr;
     uint8_t handles;
-    struct ble_ll_conn_sm *connsm;
 
-    /* Check rate limit */
-    if ((uint32_t)(g_ble_ll_next_num_comp_pkt_evt - os_time_get()) <
-         NIMBLE_OPT_NUM_COMP_PKT_RATE) {
+    /*
+     * At some periodic rate, make sure we go through all active connections
+     * and send the number of completed packet events. We do this mainly
+     * because the spec says we must update the host even though no packets
+     * have completed by there are data packets in the controller buffers
+     * (i.e. enqueued in a connection state machine).
+     */
+    if ((uint32_t)(g_ble_ll_last_num_comp_pkt_evt - os_time_get()) <
+         (NIMBLE_OPT_NUM_COMP_PKT_RATE * OS_TICKS_PER_SEC)) {
+        /*
+         * If this connection has completed packets, send an event right away.
+         * We do this to increase throughput but we dont want to search the
+         * entire active list every time.
+         */
+        if (connsm->completed_pkts) {
+            evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            if (evbuf) {
+                evbuf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
+                evbuf[1] = (2 * sizeof(uint16_t)) + 1;
+                evbuf[2] = 1;
+                htole16(evbuf + 3, connsm->conn_handle);
+                htole16(evbuf + 5, connsm->completed_pkts);
+                ble_ll_hci_event_send(evbuf);
+                connsm->completed_pkts = 0;
+            }
+        }
         return;
     }
 
@@ -294,8 +316,8 @@ ble_ll_conn_num_comp_pkts_event_send(void)
     }
 
     if (event_sent) {
-        g_ble_ll_next_num_comp_pkt_evt = os_time_get() +
-            NIMBLE_OPT_NUM_COMP_PKT_RATE;
+        g_ble_ll_last_num_comp_pkt_evt = os_time_get() +
+            (NIMBLE_OPT_NUM_COMP_PKT_RATE * OS_TICKS_PER_SEC);
     }
 }
 

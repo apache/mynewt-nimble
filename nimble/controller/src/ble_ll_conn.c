@@ -1937,9 +1937,7 @@ ble_ll_conn_event_end(void *arg)
     }
 
     /* If we have completed packets, send an event */
-    if (connsm->completed_pkts) {
-        ble_ll_conn_num_comp_pkts_event_send();
-    }
+    ble_ll_conn_num_comp_pkts_event_send(connsm);
 }
 
 /**
