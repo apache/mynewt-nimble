@@ -253,11 +253,23 @@
 #endif
 
 /*
- * Determines the maximum rate at which the controller will send the
- * number of completed packets event to the host. Rate is in os time ticks
+ * Timeout used by the controller when determining if a number of completed
+ * packets event should be sent to the host if there are data buffers in the
+ * controller that have not completed.
+ *
+ * NOTE:  the controller attempts to send the number of completed packets
+ * event after each connection event in which a packet was completed. This
+ * means that the host should expect that event at a rate much faster than
+ * defined here (assuming packets are being sent and the connection interval
+ * is shorter than the rate defined here). Thus, this definition exists in
+ * order to satisfy the spec requirement to notify the host (at some
+ * manufacturer specified rate) when the controller has data buffers that
+ * have not completed.
+ *
+ * This rate is in seconds.
  */
 #ifndef NIMBLE_OPT_NUM_COMP_PKT_RATE
-#define NIMBLE_OPT_NUM_COMP_PKT_RATE    ((2000 * OS_TICKS_PER_SEC) / 1000)
+#define NIMBLE_OPT_NUM_COMP_PKT_RATE            (10)
 #endif
 
 /* Manufacturer ID. Should be set to unique ID per manufacturer */
