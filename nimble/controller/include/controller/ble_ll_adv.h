@@ -116,6 +116,9 @@ int ble_ll_adv_set_adv_params(uint8_t *cmd);
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
 
 /*---- API used by BLE LL ----*/
+/* Returns the event allocated to send the connection complete event */
+uint8_t *ble_ll_adv_get_conn_comp_ev(void);
+
 /* Returns local resolvable private address */
 uint8_t *ble_ll_adv_get_local_rpa(void);
 
