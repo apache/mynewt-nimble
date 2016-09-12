@@ -34,6 +34,7 @@
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_adv.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
@@ -134,6 +135,9 @@ static const uint16_t g_ble_sca_ppm_tbl[8] =
     500, 250, 150, 100, 75, 50, 30, 20
 };
 
+/* Global connection complete event. Used when initiating */
+uint8_t *g_ble_ll_conn_comp_ev;
+
 /* Global LL connection parameters */
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
 
@@ -210,6 +214,24 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, tx_empty_pdus)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
 STATS_NAME_END(ble_ll_conn_stats)
+
+/**
+ * Get the event buffer allocated to send the connection complete event
+ * when we are initiating.
+ *
+ * @return uint8_t*
+ */
+static uint8_t *
+ble_ll_init_get_conn_comp_ev(void)
+{
+    uint8_t *evbuf;
+
+    evbuf = g_ble_ll_conn_comp_ev;
+    assert(evbuf != NULL);
+    g_ble_ll_conn_comp_ev = NULL;
+
+    return evbuf;
+}
 
 #if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
 /**
@@ -1548,6 +1570,7 @@ ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
 void
 ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 {
+    uint8_t *evbuf;
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
 
@@ -1602,7 +1625,8 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
      */
     if (ble_err) {
         if (ble_err == BLE_ERR_UNK_CONN_ID) {
-            ble_ll_conn_comp_event_send(connsm, ble_err);
+            evbuf = ble_ll_init_get_conn_comp_ev();
+            ble_ll_conn_comp_event_send(connsm, ble_err, evbuf);
         } else {
             ble_ll_disconn_comp_event_send(connsm, ble_err);
         }
@@ -1779,6 +1803,7 @@ static int
 ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
 {
     int rc;
+    uint8_t *evbuf;
     uint32_t usecs;
 
     /* Set state to created */
@@ -1837,7 +1862,12 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
                 ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
             }
         }
-        ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS);
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            evbuf = ble_ll_adv_get_conn_comp_ev();
+        } else {
+            evbuf = ble_ll_init_get_conn_comp_ev();
+        }
+        ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf);
     }
 
     return rc;
@@ -3138,6 +3168,12 @@ ble_ll_conn_module_reset(void)
         connsm = g_ble_ll_conn_cur_sm;
         g_ble_ll_conn_cur_sm = NULL;
         ble_ll_conn_end(connsm, BLE_ERR_SUCCESS);
+    }
+
+    /* Free the global connection complete event if there is one */
+    if (g_ble_ll_conn_comp_ev) {
+        ble_hci_trans_buf_free(g_ble_ll_conn_comp_ev);
+        g_ble_ll_conn_comp_ev = NULL;
     }
 
     /* Now go through and end all the connections */
