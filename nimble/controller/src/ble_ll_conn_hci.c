@@ -39,6 +39,32 @@
  * event to the host. This is the os time at which we can send an event.
  */
 static uint32_t g_ble_ll_last_num_comp_pkt_evt;
+extern uint8_t *g_ble_ll_conn_comp_ev;
+
+/**
+ * Allocate an event to send a connection complete event when initiating
+ *
+ * @return int 0: success -1: failure
+ */
+static int
+ble_ll_init_alloc_conn_comp_ev(void)
+{
+    int rc;
+    uint8_t *evbuf;
+
+    rc = 0;
+    evbuf = g_ble_ll_conn_comp_ev;
+    if (evbuf == NULL) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (!evbuf) {
+            rc = -1;
+        } else {
+            g_ble_ll_conn_comp_ev = evbuf;
+        }
+    }
+
+    return rc;
+}
 
 /**
  * Called to check that the connection parameters are within range
@@ -128,12 +154,12 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
  * @param status The BLE error code associated with the event
  */
 void
-ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
+ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
+                            uint8_t *evbuf)
 {
     uint8_t peer_addr_type;
     uint8_t enabled;
     uint8_t enh_enabled;
-    uint8_t *evbuf;
     uint8_t *evdata;
     uint8_t *rpa;
 
@@ -141,65 +167,62 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status)
     enh_enabled = ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE);
 
     if (enabled || enh_enabled) {
-        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
-        if (evbuf) {
-            /* Put common elements in event */
-            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+        /* Put common elements in event */
+        evbuf[0] = BLE_HCI_EVCODE_LE_META;
+        if (enh_enabled) {
+            evbuf[1] = BLE_HCI_LE_ENH_CONN_COMPLETE_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE;
+        } else {
+            evbuf[1] = BLE_HCI_LE_CONN_COMPLETE_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+        }
+        evbuf[3] = status;
+
+        if (connsm) {
+            htole16(evbuf + 4, connsm->conn_handle);
+            evbuf[6] = connsm->conn_role - 1;
+            peer_addr_type = connsm->peer_addr_type;
+
+            evdata = evbuf + 14;
             if (enh_enabled) {
-                evbuf[1] = BLE_HCI_LE_ENH_CONN_COMPLETE_LEN;
-                evbuf[2] = BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE;
-            } else {
-                evbuf[1] = BLE_HCI_LE_CONN_COMPLETE_LEN;
-                evbuf[2] = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-            }
-            evbuf[3] = status;
-
-            if (connsm) {
-                htole16(evbuf + 4, connsm->conn_handle);
-                evbuf[6] = connsm->conn_role - 1;
-                peer_addr_type = connsm->peer_addr_type;
-
-                evdata = evbuf + 14;
-                if (enh_enabled) {
-                    memset(evdata, 0, 2 * BLE_DEV_ADDR_LEN);
-                    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-                        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                            rpa = ble_ll_scan_get_local_rpa();
-                        } else {
-                            rpa = NULL;
-                        }
+                memset(evdata, 0, 2 * BLE_DEV_ADDR_LEN);
+                if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                    if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+                        rpa = ble_ll_scan_get_local_rpa();
                     } else {
-                        rpa = ble_ll_adv_get_local_rpa();
+                        rpa = NULL;
                     }
-                    if (rpa) {
-                        memcpy(evdata, rpa, BLE_DEV_ADDR_LEN);
-                    }
-
-                    if (connsm->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
-                        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-                            rpa = ble_ll_scan_get_peer_rpa();
-                        } else {
-                            rpa = ble_ll_adv_get_peer_rpa();
-                        }
-                        memcpy(evdata + 6, rpa, BLE_DEV_ADDR_LEN);
-                    }
-                    evdata += 12;
                 } else {
-                    if (peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
-                        peer_addr_type -= 2;
-                    }
+                    rpa = ble_ll_adv_get_local_rpa();
+                }
+                if (rpa) {
+                    memcpy(evdata, rpa, BLE_DEV_ADDR_LEN);
                 }
 
-                evbuf[7] = peer_addr_type;
-                memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
-
-                htole16(evdata, connsm->conn_itvl);
-                htole16(evdata + 2, connsm->slave_latency);
-                htole16(evdata + 4, connsm->supervision_tmo);
-                evdata[6] = connsm->master_sca;
+                if (connsm->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
+                    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                        rpa = ble_ll_scan_get_peer_rpa();
+                    } else {
+                        rpa = ble_ll_adv_get_peer_rpa();
+                    }
+                    memcpy(evdata + 6, rpa, BLE_DEV_ADDR_LEN);
+                }
+                evdata += 12;
+            } else {
+                if (peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
+                    peer_addr_type -= 2;
+                }
             }
-            ble_ll_hci_event_send(evbuf);
+
+            evbuf[7] = peer_addr_type;
+            memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
+
+            htole16(evdata, connsm->conn_itvl);
+            htole16(evdata + 2, connsm->slave_latency);
+            htole16(evdata + 4, connsm->supervision_tmo);
+            evdata[6] = connsm->master_sca;
         }
+        ble_ll_hci_event_send(evbuf);
     }
 }
 
@@ -460,6 +483,11 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     connsm = ble_ll_conn_sm_get();
     if (connsm == NULL) {
         return BLE_ERR_CONN_LIMIT;
+    }
+
+    /* Make sure we can allocate an event to send the connection complete */
+    if (ble_ll_init_alloc_conn_comp_ev()) {
+        return BLE_ERR_MEM_CAPACITY;
     }
 
     /* Initialize state machine in master role and start state machine */
