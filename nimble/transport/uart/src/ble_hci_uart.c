@@ -59,6 +59,8 @@ const struct ble_hci_uart_cfg ble_hci_uart_cfg_dflt = {
 
     .num_evt_bufs = 8,
     .evt_buf_sz = BLE_HCI_TRANS_CMD_SZ,
+
+    .num_acl_bufs = 4
 };
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_uart_rx_cmd_cb;
@@ -72,6 +74,10 @@ static void *ble_hci_uart_evt_buf;
 
 static struct os_mempool ble_hci_uart_pkt_pool;
 static void *ble_hci_uart_pkt_buf;
+
+static struct os_mbuf_pool ble_hci_uart_acl_mbuf_pool;
+static struct os_mempool ble_hci_uart_acl_pool;
+static void *ble_hci_uart_acl_buf;
 
 /**
  * An incoming or outgoing command or event.
@@ -118,6 +124,21 @@ static struct {
 } ble_hci_uart_state;
 
 static struct ble_hci_uart_cfg ble_hci_uart_cfg;
+
+/**
+ * Allocates a buffer (mbuf) for ACL operation.
+ *
+ * @return                      The allocated buffer on success;
+ *                              NULL on buffer exhaustion.
+ */
+static struct os_mbuf *
+ble_hci_trans_acl_buf_alloc(void)
+{
+    struct os_mbuf *m;
+
+    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool, 0);
+    return m;
+}
 
 static int
 ble_hci_uart_acl_tx(struct os_mbuf *om)
@@ -296,8 +317,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
         break;
 
     case BLE_HCI_UART_H4_ACL:
-        ble_hci_uart_state.rx_acl.buf =
-            os_msys_get_pkthdr(BLE_HCI_DATA_HDR_SZ, 0);
+        ble_hci_uart_state.rx_acl.buf = ble_hci_trans_acl_buf_alloc();
         assert(ble_hci_uart_state.rx_acl.buf != NULL);
 
         ble_hci_uart_state.rx_acl.len = 0;
@@ -456,6 +476,9 @@ ble_hci_uart_free_mem(void)
 
     free(ble_hci_uart_pkt_buf);
     ble_hci_uart_pkt_buf = NULL;
+
+    free(ble_hci_uart_acl_buf);
+    ble_hci_uart_acl_buf = NULL;
 }
 
 static int
@@ -700,10 +723,33 @@ int
 ble_hci_uart_init(const struct ble_hci_uart_cfg *cfg)
 {
     int rc;
+    int acl_block_size;
 
     ble_hci_uart_free_mem();
 
     ble_hci_uart_cfg = *cfg;
+
+    /*
+     * XXX: For now, we will keep the ACL buffer size such that it can
+     * accommodate BLE_MBUF_PAYLOAD_SIZE. It should be possible to make this
+     * user defined but more testing would need to be done in that case.
+     */
+    acl_block_size = BLE_MBUF_PAYLOAD_SIZE + BLE_MBUF_MEMBLOCK_OVERHEAD;
+    acl_block_size = OS_ALIGN(acl_block_size, OS_ALIGNMENT);
+    rc = mem_malloc_mempool(&ble_hci_uart_acl_pool,
+                            cfg->num_acl_bufs,
+                            acl_block_size,
+                            "ble_hci_uart_acl_pool",
+                            &ble_hci_uart_acl_buf);
+    if (rc != 0) {
+        rc = ble_err_from_os(rc);
+        goto err;
+    }
+
+    rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool, &ble_hci_uart_acl_pool,
+                           acl_block_size, cfg->num_acl_bufs);
+    assert(rc == 0);
+
 
     /* Create memory pool of HCI command / event buffers */
     rc = mem_malloc_mempool(&ble_hci_uart_evt_pool,
