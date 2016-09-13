@@ -136,7 +136,12 @@ ble_hci_trans_acl_buf_alloc(void)
 {
     struct os_mbuf *m;
 
-    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool, 0);
+    /*
+     * XXX: note that for host only there would be no need to allocate
+     * a user header. Address this later.
+     */
+    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool,
+                           sizeof(struct ble_mbuf_hdr));
     return m;
 }
 
