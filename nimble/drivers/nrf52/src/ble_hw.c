@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
@@ -27,6 +28,8 @@
 #include "nrf52_bitfields.h"
 #include "controller/ble_hw.h"
 #include "bsp/cmsis_nvic.h"
+
+#include "nrf52_bitfields.h"
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -38,11 +41,11 @@ static uint8_t g_ble_hw_whitelist_mask;
 ble_rng_isr_cb_t g_ble_rng_isr_cb;
 
 /* If LL privacy is enabled, allocate memory for AAR */
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 
 /* The NRF51 supports up to 16 IRK entries */
-#if (NIMBLE_OPT_LL_RESOLV_LIST_SIZE < 16)
-#define NRF_IRK_LIST_ENTRIES    (NIMBLE_OPT_LL_RESOLV_LIST_SIZE)
+#if (MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE) < 16)
+#define NRF_IRK_LIST_ENTRIES    (MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE))
 #else
 #define NRF_IRK_LIST_ENTRIES    (16)
 #endif
@@ -339,7 +342,7 @@ ble_hw_rng_read(void)
     return rnum;
 }
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY))
 /**
  * Clear the resolving list
  *

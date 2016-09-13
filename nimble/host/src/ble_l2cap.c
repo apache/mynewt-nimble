@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -29,7 +30,10 @@ _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
 
 struct os_mempool ble_l2cap_chan_pool;
 
-static void *ble_l2cap_chan_mem;
+static os_membuf_t ble_l2cap_chan_mem[
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_MAX_CHANS),
+                     sizeof (struct ble_l2cap_chan))
+];
 
 STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
 STATS_NAME_START(ble_l2cap_stats)
@@ -292,57 +296,34 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return 0;
 }
 
-static void
-ble_l2cap_free_mem(void)
-{
-    free(ble_l2cap_chan_mem);
-    ble_l2cap_chan_mem = NULL;
-}
-
 int
 ble_l2cap_init(void)
 {
     int rc;
 
-    ble_l2cap_free_mem();
-
-    ble_l2cap_chan_mem = malloc(
-        OS_MEMPOOL_BYTES(ble_hs_cfg.max_l2cap_chans,
-                         sizeof (struct ble_l2cap_chan)));
-    if (ble_l2cap_chan_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    rc = os_mempool_init(&ble_l2cap_chan_pool, ble_hs_cfg.max_l2cap_chans,
+    rc = os_mempool_init(&ble_l2cap_chan_pool, MYNEWT_VAL(BLE_L2CAP_MAX_CHANS),
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     rc = ble_l2cap_sig_init();
     if (rc != 0) {
-        goto err;
+        return rc;
     }
 
     rc = ble_sm_init();
     if (rc != 0) {
-        goto err;
+        return rc;
     }
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_l2cap_stats), STATS_SIZE_INIT_PARMS(ble_l2cap_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_l2cap_stats), "ble_l2cap");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     return 0;
-
-err:
-    ble_l2cap_free_mem();
-    return rc;
 }

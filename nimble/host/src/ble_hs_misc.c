@@ -26,26 +26,6 @@
 const uint8_t ble_hs_misc_null_addr[6];
 
 int
-ble_hs_misc_malloc_mempool(void **mem, struct os_mempool *pool,
-                           int num_entries, int entry_size, char *name)
-{
-    int rc;
-
-    *mem = malloc(OS_MEMPOOL_BYTES(num_entries, entry_size));
-    if (*mem == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    rc = os_mempool_init(pool, num_entries, entry_size, *mem, name);
-    if (rc != 0) {
-        free(*mem);
-        return BLE_HS_EOS;
-    }
-
-    return 0;
-}
-
-int
 ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
                            struct ble_hs_conn **out_conn,
                            struct ble_l2cap_chan **out_chan)

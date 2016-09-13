@@ -53,7 +53,7 @@
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /*
  * Encryption states for a connection
  *
@@ -232,7 +232,7 @@ struct ble_ll_conn_sm
     /* For scheduling connections */
     struct ble_ll_sched_item conn_sch;
 
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     struct os_callout_func auth_pyld_timer;
 #endif
 
@@ -244,7 +244,7 @@ struct ble_ll_conn_sm
      * allocate these from a pool? Not sure what to do. For now, I just use
      * a large chunk of memory per connection.
      */
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     struct ble_ll_conn_enc_data enc_data;
 #endif
     /*

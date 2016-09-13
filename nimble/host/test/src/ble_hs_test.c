@@ -17,13 +17,14 @@
  * under the License.
  */
 
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/hci_common.h"
 #include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
 
-#ifdef MYNEWT_SELFTEST
+#if MYNEWT_VAL(SELFTEST)
 
 int
 main(int argc, char **argv)

@@ -149,11 +149,11 @@ ble_svc_gap_device_name_set(const char *name)
 }
 
 int
-ble_svc_gap_init(struct ble_hs_cfg *cfg)
+ble_svc_gap_init(void)
 {
     int rc;
 
-    rc = ble_gatts_count_cfg(ble_svc_gap_defs, cfg);
+    rc = ble_gatts_count_cfg(ble_svc_gap_defs);
     if (rc != 0) {
         return rc;
     }

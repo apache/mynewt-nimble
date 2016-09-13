@@ -455,7 +455,7 @@ ble_hs_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
 void
 ble_hs_dbg_event_disp(uint8_t *evbuf)
 {
-#if LOG_LEVEL > LOG_LEVEL_DEBUG
+#if MYNEWT_VAL(LOG_LEVEL) > LOG_LEVEL_DEBUG
     return;
 #endif
 

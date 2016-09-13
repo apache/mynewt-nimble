@@ -122,7 +122,7 @@ ble_eddystone_set_adv_data_gen(struct ble_hs_adv_fields *adv_fields,
 int
 ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
 {
-#if !NIMBLE_OPT(EDDYSTONE)
+#if !MYNEWT_VAL(BLE_EDDYSTONE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -167,7 +167,7 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                uint8_t url_scheme, char *url_body,
                                uint8_t url_body_len, uint8_t url_suffix)
 {
-#if !NIMBLE_OPT(EDDYSTONE)
+#if !MYNEWT_VAL(BLE_EDDYSTONE)
     return BLE_HS_ENOTSUP;
 #endif
 

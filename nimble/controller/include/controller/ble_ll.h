@@ -287,8 +287,7 @@ struct ble_dev_addr
 
 /*--- External API ---*/
 /* Initialize the Link Layer */
-int
-ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size);
+void ble_ll_init(void);
 
 /* Reset the Link Layer */
 int ble_ll_reset(void);
@@ -390,7 +389,7 @@ void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
 #define ble_ll_log(m,n,o,p)
 #endif
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /* LTK 0x4C68384139F574D836BCF34E9DFB01BF */
 extern const uint8_t g_bletest_LTK[];
 extern uint16_t g_bletest_EDIV;

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -103,7 +104,7 @@ ble_ll_hci_send_noop(void)
     return rc;
 }
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /**
  * LE encrypt command
  *
@@ -171,7 +172,7 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 
     hci_rev = 0;
     lmp_subver = 0;
-    mfrg = NIMBLE_OPT_LL_MFRG_ID;
+    mfrg = MYNEWT_VAL(BLE_LL_MFRG_ID);
 
     /* Place the data packet length and number of packets in the buffer */
     rspbuf[0] = BLE_HCI_VER_BCS_4_2;
@@ -281,7 +282,7 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
-#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
 /**
  * HCI write suggested default data length command.
  *
@@ -615,7 +616,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
         rc = ble_ll_conn_hci_read_rem_features(cmdbuf);
         break;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     case BLE_HCI_OCF_LE_ENCRYPT:
         rc = ble_ll_hci_le_encrypt(cmdbuf, rspbuf, rsplen);
         break;
@@ -623,7 +624,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RAND:
         rc = ble_ll_hci_le_rand(rspbuf, rsplen);
         break;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     case BLE_HCI_OCF_LE_START_ENCRYPT:
         rc = ble_ll_conn_hci_le_start_encrypt(cmdbuf);
         break;
@@ -642,7 +643,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
         break;
-#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
     case BLE_HCI_OCF_LE_SET_DATA_LEN:
         rc = ble_ll_conn_hci_set_data_len(cmdbuf, rspbuf, rsplen);
         break;
@@ -653,7 +654,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_hci_le_wr_sugg_data_len(cmdbuf);
         break;
 #endif
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     case BLE_HCI_OCF_LE_ADD_RESOLV_LIST :
         rc = ble_ll_resolv_list_add(cmdbuf);
         break;
@@ -759,7 +760,7 @@ ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 {
     int rc;
     uint8_t len;
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     uint8_t *rspbuf;
 #endif
 
@@ -771,7 +772,7 @@ ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     /* Move past HCI command header */
     cmdbuf += BLE_HCI_CMD_HDR_LEN;
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
 #endif
 
@@ -793,7 +794,7 @@ ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = BLE_ERR_SUCCESS;
         }
         break;
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     case BLE_HCI_OCF_CB_RD_AUTH_PYLD_TMO:
         rc = ble_ll_conn_hci_wr_auth_pyld_tmo(cmdbuf, rspbuf, rsplen);
         break;

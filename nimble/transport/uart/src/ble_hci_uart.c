@@ -36,6 +36,9 @@
 
 #include "transport/uart/ble_hci_uart.h"
 
+#define BLE_HCI_UART_EVT_COUNT  \
+    (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) + MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
+
 /***
  * NOTE:
  * The UART HCI transport doesn't use event buffer priorities.  All incoming
@@ -47,19 +50,6 @@
 #define BLE_HCI_UART_H4_ACL         0x02
 #define BLE_HCI_UART_H4_SCO         0x03
 #define BLE_HCI_UART_H4_EVT         0x04
-
-/** Default configuration. */
-const struct ble_hci_uart_cfg ble_hci_uart_cfg_dflt = {
-    .uart_port = 0,
-    .baud = 1000000,
-    .flow_ctrl = HAL_UART_FLOW_CTL_RTS_CTS,
-    .data_bits = 8,
-    .stop_bits = 1,
-    .parity = HAL_UART_PARITY_NONE,
-
-    .num_evt_bufs = 8,
-    .evt_buf_sz = BLE_HCI_TRANS_CMD_SZ,
-};
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_uart_rx_cmd_cb;
 static void *ble_hci_uart_rx_cmd_arg;
@@ -117,8 +107,6 @@ static struct {
     STAILQ_HEAD(, ble_hci_uart_pkt) tx_pkts; /* Packet queue to send to UART */
 } ble_hci_uart_state;
 
-static struct ble_hci_uart_cfg ble_hci_uart_cfg;
-
 static int
 ble_hci_uart_acl_tx(struct os_mbuf *om)
 {
@@ -138,7 +126,7 @@ ble_hci_uart_acl_tx(struct os_mbuf *om)
     STAILQ_INSERT_TAIL(&ble_hci_uart_state.tx_pkts, pkt, next);
     OS_EXIT_CRITICAL(sr);
 
-    hal_uart_start_tx(ble_hci_uart_cfg.uart_port);
+    hal_uart_start_tx(MYNEWT_VAL(BLE_HCI_UART_PORT));
 
     return 0;
 }
@@ -162,7 +150,7 @@ ble_hci_uart_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
     STAILQ_INSERT_TAIL(&ble_hci_uart_state.tx_pkts, pkt, next);
     OS_EXIT_CRITICAL(sr);
 
-    hal_uart_start_tx(ble_hci_uart_cfg.uart_port);
+    hal_uart_start_tx(MYNEWT_VAL(BLE_HCI_UART_PORT));
 
     return 0;
 }
@@ -463,19 +451,19 @@ ble_hci_uart_config(void)
 {
     int rc;
 
-    rc = hal_uart_init_cbs(ble_hci_uart_cfg.uart_port,
+    rc = hal_uart_init_cbs(MYNEWT_VAL(BLE_HCI_UART_PORT),
                            ble_hci_uart_tx_char, NULL,
                            ble_hci_uart_rx_char, NULL);
     if (rc != 0) {
         return BLE_ERR_UNSPECIFIED;
     }
 
-    rc = hal_uart_config(ble_hci_uart_cfg.uart_port,
-                         ble_hci_uart_cfg.baud,
-                         ble_hci_uart_cfg.data_bits,
-                         ble_hci_uart_cfg.stop_bits,
-                         ble_hci_uart_cfg.parity,
-                         ble_hci_uart_cfg.flow_ctrl);
+    rc = hal_uart_config(MYNEWT_VAL(BLE_HCI_UART_PORT),
+                         MYNEWT_VAL(BLE_HCI_UART_BAUD),
+                         MYNEWT_VAL(BLE_HCI_UART_DATA_BITS),
+                         MYNEWT_VAL(BLE_HCI_UART_STOP_BITS),
+                         MYNEWT_VAL(BLE_HCI_UART_PARITY),
+                         MYNEWT_VAL(BLE_HCI_UART_FLOW_CTRL));
     if (rc != 0) {
         return BLE_ERR_HW_FAIL;
     }
@@ -569,9 +557,9 @@ ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
  */
 void
 ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                            void *cmd_arg,
-                            ble_hci_trans_rx_acl_fn *acl_cb,
-                            void *acl_arg)
+                     void *cmd_arg,
+                     ble_hci_trans_rx_acl_fn *acl_cb,
+                     void *acl_arg)
 {
     ble_hci_uart_set_rx_cbs(cmd_cb, cmd_arg, acl_cb, acl_arg);
 }
@@ -591,9 +579,9 @@ ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
  */
 void
 ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                            void *cmd_arg,
-                            ble_hci_trans_rx_acl_fn *acl_cb,
-                            void *acl_arg)
+                     void *cmd_arg,
+                     ble_hci_trans_rx_acl_fn *acl_cb,
+                     void *acl_arg)
 {
     ble_hci_uart_set_rx_cbs(cmd_cb, cmd_arg, acl_cb, acl_arg);
 }
@@ -656,7 +644,7 @@ ble_hci_trans_reset(void)
     int rc;
 
     /* Close the UART to prevent race conditions as the buffers are freed. */
-    rc = hal_uart_close(ble_hci_uart_cfg.uart_port);
+    rc = hal_uart_close(MYNEWT_VAL(BLE_HCI_UART_PORT));
     if (rc != 0) {
         return BLE_ERR_HW_FAIL;
     }
@@ -690,25 +678,20 @@ ble_hci_trans_reset(void)
 /**
  * Initializes the UART HCI transport module.
  *
- * @param cfg                   The settings to initialize the HCI UART
- *                                  transport with.
- *
  * @return                      0 on success;
  *                              A BLE_ERR_[...] error code on failure.
  */
 int
-ble_hci_uart_init(const struct ble_hci_uart_cfg *cfg)
+ble_hci_uart_init(void)
 {
     int rc;
 
     ble_hci_uart_free_mem();
 
-    ble_hci_uart_cfg = *cfg;
-
     /* Create memory pool of HCI command / event buffers */
     rc = mem_malloc_mempool(&ble_hci_uart_evt_pool,
-                            cfg->num_evt_bufs,
-                            cfg->evt_buf_sz,
+                            BLE_HCI_UART_EVT_COUNT,
+                            MYNEWT_VAL(BLE_HCI_UART_BUF_SIZE),
                             "ble_hci_uart_evt_pool",
                             &ble_hci_uart_evt_buf);
     if (rc != 0) {
@@ -718,7 +701,7 @@ ble_hci_uart_init(const struct ble_hci_uart_cfg *cfg)
 
     /* Create memory pool of packet list nodes. */
     rc = mem_malloc_mempool(&ble_hci_uart_pkt_pool,
-                            cfg->num_evt_bufs,
+                            BLE_HCI_UART_EVT_COUNT,
                             sizeof (struct ble_hci_uart_pkt),
                             "ble_hci_uart_pkt_pool",
                             &ble_hci_uart_pkt_buf);

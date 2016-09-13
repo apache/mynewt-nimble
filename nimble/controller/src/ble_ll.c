@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "stats/stats.h"
 #include "bsp/bsp.h"
@@ -185,6 +187,12 @@ os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
 struct os_mempool g_ble_ll_hci_ev_pool;
 static void *ble_ll_hci_os_event_buf;
+
+/** Our global device address (public) */
+uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
+
+/** Our random address */
+uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
 /* XXX: temporary logging until we transition to real logging */
 #ifdef BLE_LL_LOG
@@ -872,7 +880,7 @@ ble_ll_task(void *arg)
     ble_phy_init();
 
     /* Set output power to 1mW (0 dBm) */
-    ble_phy_txpwr_set(NIMBLE_OPT_LL_TX_PWR_DBM);
+    ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
@@ -1089,7 +1097,7 @@ ble_ll_reset(void)
     ble_ll_whitelist_clear();
 
     /* Reset resolving list */
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     ble_ll_resolv_list_reset();
 #endif
 
@@ -1099,13 +1107,30 @@ ble_ll_reset(void)
     return rc;
 }
 
+static void
+ble_ll_seed_prng(void)
+{
+    uint32_t seed;
+    int i;
+
+    /* Seed random number generator with least significant bytes of device
+     * address.
+     */
+    seed = 0;
+    for (i = 0; i < 4; ++i) {
+        seed |= g_dev_addr[i];
+        seed <<= 8;
+    }
+    srand(seed);
+}
+
 /**
  * Initialize the Link Layer. Should be called only once
  *
  * @return int
  */
-int
-ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
+void
+ble_ll_init(void)
 {
     int rc;
     uint8_t features;
@@ -1115,8 +1140,8 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     lldata = &g_ble_ll_data;
 
     /* Set acl pkt size and number */
-    lldata->ll_num_acl_pkts = num_acl_pkts;
-    lldata->ll_acl_pkt_size = acl_pkt_size;
+    lldata->ll_num_acl_pkts = MYNEWT_VAL(BLE_LL_ACL_PKT_COUNT);
+    lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_LL_ACL_PKT_SIZE);
 
     /* Initialize eventq */
     os_eventq_init(&lldata->ll_evq);
@@ -1135,13 +1160,13 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
 
     ble_ll_hci_os_event_buf = malloc(
         OS_MEMPOOL_BYTES(16, sizeof (struct os_event)));
-    assert(ble_ll_hci_os_event_buf != NULL);
+    SYSINIT_PANIC_ASSERT(ble_ll_hci_os_event_buf != NULL);
 
     /* Create memory pool of OS events */
     rc = os_mempool_init(&g_ble_ll_hci_ev_pool, 16,
                          sizeof (struct os_event), ble_ll_hci_os_event_buf,
                          "g_ble_ll_hci_ev_pool");
-    assert(rc == 0);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     /* Initialize LL HCI */
     ble_ll_hci_init();
@@ -1161,45 +1186,50 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     /* Set the supported features. NOTE: we always support extended reject. */
     features = BLE_LL_FEAT_EXTENDED_REJ;
 
-#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
     features |= BLE_LL_FEAT_DATA_LEN_EXT;
 #endif
-#if (BLE_LL_CFG_FEAT_CONN_PARAM_REQ == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_CONN_PARAM_REQ) == 1)
     features |= BLE_LL_FEAT_CONN_PARM_REQ;
 #endif
-#if (BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG) == 1)
     features |= BLE_LL_FEAT_SLAVE_INIT;
 #endif
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     features |= BLE_LL_FEAT_LE_ENCRYPTION;
 #endif
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     features |= (BLE_LL_FEAT_LL_PRIVACY | BLE_LL_FEAT_EXT_SCAN_FILT);
     ble_ll_resolv_init();
 #endif
 
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     features |= BLE_LL_FEAT_LE_PING;
 #endif
 
     /* Initialize random number generation */
     ble_ll_rand_init();
 
+    /* XXX: This really doesn't belong here, as the address probably has not
+     * been set yet.
+     */
+    ble_ll_seed_prng();
+
     lldata->ll_supp_features = features;
 
     /* Initialize the LL task */
-    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL, ll_task_prio,
-                 OS_WAIT_FOREVER, g_ble_ll_stack, BLE_LL_STACK_SIZE);
+    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL,
+                 MYNEWT_VAL(BLE_LL_PRIO), OS_WAIT_FOREVER, g_ble_ll_stack,
+                 BLE_LL_STACK_SIZE);
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
                             STATS_NAME_INIT_PARMS(ble_ll_stats),
                             "ble_ll");
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
-    ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL,
-                                    ble_ll_hci_acl_rx, NULL);
-    return rc;
+    ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
 }
 
 #ifdef BLE_LL_LOG

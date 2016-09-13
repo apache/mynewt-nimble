@@ -19,12 +19,18 @@
 
 #include <assert.h>
 #include <errno.h>
+#include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "stats/stats.h"
 #include "util/tpq.h"
 #include "os/os.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
+
+#define BLE_HS_HCI_EVT_COUNT                    \
+    (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) +     \
+     MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
 /**
  * The maximum number of events the host will process in a row before returning
@@ -35,7 +41,9 @@
 static struct log_handler ble_hs_log_console_handler;
 
 struct os_mempool ble_hs_hci_ev_pool;
-static void *ble_hs_hci_os_event_buf;
+static os_membuf_t ble_hs_hci_os_event_buf[
+    OS_MEMPOOL_SIZE(BLE_HS_HCI_EVT_COUNT, sizeof (struct os_event))
+];
 
 /** OS event - triggers tx of pending notifications and indications. */
 static struct os_event ble_hs_event_tx_notifications = {
@@ -52,14 +60,12 @@ static struct os_event ble_hs_event_reset = {
 uint8_t ble_hs_sync_state;
 static int ble_hs_reset_reason;
 
-#if MYNEWT_SELFTEST
-/** Use a higher frequency timer to allow tests to run faster. */
-#define BLE_HS_HEARTBEAT_OS_TICKS       (OS_TICKS_PER_SEC / 10)
-#else
-#define BLE_HS_HEARTBEAT_OS_TICKS       OS_TICKS_PER_SEC
-#endif
+#define BLE_HS_HEARTBEAT_OS_TICKS       \
+    (MYNEWT_VAL(BLE_HS_HEARTBEAT_FREQ) * OS_TICKS_PER_SEC / 1000)
 
 #define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)    
+
+static struct os_task *ble_hs_parent_task;
 
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource
@@ -71,16 +77,20 @@ static struct os_callout_func ble_hs_event_co;
 /* Queue for host-specific OS events. */
 static struct os_eventq ble_hs_evq;
 
-/* Task structures for the host's parent task. */
-static struct os_eventq *ble_hs_parent_evq;
-static struct os_task *ble_hs_parent_task;
-
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
 
 static struct os_mutex ble_hs_mutex;
 
-#if BLE_HS_DEBUG
+/** These values keep track of required ATT and GATT resources counts.  They
+ * increase as services are added, and are read when the ATT server and GATT
+ * server are started.
+ */
+uint16_t ble_hs_max_attrs;
+uint16_t ble_hs_max_services;
+uint16_t ble_hs_max_client_configs;
+
+#if MYNEWT_VAL(BLE_HS_DEBUG)
 static uint8_t ble_hs_dbg_mutex_locked;
 #endif
 
@@ -102,7 +112,7 @@ ble_hs_locked_by_cur_task(void)
 {
     struct os_task *owner;
 
-#if BLE_HS_DEBUG
+#if MYNEWT_VAL(BLE_HS_DEBUG)
     if (!os_started()) {
         return ble_hs_dbg_mutex_locked;
     }
@@ -118,7 +128,8 @@ ble_hs_locked_by_cur_task(void)
 int
 ble_hs_is_parent_task(void)
 {
-    return !os_started() || os_sched_get_current_task() == ble_hs_parent_task;
+    return !os_started() ||
+           os_sched_get_current_task() == ble_hs_parent_task;
 }
 
 void
@@ -128,7 +139,7 @@ ble_hs_lock(void)
 
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
-#if BLE_HS_DEBUG
+#if MYNEWT_VAL(BLE_HS_DEBUG)
     if (!os_started()) {
         ble_hs_dbg_mutex_locked = 1;
         return;
@@ -144,7 +155,7 @@ ble_hs_unlock(void)
 {
     int rc;
 
-#if BLE_HS_DEBUG
+#if MYNEWT_VAL(BLE_HS_DEBUG)
     if (!os_started()) {
         BLE_HS_DBG_ASSERT(ble_hs_dbg_mutex_locked);
         ble_hs_dbg_mutex_locked = 0;
@@ -345,7 +356,7 @@ ble_hs_event_handle(void *unused)
          * task's eventq to indicate that more host events are enqueued.
          */
         if (i >= BLE_HS_MAX_EVS_IN_A_ROW) {
-            os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+            os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
             break;
         }
         i++;
@@ -395,7 +406,7 @@ void
 ble_hs_event_enqueue(struct os_event *ev)
 {
     os_eventq_put(&ble_hs_evq, ev);
-    os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+    os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
 }
 
 void
@@ -421,7 +432,7 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
 void
 ble_hs_notifications_sched(void)
 {
-#if MYNEWT_SELFTEST
+#if !MYNEWT_VAL(BLE_HS_REQUIRE_OS)
     if (!os_started()) {
         ble_gatts_tx_notifications();
         return;
@@ -464,12 +475,31 @@ ble_hs_start(void)
 {
     int rc;
 
+    if (ble_hs_cfg.parent_evq == NULL) {
+        return BLE_HS_EINVAL;
+    }
+
     ble_hs_parent_task = os_sched_get_current_task();
 
-    ble_gatts_start();
+    os_callout_func_init(&ble_hs_heartbeat_timer, ble_hs_cfg.parent_evq,
+                         ble_hs_heartbeat, NULL);
+
+    rc = ble_att_svr_start();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gatts_start();
+    if (rc != 0) {
+        return rc;
+    }
 
     rc = ble_hs_sync();
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 /**
@@ -488,7 +518,7 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
 
     rc = os_mqueue_put(&ble_hs_rx_q, &ble_hs_evq, om);
     if (rc == 0) {
-        os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+        os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
     } else {
         os_mbuf_free_chain(om);
         rc = BLE_HS_EOS;
@@ -515,16 +545,9 @@ ble_hs_tx_data(struct os_mbuf *om)
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
     }
-    os_eventq_put(ble_hs_parent_evq, &ble_hs_event_co.cf_c.c_ev);
+    os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
 
     return 0;
-}
-
-static void
-ble_hs_free_mem(void)
-{
-    free(ble_hs_hci_os_event_buf);
-    ble_hs_hci_os_event_buf = NULL;
 }
 
 /**
@@ -533,95 +556,47 @@ ble_hs_free_mem(void)
  * application task in particular is designated as the "host parent task".  In
  * addition to application-specific work, the host parent task does work for
  * NimBLE by processing events generated by the host.
- *
- * @param app_evq               The event queue associated with the host parent
- *                                  task.
- * @param cfg                   The set of configuration settings to initialize
- *                                  the host with.  Specify null for defaults.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOMEM if initialization failed due to
- *                                  resource exhaustion.
- *                              Other nonzero on error.
  */
-int
-ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
+void
+ble_hs_init(void)
 {
     int rc;
-
-    ble_hs_free_mem();
-
-    if (app_evq == NULL) {
-        rc = BLE_HS_EINVAL;
-        goto err;
-    }
-    ble_hs_parent_evq = app_evq;
-
-    ble_hs_cfg_init(cfg);
 
     log_init();
     log_console_handler_init(&ble_hs_log_console_handler);
     log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
 
-    ble_hs_hci_os_event_buf = malloc(
-        OS_MEMPOOL_BYTES(ble_hs_cfg.max_hci_bufs, sizeof (struct os_event)));
-    if (ble_hs_hci_os_event_buf == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
     /* Create memory pool of OS events */
-    rc = os_mempool_init(&ble_hs_hci_ev_pool, ble_hs_cfg.max_hci_bufs,
+    rc = os_mempool_init(&ble_hs_hci_ev_pool, BLE_HS_HCI_EVT_COUNT,
                          sizeof (struct os_event), ble_hs_hci_os_event_buf,
                          "ble_hs_hci_ev_pool");
-    assert(rc == 0);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     /* Initialize eventq */
     os_eventq_init(&ble_hs_evq);
 
-    /* Initialize stats. */
-    rc = stats_module_init();
-    if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
-    }
-
     ble_hs_hci_init();
 
     rc = ble_hs_conn_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_l2cap_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_att_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_att_svr_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gap_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gattc_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_init();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     os_mqueue_init(&ble_hs_rx_q, NULL);
     os_mqueue_init(&ble_hs_tx_q, NULL);
@@ -629,31 +604,21 @@ ble_hs_init(struct os_eventq *app_evq, struct ble_hs_cfg *cfg)
     rc = stats_init_and_reg(
         STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_hs_stats), "ble_hs");
-    if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
-    os_callout_func_init(&ble_hs_heartbeat_timer, ble_hs_parent_evq,
-                         ble_hs_heartbeat, NULL);
     os_callout_func_init(&ble_hs_event_co, &ble_hs_evq,
                          ble_hs_event_handle, NULL);
 
     rc = os_mutex_init(&ble_hs_mutex);
-    if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
-    }
-#if BLE_HS_DEBUG
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+#if MYNEWT_VAL(BLE_HS_DEBUG)
     ble_hs_dbg_mutex_locked = 0;
 #endif
 
     /* Configure the HCI transport to communicate with a host. */
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
-    return 0;
-
-err:
-    ble_hs_free_mem();
-    return rc;
+    /* Configure storage mechanism. */
+    /* XXX */
 }

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -30,8 +31,8 @@
 #include "controller/ble_hw.h"
 #include "hal/hal_cputime.h"
 
-#if (NIMBLE_OPT_LL_WHITELIST_SIZE < BLE_HW_WHITE_LIST_SIZE)
-#define BLE_LL_WHITELIST_SIZE       NIMBLE_OPT_LL_WHITELIST_SIZE
+#if (MYNEWT_VAL(BLE_LL_WHITELIST_SIZE) < BLE_HW_WHITE_LIST_SIZE)
+#define BLE_LL_WHITELIST_SIZE       MYNEWT_VAL(BLE_LL_WHITELIST_SIZE)
 #else
 #define BLE_LL_WHITELIST_SIZE       BLE_HW_WHITE_LIST_SIZE
 #endif

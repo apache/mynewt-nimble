@@ -1485,6 +1485,12 @@ ble_sm_test_util_peer_lgcy_fail_confirm(
     ble_hs_id_set_pub(resp_addr);
     ble_sm_dbg_set_next_pair_rand(random_rsp->value);
 
+    if (pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_SC) {
+        ble_hs_cfg.sm_sc = 1;
+    } else {
+        ble_hs_cfg.sm_sc = 0;
+    }
+
     ble_hs_test_util_create_conn(2, init_id_addr, ble_sm_test_util_conn_cb,
                                  NULL);
 

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -30,7 +31,7 @@
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 
 /* Flag denoting whether or not address translation is enabled. */
 uint8_t g_ble_ll_addr_res_enabled;
@@ -38,7 +39,7 @@ uint8_t g_ble_ll_resolv_list_size;
 uint8_t g_ble_ll_resolv_list_cnt;
 uint32_t g_ble_ll_resolv_rpa_tmo;
 
-struct ble_ll_resolv_entry g_ble_ll_resolv_list[NIMBLE_OPT_LL_RESOLV_LIST_SIZE];
+struct ble_ll_resolv_entry g_ble_ll_resolv_list[MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE)];
 
 /**
  * Called to determine if a change is allowed to the resolving list at this
@@ -457,12 +458,12 @@ ble_ll_resolv_init(void)
     g_ble_ll_resolv_rpa_tmo = 15 * 60 * OS_TICKS_PER_SEC;
 
     hw_size = ble_hw_resolv_list_size();
-    if (hw_size > NIMBLE_OPT_LL_RESOLV_LIST_SIZE) {
-        hw_size = NIMBLE_OPT_LL_RESOLV_LIST_SIZE;
+    if (hw_size > MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE)) {
+        hw_size = MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE);
     }
     g_ble_ll_resolv_list_size = hw_size;
 
 }
 
-#endif  /* if BLE_LL_CFG_FEAT_LL_PRIVACY == 1 */
+#endif  /* if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1 */
 

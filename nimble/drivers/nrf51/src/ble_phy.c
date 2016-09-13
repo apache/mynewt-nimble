@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "bsp/cmsis_nvic.h"
 #include "nimble/ble.h"
@@ -94,7 +95,7 @@ struct ble_phy_obj g_ble_phy_data;
 /* Global transmit/receive buffer */
 static uint32_t g_ble_phy_txrx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /* Make sure word-aligned for faster copies */
 static uint32_t g_ble_phy_enc_buf[(NRF_ENC_BUF_SIZE + 3) / 4];
 #endif
@@ -164,10 +165,10 @@ STATS_NAME_END(ble_phy_stats)
  *  bit in the NVIC just to be sure when we disable the PHY.
  */
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /* XXX: test this. only needs 43 bytes. Should just not use the macro for this*/
 /* Per nordic, the number of bytes needed for scratch is 16 + MAX_PKT_SIZE */
-#define NRF_ENC_SCRATCH_WORDS   (((NIMBLE_OPT_LL_MAX_PKT_SIZE + 16) + 3) / 4)
+#define NRF_ENC_SCRATCH_WORDS   (((MYNEWT_VAL(BLE_LL_MAX_PKT_SIZE) + 16) + 3) / 4)
 
 uint32_t g_nrf_encrypt_scratchpad[NRF_ENC_SCRATCH_WORDS];
 
@@ -241,7 +242,7 @@ nrf_wait_disabled(void)
 static void
 ble_phy_rx_xcvr_setup(void)
 {
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     if (g_ble_phy_data.phy_encrypted) {
         NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
@@ -260,7 +261,7 @@ ble_phy_rx_xcvr_setup(void)
     NRF_RADIO->PACKETPTR = (uint32_t)g_ble_phy_data.rxpdu->om_data;
 #endif
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (g_ble_phy_data.phy_privacy) {
         NRF_RADIO->PCNF0 = (6 << RADIO_PCNF0_LFLEN_Pos) |
                            (2 << RADIO_PCNF0_S1LEN_Pos) |
@@ -330,7 +331,7 @@ ble_phy_tx_end_isr(void)
     NRF_RADIO->EVENTS_END = 0;
     wfr_time = NRF_RADIO->SHORTS;
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     /*
      * XXX: not sure what to do. We had a HW error during transmission.
      * For now I just count a stat but continue on like all is good.
@@ -382,7 +383,7 @@ static void
 ble_phy_rx_end_isr(void)
 {
     int rc;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     uint8_t *dptr;
 #endif
     uint8_t crcok;
@@ -400,7 +401,7 @@ ble_phy_rx_end_isr(void)
     ble_hdr = BLE_MBUF_HDR_PTR(g_ble_phy_data.rxpdu);
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
     ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     dptr = g_ble_phy_data.rxpdu->om_data;
 #endif
     /* Count PHY crc errors and valid packets */
@@ -410,7 +411,7 @@ ble_phy_rx_end_isr(void)
     } else {
         STATS_INC(ble_phy_stats, rx_valid);
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
         if (g_ble_phy_data.phy_encrypted) {
             /* Only set MIC failure flag if frame is not zero length */
             if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
@@ -445,7 +446,7 @@ ble_phy_rx_end_isr(void)
     rxpdu = g_ble_phy_data.rxpdu;
     g_ble_phy_data.rxpdu = NULL;
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1) || (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1) || (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (g_ble_phy_data.phy_encrypted || g_ble_phy_data.phy_privacy) {
         /*
          * XXX: This is a horrible ugly hack to deal with the RAM S1 byte.
@@ -509,7 +510,7 @@ ble_phy_rx_start_isr(void)
         g_ble_phy_data.phy_rx_started = 1;
         NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         /* Must start aar if we need to  */
         if (g_ble_phy_data.phy_privacy) {
             NRF_RADIO->EVENTS_BCMATCH = 0;
@@ -619,14 +620,14 @@ ble_phy_init(void)
     /* Captures tx/rx start in timer0 capture 1 */
     NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk;
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     NRF_CCM->INTENCLR = 0xffffffff;
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
     NRF_CCM->EVENTS_ERROR = 0;
     memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
 #endif
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     g_ble_phy_data.phy_aar_scratch = 0;
     NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
     NRF_AAR->INTENCLR = 0xffffffff;
@@ -697,7 +698,7 @@ ble_phy_rx(void)
     return 0;
 }
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /**
  * Called to enable encryption at the PHY. Note that this state will persist
  * in the PHY; in other words, if you call this function you have to call
@@ -844,7 +845,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
     payload_len = ble_hdr->txinfo.pyld_len;
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     if (g_ble_phy_data.phy_encrypted) {
         /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
@@ -864,7 +865,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk;
     } else {
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         /* Reconfigure PCNF0 */
         NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
                            (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
@@ -879,7 +880,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     }
 #else
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     /* Reconfigure PCNF0 */
     NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) |
                        (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
@@ -1139,14 +1140,14 @@ ble_phy_xcvr_state_get(void)
 uint8_t
 ble_phy_max_data_pdu_pyld(void)
 {
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     return NRF_MAX_ENCRYPTED_PYLD_LEN;
 #else
     return BLE_LL_DATA_PDU_MAX_PYLD;
 #endif
 }
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 void
 ble_phy_resolv_list_enable(void)
 {

@@ -743,7 +743,7 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
 void
 ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return;
 #endif
 
@@ -766,7 +766,7 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
 void
 ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return;
 #endif
 
@@ -905,7 +905,7 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
 void
 ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
 {
-#if !NIMBLE_OPT(ROLE_OBSERVER)
+#if !MYNEWT_VAL(BLE_ROLE_OBSERVER)
     return;
 #endif
 
@@ -943,7 +943,7 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
 int
 ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1183,7 +1183,7 @@ ble_gap_heartbeat(void)
 static int
 ble_gap_wl_busy(void)
 {
-#if !NIMBLE_OPT(WHITELIST)
+#if !MYNEWT_VAL(BLE_WHITELIST)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1241,7 +1241,7 @@ int
 ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
                uint8_t white_list_count)
 {
-#if !NIMBLE_OPT(WHITELIST)
+#if !MYNEWT_VAL(BLE_WHITELIST)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1330,7 +1330,7 @@ ble_gap_adv_enable_tx(int enable)
 int
 ble_gap_adv_stop(void)
 {
-#if !NIMBLE_OPT(ADVERTISE)
+#if !NIMBLE_BLE_ADVERTISE
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1674,7 +1674,7 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
                   const struct ble_gap_adv_params *adv_params,
                   ble_gap_event_fn *cb, void *cb_arg)
 {
-#if !NIMBLE_OPT(ADVERTISE)
+#if !NIMBLE_BLE_ADVERTISE
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1768,7 +1768,7 @@ done:
 int
 ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields)
 {
-#if !NIMBLE_OPT(ADVERTISE)
+#if !NIMBLE_BLE_ADVERTISE
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -1825,7 +1825,7 @@ done:
 int
 ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields)
 {
-#if !NIMBLE_OPT(ADVERTISE)
+#if !NIMBLE_BLE_ADVERTISE
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2038,7 +2038,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
              const struct ble_gap_disc_params *disc_params,
              ble_gap_event_fn *cb, void *cb_arg)
 {
-#if !NIMBLE_OPT(ROLE_OBSERVER)
+#if !MYNEWT_VAL(BLE_ROLE_OBSERVER)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2223,7 +2223,7 @@ ble_gap_connect(uint8_t own_addr_type,
                 const struct ble_gap_conn_params *conn_params,
                 ble_gap_event_fn *cb, void *cb_arg)
 {
-#if !NIMBLE_OPT(ROLE_CENTRAL)
+#if !MYNEWT_VAL(BLE_ROLE_CENTRAL)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2493,7 +2493,7 @@ ble_gap_tx_param_neg_reply(uint16_t conn_handle, uint8_t reject_reason)
 void
 ble_gap_rx_param_req(struct hci_le_conn_param_req *evt)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return;
 #endif
 
@@ -2592,7 +2592,7 @@ int
 ble_gap_update_params(uint16_t conn_handle,
                       const struct ble_gap_upd_params *params)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2654,7 +2654,7 @@ done:
 int
 ble_gap_security_initiate(uint16_t conn_handle)
 {
-#if !NIMBLE_OPT(SM)
+#if !NIMBLE_BLE_SM
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2737,7 +2737,7 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
                             uint64_t rand_val,
                             int auth)
 {
-#if !NIMBLE_OPT(SM)
+#if !NIMBLE_BLE_SM
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2761,7 +2761,7 @@ void
 ble_gap_passkey_event(uint16_t conn_handle,
                       struct ble_gap_passkey_params *passkey_params)
 {
-#if !NIMBLE_OPT(SM)
+#if !NIMBLE_BLE_SM
     return;
 #endif
 
@@ -2780,7 +2780,7 @@ ble_gap_passkey_event(uint16_t conn_handle,
 void
 ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
 {
-#if !NIMBLE_OPT(SM)
+#if !NIMBLE_BLE_SM
     return;
 #endif
 
@@ -2831,7 +2831,7 @@ void
 ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
                         struct os_mbuf *om, int is_indication)
 {
-#if !NIMBLE_OPT(GATT_NOTIFY) && !NIMBLE_OPT(GATT_INDICATE)
+#if !MYNEWT_VAL(BLE_GATT_NOTIFY) && !MYNEWT_VAL(BLE_GATT_INDICATE)
     return;
 #endif
 
@@ -2852,7 +2852,7 @@ void
 ble_gap_notify_tx_event(int status, uint16_t conn_handle, uint16_t attr_handle,
                         int is_indication)
 {
-#if !NIMBLE_OPT(GATT_NOTIFY) && !NIMBLE_OPT(GATT_INDICATE)
+#if !MYNEWT_VAL(BLE_GATT_NOTIFY) && !MYNEWT_VAL(BLE_GATT_INDICATE)
     return;
 #endif
 

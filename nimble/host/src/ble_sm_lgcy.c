@@ -25,7 +25,7 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_OPT(SM)
+#if NIMBLE_BLE_SM
 
 /**
  * Create some shortened names for the passkey actions so that the table is

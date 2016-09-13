@@ -148,7 +148,7 @@ int ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
                                      uint8_t *rsplen);
 int ble_ll_conn_hci_rd_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
                                      uint8_t *rsplen);
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
 void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 #else
 #define ble_ll_conn_auth_pyld_timer_start(x)

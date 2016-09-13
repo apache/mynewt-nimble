@@ -102,7 +102,11 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
 
 static uint8_t ble_l2cap_sig_cur_id;
 
-static void *ble_l2cap_sig_proc_mem;
+static os_membuf_t ble_l2cap_sig_proc_mem[
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_SIG_MAX_PROCS),
+                    sizeof (struct ble_l2cap_sig_proc))
+];
+
 static struct os_mempool ble_l2cap_sig_proc_pool;
 
 /*****************************************************************************
@@ -112,7 +116,7 @@ static struct os_mempool ble_l2cap_sig_proc_pool;
 static void
 ble_l2cap_sig_dbg_assert_proc_not_inserted(struct ble_l2cap_sig_proc *proc)
 {
-#if BLE_HS_DEBUG
+#if MYNEWT_VAL(BLE_HS_DEBUG)
     struct ble_l2cap_sig_proc *cur;
 
     STAILQ_FOREACH(cur, &ble_l2cap_sig_procs, next) {
@@ -607,32 +611,16 @@ ble_l2cap_sig_init(void)
 {
     int rc;
 
-    free(ble_l2cap_sig_proc_mem);
-
     STAILQ_INIT(&ble_l2cap_sig_procs);
 
-    if (ble_hs_cfg.max_l2cap_sig_procs > 0) {
-        ble_l2cap_sig_proc_mem = malloc(
-            OS_MEMPOOL_BYTES(ble_hs_cfg.max_l2cap_sig_procs,
-                             sizeof (struct ble_l2cap_sig_proc)));
-        if (ble_l2cap_sig_proc_mem == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-
-        rc = os_mempool_init(&ble_l2cap_sig_proc_pool,
-                             ble_hs_cfg.max_l2cap_sig_procs,
-                             sizeof (struct ble_l2cap_sig_proc),
-                             ble_l2cap_sig_proc_mem,
-                             "ble_l2cap_sig_proc_pool");
-        if (rc != 0) {
-            goto err;
-        }
+    rc = os_mempool_init(&ble_l2cap_sig_proc_pool,
+                         MYNEWT_VAL(BLE_L2CAP_SIG_MAX_PROCS),
+                         sizeof (struct ble_l2cap_sig_proc),
+                         ble_l2cap_sig_proc_mem,
+                         "ble_l2cap_sig_proc_pool");
+    if (rc != 0) {
+        return rc;
     }
 
     return 0;
-
-err:
-    free(ble_l2cap_sig_proc_mem);
-    return rc;
 }
