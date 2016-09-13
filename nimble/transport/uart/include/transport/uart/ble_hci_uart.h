@@ -14,6 +14,6 @@ struct ble_hci_uart_cfg {
 
 extern const struct ble_hci_uart_cfg ble_hci_uart_cfg_dflt;
 
-int ble_hci_uart_init(const struct ble_hci_uart_cfg *cfg);
+int ble_hci_uart_init(void);
 
 #endif

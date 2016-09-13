@@ -1,18 +1,13 @@
 #include <assert.h>
 #include <errno.h>
 #include <stddef.h>
+#include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "util/mem.h"
 #include "nimble/ble.h"
 #include "nimble/ble_hci_trans.h"
 #include "transport/ram/ble_hci_ram.h"
-
-/** Default configuration. */
-const struct ble_hci_ram_cfg ble_hci_ram_cfg_dflt = {
-    .num_evt_hi_bufs = 1,
-    .num_evt_lo_bufs = 2,
-    .evt_buf_sz = BLE_HCI_TRANS_CMD_SZ,
-};
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_ram_rx_cmd_hs_cb;
 static void *ble_hci_ram_rx_cmd_hs_arg;
@@ -187,15 +182,15 @@ ble_hci_trans_reset(void)
  *                              A BLE_ERR_[...] error code on failure.
  */
 int
-ble_hci_ram_init(const struct ble_hci_ram_cfg *cfg)
+ble_hci_ram_init(void)
 {
     int rc;
 
     ble_hci_ram_free_mem();
 
     rc = mem_malloc_mempool(&ble_hci_ram_evt_hi_pool,
-                            cfg->num_evt_hi_bufs,
-                            cfg->evt_buf_sz,
+                            MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
                             "ble_hci_ram_evt_hi_pool",
                             &ble_hci_ram_evt_hi_buf);
     if (rc != 0) {
@@ -204,8 +199,8 @@ ble_hci_ram_init(const struct ble_hci_ram_cfg *cfg)
     }
 
     rc = mem_malloc_mempool(&ble_hci_ram_evt_lo_pool,
-                            cfg->num_evt_lo_bufs,
-                            cfg->evt_buf_sz,
+                            MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
                             "ble_hci_ram_evt_lo_pool",
                             &ble_hci_ram_evt_lo_buf);
     if (rc != 0) {
@@ -224,4 +219,13 @@ ble_hci_ram_init(const struct ble_hci_ram_cfg *cfg)
 err:
     ble_hci_ram_free_mem();
     return rc;
+}
+
+void
+ble_hci_ram_pkg_init(void)
+{
+    int rc;
+
+    rc = ble_hci_ram_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }

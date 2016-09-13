@@ -1432,6 +1432,8 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
+    ble_gap_test_util_init();
+
     TEST_ASSERT(!ble_gap_adv_active());
 
     /*** Invalid discoverable mode. */

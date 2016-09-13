@@ -30,3 +30,6 @@ pkg.keywords:
 
 pkg.deps:
     - net/nimble/host
+
+pkg.init_function: ble_svc_mandatory_pkg_init
+pkg.init_stage: 3

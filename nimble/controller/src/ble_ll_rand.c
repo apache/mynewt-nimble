@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -35,10 +36,10 @@ struct ble_ll_rnum_data
 };
 
 struct ble_ll_rnum_data g_ble_ll_rnum_data;
-uint8_t g_ble_ll_rnum_buf[NIMBLE_OPT_LL_RNG_BUFSIZE];
+uint8_t g_ble_ll_rnum_buf[MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)];
 
 #define IS_RNUM_BUF_END(x)  \
-    (x == &g_ble_ll_rnum_buf[NIMBLE_OPT_LL_RNG_BUFSIZE - 1])
+    (x == &g_ble_ll_rnum_buf[MYNEWT_VAL(BLE_LL_RNG_BUFSIZE) - 1])
 
 void
 ble_ll_rand_sample(uint8_t rnum)
@@ -46,7 +47,7 @@ ble_ll_rand_sample(uint8_t rnum)
     os_sr_t sr;
 
     OS_ENTER_CRITICAL(sr);
-    if (g_ble_ll_rnum_data.rnd_size < NIMBLE_OPT_LL_RNG_BUFSIZE) {
+    if (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)) {
         ++g_ble_ll_rnum_data.rnd_size;
         g_ble_ll_rnum_data.rnd_in[0] = rnum;
         if (IS_RNUM_BUF_END(g_ble_ll_rnum_data.rnd_in)) {
@@ -94,7 +95,7 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
         /* Wait till bytes are in buffer. */
         if (len) {
             while ((g_ble_ll_rnum_data.rnd_size < len) &&
-                   (g_ble_ll_rnum_data.rnd_size < NIMBLE_OPT_LL_RNG_BUFSIZE)) {
+                   (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE))) {
                 /* Spin here */
             }
         }
@@ -138,7 +139,7 @@ int
 ble_ll_rand_start(void)
 {
     /* Start the generation of numbers if we are not full */
-    if (g_ble_ll_rnum_data.rnd_size < NIMBLE_OPT_LL_RNG_BUFSIZE) {
+    if (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)) {
         ble_hw_rng_start();
     }
     return 0;

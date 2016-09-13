@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
@@ -228,7 +229,7 @@ ble_ll_conn_num_comp_pkts_event_send(void)
 
     /* Check rate limit */
     if ((uint32_t)(g_ble_ll_next_num_comp_pkt_evt - os_time_get()) <
-         NIMBLE_OPT_NUM_COMP_PKT_RATE) {
+         MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE)) {
         return;
     }
 
@@ -295,11 +296,11 @@ ble_ll_conn_num_comp_pkts_event_send(void)
 
     if (event_sent) {
         g_ble_ll_next_num_comp_pkt_evt = os_time_get() +
-            NIMBLE_OPT_NUM_COMP_PKT_RATE;
+            MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE);
     }
 }
 
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
 /**
  * Send a authenticated payload timeout event
  *
@@ -928,7 +929,7 @@ ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
     return rc;
 }
 
-#if (BLE_LL_CFG_FEAT_DATA_LEN_EXT == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
 int
 ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -969,7 +970,7 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 }
 #endif
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /**
  * LE start encrypt command
  *
@@ -1062,7 +1063,7 @@ ltk_key_cmd_complete:
 }
 #endif
 
-#if (BLE_LL_CFG_FEAT_LE_PING == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
 /**
  * Read authenticated payload timeout (OGF=3, OCF==0x007B)
  *

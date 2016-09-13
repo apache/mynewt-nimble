@@ -779,7 +779,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     }
 
     if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
-        if (ble_gatts_num_cfgable_chrs > ble_hs_cfg.max_client_configs) {
+        if (ble_gatts_num_cfgable_chrs > ble_hs_max_client_configs) {
             return BLE_HS_ENOMEM;
         }
         ble_gatts_num_cfgable_chrs++;
@@ -1020,7 +1020,7 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
 
     for (i = 0; svcs[i].type != BLE_GATT_SVC_TYPE_END; i++) {
         idx = ble_gatts_num_svc_entries + i;
-        if (idx >= ble_hs_cfg.max_services) {
+        if (idx >= ble_hs_max_services) {
             return BLE_HS_ENOMEM;
         }
 
@@ -1110,6 +1110,24 @@ ble_gatts_connection_broken(uint16_t conn_handle)
     }
 }
 
+static void
+ble_gatts_free_svc_defs(void)
+{
+    free(ble_gatts_svc_defs);
+    ble_gatts_svc_defs = NULL;
+    ble_gatts_num_svc_defs = 0;
+}
+
+static void
+ble_gatts_free_mem(void)
+{
+    free(ble_gatts_clt_cfg_mem);
+    ble_gatts_clt_cfg_mem = NULL;
+
+    free(ble_gatts_svc_entries);
+    ble_gatts_svc_entries = NULL;
+}
+
 int
 ble_gatts_start(void)
 {
@@ -1120,18 +1138,53 @@ ble_gatts_start(void)
     int num_elems;
     int idx;
     int rc;
+    int i;
+
+    ble_gatts_free_mem();
+
+    if (ble_hs_max_client_configs > 0) {
+        ble_gatts_clt_cfg_mem = malloc(
+            OS_MEMPOOL_BYTES(ble_hs_max_client_configs,
+                             sizeof (struct ble_gatts_clt_cfg)));
+        if (ble_gatts_clt_cfg_mem == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+    }
+
+    if (ble_hs_max_services > 0) {
+        ble_gatts_svc_entries =
+            malloc(ble_hs_max_services * sizeof *ble_gatts_svc_entries);
+        if (ble_gatts_svc_entries == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
+    }
+
+
+    ble_gatts_num_svc_entries = 0;
+    for (i = 0; i < ble_gatts_num_svc_defs; i++) {
+        rc = ble_gatts_register_svcs(ble_gatts_svc_defs[i],
+                                     ble_hs_cfg.gatts_register_cb,
+                                     ble_hs_cfg.gatts_register_arg);
+        if (rc != 0) {
+            goto err;
+        }
+    }
+    ble_gatts_free_svc_defs();
 
     if (ble_gatts_num_cfgable_chrs == 0) {
         return 0;
     }
 
     /* Initialize client-configuration memory pool. */
-    num_elems = ble_hs_cfg.max_client_configs / ble_gatts_num_cfgable_chrs;
+    num_elems = ble_hs_max_client_configs / ble_gatts_num_cfgable_chrs;
     rc = os_mempool_init(&ble_gatts_clt_cfg_pool, num_elems,
                          ble_gatts_clt_cfg_size(), ble_gatts_clt_cfg_mem,
                          "ble_gatts_clt_cfg_pool");
     if (rc != 0) {
-        return BLE_HS_EOS;
+        rc = BLE_HS_EOS;
+        goto err;
     }
 
     /* Allocate the cached array of handles for the configuration
@@ -1139,7 +1192,8 @@ ble_gatts_start(void)
      */
     ble_gatts_clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
     if (ble_gatts_clt_cfgs == NULL) {
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        goto err;
     }
 
     /* Fill the cache. */
@@ -1161,6 +1215,11 @@ ble_gatts_start(void)
     }
 
     return 0;
+
+err:
+    ble_gatts_free_mem();
+    ble_gatts_free_svc_defs();
+    return rc;
 }
 
 int
@@ -1997,8 +2056,7 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
  *                                  invalid resource definition.
  */
 int
-ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,
-                    struct ble_hs_cfg *cfg)
+ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs)
 {
     struct ble_gatt_resources res = { 0 };
     int rc;
@@ -2008,85 +2066,31 @@ ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs,
         return rc;
     }
 
-    cfg->max_services += res.svcs;
-    cfg->max_attrs += res.attrs;
+    ble_hs_max_services += res.svcs;
+    ble_hs_max_attrs += res.attrs;
 
     /* Reserve an extra CCCD for the cache. */
-    cfg->max_client_configs += res.cccds * (cfg->max_connections + 1);
+    ble_hs_max_client_configs +=
+        res.cccds * (MYNEWT_VAL(BLE_MAX_CONNECTIONS) + 1);
 
     return 0;
-}
-
-static void
-ble_gatts_free_svc_defs(void)
-{
-    free(ble_gatts_svc_defs);
-    ble_gatts_svc_defs = NULL;
-    ble_gatts_num_svc_defs = 0;
-}
-
-static void
-ble_gatts_free_mem(void)
-{
-    free(ble_gatts_clt_cfg_mem);
-    ble_gatts_clt_cfg_mem = NULL;
-
-    free(ble_gatts_svc_entries);
-    ble_gatts_svc_entries = NULL;
 }
 
 int
 ble_gatts_init(void)
 {
     int rc;
-    int i;
 
-    ble_gatts_free_mem();
     ble_gatts_num_cfgable_chrs = 0;
     ble_gatts_clt_cfgs = NULL;
-
-    if (ble_hs_cfg.max_client_configs > 0) {
-        ble_gatts_clt_cfg_mem = malloc(
-            OS_MEMPOOL_BYTES(ble_hs_cfg.max_client_configs,
-                             sizeof (struct ble_gatts_clt_cfg)));
-        if (ble_gatts_clt_cfg_mem == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-    }
-
-    if (ble_hs_cfg.max_services > 0) {
-        ble_gatts_svc_entries =
-            malloc(ble_hs_cfg.max_services * sizeof *ble_gatts_svc_entries);
-        if (ble_gatts_svc_entries == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-    }
-
-    ble_gatts_num_svc_entries = 0;
-    for (i = 0; i < ble_gatts_num_svc_defs; i++) {
-        rc = ble_gatts_register_svcs(ble_gatts_svc_defs[i],
-                                     ble_hs_cfg.gatts_register_cb,
-                                     ble_hs_cfg.gatts_register_arg);
-        if (rc != 0) {
-            goto err;
-        }
-    }
-    ble_gatts_free_svc_defs();
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_gatts_stats), STATS_SIZE_INIT_PARMS(ble_gatts_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_gatts_stats), "ble_gatts");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     return 0;
 
-err:
-    ble_gatts_free_mem();
-    ble_gatts_free_svc_defs();
-    return rc;
 }

@@ -25,7 +25,7 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_OPT(SM)
+#if NIMBLE_BLE_SM
 
 static int
 ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "bsp/bsp.h"
 #include "ble/xcvr.h"
@@ -120,7 +121,7 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm;
 #define BLE_LL_ADV_DIRECT_SCHED_MAX_USECS   (502)
 
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 void
 ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 {
@@ -373,12 +374,12 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     /* XXX: automatically do this in the phy based on channel? */
     ble_phy_encrypt_disable();
 #endif
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     advsm->adv_rpa_index = -1;
     if (ble_ll_resolv_enabled()) {
         ble_phy_resolv_list_enable();
@@ -578,7 +579,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Copy peer address */
         memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
@@ -696,7 +697,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     }
 
     /* This will generate an RPA for both initiator addr and adva */
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     ble_ll_adv_chk_rpa_timeout(advsm);
 #endif
 
@@ -759,7 +760,7 @@ ble_ll_adv_scheduled(uint32_t sch_start)
 int
 ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
 {
-    rspbuf[0] = NIMBLE_OPT_LL_TX_PWR_DBM;
+    rspbuf[0] = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
     *rsplen = 1;
     return BLE_ERR_SUCCESS;
 }
@@ -909,7 +910,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     peer_addr_type = txadd;
     resolved = 0;
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (ble_ll_is_rpa(peer, txadd) && ble_ll_resolv_enabled()) {
         advsm->adv_rpa_index = ble_hw_resolv_list_match();
         if (advsm->adv_rpa_index >= 0) {
@@ -1000,7 +1001,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD)) {
             ident_addr = inita;
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
             if (resolved) {
                 ident_addr = g_ble_ll_resolv_list[advsm->adv_rpa_index].rl_identity_addr;
                 addr_type = g_ble_ll_resolv_list[advsm->adv_rpa_index].rl_addr_type;
@@ -1014,7 +1015,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     if (valid) {
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         if (resolved) {
             /* Retain the resolvable private address that we received. */
             memcpy(advsm->adv_rpa, inita, BLE_DEV_ADDR_LEN);
@@ -1296,7 +1297,7 @@ ble_ll_adv_event_done(void *arg)
     }
 
     /* We need to regenerate our RPA's if we have passed timeout */
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     ble_ll_adv_chk_rpa_timeout(advsm);
 #endif
 

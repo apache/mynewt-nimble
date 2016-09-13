@@ -72,11 +72,11 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 int
-ble_svc_gatt_init(struct ble_hs_cfg *cfg)
+ble_svc_gatt_init(void)
 {
     int rc;
 
-    rc = ble_gatts_count_cfg(ble_svc_gatt_defs, cfg);
+    rc = ble_gatts_count_cfg(ble_svc_gatt_defs);
     if (rc != 0) {
         return rc;
     }

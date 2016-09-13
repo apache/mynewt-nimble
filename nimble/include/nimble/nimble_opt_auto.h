@@ -20,6 +20,7 @@
 #ifndef H_NIMBLE_OPT_AUTO_
 #define H_NIMBLE_OPT_AUTO_
 
+#include "syscfg/syscfg.h"
 #include "nimble/nimble_opt.h"
 
 /***
@@ -29,78 +30,87 @@
  * in nimble_opt.h.
  */
 
-#undef NIMBLE_OPT_ADVERTISE
-#define NIMBLE_OPT_ADVERTISE                    \
-    (NIMBLE_OPT_ROLE_BROADCASTER || NIMBLE_OPT_ROLE_PERIPHERAL)
+#undef NIMBLE_BLE_ADVERTISE
+#define NIMBLE_BLE_ADVERTISE                    \
+    (MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL))
 
-#undef NIMBLE_OPT_SCAN
-#define NIMBLE_OPT_SCAN                         \
-    (NIMBLE_OPT_ROLE_CENTRAL || NIMBLE_OPT_ROLE_OBSERVER)
+#undef NIMBLE_BLE_SCAN
+#define NIMBLE_BLE_SCAN                         \
+    (MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_OBSERVER))
 
-#undef NIMBLE_OPT_CONNECT
-#define NIMBLE_OPT_CONNECT                      \
-    (NIMBLE_OPT_ROLE_CENTRAL || NIMBLE_OPT_ROLE_PERIPHERAL)
+#undef NIMBLE_BLE_CONNECT
+#define NIMBLE_BLE_CONNECT                      \
+    (MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL))
 
 
 /** Supported client ATT commands. */
 
-#undef NIMBLE_OPT_ATT_CLT_FIND_INFO
-#define NIMBLE_OPT_ATT_CLT_FIND_INFO            (NIMBLE_OPT_GATT_DISC_ALL_DSCS)
+#undef NIMBLE_BLE_ATT_CLT_FIND_INFO
+#define NIMBLE_BLE_ATT_CLT_FIND_INFO            \
+    (MYNEWT_VAL(BLE_GATT_DISC_ALL_DSCS))
 
-#undef NIMBLE_OPT_ATT_CLT_FIND_TYPE
-#define NIMBLE_OPT_ATT_CLT_FIND_TYPE            (NIMBLE_OPT_GATT_DISC_SVC_UUID)
+#undef NIMBLE_BLE_ATT_CLT_FIND_TYPE
+#define NIMBLE_BLE_ATT_CLT_FIND_TYPE            \
+    (MYNEWT_VAL(BLE_GATT_DISC_SVC_UUID))
 
-#undef NIMBLE_OPT_ATT_CLT_READ_TYPE
-#define NIMBLE_OPT_ATT_CLT_READ_TYPE            \
-    (NIMBLE_OPT_GATT_FIND_INC_SVCS ||           \
-     NIMBLE_OPT_GATT_DISC_ALL_CHRS ||           \
-     NIMBLE_OPT_GATT_DISC_CHRS_UUID ||          \
-     NIMBLE_OPT_GATT_READ_UUID)
+#undef NIMBLE_BLE_ATT_CLT_READ_TYPE
+#define NIMBLE_BLE_ATT_CLT_READ_TYPE            \
+    (MYNEWT_VAL(BLE_GATT_FIND_INC_SVCS) ||      \
+     MYNEWT_VAL(BLE_GATT_DISC_ALL_CHRS) ||      \
+     MYNEWT_VAL(BLE_GATT_DISC_CHRS_UUID) ||     \
+     MYNEWT_VAL(BLE_GATT_READ_UUID))
     
-#undef NIMBLE_OPT_ATT_CLT_READ
-#define NIMBLE_OPT_ATT_CLT_READ                 \
-    (NIMBLE_OPT_GATT_READ ||                    \
-     NIMBLE_OPT_GATT_READ_LONG ||               \
-     NIMBLE_OPT_GATT_FIND_INC_SVCS)
+#undef NIMBLE_BLE_ATT_CLT_READ
+#define NIMBLE_BLE_ATT_CLT_READ                 \
+    (MYNEWT_VAL(BLE_GATT_READ) ||               \
+     MYNEWT_VAL(BLE_GATT_READ_LONG) ||          \
+     MYNEWT_VAL(BLE_GATT_FIND_INC_SVCS))
 
-#undef NIMBLE_OPT_ATT_CLT_READ_BLOB
-#define NIMBLE_OPT_ATT_CLT_READ_BLOB            (NIMBLE_OPT_GATT_READ_LONG)
+#undef NIMBLE_BLE_ATT_CLT_READ_BLOB
+#define NIMBLE_BLE_ATT_CLT_READ_BLOB            \
+    (MYNEWT_VAL(BLE_GATT_READ_LONG))
 
-#undef NIMBLE_OPT_ATT_CLT_READ_MULT
-#define NIMBLE_OPT_ATT_CLT_READ_MULT            (NIMBLE_OPT_GATT_READ_MULT)
+#undef NIMBLE_BLE_ATT_CLT_READ_MULT
+#define NIMBLE_BLE_ATT_CLT_READ_MULT            \
+    (MYNEWT_VAL(BLE_GATT_READ_MULT))
 
-#undef NIMBLE_OPT_ATT_CLT_READ_GROUP_TYPE
-#define NIMBLE_OPT_ATT_CLT_READ_GROUP_TYPE      \
-    (NIMBLE_OPT_GATT_DISC_ALL_SVCS)
+#undef NIMBLE_BLE_ATT_CLT_READ_GROUP_TYPE
+#define NIMBLE_BLE_ATT_CLT_READ_GROUP_TYPE      \
+    (MYNEWT_VAL(BLE_GATT_DISC_ALL_SVCS))
 
-#undef NIMBLE_OPT_ATT_CLT_WRITE
-#define NIMBLE_OPT_ATT_CLT_WRITE                (NIMBLE_OPT_GATT_WRITE)
+#undef NIMBLE_BLE_ATT_CLT_WRITE
+#define NIMBLE_BLE_ATT_CLT_WRITE                \
+    (MYNEWT_VAL(BLE_GATT_WRITE))
 
-#undef NIMBLE_OPT_ATT_CLT_WRITE_NO_RSP
-#define NIMBLE_OPT_ATT_CLT_WRITE_NO_RSP         (NIMBLE_OPT_GATT_WRITE_NO_RSP)
+#undef NIMBLE_BLE_ATT_CLT_WRITE_NO_RSP
+#define NIMBLE_BLE_ATT_CLT_WRITE_NO_RSP         \
+    (MYNEWT_VAL(BLE_GATT_WRITE_NO_RSP))
 
-#undef NIMBLE_OPT_ATT_CLT_PREP_WRITE
-#define NIMBLE_OPT_ATT_CLT_PREP_WRITE           (NIMBLE_OPT_GATT_WRITE_LONG)
+#undef NIMBLE_BLE_ATT_CLT_PREP_WRITE
+#define NIMBLE_BLE_ATT_CLT_PREP_WRITE           \
+    (MYNEWT_VAL(BLE_GATT_WRITE_LONG))
 
-#undef NIMBLE_OPT_ATT_CLT_EXEC_WRITE
-#define NIMBLE_OPT_ATT_CLT_EXEC_WRITE           (NIMBLE_OPT_GATT_WRITE_LONG)
+#undef NIMBLE_BLE_ATT_CLT_EXEC_WRITE
+#define NIMBLE_BLE_ATT_CLT_EXEC_WRITE           \
+    (MYNEWT_VAL(BLE_GATT_WRITE_LONG))
 
-#undef NIMBLE_OPT_ATT_CLT_NOTIFY  
-#define NIMBLE_OPT_ATT_CLT_NOTIFY               (NIMBLE_OPT_GATT_NOTIFY)
+#undef NIMBLE_BLE_ATT_CLT_NOTIFY  
+#define NIMBLE_BLE_ATT_CLT_NOTIFY               \
+    (MYNEWT_VAL(BLE_GATT_NOTIFY))
 
-#undef NIMBLE_OPT_ATT_CLT_INDICATE
-#define NIMBLE_OPT_ATT_CLT_INDICATE             (NIMBLE_OPT_GATT_INDICATE)
+#undef NIMBLE_BLE_ATT_CLT_INDICATE
+#define NIMBLE_BLE_ATT_CLT_INDICATE             \
+    (MYNEWT_VAL(BLE_GATT_INDICATE))
 
 /** Security manager settings. */
+
 
 /* Secure connections implies security manager support
  * Note: For now, security manager is synonymous with legacy pairing.  In the
  * future, a new setting for legacy pairing may be introduced as a sibling of
  * the SC setting.
  */
-#if NIMBLE_OPT_SM_SC
-#undef NIMBLE_OPT_SM
-#define NIMBLE_OPT_SM                           1
-#endif
+#undef NIMBLE_BLE_SM
+#define NIMBLE_BLE_SM   (MYNEWT_VAL(BLE_SM) || MYNEWT_VAL(BLE_SM_SC))
 
 #endif

@@ -38,7 +38,7 @@ int ble_hs_hci_cmd_tx_empty_ack(void *cmd);
 void ble_hs_hci_rx_ack(uint8_t *ack_ev);
 void ble_hs_hci_init(void);
 
-#if PHONY_HCI_ACKS
+#if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 typedef int ble_hs_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);
 void ble_hs_hci_set_phony_ack_cb(ble_hs_hci_phony_ack_fn *cb);
 #endif

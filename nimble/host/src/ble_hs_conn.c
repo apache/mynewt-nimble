@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "host/ble_hs_id.h"
 #include "ble_hs_priv.h"
@@ -29,14 +30,17 @@
 static SLIST_HEAD(, ble_hs_conn) ble_hs_conns;
 static struct os_mempool ble_hs_conn_pool;
 
-static os_membuf_t *ble_hs_conn_elem_mem;
+static os_membuf_t ble_hs_conn_elem_mem[
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_CONNECTIONS),
+                    sizeof (struct ble_hs_conn))
+];
 
 static const uint8_t ble_hs_conn_null_addr[6];
 
 int
 ble_hs_conn_can_alloc(void)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return 0;
 #endif
 
@@ -48,7 +52,7 @@ ble_hs_conn_can_alloc(void)
 struct ble_l2cap_chan *
 ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return NULL;
 #endif
 
@@ -69,7 +73,7 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 int
 ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -100,7 +104,7 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 struct ble_hs_conn *
 ble_hs_conn_alloc(void)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return NULL;
 #endif
 
@@ -137,7 +141,7 @@ ble_hs_conn_alloc(void)
     /* XXX: We should create the SM channel even if not configured.  We need it
      * to reject SM messages.
      */
-#if NIMBLE_OPT(SM)
+#if NIMBLE_BLE_SM
     chan = ble_sm_create_chan();
     if (chan == NULL) {
         goto err;
@@ -176,7 +180,7 @@ ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 void
 ble_hs_conn_free(struct ble_hs_conn *conn)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return;
 #endif
 
@@ -202,7 +206,7 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 void
 ble_hs_conn_insert(struct ble_hs_conn *conn)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return;
 #endif
 
@@ -215,7 +219,7 @@ ble_hs_conn_insert(struct ble_hs_conn *conn)
 void
 ble_hs_conn_remove(struct ble_hs_conn *conn)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return;
 #endif
 
@@ -227,7 +231,7 @@ ble_hs_conn_remove(struct ble_hs_conn *conn)
 struct ble_hs_conn *
 ble_hs_conn_find(uint16_t conn_handle)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return NULL;
 #endif
 
@@ -247,7 +251,7 @@ ble_hs_conn_find(uint16_t conn_handle)
 struct ble_hs_conn *
 ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return NULL;
 #endif
 
@@ -269,7 +273,7 @@ ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr)
 struct ble_hs_conn *
 ble_hs_conn_find_by_idx(int idx)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return NULL;
 #endif
 
@@ -293,7 +297,7 @@ ble_hs_conn_find_by_idx(int idx)
 int
 ble_hs_conn_exists(uint16_t conn_handle)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return 0;
 #endif
     return ble_hs_conn_find(conn_handle) != NULL;
@@ -305,7 +309,7 @@ ble_hs_conn_exists(uint16_t conn_handle)
 struct ble_hs_conn *
 ble_hs_conn_first(void)
 {
-#if !NIMBLE_OPT(CONNECT)
+#if !NIMBLE_BLE_CONNECT
     return NULL;
 #endif
 
@@ -363,40 +367,19 @@ ble_hs_conn_addrs(const struct ble_hs_conn *conn,
     }
 }
 
-static void
-ble_hs_conn_free_mem(void)
-{
-    free(ble_hs_conn_elem_mem);
-    ble_hs_conn_elem_mem = NULL;
-}
-
 int 
 ble_hs_conn_init(void)
 {
     int rc;
 
-    ble_hs_conn_free_mem();
-
-    ble_hs_conn_elem_mem = malloc(
-        OS_MEMPOOL_BYTES(ble_hs_cfg.max_connections,
-                         sizeof (struct ble_hs_conn)));
-    if (ble_hs_conn_elem_mem == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-    rc = os_mempool_init(&ble_hs_conn_pool, ble_hs_cfg.max_connections,
+    rc = os_mempool_init(&ble_hs_conn_pool, MYNEWT_VAL(BLE_MAX_CONNECTIONS),
                          sizeof (struct ble_hs_conn),
                          ble_hs_conn_elem_mem, "ble_hs_conn_pool");
     if (rc != 0) {
-        rc = BLE_HS_EOS;
-        goto err;
+        return BLE_HS_EOS;
     }
 
     SLIST_INIT(&ble_hs_conns);
 
     return 0;
-
-err:
-    ble_hs_conn_free_mem();
-    return rc;
 }

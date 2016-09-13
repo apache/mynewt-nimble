@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
@@ -50,10 +51,10 @@
  */
 
 /* Dont allow more than 255 of these entries */
-#if NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS > 255
+#if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS) > 255
     #error "Cannot have more than 255 duplicate entries!"
 #endif
-#if NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS > 255
+#if MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS) > 255
     #error "Cannot have more than 255 scan response entries!"
 #endif
 
@@ -79,12 +80,12 @@ struct ble_ll_scan_advertisers
 /* Contains list of advertisers that we have heard scan responses from */
 static uint8_t g_ble_ll_scan_num_rsp_advs;
 struct ble_ll_scan_advertisers
-g_ble_ll_scan_rsp_advs[NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS];
+g_ble_ll_scan_rsp_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)];
 
 /* Used to filter duplicate advertising events to host */
 static uint8_t g_ble_ll_scan_num_dup_advs;
 struct ble_ll_scan_advertisers
-g_ble_ll_scan_dup_advs[NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS];
+g_ble_ll_scan_dup_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)];
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
 static void
@@ -136,7 +137,7 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     uint8_t     pdu_type;
     uint8_t     *scana;
     struct os_mbuf *m;
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     uint8_t rpa[BLE_DEV_ADDR_LEN];
     struct ble_ll_resolv_entry *rl;
 #endif
@@ -159,7 +160,7 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
         scana = g_random_addr;
     }
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         rl = NULL;
         if (ble_ll_is_rpa(adv_addr, adv_addr_type)) {
@@ -280,7 +281,7 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev)
     if (!adv) {
         /* XXX: for now, if we dont have room, just leave */
         num_advs = g_ble_ll_scan_num_dup_advs;
-        if (num_advs == NIMBLE_OPT_LL_NUM_SCAN_DUP_ADVS) {
+        if (num_advs == MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)) {
             return;
         }
 
@@ -347,7 +348,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
 
     /* XXX: for now, if we dont have room, just leave */
     num_advs = g_ble_ll_scan_num_rsp_advs;
-    if (num_advs == NIMBLE_OPT_LL_NUM_SCAN_RSP_ADVS) {
+    if (num_advs == MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)) {
         return;
     }
 
@@ -569,11 +570,11 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
      */
     ble_phy_set_txend_cb(NULL, NULL);
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     ble_phy_encrypt_disable();
 #endif
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (ble_ll_resolv_enabled()) {
         ble_phy_resolv_list_enable();
     } else {
@@ -972,7 +973,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     resolved = 0;
 
     index = -1;
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (ble_ll_is_rpa(peer, peer_addr_type) && ble_ll_resolv_enabled()) {
         index = ble_hw_resolv_list_match();
         if (index >= 0) {
@@ -1133,7 +1134,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     ident_addr_type = txadd;
 
     scansm = &g_ble_ll_scan_sm;
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     index = scansm->scan_rpa_index;
     if (index >= 0) {
         ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;

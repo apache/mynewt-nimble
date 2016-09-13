@@ -20,61 +20,26 @@
 
 #include <inttypes.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_SM)
+
+#include "nimble/ble.h"
+#include "nimble/nimble_opt.h"
+#include "ble_hs_priv.h"
 #include "mbedtls/aes.h"
+
+#if MYNEWT_VAL(BLE_SM_SC)
+
 #include "tinycrypt/aes.h"
 #include "tinycrypt/constants.h"
 #include "tinycrypt/utils.h"
 #include "tinycrypt/cmac_mode.h"
 #include "tinycrypt/ecc_dh.h"
-#include "nimble/ble.h"
-#include "nimble/nimble_opt.h"
-#include "ble_hs_priv.h"
 
-#if NIMBLE_OPT(SM)
+#endif
 
 static mbedtls_aes_context ble_sm_alg_ctxt;
-
-/* based on Core Specification 4.2 Vol 3. Part H 2.3.5.6.1 */
-static const uint32_t ble_sm_alg_dbg_priv_key[8] = {
-    0xcd3c1abd, 0x5899b8a6, 0xeb40b799, 0x4aff607b, 0xd2103f50, 0x74c9b3e3,
-    0xa3c55f38, 0x3f49f6d4
-};
-
-static const uint8_t ble_sm_alg_dbg_pub_key[64] = {
-    0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
-    0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
-    0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
-    0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20,
-    0x8b, 0xd2, 0x89, 0x15, 0xd0, 0x8e, 0x1c, 0x74,
-    0x24, 0x30, 0xed, 0x8f, 0xc2, 0x45, 0x63, 0x76,
-    0x5c, 0x15, 0x52, 0x5a, 0xbf, 0x9a, 0x32, 0x63,
-    0x6d, 0xeb, 0x2a, 0x65, 0x49, 0x9c, 0x80, 0xdc
-};
-
-static const uint8_t ble_sm_alg_dbg_f4[16] = {
-    0x2d, 0x87, 0x74, 0xa9, 0xbe, 0xa1, 0xed, 0xf1,
-    0x1c, 0xbd, 0xa9, 0x07, 0xf1, 0x16, 0xc9, 0xf2,
-};
-
-static const uint8_t ble_sm_alg_dbg_f5[32] = {
-    0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
-    0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29,
-    0x38, 0x0a, 0x75, 0x94, 0xb5, 0x22, 0x05, 0x98,
-    0x23, 0xcd, 0xd7, 0x69, 0x11, 0x79, 0x86, 0x69,
-};
-
-static const uint8_t ble_sm_alg_dbg_f6[16] = {
-    0x61, 0x8f, 0x95, 0xda, 0x09, 0x0b, 0x6c, 0xd2,
-    0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3,
-};
-
-static void
-ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
-{
-    BLE_HS_LOG(DEBUG, "    %s=", name);
-    ble_hs_log_flat_buf(buf, len);
-    BLE_HS_LOG(DEBUG, "\n");
-}
 
 static void
 ble_sm_alg_xor_128(uint8_t *p, uint8_t *q, uint8_t *r)
@@ -109,36 +74,6 @@ ble_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
     }
 
     swap_in_place(enc_data, 16);
-
-    return 0;
-}
-
-/**
- * Cypher based Message Authentication Code (CMAC) with AES 128 bit
- *
- * @param key                   128-bit key.
- * @param in                    Message to be authenticated.
- * @param len                   Length of the message in octets.
- * @param out                   Output; message authentication code.
- */
-static int
-ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
-                    uint8_t *out)
-{
-    struct tc_aes_key_sched_struct sched;
-    struct tc_cmac_struct state;
-
-    if (tc_cmac_setup(&state, key, &sched) == TC_FAIL) {
-        return BLE_HS_EUNKNOWN;
-    }
-
-    if (tc_cmac_update(&state, in, len) == TC_FAIL) {
-        return BLE_HS_EUNKNOWN;
-    }
-
-    if (tc_cmac_final(out, &state) == TC_FAIL) {
-        return BLE_HS_EUNKNOWN;
-    }
 
     return 0;
 }
@@ -246,6 +181,46 @@ ble_sm_alg_c1(uint8_t *k, uint8_t *r,
 done:
     BLE_HS_LOG(DEBUG, "\n    rc=%d\n", rc);
     return rc;
+}
+
+#if MYNEWT_VAL(BLE_SM_SC)
+
+static void
+ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
+{
+    BLE_HS_LOG(DEBUG, "    %s=", name);
+    ble_hs_log_flat_buf(buf, len);
+    BLE_HS_LOG(DEBUG, "\n");
+}
+
+/**
+ * Cypher based Message Authentication Code (CMAC) with AES 128 bit
+ *
+ * @param key                   128-bit key.
+ * @param in                    Message to be authenticated.
+ * @param len                   Length of the message in octets.
+ * @param out                   Output; message authentication code.
+ */
+static int
+ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
+                    uint8_t *out)
+{
+    struct tc_aes_key_sched_struct sched;
+    struct tc_cmac_struct state;
+
+    if (tc_cmac_setup(&state, key, &sched) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    if (tc_cmac_update(&state, in, len) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    if (tc_cmac_final(out, &state) == TC_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    return 0;
 }
 
 int
@@ -465,6 +440,12 @@ ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
     return 0;
 }
 
+/* based on Core Specification 4.2 Vol 3. Part H 2.3.5.6.1 */
+static const uint32_t ble_sm_alg_dbg_priv_key[8] = {
+    0xcd3c1abd, 0x5899b8a6, 0xeb40b799, 0x4aff607b, 0xd2103f50, 0x74c9b3e3,
+    0xa3c55f38, 0x3f49f6d4
+};
+
 /**
  * pub: 64 bytes
  * priv: 32 bytes
@@ -496,4 +477,5 @@ ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv)
     return 0;
 }
 
+#endif
 #endif

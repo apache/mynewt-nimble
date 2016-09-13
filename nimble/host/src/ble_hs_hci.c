@@ -34,11 +34,11 @@ static uint8_t *ble_hs_hci_ack;
 static uint16_t ble_hs_hci_buf_sz;
 static uint8_t ble_hs_hci_max_pkts;
 
-#if PHONY_HCI_ACKS
+#if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 static ble_hs_hci_phony_ack_fn *ble_hs_hci_phony_ack_cb;
 #endif
 
-#if PHONY_HCI_ACKS
+#if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 void
 ble_hs_hci_set_phony_ack_cb(ble_hs_hci_phony_ack_fn *cb)
 {
@@ -218,7 +218,7 @@ ble_hs_hci_wait_for_ack(void)
 {
     int rc;
 
-#if PHONY_HCI_ACKS
+#if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
     if (ble_hs_hci_phony_ack_cb == NULL) {
         rc = BLE_HS_ETIMEOUT_HCI;
     } else {

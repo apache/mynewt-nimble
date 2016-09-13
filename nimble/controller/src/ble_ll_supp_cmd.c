@@ -106,7 +106,7 @@
 #define BLE_SUPP_CMD_LE_SET_HOST_CHAN_CLASS (1 << 3)
 #define BLE_SUPP_CMD_LE_RD_CHAN_MAP         (1 << 4)
 #define BLE_SUPP_CMD_LE_RD_REM_USED_FEAT    (1 << 5)
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 #define BLE_SUPP_CMD_LE_ENCRYPT             (1 << 6)
 #else
 #define BLE_SUPP_CMD_LE_ENCRYPT             (0 << 6)
@@ -126,7 +126,7 @@
 )
 
 /* Octet 28 */
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 #define BLE_SUPP_CMD_LE_START_ENCRYPT       (1 << 0)
 #else
 #define BLE_SUPP_CMD_LE_START_ENCRYPT       (0 << 0)

@@ -37,22 +37,10 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 static const uint8_t ble_hs_test_util_pub_addr[BLE_DEV_ADDR_LEN] =
     BLE_HS_TEST_UTIL_PUB_ADDR_VAL;
 
-/** Use lots of small mbufs to ensure correct mbuf usage. */
-#define BLE_HS_TEST_UTIL_NUM_MBUFS      (100)
-#define BLE_HS_TEST_UTIL_BUF_SIZE       OS_ALIGN(100, 4)
-#define BLE_HS_TEST_UTIL_MEMBLOCK_SIZE  \
-    (BLE_HS_TEST_UTIL_BUF_SIZE + BLE_MBUF_MEMBLOCK_OVERHEAD)
-#define BLE_HS_TEST_UTIL_MEMPOOL_SIZE   \
-    OS_MEMPOOL_SIZE(BLE_HS_TEST_UTIL_NUM_MBUFS, BLE_HS_TEST_UTIL_MEMBLOCK_SIZE)
-
 #define BLE_HS_TEST_UTIL_LE_OPCODE(ocf) \
     ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, (ocf))
 
 struct os_eventq ble_hs_test_util_evq;
-
-os_membuf_t ble_hs_test_util_mbuf_mpool_data[BLE_HS_TEST_UTIL_MEMPOOL_SIZE];
-struct os_mbuf_pool ble_hs_test_util_mbuf_pool;
-struct os_mempool ble_hs_test_util_mbuf_mpool;
 
 static STAILQ_HEAD(, os_mbuf_pkthdr) ble_hs_test_util_prev_tx_queue;
 struct os_mbuf *ble_hs_test_util_prev_tx_cur;
@@ -1302,7 +1290,7 @@ ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
     ble_hs_process_tx_data_queue();
     ble_hs_process_rx_data_queue();
 
-    count = ble_hs_test_util_mbuf_mpool.mp_num_free;
+    count = os_msys_num_free();
 
     if (params->prev_tx) {
         count += ble_hs_test_util_mbuf_chain_len(ble_hs_test_util_prev_tx_cur);
@@ -1353,7 +1341,7 @@ ble_hs_test_util_assert_mbufs_freed(
     }
 
     count = ble_hs_test_util_mbuf_count(params);
-    TEST_ASSERT(count == ble_hs_test_util_mbuf_mpool.mp_num_blocks);
+    TEST_ASSERT(count == os_msys_count());
 }
 
 void
@@ -1378,11 +1366,9 @@ ble_hs_test_util_hci_txed(uint8_t *cmdbuf, void *arg)
 }
 
 void
-ble_hs_test_util_init(void)
+ble_hs_test_util_init_no_start(void)
 {
-    struct ble_hci_ram_cfg hci_cfg;
-    struct ble_hs_cfg cfg;
-    int rc;
+    ble_hs_cfg.parent_evq = &ble_hs_test_util_evq;
 
     tu_init();
 
@@ -1390,46 +1376,26 @@ ble_hs_test_util_init(void)
     STAILQ_INIT(&ble_hs_test_util_prev_tx_queue);
     ble_hs_test_util_prev_tx_cur = NULL;
 
-    os_msys_reset();
-    stats_module_reset();
-
-    cfg = ble_hs_cfg_dflt;
-    cfg.max_connections = 8;
-    cfg.max_l2cap_chans = 3 * cfg.max_connections;
-    cfg.max_services = 16;
-    cfg.max_client_configs = 32;
-    cfg.max_attrs = 64;
-    cfg.max_gattc_procs = 16;
-
-    rc = ble_hs_init(&ble_hs_test_util_evq, &cfg);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    rc = os_mempool_init(&ble_hs_test_util_mbuf_mpool,
-                         BLE_HS_TEST_UTIL_NUM_MBUFS, 
-                         BLE_HS_TEST_UTIL_MEMBLOCK_SIZE,
-                         ble_hs_test_util_mbuf_mpool_data, 
-                         "ble_hs_test_util_mbuf_data");
-    TEST_ASSERT_FATAL(rc == 0);
-
-    rc = os_mbuf_pool_init(&ble_hs_test_util_mbuf_pool,
-                           &ble_hs_test_util_mbuf_mpool,
-                           BLE_HS_TEST_UTIL_MEMBLOCK_SIZE,
-                           BLE_HS_TEST_UTIL_NUM_MBUFS);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    rc = os_msys_register(&ble_hs_test_util_mbuf_pool);
-    TEST_ASSERT_FATAL(rc == 0);
-
     ble_hs_hci_set_phony_ack_cb(NULL);
 
     ble_hci_trans_cfg_ll(ble_hs_test_util_hci_txed, NULL,
                          ble_hs_test_util_pkt_txed, NULL);
 
-    hci_cfg = ble_hci_ram_cfg_dflt;
-    rc = ble_hci_ram_init(&hci_cfg);
-    TEST_ASSERT_FATAL(rc == 0);
-
     ble_hs_test_util_set_startup_acks();
+
+    ble_hs_max_services = 16;
+    ble_hs_max_client_configs = 32;
+    ble_hs_max_attrs = 64;
+
+    ble_hs_test_util_prev_hci_tx_clear();
+}
+
+void
+ble_hs_test_util_init(void)
+{
+    int rc;
+
+    ble_hs_test_util_init_no_start();
 
     rc = ble_hs_start();
     TEST_ASSERT_FATAL(rc == 0);

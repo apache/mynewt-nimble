@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
@@ -111,7 +112,7 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
     }
 }
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 void
 ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
 {

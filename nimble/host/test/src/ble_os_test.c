@@ -62,7 +62,7 @@ ble_os_test_init_app_task(void)
 static void
 ble_os_test_misc_init(void)
 {
-    ble_hs_test_util_init();
+    ble_hs_test_util_init_no_start();
 
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.

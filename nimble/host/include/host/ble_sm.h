@@ -21,7 +21,7 @@
 #define H_BLE_SM_
 
 #include <inttypes.h>
-#include "nimble/nimble_opt.h"
+#include "syscfg/syscfg.h"
 
 #define BLE_SM_ERR_PASSKEY                      0x01
 #define BLE_SM_ERR_OOB                          0x02
@@ -91,7 +91,7 @@ struct ble_sm_io {
     };
 };
 
-#if NIMBLE_OPT(SM)
+#if NIMBLE_BLE_SM
 int ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey);
 #else
 #define ble_sm_inject_io(conn_handle, pkey) \

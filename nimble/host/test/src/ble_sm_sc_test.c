@@ -28,7 +28,7 @@
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"
 
-#if NIMBLE_OPT(SM)
+#if NIMBLE_BLE_SM
 
 /**
  * Secure connections pairing
@@ -4907,4 +4907,4 @@ TEST_SUITE(ble_sm_sc_test_suite)
     ble_sm_sc_us_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3();
 }
 
-#endif /* NIMBLE_OPT_SM */
+#endif /* NIMBLE_BLE_SM */

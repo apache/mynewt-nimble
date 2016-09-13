@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -164,7 +165,7 @@ ble_hw_rng_read(void)
     return 0;
 }
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 /**
  * Clear the resolving list
  *

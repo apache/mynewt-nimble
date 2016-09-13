@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"             /* XXX: needed for ble mbuf header.*/
 #include "controller/ble_phy.h"
@@ -249,7 +250,7 @@ ble_phy_rx(void)
     return 0;
 }
 
-#if (BLE_LL_CFG_FEAT_LE_ENCRYPTION == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /**
  * Called to enable encryption at the PHY. Note that this state will persist
  * in the PHY; in other words, if you call this function you have to call
@@ -510,7 +511,7 @@ ble_phy_max_data_pdu_pyld(void)
     return BLE_LL_DATA_PDU_MAX_PYLD;
 }
 
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 void
 ble_phy_resolv_list_enable(void)
 {

@@ -171,6 +171,7 @@ int ble_hs_test_util_mbuf_count(
 void ble_hs_test_util_assert_mbufs_freed(
     const struct ble_hs_test_util_mbuf_params *params);
 void ble_hs_test_util_post_test(void *arg);
+void ble_hs_test_util_init_no_start(void);
 void ble_hs_test_util_init(void);
 
 #endif
