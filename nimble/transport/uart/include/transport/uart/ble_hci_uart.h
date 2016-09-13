@@ -5,6 +5,7 @@ struct ble_hci_uart_cfg {
     uint32_t baud;
     uint16_t num_evt_bufs;
     uint16_t evt_buf_sz;
+    uint16_t num_acl_bufs;
     uint8_t uart_port;
     uint8_t flow_ctrl;
     uint8_t data_bits;
