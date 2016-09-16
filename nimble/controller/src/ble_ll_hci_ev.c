@@ -222,3 +222,47 @@ ble_ll_hci_ev_rd_rem_ver(struct ble_ll_conn_sm *connsm, uint8_t status)
         }
     }
 }
+
+/**
+ * Send a HW error to the host.
+ *
+ * @param hw_err
+ *
+ * @return int 0: event masked or event sent, -1 otherwise
+ */
+int
+ble_ll_hci_ev_hw_err(uint8_t hw_err)
+{
+    int rc;
+    uint8_t *evbuf;
+
+    rc = 0;
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_HW_ERROR)) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_HW_ERROR;
+            evbuf[1] = BLE_HCI_EVENT_HW_ERROR_LEN;
+            evbuf[2] = hw_err;
+            ble_ll_hci_event_send(evbuf);
+        } else {
+            rc = -1;
+        }
+    }
+    return rc;
+}
+
+void
+ble_ll_hci_ev_databuf_overflow(void)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_DATA_BUF_OVERFLOW)) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_DATA_BUF_OVERFLOW;
+            evbuf[1] = BLE_HCI_EVENT_DATABUF_OVERFLOW_LEN;
+            evbuf[2] = BLE_HCI_EVENT_ACL_BUF_OVERFLOW;
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}

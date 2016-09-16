@@ -76,6 +76,12 @@ struct ble_ll_obj
     /* Packet transmit queue */
     struct os_event ll_tx_pkt_ev;
     struct ble_ll_pkt_q ll_tx_pkt_q;
+
+    /* Data buffer overflow event */
+    struct os_event ll_dbuf_overflow_ev;
+
+    /* HW error callout */
+    struct os_callout_func ll_hw_err_timer;
 };
 extern struct ble_ll_obj g_ble_ll_data;
 
@@ -130,6 +136,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_EVENT_CONN_SPVN_TMO  (OS_EVENT_T_PERUSER + 4)
 #define BLE_LL_EVENT_CONN_EV_END    (OS_EVENT_T_PERUSER + 5)
 #define BLE_LL_EVENT_TX_PKT_IN      (OS_EVENT_T_PERUSER + 6)
+#define BLE_LL_EVENT_DBUF_OVERFLOW  (OS_EVENT_T_PERUSER + 7)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION   (0x01)
@@ -322,6 +329,12 @@ void ble_ll_acl_data_in(struct os_mbuf *txpkt);
  * @return struct os_mbuf* Pointer to mbuf chain to hold received packet
  */
 struct os_mbuf *ble_ll_rxpdu_alloc(uint16_t len);
+
+/* Tell the Link Layer there has been a data buffer overflow */
+void ble_ll_data_buffer_overflow(void);
+
+/* Tell the link layer there has been a hardware error */
+void ble_ll_hw_error(void);
 
 /*--- PHY interfaces ---*/
 struct ble_mbuf_hdr;
