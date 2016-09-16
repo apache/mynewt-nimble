@@ -716,6 +716,49 @@ ble_ll_acl_data_in(struct os_mbuf *txpkt)
 }
 
 /**
+ * Called to post event to Link Layer when a data buffer overflow has
+ * occurred.
+ *
+ * Context: Interrupt
+ *
+ */
+void
+ble_ll_data_buffer_overflow(void)
+{
+    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_dbuf_overflow_ev);
+}
+
+/**
+ * Called when a HW error occurs.
+ *
+ * Context: Interrupt
+ */
+void
+ble_ll_hw_error(void)
+{
+    os_callout_reset(&g_ble_ll_data.ll_hw_err_timer.cf_c, 0);
+}
+
+/**
+ * Called when the HW error timer expires.
+ *
+ * @param arg
+ */
+static void
+ble_ll_hw_err_timer_cb(void *arg)
+{
+    if (ble_ll_hci_ev_hw_err(BLE_HW_ERR_HCI_SYNC_LOSS)) {
+        /*
+         * Restart callout if failed to allocate event. Try to allocate an
+         * event every 50 milliseconds (or each OS tick if a tick is longer
+         * than 100 msecs).
+         */
+        os_callout_reset(&g_ble_ll_data.ll_hw_err_timer.cf_c,
+                         OS_TICKS_PER_SEC / 20);
+    }
+}
+
+/**
  * Called upon start of received PDU
  *
  * Context: Interrupt
@@ -951,6 +994,9 @@ ble_ll_task(void *arg)
         case BLE_LL_EVENT_TX_PKT_IN:
             ble_ll_tx_pkt_in();
             break;
+        case BLE_LL_EVENT_DBUF_OVERFLOW:
+            ble_ll_hci_ev_databuf_overflow();
+            break;
         case BLE_LL_EVENT_CONN_SPVN_TMO:
             ble_ll_conn_spvn_timeout(ev->ev_arg);
             break;
@@ -1175,6 +1221,13 @@ ble_ll_init(uint8_t ll_task_prio, uint8_t num_acl_pkts, uint16_t acl_pkt_size)
     /* Initialize transmit (from host) and receive packet (from phy) event */
     lldata->ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
     lldata->ll_tx_pkt_ev.ev_type = BLE_LL_EVENT_TX_PKT_IN;
+    lldata->ll_dbuf_overflow_ev.ev_type = BLE_LL_EVENT_DBUF_OVERFLOW;
+
+    /* Initialize the HW error timer */
+    os_callout_func_init(&g_ble_ll_data.ll_hw_err_timer,
+                         &g_ble_ll_data.ll_evq,
+                         ble_ll_hw_err_timer_cb,
+                         NULL);
 
     /* Initialize wait for response timer */
     cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
