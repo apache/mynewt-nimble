@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "host/ble_hs.h"
-#include "profiles/ias/ble_svc_ias.h"
+#include "services/ias/ble_svc_ias.h"
 
 /* Callback function */
 static ble_svc_ias_event_fn *ble_svc_ias_cb_fn;
