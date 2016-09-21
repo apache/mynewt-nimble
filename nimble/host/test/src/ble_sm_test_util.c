@@ -32,6 +32,7 @@
 int ble_sm_test_gap_event_type;
 int ble_sm_test_gap_status;
 struct ble_gap_sec_state ble_sm_test_sec_state;
+static struct ble_gap_passkey_params ble_sm_test_ioact;
 
 int ble_sm_test_store_obj_type;
 union ble_store_key ble_sm_test_store_key;
@@ -105,6 +106,7 @@ ble_sm_test_util_init(void)
     ble_sm_test_gap_event_type = -1;
     ble_sm_test_gap_status = -1;
 
+    memset(&ble_sm_test_ioact, 0, sizeof ble_sm_test_ioact);
     memset(&ble_sm_test_sec_state, 0xff, sizeof ble_sm_test_sec_state);
 }
 
@@ -260,8 +262,6 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
     }
 }
 
-struct ble_gap_passkey_params ble_sm_test_ioact;
-
 int
 ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
 {
@@ -275,7 +275,6 @@ ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         TEST_ASSERT_FATAL(rc == 0);
         ble_sm_test_sec_state = desc.sec_state;
-        rc = 0;
         break;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
@@ -288,7 +287,7 @@ ble_sm_test_util_conn_cb(struct ble_gap_event *event, void *arg)
 
     ble_sm_test_gap_event_type = event->type;
 
-    return rc;
+    return 0;
 }
 
 static void
@@ -994,8 +993,11 @@ ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
 
     io_sm_state = ble_sm_ioact_state(passkey_info->passkey.action);
     if (io_sm_state != cur_sm_state) {
+        TEST_ASSERT(ble_sm_test_ioact.action == BLE_SM_IOACT_NONE);
         return;
     }
+
+    TEST_ASSERT(ble_sm_test_ioact.action == passkey_info->passkey.action);
 
     if (passkey_info->passkey.action == BLE_SM_IOACT_NUMCMP) {
         TEST_ASSERT(ble_sm_test_ioact.numcmp == passkey_info->exp_numcmp);
@@ -1003,6 +1005,8 @@ ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
 
     rc = ble_sm_inject_io(2, &passkey_info->passkey);
     TEST_ASSERT(rc == 0);
+
+    ble_sm_test_ioact.action = BLE_SM_IOACT_NONE;
 }
 
 void

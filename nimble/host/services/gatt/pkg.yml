@@ -17,8 +17,8 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/services/mandatory
-pkg.description: Implements the two mandatory GATT services (GAP and GATT).
+pkg.name: net/nimble/host/services/gatt
+pkg.description: Implements the GATT service.
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
@@ -26,7 +26,6 @@ pkg.keywords:
     - bluetooth
     - nimble
     - gatt
-    - gap
 
 pkg.deps:
     - net/nimble/host

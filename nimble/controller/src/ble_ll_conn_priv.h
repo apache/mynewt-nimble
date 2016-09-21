@@ -110,10 +110,11 @@ void ble_ll_conn_event_end(void *arg);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 void ble_ll_conn_spvn_timeout(void *arg);
 int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
-int ble_ll_conn_rx_isr_end(struct os_mbuf *rxpdu);
+int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
 void ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
-int ble_ll_init_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
+int ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
+                           struct ble_mbuf_hdr *ble_hdr);
 void ble_ll_conn_wfr_timer_exp(void);
 int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
 uint32_t ble_ll_conn_get_ce_end_time(void);
@@ -131,8 +132,9 @@ int ble_ll_conn_hci_update(uint8_t *cmdbuf);
 int ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf);
 int ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int negative_reply);
 int ble_ll_conn_create_cancel(void);
-void ble_ll_conn_num_comp_pkts_event_send(void);
-void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status);
+void ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm);
+void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
+                                 uint8_t *evbuf);
 void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);

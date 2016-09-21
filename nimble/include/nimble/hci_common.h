@@ -500,6 +500,10 @@
 /* Read remote version informaton */
 #define BLE_HCI_EVENT_RD_RM_VER_LEN         (8)
 
+/* Data buffer overflow event */
+#define BLE_HCI_EVENT_DATABUF_OVERFLOW_LEN  (1)
+#define BLE_HCI_EVENT_ACL_BUF_OVERFLOW      (0x01)
+
 /* Advertising report */
 #define BLE_HCI_ADV_RPT_EVTYPE_ADV_IND      (0)
 #define BLE_HCI_ADV_RPT_EVTYPE_DIR_IND      (1)

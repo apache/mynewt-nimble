@@ -67,6 +67,8 @@ static int ble_hs_reset_reason;
 
 static struct os_task *ble_hs_parent_task;
 
+#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)    
+
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource
  * shortage.
@@ -384,6 +386,7 @@ ble_hs_event_handle(void *unused)
         case BLE_HS_EVENT_TX_NOTIFICATIONS:
             BLE_HS_DBG_ASSERT(ev == &ble_hs_event_tx_notifications);
             ble_gatts_tx_notifications();
+            break;
 
         case OS_EVENT_T_MQUEUE_DATA:
             ble_hs_process_tx_data_queue();
@@ -417,6 +420,22 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
     ev = os_memblock_get(&ble_hs_hci_ev_pool);
     if (ev == NULL) {
         ble_hci_trans_buf_free(ev->ev_arg);
+    } else {
+        ev->ev_queued = 0;
+        ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
+        ev->ev_arg = hci_evt;
+        ble_hs_event_enqueue(ev);
+    }
+}
+
+void
+ble_hs_enqueue_hci_event(uint8_t *hci_evt)
+{
+    struct os_event *ev;
+
+    ev = os_memblock_get(&ble_hs_hci_ev_pool);
+    if (ev == NULL) {
+        ble_hci_trans_buf_free(hci_evt);
     } else {
         ev->ev_queued = 0;
         ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
@@ -563,8 +582,7 @@ ble_hs_init(void)
     int rc;
 
     log_init();
-    log_console_handler_init(&ble_hs_log_console_handler);
-    log_register("ble_hs", &ble_hs_log, &ble_hs_log_console_handler);
+    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL);
 
     /* Create memory pool of OS events */
     rc = os_mempool_init(&ble_hs_hci_ev_pool, BLE_HS_HCI_EVT_COUNT,
@@ -619,6 +637,5 @@ ble_hs_init(void)
     /* Configure the HCI transport to communicate with a host. */
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
-    /* Configure storage mechanism. */
-    /* XXX */
+    return 0;
 }

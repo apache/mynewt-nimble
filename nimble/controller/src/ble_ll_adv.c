@@ -26,6 +26,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
@@ -95,6 +96,7 @@ struct ble_ll_adv_sm
     uint8_t initiator_addr[BLE_DEV_ADDR_LEN];
     uint8_t adv_data[BLE_ADV_DATA_MAX_LEN];
     uint8_t scan_rsp_data[BLE_SCAN_RSP_DATA_MAX_LEN];
+    uint8_t *conn_comp_ev;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
 };
@@ -122,6 +124,23 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm;
 
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+/**
+ * Called to change advertisers ADVA and INITA (for directed advertisements)
+ * as an advertiser needs to adhere to the resolvable private address generation
+ * timer.
+ *
+ * NOTE: the resolvable private address code uses its own timer to regenerate
+ * local resolvable private addresses. The advertising code uses its own
+ * timer to reset the INITA (for directed advertisements). This code also sets
+ * the appropriate txadd and rxadd bits that will go into the advertisement.
+ *
+ * Another thing to note: it is possible that an IRK is all zeroes in the
+ * resolving list. That is why we need to check if the generated address is
+ * in fact a RPA as a resolving list entry with all zeroes will use the
+ * identity address (which may be a private address or public).
+ *
+ * @param advsm
+ */
 void
 ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 {
@@ -642,6 +661,12 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         }
         OS_EXIT_CRITICAL(sr);
 
+        /* If there is an event buf we need to free it */
+        if (advsm->conn_comp_ev) {
+            ble_hci_trans_buf_free(advsm->conn_comp_ev);
+            advsm->conn_comp_ev = NULL;
+        }
+
         /* Disable advertising */
         advsm->enabled = 0;
     }
@@ -663,6 +688,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
     uint8_t *addr;
+    uint8_t *evbuf;
 
     /*
      * This is not in the specification. I will reject the command with a
@@ -675,6 +701,27 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
+    }
+
+    /*
+     * Get an event with which to send the connection complete event if
+     * this is connectable
+     */
+    switch (advsm->adv_type) {
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
+    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+    case BLE_HCI_ADV_TYPE_ADV_IND:
+        /* We expect this to be NULL but if not we wont allocate one... */
+        if (advsm->conn_comp_ev == NULL) {
+            evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            if (!evbuf) {
+                return BLE_ERR_MEM_CAPACITY;
+            }
+            advsm->conn_comp_ev = evbuf;
+        }
+        break;
+    default:
+        break;
     }
 
     /* Set advertising address */
@@ -972,7 +1019,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int valid;
     uint8_t pyld_len;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     uint8_t resolved;
+#endif
     uint8_t addr_type;
     uint8_t *inita;
     uint8_t *ident_addr;
@@ -981,7 +1030,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 
     /* Check filter policy. */
     valid = 0;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     resolved = BLE_MBUF_HDR_RESOLVED(hdr);
+#endif
     advsm = &g_ble_ll_adv_sm;
     inita = rxbuf + BLE_LL_PDU_HDR_LEN;
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_DEVMATCH) {
@@ -1290,7 +1341,9 @@ ble_ll_adv_event_done(void *arg)
         if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
             /* Disable advertising */
             advsm->enabled = 0;
-            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO);
+            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                        advsm->conn_comp_ev);
+            advsm->conn_comp_ev = NULL;
             ble_ll_scan_chk_resume();
             return;
         }
@@ -1334,6 +1387,23 @@ ble_ll_adv_can_chg_whitelist(void)
     }
 
     return rc;
+}
+
+/**
+ * Returns the event allocated to send the connection complete event
+ *
+ * @return uint8_t* Pointer to event buffer
+ */
+uint8_t *
+ble_ll_adv_get_conn_comp_ev(void)
+{
+    uint8_t *evbuf;
+
+    evbuf = g_ble_ll_adv_sm.conn_comp_ev;
+    assert(evbuf != NULL);
+    g_ble_ll_adv_sm.conn_comp_ev = NULL;
+
+    return evbuf;
 }
 
 /**
