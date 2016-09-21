@@ -20,7 +20,7 @@
 #include <assert.h>
 
 #include "host/ble_hs.h"
-#include "services/mandatory/ble_svc_gatt.h"
+#include "services/gatt/ble_svc_gatt.h"
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,

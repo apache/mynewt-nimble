@@ -17,44 +17,13 @@
  * under the License.
  */
 
-#include <stdint.h>
-#include <assert.h>
-#include <string.h>
-#include "os/os.h"
-#include "nimble/ble.h"
-#include "controller/ble_hw.h"
-#include "controller/ble_ll.h"
+#ifndef H_BLE_SVC_GATT_
+#define H_BLE_SVC_GATT_
 
-/* This is a simple circular buffer for holding N samples of random data */
-struct ble_ll_rnum_data
-{
-    uint8_t rnd_in;
-    uint8_t rnd_out;
-    uint8_t rnd_size;
-    uint8_t _pad;
-};
+struct ble_hs_cfg;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
-int
-ble_ll_rng_init(void)
-{
-    return 0;
-}
+#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
 
-/* Get 'len' bytes of random data */
-int
-ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
-{
-    os_sr_t sr;
+int ble_svc_gatt_init(struct ble_hs_cfg *cfg);
 
-    while (len != 0) {
-        OS_ENTER_CRITICAL(sr);
-
-        OS_EXIT_CRITICAL(sr);
-        --len;
-    }
-
-    return 0;
-}
 #endif
-

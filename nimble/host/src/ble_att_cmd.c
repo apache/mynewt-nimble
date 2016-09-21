@@ -40,20 +40,6 @@ ble_att_init_parse(uint8_t op, const void *payload,
     return u8ptr + 1;
 }
 
-static const void *
-ble_att_init_parse_2op(uint8_t op1, uint8_t op2, const void *payload,
-                       int min_len, int actual_len)
-{
-    const uint8_t *u8ptr;
-
-    BLE_HS_DBG_ASSERT(actual_len >= min_len);
-
-    u8ptr = payload;
-    BLE_HS_DBG_ASSERT(u8ptr[0] == op1 || u8ptr[0] == op2);
-
-    return u8ptr + 1;
-}
-
 static void *
 ble_att_init_write(uint8_t op, void *payload, int min_len, int actual_len)
 {
@@ -113,13 +99,24 @@ ble_att_mtu_cmd_swap(struct ble_att_mtu_cmd *dst,
 }
 
 void
-ble_att_mtu_cmd_parse(const void *payload, int len,
+ble_att_mtu_req_parse(const void *payload, int len,
                       struct ble_att_mtu_cmd *dst)
 {
     const struct ble_att_mtu_cmd *src;
 
-    src = ble_att_init_parse_2op(BLE_ATT_OP_MTU_REQ, BLE_ATT_OP_MTU_RSP,
-                                 payload, BLE_ATT_MTU_CMD_SZ, len);
+    src = ble_att_init_parse(BLE_ATT_OP_MTU_REQ, payload, BLE_ATT_MTU_CMD_SZ,
+                             len);
+    ble_att_mtu_cmd_swap(dst, src);
+}
+
+void
+ble_att_mtu_rsp_parse(const void *payload, int len,
+                      struct ble_att_mtu_cmd *dst)
+{
+    const struct ble_att_mtu_cmd *src;
+
+    src = ble_att_init_parse(BLE_ATT_OP_MTU_RSP, payload, BLE_ATT_MTU_CMD_SZ,
+                             len);
     ble_att_mtu_cmd_swap(dst, src);
 }
 

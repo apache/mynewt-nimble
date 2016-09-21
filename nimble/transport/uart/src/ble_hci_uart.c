@@ -45,11 +45,28 @@
  * and outgoing events and commands use buffers from the same pool.
  */
 
+/* XXX: for now, define this here */
+#ifdef FEATURE_BLE_DEVICE
+extern void ble_ll_data_buffer_overflow(void);
+extern void ble_ll_hw_error(uint8_t err);
+
+static const uint8_t ble_hci_uart_reset_cmd[4] = { 0x01, 0x03, 0x0C, 0x00 };
+#endif
+
+/***
+ * NOTES:
+ * The "skip" definitions are here so that when buffers cannot be allocated,
+ * the command or acl packets are simply skipped so that the HCI interface
+ * does not lose synchronization and resets dont (necessarily) occur.
+ */
 #define BLE_HCI_UART_H4_NONE        0x00
 #define BLE_HCI_UART_H4_CMD         0x01
 #define BLE_HCI_UART_H4_ACL         0x02
 #define BLE_HCI_UART_H4_SCO         0x03
 #define BLE_HCI_UART_H4_EVT         0x04
+#define BLE_HCI_UART_H4_SYNC_LOSS   0x80
+#define BLE_HCI_UART_H4_SKIP_CMD    0x81
+#define BLE_HCI_UART_H4_SKIP_ACL    0x82
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_uart_rx_cmd_cb;
 static void *ble_hci_uart_rx_cmd_arg;
@@ -57,11 +74,20 @@ static void *ble_hci_uart_rx_cmd_arg;
 static ble_hci_trans_rx_acl_fn *ble_hci_uart_rx_acl_cb;
 static void *ble_hci_uart_rx_acl_arg;
 
-static struct os_mempool ble_hci_uart_evt_pool;
-static void *ble_hci_uart_evt_buf;
+static struct os_mempool ble_hci_uart_evt_hi_pool;
+static void *ble_hci_uart_evt_hi_buf;
+static struct os_mempool ble_hci_uart_evt_lo_pool;
+static void *ble_hci_uart_evt_lo_buf;
+
+static struct os_mempool ble_hci_uart_cmd_pool;
+static void *ble_hci_uart_cmd_buf;
 
 static struct os_mempool ble_hci_uart_pkt_pool;
 static void *ble_hci_uart_pkt_buf;
+
+static struct os_mbuf_pool ble_hci_uart_acl_mbuf_pool;
+static struct os_mempool ble_hci_uart_acl_pool;
+static void *ble_hci_uart_acl_buf;
 
 /**
  * An incoming or outgoing command or event.
@@ -77,7 +103,9 @@ struct ble_hci_uart_cmd {
  */
 struct ble_hci_uart_acl {
     struct os_mbuf *buf; /* Buffer containing the data */
+    uint8_t *dptr;       /* Pointer to where bytes should be placed */
     uint16_t len;        /* Target size when buf is considered complete */
+    uint16_t rxd_bytes;  /* current count of bytes received for packet */
 };
 
 /**
@@ -106,6 +134,28 @@ static struct {
     };
     STAILQ_HEAD(, ble_hci_uart_pkt) tx_pkts; /* Packet queue to send to UART */
 } ble_hci_uart_state;
+
+static uint16_t ble_hci_uart_max_acl_datalen;
+
+/**
+ * Allocates a buffer (mbuf) for ACL operation.
+ *
+ * @return                      The allocated buffer on success;
+ *                              NULL on buffer exhaustion.
+ */
+static struct os_mbuf *
+ble_hci_trans_acl_buf_alloc(void)
+{
+    struct os_mbuf *m;
+
+    /*
+     * XXX: note that for host only there would be no need to allocate
+     * a user header. Address this later.
+     */
+    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool,
+                           sizeof(struct ble_mbuf_hdr));
+    return m;
+}
 
 static int
 ble_hci_uart_acl_tx(struct os_mbuf *om)
@@ -248,6 +298,26 @@ ble_hci_uart_tx_char(void *arg)
     return rc;
 }
 
+#ifdef FEATURE_BLE_DEVICE
+/**
+ * HCI uart sync lost.
+ *
+ * This occurs when the controller receives an invalid packet type or a length
+ * field that is out of range. The controller needs to send a HW error to the
+ * host and wait to find a LL reset command.
+ */
+static void
+ble_hci_uart_sync_lost(void)
+{
+    ble_hci_uart_state.rx_cmd.len = 0;
+    ble_hci_uart_state.rx_cmd.cur = 0;
+    ble_hci_uart_state.rx_cmd.data =
+        ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+    ble_ll_hw_error(BLE_HW_ERR_HCI_SYNC_LOSS);
+    ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_SYNC_LOSS;
+}
+#endif
+
 /**
  * @return                      The type of packet to follow success;
  *                              -1 if there is no valid packet to receive.
@@ -255,26 +325,31 @@ ble_hci_uart_tx_char(void *arg)
 static int
 ble_hci_uart_rx_pkt_type(uint8_t data)
 {
+    struct os_mbuf *m;
+
     ble_hci_uart_state.rx_type = data;
 
-    /* XXX: For now we assert that buffer allocation succeeds.  The correct
-     * thing to do is return -1 on allocation failure so that flow control is
-     * engaged.  Then, we will need to tell the UART to start receiving again
-     * as follows:
-     *     o flat buf: when we free a buffer.
-     *     o mbuf: periodically? (which task executes the callout?)
-     */
     switch (ble_hci_uart_state.rx_type) {
+    /* Host should never receive a command! */
+#ifdef FEATURE_BLE_DEVICE
     case BLE_HCI_UART_H4_CMD:
-        ble_hci_uart_state.rx_cmd.data =
-            ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
-        assert(ble_hci_uart_state.rx_cmd.data != NULL);
-
         ble_hci_uart_state.rx_cmd.len = 0;
         ble_hci_uart_state.rx_cmd.cur = 0;
+        ble_hci_uart_state.rx_cmd.data =
+            ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+        if (ble_hci_uart_state.rx_cmd.data == NULL) {
+            ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_SKIP_CMD;
+        }
         break;
+#endif
 
+        /* Controller should never receive an event */
+#ifdef FEATURE_BLE_HOST
     case BLE_HCI_UART_H4_EVT:
+        /*
+         * XXX: we should not assert if host cannot allocate an event. Need
+         * to determine what to do here.
+         */
         ble_hci_uart_state.rx_cmd.data =
             ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
         assert(ble_hci_uart_state.rx_cmd.data != NULL);
@@ -282,21 +357,95 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
         ble_hci_uart_state.rx_cmd.len = 0;
         ble_hci_uart_state.rx_cmd.cur = 0;
         break;
+#endif
 
     case BLE_HCI_UART_H4_ACL:
-        ble_hci_uart_state.rx_acl.buf =
-            os_msys_get_pkthdr(BLE_HCI_DATA_HDR_SZ, 0);
-        assert(ble_hci_uart_state.rx_acl.buf != NULL);
-
         ble_hci_uart_state.rx_acl.len = 0;
+        ble_hci_uart_state.rx_acl.rxd_bytes = 0;
+        m = ble_hci_trans_acl_buf_alloc();
+        if (m) {
+            ble_hci_uart_state.rx_acl.dptr = m->om_data;
+        } else {
+            ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_SKIP_ACL;
+        }
+        ble_hci_uart_state.rx_acl.buf = m;
         break;
 
     default:
+#ifdef FEATURE_BLE_DEVICE
+        /*
+         * If we receive an unknown HCI packet type this is considered a loss
+         * of sync.
+         */
+        ble_hci_uart_sync_lost();
+#else
+        /*
+         * XXX: not sure what to do about host in this case. Just go back to
+         * none for now.
+         */
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
-        return -1;
+#endif
+        break;
     }
 
     return 0;
+}
+
+#ifdef FEATURE_BLE_DEVICE
+/**
+ * HCI uart sync loss.
+ *
+ * Find a LL reset command in the byte stream. The LL reset command is a
+ * sequence of 4 bytes:
+ *  0x01    HCI Packet Type = HCI CMD
+ *  0x03    OCF for reset command
+ *  0x0C    OGF for reset command (0x03 shifted left by two bits as the OGF
+ *          occupies the uopper 6 bits of this byte.
+ *  0x00    Parameter length of reset command (no parameters).
+ *
+ * @param data Byte received over serial port
+ */
+void
+ble_hci_uart_rx_sync_loss(uint8_t data)
+{
+    int rc;
+    int index;
+
+    /*
+     * If we couldnt allocate a command buffer (should not occur but
+     * possible) try to allocate one on each received character. If we get
+     * a reset and buffer is not available we have to ignore reset.
+     */
+    if (ble_hci_uart_state.rx_cmd.data == NULL) {
+        ble_hci_uart_state.rx_cmd.data =
+            ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+    }
+
+    index = ble_hci_uart_state.rx_cmd.cur;
+    if (data == ble_hci_uart_reset_cmd[index]) {
+        if (index == 3) {
+            if (ble_hci_uart_state.rx_cmd.data == NULL) {
+                index = 0;
+            } else {
+                assert(ble_hci_uart_rx_cmd_cb != NULL);
+                ble_hci_uart_state.rx_cmd.data[0] = 0x03;
+                ble_hci_uart_state.rx_cmd.data[1] = 0x0C;
+                ble_hci_uart_state.rx_cmd.data[2] = 0x00;
+                rc = ble_hci_uart_rx_cmd_cb(ble_hci_uart_state.rx_cmd.data,
+                                            ble_hci_uart_rx_cmd_arg);
+                if (rc != 0) {
+                    ble_hci_trans_buf_free(ble_hci_uart_state.rx_cmd.data);
+                }
+                ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
+            }
+        } else {
+            ++index;
+        }
+    } else {
+        index = 0;
+    }
+
+    ble_hci_uart_state.rx_cmd.cur = index;
 }
 
 static void
@@ -327,6 +476,33 @@ ble_hci_uart_rx_cmd(uint8_t data)
 }
 
 static void
+ble_hci_uart_rx_skip_cmd(uint8_t data)
+{
+    ble_hci_uart_state.rx_cmd.cur++;
+
+    if (ble_hci_uart_state.rx_cmd.cur < BLE_HCI_CMD_HDR_LEN) {
+        return;
+    }
+
+    if (ble_hci_uart_state.rx_cmd.cur == BLE_HCI_CMD_HDR_LEN) {
+        ble_hci_uart_state.rx_cmd.len = data + BLE_HCI_CMD_HDR_LEN;
+    }
+
+    if (ble_hci_uart_state.rx_cmd.cur == ble_hci_uart_state.rx_cmd.len) {
+        /*
+         * XXX: for now we simply skip the command and do nothing. This
+         * should not happen but at least we retain HCI synch. The host
+         * can decide what to do in this case. It may be appropriate for
+         * the controller to attempt to send back a command complete or
+         * command status in this case.
+         */
+        ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
+    }
+}
+#endif
+
+#ifdef FEATURE_BLE_HOST
+static void
 ble_hci_uart_rx_evt(uint8_t data)
 {
     int rc;
@@ -352,32 +528,75 @@ ble_hci_uart_rx_evt(uint8_t data)
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
     }
 }
+#endif
 
 static void
 ble_hci_uart_rx_acl(uint8_t data)
 {
+    uint16_t rxd_bytes;
     uint16_t pktlen;
 
-    os_mbuf_append(ble_hci_uart_state.rx_acl.buf, &data, 1);
+    rxd_bytes = ble_hci_uart_state.rx_acl.rxd_bytes;
+    ble_hci_uart_state.rx_acl.dptr[rxd_bytes] = data;
+    ++rxd_bytes;
+    ble_hci_uart_state.rx_acl.rxd_bytes = rxd_bytes;
 
-    pktlen = OS_MBUF_PKTLEN(ble_hci_uart_state.rx_acl.buf);
-
-    if (pktlen < BLE_HCI_DATA_HDR_SZ) {
+    if (rxd_bytes < BLE_HCI_DATA_HDR_SZ) {
         return;
     }
 
-    if (pktlen == BLE_HCI_DATA_HDR_SZ) {
-        os_mbuf_copydata(ble_hci_uart_state.rx_acl.buf, 2,
-                         sizeof(ble_hci_uart_state.rx_acl.len),
-                         &ble_hci_uart_state.rx_acl.len);
-        ble_hci_uart_state.rx_acl.len =
-            le16toh(&ble_hci_uart_state.rx_acl.len) + BLE_HCI_DATA_HDR_SZ;
+    if (rxd_bytes == BLE_HCI_DATA_HDR_SZ) {
+        pktlen = ble_hci_uart_state.rx_acl.dptr[3];
+        pktlen = (pktlen << 8) + ble_hci_uart_state.rx_acl.dptr[2];
+        ble_hci_uart_state.rx_acl.len = pktlen + BLE_HCI_DATA_HDR_SZ;
+
+        /*
+         * Data portion cannot exceed data length of acl buffer. If it does
+         * this is considered to be a loss of sync.
+         */
+        if (pktlen > ble_hci_uart_max_acl_datalen) {
+            os_mbuf_free_chain(ble_hci_uart_state.rx_acl.buf);
+            ble_hci_uart_sync_lost();
+        }
     }
 
-    if (pktlen == ble_hci_uart_state.rx_acl.len) {
-        assert(ble_hci_uart_rx_cmd_cb != NULL);
+    if (rxd_bytes == ble_hci_uart_state.rx_acl.len) {
+        assert(ble_hci_uart_rx_acl_cb != NULL);
+        /* XXX: can this callback fail? What if it does? */
+        OS_MBUF_PKTLEN(ble_hci_uart_state.rx_acl.buf) = rxd_bytes;
+        ble_hci_uart_state.rx_acl.buf->om_len = rxd_bytes;
         ble_hci_uart_rx_acl_cb(ble_hci_uart_state.rx_acl.buf,
                                ble_hci_uart_rx_acl_arg);
+        ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
+    }
+}
+
+static void
+ble_hci_uart_rx_skip_acl(uint8_t data)
+{
+    uint16_t rxd_bytes;
+    uint16_t pktlen;
+
+    rxd_bytes = ble_hci_uart_state.rx_acl.rxd_bytes;
+    ++rxd_bytes;
+    ble_hci_uart_state.rx_acl.rxd_bytes = rxd_bytes;
+
+    if (rxd_bytes == (BLE_HCI_DATA_HDR_SZ - 1)) {
+        ble_hci_uart_state.rx_acl.len = data;
+        return;
+    }
+
+    if (rxd_bytes == BLE_HCI_DATA_HDR_SZ) {
+        pktlen = data;
+        pktlen = (pktlen << 8) + ble_hci_uart_state.rx_acl.len;
+        ble_hci_uart_state.rx_acl.len = pktlen + BLE_HCI_DATA_HDR_SZ;
+    }
+
+    if (rxd_bytes == ble_hci_uart_state.rx_acl.len) {
+/* XXX: I dont like this but for now this denotes controller only */
+#ifdef FEATURE_BLE_DEVICE
+        ble_ll_data_buffer_overflow();
+#endif
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
     }
 }
@@ -388,17 +607,32 @@ ble_hci_uart_rx_char(void *arg, uint8_t data)
     switch (ble_hci_uart_state.rx_type) {
     case BLE_HCI_UART_H4_NONE:
         return ble_hci_uart_rx_pkt_type(data);
+#ifdef FEATURE_BLE_DEVICE
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_rx_cmd(data);
         return 0;
+    case BLE_HCI_UART_H4_SKIP_CMD:
+        ble_hci_uart_rx_skip_cmd(data);
+        return 0;
+    case BLE_HCI_UART_H4_SYNC_LOSS:
+        ble_hci_uart_rx_sync_loss(data);
+        return 0;
+#endif
+#ifdef FEATURE_BLE_HOST
     case BLE_HCI_UART_H4_EVT:
         ble_hci_uart_rx_evt(data);
         return 0;
+#endif
     case BLE_HCI_UART_H4_ACL:
         ble_hci_uart_rx_acl(data);
         return 0;
+    case BLE_HCI_UART_H4_SKIP_ACL:
+        ble_hci_uart_rx_skip_acl(data);
+        return 0;
     default:
-        return -1;
+        /* This should never happen! */
+        assert(0);
+        return 0;
     }
 }
 
@@ -439,11 +673,20 @@ ble_hci_uart_free_pkt(uint8_t type, uint8_t *cmdevt, struct os_mbuf *acl)
 static void
 ble_hci_uart_free_mem(void)
 {
-    free(ble_hci_uart_evt_buf);
-    ble_hci_uart_evt_buf = NULL;
+    free(ble_hci_uart_evt_hi_buf);
+    ble_hci_uart_evt_hi_buf = NULL;
+
+    free(ble_hci_uart_evt_lo_buf);
+    ble_hci_uart_evt_lo_buf = NULL;
 
     free(ble_hci_uart_pkt_buf);
     ble_hci_uart_pkt_buf = NULL;
+
+    free(ble_hci_uart_acl_buf);
+    ble_hci_uart_acl_buf = NULL;
+
+    free(ble_hci_uart_cmd_buf);
+    ble_hci_uart_cmd_buf = NULL;
 }
 
 static int
@@ -602,9 +845,20 @@ ble_hci_trans_buf_alloc(int type)
 
     switch (type) {
     case BLE_HCI_TRANS_BUF_CMD:
-    case BLE_HCI_TRANS_BUF_EVT_LO:
+        buf = os_memblock_get(&ble_hci_uart_cmd_pool);
+        break;
     case BLE_HCI_TRANS_BUF_EVT_HI:
-        buf = os_memblock_get(&ble_hci_uart_evt_pool);
+        buf = os_memblock_get(&ble_hci_uart_evt_hi_pool);
+        if (buf == NULL) {
+            /* If no high-priority event buffers remain, try to grab a
+             * low-priority one.
+             */
+            buf = os_memblock_get(&ble_hci_uart_evt_lo_pool);
+        }
+        break;
+
+    case BLE_HCI_TRANS_BUF_EVT_LO:
+        buf = os_memblock_get(&ble_hci_uart_evt_lo_pool);
         break;
 
     default:
@@ -626,8 +880,25 @@ ble_hci_trans_buf_free(uint8_t *buf)
 {
     int rc;
 
-    rc = os_memblock_put(&ble_hci_uart_evt_pool, buf);
-    assert(rc == 0);
+    /*
+     * XXX: this may look a bit odd, but the controller uses the command
+     * buffer to send back the command complete/status as an immediate
+     * response to the command. This was done to insure that the controller
+     * could always send back one of these events when a command was received.
+     * Thus, we check to see which pool the buffer came from so we can free
+     * it to the appropriate pool
+     */
+    if (os_memblock_from(&ble_hci_uart_evt_hi_pool, buf)) {
+        rc = os_memblock_put(&ble_hci_uart_evt_hi_pool, buf);
+        assert(rc == 0);
+    } else if (os_memblock_from(&ble_hci_uart_evt_lo_pool, buf)) {
+        rc = os_memblock_put(&ble_hci_uart_evt_lo_pool, buf);
+        assert(rc == 0);
+    } else {
+        assert(os_memblock_from(&ble_hci_uart_cmd_pool, buf));
+        rc = os_memblock_put(&ble_hci_uart_cmd_pool, buf);
+        assert(rc == 0);
+    }
 }
 
 /**
@@ -684,6 +955,7 @@ ble_hci_trans_reset(void)
 int
 ble_hci_uart_init(void)
 {
+    int acl_block_size;
     int rc;
 
     ble_hci_uart_free_mem();
@@ -694,14 +966,78 @@ ble_hci_uart_init(void)
                             MYNEWT_VAL(BLE_HCI_UART_BUF_SIZE),
                             "ble_hci_uart_evt_pool",
                             &ble_hci_uart_evt_buf);
+
+    /*
+     * XXX: For now, we will keep the ACL buffer size such that it can
+     * accommodate BLE_MBUF_PAYLOAD_SIZE. It should be possible to make this
+     * user defined but more testing would need to be done in that case. The
+     * MBUF payload size must accommodate the HCI data header size plus the
+     * maximum ACL data packet length.
+     *
+     * XXX: Should the max acl data length be part of config?
+     */
+    acl_block_size = BLE_MBUF_PAYLOAD_SIZE + BLE_MBUF_MEMBLOCK_OVERHEAD;
+    acl_block_size = OS_ALIGN(acl_block_size, OS_ALIGNMENT);
+    ble_hci_uart_max_acl_datalen = BLE_MBUF_PAYLOAD_SIZE - BLE_HCI_DATA_HDR_SZ;
+    rc = mem_malloc_mempool(&ble_hci_uart_acl_pool,
+                            MYNEWT_VAL(BLE_HCI_ACL_BUF_COUNT),
+                            acl_block_size,
+                            "ble_hci_uart_acl_pool",
+                            &ble_hci_uart_acl_buf);
     if (rc != 0) {
         rc = ble_err_from_os(rc);
         goto err;
     }
 
-    /* Create memory pool of packet list nodes. */
+    rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool, &ble_hci_uart_acl_pool,
+                           acl_block_size, MYNEWT_VAL(BLE_HCI_ACL_BUF_COUNT));
+    assert(rc == 0);
+
+    /*
+     * Create memory pool of HCI command buffers. NOTE: we currently dont
+     * allow this to be configured. The controller will only allow one
+     * outstanding command. We decided to keep this a pool in case we allow
+     * allow the controller to handle more than one outstanding command.
+     */
+    rc = mem_malloc_mempool(&ble_hci_uart_cmd_pool,
+                            1,
+                            BLE_HCI_TRANS_CMD_SZ,
+                            "ble_hci_uart_cmd_pool",
+                            &ble_hci_uart_cmd_buf);
+    if (rc != 0) {
+        rc = ble_err_from_os(rc);
+        goto err;
+    }
+
+    rc = mem_malloc_mempool(&ble_hci_uart_evt_hi_pool,
+                            MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                            "ble_hci_uart_evt_hi_pool",
+                            &ble_hci_uart_evt_hi_buf);
+    if (rc != 0) {
+        rc = ble_err_from_os(rc);
+        goto err;
+    }
+
+    rc = mem_malloc_mempool(&ble_hci_uart_evt_lo_pool,
+                            MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                            "ble_hci_uart_evt_lo_pool",
+                            &ble_hci_uart_evt_lo_buf);
+    if (rc != 0) {
+        rc = ble_err_from_os(rc);
+        goto err;
+    }
+
+    /*
+     * Create memory pool of packet list nodes. NOTE: the number of these
+     * buffers should be, at least, the total number of event buffers (hi
+     * and lo), the number of command buffers (currently 1) and the total
+     * number of buffers that the controller could possibly hand to the host.
+     */
     rc = mem_malloc_mempool(&ble_hci_uart_pkt_pool,
-                            BLE_HCI_UART_EVT_COUNT,
+                            BLE_HCI_UART_EVT_COUNT + 1 +
+                                MYNEWT_VAL(BLE_HCI_ACL_OUT_COUNT),
                             sizeof (struct ble_hci_uart_pkt),
                             "ble_hci_uart_pkt_pool",
                             &ble_hci_uart_pkt_buf);

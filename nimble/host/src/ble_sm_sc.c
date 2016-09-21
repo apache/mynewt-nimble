@@ -386,14 +386,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     }
 
     /* Calculate the mac key and ltk. */
-    rc = ble_sm_ia_ra(proc, &iat, ia, &rat, ra);
-    if (rc != 0) {
-        res->app_status = rc;
-        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-        res->enc_cb = 1;
-        return;
-    }
-
+    ble_sm_ia_ra(proc, &iat, ia, &rat, ra);
     rc = ble_sm_alg_f5(proc->dhkey, proc->randm, proc->rands,
                        iat, ia, rat, ra, proc->mackey, proc->ltk);
     if (rc != 0) {
@@ -457,13 +450,13 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         return;
     }
 
-    ioact = ble_sm_sc_io_action(proc);
-    if (ble_sm_ioact_state(ioact) == BLE_SM_PROC_STATE_CONFIRM) {
-        res->passkey_params.action = ioact;
-    }
-
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
+
+        ioact = ble_sm_sc_io_action(proc);
+        if (ble_sm_ioact_state(ioact) == proc->state) {
+            res->passkey_params.action = ioact;
+        }
 
         if (ble_sm_proc_can_advance(proc) &&
             !ble_sm_sc_initiator_txes_confirm(proc)) {
@@ -480,6 +473,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_sm_public_key cmd;
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
+    uint8_t ioact;
     int rc;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PUBLIC_KEY_SZ);
@@ -518,6 +512,11 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
             if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
                 proc->state = BLE_SM_PROC_STATE_CONFIRM;
 
+                ioact = ble_sm_sc_io_action(proc);
+                if (ble_sm_ioact_state(ioact) == proc->state) {
+                    res->passkey_params.action = ioact;
+                }
+
                 if (ble_sm_proc_can_advance(proc) &&
                     ble_sm_sc_initiator_txes_confirm(proc)) {
 
@@ -531,7 +530,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     ble_hs_unlock();
 }
 
-static int
+static void
 ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
                       uint8_t *out_our_id_addr_type,
                       const uint8_t **out_our_ota_addr,
@@ -541,18 +540,13 @@ ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
     struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
 
-    conn = ble_hs_conn_find(proc->conn_handle);
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
+    conn = ble_hs_conn_find_assert(proc->conn_handle);
 
     ble_hs_conn_addrs(conn, &addrs);
     *out_our_id_addr_type = addrs.our_id_addr_type;
     *out_our_ota_addr = addrs.our_ota_addr;
     *out_peer_id_addr_type = addrs.peer_id_addr_type;
     *out_peer_ota_addr = addrs.peer_ota_addr;
-
-    return 0;
 }
 
 static void
@@ -582,12 +576,9 @@ ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
     }
 
-    rc = ble_sm_sc_dhkey_addrs(proc,
-                               &our_id_addr_type, &our_ota_addr,
-                               &peer_id_addr_type, &peer_ota_addr);
-    if (rc != 0) {
-        goto err;
-    }
+    ble_sm_sc_dhkey_addrs(proc,
+                          &our_id_addr_type, &our_ota_addr,
+                          &peer_id_addr_type, &peer_ota_addr);
 
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
                        ble_sm_peer_pair_rand(proc), proc->tk, iocap,
@@ -634,17 +625,11 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
         ble_sm_sc_dhkey_check_iocap(&proc->pair_req, iocap);
     }
 
-    res->app_status = ble_sm_sc_dhkey_addrs(proc,
-                                            &our_id_addr_type,
-                                            &our_ota_addr,
-                                            &peer_id_addr_type,
-                                            &peer_ota_addr);
-    if (res->app_status != 0) {
-        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-        res->enc_cb = 1;
-        return;
-    }
-
+    ble_sm_sc_dhkey_addrs(proc,
+                          &our_id_addr_type,
+                          &our_ota_addr,
+                          &peer_id_addr_type,
+                          &peer_ota_addr);
     BLE_HS_LOG(DEBUG, "tk=");
     ble_hs_log_flat_buf(proc->tk, 32);
     BLE_HS_LOG(DEBUG, "\n");

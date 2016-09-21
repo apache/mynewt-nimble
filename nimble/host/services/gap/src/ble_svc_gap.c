@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "host/ble_hs.h"
-#include "services/mandatory/ble_svc_gap.h"
+#include "services/gap/ble_svc_gap.h"
 
 /* XXX: This should be configurable. */
 #define BLE_SVC_GAP_NAME_MAX_LEN    31

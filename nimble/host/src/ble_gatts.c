@@ -662,7 +662,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
 
         flags = le16toh(om->om_data);
         if ((flags & ~clt_cfg->allowed) != 0) {
-            return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+            return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
         }
 
         if (clt_cfg->flags != flags) {

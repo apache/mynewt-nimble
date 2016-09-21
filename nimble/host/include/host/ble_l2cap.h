@@ -52,7 +52,8 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SIG_ERR_MTU_EXCEEDED          0x0001
 #define BLE_L2CAP_SIG_ERR_INVALID_CID           0x0002
 
-typedef void ble_l2cap_sig_update_fn(int status, void *arg);
+typedef void ble_l2cap_sig_update_fn(uint16_t conn_handle, int status,
+                                     void *arg);
 
 struct ble_l2cap_sig_update_params {
     uint16_t itvl_min;

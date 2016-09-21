@@ -38,13 +38,8 @@ ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
 
     STATS_INC(ble_l2cap_stats, sm_tx);
 
-    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
-                                         &conn, &chan);
-    if (rc != 0) {
-        os_mbuf_free_chain(txom);
-        return rc;
-    }
-
+    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
+                                    &conn, &chan);
     rc = ble_l2cap_tx(conn, chan, txom);
     if (rc != 0) {
         return rc;

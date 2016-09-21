@@ -127,9 +127,9 @@ ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle,
 }
 
 static void
-ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
-                                         uint16_t chr_def_handle,
-                                         uint16_t flags)
+ble_gatts_notify_test_misc_try_enable_notify(uint16_t conn_handle,
+                                             uint16_t chr_def_handle,
+                                             uint16_t flags, int fail)
 {
     struct ble_att_write_req req;
     uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + 2];
@@ -141,7 +141,25 @@ ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
     htole16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
+    if (fail) {
+        TEST_ASSERT_FATAL(rc != 0);
+        ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
+                                           req.bawq_handle,
+                                           BLE_ATT_ERR_REQ_NOT_SUPPORTED);
+    } else {
+        TEST_ASSERT_FATAL(rc == 0);
+        ble_hs_test_util_verify_tx_write_rsp();
+    }
+}
+
+static void
+ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
+                                         uint16_t chr_def_handle,
+                                         uint16_t flags)
+{
+    ble_gatts_notify_test_misc_try_enable_notify(conn_handle,
+                                                 chr_def_handle,
+                                                 flags, 0);
 }
 
 static void
@@ -956,6 +974,77 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
     TEST_ASSERT(!value_cccd.value_changed);
 }
 
+TEST_CASE(ble_gatts_notify_test_disallowed)
+{
+    uint16_t chr1_val_handle;
+    uint16_t chr2_val_handle;
+    uint16_t chr3_val_handle;
+    int rc;
+
+    const struct ble_gatt_svc_def svcs[] = { {
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid128 = BLE_UUID16(0x1234),
+        .characteristics = (struct ble_gatt_chr_def[]) { {
+            .uuid128 = BLE_UUID16(1),
+            .access_cb = ble_gatts_notify_test_misc_access,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+            .val_handle = &chr1_val_handle,
+        }, {
+            .uuid128 = BLE_UUID16(2),
+            .access_cb = ble_gatts_notify_test_misc_access,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_INDICATE,
+            .val_handle = &chr2_val_handle,
+        }, {
+            .uuid128 = BLE_UUID16(3),
+            .access_cb = ble_gatts_notify_test_misc_access,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
+                     BLE_GATT_CHR_F_INDICATE,
+            .val_handle = &chr3_val_handle,
+        }, {
+            0
+        } },
+    }, {
+        0
+    } };
+
+    ble_hs_test_util_init();
+
+    rc = ble_gatts_register_svcs(svcs, NULL, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(chr1_val_handle != 0);
+    TEST_ASSERT_FATAL(chr2_val_handle != 0);
+    TEST_ASSERT_FATAL(chr3_val_handle != 0);
+
+    ble_gatts_start();
+
+    ble_hs_test_util_create_conn(2, ble_gatts_notify_test_peer_addr,
+                                 ble_gatts_notify_test_util_gap_event, NULL);
+
+    /* Attempt to enable notifications on chr1 should succeed. */
+    ble_gatts_notify_test_misc_try_enable_notify(
+        2, chr1_val_handle - 1, BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
+
+    /* Attempt to enable indications on chr1 should fail. */
+    ble_gatts_notify_test_misc_try_enable_notify(
+        2, chr1_val_handle - 1, BLE_GATTS_CLT_CFG_F_INDICATE, 1);
+
+    /* Attempt to enable notifications on chr2 should fail. */
+    ble_gatts_notify_test_misc_try_enable_notify(
+        2, chr2_val_handle - 1, BLE_GATTS_CLT_CFG_F_NOTIFY, 1);
+
+    /* Attempt to enable indications on chr2 should succeed. */
+    ble_gatts_notify_test_misc_try_enable_notify(
+        2, chr2_val_handle - 1, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+
+    /* Attempt to enable notifications on chr3 should succeed. */
+    ble_gatts_notify_test_misc_try_enable_notify(
+        2, chr3_val_handle - 1, BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
+
+    /* Attempt to enable indications on chr3 should succeed. */
+    ble_gatts_notify_test_misc_try_enable_notify(
+        2, chr3_val_handle - 1, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+}
+
 TEST_SUITE(ble_gatts_notify_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -967,6 +1056,8 @@ TEST_SUITE(ble_gatts_notify_suite)
     ble_gatts_notify_test_bonded_i();
 
     ble_gatts_notify_test_bonded_i_no_ack();
+
+    ble_gatts_notify_test_disallowed();
 
     /* XXX: Test corner cases:
      *     o Bonding after CCCD configuration.

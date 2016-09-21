@@ -387,7 +387,9 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                            struct ble_ll_scan_sm *scansm)
 {
     int rc;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     int index;
+#endif
     uint8_t evtype;
     uint8_t subev;
     uint8_t *evbuf;
@@ -441,6 +443,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
             }
 
             rxbuf += BLE_LL_PDU_HDR_LEN;
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
             if (BLE_MBUF_HDR_RESOLVED(hdr)) {
                 index = scansm->scan_rpa_index;
                 adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
@@ -449,10 +452,13 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                  * are 2 greater than the unresolved ones in the spec, so
                  * we just add 2 here.
                  */
-                addr_type += 2;
-            } else{
+                addr_type = g_ble_ll_resolv_list[index].rl_addr_type + 2;
+            } else {
                 adv_addr = rxbuf;
             }
+#else
+            adv_addr = rxbuf;
+#endif
 
             orig_evbuf = evbuf;
             evbuf += 5;
@@ -839,11 +845,10 @@ ble_ll_scan_event_proc(void *arg)
  *  1: we may send a response to this frame.
  */
 int
-ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
+ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint8_t *rxflags)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
-    struct ble_mbuf_hdr *ble_hdr;
 
     rc = 0;
     scansm = &g_ble_ll_scan_sm;
@@ -865,8 +870,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, struct os_mbuf *rxpdu)
          */
         if (scansm->scan_rsp_pending) {
             if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-                ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+                *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
             } else {
                 ble_ll_scan_req_backoff(scansm, 0);
             }
@@ -992,7 +996,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* If whitelist enabled, check to see if device is in the white list */
     if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
-        return -1;
+        goto scan_rx_isr_exit;
     }
     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
 
@@ -1000,7 +1004,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     if (chk_send_req) {
         /* Dont send scan request if we have sent one to this advertiser */
         if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type)) {
-            return -1;
+            goto scan_rx_isr_exit;
         }
 
         /* Better not be a scan response pending */
@@ -1101,7 +1105,9 @@ ble_ll_scan_wfr_timer_exp(void)
 void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
+#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
     int index;
+#endif
     uint8_t *adv_addr;
     uint8_t *adva;
     uint8_t *ident_addr;
@@ -1140,8 +1146,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
         ident_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
     }
-#else
-    index = -1;
 #endif
 
     /*

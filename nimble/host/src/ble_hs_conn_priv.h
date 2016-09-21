@@ -31,7 +31,6 @@ struct ble_l2cap_chan;
 typedef uint8_t ble_hs_conn_flags_t;
 
 #define BLE_HS_CONN_F_MASTER        0x01
-#define BLE_HS_CONN_F_UPDATE        0x02
 
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
@@ -79,6 +78,7 @@ void ble_hs_conn_free(struct ble_hs_conn *conn);
 void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
+struct ble_hs_conn *ble_hs_conn_find_assert(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr);
 struct ble_hs_conn *ble_hs_conn_find_by_idx(int idx);
 int ble_hs_conn_exists(uint16_t conn_handle);

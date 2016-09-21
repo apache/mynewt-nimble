@@ -109,12 +109,7 @@ ble_sm_lgcy_confirm_prepare_args(struct ble_sm_proc *proc,
                                  uint8_t *iat, uint8_t *rat,
                                  uint8_t *ia, uint8_t *ra)
 {
-    int rc;
-
-    rc = ble_sm_ia_ra(proc, iat, ia, rat, ra);
-    if (rc != 0) {
-        return rc;
-    }
+    ble_sm_ia_ra(proc, iat, ia, rat, ra);
 
     memcpy(k, proc->tk, sizeof proc->tk);
 
