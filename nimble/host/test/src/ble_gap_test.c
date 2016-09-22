@@ -2743,8 +2743,8 @@ TEST_CASE(ble_gap_test_case_conn_timeout_conn_forever)
 {
     ble_gap_test_util_init();
 
-    /* 3 ms. */
-    ble_gap_test_util_conn_timeout(3);
+    /* 30 ms. */
+    ble_gap_test_util_conn_timeout(30);
 
     /* No timeout. */
     ble_gap_test_util_conn_forever();
@@ -2758,8 +2758,8 @@ TEST_CASE(ble_gap_test_case_conn_timeout_conn_timeout)
     /* 30 ms. */
     ble_gap_test_util_conn_timeout(30);
 
-    /* 5 ms. */
-    ble_gap_test_util_conn_timeout(5);
+    /* 20 ms. */
+    ble_gap_test_util_conn_timeout(20);
 
 }
 
@@ -2776,16 +2776,16 @@ TEST_CASE(ble_gap_test_case_conn_forever_conn_timeout)
     /* Clear GAP event for remainder of test. */
     ble_gap_test_util_reset_cb_info();
 
-    /* 3 ms. */
-    ble_gap_test_util_conn_timeout(3);
+    /* 30 ms. */
+    ble_gap_test_util_conn_timeout(30);
 }
 
 TEST_CASE(ble_gap_test_case_disc_timeout_disc_forever)
 {
     ble_gap_test_util_init();
 
-    /* 3 ms. */
-    ble_gap_test_util_disc_timeout(3);
+    /* 30 ms. */
+    ble_gap_test_util_disc_timeout(30);
 
     /* No timeout. */
     ble_gap_test_util_disc_forever();
@@ -2799,8 +2799,8 @@ TEST_CASE(ble_gap_test_case_disc_timeout_disc_timeout)
     /* 30 ms. */
     ble_gap_test_util_disc_timeout(30);
 
-    /* 5 ms. */
-    ble_gap_test_util_disc_timeout(5);
+    /* 20 ms. */
+    ble_gap_test_util_disc_timeout(20);
 
 }
 
@@ -2814,8 +2814,8 @@ TEST_CASE(ble_gap_test_case_disc_forever_disc_timeout)
     /* Cancel discovery procedure manually. */
     ble_hs_test_util_disc_cancel(0);
 
-    /* 3 ms. */
-    ble_gap_test_util_disc_timeout(3);
+    /* 30 ms. */
+    ble_gap_test_util_disc_timeout(30);
 }
 
 TEST_CASE(ble_gap_test_case_conn_timeout_disc_timeout)
@@ -2825,8 +2825,8 @@ TEST_CASE(ble_gap_test_case_conn_timeout_disc_timeout)
     /* 15 seconds. */
     ble_gap_test_util_conn_timeout(15000);
 
-    /* 1285 ms. */
-    ble_gap_test_util_disc_timeout(1285);
+    /* 1280 ms. */
+    ble_gap_test_util_disc_timeout(1280);
 }
 
 TEST_SUITE(ble_gap_test_suite_timeout)

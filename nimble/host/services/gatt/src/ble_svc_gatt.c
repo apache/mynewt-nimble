@@ -19,6 +19,7 @@
 
 #include <assert.h>
 
+#include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
 
@@ -71,20 +72,14 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-int
+void
 ble_svc_gatt_init(void)
 {
     int rc;
 
     rc = ble_gatts_count_cfg(ble_svc_gatt_defs);
-    if (rc != 0) {
-        return rc;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_gatt_defs);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }

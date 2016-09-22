@@ -216,7 +216,7 @@ STATS_NAME_END(ble_gap_stats)
  * $debug                                                                    *
  *****************************************************************************/
 
-#if BLE_HS_DEBUG
+#if MYNEWT_VAL(BLE_HS_DEBUG)
 int
 ble_gap_dbg_update_active(uint16_t conn_handle)
 {

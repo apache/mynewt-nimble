@@ -20,6 +20,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <stddef.h>
+#include "syscfg/syscfg.h"
+#include "sysinit/sysinit.h"
 #include "os/os.h"
 #include "util/mem.h"
 #include "nimble/ble.h"

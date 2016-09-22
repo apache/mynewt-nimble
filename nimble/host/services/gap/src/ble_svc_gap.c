@@ -19,6 +19,8 @@
 
 #include <assert.h>
 #include <string.h>
+
+#include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "services/gap/ble_svc_gap.h"
 
@@ -148,20 +150,14 @@ ble_svc_gap_device_name_set(const char *name)
     return 0;
 }
 
-int
+void
 ble_svc_gap_init(void)
 {
     int rc;
 
     rc = ble_gatts_count_cfg(ble_svc_gap_defs);
-    if (rc != 0) {
-        return rc;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_gap_defs);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }
