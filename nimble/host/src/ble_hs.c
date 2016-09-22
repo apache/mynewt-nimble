@@ -38,8 +38,6 @@
  */
 #define BLE_HS_MAX_EVS_IN_A_ROW 2
 
-static struct log_handler ble_hs_log_console_handler;
-
 struct os_mempool ble_hs_hci_ev_pool;
 static os_membuf_t ble_hs_hci_os_event_buf[
     OS_MEMPOOL_SIZE(BLE_HS_HCI_EVT_COUNT, sizeof (struct os_event))
@@ -419,22 +417,6 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
 
     ev = os_memblock_get(&ble_hs_hci_ev_pool);
     if (ev == NULL) {
-        ble_hci_trans_buf_free(ev->ev_arg);
-    } else {
-        ev->ev_queued = 0;
-        ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
-        ev->ev_arg = hci_evt;
-        ble_hs_event_enqueue(ev);
-    }
-}
-
-void
-ble_hs_enqueue_hci_event(uint8_t *hci_evt)
-{
-    struct os_event *ev;
-
-    ev = os_memblock_get(&ble_hs_hci_ev_pool);
-    if (ev == NULL) {
         ble_hci_trans_buf_free(hci_evt);
     } else {
         ev->ev_queued = 0;
@@ -636,6 +618,4 @@ ble_hs_init(void)
 
     /* Configure the HCI transport to communicate with a host. */
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
-
-    return 0;
 }

@@ -1019,7 +1019,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int valid;
     uint8_t pyld_len;
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     uint8_t resolved;
 #endif
     uint8_t addr_type;
@@ -1030,7 +1030,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 
     /* Check filter policy. */
     valid = 0;
-#if (BLE_LL_CFG_FEAT_LL_PRIVACY == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     resolved = BLE_MBUF_HDR_RESOLVED(hdr);
 #endif
     advsm = &g_ble_ll_adv_sm;
@@ -1052,7 +1052,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD)) {
             ident_addr = inita;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
             if (resolved) {
                 ident_addr = g_ble_ll_resolv_list[advsm->adv_rpa_index].rl_identity_addr;
                 addr_type = g_ble_ll_resolv_list[advsm->adv_rpa_index].rl_addr_type;
@@ -1066,7 +1066,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     if (valid) {
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
         if (resolved) {
             /* Retain the resolvable private address that we received. */
             memcpy(advsm->adv_rpa, inita, BLE_DEV_ADDR_LEN);

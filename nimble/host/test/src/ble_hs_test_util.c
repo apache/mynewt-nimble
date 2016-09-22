@@ -539,23 +539,6 @@ ble_hs_test_util_conn_cancel_full(void)
     TEST_ASSERT_FATAL(rc == 0);
 }
 
-int
-ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
-{
-    struct hci_le_conn_complete evt;
-    int rc;
-
-    ble_hs_test_util_conn_cancel(0);
-
-    memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-    evt.status = BLE_ERR_UNK_CONN_ID;
-    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
-
-    rc = ble_gap_rx_conn_complete(&evt);
-    TEST_ASSERT_FATAL(rc == 0);
-}
-
 void
 ble_hs_test_util_set_ack_disconnect(uint8_t hci_status)
 {

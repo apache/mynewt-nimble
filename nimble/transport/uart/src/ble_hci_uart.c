@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "util/mem.h"
@@ -46,7 +47,7 @@
  */
 
 /* XXX: for now, define this here */
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
 extern void ble_ll_data_buffer_overflow(void);
 extern void ble_ll_hw_error(uint8_t err);
 
@@ -298,7 +299,7 @@ ble_hci_uart_tx_char(void *arg)
     return rc;
 }
 
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
 /**
  * HCI uart sync lost.
  *
@@ -331,7 +332,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
 
     switch (ble_hci_uart_state.rx_type) {
     /* Host should never receive a command! */
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_state.rx_cmd.len = 0;
         ble_hci_uart_state.rx_cmd.cur = 0;
@@ -344,7 +345,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
 #endif
 
         /* Controller should never receive an event */
-#ifdef FEATURE_BLE_HOST
+#if MYNEWT_VAL(BLE_HOST)
     case BLE_HCI_UART_H4_EVT:
         /*
          * XXX: we should not assert if host cannot allocate an event. Need
@@ -372,7 +373,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
         break;
 
     default:
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
         /*
          * If we receive an unknown HCI packet type this is considered a loss
          * of sync.
@@ -391,7 +392,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
     return 0;
 }
 
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
 /**
  * HCI uart sync loss.
  *
@@ -501,7 +502,7 @@ ble_hci_uart_rx_skip_cmd(uint8_t data)
 }
 #endif
 
-#ifdef FEATURE_BLE_HOST
+#if MYNEWT_VAL(BLE_HOST)
 static void
 ble_hci_uart_rx_evt(uint8_t data)
 {
@@ -594,7 +595,7 @@ ble_hci_uart_rx_skip_acl(uint8_t data)
 
     if (rxd_bytes == ble_hci_uart_state.rx_acl.len) {
 /* XXX: I dont like this but for now this denotes controller only */
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
         ble_ll_data_buffer_overflow();
 #endif
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
@@ -607,7 +608,7 @@ ble_hci_uart_rx_char(void *arg, uint8_t data)
     switch (ble_hci_uart_state.rx_type) {
     case BLE_HCI_UART_H4_NONE:
         return ble_hci_uart_rx_pkt_type(data);
-#ifdef FEATURE_BLE_DEVICE
+#if MYNEWT_VAL(BLE_DEVICE)
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_rx_cmd(data);
         return 0;
@@ -618,7 +619,7 @@ ble_hci_uart_rx_char(void *arg, uint8_t data)
         ble_hci_uart_rx_sync_loss(data);
         return 0;
 #endif
-#ifdef FEATURE_BLE_HOST
+#if MYNEWT_VAL(BLE_HOST)
     case BLE_HCI_UART_H4_EVT:
         ble_hci_uart_rx_evt(data);
         return 0;
@@ -959,13 +960,6 @@ ble_hci_uart_init(void)
     int rc;
 
     ble_hci_uart_free_mem();
-
-    /* Create memory pool of HCI command / event buffers */
-    rc = mem_malloc_mempool(&ble_hci_uart_evt_pool,
-                            BLE_HCI_UART_EVT_COUNT,
-                            MYNEWT_VAL(BLE_HCI_UART_BUF_SIZE),
-                            "ble_hci_uart_evt_pool",
-                            &ble_hci_uart_evt_buf);
 
     /*
      * XXX: For now, we will keep the ACL buffer size such that it can
