@@ -156,9 +156,6 @@ static uint8_t ble_sm_dbg_next_ltk[16];
 static uint8_t ble_sm_dbg_next_ltk_set;
 static uint8_t ble_sm_dbg_next_csrk[16];
 static uint8_t ble_sm_dbg_next_csrk_set;
-static uint8_t ble_sm_dbg_sc_pub_key[64];
-static uint8_t ble_sm_dbg_sc_priv_key[32];
-static uint8_t ble_sm_dbg_sc_keys_set;
 
 void
 ble_sm_dbg_set_next_pair_rand(uint8_t *next_pair_rand)
@@ -196,16 +193,6 @@ ble_sm_dbg_set_next_csrk(uint8_t *next_csrk)
     memcpy(ble_sm_dbg_next_csrk, next_csrk,
            sizeof ble_sm_dbg_next_csrk);
     ble_sm_dbg_next_csrk_set = 1;
-}
-
-void
-ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
-{
-    memcpy(ble_sm_dbg_sc_pub_key, pubkey,
-           sizeof ble_sm_dbg_sc_pub_key);
-    memcpy(ble_sm_dbg_sc_priv_key, privkey,
-           sizeof ble_sm_dbg_sc_priv_key);
-    ble_sm_dbg_sc_keys_set = 1;
 }
 
 int
@@ -350,28 +337,6 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
 #endif
 
     rc = ble_hs_hci_util_rand(csrk, 16);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-int
-ble_sm_gen_pub_priv(void *pub, uint32_t *priv)
-{
-    int rc;
-
-#if MYNEWT_VAL(BLE_HS_DEBUG)
-    if (ble_sm_dbg_sc_keys_set) {
-        ble_sm_dbg_sc_keys_set = 0;
-        memcpy(pub, ble_sm_dbg_sc_pub_key, sizeof ble_sm_dbg_sc_pub_key);
-        memcpy(priv, ble_sm_dbg_sc_priv_key, sizeof ble_sm_dbg_sc_priv_key);
-        return 0;
-    }
-#endif
-
-    rc = ble_sm_alg_gen_key_pair(pub, priv);
     if (rc != 0) {
         return rc;
     }

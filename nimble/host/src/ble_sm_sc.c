@@ -89,6 +89,24 @@ static const uint8_t ble_sm_sc_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
       {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
 };
 
+static uint8_t ble_sm_dbg_sc_pub_key[64];
+static uint8_t ble_sm_dbg_sc_priv_key[32];
+static uint8_t ble_sm_dbg_sc_keys_set;
+
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+
+void
+ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
+{
+    memcpy(ble_sm_dbg_sc_pub_key, pubkey,
+           sizeof ble_sm_dbg_sc_pub_key);
+    memcpy(ble_sm_dbg_sc_priv_key, privkey,
+           sizeof ble_sm_dbg_sc_priv_key);
+    ble_sm_dbg_sc_keys_set = 1;
+}
+
+#endif
+
 int
 ble_sm_sc_io_action(struct ble_sm_proc *proc)
 {
@@ -135,6 +153,28 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc)
     }
 
     return action;
+}
+
+static int
+ble_sm_gen_pub_priv(void *pub, uint32_t *priv)
+{
+    int rc;
+
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+    if (ble_sm_dbg_sc_keys_set) {
+        ble_sm_dbg_sc_keys_set = 0;
+        memcpy(pub, ble_sm_dbg_sc_pub_key, sizeof ble_sm_dbg_sc_pub_key);
+        memcpy(priv, ble_sm_dbg_sc_priv_key, sizeof ble_sm_dbg_sc_priv_key);
+        return 0;
+    }
+#endif
+
+    rc = ble_sm_alg_gen_key_pair(pub, priv);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
 }
 
 static int
