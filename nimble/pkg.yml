@@ -26,7 +26,7 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps:
-    - libs/os
+    - kernel/os
 
 pkg.syscfg_defs:
     # Supported GAP roles.  By default, all four roles are enabled.

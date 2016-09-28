@@ -30,7 +30,7 @@ pkg.req_apis:
     - ble_transport
 
 pkg.deps:
-    - libs/os
+    - kernel/os
     - sys/stats
     - net/nimble
 
