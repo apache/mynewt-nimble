@@ -23,7 +23,6 @@
 #include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "stats/stats.h"
-#include "util/tpq.h"
 #include "os/os.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
@@ -61,11 +60,11 @@ static int ble_hs_reset_reason;
 #define BLE_HS_HEARTBEAT_OS_TICKS       \
     (MYNEWT_VAL(BLE_HS_HEARTBEAT_FREQ) * OS_TICKS_PER_SEC / 1000)
 
-#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)    
+#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)
 
 static struct os_task *ble_hs_parent_task;
 
-#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)    
+#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)
 
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource

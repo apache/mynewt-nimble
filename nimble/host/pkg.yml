@@ -28,7 +28,7 @@ pkg.keywords:
 pkg.deps:
     - sys/log
     - sys/stats
-    - libs/os
+    - kernel/os
     - libs/util
     - net/nimble
 

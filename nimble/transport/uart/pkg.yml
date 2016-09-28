@@ -27,7 +27,7 @@ pkg.keywords:
 
 pkg.deps:
     - hw/hal
-    - libs/os
+    - kernel/os
     - net/nimble
 
 pkg.apis:
