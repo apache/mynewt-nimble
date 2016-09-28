@@ -33,10 +33,10 @@ pkg.deps:
     - net/nimble
 
 pkg.deps.BLE_SM:
-    - libs/mbedtls
+    - crypto/mbedtls
 
 pkg.deps.BLE_SM_SC:
-    - libs/tinycrypt
+    - crypto/tinycrypt
 
 pkg.req_apis:
     - ble_transport
