@@ -650,15 +650,17 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
     if (advsm->enabled) {
         /* Remove any scheduled advertising items */
         ble_ll_sched_rmv_elem(&advsm->adv_sch);
-        os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
         /* Set to standby if we are no longer advertising */
         OS_ENTER_CRITICAL(sr);
         if (ble_ll_state_get() == BLE_LL_STATE_ADV) {
+            ble_phy_disable();
             ble_ll_wfr_disable();
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
         }
         OS_EXIT_CRITICAL(sr);
+
+        os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
         /* If there is an event buf we need to free it */
         if (advsm->conn_comp_ev) {
@@ -1159,6 +1161,15 @@ void
 ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int adv_event_over;
+
+    /*
+     * It is possible that advertising was stopped and a packet plcaed on the
+     * LL receive packet queue. In this case, just ignore the received packet
+     * as the advertising state machine is no longer "valid"
+     */
+    if (!g_ble_ll_adv_sm.enabled) {
+        return;
+    }
 
     /*
      * If we have received a scan request and we are transmitting a response
