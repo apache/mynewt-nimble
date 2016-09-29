@@ -1137,14 +1137,12 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     if (evt->status != BLE_ERR_SUCCESS) {
         /* Determine the role from the status code. */
-        switch (evt->status) {
-        case BLE_ERR_DIR_ADV_TMO:
-            if (ble_gap_adv_active()) {
-                ble_gap_adv_finished();
-            }
-            break;
+        if (evt->status == BLE_ERR_DIR_ADV_TMO) {
+            evt->role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
+        }
 
-        default:
+        switch (evt->role) {
+        case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
             if (ble_gap_master_in_progress()) {
                 if (evt->status == BLE_ERR_UNK_CONN_ID) {
                     /* Connect procedure successfully cancelled. */
@@ -1153,6 +1151,17 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
                     ble_gap_master_failed(BLE_HS_HCI_ERR(evt->status));
                 }
             }
+            break;
+
+        case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
+            if (ble_gap_adv_active()) {
+                ble_gap_adv_finished();
+            }
+            break;
+
+        default:
+            BLE_HS_LOG(INFO, "controller reported invalid role in connection "
+                             " complete event: %d", evt->role);
             break;
         }
 
