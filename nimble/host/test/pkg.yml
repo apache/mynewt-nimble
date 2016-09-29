@@ -23,11 +23,11 @@ pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-    - libs/testutil
+    - test/testutil
     - net/nimble/host
 
 pkg.deps.SELFTEST:
-    - libs/console/stub
+    - sys/console/stub
     - net/nimble/transport/ram
 
 pkg.syscfg_vals.SELFTEST:
