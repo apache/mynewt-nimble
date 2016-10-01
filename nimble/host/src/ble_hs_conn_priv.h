@@ -24,6 +24,10 @@
 #include "ble_l2cap_priv.h"
 #include "ble_gatt_priv.h"
 #include "ble_att_priv.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct hci_le_conn_complete;
 struct hci_create_conn;
 struct ble_l2cap_chan;
@@ -91,5 +95,9 @@ void ble_hs_conn_addrs(const struct ble_hs_conn *conn,
                        struct ble_hs_conn_addrs *addrs);
 
 int ble_hs_conn_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

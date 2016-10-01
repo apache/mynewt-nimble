@@ -20,6 +20,10 @@
 #ifndef H_BLE_SVC_LLS_
 #define H_BLE_SVC_LLS_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_cfg;
 
 #define BLE_SVC_LLS_UUID16                                  0x1803
@@ -39,6 +43,10 @@ void ble_svc_lls_on_gap_disconnect(int reason);
 int ble_svc_lls_init(struct ble_hs_cfg *cfg, 
                      uint8_t initial_alert_level,
                      ble_svc_lls_event_fn *cb);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

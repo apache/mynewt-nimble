@@ -23,6 +23,10 @@
 #include <inttypes.h>
 #include "stats/stats.h"
 #include "host/ble_gap.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct hci_le_conn_upd_complete;
 struct hci_le_conn_param_req;
 struct hci_le_conn_complete;
@@ -96,5 +100,9 @@ void ble_gap_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_gap_heartbeat(void);
 
 int ble_gap_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

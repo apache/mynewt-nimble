@@ -24,6 +24,10 @@
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_test_util_store.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct hci_disconn_complete;
@@ -193,5 +197,9 @@ void ble_hs_test_util_assert_mbufs_freed(
 void ble_hs_test_util_post_test(void *arg);
 void ble_hs_test_util_init_no_start(void);
 void ble_hs_test_util_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

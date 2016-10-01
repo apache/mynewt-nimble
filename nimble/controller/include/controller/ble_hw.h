@@ -20,6 +20,10 @@
 #ifndef H_BLE_HW_
 #define H_BLE_HW_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(ARCH_sim)
 #define BLE_USES_HW_WHITELIST   (0)
 #else
@@ -96,5 +100,9 @@ void ble_hw_resolv_list_disable(void);
 
 /* Returns index of resolved address; -1 if not resolved */
 int ble_hw_resolv_list_match(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_HW_ */

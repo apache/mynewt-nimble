@@ -20,6 +20,10 @@
 #ifndef _BLEUART_H_
 #define _BLEUART_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void
 bleuart_init(void);
 int
@@ -30,5 +34,9 @@ void
 bleuart_set_conn_handle(uint16_t conn_handle);
 
 extern const uint8_t gatt_svr_svc_uart[16];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _BLEUART_H */

@@ -20,6 +20,10 @@
 #ifndef H_BLE_SVC_GAP_
 #define H_BLE_SVC_GAP_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_cfg;
 
 #define BLE_SVC_GAP_UUID16                                  0x1800
@@ -35,5 +39,9 @@ const char *ble_svc_gap_device_name(void);
 int ble_svc_gap_device_name_set(const char *name);
 
 void ble_svc_gap_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

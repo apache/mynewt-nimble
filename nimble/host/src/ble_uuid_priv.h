@@ -20,9 +20,17 @@
 #ifndef H_BLE_UUID_PRIV_
 #define H_BLE_UUID_PRIV_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct os_mbuf;
 
 int ble_uuid_append(struct os_mbuf *om, const void *uuid128);
 int ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -22,6 +22,10 @@
 
 #include "stats/stats.h"
 #include "host/ble_gatt.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_att_read_type_adata;
 struct ble_att_find_type_value_hinfo;
 struct ble_att_find_info_idata;
@@ -150,5 +154,9 @@ int ble_gatts_conn_can_alloc(void);
 int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
 int ble_gatts_start(void);
 int ble_gatts_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

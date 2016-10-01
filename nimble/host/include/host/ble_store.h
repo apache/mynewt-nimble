@@ -22,6 +22,10 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLE_STORE_OBJ_TYPE_OUR_SEC      1
 #define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
@@ -215,4 +219,8 @@ typedef int ble_store_iterator_fn(int obj_type,
 void ble_store_iterate(int obj_type,
                        ble_store_iterator_fn *callback,
                        void *cookie);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

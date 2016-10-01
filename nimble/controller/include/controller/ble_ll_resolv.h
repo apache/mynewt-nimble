@@ -20,6 +20,10 @@
 #ifndef H_BLE_LL_RESOLV_
 #define H_BLE_LL_RESOLV_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * An entry in the resolving list.
  *      The identity address is stored in little endian format.
@@ -89,5 +93,9 @@ int ble_ll_resolv_rpa(uint8_t *rpa, uint8_t *irk);
 
 /* Initialize resolv*/
 void ble_ll_resolv_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

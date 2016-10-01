@@ -21,6 +21,10 @@
 #define H_BLE_HS_HCI_PRIV_
 
 #include "nimble/hci_common.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_conn;
 struct os_mbuf;
 
@@ -154,5 +158,9 @@ int ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
 
 int ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
                                          uint8_t *dst, int dst_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -25,6 +25,10 @@
 #include "os/queue.h"
 #include "nimble/nimble_opt.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_gap_sec_state;
 struct hci_le_lt_key_req;
 struct hci_encrypt_change;
@@ -480,6 +484,10 @@ int ble_sm_init(void);
 
 #define ble_sm_init() 0
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

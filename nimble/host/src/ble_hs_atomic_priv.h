@@ -22,6 +22,10 @@
 
 #include "ble_hs_conn_priv.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ble_hs_atomic_conn_delete(uint16_t conn_handle);
 void ble_hs_atomic_conn_insert(struct ble_hs_conn *conn);
 int ble_hs_atomic_conn_flags(uint16_t conn_handle,
@@ -29,5 +33,9 @@ int ble_hs_atomic_conn_flags(uint16_t conn_handle,
 int ble_hs_atomic_conn_set_flags(uint16_t conn_handle,
                                  ble_hs_conn_flags_t flags, int on);
 uint16_t ble_hs_atomic_first_conn_handle(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

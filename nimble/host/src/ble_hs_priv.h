@@ -44,6 +44,10 @@
 #include "host/ble_hs.h"
 #include "nimble/nimble_opt.h"
 #include "stats/stats.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct os_mbuf;
@@ -143,6 +147,10 @@ void ble_hs_notifications_sched(void);
 #else
     #define BLE_HS_DBG_ASSERT(x)
     #define BLE_HS_DBG_ASSERT_EVAL(x) ((void)(x))
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

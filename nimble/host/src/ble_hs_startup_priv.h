@@ -20,6 +20,14 @@
 #ifndef H_BLE_HS_STARTUP_
 #define H_BLE_HS_STARTUP_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ble_hs_startup_go(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

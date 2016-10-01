@@ -25,6 +25,10 @@
 #include "stats/stats.h"
 #include "os/queue.h"
 #include "os/os_mbuf.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_conn;
 struct hci_data_hdr;
 
@@ -105,5 +109,9 @@ int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *txom);
 
 int ble_l2cap_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -20,6 +20,14 @@
 #ifndef H_BLE_IBEACON_
 #define H_BLE_IBEACON_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

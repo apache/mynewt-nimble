@@ -20,6 +20,10 @@
 #ifndef H_BLE_HS_ENDIAN_
 #define H_BLE_HS_ENDIAN_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
 #define TOFROMLE16(x)   ((uint16_t) (x))
@@ -52,6 +56,10 @@
 
 #error Unsupported endianness.
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

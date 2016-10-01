@@ -21,6 +21,10 @@
 #define H_HOST_TEST_
 
 #include <inttypes.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct os_mbuf;
 
 int ble_att_clt_test_all(void);
@@ -45,5 +49,9 @@ int ble_sm_lgcy_test_suite(void);
 int ble_sm_sc_test_suite(void);
 int ble_sm_test_all(void);
 int ble_uuid_test_all(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
