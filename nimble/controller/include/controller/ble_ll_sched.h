@@ -20,6 +20,10 @@
 #ifndef H_BLE_LL_SCHED_
 #define H_BLE_LL_SCHED_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Time per BLE scheduler slot */
 #define BLE_LL_SCHED_USECS_PER_SLOT (1250)
 
@@ -100,5 +104,9 @@ int ble_ll_sched_next_time(uint32_t *next_event_time);
 
 /* Stop the scheduler */
 void ble_ll_sched_stop(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_LL_SCHED_ */

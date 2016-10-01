@@ -23,6 +23,10 @@
 #include <inttypes.h>
 #include "syscfg/syscfg.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLE_SM_ERR_PASSKEY                      0x01
 #define BLE_SM_ERR_OOB                          0x02
 #define BLE_SM_ERR_AUTHREQ                      0x03
@@ -96,6 +100,10 @@ int ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey);
 #else
 #define ble_sm_inject_io(conn_handle, pkey) \
     ((void)(conn_handle), BLE_HS_ENOTSUP)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -22,6 +22,10 @@
 
 #include "controller/ble_ll_conn.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Definitions for max rx/tx time/bytes for connections
  *  NOTE: you get 327 usecs from 27 bytes of payload by:
@@ -158,5 +162,9 @@ void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 
 int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
 int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_LL_CONN_PRIV_ */

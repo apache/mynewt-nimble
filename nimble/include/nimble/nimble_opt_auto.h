@@ -23,6 +23,10 @@
 #include "syscfg/syscfg.h"
 #include "nimble/nimble_opt.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***
  * Automatic options.
  * 
@@ -112,5 +116,9 @@
  */
 #undef NIMBLE_BLE_SM
 #define NIMBLE_BLE_SM   (MYNEWT_VAL(BLE_SM) || MYNEWT_VAL(BLE_SM_SC))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

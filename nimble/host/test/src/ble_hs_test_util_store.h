@@ -20,6 +20,10 @@
 #ifndef H_BLE_HS_TEST_UTIL_STORE_
 #define H_BLE_HS_TEST_UTIL_STORE_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 union ble_store_value;
 union ble_store_key;
 
@@ -32,5 +36,9 @@ void ble_hs_test_util_store_init(int max_our_ltks, int max_peer_ltks,
 int ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
                                 union ble_store_value *dst);
 int ble_hs_test_util_store_write(int obj_type, union ble_store_value *value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

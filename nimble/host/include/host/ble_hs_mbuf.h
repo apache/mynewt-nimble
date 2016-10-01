@@ -21,11 +21,19 @@
 #define H_BLE_HS_MBUF_
 
 #include <inttypes.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct os_mbuf;
 
 struct os_mbuf *ble_hs_mbuf_att_pkt(void);
 struct os_mbuf *ble_hs_mbuf_from_flat(const void *buf, uint16_t len);
 int ble_hs_mbuf_to_flat(const struct os_mbuf *om, void *flat, uint16_t max_len,
                         uint16_t *out_copy_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

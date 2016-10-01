@@ -22,10 +22,18 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ble_hs_pvcy_set_our_irk(const uint8_t *irk);
 int ble_hs_pvcy_our_irk(const uint8_t **out_irk);
 int ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr);
 int ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addrtype, uint8_t *irk);
 int ble_hs_pvcy_ensure_started(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

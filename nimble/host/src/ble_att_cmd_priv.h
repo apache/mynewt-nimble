@@ -21,6 +21,10 @@
 #define H_BLE_ATT_CMD_
 
 #include <inttypes.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_l2cap_chan;
 
 /**
@@ -407,5 +411,9 @@ void ble_att_indicate_req_write(void *payload, int len,
 void ble_att_indicate_rsp_parse(const void *payload, int len);
 void ble_att_indicate_rsp_write(void *payload, int len);
 void ble_att_indicate_req_log(const struct ble_att_indicate_req *cmd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

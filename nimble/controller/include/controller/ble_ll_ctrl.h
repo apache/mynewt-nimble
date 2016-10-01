@@ -20,6 +20,10 @@
 #ifndef H_BLE_LL_CTRL_
 #define H_BLE_LL_CTRL_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * LL control procedures. This "enumeration" is not in the specification;
  * It is used to determine which LL control procedure is currently running
@@ -249,5 +253,9 @@ void ble_ll_hci_ev_databuf_overflow(void);
 
 
 void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_LL_CTRL_ */

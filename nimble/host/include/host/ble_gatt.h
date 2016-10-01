@@ -22,6 +22,10 @@
 
 #include <inttypes.h>
 #include "host/ble_att.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_hs_conn;
 struct ble_att_error_rsp;
 struct ble_hs_cfg;
@@ -445,5 +449,9 @@ int ble_gatts_find_chr(const void *svc_uuid128, const void *chr_uuid128,
                        uint16_t *out_def_handle, uint16_t *out_val_handle);
 int ble_gatts_find_dsc(const void *svc_uuid128, const void *chr_uuid128,
                        const void *dsc_uuid128, uint16_t *out_dsc_handle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

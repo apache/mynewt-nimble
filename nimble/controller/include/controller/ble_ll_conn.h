@@ -27,6 +27,10 @@
 #include "controller/ble_ll_ctrl.h"
 #include "hal/hal_cputime.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Roles */
 #define BLE_LL_CONN_ROLE_NONE           (0)
 #define BLE_LL_CONN_ROLE_MASTER         (1)
@@ -279,5 +283,9 @@ struct ble_ll_conn_sm
  *
  */
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_LL_CONN_ */

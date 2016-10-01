@@ -20,6 +20,10 @@
 #ifndef H_BLE_PHY_
 #define H_BLE_PHY_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Forward declarations */
 struct os_mbuf;
 
@@ -147,5 +151,9 @@ void ble_phy_resolv_list_enable(void);
 
 /* Disable phy resolving list */
 void ble_phy_resolv_list_disable(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_PHY_ */

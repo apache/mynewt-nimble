@@ -20,6 +20,10 @@
 #ifndef H_BLE_XCVR_
 #define H_BLE_XCVR_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Transceiver specific definitions */
 #define XCVR_RX_START_DELAY_USECS     (140)
 #define XCVR_TX_START_DELAY_USECS     (140)
@@ -34,5 +38,9 @@
  * not necessarily the size that will be used (may be smaller)
  */
 #define BLE_HW_WHITE_LIST_SIZE        (8)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_XCVR_ */

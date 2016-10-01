@@ -20,6 +20,10 @@
 #ifndef H_BLE_LL_ADV_
 #define H_BLE_LL_ADV_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * ADV event timing
  *      T_advEvent = advInterval + advDelay
@@ -164,5 +168,9 @@ void ble_ll_adv_halt(void);
 
 /* Called to determine if advertising is enabled */
 uint8_t ble_ll_adv_enabled(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_LL_ADV_ */

@@ -20,7 +20,15 @@
 #ifndef H_BLE_HS_DBG_PRIV_
 #define H_BLE_HS_DBG_PRIV_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ble_hs_dbg_event_disp(uint8_t *evbuf);
 void ble_hs_dbg_set_sync_state(uint8_t sync_state);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_HOST_DBG_ */

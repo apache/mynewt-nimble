@@ -21,6 +21,10 @@
 #define H_BLE_L2CAP_
 
 #include "nimble/nimble_opt.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ble_l2cap_sig_update_req;
 struct ble_hs_conn;
 
@@ -65,5 +69,9 @@ struct ble_l2cap_sig_update_params {
 int ble_l2cap_sig_update(uint16_t conn_handle,
                          struct ble_l2cap_sig_update_params *params,
                          ble_l2cap_sig_update_fn *cb, void *cb_arg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

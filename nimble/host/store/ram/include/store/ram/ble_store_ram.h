@@ -20,11 +20,19 @@
 #ifndef H_BLE_STORE_RAM_
 #define H_BLE_STORE_RAM_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 union ble_store_key;
 union ble_store_value;
 
 int ble_store_ram_read(int obj_type, union ble_store_key *key,
                        union ble_store_value *value);
 int ble_store_ram_write(int obj_type, union ble_store_value *val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

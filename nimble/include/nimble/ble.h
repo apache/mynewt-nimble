@@ -21,6 +21,10 @@
 #define H_BLE_
 
 #include <inttypes.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* XXX: some or all of these should not be here */
 #include "os/os.h"
 
@@ -232,5 +236,9 @@ int ble_err_from_os(int os_err);
 /* HW error codes */
 #define BLE_HW_ERR_DO_NOT_USE           (0) /* XXX: reserve this one for now */
 #define BLE_HW_ERR_HCI_SYNC_LOSS        (1)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_ */

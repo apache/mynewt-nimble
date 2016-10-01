@@ -20,6 +20,10 @@
 #ifndef H_BLE_L2CAP_SIG_
 #define H_BLE_L2CAP_SIG_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLE_L2CAP_SIG_MTU           100  /* This is our own default. */
 
 #define BLE_L2CAP_SIG_HDR_SZ                4
@@ -84,5 +88,9 @@ void ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_l2cap_sig_heartbeat(void);
 struct ble_l2cap_chan *ble_l2cap_sig_create_chan(void);
 int ble_l2cap_sig_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

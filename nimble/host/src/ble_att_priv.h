@@ -24,6 +24,10 @@
 #include "stats/stats.h"
 #include "os/queue.h"
 #include "host/ble_att.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct os_mbuf;
 struct ble_hs_conn;
 struct ble_l2cap_chan;
@@ -295,5 +299,9 @@ int ble_att_clt_tx_indicate(uint16_t conn_handle,
                             const struct ble_att_indicate_req *req,
                             struct os_mbuf *txom);
 int ble_att_clt_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

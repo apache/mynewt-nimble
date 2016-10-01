@@ -22,9 +22,17 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ble_hs_id_gen_rnd(int nrpa, uint8_t *out_addr);
 int ble_hs_id_set_rnd(const uint8_t *rnd_addr);
 int ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
                         int *out_is_nrpa);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

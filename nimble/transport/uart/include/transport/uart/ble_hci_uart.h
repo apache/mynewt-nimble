@@ -20,6 +20,14 @@
 #ifndef H_BLE_HCI_UART_
 #define H_BLE_HCI_UART_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ble_hci_uart_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

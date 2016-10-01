@@ -23,6 +23,10 @@
 #include "controller/ble_ll_sched.h"
 #include "hal/hal_cputime.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * SCAN_REQ
  *      -> ScanA    (6 bytes)
@@ -138,5 +142,9 @@ void ble_ll_scan_chk_resume(void);
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* H_BLE_LL_SCAN_ */

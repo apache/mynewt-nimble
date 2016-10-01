@@ -25,6 +25,10 @@
 #include "os/os_eventq.h"
 #include "nimble/nimble_opt.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
 
@@ -427,6 +431,10 @@ extern uint64_t g_bletest_SKDm;
 extern uint64_t g_bletest_SKDs;
 extern uint32_t g_bletest_IVm;
 extern uint32_t g_bletest_IVs;
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* H_LL_ */
