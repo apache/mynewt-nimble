@@ -27,25 +27,3 @@ pkg.keywords:
 
 pkg.deps:
     - kernel/os
-
-pkg.syscfg_defs:
-    # Supported GAP roles.  By default, all four roles are enabled.
-    BLE_ROLE_CENTRAL:
-        description: 'TBD'
-        value: 1
-    BLE_ROLE_PERIPHERAL:
-        description: 'TBD'
-        value: 1
-    BLE_ROLE_BROADCASTER:
-        description: 'TBD'
-        value: 1
-    BLE_ROLE_OBSERVER:
-        description: 'TBD'
-        value: 1
-
-    BLE_MAX_CONNECTIONS:
-        description: 'The maximum number of concurrent connections.'
-        value: 1
-    BLE_WHITELIST:
-        description: 'TBD'
-        value: 1

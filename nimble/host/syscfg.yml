@@ -1,0 +1,187 @@
+# Package: net/nimble/host
+
+syscfg.defs:
+    # Debug settings.
+    BLE_HS_DEBUG:
+        description: 'TBD'
+        value: 0
+    BLE_HS_PHONY_HCI_ACKS:
+        description: 'TBD'
+        value: 0
+    BLE_HS_REQUIRE_OS:
+        description: 'TBD'
+        value: 1
+
+    # Misc settings.
+    BLE_HS_HEARTBEAT_FREQ:
+        description: 'Milliseconds.'
+        value: 1000
+
+    # L2CAP settings.
+    BLE_L2CAP_MAX_CHANS:
+        description: 'TBD'
+        value: '3*MYNEWT_VAL_BLE_MAX_CONNECTIONS'
+    BLE_L2CAP_SIG_MAX_PROCS:
+        description: 'TBD'
+        value: 1
+
+    # Security manager settings.
+    BLE_SM:
+        description: 'Security manager legacy pairing.'
+        value: 1
+    BLE_SM_SC:
+        description: 'Security manager secure connections (4.2).'
+        value: 0
+
+    BLE_SM_MAX_PROCS:
+        description: 'TBD'
+        value: 1
+    BLE_SM_IO_CAP:
+        description: 'TBD'
+        value: 'BLE_HS_IO_NO_INPUT_OUTPUT'
+    BLE_SM_OOB_DATA_FLAG:
+        description: 'TBD'
+        value: 0
+    BLE_SM_BONDING:
+        description: 'TBD'
+        value: 0
+    BLE_SM_MITM:
+        description: 'TBD'
+        value: 0
+    BLE_SM_KEYPRESS:
+        description: 'TBD'
+        value: 0
+    BLE_SM_OUR_KEY_DIST:
+        description: 'TBD'
+        value: 0
+    BLE_SM_THEIR_KEY_DIST:
+        description: 'TBD'
+        value: 0
+
+    # Supported GATT procedures.  By default:
+    #     o Notify and indicate are enabled;
+    #     o All other procedures are enabled for centrals.
+    BLE_GATT_DISC_ALL_SVCS:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_DISC_SVC_UUID:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_FIND_INC_SVCS:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_DISC_ALL_CHRS:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_DISC_CHR_UUID:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_DISC_ALL_DSCS:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_READ:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_READ_UUID:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_READ_LONG:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_READ_MULT:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_WRITE_NO_RSP:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_SIGNED_WRITE:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_WRITE:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_WRITE_LONG:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_WRITE_RELIABLE:
+        description: 'TBD'
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_NOTIFY:
+        description: 'TBD'
+        value: 1
+    BLE_GATT_INDICATE:
+        description: 'TBD'
+        value: 1
+
+    # GATT options.
+    BLE_GATT_WRITE_MAX_ATTRS:
+        description: >
+            The maximum number of attributes that can be written with a single
+            GATT Reliable Write procedure.
+        value: 4
+    BLE_GATT_MAX_PROCS:
+        description: 'TBD'
+        value: 4
+
+    # Supported server ATT commands.
+    BLE_ATT_SVR_FIND_INFO:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_FIND_TYPE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_READ_TYPE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_READ:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_READ_BLOB:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_READ_MULT:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_READ_GROUP_TYPE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_WRITE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_WRITE_NO_RSP:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_SIGNED_WRITE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_PREP_WRITE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_EXEC_WRITE:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_NOTIFY:
+        description: 'TBD'
+        value: 1
+    BLE_ATT_SVR_INDICATE:
+        description: 'TBD'
+        value: 1
+
+    # ATT options.
+    BLE_ATT_MAX_PREP_ENTRIES:
+        description: >
+            A GATT server uses these when a peer performs a "write long
+            characteristic values" or "write long characteristic descriptors"
+            procedure.  One of these resources is consumed each time a peer
+            sends a partial write.
+        value: 64
+
+    # Privacy options.
+    BLE_RPA_TIMEOUT:
+        description: 'TBD'
+        value: 300
+
+    # Miscellaneous features.
+    BLE_EDDYSTONE:
+        description: 'TBD'
+        value: 1

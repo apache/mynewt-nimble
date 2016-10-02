@@ -1,0 +1,6 @@
+# Package: net/nimble/host/services/bleuart
+
+syscfg.defs:
+    BLEUART_MAX_INPUT:
+        description: 'TBD'
+        value: 120
