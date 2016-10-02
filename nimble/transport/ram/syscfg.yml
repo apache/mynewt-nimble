@@ -1,0 +1,14 @@
+# Package: net/nimble/transport/ram
+
+syscfg.defs:
+    BLE_HCI_EVT_HI_BUF_COUNT:
+        description: 'Number of high-priority event buffers.'
+        value:  1
+
+    BLE_HCI_EVT_LO_BUF_COUNT:
+        description: 'Number of low-priority event buffers.'
+        value:  2
+
+    BLE_HCI_EVT_BUF_SIZE:
+        description: 'Size of each event buffer, in bytes.'
+        value:  260

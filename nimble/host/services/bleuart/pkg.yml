@@ -35,8 +35,3 @@ pkg.req_apis:
 
 pkg.init_function: bleuart_init
 pkg.init_stage: 5
-
-pkg.syscfg_defs:
-    BLEUART_MAX_INPUT:
-        description: 'TBD'
-        value: 120
