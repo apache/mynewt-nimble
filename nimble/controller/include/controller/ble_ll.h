@@ -21,8 +21,8 @@
 #define H_BLE_LL_
 
 #include "stats/stats.h"
-#include "hal/hal_cputime.h"
 #include "os/os_eventq.h"
+#include "os/os_cputime.h"
 #include "nimble/nimble_opt.h"
 
 #ifdef __cplusplus
@@ -71,7 +71,7 @@ struct ble_ll_obj
     struct os_eventq ll_evq;
 
     /* Wait for response timer */
-    struct cpu_timer ll_wfr_timer;
+    struct hal_timer ll_wfr_timer;
 
     /* Packet receive queue (and event). Holds received packets from PHY */
     struct os_event ll_rx_pkt_ev;

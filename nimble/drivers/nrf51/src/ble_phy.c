@@ -427,7 +427,7 @@ ble_phy_tx_end_isr(void)
         }
         wfr_time = txstart - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
         wfr_time += BLE_TX_DUR_USECS_M(txlen);
-        wfr_time += cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
+        wfr_time += os_cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
         ble_ll_wfr_enable(wfr_time);
     } else {
         /* Disable automatic TXEN */
@@ -825,7 +825,7 @@ ble_phy_tx_set_start_time(uint32_t cputime)
     NRF_TIMER0->CC[0] = cputime;
     NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
-    if ((int32_t)(cputime_get32() - cputime) >= 0) {
+    if ((int32_t)(os_cputime_get32() - cputime) >= 0) {
         STATS_INC(ble_phy_stats, tx_late);
         ble_phy_disable();
         rc =  BLE_PHY_ERR_TX_LATE;
@@ -856,7 +856,7 @@ ble_phy_rx_set_start_time(uint32_t cputime)
     NRF_TIMER0->CC[0] = cputime;
     NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
     NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
-    if ((int32_t)(cputime_get32() - cputime) >= 0) {
+    if ((int32_t)(os_cputime_get32() - cputime) >= 0) {
         STATS_INC(ble_phy_stats, rx_late);
         NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
         NRF_RADIO->TASKS_RXEN = 1;

@@ -21,6 +21,7 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
+#include "os/os_cputime.h"
 #include "bsp/bsp.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
@@ -36,7 +37,6 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
 /* XXX: TODO
@@ -491,13 +491,13 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm, int sched_new)
          * time of the event since the pdu does not start at the scheduled start.
          */
         max_usecs += XCVR_TX_SCHED_DELAY_USECS;
-        sch->start_time = cputime_get32();
-        sch->end_time = sch->start_time + cputime_usecs_to_ticks(max_usecs);
+        sch->start_time = os_cputime_get32();
+        sch->end_time = sch->start_time + os_cputime_usecs_to_ticks(max_usecs);
     } else {
         sch->start_time = advsm->adv_pdu_start_time -
-            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
         sch->end_time = advsm->adv_pdu_start_time +
-            cputime_usecs_to_ticks(max_usecs);
+            os_cputime_usecs_to_ticks(max_usecs);
     }
 }
 
@@ -785,7 +785,7 @@ ble_ll_adv_scheduled(uint32_t sch_start)
 
     /* The event start time is when we start transmission of the adv PDU */
     advsm->adv_event_start_time = sch_start +
-        cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
 
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
@@ -795,7 +795,7 @@ ble_ll_adv_scheduled(uint32_t sch_start)
      * duty cycle advertising.
      */
     advsm->adv_dir_hd_end_time = advsm->adv_event_start_time +
-        cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
+        os_cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
 }
 
 /**
@@ -1300,7 +1300,7 @@ ble_ll_adv_event_done(void *arg)
         if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
             itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
         }
-        advsm->adv_event_start_time += cputime_usecs_to_ticks(itvl);
+        advsm->adv_event_start_time += os_cputime_usecs_to_ticks(itvl);
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
         /*
@@ -1308,9 +1308,9 @@ ble_ll_adv_event_done(void *arg)
          * just keep advancing until we the time is in the future
          */
         start_time = advsm->adv_pdu_start_time -
-            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
 
-        delta_t = (int32_t)(start_time - cputime_get32());
+        delta_t = (int32_t)(start_time - os_cputime_get32());
         if (delta_t < 0) {
             /* Calculate start time of next advertising event */
             while (delta_t < 0) {
@@ -1318,7 +1318,7 @@ ble_ll_adv_event_done(void *arg)
                 if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
                     itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
                 }
-                itvl = cputime_usecs_to_ticks(itvl);
+                itvl = os_cputime_usecs_to_ticks(itvl);
                 advsm->adv_event_start_time += itvl;
                 advsm->adv_pdu_start_time = advsm->adv_event_start_time;
                 delta_t += (int32_t)itvl;
@@ -1340,8 +1340,8 @@ ble_ll_adv_event_done(void *arg)
          * We will transmit right away. Set next pdu start time to now
          * plus a xcvr start delay just so we dont count late adv starts
          */
-        advsm->adv_pdu_start_time = cputime_get32() +
-            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+        advsm->adv_pdu_start_time = os_cputime_get32() +
+            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
     }
 
     /*

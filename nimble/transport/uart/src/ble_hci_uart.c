@@ -21,12 +21,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdint.h>
+#include "os/os_cputime.h"
 #include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "util/mem.h"
 #include "hal/hal_gpio.h"
-#include "hal/hal_cputime.h"
 #include "hal/hal_uart.h"
 
 /* BLE */

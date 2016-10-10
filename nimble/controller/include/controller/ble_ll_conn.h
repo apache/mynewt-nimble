@@ -25,7 +25,7 @@
 #include "nimble/hci_common.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_ctrl.h"
-#include "hal/hal_cputime.h"
+#include "hal/hal_timer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -212,7 +212,7 @@ struct ble_ll_conn_sm
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 
     /* connection supervisor timer */
-    struct cpu_timer conn_spvn_timer;
+    struct hal_timer conn_spvn_timer;
 
     /* connection supervision timeout event */
     struct os_event conn_spvn_ev;
