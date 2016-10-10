@@ -21,7 +21,7 @@
 #define H_BLE_LL_SCAN_
 
 #include "controller/ble_ll_sched.h"
-#include "hal/hal_cputime.h"
+#include "hal/hal_timer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,7 +74,7 @@ struct ble_ll_scan_sm
     uint32_t scan_win_start_time;
     struct os_mbuf *scan_req_pdu;
     struct os_event scan_sched_ev;
-    struct cpu_timer scan_timer;
+    struct hal_timer scan_timer;
 };
 
 /* Scan types */

@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
+#include "os/os_cputime.h"
 #include "ble/xcvr.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
@@ -27,10 +28,9 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_cputime.h"
 
 /* XXX: this is temporary. Not sure what I want to do here */
-struct cpu_timer g_ble_ll_sched_timer;
+struct hal_timer g_ble_ll_sched_timer;
 
 #if (BLE_LL_SCHED_DEBUG == 1)
 int32_t g_ble_ll_sched_max_late;
@@ -157,11 +157,11 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     } else {
         usecs = XCVR_TX_SCHED_DELAY_USECS;
     }
-    sch->start_time = connsm->anchor_point - cputime_usecs_to_ticks(usecs);
+    sch->start_time = connsm->anchor_point - os_cputime_usecs_to_ticks(usecs);
     sch->end_time = connsm->ce_end_time;
 
     /* Better be past current time or we just leave */
-    if ((int32_t)(sch->start_time - cputime_get32()) < 0) {
+    if ((int32_t)(sch->start_time - os_cputime_get32()) < 0) {
         return -1;
     }
 
@@ -174,7 +174,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     }
 
     /* Stop timer since we will add an element */
-    cputime_timer_stop(&g_ble_ll_sched_timer);
+    os_cputime_timer_stop(&g_ble_ll_sched_timer);
 
     start_overlap = NULL;
     end_overlap = NULL;
@@ -235,7 +235,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
-    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
@@ -269,13 +269,13 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
      * advertisement, so we need to add an IFS plus the time it takes to send
      * the connection request
      */
-    dur = cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
+    dur = os_cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
     earliest_start = adv_rxend +
-        cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
-                               BLE_LL_CONN_INITIAL_OFFSET);
+        os_cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
+                                  BLE_LL_CONN_INITIAL_OFFSET);
     earliest_end = earliest_start + dur;
 
-    itvl_t = cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
+    itvl_t = os_cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
 
     /* We have to find a place for this schedule */
     OS_ENTER_CRITICAL(sr);
@@ -288,9 +288,9 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
      * earliest start so we can end the connection reasonably.
      */
     if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
-        tps = cputime_usecs_to_ticks(BLE_LL_SCHED_USECS_PER_SLOT);
+        tps = os_cputime_usecs_to_ticks(BLE_LL_SCHED_USECS_PER_SLOT);
         ce_end_time = ble_ll_conn_get_ce_end_time();
-        while ((int32_t)(ce_end_time - cputime_get32()) < 0) {
+        while ((int32_t)(ce_end_time - os_cputime_get32()) < 0) {
             ce_end_time += tps;
         }
 
@@ -308,7 +308,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
         rc = 0;
         connsm->tx_win_off = 0;
     } else {
-        cputime_timer_stop(&g_ble_ll_sched_timer);
+        os_cputime_timer_stop(&g_ble_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
             /* Set these because overlap function needs them to be set */
             sch->start_time = earliest_start;
@@ -342,7 +342,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
             /* calculate number of connection intervals before start */
             sch->enqueued = 1;
             connsm->tx_win_off = (earliest_start - initial_start) /
-                cputime_usecs_to_ticks(BLE_LL_CONN_ITVL_USECS);
+                os_cputime_usecs_to_ticks(BLE_LL_CONN_ITVL_USECS);
         }
     }
 
@@ -350,7 +350,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
         sch->start_time = earliest_start;
         sch->end_time = earliest_end;
         connsm->anchor_point = earliest_start +
-            cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
         connsm->ce_end_time = earliest_end;
     }
 
@@ -359,7 +359,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
 
     OS_EXIT_CRITICAL(sr);
 
-    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
@@ -379,8 +379,8 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
 
     /* Set schedule start and end times */
     sch->start_time = connsm->anchor_point -
-        cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS +
-                               connsm->slave_cur_window_widening);
+        os_cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS +
+                                  connsm->slave_cur_window_widening);
     sch->end_time = connsm->ce_end_time;
 
     /* We have to find a place for this schedule */
@@ -397,7 +397,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
         /* Nothing in schedule. Schedule as soon as possible */
         rc = 0;
     } else {
-        cputime_timer_stop(&g_ble_ll_sched_timer);
+        os_cputime_timer_stop(&g_ble_ll_sched_timer);
         while (1) {
             next_sch = entry->link.tqe_next;
             /* Insert if event ends before next starts */
@@ -433,7 +433,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
 
     OS_EXIT_CRITICAL(sr);
 
-    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
@@ -459,7 +459,7 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
      * earliest start so we can end the connection reasonably.
      */
     if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
-        ticks = (int32_t)cputime_usecs_to_ticks(BLE_LL_SCHED_MAX_TXRX_SLOT);
+        ticks = (int32_t)os_cputime_usecs_to_ticks(BLE_LL_SCHED_MAX_TXRX_SLOT);
         ce_end_time = ble_ll_conn_get_ce_end_time();
         if ((int32_t)(ce_end_time - sch->start_time) < ticks) {
             ce_end_time += ticks;
@@ -473,7 +473,7 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
         rc = 0;
         adv_start = sch->start_time;
     } else {
-        cputime_timer_stop(&g_ble_ll_sched_timer);
+        os_cputime_timer_stop(&g_ble_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
             /* We can insert if before entry in list */
             if ((int32_t)(sch->end_time - entry->start_time) < 0) {
@@ -514,7 +514,7 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
      * that we actually go back to scanning. I need to make sure
        we re-enable the receive. Put an event in the log! */
 
-    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
@@ -538,7 +538,7 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch)
 
     entry = ble_ll_sched_insert_if_empty(sch);
     if (entry) {
-        cputime_timer_stop(&g_ble_ll_sched_timer);
+        os_cputime_timer_stop(&g_ble_ll_sched_timer);
         while (1) {
             /* Insert before if adv event is before this event */
             next_sch = entry->link.tqe_next;
@@ -574,7 +574,7 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch)
 
     OS_EXIT_CRITICAL(sr);
 
-    cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
@@ -600,7 +600,7 @@ ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
     if (sch->enqueued) {
         first = TAILQ_FIRST(&g_ble_ll_sched_q);
         if (first == sch) {
-            cputime_timer_stop(&g_ble_ll_sched_timer);
+            os_cputime_timer_stop(&g_ble_ll_sched_timer);
         }
 
         TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
@@ -609,7 +609,7 @@ ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
         if (first == sch) {
             first = TAILQ_FIRST(&g_ble_ll_sched_q);
             if (first) {
-                cputime_timer_start(&g_ble_ll_sched_timer, first->start_time);
+                os_cputime_timer_start(&g_ble_ll_sched_timer, first->start_time);
             }
         }
     }
@@ -674,7 +674,7 @@ ble_ll_sched_run(void *arg)
     /* Look through schedule queue */
     while ((sch = TAILQ_FIRST(&g_ble_ll_sched_q)) != NULL) {
         /* Make sure we have passed the start time of the first event */
-        dt = (int32_t)(cputime_get32() - sch->start_time);
+        dt = (int32_t)(os_cputime_get32() - sch->start_time);
         if (dt >= 0) {
 #if (BLE_LL_SCHED_DEBUG == 1)
             if (dt > g_ble_ll_sched_max_late) {
@@ -686,7 +686,7 @@ ble_ll_sched_run(void *arg)
             sch->enqueued = 0;
             ble_ll_sched_execute_item(sch);
         } else {
-            cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+            os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
             break;
         }
     }
@@ -729,7 +729,7 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 void
 ble_ll_sched_stop(void)
 {
-    cputime_timer_stop(&g_ble_ll_sched_timer);
+    os_cputime_timer_stop(&g_ble_ll_sched_timer);
 }
 
 /**
@@ -742,6 +742,6 @@ int
 ble_ll_sched_init(void)
 {
     /* Initialize cputimer for the scheduler */
-    cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
+    os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
     return 0;
 }

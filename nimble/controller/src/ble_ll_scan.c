@@ -23,6 +23,7 @@
 #include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
+#include "os/os_cputime.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
@@ -36,7 +37,6 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
-#include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
 /*
@@ -631,7 +631,7 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     uint32_t itvl;
     uint32_t win_start;
 
-    itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
+    itvl = os_cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
     chan = scansm->scan_chan;
     win_start = scansm->scan_win_start_time;
     while ((int32_t)(cputime - win_start) >= itvl) {
@@ -644,7 +644,7 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
 
     rc = 0;
     if (scansm->scan_window != scansm->scan_itvl) {
-        itvl = cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+        itvl = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
         if ((cputime - win_start) >= itvl) {
             rc = 1;
         }
@@ -670,7 +670,7 @@ ble_ll_scan_sm_stop(int chk_disable)
 
     /* Stop the scanning timer  */
     scansm = &g_ble_ll_scan_sm;
-    cputime_timer_stop(&scansm->scan_timer);
+    os_cputime_timer_stop(&scansm->scan_timer);
 
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
@@ -729,7 +729,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 
     /* XXX: align to current or next slot???. */
     /* Schedule start time now */
-    scansm->scan_win_start_time = cputime_get32();
+    scansm->scan_win_start_time = os_cputime_get32();
 
     /* Post scanning event to start off the scanning process */
     ble_ll_event_send(&scansm->scan_sched_ev);
@@ -765,14 +765,14 @@ ble_ll_scan_event_proc(void *arg)
      */
     scansm = (struct ble_ll_scan_sm *)arg;
     if (!scansm->scan_enabled) {
-        cputime_timer_stop(&scansm->scan_timer);
+        os_cputime_timer_stop(&scansm->scan_timer);
         return;
     }
 
     /* Make sure the scan window start time and channel are up to date. */
-    now = cputime_get32();
+    now = os_cputime_get32();
 
-    scan_itvl = cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
+    scan_itvl = os_cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
     chan = scansm->scan_chan;
     win_start = scansm->scan_win_start_time;
     while ((int32_t)(now - win_start) >= scan_itvl) {
@@ -791,7 +791,7 @@ ble_ll_scan_event_proc(void *arg)
     rxstate = 1;
     next_event_time = win_start + scan_itvl;
     if (scansm->scan_window != scansm->scan_itvl) {
-        win = cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+        win = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
         if (dt >= win) {
             rxstate = 0;
         } else {
@@ -827,7 +827,7 @@ ble_ll_scan_event_proc(void *arg)
     }
     OS_EXIT_CRITICAL(sr);
 
-    cputime_timer_start(&scansm->scan_timer, next_event_time);
+    os_cputime_timer_start(&scansm->scan_timer, next_event_time);
 }
 
 /**
@@ -1047,7 +1047,7 @@ ble_ll_scan_chk_resume(void)
     if (scansm->scan_enabled) {
         OS_ENTER_CRITICAL(sr);
         if (ble_ll_state_get() == BLE_LL_STATE_STANDBY) {
-            ble_ll_scan_window_chk(scansm, cputime_get32());
+            ble_ll_scan_window_chk(scansm, os_cputime_get32());
         }
         OS_EXIT_CRITICAL(sr);
     }
@@ -1481,7 +1481,7 @@ ble_ll_scan_init(void)
     scansm->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
 
     /* Initialize connection supervision timer */
-    cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
+    os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
     scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,

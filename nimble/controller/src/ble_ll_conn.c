@@ -23,6 +23,7 @@
 #include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
+#include "os/os_cputime.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
@@ -39,7 +40,6 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_cputime.h"
 #include "hal/hal_gpio.h"
 
 #if (BLETEST_THROUGHPUT_TEST == 1)
@@ -289,7 +289,7 @@ ble_ll_conn_get_ce_end_time(void)
     if (g_ble_ll_conn_cur_sm) {
         ce_end_time = g_ble_ll_conn_cur_sm->ce_end_time;
     } else {
-        ce_end_time = cputime_get32();
+        ce_end_time = os_cputime_get32();
     }
     return ce_end_time;
 }
@@ -394,7 +394,7 @@ ble_ll_conn_calc_window_widening(struct ble_ll_conn_sm *connsm)
     time_since_last_anchor = (int32_t)(connsm->anchor_point -
                                        connsm->last_anchor_point);
     if (time_since_last_anchor > 0) {
-        delta_msec = cputime_ticks_to_usecs(time_since_last_anchor) / 1000;
+        delta_msec = os_cputime_ticks_to_usecs(time_since_last_anchor) / 1000;
         total_sca_ppm = g_ble_sca_ppm_tbl[connsm->master_sca] +
             MYNEWT_VAL(BLE_LL_OUR_SCA);
         window_widening = (total_sca_ppm * delta_msec) / 1000;
@@ -702,7 +702,7 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
 
     /* Calculate time at which next connection event will start */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
-    ce_end = connsm->anchor_point + cputime_usecs_to_ticks(itvl);
+    ce_end = connsm->anchor_point + os_cputime_usecs_to_ticks(itvl);
 
     if (ble_ll_sched_next_time(&next_sched_time)) {
         if (CPUTIME_LT(next_sched_time, ce_end)) {
@@ -935,8 +935,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
             ticks += (BLE_LL_IFS + connsm->eff_max_rx_time);
         }
 
-        ticks = cputime_usecs_to_ticks(ticks);
-        if ((cputime_get32() + ticks) < next_event_time) {
+        ticks = os_cputime_usecs_to_ticks(ticks);
+        if ((os_cputime_get32() + ticks) < next_event_time) {
             md = 1;
         }
      }
@@ -1209,7 +1209,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
              */
             usecs = connsm->slave_cur_tx_win_usecs + BLE_LL_WFR_USECS +
                 connsm->slave_cur_window_widening;
-            wfr_time = connsm->anchor_point + cputime_usecs_to_ticks(usecs);
+            wfr_time = connsm->anchor_point + os_cputime_usecs_to_ticks(usecs);
             ble_ll_wfr_enable(wfr_time);
 
             /* Set next wakeup time to connection event end time */
@@ -1224,7 +1224,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Set time that we last serviced the schedule */
-    connsm->last_scheduled = cputime_get32();
+    connsm->last_scheduled = os_cputime_get32();
     return rc;
 }
 
@@ -1279,7 +1279,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime)
             ticks = BLE_TX_DUR_USECS_M(0);
         }
         ticks += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
-        ticks = cputime_usecs_to_ticks(ticks);
+        ticks = os_cputime_usecs_to_ticks(ticks);
         if ((begtime + ticks) >= next_sched_time) {
             rc = 0;
         }
@@ -1448,7 +1448,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->conn_param_req.handle = 0;
 
     /* Initialize connection supervision timer */
-    cputime_timer_init(&connsm->conn_spvn_timer, ble_ll_conn_spvn_timer_cb,
+    os_cputime_timer_init(&connsm->conn_spvn_timer, ble_ll_conn_spvn_timer_cb,
                        connsm);
 
     /* Calculate the next data channel */
@@ -1579,7 +1579,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
 
     /* Stop supervision timer */
-    cputime_timer_stop(&connsm->conn_spvn_timer);
+    os_cputime_timer_stop(&connsm->conn_spvn_timer);
 
     /* Stop any control procedures that might be running */
     os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
@@ -1674,7 +1674,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     connsm->event_cntr += latency;
 
     /* Set next connection event start time */
-    connsm->anchor_point += cputime_usecs_to_ticks(itvl);
+    connsm->anchor_point += os_cputime_usecs_to_ticks(itvl);
 
     /*
      * If a connection update has been scheduled and the event counter
@@ -1704,14 +1704,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         connsm->tx_win_off = upd->winoffset;
         connsm->anchor_point +=
-            cputime_usecs_to_ticks(upd->winoffset * BLE_LL_CONN_ITVL_USECS);
+            os_cputime_usecs_to_ticks(upd->winoffset * BLE_LL_CONN_ITVL_USECS);
 
         /* Reset the connection supervision timeout */
-        cputime_timer_stop(&connsm->conn_spvn_timer);
+        os_cputime_timer_stop(&connsm->conn_spvn_timer);
         tmo = connsm->supervision_tmo;
         tmo = tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
-        tmo = cputime_usecs_to_ticks(tmo);
-        cputime_timer_start(&connsm->conn_spvn_timer, connsm->anchor_point+tmo);
+        tmo = os_cputime_usecs_to_ticks(tmo);
+        os_cputime_timer_start(&connsm->conn_spvn_timer, connsm->anchor_point+tmo);
 
         /* Reset update scheduled flag */
         connsm->csmflags.cfbit.conn_update_sched = 0;
@@ -1780,7 +1780,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* We adjust end time for connection to end of time slot */
         itvl -= XCVR_TX_SCHED_DELAY_USECS;
     }
-    connsm->ce_end_time = connsm->anchor_point + cputime_usecs_to_ticks(itvl);
+    connsm->ce_end_time = connsm->anchor_point + os_cputime_usecs_to_ticks(itvl);
 
     return 0;
 }
@@ -1812,13 +1812,13 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
 
     /* Set supervision timeout */
     usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6;
-    cputime_timer_relative(&connsm->conn_spvn_timer, usecs);
+    os_cputime_timer_relative(&connsm->conn_spvn_timer, usecs);
 
     /* Clear packet received flag */
     connsm->csmflags.cfbit.pkt_rxd = 0;
 
     /* Consider time created the last scheduled time */
-    connsm->last_scheduled = cputime_get32();
+    connsm->last_scheduled = os_cputime_get32();
 
     /*
      * Set first connection event time. If slave the endtime is the receive end
@@ -1831,11 +1831,11 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
         connsm->slave_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
-        connsm->anchor_point = endtime + cputime_usecs_to_ticks(usecs);
+        connsm->anchor_point = endtime + os_cputime_usecs_to_ticks(usecs);
         usecs = connsm->slave_cur_tx_win_usecs +
             (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_USECS_PER_SLOT);
         connsm->ce_end_time = connsm->anchor_point +
-            cputime_usecs_to_ticks(usecs);
+            os_cputime_usecs_to_ticks(usecs);
         connsm->slave_cur_window_widening = 0;
 
         /* Start the scheduler for the first connection event */
@@ -2529,9 +2529,9 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         connsm = ble_ll_conn_find_active_conn(hdr->rxinfo.handle);
         if (connsm) {
             /* Reset the connection supervision timeout */
-            cputime_timer_stop(&connsm->conn_spvn_timer);
+            os_cputime_timer_stop(&connsm->conn_spvn_timer);
             tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
-            cputime_timer_relative(&connsm->conn_spvn_timer, tmo);
+            os_cputime_timer_relative(&connsm->conn_spvn_timer, tmo);
 
             /* Check state machine */
             ble_ll_conn_chk_csm_flags(connsm);

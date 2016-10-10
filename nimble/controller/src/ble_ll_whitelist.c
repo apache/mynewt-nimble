@@ -29,7 +29,6 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_hw.h"
-#include "hal/hal_cputime.h"
 
 #if (MYNEWT_VAL(BLE_LL_WHITELIST_SIZE) < BLE_HW_WHITE_LIST_SIZE)
 #define BLE_LL_WHITELIST_SIZE       MYNEWT_VAL(BLE_LL_WHITELIST_SIZE)

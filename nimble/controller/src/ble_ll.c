@@ -23,6 +23,7 @@
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "os/os.h"
+#include "os/os_cputime.h"
 #include "stats/stats.h"
 #include "bsp/bsp.h"
 #include "nimble/ble.h"
@@ -39,7 +40,6 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_cputime.h"
 
 /* XXX:
  *
@@ -220,7 +220,7 @@ ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32)
 
     OS_ENTER_CRITICAL(sr);
     le = &g_ble_ll_log[g_ble_ll_log_index];
-    le->cputime = cputime_get32();
+    le->cputime = os_cputime_get32();
     le->log_id = id;
     le->log_a8 = arg8;
     le->log_a16 = arg16;
@@ -535,7 +535,7 @@ ble_ll_wfr_timer_exp(void *arg)
 void
 ble_ll_wfr_enable(uint32_t cputime)
 {
-    cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
+    os_cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
 }
 
 /**
@@ -544,7 +544,7 @@ ble_ll_wfr_enable(uint32_t cputime)
 void
 ble_ll_wfr_disable(void)
 {
-    cputime_timer_stop(&g_ble_ll_data.ll_wfr_timer);
+    os_cputime_timer_stop(&g_ble_ll_data.ll_wfr_timer);
 }
 
 /**
@@ -1255,8 +1255,8 @@ ble_ll_init(void)
                          NULL);
 
     /* Initialize wait for response timer */
-    cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
-                       NULL);
+    os_cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
+                          NULL);
 
     ble_ll_hci_os_event_buf = malloc(
         OS_MEMPOOL_BYTES(16, sizeof (struct os_event)));
