@@ -23,7 +23,7 @@
 #include "syscfg/syscfg.h"
 #include "sysinit/sysinit.h"
 #include "os/os.h"
-#include "util/mem.h"
+#include "mem/mem.h"
 #include "nimble/ble.h"
 #include "nimble/ble_hci_trans.h"
 #include "transport/ram/ble_hci_ram.h"

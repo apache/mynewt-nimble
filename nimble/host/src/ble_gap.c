@@ -22,7 +22,7 @@
 #include <errno.h>
 #include "bsp/bsp.h"
 #include "os/os.h"
-#include "util/mem.h"
+#include "mem/mem.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
