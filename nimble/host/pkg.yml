@@ -29,7 +29,6 @@ pkg.deps:
     - sys/log
     - sys/stats
     - kernel/os
-    - libs/util
     - net/nimble
 
 pkg.deps.BLE_SM:
