@@ -29,7 +29,7 @@
 int
 main(int argc, char **argv)
 {
-    tu_config.tc_print_results = 1;
+    ts_config.ts_print_results = 1;
     tu_parse_args(argc, argv);
 
     tu_init();
