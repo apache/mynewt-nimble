@@ -563,7 +563,13 @@ ble_hs_init(void)
     int rc;
 
     log_init();
-    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL);
+#if 0
+    /*
+     * XXX This call to log_register should either move to an app or
+     * be configured in the BSP
+     */
+    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL, LOG_SYSLEVEL);
+#endif
 
     /* Create memory pool of OS events */
     rc = os_mempool_init(&ble_hs_hci_ev_pool, BLE_HS_HCI_EVT_COUNT,
