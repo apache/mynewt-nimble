@@ -29,6 +29,7 @@ pkg.deps:
     - hw/hal
     - kernel/os
     - net/nimble
+    - util/mem
 
 pkg.apis:
     - ble_transport
