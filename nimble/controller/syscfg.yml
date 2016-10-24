@@ -148,8 +148,7 @@ syscfg.defs:
 
     BLE_LL_CFG_FEAT_LL_PRIVACY:
         description: >
-            This option is used to enable/disable LL privacy. Currently, this
-            feature is not supported by the nimble controller.
+            This option is used to enable/disable LL privacy.
         value: '1'
 
     BLE_LL_CFG_FEAT_EXT_SCAN_FILT:
