@@ -349,25 +349,8 @@ ble_gap_terminate_test_task_handler(void *arg)
 static void
 ble_os_test_app_task_handler(void *arg)
 {
-    struct os_callout_func *cf;
-    struct os_event *ev;
-    int rc;
-
-    rc = ble_hs_start();
-    TEST_ASSERT(rc == 0);
-
     while (1) {
-        ev = os_eventq_get(&ble_hs_test_util_evq);
-        switch (ev->ev_type) {
-        case OS_EVENT_T_TIMER:
-            cf = (struct os_callout_func *)ev;
-            assert(cf->cf_func);
-            cf->cf_func(CF_ARG(cf));
-            break;
-        default:
-            assert(0);
-            break;
-        }
+        os_eventq_run(&ble_hs_test_util_evq);
     }
 }
 

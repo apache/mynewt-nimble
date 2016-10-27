@@ -1551,8 +1551,6 @@ ble_hs_test_util_hci_txed(uint8_t *cmdbuf, void *arg)
 void
 ble_hs_test_util_init_no_start(void)
 {
-    ble_hs_cfg.parent_evq = &ble_hs_test_util_evq;
-
     tu_init();
 
     os_eventq_init(&ble_hs_test_util_evq);
@@ -1571,6 +1569,8 @@ ble_hs_test_util_init_no_start(void)
     ble_hs_max_attrs = 64;
 
     ble_hs_test_util_prev_hci_tx_clear();
+
+    ble_hs_evq_set(&ble_hs_test_util_evq);
 }
 
 void

@@ -21,8 +21,6 @@
 #include "host/ble_hs.h"
 
 struct ble_hs_cfg ble_hs_cfg = {
-    .parent_evq = NULL,
-
     /** Security manager settings. */
     .sm_io_cap = MYNEWT_VAL(BLE_SM_IO_CAP),
     .sm_oob_data_flag = MYNEWT_VAL(BLE_SM_OOB_DATA_FLAG),

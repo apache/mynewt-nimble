@@ -19,12 +19,12 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "bsp/bsp.h"
 #include "stats/stats.h"
 #include "os/os.h"
-#include "childq/childq.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 
@@ -32,11 +32,10 @@
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) +     \
      MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
-/**
- * The maximum number of events the host will process in a row before returning
- * control to the parent task.
- */
-#define BLE_HS_MAX_EVS_IN_A_ROW 2
+static void ble_hs_event_rx_hci_ev(struct os_event *ev);
+static void ble_hs_event_tx_notify(struct os_event *ev);
+static void ble_hs_event_reset(struct os_event *ev);
+static void ble_hs_event_start(struct os_event *ev);
 
 struct os_mempool ble_hs_hci_ev_pool;
 static os_membuf_t ble_hs_hci_os_event_buf[
@@ -44,15 +43,17 @@ static os_membuf_t ble_hs_hci_os_event_buf[
 ];
 
 /** OS event - triggers tx of pending notifications and indications. */
-static struct os_event ble_hs_event_tx_notifications = {
-    .ev_type = BLE_HS_EVENT_TX_NOTIFICATIONS,
-    .ev_arg = NULL,
+static struct os_event ble_hs_ev_tx_notifications = {
+    .ev_cb = ble_hs_event_tx_notify,
 };
 
 /** OS event - triggers a full reset. */
-static struct os_event ble_hs_event_reset = {
-    .ev_type = BLE_HS_EVENT_RESET,
-    .ev_arg = NULL,
+static struct os_event ble_hs_ev_reset = {
+    .ev_cb = ble_hs_event_reset,
+};
+
+static struct os_event ble_hs_ev_start = {
+    .ev_cb = ble_hs_event_start,
 };
 
 uint8_t ble_hs_sync_state;
@@ -69,10 +70,10 @@ static struct os_task *ble_hs_parent_task;
  * Handles unresponsive timeouts and periodic retries in case of resource
  * shortage.
  */
-static struct os_callout_func ble_hs_heartbeat_timer;
+static struct os_callout ble_hs_heartbeat_timer;
 
-/* Queue for host-specific OS events. */
-static struct childq ble_hs_cq;
+/* Shared queue that the host uses for work items. */
+static struct os_eventq *ble_hs_evq;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
@@ -103,6 +104,19 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, reset)
     STATS_NAME(ble_hs_stats, sync)
 STATS_NAME_END(ble_hs_stats)
+
+static struct os_eventq *
+ble_hs_evq_get(void)
+{
+    os_eventq_ensure(&ble_hs_evq, &ble_hs_ev_start);
+    return ble_hs_evq;
+}
+
+void
+ble_hs_evq_set(struct os_eventq *evq)
+{
+    os_eventq_designate(&ble_hs_evq, evq, &ble_hs_ev_start);
+}
 
 int
 ble_hs_locked_by_cur_task(void)
@@ -200,7 +214,7 @@ ble_hs_heartbeat_timer_reset(uint32_t ticks)
 {
     int rc;
 
-    rc = os_callout_reset(&ble_hs_heartbeat_timer.cf_c, ticks);
+    rc = os_callout_reset(&ble_hs_heartbeat_timer, ticks);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
@@ -214,8 +228,8 @@ ble_hs_heartbeat_sched(int32_t ticks_from_now)
     /* Reset heartbeat timer if it is not currently scheduled or if the
      * specified time is sooner than the current expiration time.
      */
-    if (!os_callout_queued(&ble_hs_heartbeat_timer.cf_c) ||
-        OS_TIME_TICK_LT(ticks_from_now, ble_hs_heartbeat_timer.cf_c.c_ticks)) {
+    if (!os_callout_queued(&ble_hs_heartbeat_timer) ||
+        OS_TIME_TICK_LT(ticks_from_now, ble_hs_heartbeat_timer.c_ticks)) {
 
         ble_hs_heartbeat_timer_reset(ticks_from_now);
     }
@@ -305,7 +319,7 @@ ble_hs_reset(void)
  * timeouts and periodic retries in case of resource shortage.
  */
 static void
-ble_hs_heartbeat(void *unused)
+ble_hs_heartbeat(struct os_event *ev)
 {
     int32_t ticks_until_next;
 
@@ -335,52 +349,41 @@ ble_hs_heartbeat(void *unused)
 }
 
 static void
-ble_hs_event_handle(struct os_event *ev)
+ble_hs_event_rx_hci_ev(struct os_event *ev)
 {
-    struct os_callout_func *cf;
     uint8_t *hci_evt;
     int rc;
 
-    switch (ev->ev_type) {
-    case OS_EVENT_T_TIMER:
-        cf = (struct os_callout_func *)ev;
-        assert(cf->cf_func);
-        cf->cf_func(ev->ev_arg);
-        break;
+    hci_evt = ev->ev_arg;
+    rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-    case BLE_HOST_HCI_EVENT_CTLR_EVENT:
-        hci_evt = ev->ev_arg;
-        rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
-        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-
-        ble_hs_hci_evt_process(hci_evt);
-        break;
-
-    case BLE_HS_EVENT_TX_NOTIFICATIONS:
-        BLE_HS_DBG_ASSERT(ev == &ble_hs_event_tx_notifications);
-        ble_gatts_tx_notifications();
-        break;
-
-    case OS_EVENT_T_MQUEUE_DATA:
-        ble_hs_process_tx_data_queue();
-        ble_hs_process_rx_data_queue();
-        break;
-
-    case BLE_HS_EVENT_RESET:
-        BLE_HS_DBG_ASSERT(ev == &ble_hs_event_reset);
-        ble_hs_reset();
-        break;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        break;
-    }
+    ble_hs_hci_evt_process(hci_evt);
 }
 
-void
-ble_hs_event_enqueue(struct os_event *ev)
+static void
+ble_hs_event_tx_notify(struct os_event *ev)
 {
-    childq_put(&ble_hs_cq, ev);
+    ble_gatts_tx_notifications();
+}
+
+static void
+ble_hs_event_data(struct os_event *ev)
+{
+    ble_hs_process_tx_data_queue();
+    ble_hs_process_rx_data_queue();
+}
+
+static void
+ble_hs_event_reset(struct os_event *ev)
+{
+    ble_hs_reset();
+}
+
+static void
+ble_hs_event_start(struct os_event *ev)
+{
+    ble_hs_start();
 }
 
 void
@@ -393,9 +396,9 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
         ble_hci_trans_buf_free(hci_evt);
     } else {
         ev->ev_queued = 0;
-        ev->ev_type = BLE_HOST_HCI_EVENT_CTLR_EVENT;
+        ev->ev_cb = ble_hs_event_rx_hci_ev,
         ev->ev_arg = hci_evt;
-        ble_hs_event_enqueue(ev);
+        os_eventq_put(ble_hs_evq_get(), ev);
     }
 }
 
@@ -413,7 +416,7 @@ ble_hs_notifications_sched(void)
     }
 #endif
 
-    ble_hs_event_enqueue(&ble_hs_event_tx_notifications);
+    os_eventq_put(ble_hs_evq_get(), &ble_hs_ev_tx_notifications);
 }
 
 void
@@ -422,7 +425,7 @@ ble_hs_sched_reset(int reason)
     BLE_HS_DBG_ASSERT(ble_hs_reset_reason == 0);
 
     ble_hs_reset_reason = reason;
-    ble_hs_event_enqueue(&ble_hs_event_reset);
+    os_eventq_put(ble_hs_evq_get(), &ble_hs_ev_reset);
 }
 
 void
@@ -449,14 +452,10 @@ ble_hs_start(void)
 {
     int rc;
 
-    if (ble_hs_cfg.parent_evq == NULL) {
-        return BLE_HS_EINVAL;
-    }
-
     ble_hs_parent_task = os_sched_get_current_task();
 
-    os_callout_func_init(&ble_hs_heartbeat_timer, ble_hs_cfg.parent_evq,
-                         ble_hs_heartbeat, NULL);
+    os_callout_init(&ble_hs_heartbeat_timer, ble_hs_evq_get(),
+                    ble_hs_heartbeat, NULL);
 
     rc = ble_att_svr_start();
     if (rc != 0) {
@@ -490,7 +489,7 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
 
-    rc = childq_put_mqueue(&ble_hs_cq, &ble_hs_rx_q, om);
+    rc = os_mqueue_put(&ble_hs_rx_q, ble_hs_evq_get(), om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
@@ -513,7 +512,7 @@ ble_hs_tx_data(struct os_mbuf *om)
 {
     int rc;
 
-    rc = childq_put_mqueue(&ble_hs_cq, &ble_hs_tx_q, om);
+    rc = os_mqueue_put(&ble_hs_tx_q, ble_hs_evq_get(), om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
@@ -542,7 +541,18 @@ ble_hs_init(void)
                          "ble_hs_hci_ev_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    childq_init(&ble_hs_cq, ble_hs_cfg.parent_evq, ble_hs_event_handle);
+    /* These get initialized here to allow unit tests to run without a zeroed
+     * bss.
+     */
+    ble_hs_ev_tx_notifications = (struct os_event) {
+        .ev_cb = ble_hs_event_tx_notify,
+    };
+    ble_hs_ev_reset = (struct os_event) {
+        .ev_cb = ble_hs_event_reset,
+    };
+    ble_hs_ev_start = (struct os_event) {
+        .ev_cb = ble_hs_event_start,
+    };
 
     ble_hs_hci_init();
 
@@ -567,8 +577,8 @@ ble_hs_init(void)
     rc = ble_gatts_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    os_mqueue_init(&ble_hs_rx_q, NULL);
-    os_mqueue_init(&ble_hs_tx_q, NULL);
+    os_mqueue_init(&ble_hs_rx_q, ble_hs_event_data, NULL);
+    os_mqueue_init(&ble_hs_tx_q, ble_hs_event_data, NULL);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
