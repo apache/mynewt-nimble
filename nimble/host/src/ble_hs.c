@@ -24,6 +24,7 @@
 #include "bsp/bsp.h"
 #include "stats/stats.h"
 #include "os/os.h"
+#include "childq/childq.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 
@@ -64,17 +65,14 @@ static int ble_hs_reset_reason;
 
 static struct os_task *ble_hs_parent_task;
 
-#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)
-
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource
  * shortage.
  */
 static struct os_callout_func ble_hs_heartbeat_timer;
-static struct os_callout_func ble_hs_event_co;
 
 /* Queue for host-specific OS events. */
-static struct os_eventq ble_hs_evq;
+static struct childq ble_hs_cq;
 
 static struct os_mqueue ble_hs_rx_q;
 static struct os_mqueue ble_hs_tx_q;
@@ -337,76 +335,52 @@ ble_hs_heartbeat(void *unused)
 }
 
 static void
-ble_hs_event_handle(void *unused)
+ble_hs_event_handle(struct os_event *ev)
 {
     struct os_callout_func *cf;
-    struct os_eventq *evqp;
-    struct os_event *ev;
     uint8_t *hci_evt;
     int rc;
-    int i;
 
-    evqp = &ble_hs_evq;
+    switch (ev->ev_type) {
+    case OS_EVENT_T_TIMER:
+        cf = (struct os_callout_func *)ev;
+        assert(cf->cf_func);
+        cf->cf_func(ev->ev_arg);
+        break;
 
-    i = 0;
-    while (1) {
-        /* If the host has already processed several consecutive events, stop
-         * and return control to the parent task.  Put an event on the parent
-         * task's eventq to indicate that more host events are enqueued.
-         */
-        if (i >= BLE_HS_MAX_EVS_IN_A_ROW) {
-            os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
-            break;
-        }
-        i++;
+    case BLE_HOST_HCI_EVENT_CTLR_EVENT:
+        hci_evt = ev->ev_arg;
+        rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-        ev = os_eventq_poll(&evqp, 1, 0);
-        if (ev == NULL) {
-            break;
-        }
+        ble_hs_hci_evt_process(hci_evt);
+        break;
 
-        switch (ev->ev_type) {
-        case OS_EVENT_T_TIMER:
-            cf = (struct os_callout_func *)ev;
-            assert(cf->cf_func);
-            cf->cf_func(ev->ev_arg);
-            break;
+    case BLE_HS_EVENT_TX_NOTIFICATIONS:
+        BLE_HS_DBG_ASSERT(ev == &ble_hs_event_tx_notifications);
+        ble_gatts_tx_notifications();
+        break;
 
-        case BLE_HOST_HCI_EVENT_CTLR_EVENT:
-            hci_evt = ev->ev_arg;
-            rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
-            BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    case OS_EVENT_T_MQUEUE_DATA:
+        ble_hs_process_tx_data_queue();
+        ble_hs_process_rx_data_queue();
+        break;
 
-            ble_hs_hci_evt_process(hci_evt);
-            break;
+    case BLE_HS_EVENT_RESET:
+        BLE_HS_DBG_ASSERT(ev == &ble_hs_event_reset);
+        ble_hs_reset();
+        break;
 
-        case BLE_HS_EVENT_TX_NOTIFICATIONS:
-            BLE_HS_DBG_ASSERT(ev == &ble_hs_event_tx_notifications);
-            ble_gatts_tx_notifications();
-            break;
-
-        case OS_EVENT_T_MQUEUE_DATA:
-            ble_hs_process_tx_data_queue();
-            ble_hs_process_rx_data_queue();
-            break;
-
-        case BLE_HS_EVENT_RESET:
-            BLE_HS_DBG_ASSERT(ev == &ble_hs_event_reset);
-            ble_hs_reset();
-            break;
-
-        default:
-            BLE_HS_DBG_ASSERT(0);
-            break;
-        }
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
     }
 }
 
 void
 ble_hs_event_enqueue(struct os_event *ev)
 {
-    os_eventq_put(&ble_hs_evq, ev);
-    os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
+    childq_put(&ble_hs_cq, ev);
 }
 
 void
@@ -516,14 +490,13 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
 
-    rc = os_mqueue_put(&ble_hs_rx_q, &ble_hs_evq, om);
-    if (rc == 0) {
-        os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
-    } else {
+    rc = childq_put_mqueue(&ble_hs_cq, &ble_hs_rx_q, om);
+    if (rc != 0) {
         os_mbuf_free_chain(om);
-        rc = BLE_HS_EOS;
+        return BLE_HS_EOS;
     }
-    return rc;
+
+    return 0;
 }
 
 /**
@@ -540,12 +513,11 @@ ble_hs_tx_data(struct os_mbuf *om)
 {
     int rc;
 
-    rc = os_mqueue_put(&ble_hs_tx_q, &ble_hs_evq, om);
+    rc = childq_put_mqueue(&ble_hs_cq, &ble_hs_tx_q, om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
     }
-    os_eventq_put(ble_hs_cfg.parent_evq, &ble_hs_event_co.cf_c.c_ev);
 
     return 0;
 }
@@ -570,8 +542,7 @@ ble_hs_init(void)
                          "ble_hs_hci_ev_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    /* Initialize eventq */
-    os_eventq_init(&ble_hs_evq);
+    childq_init(&ble_hs_cq, ble_hs_cfg.parent_evq, ble_hs_event_handle);
 
     ble_hs_hci_init();
 
@@ -603,9 +574,6 @@ ble_hs_init(void)
         STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_hs_stats), "ble_hs");
     SYSINIT_PANIC_ASSERT(rc == 0);
-
-    os_callout_func_init(&ble_hs_event_co, &ble_hs_evq,
-                         ble_hs_event_handle, NULL);
 
     rc = os_mutex_init(&ble_hs_mutex);
     SYSINIT_PANIC_ASSERT(rc == 0);
