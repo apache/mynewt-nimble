@@ -30,7 +30,6 @@ pkg.deps:
     - net/nimble
     - sys/log
     - sys/stats
-    - util/childq
 
 pkg.deps.BLE_SM:
     - crypto/mbedtls
