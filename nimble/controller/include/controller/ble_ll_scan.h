@@ -90,9 +90,6 @@ int ble_ll_scan_set_scan_params(uint8_t *cmd);
 int ble_ll_scan_set_enable(uint8_t *cmd);
 
 /*--- Controller Internal API ---*/
-/* Process scan window end event */
-void ble_ll_scan_event_proc(void *arg);
-
 /* Initialize the scanner */
 void ble_ll_scan_init(void);
 

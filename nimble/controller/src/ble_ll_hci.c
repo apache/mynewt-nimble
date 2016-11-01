@@ -34,6 +34,8 @@
 #include "controller/ble_ll_resolv.h"
 #include "ble_ll_conn_priv.h"
 
+static void ble_ll_hci_cmd_proc(struct os_event *ev);
+
 /* LE event mask */
 static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
@@ -906,7 +908,7 @@ ble_ll_hci_status_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen
  *
  * @param ev Pointer to os event containing a pointer to command buffer
  */
-void
+static void
 ble_ll_hci_cmd_proc(struct os_event *ev)
 {
     int rc;
@@ -1009,7 +1011,7 @@ ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg)
 
     /* Fill out the event and post to Link Layer */
     ev->ev_queued = 0;
-    ev->ev_type = BLE_LL_EVENT_HCI_CMD;
+    ev->ev_cb = ble_ll_hci_cmd_proc;
     ev->ev_arg = cmd;
     os_eventq_put(&g_ble_ll_data.ll_evq, ev);
 

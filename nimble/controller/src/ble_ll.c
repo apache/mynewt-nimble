@@ -181,6 +181,10 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, scan_rsp_txg)
 STATS_NAME_END(ble_ll_stats)
 
+static void ble_ll_event_rx_pkt(struct os_event *ev);
+static void ble_ll_event_tx_pkt(struct os_event *ev);
+static void ble_ll_event_dbuf_overflow(struct os_event *ev);
+
 /* The BLE LL task data structure */
 #define BLE_LL_STACK_SIZE   (80)
 struct os_task g_ble_ll_task;
@@ -744,7 +748,7 @@ ble_ll_data_buffer_overflow(void)
 void
 ble_ll_hw_error(void)
 {
-    os_callout_reset(&g_ble_ll_data.ll_hw_err_timer.cf_c, 0);
+    os_callout_reset(&g_ble_ll_data.ll_hw_err_timer, 0);
 }
 
 /**
@@ -753,7 +757,7 @@ ble_ll_hw_error(void)
  * @param arg
  */
 static void
-ble_ll_hw_err_timer_cb(void *arg)
+ble_ll_hw_err_timer_cb(struct os_event *ev)
 {
     if (ble_ll_hci_ev_hw_err(BLE_HW_ERR_HCI_SYNC_LOSS)) {
         /*
@@ -761,7 +765,7 @@ ble_ll_hw_err_timer_cb(void *arg)
          * event every 50 milliseconds (or each OS tick if a tick is longer
          * than 100 msecs).
          */
-        os_callout_reset(&g_ble_ll_data.ll_hw_err_timer.cf_c,
+        os_callout_reset(&g_ble_ll_data.ll_hw_err_timer,
                          OS_TICKS_PER_SEC / 20);
     }
 }
@@ -953,6 +957,24 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     return rc;
 }
 
+static void
+ble_ll_event_rx_pkt(struct os_event *ev)
+{
+    ble_ll_rx_pkt_in();
+}
+
+static void
+ble_ll_event_tx_pkt(struct os_event *ev)
+{
+    ble_ll_tx_pkt_in();
+}
+
+static void
+ble_ll_event_dbuf_overflow(struct os_event *ev)
+{
+    ble_ll_hci_ev_databuf_overflow();
+}
+
 /**
  * Link Layer task.
  *
@@ -963,9 +985,6 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 void
 ble_ll_task(void *arg)
 {
-    struct os_event *ev;
-    struct os_callout_func *cf;
-
     /* Init ble phy */
     ble_phy_init();
 
@@ -977,44 +996,8 @@ ble_ll_task(void *arg)
 
     ble_ll_rand_start();
 
-    /* Wait for an event */
     while (1) {
-        ev = os_eventq_get(&g_ble_ll_data.ll_evq);
-        switch (ev->ev_type) {
-        case OS_EVENT_T_TIMER:
-            cf = (struct os_callout_func *)ev;
-            assert(cf->cf_func);
-            cf->cf_func(ev->ev_arg);
-            break;
-        case BLE_LL_EVENT_HCI_CMD:
-            /* Process HCI command */
-            ble_ll_hci_cmd_proc(ev);
-            break;
-        case BLE_LL_EVENT_ADV_EV_DONE:
-            ble_ll_adv_event_done(ev->ev_arg);
-            break;
-        case BLE_LL_EVENT_SCAN:
-            ble_ll_scan_event_proc(ev->ev_arg);
-            break;
-        case BLE_LL_EVENT_RX_PKT_IN:
-            ble_ll_rx_pkt_in();
-            break;
-        case BLE_LL_EVENT_TX_PKT_IN:
-            ble_ll_tx_pkt_in();
-            break;
-        case BLE_LL_EVENT_DBUF_OVERFLOW:
-            ble_ll_hci_ev_databuf_overflow();
-            break;
-        case BLE_LL_EVENT_CONN_SPVN_TMO:
-            ble_ll_conn_spvn_timeout(ev->ev_arg);
-            break;
-        case BLE_LL_EVENT_CONN_EV_END:
-            ble_ll_conn_event_end(ev->ev_arg);
-            break;
-        default:
-            assert(0);
-            break;
-        }
+        os_eventq_run(&g_ble_ll_data.ll_evq);
     }
 }
 
@@ -1244,15 +1227,15 @@ ble_ll_init(void)
     STAILQ_INIT(&lldata->ll_rx_pkt_q);
 
     /* Initialize transmit (from host) and receive packet (from phy) event */
-    lldata->ll_rx_pkt_ev.ev_type = BLE_LL_EVENT_RX_PKT_IN;
-    lldata->ll_tx_pkt_ev.ev_type = BLE_LL_EVENT_TX_PKT_IN;
-    lldata->ll_dbuf_overflow_ev.ev_type = BLE_LL_EVENT_DBUF_OVERFLOW;
+    lldata->ll_rx_pkt_ev.ev_cb = ble_ll_event_rx_pkt;
+    lldata->ll_tx_pkt_ev.ev_cb = ble_ll_event_tx_pkt;
+    lldata->ll_dbuf_overflow_ev.ev_cb = ble_ll_event_dbuf_overflow;
 
     /* Initialize the HW error timer */
-    os_callout_func_init(&g_ble_ll_data.ll_hw_err_timer,
-                         &g_ble_ll_data.ll_evq,
-                         ble_ll_hw_err_timer_cb,
-                         NULL);
+    os_callout_init(&g_ble_ll_data.ll_hw_err_timer,
+                    &g_ble_ll_data.ll_evq,
+                    ble_ll_hw_err_timer_cb,
+                    NULL);
 
     /* Initialize wait for response timer */
     os_cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,

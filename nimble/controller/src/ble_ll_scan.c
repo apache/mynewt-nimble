@@ -744,8 +744,8 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
  *
  * @param arg
  */
-void
-ble_ll_scan_event_proc(void *arg)
+static void
+ble_ll_scan_event_proc(struct os_event *ev)
 {
     os_sr_t sr;
     int rxstate;
@@ -763,7 +763,7 @@ ble_ll_scan_event_proc(void *arg)
      * Get the scanning state machine. If not enabled (this is possible), just
      * leave and do nothing (just make sure timer is stopped).
      */
-    scansm = (struct ble_ll_scan_sm *)arg;
+    scansm = (struct ble_ll_scan_sm *)ev->ev_arg;
     if (!scansm->scan_enabled) {
         os_cputime_timer_stop(&scansm->scan_timer);
         return;
@@ -1473,7 +1473,7 @@ ble_ll_scan_init(void)
     memset(scansm, 0, sizeof(struct ble_ll_scan_sm));
 
     /* Initialize scanning window end event */
-    scansm->scan_sched_ev.ev_type = BLE_LL_EVENT_SCAN;
+    scansm->scan_sched_ev.ev_cb = ble_ll_scan_event_proc;
     scansm->scan_sched_ev.ev_arg = scansm;
 
     /* Set all non-zero default parameters */

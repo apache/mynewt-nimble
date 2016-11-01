@@ -308,7 +308,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     case BLE_LL_CTRL_PING_REQ:
         CONN_F_LE_PING_SUPP(connsm) = 0;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
-        os_callout_stop(&connsm->auth_pyld_timer.cf_c);
+        os_callout_stop(&connsm->auth_pyld_timer);
 #endif
         ctrl_proc = BLE_LL_CTRL_PROC_LE_PING;
         break;
@@ -1232,10 +1232,11 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  * @param arg Pointer to connection state machine.
  */
 void
-ble_ll_ctrl_proc_rsp_timer_cb(void *arg)
+ble_ll_ctrl_proc_rsp_timer_cb(struct os_event *ev)
 {
     /* Control procedure has timed out. Kill the connection */
-    ble_ll_conn_timeout((struct ble_ll_conn_sm *)arg, BLE_ERR_LMP_LL_RSP_TMO);
+    ble_ll_conn_timeout((struct ble_ll_conn_sm *)ev->ev_arg,
+                        BLE_ERR_LMP_LL_RSP_TMO);
 }
 
 /**
@@ -1365,7 +1366,7 @@ void
 ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     if (connsm->cur_ctrl_proc == ctrl_proc) {
-        os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
+        os_callout_stop(&connsm->ctrl_proc_rsp_timer);
         connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
     }
     CLR_PENDING_CTRL_PROC(connsm, ctrl_proc);
@@ -1428,13 +1429,13 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 
             /* Initialize the procedure response timeout */
             if (ctrl_proc != BLE_LL_CTRL_PROC_CHAN_MAP_UPD) {
-                os_callout_func_init(&connsm->ctrl_proc_rsp_timer,
-                                     &g_ble_ll_data.ll_evq,
-                                     ble_ll_ctrl_proc_rsp_timer_cb,
-                                     connsm);
+                os_callout_init(&connsm->ctrl_proc_rsp_timer,
+                                &g_ble_ll_data.ll_evq,
+                                ble_ll_ctrl_proc_rsp_timer_cb,
+                                connsm);
 
                 /* Re-start timer. Control procedure timeout is 40 seconds */
-                os_callout_reset(&connsm->ctrl_proc_rsp_timer.cf_c,
+                os_callout_reset(&connsm->ctrl_proc_rsp_timer,
                                  OS_TICKS_PER_SEC * BLE_LL_CTRL_PROC_TIMEOUT);
             }
         }

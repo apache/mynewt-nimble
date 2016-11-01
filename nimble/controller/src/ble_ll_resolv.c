@@ -38,7 +38,7 @@ struct ble_ll_resolv_data
     uint8_t rl_size;
     uint8_t rl_cnt;
     uint32_t rpa_tmo;
-    struct os_callout_func rpa_timer;
+    struct os_callout rpa_timer;
 };
 struct ble_ll_resolv_data g_ble_ll_resolv_data;
 
@@ -70,11 +70,9 @@ ble_ll_resolv_list_chg_allowed(void)
 /**
  * Called when the Resolvable private address timer expires. This timer
  * is used to regenerate local RPA's in the resolving list.
- *
- * @param arg
  */
 void
-ble_ll_resolv_rpa_timer_cb(void *arg)
+ble_ll_resolv_rpa_timer_cb(struct os_event *ev)
 {
     int i;
     os_sr_t sr;
@@ -89,7 +87,7 @@ ble_ll_resolv_rpa_timer_cb(void *arg)
         OS_EXIT_CRITICAL(sr);
         ++rl;
     }
-    os_callout_reset(&g_ble_ll_resolv_data.rpa_timer.cf_c,
+    os_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
                      (int32_t)g_ble_ll_resolv_data.rpa_tmo);
 }
 
@@ -319,9 +317,9 @@ ble_ll_resolv_enable_cmd(uint8_t *cmdbuf)
             if ((enabled ^ g_ble_ll_resolv_data.addr_res_enabled) != 0) {
                 if (enabled) {
                     tmo = (int32_t)g_ble_ll_resolv_data.rpa_tmo;
-                    os_callout_reset(&g_ble_ll_resolv_data.rpa_timer.cf_c, tmo);
+                    os_callout_reset(&g_ble_ll_resolv_data.rpa_timer, tmo);
                 } else {
-                    os_callout_stop(&g_ble_ll_resolv_data.rpa_timer.cf_c);
+                    os_callout_stop(&g_ble_ll_resolv_data.rpa_timer);
                 }
                 g_ble_ll_resolv_data.addr_res_enabled = enabled;
             }
@@ -363,7 +361,7 @@ ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
     if ((tmo_secs > 0) && (tmo_secs <= 0xA1B8)) {
         g_ble_ll_resolv_data.rpa_tmo = tmo_secs * OS_TICKS_PER_SEC;
         if (g_ble_ll_resolv_data.addr_res_enabled) {
-            os_callout_reset(&g_ble_ll_resolv_data.rpa_timer.cf_c,
+            os_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
                              (int32_t)g_ble_ll_resolv_data.rpa_tmo);
         }
     } else {
@@ -543,7 +541,7 @@ void
 ble_ll_resolv_list_reset(void)
 {
     g_ble_ll_resolv_data.addr_res_enabled = 0;
-    os_callout_stop(&g_ble_ll_resolv_data.rpa_timer.cf_c);
+    os_callout_stop(&g_ble_ll_resolv_data.rpa_timer);
     ble_ll_resolv_list_clr();
     ble_ll_resolv_init();
 }
@@ -562,10 +560,10 @@ ble_ll_resolv_init(void)
     }
     g_ble_ll_resolv_data.rl_size = hw_size;
 
-    os_callout_func_init(&g_ble_ll_resolv_data.rpa_timer,
-                         &g_ble_ll_data.ll_evq,
-                         ble_ll_resolv_rpa_timer_cb,
-                         NULL);
+    os_callout_init(&g_ble_ll_resolv_data.rpa_timer,
+                    &g_ble_ll_data.ll_evq,
+                    ble_ll_resolv_rpa_timer_cb,
+                    NULL);
 }
 
 #endif  /* if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1 */
