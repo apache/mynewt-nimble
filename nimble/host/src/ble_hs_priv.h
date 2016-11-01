@@ -54,11 +54,6 @@ struct os_mbuf;
 struct os_mempool;
 struct os_event;
 
-#define BLE_HOST_HCI_EVENT_CTLR_EVENT   (OS_EVENT_T_PERUSER + 0)
-#define BLE_HS_EVENT_TX_NOTIFICATIONS   (OS_EVENT_T_PERUSER + 1)
-#define BLE_HS_EVENT_RESET              (OS_EVENT_T_PERUSER + 2)
-#define BLE_HS_EVENT_START              (OS_EVENT_T_PERUSER + 3)
-
 #define BLE_HS_SYNC_STATE_BAD           0
 #define BLE_HS_SYNC_STATE_BRINGUP       1
 #define BLE_HS_SYNC_STATE_GOOD          2
