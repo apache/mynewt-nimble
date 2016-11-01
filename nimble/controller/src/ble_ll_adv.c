@@ -104,6 +104,8 @@ struct ble_ll_adv_sm
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm;
 
+static void ble_ll_adv_done(struct ble_ll_adv_sm *advsm);
+
 /*
  * Worst case time needed for scheduled advertising item. This is the longest
  * possible time to receive a scan request and send a scan response (with the
@@ -121,7 +123,6 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm;
  */
 #define BLE_LL_ADV_SCHED_MAX_USECS          (852)
 #define BLE_LL_ADV_DIRECT_SCHED_MAX_USECS   (502)
-
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 /**
@@ -1194,7 +1195,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     if (adv_event_over) {
-        ble_ll_adv_event_done(&g_ble_ll_adv_sm);
+        ble_ll_adv_done(&g_ble_ll_adv_sm);
     }
 }
 
@@ -1257,18 +1258,15 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
  *
  * @param arg Pointer to advertising state machine.
  */
-void
-ble_ll_adv_event_done(void *arg)
+static void
+ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 {
     uint8_t mask;
     uint8_t final_adv_chan;
     int32_t delta_t;
     uint32_t itvl;
     uint32_t start_time;
-    struct ble_ll_adv_sm *advsm;
 
-    /* Stop advertising event */
-    advsm = (struct ble_ll_adv_sm *)arg;
     assert(advsm->enabled);
 
     /* Remove the element from the schedule if it is still there. */
@@ -1375,6 +1373,12 @@ ble_ll_adv_event_done(void *arg)
     if (ble_ll_sched_adv_reschedule(&advsm->adv_sch)) {
         os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
     }
+}
+
+static void
+ble_ll_adv_event_done(struct os_event *ev)
+{
+    ble_ll_adv_done(ev->ev_arg);
 }
 
 /**
@@ -1511,7 +1515,7 @@ ble_ll_adv_init(void)
     advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
 
     /* Initialize advertising tx done event */
-    advsm->adv_txdone_ev.ev_type = BLE_LL_EVENT_ADV_EV_DONE;
+    advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
     advsm->adv_txdone_ev.ev_arg = advsm;
 }
 

@@ -231,13 +231,13 @@ struct ble_ll_conn_sm
     };
 
     /* LL control procedure response timer */
-    struct os_callout_func ctrl_proc_rsp_timer;
+    struct os_callout ctrl_proc_rsp_timer;
 
     /* For scheduling connections */
     struct ble_ll_sched_item conn_sch;
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
-    struct os_callout_func auth_pyld_timer;
+    struct os_callout auth_pyld_timer;
 #endif
 
     /*

@@ -40,9 +40,6 @@ extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 /* Initialize LL HCI */
 void ble_ll_hci_init(void);
 
-/* HCI command processing function */
-void ble_ll_hci_cmd_proc(struct os_event *ev);
-
 /* Used to determine if the LE event is enabled/disabled */
 uint8_t ble_ll_hci_is_le_event_enabled(int subev);
 

@@ -85,7 +85,7 @@ struct ble_ll_obj
     struct os_event ll_dbuf_overflow_ev;
 
     /* HW error callout */
-    struct os_callout_func ll_hw_err_timer;
+    struct os_callout ll_hw_err_timer;
 };
 extern struct ble_ll_obj g_ble_ll_data;
 
@@ -131,16 +131,6 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_STATE_SCANNING       (2)
 #define BLE_LL_STATE_INITIATING     (3)
 #define BLE_LL_STATE_CONNECTION     (4)
-
-/* BLE LL Task Events */
-#define BLE_LL_EVENT_HCI_CMD        (OS_EVENT_T_PERUSER)
-#define BLE_LL_EVENT_ADV_EV_DONE    (OS_EVENT_T_PERUSER + 1)
-#define BLE_LL_EVENT_RX_PKT_IN      (OS_EVENT_T_PERUSER + 2)
-#define BLE_LL_EVENT_SCAN           (OS_EVENT_T_PERUSER + 3)
-#define BLE_LL_EVENT_CONN_SPVN_TMO  (OS_EVENT_T_PERUSER + 4)
-#define BLE_LL_EVENT_CONN_EV_END    (OS_EVENT_T_PERUSER + 5)
-#define BLE_LL_EVENT_TX_PKT_IN      (OS_EVENT_T_PERUSER + 6)
-#define BLE_LL_EVENT_DBUF_OVERFLOW  (OS_EVENT_T_PERUSER + 7)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION   (0x01)

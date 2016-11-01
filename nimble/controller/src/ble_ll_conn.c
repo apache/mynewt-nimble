@@ -216,6 +216,9 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
 STATS_NAME_END(ble_ll_conn_stats)
 
+static void ble_ll_conn_spvn_timeout(struct os_event *ev);
+static void ble_ll_conn_event_end(struct os_event *ev);
+
 /**
  * Get the event buffer allocated to send the connection complete event
  * when we are initiating.
@@ -1300,11 +1303,11 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime)
  * @param arg
  */
 void
-ble_ll_conn_auth_pyld_timer_cb(void *arg)
+ble_ll_conn_auth_pyld_timer_cb(struct os_event *ev)
 {
     struct ble_ll_conn_sm *connsm;
 
-    connsm = (struct ble_ll_conn_sm *)arg;
+    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
     ble_ll_auth_pyld_tmo_event_send(connsm);
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
     ble_ll_conn_auth_pyld_timer_start(connsm);
@@ -1322,7 +1325,7 @@ ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm)
 
     /* Timeout in is in 10 msec units */
     tmo = (int32_t)BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
-    os_callout_reset(&connsm->auth_pyld_timer.cf_c, tmo);
+    os_callout_reset(&connsm->auth_pyld_timer, tmo);
 }
 #endif
 
@@ -1458,12 +1461,12 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     /* Initialize event */
     connsm->conn_spvn_ev.ev_arg = connsm;
     connsm->conn_spvn_ev.ev_queued = 0;
-    connsm->conn_spvn_ev.ev_type = BLE_LL_EVENT_CONN_SPVN_TMO;
+    connsm->conn_spvn_ev.ev_cb = ble_ll_conn_spvn_timeout;
 
     /* Connection end event */
     connsm->conn_ev_end.ev_arg = connsm;
     connsm->conn_ev_end.ev_queued = 0;
-    connsm->conn_ev_end.ev_type = BLE_LL_EVENT_CONN_EV_END;
+    connsm->conn_ev_end.ev_cb = ble_ll_conn_event_end;
 
     /* Initialize transmit queue and ack/flow control elements */
     STAILQ_INIT(&connsm->conn_txq);
@@ -1498,10 +1501,10 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     connsm->auth_pyld_tmo = BLE_LL_CONN_DEF_AUTH_PYLD_TMO;
     CONN_F_LE_PING_SUPP(connsm) = 1;
-    os_callout_func_init(&connsm->auth_pyld_timer,
-                         &g_ble_ll_data.ll_evq,
-                         ble_ll_conn_auth_pyld_timer_cb,
-                         connsm);
+    os_callout_init(&connsm->auth_pyld_timer,
+                    &g_ble_ll_data.ll_evq,
+                    ble_ll_conn_auth_pyld_timer_cb,
+                    connsm);
 #endif
 
     /* Add to list of active connections */
@@ -1582,10 +1585,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     os_cputime_timer_stop(&connsm->conn_spvn_timer);
 
     /* Stop any control procedures that might be running */
-    os_callout_stop(&connsm->ctrl_proc_rsp_timer.cf_c);
+    os_callout_stop(&connsm->ctrl_proc_rsp_timer);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
-    os_callout_stop(&connsm->auth_pyld_timer.cf_c);
+    os_callout_stop(&connsm->auth_pyld_timer);
 #endif
 
     /* Remove from the active connection list */
@@ -1882,14 +1885,14 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
  * @param void *arg Pointer to connection state machine
  *
  */
-void
-ble_ll_conn_event_end(void *arg)
+static void
+ble_ll_conn_event_end(struct os_event *ev)
 {
     uint8_t ble_err;
     struct ble_ll_conn_sm *connsm;
 
     /* Better be a connection state machine! */
-    connsm = (struct ble_ll_conn_sm *)arg;
+    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
     assert(connsm);
 
     /* Check if we need to resume scanning */
@@ -2449,10 +2452,11 @@ ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
  *
  * @param arg Pointer to connection state machine.
  */
-void
-ble_ll_conn_spvn_timeout(void *arg)
+static void
+ble_ll_conn_spvn_timeout(struct os_event *ev)
 {
-    ble_ll_conn_timeout((struct ble_ll_conn_sm *)arg, BLE_ERR_CONN_SPVN_TMO);
+    ble_ll_conn_timeout((struct ble_ll_conn_sm *)ev->ev_arg,
+                        BLE_ERR_CONN_SPVN_TMO);
 }
 
 /**
