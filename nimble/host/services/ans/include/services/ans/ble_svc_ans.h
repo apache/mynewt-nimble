@@ -79,9 +79,7 @@ int ble_svc_ans_new_alert_add(uint8_t cat_id,
                               const char * info_str);
 int ble_svc_ans_unr_alert_add(uint8_t cat_id);
 
-int ble_svc_ans_init(struct ble_hs_cfg *cfg, 
-                     uint8_t initial_new_alert_cat,
-                     uint8_t initial_unr_alert_cat);
+void ble_svc_ans_init(void);
 
 #endif
 

@@ -20,6 +20,8 @@
 #include <assert.h>
 #include <string.h>
 #include <math.h>
+#include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "host/ble_hs.h"
 #include "host/ble_gap.h"
 #include "services/ans/ble_svc_ans.h"
@@ -348,44 +350,6 @@ ble_svc_ans_unr_alert_add(uint8_t cat_id)
 }
 
 /**
- * Initialize the ANS with initial values for enabled categories
- * for new and unread alert characteristics. Bitwise or the 
- * catagory bitmasks to enable multiple catagories.
- * 
- * XXX: We should technically be able to change the new alert and
- *      unread alert catagories when we have no active connections.
- * 
- * @param cfg                       The host configuration
- * @param initial_new_alert_cat     Initial supported new alert category
- *                                      bitmask.
- * @param initial_unr_alert_cat     Initial supported unread alert category
- *                                      bitmask.
- *
- * @return 0 on success, non-zero error code otherwise.
- */
-int
-ble_svc_ans_init(struct ble_hs_cfg *cfg, uint8_t initial_new_alert_cat,
-                 uint8_t initial_unr_alert_cat)
-{
-    int rc;
-    
-    ble_svc_ans_new_alert_cat = initial_new_alert_cat;
-    ble_svc_ans_unr_alert_cat = initial_unr_alert_cat;
-
-    rc = ble_gatts_count_cfg(ble_svc_ans_defs, cfg);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = ble_gatts_add_svcs(ble_svc_ans_defs);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-/**
  * Send a new alert notification to the given category with the 
  * given info string.
  *
@@ -464,4 +428,29 @@ ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len,
     }
 
     return 0;
+}
+
+/**
+ * Initialize the ANS with initial values for enabled categories
+ * for new and unread alert characteristics. Bitwise or the 
+ * catagory bitmasks to enable multiple catagories.
+ * 
+ * XXX: We should technically be able to change the new alert and
+ *      unread alert catagories when we have no active connections.
+ * 
+ * @return 0 on success, non-zero error code otherwise.
+ */
+void
+ble_svc_ans_init(void)
+{
+    int rc;
+
+    rc = ble_gatts_count_cfg(ble_svc_ans_defs);
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    rc = ble_gatts_add_svcs(ble_svc_ans_defs);
+    SYSINIT_PANIC_ASSERT(rc == 0);
+    
+    ble_svc_ans_new_alert_cat = MYNEWT_VAL(BLE_SVC_ANS_NEW_ALERT_CAT);
+    ble_svc_ans_unr_alert_cat = MYNEWT_VAL(BLE_SVC_ANS_UNR_ALERT_CAT);
 }

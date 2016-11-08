@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -6,7 +5,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #  http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
@@ -15,20 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-pkg.name: net/nimble/host/services/ans
-pkg.description: Alert Notification Service Server.
-pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
-pkg.keywords:
-    - ble 
-    - bluetooth
-    - ans 
-    - nimble 
+syscfg.defs:
+    BLE_SVC_ANS_NEW_ALERT_CAT:
+        description: "Initial supported new alert category bitmask."
+        value: 0
 
-pkg.deps:
-    - net/nimble/host
-
-pkg.init_function: ble_svc_ans_init
-pkg.init_stage: 3
+    BLE_SVC_ANS_UNR_ALERT_CAT:
+        description: "Initial supported unread alert category bitmask."
+        value: 0
