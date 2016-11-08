@@ -19,8 +19,16 @@
 
 #include <assert.h>
 #include <string.h>
+#include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "host/ble_hs.h"
 #include "services/tps/ble_svc_tps.h"
+
+/* XXX: We shouldn't be including the host's private header files.  The host
+ * API needs to be updated with a function to query the advertising transmit
+ * power.
+ */
+#include "../src/ble_hs_hci_priv.h"
 
 int8_t ble_svc_tps_tx_power_level;
 
@@ -63,7 +71,11 @@ ble_svc_tps_access(uint16_t conn_handle, uint16_t attr_handle,
     
     switch (ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
-        ble_hci_util_read_adv_tx_pwr(&ble_svc_tps_tx_power_level);
+        rc = ble_hs_hci_util_read_adv_tx_pwr(&ble_svc_tps_tx_power_level);
+        if (rc != 0) {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
+
         rc = os_mbuf_append(ctxt->om, &ble_svc_tps_tx_power_level,
                             sizeof ble_svc_tps_tx_power_level);
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -84,7 +96,7 @@ ble_svc_tps_init(void)
 {
     int rc;
 
-    rc = ble_gatts_count_cfg(ble_svc_tps_defs, cfg);
+    rc = ble_gatts_count_cfg(ble_svc_tps_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_tps_defs);
