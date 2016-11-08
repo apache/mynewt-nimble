@@ -221,6 +221,8 @@ ble_hs_heartbeat_timer_reset(uint32_t ticks)
 void
 ble_hs_heartbeat_sched(int32_t ticks_from_now)
 {
+    os_time_t abs_time;
+
     if (ticks_from_now == BLE_HS_FOREVER) {
         return;
     }
@@ -228,8 +230,9 @@ ble_hs_heartbeat_sched(int32_t ticks_from_now)
     /* Reset heartbeat timer if it is not currently scheduled or if the
      * specified time is sooner than the current expiration time.
      */
+    abs_time = os_time_get() + ticks_from_now;
     if (!os_callout_queued(&ble_hs_heartbeat_timer) ||
-        OS_TIME_TICK_LT(ticks_from_now, ble_hs_heartbeat_timer.c_ticks)) {
+        OS_TIME_TICK_LT(abs_time, ble_hs_heartbeat_timer.c_ticks)) {
 
         ble_hs_heartbeat_timer_reset(ticks_from_now);
     }

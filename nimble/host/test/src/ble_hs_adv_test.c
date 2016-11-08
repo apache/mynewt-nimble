@@ -155,7 +155,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 0, NULL, &adv_params,
-                                    NULL, NULL, 0, 0);
+                                    BLE_HS_FOREVER, NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard the adv-enable command. */
@@ -169,7 +169,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 0, NULL, &adv_params,
-                                    NULL, NULL, 0, 0);
+                                    BLE_HS_FOREVER, NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard the adv-enable command. */

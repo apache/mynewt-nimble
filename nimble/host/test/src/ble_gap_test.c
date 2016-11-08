@@ -1359,7 +1359,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
 
     if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
         rc = ble_hs_test_util_adv_start(own_addr_type, peer_addr_type,
-                                        peer_addr, &adv_params,
+                                        peer_addr, &adv_params, BLE_HS_FOREVER,
                                         ble_gap_test_util_connect_cb, NULL,
                                         cmd_fail_idx - cmd_idx, fail_status);
 
@@ -1433,7 +1433,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
     adv_params = ble_hs_test_util_adv_params;
     adv_params.disc_mode = 43;
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    peer_addr, &adv_params,
+                                    peer_addr, &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_adv_active());
@@ -1442,7 +1442,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = 27;
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    peer_addr, &adv_params,
+                                    peer_addr, &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_adv_active());
@@ -1451,7 +1451,7 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_DIR;
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 12,
-                                    peer_addr, &adv_params,
+                                    peer_addr, &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_adv_active());
@@ -1459,13 +1459,13 @@ TEST_CASE(ble_gap_test_case_adv_bad_args)
     /*** Advertising already in progress. */
     adv_params = ble_hs_test_util_adv_params;
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    peer_addr, &adv_params,
+                                    peer_addr, &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_adv_active());
 
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    peer_addr, &adv_params,
+                                    peer_addr, &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
     TEST_ASSERT(ble_gap_adv_active());
@@ -1500,7 +1500,7 @@ ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
     adv_params.high_duty_cycle = 0;
 
     rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    peer_addr, &adv_params,
+                                    peer_addr, &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 

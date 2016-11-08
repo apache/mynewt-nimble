@@ -62,7 +62,14 @@ ble_os_test_init_app_task(void)
 static void
 ble_os_test_misc_init(void)
 {
+    extern os_time_t g_os_time;
+
     ble_hs_test_util_init_no_start();
+
+    /* Allow the OS to approach tick rollover.  This will help ensure host
+     * timers don't break when the tick counter resets.
+     */
+    g_os_time = UINT32_MAX - 10 * OS_TICKS_PER_SEC;
 
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
@@ -196,6 +203,8 @@ ble_os_disc_test_task_handler(void *arg)
      * proper arguments.
      */
     cb_called = 0;
+
+    os_time_delay(10);
 
     /* Make sure there are no created connections and no connections in
      * progress.

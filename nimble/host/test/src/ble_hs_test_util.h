@@ -115,6 +115,7 @@ int ble_hs_test_util_adv_start(uint8_t own_addr_type,
                                uint8_t peer_addr_type,
                                const uint8_t *peer_addr,
                                const struct ble_gap_adv_params *adv_params,
+                               int32_t duration_ms,
                                ble_gap_event_fn *cb, void *cb_arg,
                                int fail_idx, uint8_t fail_status);
 int ble_hs_test_util_adv_stop(uint8_t hci_status);
