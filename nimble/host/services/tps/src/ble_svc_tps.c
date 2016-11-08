@@ -21,7 +21,6 @@
 #include <string.h>
 #include "host/ble_hs.h"
 #include "services/tps/ble_svc_tps.h"
-#include "../../../src/ble_hci_priv.h"
 
 int8_t ble_svc_tps_tx_power_level;
 
@@ -80,19 +79,14 @@ ble_svc_tps_access(uint16_t conn_handle, uint16_t attr_handle,
 /**
  * Initialize the TPS
  */
-int
-ble_svc_tps_init(struct ble_hs_cfg *cfg)
+void
+ble_svc_tps_init(void)
 {
     int rc;
+
     rc = ble_gatts_count_cfg(ble_svc_tps_defs, cfg);
-    if (rc != 0) {
-        return rc;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_tps_defs);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }
