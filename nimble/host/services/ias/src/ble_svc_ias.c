@@ -19,11 +19,13 @@
 
 #include <assert.h>
 #include <string.h>
+#include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "services/ias/ble_svc_ias.h"
 
 /* Callback function */
 static ble_svc_ias_event_fn *ble_svc_ias_cb_fn;
+
 /* Alert level */
 static uint8_t ble_svc_ias_alert_level;
 
@@ -114,33 +116,29 @@ ble_svc_ias_access(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 /**
- * Initialize the IAS. The developer must specify the event function
- * callback for the IAS to function properly.
+ * Designates the specified function as the IAS callback.  This callback is
+ * necessary for this service to function properly.
  *
  * @param cb                        The callback function to call when 
  *                                      the client signals an alert.
  */
-int
-ble_svc_ias_init(struct ble_hs_cfg *cfg, ble_svc_ias_event_fn *cb)
+void
+ble_svc_ias_set_cb(ble_svc_ias_event_fn *cb)
+{
+    ble_svc_ias_cb_fn = cb;
+}
+
+/**
+ * Initialize the IAS package.
+ */
+void
+ble_svc_ias_init(void)
 {
     int rc;
     
-    if (!cb) {
-        return BLE_HS_EINVAL;
-    }
-
-    ble_svc_ias_cb_fn = cb;
-
-    rc = ble_gatts_count_cfg(ble_svc_ias_defs, cfg);
-    if (rc != 0) {
-        return rc;
-    }
+    rc = ble_gatts_count_cfg(ble_svc_ias_defs);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_ias_defs);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }
-
