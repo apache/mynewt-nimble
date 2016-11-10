@@ -42,9 +42,13 @@
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) + MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
 /***
- * NOTE:
+ * NOTES:
  * The UART HCI transport doesn't use event buffer priorities.  All incoming
- * and outgoing events and commands use buffers from the same pool.
+ * and outgoing events use buffers from the same pool.
+ *
+ * The "skip" definitions are here so that when buffers cannot be allocated,
+ * the command or acl packets are simply skipped so that the HCI interface
+ * does not lose synchronization and resets dont (necessarily) occur.
  */
 
 /* XXX: for now, define this here */
