@@ -302,7 +302,8 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     struct os_mbuf *m;
 
     /* Obtain scan response buffer */
-    m = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE, sizeof(struct ble_mbuf_hdr));
+    m = os_msys_get_pkthdr(BLE_SCAN_RSP_DATA_MAX_LEN + BLE_DEV_ADDR_LEN,
+                           sizeof(struct ble_mbuf_hdr));
     if (!m) {
         return NULL;
     }
@@ -418,7 +419,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Get an advertising mbuf (packet header)  */
-    adv_pdu = os_msys_get_pkthdr(BLE_MBUF_PAYLOAD_SIZE,
+    adv_pdu = os_msys_get_pkthdr(BLE_ADV_MAX_PKT_LEN,
                                  sizeof(struct ble_mbuf_hdr));
     if (!adv_pdu) {
         ble_phy_disable();

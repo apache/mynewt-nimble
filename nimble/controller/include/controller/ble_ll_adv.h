@@ -49,6 +49,7 @@ extern "C" {
 
 /* Maximum advertisement data length */
 #define BLE_ADV_DATA_MAX_LEN            (31)
+#define BLE_ADV_MAX_PKT_LEN             (37)
 
 /*
  * ADV_IND
