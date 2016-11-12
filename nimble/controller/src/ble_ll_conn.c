@@ -2903,15 +2903,24 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     struct ble_mbuf_hdr *ble_hdr;
     int lifo;
 
-    /* Initialize the mbuf */
-    ble_ll_mbuf_init(om, length, hdr_byte);
+    /* Set mbuf length and packet length if a control PDU */
+    if (hdr_byte == BLE_LL_LLID_CTRL) {
+        om->om_len = length;
+        OS_MBUF_PKTHDR(om)->omp_len = length;
+    }
+
+    /* Set BLE transmit header */
+    ble_hdr = BLE_MBUF_HDR_PTR(om);
+    ble_hdr->txinfo.flags = 0;
+    ble_hdr->txinfo.offset = 0;
+    ble_hdr->txinfo.pyld_len = length;
+    ble_hdr->txinfo.hdr_byte = hdr_byte;
 
     /*
      * We need to set the initial payload length if the total length of the
      * PDU exceeds the maximum allowed for the connection for any single tx.
      */
     if (length > connsm->eff_max_tx_octets) {
-        ble_hdr = BLE_MBUF_HDR_PTR(om);
         ble_hdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
     }
 
@@ -2924,7 +2933,6 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
          * If this is one of the following types we need to insert it at
          * head of queue.
          */
-        ble_hdr = BLE_MBUF_HDR_PTR(om);
         llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
         if (llid == BLE_LL_LLID_CTRL) {
             switch (om->om_data[0]) {
