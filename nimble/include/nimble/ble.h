@@ -46,7 +46,7 @@ struct ble_encryption_block
  *      struct os_mbuf          (16)
  *      struct os_mbuf_pkthdr   (8)
  *      struct ble_mbuf_hdr     (8)
- *      Data buffer             (BLE_MBUF_PAYLOAD_SIZE)
+ *      Data buffer             (payload size, in bytes)
  *
  * The BLE mbuf header contains the following:
  *  flags: bitfield with the following values
@@ -91,12 +91,6 @@ struct ble_mbuf_hdr
     };
     uint32_t beg_cputime;
 };
-
-/*
- * The payload size for BLE MBUFs. NOTE: this needs to accommodate a max size
- * PHY pdu of 257 bytes.
- */
-#define BLE_MBUF_PAYLOAD_SIZE           (260)
 
 #define BLE_MBUF_HDR_CRC_OK(hdr)        \
     ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_CRC_OK)
