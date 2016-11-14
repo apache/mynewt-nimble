@@ -183,4 +183,4 @@ syscfg.defs:
         description: >
             This is the maximum size of the data portion of HCI ACL data
             packets. It does not include the HCI data header (of 4 bytes).
-        value: 256
+        value: 255
