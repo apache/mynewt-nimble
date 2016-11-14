@@ -89,11 +89,11 @@ static const uint8_t ble_sm_sc_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
       {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
 };
 
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+
 static uint8_t ble_sm_dbg_sc_pub_key[64];
 static uint8_t ble_sm_dbg_sc_priv_key[32];
 static uint8_t ble_sm_dbg_sc_keys_set;
-
-#if MYNEWT_VAL(BLE_HS_DEBUG)
 
 void
 ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
