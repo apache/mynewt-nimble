@@ -84,7 +84,6 @@ struct ble_store_value_sec {
     unsigned csrk_present:1;
 
     unsigned authenticated:1;
-    unsigned sc:1;
 };
 
 /**
