@@ -449,7 +449,6 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
         value_sec->ltk_present = 1;
 
         value_sec->authenticated = !!authenticated;
-        value_sec->sc = 0;
     }
 
     if (keys->irk_valid) {
