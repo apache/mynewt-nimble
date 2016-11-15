@@ -101,21 +101,9 @@ ble_sm_pair_cmd_is_valid(struct ble_sm_pair_cmd *cmd)
         return 0;
     }
 
-    if (cmd->authreq & BLE_SM_PAIR_AUTHREQ_RESERVED) {
-        return 0;
-    }
-
     if (cmd->max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN ||
         cmd->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
 
-        return 0;
-    }
-
-    if (cmd->init_key_dist & BLE_SM_PAIR_KEY_DIST_RESERVED) {
-        return 0;
-    }
-
-    if (cmd->resp_key_dist & BLE_SM_PAIR_KEY_DIST_RESERVED) {
         return 0;
     }
 
