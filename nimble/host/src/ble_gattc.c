@@ -316,13 +316,14 @@ static const struct ble_gattc_rx_exec_entry {
     { BLE_GATT_OP_WRITE_RELIABLE,   ble_gattc_write_reliable_rx_exec },
 };
 
-/* Maintains the list of active GATT client procedures. */
 static os_membuf_t ble_gattc_proc_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_GATT_MAX_PROCS),
                     sizeof (struct ble_gattc_proc))
 ];
 
 static struct os_mempool ble_gattc_proc_pool;
+
+/* The list of active GATT client procedures. */
 static struct ble_gattc_proc_list ble_gattc_procs;
 
 /* Statistics. */
@@ -646,6 +647,7 @@ static void
 ble_gattc_proc_set_timer(struct ble_gattc_proc *proc)
 {
     proc->exp_os_ticks = os_time_get() + BLE_GATT_UNRESPONSIVE_TIMEOUT;
+    ble_hs_timer_resched();
 }
 
 static void
@@ -781,13 +783,18 @@ ble_gattc_extract_by_conn_op(uint16_t conn_handle, uint8_t op,
     ble_hs_unlock();
 }
 
-static void
+/**
+ * @return                      The number of ticks until the next expiration
+ *                                  occurs.
+ */
+static int32_t
 ble_gattc_extract_expired(struct ble_gattc_proc_list *dst_list)
 {
     struct ble_gattc_proc *proc;
     struct ble_gattc_proc *prev;
     struct ble_gattc_proc *next;
     uint32_t now;
+    int32_t next_exp_in;
     int32_t time_diff;
 
     /* Only the parent task is allowed to remove entries from the list. */
@@ -796,6 +803,9 @@ ble_gattc_extract_expired(struct ble_gattc_proc_list *dst_list)
     now = os_time_get();
     STAILQ_INIT(dst_list);
 
+    /* Assume each event is either expired or has infinite duration. */
+    next_exp_in = BLE_HS_FOREVER;
+
     ble_hs_lock();
 
     prev = NULL;
@@ -803,14 +813,19 @@ ble_gattc_extract_expired(struct ble_gattc_proc_list *dst_list)
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
 
-        time_diff = now - proc->exp_os_ticks;
-        if (time_diff >= 0) {
+        time_diff = proc->exp_os_ticks - now;
+        if (time_diff <= 0) {
+            /* Procedure has expired; move it to the destination list. */
             if (prev == NULL) {
                 STAILQ_REMOVE_HEAD(&ble_gattc_procs, next);
             } else {
                 STAILQ_REMOVE_AFTER(&ble_gattc_procs, prev, next);
             }
             STAILQ_INSERT_TAIL(dst_list, proc, next);
+        } else {
+            if (time_diff < next_exp_in) {
+                next_exp_in = time_diff;
+            }
         }
 
         prev = proc;
@@ -818,6 +833,8 @@ ble_gattc_extract_expired(struct ble_gattc_proc_list *dst_list)
     }
 
     ble_hs_unlock();
+
+    return next_exp_in;
 }
 
 static struct ble_gattc_proc *
@@ -909,28 +926,23 @@ ble_gattc_fail_procs(uint16_t conn_handle, uint8_t op, int status)
 }
 
 /**
- * Applies periodic checks and actions to all active procedures.
- *
- * All procedures that have been expecting a response for longer than 30
- * seconds are aborted and their corresponding connection is terminated.
- *
- * Called by the heartbeat timer; executed at least once a second.
+ * Times out expired GATT client procedures.
  *
  * @return                      The number of ticks until this function should
- *                                  be called again; currently always
- *                                  UINT32_MAX.
+ *                                  be called again.
  */
 int32_t
-ble_gattc_heartbeat(void)
+ble_gattc_timer(void)
 {
     struct ble_gattc_proc_list exp_list;
     struct ble_gattc_proc *proc;
+    int32_t ticks_until_exp;
 
     /* Remove timed-out procedures from the main list and insert them into a
-     * temporary list.  For any stalled procedures, set their pending bit so
-     * they can be retried.
+     * temporary list.  This function also calculates the number of ticks until
+     * the next expiration will occur.
      */
-    ble_gattc_extract_expired(&exp_list);
+    ticks_until_exp = ble_gattc_extract_expired(&exp_list);
 
     /* Terminate the connection associated with each timed-out procedure. */
     while ((proc = STAILQ_FIRST(&exp_list)) != NULL) {
@@ -941,7 +953,7 @@ ble_gattc_heartbeat(void)
         ble_gattc_proc_free(proc);
     }
 
-    return BLE_HS_FOREVER;
+    return ticks_until_exp;
 }
 
 /**

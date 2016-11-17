@@ -601,16 +601,10 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
 }
 
 /**
- * Applies periodic checks and actions to all active procedures.
- *
- * All procedures that have been expecting a response for longer than 30
- * seconds are aborted and their corresponding connection is terminated.
- *
- * Called by the timer timer; executed at least once a second.
+ * Terminates expired procedures.
  *
  * @return                      The number of ticks until this function should
- *                                  be called again; currently always
- *                                  UINT32_MAX.
+ *                                  be called again.
  */
 int32_t
 ble_l2cap_sig_timer(void)

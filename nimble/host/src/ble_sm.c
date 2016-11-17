@@ -349,6 +349,7 @@ ble_sm_proc_set_timer(struct ble_sm_proc *proc)
 {
     /* Set a timeout of 30 seconds. */
     proc->exp_os_ticks = os_time_get() + BLE_SM_TIMEOUT_OS_TICKS;
+    ble_hs_timer_resched();
 }
 
 static ble_sm_rx_fn *
@@ -601,17 +602,21 @@ ble_sm_insert(struct ble_sm_proc *proc)
     STAILQ_INSERT_HEAD(&ble_sm_procs, proc, next);
 }
 
-static void
+static int32_t
 ble_sm_extract_expired(struct ble_sm_proc_list *dst_list)
 {
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
     struct ble_sm_proc *next;
     uint32_t now;
+    int32_t next_exp_in;
     int32_t time_diff;
 
     now = os_time_get();
     STAILQ_INIT(dst_list);
+
+    /* Assume each event is either expired or has infinite duration. */
+    next_exp_in = BLE_HS_FOREVER;
 
     ble_hs_lock();
 
@@ -620,14 +625,19 @@ ble_sm_extract_expired(struct ble_sm_proc_list *dst_list)
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
 
-        time_diff = now - proc->exp_os_ticks;
-        if (time_diff >= 0) {
+        time_diff = proc->exp_os_ticks - now;
+        if (time_diff <= 0) {
+            /* Procedure has expired; move it to the destination list. */
             if (prev == NULL) {
                 STAILQ_REMOVE_HEAD(&ble_sm_procs, next);
             } else {
                 STAILQ_REMOVE_AFTER(&ble_sm_procs, prev, next);
             }
             STAILQ_INSERT_HEAD(dst_list, proc, next);
+        } else {
+            if (time_diff < next_exp_in) {
+                next_exp_in = time_diff;
+            }
         }
 
         prev = proc;
@@ -637,6 +647,8 @@ ble_sm_extract_expired(struct ble_sm_proc_list *dst_list)
     ble_sm_dbg_assert_no_cycles();
 
     ble_hs_unlock();
+
+    return next_exp_in;
 }
 
 static void
@@ -1980,27 +1992,23 @@ ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
  *****************************************************************************/
 
 /**
- * Applies periodic checks and actions to all active procedures.
- *
- * All procedures that have been expecting a response for longer than 30
- * seconds are aborted.
- *
- * Called by the heartbeat timer; executed at least once a second.
+ * Times out expired SM procedures.
  *
  * @return                      The number of ticks until this function should
- *                                  be called again; currently always
- *                                  UINT32_MAX.
+ *                                  be called again.
  */
 int32_t
-ble_sm_heartbeat(void)
+ble_sm_timer(void)
 {
     struct ble_sm_proc_list exp_list;
     struct ble_sm_proc *proc;
+    int32_t ticks_until_exp;
 
-    /* Remove all timed out procedures and insert them into a temporary
-     * list.
+    /* Remove timed-out procedures from the main list and insert them into a
+     * temporary list.  This function also calculates the number of ticks until
+     * the next expiration will occur.
      */
-    ble_sm_extract_expired(&exp_list);
+    ticks_until_exp = ble_sm_extract_expired(&exp_list);
 
     /* Notify application of each failure and free the corresponding procedure
      * object.
@@ -2014,7 +2022,7 @@ ble_sm_heartbeat(void)
         ble_sm_proc_free(proc);
     }
 
-    return BLE_HS_FOREVER;
+    return ticks_until_exp;
 }
 
 /**
@@ -2028,8 +2036,7 @@ ble_sm_pair_initiate(uint16_t conn_handle)
 
     /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE,
-                                  -1, NULL);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
     if (proc != NULL) {
         res.app_status = BLE_HS_EALREADY;
 

@@ -1907,7 +1907,7 @@ ble_gap_test_util_update_no_l2cap_tmo(struct ble_gap_upd_params *params,
 
     /* Advance 29 seconds; ensure no timeout reported. */
     os_time_advance(29 * OS_TICKS_PER_SEC);
-    ble_gap_heartbeat();
+    ble_gap_timer();
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
     /* Advance 30th second; ensure timeout reported. */
@@ -1918,7 +1918,7 @@ ble_gap_test_util_update_no_l2cap_tmo(struct ble_gap_upd_params *params,
      */
     ble_hs_test_util_set_ack_disconnect(0);
 
-    ble_gap_heartbeat();
+    ble_gap_timer();
 
     /* Verify terminate was sent. */
     ble_gap_test_util_verify_tx_disconnect();
@@ -1997,8 +1997,8 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
 
     /* Advance 29 seconds; ensure no timeout reported. */
     os_time_advance(29 * OS_TICKS_PER_SEC);
-    ble_gap_heartbeat();
-    ble_l2cap_sig_heartbeat();
+    ble_gap_timer();
+    ble_l2cap_sig_timer();
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
     /* Advance 30th second; ensure timeout reported. */
@@ -2009,8 +2009,8 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
      */
     ble_hs_test_util_set_ack_disconnect(0);
 
-    ble_gap_heartbeat();
-    ble_l2cap_sig_heartbeat();
+    ble_gap_timer();
+    ble_l2cap_sig_timer();
 
     /* Verify terminate was sent. */
     ble_gap_test_util_verify_tx_disconnect();
@@ -2579,12 +2579,12 @@ ble_gap_test_util_conn_forever(void)
                              NULL, 0);
 
     /* Ensure no pending GAP event. */
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /* Advance 100 seconds; ensure no timeout reported. */
     os_time_advance(100 * OS_TICKS_PER_SEC);
-    ble_gap_heartbeat();
+    ble_gap_timer();
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
     TEST_ASSERT(ble_gap_conn_active());
 }
@@ -2609,7 +2609,7 @@ ble_gap_test_util_conn_timeout(int32_t duration_ms)
     /* Ensure next GAP event is at the expected time. */
     rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
     TEST_ASSERT_FATAL(rc == 0);
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == duration_ticks);
 
     /* Advance duration ms; ensure timeout event does not get reported before
@@ -2624,14 +2624,14 @@ ble_gap_test_util_conn_timeout(int32_t duration_ms)
 
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /* Ensure cancel create connection command was sent. */
     ble_hs_test_util_verify_tx_create_conn_cancel();
 
     /* Ensure timer has been stopped. */
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /* Receive the connection complete event indicating a successful cancel. */
@@ -2663,7 +2663,7 @@ ble_gap_test_util_disc_forever(void)
                           NULL, -1, 0);
 
     /* Ensure no pending GAP event. */
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /* Advance 100 seconds; ensure no timeout reported. */
@@ -2692,7 +2692,7 @@ ble_gap_test_util_disc_timeout(int32_t duration_ms)
     /* Ensure next GAP event is at the expected time. */
     rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
     TEST_ASSERT_FATAL(rc == 0);
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == duration_ticks);
 
     /* Advance duration ms; ensure timeout event was reported. */
@@ -2702,7 +2702,7 @@ ble_gap_test_util_disc_timeout(int32_t duration_ms)
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
         0);
-    ticks_from_now = ble_gap_heartbeat();
+    ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     TEST_ASSERT(ble_gap_test_disc_event_type == BLE_GAP_EVENT_DISC_COMPLETE);
