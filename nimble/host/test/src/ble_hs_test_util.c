@@ -982,8 +982,8 @@ ble_hs_test_util_set_startup_acks(void)
         {
             .opcode = ble_hs_hci_util_opcode_join(
                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_BUF_SIZE),
-            /* Use a very low buffer size (16) to test fragmentation. */
-            .evt_params = { 0x10, 0x00, 0x20 },
+            /* Use a very low buffer size (20) to test fragmentation. */
+            .evt_params = { 0x14, 0x00, 0x20 },
             .evt_params_len = 3,
         },
         {
