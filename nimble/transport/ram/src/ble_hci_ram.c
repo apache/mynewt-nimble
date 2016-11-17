@@ -97,7 +97,7 @@ ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
 int
 ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
 {
-   int rc;
+    int rc;
 
     assert(ble_hci_ram_rx_acl_ll_cb != NULL);
 
