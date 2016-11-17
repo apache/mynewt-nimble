@@ -34,6 +34,28 @@ struct ble_gatt_conn_test_cb_arg {
     int called;
 };
 
+static struct ble_gap_event ble_gatt_conn_test_gap_event;
+
+static void
+ble_gatt_conn_test_util_init(void)
+{
+    ble_hs_test_util_init();
+    memset(&ble_gatt_conn_test_gap_event, -1,
+           sizeof ble_gatt_conn_test_gap_event);
+}
+
+static int
+ble_gatt_conn_test_indicate_cb(struct ble_gap_event *event, void *arg)
+{
+    /* Only record indication failures. */
+    if (event->type == BLE_GAP_EVENT_NOTIFY_TX &&
+        event->notify_tx.status != 0) {
+
+        ble_gatt_conn_test_gap_event = *event;
+    }
+    return 0;
+}
+
 static int
 ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle,
                            uint8_t op, uint16_t offset, struct os_mbuf **om,
@@ -362,7 +384,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     uint16_t attr_handle;
     int rc;
 
-    ble_hs_test_util_init();
+    ble_gatt_conn_test_util_init();
 
     /*** Register an attribute to allow indicatations to be sent. */
     rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ,
@@ -372,11 +394,11 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
 
     /* Create three connections. */
     ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}),
-                                 NULL, NULL);
+                                 ble_gatt_conn_test_indicate_cb, NULL);
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                 NULL, NULL);
+                                 ble_gatt_conn_test_indicate_cb, NULL);
     ble_hs_test_util_create_conn(3, ((uint8_t[]){3,4,5,6,7,8,9,10}),
-                                 NULL, NULL);
+                                 ble_gatt_conn_test_indicate_cb, NULL);
 
     /*** Schedule some GATT procedures. */
     /* Connection 1. */
@@ -461,6 +483,9 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
         3, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
+    rc = ble_gattc_indicate(3, attr_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+
     /*** Start the procedures. */
     ble_hs_test_util_tx_all();
 
@@ -481,6 +506,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_arg.called == 0);
     TEST_ASSERT(write_long_arg.called == 0);
     TEST_ASSERT(write_rel_arg.called == 0);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.type == 255);
 
     /* Connection 2. */
     ble_gattc_connection_broken(2);
@@ -498,6 +524,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_arg.called == 0);
     TEST_ASSERT(write_long_arg.called == 0);
     TEST_ASSERT(write_rel_arg.called == 0);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.type == 255);
 
     /* Connection 3. */
     ble_gattc_connection_broken(3);
@@ -515,6 +542,13 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_arg.called == 1);
     TEST_ASSERT(write_long_arg.called == 1);
     TEST_ASSERT(write_rel_arg.called == 1);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.type == BLE_GAP_EVENT_NOTIFY_TX);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.status ==
+                BLE_HS_ENOTCONN);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.conn_handle == 3);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.attr_handle ==
+                attr_handle);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.indication);
 }
 
 static void
@@ -549,7 +583,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
     uint16_t attr_handle;
     int rc;
 
-    ble_hs_test_util_init();
+    ble_gatt_conn_test_util_init();
 
     ticks_from_now = ble_gattc_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
