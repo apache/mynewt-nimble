@@ -342,7 +342,6 @@ ble_hs_timer_sched(int32_t ticks_from_now)
         OS_TIME_TICK_LT(abs_time, ble_hs_timer_timer.c_ticks)) {
 
         ble_hs_timer_timer_reset(ticks_from_now);
-        console_printf("TICKS_UNTIL_NEXT: %d\n", (int)ticks_from_now);
     }
 }
 
