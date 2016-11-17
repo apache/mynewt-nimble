@@ -477,17 +477,6 @@ ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
         ble_hs_log_mbuf(frag);
         BLE_HS_LOG(DEBUG, "\n");
 
-        /* XXX: Try to pullup the entire fragment.  The controller currently
-         * requires the entire fragment to fit in a single buffer.  When this
-         * restriction is removed from the controller, this operation can be
-         * removed.
-         */
-        frag = os_mbuf_pullup(frag, OS_MBUF_PKTLEN(frag));
-        if (frag == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-
         rc = ble_hs_tx_data(frag);
         if (rc != 0) {
             goto err;
