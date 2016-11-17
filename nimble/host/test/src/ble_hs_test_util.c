@@ -445,6 +445,21 @@ ble_hs_test_util_hcc_from_conn_params(
 }
 
 void
+ble_hs_test_util_verify_tx_disconnect(uint16_t handle, uint8_t reason)
+{
+    uint8_t param_len;
+    uint8_t *param;
+
+    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LINK_CTRL,
+                                           BLE_HCI_OCF_DISCONNECT_CMD,
+                                           &param_len);
+    TEST_ASSERT(param_len == BLE_HCI_DISCONNECT_CMD_LEN);
+
+    TEST_ASSERT(le16toh(param + 0) == handle);
+    TEST_ASSERT(param[2] == reason);
+}
+
+void
 ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp)
 {
     uint8_t param_len;
@@ -559,19 +574,26 @@ ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
 }
 
 void
-ble_hs_test_util_conn_disconnect(uint16_t conn_handle)
+ble_hs_test_util_rx_disconn_complete(uint16_t conn_handle, uint8_t reason)
 {
     struct hci_disconn_complete evt;
+
+    evt.connection_handle = conn_handle;
+    evt.status = 0;
+    evt.reason = BLE_ERR_CONN_TERM_LOCAL;
+    ble_gap_rx_disconn_complete(&evt);
+}
+
+void
+ble_hs_test_util_conn_disconnect(uint16_t conn_handle)
+{
     int rc;
 
     rc = ble_hs_test_util_conn_terminate(conn_handle, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Receive disconnection complete event. */
-    evt.connection_handle = conn_handle;
-    evt.status = 0;
-    evt.reason = BLE_ERR_CONN_TERM_LOCAL;
-    ble_gap_rx_disconn_complete(&evt);
+    ble_hs_test_util_rx_disconn_complete(conn_handle, BLE_ERR_CONN_TERM_LOCAL);
 }
 
 int
