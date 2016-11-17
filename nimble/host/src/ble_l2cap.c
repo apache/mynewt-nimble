@@ -186,17 +186,52 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return rc;
 }
 
+/**
+ * Processes an incoming L2CAP fragment.
+ *
+ * @param conn                  The connection the L2CAP fragment was sent
+ *                                  over.
+ * @param hci_hdr               The ACL data header that was at the start of
+ *                                  the L2CAP fragment.  This header has been
+ *                                  stripped from the mbuf parameter.
+ * @param om                    An mbuf containing the L2CAP data.  If this is
+ *                                  the first fragment, the L2CAP header is at
+ *                                  the start of the mbuf.  For subsequent
+ *                                  fragments, the mbuf starts with L2CAP
+ *                                  payload data.
+ * @param out_rx_cb             If a full L2CAP packet has been received, a
+ *                                  pointer to the appropriate handler gets
+ *                                  written here.  The caller should pass the
+ *                                  receive buffer to this callback.
+ * @param out_rx_buf            If a full L2CAP packet has been received, this
+ *                                  will point to the entire L2CAP packet.  To
+ *                                  process the packet, pass this buffer to the
+ *                                  receive handler (out_rx_cb).
+ * @param out_reject_cid        Indicates whether an L2CAP Command Reject
+ *                                  command should be sent.  If this equals -1,
+ *                                  no reject should get sent.  Otherwise, the
+ *                                  value indicates the CID that the outgoing
+ *                                  reject should specify.
+ *
+ * @return                      0 if a complete L2CAP packet has been received.
+ *                              BLE_HS_EAGAIN if a partial L2CAP packet has
+ *                                  been received; more fragments are expected.
+ *                              Other value on error.
+ */
 int
 ble_l2cap_rx(struct ble_hs_conn *conn,
              struct hci_data_hdr *hci_hdr,
              struct os_mbuf *om,
              ble_l2cap_rx_fn **out_rx_cb,
-             struct os_mbuf **out_rx_buf)
+             struct os_mbuf **out_rx_buf,
+             int *out_reject_cid)
 {
     struct ble_l2cap_chan *chan;
     struct ble_l2cap_hdr l2cap_hdr;
     uint8_t pb;
     int rc;
+
+    *out_reject_cid = -1;
 
     pb = BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc);
     switch (pb) {
@@ -221,12 +256,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
             if (l2cap_hdr.blh_cid != BLE_L2CAP_CID_BLACK_HOLE) {
                 BLE_HS_LOG(DEBUG, "rx on unknown L2CAP channel: %d\n",
                            l2cap_hdr.blh_cid);
-
-                chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_SIG);
-                if (chan != NULL) {
-                    ble_l2cap_sig_reject_invalid_cid_tx(conn, chan, 0, 0,
-                                                        l2cap_hdr.blh_cid);
-                }
+                *out_reject_cid = l2cap_hdr.blh_cid;
             }
             goto err;
         }

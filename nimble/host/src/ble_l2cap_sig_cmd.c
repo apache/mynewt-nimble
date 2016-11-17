@@ -60,6 +60,22 @@ err:
     return rc;
 }
 
+static int
+ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_lock();
+    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
+                                    &conn, &chan);
+    rc = ble_l2cap_tx(conn, chan, txom);
+    ble_hs_unlock();
+
+    return rc;
+}
+
 static void
 ble_l2cap_sig_hdr_swap(struct ble_l2cap_sig_hdr *dst,
                        struct ble_l2cap_sig_hdr *src)
@@ -108,8 +124,7 @@ ble_l2cap_sig_reject_write(void *payload, uint16_t len,
 }
 
 int
-ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                        uint8_t id, uint16_t reason,
+ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason,
                         void *data, int data_len)
 {
     struct ble_l2cap_sig_reject cmd;
@@ -129,7 +144,7 @@ ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                                data, data_len);
 
     STATS_INC(ble_l2cap_stats, sig_rx);
-    rc = ble_l2cap_tx(conn, chan, txom);
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -138,8 +153,7 @@ ble_l2cap_sig_reject_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 }
 
 int
-ble_l2cap_sig_reject_invalid_cid_tx(struct ble_hs_conn *conn,
-                                    struct ble_l2cap_chan *chan, uint8_t id,
+ble_l2cap_sig_reject_invalid_cid_tx(uint16_t conn_handle, uint8_t id,
                                     uint16_t src_cid, uint16_t dst_cid)
 {
     int rc;
@@ -152,7 +166,7 @@ ble_l2cap_sig_reject_invalid_cid_tx(struct ble_hs_conn *conn,
         .remote_cid = src_cid,
     };
 
-    rc = ble_l2cap_sig_reject_tx(conn, chan, id,
+    rc = ble_l2cap_sig_reject_tx(conn_handle, id,
                                  BLE_L2CAP_SIG_ERR_INVALID_CID,
                                  &data, sizeof data);
     return rc;
@@ -185,8 +199,7 @@ ble_l2cap_sig_update_req_write(void *payload, int len,
 }
 
 int
-ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan, uint8_t id,
+ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
                             struct ble_l2cap_sig_update_req *req)
 {
     struct os_mbuf *txom;
@@ -203,7 +216,7 @@ ble_l2cap_sig_update_req_tx(struct ble_hs_conn *conn,
     ble_l2cap_sig_update_req_write(payload_buf, BLE_L2CAP_SIG_UPDATE_REQ_SZ,
                                    req);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
@@ -235,9 +248,7 @@ ble_l2cap_sig_update_rsp_write(void *payload, int len,
 }
 
 int
-ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
-                            struct ble_l2cap_chan *chan, uint8_t id,
-                            uint16_t result)
+ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
 {
     struct ble_l2cap_sig_update_rsp rsp;
     struct os_mbuf *txom;
@@ -255,7 +266,7 @@ ble_l2cap_sig_update_rsp_tx(struct ble_hs_conn *conn,
     ble_l2cap_sig_update_rsp_write(payload_buf, BLE_L2CAP_SIG_UPDATE_RSP_SZ,
                                    &rsp);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }

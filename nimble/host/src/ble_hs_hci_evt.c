@@ -615,7 +615,8 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     struct ble_hs_conn *conn;
     ble_l2cap_rx_fn *rx_cb;
     struct os_mbuf *rx_buf;
-    uint16_t handle;
+    uint16_t conn_handle;
+    int reject_cid;
     int rc;
 
     rc = ble_hs_hci_util_data_hdr_strip(om, &hci_hdr);
@@ -624,8 +625,8 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     }
 
 #if (BLETEST_THROUGHPUT_TEST == 0)
-    BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): handle=%u pb=%x len=%u "
-                      "data=",
+    BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): conn_handle=%u pb=%x "
+                      "len=%u data=",
                BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
                BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
                hci_hdr.hdh_len);
@@ -638,15 +639,15 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         goto err;
     }
 
-    handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
+    conn_handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
 
     ble_hs_lock();
 
-    conn = ble_hs_conn_find(handle);
+    conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
     } else {
-        rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &rx_buf);
+        rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &rx_buf, &reject_cid);
         om = NULL;
     }
 
@@ -657,7 +658,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         /* Final fragment received. */
         BLE_HS_DBG_ASSERT(rx_cb != NULL);
         BLE_HS_DBG_ASSERT(rx_buf != NULL);
-        rc = rx_cb(handle, &rx_buf);
+        rc = rx_cb(conn_handle, &rx_buf);
         os_mbuf_free_chain(rx_buf);
         break;
 
@@ -666,6 +667,9 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         break;
 
     default:
+        if (reject_cid != -1) {
+            ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, 0, 0, reject_cid);
+        }
         goto err;
     }
 
