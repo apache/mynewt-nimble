@@ -839,13 +839,14 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
     struct ble_hs_conn *conn;
     ble_l2cap_rx_fn *rx_cb;
     struct os_mbuf *rx_buf;
+    int reject_cid;
     int rc;
 
     ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-        rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf);
+        rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf, &reject_cid);
     } else {
         os_mbuf_free_chain(om);
     }
@@ -862,6 +863,10 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
     } else if (rc == BLE_HS_EAGAIN) {
         /* More fragments on the way. */
         rc = 0;
+    } else {
+        if (reject_cid != -1) {
+            ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, 0, 0, reject_cid);
+        }
     }
 
     return rc;

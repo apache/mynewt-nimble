@@ -190,8 +190,9 @@ ble_l2cap_sig_proc_insert(struct ble_l2cap_sig_proc *proc)
 {
     ble_l2cap_sig_dbg_assert_proc_not_inserted(proc);
 
-    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+    ble_hs_lock();
     STAILQ_INSERT_HEAD(&ble_l2cap_sig_procs, proc, next);
+    ble_hs_unlock();
 }
 
 /**
@@ -271,6 +272,24 @@ ble_l2cap_sig_rx_noop(uint16_t conn_handle,
     return BLE_HS_ENOTSUP;
 }
 
+static void
+ble_l2cap_sig_proc_set_timer(struct ble_l2cap_sig_proc *proc)
+{
+    proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT;
+    ble_hs_timer_resched();
+}
+
+static void
+ble_l2cap_sig_process_status(struct ble_l2cap_sig_proc *proc, int status)
+{
+    if (status == 0) {
+        ble_l2cap_sig_proc_set_timer(proc);
+        ble_l2cap_sig_proc_insert(proc);
+    } else {
+        ble_l2cap_sig_proc_free(proc);
+    }
+}
+
 /*****************************************************************************
  * $update                                                                   *
  *****************************************************************************/
@@ -296,9 +315,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 {
     struct ble_l2cap_sig_update_req req;
     struct ble_gap_upd_params params;
-    struct ble_l2cap_chan *chan;
     ble_hs_conn_flags_t conn_flags;
-    struct ble_hs_conn *conn;
     uint16_t l2cap_result;
     int sig_err;
     int rc;
@@ -342,19 +359,15 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     }
 
     /* Send L2CAP response. */
-    ble_hs_lock();
-    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                    &conn, &chan);
     if (!sig_err) {
-        rc = ble_l2cap_sig_update_rsp_tx(conn, chan, hdr->identifier,
+        rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
                                          l2cap_result);
     } else {
-        ble_l2cap_sig_reject_tx(conn, chan, hdr->identifier,
+        ble_l2cap_sig_reject_tx(conn_handle, hdr->identifier,
                                 BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
                                 NULL, 0);
         rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
     }
-    ble_hs_unlock();
 
     return rc;
 }
@@ -416,6 +429,7 @@ ble_l2cap_sig_update(uint16_t conn_handle,
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    int master;
     int rc;
 
     proc = NULL;
@@ -423,10 +437,12 @@ ble_l2cap_sig_update(uint16_t conn_handle,
     STATS_INC(ble_l2cap_stats, update_init);
 
     ble_hs_lock();
-
     ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
                                     &conn, &chan);
-    if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
+    master = conn->bhc_flags & BLE_HS_CONN_F_MASTER;
+    ble_hs_unlock();
+
+    if (master) {
         /* Only the slave can initiate the L2CAP connection update
          * procedure.
          */
@@ -444,7 +460,6 @@ ble_l2cap_sig_update(uint16_t conn_handle,
     proc->op = BLE_L2CAP_SIG_PROC_OP_UPDATE;
     proc->id = ble_l2cap_sig_next_id();
     proc->conn_handle = conn_handle;
-    proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT;
     proc->update.cb = cb;
     proc->update.cb_arg = cb_arg;
 
@@ -453,18 +468,10 @@ ble_l2cap_sig_update(uint16_t conn_handle,
     req.slave_latency = params->slave_latency;
     req.timeout_multiplier = params->timeout_multiplier;
 
-    rc = ble_l2cap_sig_update_req_tx(conn, chan, proc->id, &req);
-    if (rc == 0) {
-        ble_l2cap_sig_proc_insert(proc);
-    }
+    rc = ble_l2cap_sig_update_req_tx(conn_handle, proc->id, &req);
 
 done:
-    ble_hs_unlock();
-
-    if (rc != 0) {
-        ble_l2cap_sig_proc_free(proc);
-    }
-
+    ble_l2cap_sig_process_status(proc, rc);
     return rc;
 }
 
@@ -472,8 +479,6 @@ static int
 ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
     struct ble_l2cap_sig_hdr hdr;
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
     ble_l2cap_sig_rx_fn *rx_cb;
     int rc;
 
@@ -498,14 +503,10 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
-        ble_hs_lock();
-        ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SIG,
-                                        &conn, &chan);
-        ble_l2cap_sig_reject_tx(conn, chan, hdr.identifier,
+        ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
                                 BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
                                 NULL, 0);
         rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
-        ble_hs_unlock();
     } else {
         rc = rx_cb(conn_handle, &hdr, om);
     }
@@ -531,17 +532,25 @@ ble_l2cap_sig_create_chan(void)
     return chan;
 }
 
-static void
+/**
+ * @return                      The number of ticks until the next expiration
+ *                                  occurs.
+ */
+static int32_t
 ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
 {
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_sig_proc *prev;
     struct ble_l2cap_sig_proc *next;
     uint32_t now;
+    int32_t next_exp_in;
     int32_t time_diff;
 
     now = os_time_get();
     STAILQ_INIT(dst_list);
+
+    /* Assume each event is either expired or has infinite duration. */
+    next_exp_in = BLE_HS_FOREVER;
 
     ble_hs_lock();
 
@@ -550,20 +559,27 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
     
-        time_diff = now - proc->exp_os_ticks;
-        if (time_diff >= 0) {
+        time_diff = proc->exp_os_ticks - now;
+        if (time_diff <= 0) {
+            /* Procedure has expired; move it to the destination list. */
             if (prev == NULL) {
                 STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
             } else {
                 STAILQ_REMOVE_AFTER(&ble_l2cap_sig_procs, prev, next);
             }
             STAILQ_INSERT_TAIL(dst_list, proc, next);
+        } else {
+            if (time_diff < next_exp_in) {
+                next_exp_in = time_diff;
+            }
         }
 
         proc = next;
     }
 
     ble_hs_unlock();
+
+    return next_exp_in;
 }
 
 void
@@ -590,22 +606,24 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
  * All procedures that have been expecting a response for longer than 30
  * seconds are aborted and their corresponding connection is terminated.
  *
- * Called by the heartbeat timer; executed at least once a second.
+ * Called by the timer timer; executed at least once a second.
  *
  * @return                      The number of ticks until this function should
  *                                  be called again; currently always
  *                                  UINT32_MAX.
  */
 int32_t
-ble_l2cap_sig_heartbeat(void)
+ble_l2cap_sig_timer(void)
 {
     struct ble_l2cap_sig_proc_list temp_list;
     struct ble_l2cap_sig_proc *proc;
+    int32_t ticks_until_exp;
 
     /* Remove timed-out procedures from the main list and insert them into a
-     * temporary list.
+     * temporary list.  This function also calculates the number of ticks until
+     * the next expiration will occur.
      */
-    ble_l2cap_sig_extract_expired(&temp_list);
+    ticks_until_exp = ble_l2cap_sig_extract_expired(&temp_list);
 
     /* Report a failure for each timed out procedure. */
     while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
@@ -616,7 +634,7 @@ ble_l2cap_sig_heartbeat(void)
         ble_l2cap_sig_proc_free(proc);
     }
 
-    return BLE_HS_FOREVER;
+    return ticks_until_exp;
 }
 
 int
