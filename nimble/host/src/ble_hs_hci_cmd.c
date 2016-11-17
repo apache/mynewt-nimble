@@ -391,7 +391,7 @@ ble_hs_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
         dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_DISCONNECT_CMD_LEN);
 
     ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LINK_CTRL, BLE_HCI_OCF_DISCONNECT_CMD,
-                       BLE_HCI_DISCONNECT_CMD_LEN, dst);
+                             BLE_HCI_DISCONNECT_CMD_LEN, dst);
     dst += BLE_HCI_CMD_HDR_LEN;
 
     ble_hs_hci_cmd_body_disconnect(handle, reason, dst);
