@@ -352,6 +352,15 @@ ble_hs_hci_rx_evt(uint8_t *hci_ev, void *arg)
     return 0;
 }
 
+/**
+ * Calculates the largest ACL payload that the controller can accept.  This is
+ * everything in an ACL data packet except for the ACL header.
+ */
+static uint16_t
+ble_hs_hci_max_acl_payload_sz(void)
+{
+    return ble_hs_hci_buf_sz - BLE_HCI_DATA_HDR_SZ;
+}
 
 /**
  * Splits an appropriately-sized fragment from the front of an outgoing ACL
@@ -374,12 +383,15 @@ static int
 ble_hs_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
 {
     struct os_mbuf *frag;
+    uint16_t max_sz;
     int rc;
 
     /* Assume failure. */
     *out_frag = NULL;
 
-    if (OS_MBUF_PKTLEN(*om) <= ble_hs_hci_buf_sz) {
+    max_sz = ble_hs_hci_max_acl_payload_sz();
+
+    if (OS_MBUF_PKTLEN(*om) <= max_sz) {
         /* Final fragment. */
         *out_frag = *om;
         *om = NULL;
@@ -393,12 +405,12 @@ ble_hs_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
     }
 
     /* Move data from the front of the packet into the fragment mbuf. */
-    rc = os_mbuf_appendfrom(frag, *om, 0, ble_hs_hci_buf_sz);
+    rc = os_mbuf_appendfrom(frag, *om, 0, max_sz);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
-    os_mbuf_adj(*om, ble_hs_hci_buf_sz);
+    os_mbuf_adj(*om, max_sz);
 
     /* More fragments to follow. */
     *out_frag = frag;
