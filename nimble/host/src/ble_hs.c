@@ -25,6 +25,7 @@
 #include "bsp/bsp.h"
 #include "stats/stats.h"
 #include "os/os.h"
+#include "console/console.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 
@@ -36,6 +37,7 @@ static void ble_hs_event_rx_hci_ev(struct os_event *ev);
 static void ble_hs_event_tx_notify(struct os_event *ev);
 static void ble_hs_event_reset(struct os_event *ev);
 static void ble_hs_event_start(struct os_event *ev);
+static void ble_hs_timer_sched(int32_t ticks_from_now);
 
 struct os_mempool ble_hs_hci_ev_pool;
 static os_membuf_t ble_hs_hci_os_event_buf[
@@ -70,7 +72,7 @@ static struct os_task *ble_hs_parent_task;
  * Handles unresponsive timeouts and periodic retries in case of resource
  * shortage.
  */
-static struct os_callout ble_hs_heartbeat_timer;
+static struct os_callout ble_hs_timer_timer;
 
 /* Shared queue that the host uses for work items. */
 static struct os_eventq *ble_hs_evq;
@@ -208,36 +210,6 @@ ble_hs_clear_data_queue(struct os_mqueue *mqueue)
     }
 }
 
-
-static void
-ble_hs_heartbeat_timer_reset(uint32_t ticks)
-{
-    int rc;
-
-    rc = os_callout_reset(&ble_hs_heartbeat_timer, ticks);
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-}
-
-void
-ble_hs_heartbeat_sched(int32_t ticks_from_now)
-{
-    os_time_t abs_time;
-
-    if (ticks_from_now == BLE_HS_FOREVER) {
-        return;
-    }
-
-    /* Reset heartbeat timer if it is not currently scheduled or if the
-     * specified time is sooner than the current expiration time.
-     */
-    abs_time = os_time_get() + ticks_from_now;
-    if (!os_callout_queued(&ble_hs_heartbeat_timer) ||
-        OS_TIME_TICK_LT(abs_time, ble_hs_heartbeat_timer.c_ticks)) {
-
-        ble_hs_heartbeat_timer_reset(ticks_from_now);
-    }
-}
-
 /**
  * Indicates whether the host has synchronized with the controller.
  * Synchronization must occur before any host procedures can be performed.
@@ -272,7 +244,7 @@ ble_hs_sync(void)
         ble_hs_sync_state = BLE_HS_SYNC_STATE_BAD;
     }
 
-    ble_hs_heartbeat_sched(BLE_HS_SYNC_RETRY_RATE);
+    ble_hs_timer_sched(BLE_HS_SYNC_RETRY_RATE);
 
     if (rc == 0) {
         STATS_INC(ble_hs_stats, sync);
@@ -318,11 +290,11 @@ ble_hs_reset(void)
 }
 
 /**
- * Called once a second by the ble_hs heartbeat timer.  Handles unresponsive
- * timeouts and periodic retries in case of resource shortage.
+ * Called when the host timer expires.  Handles unresponsive timeouts and
+ * periodic retries in case of resource shortage.
  */
 static void
-ble_hs_heartbeat(struct os_event *ev)
+ble_hs_timer_exp(struct os_event *ev)
 {
     int32_t ticks_until_next;
 
@@ -331,24 +303,56 @@ ble_hs_heartbeat(struct os_event *ev)
         return;
     }
 
-    /* Ensure the timer expires at least once in the next second.
-     * XXX: This is not very power efficient.  We will need separate timers for
-     * each module.
+    ticks_until_next = ble_gattc_timer();
+    ble_hs_timer_sched(ticks_until_next);
+
+    ticks_until_next = ble_gap_timer();
+    ble_hs_timer_sched(ticks_until_next);
+
+    ticks_until_next = ble_l2cap_sig_timer();
+    ble_hs_timer_sched(ticks_until_next);
+
+    ticks_until_next = ble_sm_timer();
+    ble_hs_timer_sched(ticks_until_next);
+}
+
+static void
+ble_hs_timer_timer_reset(uint32_t ticks)
+{
+    int rc;
+
+    rc = os_callout_reset(&ble_hs_timer_timer, ticks);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+}
+
+static void
+ble_hs_timer_sched(int32_t ticks_from_now)
+{
+    os_time_t abs_time;
+
+    if (ticks_from_now == BLE_HS_FOREVER) {
+        return;
+    }
+
+    /* Reset timer if it is not currently scheduled or if the specified time is
+     * sooner than the previous expiration time.
      */
-    ticks_until_next = BLE_HS_HEARTBEAT_OS_TICKS;
-    ble_hs_heartbeat_sched(ticks_until_next);
+    abs_time = os_time_get() + ticks_from_now;
+    if (!os_callout_queued(&ble_hs_timer_timer) ||
+        OS_TIME_TICK_LT(abs_time, ble_hs_timer_timer.c_ticks)) {
 
-    ticks_until_next = ble_gattc_heartbeat();
-    ble_hs_heartbeat_sched(ticks_until_next);
+        ble_hs_timer_timer_reset(ticks_from_now);
+        console_printf("TICKS_UNTIL_NEXT: %d\n", (int)ticks_from_now);
+    }
+}
 
-    ticks_until_next = ble_gap_heartbeat();
-    ble_hs_heartbeat_sched(ticks_until_next);
-
-    ticks_until_next = ble_l2cap_sig_heartbeat();
-    ble_hs_heartbeat_sched(ticks_until_next);
-
-    ticks_until_next = ble_sm_heartbeat();
-    ble_hs_heartbeat_sched(ticks_until_next);
+void
+ble_hs_timer_resched(void)
+{
+    /* Reschedule the timer to run immediately.  The timer callback will query
+     * each module for an up-to-date expiration time.
+     */
+    ble_hs_timer_timer_reset(0);
 }
 
 static void
@@ -457,8 +461,8 @@ ble_hs_start(void)
 
     ble_hs_parent_task = os_sched_get_current_task();
 
-    os_callout_init(&ble_hs_heartbeat_timer, ble_hs_evq_get(),
-                    ble_hs_heartbeat, NULL);
+    os_callout_init(&ble_hs_timer_timer, ble_hs_evq_get(),
+                    ble_hs_timer_exp, NULL);
 
     rc = ble_att_svr_start();
     if (rc != 0) {

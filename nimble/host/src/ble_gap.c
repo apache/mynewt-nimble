@@ -508,6 +508,8 @@ ble_gap_master_reset_state(void)
     ble_gap_master.op = BLE_GAP_OP_NULL;
     ble_gap_master.exp_set = 0;
     ble_gap_master.conn.cancel = 0;
+
+    ble_hs_timer_resched();
 }
 
 static void
@@ -515,6 +517,8 @@ ble_gap_slave_reset_state(void)
 {
     ble_gap_slave.op = BLE_GAP_OP_NULL;
     ble_gap_slave.exp_set = 0;
+
+    ble_hs_timer_resched();
 }
 
 static void
@@ -697,6 +701,17 @@ ble_gap_slave_ticks_until_exp(void)
     return 0;
 }
 
+/**
+ * Finds the update procedure that expires soonest.
+ *
+ * @param out_ticks_from_now    On success, the ticks until the update
+ *                                  procedure's expiry time gets written here.
+ *
+ * @return                      The connection handle of the update procedure
+ *                                  that expires soonest, or
+ *                                  BLE_HS_CONN_HANDLE_NONE if there are no
+ *                                  active update procedures.
+ */
 static uint16_t
 ble_gap_update_next_exp(int32_t *out_ticks_from_now)
 {
@@ -732,38 +747,13 @@ ble_gap_update_next_exp(int32_t *out_ticks_from_now)
 
 }
 
-static uint32_t
-ble_gap_update_ticks_until_exp(void)
-{
-    int32_t ticks;
-
-    ble_gap_update_next_exp(&ticks);
-    return ticks;
-}
-
-static void
-ble_gap_heartbeat_sched(void)
-{
-    int32_t mst_ticks;
-    int32_t slv_ticks;
-    int32_t upd_ticks;
-    int32_t ticks;
-
-    mst_ticks = ble_gap_master_ticks_until_exp();
-    slv_ticks = ble_gap_slave_ticks_until_exp();
-    upd_ticks = ble_gap_update_ticks_until_exp();
-    ticks = min(min(mst_ticks, slv_ticks), upd_ticks);
-
-    ble_hs_heartbeat_sched(ticks);
-}
-
 static void
 ble_gap_master_set_timer(uint32_t ticks_from_now)
 {
     ble_gap_master.exp_os_ticks = os_time_get() + ticks_from_now;
     ble_gap_master.exp_set = 1;
 
-    ble_gap_heartbeat_sched();
+    ble_hs_timer_resched();
 }
 
 static void
@@ -772,7 +762,7 @@ ble_gap_slave_set_timer(uint32_t ticks_from_now)
     ble_gap_slave.exp_os_ticks = os_time_get() + ticks_from_now;
     ble_gap_slave.exp_set = 1;
 
-    ble_gap_heartbeat_sched();
+    ble_hs_timer_resched();
 }
 
 /**
@@ -1251,7 +1241,7 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
 }
 
 static int32_t
-ble_gap_master_heartbeat(void)
+ble_gap_master_timer(void)
 {
     uint32_t ticks_until_exp;
     int rc;
@@ -1303,7 +1293,7 @@ ble_gap_master_heartbeat(void)
 }
 
 static int32_t
-ble_gap_slave_heartbeat(void)
+ble_gap_slave_timer(void)
 {
     uint32_t ticks_until_exp;
     int rc;
@@ -1333,7 +1323,7 @@ ble_gap_slave_heartbeat(void)
 }
 
 static int32_t
-ble_gap_update_heartbeat(void)
+ble_gap_update_timer(void)
 {
     struct ble_gap_update_entry *entry;
     int32_t ticks_until_exp;
@@ -1361,23 +1351,21 @@ ble_gap_update_heartbeat(void)
 }
 
 /**
- * Handles timed-out master procedures.
- *
- * Called by the heartbeat timer; executed at least once a second.
+ * Handles timed-out GAP procedures.
  *
  * @return                      The number of ticks until this function should
  *                                  be called again.
  */
 int32_t
-ble_gap_heartbeat(void)
+ble_gap_timer(void)
 {
     int32_t update_ticks;
     int32_t master_ticks;
     int32_t slave_ticks;
 
-    master_ticks = ble_gap_master_heartbeat();
-    slave_ticks = ble_gap_slave_heartbeat();
-    update_ticks = ble_gap_update_heartbeat();
+    master_ticks = ble_gap_master_timer();
+    slave_ticks = ble_gap_slave_timer();
+    update_ticks = ble_gap_update_timer();
 
     return min(min(master_ticks, slave_ticks), update_ticks);
 }
@@ -1569,6 +1557,7 @@ done:
     if (rc != 0) {
         STATS_INC(ble_gap_stats, adv_set_fields_fail);
     }
+
     return rc;
 }
 
@@ -2167,6 +2156,7 @@ done:
     if (rc != 0) {
         STATS_INC(ble_gap_stats, discover_cancel_fail);
     }
+
     return rc;
 }
 
@@ -2718,6 +2708,7 @@ ble_gap_update_entry_remove(uint16_t conn_handle)
         } else {
             SLIST_NEXT(prev, next) = SLIST_NEXT(entry, next);
         }
+        ble_hs_timer_resched();
     }
 
     return entry;
@@ -2941,7 +2932,9 @@ ble_gap_update_params(uint16_t conn_handle,
 done:
     ble_hs_unlock();
 
-    if (rc != 0) {
+    if (rc == 0) {
+        ble_hs_timer_resched();
+    } else {
         ble_gap_update_entry_free(entry);
 
         if (l2cap_params.itvl_min != 0) {

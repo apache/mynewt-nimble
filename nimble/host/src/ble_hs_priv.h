@@ -109,7 +109,7 @@ void ble_hs_lock(void);
 void ble_hs_unlock(void);
 void ble_hs_sched_reset(int reason);
 void ble_hs_hw_error(uint8_t hw_code);
-void ble_hs_heartbeat_sched(int32_t ticks);
+void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
 
 #if MYNEWT_VAL(LOG_LEVEL) <= LOG_LEVEL_DEBUG
