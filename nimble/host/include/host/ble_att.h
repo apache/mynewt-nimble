@@ -94,9 +94,14 @@ struct os_mbuf;
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2
 
-#define BLE_ATT_MTU_DFLT                23  /* Also the minimum. */
-#define BLE_ATT_MTU_MAX                 240
-#define BLE_ATT_MTU_PREFERRED_DFLT      240
+#define BLE_ATT_MTU_DFLT                    23  /* Also the minimum. */
+
+/**
+ * An ATT MTU of 527 allows the largest ATT command (signed write) to contain a
+ * 512-byte attribute value.
+ */
+#define BLE_ATT_MTU_MAX                     527
+#define BLE_ATT_MTU_PREFERRED_DFLT          527
 
 int ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om);
 int ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om);
