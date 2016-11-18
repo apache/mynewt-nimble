@@ -132,14 +132,25 @@ syscfg.defs:
         value: 1
 
     # GATT options.
+    BLE_GATT_READ_MAX_ATTRS:
+        description: >
+            The maximum number of attributes that can be read with a single
+            GATT Read Multiple Characteristic Values procedure.
+        value: 8
     BLE_GATT_WRITE_MAX_ATTRS:
         description: >
             The maximum number of attributes that can be written with a single
             GATT Reliable Write procedure.
         value: 4
     BLE_GATT_MAX_PROCS:
-        description: 'TBD'
+        description: >
+            The maximum number of concurrent client GATT procedures.
         value: 4
+    BLE_GATT_RESUME_RATE:
+        description: >
+            The rate to periodically resume GATT procedures that have stalled
+            due to memory exhaustion.  Units are milliseconds.
+        value: 1000
 
     # Supported server ATT commands.
     BLE_ATT_SVR_FIND_INFO:

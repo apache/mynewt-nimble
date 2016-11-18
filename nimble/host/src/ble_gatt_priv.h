@@ -20,6 +20,7 @@
 #ifndef H_BLE_GATT_PRIV_
 #define H_BLE_GATT_PRIV_
 
+#include "syscfg/syscfg.h"
 #include "stats/stats.h"
 #include "host/ble_gatt.h"
 #ifdef __cplusplus
@@ -98,6 +99,11 @@ struct ble_gatts_conn {
 };
 
 /*** @client. */
+
+/** Convert the resume rate from milliseconds to OS ticks. */
+#define BLE_GATT_RESUME_RATE_TICKS                \
+    (MYNEWT_VAL(BLE_GATT_RESUME_RATE) * OS_TICKS_PER_SEC / 1000)
+
 int ble_gattc_locked_by_cur_task(void);
 void ble_gatts_indicate_fail_notconn(uint16_t conn_handle);
 
