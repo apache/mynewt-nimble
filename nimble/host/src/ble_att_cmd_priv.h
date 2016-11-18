@@ -139,6 +139,8 @@ struct ble_att_read_type_rsp {
 } __attribute__((packed));
 
 #define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     2
+#define BLE_ATT_READ_TYPE_ADATA_SZ_16       6
+#define BLE_ATT_READ_TYPE_ADATA_SZ_128      20
 
 /**
  * | Parameter                          | Size (octets)     |
