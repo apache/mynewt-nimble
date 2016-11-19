@@ -803,6 +803,100 @@ TEST_CASE(ble_gatt_read_test_concurrent)
     }
 }
 
+TEST_CASE(ble_gatt_read_test_long_oom)
+{
+    static const struct ble_hs_test_util_flat_attr attr = {
+        .handle = 34,
+        .value = {
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+            49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60
+        },
+        .value_len = 60,
+    };
+
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int reads_left;
+    int chunk_sz;
+    int off;
+    int rc;
+
+    ble_gatt_read_test_misc_init();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a read long procedure. */
+    off = 0;
+    reads_left = 0;
+    rc = ble_gattc_read_long(2, attr.handle, ble_gatt_read_test_long_cb,
+                             &reads_left);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    chunk_sz = ble_att_mtu(2) - BLE_ATT_READ_RSP_BASE_SZ;
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,
+                                            attr.value + off, chunk_sz);
+    off += chunk_sz;
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure proceeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+    ble_hs_test_util_tx_all();
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    chunk_sz = ble_att_mtu(2) - BLE_ATT_READ_RSP_BASE_SZ;
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,
+                                            attr.value + off, chunk_sz);
+    off += chunk_sz;
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify that procedure completes when mbufs are available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    chunk_sz = attr.value_len - off;
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,
+                                            attr.value + off, chunk_sz);
+    off += chunk_sz;
+
+    TEST_ASSERT(ble_gatt_read_test_complete);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == 2);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].handle == attr.handle);
+    TEST_ASSERT(ble_gatt_read_test_attrs[0].value_len == attr.value_len);
+    TEST_ASSERT(memcmp(ble_gatt_read_test_attrs[0].value, attr.value,
+                       ble_gatt_read_test_attrs[0].value_len) == 0);
+}
+
 TEST_SUITE(ble_gatt_read_test_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -812,6 +906,7 @@ TEST_SUITE(ble_gatt_read_test_suite)
     ble_gatt_read_test_long();
     ble_gatt_read_test_mult();
     ble_gatt_read_test_concurrent();
+    ble_gatt_read_test_long_oom();
 }
 
 int

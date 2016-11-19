@@ -1487,6 +1487,40 @@ ble_hs_test_util_mbuf_chain_len(const struct os_mbuf *om)
     return count;
 }
 
+struct os_mbuf *
+ble_hs_test_util_mbuf_alloc_all_but(int count)
+{
+    struct os_mbuf *prev;
+    struct os_mbuf *om;
+    int i;
+
+    /* Allocate all available mbufs and put them in a single chain. */
+    prev = NULL;
+    while (1) {
+        om = os_msys_get(0, 0);
+        if (om == NULL) {
+            break;
+        }
+
+        if (prev != NULL) {
+            SLIST_NEXT(om, om_next) = prev;
+        }
+
+        prev = om;
+    }
+
+    /* Now free 'count' mbufs. */
+    for (i = 0; i < count; i++) {
+        TEST_ASSERT_FATAL(prev != NULL);
+        om = SLIST_NEXT(prev, om_next);
+        os_mbuf_free(prev);
+
+        prev = om;
+    }
+
+    return prev;
+}
+
 int
 ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
 {
