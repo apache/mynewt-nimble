@@ -290,6 +290,26 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     return 0;
 }
 
+/**
+ * Allocates an mbuf to be used for an ATT response.  If an mbuf cannot be
+ * allocated, the received request mbuf is reused for the error response.
+ */
+static int
+ble_att_svr_pkt(struct os_mbuf **rxom, struct os_mbuf **out_txom,
+                uint8_t *out_att_err)
+{
+    *out_txom = ble_hs_mbuf_l2cap_pkt();
+    if (*out_txom != NULL) {
+        return 0;
+    }
+
+    /* Allocation failure.  Reuse receive buffer for response. */
+    *out_txom = *rxom;
+    *rxom = NULL;
+    *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+    return BLE_HS_ENOMEM;
+}
+
 static int
 ble_att_svr_read(uint16_t conn_handle,
                  struct ble_att_svr_entry *entry,
@@ -573,8 +593,6 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
         ble_hs_lock();
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
-        BLE_HS_DBG_ASSERT(chan != NULL);
-
         if (rc == 0) {
             BLE_HS_DBG_ASSERT(om != NULL);
 
@@ -613,8 +631,8 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
 }
 
 static int
-ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
-                          uint8_t *att_err)
+ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
+                          struct os_mbuf **out_txom, uint8_t *att_err)
 {
     struct ble_att_mtu_cmd cmd;
     struct ble_l2cap_chan *chan;
@@ -631,10 +649,8 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **out_txom,
     mtu = chan->blc_my_mtu;
     ble_hs_unlock();
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         goto done;
     }
 
@@ -678,7 +694,7 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
     ble_att_mtu_req_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
     BLE_ATT_LOG_CMD(0, "mtu req", conn_handle, ble_att_mtu_cmd_log, &cmd);
 
-    rc = ble_att_svr_build_mtu_rsp(conn_handle, &txom, &att_err);
+    rc = ble_att_svr_build_mtu_rsp(conn_handle, rxom, &txom, &att_err);
     if (rc != 0) {
         goto done;
     }
@@ -803,6 +819,7 @@ done:
 static int
 ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
                                 struct ble_att_find_info_req *req,
+                                struct os_mbuf **rxom,
                                 struct os_mbuf **out_txom,
                                 uint8_t *att_err)
 {
@@ -816,10 +833,8 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
 
     mtu = ble_att_mtu(conn_handle);
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         goto done;
     }
 
@@ -895,7 +910,8 @@ ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_att_svr_build_find_info_rsp(conn_handle, &req, &txom, &att_err);
+    rc = ble_att_svr_build_find_info_rsp(conn_handle, &req, rxom, &txom,
+                                         &att_err);
     if (rc != 0) {
         err_handle = req.bafq_start_handle;
         goto done;
@@ -1125,7 +1141,7 @@ done:
 static int
 ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
                                       struct ble_att_find_type_value_req *req,
-                                      struct os_mbuf *rxom,
+                                      struct os_mbuf **rxom,
                                       struct os_mbuf **out_txom,
                                       uint8_t *out_att_err)
 {
@@ -1134,10 +1150,8 @@ ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
     uint8_t *buf;
     int rc;
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, out_att_err);
+    if (rc != 0) {
         goto done;
     }
 
@@ -1153,7 +1167,7 @@ ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
     /* Write the variable length Information Data field. */
     mtu = ble_att_mtu(conn_handle);
 
-    rc = ble_att_svr_fill_type_value(conn_handle, req, rxom, txom, mtu,
+    rc = ble_att_svr_fill_type_value(conn_handle, req, *rxom, txom, mtu,
                                      out_att_err);
     if (rc != 0) {
         goto done;
@@ -1209,7 +1223,7 @@ ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_att_svr_build_find_type_value_rsp(conn_handle, &req, *rxom,
+    rc = ble_att_svr_build_find_type_value_rsp(conn_handle, &req, rxom,
                                                &txom, &att_err);
     if (rc != 0) {
         err_handle = req.bavq_start_handle;
@@ -1229,6 +1243,7 @@ static int
 ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
                                 struct ble_att_read_type_req *req,
                                 uint8_t *uuid128,
+                                struct os_mbuf **rxom,
                                 struct os_mbuf **out_txom,
                                 uint8_t *att_err,
                                 uint16_t *err_handle)
@@ -1253,11 +1268,9 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
 
     mtu = ble_att_mtu(conn_handle);
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         *err_handle = 0;
-        rc = BLE_HS_ENOMEM;
         goto done;
     }
 
@@ -1415,7 +1428,7 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
     rc = ble_att_svr_build_read_type_rsp(conn_handle, &req, uuid128,
-                                         &txom, &att_err, &err_handle);
+                                         rxom, &txom, &att_err, &err_handle);
     if (rc != 0) {
         goto done;
     }
@@ -1456,10 +1469,9 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
     ble_att_read_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     BLE_ATT_LOG_CMD(0, "read req", conn_handle, ble_att_read_req_log, &req);
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, &att_err);
+    if (rc != 0) {
+        err_handle = req.barq_handle;
         goto done;
     }
 
@@ -1513,16 +1525,16 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     BLE_ATT_LOG_CMD(0, "read blob req", conn_handle, ble_att_read_blob_req_log,
                     &req);
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, &att_err);
+    if (rc != 0) {
+        err_handle = req.babq_handle;
         goto done;
     }
 
     dptr = os_mbuf_extend(txom, 1);
     if (dptr == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        err_handle = req.babq_handle;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
@@ -1560,11 +1572,9 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
 
     mtu = ble_att_mtu(conn_handle);
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         *err_handle = 0;
-        rc = BLE_HS_ENOMEM;
         goto done;
     }
 
@@ -1740,6 +1750,7 @@ static int
 ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
                                       struct ble_att_read_group_type_req *req,
                                       uint8_t *group_uuid128,
+                                      struct os_mbuf **rxom,
                                       struct os_mbuf **out_txom,
                                       uint8_t *att_err,
                                       uint16_t *err_handle)
@@ -1765,10 +1776,8 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
 
     mtu = ble_att_mtu(conn_handle);
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         goto done;
     }
 
@@ -1975,7 +1984,8 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
     rc = ble_att_svr_build_read_group_type_rsp(conn_handle, &req, uuid128,
-                                               &txom, &att_err, &err_handle);
+                                               rxom, &txom, &att_err,
+                                               &err_handle);
     if (rc != 0) {
         goto done;
     }
@@ -1990,16 +2000,15 @@ done:
 }
 
 static int
-ble_att_svr_build_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
+ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
+                            uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
     int rc;
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         goto done;
     }
 
@@ -2058,7 +2067,7 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_att_svr_build_write_rsp(&txom, &att_err);
+    rc = ble_att_svr_build_write_rsp(rxom, &txom, &att_err);
     if (rc != 0) {
         err_handle = req.bawq_handle;
         goto done;
@@ -2423,15 +2432,17 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = ble_att_svr_insert_prep_entry(conn_handle, &req, *rxom, &att_err);
     ble_hs_unlock();
 
+    /* Reuse rxom for response.  On success, the response is identical to
+     * request except for op code.  On error, the buffer contents will get
+     * cleared before the error gets written.
+     */
+    txom = *rxom;
+    *rxom = NULL;
+
     if (rc != 0) {
         goto done;
     }
 
-    /* Reuse rxom for response.  Response is identical to request except for
-     * op code.
-     */
-    txom = *rxom;
-    *rxom = NULL;
     txom->om_data[0] = BLE_ATT_OP_PREP_WRITE_RSP;
 
     BLE_ATT_LOG_CMD(1, "prep write rsp", conn_handle,
@@ -2449,16 +2460,15 @@ done:
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_build_exec_write_rsp(struct os_mbuf **out_txom, uint8_t *att_err)
+ble_att_svr_build_exec_write_rsp(struct os_mbuf **rxom,
+                                 struct os_mbuf **out_txom, uint8_t *att_err)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
     int rc;
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
         goto done;
     }
 
@@ -2507,7 +2517,7 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
     BLE_ATT_LOG_CMD(0, "exec write req", conn_handle,
                     ble_att_exec_write_req_log, &req);
 
-    rc = ble_att_svr_build_exec_write_rsp(&txom, &att_err);
+    rc = ble_att_svr_build_exec_write_rsp(rxom, &txom, &att_err);
     if (rc != 0) {
         err_handle = 0;
         goto done;
@@ -2587,21 +2597,22 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_build_indicate_rsp(struct os_mbuf **out_txom)
+ble_att_svr_build_indicate_rsp(struct os_mbuf **rxom,
+                               struct os_mbuf **out_txom, uint8_t *out_att_err)
 {
     struct os_mbuf *txom;
     uint8_t *dst;
     int rc;
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        rc = BLE_HS_ENOMEM;
+    rc = ble_att_svr_pkt(rxom, &txom, out_att_err);
+    if (rc != 0) {
         goto done;
     }
 
     dst = os_mbuf_extend(txom, BLE_ATT_INDICATE_RSP_SZ);
     if (dst == NULL) {
         rc = BLE_HS_ENOMEM;
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto done;
     }
 
@@ -2623,10 +2634,14 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 
     struct ble_att_indicate_req req;
     struct os_mbuf *txom;
+    uint16_t err_handle;
+    uint8_t att_err;
     int rc;
 
     /* Initialize some values in case of early error. */
     txom = NULL;
+    att_err = 0;
+    err_handle = 0;
 
     if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_INDICATE_REQ_BASE_SZ) {
         rc = BLE_HS_EBADDATA;
@@ -2641,6 +2656,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     ble_att_indicate_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     BLE_ATT_LOG_CMD(0, "indicate req", conn_handle,
                     ble_att_indicate_req_log, &req);
+    err_handle = req.baiq_handle;
 
     if (req.baiq_handle == 0) {
         rc = BLE_HS_EBADDATA;
@@ -2653,7 +2669,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     ble_gap_notify_rx_event(conn_handle, req.baiq_handle, *rxom, 1);
     *rxom = NULL;
 
-    rc = ble_att_svr_build_indicate_rsp(&txom);
+    rc = ble_att_svr_build_indicate_rsp(rxom, &txom, &att_err);
     if (rc != 0) {
         goto done;
     }
@@ -2663,7 +2679,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 
 done:
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_INDICATE_REQ,
-                            0, 0);
+                            att_err, err_handle);
     return rc;
 }
 
