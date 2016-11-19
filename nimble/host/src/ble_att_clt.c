@@ -483,7 +483,7 @@ ble_att_clt_tx_read_type(uint16_t conn_handle,
 
 err:
     os_mbuf_free_chain(txom);
-    return 0;
+    return rc;
 }
 
 static int
