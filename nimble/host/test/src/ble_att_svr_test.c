@@ -964,11 +964,10 @@ TEST_CASE(ble_att_svr_test_mtu)
 
 TEST_CASE(ble_att_svr_test_read)
 {
-    struct ble_att_read_req req;
     struct ble_hs_conn *conn;
     struct os_mbuf *om;
+    uint16_t attr_handle;
     uint16_t conn_handle;
-    uint8_t buf[BLE_ATT_READ_REQ_SZ];
     uint8_t uuid_sec[16] = {1};
     uint8_t uuid[16] = {0};
     int rc;
@@ -976,26 +975,20 @@ TEST_CASE(ble_att_svr_test_read)
     conn_handle = ble_att_svr_test_misc_init(0);
 
     /*** Nonexistent attribute. */
-    req.barq_handle = 0;
-    ble_att_read_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    attr_handle = 0;
+    rc = ble_hs_test_util_rx_att_read(conn_handle, attr_handle);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, 0,
-                                            BLE_ATT_ERR_INVALID_HANDLE);
+                                       BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
     ble_att_svr_test_attr_r_1_len = 8;
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &req.barq_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    ble_att_read_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read(conn_handle, attr_handle);
     TEST_ASSERT(rc == 0);
     ble_hs_test_util_verify_tx_read_rsp(
         ble_att_svr_test_attr_r_1, ble_att_svr_test_attr_r_1_len);
@@ -1006,10 +999,7 @@ TEST_CASE(ble_att_svr_test_read)
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
     ble_att_svr_test_attr_r_1_len = 40;
 
-    ble_att_read_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read(conn_handle, attr_handle);
     TEST_ASSERT(rc == 0);
     ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
                                         BLE_ATT_MTU_DFLT - 1);
@@ -1017,21 +1007,17 @@ TEST_CASE(ble_att_svr_test_read)
     /*** Read requires encryption. */
     /* Insufficient authentication. */
     rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_READ | BLE_ATT_F_READ_ENC,
-                              &req.barq_handle,
+                              &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    ble_att_read_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read(conn_handle, attr_handle);
     TEST_ASSERT(rc == BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN));
-    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ,
-                                            req.barq_handle,
-                                            BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, attr_handle,
+                                       BLE_ATT_ERR_INSUFFICIENT_AUTHEN);
 
     /* Security check bypassed for local reads. */
-    rc = ble_att_svr_read_local(req.barq_handle, &om);
+    rc = ble_att_svr_read_local(attr_handle, &om);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(OS_MBUF_PKTLEN(om) == ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(os_mbuf_cmpf(om, 0, ble_att_svr_test_attr_r_1,
@@ -1048,74 +1034,55 @@ TEST_CASE(ble_att_svr_test_read)
     conn->bhc_sec_state.encrypted = 1;
     ble_hs_unlock();
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read(conn_handle, attr_handle);
     TEST_ASSERT(rc == 0);
     ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
                                         BLE_ATT_MTU_DFLT - 1);
-
 }
 
 TEST_CASE(ble_att_svr_test_read_blob)
 {
-    struct ble_att_read_blob_req req;
+    uint16_t attr_handle;
     uint16_t conn_handle;
-    uint8_t buf[BLE_ATT_READ_BLOB_REQ_SZ];
     uint8_t uuid[16] = {0};
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(0);
 
     /*** Nonexistent attribute. */
-    req.babq_handle = 0;
-    req.babq_offset = 0;
-    ble_att_read_blob_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read_blob(conn_handle, 0, 0);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_BLOB_REQ, 0,
-                                            BLE_ATT_ERR_INVALID_HANDLE);
-
+                                       BLE_ATT_ERR_INVALID_HANDLE);
 
     /*** Successful partial read. */
     ble_att_svr_test_attr_r_1 =
         (uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
     ble_att_svr_test_attr_r_1_len = 40;
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &req.babq_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    ble_att_read_blob_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read_blob(conn_handle, attr_handle, 0);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_read_blob_rsp(ble_att_svr_test_attr_r_1,
                                                   BLE_ATT_MTU_DFLT - 1);
 
     /*** Read remainder of attribute. */
-    req.babq_offset = BLE_ATT_MTU_DFLT - 1;
-    ble_att_read_blob_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read_blob(conn_handle, attr_handle,
+                                           BLE_ATT_MTU_DFLT - 1);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_read_blob_rsp(
         ble_att_svr_test_attr_r_1 + BLE_ATT_MTU_DFLT - 1,
         40 - (BLE_ATT_MTU_DFLT - 1));
 
     /*** Zero-length read. */
-    req.babq_offset = ble_att_svr_test_attr_r_1_len;
-    ble_att_read_blob_req_write(buf, sizeof buf, &req);
-
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
-                                                buf, sizeof buf);
+    rc = ble_hs_test_util_rx_att_read_blob(conn_handle, attr_handle,
+                                           ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_read_blob_rsp(ble_att_svr_test_attr_r_1,
                                                   0);
-
 }
 
 TEST_CASE(ble_att_svr_test_read_mult)
@@ -2240,6 +2207,54 @@ TEST_CASE(ble_att_svr_test_indicate)
 
 }
 
+TEST_CASE(ble_att_svr_test_oom)
+{
+    struct os_mbuf *oms;
+    uint16_t conn_handle;
+    int rc;
+
+    conn_handle = ble_att_svr_test_misc_init(0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming request. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+
+    /*** MTU. */
+
+    /* Receive a request. */
+    rc = ble_hs_test_util_rx_att_mtu_cmd(conn_handle, 1, 100);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
+
+    /* Ensure we were able to send an error response. */
+    ble_hs_test_util_tx_all();
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_MTU_REQ, 0,
+                                       BLE_ATT_ERR_INSUFFICIENT_RES);
+
+    /*** Read. */
+    ble_hs_test_util_prev_tx_dequeue();
+
+    /* Receive a request. */
+    rc = ble_hs_test_util_rx_att_read(conn_handle, 99);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
+
+    /* Ensure we were able to send an error response. */
+    ble_hs_test_util_tx_all();
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, 99,
+                                       BLE_ATT_ERR_INSUFFICIENT_RES);
+
+    /*** Read blob. */
+    ble_hs_test_util_prev_tx_dequeue();
+
+    /* Receive a request. */
+    rc = ble_hs_test_util_rx_att_read_blob(conn_handle, 99, 0);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
+
+    /* Ensure we were able to send an error response. */
+    ble_hs_test_util_tx_all();
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_BLOB_REQ, 99,
+                                       BLE_ATT_ERR_INSUFFICIENT_RES);
+    os_mbuf_free_chain(oms);
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     /* When checking for mbuf leaks, ensure no stale prep entries. */
@@ -2263,6 +2278,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_prep_write();
     ble_att_svr_test_notify();
     ble_att_svr_test_indicate();
+    ble_att_svr_test_oom();
 }
 
 int

@@ -2862,7 +2862,8 @@ TEST_CASE(ble_gap_test_case_mtu_us)
     TEST_ASSERT_FATAL(rc == 0);
     ble_hs_test_util_verify_tx_mtu_cmd(1, 200);
 
-    ble_hs_test_util_rx_att_mtu_cmd(2, 0, 123);
+    rc = ble_hs_test_util_rx_att_mtu_cmd(2, 0, 123);
+    TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_MTU);
     TEST_ASSERT(ble_gap_test_event.mtu.conn_handle == 2);
     TEST_ASSERT(ble_gap_test_event.mtu.channel_id == BLE_L2CAP_CID_ATT);
@@ -2872,6 +2873,7 @@ TEST_CASE(ble_gap_test_case_mtu_us)
 TEST_CASE(ble_gap_test_case_mtu_peer)
 {
     const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
+    int rc;
 
     ble_gap_test_util_init();
 
@@ -2880,7 +2882,8 @@ TEST_CASE(ble_gap_test_case_mtu_peer)
 
     ble_att_set_preferred_mtu(200);
 
-    ble_hs_test_util_rx_att_mtu_cmd(2, 1, 123);
+    rc = ble_hs_test_util_rx_att_mtu_cmd(2, 1, 123);
+    TEST_ASSERT_FATAL(rc == 0);
     ble_hs_test_util_verify_tx_mtu_cmd(0, 200);
 
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_MTU);

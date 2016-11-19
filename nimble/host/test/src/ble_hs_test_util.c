@@ -917,7 +917,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
     return rc;
 }
 
-void
+int
 ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req, uint16_t mtu)
 {
     struct ble_att_mtu_cmd cmd;
@@ -934,7 +934,39 @@ ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req, uint16_t mtu)
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
-    TEST_ASSERT(rc == 0);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read(uint16_t conn_handle, uint16_t attr_handle)
+{
+    struct ble_att_read_req req;
+    uint8_t buf[BLE_ATT_READ_REQ_SZ];
+    int rc;
+
+    req.barq_handle = attr_handle;
+    ble_att_read_req_write(buf, sizeof buf, &req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_blob(uint16_t conn_handle, uint16_t attr_handle,
+                                  uint16_t offset)
+{
+    struct ble_att_read_blob_req req;
+    uint8_t buf[BLE_ATT_READ_BLOB_REQ_SZ];
+    int rc;
+
+    req.babq_handle = attr_handle;
+    req.babq_offset = offset;
+    ble_att_read_blob_req_write(buf, sizeof buf, &req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    return rc;
 }
 
 void
