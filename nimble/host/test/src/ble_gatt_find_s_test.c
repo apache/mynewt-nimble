@@ -69,6 +69,26 @@ ble_gatt_find_s_test_misc_cb(uint16_t conn_handle,
 
     return 0;
 }
+
+static void
+ble_gatt_find_s_test_misc_verify_incs(
+    struct ble_gatt_find_s_test_entry *entries)
+{
+    int i;
+
+    for (i = 0; entries[i].inc_handle != 0; i++) {
+        TEST_ASSERT(ble_gatt_find_s_test_svcs[i].start_handle ==
+                    entries[i].start_handle);
+        TEST_ASSERT(ble_gatt_find_s_test_svcs[i].end_handle ==
+                    entries[i].end_handle);
+        TEST_ASSERT(memcmp(ble_gatt_find_s_test_svcs[i].uuid128,
+                           entries[i].uuid128, 16) == 0);
+    }
+
+    TEST_ASSERT(i == ble_gatt_find_s_test_num_svcs);
+    TEST_ASSERT(ble_gatt_find_s_test_proc_complete);
+}
+
 static int
 ble_gatt_find_s_test_misc_rx_read_type(
     uint16_t conn_handle, struct ble_gatt_find_s_test_entry *entries)
@@ -326,11 +346,95 @@ TEST_CASE(ble_gatt_find_s_test_1)
     );
 }
 
+TEST_CASE(ble_gatt_find_s_test_oom)
+{
+
+    struct ble_gatt_find_s_test_entry incs[] = {
+        {
+            .inc_handle = 21,
+            .start_handle = 800,
+            .end_handle = 899,
+            .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+        },
+        {
+            .inc_handle = 22,
+            .start_handle = 900,
+            .end_handle = 999,
+            .uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+        },
+        { 0 }
+    };
+
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int rc;
+
+    ble_gatt_find_s_test_misc_init();
+
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a discover all characteristics procedure. */
+    rc = ble_gattc_find_inc_svcs(1, 20, 30,
+                                 ble_gatt_find_s_test_misc_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_find_s_test_misc_rx_read_type(1, incs);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure succeeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    /* We can't cause a memory exhaustion error on the follow up request.  The
+     * GATT client frees the read response immediately before sending the
+     * follow-up request, so there is always an mbuf available.
+     */
+    /* XXX: Find a way to test this. */
+    ble_gatt_find_s_test_misc_rx_read(1, incs[0].uuid128);
+    ble_hs_test_util_tx_all();
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_find_s_test_misc_rx_read_type(1, incs + 1);
+
+    /* Verify the procedure succeeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_gatt_find_s_test_misc_rx_read(1, incs[1].uuid128);
+    ble_hs_test_util_tx_all();
+
+    ble_hs_test_util_rx_att_err_rsp(1,
+                                    BLE_ATT_OP_READ_TYPE_REQ,
+                                    BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                    1);
+
+    ble_gatt_find_s_test_misc_verify_incs(incs);
+}
+
 TEST_SUITE(ble_gatt_find_s_test_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
     ble_gatt_find_s_test_1();
+    ble_gatt_find_s_test_oom();
 }
 
 int

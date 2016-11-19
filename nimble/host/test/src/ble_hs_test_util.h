@@ -194,6 +194,7 @@ int ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
                                           uint16_t attr_handle,
                                           const void *data, uint16_t data_len,
                                           ble_gatt_attr_fn *cb, void *cb_arg);
+struct os_mbuf *ble_hs_test_util_mbuf_alloc_all_but(int count);
 int ble_hs_test_util_mbuf_count(
     const struct ble_hs_test_util_mbuf_params *params);
 void ble_hs_test_util_assert_mbufs_freed(

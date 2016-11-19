@@ -615,6 +615,202 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
     ble_hs_test_util_verify_tx_exec_write(0);
 }
 
+TEST_CASE(ble_gatt_write_test_long_oom)
+{
+    static const struct ble_hs_test_util_flat_attr attr = {
+        .handle = 34,
+        .value = {
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20,
+        },
+        .value_len = 20,
+    };
+
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int chunk_sz;
+    int off;
+    int rc;
+
+    ble_gatt_write_test_init();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a write long procedure. */
+    off = 0;
+    rc = ble_hs_test_util_gatt_write_long_flat(
+        2, attr.handle, attr.value, attr.value_len,
+        ble_gatt_write_test_cb_good, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    chunk_sz = ble_att_mtu(2) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+
+    ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
+                                          attr.value + off, chunk_sz);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_write_test_rx_prep_rsp(2, attr.handle, off, attr.value + off,
+                                    chunk_sz);
+    off += chunk_sz;
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure proceeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+    ble_hs_test_util_tx_all();
+
+    chunk_sz = attr.value_len - off;
+    ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
+                                          attr.value + off, chunk_sz);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_write_test_rx_prep_rsp(
+        2, attr.handle, off, attr.value + off, chunk_sz);
+    off += chunk_sz;
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify that procedure completes when mbufs are available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    /* Verify execute write request sent. */
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+
+    /* Receive Exec Write response. */
+    ble_hs_test_util_tx_all();
+    ble_gatt_write_test_rx_exec_rsp(2);
+
+    /* Verify callback got called. */
+    TEST_ASSERT(ble_gatt_write_test_cb_called);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+}
+
+TEST_CASE(ble_gatt_write_test_reliable_oom)
+{
+    static const struct ble_hs_test_util_flat_attr attr = {
+        .handle = 34,
+        .value = {
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20,
+        },
+        .value_len = 20,
+    };
+
+    struct ble_gatt_attr mattr;
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int chunk_sz;
+    int off;
+    int rc;
+
+    ble_gatt_write_test_init();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a write reliable procedure. */
+    ble_hs_test_util_attr_from_flat(&mattr, &attr);
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+    off = 0;
+    rc = ble_gattc_write_reliable(2, &mattr, 1,
+                                  ble_gatt_write_test_reliable_cb_good, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    chunk_sz = ble_att_mtu(2) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+
+    ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
+                                          attr.value + off, chunk_sz);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_write_test_rx_prep_rsp(2, attr.handle, off, attr.value + off,
+                                    chunk_sz);
+    off += chunk_sz;
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure proceeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+    ble_hs_test_util_tx_all();
+
+    chunk_sz = attr.value_len - off;
+    ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
+                                          attr.value + off, chunk_sz);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_write_test_rx_prep_rsp(
+        2, attr.handle, off, attr.value + off, chunk_sz);
+    off += chunk_sz;
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify that procedure completes when mbufs are available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    /* Verify execute write request sent. */
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+
+    /* Receive Exec Write response. */
+    ble_hs_test_util_tx_all();
+    ble_gatt_write_test_rx_exec_rsp(2);
+
+    /* Verify callback got called. */
+    TEST_ASSERT(ble_gatt_write_test_cb_called);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+}
+
 TEST_SUITE(ble_gatt_write_test_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -628,6 +824,8 @@ TEST_SUITE(ble_gatt_write_test_suite)
     ble_gatt_write_test_long_bad_length();
     ble_gatt_write_test_long_queue_full();
     ble_gatt_write_test_reliable_good();
+    ble_gatt_write_test_long_oom();
+    ble_gatt_write_test_reliable_oom();
 }
 
 int

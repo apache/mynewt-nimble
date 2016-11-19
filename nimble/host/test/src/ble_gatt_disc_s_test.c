@@ -86,6 +86,22 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
             break;
         }
 
+        if (services[i].uuid16 != 0) {
+            if (off + BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16 >
+                ble_att_mtu(conn_handle)) {
+
+                /* Can't fit any more entries. */
+                break;
+            }
+        } else {
+            if (off + BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128 >
+                ble_att_mtu(conn_handle)) {
+
+                /* Can't fit any more entries. */
+                break;
+            }
+        }
+
         htole16(buf + off, services[i].start_handle);
         off += 2;
 
@@ -149,6 +165,13 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
     for (i = 0; ; i++) {
         if (services[i].start_handle == 0) {
             /* No more services. */
+            break;
+        }
+
+        if (off + BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ >
+            ble_att_mtu(conn_handle)) {
+
+            /* Can't fit any more entries. */
             break;
         }
 
@@ -326,7 +349,7 @@ TEST_CASE(ble_gatt_disc_s_test_disc_all)
     });
 }
 
-TEST_CASE(ble_gatt_disc_s_test_disc_service_uuid)
+TEST_CASE(ble_gatt_disc_s_test_disc_uuid)
 {
     /*** 128-bit service; one entry. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
@@ -389,12 +412,234 @@ TEST_CASE(ble_gatt_disc_s_test_disc_service_uuid)
     });
 }
 
+TEST_CASE(ble_gatt_disc_s_test_oom_all)
+{
+    struct ble_gatt_disc_s_test_svc svcs[] = {
+        { 1, 5, 0,      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 6, 10, 0,     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 0 },
+    };
+
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int num_svcs;
+    int rc;
+
+    ble_gatt_disc_s_test_init();
+
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a discover all services procedure. */
+    rc = ble_gattc_disc_all_svcs(1, ble_gatt_disc_s_test_misc_disc_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    num_svcs = ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, svcs);
+
+    /* Make sure there are still undiscovered services. */
+    TEST_ASSERT_FATAL(num_svcs < sizeof svcs / sizeof svcs[0] - 1);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure proceeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, svcs + num_svcs);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    ble_hs_test_util_rx_att_err_rsp(1,
+                                    BLE_ATT_OP_READ_GROUP_TYPE_REQ,
+                                    BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                    1);
+    ble_gatt_disc_s_test_misc_verify_services(svcs);
+}
+
+TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
+{
+    /* Retrieve enough services to require two transactions. */
+    struct ble_gatt_disc_s_test_svc svcs[] = {
+        { 1, 5, 0,      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 6, 10, 0,     { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 11, 15, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 16, 20, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 21, 25, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 26, 30, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 0 },
+    };
+
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int num_svcs;
+    int rc;
+
+    ble_gatt_disc_s_test_init();
+
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a discover all services procedure. */
+    rc = ble_gattc_disc_svc_by_uuid(1, svcs[0].uuid128,
+                                    ble_gatt_disc_s_test_misc_disc_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    num_svcs = ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(1, svcs);
+
+    /* Make sure there are still undiscovered services. */
+    TEST_ASSERT_FATAL(num_svcs < sizeof svcs / sizeof svcs[0] - 1);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure proceeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+    ble_hs_test_util_tx_all();
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(1, svcs + num_svcs);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify that procedure completes when mbufs are available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    ble_hs_test_util_rx_att_err_rsp(1,
+                                    BLE_ATT_OP_READ_GROUP_TYPE_REQ,
+                                    BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                    1);
+    ble_gatt_disc_s_test_misc_verify_services(svcs);
+}
+
+TEST_CASE(ble_gatt_disc_s_test_oom_timeout)
+{
+    struct ble_gatt_disc_s_test_svc svcs[] = {
+        { 1, 5, 0,      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 6, 10, 0,     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 0 },
+    };
+
+    struct os_mbuf *oms_temp;
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int rc;
+    int i;
+
+    ble_gatt_disc_s_test_init();
+
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a discover all services procedure. */
+    rc = ble_gattc_disc_all_svcs(1, ble_gatt_disc_s_test_misc_disc_cb, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, svcs);
+
+    /* Keep trying to resume for 30 seconds, but never free any mbufs.  Verify
+     * procedure eventually times out.
+     */
+    for (i = 0; i < 30; i++) {
+        /* Ensure no follow-up request got sent.  It should not have gotten
+         * sent due to mbuf exhaustion.
+         */
+        ble_hs_test_util_prev_tx_queue_clear();
+        ble_hs_test_util_tx_all();
+        TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+        oms_temp = ble_hs_test_util_mbuf_alloc_all_but(0);
+        if (oms_temp != NULL) {
+            os_mbuf_concat(oms, oms_temp);
+        }
+
+        /* Verify that we will resume the stalled GATT procedure in one
+         * second.
+         */
+        ticks_until = ble_gattc_timer();
+        TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+        os_time_advance(ticks_until);
+    }
+
+    /* Verify the procedure has timed out.  The connection should now be
+     * in the process of being terminated.  XXX: Check this.
+     */
+    ble_hs_test_util_set_ack_disconnect(0);
+    ble_gattc_timer();
+
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_HS_FOREVER);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+
+    os_mbuf_free_chain(oms);
+}
+
 TEST_SUITE(ble_gatt_disc_s_test_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
     ble_gatt_disc_s_test_disc_all();
-    ble_gatt_disc_s_test_disc_service_uuid();
+    ble_gatt_disc_s_test_disc_uuid();
+    ble_gatt_disc_s_test_oom_all();
+    ble_gatt_disc_s_test_oom_uuid();
+    ble_gatt_disc_s_test_oom_timeout();
 }
 
 int

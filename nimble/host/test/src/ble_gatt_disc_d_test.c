@@ -79,8 +79,25 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
             break;
         }
 
-        /* If the value length is changing, we need a separate response. */
         uuid16_cur = ble_uuid_128_to_16(dscs[i].dsc_uuid128);
+
+        if (uuid16_cur != 0) {
+            if (off + BLE_ATT_FIND_INFO_IDATA_16_SZ >
+                ble_att_mtu(conn_handle)) {
+
+                /* Can't fit any more entries. */
+                break;
+            }
+        } else {
+            if (off + BLE_ATT_FIND_INFO_IDATA_128_SZ >
+                ble_att_mtu(conn_handle)) {
+
+                /* Can't fit any more entries. */
+                break;
+            }
+        }
+
+        /* If the value length is changing, we need a separate response. */
         if (((uuid16_0 == 0) ^ (uuid16_cur == 0)) != 0) {
             break;
         }
@@ -347,11 +364,99 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 }
 
+TEST_CASE(ble_gatt_disc_d_test_oom_all)
+{
+    struct ble_gatt_disc_d_test_dsc dscs[] = {
+        {
+            .chr_val_handle = 543,
+            .dsc_handle = 548,
+            .dsc_uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+        },
+        {
+            .chr_val_handle = 543,
+            .dsc_handle = 549,
+            .dsc_uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+        },
+        { 0 }
+    };
+
+    struct os_mbuf *oms;
+    int32_t ticks_until;
+    int stop_after;
+    int num_dscs;
+    int rc;
+
+    ble_gatt_disc_d_test_init();
+
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    /* Initiate a discover all characteristics procedure. */
+    stop_after = 0;
+    rc = ble_gattc_disc_all_dscs(1, 543, 560,
+                                 ble_gatt_disc_d_test_misc_cb, &stop_after);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    num_dscs = ble_gatt_disc_d_test_misc_rx_rsp_once(1, dscs);
+
+    /* Make sure there are still undiscovered services. */
+    TEST_ASSERT_FATAL(num_dscs < sizeof dscs / sizeof dscs[0] - 1);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure proceeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(1);
+    ble_gatt_disc_d_test_misc_rx_rsp_once(1, dscs + num_dscs);
+
+    /* Ensure no follow-up request got sent.  It should not have gotten sent
+     * due to mbuf exhaustion.
+     */
+    ble_hs_test_util_prev_tx_queue_clear();
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    /* Verify that we will resume the stalled GATT procedure in one second. */
+    ticks_until = ble_gattc_timer();
+    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+
+    /* Verify the procedure succeeds after mbufs become available. */
+    os_mbuf_free_chain(oms);
+    os_time_advance(ticks_until);
+    ble_gattc_timer();
+
+    ble_hs_test_util_tx_all();
+
+    ble_hs_test_util_rx_att_err_rsp(1,
+                                    BLE_ATT_OP_READ_TYPE_REQ,
+                                    BLE_ATT_ERR_ATTR_NOT_FOUND,
+                                    1);
+    ble_gatt_disc_d_test_misc_verify_dscs(dscs, 0);
+}
+
 TEST_SUITE(ble_gatt_disc_d_test_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
     ble_gatt_disc_d_test_1();
+    ble_gatt_disc_d_test_oom_all();
 }
 
 int
