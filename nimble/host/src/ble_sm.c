@@ -314,10 +314,13 @@ ble_sm_gen_ltk(struct ble_sm_proc *proc, uint8_t *ltk)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(ltk, 16);
+    rc = ble_hs_hci_util_rand(ltk, proc->key_size);
     if (rc != 0) {
         return rc;
     }
+
+    /* Ensure proper key size */
+    memset(ltk + proc->key_size, 0, sizeof proc->ltk - proc->key_size);
 
     return 0;
 }
@@ -1377,6 +1380,9 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
     if (rx_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN) {
         proc->rx_key_flags |= BLE_SM_KE_F_SIGN_INFO;
     }
+
+    proc->key_size = min(proc->pair_req.max_enc_key_size,
+                         proc->pair_rsp.max_enc_key_size);
 }
 
 static void
@@ -1393,7 +1399,7 @@ ble_sm_pair_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     cmd.io_cap = ble_hs_cfg.sm_io_cap;
     cmd.oob_data_flag = ble_hs_cfg.sm_oob_data_flag;
     cmd.authreq = ble_sm_build_authreq();
-    cmd.max_enc_key_size = 16;
+    cmd.max_enc_key_size = BLE_SM_PAIR_KEY_SZ_MAX;
 
     if (is_req) {
         cmd.init_key_dist = ble_hs_cfg.sm_our_key_dist;

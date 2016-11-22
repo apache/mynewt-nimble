@@ -440,6 +440,9 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
+    /* Ensure proper key size */
+    memset(proc->ltk + proc->key_size, 0, sizeof proc->ltk - proc->key_size);
+
     /* Ensure the ltk gets persisted when the pairing procedure succeeds. */
     memcpy(proc->our_keys.ltk, proc->ltk, sizeof proc->our_keys.ltk);
     proc->our_keys.ltk_valid = 1;

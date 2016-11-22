@@ -181,7 +181,10 @@ ble_sm_gen_stk(struct ble_sm_proc *proc)
         return rc;
     }
 
-    memcpy(proc->ltk, key, sizeof key);
+    memcpy(proc->ltk, key, proc->key_size);
+
+    /* Ensure proper key size */
+    memset(proc->ltk + proc->key_size, 0, sizeof key - proc->key_size);
 
     return 0;
 }
