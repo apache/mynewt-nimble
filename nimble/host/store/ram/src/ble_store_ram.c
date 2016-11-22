@@ -371,3 +371,10 @@ ble_store_ram_write(int obj_type, union ble_store_value *val)
         return BLE_HS_ENOTSUP;
     }
 }
+
+void
+ble_store_ram_init(void)
+{
+    ble_hs_cfg.store_read_cb = ble_store_ram_read;
+    ble_hs_cfg.store_write_cb = ble_store_ram_write;
+}
