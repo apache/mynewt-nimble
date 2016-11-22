@@ -90,26 +90,6 @@ ble_sm_pair_cmd_parse(void *payload, int len, struct ble_sm_pair_cmd *cmd)
     cmd->resp_key_dist = u8ptr[5];
 }
 
-int
-ble_sm_pair_cmd_is_valid(struct ble_sm_pair_cmd *cmd)
-{
-    if (cmd->io_cap >= BLE_SM_IO_CAP_RESERVED) {
-        return 0;
-    }
-
-    if (cmd->oob_data_flag >= BLE_SM_PAIR_OOB_RESERVED) {
-        return 0;
-    }
-
-    if (cmd->max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN ||
-        cmd->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
-
-        return 0;
-    }
-
-    return 1;
-}
-
 void
 ble_sm_pair_cmd_write(void *payload, int len, int is_req,
                       struct ble_sm_pair_cmd *cmd)
@@ -143,7 +123,6 @@ ble_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
     ble_sm_pair_cmd_write(txom->om_data, txom->om_len, is_req, cmd);
     BLE_SM_LOG_CMD(1, is_req ? "pair req" : "pair rsp", conn_handle,
                    ble_sm_pair_cmd_log, cmd);
-    BLE_HS_DBG_ASSERT(ble_sm_pair_cmd_is_valid(cmd));
 
     rc = ble_sm_tx(conn_handle, txom);
     if (rc != 0) {
