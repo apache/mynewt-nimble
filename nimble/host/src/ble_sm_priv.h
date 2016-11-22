@@ -257,6 +257,7 @@ struct ble_sm_proc {
     uint8_t pair_alg;
     uint8_t state;
     uint8_t rx_key_flags;
+    uint8_t key_size;
 
     struct ble_sm_pair_cmd pair_req;
     struct ble_sm_pair_cmd pair_rsp;
