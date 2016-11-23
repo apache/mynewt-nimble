@@ -2154,12 +2154,13 @@ ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
 }
 
 static struct ble_att_prep_entry *
-ble_att_svr_prep_alloc(void)
+ble_att_svr_prep_alloc(uint8_t *att_err)
 {
     struct ble_att_prep_entry *entry;
 
     entry = os_memblock_get(&ble_att_svr_prep_entry_pool);
     if (entry == NULL) {
+        *att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         return NULL;
     }
 
@@ -2167,6 +2168,7 @@ ble_att_svr_prep_alloc(void)
     entry->bape_value = ble_hs_mbuf_l2cap_pkt();
     if (entry->bape_value == NULL) {
         ble_att_svr_prep_free(entry);
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         return NULL;
     }
 
@@ -2340,9 +2342,8 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
 
     conn = ble_hs_conn_find_assert(conn_handle);
 
-    prep_entry = ble_att_svr_prep_alloc();
+    prep_entry = ble_att_svr_prep_alloc(out_att_err);
     if (prep_entry == NULL) {
-        *out_att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         return BLE_HS_ENOMEM;
     }
     prep_entry->bape_handle = req->bapc_handle;
@@ -2355,7 +2356,13 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
         BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
         OS_MBUF_PKTLEN(rxom) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
     if (rc != 0) {
+        /* Failed to allocate an mbuf to hold the additional data. */
         ble_att_svr_prep_free(prep_entry);
+
+        /* XXX: We need to differentiate between "prepare queue full" and
+         * "insufficient resources."  Currently, we always indicate prepare
+         * queue full.
+         */
         *out_att_err = BLE_ATT_ERR_PREPARE_QUEUE_FULL;
         return rc;
     }
