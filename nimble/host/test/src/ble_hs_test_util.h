@@ -143,9 +143,62 @@ int ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
 void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 int ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req,
                                     uint16_t mtu);
-int ble_hs_test_util_rx_att_read(uint16_t conn_handle, uint16_t attr_handle);
-int ble_hs_test_util_rx_att_read_blob(uint16_t conn_handle,
-                                      uint16_t attr_handle, uint16_t offset);
+int ble_hs_test_util_rx_att_find_info_req(uint16_t conn_handle,
+                                          uint16_t start_handle,
+                                          uint16_t end_handle);
+int ble_hs_test_util_rx_att_find_type_value_req(uint16_t conn_handle,
+                                                uint16_t start_handle,
+                                                uint16_t end_handle,
+                                                uint16_t attr_type,
+                                                const void *attr_val,
+                                                uint16_t attr_len);
+int ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
+                                          uint16_t start_handle,
+                                          uint16_t end_handle,
+                                          const void *uuid128);
+int ble_hs_test_util_rx_att_read_type_req16(uint16_t conn_handle,
+                                            uint16_t start_handle,
+                                            uint16_t end_handle,
+                                            uint16_t uuid16);
+int ble_hs_test_util_rx_att_read_req(uint16_t conn_handle,
+                                     uint16_t attr_handle);
+int ble_hs_test_util_rx_att_read_blob_req(uint16_t conn_handle,
+                                          uint16_t attr_handle,
+                                          uint16_t offset);
+int ble_hs_test_util_rx_att_read_mult_req(uint16_t conn_handle,
+                                          const uint16_t *handles,
+                                          int num_handles);
+int ble_hs_test_util_rx_att_read_group_type_req(uint16_t conn_handle,
+                                                uint16_t start_handle,
+                                                uint16_t end_handle,
+                                                const void *uuid128);
+int ble_hs_test_util_rx_att_read_group_type_req16(uint16_t conn_handle,
+                                                  uint16_t start_handle,
+                                                  uint16_t end_handle,
+                                                  uint16_t uuid16);
+int ble_hs_test_util_rx_att_write_req(uint16_t conn_handle,
+                                      uint16_t attr_handle,
+                                      const void *attr_val,
+                                      uint16_t attr_len);
+int ble_hs_test_util_rx_att_write_cmd(uint16_t conn_handle,
+                                      uint16_t attr_handle,
+                                      const void *attr_val,
+                                      uint16_t attr_len);
+int ble_hs_test_util_rx_att_prep_write_req(uint16_t conn_handle,
+                                           uint16_t attr_handle,
+                                           uint16_t offset,
+                                           const void *attr_val,
+                                           uint16_t attr_len);
+int ble_hs_test_util_rx_att_exec_write_req(uint16_t conn_handle,
+                                           uint8_t flags);
+int ble_hs_test_util_rx_att_notify_req(uint16_t conn_handle,
+                                       uint16_t attr_handle,
+                                       void *attr_val,
+                                       uint16_t attr_len);
+int ble_hs_test_util_rx_att_indicate_req(uint16_t conn_handle,
+                                         uint16_t attr_handle,
+                                         void *attr_val,
+                                         uint16_t attr_len);
 void ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
                                      uint8_t error_code, uint16_t err_handle);
 void ble_hs_test_util_set_startup_acks(void);
