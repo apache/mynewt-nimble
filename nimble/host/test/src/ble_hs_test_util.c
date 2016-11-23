@@ -935,7 +935,103 @@ ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req, uint16_t mtu)
 }
 
 int
-ble_hs_test_util_rx_att_read(uint16_t conn_handle, uint16_t attr_handle)
+ble_hs_test_util_rx_att_find_info_req(uint16_t conn_handle,
+                                      uint16_t start_handle,
+                                      uint16_t end_handle)
+{
+    struct ble_att_find_info_req req;
+    uint8_t buf[BLE_ATT_FIND_INFO_REQ_SZ];
+    int rc;
+
+    req.bafq_start_handle = start_handle;
+    req.bafq_end_handle = end_handle;
+
+    ble_att_find_info_req_write(buf, sizeof buf, &req);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_find_type_value_req(uint16_t conn_handle,
+                                            uint16_t start_handle,
+                                            uint16_t end_handle,
+                                            uint16_t attr_type,
+                                            const void *attr_val,
+                                            uint16_t attr_len)
+{
+    struct ble_att_find_type_value_req req;
+    uint8_t buf[BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + 16];
+    int rc;
+
+    TEST_ASSERT(attr_len <= 16);
+
+    req.bavq_start_handle = start_handle;
+    req.bavq_end_handle = end_handle;
+    req.bavq_attr_type = attr_type;
+
+    ble_att_find_type_value_req_write(buf, sizeof buf, &req);
+    memcpy(buf + BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ, attr_val, attr_len);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + attr_len);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
+                                      uint16_t start_handle,
+                                      uint16_t end_handle,
+                                      const void *uuid128)
+{
+    struct ble_att_read_type_req req;
+    uint8_t buf[BLE_ATT_READ_TYPE_REQ_SZ_128];
+    uint16_t uuid16;
+    int req_len;
+    int rc;
+
+    req.batq_start_handle = start_handle;
+    req.batq_end_handle = end_handle;
+
+    ble_att_read_type_req_write(buf, sizeof buf, &req);
+
+    uuid16 = ble_uuid_128_to_16(uuid128);
+    if (uuid16 != 0) {
+        htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ, uuid16);
+        req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + 2;
+    } else {
+        memcpy(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ, uuid128, 16);
+        req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + 16;
+    }
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, req_len);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_type_req16(uint16_t conn_handle,
+                                        uint16_t start_handle,
+                                        uint16_t end_handle,
+                                        uint16_t uuid16)
+{
+    uint8_t uuid128[16];
+    int rc;
+
+    rc = ble_uuid_16_to_128(uuid16, uuid128);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_hs_test_util_rx_att_read_type_req(conn_handle, start_handle,
+                                               end_handle, uuid128);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_req(uint16_t conn_handle, uint16_t attr_handle)
 {
     struct ble_att_read_req req;
     uint8_t buf[BLE_ATT_READ_REQ_SZ];
@@ -950,8 +1046,9 @@ ble_hs_test_util_rx_att_read(uint16_t conn_handle, uint16_t attr_handle)
 }
 
 int
-ble_hs_test_util_rx_att_read_blob(uint16_t conn_handle, uint16_t attr_handle,
-                                  uint16_t offset)
+ble_hs_test_util_rx_att_read_blob_req(uint16_t conn_handle,
+                                      uint16_t attr_handle,
+                                      uint16_t offset)
 {
     struct ble_att_read_blob_req req;
     uint8_t buf[BLE_ATT_READ_BLOB_REQ_SZ];
@@ -963,6 +1060,196 @@ ble_hs_test_util_rx_att_read_blob(uint16_t conn_handle, uint16_t attr_handle,
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_mult_req(uint16_t conn_handle,
+                                      const uint16_t *handles,
+                                      int num_handles)
+{
+    uint8_t buf[256];
+    int off;
+    int rc;
+    int i;
+
+    ble_att_read_mult_req_write(buf, sizeof buf);
+
+    off = BLE_ATT_READ_MULT_REQ_BASE_SZ;
+    for (i = 0; i < num_handles; i++) {
+        htole16(buf + off, handles[i]);
+        off += 2;
+    }
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, off);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_group_type_req(uint16_t conn_handle,
+                                            uint16_t start_handle,
+                                            uint16_t end_handle,
+                                            const void *uuid128)
+{
+    struct ble_att_read_group_type_req req;
+    uint8_t buf[BLE_ATT_READ_GROUP_TYPE_REQ_SZ_128];
+    uint16_t uuid16;
+    int req_len;
+    int rc;
+
+    req.bagq_start_handle = start_handle;
+    req.bagq_end_handle = end_handle;
+
+    uuid16 = ble_uuid_128_to_16(uuid128);
+    if (uuid16 != 0) {
+        htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, uuid16);
+        req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + 2;
+    } else {
+        memcpy(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, uuid128, 16);
+        req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + 16;
+    }
+
+    ble_att_read_group_type_req_write(buf, sizeof buf, &req);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, req_len);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_read_group_type_req16(uint16_t conn_handle,
+                                              uint16_t start_handle,
+                                              uint16_t end_handle,
+                                              uint16_t uuid16)
+{
+    uint8_t uuid128[16];
+    int rc;
+
+    rc = ble_uuid_16_to_128(uuid16, uuid128);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_hs_test_util_rx_att_read_group_type_req(conn_handle, start_handle,
+                                                     end_handle, uuid128);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_write_req(uint16_t conn_handle, uint16_t attr_handle,
+                                  const void *attr_val, uint16_t attr_len)
+{
+    struct ble_att_write_req req;
+    uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + BLE_ATT_ATTR_MAX_LEN];
+    int rc;
+
+    req.bawq_handle = attr_handle;
+    ble_att_write_req_write(buf, sizeof buf, &req);
+
+    memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ, attr_val, attr_len);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_WRITE_REQ_BASE_SZ + attr_len);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_write_cmd(uint16_t conn_handle, uint16_t attr_handle,
+                                  const void *attr_val, uint16_t attr_len)
+{
+    struct ble_att_write_req req;
+    uint8_t buf[BLE_ATT_WRITE_REQ_BASE_SZ + BLE_ATT_ATTR_MAX_LEN];
+    int rc;
+
+    req.bawq_handle = attr_handle;
+    ble_att_write_cmd_write(buf, sizeof buf, &req);
+
+    memcpy(buf + BLE_ATT_WRITE_REQ_BASE_SZ, attr_val, attr_len);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_WRITE_REQ_BASE_SZ + attr_len);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_prep_write_req(uint16_t conn_handle,
+                                       uint16_t attr_handle,
+                                       uint16_t offset,
+                                       const void *attr_val,
+                                       uint16_t attr_len)
+{
+    struct ble_att_prep_write_cmd prep_req;
+    uint8_t buf[BLE_ATT_PREP_WRITE_CMD_BASE_SZ + BLE_ATT_ATTR_MAX_LEN];
+    int rc;
+
+    prep_req.bapc_handle = attr_handle;
+    prep_req.bapc_offset = offset;
+    ble_att_prep_write_req_write(buf, sizeof buf, &prep_req);
+    memcpy(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, attr_val, attr_len);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_len);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_exec_write_req(uint16_t conn_handle, uint8_t flags)
+{
+    struct ble_att_exec_write_req exec_req;
+    uint8_t buf[BLE_ATT_EXEC_WRITE_REQ_SZ];
+    int rc;
+
+    exec_req.baeq_flags = flags;
+    ble_att_exec_write_req_write(buf, sizeof buf, &exec_req);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf,
+                                                BLE_ATT_EXEC_WRITE_REQ_SZ);
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_notify_req(uint16_t conn_handle,
+                                   uint16_t attr_handle,
+                                   void *attr_val,
+                                   uint16_t attr_len)
+{
+    struct ble_att_notify_req req;
+    uint8_t buf[BLE_ATT_NOTIFY_REQ_BASE_SZ + BLE_ATT_ATTR_MAX_LEN];
+    int rc;
+
+    req.banq_handle = attr_handle;
+    ble_att_notify_req_write(buf, sizeof buf, &req);
+    memcpy(buf + BLE_ATT_NOTIFY_REQ_BASE_SZ, attr_val, attr_len);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_NOTIFY_REQ_BASE_SZ + attr_len);
+
+    return rc;
+}
+
+int
+ble_hs_test_util_rx_att_indicate_req(uint16_t conn_handle,
+                                     uint16_t attr_handle,
+                                     void *attr_val,
+                                     uint16_t attr_len)
+{
+    struct ble_att_indicate_req req;
+    uint8_t buf[BLE_ATT_INDICATE_REQ_BASE_SZ + BLE_ATT_ATTR_MAX_LEN];
+    int rc;
+
+    req.baiq_handle = attr_handle;
+    ble_att_indicate_req_write(buf, sizeof buf, &req);
+    memcpy(buf + BLE_ATT_INDICATE_REQ_BASE_SZ, attr_val, attr_len);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        BLE_ATT_INDICATE_REQ_BASE_SZ + attr_len);
+
     return rc;
 }
 
