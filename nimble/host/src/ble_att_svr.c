@@ -2007,10 +2007,10 @@ ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
     uint8_t *dst;
     int rc;
 
-    rc = ble_att_svr_pkt(rxom, &txom, att_err);
-    if (rc != 0) {
-        goto done;
-    }
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     dst = os_mbuf_extend(txom, BLE_ATT_WRITE_RSP_SZ);
     if (dst == NULL) {
