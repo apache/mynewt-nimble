@@ -34,9 +34,6 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 
 #define BLE_HS_TEST_UTIL_PUB_ADDR_VAL { 0x0a, 0x54, 0xab, 0x49, 0x7f, 0x06 }
 
-static const uint8_t ble_hs_test_util_pub_addr[BLE_DEV_ADDR_LEN] =
-    BLE_HS_TEST_UTIL_PUB_ADDR_VAL;
-
 #define BLE_HS_TEST_UTIL_LE_OPCODE(ocf) \
     ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, (ocf))
 
