@@ -2670,16 +2670,18 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
+    /* Ensure we can allocate a response before processing the indication. */
+    rc = ble_att_svr_build_indicate_rsp(rxom, &txom, &att_err);
+    if (rc != 0) {
+        goto done;
+    }
+
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_INDICATE_REQ_BASE_SZ);
 
     ble_gap_notify_rx_event(conn_handle, req.baiq_handle, *rxom, 1);
     *rxom = NULL;
 
-    rc = ble_att_svr_build_indicate_rsp(rxom, &txom, &att_err);
-    if (rc != 0) {
-        goto done;
-    }
     BLE_ATT_LOG_EMPTY_CMD(1, "indicate rsp", conn_handle);
 
     rc = 0;
