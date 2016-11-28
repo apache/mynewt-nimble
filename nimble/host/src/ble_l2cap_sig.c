@@ -353,9 +353,9 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
     if (rc == 0) {
         /* Application agrees to accept parameters; schedule update. */
         rc = ble_gap_update_params(conn_handle, &params);
-        if (rc != 0) {
-            return rc;
-        }
+    }
+
+    if (rc == 0) {
         l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
     } else {
         l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
