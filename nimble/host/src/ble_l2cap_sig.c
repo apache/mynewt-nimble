@@ -364,9 +364,6 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
                                          l2cap_result);
     } else {
-        ble_l2cap_sig_reject_tx(conn_handle, hdr->identifier,
-                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
-                                NULL, 0);
         rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
     }
 
@@ -504,12 +501,15 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
-        ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
-                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
-                                NULL, 0);
         rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
     } else {
         rc = rx_cb(conn_handle, &hdr, om);
+    }
+
+    if (rc) {
+        ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
+                                        BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
+                                        NULL, 0);
     }
 
     return rc;
