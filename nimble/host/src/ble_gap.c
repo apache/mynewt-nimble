@@ -2857,6 +2857,31 @@ ble_gap_update_tx(uint16_t conn_handle,
     return 0;
 }
 
+static bool
+ble_gap_validate_conn_params(const struct ble_gap_upd_params *params)
+{
+
+    /* Requirements from Bluetooth spec. v4.2 [Vol 2, Part E], 7.8.18 */
+    if (params->itvl_min > params->itvl_max) {
+            return false;
+    }
+
+    if (params->itvl_min < 0x0006 || params->itvl_max > 0x0C80) {
+            return false;
+    }
+
+    if (params->latency > 0x01F3) {
+            return false;
+    }
+
+    if (params->supervision_timeout <=
+                   (((1 + params->latency) * params->itvl_max) * 6 / 4)) {
+        return false;
+    }
+
+    return true;
+}
+
 /**
  * Initiates a connection parameter update procedure.
  *
@@ -2871,6 +2896,7 @@ ble_gap_update_tx(uint16_t conn_handle,
  *                              BLE_HS_EALREADY if a connection update
  *                                  procedure for this connection is already in
  *                                  progress;
+ *                              BLE_HS_EINVAL if requested parameters are invalid;
  *                              Other nonzero on error.
  */
 int
@@ -2885,6 +2911,11 @@ ble_gap_update_params(uint16_t conn_handle,
     struct ble_gap_update_entry *entry;
     struct ble_hs_conn *conn;
     int rc;
+
+    /* Validate parameters with a spec */
+    if (ble_gap_validate_conn_params(params)) {
+            return BLE_HS_EINVAL;
+    }
 
     STATS_INC(ble_gap_stats, update);
     memset(&l2cap_params, 0, sizeof l2cap_params);
