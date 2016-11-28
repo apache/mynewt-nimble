@@ -98,6 +98,7 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_UPDATE_REQ]           = ble_l2cap_sig_update_req_rx,
     [BLE_L2CAP_SIG_OP_UPDATE_RSP]           = ble_l2cap_sig_update_rsp_rx,
     [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_rx_noop,
+    [BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT]     = ble_l2cap_sig_rx_noop,
 };
 
 static uint8_t ble_l2cap_sig_cur_id;
@@ -144,7 +145,7 @@ ble_l2cap_sig_next_id(void)
 static ble_l2cap_sig_rx_fn *
 ble_l2cap_sig_dispatch_get(uint8_t op)
 {
-    if (op > BLE_L2CAP_SIG_OP_MAX) {
+    if (op >= BLE_L2CAP_SIG_OP_MAX) {
         return NULL;
     }
 
