@@ -364,7 +364,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
                                          l2cap_result);
     } else {
-        rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
+        rc = BLE_HS_EREJECT;
     }
 
     return rc;
@@ -501,7 +501,7 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
-        rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
+        rc = BLE_HS_EREJECT;
     } else {
         rc = rx_cb(conn_handle, &hdr, om);
     }
