@@ -335,37 +335,35 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 
     /* Only a master can process an update request. */
     sig_err = !(conn_flags & BLE_HS_CONN_F_MASTER);
-    if (!sig_err) {
-        ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
+    if (sig_err) {
+        return BLE_HS_EREJECT;
+    }
 
-        params.itvl_min = req.itvl_min;
-        params.itvl_max = req.itvl_max;
-        params.latency = req.slave_latency;
-        params.supervision_timeout = req.timeout_multiplier;
-        params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
-        params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
+    ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
 
-        /* Ask application if slave's connection parameters are acceptable. */
-        rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
-        if (rc == 0) {
-            /* Application agrees to accept parameters; schedule update. */
-            rc = ble_gap_update_params(conn_handle, &params);
-            if (rc != 0) {
-                return rc;
-            }
-            l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
-        } else {
-            l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
+    params.itvl_min = req.itvl_min;
+    params.itvl_max = req.itvl_max;
+    params.latency = req.slave_latency;
+    params.supervision_timeout = req.timeout_multiplier;
+    params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
+    params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
+
+    /* Ask application if slave's connection parameters are acceptable. */
+    rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
+    if (rc == 0) {
+        /* Application agrees to accept parameters; schedule update. */
+        rc = ble_gap_update_params(conn_handle, &params);
+        if (rc != 0) {
+            return rc;
         }
+        l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
+    } else {
+        l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
     }
 
     /* Send L2CAP response. */
-    if (!sig_err) {
-        rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
+    rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
                                          l2cap_result);
-    } else {
-        rc = BLE_HS_EREJECT;
-    }
 
     return rc;
 }
