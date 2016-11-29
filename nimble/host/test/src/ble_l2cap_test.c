@@ -367,7 +367,7 @@ TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
 
     /* Receive an unsolicited response. */
     rc = ble_hs_test_util_rx_l2cap_update_rsp(2, 100, 0);
-    TEST_ASSERT(rc == BLE_HS_ENOENT);
+    TEST_ASSERT(rc == 0);
 
     /* Ensure we did not send anything in return. */
     ble_hs_test_util_tx_all();
@@ -547,7 +547,7 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)
 
     /* Receive response from peer with incorrect ID. */
     rc = ble_hs_test_util_rx_l2cap_update_rsp(2, id + 1, 0);
-    TEST_ASSERT(rc == BLE_HS_ENOENT);
+    TEST_ASSERT(rc == 0);
 
     /* Ensure callback did not get called. */
     TEST_ASSERT(ble_l2cap_test_update_status == -1);

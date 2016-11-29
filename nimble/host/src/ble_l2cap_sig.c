@@ -387,7 +387,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
                                       BLE_L2CAP_SIG_PROC_OP_UPDATE,
                                       hdr->identifier);
     if (proc == NULL) {
-        return BLE_HS_ENOENT;
+        return 0;
     }
 
     rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
