@@ -54,6 +54,19 @@ struct ble_hs_test_util_mbuf_params {
     unsigned prep_list:1;
 };
 
+struct ble_hs_test_util_att_info_entry {
+    uint16_t handle;        /* 0 on last entry */
+    uint16_t uuid16;        /* 0 if not present. */
+    uint8_t uuid128[16];
+};
+
+struct ble_hs_test_util_att_group_type_entry {
+    uint16_t start_handle;  /* 0 on last entry */
+    uint16_t end_handle;    /* 0 on last entry */
+    uint16_t uuid16;        /* 0 if not present. */
+    uint8_t uuid128[16];
+};
+
 #define BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(handle, pb, len) \
     ((struct hci_data_hdr) {                            \
         .hdh_handle_pb_bc = ((handle)  << 0) |          \
@@ -217,7 +230,11 @@ void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
 void ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data,
                                               int attr_len);
 void ble_hs_test_util_verify_tx_write_rsp(void);
+void ble_hs_test_util_verify_tx_find_info_rsp(
+    struct ble_hs_test_util_att_info_entry *entries);
 void ble_hs_test_util_verify_tx_mtu_cmd(int is_req, uint16_t mtu);
+void ble_hs_test_util_verify_tx_read_group_type_rsp(
+    struct ble_hs_test_util_att_group_type_entry *entries);
 void ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
                                         uint8_t error_code);
 uint8_t ble_hs_test_util_verify_tx_l2cap_update_req(

@@ -1526,6 +1526,122 @@ ble_hs_test_util_verify_tx_mtu_cmd(int is_req, uint16_t mtu)
 }
 
 void
+ble_hs_test_util_verify_tx_find_info_rsp(
+    struct ble_hs_test_util_att_info_entry *entries)
+{
+    struct ble_hs_test_util_att_info_entry *entry;
+    struct ble_att_find_info_rsp rsp;
+    struct os_mbuf *om;
+    uint16_t handle;
+    uint16_t uuid16;
+    uint8_t buf[BLE_ATT_FIND_INFO_RSP_BASE_SZ];
+    uint8_t uuid128[16];
+    int off;
+    int rc;
+
+    ble_hs_test_util_tx_all();
+
+    off = 0;
+
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+
+    rc = os_mbuf_copydata(om, off, sizeof buf, buf);
+    TEST_ASSERT(rc == 0);
+    off += sizeof buf;
+
+    ble_att_find_info_rsp_parse(buf, sizeof buf, &rsp);
+
+    for (entry = entries; entry->handle != 0; entry++) {
+        rc = os_mbuf_copydata(om, off, 2, &handle);
+        TEST_ASSERT(rc == 0);
+        off += 2;
+
+        handle = le16toh((void *)&handle);
+        TEST_ASSERT(handle == entry->handle);
+
+        if (entry->uuid16 != 0) {
+            TEST_ASSERT(rsp.bafp_format ==
+                        BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT);
+            rc = os_mbuf_copydata(om, off, 2, &uuid16);
+            TEST_ASSERT(rc == 0);
+            off += 2;
+
+            uuid16 = le16toh((void *)&uuid16);
+            TEST_ASSERT(uuid16 == entry->uuid16);
+        } else {
+            TEST_ASSERT(rsp.bafp_format ==
+                        BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT);
+            rc = os_mbuf_copydata(om, off, 16, uuid128);
+            TEST_ASSERT(rc == 0);
+            off += 16;
+
+            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
+        }
+    }
+
+    /* Ensure there is no extra data in the response. */
+    TEST_ASSERT(off == OS_MBUF_PKTHDR(om)->omp_len);
+}
+
+void
+ble_hs_test_util_verify_tx_read_group_type_rsp(
+    struct ble_hs_test_util_att_group_type_entry *entries)
+{
+    struct ble_hs_test_util_att_group_type_entry *entry;
+    struct ble_att_read_group_type_rsp rsp;
+    struct os_mbuf *om;
+    uint16_t u16;
+    uint8_t uuid128[16];
+    int off;
+    int rc;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+
+    ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
+
+    off = BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ;
+    for (entry = entries; entry->start_handle != 0; entry++) {
+        if (entry->uuid16 != 0) {
+            TEST_ASSERT(rsp.bagp_length ==
+                        BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16);
+        } else {
+            TEST_ASSERT(rsp.bagp_length ==
+                        BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128);
+        }
+
+        rc = os_mbuf_copydata(om, off, 2, &u16);
+        TEST_ASSERT(rc == 0);
+        htole16(&u16, u16);
+        TEST_ASSERT(u16 == entry->start_handle);
+        off += 2;
+
+        rc = os_mbuf_copydata(om, off, 2, &u16);
+        TEST_ASSERT(rc == 0);
+        htole16(&u16, u16);
+        TEST_ASSERT(u16 == entry->end_handle);
+        off += 2;
+
+        if (entry->uuid16 != 0) {
+            rc = os_mbuf_copydata(om, off, 2, &u16);
+            TEST_ASSERT(rc == 0);
+            htole16(&u16, u16);
+            TEST_ASSERT(u16 == entry->uuid16);
+            off += 2;
+        } else {
+            rc = os_mbuf_copydata(om, off, 16, uuid128);
+            TEST_ASSERT(rc == 0);
+            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
+            off += 16;
+        }
+    }
+
+    /* Ensure there is no extra data in the response. */
+    TEST_ASSERT(off == OS_MBUF_PKTLEN(om));
+}
+
+void
 ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
                                    uint8_t error_code)
 {
