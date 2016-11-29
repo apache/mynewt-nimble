@@ -498,7 +498,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 {
     struct ble_store_value_sec value_sec;
     struct ble_hs_conn *conn;
-    uint8_t peer_addr[8];
+    uint8_t peer_addr[6];
     uint8_t peer_addr_type;
     int authenticated;
 
