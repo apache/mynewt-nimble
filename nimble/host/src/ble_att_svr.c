@@ -649,10 +649,10 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
     mtu = chan->blc_my_mtu;
     ble_hs_unlock();
 
-    rc = ble_att_svr_pkt(rxom, &txom, att_err);
-    if (rc != 0) {
-        goto done;
-    }
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     dst = os_mbuf_extend(txom, BLE_ATT_MTU_CMD_SZ);
     if (dst == NULL) {
@@ -829,14 +829,10 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     void *buf;
     int rc;
 
-    txom = NULL;
-
-    mtu = ble_att_mtu(conn_handle);
-
-    rc = ble_att_svr_pkt(rxom, &txom, att_err);
-    if (rc != 0) {
-        goto done;
-    }
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     /* Write the response base at the start of the buffer.  The format field is
      * unknown at this point; it will be filled in later.
@@ -853,6 +849,7 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     /* Write the variable length Information Data field, populating the format
      * field as appropriate.
      */
+    mtu = ble_att_mtu(conn_handle);
     rc = ble_att_svr_fill_info(req, txom, mtu, txom->om_data + 1);
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
@@ -1266,13 +1263,10 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     entry_written = 0;
     prev_attr_len = 0;
 
-    mtu = ble_att_mtu(conn_handle);
-
-    rc = ble_att_svr_pkt(rxom, &txom, att_err);
-    if (rc != 0) {
-        *err_handle = 0;
-        goto done;
-    }
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     /* Allocate space for the respose base, but don't fill in the fields.  They
      * get filled in at the end, when we know the value of the length field.
@@ -1284,6 +1278,8 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
         rc = BLE_HS_ENOMEM;
         goto done;
     }
+
+    mtu = ble_att_mtu(conn_handle);
 
     /* Find all matching attributes, writing a record for each. */
     entry = NULL;
@@ -1462,18 +1458,18 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 
     rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_READ_REQ_SZ, &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
     ble_att_read_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     BLE_ATT_LOG_CMD(0, "read req", conn_handle, ble_att_read_req_log, &req);
 
-    rc = ble_att_svr_pkt(rxom, &txom, &att_err);
-    if (rc != 0) {
-        err_handle = req.barq_handle;
-        goto done;
-    }
+    err_handle = req.barq_handle;
+
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     dptr = os_mbuf_extend(txom, 1);
     if (dptr == NULL) {
@@ -1486,7 +1482,6 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = ble_att_svr_read_handle(conn_handle, req.barq_handle, 0, txom,
                                  &att_err);
     if (rc != 0) {
-        err_handle = req.barq_handle;
         goto done;
     }
 
@@ -1517,7 +1512,6 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 
     rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_READ_BLOB_REQ_SZ, &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
@@ -1525,16 +1519,16 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     BLE_ATT_LOG_CMD(0, "read blob req", conn_handle, ble_att_read_blob_req_log,
                     &req);
 
-    rc = ble_att_svr_pkt(rxom, &txom, &att_err);
-    if (rc != 0) {
-        err_handle = req.babq_handle;
-        goto done;
-    }
+    err_handle = req.babq_handle;
+
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     dptr = os_mbuf_extend(txom, 1);
     if (dptr == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        err_handle = req.babq_handle;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
@@ -1543,7 +1537,6 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     rc = ble_att_svr_read_handle(conn_handle, req.babq_handle, req.babq_offset,
                                  txom, &att_err);
     if (rc != 0) {
-        err_handle = req.babq_handle;
         goto done;
     }
 
@@ -1680,13 +1673,13 @@ ble_att_svr_is_valid_group_type(uint8_t *uuid128)
 
 static int
 ble_att_svr_service_uuid(struct ble_att_svr_entry *entry, uint16_t *uuid16,
-                         uint8_t *uuid128)
+                         uint8_t *uuid128, uint8_t *out_att_err)
 {
     uint16_t attr_len;
     int rc;
 
     rc = ble_att_svr_read_flat(BLE_HS_CONN_HANDLE_NONE, entry, 0, 16, uuid128,
-                               &attr_len, NULL);
+                               &attr_len, out_att_err);
     if (rc != 0) {
         return rc;
     }
@@ -1776,10 +1769,10 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
 
     mtu = ble_att_mtu(conn_handle);
 
-    rc = ble_att_svr_pkt(rxom, &txom, att_err);
-    if (rc != 0) {
-        goto done;
-    }
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     /* Reserve space for the response base. */
     rsp_buf = os_mbuf_extend(txom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
@@ -1832,11 +1825,9 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
             if (memcmp(entry->ha_uuid, group_uuid128, 16) == 0) {
                 /* Found a group start.  Read the group UUID. */
                 rc = ble_att_svr_service_uuid(entry, &service_uuid16,
-                                              service_uuid128);
+                                              service_uuid128, att_err);
                 if (rc != 0) {
                     *err_handle = entry->ha_handle_id;
-                    *att_err = BLE_ATT_ERR_UNLIKELY;
-                    rc = BLE_HS_ENOTSUP;
                     goto done;
                 }
 
@@ -2007,10 +1998,19 @@ ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
     uint8_t *dst;
     int rc;
 
-    /* Just reuse the request buffer for the response. */
-    txom = *rxom;
-    *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    /* Just reuse the request buffer for the response if the application didn't
+     * retain it.
+     */
+    if (*rxom != NULL) {
+        txom = *rxom;
+        *rxom = NULL;
+        os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    } else {
+        rc = ble_att_svr_pkt(rxom, &txom, att_err);
+        if (rc != 0) {
+            goto done;
+        }
+    }
 
     dst = os_mbuf_extend(txom, BLE_ATT_WRITE_RSP_SZ);
     if (dst == NULL) {
@@ -2474,10 +2474,10 @@ ble_att_svr_build_exec_write_rsp(struct os_mbuf **rxom,
     uint8_t *dst;
     int rc;
 
-    rc = ble_att_svr_pkt(rxom, &txom, att_err);
-    if (rc != 0) {
-        goto done;
-    }
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
     dst = os_mbuf_extend(txom, BLE_ATT_EXEC_WRITE_RSP_SZ);
     if (dst == NULL) {
@@ -2670,7 +2670,12 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    /* Ensure we can allocate a response before processing the indication. */
+    /* Ensure we can allocate a response before processing the indication. 
+     * We can't reuse the request mbuf because it contains the data that needs
+     * to be passed to the application callback.  The application may choose to
+     * retain the mbuf during the callback, so we can't just reuse the mbuf
+     * after executing the callback either.
+     */
     rc = ble_att_svr_build_indicate_rsp(rxom, &txom, &att_err);
     if (rc != 0) {
         goto done;
