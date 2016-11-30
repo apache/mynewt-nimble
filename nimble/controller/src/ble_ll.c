@@ -1217,6 +1217,9 @@ ble_ll_init(void)
     uint8_t features;
     struct ble_ll_obj *lldata;
 
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
+
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
 

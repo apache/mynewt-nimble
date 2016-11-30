@@ -96,6 +96,9 @@ ble_svc_tps_init(void)
 {
     int rc;
 
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
+
     rc = ble_gatts_count_cfg(ble_svc_tps_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 

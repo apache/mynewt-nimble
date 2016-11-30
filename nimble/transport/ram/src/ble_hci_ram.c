@@ -245,6 +245,9 @@ ble_hci_ram_pkg_init(void)
 {
     int rc;
 
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
+
     rc = ble_hci_ram_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
