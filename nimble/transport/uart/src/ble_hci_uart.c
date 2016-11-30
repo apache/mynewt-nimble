@@ -22,8 +22,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdint.h>
-#include "os/os_cputime.h"
+#include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
+#include "os/os_cputime.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
 #include "mem/mem.h"
@@ -964,6 +965,9 @@ ble_hci_uart_init(void)
     int acl_data_length;
     int acl_block_size;
     int rc;
+
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
 
     ble_hci_uart_free_mem();
 

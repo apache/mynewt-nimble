@@ -539,6 +539,9 @@ ble_hs_init(void)
 {
     int rc;
 
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
+
     log_init();
 
     /* Create memory pool of OS events */

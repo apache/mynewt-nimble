@@ -26,6 +26,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "store/ram/ble_store_ram.h"
 
@@ -375,6 +376,9 @@ ble_store_ram_write(int obj_type, union ble_store_value *val)
 void
 ble_store_ram_init(void)
 {
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
+
     ble_hs_cfg.store_read_cb = ble_store_ram_read;
     ble_hs_cfg.store_write_cb = ble_store_ram_write;
 }
