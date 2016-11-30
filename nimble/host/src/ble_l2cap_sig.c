@@ -98,6 +98,7 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_UPDATE_REQ]           = ble_l2cap_sig_update_req_rx,
     [BLE_L2CAP_SIG_OP_UPDATE_RSP]           = ble_l2cap_sig_update_rsp_rx,
     [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_rx_noop,
+    [BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT]     = ble_l2cap_sig_rx_noop,
 };
 
 static uint8_t ble_l2cap_sig_cur_id;
@@ -144,7 +145,7 @@ ble_l2cap_sig_next_id(void)
 static ble_l2cap_sig_rx_fn *
 ble_l2cap_sig_dispatch_get(uint8_t op)
 {
-    if (op > BLE_L2CAP_SIG_OP_MAX) {
+    if (op >= BLE_L2CAP_SIG_OP_MAX) {
         return NULL;
     }
 
@@ -334,40 +335,35 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 
     /* Only a master can process an update request. */
     sig_err = !(conn_flags & BLE_HS_CONN_F_MASTER);
-    if (!sig_err) {
-        ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
+    if (sig_err) {
+        return BLE_HS_EREJECT;
+    }
 
-        params.itvl_min = req.itvl_min;
-        params.itvl_max = req.itvl_max;
-        params.latency = req.slave_latency;
-        params.supervision_timeout = req.timeout_multiplier;
-        params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
-        params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
+    ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
 
-        /* Ask application if slave's connection parameters are acceptable. */
-        rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
-        if (rc == 0) {
-            /* Application agrees to accept parameters; schedule update. */
-            rc = ble_gap_update_params(conn_handle, &params);
-            if (rc != 0) {
-                return rc;
-            }
-            l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
-        } else {
-            l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
-        }
+    params.itvl_min = req.itvl_min;
+    params.itvl_max = req.itvl_max;
+    params.latency = req.slave_latency;
+    params.supervision_timeout = req.timeout_multiplier;
+    params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
+    params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
+
+    /* Ask application if slave's connection parameters are acceptable. */
+    rc = ble_gap_rx_l2cap_update_req(conn_handle, &params);
+    if (rc == 0) {
+        /* Application agrees to accept parameters; schedule update. */
+        rc = ble_gap_update_params(conn_handle, &params);
+    }
+
+    if (rc == 0) {
+        l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT;
+    } else {
+        l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
     }
 
     /* Send L2CAP response. */
-    if (!sig_err) {
-        rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
+    rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
                                          l2cap_result);
-    } else {
-        ble_l2cap_sig_reject_tx(conn_handle, hdr->identifier,
-                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
-                                NULL, 0);
-        rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
-    }
 
     return rc;
 }
@@ -386,7 +382,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
                                       BLE_L2CAP_SIG_PROC_OP_UPDATE,
                                       hdr->identifier);
     if (proc == NULL) {
-        return BLE_HS_ENOENT;
+        return 0;
     }
 
     rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
@@ -503,12 +499,15 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 
     rx_cb = ble_l2cap_sig_dispatch_get(hdr.op);
     if (rx_cb == NULL) {
-        ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
-                                BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
-                                NULL, 0);
-        rc = BLE_HS_L2C_ERR(BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD);
+        rc = BLE_HS_EREJECT;
     } else {
         rc = rx_cb(conn_handle, &hdr, om);
+    }
+
+    if (rc) {
+        ble_l2cap_sig_reject_tx(conn_handle, hdr.identifier,
+                                        BLE_L2CAP_SIG_ERR_CMD_NOT_UNDERSTOOD,
+                                        NULL, 0);
     }
 
     return rc;
