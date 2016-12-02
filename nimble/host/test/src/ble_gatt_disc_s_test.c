@@ -262,6 +262,10 @@ ble_gatt_disc_s_test_misc_disc_cb(uint16_t conn_handle,
         ble_gatt_disc_s_test_rx_complete = 1;
         break;
 
+    case BLE_HS_ETIMEOUT:
+        ble_gatt_disc_s_test_rx_complete = 1;
+        break;
+
     default:
         TEST_ASSERT(0);
     }

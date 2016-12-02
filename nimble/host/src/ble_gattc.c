@@ -86,7 +86,7 @@
 #define BLE_GATT_OP_WRITE_LONG                  12
 #define BLE_GATT_OP_WRITE_RELIABLE              13
 #define BLE_GATT_OP_INDICATE                    14
-#define BLE_GATT_OP_MAX                         15
+#define BLE_GATT_OP_CNT                         15
 
 /** Procedure stalled due to resource exhaustion. */
 #define BLE_GATTC_PROC_F_STALLED                0x01
@@ -233,7 +233,7 @@ static ble_gattc_err_fn ble_gattc_write_long_err;
 static ble_gattc_err_fn ble_gattc_write_reliable_err;
 static ble_gattc_err_fn ble_gattc_indicate_err;
 
-static ble_gattc_err_fn * const ble_gattc_err_dispatch[BLE_GATT_OP_MAX] = {
+static ble_gattc_err_fn * const ble_gattc_err_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_MTU]               = ble_gattc_mtu_err,
     [BLE_GATT_OP_DISC_ALL_SVCS]     = ble_gattc_disc_all_svcs_err,
     [BLE_GATT_OP_DISC_SVC_UUID]     = ble_gattc_disc_svc_uuid_err,
@@ -251,6 +251,10 @@ static ble_gattc_err_fn * const ble_gattc_err_dispatch[BLE_GATT_OP_MAX] = {
     [BLE_GATT_OP_INDICATE]          = ble_gattc_indicate_err,
 };
 
+/**
+ * Resume functions - these handle periodic retries of procedures that have
+ * stalled due to memory exhaustion.
+ */
 typedef int ble_gattc_resume_fn(struct ble_gattc_proc *proc);
 
 static ble_gattc_resume_fn ble_gattc_disc_all_svcs_resume;
@@ -264,7 +268,7 @@ static ble_gattc_resume_fn ble_gattc_write_long_resume;
 static ble_gattc_resume_fn ble_gattc_write_reliable_resume;
 
 static ble_gattc_resume_fn * const
-ble_gattc_resume_dispatch[BLE_GATT_OP_MAX] = {
+ble_gattc_resume_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_MTU]               = NULL,
     [BLE_GATT_OP_DISC_ALL_SVCS]     = ble_gattc_disc_all_svcs_resume,
     [BLE_GATT_OP_DISC_SVC_UUID]     = ble_gattc_disc_svc_uuid_resume,
@@ -280,6 +284,47 @@ ble_gattc_resume_dispatch[BLE_GATT_OP_MAX] = {
     [BLE_GATT_OP_WRITE_LONG]        = ble_gattc_write_long_resume,
     [BLE_GATT_OP_WRITE_RELIABLE]    = ble_gattc_write_reliable_resume,
     [BLE_GATT_OP_INDICATE]          = NULL,
+};
+
+/**
+ * Timeout functions - these notify the application that a GATT procedure has
+ * timed out while waiting for a response.
+ */
+typedef void ble_gattc_tmo_fn(struct ble_gattc_proc *proc);
+
+static ble_gattc_tmo_fn ble_gattc_mtu_tmo;
+static ble_gattc_tmo_fn ble_gattc_disc_all_svcs_tmo;
+static ble_gattc_tmo_fn ble_gattc_disc_svc_uuid_tmo;
+static ble_gattc_tmo_fn ble_gattc_find_inc_svcs_tmo;
+static ble_gattc_tmo_fn ble_gattc_disc_all_chrs_tmo;
+static ble_gattc_tmo_fn ble_gattc_disc_chr_uuid_tmo;
+static ble_gattc_tmo_fn ble_gattc_disc_all_dscs_tmo;
+static ble_gattc_tmo_fn ble_gattc_read_tmo;
+static ble_gattc_tmo_fn ble_gattc_read_uuid_tmo;
+static ble_gattc_tmo_fn ble_gattc_read_long_tmo;
+static ble_gattc_tmo_fn ble_gattc_read_mult_tmo;
+static ble_gattc_tmo_fn ble_gattc_write_tmo;
+static ble_gattc_tmo_fn ble_gattc_write_long_tmo;
+static ble_gattc_tmo_fn ble_gattc_write_reliable_tmo;
+static ble_gattc_tmo_fn ble_gattc_indicate_tmo;
+
+static ble_gattc_tmo_fn * const
+ble_gattc_tmo_dispatch[BLE_GATT_OP_CNT] = {
+    [BLE_GATT_OP_MTU]               = ble_gattc_mtu_tmo,
+    [BLE_GATT_OP_DISC_ALL_SVCS]     = ble_gattc_disc_all_svcs_tmo,
+    [BLE_GATT_OP_DISC_SVC_UUID]     = ble_gattc_disc_svc_uuid_tmo,
+    [BLE_GATT_OP_FIND_INC_SVCS]     = ble_gattc_find_inc_svcs_tmo,
+    [BLE_GATT_OP_DISC_ALL_CHRS]     = ble_gattc_disc_all_chrs_tmo,
+    [BLE_GATT_OP_DISC_CHR_UUID]     = ble_gattc_disc_chr_uuid_tmo,
+    [BLE_GATT_OP_DISC_ALL_DSCS]     = ble_gattc_disc_all_dscs_tmo,
+    [BLE_GATT_OP_READ]              = ble_gattc_read_tmo,
+    [BLE_GATT_OP_READ_UUID]         = ble_gattc_read_uuid_tmo,
+    [BLE_GATT_OP_READ_LONG]         = ble_gattc_read_long_tmo,
+    [BLE_GATT_OP_READ_MULT]         = ble_gattc_read_mult_tmo,
+    [BLE_GATT_OP_WRITE]             = ble_gattc_write_tmo,
+    [BLE_GATT_OP_WRITE_LONG]        = ble_gattc_write_long_tmo,
+    [BLE_GATT_OP_WRITE_RELIABLE]    = ble_gattc_write_reliable_tmo,
+    [BLE_GATT_OP_INDICATE]          = ble_gattc_indicate_tmo,
 };
 
 /**
@@ -767,7 +812,7 @@ ble_gattc_process_resume_status(struct ble_gattc_proc *proc, int status)
 static ble_gattc_err_fn *
 ble_gattc_err_dispatch_get(uint8_t op)
 {
-    BLE_HS_DBG_ASSERT(op < BLE_GATT_OP_MAX);
+    BLE_HS_DBG_ASSERT(op < BLE_GATT_OP_CNT);
     return ble_gattc_err_dispatch[op];
 }
 
@@ -777,8 +822,15 @@ ble_gattc_err_dispatch_get(uint8_t op)
 static ble_gattc_resume_fn *
 ble_gattc_resume_dispatch_get(uint8_t op)
 {
-    BLE_HS_DBG_ASSERT(op < BLE_GATT_OP_MAX);
+    BLE_HS_DBG_ASSERT(op < BLE_GATT_OP_CNT);
     return ble_gattc_resume_dispatch[op];
+}
+
+static ble_gattc_tmo_fn *
+ble_gattc_tmo_dispatch_get(uint8_t op)
+{
+    BLE_HS_DBG_ASSERT(op < BLE_GATT_OP_CNT);
+    return ble_gattc_tmo_dispatch[op];
 }
 
 typedef int ble_gattc_match_fn(struct ble_gattc_proc *proc, void *arg);
@@ -1089,6 +1141,20 @@ ble_gattc_ticks_until_resume(void)
     return diff;
 }
 
+static void
+ble_gattc_proc_timeout(struct ble_gattc_proc *proc)
+{
+    ble_gattc_tmo_fn *cb;
+
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    cb = ble_gattc_tmo_dispatch_get(proc->op);
+    if (cb != NULL) {
+        cb(proc);
+    }
+}
+
 /**
  * Times out expired GATT client procedures.
  *
@@ -1112,6 +1178,9 @@ ble_gattc_timer(void)
     /* Terminate the connection associated with each timed-out procedure. */
     while ((proc = STAILQ_FIRST(&exp_list)) != NULL) {
         STATS_INC(ble_gattc_stats, proc_timeout);
+
+        ble_gattc_proc_timeout(proc);
+
         ble_gap_terminate(proc->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 
         STAILQ_REMOVE_HEAD(&exp_list, next);
@@ -1183,6 +1252,15 @@ ble_gattc_mtu_cb(struct ble_gattc_proc *proc, int status, uint16_t att_handle,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_mtu_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_mtu_cb(proc, BLE_HS_ETIMEOUT, 0, 0);
 }
 
 /**
@@ -1298,6 +1376,15 @@ ble_gattc_disc_all_svcs_cb(struct ble_gattc_proc *proc,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_disc_all_svcs_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_disc_all_svcs_cb(proc, BLE_HS_ETIMEOUT, 0, 0);
 }
 
 /**
@@ -1533,6 +1620,15 @@ ble_gattc_disc_svc_uuid_cb(struct ble_gattc_proc *proc, int status,
     return rc;
 }
 
+static void
+ble_gattc_disc_svc_uuid_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_disc_svc_uuid_cb(proc, BLE_HS_ETIMEOUT, 0, 0);
+}
+
 /**
  * Triggers a pending transmit for the specified discover-service-by-uuid proc.
  */
@@ -1749,6 +1845,15 @@ ble_gattc_find_inc_svcs_cb(struct ble_gattc_proc *proc, int status,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_find_inc_svcs_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_find_inc_svcs_cb(proc, BLE_HS_ETIMEOUT, 0, 0);
 }
 
 /**
@@ -2086,6 +2191,15 @@ ble_gattc_disc_all_chrs_cb(struct ble_gattc_proc *proc, int status,
     return rc;
 }
 
+static void
+ble_gattc_disc_all_chrs_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_disc_all_chrs_cb(proc, BLE_HS_ETIMEOUT, 0, NULL);
+}
+
 /**
  * Triggers a pending transmit for the specified discover-all-characteristics
  * proc.
@@ -2328,6 +2442,15 @@ ble_gattc_disc_chr_uuid_cb(struct ble_gattc_proc *proc, int status,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_disc_chr_uuid_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_disc_chr_uuid_cb(proc, BLE_HS_ETIMEOUT, 0, NULL);
 }
 
 /**
@@ -2589,6 +2712,15 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
     return rc;
 }
 
+static void
+ble_gattc_disc_all_dscs_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_disc_all_dscs_cb(proc, BLE_HS_ETIMEOUT, 0, NULL);
+}
+
 /**
  * Triggers a pending transmit for the specified discover-all-descriptors proc.
  */
@@ -2807,6 +2939,15 @@ ble_gattc_read_cb(struct ble_gattc_proc *proc, int status,
     return rc;
 }
 
+static void
+ble_gattc_read_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_read_cb(proc, BLE_HS_ETIMEOUT, 0, NULL);
+}
+
 /**
  * Handles an incoming ATT error response for the specified
  * read-characteristic-value proc.
@@ -2946,6 +3087,15 @@ ble_gattc_read_uuid_cb(struct ble_gattc_proc *proc, int status,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_read_uuid_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_read_uuid_cb(proc, BLE_HS_ETIMEOUT, 0, NULL);
 }
 
 /**
@@ -3130,6 +3280,15 @@ ble_gattc_read_long_cb(struct ble_gattc_proc *proc, int status,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_read_long_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_read_long_cb(proc, BLE_HS_ETIMEOUT, 0, NULL);
 }
 
 /**
@@ -3349,6 +3508,15 @@ ble_gattc_read_mult_cb(struct ble_gattc_proc *proc, int status,
     return rc;
 }
 
+static void
+ble_gattc_read_mult_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_read_mult_cb(proc, BLE_HS_ETIMEOUT, 0, 0);
+}
+
 /**
  * Handles an incoming ATT error response for the specified
  * read-multiple-characteristics proc.
@@ -3549,6 +3717,15 @@ ble_gattc_write_cb(struct ble_gattc_proc *proc, int status,
     return rc;
 }
 
+static void
+ble_gattc_write_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_write_cb(proc, BLE_HS_ETIMEOUT, 0);
+}
+
 /**
  * Handles an incoming ATT error response for the specified
  * write-characteristic-value proc.
@@ -3695,6 +3872,15 @@ ble_gattc_write_long_cb(struct ble_gattc_proc *proc, int status,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_write_long_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_write_long_cb(proc, BLE_HS_ETIMEOUT, 0);
 }
 
 /**
@@ -3999,6 +4185,15 @@ ble_gattc_write_reliable_cb(struct ble_gattc_proc *proc, int status,
     }
 
     return rc;
+}
+
+static void
+ble_gattc_write_reliable_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gattc_write_reliable_cb(proc, BLE_HS_ETIMEOUT, 0);
 }
 
 /**
@@ -4400,6 +4595,16 @@ ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
 
     /* Send the next indication if one is pending. */
     ble_gatts_send_next_indicate(proc->conn_handle);
+}
+
+static void
+ble_gattc_indicate_tmo(struct ble_gattc_proc *proc)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+
+    ble_gap_notify_tx_event(BLE_HS_ETIMEOUT, proc->conn_handle,
+                            proc->indicate.chr_val_handle, 1);
 }
 
 /**
