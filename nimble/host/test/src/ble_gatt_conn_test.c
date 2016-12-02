@@ -29,8 +29,9 @@
 
 static uint8_t ble_gatt_conn_test_write_value[] = { 1, 3, 64, 21, 6 };
 
-struct ble_gatt_conn_test_cb_arg {
+struct ble_gatt_conn_test_arg {
     uint16_t exp_conn_handle;
+    int exp_status;
     int called;
 };
 
@@ -80,14 +81,14 @@ ble_gatt_conn_test_mtu_cb(uint16_t conn_handle,
                           const struct ble_gatt_error *error,
                           uint16_t mtu, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(mtu == 0);
 
     cb_arg->called++;
@@ -101,14 +102,14 @@ ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_svc *service,
                                     void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(service == NULL);
 
     cb_arg->called++;
@@ -122,14 +123,14 @@ ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
                                     const struct ble_gatt_svc *service,
                                     void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(service == NULL);
 
     cb_arg->called++;
@@ -143,14 +144,14 @@ ble_gatt_conn_test_find_inc_svcs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_svc *service,
                                     void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(service == NULL);
 
     cb_arg->called++;
@@ -163,14 +164,14 @@ ble_gatt_conn_test_disc_all_chrs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
                                     const struct ble_gatt_chr *chr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(chr == NULL);
 
     cb_arg->called++;
@@ -183,14 +184,14 @@ ble_gatt_conn_test_disc_chr_uuid_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
                                     const struct ble_gatt_chr *chr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(chr == NULL);
 
     cb_arg->called++;
@@ -205,14 +206,14 @@ ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_dsc *dsc,
                                     void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(dsc == NULL);
 
     cb_arg->called++;
@@ -225,14 +226,14 @@ ble_gatt_conn_test_read_cb(uint16_t conn_handle,
                            const struct ble_gatt_error *error,
                            struct ble_gatt_attr *attr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attr == NULL);
 
     cb_arg->called++;
@@ -245,14 +246,14 @@ ble_gatt_conn_test_read_uuid_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
                                 struct ble_gatt_attr *attr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attr == NULL);
 
     cb_arg->called++;
@@ -265,14 +266,14 @@ ble_gatt_conn_test_read_long_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
                                 struct ble_gatt_attr *attr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attr == NULL);
 
     cb_arg->called++;
@@ -284,14 +285,14 @@ ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
                                 struct ble_gatt_attr *attr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attr->om == NULL);
 
     cb_arg->called++;
@@ -305,14 +306,14 @@ ble_gatt_conn_test_write_cb(uint16_t conn_handle,
                             struct ble_gatt_attr *attr,
                             void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attr != NULL);
     TEST_ASSERT(attr->handle == BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE);
 
@@ -326,14 +327,14 @@ ble_gatt_conn_test_write_long_cb(uint16_t conn_handle,
                                  const struct ble_gatt_error *error,
                                  struct ble_gatt_attr *attr, void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attr != NULL);
     TEST_ASSERT(attr->handle == BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE);
 
@@ -349,14 +350,14 @@ ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
                                 uint8_t num_attrs,
                                 void *arg)
 {
-    struct ble_gatt_conn_test_cb_arg *cb_arg;
+    struct ble_gatt_conn_test_arg *cb_arg;
 
     cb_arg = arg;
 
     TEST_ASSERT(cb_arg->exp_conn_handle == conn_handle);
     TEST_ASSERT(!cb_arg->called);
     TEST_ASSERT_FATAL(error != NULL);
-    TEST_ASSERT(error->status == BLE_HS_ENOTCONN);
+    TEST_ASSERT(error->status == cb_arg->exp_status);
     TEST_ASSERT(attrs != NULL);
 
     cb_arg->called++;
@@ -366,20 +367,20 @@ ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
 
 TEST_CASE(ble_gatt_conn_test_disconnect)
 {
-    struct ble_gatt_conn_test_cb_arg mtu_arg            = { 0 };
-    struct ble_gatt_conn_test_cb_arg disc_all_svcs_arg  = { 0 };
-    struct ble_gatt_conn_test_cb_arg disc_svc_uuid_arg  = { 0 };
-    struct ble_gatt_conn_test_cb_arg find_inc_svcs_arg  = { 0 };
-    struct ble_gatt_conn_test_cb_arg disc_all_chrs_arg  = { 0 };
-    struct ble_gatt_conn_test_cb_arg disc_chr_uuid_arg  = { 0 };
-    struct ble_gatt_conn_test_cb_arg disc_all_dscs_arg  = { 0 };
-    struct ble_gatt_conn_test_cb_arg read_arg           = { 0 };
-    struct ble_gatt_conn_test_cb_arg read_uuid_arg      = { 0 };
-    struct ble_gatt_conn_test_cb_arg read_long_arg      = { 0 };
-    struct ble_gatt_conn_test_cb_arg read_mult_arg      = { 0 };
-    struct ble_gatt_conn_test_cb_arg write_arg          = { 0 };
-    struct ble_gatt_conn_test_cb_arg write_long_arg     = { 0 };
-    struct ble_gatt_conn_test_cb_arg write_rel_arg      = { 0 };
+    struct ble_gatt_conn_test_arg mtu_arg            = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_all_svcs_arg  = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_svc_uuid_arg  = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg find_inc_svcs_arg  = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_all_chrs_arg  = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_chr_uuid_arg  = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_all_dscs_arg  = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_arg           = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_uuid_arg      = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_long_arg      = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_mult_arg      = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg write_arg          = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg write_long_arg     = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg write_rel_arg      = { 0, BLE_HS_ENOTCONN };
     struct ble_gatt_attr attr;
     uint16_t attr_handle;
     int rc;
@@ -552,7 +553,8 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
 }
 
 static void
-ble_gatt_conn_test_util_timeout(uint16_t conn_handle)
+ble_gatt_conn_test_util_timeout(uint16_t conn_handle,
+                                struct ble_gatt_conn_test_arg *arg)
 {
     int32_t ticks_from_now;
 
@@ -573,11 +575,32 @@ ble_gatt_conn_test_util_timeout(uint16_t conn_handle)
                                           BLE_ERR_REM_USER_CONN_TERM);
     ble_hs_test_util_rx_disconn_complete(conn_handle,
                                          BLE_ERR_REM_USER_CONN_TERM);
+
+    /* Ensure GATT callback was called with timeout status. */
+    if (arg != NULL) {
+        TEST_ASSERT(arg->called == 1);
+    }
 }
 
 TEST_CASE(ble_gatt_conn_test_timeout)
 {
     static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+
+    struct ble_gatt_conn_test_arg mtu_arg            = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_all_svcs_arg  = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_svc_uuid_arg  = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg find_inc_svcs_arg  = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_all_chrs_arg  = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_chr_uuid_arg  = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_all_dscs_arg  = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_arg           = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_uuid_arg      = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_long_arg      = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_mult_arg      = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg write_arg          = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg write_long_arg     = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg write_rel_arg      = { 1, BLE_HS_ETIMEOUT };
+
     struct ble_gatt_attr attr;
     int32_t ticks_from_now;
     uint16_t attr_handle;
@@ -596,97 +619,105 @@ TEST_CASE(ble_gatt_conn_test_timeout)
 
     /*** MTU. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_exchange_mtu(1, ble_gatt_conn_test_mtu_cb, NULL);
+    rc = ble_gattc_exchange_mtu(1, ble_gatt_conn_test_mtu_cb, &mtu_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &mtu_arg);
 
     /*** Discover all services. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_disc_all_svcs(1, ble_gatt_conn_test_disc_all_svcs_cb, NULL);
+    rc = ble_gattc_disc_all_svcs(1, ble_gatt_conn_test_disc_all_svcs_cb,
+                                 &disc_all_svcs_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &disc_all_svcs_arg);
 
     /*** Discover services by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_disc_svc_by_uuid(1, BLE_UUID16(0x1111),
-                                    ble_gatt_conn_test_disc_svc_uuid_cb, NULL);
+                                    ble_gatt_conn_test_disc_svc_uuid_cb,
+                                    &disc_svc_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &disc_svc_uuid_arg);
 
     /*** Find included services. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_find_inc_svcs(1, 1, 0xffff,
-                                 ble_gatt_conn_test_find_inc_svcs_cb, NULL);
+                                 ble_gatt_conn_test_find_inc_svcs_cb,
+                                 &find_inc_svcs_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &find_inc_svcs_arg);
 
     /*** Discover all characteristics. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_disc_all_chrs(1, 1, 0xffff,
-                                 ble_gatt_conn_test_disc_all_chrs_cb, NULL);
+                                 ble_gatt_conn_test_disc_all_chrs_cb,
+                                 &disc_all_chrs_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &disc_all_chrs_arg);
 
     /*** Discover all descriptors. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_disc_all_dscs(1, 3, 0xffff,
-                                 ble_gatt_conn_test_disc_all_dscs_cb, NULL);
+                                 ble_gatt_conn_test_disc_all_dscs_cb,
+                                 &disc_chr_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &disc_chr_uuid_arg);
 
     /*** Discover characteristics by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_disc_chrs_by_uuid(1, 2, 0xffff, BLE_UUID16(0x2222),
                                      ble_gatt_conn_test_disc_chr_uuid_cb,
-                                     NULL);
+                                     &disc_all_dscs_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &disc_all_dscs_arg);
 
     /*** Read. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_read(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
-                        ble_gatt_conn_test_read_cb, NULL);
+                        ble_gatt_conn_test_read_cb, &read_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &read_arg);
 
     /*** Read by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_read_by_uuid(1, 1, 0xffff, BLE_UUID16(0x3333),
-                                ble_gatt_conn_test_read_uuid_cb, NULL);
+                                ble_gatt_conn_test_read_uuid_cb,
+                                &read_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &read_uuid_arg);
 
     /*** Read long. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_read_long(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
-                             ble_gatt_conn_test_read_long_cb, NULL);
+                             ble_gatt_conn_test_read_long_cb,
+                             &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &read_long_arg);
 
     /*** Read multiple. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_read_mult(1, ((uint16_t[3]){5,6,7}), 3,
-                             ble_gatt_conn_test_read_mult_cb, NULL);
+                             ble_gatt_conn_test_read_mult_cb,
+                             &read_mult_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &read_mult_arg);
 
     /*** Write. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_hs_test_util_gatt_write_flat(
         1, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
         ble_gatt_conn_test_write_value, sizeof ble_gatt_conn_test_write_value,
-        ble_gatt_conn_test_write_cb, NULL);
+        ble_gatt_conn_test_write_cb, &write_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &write_arg);
 
     /*** Write long. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_hs_test_util_gatt_write_long_flat(
         1, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
         ble_gatt_conn_test_write_value, sizeof ble_gatt_conn_test_write_value,
-        ble_gatt_conn_test_write_long_cb, NULL);
+        ble_gatt_conn_test_write_long_cb, &write_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &write_long_arg);
 
     /*** Write reliable. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
@@ -694,15 +725,15 @@ TEST_CASE(ble_gatt_conn_test_timeout)
     attr.offset = 0;
     attr.om = os_msys_get_pkthdr(0, 0);
     rc = ble_gattc_write_reliable(
-        1, &attr, 1, ble_gatt_conn_test_write_rel_cb, NULL);
+        1, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, &write_rel_arg);
 
     /*** Indication. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_indicate(1, attr_handle);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_gatt_conn_test_util_timeout(1);
+    ble_gatt_conn_test_util_timeout(1, NULL);
 }
 
 TEST_SUITE(ble_gatt_conn_suite)
