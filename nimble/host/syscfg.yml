@@ -202,7 +202,7 @@ syscfg.defs:
         value: 1
 
     # ATT options.
-    BLE_ATT_MAX_PREP_ENTRIES:
+    BLE_ATT_SVR_MAX_PREP_ENTRIES:
         description: >
             A GATT server uses these when a peer performs a "write long
             characteristic values" or "write long characteristic descriptors"
