@@ -25,6 +25,25 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
+/**
+ * ATT server - Attribute Protocol
+ *
+ * Notes on buffer reuse:
+ * Most request handlers reuse the request buffer for the reponse.  This is
+ * done to prevent out-of-memory conditions.  However, there are two handlers
+ * which do not reuse the request buffer:
+ *     1. Write request.
+ *     2. Indicate request.
+ *
+ * Both of these handlers attempt to allocate a new buffer for the response
+ * prior to processing the request.  If allocation fails, the request is not
+ * processed, and the request buffer is reused for the transmission of an
+ * "insufficient resources" ATT error response.  These handlers don't reuse the
+ * request mbuf for an affirmative response because the buffer contains the
+ * attribute data that gets passed to the application callback.  The
+ * application may choose to retain the mbuf during the callback, so the stack
+ */
+
 STAILQ_HEAD(ble_att_svr_entry_list, ble_att_svr_entry);
 static struct ble_att_svr_entry_list ble_att_svr_list;
 
@@ -2031,18 +2050,12 @@ ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
     uint8_t *dst;
     int rc;
 
-    /* Just reuse the request buffer for the response if the application didn't
-     * retain it.
+    /* Allocate a new buffer for the response.  A write response never reuses
+     * the request buffer.  See the note at the top of this file for details.
      */
-    if (*rxom != NULL) {
-        txom = *rxom;
-        *rxom = NULL;
-        os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
-    } else {
-        rc = ble_att_svr_pkt(rxom, &txom, att_err);
-        if (rc != 0) {
-            goto done;
-        }
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
+        goto done;
     }
 
     dst = os_mbuf_extend(txom, BLE_ATT_WRITE_RSP_SZ);
@@ -2090,21 +2103,25 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     BLE_ATT_LOG_CMD(0, "write req", conn_handle,
                     ble_att_write_cmd_log, &req);
 
+    err_handle = req.bawq_handle;
+
+    /* Allocate the write response.  This must be done prior to processing the
+     * request.  See the note at the top of this file for details.
+     */
+    rc = ble_att_svr_build_write_rsp(rxom, &txom, &att_err);
+    if (rc != 0) {
+        goto done;
+    }
+
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
 
     rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, 0, rxom,
                                   &att_err);
     if (rc != 0) {
-        err_handle = req.bawq_handle;
         goto done;
     }
 
-    rc = ble_att_svr_build_write_rsp(rxom, &txom, &att_err);
-    if (rc != 0) {
-        err_handle = req.bawq_handle;
-        goto done;
-    }
     BLE_ATT_LOG_EMPTY_CMD(1, "write rsp", conn_handle);
 
     rc = 0;
@@ -2651,6 +2668,10 @@ ble_att_svr_build_indicate_rsp(struct os_mbuf **rxom,
     uint8_t *dst;
     int rc;
 
+    /* Allocate a new buffer for the response.  An indicate response never
+     * reuses the request buffer.  See the note at the top of this file for
+     * details.
+     */
     rc = ble_att_svr_pkt(rxom, &txom, out_att_err);
     if (rc != 0) {
         goto done;
@@ -2710,11 +2731,8 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    /* Ensure we can allocate a response before processing the indication. 
-     * We can't reuse the request mbuf because it contains the data that needs
-     * to be passed to the application callback.  The application may choose to
-     * retain the mbuf during the callback, so we can't just reuse the mbuf
-     * after executing the callback either.
+    /* Allocate the indicate response.  This must be done prior to processing
+     * the request.  See the note at the top of this file for details.
      */
     rc = ble_att_svr_build_indicate_rsp(rxom, &txom, &att_err);
     if (rc != 0) {
