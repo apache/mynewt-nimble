@@ -1969,17 +1969,18 @@ TEST_CASE(ble_att_svr_test_oom)
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_GROUP_TYPE_REQ, 11,
                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
 
-    /*** Write; always respond affirmatively, even when no mbufs. */
+    /*** Write. */
     ble_hs_test_util_prev_tx_dequeue();
 
     /* Receive a request. */
     rc = ble_hs_test_util_rx_att_write_req(conn_handle, 1,
                                            ((uint8_t[1]){1}), 1);
-    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
 
-    /* Ensure we were able to send a real response. */
+    /* Ensure we were able to send an error response. */
     ble_hs_test_util_tx_all();
-    ble_hs_test_util_verify_tx_write_rsp();
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ, 1,
+                                       BLE_ATT_ERR_INSUFFICIENT_RES);
 
     /*** Write command; no response. */
     ble_hs_test_util_prev_tx_dequeue();
