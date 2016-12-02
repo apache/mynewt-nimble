@@ -645,8 +645,11 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
+        /* Peer not connected; quietly discard packet. */
         rc = BLE_HS_ENOTCONN;
+        reject_cid = -1;
     } else {
+        /* Forward ACL data to L2CAP. */
         rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &rx_buf, &reject_cid);
         om = NULL;
     }

@@ -255,6 +255,23 @@ TEST_CASE(ble_l2cap_test_case_bad_header)
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 }
 
+TEST_CASE(ble_l2cap_test_case_bad_handle)
+{
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
+
+    rc = ble_l2cap_test_util_rx_first_frag(1234, 14, 1234, 10);
+    TEST_ASSERT(rc == BLE_HS_ENOTCONN);
+
+    /* Ensure we did not send anything in return. */
+    ble_hs_test_util_tx_all();
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx_dequeue() == NULL);
+}
+
 /*****************************************************************************
  * $fragmentation                                                            *
  *****************************************************************************/
@@ -611,6 +628,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
     ble_l2cap_test_case_bad_header();
+    ble_l2cap_test_case_bad_handle();
     ble_l2cap_test_case_frag_single();
     ble_l2cap_test_case_frag_multiple();
     ble_l2cap_test_case_frag_channels();
