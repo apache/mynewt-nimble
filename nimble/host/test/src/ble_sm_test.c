@@ -634,7 +634,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
             .io_cap = 0x04,
             .oob_data_flag = 0,
             .authreq = 0x05,
-            .max_enc_key_size = 17,
+            .max_enc_key_size = 16,
             .init_key_dist = 0x07,
             .resp_key_dist = 0x10,
         },
