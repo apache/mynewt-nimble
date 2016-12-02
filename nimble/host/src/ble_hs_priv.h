@@ -22,6 +22,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include "os/os_time.h"
 #include "ble_att_cmd_priv.h"
 #include "ble_att_priv.h"
 #include "ble_gap_priv.h"
@@ -62,6 +63,13 @@ struct os_event;
 #define BLE_HS_MAX_CONNECTIONS MYNEWT_VAL(BLE_MAX_CONNECTIONS)
 #else
 #define BLE_HS_MAX_CONNECTIONS 0
+#endif
+
+#if !MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE)
+#define BLE_HS_ATT_SVR_QUEUED_WRITE_TMO 0
+#else
+#define BLE_HS_ATT_SVR_QUEUED_WRITE_TMO \
+    MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE_TMO)
 #endif
 
 STATS_SECT_START(ble_hs_stats)

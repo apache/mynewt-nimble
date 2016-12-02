@@ -381,6 +381,13 @@ ble_hs_conn_addrs(const struct ble_hs_conn *conn,
 int32_t
 ble_hs_conn_timer(void)
 {
+    /* If there are no timeouts configured, then there is nothing to check. */
+#if MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT) == 0 && \
+    BLE_HS_ATT_SVR_QUEUED_WRITE_TMO == 0
+     
+    return BLE_HS_FOREVER;
+#endif
+
     struct ble_hs_conn *conn;
     os_time_t now;
     int32_t next_exp_in;
@@ -400,20 +407,44 @@ ble_hs_conn_timer(void)
      * 2. Otherwise, determine when the next timeout will occur.
      */
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
-        /* Check each connection's rx fragment timer.  If too much time passes
-         * after a partial packet is received, the connection is terminated.
-         */
-        if (!(conn->bhc_flags & BLE_HS_CONN_F_TERMINATING) &&
-            conn->bhc_rx_chan != NULL) {
+        if (!(conn->bhc_flags & BLE_HS_CONN_F_TERMINATING)) {
 
-            time_diff = conn->bhc_rx_timeout - now;
+#if MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT) != 0
+            /* Check each connection's rx fragment timer.  If too much time
+             * passes after a partial packet is received, the connection is
+             * terminated.
+             */
+            if (conn->bhc_rx_chan != NULL) {
+                time_diff = conn->bhc_rx_timeout - now;
 
+                if (time_diff <= 0) {
+                    /* ACL reassembly has timed out.  Remember the connection
+                     * handle so it can be terminated after the mutex is
+                     * unlocked.
+                     */
+                    conn_handle = conn->bhc_handle;
+                    break;
+                }
+
+                /* Determine if this connection is the soonest to time out. */
+                if (time_diff < next_exp_in) {
+                    next_exp_in = time_diff;
+                }
+            }
+#endif
+
+#if BLE_HS_ATT_SVR_QUEUED_WRITE_TMO
+            /* Check each connection's rx queued write timer.  If too much
+             * time passes after a prep write is received, the queue is
+             * cleared.
+             */
+            time_diff = ble_att_svr_ticks_until_tmo(&conn->bhc_att_svr, now);
             if (time_diff <= 0) {
                 /* ACL reassembly has timed out.  Remember the connection
-                 * handle so it can be terminated after the mutex is unlocked.
+                 * handle so it can be terminated after the mutex is
+                 * unlocked.
                  */
                 conn_handle = conn->bhc_handle;
-                conn->bhc_flags |= BLE_HS_CONN_F_TERMINATING;
                 break;
             }
 
@@ -421,6 +452,7 @@ ble_hs_conn_timer(void)
             if (time_diff < next_exp_in) {
                 next_exp_in = time_diff;
             }
+#endif
         }
     }
 

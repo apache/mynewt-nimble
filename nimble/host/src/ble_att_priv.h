@@ -120,7 +120,7 @@ SLIST_HEAD(ble_att_prep_entry_list, ble_att_prep_entry);
 struct ble_att_svr_conn {
     /** This list is sorted by attribute handle ID. */
     struct ble_att_prep_entry_list basc_prep_list;
-    uint32_t basc_prep_write_rx_time;
+    os_time_t basc_prep_timeout_at;
 };
 
 /**
@@ -187,6 +187,8 @@ ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at,
 uint16_t ble_att_svr_prev_handle(void);
 int ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom);
 struct ble_att_svr_entry *ble_att_svr_find_by_handle(uint16_t handle_id);
+int32_t ble_att_svr_ticks_until_tmo(const struct ble_att_svr_conn *svr,
+                                    os_time_t now);
 int ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_svr_rx_find_type_value(uint16_t conn_handle,
                                    struct os_mbuf **rxom);

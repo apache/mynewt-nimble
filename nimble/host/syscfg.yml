@@ -42,6 +42,12 @@ syscfg.defs:
     BLE_L2CAP_SIG_MAX_PROCS:
         description: 'TBD'
         value: 1
+    BLE_L2CAP_RX_FRAG_TIMEOUT:
+        description: >
+            Expiry time for incoming data packets (ms).  If this much time
+            passes since the previous fragment was received, the connection is
+            terminated.  A value of 0 means no timeout.
+        value: 30000
 
     # Security manager settings.
     BLE_SM:
@@ -203,6 +209,13 @@ syscfg.defs:
             procedure.  One of these resources is consumed each time a peer
             sends a partial write.
         value: 64
+
+    BLE_ATT_SVR_QUEUED_WRITE_TMO:
+        description: >
+            Expiry time for incoming ATT queued writes (ms).  If this much
+            time passes since the previous prepared write was received, the
+            connection is terminated.  A value of 0 means no timeout.
+        value: 30000
 
     # Privacy options.
     BLE_RPA_TIMEOUT:
