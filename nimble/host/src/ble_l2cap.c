@@ -180,6 +180,8 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         rc = 0;
     } else {
         /* More fragments remain. */
+        conn->bhc_rx_timeout = os_time_get() + BLE_L2CAP_REASSEM_TIMEOUT;
+        ble_hs_timer_resched();
         rc = BLE_HS_EAGAIN;
     }
 

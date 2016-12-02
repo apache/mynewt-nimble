@@ -314,10 +314,13 @@ ble_hs_timer_exp(struct os_event *ev)
 
     ticks_until_next = ble_sm_timer();
     ble_hs_timer_sched(ticks_until_next);
+
+    ticks_until_next = ble_hs_conn_timer();
+    ble_hs_timer_sched(ticks_until_next);
 }
 
 static void
-ble_hs_timer_timer_reset(uint32_t ticks)
+ble_hs_timer_reset(uint32_t ticks)
 {
     int rc;
 
@@ -341,7 +344,7 @@ ble_hs_timer_sched(int32_t ticks_from_now)
     if (!os_callout_queued(&ble_hs_timer_timer) ||
         OS_TIME_TICK_LT(abs_time, ble_hs_timer_timer.c_ticks)) {
 
-        ble_hs_timer_timer_reset(ticks_from_now);
+        ble_hs_timer_reset(ticks_from_now);
     }
 }
 
@@ -351,7 +354,7 @@ ble_hs_timer_resched(void)
     /* Reschedule the timer to run immediately.  The timer callback will query
      * each module for an up-to-date expiration time.
      */
-    ble_hs_timer_timer_reset(0);
+    ble_hs_timer_reset(0);
 }
 
 static void

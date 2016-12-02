@@ -352,6 +352,51 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
     ble_hs_unlock();
 }
 
+TEST_CASE(ble_l2cap_test_case_frag_timeout)
+{
+    int32_t ticks_from_now;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+                                    NULL, NULL);
+
+    /* Ensure timer is not set. */
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT_FATAL(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Receive the first fragment of a multipart ACL data packet. */
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_TEST_CID, 30);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure timer will expire in 30 seconds. */
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == BLE_L2CAP_REASSEM_TIMEOUT);
+
+    /* Almost let the timer expire. */
+    os_time_advance(BLE_L2CAP_REASSEM_TIMEOUT - 1);
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == 1);
+
+    /* Receive a second fragment. */
+    rc = ble_l2cap_test_util_rx_next_frag(2, 14);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure timer got reset. */
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == BLE_L2CAP_REASSEM_TIMEOUT);
+
+    /* Allow the timer to expire. */
+    ble_hs_test_util_set_ack_disconnect(0);
+    os_time_advance(BLE_L2CAP_REASSEM_TIMEOUT);
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Ensure connection was terminated. */
+    ble_hs_test_util_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
+}
+
 /*****************************************************************************
  * $unsolicited response                                                     *
  *****************************************************************************/
@@ -569,6 +614,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_frag_single();
     ble_l2cap_test_case_frag_multiple();
     ble_l2cap_test_case_frag_channels();
+    ble_l2cap_test_case_frag_timeout();
     ble_l2cap_test_case_sig_unsol_rsp();
     ble_l2cap_test_case_sig_update_accept();
     ble_l2cap_test_case_sig_update_reject();

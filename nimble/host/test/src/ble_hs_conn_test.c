@@ -167,8 +167,10 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    addr, &adv_params, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC,
+                                    BLE_ADDR_TYPE_PUBLIC,
+                                    addr, &adv_params,
+                                    BLE_HS_FOREVER,
                                     NULL, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 

@@ -29,6 +29,8 @@
 extern "C" {
 #endif
 
+#define BLE_L2CAP_REASSEM_TIMEOUT       (30 * OS_TICKS_PER_SEC)
+
 struct ble_hs_conn;
 struct hci_data_hdr;
 
