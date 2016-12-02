@@ -183,11 +183,10 @@ syscfg.defs:
     BLE_ATT_SVR_SIGNED_WRITE:
         description: 'TBD'
         value: 1
-    BLE_ATT_SVR_PREP_WRITE:
-        description: 'TBD'
-        value: 1
-    BLE_ATT_SVR_EXEC_WRITE:
-        description: 'TBD'
+    BLE_ATT_SVR_QUEUED_WRITE:
+        description: >
+            Whether the device can receive ATT queued writes (prepare write
+            and execute write requests).
         value: 1
     BLE_ATT_SVR_NOTIFY:
         description: 'TBD'

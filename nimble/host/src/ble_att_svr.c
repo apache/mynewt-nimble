@@ -2383,7 +2383,7 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
 int
 ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !MYNEWT_VAL(BLE_ATT_SVR_PREP_WRITE)
+#if !MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE)
     return BLE_HS_ENOTSUP;
 #endif
 
@@ -2498,7 +2498,7 @@ done:
 int
 ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-#if !MYNEWT_VAL(BLE_ATT_SVR_EXEC_WRITE)
+#if !MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE)
     return BLE_HS_ENOTSUP;
 #endif
 
