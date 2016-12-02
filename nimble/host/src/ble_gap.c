@@ -2549,14 +2549,21 @@ int
 ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_DISCONNECT_CMD_LEN];
+    struct ble_hs_conn *conn;
     int rc;
 
     STATS_INC(ble_gap_stats, terminate);
 
     ble_hs_lock();
 
-    if (!ble_hs_conn_exists(conn_handle)) {
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
         rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+
+    if (conn->bhc_flags & BLE_HS_CONN_F_TERMINATING) {
+        rc = BLE_HS_EALREADY;
         goto done;
     }
 
@@ -2571,6 +2578,7 @@ ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason)
         goto done;
     }
 
+    conn->bhc_flags |= BLE_HS_CONN_F_TERMINATING;
     rc = 0;
 
 done:

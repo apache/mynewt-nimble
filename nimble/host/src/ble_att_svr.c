@@ -291,6 +291,39 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
 }
 
 /**
+ * Calculates the number of ticks until a queued write times out on the
+ * specified ATT server.  If this server is not in the process of receiving a
+ * queued write, then BLE_HS_FOREVER is returned.  If a timeout just occurred,
+ * 0 is returned.
+ *
+ * @param svr                   The ATT server to check.
+ * @param now                   The current OS time.
+ *
+ * @return                      The number of ticks until the current queued
+ *                                  write times out.  
+ */
+int32_t
+ble_att_svr_ticks_until_tmo(const struct ble_att_svr_conn *svr, os_time_t now)
+{
+#if BLE_HS_ATT_SVR_QUEUED_WRITE_TMO == 0
+    return BLE_HS_FOREVER;
+#endif
+
+    int32_t time_diff;
+
+    if (SLIST_EMPTY(&svr->basc_prep_list)) {
+        return BLE_HS_FOREVER;
+    }
+
+    time_diff = svr->basc_prep_timeout_at - now;
+    if (time_diff < 0) {
+        return 0;
+    }
+
+    return time_diff;
+}
+
+/**
  * Allocates an mbuf to be used for an ATT response.  If an mbuf cannot be
  * allocated, the received request mbuf is reused for the error response.
  */
@@ -2376,6 +2409,13 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
     } else {
         SLIST_INSERT_AFTER(prep_prev, prep_entry, bape_next);
     }
+
+#if BLE_HS_ATT_SVR_QUEUED_WRITE_TMO != 0
+    conn->bhc_att_svr.basc_prep_timeout_at =
+        os_time_get() + BLE_HS_ATT_SVR_QUEUED_WRITE_TMO;
+
+    ble_hs_timer_resched();
+#endif
 
     return 0;
 }

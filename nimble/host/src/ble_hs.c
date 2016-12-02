@@ -405,7 +405,7 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
         ble_hci_trans_buf_free(hci_evt);
     } else {
         ev->ev_queued = 0;
-        ev->ev_cb = ble_hs_event_rx_hci_ev,
+        ev->ev_cb = ble_hs_event_rx_hci_ev;
         ev->ev_arg = hci_evt;
         os_eventq_put(ble_hs_evq_get(), ev);
     }

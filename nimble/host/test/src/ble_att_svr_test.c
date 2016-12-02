@@ -1763,6 +1763,65 @@ TEST_CASE(ble_att_svr_test_notify)
 
 }
 
+TEST_CASE(ble_att_svr_test_prep_write_tmo)
+{
+    int32_t ticks_from_now;
+    uint16_t conn_handle;
+    int rc;
+    int i;
+
+    static uint8_t data[1024];
+
+    conn_handle = ble_att_svr_test_misc_init(205);
+
+    /* Initialize some attribute data. */
+    for (i = 0; i < sizeof data; i++) {
+        data[i] = i;
+    }
+
+    /* Register a writable attribute. */
+    ble_att_svr_test_misc_register_uuid16(0x1234, HA_FLAG_PERM_RW, 1,
+                                          ble_att_svr_test_misc_attr_fn_w_1);
+
+    /* Ensure timer is not set. */
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT_FATAL(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Receive a prepare write request. */
+    ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 7, 0);
+
+    /* Ensure timer will expire in 30 seconds. */
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
+
+    /* Almost let the timer expire. */
+    os_time_advance(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO - 1);
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == 1);
+
+    /* Receive a second prepare write request. */
+    ble_att_svr_test_misc_prep_write(conn_handle, 1, 7, data + 7, 10, 0);
+
+    /* Ensure timer got reset. */
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
+
+    /* Allow the timer to expire. */
+    ble_hs_test_util_set_ack_disconnect(0);
+    os_time_advance(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
+    ticks_from_now = ble_hs_conn_timer();
+    TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
+
+    /* Ensure connection was terminated. */
+    ble_hs_test_util_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
+
+    /* Free connection.  This is needed so that the prep write mbufs get
+     * freed and no mbuf leak gets reported.
+     */
+    rc = ble_hs_atomic_conn_delete(conn_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+}
+
 TEST_CASE(ble_att_svr_test_indicate)
 {
     uint16_t conn_handle;
@@ -1783,7 +1842,6 @@ TEST_CASE(ble_att_svr_test_indicate)
     /* Attribute handle of 0. */
     ble_att_svr_test_misc_verify_indicate(conn_handle, 0,
                                           (uint8_t[]) { 1, 2, 3 }, 3, 0);
-
 }
 
 TEST_CASE(ble_att_svr_test_oom)
@@ -1996,6 +2054,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_read_type();
     ble_att_svr_test_read_group_type();
     ble_att_svr_test_prep_write();
+    ble_att_svr_test_prep_write_tmo();
     ble_att_svr_test_notify();
     ble_att_svr_test_indicate();
     ble_att_svr_test_oom();

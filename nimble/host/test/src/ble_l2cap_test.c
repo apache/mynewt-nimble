@@ -372,10 +372,10 @@ TEST_CASE(ble_l2cap_test_case_frag_timeout)
 
     /* Ensure timer will expire in 30 seconds. */
     ticks_from_now = ble_hs_conn_timer();
-    TEST_ASSERT(ticks_from_now == BLE_L2CAP_REASSEM_TIMEOUT);
+    TEST_ASSERT(ticks_from_now == MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT));
 
     /* Almost let the timer expire. */
-    os_time_advance(BLE_L2CAP_REASSEM_TIMEOUT - 1);
+    os_time_advance(MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT) - 1);
     ticks_from_now = ble_hs_conn_timer();
     TEST_ASSERT(ticks_from_now == 1);
 
@@ -385,11 +385,11 @@ TEST_CASE(ble_l2cap_test_case_frag_timeout)
 
     /* Ensure timer got reset. */
     ticks_from_now = ble_hs_conn_timer();
-    TEST_ASSERT(ticks_from_now == BLE_L2CAP_REASSEM_TIMEOUT);
+    TEST_ASSERT(ticks_from_now == MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT));
 
     /* Allow the timer to expire. */
     ble_hs_test_util_set_ack_disconnect(0);
-    os_time_advance(BLE_L2CAP_REASSEM_TIMEOUT);
+    os_time_advance(MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT));
     ticks_from_now = ble_hs_conn_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
