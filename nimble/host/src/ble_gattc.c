@@ -3108,10 +3108,6 @@ ble_gattc_read_uuid_err(struct ble_gattc_proc *proc, int status,
 {
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    if (status == BLE_HS_ATT_ERR(BLE_ATT_ERR_ATTR_NOT_FOUND)) {
-        /* Read is complete. */
-        status = 0;
-    }
     ble_gattc_read_uuid_cb(proc, status, att_handle, NULL);
 }
 
