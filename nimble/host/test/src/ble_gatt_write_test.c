@@ -23,7 +23,6 @@
 #include "nimble/ble.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_gatt.h"
-#include "host/ble_uuid.h"
 #include "ble_hs_test_util.h"
 
 #define BLE_GATT_WRITE_TEST_MAX_ATTRS   128
