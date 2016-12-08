@@ -273,6 +273,8 @@ void ble_hs_test_util_assert_mbufs_freed(
     const struct ble_hs_test_util_mbuf_params *params);
 void ble_hs_test_util_post_test(void *arg);
 int ble_hs_test_util_num_cccds(void);
+int ble_hs_test_util_num_our_secs(void);
+int ble_hs_test_util_num_peer_secs(void);
 void ble_hs_test_util_init_no_start(void);
 void ble_hs_test_util_init(void);
 

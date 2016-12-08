@@ -2070,6 +2070,52 @@ ble_hs_test_util_num_cccds(void)
     }
 }
 
+int
+ble_hs_test_util_num_our_secs(void)
+{
+    struct ble_store_value_sec val;
+    struct ble_store_key_sec key = { 0 };
+    int rc;
+
+    key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    for (key.idx = 0; ; key.idx++) {
+        rc = ble_store_read_our_sec(&key, &val);
+        switch (rc) {
+        case 0:
+            break;
+
+        case BLE_HS_ENOENT:
+            return key.idx;
+
+        default:
+            TEST_ASSERT_FATAL(0);
+        }
+    }
+}
+
+int
+ble_hs_test_util_num_peer_secs(void)
+{
+    struct ble_store_value_sec val;
+    struct ble_store_key_sec key = { 0 };
+    int rc;
+
+    key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    for (key.idx = 0; ; key.idx++) {
+        rc = ble_store_read_peer_sec(&key, &val);
+        switch (rc) {
+        case 0:
+            break;
+
+        case BLE_HS_ENOENT:
+            return key.idx;
+
+        default:
+            TEST_ASSERT_FATAL(0);
+        }
+    }
+}
+
 static int
 ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
                             union ble_store_value *value)
