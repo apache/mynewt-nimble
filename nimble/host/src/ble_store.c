@@ -86,29 +86,17 @@ ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
 static int
 ble_store_persist_sec(int obj_type, struct ble_store_value_sec *value_sec)
 {
-    struct ble_store_key_sec key_sec;
     union ble_store_value *store_value;
-    union ble_store_key *store_key;
     int rc;
 
     BLE_HS_DBG_ASSERT(value_sec->peer_addr_type == BLE_ADDR_TYPE_PUBLIC ||
                       value_sec->peer_addr_type == BLE_ADDR_TYPE_RANDOM);
+    BLE_HS_DBG_ASSERT(value_sec->ltk_present ||
+                      value_sec->irk_present ||
+                      value_sec->csrk_present);
 
-    /* If the value contains no keys, delete the corresponding entry.
-     * Otherwise, write it.
-     */
-    if (!value_sec->ltk_present &&
-        !value_sec->irk_present &&
-        !value_sec->csrk_present) {
-
-        ble_store_key_from_value_sec(&key_sec, value_sec);
-        store_key = (void *)&key_sec;
-        rc = ble_store_delete(obj_type, store_key);
-    } else {
-        store_value = (void *)value_sec;
-        rc = ble_store_write(obj_type, store_value);
-    }
-
+    store_value = (void *)value_sec;
+    rc = ble_store_write(obj_type, store_value);
     return rc;
 }
 
@@ -118,6 +106,28 @@ ble_store_write_our_sec(struct ble_store_value_sec *value_sec)
     int rc;
 
     rc = ble_store_persist_sec(BLE_STORE_OBJ_TYPE_OUR_SEC, value_sec);
+    return rc;
+}
+
+int
+ble_store_delete_our_sec(struct ble_store_key_sec *key_sec)
+{
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key_sec;
+    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_OUR_SEC, store_key);
+    return rc;
+}
+
+int
+ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec)
+{
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key_sec;
+    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_PEER_SEC, store_key);
     return rc;
 }
 
@@ -168,25 +178,6 @@ ble_store_write_peer_sec(struct ble_store_value_sec *value_sec)
     }
 
     return 0;
-}
-
-int
-ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec)
-{
-    union ble_store_key *store_key;
-    int rc;
-
-    store_key = (void *)key_sec;
-    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_PEER_SEC, store_key);
-
-    if(key_sec->peer_addr_type == BLE_STORE_ADDR_TYPE_NONE) {
-        /* don't error check this since we don't know without looking up
-         * the value whether it had a valid IRK */
-        ble_hs_pvcy_remove_entry(key_sec->peer_addr_type,
-                                    key_sec->peer_addr);
-    }
-
-    return rc;
 }
 
 int

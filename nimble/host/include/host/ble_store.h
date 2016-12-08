@@ -197,9 +197,11 @@ int ble_store_delete(int obj_type, union ble_store_key *key);
 int ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec);
 int ble_store_write_our_sec(struct ble_store_value_sec *value_sec);
+int ble_store_delete_our_sec(struct ble_store_key_sec *key_sec);
 int ble_store_read_peer_sec(struct ble_store_key_sec *key_sec,
                             struct ble_store_value_sec *value_sec);
 int ble_store_write_peer_sec(struct ble_store_value_sec *value_sec);
+int ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec);
 
 int ble_store_read_cccd(struct ble_store_key_cccd *key,
                         struct ble_store_value_cccd *out_value);
