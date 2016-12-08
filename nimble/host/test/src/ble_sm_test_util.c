@@ -1797,6 +1797,9 @@ ble_sm_test_util_us_lgcy_good_once(struct ble_sm_test_params *params)
 void
 ble_sm_test_util_us_lgcy_good(struct ble_sm_test_params *params)
 {
+    uint8_t id_addr_type;
+    int rc;
+
     /*** We are master. */
 
     /* We initiate pairing. */
@@ -1809,6 +1812,14 @@ ble_sm_test_util_us_lgcy_good(struct ble_sm_test_params *params)
 
     /* Verify link can be restored via the encryption procedure. */
     ble_sm_test_util_bonding_all(params, 1);
+
+    /* Verify programmatic unbonding. */
+    id_addr_type = ble_hs_misc_addr_type_to_id(params->resp_addr_type);
+    rc = ble_sm_unbond(id_addr_type, params->resp_id_addr);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(ble_hs_test_util_num_our_secs() == 0);
+    TEST_ASSERT(ble_hs_test_util_num_peer_secs() == 0);
 }
 
 static void
@@ -1924,6 +1935,9 @@ ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_params *params)
 void
 ble_sm_test_util_peer_lgcy_good(struct ble_sm_test_params *params)
 {
+    uint8_t id_addr_type;
+    int rc;
+
     /*** Peer is master. */
 
     /* Peer performs IO first; peer initiates pairing. */
@@ -1948,6 +1962,14 @@ ble_sm_test_util_peer_lgcy_good(struct ble_sm_test_params *params)
 
     /* Verify link can be restored via the encryption procedure. */
     ble_sm_test_util_bonding_all(params, 0);
+
+    /* Verify programmatic unbonding. */
+    id_addr_type = ble_hs_misc_addr_type_to_id(params->init_addr_type);
+    rc = ble_sm_unbond(id_addr_type, params->init_id_addr);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(ble_hs_test_util_num_our_secs() == 0);
+    TEST_ASSERT(ble_hs_test_util_num_peer_secs() == 0);
 }
 
 static void
@@ -2110,6 +2132,9 @@ ble_sm_test_util_us_sc_good_once(struct ble_sm_test_params *params)
 void
 ble_sm_test_util_us_sc_good(struct ble_sm_test_params *params)
 {
+    uint8_t id_addr_type;
+    int rc;
+
     /*** We are master. */
 
     /* We initiate pairing. */
@@ -2124,6 +2149,14 @@ ble_sm_test_util_us_sc_good(struct ble_sm_test_params *params)
 
     /* Verify link can be restored via the encryption procedure. */
     ble_sm_test_util_bonding_all(params, 1);
+
+    /* Verify programmatic unbonding. */
+    id_addr_type = ble_hs_misc_addr_type_to_id(params->resp_addr_type);
+    rc = ble_sm_unbond(id_addr_type, params->resp_id_addr);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(ble_hs_test_util_num_our_secs() == 0);
+    TEST_ASSERT(ble_hs_test_util_num_peer_secs() == 0);
 }
 
 static void
@@ -2298,6 +2331,9 @@ ble_sm_test_util_peer_sc_good_once(struct ble_sm_test_params *params)
 void
 ble_sm_test_util_peer_sc_good(struct ble_sm_test_params *params)
 {
+    uint8_t id_addr_type;
+    int rc;
+
     /*** Peer is master. */
 
     /* Peer performs IO first; peer initiates pairing. */
@@ -2322,6 +2358,14 @@ ble_sm_test_util_peer_sc_good(struct ble_sm_test_params *params)
 
     /* Verify link can be restored via the encryption procedure. */
     ble_sm_test_util_bonding_all(params, 0);
+
+    /* Verify programmatic unbonding. */
+    id_addr_type = ble_hs_misc_addr_type_to_id(params->init_addr_type);
+    rc = ble_sm_unbond(id_addr_type, params->init_id_addr);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(ble_hs_test_util_num_our_secs() == 0);
+    TEST_ASSERT(ble_hs_test_util_num_peer_secs() == 0);
 }
 
 void

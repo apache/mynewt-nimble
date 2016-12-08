@@ -2155,6 +2155,42 @@ ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
     return res.app_status;
 }
 
+/**
+ * Deletes the bonding association with the specified peer.  That is, this
+ * function erases the security material that was persisted when we paired with
+ * the specified peer.
+ *
+ * @param peer_id_addr_type     The identity address type of the peer.
+ * @param peer_id_addr          The peer's identity address.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT if there is no bond to the
+ *                                  specified peer.
+ */                             
+int
+ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
+{
+    struct ble_store_key_sec key_sec = { 0 };
+    int peer_rc;
+    int our_rc;
+    int rc;
+
+    key_sec.peer_addr_type = peer_id_addr_type;
+    memcpy(key_sec.peer_addr, peer_id_addr, sizeof key_sec.peer_addr);
+
+    our_rc = ble_store_delete_our_sec(&key_sec);
+    peer_rc = ble_store_delete_peer_sec(&key_sec);
+
+    if (our_rc == BLE_HS_ENOENT && peer_rc == BLE_HS_ENOENT) {
+        rc = BLE_HS_ENOENT;
+    } else if (our_rc == 0) {
+        rc = peer_rc;
+    } else {
+        rc = our_rc;
+    }
+    return rc;
+}
+
 static int
 ble_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
