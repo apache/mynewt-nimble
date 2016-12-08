@@ -23,7 +23,6 @@
 #include <inttypes.h>
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_test_util_store.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -273,6 +272,7 @@ int ble_hs_test_util_mbuf_count(
 void ble_hs_test_util_assert_mbufs_freed(
     const struct ble_hs_test_util_mbuf_params *params);
 void ble_hs_test_util_post_test(void *arg);
+int ble_hs_test_util_num_cccds(void);
 void ble_hs_test_util_init_no_start(void);
 void ble_hs_test_util_init(void);
 

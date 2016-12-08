@@ -25,6 +25,7 @@ pkg.keywords:
 pkg.deps:
     - test/testutil
     - net/nimble/host
+    - net/nimble/host/store/ram
 
 pkg.deps.SELFTEST:
     - sys/console/stub
