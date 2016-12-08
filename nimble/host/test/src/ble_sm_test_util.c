@@ -26,6 +26,7 @@
 #include "host/ble_sm.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_hs_id.h"
+#include "store/ram/ble_store_ram.h"
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"
 
@@ -33,13 +34,6 @@ int ble_sm_test_gap_event_type;
 int ble_sm_test_gap_status;
 struct ble_gap_sec_state ble_sm_test_sec_state;
 static struct ble_gap_passkey_params ble_sm_test_ioact;
-
-int ble_sm_test_store_obj_type;
-union ble_store_key ble_sm_test_store_key;
-union ble_store_value ble_sm_test_store_value;
-
-static ble_store_read_fn ble_sm_test_util_store_read;
-static ble_store_write_fn ble_sm_test_util_store_write;
 
 struct ble_sm_test_util_entity {
     uint8_t addr_type;
@@ -75,34 +69,11 @@ struct ble_sm_test_util_entity {
         .hdh_len = (len)                                \
     })
 
-static int
-ble_sm_test_util_store_read(int obj_type, union ble_store_key *key,
-                                  union ble_store_value *val)
-{
-    ble_sm_test_store_obj_type = obj_type;
-    ble_sm_test_store_key = *key;
-
-    return ble_hs_test_util_store_read(obj_type, key, val);
-}
-
-static int
-ble_sm_test_util_store_write(int obj_type, union ble_store_value *val)
-{
-    ble_sm_test_store_obj_type = obj_type;
-    ble_sm_test_store_value = *val;
-
-    return ble_hs_test_util_store_write(obj_type, val);
-}
-
 void
 ble_sm_test_util_init(void)
 {
     ble_hs_test_util_init();
-    ble_hs_test_util_store_init(10, 10, 10);
-    ble_hs_cfg.store_read_cb = ble_sm_test_util_store_read;
-    ble_hs_cfg.store_write_cb = ble_sm_test_util_store_write;
 
-    ble_sm_test_store_obj_type = -1;
     ble_sm_test_gap_event_type = -1;
     ble_sm_test_gap_status = -1;
 
@@ -1255,8 +1226,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
 
     /* Ensure the LTK request event got sent to the application. */
-    TEST_ASSERT(ble_sm_test_store_obj_type ==
-                BLE_STORE_OBJ_TYPE_OUR_SEC);
+    TEST_ASSERT(ble_sm_test_store_obj_type == BLE_STORE_OBJ_TYPE_OUR_SEC);
     TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr_type ==
                 ble_hs_misc_addr_type_to_id(peer_addr_type));
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);

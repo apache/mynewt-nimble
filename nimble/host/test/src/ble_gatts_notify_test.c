@@ -24,7 +24,6 @@
 #include "host/ble_uuid.h"
 #include "host/ble_hs_test.h"
 #include "ble_hs_test_util.h"
-#include "ble_hs_test_util_store.h"
 
 #define BLE_GATTS_NOTIFY_TEST_CHR_1_UUID    0x1111
 #define BLE_GATTS_NOTIFY_TEST_CHR_2_UUID    0x2222
@@ -236,9 +235,6 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
 
     ble_gatts_notify_test_num_events = 0;
 
-    ble_hs_test_util_store_init(10, 10, 10);
-    ble_hs_cfg.store_read_cb = ble_hs_test_util_store_read;
-    ble_hs_cfg.store_write_cb = ble_hs_test_util_store_write;
 
     rc = ble_gatts_register_svcs(ble_gatts_notify_test_svcs,
                                  ble_gatts_notify_test_misc_reg_cb, NULL);
@@ -316,7 +312,7 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
     } else {
         exp_num_cccds = 0;
     }
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == exp_num_cccds);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == exp_num_cccds);
 }
 
 static void
@@ -761,7 +757,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_n)
                                      BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
 
     /* Ensure both CCCDs still persisted. */
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -807,7 +803,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_n)
     TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
 
     /* Ensure both CCCDs still persisted. */
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
 }
 
 TEST_CASE(ble_gatts_notify_test_bonded_i)
@@ -825,7 +821,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i)
                                      BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     /* Ensure both CCCDs still persisted. */
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -897,7 +893,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i)
     TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_INDICATE);
 
     /* Ensure both CCCDs still persisted. */
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 2);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
 }
 
 TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
@@ -938,7 +934,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
                                      BLE_GATTS_CLT_CFG_F_INDICATE, 1, 0, 0);
 
     /* Ensure CCCD still persisted. */
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 1);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == 1);
 
     /* Reconnect. */
     ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
@@ -966,7 +962,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
     TEST_ASSERT(flags == 0);
 
     /* Ensure CCCD still persisted. */
-    TEST_ASSERT(ble_hs_test_util_store_num_cccds == 1);
+    TEST_ASSERT(ble_hs_test_util_num_cccds() == 1);
 
     /* Verify 'updated' state is no longer persisted. */
     rc = ble_store_read_cccd(&key_cccd, &value_cccd);

@@ -26,6 +26,7 @@
 #include "nimble/ble_hci_trans.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_id.h"
+#include "store/ram/ble_store_ram.h"
 #include "transport/ram/ble_hci_ram.h"
 #include "ble_hs_test_util.h"
 
@@ -41,6 +42,10 @@ struct os_eventq ble_hs_test_util_evq;
 
 static STAILQ_HEAD(, os_mbuf_pkthdr) ble_hs_test_util_prev_tx_queue;
 struct os_mbuf *ble_hs_test_util_prev_tx_cur;
+
+int ble_sm_test_store_obj_type;
+union ble_store_key ble_sm_test_store_key;
+union ble_store_value ble_sm_test_store_value;
 
 #define BLE_HS_TEST_UTIL_PREV_HCI_TX_CNT      64
 static uint8_t
@@ -2042,6 +2047,69 @@ ble_hs_test_util_hci_txed(uint8_t *cmdbuf, void *arg)
     return 0;
 }
 
+int
+ble_hs_test_util_num_cccds(void)
+{
+    struct ble_store_value_cccd val;
+    struct ble_store_key_cccd key = { 0 };
+    int rc;
+
+    key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    for (key.idx = 0; ; key.idx++) {
+        rc = ble_store_read_cccd(&key, &val);
+        switch (rc) {
+        case 0:
+            break;
+
+        case BLE_HS_ENOENT:
+            return key.idx;
+
+        default:
+            TEST_ASSERT_FATAL(0);
+        }
+    }
+}
+
+static int
+ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
+                            union ble_store_value *value)
+{
+    int rc;
+
+    ble_sm_test_store_obj_type = obj_type;
+    ble_sm_test_store_key = *key;
+
+    rc = ble_store_ram_read(obj_type, key, value);
+    ble_sm_test_store_value = *value;
+
+    return rc;
+}
+
+static int
+ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
+{
+    int rc;
+
+    ble_sm_test_store_obj_type = obj_type;
+
+    rc = ble_store_ram_write(obj_type, value);
+    ble_sm_test_store_value = *value;
+
+    return rc;
+}
+
+static int
+ble_hs_test_util_store_delete(int obj_type, union ble_store_key *key)
+{
+    int rc;
+
+    ble_sm_test_store_obj_type = obj_type;
+    ble_sm_test_store_key = *key;
+
+    rc = ble_store_ram_delete(obj_type, key);
+    return rc;
+}
+
 void
 ble_hs_test_util_init_no_start(void)
 {
@@ -2065,6 +2133,10 @@ ble_hs_test_util_init_no_start(void)
     ble_hs_test_util_prev_hci_tx_clear();
 
     ble_hs_evq_set(&ble_hs_test_util_evq);
+
+    ble_hs_cfg.store_read_cb = ble_hs_test_util_store_read;
+    ble_hs_cfg.store_write_cb = ble_hs_test_util_store_write;
+    ble_hs_cfg.store_delete_cb = ble_hs_test_util_store_delete;
 }
 
 void
