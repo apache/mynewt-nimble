@@ -21,7 +21,6 @@
 #define H_NIMBLE_OPT_AUTO_
 
 #include "syscfg/syscfg.h"
-#include "nimble/nimble_opt.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,8 +29,8 @@ extern "C" {
 /***
  * Automatic options.
  * 
- * These settings are generated automatically from the user-specified settings
- * in nimble_opt.h.
+ * These settings are generated automatically from the user-specified syscfg
+ * settings.
  */
 
 #undef NIMBLE_BLE_ADVERTISE
@@ -108,14 +107,8 @@ extern "C" {
 
 /** Security manager settings. */
 
-
-/* Secure connections implies security manager support
- * Note: For now, security manager is synonymous with legacy pairing.  In the
- * future, a new setting for legacy pairing may be introduced as a sibling of
- * the SC setting.
- */
 #undef NIMBLE_BLE_SM
-#define NIMBLE_BLE_SM   (MYNEWT_VAL(BLE_SM) || MYNEWT_VAL(BLE_SM_SC))
+#define NIMBLE_BLE_SM   (MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC))
 
 #ifdef __cplusplus
 }

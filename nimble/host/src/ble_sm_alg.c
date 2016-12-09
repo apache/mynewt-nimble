@@ -21,8 +21,9 @@
 #include <inttypes.h>
 #include <string.h>
 #include "syscfg/syscfg.h"
+#include "nimble/nimble_opt.h"
 
-#if MYNEWT_VAL(BLE_SM)
+#if NIMBLE_BLE_SM
 
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
