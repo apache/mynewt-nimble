@@ -49,7 +49,7 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
-#if MYNEWT_VAL(BLE_SM)
+#if NIMBLE_BLE_SM
 
 /** Procedure timeout; 30 seconds. */
 #define BLE_SM_TIMEOUT_OS_TICKS             (30 * OS_TICKS_PER_SEC)

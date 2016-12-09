@@ -25,7 +25,7 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_BLE_SM
+#if MYNEWT_VAL(BLE_SM_LEGACY)
 
 /**
  * Create some shortened names for the passkey actions so that the table is

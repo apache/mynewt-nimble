@@ -403,6 +403,7 @@ void ble_sm_enc_change_rx(struct hci_encrypt_change *evt);
 void ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt);
 int ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt);
 
+#if MYNEWT_VAL(BLE_SM_LEGACY)
 int ble_sm_lgcy_io_action(struct ble_sm_proc *proc);
 void ble_sm_lgcy_confirm_exec(struct ble_sm_proc *proc,
                               struct ble_sm_result *res);
@@ -410,6 +411,12 @@ void ble_sm_lgcy_random_exec(struct ble_sm_proc *proc,
                              struct ble_sm_result *res);
 void ble_sm_lgcy_random_rx(struct ble_sm_proc *proc,
                            struct ble_sm_result *res);
+#else
+#define ble_sm_lgcy_io_action(proc) (BLE_HS_ENOTSUP)
+#define ble_sm_lgcy_confirm_exec(proc, res)
+#define ble_sm_lgcy_random_exec(proc, res)
+#define ble_sm_lgcy_random_rx(proc, res)
+#endif
 
 #if MYNEWT_VAL(BLE_SM_SC)
 int ble_sm_sc_io_action(struct ble_sm_proc *proc);

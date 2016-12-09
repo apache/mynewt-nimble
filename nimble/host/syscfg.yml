@@ -50,7 +50,7 @@ syscfg.defs:
         value: 30000
 
     # Security manager settings.
-    BLE_SM:
+    BLE_SM_LEGACY:
         description: 'Security manager legacy pairing.'
         value: 1
     BLE_SM_SC:
