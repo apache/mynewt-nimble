@@ -2170,11 +2170,12 @@ ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
 int
 ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
 {
-    struct ble_store_key_sec key_sec = { 0 };
+    struct ble_store_key_sec key_sec;
     int peer_rc;
     int our_rc;
     int rc;
 
+    memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr_type = peer_id_addr_type;
     memcpy(key_sec.peer_addr, peer_id_addr, sizeof key_sec.peer_addr);
 
