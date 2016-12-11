@@ -202,7 +202,7 @@ TEST_CASE(ble_sm_test_case_peer_fail_inval)
             .resp_key_dist = 0x07,
         } }),
         ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
+            .reason = BLE_SM_ERR_ENC_KEY_SZ,
         } })
     );
 
@@ -457,7 +457,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
             .resp_key_dist = 0x07,
         },
         .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
+            .reason = BLE_SM_ERR_ENC_KEY_SZ,
         },
     };
     ble_sm_test_util_us_fail_inval(&params);
