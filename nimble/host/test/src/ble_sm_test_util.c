@@ -2408,7 +2408,7 @@ ble_sm_test_util_us_fail_inval(struct ble_sm_test_params *params)
 
     /* Receive a pair response from the peer. */
     ble_sm_test_util_rx_pair_rsp(
-        2, &params->pair_rsp, BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL));
+        2, &params->pair_rsp, BLE_HS_SM_US_ERR(params->pair_fail.reason));
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_dbg_num_procs() == 0);
 
