@@ -1897,7 +1897,7 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
 
     rc = ble_hs_id_use_addr(own_addr_type);
     if (rc != 0) {
-        return rc;
+        goto done;
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
