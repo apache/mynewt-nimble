@@ -27,10 +27,12 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/hci_vendor.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
@@ -69,7 +71,8 @@
  */
 struct ble_ll_adv_sm
 {
-    uint8_t enabled;
+    uint8_t adv_enabled;
+    uint8_t adv_instance;
     uint8_t adv_type;
     uint8_t adv_len;
     uint8_t adv_chanmask;
@@ -83,6 +86,7 @@ struct ble_ll_adv_sm
     uint8_t adv_directed;           /* note: can be 1 bit */
     uint8_t adv_txadd;              /* note: can be 1 bit */
     uint8_t adv_rxadd;              /* note: can be 1 bit */
+    int8_t adv_txpwr;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
@@ -99,30 +103,16 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
+#endif
 };
 
 /* The advertising state machine global object */
-struct ble_ll_adv_sm g_ble_ll_adv_sm;
+struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
+struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_done(struct ble_ll_adv_sm *advsm);
-
-/*
- * Worst case time needed for scheduled advertising item. This is the longest
- * possible time to receive a scan request and send a scan response (with the
- * appropriate IFS time between them). This number is calculated using the
- * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
- * Note: worst case time to tx adv, rx scan req and send scan rsp is 1228 usecs.
- * This assumes maximum sized advertising PDU and scan response PDU.
- *
- * For connectable advertising events no scan request is allowed. In this case
- * we just need to receive a connect request PDU: IFS + CONNECT_REQ = 150 + 352.
- * Note: worst-case is 376 + 150 + 352 = 878 usecs
- *
- * NOTE: The advertising PDU transmit time is NOT included here since we know
- * how long that will take (worst-case is 376 usecs).
- */
-#define BLE_LL_ADV_SCHED_MAX_USECS          (852)
-#define BLE_LL_ADV_DIRECT_SCHED_MAX_USECS   (502)
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 /**
@@ -203,6 +193,30 @@ ble_ll_adv_first_chan(struct ble_ll_adv_sm *advsm)
         adv_chan = BLE_PHY_ADV_CHAN_START + 1;
     } else {
         adv_chan = BLE_PHY_ADV_CHAN_START + 2;
+    }
+
+    return adv_chan;
+}
+
+/**
+ * Calculate the final channel that we should advertise upon when we start
+ * an advertising event.
+ *
+ * @param advsm
+ *
+ * @return uint8_t The number of the final channel usable for advertising.
+ */
+static uint8_t
+ble_ll_adv_final_chan(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t adv_chan;
+
+    if (advsm->adv_chanmask & 0x04) {
+        adv_chan = BLE_PHY_ADV_CHAN_START + 2;
+    } else if (advsm->adv_chanmask & 0x02) {
+        adv_chan = BLE_PHY_ADV_CHAN_START + 1;
+    } else {
+        adv_chan = BLE_PHY_ADV_CHAN_START;
     }
 
     return adv_chan;
@@ -353,12 +367,34 @@ ble_ll_adv_tx_done(void *arg)
 {
     struct ble_ll_adv_sm *advsm;
 
+    /* XXX: for now, reset power to max after advertising */
+    ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+
     advsm = (struct ble_ll_adv_sm *)arg;
     os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
-    ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(), 0, 0);
+    ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
+               advsm->adv_instance, 0);
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    /* We no longer have a current state machine */
+    g_ble_ll_cur_adv_sm = NULL;
+}
+
+/*
+ * Called when an advertising event has been removed from the scheduler
+ * without being run.
+ */
+void
+ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
+{
+    /*
+     * Need to set advertising channel to final chan so new event gets
+     * scheduled.
+     */
+    advsm->adv_chan = ble_ll_adv_final_chan(advsm);
+    os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 }
 
 /**
@@ -382,6 +418,12 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
+
+    /* Set the current advertiser */
+    g_ble_ll_cur_adv_sm = advsm;
+
+    /* Set the power */
+    ble_phy_txpwr_set(advsm->adv_txpwr);
 
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
@@ -471,11 +513,11 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm, int sched_new)
     switch (advsm->adv_type) {
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
-        max_usecs += BLE_LL_ADV_DIRECT_SCHED_MAX_USECS;
+        max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
         break;
     case BLE_HCI_ADV_TYPE_ADV_IND:
     case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
-        max_usecs += BLE_LL_ADV_SCHED_MAX_USECS;
+        max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
         break;
     default:
         break;
@@ -508,11 +550,12 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm, int sched_new)
  * and is only called when a scheduled item executes but advertising is still
  * running.
  *
+ * Context: Interrupt
  */
 void
-ble_ll_adv_halt(void)
+ble_ll_adv_halt(struct ble_ll_adv_sm *advsm)
 {
-    ble_ll_adv_tx_done(&g_ble_ll_adv_sm);
+    ble_ll_adv_tx_done(advsm);
 }
 
 /**
@@ -526,22 +569,34 @@ ble_ll_adv_halt(void)
  * @return int
  */
 int
-ble_ll_adv_set_adv_params(uint8_t *cmd)
+ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
 {
     uint8_t adv_type;
     uint8_t adv_filter_policy;
     uint8_t adv_chanmask;
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
+    uint8_t offset;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint16_t min_itvl;
     struct ble_ll_adv_sm *advsm;
 
     /* If already enabled, we return an error */
-    advsm = &g_ble_ll_adv_sm;
-    if (advsm->enabled) {
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    advsm = &g_ble_ll_adv_sm[instance];
+    if (advsm->adv_enabled) {
         return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* Add offset if this is a multi-advertising command */
+    if (is_multi) {
+        offset = 6;
+    } else {
+        offset = 0;
     }
 
     /* Make sure intervals are OK (along with advertising type */
@@ -553,7 +608,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
      * Get the filter policy now since we will ignore it if we are doing
      * directed advertising
      */
-    adv_filter_policy = cmd[14];
+    adv_filter_policy = cmd[14 + offset];
 
     /* Assume min interval based on low duty cycle/indirect advertising */
     min_itvl = BLE_LL_ADV_ITVL_MIN;
@@ -580,6 +635,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         min_itvl = BLE_LL_ADV_ITVL_NONCONN_MIN;
         break;
     default:
+        /* This will cause an invalid parameter error */
         min_itvl = 0xFFFF;
         break;
     }
@@ -593,17 +649,44 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
 
     /* Check own and peer address type */
     own_addr_type =  cmd[5];
-    peer_addr_type = cmd[6];
+    peer_addr_type = cmd[6 + offset];
 
     if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
         (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    /* Deal with multi-advertising command specific*/
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    if (is_multi) {
+        /* Get and check advertising power */
+        advsm->adv_txpwr = cmd[22];
+        if (advsm->adv_txpwr > 20) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* Get own address if it is there. */
+        if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        } else {
+            if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+                /* Use this random address if set in own address */
+                if (ble_ll_is_valid_random_addr(cmd + 6)) {
+                    memcpy(advsm->adv_random_addr, cmd + 6, BLE_DEV_ADDR_LEN);
+                }
+            }
+        }
+    } else {
+        advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+    }
+#else
+    advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+#endif
+
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Copy peer address */
-        memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
+        memcpy(advsm->peer_addr, cmd + 7 + offset, BLE_DEV_ADDR_LEN);
 
         /* Reset RPA timer so we generate a new RPA */
         advsm->adv_rpa_timer = os_time_get();
@@ -616,7 +699,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
 #endif
 
     /* There are only three adv channels, so check for any outside the range */
-    adv_chanmask = cmd[13];
+    adv_chanmask = cmd[13 + offset];
     if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -650,7 +733,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 {
     os_sr_t sr;
 
-    if (advsm->enabled) {
+    if (advsm->adv_enabled) {
         /* Remove any scheduled advertising items */
         ble_ll_sched_rmv_elem(&advsm->adv_sch);
 
@@ -672,7 +755,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         }
 
         /* Disable advertising */
-        advsm->enabled = 0;
+        advsm->adv_enabled = 0;
     }
 }
 
@@ -702,9 +785,15 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      * is why I chose command disallowed.
      */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+        if (!ble_ll_is_valid_random_addr(advsm->adv_random_addr)) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+#else
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
+#endif
     }
 
     /*
@@ -733,7 +822,11 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
         addr = g_dev_addr;
         advsm->adv_txadd = 0;
     } else {
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+        addr = advsm->adv_random_addr;
+#else
         addr = g_random_addr;
+#endif
         advsm->adv_txadd = 1;
     }
     memcpy(advsm->adva, addr, BLE_DEV_ADDR_LEN);
@@ -753,7 +846,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 #endif
 
     /* Set flag telling us that advertising is enabled */
-    advsm->enabled = 1;
+    advsm->adv_enabled = 1;
 
     /* Determine the advertising interval we will use */
     if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
@@ -779,12 +872,8 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 }
 
 void
-ble_ll_adv_scheduled(uint32_t sch_start)
+ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
 {
-    struct ble_ll_adv_sm *advsm;
-
-    advsm = &g_ble_ll_adv_sm;
-
     /* The event start time is when we start transmission of the adv PDU */
     advsm->adv_event_start_time = sch_start +
         os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
@@ -826,19 +915,23 @@ ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
  * @return int
  */
 int
-ble_ll_adv_set_enable(uint8_t *cmd)
+ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance)
 {
     int rc;
     uint8_t enable;
     struct ble_ll_adv_sm *advsm;
 
-    advsm = &g_ble_ll_adv_sm;
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
-    rc = 0;
+    advsm = &g_ble_ll_adv_sm[instance];
+
+    rc = BLE_ERR_SUCCESS;
     enable = cmd[0];
     if (enable == 1) {
         /* If already enabled, do nothing */
-        if (!advsm->enabled) {
+        if (!advsm->adv_enabled) {
             /* Start the advertising state machine */
             rc = ble_ll_adv_sm_start(advsm);
         }
@@ -860,7 +953,7 @@ ble_ll_adv_set_enable(uint8_t *cmd)
  * @return int
  */
 int
-ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
+ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance)
 {
     uint8_t datalen;
     struct ble_ll_adv_sm *advsm;
@@ -871,12 +964,16 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     /* Copy the new data into the advertising structure. */
-    advsm = &g_ble_ll_adv_sm;
+    advsm = &g_ble_ll_adv_sm[instance];
     advsm->scan_rsp_len = datalen;
     memcpy(advsm->scan_rsp_data, cmd + 1, datalen);
 
-    return 0;
+    return BLE_ERR_SUCCESS;
 }
 
 /**
@@ -889,7 +986,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len)
  * @return int 0: success; BLE_ERR_INV_HCI_CMD_PARMS otherwise.
  */
 int
-ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
+ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance)
 {
     uint8_t datalen;
     struct ble_ll_adv_sm *advsm;
@@ -900,13 +997,92 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     /* Copy the new data into the advertising structure. */
-    advsm = &g_ble_ll_adv_sm;
+    advsm = &g_ble_ll_adv_sm[instance];
     advsm->adv_len = datalen;
     memcpy(advsm->adv_data, cmd + 1, datalen);
 
-    return 0;
+    return BLE_ERR_SUCCESS;
 }
+
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+int
+ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
+{
+    struct ble_ll_adv_sm *advsm;
+
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    advsm = &g_ble_ll_adv_sm[instance];
+    memcpy(advsm->adv_random_addr, addr, BLE_DEV_ADDR_LEN);
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * Process the multi-advertising command
+ *
+ * NOTE: the command length was already checked to make sure it is non-zero.
+ *
+ * @param cmdbuf    Pointer to command buffer
+ * @param cmdlen    The length of the command data
+ * @param rspbuf    Pointer to response buffer
+ * @param rsplen    Pointer to response length
+ *
+ * @return int
+ */
+int
+ble_ll_adv_multi_adv_cmd(uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
+                         uint8_t *rsplen)
+{
+    int rc;
+    uint8_t subcmd;
+
+    /* NOTE: the command length includes the sub command byte */
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    subcmd = cmdbuf[0];
+    ++cmdbuf;
+    switch (subcmd) {
+    case BLE_HCI_MULTI_ADV_PARAMS:
+        if (cmdlen == BLE_HCI_MULTI_ADV_PARAMS_LEN) {
+            rc = ble_ll_adv_set_adv_params(cmdbuf, cmdbuf[21], 1);
+        }
+        break;
+    case BLE_HCI_MULTI_ADV_DATA:
+        if (cmdlen == BLE_HCI_MULTI_ADV_DATA_LEN) {
+            rc = ble_ll_adv_set_adv_data(cmdbuf, cmdbuf[32]);
+        }
+        break;
+    case BLE_HCI_MULTI_ADV_SCAN_RSP_DATA:
+        if (cmdlen == BLE_HCI_MULTI_ADV_SCAN_RSP_DATA_LEN) {
+            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, cmdbuf[32]);
+        }
+        break;
+    case BLE_HCI_MULTI_ADV_SET_RAND_ADDR:
+        if (cmdlen == BLE_HCI_MULTI_ADV_SET_RAND_ADDR_LEN) {
+            rc = ble_ll_adv_set_random_addr(cmdbuf, cmdbuf[6]);
+        }
+        break;
+    case BLE_HCI_MULTI_ADV_ENABLE:
+        if (cmdlen == BLE_HCI_MULTI_ADV_ENABLE_LEN) {
+            rc = ble_ll_adv_set_enable(cmdbuf, cmdbuf[1]);
+        }
+        break;
+    default:
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
+    }
+
+    rspbuf[0] = subcmd;
+    *rsplen = 1;
+
+    return rc;
+}
+#endif
 
 /**
  * Called when the LL receives a scan request or connection request
@@ -935,7 +1111,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     struct os_mbuf *scan_rsp;
 
     /* See if adva in the request (scan or connect) matches what we sent */
-    advsm = &g_ble_ll_adv_sm;
+    advsm = g_ble_ll_cur_adv_sm;
     rxbuf = rxpdu->om_data;
     adva = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
     if (memcmp(advsm->adva, adva, BLE_DEV_ADDR_LEN)) {
@@ -995,7 +1171,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         scan_rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
         if (scan_rsp) {
-            ble_phy_set_txend_cb(ble_ll_adv_tx_done, &g_ble_ll_adv_sm);
+            ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
             rc = ble_phy_tx(scan_rsp, BLE_PHY_TRANSITION_NONE);
             if (!rc) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
@@ -1018,8 +1194,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
  *
  * @return 0: no connection started. 1: connection started
  */
-int
-ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
+static int
+ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
+                        struct ble_ll_adv_sm *advsm)
 {
     int valid;
     uint8_t pyld_len;
@@ -1030,14 +1207,12 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     uint8_t *inita;
     uint8_t *ident_addr;
     uint32_t endtime;
-    struct ble_ll_adv_sm *advsm;
 
     /* Check filter policy. */
     valid = 0;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     resolved = BLE_MBUF_HDR_RESOLVED(hdr);
 #endif
-    advsm = &g_ble_ll_adv_sm;
     inita = rxbuf + BLE_LL_PDU_HDR_LEN;
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_DEVMATCH) {
 
@@ -1092,7 +1267,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         /* Try to start slave connection. If successful, stop advertising */
         pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
         endtime = hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
-        valid = ble_ll_conn_slave_start(rxbuf, endtime, addr_type);
+        valid = ble_ll_conn_slave_start(rxbuf, endtime, addr_type, hdr);
         if (valid) {
             ble_ll_adv_sm_stop(advsm);
         }
@@ -1126,17 +1301,29 @@ int
 ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 {
     int rc;
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    struct ble_mbuf_hdr *rxhdr;
+#endif
 
     rc = -1;
     if (rxpdu == NULL) {
-        ble_ll_adv_tx_done(&g_ble_ll_adv_sm);
+        ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
     } else {
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+        rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
+        rxhdr->rxinfo.advsm = g_ble_ll_cur_adv_sm;
+#endif
         if (crcok) {
             if ((pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
                 (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
                 /* Process request */
                 rc = ble_ll_adv_rx_req(pdu_type, rxpdu);
             }
+        }
+
+        if (rc) {
+            /* We no longer have a current state machine */
+            g_ble_ll_cur_adv_sm = NULL;
         }
     }
 
@@ -1164,13 +1351,20 @@ void
 ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 {
     int adv_event_over;
+    struct ble_ll_adv_sm *advsm;
+
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    advsm = (struct ble_ll_adv_sm *)hdr->rxinfo.advsm;
+#else
+    advsm = &g_ble_ll_adv_sm[0];
+#endif
 
     /*
      * It is possible that advertising was stopped and a packet plcaed on the
      * LL receive packet queue. In this case, just ignore the received packet
      * as the advertising state machine is no longer "valid"
      */
-    if (!g_ble_ll_adv_sm.enabled) {
+    if (!advsm->adv_enabled) {
         return;
     }
 
@@ -1184,7 +1378,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     adv_event_over = 1;
     if (BLE_MBUF_HDR_CRC_OK(hdr)) {
         if (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
-            if (ble_ll_adv_conn_req_rxd(rxbuf, hdr)) {
+            if (ble_ll_adv_conn_req_rxd(rxbuf, hdr, advsm)) {
                 adv_event_over = 0;
             }
         } else {
@@ -1196,7 +1390,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     if (adv_event_over) {
-        ble_ll_adv_done(&g_ble_ll_adv_sm);
+        ble_ll_adv_done(advsm);
     }
 }
 
@@ -1223,7 +1417,7 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
     rc = -1;
 
     /* If we get a scan request we must tell the phy to go from rx to tx */
-    advsm = &g_ble_ll_adv_sm;
+    advsm = g_ble_ll_cur_adv_sm;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         /* Only accept scan requests if we are indirect adv or scan adv */
         if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND) ||
@@ -1262,13 +1456,17 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 static void
 ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 {
+    int rc;
+    int resched_pdu;
     uint8_t mask;
     uint8_t final_adv_chan;
     int32_t delta_t;
     uint32_t itvl;
+    uint32_t tick_itvl;
     uint32_t start_time;
+    uint32_t max_delay_ticks;
 
-    assert(advsm->enabled);
+    assert(advsm->adv_enabled);
 
     /* Remove the element from the schedule if it is still there. */
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
@@ -1279,13 +1477,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
      * packet was sent on the last channel, it means we are done with this
      * event.
      */
-    if (advsm->adv_chanmask & 0x04) {
-        final_adv_chan = BLE_PHY_ADV_CHAN_START + 2;
-    } else if (advsm->adv_chanmask & 0x02) {
-        final_adv_chan = BLE_PHY_ADV_CHAN_START + 1;
-    } else {
-        final_adv_chan = BLE_PHY_ADV_CHAN_START;
-    }
+    final_adv_chan = ble_ll_adv_final_chan(advsm);
 
     if (advsm->adv_chan == final_adv_chan) {
         /* Check if we need to resume scanning */
@@ -1294,12 +1486,19 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         /* This event is over. Set adv channel to first one */
         advsm->adv_chan = ble_ll_adv_first_chan(advsm);
 
-        /* Calculate start time of next advertising event */
+        /*
+         * Calculate start time of next advertising event. NOTE: we do not
+         * add the random advDelay as the scheduling code will do that.
+         */
         itvl = advsm->adv_itvl_usecs;
         if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
-            itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+            max_delay_ticks =
+                os_cputime_usecs_to_ticks(BLE_LL_ADV_DELAY_MS_MAX * 1000);
+        } else {
+            max_delay_ticks = 0;
         }
-        advsm->adv_event_start_time += os_cputime_usecs_to_ticks(itvl);
+        tick_itvl = os_cputime_usecs_to_ticks(itvl);
+        advsm->adv_event_start_time += tick_itvl;
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
         /*
@@ -1311,18 +1510,17 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 
         delta_t = (int32_t)(start_time - os_cputime_get32());
         if (delta_t < 0) {
-            /* Calculate start time of next advertising event */
+            /*
+             * NOTE: we just the same interval that we calculated earlier.
+             * No real need to keep recalculating a new interval.
+             */
             while (delta_t < 0) {
-                itvl = advsm->adv_itvl_usecs;
-                if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
-                    itvl += rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
-                }
-                itvl = os_cputime_usecs_to_ticks(itvl);
-                advsm->adv_event_start_time += itvl;
+                advsm->adv_event_start_time += tick_itvl;
                 advsm->adv_pdu_start_time = advsm->adv_event_start_time;
-                delta_t += (int32_t)itvl;
+                delta_t += (int32_t)tick_itvl;
             }
         }
+        resched_pdu = 0;
     } else {
         /*
          * Move to next advertising channel. If not in the mask, just
@@ -1341,6 +1539,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          */
         advsm->adv_pdu_start_time = os_cputime_get32() +
             os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+
+        resched_pdu = 1;
     }
 
     /*
@@ -1350,9 +1550,9 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
         if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
             /* Disable advertising */
-            advsm->enabled = 0;
+            advsm->adv_enabled = 0;
             ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                        advsm->conn_comp_ev);
+                                        advsm->conn_comp_ev, advsm);
             advsm->conn_comp_ev = NULL;
             ble_ll_scan_chk_resume();
             return;
@@ -1371,7 +1571,19 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
      * In the unlikely event we cant reschedule this, just post a done
      * event and we will reschedule the next advertising event
      */
-    if (ble_ll_sched_adv_reschedule(&advsm->adv_sch)) {
+    if (resched_pdu) {
+        rc = ble_ll_sched_adv_resched_pdu(&advsm->adv_sch);
+    } else {
+        rc = ble_ll_sched_adv_reschedule(&advsm->adv_sch, &start_time,
+                                         max_delay_ticks);
+        if (!rc) {
+            advsm->adv_event_start_time = start_time;
+            advsm->adv_pdu_start_time = start_time;
+        }
+    }
+
+    if (rc) {
+        advsm->adv_chan = final_adv_chan;
         os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
     }
 }
@@ -1395,31 +1607,64 @@ ble_ll_adv_can_chg_whitelist(void)
     int rc;
     struct ble_ll_adv_sm *advsm;
 
-    advsm = &g_ble_ll_adv_sm;
-    if (advsm->enabled && (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    int i;
+
+    rc = 1;
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
+        advsm = &g_ble_ll_adv_sm[i];
+        if (advsm->adv_enabled &&
+            (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
+            rc = 0;
+            break;
+        }
+    }
+#else
+    advsm = &g_ble_ll_adv_sm[0];
+    if (advsm->adv_enabled &&
+        (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
         rc = 0;
     } else {
         rc = 1;
     }
+#endif
 
     return rc;
 }
 
 /**
- * Returns the event allocated to send the connection complete event
+ * Sends the connection complete event when advertising a connection starts.
  *
  * @return uint8_t* Pointer to event buffer
  */
-uint8_t *
-ble_ll_adv_get_conn_comp_ev(void)
+void
+ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
+                             struct ble_mbuf_hdr *rxhdr)
 {
     uint8_t *evbuf;
+    struct ble_ll_adv_sm *advsm;
 
-    evbuf = g_ble_ll_adv_sm.conn_comp_ev;
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    advsm = (struct ble_ll_adv_sm *)rxhdr->rxinfo.advsm;
+    evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    if (evbuf) {
+        evbuf[0] = BLE_HCI_EVCODE_LE_META;
+        evbuf[1] = 5;   /* Length of event, including sub-event code */
+        evbuf[2] = BLE_HCI_LE_SUBEV_ADV_STATE_CHG;
+        evbuf[3] = advsm->adv_instance;
+        evbuf[4] = 0x00;    /* status code */
+        htole16(evbuf + 5, connsm->conn_handle);
+        ble_ll_hci_event_send(evbuf);
+    }
+#else
+    advsm = &g_ble_ll_adv_sm[0];
+#endif
+
+    evbuf = advsm->conn_comp_ev;
     assert(evbuf != NULL);
-    g_ble_ll_adv_sm.conn_comp_ev = NULL;
+    advsm->conn_comp_ev = NULL;
 
-    return evbuf;
+    ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
 }
 
 /**
@@ -1429,12 +1674,9 @@ ble_ll_adv_get_conn_comp_ev(void)
  * @return uint8_t*
  */
 uint8_t *
-ble_ll_adv_get_local_rpa(void)
+ble_ll_adv_get_local_rpa(struct ble_ll_adv_sm *advsm)
 {
     uint8_t *rpa;
-    struct ble_ll_adv_sm *advsm;
-
-    advsm = &g_ble_ll_adv_sm;
 
     rpa = NULL;
     if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
@@ -1450,12 +1692,8 @@ ble_ll_adv_get_local_rpa(void)
  * @return uint8_t*
  */
 uint8_t *
-ble_ll_adv_get_peer_rpa(void)
+ble_ll_adv_get_peer_rpa(struct ble_ll_adv_sm *advsm)
 {
-    struct ble_ll_adv_sm *advsm;
-
-    advsm = &g_ble_ll_adv_sm;
-
     /* XXX: should this go into IRK list or connection? */
     return advsm->adv_rpa;
 }
@@ -1469,7 +1707,7 @@ void
 ble_ll_adv_wfr_timer_exp(void)
 {
     ble_phy_disable();
-    ble_ll_adv_tx_done(&g_ble_ll_adv_sm);
+    ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
 }
 
 /**
@@ -1481,21 +1719,27 @@ ble_ll_adv_wfr_timer_exp(void)
 void
 ble_ll_adv_reset(void)
 {
+    int i;
     struct ble_ll_adv_sm *advsm;
-    advsm = &g_ble_ll_adv_sm;
 
-    /* Stop advertising state machine */
-    ble_ll_adv_sm_stop(advsm);
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
+        /* Stop advertising state machine */
+        advsm = &g_ble_ll_adv_sm[i];
+        ble_ll_adv_sm_stop(advsm);
+    }
 
     /* re-initialize the advertiser state machine */
     ble_ll_adv_init();
 }
 
-/* Called to determine if advertising is enabled */
+/* Called to determine if advertising is enabled.
+ *
+ * NOTE: this currently only applies to the default advertising index.
+ */
 uint8_t
 ble_ll_adv_enabled(void)
 {
-    return g_ble_ll_adv_sm.enabled;
+    return g_ble_ll_adv_sm[0].adv_enabled;
 }
 
 /**
@@ -1505,18 +1749,23 @@ ble_ll_adv_enabled(void)
 void
 ble_ll_adv_init(void)
 {
+    int i;
     struct ble_ll_adv_sm *advsm;
 
     /* Set default advertising parameters */
-    advsm = &g_ble_ll_adv_sm;
-    memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
+        advsm = &g_ble_ll_adv_sm[i];
 
-    advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
-    advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
-    advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
+        memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
 
-    /* Initialize advertising tx done event */
-    advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
-    advsm->adv_txdone_ev.ev_arg = advsm;
+        advsm->adv_instance = i;
+        advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
+        advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
+        advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
+
+        /* Initialize advertising tx done event */
+        advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
+        advsm->adv_txdone_ev.ev_arg = advsm;
+    }
 }
 

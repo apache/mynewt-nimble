@@ -156,7 +156,7 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
  */
 void
 ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
-                            uint8_t *evbuf)
+                            uint8_t *evbuf, struct ble_ll_adv_sm *advsm)
 {
     uint8_t peer_addr_type;
     uint8_t enabled;
@@ -181,6 +181,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
 
         if (connsm) {
             htole16(evbuf + 4, connsm->conn_handle);
+
             evbuf[6] = connsm->conn_role - 1;
             peer_addr_type = connsm->peer_addr_type;
 
@@ -194,7 +195,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                         rpa = NULL;
                     }
                 } else {
-                    rpa = ble_ll_adv_get_local_rpa();
+                    rpa = ble_ll_adv_get_local_rpa(advsm);
                 }
                 if (rpa) {
                     memcpy(evdata, rpa, BLE_DEV_ADDR_LEN);
@@ -204,7 +205,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
                         rpa = ble_ll_scan_get_peer_rpa();
                     } else {
-                        rpa = ble_ll_adv_get_peer_rpa();
+                        rpa = ble_ll_adv_get_peer_rpa(advsm);
                     }
                     memcpy(evdata + 6, rpa, BLE_DEV_ADDR_LEN);
                 }

@@ -109,8 +109,15 @@ syscfg.defs:
 
     # The number of slots that will be allocated to each connection
     BLE_LL_CONN_INIT_SLOTS:
-        description: 'TBD'
-        value: '2'
+        description: >
+            This is the number of "slots" allocated to a connection when scheduling
+            connections. Each slot is 1.25 msecs long. Note that a connection event may
+            last longer than the number of slots allocated here and may also end earlier
+            (depending on when the next scheduled event occurs and how much data needs
+            to be transferred in the connection). However, you will be guaranteed that
+            a connection event will be given this much time, if needed. Consecutively
+            scheduled items will be at least this far apart
+        value: '4'
 
     # The number of random bytes to store
     BLE_LL_RNG_BUFSIZE:
