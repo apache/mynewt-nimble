@@ -1630,7 +1630,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     if (ble_err) {
         if (ble_err == BLE_ERR_UNK_CONN_ID) {
             evbuf = ble_ll_init_get_conn_comp_ev();
-            ble_ll_conn_comp_event_send(connsm, ble_err, evbuf);
+            ble_ll_conn_comp_event_send(connsm, ble_err, evbuf, NULL);
         } else {
             ble_ll_disconn_comp_event_send(connsm, ble_err);
         }
@@ -1804,7 +1804,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
  * @ return 0: connection NOT created. 1: connection created
  */
 static int
-ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
+ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime,
+                    struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     uint8_t *evbuf;
@@ -1867,11 +1868,11 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime)
             }
         }
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            evbuf = ble_ll_adv_get_conn_comp_ev();
+            ble_ll_adv_send_conn_comp_ev(connsm, rxhdr);
         } else {
             evbuf = ble_ll_init_get_conn_comp_ev();
+            ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, NULL);
         }
-        ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf);
     }
 
     return rc;
@@ -1897,10 +1898,6 @@ ble_ll_conn_event_end(struct os_event *ev)
 
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
-
-    /* Log event end */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, 0, connsm->event_cntr,
-               connsm->ce_end_time);
 
     /* If we have transmitted the terminate IND successfully, we are done */
     if ((connsm->csmflags.cfbit.terminate_ind_txd) ||
@@ -1969,6 +1966,10 @@ ble_ll_conn_event_end(struct os_event *ev)
             return;
         }
     }
+
+    /* Log event end */
+    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, connsm->conn_handle,
+               connsm->event_cntr, connsm->conn_sch.start_time);
 
     /* If we have completed packets, send an event */
     ble_ll_conn_num_comp_pkts_event_send(connsm);
@@ -2222,7 +2223,7 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
         ble_ll_scan_sm_stop(0);
         payload_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
         endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(payload_len);
-        ble_ll_conn_created(connsm, endtime);
+        ble_ll_conn_created(connsm, endtime, NULL);
     } else {
         ble_ll_scan_chk_resume();
     }
@@ -3054,7 +3055,8 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
  * @return 0: connection not started; 1 connecton started
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat,
+                        struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     uint32_t temp;
@@ -3148,7 +3150,7 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat)
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
 
-    rc = ble_ll_conn_created(connsm, conn_req_end);
+    rc = ble_ll_conn_created(connsm, conn_req_end, rxhdr);
     if (!rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);

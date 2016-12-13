@@ -27,6 +27,7 @@ extern "C" {
 
 /* XXX: some or all of these should not be here */
 #include "os/os.h"
+#include "syscfg/syscfg.h"
 
 /* BLE encryption block definitions */
 #define BLE_ENC_BLOCK_SIZE       (16)
@@ -63,6 +64,9 @@ struct ble_mbuf_hdr_rxinfo
     uint8_t channel;
     uint8_t handle;
     int8_t  rssi;
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    void *advsm;   /* advertising state machine */
+#endif
 };
 
 /* Flag definitions for rxinfo  */

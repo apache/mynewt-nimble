@@ -92,6 +92,8 @@ extern struct os_mempool g_ble_ll_hci_ev_pool;
 struct ble_ll_len_req;
 struct hci_create_conn;
 struct ble_mbuf_hdr;
+struct ble_ll_adv_sm;
+
 void ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
@@ -104,7 +106,8 @@ void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_len_req *req);
 
 /* Advertising interface */
-int ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat);
+int ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat,
+                            struct ble_mbuf_hdr *rxhdr);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
@@ -136,7 +139,7 @@ int ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int negative_reply);
 int ble_ll_conn_create_cancel(void);
 void ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
-                                 uint8_t *evbuf);
+                                 uint8_t *evbuf, struct ble_ll_adv_sm *advsm);
 void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);

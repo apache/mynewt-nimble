@@ -20,9 +20,14 @@
 #ifndef H_BLE_LL_ADV_
 #define H_BLE_LL_ADV_
 
+#include "syscfg/syscfg.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* The number of advertising instances */
+#define BLE_LL_ADV_INSTANCES    (MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES + 1)
 
 /*
  * ADV event timing
@@ -101,43 +106,49 @@ extern "C" {
 #define BLE_ADV_SCAN_IND_MAX_LEN        (37)
 
 /*---- HCI ----*/
+struct ble_ll_adv_sm;
+struct ble_ll_conn_sm;
+
 /* Start an advertiser */
 int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type,
                          uint8_t *init_addr, uint16_t adv_itvl, void *handle);
 
 /* Start or stop advertising */
-int ble_ll_adv_set_enable(uint8_t *cmd);
+int ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance);
 
 /* Set advertising data */
-int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t len);
+int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance);
 
 /* Set scan response data */
-int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t len);
+int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance);
 
 /* Set advertising parameters */
-int ble_ll_adv_set_adv_params(uint8_t *cmd);
+int ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi);
 
 /* Read advertising channel power */
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
 
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+int ble_ll_adv_multi_adv_cmd(uint8_t *cmd, uint8_t cmdlen, uint8_t *rspbuf,
+                             uint8_t *rsplen);
+#endif
+
 /*---- API used by BLE LL ----*/
-/* Returns the event allocated to send the connection complete event */
-uint8_t *ble_ll_adv_get_conn_comp_ev(void);
+/* Send the connection complete event */
+void ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
+                                  struct ble_mbuf_hdr *rxhdr);
 
 /* Returns local resolvable private address */
-uint8_t *ble_ll_adv_get_local_rpa(void);
+uint8_t *ble_ll_adv_get_local_rpa(struct ble_ll_adv_sm *advsm);
 
 /* Returns peer resolvable private address */
-uint8_t *ble_ll_adv_get_peer_rpa(void);
+uint8_t *ble_ll_adv_get_peer_rpa(struct ble_ll_adv_sm *advsm);
 
 /* Called to initialize advertising functionality. */
 void ble_ll_adv_init(void);
 
 /* Called when LL wait for response timer expires in advertising state */
 void ble_ll_adv_wfr_timer_exp(void);
-
-/* Called to initialize advertising functionality. */
-void ble_ll_adv_init(void);
 
 /* Called to reset the advertiser. */
 void ble_ll_adv_reset(void);
@@ -155,14 +166,17 @@ void ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf,
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);
 
-/* Called when a connection request has been received at the link layer */
-int ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr);
-
 /* Called when an advertising event has been scheduled */
-void ble_ll_adv_scheduled(uint32_t sch_start);
+void ble_ll_adv_scheduled(struct ble_ll_adv_sm *, uint32_t sch_start);
+
+/*
+ * Called when an advertising event has been removed from the scheduler
+ * without being run.
+ */
+void ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm);
 
 /* Called to halt currently running advertising event */
-void ble_ll_adv_halt(void);
+void ble_ll_adv_halt(struct ble_ll_adv_sm *advsm);
 
 /* Called to determine if advertising is enabled */
 uint8_t ble_ll_adv_enabled(void);
