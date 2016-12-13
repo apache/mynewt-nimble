@@ -47,7 +47,7 @@ ble_hs_hci_cmd_transport(uint8_t *cmdbuf)
 }
 
 void
-ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len, void *buf)
+ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len, void *buf)
 {
     uint16_t opcode;
     uint8_t *u8ptr;
@@ -60,7 +60,7 @@ ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len, void *buf)
 }
 
 int
-ble_hs_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, const void *cmddata)
+ble_hs_hci_cmd_send(uint8_t ogf, uint16_t ocf, uint8_t len, const void *cmddata)
 {
     uint8_t *buf;
     int rc;
@@ -74,7 +74,7 @@ ble_hs_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len, const void *cmddata)
         memcpy(buf + BLE_HCI_CMD_HDR_LEN, cmddata, len);
     }
 
-    BLE_HS_LOG(DEBUG, "ble_hs_hci_cmd_send: ogf=0x%02x ocf=0x%02x len=%d\n",
+    BLE_HS_LOG(DEBUG, "ble_hs_hci_cmd_send: ogf=0x%02x ocf=0x%04x len=%d\n",
                ogf, ocf, len);
     ble_hs_log_flat_buf(buf, len + BLE_HCI_CMD_HDR_LEN);
     BLE_HS_LOG(DEBUG, "\n");

@@ -58,9 +58,9 @@ int ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
 
 int ble_hs_hci_evt_process(uint8_t *data);
 uint16_t ble_hs_hci_util_opcode_join(uint8_t ogf, uint16_t ocf);
-void ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint8_t ocf, uint8_t len,
+void ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len,
                               void *buf);
-int ble_hs_hci_cmd_send(uint8_t ogf, uint8_t ocf, uint8_t len,
+int ble_hs_hci_cmd_send(uint8_t ogf, uint16_t ocf, uint8_t len,
                         const void *cmddata);
 int ble_hs_hci_cmd_send_buf(void *cmddata);
 void ble_hs_hci_cmd_build_read_bd_addr(uint8_t *dst, int dst_len);
