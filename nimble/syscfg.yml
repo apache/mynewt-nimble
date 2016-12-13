@@ -39,3 +39,13 @@ syscfg.defs:
     BLE_WHITELIST:
         description: 'TBD'
         value: 1
+    BLE_MULTI_ADV_SUPPORT:
+        description: 'Support for multi-advertisers'
+        value: 0
+    BLE_MULTI_ADV_INSTANCES:
+        description: >
+            This is the number of multi-advertising instances. This is NOT the
+            total number of advertising instances. The total number of advertising
+            instances is this number plus 1 (assuming the device supports
+            advertising).
+        value: 0
