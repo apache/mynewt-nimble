@@ -314,10 +314,13 @@ ble_sm_gen_ltk(struct ble_sm_proc *proc, uint8_t *ltk)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(ltk, 16);
+    rc = ble_hs_hci_util_rand(ltk, proc->key_size);
     if (rc != 0) {
         return rc;
     }
+
+    /* Ensure proper key size */
+    memset(ltk + proc->key_size, 0, sizeof proc->ltk - proc->key_size);
 
     return 0;
 }
@@ -495,7 +498,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 {
     struct ble_store_value_sec value_sec;
     struct ble_hs_conn *conn;
-    uint8_t peer_addr[8];
+    uint8_t peer_addr[6];
     uint8_t peer_addr_type;
     int authenticated;
 
@@ -1377,6 +1380,9 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
     if (rx_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN) {
         proc->rx_key_flags |= BLE_SM_KE_F_SIGN_INFO;
     }
+
+    proc->key_size = min(proc->pair_req.max_enc_key_size,
+                         proc->pair_rsp.max_enc_key_size);
 }
 
 static void
@@ -1393,7 +1399,7 @@ ble_sm_pair_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     cmd.io_cap = ble_hs_cfg.sm_io_cap;
     cmd.oob_data_flag = ble_hs_cfg.sm_oob_data_flag;
     cmd.authreq = ble_sm_build_authreq();
-    cmd.max_enc_key_size = 16;
+    cmd.max_enc_key_size = BLE_SM_PAIR_KEY_SZ_MAX;
 
     if (is_req) {
         cmd.init_key_dist = ble_hs_cfg.sm_our_key_dist;
@@ -1487,9 +1493,12 @@ ble_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
             res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
-        } else if (!ble_sm_pair_cmd_is_valid(&req)) {
+        } else if (req.max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN) {
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
+        } else if (req.max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
-            res->app_status =  BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
         } else {
             res->execute = 1;
         }
@@ -1520,7 +1529,10 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, &prev);
     if (proc != NULL) {
         proc->pair_rsp = rsp;
-        if (!ble_sm_pair_cmd_is_valid(&rsp)) {
+        if (rsp.max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN) {
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
+        } else if (rsp.max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
         } else {

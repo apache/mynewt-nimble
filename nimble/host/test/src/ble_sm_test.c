@@ -188,78 +188,6 @@ TEST_CASE(ble_sm_test_case_peer_fail_inval)
         } })
     );
 
-    /* Invalid IO capabiltiies. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x14,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid OOB flag. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 2,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid authreq - reserved bonding flag. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x2,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid authreq - reserved other flag. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x20,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
     /* Invalid key size - too small. */
     ble_sm_test_util_peer_fail_inval(
         0,
@@ -274,7 +202,7 @@ TEST_CASE(ble_sm_test_case_peer_fail_inval)
             .resp_key_dist = 0x07,
         } }),
         ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
+            .reason = BLE_SM_ERR_ENC_KEY_SZ,
         } })
     );
 
@@ -290,42 +218,6 @@ TEST_CASE(ble_sm_test_case_peer_fail_inval)
             .max_enc_key_size = 17,
             .init_key_dist = 0x07,
             .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid init key dist. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x10,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
-
-    /* Invalid resp key dist. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x10,
         } }),
         ((struct ble_sm_pair_fail[1]) { {
             .reason = BLE_SM_ERR_INVAL,
@@ -436,110 +328,6 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
 {
     struct ble_sm_test_params params;
 
-    /* Invalid IO capabiltiies. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x14,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid OOB flag. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x14,
-            .oob_data_flag = 2,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid authreq - reserved bonding flag. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x02,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid authreq - reserved other flag. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x20,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
     /* Invalid key size - too small. */
     params = (struct ble_sm_test_params) {
         .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
@@ -561,7 +349,7 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
             .resp_key_dist = 0x07,
         },
         .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
+            .reason = BLE_SM_ERR_ENC_KEY_SZ,
         },
     };
     ble_sm_test_util_us_fail_inval(&params);
@@ -585,58 +373,6 @@ TEST_CASE(ble_sm_test_case_us_fail_inval)
             .max_enc_key_size = 17,
             .init_key_dist = 0x07,
             .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid init key dist. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x10,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
-    };
-    ble_sm_test_util_us_fail_inval(&params);
-
-    /* Invalid resp key dist. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x10,
         },
         .pair_fail = (struct ble_sm_pair_fail) {
             .reason = BLE_SM_ERR_INVAL,
