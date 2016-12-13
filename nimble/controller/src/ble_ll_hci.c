@@ -24,6 +24,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/hci_vendor.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_adv.h"
@@ -505,6 +506,87 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
 }
 
 /**
+ * Returns the vendor specific capabilities
+ *
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ *
+ * @return int BLE error code
+ */
+static int
+ble_ll_hci_vendor_caps(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    /* Clear all bytes */
+    memset(rspbuf, 0, 14);
+
+    /* Fill out the ones we support */
+    rspbuf[0] = BLE_LL_ADV_INSTANCES;
+    rspbuf[9] = 0x60;
+    *rsplen = 14;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * Process a vendor command sent from the host to the controller. The HCI
+ * command has a 3 byte command header followed by data. The header is:
+ *  -> opcode (2 bytes)
+ *  -> Length of parameters (1 byte; does include command header bytes).
+ *
+ * @param cmdbuf Pointer to command buffer. Points to start of command header.
+ * @param ocf    Opcode command field.
+ * @param *rsplen Pointer to length of response
+ *
+ * @return int  This function returns a BLE error code. If a command status
+ *              event should be returned as opposed to command complete,
+ *              256 gets added to the return value.
+ */
+static int
+ble_ll_hci_vendor_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+{
+    int rc;
+    uint8_t cmdlen;
+    uint8_t *rspbuf;
+
+    /* Assume error; if all pass rc gets set to 0 */
+    rc = BLE_ERR_INV_HCI_CMD_PARMS;
+
+    /* Get length from command */
+    cmdlen = cmdbuf[sizeof(uint16_t)];
+
+    /*
+     * The command response pointer points into the same buffer as the
+     * command data itself. That is fine, as each command reads all the data
+     * before crafting a response.
+     */
+    rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
+
+    /* Move past HCI command header */
+    cmdbuf += BLE_HCI_CMD_HDR_LEN;
+
+    switch (ocf) {
+    case BLE_HCI_OCF_VENDOR_CAPS:
+        if (cmdlen == 0) {
+            ble_ll_hci_vendor_caps(rspbuf, rsplen);
+            rc = BLE_ERR_SUCCESS;
+        }
+        break;
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    case BLE_HCI_OCF_MULTI_ADV:
+        if (cmdlen > 0) {
+            rc = ble_ll_adv_multi_adv_cmd(cmdbuf, cmdlen, rspbuf, rsplen);
+        }
+        break;
+#endif
+    default:
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
+    }
+
+    /* XXX: for now, all vendor commands return a command complete */
+    return rc;
+}
+
+/**
  * Process a LE command sent from the host to the controller. The HCI command
  * has a 3 byte command header followed by data. The header is:
  *  -> opcode (2 bytes)
@@ -534,7 +616,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     /* Check the length to make sure it is valid */
     cmdlen = g_ble_hci_le_cmd_len[ocf];
-    if ((cmdlen != 0xFF) && (len != cmdlen)) {
+    if (len != cmdlen) {
         goto ll_hci_le_cmd_exit;
     }
 
@@ -562,27 +644,19 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_set_random_addr(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
-        /* Length should be one byte */
-        rc = ble_ll_adv_set_adv_params(cmdbuf);
+        rc = ble_ll_adv_set_adv_params(cmdbuf, 0, 0);
         break;
     case BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR:
         rc = ble_ll_adv_read_txpwr(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
-        if (len > 0) {
-            --len;
-            rc = ble_ll_adv_set_adv_data(cmdbuf, len);
-        }
+        rc = ble_ll_adv_set_adv_data(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
-        if (len > 0) {
-            --len;
-            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, len);
-        }
+        rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
-        /* Length should be one byte */
-        rc = ble_ll_adv_set_enable(cmdbuf);
+        rc = ble_ll_adv_set_enable(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
         rc = ble_ll_scan_set_enable(cmdbuf);
@@ -950,6 +1024,9 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         break;
     case BLE_HCI_OGF_LE:
         rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
+        break;
+    case BLE_HCI_OGF_VENDOR:
+        rc = ble_ll_hci_vendor_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
     default:
         /* XXX: Need to support other OGF. For now, return unsupported */

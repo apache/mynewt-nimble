@@ -28,6 +28,25 @@ extern "C" {
 #define BLE_LL_SCHED_USECS_PER_SLOT (1250)
 
 /*
+ * Worst case time needed for scheduled advertising item. This is the longest
+ * possible time to receive a scan request and send a scan response (with the
+ * appropriate IFS time between them). This number is calculated using the
+ * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
+ * Note: worst case time to tx adv, rx scan req and send scan rsp is 1228 usecs.
+ * This assumes maximum sized advertising PDU and scan response PDU.
+ *
+ * For connectable advertising events no scan request is allowed. In this case
+ * we just need to receive a connect request PDU: IFS + CONNECT_REQ = 150 + 352.
+ * Note: worst-case is 376 + 150 + 352 = 878 usecs
+ *
+ * NOTE: The advertising PDU transmit time is NOT included here since we know
+ * how long that will take (worst-case is 376 usecs).
+ */
+#define BLE_LL_SCHED_ADV_MAX_USECS          (852)
+#define BLE_LL_SCHED_DIRECT_ADV_MAX_USECS   (502)
+#define BLE_LL_SCHED_MAX_ADV_PDU_USECS      (376)
+
+/*
  * This is the number of slots needed to transmit and receive a maximum
  * size PDU, including an IFS time before each. The actual time is
  * 2120 usecs for tx/rx and 150 for IFS = 4540 usecs.
@@ -85,7 +104,11 @@ int ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm);
 int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch);
 
 /* Reschedule an advertising event */
-int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch);
+int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
+                                uint32_t max_delay_ticks);
+
+/* Reschedule and advertising pdu */
+int ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch);
 
 /* Reschedule a connection that had previously been scheduled or that is over */
 int ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm * connsm);

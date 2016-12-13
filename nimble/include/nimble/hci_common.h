@@ -51,6 +51,7 @@ extern "C" {
 #define BLE_HCI_OGF_STATUS_PARAMS           (0x05)
 #define BLE_HCI_OGF_TESTING                 (0x06)
 #define BLE_HCI_OGF_LE                      (0x08)
+#define BLE_HCI_OGF_VENDOR                  (0x3F)
 
 /*
  * Number of LE commands. NOTE: this is really just used to size the array

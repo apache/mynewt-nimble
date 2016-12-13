@@ -376,7 +376,7 @@ ble_phy_tx_end_isr(void)
     assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
 
     /* Log the event */
-    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, (g_ble_phy_tx_buf[0] >> 8) & 0xFF,
+    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_data.phy_tx_pyld_len,
                was_encrypted, txstart);
 
     /* Clear events and clear interrupt on disabled event */
