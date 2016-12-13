@@ -1713,7 +1713,7 @@ done:
 }
 
 static int
-ble_att_svr_is_valid_group_type(uint8_t *uuid128)
+ble_att_svr_is_valid_read_group_type(uint8_t *uuid128)
 {
     uint16_t uuid16;
 
@@ -1848,7 +1848,7 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
 
         if (start_group_handle != 0) {
             /* We have already found the start of a group. */
-            if (!ble_att_svr_is_valid_group_type(entry->ha_uuid)) {
+            if (!ble_att_svr_is_valid_read_group_type(entry->ha_uuid)) {
                 /* This attribute is part of the current group. */
                 end_group_handle = entry->ha_handle_id;
             } else {
@@ -2019,7 +2019,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    if (!ble_att_svr_is_valid_group_type(uuid128)) {
+    if (!ble_att_svr_is_valid_read_group_type(uuid128)) {
         att_err = BLE_ATT_ERR_UNSUPPORTED_GROUP;
         err_handle = req.bagq_start_handle;
         rc = BLE_HS_ENOTSUP;
