@@ -112,11 +112,15 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc)
 {
     int action;
 
-    if (proc->pair_req.oob_data_flag || proc->pair_rsp.oob_data_flag) {
+    if (proc->pair_req.oob_data_flag == BLE_SM_PAIR_OOB_YES ||
+        proc->pair_rsp.oob_data_flag == BLE_SM_PAIR_OOB_YES) {
         action = BLE_SM_IOACT_OOB;
     } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
                !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
+        action = BLE_SM_IOACT_NONE;
+    } else if (proc->pair_req.io_cap >= BLE_SM_IO_CAP_RESERVED ||
+               proc->pair_rsp.io_cap >= BLE_SM_IO_CAP_RESERVED) {
         action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         action = ble_sm_sc_init_ioa[proc->pair_rsp.io_cap]
@@ -435,6 +439,9 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         res->enc_cb = 1;
         return;
     }
+
+    /* Ensure proper key size */
+    memset(proc->ltk + proc->key_size, 0, sizeof proc->ltk - proc->key_size);
 
     /* Ensure the ltk gets persisted when the pairing procedure succeeds. */
     memcpy(proc->our_keys.ltk, proc->ltk, sizeof proc->our_keys.ltk);
