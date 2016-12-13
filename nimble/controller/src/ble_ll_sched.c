@@ -565,6 +565,7 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
     sch->end_time += max_delay_ticks;
 
     start_overlap = NULL;
+    end_overlap = NULL;
     before = NULL;
     rc = 0;
     OS_ENTER_CRITICAL(sr);
