@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include "os/os.h"
+#include "mem/mem.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_dbg_priv.h"
@@ -363,62 +364,12 @@ ble_hs_hci_max_acl_payload_sz(void)
 }
 
 /**
- * Splits an appropriately-sized fragment from the front of an outgoing ACL
- * data packet, if necessary.  If the packet size is within the controller's
- * buffer size requirements, no splitting is performed.  The fragment data is
- * removed from the data packet mbuf.
- *
- * @param om                    The ACL data packet.  If this constitutes a
- *                                  single fragment, it gets set to NULL on
- *                                  success.
- * @param out_frag              On success, this points to the fragment to
- *                                  send.  If the entire packet can fit within
- *                                  a single fragment, this will point to the
- *                                  ACL data packet itself ('om').
- *
- * @return                      0 on success;
- *                              BLE host core return code on error.
+ * Allocates an mbuf to contain an outgoing ACL data fragment.
  */
-static int
-ble_hs_hci_split_frag(struct os_mbuf **om, struct os_mbuf **out_frag)
+static struct os_mbuf *
+ble_hs_hci_frag_alloc(uint16_t frag_size, void *arg)
 {
-    struct os_mbuf *frag;
-    uint16_t max_sz;
-    int rc;
-
-    /* Assume failure. */
-    *out_frag = NULL;
-
-    max_sz = ble_hs_hci_max_acl_payload_sz();
-
-    if (OS_MBUF_PKTLEN(*om) <= max_sz) {
-        /* Final fragment. */
-        *out_frag = *om;
-        *om = NULL;
-        return 0;
-    }
-
-    frag = ble_hs_mbuf_acm_pkt();
-    if (frag == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    /* Move data from the front of the packet into the fragment mbuf. */
-    rc = os_mbuf_appendfrom(frag, *om, 0, max_sz);
-    if (rc != 0) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-    os_mbuf_adj(*om, max_sz);
-
-    /* More fragments to follow. */
-    *out_frag = frag;
-    return 0;
-
-err:
-    os_mbuf_free_chain(frag);
-    return rc;
+    return ble_hs_mbuf_acm_pkt();
 }
 
 static struct os_mbuf *
@@ -473,10 +424,8 @@ ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
 
     /* Send fragments until the entire packet has been sent. */
     while (txom != NULL) {
-        rc = ble_hs_hci_split_frag(&txom, &frag);
-        if (rc != 0) {
-            goto err;
-        }
+        frag = mem_split_frag(&txom, ble_hs_hci_max_acl_payload_sz(),
+                              ble_hs_hci_frag_alloc, NULL);
 
         frag = ble_hs_hci_acl_hdr_prepend(frag, connection->bhc_handle, pb);
         if (frag == NULL) {
