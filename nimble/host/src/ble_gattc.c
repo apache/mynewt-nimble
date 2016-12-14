@@ -1636,6 +1636,7 @@ static int
 ble_gattc_disc_svc_uuid_tx(struct ble_gattc_proc *proc)
 {
     struct ble_att_find_type_value_req req;
+    uint16_t uuid16;
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
@@ -1644,8 +1645,17 @@ ble_gattc_disc_svc_uuid_tx(struct ble_gattc_proc *proc)
     req.bavq_end_handle = 0xffff;
     req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
 
-    rc = ble_att_clt_tx_find_type_value(proc->conn_handle, &req,
-                                        proc->disc_svc_uuid.service_uuid, 16);
+
+    uuid16 = ble_uuid_128_to_16(proc->disc_svc_uuid.service_uuid);
+    if (uuid16 != 0){
+        rc = ble_att_clt_tx_find_type_value(proc->conn_handle, &req,
+                                            &uuid16, 2);
+    } else {
+        rc = ble_att_clt_tx_find_type_value(proc->conn_handle, &req,
+                                            proc->disc_svc_uuid.service_uuid,
+                                            16);
+    }
+
     if (rc != 0) {
         return rc;
     }
