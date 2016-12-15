@@ -288,9 +288,6 @@ struct ble_dev_addr
 #define BLE_CONNECT_REQ_PDU_LEN     (BLE_CONNECT_REQ_LEN + BLE_LL_PDU_HDR_LEN)
 
 /*--- External API ---*/
-/* Initialize the Link Layer */
-void ble_ll_init(void);
-
 /* Reset the Link Layer */
 int ble_ll_reset(void);
 

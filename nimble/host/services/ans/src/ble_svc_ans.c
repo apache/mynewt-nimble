@@ -441,7 +441,7 @@ ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len,
  * @return 0 on success, non-zero error code otherwise.
  */
 void
-ble_svc_ans_init(void)
+ble_svc_ans_init(struct sysinit_init_ctxt *ctxt)
 {
     int rc;
 
@@ -457,3 +457,5 @@ ble_svc_ans_init(void)
     ble_svc_ans_new_alert_cat = MYNEWT_VAL(BLE_SVC_ANS_NEW_ALERT_CAT);
     ble_svc_ans_unr_alert_cat = MYNEWT_VAL(BLE_SVC_ANS_UNR_ALERT_CAT);
 }
+
+SYSINIT_REGISTER_INIT(ble_svc_ans_init, 3);

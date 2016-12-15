@@ -189,7 +189,7 @@ bleuart_set_conn_handle(uint16_t conn_handle) {
  * @param Maximum input
  */
 void
-bleuart_init(void)
+bleuart_init(struct sysinit_init_ctxt *ctxt)
 {
     int rc;
 
@@ -202,3 +202,5 @@ bleuart_init(void)
     console_buf = malloc(MYNEWT_VAL(BLEUART_MAX_INPUT));
     SYSINIT_PANIC_ASSERT(console_buf != NULL);
 }
+
+SYSINIT_REGISTER_INIT(bleuart_init, 5);

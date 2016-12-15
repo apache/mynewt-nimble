@@ -151,7 +151,7 @@ ble_svc_gap_device_name_set(const char *name)
 }
 
 void
-ble_svc_gap_init(void)
+ble_svc_gap_init(struct sysinit_init_ctxt *ctxt)
 {
     int rc;
 
@@ -164,3 +164,5 @@ ble_svc_gap_init(void)
     rc = ble_gatts_add_svcs(ble_svc_gap_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
+
+SYSINIT_REGISTER_INIT(ble_svc_gap_init, 3);

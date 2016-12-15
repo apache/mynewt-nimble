@@ -20,12 +20,8 @@
 #ifndef H_BLE_SVC_TPS_
 #define H_BLE_SVC_TPS_
 
-struct ble_hs_cfg;
-
 #define BLE_SVC_TPS_UUID16                                      0x1804
 #define BLE_SVC_TPS_CHR_UUID16_TX_POWER_LEVEL                   0x2a07
-
-void ble_svc_tps_init(void);
 
 #endif
 

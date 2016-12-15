@@ -33,6 +33,3 @@ pkg.deps:
     - kernel/os
     - sys/stats
     - net/nimble
-
-pkg.init_function: ble_ll_init
-pkg.init_stage: 2
