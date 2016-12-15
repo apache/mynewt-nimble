@@ -153,7 +153,6 @@ extern struct ble_hs_cfg ble_hs_cfg;
 int ble_hs_synced(void);
 int ble_hs_start(void);
 void ble_hs_evq_set(struct os_eventq *evq);
-void ble_hs_init(void);
 
 #ifdef __cplusplus
 }

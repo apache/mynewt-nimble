@@ -31,7 +31,6 @@
 typedef int ble_svc_ias_event_fn(uint8_t alert_level); 
 
 void ble_svc_ias_set_cb(ble_svc_ias_event_fn *cb);
-void ble_svc_ias_init(void);
 
 #endif
 

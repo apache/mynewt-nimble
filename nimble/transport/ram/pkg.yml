@@ -31,6 +31,3 @@ pkg.deps:
 
 pkg.apis:
     - ble_transport
-
-pkg.init_function: ble_hci_ram_pkg_init
-pkg.init_stage: 1

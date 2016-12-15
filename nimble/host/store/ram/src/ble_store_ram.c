@@ -469,7 +469,7 @@ ble_store_ram_delete(int obj_type, union ble_store_key *key)
 }
 
 void
-ble_store_ram_init(void)
+ble_store_ram_init(struct sysinit_init_ctxt *ctxt)
 {
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
@@ -483,3 +483,5 @@ ble_store_ram_init(void)
     ble_store_ram_num_peer_secs = 0;
     ble_store_ram_num_cccds = 0;
 }
+
+SYSINIT_REGISTER_INIT(ble_store_ram_init, 5);

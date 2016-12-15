@@ -32,6 +32,3 @@ pkg.deps:
 
 pkg.req_apis:
     - console
-
-pkg.init_function: bleuart_init
-pkg.init_stage: 5

@@ -29,6 +29,3 @@ pkg.keywords:
 
 pkg.deps:
     - net/nimble/host
-
-pkg.init_function: ble_store_ram_init
-pkg.init_stage: 5

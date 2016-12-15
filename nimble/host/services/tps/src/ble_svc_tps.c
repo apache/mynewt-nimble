@@ -92,7 +92,7 @@ ble_svc_tps_access(uint16_t conn_handle, uint16_t attr_handle,
  * Initialize the TPS
  */
 void
-ble_svc_tps_init(void)
+ble_svc_tps_init(struct sysinit_init_ctxt *ctxt)
 {
     int rc;
 
@@ -105,3 +105,5 @@ ble_svc_tps_init(void)
     rc = ble_gatts_add_svcs(ble_svc_tps_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
+
+SYSINIT_REGISTER_INIT(ble_svc_tps_init, 3);

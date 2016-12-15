@@ -1211,7 +1211,7 @@ ble_ll_seed_prng(void)
  * @return int
  */
 void
-ble_ll_init(void)
+ble_ll_init(struct sysinit_init_ctxt *ctxt)
 {
     int rc;
     uint8_t features;
@@ -1322,6 +1322,8 @@ ble_ll_init(void)
 
     ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
 }
+
+SYSINIT_REGISTER_INIT(ble_ll_init, 2);
 
 #ifdef BLE_LL_LOG
 void
