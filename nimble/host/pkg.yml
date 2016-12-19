@@ -41,3 +41,6 @@ pkg.deps.BLE_SM_SC:
 pkg.req_apis:
     - ble_transport
     - console
+
+pkg.init_function: "ble_hs_init"
+pkg.init_stage: 2

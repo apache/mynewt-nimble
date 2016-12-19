@@ -17,21 +17,14 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_GATT_
-#define H_BLE_SVC_GATT_
-
-#include <inttypes.h>
+#ifndef H_BLE_HCI_UART_
+#define H_BLE_HCI_UART_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ble_hs_cfg;
-
-#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
-
-void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
-void ble_svc_gatt_init(void);
+int ble_hci_uart_init(void);
 
 #ifdef __cplusplus
 }

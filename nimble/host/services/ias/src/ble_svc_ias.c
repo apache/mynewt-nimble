@@ -132,7 +132,7 @@ ble_svc_ias_set_cb(ble_svc_ias_event_fn *cb)
  * Initialize the IAS package.
  */
 void
-ble_svc_ias_init(struct sysinit_init_ctxt *ctxt)
+ble_svc_ias_init(void)
 {
     int rc;
     
@@ -145,5 +145,3 @@ ble_svc_ias_init(struct sysinit_init_ctxt *ctxt)
     rc = ble_gatts_add_svcs(ble_svc_ias_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
-
-SYSINIT_REGISTER_INIT(ble_svc_ias_init, 3);

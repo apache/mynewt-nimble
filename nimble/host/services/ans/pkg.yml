@@ -29,3 +29,6 @@ pkg.keywords:
 
 pkg.deps:
     - net/nimble/host
+
+pkg.init_function: ble_svc_ans_init
+pkg.init_stage: 3

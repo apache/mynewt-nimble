@@ -37,6 +37,8 @@
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
 
+#include "transport/uart/ble_hci_uart.h"
+
 #define BLE_HCI_UART_EVT_COUNT  \
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) + MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
@@ -957,8 +959,8 @@ ble_hci_trans_reset(void)
  * @return                      0 on success;
  *                              A BLE_ERR_[...] error code on failure.
  */
-void
-ble_hci_uart_init(struct sysinit_init_ctxt *ctxt)
+int
+ble_hci_uart_init(void)
 {
     int acl_data_length;
     int acl_block_size;
@@ -1060,5 +1062,3 @@ err:
     ble_hci_uart_free_mem();
     return rc;
 }
-
-SYSINIT_REGISTER_INIT(ble_hci_uart_init, 5);
