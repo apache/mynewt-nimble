@@ -32,7 +32,7 @@ pkg.deps:
     - sys/stats
     - util/mem
 
-pkg.deps.BLE_SM:
+pkg.deps.BLE_SM_LEGACY:
     - crypto/mbedtls
 
 pkg.deps.BLE_SM_SC:
