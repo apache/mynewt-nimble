@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+void
+bleuart_init(void);
 int
 bleuart_svc_register(void);
 int

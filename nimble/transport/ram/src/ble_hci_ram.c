@@ -241,7 +241,7 @@ err:
 }
 
 void
-ble_hci_ram_pkg_init(struct sysinit_init_ctxt *ctxt)
+ble_hci_ram_pkg_init(void)
 {
     int rc;
 
@@ -251,5 +251,3 @@ ble_hci_ram_pkg_init(struct sysinit_init_ctxt *ctxt)
     rc = ble_hci_ram_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
-
-SYSINIT_REGISTER_INIT(ble_hci_ram_pkg_init, 1);

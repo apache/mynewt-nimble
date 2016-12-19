@@ -93,7 +93,7 @@ ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle)
 }
 
 void
-ble_svc_gatt_init(struct sysinit_init_ctxt *ctxt)
+ble_svc_gatt_init(void)
 {
     int rc;
 
@@ -106,5 +106,3 @@ ble_svc_gatt_init(struct sysinit_init_ctxt *ctxt)
     rc = ble_gatts_add_svcs(ble_svc_gatt_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
-
-SYSINIT_REGISTER_INIT(ble_svc_gatt_init, 3);
