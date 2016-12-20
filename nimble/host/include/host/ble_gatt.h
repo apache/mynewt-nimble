@@ -178,7 +178,7 @@ int ble_gattc_write_flat(uint16_t conn_handle, uint16_t attr_handle,
                          const void *data, uint16_t data_len,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                         struct os_mbuf *om,
+                         uint16_t offset, struct os_mbuf *om,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_reliable(uint16_t conn_handle,
                              struct ble_gatt_attr *attrs,
