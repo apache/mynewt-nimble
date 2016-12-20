@@ -516,13 +516,13 @@ TEST_CASE(ble_att_clt_test_tx_exec_write)
     conn_handle = ble_att_clt_test_misc_init();
 
     /*** Success. */
-    ble_att_clt_test_misc_exec_good(0);
-    ble_att_clt_test_misc_exec_good(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+    ble_att_clt_test_misc_exec_good(BLE_ATT_EXEC_WRITE_F_CANCEL);
+    ble_att_clt_test_misc_exec_good(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
-    /*** Error: invalid flags value. */
+    /*** Success: nonzero == execute. */
     req.baeq_flags = 0x02;
     rc = ble_att_clt_tx_exec_write(conn_handle, &req);
-    TEST_ASSERT(rc == BLE_HS_EINVAL);
+    TEST_ASSERT(rc == 0);
 }
 
 TEST_CASE(ble_att_clt_test_tx_mtu)

@@ -1623,7 +1623,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
         0xabae, BLE_ATT_F_WRITE, 6, ble_att_svr_test_misc_attr_fn_w_fail);
 
     /*** Empty write succeeds. */
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
 
     /*** Empty cancel succeeds. */
@@ -1657,7 +1657,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
 
     /*** Failure for write starting at nonzero offset. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 1, data, 10, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_OFFSET, 1);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
@@ -1669,7 +1669,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     /*** Failure for write with gap. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 10, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 11, data, 10, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_OFFSET, 1);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
@@ -1683,14 +1683,14 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 200, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 200, data + 200, 200, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 400, data + 400, 200, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 1);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
     /*** Successful two part write. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 20, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 20, data + 20, 20, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 40);
 
@@ -1698,7 +1698,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 35, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 35, data + 35, 43, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 78, data + 78, 1, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 79);
 
@@ -1707,7 +1707,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 7, data + 7, 10, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 0, data, 20, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 20, data + 20, 10, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 17);
     ble_att_svr_test_misc_verify_w_2(data, 30);
@@ -1717,7 +1717,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 5, data + 5, 2, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 0, data, 11, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 12, data + 11, 19, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_OFFSET, 2);
     ble_att_svr_test_misc_verify_w_1(data, 17);
     ble_att_svr_test_misc_verify_w_2(data, 30);
@@ -1727,7 +1727,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 0, data, 18, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 9, data + 9, 3, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 18, data + 18, 43, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 12);
     ble_att_svr_test_misc_verify_w_2(data, 61);
@@ -1736,7 +1736,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 0, data, 35, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 35, data + 35, 43, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 78, data + 78, 1, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 6);
 }
 

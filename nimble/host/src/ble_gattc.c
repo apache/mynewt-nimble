@@ -3919,7 +3919,7 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
                         proc->write_long.attr.offset);
 
     if (write_len <= 0) {
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_EXECUTE;
         rc = ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
         goto done;
     }
@@ -3988,7 +3988,7 @@ ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
         proc->write_long.attr.offset <
             OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
 
-        exec_req.baeq_flags = 0;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CANCEL;
         ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
     }
 
@@ -4224,7 +4224,7 @@ ble_gattc_write_reliable_tx(struct ble_gattc_proc *proc)
     attr_idx = proc->write_reliable.cur_attr;
 
     if (attr_idx >= proc->write_reliable.num_attrs) {
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_EXECUTE;
         rc = ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
         goto done;
     }
@@ -4303,7 +4303,7 @@ ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
     if (proc->write_reliable.cur_attr > 0 &&
         proc->write_reliable.cur_attr < proc->write_reliable.num_attrs) {
 
-        exec_req.baeq_flags = 0;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CANCEL;
         ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
     }
 }

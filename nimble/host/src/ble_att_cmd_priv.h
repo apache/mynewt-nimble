@@ -269,8 +269,8 @@ struct ble_att_exec_write_req {
     uint8_t baeq_flags;
 } __attribute__((packed));
 
-#define BLE_ATT_EXEC_WRITE_F_CONFIRM    0x01
-#define BLE_ATT_EXEC_WRITE_F_RESERVED   0xfe
+#define BLE_ATT_EXEC_WRITE_F_CANCEL     0x00
+#define BLE_ATT_EXEC_WRITE_F_EXECUTE    0x01
 
 /**
  * | Parameter                          | Size (octets)     |
