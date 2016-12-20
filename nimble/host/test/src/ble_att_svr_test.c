@@ -1182,15 +1182,16 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     uint16_t handle3;
     uint16_t handle4;
     uint16_t handle5;
+    uint16_t handle_desc;
     uint8_t uuid1[16] = {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
-        0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
-    };
-    uint8_t uuid2[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-    uint8_t uuid3[16] = {
+        0x00, 0x10, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00
+    }; /* 0x2800 (Primary Service) */
+    uint8_t uuid2[16] = {
         0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
-        0x00, 0x10, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
-    };
+        0x00, 0x10, 0x00, 0x00, 0x03, 0x28, 0x00, 0x00
+    }; /* 0x2803 (Characteristic) */
+    uint8_t uuid3[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(128);
@@ -1200,7 +1201,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Start handle of 0. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0, 0, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 0, 0, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1209,7 +1210,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Start handle > end handle. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 101, 100, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 101, 100, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1218,7 +1219,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** No attributes. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 200, 300, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 200, 300, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1231,7 +1232,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 200, 300, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 200, 300, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1240,7 +1241,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** One entry, one attribute. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, handle1, handle1, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, handle1, handle1, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
@@ -1252,12 +1253,12 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 
     /*** One entry, two attributes. */
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle2,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, handle1, handle2, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, handle1, handle2, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
@@ -1268,68 +1269,67 @@ TEST_CASE(ble_att_svr_test_find_type_value)
             .first = 0,
         } }));
 
-    /*** Entry 1: two attributes; entry 2: one attribute. */
+    /*** Entry 1: four attributes; entry 2 (invalid value): one attribute;
+     *   entry 3: one attribute; Check that invalid value is not returned. */
+    ble_att_svr_test_attr_r_2 = (uint8_t[]){0x00, 0x00};
+    ble_att_svr_test_attr_r_2_len = 2;
+
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle_desc,
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
+    TEST_ASSERT(rc == 0);
+
     rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle3,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle4,
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle5,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0x0001, 0xffff, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 0x0001, 0xffff, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
         ((struct ble_att_svr_test_type_value_entry[]) { {
             .first = handle1,
-            .last = handle2,
+            .last = handle3,
         }, {
-            .first = handle4,
-            .last = handle4,
+            .first = handle5,
+            .last = handle5,
         }, {
             .first = 0,
         } }));
 
-    /*** Ensure attribute with wrong value is not included. */
-    ble_att_svr_test_attr_r_2 = (uint8_t[]){0x00, 0x00};
-    ble_att_svr_test_attr_r_2_len = 2;
-
+    /*** As above, check proper range is returned with smaller search range */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0x0001, 0xffff, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 0x0001, 0x0001, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
         ((struct ble_att_svr_test_type_value_entry[]) { {
             .first = handle1,
-            .last = handle2,
-        }, {
-            .first = handle4,
-            .last = handle4,
+            .last = handle3,
         }, {
             .first = 0,
         } }));
 
-    /*** Ensure attribute with wrong type is not included. */
-    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle5,
-                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
-
+    /*** As above, check grouping by Characteristic UUID */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0x0001, 0xffff, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, handle1, handle3, 0x2803, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
         ((struct ble_att_svr_test_type_value_entry[]) { {
-            .first = handle1,
-            .last = handle2,
-        }, {
-            .first = handle4,
-            .last = handle4,
+            .first = handle2,
+            .last = handle_desc,
         }, {
             .first = 0,
         } }));
-
 }
 
 static void
