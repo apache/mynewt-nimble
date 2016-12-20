@@ -383,6 +383,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     struct ble_gatt_conn_test_arg write_rel_arg      = { 0, BLE_HS_ENOTCONN };
     struct ble_gatt_attr attr;
     uint16_t attr_handle;
+    uint16_t offset = 0;
     int rc;
 
     ble_gatt_conn_test_util_init();
@@ -452,7 +453,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     read_long_arg.exp_conn_handle = 2;
-    rc = ble_gattc_read_long(2, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
+    rc = ble_gattc_read_long(2, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE, offset,
                              ble_gatt_conn_test_read_long_cb, &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -604,6 +605,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
     struct ble_gatt_attr attr;
     int32_t ticks_from_now;
     uint16_t attr_handle;
+    uint16_t offset = 0;
     int rc;
 
     ble_gatt_conn_test_util_init();
@@ -687,7 +689,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
 
     /*** Read long. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_read_long(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
+    rc = ble_gattc_read_long(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE, offset,
                              ble_gatt_conn_test_read_long_cb,
                              &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);

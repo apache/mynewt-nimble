@@ -337,6 +337,7 @@ ble_gatt_read_test_misc_long_verify_good(
     int chunk_sz;
     int rem_len;
     int att_op;
+    uint16_t offset = 0;
     int off;
     int rc;
 
@@ -348,8 +349,8 @@ ble_gatt_read_test_misc_long_verify_good(
         max_reads = INT_MAX;
     }
     reads_left = max_reads;
-    rc = ble_gattc_read_long(2, attr->handle, ble_gatt_read_test_long_cb,
-                             &reads_left);
+    rc = ble_gattc_read_long(2, attr->handle, offset,
+                             ble_gatt_read_test_long_cb, &reads_left);
     TEST_ASSERT_FATAL(rc == 0);
 
     off = 0;
@@ -386,13 +387,14 @@ static void
 ble_gatt_read_test_misc_long_verify_bad(
     uint8_t att_status, struct ble_hs_test_util_flat_attr *attr)
 {
+    uint16_t offset = 0;
     int rc;
 
     ble_gatt_read_test_misc_init();
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    rc = ble_gattc_read_long(2, attr->handle,
+    rc = ble_gattc_read_long(2, attr->handle, offset,
                              ble_gatt_read_test_long_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -820,6 +822,7 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     int32_t ticks_until;
     int reads_left;
     int chunk_sz;
+    uint16_t offset = 0;
     int off;
     int rc;
 
@@ -830,7 +833,7 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     /* Initiate a read long procedure. */
     off = 0;
     reads_left = 0;
-    rc = ble_gattc_read_long(2, attr.handle, ble_gatt_read_test_long_cb,
+    rc = ble_gattc_read_long(2, attr.handle, offset, ble_gatt_read_test_long_cb,
                              &reads_left);
     TEST_ASSERT_FATAL(rc == 0);
 
