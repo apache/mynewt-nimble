@@ -975,16 +975,11 @@ done:
 }
 
 /**
- * Processes a single non-matching attribute entry while filling a
- * Find-By-Type-Value-Response.
+ * Fills a Find-By-Type-Value-Response with single entry.
  *
  * @param om                    The response mbuf.
- * @param first                 Pointer to the first matching handle ID in the
- *                                  current group of IDs.  0 if there is not a
- *                                  current group.
- * @param prev                  Pointer to the most recent matching handle ID
- *                                  in the current group of IDs.  0 if there is
- *                                  not a current group.
+ * @param first                 First handle ID in the current group of IDs.
+ * @param last                  Last handle ID in the current group of ID.
  * @param mtu                   The ATT L2CAP channel MTU.
  *
  * @return                      0 if the response should be sent;
@@ -994,97 +989,60 @@ done:
  *                              Other nonzero on error.
  */
 static int
-ble_att_svr_fill_type_value_no_match(struct os_mbuf *om, uint16_t *first,
-                                     uint16_t *prev, int mtu,
+ble_att_svr_fill_type_value_entry(struct os_mbuf *om, uint16_t first,
+                                     uint16_t last, int mtu,
                                      uint8_t *out_att_err)
 {
     uint16_t u16;
     int rsp_sz;
     int rc;
 
-    /* If there is no current group, then there is nothing to do. */
-    if (*first == 0) {
-        return BLE_HS_EAGAIN;
-    }
-
     rsp_sz = OS_MBUF_PKTHDR(om)->omp_len + 4;
     if (rsp_sz > mtu) {
         return 0;
     }
 
-    u16 = *first;
-    htole16(&u16, u16);
+    htole16(&u16, first);
     rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         return BLE_HS_ENOMEM;
     }
 
-    u16 = *prev;
-    htole16(&u16, u16);
+    htole16(&u16, last);
     rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         return BLE_HS_ENOMEM;
     }
-
-    *first = 0;
-    *prev = 0;
 
     return BLE_HS_EAGAIN;
 }
 
-/**
- * Processes a single matching attribute entry while filling a
- * Find-By-Type-Value-Response.
- *
- * @param om                    The response mbuf.
- * @param first                 Pointer to the first matching handle ID in the
- *                                  current group of IDs.  0 if there is not a
- *                                  current group.
- * @param prev                  Pointer to the most recent matching handle ID
- *                                  in the current group of IDs.  0 if there is
- *                                  not a current group.
- * @param handle_id             The matching handle ID to process.
- * @param mtu                   The ATT L2CAP channel MTU.
- *
- * @return                      0 if the response should be sent;
- *                              BLE_HS_EAGAIN if the entry was successfully
- *                                  processed and subsequent entries can be
- *                                  inspected.
- *                              Other nonzero on error.
- */
 static int
-ble_att_svr_fill_type_value_match(struct os_mbuf *om, uint16_t *first,
-                                  uint16_t *prev, uint16_t handle_id,
-                                  int mtu, uint8_t *out_att_err)
+ble_att_svr_is_valid_find_group_type(uint16_t uuid16)
 {
-    int rc;
+    return uuid16 == BLE_ATT_UUID_PRIMARY_SERVICE ||
+           uuid16 == BLE_ATT_UUID_SECONDARY_SERVICE ||
+           uuid16 == BLE_ATT_UUID_CHARACTERISTIC;
+}
 
-    /* If this is the start of a group, record it as the first ID and keep
-     * searching.
-     */
-    if (*first == 0) {
-        *first = handle_id;
-        *prev = handle_id;
-        return BLE_HS_EAGAIN;
+static int
+ble_att_svr_is_valid_group_end(uint16_t uuid16_group, uint16_t uuid16)
+{
+    switch (uuid16_group) {
+    case BLE_ATT_UUID_PRIMARY_SERVICE:
+    case BLE_ATT_UUID_SECONDARY_SERVICE:
+        /* Only Primary or Secondary Service types end service group. */
+        return uuid16 == BLE_ATT_UUID_PRIMARY_SERVICE ||
+               uuid16 == BLE_ATT_UUID_SECONDARY_SERVICE;
+    case BLE_ATT_UUID_CHARACTERISTIC:
+        /* Any valid grouping type ends characteristic group */
+        return ble_att_svr_is_valid_find_group_type(uuid16);
+    default:
+        /* Any attribute type ends group of non-grouping type */
+        return 1;
     }
-
-    /* If this is the continuation of a group, keep searching. */
-    if (handle_id == *prev + 1) {
-        *prev = handle_id;
-        return BLE_HS_EAGAIN;
-    }
-
-    /* Otherwise, this handle is not a part of the previous group.  Write the
-     * previous group to the response, and remember this ID as the start of the
-     * next group.
-     */
-    rc = ble_att_svr_fill_type_value_no_match(om, first, prev, mtu,
-                                              out_att_err);
-    *first = handle_id;
-    *prev = handle_id;
-    return rc;
 }
 
 /**
@@ -1116,7 +1074,6 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
     uint16_t first;
     uint16_t prev;
     int any_entries;
-    int match;
     int rc;
 
     first = 0;
@@ -1128,51 +1085,68 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
      * written to the response.
      */
     STAILQ_FOREACH(ha, &ble_att_svr_list, ha_next) {
-        match = 0;
+        if (ha->ha_handle_id < req->bavq_start_handle) {
+            continue;
+        }
 
-        if (ha->ha_handle_id > req->bavq_end_handle) {
+        /* Continue to look for end of group in case group is in progress. */
+        if (!first && ha->ha_handle_id > req->bavq_end_handle) {
             break;
         }
 
-        if (ha->ha_handle_id >= req->bavq_start_handle) {
-            /* Compare the attribute type and value to the request fields to
-             * determine if this attribute matches.
-             */
-            uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
-            if (uuid16 == req->bavq_attr_type) {
-                rc = ble_att_svr_read_flat(conn_handle, ha, 0, sizeof buf, buf,
-                                           &attr_len, out_att_err);
-                if (rc != 0) {
-                    goto done;
-                }
-                rc = os_mbuf_cmpf(rxom, BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                  buf, attr_len);
-                if (rc == 0) {
-                    match = 1;
-                }
+        uuid16 = ble_uuid_128_to_16(ha->ha_uuid);
+
+        /* With group in progress, check if current attribute ends it. */
+        if (first) {
+            if (!ble_att_svr_is_valid_group_end(req->bavq_attr_type, uuid16)) {
+                prev = ha->ha_handle_id;
+                continue;
+            }
+
+            rc = ble_att_svr_fill_type_value_entry(txom, first, prev, mtu,
+                                                   out_att_err);
+            if (rc != BLE_HS_EAGAIN) {
+                goto done;
+            }
+
+            first = 0;
+            prev = 0;
+
+            /* Break in case we were just looking for end of group past the end
+             * handle ID. */
+            if (ha->ha_handle_id > req->bavq_end_handle) {
+                break;
             }
         }
 
-        if (match) {
-            rc = ble_att_svr_fill_type_value_match(txom, &first, &prev,
-                                                   ha->ha_handle_id, mtu,
-                                                   out_att_err);
-        } else {
-            rc = ble_att_svr_fill_type_value_no_match(txom, &first, &prev,
-                                                      mtu, out_att_err);
-        }
-
-        if (rc != BLE_HS_EAGAIN) {
-            goto done;
+        /* Compare the attribute type and value to the request fields to
+         * determine if this attribute matches.
+         */
+        if (uuid16 == req->bavq_attr_type) {
+            rc = ble_att_svr_read_flat(conn_handle, ha, 0, sizeof buf, buf,
+                                       &attr_len, out_att_err);
+            if (rc != 0) {
+                goto done;
+            }
+            rc = os_mbuf_cmpf(rxom, BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
+                              buf, attr_len);
+            if (rc == 0) {
+                first = ha->ha_handle_id;
+                prev = ha->ha_handle_id;
+            }
         }
     }
 
-    /* Process one last non-matching ID in case a group was in progress when
-     * the end of the attribute list was reached.
+    /* Process last group in case a group was in progress when the end of the
+     * attribute list was reached.
      */
-    rc = ble_att_svr_fill_type_value_no_match(txom, &first, &prev, mtu,
-                                              out_att_err);
-    if (rc == BLE_HS_EAGAIN) {
+    if (first) {
+        rc = ble_att_svr_fill_type_value_entry(txom, first, prev, mtu,
+                                               out_att_err);
+        if (rc == BLE_HS_EAGAIN) {
+            rc = 0;
+        }
+    } else {
         rc = 0;
     }
 
@@ -1713,7 +1687,7 @@ done:
 }
 
 static int
-ble_att_svr_is_valid_group_type(uint8_t *uuid128)
+ble_att_svr_is_valid_read_group_type(uint8_t *uuid128)
 {
     uint16_t uuid16;
 
@@ -1848,7 +1822,7 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
 
         if (start_group_handle != 0) {
             /* We have already found the start of a group. */
-            if (!ble_att_svr_is_valid_group_type(entry->ha_uuid)) {
+            if (!ble_att_svr_is_valid_read_group_type(entry->ha_uuid)) {
                 /* This attribute is part of the current group. */
                 end_group_handle = entry->ha_handle_id;
             } else {
@@ -2019,7 +1993,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    if (!ble_att_svr_is_valid_group_type(uuid128)) {
+    if (!ble_att_svr_is_valid_read_group_type(uuid128)) {
         att_err = BLE_ATT_ERR_UNSUPPORTED_GROUP;
         err_handle = req.bagq_start_handle;
         rc = BLE_HS_ENOTSUP;
