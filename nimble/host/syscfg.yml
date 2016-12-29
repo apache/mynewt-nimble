@@ -19,6 +19,10 @@
 # Package: net/nimble/host
 
 syscfg.defs:
+    BLE_HOST:
+        description: 'Indicates that a BLE host is present.'
+        value: 1
+
     # Debug settings.
     BLE_HS_DEBUG:
         description: 'TBD'
