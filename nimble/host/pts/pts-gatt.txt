@@ -265,7 +265,9 @@ TC_GAW_CL_BI_04_C	PASS	b conn peer_addr=<addr>
 TC_GAW_CL_BI_05_C	PASS	b conn peer_addr=<addr>
 				b write conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
-TC_GAW_CL_BI_06_C	INC	
+TC_GAW_CL_BI_06_C	PASS	b conn peer_addr=<addr>
+				b write conn=<handle> attr=<val_handle> value=00
+				b term conn=<handle>
 TC_GAW_CL_BV_05_C	PASS	b conn peer_addr=<addr>
 				b write long=1 conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
@@ -284,7 +286,9 @@ TC_GAW_CL_BI_11_C	PASS	b conn peer_addr=<addr>
 TC_GAW_CL_BI_12_C	PASS	b conn peer_addr=<addr>
 				b write long=1 conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
-TC_GAW_CL_BI_13_C	INC
+TC_GAW_CL_BI_13_C	PASS	b conn peer_addr=<addr>
+				b write long=1 conn=<handle> attr=<val_handle> value=aa
+				b term conn=<handle>
 TC_GAW_CL_BV_06_C	PASS	b conn peer_addr=<addr>
 				b write long=1 conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
@@ -300,7 +304,9 @@ TC_GAW_CL_BI_17_C	PASS	b conn peer_addr=<addr>
 TC_GAW_CL_BI_18_C	PASS	b conn peer_addr=<addr>
 				b write long=1 conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
-TC_GAW_CL_BI_19_C	INC
+TC_GAW_CL_BI_19_C	PASS	b conn peer_addr=<addr>
+				b write conn=<handle> attr=<val_handle> value=aa attr=<val_handle> value=aa
+				b term conn=<handle>
 TC_GAW_CL_BV_08_C	PASS	b conn peer_addr=<addr>
 				b write conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
@@ -316,7 +322,9 @@ TC_GAW_CL_BI_22_C	PASS	b conn peer_addr=<addr>
 TC_GAW_CL_BI_23_C	PASS	b conn peer_addr=<addr>
 				b write conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
-TC_GAW_CL_BI_24_C	INC	
+TC_GAW_CL_BI_24_C	PASS	b conn peer_addr=<addr>
+				b write conn=<handle> attr=<val_handle> value=aa
+				b term conn=<handle>
 TC_GAW_CL_BV_09_C	PASS	b conn peer_addr=<addr>
 				b write long=1 conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
@@ -335,7 +343,9 @@ TC_GAW_CL_BI_29_C	PASS	b conn peer_addr=<addr>
 TC_GAW_CL_BI_30_C	PASS	b conn peer_addr=<addr>
 				b write long=1 conn=<handle> attr=<val_handle> value=aa
 				b term conn=<handle>
-TC_GAW_CL_BI_31_C	INC
+TC_GAW_CL_BI_31_C	PASS	b conn peer_addr=<addr>
+				b write long=1 conn=<handle> attr=<val_handle> value=aa
+				b term conn=<handle>
 TC_GAW_CL_BI_32_C	PASS	b conn peer_addr=<addr>
 				b write conn=<handle> attr=<val_handle1> value=<val> attr=<val_handle2> value=<val>
 TC_GAW_CL_BI_33_C	PASS	b conn peer_addr=<addr>
