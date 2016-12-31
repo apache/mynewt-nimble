@@ -324,6 +324,11 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
         return BLE_HS_ATT_ERR(*out_att_err);
     }
 
+    if (entry->ha_min_key_size > sec_state.key_size) {
+        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_KEY_SZ;
+        return BLE_HS_ATT_ERR(*out_att_err);
+    }
+
     if (author) {
         /* XXX: Prompt user for authorization. */
     }
