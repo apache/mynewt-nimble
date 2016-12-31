@@ -262,9 +262,14 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
                         uint8_t *out_att_err)
 {
     struct ble_gap_sec_state sec_state;
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_hs_conn_addrs addrs;
+    struct ble_hs_conn *conn;
     int author;
     int authen;
     int enc;
+    int rc;
 
     if (is_read) {
         if (!(entry->ha_flags & BLE_ATT_F_READ)) {
@@ -292,11 +297,25 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     }
 
     ble_att_svr_get_sec_state(conn_handle, &sec_state);
-    if (enc && !sec_state.encrypted) {
-        /* XXX: Check security database; if required key present, respond with
-         * insufficient encryption error code.
-         */
-        *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
+    if ((enc || authen) && !sec_state.encrypted) {
+        ble_hs_lock();
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn != NULL) {
+            ble_hs_conn_addrs(conn, &addrs);
+
+            memset(&key_sec, 0, sizeof key_sec);
+            key_sec.peer_addr_type = addrs.peer_id_addr_type;
+            memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
+        }
+        ble_hs_unlock();
+
+        rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+        if (rc == 0 && value_sec.ltk_present) {
+            *out_att_err = BLE_ATT_ERR_INSUFFICIENT_ENC;
+        } else {
+            *out_att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
+        }
+
         return BLE_HS_ATT_ERR(*out_att_err);
     }
 
