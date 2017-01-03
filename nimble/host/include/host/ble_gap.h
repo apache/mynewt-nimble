@@ -131,6 +131,7 @@ struct ble_gap_sec_state {
     unsigned encrypted:1;
     unsigned authenticated:1;
     unsigned bonded:1;
+    unsigned key_size:5;
 };
 
 /**

@@ -416,7 +416,7 @@ ble_sm_proc_remove(struct ble_sm_proc *proc,
 
 static void
 ble_sm_update_sec_state(uint16_t conn_handle, int encrypted,
-                        int authenticated, int bonded)
+                        int authenticated, int bonded, int key_size)
 {
     struct ble_hs_conn *conn;
 
@@ -430,6 +430,10 @@ ble_sm_update_sec_state(uint16_t conn_handle, int encrypted,
         }
         if (bonded) {
             conn->bhc_sec_state.bonded = 1;
+        }
+
+        if (key_size) {
+            conn->bhc_sec_state.key_size = key_size;
         }
     }
 }
@@ -892,12 +896,14 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
     struct ble_sm_proc *proc;
     int authenticated;
     int bonded;
+    int key_size;
 
     memset(&res, 0, sizeof res);
 
     /* Assume no change in authenticated and bonded statuses. */
     authenticated = 0;
     bonded = 0;
+    key_size = 0;
 
     ble_hs_lock();
 
@@ -918,6 +924,8 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
 
                     res.execute = 1;
                 }
+
+                key_size = proc->key_size;
             } else {
                 /* Failure or no keys to exchange; procedure is complete. */
                 proc->state = BLE_SM_PROC_STATE_NONE;
@@ -939,6 +947,8 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
             }
             bonded = 1;
             res.restore = 1;
+
+            key_size = proc->key_size;
             break;
 
         default:
@@ -956,7 +966,8 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
         /* Set the encrypted state of the connection as indicated in the
          * event.
          */
-        ble_sm_update_sec_state(conn_handle, encrypted, authenticated, bonded);
+        ble_sm_update_sec_state(conn_handle, encrypted, authenticated, bonded,
+                                key_size);
     }
 
     /* Unless keys need to be exchanged, notify the application of the security
@@ -1656,7 +1667,7 @@ ble_sm_key_exch_success(struct ble_sm_proc *proc, struct ble_sm_result *res)
     /* The procedure is now complete.  Update connection bonded state and
      * terminate procedure.
      */
-    ble_sm_update_sec_state(proc->conn_handle, 1, 0, 1);
+    ble_sm_update_sec_state(proc->conn_handle, 1, 0, 1, proc->key_size);
     proc->state = BLE_SM_PROC_STATE_NONE;
 
     res->app_status = 0;
