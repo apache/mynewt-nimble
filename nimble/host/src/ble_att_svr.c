@@ -2577,7 +2577,7 @@ done:
         SLIST_INIT(&conn->bhc_att_svr.basc_prep_list);
         ble_hs_unlock();
 
-        if (req.baeq_flags & BLE_ATT_EXEC_WRITE_F_CONFIRM) {
+        if (req.baeq_flags) {
             /* Perform attribute writes. */
             att_err = ble_att_svr_prep_write(conn_handle, &prep_list,
                                              &err_handle);
