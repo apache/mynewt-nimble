@@ -302,8 +302,6 @@ int ble_sm_dbg_num_procs(void);
 
 uint8_t ble_sm_build_authreq(void);
 
-struct ble_l2cap_chan *ble_sm_create_chan(void);
-
 void ble_sm_pair_cmd_parse(void *payload, int len,
                            struct ble_sm_pair_cmd *cmd);
 int ble_sm_pair_cmd_is_valid(struct ble_sm_pair_cmd *cmd);
@@ -478,7 +476,6 @@ int ble_sm_init(void);
 #else
 
 #define ble_sm_dbg_num_procs() 0
-#define ble_sm_create_chan() NULL
 #define ble_sm_enc_change_rx(evt) ((void)(evt))
 #define ble_sm_ltk_req_rx(evt) ((void)(evt))
 #define ble_sm_enc_key_refresh_rx(evt) ((void)(evt))
@@ -493,6 +490,8 @@ int ble_sm_init(void);
 #define ble_sm_init() 0
 
 #endif
+
+struct ble_l2cap_chan *ble_sm_create_chan(void);
 
 #ifdef __cplusplus
 }
