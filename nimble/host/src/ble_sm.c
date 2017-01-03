@@ -2236,24 +2236,6 @@ ble_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
     return rc;
 }
 
-struct ble_l2cap_chan *
-ble_sm_create_chan(void)
-{
-    struct ble_l2cap_chan *chan;
-
-    chan = ble_l2cap_chan_alloc();
-    if (chan == NULL) {
-        return NULL;
-    }
-
-    chan->blc_cid = BLE_L2CAP_CID_SM;
-    chan->blc_my_mtu = BLE_SM_MTU;
-    chan->blc_default_mtu = BLE_SM_MTU;
-    chan->blc_rx_fn = ble_sm_rx;
-
-    return chan;
-}
-
 int
 ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
 {
@@ -2378,5 +2360,53 @@ ble_sm_init(void)
 
     return 0;
 }
+#else
+/* if pairing is not supported it is only needed to reply with Pairing
+ * Failed with 'Pairing not Supported' reason so this function can be very
+ * simple
+ */
+static int
+ble_sm_rx(uint16_t handle, struct os_mbuf **om)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *txom;
+    uint8_t *cmd;
 
+    txom = ble_hs_mbuf_l2cap_pkt();
+    if (txom == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    cmd = os_mbuf_extend(txom, BLE_SM_HDR_SZ + BLE_SM_PAIR_FAIL_SZ);
+    if (cmd == NULL) {
+        os_mbuf_free_chain(txom);
+        return BLE_HS_ENOMEM;
+    }
+
+    cmd[0] = BLE_SM_OP_PAIR_FAIL;
+    cmd[1] = BLE_SM_ERR_PAIR_NOT_SUPP;
+
+    ble_hs_misc_conn_chan_find_reqd(handle, BLE_L2CAP_CID_SM, &conn, &chan);
+
+    return ble_l2cap_tx(conn, chan, txom);
+}
 #endif
+
+struct ble_l2cap_chan *
+ble_sm_create_chan(void)
+{
+    struct ble_l2cap_chan *chan;
+
+    chan = ble_l2cap_chan_alloc();
+    if (chan == NULL) {
+        return NULL;
+    }
+
+    chan->blc_cid = BLE_L2CAP_CID_SM;
+    chan->blc_my_mtu = BLE_SM_MTU;
+    chan->blc_default_mtu = BLE_SM_MTU;
+    chan->blc_rx_fn = ble_sm_rx;
+
+    return chan;
+}
