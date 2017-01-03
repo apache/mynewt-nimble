@@ -1243,7 +1243,6 @@ ble_sm_random_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_pair_random cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_RANDOM_SZ);
     if (res->app_status != 0) {
@@ -1256,7 +1255,7 @@ ble_sm_random_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     BLE_SM_LOG_CMD(0, "random", conn_handle, ble_sm_pair_random_log, &cmd);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_RANDOM, -1, &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_RANDOM, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
@@ -1292,7 +1291,6 @@ ble_sm_confirm_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_pair_confirm cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
     uint8_t ioact;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_CONFIRM_SZ);
@@ -1306,7 +1304,7 @@ ble_sm_confirm_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     BLE_SM_LOG_CMD(0, "confirm", conn_handle, ble_sm_pair_confirm_log, &cmd);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM, -1, &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
@@ -1513,7 +1511,6 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_pair_cmd rsp;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
     uint8_t ioact;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_CMD_SZ);
@@ -1526,7 +1523,7 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     BLE_SM_LOG_CMD(0, "pair rsp", conn_handle, ble_sm_pair_cmd_log, &rsp);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, NULL);
     if (proc != NULL) {
         proc->pair_rsp = rsp;
         if (rsp.max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN) {
@@ -1799,7 +1796,6 @@ ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_enc_info cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ENC_INFO_SZ);
     if (res->app_status != 0) {
@@ -1813,8 +1809,7 @@ ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
 
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
-                            &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -1835,7 +1830,6 @@ ble_sm_master_id_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_master_id cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_MASTER_ID_SZ);
     if (res->app_status != 0) {
@@ -1849,8 +1843,7 @@ ble_sm_master_id_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
 
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
-                            &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -1872,7 +1865,6 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_id_info cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ID_INFO_SZ);
     if (res->app_status != 0) {
@@ -1886,8 +1878,7 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
 
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
-                            &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -1909,7 +1900,6 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_id_addr_info cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ID_ADDR_INFO_SZ);
     if (res->app_status != 0) {
@@ -1924,8 +1914,7 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
 
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
-                            &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -1947,7 +1936,6 @@ ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_sign_info cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_SIGN_INFO_SZ);
     if (res->app_status != 0) {
@@ -1961,8 +1949,7 @@ ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
 
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1,
-                            &prev);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -2086,8 +2073,7 @@ ble_sm_slave_initiate(uint16_t conn_handle)
     ble_hs_lock();
 
     /* Make sure a procedure isn't already in progress for this connection. */
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE,
-                                  -1, NULL);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
     if (proc != NULL) {
         res.app_status = BLE_HS_EALREADY;
 
@@ -2130,8 +2116,7 @@ ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
 
     /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE,
-                            -1, NULL);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
     if (proc != NULL) {
         res.app_status = BLE_HS_EALREADY;
 
@@ -2241,15 +2226,13 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
 {
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
     int rc;
 
     memset(&res, 0, sizeof res);
 
     ble_hs_lock();
 
-    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, &prev);
-
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
     if (proc == NULL) {
         rc = BLE_HS_ENOENT;
     } else if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
