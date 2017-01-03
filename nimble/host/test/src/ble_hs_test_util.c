@@ -1902,10 +1902,11 @@ ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
                                       ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct os_mbuf *om;
+    uint16_t offset = 0;
     int rc;
 
     om = ble_hs_test_util_om_from_flat(data, data_len);
-    rc = ble_gattc_write_long(conn_handle, attr_handle, om, cb, cb_arg);
+    rc = ble_gattc_write_long(conn_handle, attr_handle, offset, om, cb, cb_arg);
 
     return rc;
 }

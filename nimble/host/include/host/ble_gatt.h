@@ -162,7 +162,7 @@ int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
 int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                            uint16_t end_handle, const void *uuid128,
                            ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
+int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
@@ -178,7 +178,7 @@ int ble_gattc_write_flat(uint16_t conn_handle, uint16_t attr_handle,
                          const void *data, uint16_t data_len,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                         struct os_mbuf *om,
+                         uint16_t offset, struct os_mbuf *om,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_reliable(uint16_t conn_handle,
                              struct ble_gatt_attr *attrs,

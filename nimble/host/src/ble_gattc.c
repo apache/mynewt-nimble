@@ -3423,7 +3423,7 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
+ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
                     ble_gatt_attr_fn *cb, void *cb_arg)
 {
 #if !MYNEWT_VAL(BLE_GATT_READ_LONG)
@@ -3444,7 +3444,7 @@ ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
     proc->op = BLE_GATT_OP_READ_LONG;
     proc->conn_handle = conn_handle;
     proc->read_long.handle = handle;
-    proc->read_long.offset = 0;
+    proc->read_long.offset = offset;
     proc->read_long.cb = cb;
     proc->read_long.cb_arg = cb_arg;
 
@@ -4109,7 +4109,8 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
  */
 int
 ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                     struct os_mbuf *txom, ble_gatt_attr_fn *cb, void *cb_arg)
+                     uint16_t offset, struct os_mbuf *txom,
+                     ble_gatt_attr_fn *cb, void *cb_arg)
 {
 #if !MYNEWT_VAL(BLE_GATT_WRITE_LONG)
     return BLE_HS_ENOTSUP;
@@ -4129,7 +4130,7 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
     proc->op = BLE_GATT_OP_WRITE_LONG;
     proc->conn_handle = conn_handle;
     proc->write_long.attr.handle = attr_handle;
-    proc->write_long.attr.offset = 0;
+    proc->write_long.attr.offset = offset;
     proc->write_long.attr.om = txom;
     proc->write_long.cb = cb;
     proc->write_long.cb_arg = cb_arg;
