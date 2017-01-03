@@ -225,6 +225,9 @@ struct ble_gatt_chr_def {
     /** Specifies the set of permitted operations for this characteristic. */
     ble_gatt_chr_flags flags;
 
+    /** Specifies minimum required key size to access this characteristic. */
+    uint8_t min_key_size;
+
     /** 
      * At registration time, this is filled in with the characteristic's value
      * attribute handle.
@@ -270,6 +273,9 @@ struct ble_gatt_dsc_def {
 
     /** Specifies the set of permitted operations for this descriptor. */
     uint8_t att_flags;
+
+    /** Specifies minimum required key size to access this descriptor. */
+    uint8_t min_key_size;
 
     /** Callback that gets executed when the descriptor is read or written. */
     ble_gatt_access_fn *access_cb;

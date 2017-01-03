@@ -97,8 +97,9 @@ ble_att_svr_next_id(void)
  * @return 0 on success, non-zero error code on failure.
  */
 int
-ble_att_svr_register(const uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
-                     ble_att_svr_access_fn *cb, void *cb_arg)
+ble_att_svr_register(const uint8_t *uuid, uint8_t flags, uint8_t min_key_size,
+                     uint16_t *handle_id,  ble_att_svr_access_fn *cb,
+                     void *cb_arg)
 {
     struct ble_att_svr_entry *entry;
 
@@ -109,6 +110,7 @@ ble_att_svr_register(const uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
 
     memcpy(&entry->ha_uuid, uuid, sizeof entry->ha_uuid);
     entry->ha_flags = flags;
+    entry->ha_min_key_size = min_key_size;
     entry->ha_handle_id = ble_att_svr_next_id();
     entry->ha_cb = cb;
     entry->ha_cb_arg = cb_arg;
@@ -124,8 +126,8 @@ ble_att_svr_register(const uint8_t *uuid, uint8_t flags, uint16_t *handle_id,
 
 int
 ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
-                            uint16_t *handle_id, ble_att_svr_access_fn *cb,
-                            void *cb_arg)
+                            uint8_t min_key_size, uint16_t *handle_id,
+                            ble_att_svr_access_fn *cb, void *cb_arg)
 {
     uint8_t uuid128[16];
     int rc;
@@ -135,7 +137,8 @@ ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
         return rc;
     }
 
-    rc = ble_att_svr_register(uuid128, flags, handle_id, cb, cb_arg);
+    rc = ble_att_svr_register(uuid128, flags, min_key_size, handle_id, cb,
+                              cb_arg);
     if (rc != 0) {
         return rc;
     }
