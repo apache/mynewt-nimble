@@ -3919,7 +3919,7 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
                         proc->write_long.attr.offset);
 
     if (write_len <= 0) {
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_EXECUTE;
         rc = ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
         goto done;
     }
@@ -3988,7 +3988,7 @@ ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
         proc->write_long.attr.offset <
             OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
 
-        exec_req.baeq_flags = 0;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CANCEL;
         ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
     }
 
@@ -4225,7 +4225,7 @@ ble_gattc_write_reliable_tx(struct ble_gattc_proc *proc)
     attr_idx = proc->write_reliable.cur_attr;
 
     if (attr_idx >= proc->write_reliable.num_attrs) {
-        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CONFIRM;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_EXECUTE;
         rc = ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
         goto done;
     }
@@ -4301,10 +4301,10 @@ ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
     /* If we have successfully queued any data, and the failure occurred before
      * we could send the execute write command, then erase all queued data.
      */
-    if (proc->write_reliable.cur_attr > 0 &&
+    if (proc->write_reliable.cur_attr >= 0 &&
         proc->write_reliable.cur_attr < proc->write_reliable.num_attrs) {
 
-        exec_req.baeq_flags = 0;
+        exec_req.baeq_flags = BLE_ATT_EXEC_WRITE_F_CANCEL;
         ble_att_clt_tx_exec_write(proc->conn_handle, &exec_req);
     }
 }
@@ -4372,8 +4372,7 @@ ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
     return 0;
 
 err:
-    /* XXX: Might need to cancel pending writes. */
-    ble_gattc_write_reliable_cb(proc, rc, 0);
+    ble_gattc_write_reliable_err(proc, rc, 0);
     return BLE_HS_EDONE;
 }
 

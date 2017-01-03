@@ -1048,10 +1048,6 @@ ble_att_clt_tx_exec_write(uint16_t conn_handle,
     struct os_mbuf *txom;
     int rc;
 
-    if ((req->baeq_flags & BLE_ATT_EXEC_WRITE_F_RESERVED) != 0) {
-        return BLE_HS_EINVAL;
-    }
-
     rc = ble_att_clt_init_req(BLE_ATT_EXEC_WRITE_REQ_SZ, &txom);
     if (rc != 0) {
         return rc;
