@@ -140,18 +140,18 @@ typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
                                   struct os_mbuf **om, void *arg);
 
 int ble_att_svr_register(const uint8_t *uuid, uint8_t flags,
-                         uint16_t *handle_id,
+                         uint8_t min_key_size, uint16_t *handle_id,
                          ble_att_svr_access_fn *cb, void *cb_arg);
 int ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
-                                uint16_t *handle_id, ble_att_svr_access_fn *cb,
-                                void *cb_arg);
+                                uint8_t min_key_size, uint16_t *handle_id,
+                                ble_att_svr_access_fn *cb, void *cb_arg);
 
 struct ble_att_svr_entry {
     STAILQ_ENTRY(ble_att_svr_entry) ha_next;
 
     uint8_t ha_uuid[16];
     uint8_t ha_flags;
-    uint8_t ha_pad1;
+    uint8_t ha_min_key_size;
     uint16_t ha_handle_id;
     ble_att_svr_access_fn *ha_cb;
     void *ha_cb_arg;

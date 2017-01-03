@@ -213,7 +213,7 @@ ble_att_svr_test_misc_register_uuid128(uint8_t *uuid128, uint8_t flags,
     uint16_t handle;
     int rc;
 
-    rc = ble_att_svr_register(uuid128, flags, &handle, fn, NULL);
+    rc = ble_att_svr_register(uuid128, flags, 0, &handle, fn, NULL);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(handle == expected_handle);
 }
@@ -804,7 +804,7 @@ TEST_CASE(ble_att_svr_test_read)
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
     ble_att_svr_test_attr_r_1_len = 8;
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &attr_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -826,7 +826,7 @@ TEST_CASE(ble_att_svr_test_read)
 
     /*** Read requires encryption. */
     /* Insufficient authentication. */
-    rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_READ | BLE_ATT_F_READ_ENC,
+    rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_READ | BLE_ATT_F_READ_ENC, 0,
                               &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
@@ -880,7 +880,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
         (uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
     ble_att_svr_test_attr_r_1_len = 40;
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &attr_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -932,12 +932,12 @@ TEST_CASE(ble_att_svr_test_read_mult)
     ble_att_svr_test_attr_r_2 = attrs[1].value;
     ble_att_svr_test_attr_r_2_len = attrs[1].value_len;
 
-    rc = ble_att_svr_register(BLE_UUID16(0x1111), HA_FLAG_PERM_RW,
+    rc = ble_att_svr_register(BLE_UUID16(0x1111), HA_FLAG_PERM_RW, 0,
                               &attrs[0].handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_svr_register(BLE_UUID16(0x2222), HA_FLAG_PERM_RW,
+    rc = ble_att_svr_register(BLE_UUID16(0x2222), HA_FLAG_PERM_RW, 0,
                               &attrs[1].handle,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
@@ -1005,7 +1005,7 @@ TEST_CASE(ble_att_svr_test_write)
 
     /*** Write not permitted if non-local. */
     /* Non-local write (fail). */
-    rc = ble_att_svr_register(uuid_r, BLE_ATT_F_READ, &attr_handle,
+    rc = ble_att_svr_register(uuid_r, BLE_ATT_F_READ, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1026,7 +1026,7 @@ TEST_CASE(ble_att_svr_test_write)
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /*** Successful write. */
-    rc = ble_att_svr_register(uuid_rw, HA_FLAG_PERM_RW, &attr_handle,
+    rc = ble_att_svr_register(uuid_rw, HA_FLAG_PERM_RW, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1038,7 +1038,7 @@ TEST_CASE(ble_att_svr_test_write)
     /*** Write requires encryption. */
     /* Insufficient authentication. */
     rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC,
-                              &attr_handle,
+                              0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1105,7 +1105,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         BLE_ATT_OP_FIND_INFO_REQ, 200, BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle1,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle1,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1126,7 +1126,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Two 128-bit entries. */
-    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle2,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, 0, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1144,7 +1144,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         } }));
 
     /*** Two 128-bit entries; 16-bit entry doesn't get sent. */
-    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle3,
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, 0, &handle3,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1227,7 +1227,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle1,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle1,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1253,7 +1253,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 
     /*** One entry, two attributes. */
-    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle2,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, 0, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1274,19 +1274,19 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     ble_att_svr_test_attr_r_2 = (uint8_t[]){0x00, 0x00};
     ble_att_svr_test_attr_r_2_len = 2;
 
-    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle_desc,
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, 0, &handle_desc,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle3,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, 0, &handle3,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle4,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle4,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle5,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle5,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
