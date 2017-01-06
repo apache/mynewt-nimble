@@ -76,6 +76,7 @@ ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
     } else {
         ble_att_truncate_to_mtu(chan, txom);
         rc = ble_l2cap_tx(conn, chan, txom);
+        txom = NULL;
     }
 
     ble_hs_unlock();
