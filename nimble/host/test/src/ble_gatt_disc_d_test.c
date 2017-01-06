@@ -30,7 +30,7 @@
 struct ble_gatt_disc_d_test_dsc {
     uint16_t chr_val_handle; /* 0 if last entry. */
     uint16_t dsc_handle;
-    uint8_t dsc_uuid128[16];
+    ble_uuid_any_t dsc_uuid;
 };
 
 #define BLE_GATT_DISC_D_TEST_MAX_DSCS  256
@@ -54,8 +54,6 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
 {
     struct ble_att_find_info_rsp rsp;
     uint8_t buf[1024];
-    uint16_t uuid16_cur;
-    uint16_t uuid16_0;
     int off;
     int rc;
     int i;
@@ -63,8 +61,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
     /* Send the pending ATT Read By Type Request. */
     ble_hs_test_util_tx_all();
 
-    uuid16_0 = ble_uuid_128_to_16(dscs[0].dsc_uuid128);
-    if (uuid16_0 != 0) {
+    if (dscs[0].dsc_uuid.u.type == BLE_UUID_TYPE_16) {
         rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
     } else {
         rsp.bafp_format = BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT;
@@ -79,9 +76,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
             break;
         }
 
-        uuid16_cur = ble_uuid_128_to_16(dscs[i].dsc_uuid128);
-
-        if (uuid16_cur != 0) {
+        if (dscs[i].dsc_uuid.u.type == BLE_UUID_TYPE_16) {
             if (off + BLE_ATT_FIND_INFO_IDATA_16_SZ >
                 ble_att_mtu(conn_handle)) {
 
@@ -98,20 +93,16 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
         }
 
         /* If the value length is changing, we need a separate response. */
-        if (((uuid16_0 == 0) ^ (uuid16_cur == 0)) != 0) {
+        if (((dscs[0].dsc_uuid.u.type == BLE_UUID_TYPE_16) ^
+            (dscs[i].dsc_uuid.u.type == BLE_UUID_TYPE_16)) != 0) {
             break;
         }
 
         htole16(buf + off, dscs[i].dsc_handle);
         off += 2;
 
-        if (uuid16_cur != 0) {
-            htole16(buf + off, uuid16_cur);
-            off += 2;
-        } else {
-            memcpy(buf + off, dscs[i].dsc_uuid128, 16);
-            off += 16;
-        }
+        ble_uuid_flat(&dscs[i].dsc_uuid.u, buf + off);
+        off += ble_uuid_length(&dscs[i].dsc_uuid.u);
     }
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
@@ -162,9 +153,8 @@ ble_gatt_disc_d_test_misc_verify_dscs(struct ble_gatt_disc_d_test_dsc *dscs,
                     ble_gatt_disc_d_test_dscs[i].chr_val_handle);
         TEST_ASSERT(dscs[i].dsc_handle ==
                     ble_gatt_disc_d_test_dscs[i].dsc_handle);
-        TEST_ASSERT(memcmp(dscs[i].dsc_uuid128,
-                           ble_gatt_disc_d_test_dscs[i].dsc_uuid128,
-                           16) == 0);
+        TEST_ASSERT(ble_uuid_cmp(&dscs[i].dsc_uuid.u,
+                                 &ble_gatt_disc_d_test_dscs[i].dsc_uuid.u) == 0);
     }
 
     TEST_ASSERT(i == ble_gatt_disc_d_test_num_dscs);
@@ -194,7 +184,7 @@ ble_gatt_disc_d_test_misc_cb(uint16_t conn_handle,
         dst = ble_gatt_disc_d_test_dscs + ble_gatt_disc_d_test_num_dscs++;
         dst->chr_val_handle = chr_val_handle;
         dst->dsc_handle = dsc->handle;
-        memcpy(dst->dsc_uuid128, dsc->uuid128, 16);
+        dst->dsc_uuid = dsc->uuid;
         break;
 
     case BLE_HS_EDONE:
@@ -246,7 +236,7 @@ TEST_CASE(ble_gatt_disc_d_test_1)
         ((struct ble_gatt_disc_d_test_dsc[]) { {
             .chr_val_handle = 5,
             .dsc_handle = 6,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x1234),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x1234),
         }, {
             0
         } })
@@ -257,11 +247,11 @@ TEST_CASE(ble_gatt_disc_d_test_1)
         ((struct ble_gatt_disc_d_test_dsc[]) { {
             .chr_val_handle = 50,
             .dsc_handle = 51,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x1111),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 52,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x2222),
         }, {
             0
         } })
@@ -272,23 +262,23 @@ TEST_CASE(ble_gatt_disc_d_test_1)
         ((struct ble_gatt_disc_d_test_dsc[]) { {
             .chr_val_handle = 50,
             .dsc_handle = 51,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x1111),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 52,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x2222),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 53,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x3333),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x3333),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 54,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x4444),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x4444),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 55,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x5555),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x5555),
         }, {
             0
         } })
@@ -299,23 +289,23 @@ TEST_CASE(ble_gatt_disc_d_test_1)
         ((struct ble_gatt_disc_d_test_dsc[]) { {
             .chr_val_handle = 50,
             .dsc_handle = 51,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x1111),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 52,
-            .dsc_uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+            .dsc_uuid.u128 = BLE_UUID128_INIT( 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 53,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x3333),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x3333),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 54,
-            .dsc_uuid128 = { 1,0,4,0,6,9,17,7,8,43,7,4,12,43,19,35 },
+            .dsc_uuid.u128 = BLE_UUID128_INIT(1,0,4,0,6,9,17,7,8,43,7,4,12,43,19,35),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 55,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x5555),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x5555),
         }, {
             0
         } })
@@ -326,11 +316,11 @@ TEST_CASE(ble_gatt_disc_d_test_1)
         ((struct ble_gatt_disc_d_test_dsc[]) { {
             .chr_val_handle = 50,
             .dsc_handle = 51,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x1111),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 52,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x2222),
         }, {
             0
         } })
@@ -341,23 +331,23 @@ TEST_CASE(ble_gatt_disc_d_test_1)
         ((struct ble_gatt_disc_d_test_dsc[]) { {
             .chr_val_handle = 50,
             .dsc_handle = 51,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x1111),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x1111),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 52,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x2222),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x2222),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 53,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x3333),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x3333),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 54,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x4444),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x4444),
         }, {
             .chr_val_handle = 50,
             .dsc_handle = 55,
-            .dsc_uuid128 = BLE_UUID16_ARR(0x5555),
+            .dsc_uuid.u16 = BLE_UUID16_INIT(0x5555),
         }, {
             0
         } })
@@ -370,12 +360,12 @@ TEST_CASE(ble_gatt_disc_d_test_oom_all)
         {
             .chr_val_handle = 543,
             .dsc_handle = 548,
-            .dsc_uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+            .dsc_uuid.u128 = BLE_UUID128_INIT(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
         },
         {
             .chr_val_handle = 543,
             .dsc_handle = 549,
-            .dsc_uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+            .dsc_uuid.u128 = BLE_UUID128_INIT(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         },
         { 0 }
     };
