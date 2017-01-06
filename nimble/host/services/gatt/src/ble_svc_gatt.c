@@ -35,9 +35,9 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
     {
         /*** Service: GATT */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid128 = BLE_UUID16(BLE_GATT_SVC_UUID16),
+        .uuid = BLE_UUID16_DECLARE(BLE_GATT_SVC_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
-            .uuid128 = BLE_UUID16(BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16),
             .access_cb = ble_svc_gatt_access,
             .val_handle = &ble_svc_gatt_changed_val_handle,
             .flags = BLE_GATT_CHR_F_INDICATE,

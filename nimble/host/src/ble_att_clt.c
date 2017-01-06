@@ -238,7 +238,6 @@ static int
 ble_att_clt_parse_find_info_entry(struct os_mbuf **rxom, uint8_t rsp_format,
                                   struct ble_att_find_info_idata *idata)
 {
-    uint16_t uuid16;
     int entry_len;
     int rc;
 
@@ -264,15 +263,14 @@ ble_att_clt_parse_find_info_entry(struct os_mbuf **rxom, uint8_t rsp_format,
 
     switch (rsp_format) {
     case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
-        uuid16 = le16toh((*rxom)->om_data + 2);
-        rc = ble_uuid_16_to_128(uuid16, idata->uuid128);
+        rc = ble_uuid_init_from_mbuf(&idata->uuid, *rxom, 2, 2);
         if (rc != 0) {
             return BLE_HS_EBADDATA;
         }
         break;
 
     case BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT:
-        rc = os_mbuf_copydata(*rxom, 2, 16, idata->uuid128);
+        rc = ble_uuid_init_from_mbuf(&idata->uuid, *rxom, 2, 16);
         if (rc != 0) {
             return BLE_HS_EBADDATA;
         }
@@ -441,7 +439,7 @@ ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 int
 ble_att_clt_tx_read_type(uint16_t conn_handle,
                          const struct ble_att_read_type_req *req,
-                         const void *uuid128)
+                         const ble_uuid_t *uuid)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_TYPE
     return BLE_HS_ENOTSUP;
@@ -465,7 +463,7 @@ ble_att_clt_tx_read_type(uint16_t conn_handle,
     }
 
     ble_att_read_type_req_write(txom->om_data, txom->om_len, req);
-    rc = ble_uuid_append(txom, uuid128);
+    rc = ble_uuid_to_mbuf(uuid, txom);
     if (rc != 0) {
         rc = BLE_HS_ENOMEM;
         goto err;
@@ -750,7 +748,7 @@ ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 int
 ble_att_clt_tx_read_group_type(uint16_t conn_handle,
                                const struct ble_att_read_group_type_req *req,
-                               const void *uuid128)
+                               const ble_uuid_t *uuid)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_GROUP_TYPE
     return BLE_HS_ENOTSUP;
@@ -774,7 +772,7 @@ ble_att_clt_tx_read_group_type(uint16_t conn_handle,
     }
     ble_att_read_group_type_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_uuid_append(txom, uuid128);
+    rc = ble_uuid_to_mbuf(uuid, txom);
     if (rc != 0) {
         goto err;
     }

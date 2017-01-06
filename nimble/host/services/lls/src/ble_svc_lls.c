@@ -42,10 +42,10 @@ static const struct ble_gatt_svc_def ble_svc_lls_defs[] = {
     {
         /*** Service: Link Loss Service (LLS). */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid128 = BLE_UUID16(BLE_SVC_LLS_UUID16),
+        .uuid = BLE_UUID16(BLE_SVC_LLS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             /*** Characteristic: Alert Level. */
-            .uuid128 = BLE_UUID16(BLE_SVC_LLS_CHR_UUID16_ALERT_LEVEL),
+            .uuid = BLE_UUID16(BLE_SVC_LLS_CHR_UUID16_ALERT_LEVEL),
             .access_cb = ble_svc_lls_access,
             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
         }, {
