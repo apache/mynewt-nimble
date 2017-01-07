@@ -33,7 +33,9 @@ extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 
 /*
  * This determines the number of outstanding commands allowed from the
- * host to the controller.
+ * host to the controller. NOTE: you cannot change this without modifying
+ * other portions of the code as we currently use a global os event for
+ * the command; you would need to allocate a pool of these.
  */
 #define BLE_LL_CFG_NUM_HCI_CMD_PKTS     (1)
 

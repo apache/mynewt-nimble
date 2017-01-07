@@ -190,9 +190,6 @@ static void ble_ll_event_dbuf_overflow(struct os_event *ev);
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
-struct os_mempool g_ble_ll_hci_ev_pool;
-static void *ble_ll_hci_os_event_buf;
-
 /** Our global device address (public) */
 uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 
@@ -1248,16 +1245,6 @@ ble_ll_init(void)
     /* Initialize wait for response timer */
     os_cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
                           NULL);
-
-    ble_ll_hci_os_event_buf = malloc(
-        OS_MEMPOOL_BYTES(16, sizeof (struct os_event)));
-    SYSINIT_PANIC_ASSERT(ble_ll_hci_os_event_buf != NULL);
-
-    /* Create memory pool of OS events */
-    rc = os_mempool_init(&g_ble_ll_hci_ev_pool, 16,
-                         sizeof (struct os_event), ble_ll_hci_os_event_buf,
-                         "g_ble_ll_hci_ev_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
 
     /* Initialize LL HCI */
     ble_ll_hci_init();

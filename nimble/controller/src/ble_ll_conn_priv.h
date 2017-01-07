@@ -85,9 +85,6 @@ extern struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 /* Pointer to connection state machine we are trying to create */
 extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 
-extern struct os_mempool g_ble_ll_hci_ev_pool;
-
-
 /* Generic interface */
 struct ble_ll_len_req;
 struct hci_create_conn;
