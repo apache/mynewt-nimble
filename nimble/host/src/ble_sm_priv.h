@@ -242,6 +242,7 @@ struct ble_sm_keys {
     uint16_t ediv;
     uint64_t rand_val;
     uint8_t addr_type;
+    uint8_t key_size;
     uint8_t ltk[16];    /* Little endian. */
     uint8_t irk[16];    /* Little endian. */
     uint8_t csrk[16];   /* Little endian. */
