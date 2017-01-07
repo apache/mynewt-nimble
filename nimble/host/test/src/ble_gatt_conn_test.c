@@ -389,7 +389,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     ble_gatt_conn_test_util_init();
 
     /*** Register an attribute to allow indicatations to be sent. */
-    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ,
+    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ, 0,
                               &attr_handle,
                               ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);
@@ -614,7 +614,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /*** Register an attribute to allow indicatations to be sent. */
-    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ,
+    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ, 0,
                               &attr_handle,
                               ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);

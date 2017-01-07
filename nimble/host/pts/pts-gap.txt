@@ -329,7 +329,7 @@ TC_ADV_BV_16_C		PASS	b set adv_data le_role=1
 				b adv
 -------------------------------------------------------------------------------
 
-TC_GAT_BV_01_C		INC
+TC_GAT_BV_01_C		PASS
 TC_GAT_BV_02_C		N/A
 TC_GAT_BV_03_C		N/A
 TC_GAT_BV_04_C		N/A
