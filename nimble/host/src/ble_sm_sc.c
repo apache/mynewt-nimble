@@ -519,7 +519,6 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_public_key cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
     uint8_t ioact;
     int rc;
 
@@ -541,7 +540,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PUBLIC_KEY, -1,
-                            &prev);
+                            NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -723,7 +722,6 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 {
     struct ble_sm_dhkey_check cmd;
     struct ble_sm_proc *proc;
-    struct ble_sm_proc *prev;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_DHKEY_CHECK_SZ);
     if (res->app_status != 0) {
@@ -738,7 +736,7 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_DHKEY_CHECK, -1,
-                            &prev);
+                            NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
