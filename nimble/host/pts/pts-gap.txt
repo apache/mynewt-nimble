@@ -1,7 +1,7 @@
 PTS test results for GAP
 
-PTS version: 6.7
-Tested: 29-Nov-2016
+PTS version: 7.0
+Tested: 10-Jan-2017
 
 Results:
 PASS	test passed
@@ -26,7 +26,7 @@ TC_BROB_BCST_BV_01_C	PASS	b adv conn=non
 TC_BROB_BCST_BV_02_C	PASS	b adv conn=non
 TC_BROB_BCST_BV_03_C	PASS	b set irk=<IRK> e.g: 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:11
 				Note: in PTS IXIT please set:
-				TSPX_uit_device_IRK=11000000000000000000000000000000
+				TSPX_iut_device_IRK_for_resolvable_privacy_address_generation_procedure=11000000000000000000000000000000
 				b set adv_data flags=0
 				b adv conn=non disc=non own_addr_type=rpa_pub
 TC_BROB_BCST_BV_04_C	N/A
@@ -100,7 +100,10 @@ TC_CONN_UCON_BV_06_C	PASS	b set adv_data flags=0
 				b set sm_data bonding=1 our_key_dist=7 their_key_dist=7
 				b set irk=<IRK> e.g: 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:11
 				Note: in PTS IXIT please set:
-				TSPX_uit_device_IRK=11000000000000000000000000000000
+				TSPX_iut_device_IRK=11000000000000000000000000000000
+				TSPX_iut_private_address_interval=300000
+				interval can be set in net/nimble/host/syscfg.yml
+				as BLE_RPA_TIMEOUT
 				b adv own_addr_type=rpa_pub
 TC_CONN_ACEP_BV_01_C	PASS	b wl addr=<addr> addr_type=public
 				b conn peer_addr_type=wl
@@ -132,7 +135,8 @@ TC_CONN_CPUP_BV_04_C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 TC_CONN_CPUP_BV_05_C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
-TC_CONN_TERM_BV_01_C	PASS	b adv conn=und disc=non
+TC_CONN_TERM_BV_01_C	PASS	<answer NO to role question>
+				b adv conn=und disc=non
 				b term conn=1
 TC_CONN_PRDA_BV_01_C	PASS	b set adv_data flags=0
 				b set sm_data bonding=1 our_key_dist=7 their_key_dist=7
@@ -176,7 +180,8 @@ TC_BOND_BON_BV_03_C	PASS	b set sm_data bonding=1 our_key_dist=7 their_key_dist=7
 				<ok>
 				b adv
 				<ok>
-TC_BOND_BON_BV_04_C	PASS	b conn peer_addr=<addr>
+TC_BOND_BON_BV_04_C	PASS	b set sm_data bonding=1
+				b conn peer_addr=<addr
 				b term conn=<handle>
 				b conn peer_addr=<addr>
 				b sec pair conn=<handle>
@@ -195,14 +200,14 @@ TC_SEC_AUT_BV_12_C	PASS	b set sm_data io_capabilities=1
 				Note: in PTS enter handle for characteristics
 				      value which requires encryption for read
 TC_SEC_AUT_BV_13_C	PASS	Note: in PTS confirm that IUT supports GATT Server
-				b set mitm_flag=1
+				b set sm_data mitm_flag=1
 				b set sm_data io_capabilities=1
 				b conn peer_addr=<addr>
 				b disc svc conn=<handle>
 				Note: in PTS enter handle for characteristics
 				      value which requires authenticated
 				      pairing for read
-				b passkey conn=1 action=3 key=123456
+				b passkey conn=<handle> action=3 key=123456
 				Note: enter '123456' passkey in PTS
 TC_SEC_AUT_BV_14_C	PASS	b set sm_data io_capabilities=1
 				b adv
@@ -211,6 +216,8 @@ TC_SEC_AUT_BV_14_C	PASS	b set sm_data io_capabilities=1
 				      pairing for read
 				b passkey conn=<handle> action=3 key=123456
 				Note: enter '123456' passkey in PTS
+				Note: enter handle for characteristics value which 
+				      requires authentication
 TC_SEC_AUT_BV_15_C	N/A
 TC_SEC_AUT_BV_16_C	N/A
 TC_SEC_AUT_BV_17_C	PASS	b conn peer_addr=<addr>
@@ -221,18 +228,18 @@ TC_SEC_AUT_BV_17_C	PASS	b conn peer_addr=<addr>
 TC_SEC_AUT_BV_18_C	PASS	b adv
 				b disc full conn=<handle>
 				b read conn=<handle> attr=<val_handle>
-				b set sm_data bonding=1
 				b sec start conn=<handle>
 				b read conn=<handle> attr=<val_handle>
 TC_SEC_AUT_BV_19_C	PASS	b conn peer_addr=<addr>
-				b set sm_data bonding=1
 				b sec pair conn=<handle>
+				<ok>
 				b conn peer_addr=<addr>
 				b read conn=<handle> attr=<val_handle>
 				b sec pair conn=<handle>
 				b read conn=<handle> attr=<val_handle>
 				b term conn=<handle>
 TC_SEC_AUT_BV_20_C	PASS	b adv
+				<ok>
 				b adv
 				b read conn=<handle> attr=<val_handle>
 				b set sm_data bonding=1
@@ -243,6 +250,7 @@ TC_SEC_AUT_BV_21_C	PASS	b set sm_data bonding=1
 				b set sm_data their_key_dist=1
 				b conn peer_addr=<addr>
 				b sec pair conn=<handle>
+				<ok>
 				b conn peer_addr=<addr>
 				b sec start conn=<handle>
 				b term conn=<handle>
@@ -250,8 +258,10 @@ TC_SEC_AUT_BV_22_C	PASS	b set sm_data bonding=1
 				b set sm_data our_key_dist=1
 				b set sm_data their_key_dist=1
 				b adv
+				<ok>
 				b adv
 				b sec start conn=1
+				<ok>
 TC_SEC_AUT_BV_23_C	PASS	b set sm_data bonding=1
 				b set sm_data our_key_dist=1
 				b set sm_data their_key_dist=1
@@ -329,7 +339,7 @@ TC_ADV_BV_16_C		PASS	b set adv_data le_role=1
 				b adv
 -------------------------------------------------------------------------------
 
-TC_GAT_BV_01_C		PASS
+TC_GAT_BV_01_C		PASS	<answer NO to role question>
 TC_GAT_BV_02_C		N/A
 TC_GAT_BV_03_C		N/A
 TC_GAT_BV_04_C		N/A
@@ -347,7 +357,7 @@ TC_DM_GIN_BV_01_C	N/A
 TC_DM_LIN_BV_01_C	N/A
 TC_DM_NAD_BV_01_C	N/A
 TC_DM_NAD_BV_02_C	N/A
-TC_DM_LEP_BV_01_C	N/A	PTS errata #15174
+TC_DM_LEP_BV_01_C	N/A	PTS Errata 15174
 TC_DM_LEP_BV_02_C	N/A
 TC_DM_LEP_BV_04_C	N/A
 TC_DM_LEP_BV_05_C	N/A
