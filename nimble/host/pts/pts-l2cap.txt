@@ -1,7 +1,7 @@
 PTS test results for L2CAP
 
-PTS version: 6.7
-Tested: 21-Nov-2016
+PTS version: 7.0
+Tested: 10-Jan-2017
 
 Results:
 PASS   test passed
@@ -12,173 +12,212 @@ N/A    test is disabled due to PICS setup
 -------------------------------------------------------------------------------
 Test Name		Result	Notes
 -------------------------------------------------------------------------------
-TC_COS_CED_BV_01_C	N/A
-TC_COS_CED_BV_03_C	N/A
-TC_COS_CED_BV_04_C	N/A
-TC_COS_CED_BV_05_C	N/A
-TC_COS_CED_BV_07_C	N/A
-TC_COS_CED_BV_08_C	N/A
-TC_COS_CED_BV_09_C	N/A
-TC_COS_CED_BV_10_C	N/A
-TC_COS_CED_BV_11_C	N/A
-TC_COS_CED_BI_01_C	N/A
-TC_COS_CFD_BV_01_C	N/A
-TC_COS_CFD_BV_02_C	N/A
-TC_COS_CFD_BV_03_C	N/A
-TC_COS_CFD_BV_08_C	N/A
-TC_COS_CFD_BV_09_C	N/A
-TC_COS_CFD_BV_10_C	N/A
-TC_COS_CFD_BV_11_C	N/A
-TC_COS_CFD_BV_12_C	N/A
-TC_COS_CFD_BV_13_C	N/A
-TC_COS_IEX_BV_01_C	N/A
-TC_COS_IEX_BV_02_C	N/A
-TC_COS_ECH_BV_01_C	N/A
-TC_COS_ECH_BV_02_C	N/A
-TC_COS_CFC_BV_01_C	N/A
-TC_COS_CFC_BV_02_C	N/A
-TC_COS_CFC_BV_03_C	N/A
-TC_COS_CFC_BV_04_C	N/A
-TC_COS_CFC_BV_05_C	N/A
-TC_CLS_CLR_BV_01_C	N/A
-TC_CLS_UCD_BV_01_C	N/A
-TC_CLS_UCD_BV_02_C	N/A
-TC_CLS_UCD_BV_03_C	N/A
-TC_EXF_BV_01_C		N/A
-TC_EXF_BV_02_C		N/A
-TC_EXF_BV_03_C		N/A
-TC_EXF_BV_04_C		N/A
-TC_EXF_BV_05_C		N/A
-TC_EXF_BV_06_C		N/A
-TC_CMC_BV_01_C		N/A
-TC_CMC_BV_02_C		N/A
-TC_CMC_BV_03_C		N/A
-TC_CMC_BV_04_C		N/A
-TC_CMC_BV_05_C		N/A
-TC_CMC_BV_06_C		N/A
-TC_CMC_BV_07_C		N/A
-TC_CMC_BV_08_C		N/A
-TC_CMC_BV_09_C		N/A
-TC_CMC_BV_10_C		N/A
-TC_CMC_BV_11_C		N/A
-TC_CMC_BV_12_C		N/A
-TC_CMC_BV_13_C		N/A
-TC_CMC_BV_14_C		N/A
-TC_CMC_BV_15_C		N/A
-TC_CMC_BI_01_C		N/A
-TC_CMC_BI_02_C		N/A
-TC_CMC_BI_03_C		N/A
-TC_CMC_BI_04_C		N/A
-TC_CMC_BI_05_C		N/A
-TC_CMC_BI_06_C		N/A
-TC_FOC_BV_01_C		N/A
-TC_FOC_BV_02_C		N/A
-TC_FOC_BV_03_C		N/A
-TC_OFS_BV_01_C		N/A
-TC_OFS_BV_02_C		N/A
-TC_OFS_BV_03_C		N/A
-TC_OFS_BV_04_C		N/A
-TC_OFS_BV_05_C		N/A
-TC_OFS_BV_06_C		N/A
-TC_OFS_BV_07_C		N/A
-TC_OFS_BV_08_C		N/A
-TC_ERM_BV_01_C		N/A
-TC_ERM_BV_02_C		N/A
-TC_ERM_BV_03_C		N/A
-TC_ERM_BV_05_C		N/A
-TC_ERM_BV_06_C		N/A
-TC_ERM_BV_07_C		N/A
-TC_ERM_BV_08_C		N/A
-TC_ERM_BV_09_C		N/A
-TC_ERM_BV_10_C		N/A
-TC_ERM_BV_11_C		N/A
-TC_ERM_BV_12_C		N/A
-TC_ERM_BV_13_C		N/A
-TC_ERM_BV_14_C		N/A
-TC_ERM_BV_15_C		N/A
-TC_ERM_BV_16_C		N/A
-TC_ERM_BV_17_C		N/A
-TC_ERM_BV_18_C		N/A
-TC_ERM_BV_19_C		N/A
-TC_ERM_BV_20_C		N/A
-TC_ERM_BV_21_C		N/A
-TC_ERM_BV_22_C		N/A
-TC_ERM_BV_23_C		N/A
-TC_ERM_BI_01_C		N/A
-TC_ERM_BI_02_C		N/A
-TC_ERM_BI_03_C		N/A
-TC_ERM_BI_04_C		N/A
-TC_ERM_BI_05_C		N/A
-TC_STM_BV_01_C		N/A
-TC_STM_BV_02_C		N/A
-TC_STM_BV_03_C		N/A
-TC_STM_BV_11_C		N/A
-TC_STM_BV_12_C		N/A
-TC_STM_BV_13_C		N/A
-TC_FIX_BV_01_C		N/A
-TC_FIX_BV_02_C		N/A
-TC_EWC_BV_01_C		N/A
-TC_EWC_BV_02_C		N/A
-TC_EWC_BV_03_C		N/A
-TC_LSC_BV_01_C		N/A
-TC_LSC_BV_02_C		N/A
-TC_LSC_BV_03_C		N/A
-TC_LSC_BI_04_C		N/A
-TC_LSC_BI_05_C		N/A
-TC_LSC_BV_06_C		N/A
-TC_LSC_BV_07_C		N/A
-TC_LSC_BV_08_C		N/A
-TC_LSC_BV_09_C		N/A
-TC_LSC_BI_10_C		N/A
-TC_LSC_BI_11_C		N/A
-TC_LSC_BV_12_C		N/A
-TC_CCH_BV_01_C		N/A
-TC_CCH_BV_02_C		N/A
-TC_CCH_BV_03_C		N/A
-TC_CCH_BV_04_C		N/A
-TC_ECF_BV_01_C		N/A
-TC_ECF_BV_02_C		N/A
-TC_ECF_BV_03_C		N/A
-TC_ECF_BV_04_C		N/A
-TC_ECF_BV_05_C		N/A
-TC_ECF_BV_06_C		N/A
-TC_ECF_BV_07_C		N/A
-TC_ECF_BV_08_C		N/A
-TC_LE_CPU_BV_01_C	PASS	b set adv_data flags=0
+
+L2CAP/COS/CED/BV-01-C	N/A
+L2CAP/COS/CED/BV-03-C	N/A
+L2CAP/COS/CED/BV-04-C	N/A
+L2CAP/COS/CED/BV-05-C	N/A
+L2CAP/COS/CED/BV-07-C	N/A
+L2CAP/COS/CED/BV-08-C	N/A
+L2CAP/COS/CED/BV-09-C	N/A
+L2CAP/COS/CED/BV-10-C	N/A
+L2CAP/COS/CED/BV-11-C	N/A
+L2CAP/COS/CED/BI-01-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/COS/CFD/BV-01-C	N/A
+L2CAP/COS/CFD/BV-02-C	N/A
+L2CAP/COS/CFD/BV-03-C	N/A
+L2CAP/COS/CFD/BV-08-C	N/A
+L2CAP/COS/CFD/BV-09-C	N/A
+L2CAP/COS/CFD/BV-10-C	N/A
+L2CAP/COS/CFD/BV-11-C	N/A
+L2CAP/COS/CFD/BV-12-C	N/A
+L2CAP/COS/CFD/BV-13-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/COS/IEX/BV-01-C	N/A
+L2CAP/COS/IEX/BV-02-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/COS/ECH/BV-01-C	N/A
+L2CAP/COS/ECH/BV-02-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/COS/CFC/BV-01-C	N/A
+L2CAP/COS/CFC/BV-02-C	N/A
+L2CAP/COS/CFC/BV-03-C	N/A
+L2CAP/COS/CFC/BV-04-C	N/A
+L2CAP/COS/CFC/BV-05-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/CLS/CLR/BV-01-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/CLS/UCD/BV-01-C	N/A
+L2CAP/CLS/UCD/BV-02-C	N/A
+L2CAP/CLS/UCD/BV-03-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/EXF/BV-01-C		N/A
+L2CAP/EXF/BV-02-C		N/A
+L2CAP/EXF/BV-03-C		N/A
+L2CAP/EXF/BV-04-C		N/A
+L2CAP/EXF/BV-05-C		N/A
+L2CAP/EXF/BV-06-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/CMC/BV-01-C		N/A
+L2CAP/CMC/BV-02-C		N/A
+L2CAP/CMC/BV-03-C		N/A
+L2CAP/CMC/BV-04-C		N/A
+L2CAP/CMC/BV-05-C		N/A
+L2CAP/CMC/BV-06-C		N/A
+L2CAP/CMC/BV-07-C		N/A
+L2CAP/CMC/BV-08-C		N/A
+L2CAP/CMC/BV-09-C		N/A
+L2CAP/CMC/BV-10-C		N/A
+L2CAP/CMC/BV-11-C		N/A
+L2CAP/CMC/BV-12-C		N/A
+L2CAP/CMC/BV-13-C		N/A
+L2CAP/CMC/BV-14-C		N/A
+L2CAP/CMC/BV-15-C		N/A
+L2CAP/CMC/BI-01-C		N/A
+L2CAP/CMC/BI-02-C		N/A
+L2CAP/CMC/BI-03-C		N/A
+L2CAP/CMC/BI-04-C		N/A
+L2CAP/CMC/BI-05-C		N/A
+L2CAP/CMC/BI-06-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/FOC/BV-01-C		N/A
+L2CAP/FOC/BV-02-C		N/A
+L2CAP/FOC/BV-03-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/OFS/BV-01-C		N/A
+L2CAP/OFS/BV-02-C		N/A
+L2CAP/OFS/BV-03-C		N/A
+L2CAP/OFS/BV-04-C		N/A
+L2CAP/OFS/BV-05-C		N/A
+L2CAP/OFS/BV-06-C		N/A
+L2CAP/OFS/BV-07-C		N/A
+L2CAP/OFS/BV-08-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/ERM/BV-01-C		N/A
+L2CAP/ERM/BV-02-C		N/A
+L2CAP/ERM/BV-03-C		N/A
+L2CAP/ERM/BV-05-C		N/A
+L2CAP/ERM/BV-06-C		N/A
+L2CAP/ERM/BV-07-C		N/A
+L2CAP/ERM/BV-08-C		N/A
+L2CAP/ERM/BV-09-C		N/A
+L2CAP/ERM/BV-10-C		N/A
+L2CAP/ERM/BV-11-C		N/A
+L2CAP/ERM/BV-12-C		N/A
+L2CAP/ERM/BV-13-C		N/A
+L2CAP/ERM/BV-14-C		N/A
+L2CAP/ERM/BV-15-C		N/A
+L2CAP/ERM/BV-16-C		N/A
+L2CAP/ERM/BV-17-C		N/A
+L2CAP/ERM/BV-18-C		N/A
+L2CAP/ERM/BV-19-C		N/A
+L2CAP/ERM/BV-20-C		N/A
+L2CAP/ERM/BV-21-C		N/A
+L2CAP/ERM/BV-22-C		N/A
+L2CAP/ERM/BV-23-C		N/A
+L2CAP/ERM/BI-01-C		N/A
+L2CAP/ERM/BI-02-C		N/A
+L2CAP/ERM/BI-03-C		N/A
+L2CAP/ERM/BI-04-C		N/A
+L2CAP/ERM/BI-05-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/STM/BV-01-C		N/A
+L2CAP/STM/BV-02-C		N/A
+L2CAP/STM/BV-03-C		N/A
+L2CAP/STM/BV-11-C		N/A
+L2CAP/STM/BV-12-C		N/A
+L2CAP/STM/BV-13-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/FIX/BV-01-C		N/A
+L2CAP/FIX/BV-02-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/EWC/BV-01-C		N/A
+L2CAP/EWC/BV-02-C		N/A
+L2CAP/EWC/BV-03-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/LSC/BV-01-C		N/A
+L2CAP/LSC/BV-02-C		N/A
+L2CAP/LSC/BV-03-C		N/A
+L2CAP/LSC/BI-04-C		N/A
+L2CAP/LSC/BI-05-C		N/A
+L2CAP/LSC/BV-06-C		N/A
+L2CAP/LSC/BV-07-C		N/A
+L2CAP/LSC/BV-08-C		N/A
+L2CAP/LSC/BV-09-C		N/A
+L2CAP/LSC/BI-10-C		N/A
+L2CAP/LSC/BI-11-C		N/A
+L2CAP/LSC/BV-12-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/CCH/BV-01-C		N/A
+L2CAP/CCH/BV-02-C		N/A
+L2CAP/CCH/BV-03-C		N/A
+L2CAP/CCH/BV-04-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/ECF/BV-01-C		N/A
+L2CAP/ECF/BV-02-C		N/A
+L2CAP/ECF/BV-03-C		N/A
+L2CAP/ECF/BV-04-C		N/A
+L2CAP/ECF/BV-05-C		N/A
+L2CAP/ECF/BV-06-C		N/A
+L2CAP/ECF/BV-07-C		N/A
+L2CAP/ECF/BV-08-C		N/A
+-------------------------------------------------------------------------------
+
+L2CAP/LE/CPU/BV-01-C	PASS	b set adv_data flags=0
 				b adv
 				b l2cap update conn=<handle>
-
-TC_LE_CPU_BV_02_C	PASS	b conn peer_addr=<addr>
+L2CAP/LE/CPU/BV-02-C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
- 
-TC_LE_CPU_BI_01_C	PASS	b conn peer_addr=<addr>
+L2CAP/LE/CPU/BI-01-C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
-
-TC_LE_CPU_BI_02_C	PASS	b set adv_data flags=0
+L2CAP/LE/CPU/BI-02-C	PASS	b set adv_data flags=0
 				b adv
-
-TC_LE_REJ_BI_01_C	PASS	b set adv_data flags=0
-				b adv
-TC_LE_REJ_BI_02_C	PASS	b set adv_data flags=0
-				b adv
-				b term conn=<handle>
-
-TC_LE_CFC_BV_01_C	N/A
-TC_LE_CFC_BV_02_C	N/A
-TC_LE_CFC_BV_03_C	N/A
-TC_LE_CFC_BV_04_C	N/A
-TC_LE_CFC_BV_05_C	N/A
-TC_LE_CFC_BV_06_C	N/A
-TC_LE_CFC_BV_07_C	N/A
-TC_LE_CFC_BI_01_C	N/A
-TC_LE_CFC_BV_08_C	N/A
-TC_LE_CFC_BV_09_C	N/A
-TC_LE_CFC_BV_16_C	N/A
-TC_LE_CFC_BV_17_C	N/A
-TC_LE_CFC_BV_18_C	N/A
-TC_LE_CFC_BV_19_C	N/A
-TC_LE_CFC_BV_20_C	N/A
-TC_LE_CFC_BV_21_C	N/A
-TC_LE_CID_BV_01_C	N/A
-TC_LE_CID_BV_02_I	N/A
 -------------------------------------------------------------------------------
+
+L2CAP/LE/REJ/BI-01-C	PASS	b set adv_data flags=0
+				b adv
+L2CAP/LE/REJ/BI-02-C	PASS	b set adv_data flags=0
+				b adv
+				b term conn=<handle>
+-------------------------------------------------------------------------------
+
+L2CAP/LE/CFC/BV-01-C	N/A
+L2CAP/LE/CFC/BV-02-C	N/A
+L2CAP/LE/CFC/BV-03-C	N/A
+L2CAP/LE/CFC/BV-04-C	N/A
+L2CAP/LE/CFC/BV-05-C	N/A
+L2CAP/LE/CFC/BV-06-C	N/A
+L2CAP/LE/CFC/BV-07-C	N/A
+L2CAP/LE/CFC/BI-01-C	N/A
+L2CAP/LE/CFC/BV-08-C	N/A
+L2CAP/LE/CFC/BV-09-C	N/A
+L2CAP/LE/CFC/BV-16-C	N/A
+L2CAP/LE/CFC/BV-17-C	N/A
+L2CAP/LE/CFC/BV-18-C	N/A
+L2CAP/LE/CFC/BV-19-C	N/A
+L2CAP/LE/CFC/BV-20-C	N/A
+L2CAP/LE/CFC/BV-21-C	N/A
+-------------------------------------------------------------------------------
+
+L2CAP/LE/CID/BV-01-C	N/A
+L2CAP/LE/CID/BV-02-C	N/A
+-------------------------------------------------------------------------------
+
