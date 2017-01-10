@@ -614,20 +614,48 @@ ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
                       ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                       uint8_t fail_status)
 {
+    static bool privacy_enabled;
     int rc;
 
-    ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
-        {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
-            ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
-        },
-        {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-            ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
-        },
+    /*
+     * SET_RPA_TMO should be expected only when test uses RPA and privacy has
+     * not yet been enabled. The Bluetooth stack remembers that privacy is
+     * enabled and does not send SET_RPA_TMO every time. For test purpose
+     * let's track privacy state in here.
+     */
+    if ((own_addr_type == BLE_ADDR_TYPE_RPA_PUB_DEFAULT ||
+         own_addr_type == BLE_ADDR_TYPE_RPA_RND_DEFAULT) && !privacy_enabled) {
+        privacy_enabled = true;
+        ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_RPA_TMO),
+                ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
+            },
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
+                ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
+            },
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+                ble_hs_test_util_exp_hci_status(2, fail_idx, fail_status),
+            },
 
-        { 0 }
-    }));
+            { 0 }
+        }));
+    } else {
+        ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
+                ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
+            },
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+                ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
+            },
+
+            { 0 }
+        }));
+    }
 
     rc = ble_gap_disc(own_addr_type, duration_ms, disc_params,
                       cb, cb_arg);
