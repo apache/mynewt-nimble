@@ -354,21 +354,20 @@ ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf)
 int
 ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
 {
-    int rc;
     uint16_t tmo_secs;
 
     tmo_secs = le16toh(cmdbuf);
-    if ((tmo_secs > 0) && (tmo_secs <= 0xA1B8)) {
-        g_ble_ll_resolv_data.rpa_tmo = tmo_secs * OS_TICKS_PER_SEC;
-        if (g_ble_ll_resolv_data.addr_res_enabled) {
-            os_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
-                             (int32_t)g_ble_ll_resolv_data.rpa_tmo);
-        }
-    } else {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    if (!((tmo_secs > 0) && (tmo_secs <= 0xA1B8))) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    return rc;
+    if (!g_ble_ll_resolv_data.addr_res_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    g_ble_ll_resolv_data.rpa_tmo = tmo_secs * OS_TICKS_PER_SEC;
+    return os_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
+                            (int32_t)g_ble_ll_resolv_data.rpa_tmo);
 }
 
 /**
