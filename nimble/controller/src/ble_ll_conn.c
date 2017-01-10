@@ -2215,7 +2215,8 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
         g_ble_ll_conn_create_sm = NULL;
         ble_ll_scan_sm_stop(0);
         payload_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-        endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(payload_len);
+        endtime = ble_hdr->beg_cputime +
+            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(payload_len));
         ble_ll_conn_created(connsm, endtime, NULL);
     } else {
         ble_ll_scan_chk_resume();
@@ -2366,7 +2367,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         }
 
         /* Attempt to schedule new connection. Possible that this might fail */
-        endtime = ble_hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+        endtime = ble_hdr->beg_cputime +
+            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(pyld_len));
         if (!ble_ll_sched_master_new(connsm, endtime,
                                      MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS))) {
             /* Setup to transmit the connect request */
@@ -2675,7 +2677,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     }
 
     /* Calculate the end time of the received PDU */
-    endtime = rxhdr->beg_cputime + BLE_TX_DUR_USECS_M(rx_pyld_len);
+    endtime = rxhdr->beg_cputime +
+        os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rx_pyld_len));
 
     /*
      * Check the packet CRC. A connection event can continue even if the

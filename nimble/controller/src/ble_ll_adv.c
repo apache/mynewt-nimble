@@ -1266,7 +1266,8 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 
         /* Try to start slave connection. If successful, stop advertising */
         pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-        endtime = hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+        endtime = hdr->beg_cputime +
+            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(pyld_len));
         valid = ble_ll_conn_slave_start(rxbuf, endtime, addr_type, hdr);
         if (valid) {
             ble_ll_adv_sm_stop(advsm);
