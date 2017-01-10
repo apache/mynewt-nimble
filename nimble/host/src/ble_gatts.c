@@ -334,7 +334,7 @@ ble_gatts_val_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = access_cb(conn_handle, attr_handle, gatt_ctxt, cb_arg);
         if (rc == 0) {
             attr_len = OS_MBUF_PKTLEN(gatt_ctxt->om) - offset;
-            if (attr_len > 0) {
+            if (attr_len >= 0) {
                 os_mbuf_appendfrom(*om, gatt_ctxt->om, offset, attr_len);
             } else {
                 return BLE_ATT_ERR_INVALID_OFFSET;
