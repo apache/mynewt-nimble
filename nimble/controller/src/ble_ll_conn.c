@@ -1122,6 +1122,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     int rc;
     uint32_t usecs;
     uint32_t wfr_time;
+    uint32_t txstart;
     struct ble_ll_conn_sm *connsm;
 
     /* XXX: note that we can extend end time here if we want. Look at this */
@@ -1151,7 +1152,8 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
 
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         /* Set start time of transmission */
-        rc = ble_phy_tx_set_start_time(sch->start_time + XCVR_PROC_DELAY_USECS);
+        txstart = sch->start_time + os_cputime_usecs_to_ticks(XCVR_PROC_DELAY_USECS);
+        rc = ble_phy_tx_set_start_time(txstart);
         if (!rc) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
             if (CONN_F_ENCRYPTED(connsm)) {

@@ -425,10 +425,10 @@ ble_phy_tx_end_isr(void)
         if (txlen && was_encrypted) {
             txlen += BLE_LL_DATA_MIC_LEN;
         }
-        wfr_time = txstart - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
+        wfr_time = BLE_LL_WFR_USECS - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
         wfr_time += BLE_TX_DUR_USECS_M(txlen);
-        wfr_time = os_cputime_usecs_to_ticks(BLE_LL_WFR_USECS + wfr_time);
-        ble_ll_wfr_enable(wfr_time);
+        wfr_time = os_cputime_usecs_to_ticks(wfr_time);
+        ble_ll_wfr_enable(txstart + wfr_time);
     } else {
         /* Disable automatic TXEN */
         NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
