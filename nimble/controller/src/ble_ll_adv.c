@@ -430,7 +430,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     assert(rc == 0);
 
     /* Set transmit start time. */
-    txstart = sch->start_time + XCVR_PROC_DELAY_USECS;
+    txstart = sch->start_time + os_cputime_usecs_to_ticks(XCVR_PROC_DELAY_USECS);
     rc = ble_phy_tx_set_start_time(txstart);
     if (rc) {
         STATS_INC(ble_ll_stats, adv_late_starts);
