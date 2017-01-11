@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -2052,7 +2052,7 @@ int
 ble_hs_test_util_num_cccds(void)
 {
     struct ble_store_value_cccd val;
-    struct ble_store_key_cccd key = { 0 };
+    struct ble_store_key_cccd key = { };
     int rc;
 
     key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -2075,7 +2075,7 @@ int
 ble_hs_test_util_num_our_secs(void)
 {
     struct ble_store_value_sec val;
-    struct ble_store_key_sec key = { 0 };
+    struct ble_store_key_sec key = { };
     int rc;
 
     key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -2098,7 +2098,7 @@ int
 ble_hs_test_util_num_peer_secs(void)
 {
     struct ble_store_value_sec val;
-    struct ble_store_key_sec key = { 0 };
+    struct ble_store_key_sec key = { };
     int rc;
 
     key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
