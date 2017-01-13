@@ -2413,7 +2413,13 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
  * @param cb_arg                The optional argument to pass to the callback
  *                                  function.
  *
- * @return                      0 on success; nonzero on failure.
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if a connection attempt is
+ *                                  already in progress;
+ *                              BLE_HS_EBUSY if initiating a connection is not
+ *                                  possible because scanning is in progress;
+ *                              BLE_HS_EDONE if the specified peer is already connected;
+ *                              Other nonzero on error.
  */
 int
 ble_gap_connect(uint8_t own_addr_type,
@@ -2473,6 +2479,12 @@ ble_gap_connect(uint8_t own_addr_type,
             rc = BLE_HS_EINVAL;
             goto done;
         }
+    }
+
+    /* Verify peer not already connected. */
+    if (ble_hs_conn_find_by_addr(peer_addr_type, peer_addr) != NULL) {
+        rc = BLE_HS_EDONE;
+        goto done;
     }
 
     /* XXX: Verify conn_params. */

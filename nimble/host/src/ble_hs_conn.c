@@ -258,7 +258,7 @@ ble_hs_conn_find_assert(uint16_t conn_handle)
 }
 
 struct ble_hs_conn *
-ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr)
+ble_hs_conn_find_by_addr(uint8_t addr_type, const uint8_t *addr)
 {
 #if !NIMBLE_BLE_CONNECT
     return NULL;

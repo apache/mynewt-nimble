@@ -920,6 +920,27 @@ TEST_CASE(ble_gap_test_case_conn_gen_already)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
+TEST_CASE(ble_gap_test_case_conn_gen_done)
+{
+    static const struct ble_gap_conn_params conn_params = { 0 };
+    static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Successfully connect to the peer. */
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
+                                 NULL);
+
+    /* Ensure host indicates BLE_HS_EDONE if we try to connect to the same
+     * peer.
+     */
+    rc = ble_gap_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+                         peer_addr, BLE_HS_FOREVER, &conn_params,
+                         ble_gap_test_util_connect_cb, NULL);
+    TEST_ASSERT(rc == BLE_HS_EDONE);
+}
+
 TEST_CASE(ble_gap_test_case_conn_gen_busy)
 {
     static const struct ble_gap_disc_params disc_params = { 0 };
@@ -950,6 +971,7 @@ TEST_SUITE(ble_gap_test_suite_conn_gen)
     ble_gap_test_case_conn_gen_bad_args();
     ble_gap_test_case_conn_gen_dflt_params();
     ble_gap_test_case_conn_gen_already();
+    ble_gap_test_case_conn_gen_done();
     ble_gap_test_case_conn_gen_busy();
 }
 
