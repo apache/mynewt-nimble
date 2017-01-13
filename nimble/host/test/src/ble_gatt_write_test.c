@@ -735,8 +735,6 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
     /* Initiate a write reliable procedure. */
     ble_hs_test_util_attr_from_flat(&mattr, &attr);
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                 NULL, NULL);
     off = 0;
     rc = ble_gattc_write_reliable(2, &mattr, 1,
                                   ble_gatt_write_test_reliable_cb_good, NULL);
