@@ -164,7 +164,7 @@ void
 ble_sm_pair_confirm_parse(void *payload, int len,
                           struct ble_sm_pair_confirm *cmd)
 {
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_PAIR_CONFIRM_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_confirm));
     memcpy(cmd->value, payload, sizeof cmd->value);
 }
 
@@ -174,7 +174,7 @@ ble_sm_pair_confirm_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_CONFIRM_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_confirm));
 
     u8ptr = payload;
 
@@ -188,7 +188,7 @@ ble_sm_pair_confirm_tx(uint16_t conn_handle, struct ble_sm_pair_confirm *cmd)
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_PAIR_CONFIRM_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_pair_confirm), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }

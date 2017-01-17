@@ -279,7 +279,8 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
 void
 ble_sm_sc_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    struct ble_sm_pair_confirm cmd;
+    struct ble_sm_pair_confirm *cmd;
+    struct os_mbuf *txom;
     int rc;
 
     rc = ble_sm_sc_gen_ri(proc);
@@ -290,16 +291,26 @@ ble_sm_sc_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
-    rc = ble_sm_alg_f4(ble_sm_sc_pub_key.u8, proc->pub_key_peer.x,
-                       ble_sm_our_pair_rand(proc), proc->ri, cmd.value);
-    if (rc != 0) {
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_CONFIRM, sizeof(*cmd), &txom);
+    if (cmd == NULL) {
+        rc = BLE_HS_ENOMEM;
         res->app_status = rc;
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         return;
     }
 
-    rc = ble_sm_pair_confirm_tx(proc->conn_handle, &cmd);
+    rc = ble_sm_alg_f4(ble_sm_sc_pub_key.u8, proc->pub_key_peer.x,
+                       ble_sm_our_pair_rand(proc), proc->ri, cmd->value);
+    if (rc != 0) {
+        os_mbuf_free_chain(txom);
+        res->app_status = rc;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
+
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         res->app_status = rc;
         res->enc_cb = 1;

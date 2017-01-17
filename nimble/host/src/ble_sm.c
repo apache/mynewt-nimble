@@ -1305,26 +1305,27 @@ static void
 ble_sm_confirm_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                   struct ble_sm_result *res)
 {
-    struct ble_sm_pair_confirm cmd;
+    struct ble_sm_pair_confirm *cmd;
     struct ble_sm_proc *proc;
     uint8_t ioact;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_CONFIRM_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
         return;
     }
 
-    ble_sm_pair_confirm_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "confirm", conn_handle, ble_sm_pair_confirm_log, &cmd);
+    cmd = (struct ble_sm_pair_confirm *)(*om)->om_data;
+
+    BLE_SM_LOG_CMD(0, "confirm", conn_handle, ble_sm_pair_confirm_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM, -1, NULL);
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
-        memcpy(proc->confirm_peer, cmd.value, 16);
+        memcpy(proc->confirm_peer, cmd->value, 16);
 
         if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
             proc->state = BLE_SM_PROC_STATE_RANDOM;

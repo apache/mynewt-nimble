@@ -82,10 +82,10 @@ struct ble_sm_pair_cmd {
  * | (Code=0x03)                        | 1                 |
  * | Confirm Value                      | 16                |
  */
-#define BLE_SM_PAIR_CONFIRM_SZ      16
+
 struct ble_sm_pair_confirm {
     uint8_t value[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
