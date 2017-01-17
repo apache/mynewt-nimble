@@ -146,11 +146,10 @@ struct ble_sm_id_info {
  * | addr_type                          | 1                 |
  * | address                            | 6                 |
  */
-#define BLE_SM_ID_ADDR_INFO_SZ      7
 struct ble_sm_id_addr_info {
     uint8_t addr_type;
     uint8_t bd_addr[6];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |

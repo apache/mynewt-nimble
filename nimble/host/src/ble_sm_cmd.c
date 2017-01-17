@@ -493,7 +493,7 @@ ble_sm_id_addr_info_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_ID_ADDR_INFO_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_addr_info));
 
     u8ptr = payload;
 
@@ -511,7 +511,7 @@ ble_sm_id_addr_info_tx(uint16_t conn_handle, struct ble_sm_id_addr_info *cmd)
     BLE_SM_LOG_CMD(1, "id addr info", conn_handle, ble_sm_id_addr_info_log,
                    cmd);
 
-    rc = ble_sm_init_req(BLE_SM_ID_ADDR_INFO_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_id_addr_info), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
