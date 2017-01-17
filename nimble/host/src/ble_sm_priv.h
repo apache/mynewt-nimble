@@ -124,11 +124,10 @@ struct ble_sm_enc_info {
  * | EDIV                               | 2                 |
  * | RAND                               | 8                 |
  */
-#define BLE_SM_MASTER_ID_SZ         10
 struct ble_sm_master_id {
     uint16_t ediv;
     uint64_t rand_val;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
