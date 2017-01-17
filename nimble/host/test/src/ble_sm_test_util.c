@@ -439,12 +439,12 @@ ble_sm_test_util_rx_dhkey_check(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + BLE_SM_DHKEY_CHECK_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_dhkey_check));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = sizeof(struct ble_sm_hdr) + BLE_SM_DHKEY_CHECK_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_dhkey_check);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -710,7 +710,7 @@ ble_sm_test_util_verify_tx_dhkey_check(
     struct os_mbuf *om;
 
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_DHKEY_CHECK,
-                                              BLE_SM_DHKEY_CHECK_SZ);
+                                        sizeof(struct ble_sm_dhkey_check));
     ble_sm_dhkey_check_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.value, exp_cmd->value, 16) == 0);

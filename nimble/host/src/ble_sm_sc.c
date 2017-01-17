@@ -631,11 +631,12 @@ void
 ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                            void *arg)
 {
-    struct ble_sm_dhkey_check cmd;
+    struct ble_sm_dhkey_check *cmd;
     const uint8_t *our_ota_addr;
     const uint8_t *peer_ota_addr;
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
+    struct os_mbuf *txom;
     uint8_t *iocap;
     int rc;
 
@@ -655,16 +656,23 @@ ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                           &our_id_addr_type, &our_ota_addr,
                           &peer_id_addr_type, &peer_ota_addr);
 
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_DHKEY_CHECK, sizeof(*cmd), &txom);
+    if (!cmd) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
                        ble_sm_peer_pair_rand(proc), proc->tk, iocap,
                        our_id_addr_type, our_ota_addr,
                        peer_id_addr_type, peer_ota_addr,
-                       cmd.value);
+                       cmd->value);
     if (rc != 0) {
+        os_mbuf_free_chain(txom);
         goto err;
     }
 
-    rc = ble_sm_dhkey_check_tx(proc->conn_handle, &cmd);
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         goto err;
     }
@@ -755,19 +763,18 @@ void
 ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                          struct ble_sm_result *res)
 {
-    struct ble_sm_dhkey_check cmd;
+    struct ble_sm_dhkey_check *cmd;
     struct ble_sm_proc *proc;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_DHKEY_CHECK_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         return;
     }
 
-    ble_sm_dhkey_check_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "dhkey check", conn_handle, ble_sm_dhkey_check_log,
-                   &cmd);
+    cmd = (struct ble_sm_dhkey_check *)(*om)->om_data;
+    BLE_SM_LOG_CMD(0, "dhkey check", conn_handle, ble_sm_dhkey_check_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_DHKEY_CHECK, -1,
@@ -775,7 +782,7 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
-        ble_sm_dhkey_check_process(proc, &cmd, res);
+        ble_sm_dhkey_check_process(proc, cmd, res);
     }
     ble_hs_unlock();
 }
