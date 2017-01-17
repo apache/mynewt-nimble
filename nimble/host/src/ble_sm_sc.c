@@ -500,7 +500,8 @@ void
 ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                           void *arg)
 {
-    struct ble_sm_public_key cmd;
+    struct ble_sm_public_key *cmd;
+    struct os_mbuf *txom;
     uint8_t ioact;
 
     res->app_status = ble_sm_sc_ensure_keys_generated();
@@ -510,9 +511,18 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         return;
     }
 
-    memcpy(cmd.x, ble_sm_sc_pub_key.u8 + 0, 32);
-    memcpy(cmd.y, ble_sm_sc_pub_key.u8 + 32, 32);
-    res->app_status = ble_sm_public_key_tx(proc->conn_handle, &cmd);
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_PUBLIC_KEY, sizeof(*cmd), &txom);
+    if (!cmd) {
+        res->app_status = BLE_HS_ENOMEM;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
+
+    memcpy(cmd->x, ble_sm_sc_pub_key.u8 + 0, 32);
+    memcpy(cmd->y, ble_sm_sc_pub_key.u8 + 32, 32);
+
+    res->app_status = ble_sm_tx(proc->conn_handle, txom);
     if (res->app_status != 0) {
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -539,12 +549,12 @@ void
 ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                         struct ble_sm_result *res)
 {
-    struct ble_sm_public_key cmd;
+    struct ble_sm_public_key *cmd;
     struct ble_sm_proc *proc;
     uint8_t ioact;
     int rc;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PUBLIC_KEY_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->enc_cb = 1;
         return;
@@ -557,8 +567,8 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         return;
     }
 
-    ble_sm_public_key_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "public key", conn_handle, ble_sm_public_key_log, &cmd);
+    cmd = (struct ble_sm_public_key *)(*om)->om_data;
+    BLE_SM_LOG_CMD(0, "public key", conn_handle, ble_sm_public_key_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PUBLIC_KEY, -1,
@@ -567,7 +577,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
     } else {
-        proc->pub_key_peer = cmd;
+        memcpy(&proc->pub_key_peer, cmd, sizeof(*cmd));
         rc = ble_sm_alg_gen_dhkey(proc->pub_key_peer.x,
                                   proc->pub_key_peer.y,
                                   ble_sm_sc_priv_key.u32,

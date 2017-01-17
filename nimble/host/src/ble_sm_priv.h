@@ -178,11 +178,10 @@ struct ble_sm_sec_req {
  * | Public Key X                       | 32                |
  * | Public Key Y                       | 32                |
  */
-#define BLE_SM_PUBLIC_KEY_SZ        64
 struct ble_sm_public_key {
     uint8_t x[32];
     uint8_t y[32];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
