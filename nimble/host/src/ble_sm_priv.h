@@ -305,7 +305,6 @@ uint8_t ble_sm_build_authreq(void);
 
 void ble_sm_pair_cmd_parse(void *payload, int len,
                            struct ble_sm_pair_cmd *cmd);
-int ble_sm_pair_cmd_is_valid(struct ble_sm_pair_cmd *cmd);
 void ble_sm_pair_cmd_write(void *payload, int len, int is_req,
                            struct ble_sm_pair_cmd *cmd);
 int ble_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
