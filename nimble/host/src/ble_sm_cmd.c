@@ -440,7 +440,7 @@ ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_ID_INFO_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_info));
 
     u8ptr = payload;
 
@@ -456,7 +456,7 @@ ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd)
 
     BLE_SM_LOG_CMD(1, "id info", conn_handle, ble_sm_id_info_log, cmd);
 
-    rc = ble_sm_init_req(BLE_SM_ID_INFO_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_id_info), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
