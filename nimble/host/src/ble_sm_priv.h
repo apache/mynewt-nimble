@@ -157,10 +157,9 @@ struct ble_sm_id_addr_info {
  * | (Code=0x0A)                        | 1                 |
  * | csrk                               | 16                |
  */
-#define BLE_SM_SIGN_INFO_SZ         16
 struct ble_sm_sign_info {
     uint8_t sig_key[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
