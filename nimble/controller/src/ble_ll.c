@@ -1151,8 +1151,7 @@ ble_ll_reset(void)
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_rx_pkt_q);
 
     /* Reset LL stats */
-    memset((uint8_t *)&ble_ll_stats + sizeof(struct stats_hdr), 0,
-           sizeof(struct stats_ble_ll_stats) - sizeof(struct stats_hdr));
+    STATS_RESET(ble_ll_stats);
 
 #ifdef BLE_LL_LOG
     g_ble_ll_log_index = 0;
