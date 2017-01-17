@@ -189,10 +189,9 @@ struct ble_sm_public_key {
  * | (Code=0x0d)                        | 1                 |
  * | DHKey Check                        | 16                |
  */
-#define BLE_SM_DHKEY_CHECK_SZ       16
 struct ble_sm_dhkey_check {
     uint8_t value[16];
-};
+} __attribute__((packed));
 
 #if NIMBLE_BLE_SM
 
