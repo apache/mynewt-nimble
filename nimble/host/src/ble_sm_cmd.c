@@ -385,7 +385,7 @@ ble_sm_master_id_write(void *payload, int len, struct ble_sm_master_id *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_MASTER_ID_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_master_id));
 
     u8ptr = payload;
 
@@ -400,7 +400,7 @@ ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd)
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_MASTER_ID_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_master_id), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
