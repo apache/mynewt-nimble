@@ -135,11 +135,9 @@ struct ble_sm_master_id {
  * | (Code=0x08)                        | 1                 |
  * | irk                                | 16                |
  */
-#define BLE_SM_ID_INFO_SZ           16
 struct ble_sm_id_info {
-    /* Sent and stored in little-endian. */
     uint8_t irk[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
