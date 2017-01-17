@@ -31,8 +31,9 @@ _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
 struct os_mempool ble_l2cap_chan_pool;
 
 static os_membuf_t ble_l2cap_chan_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_MAX_CHANS),
-                     sizeof (struct ble_l2cap_chan))
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) +
+                    MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                    sizeof (struct ble_l2cap_chan))
 ];
 
 STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
@@ -120,6 +121,44 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
     memcpy(om->om_data, &hdr, sizeof hdr);
 
     return om;
+}
+
+int
+ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
+                        ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    /*TODO: Create server object and put it on the queue */
+    return BLE_HS_ENOTSUP;
+}
+
+int
+ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+                  struct os_mbuf *sdu_rx, ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    /*
+     * TODO In here we are going to create l2cap channel and send
+     * BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ
+     */
+    return BLE_HS_ENOTSUP;
+}
+
+int ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
+{
+    /*TODO Implement */
+    return BLE_HS_ENOTSUP;
+}
+
+int
+ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
+{
+    /*TODO Implement */
+    return BLE_HS_ENOTSUP;
+}
+
+void
+ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
+{
+    /*TODO In here we going to update sdu_rx buffer */
 }
 
 static void
@@ -322,7 +361,9 @@ ble_l2cap_init(void)
 {
     int rc;
 
-    rc = os_mempool_init(&ble_l2cap_chan_pool, MYNEWT_VAL(BLE_L2CAP_MAX_CHANS),
+    rc = os_mempool_init(&ble_l2cap_chan_pool,
+                         MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) +
+                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
