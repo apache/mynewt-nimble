@@ -222,17 +222,6 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
         }
     }
 
-    /*** 0x0d - Class of device. */
-    if (adv_fields->device_class != NULL) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_DEVICE_CLASS,
-                                 BLE_HS_ADV_DEVICE_CLASS_LEN,
-                                 adv_fields->device_class, dst, dst_len,
-                                 max_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
     /*** 0x12 - Slave connection interval range. */
     if (adv_fields->slave_itvl_range != NULL) {
         rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_SLAVE_ITVL_RANGE,
@@ -285,27 +274,6 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
         rc = ble_hs_adv_set_array16(BLE_HS_ADV_TYPE_ADV_ITVL, 1,
                                     &adv_fields->adv_itvl, dst, dst_len,
                                     max_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    /*** 0x1b - LE bluetooth device address. */
-    if (adv_fields->le_addr != NULL) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ADDR,
-                                 BLE_HS_ADV_LE_ADDR_LEN,
-                                 adv_fields->le_addr, dst, dst_len,
-                                 max_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    /*** 0x1c - LE role. */
-    if (adv_fields->le_role_is_present) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ROLE,
-                                 BLE_HS_ADV_LE_ROLE_LEN,
-                                 &adv_fields->le_role, dst, dst_len, max_len);
         if (rc != 0) {
             return rc;
         }
@@ -499,13 +467,6 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         adv_fields->tx_pwr_lvl_is_present = 1;
         break;
 
-    case BLE_HS_ADV_TYPE_DEVICE_CLASS:
-        if (data_len != BLE_HS_ADV_DEVICE_CLASS_LEN) {
-            return BLE_HS_EBADDATA;
-        }
-        adv_fields->device_class = data;
-        break;
-
     case BLE_HS_ADV_TYPE_SLAVE_ITVL_RANGE:
         if (data_len != BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN) {
             return BLE_HS_EBADDATA;
@@ -544,21 +505,6 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         }
         adv_fields->adv_itvl = get_le16(data);
         adv_fields->adv_itvl_is_present = 1;
-        break;
-
-    case BLE_HS_ADV_TYPE_LE_ADDR:
-        if (data_len != BLE_HS_ADV_LE_ADDR_LEN) {
-            return BLE_HS_EBADDATA;
-        }
-        adv_fields->le_addr = data;
-        break;
-
-    case BLE_HS_ADV_TYPE_LE_ROLE:
-        if (data_len != BLE_HS_ADV_LE_ROLE_LEN) {
-            return BLE_HS_EBADDATA;
-        }
-        adv_fields->le_role = *data;
-        adv_fields->le_role_is_present = 1;
         break;
 
     case BLE_HS_ADV_TYPE_SVC_DATA_UUID32:

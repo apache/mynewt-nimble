@@ -59,9 +59,6 @@ struct ble_hs_adv_fields {
     int8_t tx_pwr_lvl;
     unsigned tx_pwr_lvl_is_present:1;
 
-    /*** 0x0d - Class of device. */
-    uint8_t *device_class;
-
     /*** 0x0d - Slave connection interval range. */
     uint8_t *slave_itvl_range;
 
@@ -80,13 +77,6 @@ struct ble_hs_adv_fields {
     /*** 0x1a - Advertising interval. */
     uint16_t adv_itvl;
     unsigned adv_itvl_is_present:1;
-
-    /*** 0x1b - LE bluetooth device address. */
-    uint8_t *le_addr;
-
-    /*** 0x1c - LE role. */
-    uint8_t le_role;
-    unsigned le_role_is_present:1;
 
     /*** 0x20 - Service data - 32-bit UUID. */
     uint8_t *svc_data_uuid32;
@@ -115,11 +105,6 @@ struct ble_hs_adv_fields {
 #define BLE_HS_ADV_TYPE_INCOMP_NAME             0x08
 #define BLE_HS_ADV_TYPE_COMP_NAME               0x09
 #define BLE_HS_ADV_TYPE_TX_PWR_LVL              0x0a
-#define BLE_HS_ADV_TYPE_DEVICE_CLASS            0x0d
-#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_HASH192     0x0e
-#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_RAND192     0x0f
-#define BLE_HS_ADV_TYPE_SM_TK_VALUE             0x10
-#define BLE_HS_ADV_TYPE_SM_OOB_FLAGS            0x11
 #define BLE_HS_ADV_TYPE_SLAVE_ITVL_RANGE        0x12
 #define BLE_HS_ADV_TYPE_SOL_UUIDS16             0x14
 #define BLE_HS_ADV_TYPE_SOL_UUIDS128            0x15
@@ -128,18 +113,9 @@ struct ble_hs_adv_fields {
 #define BLE_HS_ADV_TYPE_RANDOM_TGT_ADDR         0x18
 #define BLE_HS_ADV_TYPE_APPEARANCE              0x19
 #define BLE_HS_ADV_TYPE_ADV_ITVL                0x1a
-#define BLE_HS_ADV_TYPE_LE_ADDR                 0x1b
-#define BLE_HS_ADV_TYPE_LE_ROLE                 0x1c
-#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_HASH256     0x1d
-#define BLE_HS_ADV_TYPE_SIMPLE_PAIR_RAND256     0x1e
 #define BLE_HS_ADV_TYPE_SVC_DATA_UUID32         0x20
 #define BLE_HS_ADV_TYPE_SVC_DATA_UUID128        0x21
-#define BLE_HS_ADV_TYPE_LE_SECURE_CONFIRM       0x22
-#define BLE_HS_ADV_TYPE_LE_SECURE_RANDOM        0x23
 #define BLE_HS_ADV_TYPE_URI                     0x24
-#define BLE_HS_ADV_TYPE_INDOOR_POS              0x25
-#define BLE_HS_ADV_TYPE_TRANS_DISC_DATA         0x26
-#define BLE_HS_ADV_TYPE_3D_INFO_DATA            0x3d
 #define BLE_HS_ADV_TYPE_MFG_DATA                0xff
 
 #define BLE_HS_ADV_FLAGS_LEN                    1
@@ -155,8 +131,6 @@ struct ble_hs_adv_fields {
  */
 #define BLE_HS_ADV_TX_PWR_LVL_AUTO              (-128)
 
-#define BLE_HS_ADV_DEVICE_CLASS_LEN             3
-
 #define BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN         4
 
 #define BLE_HS_ADV_SVC_DATA_UUID16_MIN_LEN      2
@@ -166,14 +140,6 @@ struct ble_hs_adv_fields {
 #define BLE_HS_ADV_APPEARANCE_LEN               2
 
 #define BLE_HS_ADV_ADV_ITVL_LEN                 2
-
-#define BLE_HS_ADV_LE_ADDR_LEN                  7
-
-#define BLE_HS_ADV_LE_ROLE_LEN                  1
-#define BLE_HS_ADV_LE_ROLE_PERIPH               0x00
-#define BLE_HS_ADV_LE_ROLE_CENTRAL              0x01
-#define BLE_HS_ADV_LE_ROLE_BOTH_PERIPH_PREF     0x02
-#define BLE_HS_ADV_LE_ROLE_BOTH_CENTRAL_PREF    0x03
 
 #define BLE_HS_ADV_SVC_DATA_UUID32_MIN_LEN      4
 
