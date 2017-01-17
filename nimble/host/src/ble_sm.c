@@ -743,6 +743,20 @@ ble_sm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg)
     }
 }
 
+static void pair_fail_tx(uint16_t conn_handle, uint8_t reason)
+{
+    struct ble_sm_pair_fail *cmd;
+    struct os_mbuf *txom;
+
+    BLE_HS_DBG_ASSERT(reason > 0 && reason < BLE_SM_ERR_MAX_PLUS_1);
+
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_FAIL, sizeof(*cmd), &txom);
+    if (cmd) {
+        cmd->reason = reason;
+        ble_sm_tx(conn_handle, txom);
+    }
+}
+
 void
 ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
 {
@@ -778,7 +792,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
         }
 
         if (res->sm_err != 0) {
-            ble_sm_pair_fail_tx(conn_handle, res->sm_err);
+            pair_fail_tx(conn_handle, res->sm_err);
         }
 
         ble_hs_unlock();
@@ -2014,16 +2028,16 @@ static void
 ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                struct ble_sm_result *res)
 {
-    struct ble_sm_pair_fail cmd;
+    struct ble_sm_pair_fail *cmd;
 
     res->enc_cb = 1;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PAIR_FAIL_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status == 0) {
-        ble_sm_pair_fail_parse((*om)->om_data, (*om)->om_len, &cmd);
-        BLE_SM_LOG_CMD(0, "fail", conn_handle, ble_sm_pair_fail_log, &cmd);
+        cmd = (struct ble_sm_pair_fail *)(*om)->om_data;
+        BLE_SM_LOG_CMD(0, "fail", conn_handle, ble_sm_pair_fail_log, cmd);
 
-        res->app_status = BLE_HS_SM_PEER_ERR(cmd.reason);
+        res->app_status = BLE_HS_SM_PEER_ERR(cmd->reason);
     }
 }
 
@@ -2392,28 +2406,17 @@ ble_sm_init(void)
 static int
 ble_sm_rx(uint16_t handle, struct os_mbuf **om)
 {
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
+    struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
-    uint8_t *cmd;
 
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    cmd = os_mbuf_extend(txom, sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_FAIL_SZ);
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_FAIL, sizeof(*cmd), &txom);
     if (cmd == NULL) {
-        os_mbuf_free_chain(txom);
         return BLE_HS_ENOMEM;
     }
 
-    cmd[0] = BLE_SM_OP_PAIR_FAIL;
-    cmd[1] = BLE_SM_ERR_PAIR_NOT_SUPP;
+    cmd->reason = BLE_SM_ERR_PAIR_NOT_SUPP;
 
-    ble_hs_misc_conn_chan_find_reqd(handle, BLE_L2CAP_CID_SM, &conn, &chan);
-
-    return ble_l2cap_tx(conn, chan, txom);
+    return ble_sm_tx(handle, txom);
 }
 #endif
 

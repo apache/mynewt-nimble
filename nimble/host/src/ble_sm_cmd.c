@@ -25,8 +25,6 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
-#if NIMBLE_BLE_SM
-
 void *
 ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom)
 {
@@ -65,6 +63,7 @@ ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
     return ble_l2cap_tx(conn, chan, txom);
 }
 
+#if NIMBLE_BLE_SM
 static int
 ble_sm_init_req(uint16_t initial_sz, struct os_mbuf **out_txom)
 {
@@ -268,7 +267,7 @@ ble_sm_pair_fail_parse(void *payload, int len, struct ble_sm_pair_fail *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_PAIR_FAIL_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_fail));
 
     u8ptr = payload;
     cmd->reason = u8ptr[0];
@@ -279,7 +278,7 @@ ble_sm_pair_fail_write(void *payload, int len, struct ble_sm_pair_fail *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_FAIL_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_fail));
 
     u8ptr = payload;
 
@@ -297,7 +296,7 @@ ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
 
     BLE_HS_DBG_ASSERT(reason > 0 && reason < BLE_SM_ERR_MAX_PLUS_1);
 
-    rc = ble_sm_init_req(BLE_SM_PAIR_FAIL_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_pair_fail), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }

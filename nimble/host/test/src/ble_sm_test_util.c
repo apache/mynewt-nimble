@@ -828,7 +828,7 @@ ble_sm_test_util_verify_tx_pair_fail(
     struct os_mbuf *om;
 
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_FAIL,
-                                        BLE_SM_PAIR_FAIL_SZ);
+                                        sizeof(struct ble_sm_pair_fail));
     ble_sm_pair_fail_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.reason == exp_cmd->reason);
