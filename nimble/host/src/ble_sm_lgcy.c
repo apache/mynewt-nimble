@@ -63,24 +63,26 @@ static const uint8_t ble_sm_lgcy_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
 int
 ble_sm_lgcy_io_action(struct ble_sm_proc *proc)
 {
+    struct ble_sm_pair_cmd *pair_req, *pair_rsp;
     int action;
 
-    if (proc->pair_req.oob_data_flag == BLE_SM_PAIR_OOB_YES &&
-        proc->pair_rsp.oob_data_flag == BLE_SM_PAIR_OOB_YES) {
+    pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
+    pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
+
+    if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES &&
+        pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
         action = BLE_SM_IOACT_OOB;
-    } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
-               !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
+    } else if (!(pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
+               !(pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
         action = BLE_SM_IOACT_NONE;
-    } else if (proc->pair_req.io_cap >= BLE_SM_IO_CAP_RESERVED ||
-               proc->pair_rsp.io_cap >= BLE_SM_IO_CAP_RESERVED) {
+    } else if (pair_req->io_cap >= BLE_SM_IO_CAP_RESERVED ||
+               pair_rsp->io_cap >= BLE_SM_IO_CAP_RESERVED) {
         action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_lgcy_init_ioa[proc->pair_rsp.io_cap]
-                                     [proc->pair_req.io_cap];
+        action = ble_sm_lgcy_init_ioa[pair_rsp->io_cap][pair_req->io_cap];
     } else {
-        action = ble_sm_lgcy_resp_ioa[proc->pair_rsp.io_cap]
-                                     [proc->pair_req.io_cap];
+        action = ble_sm_lgcy_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
     }
 
     switch (action) {
@@ -107,48 +109,20 @@ ble_sm_lgcy_io_action(struct ble_sm_proc *proc)
     return action;
 }
 
-static int
-ble_sm_lgcy_confirm_prepare_args(struct ble_sm_proc *proc,
-                                 uint8_t *k, uint8_t *preq, uint8_t *pres,
-                                 uint8_t *iat, uint8_t *rat,
-                                 uint8_t *ia, uint8_t *ra)
-{
-    ble_sm_ia_ra(proc, iat, ia, rat, ra);
-
-    memcpy(k, proc->tk, sizeof proc->tk);
-
-    ble_sm_pair_cmd_write(
-        preq, BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ, 1,
-        &proc->pair_req);
-
-    ble_sm_pair_cmd_write(
-        pres, BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ, 0,
-        &proc->pair_rsp);
-
-    return 0;
-}
-
 void
 ble_sm_lgcy_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
     struct ble_sm_pair_confirm cmd;
-    uint8_t preq[BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ];
-    uint8_t pres[BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ];
-    uint8_t k[16];
     uint8_t ia[6];
     uint8_t ra[6];
     uint8_t iat;
     uint8_t rat;
     int rc;
 
-    rc = ble_sm_lgcy_confirm_prepare_args(proc, k, preq, pres,
-                                          &iat, &rat, ia, ra);
-    if (rc != 0) {
-        goto err;
-    }
+    ble_sm_ia_ra(proc, &iat, ia, &rat, ra);
 
-    rc = ble_sm_alg_c1(k, ble_sm_our_pair_rand(proc),
-                             preq, pres, iat, rat, ia, ra, cmd.value);
+    rc = ble_sm_alg_c1(proc->tk, ble_sm_our_pair_rand(proc), proc->pair_req,
+                       proc->pair_rsp, iat, rat, ia, ra, cmd.value);
     if (rc != 0) {
         goto err;
     }
@@ -213,27 +187,17 @@ ble_sm_lgcy_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 void
 ble_sm_lgcy_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    uint8_t preq[BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ];
-    uint8_t pres[BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ];
     uint8_t confirm_val[16];
-    uint8_t k[16];
     uint8_t ia[6];
     uint8_t ra[6];
     uint8_t iat;
     uint8_t rat;
     int rc;
 
-    rc = ble_sm_lgcy_confirm_prepare_args(proc, k, preq, pres,
-                                          &iat, &rat, ia, ra);
-    if (rc != 0) {
-        res->app_status = rc;
-        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
-        res->enc_cb = 1;
-        return;
-    }
+    ble_sm_ia_ra(proc, &iat, ia, &rat, ra);
 
-    rc = ble_sm_alg_c1(k, ble_sm_peer_pair_rand(proc), preq, pres,
-                             iat, rat, ia, ra, confirm_val);
+    rc = ble_sm_alg_c1(proc->tk, ble_sm_peer_pair_rand(proc), proc->pair_req,
+                       proc->pair_rsp, iat, rat, ia, ra, confirm_val);
     if (rc != 0) {
         res->app_status = rc;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;

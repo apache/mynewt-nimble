@@ -27,12 +27,34 @@
 
 #if NIMBLE_BLE_SM
 
-static int
+void *
+ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom)
+{
+    struct ble_sm_hdr *hdr;
+
+    *txom = ble_hs_mbuf_l2cap_pkt();
+    if (*txom == NULL) {
+        return NULL;
+    }
+
+    if (os_mbuf_extend(*txom, sizeof(*hdr) + len) == NULL) {
+        os_mbuf_free_chain(*txom);
+        return NULL;
+    }
+
+    hdr = (struct ble_sm_hdr *)(*txom)->om_data;
+
+    hdr->opcode = opcode;
+
+    return hdr->data;
+}
+
+/* this function consumes tx os_mbuf */
+int
 ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    int rc;
 
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
@@ -40,12 +62,7 @@ ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom)
 
     ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_SM,
                                     &conn, &chan);
-    rc = ble_l2cap_tx(conn, chan, txom);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_l2cap_tx(conn, chan, txom);
 }
 
 static int
@@ -60,7 +77,7 @@ ble_sm_init_req(uint16_t initial_sz, struct os_mbuf **out_txom)
         goto err;
     }
 
-    buf = os_mbuf_extend(*out_txom, BLE_SM_HDR_SZ + initial_sz);
+    buf = os_mbuf_extend(*out_txom, sizeof(struct ble_sm_hdr) + initial_sz);
     if (buf == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
@@ -79,7 +96,7 @@ ble_sm_pair_cmd_parse(void *payload, int len, struct ble_sm_pair_cmd *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_PAIR_CMD_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_cmd));
 
     u8ptr = payload;
     cmd->io_cap = u8ptr[0];
@@ -96,7 +113,7 @@ ble_sm_pair_cmd_write(void *payload, int len, int is_req,
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd));
 
     u8ptr = payload;
     u8ptr[0] = is_req ? BLE_SM_OP_PAIR_REQ : BLE_SM_OP_PAIR_RSP;
@@ -115,7 +132,7 @@ ble_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_PAIR_CMD_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_pair_cmd), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
@@ -157,12 +174,12 @@ ble_sm_pair_confirm_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_PAIR_CONFIRM_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_CONFIRM_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_PAIR_CONFIRM;
-    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->value, sizeof cmd->value);
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->value, sizeof cmd->value);
 }
 
 int
@@ -209,12 +226,12 @@ ble_sm_pair_random_write(void *payload, int len,
     uint8_t *u8ptr;
 
     BLE_HS_DBG_ASSERT(len >=
-                      BLE_SM_HDR_SZ + BLE_SM_PAIR_RANDOM_SZ);
+                      sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_RANDOM_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_PAIR_RANDOM;
-    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->value, sizeof cmd->value);
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->value, sizeof cmd->value);
 }
 
 int
@@ -262,7 +279,7 @@ ble_sm_pair_fail_write(void *payload, int len, struct ble_sm_pair_fail *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_PAIR_FAIL_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_FAIL_SZ);
 
     u8ptr = payload;
 
@@ -315,7 +332,7 @@ ble_sm_enc_info_write(void *payload, int len, struct ble_sm_enc_info *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_ENC_INFO_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_ENC_INFO_SZ);
 
     u8ptr = payload;
 
@@ -369,7 +386,7 @@ ble_sm_master_id_write(void *payload, int len, struct ble_sm_master_id *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_MASTER_ID_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_MASTER_ID_SZ);
 
     u8ptr = payload;
 
@@ -424,12 +441,12 @@ ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_ID_INFO_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_ID_INFO_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_IDENTITY_INFO;
-    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->irk, sizeof cmd->irk);
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->irk, sizeof cmd->irk);
 }
 
 int
@@ -477,7 +494,7 @@ ble_sm_id_addr_info_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_ID_ADDR_INFO_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_ID_ADDR_INFO_SZ);
 
     u8ptr = payload;
 
@@ -528,12 +545,12 @@ ble_sm_sign_info_write(void *payload, int len, struct ble_sm_sign_info *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_SIGN_INFO_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_SIGN_INFO_SZ);
 
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_SIGN_INFO;
-    memcpy(u8ptr + BLE_SM_HDR_SZ, cmd->sig_key, sizeof cmd->sig_key);
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->sig_key, sizeof cmd->sig_key);
 }
 
 int
@@ -582,7 +599,7 @@ ble_sm_sec_req_write(void *payload, int len, struct ble_sm_sec_req *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_HDR_SZ + BLE_SM_SEC_REQ_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_SEC_REQ_SZ);
 
     u8ptr = payload;
 
@@ -638,7 +655,7 @@ ble_sm_public_key_write(void *payload, int len, struct ble_sm_public_key *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_SM_HDR_SZ + BLE_SM_PUBLIC_KEY_SZ) {
+    if (len < sizeof(struct ble_sm_hdr) + BLE_SM_PUBLIC_KEY_SZ) {
         return BLE_HS_EMSGSIZE;
     }
 
@@ -699,7 +716,7 @@ ble_sm_dhkey_check_write(void *payload, int len,
 {
     uint8_t *u8ptr;
 
-    if (len < BLE_SM_HDR_SZ + BLE_SM_DHKEY_CHECK_SZ) {
+    if (len < sizeof(struct ble_sm_hdr) + BLE_SM_DHKEY_CHECK_SZ) {
         return BLE_HS_EMSGSIZE;
     }
 
