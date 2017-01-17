@@ -35,8 +35,6 @@ struct hci_encrypt_change;
 
 #define BLE_SM_MTU                  65
 
-#define BLE_SM_HDR_SZ               1
-
 #define BLE_SM_OP_PAIR_REQ                      0x01
 #define BLE_SM_OP_PAIR_RSP                      0x02
 #define BLE_SM_OP_PAIR_CONFIRM                  0x03
@@ -52,6 +50,11 @@ struct hci_encrypt_change;
 #define BLE_SM_OP_PAIR_DHKEY_CHECK              0x0d
 #define BLE_SM_OP_PAIR_KEYPRESS_NOTIFY          0x0e
 
+struct ble_sm_hdr {
+    uint8_t opcode;
+    uint8_t data[0];
+} __attribute__((packed));
+
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
@@ -63,7 +66,7 @@ struct hci_encrypt_change;
  * | Initiator Key Distribution         | 1                 |
  * | Responder Key Distribution         | 1                 |
  */
-#define BLE_SM_PAIR_CMD_SZ          6
+
 struct ble_sm_pair_cmd {
     uint8_t io_cap;
     uint8_t oob_data_flag;
@@ -71,7 +74,7 @@ struct ble_sm_pair_cmd {
     uint8_t max_enc_key_size;
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -260,8 +263,8 @@ struct ble_sm_proc {
     uint8_t rx_key_flags;
     uint8_t key_size;
 
-    struct ble_sm_pair_cmd pair_req;
-    struct ble_sm_pair_cmd pair_rsp;
+    uint8_t pair_req[sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd)];
+    uint8_t pair_rsp[sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd)];
     uint8_t tk[16];
     uint8_t confirm_peer[16];
     uint8_t randm[16];
@@ -300,6 +303,9 @@ void ble_sm_dbg_set_next_csrk(uint8_t *next_csrk);
 void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 int ble_sm_dbg_num_procs(void);
 #endif
+
+void *ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
+int ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom);
 
 uint8_t ble_sm_build_authreq(void);
 
