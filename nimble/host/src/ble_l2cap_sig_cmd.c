@@ -138,20 +138,13 @@ ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason,
                                data, data_len);
 
     STATS_INC(ble_l2cap_stats, sig_rx);
-    rc = ble_l2cap_sig_tx(conn_handle, txom);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_l2cap_sig_tx(conn_handle, txom);
 }
 
 int
 ble_l2cap_sig_reject_invalid_cid_tx(uint16_t conn_handle, uint8_t id,
                                     uint16_t src_cid, uint16_t dst_cid)
 {
-    int rc;
-
     struct {
         uint16_t local_cid;
         uint16_t remote_cid;
@@ -160,10 +153,9 @@ ble_l2cap_sig_reject_invalid_cid_tx(uint16_t conn_handle, uint8_t id,
         .remote_cid = src_cid,
     };
 
-    rc = ble_l2cap_sig_reject_tx(conn_handle, id,
+    return ble_l2cap_sig_reject_tx(conn_handle, id,
                                  BLE_L2CAP_SIG_ERR_INVALID_CID,
                                  &data, sizeof data);
-    return rc;
 }
 
 static void
@@ -210,12 +202,7 @@ ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
     ble_l2cap_sig_update_req_write(payload_buf, BLE_L2CAP_SIG_UPDATE_REQ_SZ,
                                    req);
 
-    rc = ble_l2cap_sig_tx(conn_handle, txom);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_l2cap_sig_tx(conn_handle, txom);
 }
 
 static void
@@ -260,10 +247,5 @@ ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
     ble_l2cap_sig_update_rsp_write(payload_buf, BLE_L2CAP_SIG_UPDATE_RSP_SZ,
                                    &rsp);
 
-    rc = ble_l2cap_sig_tx(conn_handle, txom);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_l2cap_sig_tx(conn_handle, txom);
 }
