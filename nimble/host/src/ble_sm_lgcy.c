@@ -177,12 +177,21 @@ ble_sm_gen_stk(struct ble_sm_proc *proc)
 void
 ble_sm_lgcy_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    struct ble_sm_pair_random cmd;
+    struct ble_sm_pair_random *cmd;
+    struct os_mbuf *txom;
     int rc;
 
-    memcpy(cmd.value, ble_sm_our_pair_rand(proc), 16);
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_RANDOM, sizeof(*cmd), &txom);
+    if (cmd == NULL) {
+        res->app_status = BLE_HS_ENOMEM;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
 
-    rc = ble_sm_pair_random_tx(proc->conn_handle, &cmd);
+    memcpy(cmd->value, ble_sm_our_pair_rand(proc), 16);
+
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         res->app_status = rc;
         res->enc_cb = 1;
