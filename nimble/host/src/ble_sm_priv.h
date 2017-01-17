@@ -103,10 +103,9 @@ struct ble_sm_pair_random {
  * | (Code=0x05)                        | 1                 |
  * | Reason                             | 1                 |
  */
-#define BLE_SM_PAIR_FAIL_SZ         1
 struct ble_sm_pair_fail {
     uint8_t reason;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -303,9 +302,6 @@ void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 int ble_sm_dbg_num_procs(void);
 #endif
 
-void *ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
-int ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom);
-
 uint8_t ble_sm_build_authreq(void);
 
 void ble_sm_pair_cmd_parse(void *payload, int len,
@@ -497,6 +493,8 @@ int ble_sm_init(void);
 #endif
 
 struct ble_l2cap_chan *ble_sm_create_chan(void);
+void *ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
+int ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom);
 
 #ifdef __cplusplus
 }
