@@ -112,22 +112,29 @@ ble_sm_lgcy_io_action(struct ble_sm_proc *proc)
 void
 ble_sm_lgcy_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    struct ble_sm_pair_confirm cmd;
+    struct ble_sm_pair_confirm *cmd;
+    struct os_mbuf *txom;
     uint8_t ia[6];
     uint8_t ra[6];
     uint8_t iat;
     uint8_t rat;
     int rc;
 
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_CONFIRM, sizeof(*cmd), &txom);
+    if (cmd == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
     ble_sm_ia_ra(proc, &iat, ia, &rat, ra);
 
     rc = ble_sm_alg_c1(proc->tk, ble_sm_our_pair_rand(proc), proc->pair_req,
-                       proc->pair_rsp, iat, rat, ia, ra, cmd.value);
+                       proc->pair_rsp, iat, rat, ia, ra, cmd->value);
     if (rc != 0) {
         goto err;
     }
 
-    rc = ble_sm_pair_confirm_tx(proc->conn_handle, &cmd);
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         goto err;
     }
@@ -139,6 +146,10 @@ ble_sm_lgcy_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
     return;
 
 err:
+    if (txom) {
+        os_mbuf_free_chain(txom);
+    }
+
     res->app_status = rc;
     res->enc_cb = 1;
     res->sm_err = BLE_SM_ERR_UNSPECIFIED;
