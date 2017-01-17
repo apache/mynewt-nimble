@@ -1718,7 +1718,7 @@ static void
 ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                      void *arg)
 {
-    struct ble_sm_id_addr_info addr_info;
+    struct ble_sm_id_addr_info *addr_info;
     struct ble_hs_conn_addrs addrs;
     struct ble_sm_sign_info sign_info;
     struct ble_sm_master_id *master_id;
@@ -1808,20 +1808,28 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         }
 
         /* Send identity address information. */
-        conn = ble_hs_conn_find_assert(proc->conn_handle);
-
-        ble_hs_conn_addrs(conn, &addrs);
-        addr_info.addr_type = addrs.our_id_addr_type;
-        memcpy(addr_info.bd_addr, addrs.our_id_addr, 6);
-        rc = ble_sm_id_addr_info_tx(proc->conn_handle, &addr_info);
-        if (rc != 0) {
+        addr_info = ble_sm_cmd_get(BLE_SM_OP_IDENTITY_ADDR_INFO,
+                                   sizeof(*addr_info), &txom);
+        if (!addr_info) {
+            rc = BLE_HS_ENOMEM;
             goto err;
         }
 
+        conn = ble_hs_conn_find_assert(proc->conn_handle);
+        ble_hs_conn_addrs(conn, &addrs);
+
+        addr_info->addr_type = addrs.our_id_addr_type;
+        memcpy(addr_info->bd_addr, addrs.our_id_addr, 6);
+
         proc->our_keys.addr_valid = 1;
         memcpy(proc->our_keys.irk, irk, 16);
-        proc->our_keys.addr_type = addr_info.addr_type;
-        memcpy(proc->our_keys.addr, addr_info.bd_addr, 6);
+        proc->our_keys.addr_type = addr_info->addr_type;
+        memcpy(proc->our_keys.addr, addr_info->bd_addr, 6);
+
+        rc = ble_sm_tx(proc->conn_handle, txom);
+        if (rc != 0) {
+            goto err;
+        }
     }
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_SIGN) {
@@ -1977,19 +1985,19 @@ static void
 ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                        struct ble_sm_result *res)
 {
-    struct ble_sm_id_addr_info cmd;
+    struct ble_sm_id_addr_info *cmd;
     struct ble_sm_proc *proc;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ID_ADDR_INFO_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
         return;
     }
 
-    ble_sm_id_addr_info_parse((*om)->om_data, (*om)->om_len, &cmd);
+    cmd = (struct ble_sm_id_addr_info *)(*om)->om_data;
     BLE_SM_LOG_CMD(0, "id addr info", conn_handle, ble_sm_id_addr_info_log,
-                   &cmd);
+                   cmd);
 
     ble_hs_lock();
 
@@ -2000,8 +2008,8 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ADDR_INFO;
         proc->peer_keys.addr_valid = 1;
-        proc->peer_keys.addr_type = cmd.addr_type;
-        memcpy(proc->peer_keys.addr, cmd.bd_addr, 6);
+        proc->peer_keys.addr_type = cmd->addr_type;
+        memcpy(proc->peer_keys.addr, cmd->bd_addr, 6);
 
         ble_sm_key_rxed(proc, res);
     }

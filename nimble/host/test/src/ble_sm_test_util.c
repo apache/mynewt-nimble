@@ -559,12 +559,12 @@ ble_sm_test_util_rx_id_addr_info(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + BLE_SM_ID_ADDR_INFO_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_addr_info));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = sizeof(struct ble_sm_hdr) + BLE_SM_ID_ADDR_INFO_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_addr_info);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -781,7 +781,7 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_ADDR_INFO,
-                                        BLE_SM_ID_ADDR_INFO_SZ);
+                                        sizeof(struct ble_sm_id_addr_info));
     ble_sm_id_addr_info_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.addr_type == exp_cmd->addr_type);
