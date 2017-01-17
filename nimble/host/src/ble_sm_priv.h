@@ -113,10 +113,9 @@ struct ble_sm_pair_fail {
  * | (Code=0x06)                        | 1                 |
  * | ltk                                | 16                |
  */
-#define BLE_SM_ENC_INFO_SZ          16
 struct ble_sm_enc_info {
     uint8_t ltk[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |

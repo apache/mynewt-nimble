@@ -1722,12 +1722,13 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     struct ble_hs_conn_addrs addrs;
     struct ble_sm_sign_info sign_info;
     struct ble_sm_master_id master_id;
-    struct ble_sm_enc_info enc_info;
+    struct ble_sm_enc_info *enc_info;
     struct ble_sm_id_info id_info;
     struct ble_hs_conn *conn;
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
     uint8_t our_key_dist;
+    struct os_mbuf *txom;
     const uint8_t *irk;
     int rc;
 
@@ -1740,16 +1741,26 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     if (our_key_dist & BLE_SM_PAIR_KEY_DIST_ENC) {
         /* Send encryption information. */
-        rc = ble_sm_gen_ltk(proc, enc_info.ltk);
-        if (rc != 0) {
+        enc_info = ble_sm_cmd_get(BLE_SM_OP_ENC_INFO, sizeof(*enc_info), &txom);
+        if (!enc_info) {
+            rc = BLE_HS_ENOMEM;
             goto err;
         }
-        rc = ble_sm_enc_info_tx(proc->conn_handle, &enc_info);
+
+        rc = ble_sm_gen_ltk(proc, enc_info->ltk);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
+
+        /* store LTK before sending since ble_sm_tx consumes tx mbuf */
+        memcpy(proc->our_keys.ltk, enc_info->ltk, 16);
         proc->our_keys.ltk_valid = 1;
-        memcpy(proc->our_keys.ltk, enc_info.ltk, 16);
+
+        rc = ble_sm_tx(proc->conn_handle, txom);
+        if (rc != 0) {
+            goto err;
+        }
 
         /* Send master identification. */
         rc = ble_sm_gen_ediv(&master_id.ediv);
@@ -1849,18 +1860,18 @@ static void
 ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
                    struct ble_sm_result *res)
 {
-    struct ble_sm_enc_info cmd;
+    struct ble_sm_enc_info *cmd;
     struct ble_sm_proc *proc;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_ENC_INFO_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         res->enc_cb = 1;
         return;
     }
 
-    ble_sm_enc_info_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "enc info", conn_handle, ble_sm_enc_info_log, &cmd);
+    cmd = (struct ble_sm_enc_info *)(*om)->om_data;
+    BLE_SM_LOG_CMD(0, "enc info", conn_handle, ble_sm_enc_info_log, cmd);
 
     ble_hs_lock();
 
@@ -1871,7 +1882,7 @@ ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ENC_INFO;
         proc->peer_keys.ltk_valid = 1;
-        memcpy(proc->peer_keys.ltk, cmd.ltk, 16);
+        memcpy(proc->peer_keys.ltk, cmd->ltk, 16);
 
         ble_sm_key_rxed(proc, res);
     }
