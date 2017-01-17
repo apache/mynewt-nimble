@@ -29,4 +29,6 @@ pkg.deps:
 
 pkg.deps.SELFTEST:
     - sys/console/stub
+    - sys/log/full
+    - sys/stats/stub
     - net/nimble/transport/ram

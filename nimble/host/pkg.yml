@@ -28,7 +28,6 @@ pkg.keywords:
 pkg.deps:
     - kernel/os
     - net/nimble
-    - sys/log
     - util/mem
 
 pkg.deps.BLE_SM_LEGACY:
@@ -40,6 +39,7 @@ pkg.deps.BLE_SM_SC:
 pkg.req_apis:
     - ble_transport
     - console
+    - log
     - stats
 
 pkg.init_function: "ble_hs_init"
