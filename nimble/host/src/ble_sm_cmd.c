@@ -215,7 +215,7 @@ void
 ble_sm_pair_random_parse(void *payload, int len,
                          struct ble_sm_pair_random *cmd)
 {
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_PAIR_RANDOM_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_random));
     memcpy(cmd->value, payload, sizeof cmd->value);
 }
 
@@ -226,7 +226,7 @@ ble_sm_pair_random_write(void *payload, int len,
     uint8_t *u8ptr;
 
     BLE_HS_DBG_ASSERT(len >=
-                      sizeof(struct ble_sm_hdr) + BLE_SM_PAIR_RANDOM_SZ);
+                      sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_random));
 
     u8ptr = payload;
 
@@ -240,7 +240,7 @@ ble_sm_pair_random_tx(uint16_t conn_handle, struct ble_sm_pair_random *cmd)
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_PAIR_RANDOM_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_pair_random), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }

@@ -93,10 +93,9 @@ struct ble_sm_pair_confirm {
  * | (Code=0x04)                        | 1                 |
  * | Random Value                       | 16                |
  */
-#define BLE_SM_PAIR_RANDOM_SZ       16
 struct ble_sm_pair_random {
     uint8_t value[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
