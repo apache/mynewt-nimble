@@ -3215,8 +3215,7 @@ ble_ll_conn_module_reset(void)
     conn_params->master_chan_map[4] = 0x1f;
 
     /* Reset statistics */
-    memset((uint8_t *)&ble_ll_conn_stats + sizeof(struct stats_hdr), 0,
-           sizeof(struct stats_ble_ll_conn_stats) - sizeof(struct stats_hdr));
+    STATS_RESET(ble_ll_conn_stats);
 }
 
 /* Initialize the connection module */
