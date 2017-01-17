@@ -167,10 +167,9 @@ struct ble_sm_sign_info {
  * | (Code=0x0B)                        | 1                 |
  * | authreq                            | 1                 |
  */
-#define BLE_SM_SEC_REQ_SZ           1
 struct ble_sm_sec_req {
     uint8_t authreq;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |

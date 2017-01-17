@@ -587,7 +587,7 @@ ble_sm_sec_req_parse(void *payload, int len, struct ble_sm_sec_req *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= BLE_SM_SEC_REQ_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_sec_req));
 
     u8ptr = payload;
     cmd->authreq = *u8ptr;
@@ -598,7 +598,7 @@ ble_sm_sec_req_write(void *payload, int len, struct ble_sm_sec_req *cmd)
 {
     uint8_t *u8ptr;
 
-    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + BLE_SM_SEC_REQ_SZ);
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sec_req));
 
     u8ptr = payload;
 
@@ -612,7 +612,7 @@ ble_sm_sec_req_tx(uint16_t conn_handle, struct ble_sm_sec_req *cmd)
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_SEC_REQ_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_sec_req), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
