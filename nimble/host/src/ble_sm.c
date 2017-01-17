@@ -1612,11 +1612,18 @@ static void
 ble_sm_sec_req_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                     void *arg)
 {
-    struct ble_sm_sec_req cmd;
+    struct ble_sm_sec_req *cmd;
+    struct os_mbuf *txom;
     int rc;
 
-    cmd.authreq = ble_sm_build_authreq();
-    rc = ble_sm_sec_req_tx(proc->conn_handle, &cmd);
+    cmd = ble_sm_cmd_get(BLE_SM_OP_SEC_REQ, sizeof(*cmd), &txom);
+    if (!cmd) {
+        res->app_status = BLE_HS_ENOMEM;
+        return;
+    }
+
+    cmd->authreq = ble_sm_build_authreq();
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         res->app_status = rc;
         return;
@@ -1630,17 +1637,17 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     struct ble_store_value_sec value_sec;
     struct ble_store_key_sec key_sec;
     struct ble_hs_conn_addrs addrs;
-    struct ble_sm_sec_req cmd;
+    struct ble_sm_sec_req *cmd;
     struct ble_hs_conn *conn;
     int authreq_mitm;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_SEC_REQ_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         return;
     }
 
-    ble_sm_sec_req_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "sec req", conn_handle, ble_sm_sec_req_log, &cmd);
+    cmd = (struct ble_sm_sec_req *)(*om)->om_data;
+    BLE_SM_LOG_CMD(0, "sec req", conn_handle, ble_sm_sec_req_log, cmd);
 
     /* XXX: Reject if:
      *     o authreq-reserved flags set?
@@ -1669,7 +1676,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         /* If the peer is requesting a bonded connection, query database for an
          * LTK corresponding to the sender.
          */
-        if (cmd.authreq & BLE_SM_PAIR_AUTHREQ_BOND) {
+        if (cmd->authreq & BLE_SM_PAIR_AUTHREQ_BOND) {
             res->app_status = ble_store_read_peer_sec(&key_sec, &value_sec);
         } else {
             res->app_status = BLE_HS_ENOENT;
@@ -1678,7 +1685,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
             /* Found a key corresponding to this peer.  Make sure it meets the
              * requested minimum authreq.
              */
-            authreq_mitm = cmd.authreq & BLE_SM_PAIR_AUTHREQ_MITM;
+            authreq_mitm = cmd->authreq & BLE_SM_PAIR_AUTHREQ_MITM;
             if ((!authreq_mitm && value_sec.authenticated) ||
                 (authreq_mitm && !value_sec.authenticated)) {
 
