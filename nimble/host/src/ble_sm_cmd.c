@@ -654,7 +654,7 @@ ble_sm_public_key_write(void *payload, int len, struct ble_sm_public_key *cmd)
 {
     uint8_t *u8ptr;
 
-    if (len < sizeof(struct ble_sm_hdr) + BLE_SM_PUBLIC_KEY_SZ) {
+    if (len < sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_public_key)) {
         return BLE_HS_EMSGSIZE;
     }
 
@@ -675,7 +675,7 @@ ble_sm_public_key_tx(uint16_t conn_handle, struct ble_sm_public_key *cmd)
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_sm_init_req(BLE_SM_PUBLIC_KEY_SZ, &txom);
+    rc = ble_sm_init_req(sizeof(struct ble_sm_public_key), &txom);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
