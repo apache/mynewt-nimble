@@ -63,6 +63,14 @@ typedef uint8_t ble_l2cap_chan_flags;
 
 typedef int ble_l2cap_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom);
 
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+struct ble_l2cap_coc_endpoint {
+    uint16_t mtu;
+    uint16_t credits;
+    struct os_mbuf *sdu;
+};
+#endif
+
 struct ble_l2cap_chan {
     SLIST_ENTRY(ble_l2cap_chan) next;
     uint16_t scid;
@@ -74,6 +82,16 @@ struct ble_l2cap_chan {
     uint16_t rx_len;        /* Length of current reassembled rx packet. */
 
     ble_l2cap_rx_fn *rx_fn;
+
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+    uint16_t conn_handle;
+    uint16_t dcid;
+    uint16_t psm;
+    struct ble_l2cap_coc_endpoint coc_rx;
+    struct ble_l2cap_coc_endpoint coc_tx;
+    ble_l2cap_event_fn *cb;
+    void *cb_arg;
+#endif
 };
 
 struct ble_l2cap_hdr {
