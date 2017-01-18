@@ -28,8 +28,7 @@
 struct ble_gatt_disc_s_test_svc {
     uint16_t start_handle;
     uint16_t end_handle;
-    uint16_t uuid16;
-    uint8_t uuid128[16];
+    const ble_uuid_t *uuid;
 };
 
 #define BLE_GATT_DISC_S_TEST_MAX_SERVICES  256
@@ -49,7 +48,7 @@ ble_gatt_disc_s_test_init(void)
 static int
 ble_gatt_disc_s_test_misc_svc_length(struct ble_gatt_disc_s_test_svc *service)
 {
-    if (service->uuid16 != 0) {
+    if (service->uuid->type == BLE_UUID_TYPE_16) {
         return 6;
     } else {
         return 20;
@@ -86,7 +85,7 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
             break;
         }
 
-        if (services[i].uuid16 != 0) {
+        if (services[i].uuid->type == BLE_UUID_TYPE_16) {
             if (off + BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16 >
                 ble_att_mtu(conn_handle)) {
 
@@ -108,13 +107,8 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
         htole16(buf + off, services[i].end_handle);
         off += 2;
 
-        if (services[i].uuid16 != 0) {
-            htole16(buf + off, services[i].uuid16);
-            off += 2;
-        } else {
-            memcpy(buf + off, services[i].uuid128, 16);
-            off += 16;
-        }
+        ble_uuid_flat(services[i].uuid, buf + off);
+        off += ble_uuid_length(services[i].uuid);
     }
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
@@ -217,8 +211,6 @@ static void
 ble_gatt_disc_s_test_misc_verify_services(
     struct ble_gatt_disc_s_test_svc *services)
 {
-    uint16_t uuid16;
-    uint8_t *uuid128;
     int i;
 
     for (i = 0; services[i].start_handle != 0; i++) {
@@ -227,13 +219,8 @@ ble_gatt_disc_s_test_misc_verify_services(
         TEST_ASSERT(services[i].end_handle ==
                     ble_gatt_disc_s_test_svcs[i].end_handle);
 
-        uuid128 = ble_gatt_disc_s_test_svcs[i].uuid128;
-        uuid16 = ble_uuid_128_to_16(uuid128);
-        if (uuid16 != 0) {
-            TEST_ASSERT(services[i].uuid16 == uuid16);
-        } else {
-            TEST_ASSERT(memcmp(services[i].uuid128, uuid128, 16) == 0);
-        }
+        TEST_ASSERT(ble_uuid_cmp(services[i].uuid,
+                    &ble_gatt_disc_s_test_svcs[i].uuid.u) == 0);
     }
 
     TEST_ASSERT(i == ble_gatt_disc_s_test_num_svcs);
@@ -301,11 +288,7 @@ ble_gatt_disc_s_test_misc_good_uuid(
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    if (services[0].uuid16 != 0) {
-        rc = ble_uuid_16_to_128(services[0].uuid16, services[0].uuid128);
-        TEST_ASSERT_FATAL(rc == 0);
-    }
-    rc = ble_gattc_disc_svc_by_uuid(2, services[0].uuid128,
+    rc = ble_gattc_disc_svc_by_uuid(2, services[0].uuid,
                                     ble_gatt_disc_s_test_misc_disc_cb, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -317,38 +300,38 @@ TEST_CASE(ble_gatt_disc_s_test_disc_all)
 {
     /*** One 128-bit service. */
     ble_gatt_disc_s_test_misc_good_all((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
         { 0 }
     });
 
     /*** Two 128-bit services. */
     ble_gatt_disc_s_test_misc_good_all((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 10, 50, 0,    {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 10, 50,   BLE_UUID128_DECLARE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ), },
         { 0 }
     });
 
     /*** Five 128-bit services. */
     ble_gatt_disc_s_test_misc_good_all((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 10, 50, 0,    {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
-        { 80, 120, 0,   {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 }, },
-        { 123, 678, 0,  {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 }, },
-        { 751, 999, 0,  {5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 10, 50,   BLE_UUID128_DECLARE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ), },
+        { 80, 120,  BLE_UUID128_DECLARE(3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ), },
+        { 123, 678, BLE_UUID128_DECLARE(4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ), },
+        { 751, 999, BLE_UUID128_DECLARE(5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 ), },
         { 0 }
     });
 
     /*** One 128-bit service, one 16-bit-service. */
     ble_gatt_disc_s_test_misc_good_all((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 6, 7, 0x1234 },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 6, 7,     BLE_UUID16_DECLARE(0x1234) },
         { 0 }
     });
 
     /*** End with handle 0xffff. */
     ble_gatt_disc_s_test_misc_good_all((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 7, 0xffff, 0, {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 7, 0xffff,BLE_UUID128_DECLARE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ), },
         { 0 }
     });
 }
@@ -357,61 +340,61 @@ TEST_CASE(ble_gatt_disc_s_test_disc_uuid)
 {
     /*** 128-bit service; one entry. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
         { 0 }
     });
 
     /*** 128-bit service; two entries. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 8, 43, 0,     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 8, 43,    BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
         { 0 }
     });
 
     /*** 128-bit service; five entries. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 8, 43, 0,     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 67, 100, 0,   {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 102, 103, 0,  {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 262, 900, 0,  {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 8, 43,    BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 67, 100,  BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 102, 103, BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 262, 900, BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
         { 0 }
     });
 
     /*** 128-bit service; end with handle 0xffff. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0,      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 7, 0xffff, 0, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 7, 0xffff,BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
         { 0 }
     });
 
     /*** 16-bit service; one entry. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0x1234 },
+        { 1, 5,     BLE_UUID16_DECLARE(0x1234) },
         { 0 }
     });
 
     /*** 16-bit service; two entries. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0x1234 },
-        { 85, 243, 0x1234 },
+        { 1, 5,     BLE_UUID16_DECLARE(0x1234) },
+        { 85, 243,  BLE_UUID16_DECLARE(0x1234) },
         { 0 }
     });
 
     /*** 16-bit service; five entries. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0x1234 },
-        { 85, 243, 0x1234 },
-        { 382, 383, 0x1234 },
-        { 562, 898, 0x1234 },
-        { 902, 984, 0x1234 },
+        { 1, 5,     BLE_UUID16_DECLARE(0x1234) },
+        { 85, 243,  BLE_UUID16_DECLARE(0x1234) },
+        { 382, 383, BLE_UUID16_DECLARE(0x1234) },
+        { 562, 898, BLE_UUID16_DECLARE(0x1234) },
+        { 902, 984, BLE_UUID16_DECLARE(0x1234) },
         { 0 }
     });
 
     /*** 16-bit service; end with handle 0xffff. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
-        { 1, 5, 0x1234 },
-        { 9, 0xffff, 0x1234 },
+        { 1, 5,     BLE_UUID16_DECLARE(0x1234) },
+        { 9, 0xffff,BLE_UUID16_DECLARE(0x1234) },
         { 0 }
     });
 }
@@ -419,8 +402,8 @@ TEST_CASE(ble_gatt_disc_s_test_disc_uuid)
 TEST_CASE(ble_gatt_disc_s_test_oom_all)
 {
     struct ble_gatt_disc_s_test_svc svcs[] = {
-        { 1, 5, 0,      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 6, 10, 0,     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 6, 10,    BLE_UUID128_DECLARE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ), },
         { 0 },
     };
 
@@ -493,12 +476,12 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
 {
     /* Retrieve enough services to require two transactions. */
     struct ble_gatt_disc_s_test_svc svcs[] = {
-        { 1, 5, 0,      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 6, 10, 0,     { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 11, 15, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 16, 20, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 21, 25, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 26, 30, 0,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
+        { 1, 5,   BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 6, 10,  BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 11, 15, BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 16, 20, BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 21, 25, BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 26, 30, BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
         { 0 },
     };
 
@@ -513,7 +496,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
                                  NULL, NULL);
 
     /* Initiate a discover all services procedure. */
-    rc = ble_gattc_disc_svc_by_uuid(1, svcs[0].uuid128,
+    rc = ble_gattc_disc_svc_by_uuid(1, svcs[0].uuid,
                                     ble_gatt_disc_s_test_misc_disc_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -573,8 +556,8 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
 TEST_CASE(ble_gatt_disc_s_test_oom_timeout)
 {
     struct ble_gatt_disc_s_test_svc svcs[] = {
-        { 1, 5, 0,      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, },
-        { 6, 10, 0,     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, },
+        { 1, 5,  BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
+        { 6, 10, BLE_UUID128_DECLARE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ), },
         { 0 },
     };
 

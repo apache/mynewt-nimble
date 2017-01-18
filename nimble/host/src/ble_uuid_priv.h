@@ -20,14 +20,19 @@
 #ifndef H_BLE_UUID_PRIV_
 #define H_BLE_UUID_PRIV_
 
+#include "host/ble_uuid.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct os_mbuf;
 
-int ble_uuid_append(struct os_mbuf *om, const void *uuid128);
-int ble_uuid_extract(struct os_mbuf *om, int off, void *uuid128);
+int ble_uuid_init_from_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om, int off, int len);
+int ble_uuid_to_any(const ble_uuid_t *uuid, ble_uuid_any_t *uuid_any);
+int ble_uuid_to_mbuf(const ble_uuid_t *uuid, struct os_mbuf *om);
+int ble_uuid_flat(const ble_uuid_t *uuid, void *dst);
+int ble_uuid_length(const ble_uuid_t *uuid);
 
 #ifdef __cplusplus
 }

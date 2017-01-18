@@ -46,13 +46,13 @@ ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
 
 static const struct ble_gatt_svc_def ble_gatts_read_test_svcs[] = { {
     .type = BLE_GATT_SVC_TYPE_PRIMARY,
-    .uuid128 = BLE_UUID16(0x1234),
+    .uuid = BLE_UUID16_DECLARE(0x1234),
     .characteristics = (struct ble_gatt_chr_def[]) { {
-        .uuid128 = BLE_UUID16(BLE_GATTS_READ_TEST_CHR_1_UUID),
+        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_READ_TEST_CHR_1_UUID),
         .access_cb = ble_gatts_read_test_util_access_1,
         .flags = BLE_GATT_CHR_F_READ
     }, {
-        .uuid128 = BLE_UUID16(BLE_GATTS_READ_TEST_CHR_2_UUID),
+        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_READ_TEST_CHR_2_UUID),
         .access_cb = ble_gatts_read_test_util_access_2,
         .flags = BLE_GATT_CHR_F_READ
     }, {
@@ -103,7 +103,7 @@ ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
     uint16_t uuid16;
 
     if (ctxt->op == BLE_GATT_REGISTER_OP_CHR) {
-        uuid16 = ble_uuid_128_to_16(ctxt->chr.chr_def->uuid128);
+        uuid16 = ble_uuid_u16(ctxt->chr.chr_def->uuid);
         switch (uuid16) {
         case BLE_GATTS_READ_TEST_CHR_1_UUID:
             ble_gatts_read_test_chr_1_def_handle = ctxt->chr.def_handle;
