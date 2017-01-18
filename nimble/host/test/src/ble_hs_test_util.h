@@ -55,15 +55,13 @@ struct ble_hs_test_util_mbuf_params {
 
 struct ble_hs_test_util_att_info_entry {
     uint16_t handle;        /* 0 on last entry */
-    uint16_t uuid16;        /* 0 if not present. */
-    uint8_t uuid128[16];
+    const ble_uuid_t *uuid;
 };
 
 struct ble_hs_test_util_att_group_type_entry {
     uint16_t start_handle;  /* 0 on last entry */
     uint16_t end_handle;    /* 0 on last entry */
-    uint16_t uuid16;        /* 0 if not present. */
-    uint8_t uuid128[16];
+    const ble_uuid_t *uuid;
 };
 
 #define BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(handle, pb, len) \
@@ -167,7 +165,7 @@ int ble_hs_test_util_rx_att_find_type_value_req(uint16_t conn_handle,
 int ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
                                           uint16_t start_handle,
                                           uint16_t end_handle,
-                                          const void *uuid128);
+                                          const ble_uuid_t *uuid);
 int ble_hs_test_util_rx_att_read_type_req16(uint16_t conn_handle,
                                             uint16_t start_handle,
                                             uint16_t end_handle,
@@ -183,7 +181,7 @@ int ble_hs_test_util_rx_att_read_mult_req(uint16_t conn_handle,
 int ble_hs_test_util_rx_att_read_group_type_req(uint16_t conn_handle,
                                                 uint16_t start_handle,
                                                 uint16_t end_handle,
-                                                const void *uuid128);
+                                                const ble_uuid_t *uuid);
 int ble_hs_test_util_rx_att_read_group_type_req16(uint16_t conn_handle,
                                                   uint16_t start_handle,
                                                   uint16_t end_handle,

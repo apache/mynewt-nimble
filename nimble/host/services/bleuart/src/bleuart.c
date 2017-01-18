@@ -23,6 +23,7 @@
 
 #include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
+#include "host/ble_uuid.h"
 #include "bleuart/bleuart.h"
 #include "os/endian.h"
 #include "console/console.h"
@@ -47,23 +48,20 @@ uint16_t g_console_conn_handle;
  */
 
 /* {6E400001-B5A3-F393-E0A9-E50E24DCCA9E} */
-const uint8_t gatt_svr_svc_uart[16] = {
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e
-};
+const ble_uuid128_t gatt_svr_svc_uart_uuid =
+    BLE_UUID128_INIT(0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
+                     0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e);
 
 /* {6E400002-B5A3-F393-E0A9-E50E24DCCA9E} */
-const uint8_t gatt_svr_chr_uart_write[16] = {
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x00, 0x40, 0x6e
-};
+const ble_uuid128_t gatt_svr_chr_uart_write_uuid =
+    BLE_UUID128_INIT(0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
+                     0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x00, 0x40, 0x6e);
 
 
 /* {6E400003-B5A3-F393-E0A9-E50E24DCCA9E} */
-const uint8_t gatt_svr_chr_uart_read[16] = {
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x03, 0x00, 0x40, 0x6e
-};
+const ble_uuid128_t gatt_svr_chr_uart_read_uuid =
+    BLE_UUID128_INIT(0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
+                     0x93, 0xf3, 0xa3, 0xb5, 0x03, 0x00, 0x40, 0x6e);
 
 static int
 gatt_svr_chr_access_uart_write(uint16_t conn_handle, uint16_t attr_handle,
@@ -73,15 +71,15 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     {
         /* Service: uart */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid128 = (void *)gatt_svr_svc_uart,
+        .uuid = &gatt_svr_svc_uart_uuid.u,
         .characteristics = (struct ble_gatt_chr_def[]) { {
-            .uuid128 = gatt_svr_chr_uart_read,
+            .uuid = &gatt_svr_chr_uart_read_uuid.u,
             .val_handle = &g_bleuart_attr_read_handle,
             .access_cb = gatt_svr_chr_access_uart_write,
             .flags = BLE_GATT_CHR_F_NOTIFY,
         }, {
             /* Characteristic: Write */
-            .uuid128 = (void *)gatt_svr_chr_uart_write,
+            .uuid = &gatt_svr_chr_uart_write_uuid.u,
             .access_cb = gatt_svr_chr_access_uart_write,
             .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
             .val_handle = &g_bleuart_attr_write_handle,

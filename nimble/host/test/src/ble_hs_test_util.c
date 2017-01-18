@@ -1019,11 +1019,10 @@ int
 ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
                                       uint16_t start_handle,
                                       uint16_t end_handle,
-                                      const void *uuid128)
+                                      const ble_uuid_t *uuid)
 {
     struct ble_att_read_type_req req;
     uint8_t buf[BLE_ATT_READ_TYPE_REQ_SZ_128];
-    uint16_t uuid16;
     int req_len;
     int rc;
 
@@ -1032,14 +1031,8 @@ ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
 
     ble_att_read_type_req_write(buf, sizeof buf, &req);
 
-    uuid16 = ble_uuid_128_to_16(uuid128);
-    if (uuid16 != 0) {
-        htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ, uuid16);
-        req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + 2;
-    } else {
-        memcpy(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ, uuid128, 16);
-        req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + 16;
-    }
+    ble_uuid_flat(uuid, buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ);
+    req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + ble_uuid_length(uuid);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, req_len);
@@ -1052,14 +1045,11 @@ ble_hs_test_util_rx_att_read_type_req16(uint16_t conn_handle,
                                         uint16_t end_handle,
                                         uint16_t uuid16)
 {
-    uint8_t uuid128[16];
     int rc;
 
-    rc = ble_uuid_16_to_128(uuid16, uuid128);
-    TEST_ASSERT_FATAL(rc == 0);
-
     rc = ble_hs_test_util_rx_att_read_type_req(conn_handle, start_handle,
-                                               end_handle, uuid128);
+                                               end_handle,
+                                               BLE_UUID16_DECLARE(uuid16));
     return rc;
 }
 
@@ -1123,25 +1113,18 @@ int
 ble_hs_test_util_rx_att_read_group_type_req(uint16_t conn_handle,
                                             uint16_t start_handle,
                                             uint16_t end_handle,
-                                            const void *uuid128)
+                                            const ble_uuid_t *uuid)
 {
     struct ble_att_read_group_type_req req;
     uint8_t buf[BLE_ATT_READ_GROUP_TYPE_REQ_SZ_128];
-    uint16_t uuid16;
     int req_len;
     int rc;
 
     req.bagq_start_handle = start_handle;
     req.bagq_end_handle = end_handle;
 
-    uuid16 = ble_uuid_128_to_16(uuid128);
-    if (uuid16 != 0) {
-        htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, uuid16);
-        req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + 2;
-    } else {
-        memcpy(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, uuid128, 16);
-        req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + 16;
-    }
+    ble_uuid_flat(uuid, buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ);
+    req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + ble_uuid_length(uuid);
 
     ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
@@ -1155,14 +1138,11 @@ ble_hs_test_util_rx_att_read_group_type_req16(uint16_t conn_handle,
                                               uint16_t end_handle,
                                               uint16_t uuid16)
 {
-    uint8_t uuid128[16];
     int rc;
 
-    rc = ble_uuid_16_to_128(uuid16, uuid128);
-    TEST_ASSERT_FATAL(rc == 0);
-
     rc = ble_hs_test_util_rx_att_read_group_type_req(conn_handle, start_handle,
-                                                     end_handle, uuid128);
+                                                     end_handle,
+                                                     BLE_UUID16_DECLARE(uuid16));
     return rc;
 }
 
@@ -1566,9 +1546,8 @@ ble_hs_test_util_verify_tx_find_info_rsp(
     struct ble_att_find_info_rsp rsp;
     struct os_mbuf *om;
     uint16_t handle;
-    uint16_t uuid16;
     uint8_t buf[BLE_ATT_FIND_INFO_RSP_BASE_SZ];
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
     int off;
     int rc;
 
@@ -1592,24 +1571,23 @@ ble_hs_test_util_verify_tx_find_info_rsp(
         handle = le16toh((void *)&handle);
         TEST_ASSERT(handle == entry->handle);
 
-        if (entry->uuid16 != 0) {
+        if (entry->uuid->type == BLE_UUID_TYPE_16) {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT);
-            rc = os_mbuf_copydata(om, off, 2, &uuid16);
+
+            ble_uuid_init_from_mbuf(&uuid, om, off, 2);
             TEST_ASSERT(rc == 0);
             off += 2;
-
-            uuid16 = le16toh((void *)&uuid16);
-            TEST_ASSERT(uuid16 == entry->uuid16);
         } else {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT);
-            rc = os_mbuf_copydata(om, off, 16, uuid128);
+
+            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 16);
             TEST_ASSERT(rc == 0);
             off += 16;
-
-            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
         }
+
+        TEST_ASSERT(ble_uuid_cmp(entry->uuid, &uuid.u) == 0);
     }
 
     /* Ensure there is no extra data in the response. */
@@ -1624,7 +1602,7 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
     struct ble_att_read_group_type_rsp rsp;
     struct os_mbuf *om;
     uint16_t u16;
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
     int off;
     int rc;
 
@@ -1636,7 +1614,7 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
 
     off = BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ;
     for (entry = entries; entry->start_handle != 0; entry++) {
-        if (entry->uuid16 != 0) {
+        if (entry->uuid->type == BLE_UUID_TYPE_16) {
             TEST_ASSERT(rsp.bagp_length ==
                         BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16);
         } else {
@@ -1656,18 +1634,16 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
         TEST_ASSERT(u16 == entry->end_handle);
         off += 2;
 
-        if (entry->uuid16 != 0) {
-            rc = os_mbuf_copydata(om, off, 2, &u16);
+        if (entry->uuid->type == BLE_UUID_TYPE_16) {
+            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 2);
             TEST_ASSERT(rc == 0);
-            htole16(&u16, u16);
-            TEST_ASSERT(u16 == entry->uuid16);
-            off += 2;
         } else {
-            rc = os_mbuf_copydata(om, off, 16, uuid128);
+            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 16);
             TEST_ASSERT(rc == 0);
-            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
-            off += 16;
         }
+
+        TEST_ASSERT(ble_uuid_cmp(&uuid.u, entry->uuid) == 0);
+        off += ble_uuid_length(&uuid.u);
     }
 
     /* Ensure there is no extra data in the response. */
