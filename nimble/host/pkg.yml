@@ -31,7 +31,7 @@ pkg.deps:
     - util/mem
 
 pkg.deps.BLE_SM_LEGACY:
-    - crypto/mbedtls
+    - crypto/tinycrypt
 
 pkg.deps.BLE_SM_SC:
     - crypto/tinycrypt
