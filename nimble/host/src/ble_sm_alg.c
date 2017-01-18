@@ -209,15 +209,15 @@ ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
     struct tc_aes_key_sched_struct sched;
     struct tc_cmac_struct state;
 
-    if (tc_cmac_setup(&state, key, &sched) == TC_FAIL) {
+    if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
-    if (tc_cmac_update(&state, in, len) == TC_FAIL) {
+    if (tc_cmac_update(&state, in, len) == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
-    if (tc_cmac_final(out, &state) == TC_FAIL) {
+    if (tc_cmac_final(out, &state) == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
@@ -432,7 +432,7 @@ ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
         return BLE_HS_EUNKNOWN;
     }
 
-    if (ecdh_shared_secret(dh, &pk, our_priv_key) == TC_FAIL) {
+    if (ecdh_shared_secret(dh, &pk, our_priv_key) == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
