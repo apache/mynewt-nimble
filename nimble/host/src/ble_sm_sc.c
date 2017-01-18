@@ -546,7 +546,7 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 void
-ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
                         struct ble_sm_result *res)
 {
     struct ble_sm_public_key *cmd;
@@ -760,7 +760,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
 }
 
 void
-ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **om,
                          struct ble_sm_result *res)
 {
     struct ble_sm_dhkey_check *cmd;

@@ -56,8 +56,8 @@
 
 STAILQ_HEAD(ble_sm_proc_list, ble_sm_proc);
 
-typedef void ble_sm_rx_fn(uint16_t conn_handle, uint8_t op,
-                          struct os_mbuf **om, struct ble_sm_result *res);
+typedef void ble_sm_rx_fn(uint16_t conn_handle, struct os_mbuf **om,
+                          struct ble_sm_result *res);
 
 static ble_sm_rx_fn ble_sm_rx_noop;
 static ble_sm_rx_fn ble_sm_pair_req_rx;
@@ -660,7 +660,7 @@ ble_sm_extract_expired(struct ble_sm_proc_list *dst_list)
 }
 
 static void
-ble_sm_rx_noop(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_rx_noop(uint16_t conn_handle, struct os_mbuf **om,
                struct ble_sm_result *res)
 {
     res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
@@ -1268,7 +1268,7 @@ ble_sm_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 static void
-ble_sm_random_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_random_rx(uint16_t conn_handle, struct os_mbuf **om,
                  struct ble_sm_result *res)
 {
     struct ble_sm_pair_random *cmd;
@@ -1317,7 +1317,7 @@ ble_sm_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 static void
-ble_sm_confirm_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_confirm_rx(uint16_t conn_handle, struct os_mbuf **om,
                   struct ble_sm_result *res)
 {
     struct ble_sm_pair_confirm *cmd;
@@ -1499,7 +1499,7 @@ err:
 }
 
 static void
-ble_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
                    struct ble_sm_result *res)
 {
     struct ble_sm_pair_cmd *req;
@@ -1558,7 +1558,7 @@ ble_sm_pair_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 }
 
 static void
-ble_sm_pair_rsp_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
                    struct ble_sm_result *res)
 {
     struct ble_sm_pair_cmd *rsp;
@@ -1631,7 +1631,7 @@ ble_sm_sec_req_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 static void
-ble_sm_sec_req_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
                   struct ble_sm_result *res)
 {
     struct ble_store_value_sec value_sec;
@@ -1894,7 +1894,7 @@ ble_sm_key_rxed(struct ble_sm_proc *proc, struct ble_sm_result *res)
 }
 
 static void
-ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_enc_info_rx(uint16_t conn_handle, struct os_mbuf **om,
                    struct ble_sm_result *res)
 {
     struct ble_sm_enc_info *cmd;
@@ -1928,7 +1928,7 @@ ble_sm_enc_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 }
 
 static void
-ble_sm_master_id_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_master_id_rx(uint16_t conn_handle, struct os_mbuf **om,
                     struct ble_sm_result *res)
 {
     struct ble_sm_master_id *cmd;
@@ -1964,7 +1964,7 @@ ble_sm_master_id_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 }
 
 static void
-ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_id_info_rx(uint16_t conn_handle, struct os_mbuf **om,
                   struct ble_sm_result *res)
 {
     struct ble_sm_id_info *cmd;
@@ -1999,7 +1999,7 @@ ble_sm_id_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 }
 
 static void
-ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_id_addr_info_rx(uint16_t conn_handle, struct os_mbuf **om,
                        struct ble_sm_result *res)
 {
     struct ble_sm_id_addr_info *cmd;
@@ -2035,7 +2035,7 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
 }
 
 static void
-ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sign_info_rx(uint16_t conn_handle, struct os_mbuf **om,
                     struct ble_sm_result *res)
 {
     struct ble_sm_sign_info *cmd;
@@ -2074,7 +2074,7 @@ ble_sm_sign_info_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
  *****************************************************************************/
 
 static void
-ble_sm_fail_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_fail_rx(uint16_t conn_handle, struct os_mbuf **om,
                struct ble_sm_result *res)
 {
     struct ble_sm_pair_fail *cmd;
@@ -2315,7 +2315,7 @@ ble_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
     if (rx_cb != NULL) {
         memset(&res, 0, sizeof res);
 
-        rx_cb(conn_handle, op, om, &res);
+        rx_cb(conn_handle, om, &res);
         ble_sm_process_result(conn_handle, &res);
         rc = res.app_status;
     } else {
