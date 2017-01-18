@@ -28,19 +28,14 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
-#include "mbedtls/aes.h"
-
-#if MYNEWT_VAL(BLE_SM_SC)
-
 #include "tinycrypt/aes.h"
 #include "tinycrypt/constants.h"
 #include "tinycrypt/utils.h"
+
+#if MYNEWT_VAL(BLE_SM_SC)
 #include "tinycrypt/cmac_mode.h"
 #include "tinycrypt/ecc_dh.h"
-
 #endif
-
-static mbedtls_aes_context ble_sm_alg_ctxt;
 
 static void
 ble_sm_alg_xor_128(uint8_t *p, uint8_t *q, uint8_t *r)
@@ -55,22 +50,20 @@ ble_sm_alg_xor_128(uint8_t *p, uint8_t *q, uint8_t *r)
 static int
 ble_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
 {
-    mbedtls_aes_init(&ble_sm_alg_ctxt);
+    struct tc_aes_key_sched_struct s;
     uint8_t tmp[16];
-    int rc;
 
     swap_buf(tmp, key, 16);
 
-    rc = mbedtls_aes_setkey_enc(&ble_sm_alg_ctxt, tmp, 128);
-    if (rc != 0) {
+    if (tc_aes128_set_encrypt_key(&s, tmp) == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
     swap_buf(tmp, plaintext, 16);
 
-    rc = mbedtls_aes_crypt_ecb(&ble_sm_alg_ctxt, MBEDTLS_AES_ENCRYPT,
-                               tmp, enc_data);
-    if (rc != 0) {
+
+
+    if (tc_aes_encrypt(enc_data, tmp, &s) == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
