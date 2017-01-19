@@ -1209,14 +1209,12 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
                         struct ble_ll_adv_sm *advsm)
 {
     int valid;
-    uint8_t pyld_len;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     uint8_t resolved;
 #endif
     uint8_t addr_type;
     uint8_t *inita;
     uint8_t *ident_addr;
-    uint32_t endtime;
 
     /* Check filter policy. */
     valid = 0;
@@ -1275,10 +1273,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 #endif
 
         /* Try to start slave connection. If successful, stop advertising */
-        pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-        endtime = hdr->beg_cputime +
-            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(pyld_len));
-        valid = ble_ll_conn_slave_start(rxbuf, endtime, addr_type, hdr);
+        valid = ble_ll_conn_slave_start(rxbuf, addr_type, hdr);
         if (valid) {
             ble_ll_adv_sm_stop(advsm);
         }

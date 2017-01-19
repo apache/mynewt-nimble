@@ -1770,11 +1770,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
  * @ return 0: connection NOT created. 1: connection created
  */
 static int
-ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime,
-                    struct ble_mbuf_hdr *rxhdr)
+ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     uint8_t *evbuf;
+    uint32_t endtime;
     uint32_t usecs;
 
     /* Set state to created */
@@ -1798,8 +1798,10 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime,
      * the transmit window offset from the end of the connection request.
      */
     rc = 1;
-    connsm->last_anchor_point = endtime;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        endtime = rxhdr->beg_cputime +
+            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(BLE_CONNECT_REQ_LEN));
+        connsm->last_anchor_point = endtime;
         connsm->slave_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
@@ -2169,9 +2171,7 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
     int8_t rpa_index;
 #endif
     uint8_t addr_type;
-    uint8_t payload_len;
     uint8_t *addr;
-    uint32_t endtime;
     struct ble_ll_conn_sm *connsm;
 
     /* Get the connection state machine we are trying to create */
@@ -2216,10 +2216,7 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
         /* Connection has been created. Stop scanning */
         g_ble_ll_conn_create_sm = NULL;
         ble_ll_scan_sm_stop(0);
-        payload_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-        endtime = ble_hdr->beg_cputime +
-            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(payload_len));
-        ble_ll_conn_created(connsm, endtime, NULL);
+        ble_ll_conn_created(connsm, NULL);
     } else {
         ble_ll_scan_chk_resume();
     }
@@ -3053,8 +3050,7 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
  * @return 0: connection not started; 1 connecton started
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat,
-                        struct ble_mbuf_hdr *rxhdr)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     uint32_t temp;
@@ -3147,8 +3143,7 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat,
 
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
-
-    rc = ble_ll_conn_created(connsm, conn_req_end, rxhdr);
+    rc = ble_ll_conn_created(connsm, rxhdr);
     if (!rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);

@@ -202,7 +202,7 @@ struct ble_ll_conn_sm
     uint16_t max_ce_len;
     uint16_t tx_win_off;
     uint32_t anchor_point;
-    uint32_t last_anchor_point;
+    uint32_t last_anchor_point;     /* Slave only */
     uint32_t slave_cur_tx_win_usecs;
     uint32_t slave_cur_window_widening;
     uint32_t last_rxd_pdu_cputime;  /* Used exclusively for supervision timer */
