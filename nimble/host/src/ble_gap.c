@@ -1351,6 +1351,43 @@ ble_gap_update_timer(void)
 }
 
 /**
+ * Configures a connection to use the specified GAP event callback.  A
+ * connection's GAP event callback is first specified when the connection is
+ * created, either via advertising or initiation.  This function replaces the
+ * callback that was last configured.
+ *
+ * @param conn_handle           The handle of the connection to configure.
+ * @param cb                    The callback to associate with the connection.
+ * @param cb_arg                An optional argument that the callback
+ *                                  receives.
+ * 
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if there is no connection with
+ *                                  the specified handle.
+ */
+int
+ble_gap_set_event_cb(uint16_t conn_handle, ble_gap_event_fn *cb, void *cb_arg)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        conn->bhc_cb = cb;
+        conn->bhc_cb_arg = cb_arg;
+    }
+
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    return 0;
+}
+
+/**
  * Handles timed-out GAP procedures.
  *
  * @return                      The number of ticks until this function should

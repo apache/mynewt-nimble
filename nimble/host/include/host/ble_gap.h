@@ -534,6 +534,8 @@ struct ble_gap_white_entry {
 };
 
 int ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc);
+int ble_gap_set_event_cb(uint16_t conn_handle,
+                         ble_gap_event_fn *cb, void *cb_arg);
 
 int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
                       const uint8_t *peer_addr, int32_t duration_ms,

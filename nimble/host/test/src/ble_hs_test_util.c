@@ -243,15 +243,16 @@ ble_hs_test_util_rx_hci_evt(uint8_t *evt)
     totlen = BLE_HCI_EVENT_HDR_LEN + evt[1];
     TEST_ASSERT_FATAL(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
 
-    if (os_started()) {
-        evbuf = ble_hci_trans_buf_alloc(
-            BLE_HCI_TRANS_BUF_EVT_LO);
-        TEST_ASSERT_FATAL(evbuf != NULL);
+    evbuf = ble_hci_trans_buf_alloc(
+        BLE_HCI_TRANS_BUF_EVT_LO);
+    TEST_ASSERT_FATAL(evbuf != NULL);
 
-        memcpy(evbuf, evt, totlen);
+    memcpy(evbuf, evt, totlen);
+
+    if (os_started()) {
         rc = ble_hci_trans_ll_evt_tx(evbuf);
     } else {
-        rc = ble_hs_hci_evt_process(evt);
+        rc = ble_hs_hci_evt_process(evbuf);
     }
 
     TEST_ASSERT_FATAL(rc == 0);
