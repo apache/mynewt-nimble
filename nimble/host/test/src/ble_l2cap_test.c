@@ -120,7 +120,6 @@ ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
 
     chan->scid = BLE_L2CAP_TEST_CID;
     chan->my_mtu = 240;
-    chan->default_mtu = 240;
     chan->rx_fn = ble_l2cap_test_util_dummy_rx;
 
     ble_hs_conn_chan_insert(conn, chan);

@@ -68,7 +68,6 @@ struct ble_l2cap_chan {
     uint16_t scid;
     uint16_t my_mtu;
     uint16_t peer_mtu;      /* 0 if not exchanged. */
-    uint16_t default_mtu;
     ble_l2cap_chan_flags flags;
 
     struct os_mbuf *rx_buf;
@@ -97,8 +96,7 @@ struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
-uint16_t ble_l2cap_chan_mtu(const struct ble_l2cap_chan *chan);
-
+bool ble_l2cap_is_mtu_req_sent(const struct ble_l2cap_chan *chan);
 
 int ble_l2cap_rx(struct ble_hs_conn *conn,
                  struct hci_data_hdr *hci_hdr,

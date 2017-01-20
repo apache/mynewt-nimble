@@ -81,25 +81,10 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
     STATS_INC(ble_l2cap_stats, chan_delete);
 }
 
-uint16_t
-ble_l2cap_chan_mtu(const struct ble_l2cap_chan *chan)
+bool
+ble_l2cap_is_mtu_req_sent(const struct ble_l2cap_chan *chan)
 {
-    uint16_t mtu;
-
-    /* If either side has not exchanged MTU size, use the default.  Otherwise,
-     * use the lesser of the two exchanged values.
-     */
-    if (!(chan->flags & BLE_L2CAP_CHAN_F_TXED_MTU) ||
-        chan->peer_mtu == 0) {
-
-        mtu = chan->default_mtu;
-    } else {
-        mtu = min(chan->my_mtu, chan->peer_mtu);
-    }
-
-    BLE_HS_DBG_ASSERT(mtu >= chan->default_mtu);
-
-    return mtu;
+    return (chan->flags & BLE_L2CAP_CHAN_F_TXED_MTU);
 }
 
 int

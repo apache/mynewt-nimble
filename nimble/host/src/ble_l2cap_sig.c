@@ -525,7 +525,6 @@ ble_l2cap_sig_create_chan(void)
 
     chan->scid = BLE_L2CAP_CID_SIG;
     chan->my_mtu = BLE_L2CAP_SIG_MTU;
-    chan->default_mtu = BLE_L2CAP_SIG_MTU;
     chan->rx_fn = ble_l2cap_sig_rx;
 
     return chan;

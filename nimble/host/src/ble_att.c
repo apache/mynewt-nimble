@@ -392,7 +392,7 @@ ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
     int32_t extra_len;
     uint16_t mtu;
 
-    mtu = ble_l2cap_chan_mtu(att_chan);
+    mtu = ble_att_chan_mtu(att_chan);
     extra_len = OS_MBUF_PKTLEN(txom) - mtu;
     if (extra_len > 0) {
         os_mbuf_adj(txom, -extra_len);
@@ -419,7 +419,7 @@ ble_att_mtu(uint16_t conn_handle)
 
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (chan != NULL) {
-        mtu = ble_l2cap_chan_mtu(chan);
+        mtu = ble_att_chan_mtu(chan);
     } else {
         mtu = 0;
     }
@@ -437,6 +437,27 @@ ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu)
     }
 
     chan->peer_mtu = peer_mtu;
+}
+
+uint16_t
+ble_att_chan_mtu(const struct ble_l2cap_chan *chan)
+{
+    uint16_t mtu;
+
+    /* If either side has not exchanged MTU size, use the default.  Otherwise,
+     * use the lesser of the two exchanged values.
+     */
+    if (!(ble_l2cap_is_mtu_req_sent(chan)) ||
+        chan->peer_mtu == 0) {
+
+        mtu = BLE_ATT_MTU_DFLT;
+    } else {
+        mtu = min(chan->my_mtu, chan->peer_mtu);
+    }
+
+    BLE_HS_DBG_ASSERT(mtu >= BLE_ATT_MTU_DFLT);
+
+    return mtu;
 }
 
 static int
@@ -541,7 +562,6 @@ ble_att_create_chan(void)
 
     chan->scid = BLE_L2CAP_CID_ATT;
     chan->my_mtu = ble_att_preferred_mtu_val;
-    chan->default_mtu = BLE_ATT_MTU_DFLT;
     chan->rx_fn = ble_att_rx;
 
     return chan;
