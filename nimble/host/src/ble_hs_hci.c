@@ -92,7 +92,7 @@ ble_hs_hci_rx_cmd_complete(uint8_t event_code, uint8_t *data, int len,
     }
 
     num_pkts = data[2];
-    opcode = le16toh(data + 3);
+    opcode = get_le16(data + 3);
     params = data + 5;
 
     /* XXX: Process num_pkts field. */
@@ -135,7 +135,7 @@ ble_hs_hci_rx_cmd_status(uint8_t event_code, uint8_t *data, int len,
 
     status = data[2];
     num_pkts = data[3];
-    opcode = le16toh(data + 4);
+    opcode = get_le16(data + 4);
 
     /* XXX: Process num_pkts field. */
     (void)num_pkts;
@@ -255,7 +255,7 @@ ble_hs_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
     uint16_t opcode;
     int rc;
 
-    opcode = le16toh(cmd);
+    opcode = get_le16(cmd);
 
     BLE_HS_DBG_ASSERT(ble_hs_hci_ack == NULL);
     ble_hs_hci_lock();
@@ -381,7 +381,7 @@ ble_hs_hci_acl_hdr_prepend(struct os_mbuf *om, uint16_t handle,
 
     hci_hdr.hdh_handle_pb_bc =
         ble_hs_hci_util_handle_pb_bc_join(handle, pb_flag, 0);
-    htole16(&hci_hdr.hdh_len, OS_MBUF_PKTHDR(om)->omp_len);
+    put_le16(&hci_hdr.hdh_len, OS_MBUF_PKTHDR(om)->omp_len);
 
     om2 = os_mbuf_prepend(om, sizeof hci_hdr);
     if (om2 == NULL) {
@@ -397,7 +397,7 @@ ble_hs_hci_acl_hdr_prepend(struct os_mbuf *om, uint16_t handle,
     memcpy(om->om_data, &hci_hdr, sizeof hci_hdr);
 
     BLE_HS_LOG(DEBUG, "host tx hci data; handle=%d length=%d\n", handle,
-               le16toh(&hci_hdr.hdh_len));
+               get_le16(&hci_hdr.hdh_len));
 
     return om;
 }

@@ -268,7 +268,7 @@ ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
     dst[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
     dst[1] = 3 + param_len;
     dst[2] = num_pkts;
-    htole16(dst + 3, opcode);
+    put_le16(dst + 3, opcode);
 }
 
 void
@@ -282,7 +282,7 @@ ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
     dst[1] = BLE_HCI_EVENT_CMD_STATUS_LEN;
     dst[2] = status;
     dst[3] = num_pkts;
-    htole16(dst + 4, opcode);
+    put_le16(dst + 4, opcode);
 }
 
 #define BLE_HS_TEST_UTIL_PHONY_ACK_MAX  64
@@ -458,7 +458,7 @@ ble_hs_test_util_verify_tx_disconnect(uint16_t handle, uint8_t reason)
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_DISCONNECT_CMD_LEN);
 
-    TEST_ASSERT(le16toh(param + 0) == handle);
+    TEST_ASSERT(get_le16(param + 0) == handle);
     TEST_ASSERT(param[2] == reason);
 }
 
@@ -473,18 +473,18 @@ ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp)
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CREATE_CONN_LEN);
 
-    TEST_ASSERT(le16toh(param + 0) == exp->scan_itvl);
-    TEST_ASSERT(le16toh(param + 2) == exp->scan_window);
+    TEST_ASSERT(get_le16(param + 0) == exp->scan_itvl);
+    TEST_ASSERT(get_le16(param + 2) == exp->scan_window);
     TEST_ASSERT(param[4] == exp->filter_policy);
     TEST_ASSERT(param[5] == exp->peer_addr_type);
     TEST_ASSERT(memcmp(param + 6, exp->peer_addr, 6) == 0);
     TEST_ASSERT(param[12] == exp->own_addr_type);
-    TEST_ASSERT(le16toh(param + 13) == exp->conn_itvl_min);
-    TEST_ASSERT(le16toh(param + 15) == exp->conn_itvl_max);
-    TEST_ASSERT(le16toh(param + 17) == exp->conn_latency);
-    TEST_ASSERT(le16toh(param + 19) == exp->supervision_timeout);
-    TEST_ASSERT(le16toh(param + 21) == exp->min_ce_len);
-    TEST_ASSERT(le16toh(param + 23) == exp->max_ce_len);
+    TEST_ASSERT(get_le16(param + 13) == exp->conn_itvl_min);
+    TEST_ASSERT(get_le16(param + 15) == exp->conn_itvl_max);
+    TEST_ASSERT(get_le16(param + 17) == exp->conn_latency);
+    TEST_ASSERT(get_le16(param + 19) == exp->supervision_timeout);
+    TEST_ASSERT(get_le16(param + 21) == exp->min_ce_len);
+    TEST_ASSERT(get_le16(param + 23) == exp->max_ce_len);
 }
 
 int
@@ -1101,7 +1101,7 @@ ble_hs_test_util_rx_att_read_mult_req(uint16_t conn_handle,
 
     off = BLE_ATT_READ_MULT_REQ_BASE_SZ;
     for (i = 0; i < num_handles; i++) {
-        htole16(buf + off, handles[i]);
+        put_le16(buf + off, handles[i]);
         off += 2;
     }
 
@@ -1370,11 +1370,11 @@ ble_hs_test_util_rx_num_completed_pkts_event(
 
     off = 3;
     for (i = 0; i < num_entries; i++) {
-        htole16(buf + off, entries[i].handle_id);
+        put_le16(buf + off, entries[i].handle_id);
         off += 2;
     }
     for (i = 0; i < num_entries; i++) {
-        htole16(buf + off, entries[i].num_pkts);
+        put_le16(buf + off, entries[i].num_pkts);
         off += 2;
     }
 
@@ -1391,7 +1391,7 @@ ble_hs_test_util_rx_disconn_complete_event(struct hci_disconn_complete *evt)
     buf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
     buf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
     buf[2] = evt->status;
-    htole16(buf + 3, evt->connection_handle);
+    put_le16(buf + 3, evt->connection_handle);
     buf[5] = evt->reason;
 
     ble_hs_test_util_rx_hci_evt(buf);
@@ -1407,7 +1407,7 @@ ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
     cmd = ble_hs_test_util_get_first_hci_tx();
     TEST_ASSERT_FATAL(cmd != NULL);
 
-    opcode = le16toh(cmd);
+    opcode = get_le16(cmd);
     TEST_ASSERT(BLE_HCI_OGF(opcode) == ogf);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == ocf);
 
@@ -1569,7 +1569,7 @@ ble_hs_test_util_verify_tx_find_info_rsp(
         TEST_ASSERT(rc == 0);
         off += 2;
 
-        handle = le16toh((void *)&handle);
+        handle = get_le16((void *)&handle);
         TEST_ASSERT(handle == entry->handle);
 
         if (entry->uuid->type == BLE_UUID_TYPE_16) {
@@ -1625,13 +1625,13 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
 
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
-        htole16(&u16, u16);
+        put_le16(&u16, u16);
         TEST_ASSERT(u16 == entry->start_handle);
         off += 2;
 
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
-        htole16(&u16, u16);
+        put_le16(&u16, u16);
         TEST_ASSERT(u16 == entry->end_handle);
         off += 2;
 

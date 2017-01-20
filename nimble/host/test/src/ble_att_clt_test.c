@@ -126,7 +126,7 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
-    htole16(buf + off, 1);
+    put_le16(buf + off, 1);
     off += 2;
     memcpy(buf + off, uuid128_1, 16);
     off += 16;
@@ -142,9 +142,9 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
-    htole16(buf + off, 2);
+    put_le16(buf + off, 2);
     off += 2;
-    htole16(buf + off, 0x000f);
+    put_le16(buf + off, 0x000f);
     off += 2;
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
@@ -158,14 +158,14 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
     ble_att_find_info_rsp_write(buf + off, sizeof buf - off, &rsp);
     off += BLE_ATT_FIND_INFO_RSP_BASE_SZ;
 
-    htole16(buf + off, 3);
+    put_le16(buf + off, 3);
     off += 2;
-    htole16(buf + off, 0x0010);
+    put_le16(buf + off, 0x0010);
     off += 2;
 
-    htole16(buf + off, 4);
+    put_le16(buf + off, 4);
     off += 2;
-    htole16(buf + off, 0x0011);
+    put_le16(buf + off, 0x0011);
     off += 2;
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
@@ -407,8 +407,8 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     TEST_ASSERT(om->om_len == BLE_ATT_READ_MULT_REQ_BASE_SZ + 4);
 
     ble_att_read_mult_req_parse(om->om_data, om->om_len);
-    TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ) == 1);
-    TEST_ASSERT(le16toh(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ + 2) == 2);
+    TEST_ASSERT(get_le16(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ) == 1);
+    TEST_ASSERT(get_le16(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ + 2) == 2);
 
     /*** Error: no handles. */
     rc = ble_att_clt_tx_read_mult(conn_handle, NULL, 0);
@@ -425,7 +425,7 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
 
     /*** Basic success. */
     ble_att_read_mult_rsp_write(buf, sizeof buf);
-    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
+    put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
         conn_handle, BLE_L2CAP_CID_ATT, buf,
@@ -433,9 +433,9 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
     TEST_ASSERT(rc == 0);
 
     /*** Larger response. */
-    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
-    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 2, 43);
-    htole16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 4, 91);
+    put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
+    put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 2, 43);
+    put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 4, 91);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
         conn_handle, BLE_L2CAP_CID_ATT, buf,
         BLE_ATT_READ_MULT_RSP_BASE_SZ + 6);

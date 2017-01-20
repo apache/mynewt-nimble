@@ -33,7 +33,7 @@ ble_hs_adv_test_misc_verify_tx_adv_data_hdr(uint8_t *cmd, int data_len)
 {
     uint16_t opcode;
 
-    opcode = le16toh(cmd + 0);
+    opcode = get_le16(cmd + 0);
     TEST_ASSERT(BLE_HCI_OGF(opcode) == BLE_HCI_OGF_LE);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == BLE_HCI_OCF_LE_SET_ADV_DATA);
 
@@ -46,7 +46,7 @@ ble_hs_adv_test_misc_verify_tx_rsp_data_hdr(uint8_t *cmd, int data_len)
 {
     uint16_t opcode;
 
-    opcode = le16toh(cmd + 0);
+    opcode = get_le16(cmd + 0);
     TEST_ASSERT(BLE_HCI_OGF(opcode) == BLE_HCI_OGF_LE);
     TEST_ASSERT(BLE_HCI_OCF(opcode) == BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA);
 

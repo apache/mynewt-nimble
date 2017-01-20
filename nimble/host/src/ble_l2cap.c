@@ -113,8 +113,8 @@ ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
         return BLE_HS_EMSGSIZE;
     }
 
-    l2cap_hdr->blh_len = le16toh(&l2cap_hdr->blh_len);
-    l2cap_hdr->blh_cid = le16toh(&l2cap_hdr->blh_cid);
+    l2cap_hdr->blh_len = get_le16(&l2cap_hdr->blh_len);
+    l2cap_hdr->blh_cid = get_le16(&l2cap_hdr->blh_cid);
 
     return 0;
 }
@@ -124,8 +124,8 @@ ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid, uint16_t len)
 {
     struct ble_l2cap_hdr hdr;
 
-    htole16(&hdr.blh_len, len);
-    htole16(&hdr.blh_cid, cid);
+    put_le16(&hdr.blh_len, len);
+    put_le16(&hdr.blh_cid, cid);
 
     om = os_mbuf_prepend_pullup(om, sizeof hdr);
     if (om == NULL) {

@@ -113,7 +113,7 @@ ble_hs_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
         return BLE_HS_ECONTROLLER;
     }
 
-    params_conn_handle = le16toh(params + 0);
+    params_conn_handle = get_le16(params + 0);
     if (params_conn_handle != conn_handle) {
         return BLE_HS_ECONTROLLER;
     }
@@ -167,7 +167,7 @@ ble_hs_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
         return BLE_HS_ECONTROLLER;
     }
 
-    params_conn_handle = le16toh(params + 0);
+    params_conn_handle = get_le16(params + 0);
     if (params_conn_handle != conn_handle) {
         return BLE_HS_ECONTROLLER;
     }
@@ -189,8 +189,8 @@ ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
     /* Strip HCI ACL data header from the front of the packet. */
     os_mbuf_adj(om, BLE_HCI_DATA_HDR_SZ);
 
-    out_hdr->hdh_handle_pb_bc = le16toh(&out_hdr->hdh_handle_pb_bc);
-    out_hdr->hdh_len = le16toh(&out_hdr->hdh_len);
+    out_hdr->hdh_handle_pb_bc = get_le16(&out_hdr->hdh_handle_pb_bc);
+    out_hdr->hdh_len = get_le16(&out_hdr->hdh_len);
 
     return 0;
 }

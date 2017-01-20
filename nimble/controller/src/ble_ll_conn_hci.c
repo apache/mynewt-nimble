@@ -136,15 +136,15 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
     dptr += (2 * BLE_DEV_ADDR_LEN);
 
     /* Access address */
-    htole32(dptr, connsm->access_addr);
+    put_le32(dptr, connsm->access_addr);
     dptr[4] = (uint8_t)connsm->crcinit;
     dptr[5] = (uint8_t)(connsm->crcinit >> 8);
     dptr[6] = (uint8_t)(connsm->crcinit >> 16);
     dptr[7] = connsm->tx_win_size;
-    htole16(dptr + 8, connsm->tx_win_off);
-    htole16(dptr + 10, connsm->conn_itvl);
-    htole16(dptr + 12, connsm->slave_latency);
-    htole16(dptr + 14, connsm->supervision_tmo);
+    put_le16(dptr + 8, connsm->tx_win_off);
+    put_le16(dptr + 10, connsm->conn_itvl);
+    put_le16(dptr + 12, connsm->slave_latency);
+    put_le16(dptr + 14, connsm->supervision_tmo);
     memcpy(dptr + 16, &connsm->chanmap, BLE_LL_CONN_CHMAP_LEN);
     dptr[21] = connsm->hop_inc | (connsm->master_sca << 5);
 }
@@ -180,7 +180,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
         evbuf[3] = status;
 
         if (connsm) {
-            htole16(evbuf + 4, connsm->conn_handle);
+            put_le16(evbuf + 4, connsm->conn_handle);
 
             evbuf[6] = connsm->conn_role - 1;
             peer_addr_type = connsm->peer_addr_type;
@@ -219,9 +219,9 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             evbuf[7] = peer_addr_type;
             memcpy(evbuf + 8, connsm->peer_addr, BLE_DEV_ADDR_LEN);
 
-            htole16(evdata, connsm->conn_itvl);
-            htole16(evdata + 2, connsm->slave_latency);
-            htole16(evdata + 4, connsm->supervision_tmo);
+            put_le16(evdata, connsm->conn_itvl);
+            put_le16(evdata + 2, connsm->slave_latency);
+            put_le16(evdata + 4, connsm->supervision_tmo);
             evdata[6] = connsm->master_sca;
         }
         ble_ll_hci_event_send(evbuf);
@@ -273,8 +273,8 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
                 evbuf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
                 evbuf[1] = (2 * sizeof(uint16_t)) + 1;
                 evbuf[2] = 1;
-                htole16(evbuf + 3, connsm->conn_handle);
-                htole16(evbuf + 5, connsm->completed_pkts);
+                put_le16(evbuf + 3, connsm->conn_handle);
+                put_le16(evbuf + 5, connsm->completed_pkts);
                 ble_ll_hci_event_send(evbuf);
                 connsm->completed_pkts = 0;
             }
@@ -307,8 +307,8 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
             }
 
             /* Add handle and complete packets */
-            htole16(handle_ptr, connsm->conn_handle);
-            htole16(comp_pkt_ptr, connsm->completed_pkts);
+            put_le16(handle_ptr, connsm->conn_handle);
+            put_le16(comp_pkt_ptr, connsm->completed_pkts);
             connsm->completed_pkts = 0;
             handle_ptr += sizeof(uint16_t);
             comp_pkt_ptr += sizeof(uint16_t);
@@ -365,7 +365,7 @@ ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm)
         if (evbuf) {
             evbuf[0] = BLE_HCI_EVCODE_AUTH_PYLD_TMO;
             evbuf[1] = sizeof(uint16_t);
-            htole16(evbuf + 2, connsm->conn_handle);
+            put_le16(evbuf + 2, connsm->conn_handle);
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -391,7 +391,7 @@ ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
             evbuf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
             evbuf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
             evbuf[2] = BLE_ERR_SUCCESS;
-            htole16(evbuf + 3, connsm->conn_handle);
+            put_le16(evbuf + 3, connsm->conn_handle);
             evbuf[5] = reason;
             ble_ll_hci_event_send(evbuf);
         }
@@ -427,8 +427,8 @@ ble_ll_conn_create(uint8_t *cmdbuf)
 
     /* Retrieve command data */
     hcc = &ccdata;
-    hcc->scan_itvl = le16toh(cmdbuf);
-    hcc->scan_window = le16toh(cmdbuf + 2);
+    hcc->scan_itvl = get_le16(cmdbuf);
+    hcc->scan_window = get_le16(cmdbuf + 2);
 
     /* Check interval and window */
     if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) ||
@@ -462,10 +462,10 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     }
 
     /* Check connection interval, latency and supervision timeoout */
-    hcc->conn_itvl_min = le16toh(cmdbuf + 13);
-    hcc->conn_itvl_max = le16toh(cmdbuf + 15);
-    hcc->conn_latency = le16toh(cmdbuf + 17);
-    hcc->supervision_timeout = le16toh(cmdbuf + 19);
+    hcc->conn_itvl_min = get_le16(cmdbuf + 13);
+    hcc->conn_itvl_max = get_le16(cmdbuf + 15);
+    hcc->conn_latency = get_le16(cmdbuf + 17);
+    hcc->supervision_timeout = get_le16(cmdbuf + 19);
     rc = ble_ll_conn_hci_chk_conn_params(hcc->conn_itvl_min,
                                          hcc->conn_itvl_max,
                                          hcc->conn_latency,
@@ -475,8 +475,8 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     }
 
     /* Min/max connection event lengths */
-    hcc->min_ce_len = le16toh(cmdbuf + 21);
-    hcc->max_ce_len = le16toh(cmdbuf + 23);
+    hcc->min_ce_len = get_le16(cmdbuf + 21);
+    hcc->max_ce_len = get_le16(cmdbuf + 23);
     if (hcc->min_ce_len > hcc->max_ce_len) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -521,12 +521,12 @@ ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
     hcu->handle = connsm->conn_handle;
-    hcu->conn_itvl_min = le16toh(cmdbuf + 2);
-    hcu->conn_itvl_max = le16toh(cmdbuf + 4);
-    hcu->conn_latency = le16toh(cmdbuf + 6);
-    hcu->supervision_timeout = le16toh(cmdbuf + 8);
-    hcu->min_ce_len = le16toh(cmdbuf + 10);
-    hcu->max_ce_len = le16toh(cmdbuf + 12);
+    hcu->conn_itvl_min = get_le16(cmdbuf + 2);
+    hcu->conn_itvl_max = get_le16(cmdbuf + 4);
+    hcu->conn_latency = get_le16(cmdbuf + 6);
+    hcu->supervision_timeout = get_le16(cmdbuf + 8);
+    hcu->min_ce_len = get_le16(cmdbuf + 10);
+    hcu->max_ce_len = get_le16(cmdbuf + 12);
 
     /* Check that parameter values are in range */
     rc = ble_ll_conn_hci_chk_conn_params(hcu->conn_itvl_min,
@@ -556,7 +556,7 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
     struct ble_ll_conn_sm *connsm;
 
     /* If no connection handle exit with error */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
@@ -601,7 +601,7 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
      */
 
     /* If no connection handle exit with error */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
@@ -654,12 +654,12 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
     hcu->handle = handle;
-    hcu->conn_itvl_min = le16toh(cmdbuf + 2);
-    hcu->conn_itvl_max = le16toh(cmdbuf + 4);
-    hcu->conn_latency = le16toh(cmdbuf + 6);
-    hcu->supervision_timeout = le16toh(cmdbuf + 8);
-    hcu->min_ce_len = le16toh(cmdbuf + 10);
-    hcu->max_ce_len = le16toh(cmdbuf + 12);
+    hcu->conn_itvl_min = get_le16(cmdbuf + 2);
+    hcu->conn_itvl_max = get_le16(cmdbuf + 4);
+    hcu->conn_latency = get_le16(cmdbuf + 6);
+    hcu->supervision_timeout = get_le16(cmdbuf + 8);
+    hcu->min_ce_len = get_le16(cmdbuf + 10);
+    hcu->max_ce_len = get_le16(cmdbuf + 12);
     if (hcu->min_ce_len > hcu->max_ce_len) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -695,7 +695,7 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
     }
 
     /* If no connection handle exit with error */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
 
     /* If we dont have a handle we cant do anything */
     connsm = ble_ll_conn_find_active_conn(handle);
@@ -796,7 +796,7 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
     struct ble_ll_conn_sm *connsm;
 
     /* Check for valid parameters */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     reason = cmdbuf[2];
 
     rc = BLE_ERR_INV_HCI_CMD_PARMS;
@@ -855,7 +855,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf)
     struct ble_ll_conn_sm *connsm;
 
     /* Check for valid parameters */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
@@ -899,7 +899,7 @@ ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
 
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rssi = 127;
@@ -909,7 +909,7 @@ ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         rc = BLE_ERR_SUCCESS;
     }
 
-    htole16(rspbuf, handle);
+    put_le16(rspbuf, handle);
     rspbuf[2] = (uint8_t)rssi;
     *rsplen = 3;
 
@@ -933,7 +933,7 @@ ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
 
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
@@ -946,7 +946,7 @@ ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         rc = BLE_ERR_SUCCESS;
     }
 
-    htole16(rspbuf, handle);
+    put_le16(rspbuf, handle);
     *rsplen = sizeof(uint16_t) + BLE_LL_CONN_CHMAP_LEN;
     return rc;
 }
@@ -991,13 +991,13 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     struct ble_ll_conn_sm *connsm;
 
     /* Find connection */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
     } else {
-        txoctets = le16toh(cmdbuf + 2);
-        txtime = le16toh(cmdbuf + 4);
+        txoctets = get_le16(cmdbuf + 2);
+        txtime = get_le16(cmdbuf + 4);
 
         /* Make sure it is valid */
         if (!ble_ll_chk_txrx_octets(txoctets) ||
@@ -1015,7 +1015,7 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
          */
     }
 
-    htole16(rspbuf, handle);
+    put_le16(rspbuf, handle);
     *rsplen = sizeof(uint16_t);
     return rc;
 }
@@ -1036,7 +1036,7 @@ ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf)
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
 
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
@@ -1051,8 +1051,8 @@ ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf)
         rc = BLE_ERR_CMD_DISALLOWED;
     } else {
         /* Start the control procedure */
-        connsm->enc_data.host_rand_num = le64toh(cmdbuf + 2);
-        connsm->enc_data.enc_div = le16toh(cmdbuf + 10);
+        connsm->enc_data.host_rand_num = get_le64(cmdbuf + 2);
+        connsm->enc_data.enc_div = get_le16(cmdbuf + 10);
         swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 12, 16);
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
         rc = BLE_ERR_SUCCESS;
@@ -1080,7 +1080,7 @@ ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf)
     struct ble_ll_conn_sm *connsm;
 
     /* Find connection handle */
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
@@ -1109,7 +1109,7 @@ ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf)
     rc = BLE_ERR_SUCCESS;
 
 ltk_key_cmd_complete:
-    htole16(rspbuf, handle);
+    put_le16(rspbuf, handle);
     return rc;
 }
 #endif
@@ -1130,16 +1130,16 @@ ble_ll_conn_hci_rd_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
 
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
     } else {
-        htole16(rsp + 2, connsm->auth_pyld_tmo);
+        put_le16(rsp + 2, connsm->auth_pyld_tmo);
         rc = BLE_ERR_SUCCESS;
     }
 
-    htole16(rsp, handle);
+    put_le16(rsp, handle);
     *rsplen = BLE_HCI_RD_AUTH_PYLD_TMO_LEN;
     return rc;
 }
@@ -1163,7 +1163,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
 
     rc = BLE_ERR_SUCCESS;
 
-    handle = le16toh(cmdbuf);
+    handle = get_le16(cmdbuf);
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
@@ -1174,7 +1174,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
      * The timeout is in units of 10 msecs. We need to make sure that the
      * timeout is greater than or equal to connItvl * (1 + slaveLatency)
      */
-    tmo = le16toh(cmdbuf + 2);
+    tmo = get_le16(cmdbuf + 2);
     min_tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     min_tmo *= (connsm->slave_latency + 1);
     min_tmo /= 10000;
@@ -1189,7 +1189,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
     }
 
 wr_auth_exit:
-    htole16(rsp, handle);
+    put_le16(rsp, handle);
     *rsplen = BLE_HCI_WR_AUTH_PYLD_TMO_LEN;
     return rc;
 }

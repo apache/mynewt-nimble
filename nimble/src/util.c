@@ -20,7 +20,7 @@
 #include "nimble/ble.h"
 
 void
-htole16(void *buf, uint16_t x)
+put_le16(void *buf, uint16_t x)
 {
     uint8_t *u8ptr;
 
@@ -30,7 +30,7 @@ htole16(void *buf, uint16_t x)
 }
 
 void
-htole32(void *buf, uint32_t x)
+put_le32(void *buf, uint32_t x)
 {
     uint8_t *u8ptr;
 
@@ -42,7 +42,7 @@ htole32(void *buf, uint32_t x)
 }
 
 void
-htole64(void *buf, uint64_t x)
+put_le64(void *buf, uint64_t x)
 {
     uint8_t *u8ptr;
 
@@ -58,7 +58,7 @@ htole64(void *buf, uint64_t x)
 }
 
 uint16_t
-le16toh(const void *buf)
+get_le16(const void *buf)
 {
     const uint8_t *u8ptr;
     uint16_t x;
@@ -71,7 +71,7 @@ le16toh(const void *buf)
 }
 
 uint32_t
-le32toh(const void *buf)
+get_le32(const void *buf)
 {
     const uint8_t *u8ptr;
     uint32_t x;
@@ -86,7 +86,7 @@ le32toh(const void *buf)
 }
 
 uint64_t
-le64toh(const void *buf)
+get_le64(const void *buf)
 {
     const uint8_t *u8ptr;
     uint64_t x;
@@ -105,7 +105,7 @@ le64toh(const void *buf)
 }
 
 void
-htobe16(void *buf, uint16_t x)
+put_be16(void *buf, uint16_t x)
 {
     uint8_t *u8ptr;
 
@@ -115,7 +115,7 @@ htobe16(void *buf, uint16_t x)
 }
 
 void
-htobe32(void *buf, uint32_t x)
+put_be32(void *buf, uint32_t x)
 {
     uint8_t *u8ptr;
 
@@ -127,7 +127,7 @@ htobe32(void *buf, uint32_t x)
 }
 
 void
-htobe64(void *buf, uint64_t x)
+put_be64(void *buf, uint64_t x)
 {
     uint8_t *u8ptr;
 
@@ -143,7 +143,7 @@ htobe64(void *buf, uint64_t x)
 }
 
 uint16_t
-be16toh(const void *buf)
+get_be16(const void *buf)
 {
     const uint8_t *u8ptr;
     uint16_t x;
@@ -156,7 +156,7 @@ be16toh(const void *buf)
 }
 
 uint32_t
-be32toh(const void *buf)
+get_be32(const void *buf)
 {
     const uint8_t *u8ptr;
     uint32_t x;
@@ -171,7 +171,7 @@ be32toh(const void *buf)
 }
 
 uint64_t
-be64toh(const void *buf)
+get_be64(const void *buf)
 {
     const uint8_t *u8ptr;
     uint64_t x;

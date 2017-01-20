@@ -45,7 +45,7 @@ static uint8_t ble_eddystone_svc_data[BLE_EDDYSTONE_MAX_SVC_DATA_LEN];
 static void *
 ble_eddystone_set_svc_data_base(uint8_t frame_type)
 {
-    htole16(ble_eddystone_svc_data, BLE_EDDYSTONE_SERVICE_UUID);
+    put_le16(ble_eddystone_svc_data, BLE_EDDYSTONE_SERVICE_UUID);
     ble_eddystone_svc_data[2] = frame_type;
 
     return ble_eddystone_svc_data + BLE_EDDYSTONE_SVC_DATA_BASE_SZ;

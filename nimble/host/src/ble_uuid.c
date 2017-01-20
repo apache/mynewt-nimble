@@ -55,11 +55,11 @@ ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len)
     switch (len) {
     case 2:
         uuid->u.type = BLE_UUID_TYPE_16;
-        uuid->u16.value = le16toh(buf);
+        uuid->u16.value = get_le16(buf);
         return 0;
     case 4:
         uuid->u.type = BLE_UUID_TYPE_32;
-        uuid->u32.value = le32toh(buf);
+        uuid->u32.value = get_le32(buf);
         return 0;
     case 16:
         uuid->u.type = BLE_UUID_TYPE_128;
@@ -199,11 +199,11 @@ ble_uuid_flat(const ble_uuid_t *uuid, void *dst)
 
     switch (uuid->type) {
     case BLE_UUID_TYPE_16:
-        htole16(dst, BLE_UUID16(uuid)->value);
+        put_le16(dst, BLE_UUID16(uuid)->value);
         break;
     case BLE_UUID_TYPE_32:
         memcpy(dst, ble_uuid_base, 16);
-        htole32(dst + 12, BLE_UUID32(uuid)->value);
+        put_le32(dst + 12, BLE_UUID32(uuid)->value);
         break;
     case BLE_UUID_TYPE_128:
         memcpy(dst, BLE_UUID128(uuid)->value, 16);

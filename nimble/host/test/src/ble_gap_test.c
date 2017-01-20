@@ -181,8 +181,8 @@ ble_gap_test_util_verify_tx_set_scan_params(uint8_t own_addr_type,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_SCAN_PARAM_LEN);
     TEST_ASSERT(param[0] == scan_type);
-    TEST_ASSERT(le16toh(param + 1) == itvl);
-    TEST_ASSERT(le16toh(param + 3) == scan_window);
+    TEST_ASSERT(get_le16(param + 1) == itvl);
+    TEST_ASSERT(get_le16(param + 3) == scan_window);
     TEST_ASSERT(param[5] == own_addr_type);
     TEST_ASSERT(param[6] == filter_policy);
 }
@@ -223,7 +223,7 @@ ble_gap_test_util_verify_tx_disconnect(void)
                                            BLE_HCI_OCF_DISCONNECT_CMD,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_DISCONNECT_CMD_LEN);
-    TEST_ASSERT(le16toh(param + 0) == 2);
+    TEST_ASSERT(get_le16(param + 0) == 2);
     TEST_ASSERT(param[2] == BLE_ERR_REM_USER_CONN_TERM);
 }
 
@@ -286,13 +286,13 @@ ble_gap_test_util_verify_tx_update_conn(struct ble_gap_upd_params *params)
                                            BLE_HCI_OCF_LE_CONN_UPDATE,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_UPDATE_LEN);
-    TEST_ASSERT(le16toh(param + 0) == 2);
-    TEST_ASSERT(le16toh(param + 2) == params->itvl_min);
-    TEST_ASSERT(le16toh(param + 4) == params->itvl_max);
-    TEST_ASSERT(le16toh(param + 6) == params->latency);
-    TEST_ASSERT(le16toh(param + 8) == params->supervision_timeout);
-    TEST_ASSERT(le16toh(param + 10) == params->min_ce_len);
-    TEST_ASSERT(le16toh(param + 12) == params->max_ce_len);
+    TEST_ASSERT(get_le16(param + 0) == 2);
+    TEST_ASSERT(get_le16(param + 2) == params->itvl_min);
+    TEST_ASSERT(get_le16(param + 4) == params->itvl_max);
+    TEST_ASSERT(get_le16(param + 6) == params->latency);
+    TEST_ASSERT(get_le16(param + 8) == params->supervision_timeout);
+    TEST_ASSERT(get_le16(param + 10) == params->min_ce_len);
+    TEST_ASSERT(get_le16(param + 12) == params->max_ce_len);
 }
 
 static void
@@ -305,15 +305,15 @@ ble_gap_test_util_verify_tx_params_reply_pos(void)
                                            BLE_HCI_OCF_LE_REM_CONN_PARAM_RR,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_PARAM_REPLY_LEN);
-    TEST_ASSERT(le16toh(param + 0) == 2);
-    TEST_ASSERT(le16toh(param + 2) == ble_gap_test_conn_self_params.itvl_min);
-    TEST_ASSERT(le16toh(param + 4) == ble_gap_test_conn_self_params.itvl_max);
-    TEST_ASSERT(le16toh(param + 6) == ble_gap_test_conn_self_params.latency);
-    TEST_ASSERT(le16toh(param + 8) ==
+    TEST_ASSERT(get_le16(param + 0) == 2);
+    TEST_ASSERT(get_le16(param + 2) == ble_gap_test_conn_self_params.itvl_min);
+    TEST_ASSERT(get_le16(param + 4) == ble_gap_test_conn_self_params.itvl_max);
+    TEST_ASSERT(get_le16(param + 6) == ble_gap_test_conn_self_params.latency);
+    TEST_ASSERT(get_le16(param + 8) ==
                 ble_gap_test_conn_self_params.supervision_timeout);
-    TEST_ASSERT(le16toh(param + 10) ==
+    TEST_ASSERT(get_le16(param + 10) ==
                 ble_gap_test_conn_self_params.min_ce_len);
-    TEST_ASSERT(le16toh(param + 12) ==
+    TEST_ASSERT(get_le16(param + 12) ==
                 ble_gap_test_conn_self_params.max_ce_len);
 }
 
@@ -327,7 +327,7 @@ ble_gap_test_util_verify_tx_params_reply_neg(uint8_t reason)
                                            BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN);
-    TEST_ASSERT(le16toh(param + 0) == 2);
+    TEST_ASSERT(get_le16(param + 0) == 2);
     TEST_ASSERT(param[2] == reason);
 }
 
@@ -1533,8 +1533,8 @@ ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
     TEST_ASSERT_FATAL(hci_buf != NULL);
     TEST_ASSERT_FATAL(hci_param_len == BLE_HCI_SET_ADV_PARAM_LEN);
 
-    hci_cmd.adv_itvl_min = le16toh(hci_buf + 0);
-    hci_cmd.adv_itvl_max = le16toh(hci_buf + 2);
+    hci_cmd.adv_itvl_min = get_le16(hci_buf + 0);
+    hci_cmd.adv_itvl_max = get_le16(hci_buf + 2);
     hci_cmd.adv_type = hci_buf[4];
     hci_cmd.own_addr_type = hci_buf[5];
     hci_cmd.peer_addr_type = hci_buf[6];

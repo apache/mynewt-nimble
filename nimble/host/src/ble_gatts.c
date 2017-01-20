@@ -121,8 +121,8 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
     if (buf == NULL) {
         return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
-    htole16(buf + 0, entry->handle);
-    htole16(buf + 2, entry->end_group_handle);
+    put_le16(buf + 0, entry->handle);
+    put_le16(buf + 2, entry->end_group_handle);
 
     /* Only include the service UUID if it has a 16-bit representation. */
     uuid16 = ble_uuid_u16(entry->svc->uuid);
@@ -131,7 +131,7 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
         if (buf == NULL) {
             return BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-        htole16(buf, uuid16);
+        put_le16(buf, uuid16);
     }
 
     return 0;
@@ -246,7 +246,7 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
     buf[0] = ble_gatts_chr_properties(chr);
 
     /* The value attribute is always immediately after the declaration. */
-    htole16(buf + 1, attr_handle + 1);
+    put_le16(buf + 1, attr_handle + 1);
 
     buf = os_mbuf_extend(*om, ble_uuid_length(chr->uuid));
     if (buf == NULL) {
@@ -666,7 +666,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         if (buf == NULL) {
             return BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-        htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
+        put_le16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
         break;
 
     case BLE_GATT_ACCESS_OP_WRITE_DSC:
@@ -678,7 +678,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         om = os_mbuf_pullup(om, 2);
         BLE_HS_DBG_ASSERT(om != NULL);
 
-        flags = le16toh(om->om_data);
+        flags = get_le16(om->om_data);
         if ((flags & ~clt_cfg->allowed) != 0) {
             return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
         }

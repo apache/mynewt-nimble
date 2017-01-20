@@ -480,13 +480,13 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
     for (entry = entries; entry->first != 0; entry++) {
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
-        htole16(&u16, u16);
+        put_le16(&u16, u16);
         TEST_ASSERT(u16 == entry->first);
         off += 2;
 
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
-        htole16(&u16, u16);
+        put_le16(&u16, u16);
         TEST_ASSERT(u16 == entry->last);
         off += 2;
     }
@@ -529,7 +529,7 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
 
         rc = os_mbuf_copydata(om, off, 2, &handle);
         TEST_ASSERT(rc == 0);
-        handle = le16toh(&handle);
+        handle = get_le16(&handle);
         TEST_ASSERT(handle == entry->handle);
         off += 2;
 
