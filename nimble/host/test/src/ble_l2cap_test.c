@@ -86,13 +86,13 @@ ble_l2cap_test_util_verify_tx_update_conn(
                                            BLE_HCI_OCF_LE_CONN_UPDATE,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_UPDATE_LEN);
-    TEST_ASSERT(le16toh(param + 0) == 2);
-    TEST_ASSERT(le16toh(param + 2) == params->itvl_min);
-    TEST_ASSERT(le16toh(param + 4) == params->itvl_max);
-    TEST_ASSERT(le16toh(param + 6) == params->latency);
-    TEST_ASSERT(le16toh(param + 8) == params->supervision_timeout);
-    TEST_ASSERT(le16toh(param + 10) == params->min_ce_len);
-    TEST_ASSERT(le16toh(param + 12) == params->max_ce_len);
+    TEST_ASSERT(get_le16(param + 0) == 2);
+    TEST_ASSERT(get_le16(param + 2) == params->itvl_min);
+    TEST_ASSERT(get_le16(param + 4) == params->itvl_max);
+    TEST_ASSERT(get_le16(param + 6) == params->latency);
+    TEST_ASSERT(get_le16(param + 8) == params->supervision_timeout);
+    TEST_ASSERT(get_le16(param + 10) == params->min_ce_len);
+    TEST_ASSERT(get_le16(param + 12) == params->max_ce_len);
 }
 
 static int

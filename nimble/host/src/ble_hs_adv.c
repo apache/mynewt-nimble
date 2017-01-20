@@ -79,7 +79,7 @@ ble_hs_adv_set_array16(uint8_t type, uint8_t num_elems, const uint16_t *elems,
     }
 
     for (i = 0; i < num_elems; i++) {
-        htole16(dst + *dst_len, elems[i]);
+        put_le16(dst + *dst_len, elems[i]);
         *dst_len += sizeof elems[i];
     }
 
@@ -100,7 +100,7 @@ ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, const uint32_t *elems,
     }
 
     for (i = 0; i < num_elems; i++) {
-        htole32(dst + *dst_len, elems[i]);
+        put_le32(dst + *dst_len, elems[i]);
         *dst_len += sizeof elems[i];
     }
 
@@ -374,7 +374,7 @@ ble_hs_adv_parse_uuids16(struct ble_hs_adv_fields *adv_fields,
     adv_fields->num_uuids16 = data_len / 2;
 
     for (i = 0; i < adv_fields->num_uuids16; i++) {
-        adv_fields->uuids16[i] = le16toh(data + i * 2);
+        adv_fields->uuids16[i] = get_le16(data + i * 2);
     }
 
     return 0;
@@ -394,7 +394,7 @@ ble_hs_adv_parse_uuids32(struct ble_hs_adv_fields *adv_fields,
     adv_fields->num_uuids32 = data_len / 4;
 
     for (i = 0; i < adv_fields->num_uuids32; i++) {
-        adv_fields->uuids32[i] = le32toh(data + i * 4);
+        adv_fields->uuids32[i] = get_le32(data + i * 4);
     }
 
     return 0;
@@ -540,7 +540,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         if (data_len != BLE_HS_ADV_APPEARANCE_LEN) {
             return BLE_HS_EBADDATA;
         }
-        adv_fields->appearance = le16toh(data);
+        adv_fields->appearance = get_le16(data);
         adv_fields->appearance_is_present = 1;
         break;
 
@@ -548,7 +548,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         if (data_len != BLE_HS_ADV_ADV_ITVL_LEN) {
             return BLE_HS_EBADDATA;
         }
-        adv_fields->adv_itvl = le16toh(data);
+        adv_fields->adv_itvl = get_le16(data);
         adv_fields->adv_itvl_is_present = 1;
         break;
 

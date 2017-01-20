@@ -2003,14 +2003,14 @@ ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
 
     switch (adata->value_len) {
     case BLE_GATTS_INC_SVC_LEN_NO_UUID:
-        proc->find_inc_svcs.cur_start = le16toh(adata->value + 0);
-        proc->find_inc_svcs.cur_end = le16toh(adata->value + 2);
+        proc->find_inc_svcs.cur_start = get_le16(adata->value + 0);
+        proc->find_inc_svcs.cur_end = get_le16(adata->value + 2);
         call_cb = 0;
         break;
 
     case BLE_GATTS_INC_SVC_LEN_UUID:
-        service.start_handle = le16toh(adata->value + 0);
-        service.end_handle = le16toh(adata->value + 2);
+        service.start_handle = get_le16(adata->value + 0);
+        service.end_handle = get_le16(adata->value + 2);
         ble_uuid_init_from_buf(&service.uuid, adata->value + 4, 2);
         break;
 
@@ -2264,7 +2264,7 @@ ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
     }
 
     chr.properties = adata->value[0];
-    chr.val_handle = le16toh(adata->value + 1);
+    chr.val_handle = get_le16(adata->value + 1);
 
     if (adata->att_handle <= proc->disc_all_chrs.prev_handle) {
         /* Peer sent characteristics out of order; terminate procedure. */
@@ -2510,7 +2510,7 @@ ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_proc *proc,
     }
 
     chr.properties = adata->value[0];
-    chr.val_handle = le16toh(adata->value + 1);
+    chr.val_handle = get_le16(adata->value + 1);
 
     if (adata->att_handle <= proc->disc_chr_uuid.prev_handle) {
         /* Peer sent characteristics out of order; terminate procedure. */

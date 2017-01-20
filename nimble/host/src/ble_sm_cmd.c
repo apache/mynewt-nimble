@@ -360,8 +360,8 @@ ble_sm_master_id_parse(void *payload, int len, struct ble_sm_master_id *cmd)
 
     u8ptr = payload;
 
-    cmd->ediv = le16toh(u8ptr);
-    cmd->rand_val = le64toh(u8ptr + 2);
+    cmd->ediv = get_le16(u8ptr);
+    cmd->rand_val = get_le64(u8ptr + 2);
 }
 
 void
@@ -374,8 +374,8 @@ ble_sm_master_id_write(void *payload, int len, struct ble_sm_master_id *cmd)
     u8ptr = payload;
 
     u8ptr[0] = BLE_SM_OP_MASTER_ID;
-    htole16(u8ptr + 1, cmd->ediv);
-    htole64(u8ptr + 3, cmd->rand_val);
+    put_le16(u8ptr + 1, cmd->ediv);
+    put_le64(u8ptr + 3, cmd->rand_val);
 }
 
 int
@@ -390,8 +390,8 @@ ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd)
     }
 
     txom->om_data[0] = BLE_SM_OP_MASTER_ID;
-    htole16(txom->om_data + 1, cmd->ediv);
-    htole64(txom->om_data + 3, cmd->rand_val);
+    put_le16(txom->om_data + 1, cmd->ediv);
+    put_le64(txom->om_data + 3, cmd->rand_val);
 
     BLE_SM_LOG_CMD(1, "master id", conn_handle, ble_sm_master_id_log, cmd);
 

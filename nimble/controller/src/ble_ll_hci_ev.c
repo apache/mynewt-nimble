@@ -48,11 +48,11 @@ ble_ll_hci_ev_datalen_chg(struct ble_ll_conn_sm *connsm)
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_DATA_LEN_CHG_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_DATA_LEN_CHG;
-            htole16(evbuf + 3, connsm->conn_handle);
-            htole16(evbuf + 5, connsm->eff_max_tx_octets);
-            htole16(evbuf + 7, connsm->eff_max_tx_time);
-            htole16(evbuf + 9, connsm->eff_max_rx_octets);
-            htole16(evbuf + 11, connsm->eff_max_rx_time);
+            put_le16(evbuf + 3, connsm->conn_handle);
+            put_le16(evbuf + 5, connsm->eff_max_tx_octets);
+            put_le16(evbuf + 7, connsm->eff_max_tx_time);
+            put_le16(evbuf + 9, connsm->eff_max_rx_octets);
+            put_le16(evbuf + 11, connsm->eff_max_rx_time);
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -75,11 +75,11 @@ ble_ll_hci_ev_rem_conn_parm_req(struct ble_ll_conn_sm *connsm,
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_REM_CONN_PARM_REQ_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ;
-            htole16(evbuf + 3, connsm->conn_handle);
-            htole16(evbuf + 5, cp->interval_min);
-            htole16(evbuf + 7, cp->interval_max);
-            htole16(evbuf + 9, cp->latency);
-            htole16(evbuf + 11, cp->timeout);
+            put_le16(evbuf + 3, connsm->conn_handle);
+            put_le16(evbuf + 5, cp->interval_min);
+            put_le16(evbuf + 7, cp->interval_max);
+            put_le16(evbuf + 9, cp->latency);
+            put_le16(evbuf + 11, cp->timeout);
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -103,10 +103,10 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[1] = BLE_HCI_LE_CONN_UPD_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE;
             evbuf[3] = status;
-            htole16(evbuf + 4, connsm->conn_handle);
-            htole16(evbuf + 6, connsm->conn_itvl);
-            htole16(evbuf + 8, connsm->slave_latency);
-            htole16(evbuf + 10, connsm->supervision_tmo);
+            put_le16(evbuf + 4, connsm->conn_handle);
+            put_le16(evbuf + 6, connsm->conn_itvl);
+            put_le16(evbuf + 8, connsm->slave_latency);
+            put_le16(evbuf + 10, connsm->supervision_tmo);
             ble_ll_hci_event_send(evbuf);
         }
     }
@@ -134,7 +134,7 @@ ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[0] = evcode;
             evbuf[1] = evlen;
             evbuf[2] = status;
-            htole16(evbuf + 3, connsm->conn_handle);
+            put_le16(evbuf + 3, connsm->conn_handle);
             if (evcode == BLE_HCI_EVCODE_ENCRYPT_CHG) {
                 if (status == BLE_ERR_SUCCESS) {
                     evbuf[5] = 0x01;
@@ -165,9 +165,9 @@ ble_ll_hci_ev_ltk_req(struct ble_ll_conn_sm *connsm)
             evbuf[0] = BLE_HCI_EVCODE_LE_META;
             evbuf[1] = BLE_HCI_LE_LT_KEY_REQ_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_LT_KEY_REQ;
-            htole16(evbuf + 3, connsm->conn_handle);
-            htole64(evbuf + 5, connsm->enc_data.host_rand_num);
-            htole16(evbuf + 13, connsm->enc_data.enc_div);
+            put_le16(evbuf + 3, connsm->conn_handle);
+            put_le64(evbuf + 5, connsm->enc_data.host_rand_num);
+            put_le16(evbuf + 13, connsm->enc_data.enc_div);
             ble_ll_hci_event_send(evbuf);
         }
         rc = 0;
@@ -196,7 +196,7 @@ ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[1] = BLE_HCI_LE_RD_REM_USED_FEAT_LEN;
             evbuf[2] = BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT;
             evbuf[3] = status;
-            htole16(evbuf + 4, connsm->conn_handle);
+            put_le16(evbuf + 4, connsm->conn_handle);
             memset(evbuf + 6, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
             evbuf[6] = connsm->common_features;
             ble_ll_hci_event_send(evbuf);
@@ -215,10 +215,10 @@ ble_ll_hci_ev_rd_rem_ver(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[0] = BLE_HCI_EVCODE_RD_REM_VER_INFO_CMP;
             evbuf[1] = BLE_HCI_EVENT_RD_RM_VER_LEN;
             evbuf[2] = status;
-            htole16(evbuf + 3, connsm->conn_handle);
+            put_le16(evbuf + 3, connsm->conn_handle);
             evbuf[5] = connsm->vers_nr;
-            htole16(evbuf + 6, connsm->comp_id);
-            htole16(evbuf + 8, connsm->sub_vers_nr);
+            put_le16(evbuf + 6, connsm->comp_id);
+            put_le16(evbuf + 8, connsm->sub_vers_nr);
             ble_ll_hci_event_send(evbuf);
         }
     }

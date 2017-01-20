@@ -139,7 +139,7 @@ ble_hs_hci_evt_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     }
 
     evt.status = data[2];
-    evt.connection_handle = le16toh(data + 3);
+    evt.connection_handle = get_le16(data + 3);
     evt.reason = data[5];
 
     ble_gap_rx_disconn_complete(&evt);
@@ -157,7 +157,7 @@ ble_hs_hci_evt_encrypt_change(uint8_t event_code, uint8_t *data, int len)
     }
 
     evt.status = data[2];
-    evt.connection_handle = le16toh(data + 3);
+    evt.connection_handle = get_le16(data + 3);
     evt.encryption_enabled = data[5];
 
     ble_sm_enc_change_rx(&evt);
@@ -190,7 +190,7 @@ ble_hs_hci_evt_enc_key_refresh(uint8_t event_code, uint8_t *data, int len)
     }
 
     evt.status = data[2];
-    evt.connection_handle = le16toh(data + 3);
+    evt.connection_handle = get_le16(data + 3);
 
     ble_sm_enc_key_refresh_rx(&evt);
 
@@ -219,8 +219,8 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
     off++;
 
     for (i = 0; i < num_handles; i++) {
-        handle = le16toh(data + off + 2 * i);
-        num_pkts = le16toh(data + off + 2 * num_handles + 2 * i);
+        handle = get_le16(data + off + 2 * i);
+        num_pkts = get_le16(data + off + 2 * num_handles + 2 * i);
 
         /* XXX: Do something with these values. */
         (void)handle;
@@ -273,7 +273,7 @@ ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
 
     evt.subevent_code = data[0];
     evt.status = data[1];
-    evt.connection_handle = le16toh(data + 2);
+    evt.connection_handle = get_le16(data + 2);
     evt.role = data[4];
     evt.peer_addr_type = data[5];
     memcpy(evt.peer_addr, data + 6, BLE_DEV_ADDR_LEN);
@@ -289,9 +289,9 @@ ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
         memset(evt.peer_rpa, 0, BLE_DEV_ADDR_LEN);
     }
 
-    evt.conn_itvl = le16toh(data + 12 + extended_offset);
-    evt.conn_latency = le16toh(data + 14 + extended_offset);
-    evt.supervision_timeout = le16toh(data + 16 + extended_offset);
+    evt.conn_itvl = get_le16(data + 12 + extended_offset);
+    evt.conn_latency = get_le16(data + 14 + extended_offset);
+    evt.supervision_timeout = get_le16(data + 16 + extended_offset);
     evt.master_clk_acc = data[18 + extended_offset];
 
     if (evt.status == 0) {
@@ -480,10 +480,10 @@ ble_hs_hci_evt_le_conn_upd_complete(uint8_t subevent, uint8_t *data, int len)
 
     evt.subevent_code = data[0];
     evt.status = data[1];
-    evt.connection_handle = le16toh(data + 2);
-    evt.conn_itvl = le16toh(data + 4);
-    evt.conn_latency = le16toh(data + 6);
-    evt.supervision_timeout = le16toh(data + 8);
+    evt.connection_handle = get_le16(data + 2);
+    evt.conn_itvl = get_le16(data + 4);
+    evt.conn_latency = get_le16(data + 6);
+    evt.supervision_timeout = get_le16(data + 8);
 
     if (evt.status == 0) {
         if (evt.conn_itvl < BLE_HCI_CONN_ITVL_MIN ||
@@ -518,9 +518,9 @@ ble_hs_hci_evt_le_lt_key_req(uint8_t subevent, uint8_t *data, int len)
     }
 
     evt.subevent_code = data[0];
-    evt.connection_handle = le16toh(data + 1);
-    evt.random_number = le64toh(data + 3);
-    evt.encrypted_diversifier = le16toh(data + 11);
+    evt.connection_handle = get_le16(data + 1);
+    evt.random_number = get_le64(data + 3);
+    evt.encrypted_diversifier = get_le16(data + 11);
 
     ble_sm_ltk_req_rx(&evt);
 
@@ -537,11 +537,11 @@ ble_hs_hci_evt_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
     }
 
     evt.subevent_code = data[0];
-    evt.connection_handle = le16toh(data + 1);
-    evt.itvl_min = le16toh(data + 3);
-    evt.itvl_max = le16toh(data + 5);
-    evt.latency = le16toh(data + 7);
-    evt.timeout = le16toh(data + 9);
+    evt.connection_handle = get_le16(data + 1);
+    evt.itvl_min = get_le16(data + 3);
+    evt.itvl_max = get_le16(data + 5);
+    evt.latency = get_le16(data + 7);
+    evt.timeout = get_le16(data + 9);
 
     if (evt.itvl_min < BLE_HCI_CONN_ITVL_MIN ||
         evt.itvl_max > BLE_HCI_CONN_ITVL_MAX ||

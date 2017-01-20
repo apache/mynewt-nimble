@@ -121,7 +121,7 @@ ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle,
     TEST_ASSERT_FATAL(om->om_len == 3);
     TEST_ASSERT_FATAL(om->om_data[0] == BLE_ATT_OP_READ_RSP);
 
-    flags = le16toh(om->om_data + 1);
+    flags = get_le16(om->om_data + 1);
     return flags;
 }
 
@@ -137,7 +137,7 @@ ble_gatts_notify_test_misc_try_enable_notify(uint16_t conn_handle,
     req.bawq_handle = chr_def_handle + 2;
     ble_att_write_req_write(buf, sizeof buf, &req);
 
-    htole16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
+    put_le16(buf + BLE_ATT_WRITE_REQ_BASE_SZ, flags);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     if (fail) {

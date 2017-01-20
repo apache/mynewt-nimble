@@ -225,7 +225,7 @@ ble_gatt_read_test_misc_uuid_rx_rsp_good(
         }
         prev_len = attrs[i].value_len;
 
-        htole16(buf + off, attrs[i].handle);
+        put_le16(buf + off, attrs[i].handle);
         off += 2;
 
         memcpy(buf + off, attrs[i].value, attrs[i].value_len);

@@ -118,17 +118,17 @@ ble_gatt_find_s_test_misc_rx_read_type(
 
         TEST_ASSERT_FATAL(off + rsp.batp_length <= sizeof buf);
 
-        htole16(buf + off, entries[i].inc_handle);
+        put_le16(buf + off, entries[i].inc_handle);
         off += 2;
 
-        htole16(buf + off, entries[i].start_handle);
+        put_le16(buf + off, entries[i].start_handle);
         off += 2;
 
-        htole16(buf + off, entries[i].end_handle);
+        put_le16(buf + off, entries[i].end_handle);
         off += 2;
 
         if (entries[i].uuid->type == BLE_UUID_TYPE_16) {
-            htole16(buf + off, ble_uuid_u16(entries[i].uuid));
+            put_le16(buf + off, ble_uuid_u16(entries[i].uuid));
             off += 2;
         }
     }
@@ -182,7 +182,7 @@ ble_gatt_find_s_test_misc_verify_tx_read_type(uint16_t start_handle,
     TEST_ASSERT(req.batq_start_handle == start_handle);
     TEST_ASSERT(req.batq_end_handle == end_handle);
     TEST_ASSERT(om->om_len == BLE_ATT_READ_TYPE_REQ_BASE_SZ + 2);
-    uuid16 = le16toh(om->om_data + BLE_ATT_READ_TYPE_REQ_BASE_SZ);
+    uuid16 = get_le16(om->om_data + BLE_ATT_READ_TYPE_REQ_BASE_SZ);
     TEST_ASSERT(uuid16 == BLE_ATT_UUID_INCLUDE);
 }
 

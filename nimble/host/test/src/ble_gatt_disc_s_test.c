@@ -101,10 +101,10 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
             }
         }
 
-        htole16(buf + off, services[i].start_handle);
+        put_le16(buf + off, services[i].start_handle);
         off += 2;
 
-        htole16(buf + off, services[i].end_handle);
+        put_le16(buf + off, services[i].end_handle);
         off += 2;
 
         ble_uuid_flat(services[i].uuid, buf + off);
@@ -169,10 +169,10 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
             break;
         }
 
-        htole16(buf + off, services[i].start_handle);
+        put_le16(buf + off, services[i].start_handle);
         off += 2;
 
-        htole16(buf + off, services[i].end_handle);
+        put_le16(buf + off, services[i].end_handle);
         off += 2;
     }
 

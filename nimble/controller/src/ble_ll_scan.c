@@ -1221,8 +1221,8 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
 
     /* Get the scan interval and window */
     scan_type = cmd[0];
-    scan_itvl  = le16toh(cmd + 1);
-    scan_window = le16toh(cmd + 3);
+    scan_itvl  = get_le16(cmd + 1);
+    scan_window = get_le16(cmd + 3);
     own_addr_type = cmd[5];
     filter_policy = cmd[6];
 

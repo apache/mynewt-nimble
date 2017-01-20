@@ -860,7 +860,7 @@ ble_sm_test_util_verify_tx_lt_key_req_reply(uint16_t conn_handle, uint8_t *stk)
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LT_KEY_REQ_REPLY_LEN);
-    TEST_ASSERT(le16toh(param + 0) == conn_handle);
+    TEST_ASSERT(get_le16(param + 0) == conn_handle);
     TEST_ASSERT(memcmp(param + 2, stk, 16) == 0);
 }
 
@@ -874,7 +874,7 @@ ble_sm_test_util_verify_tx_lt_key_req_neg_reply(uint16_t conn_handle)
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN);
-    TEST_ASSERT(le16toh(param + 0) == conn_handle);
+    TEST_ASSERT(get_le16(param + 0) == conn_handle);
 }
 
 static void
@@ -883,7 +883,7 @@ ble_sm_test_util_set_lt_key_req_neg_reply_ack(uint8_t status,
 {
     static uint8_t params[BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN];
 
-    htole16(params, conn_handle);
+    put_le16(params, conn_handle);
     ble_hs_test_util_set_ack_params(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
@@ -895,7 +895,7 @@ ble_sm_test_util_set_lt_key_req_reply_ack(uint8_t status, uint16_t conn_handle)
 {
     static uint8_t params[BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN];
 
-    htole16(params, conn_handle);
+    put_le16(params, conn_handle);
     ble_hs_test_util_set_ack_params(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
@@ -928,9 +928,9 @@ ble_sm_test_util_verify_tx_start_enc(uint16_t conn_handle,
                                            BLE_HCI_OCF_LE_START_ENCRYPT,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LE_START_ENCRYPT_LEN);
-    TEST_ASSERT(le16toh(param + 0) == conn_handle);
-    TEST_ASSERT(le64toh(param + 2) == random_number);
-    TEST_ASSERT(le16toh(param + 10) == ediv);
+    TEST_ASSERT(get_le16(param + 0) == conn_handle);
+    TEST_ASSERT(get_le64(param + 2) == random_number);
+    TEST_ASSERT(get_le16(param + 10) == ediv);
     TEST_ASSERT(memcmp(param + 12, ltk, 16) == 0);
 }
 
