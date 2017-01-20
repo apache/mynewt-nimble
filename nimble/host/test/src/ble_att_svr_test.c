@@ -398,7 +398,7 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(
     rc = ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
                                     NULL, &chan);
     TEST_ASSERT_FATAL(rc == 0);
-    mtu = ble_l2cap_chan_mtu(chan);
+    mtu = ble_att_chan_mtu(chan);
 
     ble_hs_unlock();
 
@@ -609,7 +609,7 @@ ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
                                     &conn, &chan);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(chan->peer_mtu == peer_actual);
-    TEST_ASSERT(ble_l2cap_chan_mtu(chan) == chan_mtu);
+    TEST_ASSERT(ble_att_chan_mtu(chan) == chan_mtu);
     ble_hs_unlock();
 
 }

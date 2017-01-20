@@ -766,7 +766,7 @@ done:
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
         ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
         chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
-        mtu = ble_l2cap_chan_mtu(chan);
+        mtu = ble_att_chan_mtu(chan);
 
         ble_hs_unlock();
 
