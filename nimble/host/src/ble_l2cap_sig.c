@@ -523,10 +523,10 @@ ble_l2cap_sig_create_chan(void)
         return NULL;
     }
 
-    chan->blc_cid = BLE_L2CAP_CID_SIG;
-    chan->blc_my_mtu = BLE_L2CAP_SIG_MTU;
-    chan->blc_default_mtu = BLE_L2CAP_SIG_MTU;
-    chan->blc_rx_fn = ble_l2cap_sig_rx;
+    chan->scid = BLE_L2CAP_CID_SIG;
+    chan->my_mtu = BLE_L2CAP_SIG_MTU;
+    chan->default_mtu = BLE_L2CAP_SIG_MTU;
+    chan->rx_fn = ble_l2cap_sig_rx;
 
     return chan;
 }

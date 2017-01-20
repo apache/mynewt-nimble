@@ -83,9 +83,9 @@ ble_att_svr_test_misc_init(uint16_t mtu)
     TEST_ASSERT_FATAL(rc == 0);
 
     if (mtu != 0) {
-        chan->blc_my_mtu = mtu;
-        chan->blc_peer_mtu = mtu;
-        chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+        chan->my_mtu = mtu;
+        chan->peer_mtu = mtu;
+        chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
     }
 
     ble_hs_unlock();
@@ -443,7 +443,7 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(uint16_t conn_handle)
 
     ble_hs_lock();
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    my_mtu = chan->blc_my_mtu;
+    my_mtu = chan->my_mtu;
     ble_hs_unlock();
 
     ble_hs_test_util_verify_tx_mtu_cmd(0, my_mtu);
@@ -608,7 +608,7 @@ ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
     rc = ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
                                     &conn, &chan);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(chan->blc_peer_mtu == peer_actual);
+    TEST_ASSERT(chan->peer_mtu == peer_actual);
     TEST_ASSERT(ble_l2cap_chan_mtu(chan) == chan_mtu);
     ble_hs_unlock();
 
