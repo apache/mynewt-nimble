@@ -313,28 +313,51 @@ ble_gatts_val_access(uint16_t conn_handle, uint16_t attr_handle,
                      struct os_mbuf **om, ble_gatt_access_fn *access_cb,
                      void *cb_arg)
 {
+    uint16_t initial_len;
     int attr_len;
+    int new_om;
     int rc;
 
     switch (gatt_ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
     case BLE_GATT_ACCESS_OP_READ_DSC:
-        gatt_ctxt->om = os_msys_get_pkthdr(0, 0);
-        if (gatt_ctxt->om == NULL) {
-            return BLE_ATT_ERR_INSUFFICIENT_RES;
-        }
-
-        rc = access_cb(conn_handle, attr_handle, gatt_ctxt, cb_arg);
-        if (rc == 0) {
-            attr_len = OS_MBUF_PKTLEN(gatt_ctxt->om) - offset;
-            if (attr_len >= 0) {
-                os_mbuf_appendfrom(*om, gatt_ctxt->om, offset, attr_len);
-            } else {
-                return BLE_ATT_ERR_INVALID_OFFSET;
+        /* A characteristic value is being read.
+         *
+         * If the read specifies an offset of 0:
+         *     just append the characteristic value directly onto the response
+         *     mbuf.
+         *
+         * Else:
+         *     allocate a new mbuf to hold the characteristic data, then append
+         *     the requested portion onto the response mbuf.
+         */
+        if (offset == 0) {
+            new_om = 0;
+            gatt_ctxt->om = *om;
+        } else {
+            new_om = 1;
+            gatt_ctxt->om = os_msys_get_pkthdr(0, 0);
+            if (gatt_ctxt->om == NULL) {
+                return BLE_ATT_ERR_INSUFFICIENT_RES;
             }
         }
 
-        os_mbuf_free_chain(gatt_ctxt->om);
+        initial_len = OS_MBUF_PKTLEN(gatt_ctxt->om);
+        rc = access_cb(conn_handle, attr_handle, gatt_ctxt, cb_arg);
+        if (rc == 0) {
+            attr_len = OS_MBUF_PKTLEN(gatt_ctxt->om) - initial_len - offset;
+            if (attr_len >= 0) {
+                if (new_om) {
+                    os_mbuf_appendfrom(*om, gatt_ctxt->om, offset, attr_len);
+                }
+            } else {
+                rc = BLE_ATT_ERR_INVALID_OFFSET;
+            }
+        }
+
+        if (new_om) {
+            os_mbuf_free_chain(gatt_ctxt->om);
+        }
         return rc;
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
