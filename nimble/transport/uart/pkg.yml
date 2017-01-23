@@ -34,5 +34,5 @@ pkg.deps:
 pkg.apis:
     - ble_transport
 
-pkg.init_function: ble_hci_uart_init
-pkg.init_stage: 5
+pkg.init:
+    ble_hci_uart_init: 500
