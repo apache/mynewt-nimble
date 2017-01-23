@@ -123,22 +123,6 @@ struct ble_mbuf_hdr
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
-void put_le16(void *buf, uint16_t x);
-void put_le32(void *buf, uint32_t x);
-void put_le64(void *buf, uint64_t x);
-uint16_t get_le16(const void *buf);
-uint32_t get_le32(const void *buf);
-uint64_t get_le64(const void *buf);
-void put_be16(void *buf, uint16_t x);
-void put_be32(void *buf, uint32_t x);
-void put_be64(void *buf, uint64_t x);
-uint16_t get_be16(const void *buf);
-uint32_t get_be32(const void *buf);
-uint64_t get_be64(const void *buf);
-void swap_in_place(void *buf, int len);
-void swap_buf(uint8_t *dst, const uint8_t *src, int len);
-/* XXX */
-
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */
 enum ble_error_codes
 {
