@@ -42,5 +42,5 @@ pkg.req_apis:
     - log
     - stats
 
-pkg.init_function: "ble_hs_init"
-pkg.init_stage: 2
+pkg.init:
+    ble_hs_init: 200
