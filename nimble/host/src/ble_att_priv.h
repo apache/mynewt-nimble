@@ -24,6 +24,7 @@
 #include "stats/stats.h"
 #include "os/queue.h"
 #include "host/ble_att.h"
+#include "host/ble_uuid.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -139,19 +140,16 @@ typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t op, uint16_t offset,
                                   struct os_mbuf **om, void *arg);
 
-int ble_att_svr_register(const uint8_t *uuid, uint8_t flags,
-                         uint16_t *handle_id,
+int ble_att_svr_register(const ble_uuid_t *uuid, uint8_t flags,
+                         uint8_t min_key_size, uint16_t *handle_id,
                          ble_att_svr_access_fn *cb, void *cb_arg);
-int ble_att_svr_register_uuid16(uint16_t uuid16, uint8_t flags,
-                                uint16_t *handle_id, ble_att_svr_access_fn *cb,
-                                void *cb_arg);
 
 struct ble_att_svr_entry {
     STAILQ_ENTRY(ble_att_svr_entry) ha_next;
 
-    uint8_t ha_uuid[16];
+    const ble_uuid_t *ha_uuid;
     uint8_t ha_flags;
-    uint8_t ha_pad1;
+    uint8_t ha_min_key_size;
     uint16_t ha_handle_id;
     ble_att_svr_access_fn *ha_cb;
     void *ha_cb_arg;
@@ -182,7 +180,7 @@ int ble_att_svr_start(void);
 
 struct ble_att_svr_entry *
 ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at,
-                         const uint8_t *uuid,
+                         const ble_uuid_t *uuid,
                          uint16_t end_handle);
 uint16_t ble_att_svr_prev_handle(void);
 int ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom);
@@ -225,7 +223,7 @@ int ble_att_svr_init(void);
 /** An information-data entry in a find information response. */
 struct ble_att_find_info_idata {
     uint16_t attr_handle;
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
 };
 
 /** A handles-information entry in a find by type value response. */
@@ -265,11 +263,11 @@ int ble_att_clt_tx_read_mult(uint16_t conn_handle,
 int ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_tx_read_type(uint16_t conn_handle,
                              const struct ble_att_read_type_req *req,
-                             const void *uuid128);
+                             const ble_uuid_t *uuid);
 int ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_tx_read_group_type(
     uint16_t conn_handle, const struct ble_att_read_group_type_req *req,
-    const void *uuid128);
+    const ble_uuid_t *uuid128);
 int ble_att_clt_rx_read_group_type(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
 int ble_att_clt_tx_find_info(uint16_t conn_handle,

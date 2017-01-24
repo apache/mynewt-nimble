@@ -28,11 +28,11 @@ pkg.keywords:
 pkg.req_apis:
     - ble_driver
     - ble_transport
+    - stats
 
 pkg.deps:
     - kernel/os
-    - sys/stats
     - net/nimble
 
-pkg.init_function: ble_ll_init
-pkg.init_stage: 2
+pkg.init:
+    ble_ll_init: 200

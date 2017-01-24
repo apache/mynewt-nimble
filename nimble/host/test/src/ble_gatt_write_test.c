@@ -161,7 +161,7 @@ ble_gatt_write_test_misc_long_good(int attr_len)
     }
 
     /* Verify execute write request sent. */
-    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
@@ -351,7 +351,7 @@ ble_gatt_write_test_misc_reliable_good(
     }
 
     /* Verify execute write request sent. */
-    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
@@ -611,7 +611,7 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
     TEST_ASSERT(ble_gatt_write_test_error.att_handle == 100);
 
     /* Verify clear queue command got sent. */
-    ble_hs_test_util_verify_tx_exec_write(0);
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CANCEL);
 }
 
 TEST_CASE(ble_gatt_write_test_long_oom)
@@ -699,7 +699,7 @@ TEST_CASE(ble_gatt_write_test_long_oom)
     ble_hs_test_util_tx_all();
 
     /* Verify execute write request sent. */
-    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();
@@ -735,8 +735,6 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
     /* Initiate a write reliable procedure. */
     ble_hs_test_util_attr_from_flat(&mattr, &attr);
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
-                                 NULL, NULL);
     off = 0;
     rc = ble_gattc_write_reliable(2, &mattr, 1,
                                   ble_gatt_write_test_reliable_cb_good, NULL);
@@ -799,7 +797,7 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
     ble_hs_test_util_tx_all();
 
     /* Verify execute write request sent. */
-    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CONFIRM);
+    ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
     ble_hs_test_util_tx_all();

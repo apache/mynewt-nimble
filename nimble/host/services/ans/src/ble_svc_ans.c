@@ -81,14 +81,14 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
     {
         /*** Alert Notification Service. */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid128 = BLE_UUID16(BLE_SVC_ANS_UUID16),
+        .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             /** Supported New Alert Catagory 
              * 
              * This characteristic exposes what categories of new 
              * alert are supported in the server.
              */
-            .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_SUP_NEW_ALERT_CAT),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_CHR_UUID16_SUP_NEW_ALERT_CAT),
             .access_cb = ble_svc_ans_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
@@ -97,7 +97,7 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
              * This characteristic exposes information about 
              * the count of new alerts (for a given category).
              */
-            .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_NEW_ALERT),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_CHR_UUID16_NEW_ALERT),
             .access_cb = ble_svc_ans_access,
             .val_handle = &ble_svc_ans_new_alert_val_handle,
             .flags = BLE_GATT_CHR_F_NOTIFY,
@@ -107,7 +107,7 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
              * This characteristic exposes what categories of 
              * unread alert are supported in the server.
              */
-            .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_SUP_UNR_ALERT_CAT),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_CHR_UUID16_SUP_UNR_ALERT_CAT),
             .access_cb = ble_svc_ans_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
@@ -116,7 +116,7 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
              * This characteristic exposes the count of unread 
              * alert events existing in the server.
              */
-            .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_UNR_ALERT_STAT),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_CHR_UUID16_UNR_ALERT_STAT),
             .access_cb = ble_svc_ans_access,
             .val_handle = &ble_svc_ans_unr_alert_val_handle,
             .flags = BLE_GATT_CHR_F_NOTIFY,
@@ -130,7 +130,7 @@ static const struct ble_gatt_svc_def ble_svc_ans_defs[] = {
              * Client Characteristic Configuration for each alert 
              * characteristic.
              */
-            .uuid128 = BLE_UUID16(BLE_SVC_ANS_CHR_UUID16_ALERT_NOT_CTRL_PT),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_CHR_UUID16_ALERT_NOT_CTRL_PT),
             .access_cb = ble_svc_ans_access,
             .flags = BLE_GATT_CHR_F_WRITE,
         }, {
@@ -160,7 +160,7 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
     uint8_t cat_bit_mask; 
     int i;
 
-    uuid16 = ble_uuid_128_to_16(ctxt->chr->uuid128);
+    uuid16 = ble_uuid_u16(ctxt->chr->uuid);
     assert(uuid16 != 0);
 
     switch (uuid16) {

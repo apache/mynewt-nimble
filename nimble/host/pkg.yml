@@ -28,12 +28,10 @@ pkg.keywords:
 pkg.deps:
     - kernel/os
     - net/nimble
-    - sys/log
-    - sys/stats
     - util/mem
 
-pkg.deps.BLE_SM:
-    - crypto/mbedtls
+pkg.deps.BLE_SM_LEGACY:
+    - crypto/tinycrypt
 
 pkg.deps.BLE_SM_SC:
     - crypto/tinycrypt
@@ -41,6 +39,8 @@ pkg.deps.BLE_SM_SC:
 pkg.req_apis:
     - ble_transport
     - console
+    - log
+    - stats
 
-pkg.init_function: "ble_hs_init"
-pkg.init_stage: 2
+pkg.init:
+    ble_hs_init: 200

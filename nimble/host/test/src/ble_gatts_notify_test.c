@@ -43,14 +43,14 @@ ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
 
 static const struct ble_gatt_svc_def ble_gatts_notify_test_svcs[] = { {
     .type = BLE_GATT_SVC_TYPE_PRIMARY,
-    .uuid128 = BLE_UUID16(0x1234),
+    .uuid = BLE_UUID16_DECLARE(0x1234),
     .characteristics = (struct ble_gatt_chr_def[]) { {
-        .uuid128 = BLE_UUID16(BLE_GATTS_NOTIFY_TEST_CHR_1_UUID),
+        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_NOTIFY_TEST_CHR_1_UUID),
         .access_cb = ble_gatts_notify_test_misc_access,
         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
                  BLE_GATT_CHR_F_INDICATE,
     }, {
-        .uuid128 = BLE_UUID16(BLE_GATTS_NOTIFY_TEST_CHR_2_UUID),
+        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_NOTIFY_TEST_CHR_2_UUID),
         .access_cb = ble_gatts_notify_test_misc_access,
         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
                  BLE_GATT_CHR_F_INDICATE,
@@ -369,7 +369,7 @@ ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
     uint16_t uuid16;
 
     if (ctxt->op == BLE_GATT_REGISTER_OP_CHR) {
-        uuid16 = ble_uuid_128_to_16(ctxt->chr.chr_def->uuid128);
+        uuid16 = ble_uuid_u16(ctxt->chr.chr_def->uuid);
         switch (uuid16) {
         case BLE_GATTS_NOTIFY_TEST_CHR_1_UUID:
             ble_gatts_notify_test_chr_1_def_handle = ctxt->chr.def_handle;
@@ -979,19 +979,19 @@ TEST_CASE(ble_gatts_notify_test_disallowed)
 
     const struct ble_gatt_svc_def svcs[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid128 = BLE_UUID16(0x1234),
+        .uuid = BLE_UUID16_DECLARE(0x1234),
         .characteristics = (struct ble_gatt_chr_def[]) { {
-            .uuid128 = BLE_UUID16(1),
+            .uuid = BLE_UUID16_DECLARE(1),
             .access_cb = ble_gatts_notify_test_misc_access,
             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
             .val_handle = &chr1_val_handle,
         }, {
-            .uuid128 = BLE_UUID16(2),
+            .uuid = BLE_UUID16_DECLARE(2),
             .access_cb = ble_gatts_notify_test_misc_access,
             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_INDICATE,
             .val_handle = &chr2_val_handle,
         }, {
-            .uuid128 = BLE_UUID16(3),
+            .uuid = BLE_UUID16_DECLARE(3),
             .access_cb = ble_gatts_notify_test_misc_access,
             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
                      BLE_GATT_CHR_F_INDICATE,

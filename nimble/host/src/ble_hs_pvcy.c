@@ -39,7 +39,11 @@ ble_hs_pvcy_set_addr_timeout(uint16_t timeout)
     rc = ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
             timeout, buf, sizeof(buf));
 
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
 }
 
 static int

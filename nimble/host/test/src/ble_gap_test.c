@@ -920,6 +920,27 @@ TEST_CASE(ble_gap_test_case_conn_gen_already)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
+TEST_CASE(ble_gap_test_case_conn_gen_done)
+{
+    static const struct ble_gap_conn_params conn_params = { 0 };
+    static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Successfully connect to the peer. */
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
+                                 NULL);
+
+    /* Ensure host indicates BLE_HS_EDONE if we try to connect to the same
+     * peer.
+     */
+    rc = ble_gap_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
+                         peer_addr, BLE_HS_FOREVER, &conn_params,
+                         ble_gap_test_util_connect_cb, NULL);
+    TEST_ASSERT(rc == BLE_HS_EDONE);
+}
+
 TEST_CASE(ble_gap_test_case_conn_gen_busy)
 {
     static const struct ble_gap_disc_params disc_params = { 0 };
@@ -950,6 +971,7 @@ TEST_SUITE(ble_gap_test_suite_conn_gen)
     ble_gap_test_case_conn_gen_bad_args();
     ble_gap_test_case_conn_gen_dflt_params();
     ble_gap_test_case_conn_gen_already();
+    ble_gap_test_case_conn_gen_done();
     ble_gap_test_case_conn_gen_busy();
 }
 
@@ -2901,6 +2923,73 @@ TEST_SUITE(ble_gap_test_suite_mtu)
 }
 
 /*****************************************************************************
+ * $set cb                                                                   *
+ *****************************************************************************/
+
+static int
+ble_gap_test_util_set_cb_event(struct ble_gap_event *event, void *arg)
+{
+    struct ble_gap_event *event_arg;
+
+    event_arg = arg;
+
+    *event_arg = *event;
+
+    return 0;
+}
+
+TEST_CASE(ble_gap_test_case_set_cb_good)
+{
+    const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
+    struct hci_disconn_complete disconn_evt;
+    struct ble_gap_event event;
+    int rc;
+
+    ble_gap_test_util_init();
+
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
+                                 NULL);
+
+
+    /* Reconfigure the callback. */
+    rc = ble_gap_set_event_cb(2, ble_gap_test_util_set_cb_event, &event);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Terminate the connection and ensure the new callback gets called. */
+    rc = ble_hs_test_util_conn_terminate(2, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    disconn_evt.connection_handle = 2;
+    disconn_evt.status = 0;
+    disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
+    ble_hs_test_util_rx_disconn_complete_event(&disconn_evt);
+
+    TEST_ASSERT(event.type == BLE_GAP_EVENT_DISCONNECT);
+    TEST_ASSERT(event.disconnect.reason ==
+                BLE_HS_HCI_ERR(BLE_ERR_REM_USER_CONN_TERM));
+    TEST_ASSERT(event.disconnect.conn.conn_handle == 2);
+}
+
+TEST_CASE(ble_gap_test_case_set_cb_bad)
+{
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Ensure error is reported when specified connection doesn't exist. */
+    rc = ble_gap_set_event_cb(123, ble_gap_test_util_set_cb_event, NULL);
+    TEST_ASSERT(rc == BLE_HS_ENOTCONN);
+}
+
+TEST_SUITE(ble_gap_test_suite_set_cb)
+{
+    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
+
+    ble_gap_test_case_set_cb_good();
+    ble_gap_test_case_set_cb_bad();
+}
+
+/*****************************************************************************
  * $all                                                                      *
  *****************************************************************************/
 
@@ -2918,6 +3007,7 @@ ble_gap_test_all(void)
     ble_gap_test_suite_update_conn();
     ble_gap_test_suite_timeout();
     ble_gap_test_suite_mtu();
+    ble_gap_test_suite_set_cb();
 
     return tu_any_failed;
 }

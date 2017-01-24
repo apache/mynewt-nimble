@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -243,15 +243,16 @@ ble_hs_test_util_rx_hci_evt(uint8_t *evt)
     totlen = BLE_HCI_EVENT_HDR_LEN + evt[1];
     TEST_ASSERT_FATAL(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
 
-    if (os_started()) {
-        evbuf = ble_hci_trans_buf_alloc(
-            BLE_HCI_TRANS_BUF_EVT_LO);
-        TEST_ASSERT_FATAL(evbuf != NULL);
+    evbuf = ble_hci_trans_buf_alloc(
+        BLE_HCI_TRANS_BUF_EVT_LO);
+    TEST_ASSERT_FATAL(evbuf != NULL);
 
-        memcpy(evbuf, evt, totlen);
+    memcpy(evbuf, evt, totlen);
+
+    if (os_started()) {
         rc = ble_hci_trans_ll_evt_tx(evbuf);
     } else {
-        rc = ble_hs_hci_evt_process(evt);
+        rc = ble_hs_hci_evt_process(evbuf);
     }
 
     TEST_ASSERT_FATAL(rc == 0);
@@ -614,20 +615,48 @@ ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
                       ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                       uint8_t fail_status)
 {
+    static bool privacy_enabled;
     int rc;
 
-    ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
-        {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
-            ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
-        },
-        {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-            ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
-        },
+    /*
+     * SET_RPA_TMO should be expected only when test uses RPA and privacy has
+     * not yet been enabled. The Bluetooth stack remembers that privacy is
+     * enabled and does not send SET_RPA_TMO every time. For test purpose
+     * let's track privacy state in here.
+     */
+    if ((own_addr_type == BLE_ADDR_TYPE_RPA_PUB_DEFAULT ||
+         own_addr_type == BLE_ADDR_TYPE_RPA_RND_DEFAULT) && !privacy_enabled) {
+        privacy_enabled = true;
+        ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_RPA_TMO),
+                ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
+            },
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
+                ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
+            },
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+                ble_hs_test_util_exp_hci_status(2, fail_idx, fail_status),
+            },
 
-        { 0 }
-    }));
+            { 0 }
+        }));
+    } else {
+        ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
+                ble_hs_test_util_exp_hci_status(0, fail_idx, fail_status),
+            },
+            {
+                BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+                ble_hs_test_util_exp_hci_status(1, fail_idx, fail_status),
+            },
+
+            { 0 }
+        }));
+    }
 
     rc = ble_gap_disc(own_addr_type, duration_ms, disc_params,
                       cb, cb_arg);
@@ -991,11 +1020,10 @@ int
 ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
                                       uint16_t start_handle,
                                       uint16_t end_handle,
-                                      const void *uuid128)
+                                      const ble_uuid_t *uuid)
 {
     struct ble_att_read_type_req req;
     uint8_t buf[BLE_ATT_READ_TYPE_REQ_SZ_128];
-    uint16_t uuid16;
     int req_len;
     int rc;
 
@@ -1004,14 +1032,8 @@ ble_hs_test_util_rx_att_read_type_req(uint16_t conn_handle,
 
     ble_att_read_type_req_write(buf, sizeof buf, &req);
 
-    uuid16 = ble_uuid_128_to_16(uuid128);
-    if (uuid16 != 0) {
-        htole16(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ, uuid16);
-        req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + 2;
-    } else {
-        memcpy(buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ, uuid128, 16);
-        req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + 16;
-    }
+    ble_uuid_flat(uuid, buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ);
+    req_len = BLE_ATT_READ_TYPE_REQ_BASE_SZ + ble_uuid_length(uuid);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, req_len);
@@ -1024,14 +1046,11 @@ ble_hs_test_util_rx_att_read_type_req16(uint16_t conn_handle,
                                         uint16_t end_handle,
                                         uint16_t uuid16)
 {
-    uint8_t uuid128[16];
     int rc;
 
-    rc = ble_uuid_16_to_128(uuid16, uuid128);
-    TEST_ASSERT_FATAL(rc == 0);
-
     rc = ble_hs_test_util_rx_att_read_type_req(conn_handle, start_handle,
-                                               end_handle, uuid128);
+                                               end_handle,
+                                               BLE_UUID16_DECLARE(uuid16));
     return rc;
 }
 
@@ -1095,25 +1114,18 @@ int
 ble_hs_test_util_rx_att_read_group_type_req(uint16_t conn_handle,
                                             uint16_t start_handle,
                                             uint16_t end_handle,
-                                            const void *uuid128)
+                                            const ble_uuid_t *uuid)
 {
     struct ble_att_read_group_type_req req;
     uint8_t buf[BLE_ATT_READ_GROUP_TYPE_REQ_SZ_128];
-    uint16_t uuid16;
     int req_len;
     int rc;
 
     req.bagq_start_handle = start_handle;
     req.bagq_end_handle = end_handle;
 
-    uuid16 = ble_uuid_128_to_16(uuid128);
-    if (uuid16 != 0) {
-        htole16(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, uuid16);
-        req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + 2;
-    } else {
-        memcpy(buf + BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, uuid128, 16);
-        req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + 16;
-    }
+    ble_uuid_flat(uuid, buf + BLE_ATT_READ_TYPE_REQ_BASE_SZ);
+    req_len = BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ + ble_uuid_length(uuid);
 
     ble_att_read_group_type_req_write(buf, sizeof buf, &req);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
@@ -1127,14 +1139,11 @@ ble_hs_test_util_rx_att_read_group_type_req16(uint16_t conn_handle,
                                               uint16_t end_handle,
                                               uint16_t uuid16)
 {
-    uint8_t uuid128[16];
     int rc;
 
-    rc = ble_uuid_16_to_128(uuid16, uuid128);
-    TEST_ASSERT_FATAL(rc == 0);
-
     rc = ble_hs_test_util_rx_att_read_group_type_req(conn_handle, start_handle,
-                                                     end_handle, uuid128);
+                                                     end_handle,
+                                                     BLE_UUID16_DECLARE(uuid16));
     return rc;
 }
 
@@ -1538,9 +1547,8 @@ ble_hs_test_util_verify_tx_find_info_rsp(
     struct ble_att_find_info_rsp rsp;
     struct os_mbuf *om;
     uint16_t handle;
-    uint16_t uuid16;
     uint8_t buf[BLE_ATT_FIND_INFO_RSP_BASE_SZ];
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
     int off;
     int rc;
 
@@ -1564,24 +1572,23 @@ ble_hs_test_util_verify_tx_find_info_rsp(
         handle = le16toh((void *)&handle);
         TEST_ASSERT(handle == entry->handle);
 
-        if (entry->uuid16 != 0) {
+        if (entry->uuid->type == BLE_UUID_TYPE_16) {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT);
-            rc = os_mbuf_copydata(om, off, 2, &uuid16);
+
+            ble_uuid_init_from_mbuf(&uuid, om, off, 2);
             TEST_ASSERT(rc == 0);
             off += 2;
-
-            uuid16 = le16toh((void *)&uuid16);
-            TEST_ASSERT(uuid16 == entry->uuid16);
         } else {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT);
-            rc = os_mbuf_copydata(om, off, 16, uuid128);
+
+            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 16);
             TEST_ASSERT(rc == 0);
             off += 16;
-
-            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
         }
+
+        TEST_ASSERT(ble_uuid_cmp(entry->uuid, &uuid.u) == 0);
     }
 
     /* Ensure there is no extra data in the response. */
@@ -1596,7 +1603,7 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
     struct ble_att_read_group_type_rsp rsp;
     struct os_mbuf *om;
     uint16_t u16;
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
     int off;
     int rc;
 
@@ -1608,7 +1615,7 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
 
     off = BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ;
     for (entry = entries; entry->start_handle != 0; entry++) {
-        if (entry->uuid16 != 0) {
+        if (entry->uuid->type == BLE_UUID_TYPE_16) {
             TEST_ASSERT(rsp.bagp_length ==
                         BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16);
         } else {
@@ -1628,18 +1635,16 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
         TEST_ASSERT(u16 == entry->end_handle);
         off += 2;
 
-        if (entry->uuid16 != 0) {
-            rc = os_mbuf_copydata(om, off, 2, &u16);
+        if (entry->uuid->type == BLE_UUID_TYPE_16) {
+            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 2);
             TEST_ASSERT(rc == 0);
-            htole16(&u16, u16);
-            TEST_ASSERT(u16 == entry->uuid16);
-            off += 2;
         } else {
-            rc = os_mbuf_copydata(om, off, 16, uuid128);
+            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 16);
             TEST_ASSERT(rc == 0);
-            TEST_ASSERT(memcmp(uuid128, entry->uuid128, 16) == 0);
-            off += 16;
         }
+
+        TEST_ASSERT(ble_uuid_cmp(&uuid.u, entry->uuid) == 0);
+        off += ble_uuid_length(&uuid.u);
     }
 
     /* Ensure there is no extra data in the response. */
@@ -1902,10 +1907,11 @@ ble_hs_test_util_gatt_write_long_flat(uint16_t conn_handle,
                                       ble_gatt_attr_fn *cb, void *cb_arg)
 {
     struct os_mbuf *om;
+    uint16_t offset = 0;
     int rc;
 
     om = ble_hs_test_util_om_from_flat(data, data_len);
-    rc = ble_gattc_write_long(conn_handle, attr_handle, om, cb, cb_arg);
+    rc = ble_gattc_write_long(conn_handle, attr_handle, offset, om, cb, cb_arg);
 
     return rc;
 }
@@ -2051,7 +2057,7 @@ int
 ble_hs_test_util_num_cccds(void)
 {
     struct ble_store_value_cccd val;
-    struct ble_store_key_cccd key = { 0 };
+    struct ble_store_key_cccd key = { };
     int rc;
 
     key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -2074,7 +2080,7 @@ int
 ble_hs_test_util_num_our_secs(void)
 {
     struct ble_store_value_sec val;
-    struct ble_store_key_sec key = { 0 };
+    struct ble_store_key_sec key = { };
     int rc;
 
     key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
@@ -2097,7 +2103,7 @@ int
 ble_hs_test_util_num_peer_secs(void)
 {
     struct ble_store_value_sec val;
-    struct ble_store_key_sec key = { 0 };
+    struct ble_store_key_sec key = { };
     int rc;
 
     key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;

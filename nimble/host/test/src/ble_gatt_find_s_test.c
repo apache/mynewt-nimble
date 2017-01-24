@@ -33,7 +33,7 @@ struct ble_gatt_find_s_test_entry {
     uint16_t inc_handle; /* 0 indicates no more entries. */
     uint16_t start_handle;
     uint16_t end_handle;
-    uint8_t uuid128[16];
+    const ble_uuid_t *uuid;
 };
 
 static void
@@ -81,8 +81,8 @@ ble_gatt_find_s_test_misc_verify_incs(
                     entries[i].start_handle);
         TEST_ASSERT(ble_gatt_find_s_test_svcs[i].end_handle ==
                     entries[i].end_handle);
-        TEST_ASSERT(memcmp(ble_gatt_find_s_test_svcs[i].uuid128,
-                           entries[i].uuid128, 16) == 0);
+        TEST_ASSERT(ble_uuid_cmp(&ble_gatt_find_s_test_svcs[i].uuid.u,
+                                 entries[i].uuid) == 0);
     }
 
     TEST_ASSERT(i == ble_gatt_find_s_test_num_svcs);
@@ -94,7 +94,6 @@ ble_gatt_find_s_test_misc_rx_read_type(
     uint16_t conn_handle, struct ble_gatt_find_s_test_entry *entries)
 {
     struct ble_att_read_type_rsp rsp;
-    uint16_t uuid16;
     uint8_t buf[1024];
     int off;
     int rc;
@@ -108,8 +107,7 @@ ble_gatt_find_s_test_misc_rx_read_type(
             break;
         }
 
-        uuid16 = ble_uuid_128_to_16(entries[i].uuid128);
-        if (uuid16 == 0) {
+        if (entries[i].uuid->type != BLE_UUID_TYPE_16) {
             if (rsp.batp_length != 0) {
                 break;
             }
@@ -129,8 +127,8 @@ ble_gatt_find_s_test_misc_rx_read_type(
         htole16(buf + off, entries[i].end_handle);
         off += 2;
 
-        if (uuid16 != 0) {
-            htole16(buf + off, uuid16);
+        if (entries[i].uuid->type == BLE_UUID_TYPE_16) {
+            htole16(buf + off, ble_uuid_u16(entries[i].uuid));
             off += 2;
         }
     }
@@ -151,13 +149,15 @@ ble_gatt_find_s_test_misc_rx_read_type(
 }
 
 static void
-ble_gatt_find_s_test_misc_rx_read(uint16_t conn_handle, uint8_t *uuid128)
+ble_gatt_find_s_test_misc_rx_read(uint16_t conn_handle, const ble_uuid_t *uuid)
 {
     uint8_t buf[17];
     int rc;
 
+    TEST_ASSERT(uuid->type == BLE_UUID_TYPE_128);
+
     buf[0] = BLE_ATT_OP_READ_RSP;
-    memcpy(buf + 1, uuid128, 16);
+    ble_uuid_flat(uuid, buf + 1);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, 17);
@@ -229,12 +229,12 @@ ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
             break;
         }
 
-        if (ble_uuid_128_to_16(entries[idx].uuid128) == 0) {
+        if (entries[idx].uuid->type == BLE_UUID_TYPE_128) {
             TEST_ASSERT(num_found == 1);
             ble_gatt_find_s_test_misc_verify_tx_read(
                 entries[idx].start_handle);
             ble_gatt_find_s_test_misc_rx_read(conn_handle,
-                                              entries[idx].uuid128);
+                                              entries[idx].uuid);
         }
 
         idx += num_found;
@@ -248,8 +248,8 @@ ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
                     entries[i].start_handle);
         TEST_ASSERT(ble_gatt_find_s_test_svcs[i].end_handle ==
                     entries[i].end_handle);
-        TEST_ASSERT(memcmp(ble_gatt_find_s_test_svcs[i].uuid128,
-                           entries[i].uuid128, 16) == 0);
+        TEST_ASSERT(ble_uuid_cmp(&ble_gatt_find_s_test_svcs[i].uuid.u,
+                                 entries[i].uuid) == 0);
     }
 }
 
@@ -264,12 +264,12 @@ TEST_CASE(ble_gatt_find_s_test_1)
             .inc_handle = 6,
             .start_handle = 35,
             .end_handle = 49,
-            .uuid128 = BLE_UUID16_ARR(0x5155),
+            .uuid = BLE_UUID16_DECLARE(0x5155),
         }, {
             .inc_handle = 9,
             .start_handle = 543,
             .end_handle = 870,
-            .uuid128 = BLE_UUID16_ARR(0x1122),
+            .uuid = BLE_UUID16_DECLARE(0x1122),
         }, {
             0,
         } })
@@ -284,7 +284,7 @@ TEST_CASE(ble_gatt_find_s_test_1)
             .inc_handle = 36,
             .start_handle = 403,
             .end_handle = 859,
-            .uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         }, {
             0,
         } })
@@ -299,12 +299,12 @@ TEST_CASE(ble_gatt_find_s_test_1)
             .inc_handle = 36,
             .start_handle = 403,
             .end_handle = 859,
-            .uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         }, {
             .inc_handle = 39,
             .start_handle = 900,
             .end_handle = 932,
-            .uuid128 = { 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 },
+            .uuid = BLE_UUID128_DECLARE(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17),
         }, {
             0,
         } })
@@ -319,27 +319,27 @@ TEST_CASE(ble_gatt_find_s_test_1)
             .inc_handle = 36,
             .start_handle = 403,
             .end_handle = 859,
-            .uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         }, {
             .inc_handle = 37,
             .start_handle = 35,
             .end_handle = 49,
-            .uuid128 = BLE_UUID16_ARR(0x5155),
+            .uuid = BLE_UUID16_DECLARE(0x5155),
         }, {
             .inc_handle = 38,
             .start_handle = 543,
             .end_handle = 870,
-            .uuid128 = BLE_UUID16_ARR(0x1122),
+            .uuid = BLE_UUID16_DECLARE(0x1122),
         }, {
             .inc_handle = 39,
             .start_handle = 900,
             .end_handle = 932,
-            .uuid128 = { 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 },
+            .uuid = BLE_UUID128_DECLARE(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17),
         }, {
             .inc_handle = 40,
             .start_handle = 940,
             .end_handle = 950,
-            .uuid128 = { 3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 },
+            .uuid = BLE_UUID128_DECLARE(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18),
         }, {
             0,
         } })
@@ -354,13 +354,13 @@ TEST_CASE(ble_gatt_find_s_test_oom)
             .inc_handle = 21,
             .start_handle = 800,
             .end_handle = 899,
-            .uuid128 = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
+            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
         },
         {
             .inc_handle = 22,
             .start_handle = 900,
             .end_handle = 999,
-            .uuid128 = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 },
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         },
         { 0 }
     };
@@ -406,7 +406,7 @@ TEST_CASE(ble_gatt_find_s_test_oom)
      * follow-up request, so there is always an mbuf available.
      */
     /* XXX: Find a way to test this. */
-    ble_gatt_find_s_test_misc_rx_read(1, incs[0].uuid128);
+    ble_gatt_find_s_test_misc_rx_read(1, incs[0].uuid);
     ble_hs_test_util_tx_all();
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
@@ -418,7 +418,7 @@ TEST_CASE(ble_gatt_find_s_test_oom)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_gatt_find_s_test_misc_rx_read(1, incs[1].uuid128);
+    ble_gatt_find_s_test_misc_rx_read(1, incs[1].uuid);
     ble_hs_test_util_tx_all();
 
     ble_hs_test_util_rx_att_err_rsp(1,

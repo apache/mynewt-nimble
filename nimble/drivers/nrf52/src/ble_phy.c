@@ -416,10 +416,10 @@ ble_phy_tx_end_isr(void)
         if (txlen && was_encrypted) {
             txlen += BLE_LL_DATA_MIC_LEN;
         }
-        wfr_time = txstart - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
+        wfr_time = BLE_LL_WFR_USECS - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
         wfr_time += BLE_TX_DUR_USECS_M(txlen);
-        wfr_time += os_cputime_usecs_to_ticks(BLE_LL_WFR_USECS);
-        ble_ll_wfr_enable(wfr_time);
+        wfr_time = os_cputime_usecs_to_ticks(wfr_time);
+        ble_ll_wfr_enable(txstart + wfr_time);
     } else {
         /* Disable automatic TXEN */
         NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
@@ -536,7 +536,7 @@ ble_phy_rx_start_isr(void)
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
     ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
-        BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
+        os_cputime_usecs_to_ticks(BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET));
 
     /* Call Link Layer receive start function */
     rc = ble_ll_rx_start((uint8_t *)&g_ble_phy_rx_buf[0] + 3,

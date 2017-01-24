@@ -206,31 +206,16 @@ ble_att_svr_test_misc_attr_fn_r_group(uint16_t conn_handle,
 }
 
 static void
-ble_att_svr_test_misc_register_uuid128(uint8_t *uuid128, uint8_t flags,
+ble_att_svr_test_misc_register_uuid(const ble_uuid_t *uuid, uint8_t flags,
                                        uint16_t expected_handle,
                                        ble_att_svr_access_fn *fn)
 {
     uint16_t handle;
     int rc;
 
-    rc = ble_att_svr_register(uuid128, flags, &handle, fn, NULL);
+    rc = ble_att_svr_register(uuid, flags, 0, &handle, fn, NULL);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(handle == expected_handle);
-}
-
-static void
-ble_att_svr_test_misc_register_uuid16(uint16_t uuid16, uint8_t flags,
-                                      uint16_t expected_handle,
-                                      ble_att_svr_access_fn *fn)
-{
-    uint8_t uuid128[16];
-    int rc;
-
-    rc = ble_uuid_16_to_128(uuid16, uuid128);
-    TEST_ASSERT_FATAL(rc == 0);
-
-    ble_att_svr_test_misc_register_uuid128(uuid128, flags, expected_handle,
-                                           fn);
 }
 
 static void
@@ -240,46 +225,48 @@ ble_att_svr_test_misc_register_group_attrs(void)
     /* Service 0x2233 from 6 to 10 */
     /* Service 010203...0f from 11 to 24 */
 
+    static const ble_uuid16_t uuid_svc =
+        BLE_UUID16_INIT(BLE_ATT_UUID_PRIMARY_SERVICE);
+    static const ble_uuid16_t uuid_inc =
+        BLE_UUID16_INIT(BLE_ATT_UUID_INCLUDE);
+    static const ble_uuid16_t uuid_chr =
+        BLE_UUID16_INIT(BLE_ATT_UUID_CHARACTERISTIC);
+    static ble_uuid16_t uuids[24];
+
     int i;
 
     /* Service 0x1122 from 1 to 5 */
-    ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 1,
-        ble_att_svr_test_misc_attr_fn_r_group);
+    ble_att_svr_test_misc_register_uuid(&uuid_svc.u, HA_FLAG_PERM_RW, 1,
+                                        ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 2; i <= 5; i++) {
         if ((i - 2) % 2 == 0) {
-            ble_att_svr_test_misc_register_uuid16(
-                BLE_ATT_UUID_CHARACTERISTIC, HA_FLAG_PERM_RW, i,
-                ble_att_svr_test_misc_attr_fn_r_group);
+            ble_att_svr_test_misc_register_uuid(&uuid_chr.u, HA_FLAG_PERM_RW, i,
+                                                ble_att_svr_test_misc_attr_fn_r_group);
         } else {
-            ble_att_svr_test_misc_register_uuid16(
-                i, HA_FLAG_PERM_RW, i,
+            uuids[i] = *BLE_UUID16(BLE_UUID16_DECLARE(i));
+            ble_att_svr_test_misc_register_uuid(&uuids[i].u, HA_FLAG_PERM_RW, i,
                 ble_att_svr_test_misc_attr_fn_r_group);
         }
     }
 
     /* Service 0x2233 from 6 to 10 */
-    ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 6,
-        ble_att_svr_test_misc_attr_fn_r_group);
+    ble_att_svr_test_misc_register_uuid(&uuid_svc.u, HA_FLAG_PERM_RW, 6,
+                                        ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 7; i <= 10; i++) {
-        ble_att_svr_test_misc_register_uuid16(
-            BLE_ATT_UUID_INCLUDE, HA_FLAG_PERM_RW, i,
-            ble_att_svr_test_misc_attr_fn_r_group);
+        ble_att_svr_test_misc_register_uuid(&uuid_inc.u, HA_FLAG_PERM_RW, i,
+                                            ble_att_svr_test_misc_attr_fn_r_group);
     }
 
     /* Service 010203...0f from 11 to 24 */
-    ble_att_svr_test_misc_register_uuid16(
-        BLE_ATT_UUID_PRIMARY_SERVICE, HA_FLAG_PERM_RW, 11,
-        ble_att_svr_test_misc_attr_fn_r_group);
+    ble_att_svr_test_misc_register_uuid(&uuid_svc.u, HA_FLAG_PERM_RW, 11,
+                                        ble_att_svr_test_misc_attr_fn_r_group);
     for (i = 12; i <= 24; i++) {
         if ((i - 12) % 2 == 0) {
-            ble_att_svr_test_misc_register_uuid16(
-                BLE_ATT_UUID_CHARACTERISTIC, HA_FLAG_PERM_RW, i,
-                ble_att_svr_test_misc_attr_fn_r_group);
+            ble_att_svr_test_misc_register_uuid(&uuid_chr.u, HA_FLAG_PERM_RW, i,
+                                                ble_att_svr_test_misc_attr_fn_r_group);
         } else {
-            ble_att_svr_test_misc_register_uuid16(
-                i, HA_FLAG_PERM_RW, i,
+            uuids[i] = *BLE_UUID16(BLE_UUID16_DECLARE(i));
+            ble_att_svr_test_misc_register_uuid(&uuids[i].u, HA_FLAG_PERM_RW, i,
                 ble_att_svr_test_misc_attr_fn_r_group);
         }
     }
@@ -788,8 +775,10 @@ TEST_CASE(ble_att_svr_test_read)
     struct os_mbuf *om;
     uint16_t attr_handle;
     uint16_t conn_handle;
-    uint8_t uuid_sec[16] = {1};
-    uint8_t uuid[16] = {0};
+    const ble_uuid_t *uuid_sec = BLE_UUID128_DECLARE( \
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const ble_uuid_t *uuid = BLE_UUID128_DECLARE( \
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, );
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(0);
@@ -804,7 +793,7 @@ TEST_CASE(ble_att_svr_test_read)
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
     ble_att_svr_test_attr_r_1_len = 8;
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &attr_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -826,7 +815,7 @@ TEST_CASE(ble_att_svr_test_read)
 
     /*** Read requires encryption. */
     /* Insufficient authentication. */
-    rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_READ | BLE_ATT_F_READ_ENC,
+    rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_READ | BLE_ATT_F_READ_ENC, 0,
                               &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
@@ -864,7 +853,8 @@ TEST_CASE(ble_att_svr_test_read_blob)
 {
     uint16_t attr_handle;
     uint16_t conn_handle;
-    uint8_t uuid[16] = {0};
+    const ble_uuid_t *uuid = BLE_UUID128_DECLARE( \
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(0);
@@ -880,7 +870,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
         (uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
     ble_att_svr_test_attr_r_1_len = 40;
-    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, &attr_handle,
+    rc = ble_att_svr_register(uuid, HA_FLAG_PERM_RW, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -932,12 +922,12 @@ TEST_CASE(ble_att_svr_test_read_mult)
     ble_att_svr_test_attr_r_2 = attrs[1].value;
     ble_att_svr_test_attr_r_2_len = attrs[1].value_len;
 
-    rc = ble_att_svr_register(BLE_UUID16(0x1111), HA_FLAG_PERM_RW,
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x1111), HA_FLAG_PERM_RW, 0,
                               &attrs[0].handle,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_att_svr_register(BLE_UUID16(0x2222), HA_FLAG_PERM_RW,
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x2222), HA_FLAG_PERM_RW, 0,
                               &attrs[1].handle,
                               ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
@@ -987,9 +977,12 @@ TEST_CASE(ble_att_svr_test_write)
     struct ble_hs_conn *conn;
     uint16_t conn_handle;
     uint16_t attr_handle;
-    uint8_t uuid_sec[16] = {2};
-    uint8_t uuid_rw[16] = {0};
-    uint8_t uuid_r[16] = {1};
+    const ble_uuid_t *uuid_sec = BLE_UUID128_DECLARE( \
+        2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const ble_uuid_t *uuid_rw = BLE_UUID128_DECLARE( \
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const ble_uuid_t *uuid_r = BLE_UUID128_DECLARE( \
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     int rc;
 
     static const uint8_t attr_val[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
@@ -1005,7 +998,7 @@ TEST_CASE(ble_att_svr_test_write)
 
     /*** Write not permitted if non-local. */
     /* Non-local write (fail). */
-    rc = ble_att_svr_register(uuid_r, BLE_ATT_F_READ, &attr_handle,
+    rc = ble_att_svr_register(uuid_r, BLE_ATT_F_READ, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1026,7 +1019,7 @@ TEST_CASE(ble_att_svr_test_write)
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /*** Successful write. */
-    rc = ble_att_svr_register(uuid_rw, HA_FLAG_PERM_RW, &attr_handle,
+    rc = ble_att_svr_register(uuid_rw, HA_FLAG_PERM_RW, 0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1038,7 +1031,7 @@ TEST_CASE(ble_att_svr_test_write)
     /*** Write requires encryption. */
     /* Insufficient authentication. */
     rc = ble_att_svr_register(uuid_sec, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC,
-                              &attr_handle,
+                              0, &attr_handle,
                               ble_att_svr_test_misc_attr_fn_w_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1076,12 +1069,11 @@ TEST_CASE(ble_att_svr_test_find_info)
     uint16_t handle1;
     uint16_t handle2;
     uint16_t handle3;
-    uint8_t uuid1[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-    uint8_t uuid2[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-    uint8_t uuid3[16] = {
-        0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
-        0x00, 0x10, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00
-    };
+    const ble_uuid_t *uuid1 =
+        BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14, 15);
+    const ble_uuid_t *uuid2 =
+        BLE_UUID128_DECLARE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+    const ble_uuid_t *uuid3 = BLE_UUID16_DECLARE(0x000f);
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(128);
@@ -1105,7 +1097,7 @@ TEST_CASE(ble_att_svr_test_find_info)
         BLE_ATT_OP_FIND_INFO_REQ, 200, BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle1,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle1,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1120,13 +1112,13 @@ TEST_CASE(ble_att_svr_test_find_info)
     ble_hs_test_util_verify_tx_find_info_rsp(
         ((struct ble_hs_test_util_att_info_entry[]) { {
             .handle = handle1,
-            .uuid128 = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
         }, {
             .handle = 0,
         } }));
 
     /*** Two 128-bit entries. */
-    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle2,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, 0, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1135,16 +1127,16 @@ TEST_CASE(ble_att_svr_test_find_info)
     ble_hs_test_util_verify_tx_find_info_rsp(
         ((struct ble_hs_test_util_att_info_entry[]) { {
             .handle = handle1,
-            .uuid128 = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
         }, {
             .handle = handle2,
-            .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         }, {
             .handle = 0,
         } }));
 
     /*** Two 128-bit entries; 16-bit entry doesn't get sent. */
-    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle3,
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, 0, &handle3,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
@@ -1153,10 +1145,10 @@ TEST_CASE(ble_att_svr_test_find_info)
     ble_hs_test_util_verify_tx_find_info_rsp(
         ((struct ble_hs_test_util_att_info_entry[]) { {
             .handle = handle1,
-            .uuid128 = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
         }, {
             .handle = handle2,
-            .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         }, {
             .handle = 0,
         } }));
@@ -1167,7 +1159,7 @@ TEST_CASE(ble_att_svr_test_find_info)
     ble_hs_test_util_verify_tx_find_info_rsp(
         ((struct ble_hs_test_util_att_info_entry[]) { {
             .handle = handle3,
-            .uuid16 = 0x000f,
+            .uuid = BLE_UUID16_DECLARE(0x000f),
         }, {
             .handle = 0,
         } }));
@@ -1182,15 +1174,11 @@ TEST_CASE(ble_att_svr_test_find_type_value)
     uint16_t handle3;
     uint16_t handle4;
     uint16_t handle5;
-    uint8_t uuid1[16] = {
-        0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
-        0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00
-    };
-    uint8_t uuid2[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-    uint8_t uuid3[16] = {
-        0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
-        0x00, 0x10, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
-    };
+    uint16_t handle_desc;
+    const ble_uuid_t *uuid1 = BLE_UUID16_DECLARE(0x2800);
+    const ble_uuid_t *uuid2 = BLE_UUID16_DECLARE(0x2803);
+    const ble_uuid_t *uuid3 =
+        BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
     int rc;
 
     conn_handle = ble_att_svr_test_misc_init(128);
@@ -1200,7 +1188,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Start handle of 0. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0, 0, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 0, 0, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1209,7 +1197,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** Start handle > end handle. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 101, 100, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 101, 100, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1218,7 +1206,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** No attributes. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 200, 300, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 200, 300, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1226,12 +1214,12 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         BLE_ATT_ERR_ATTR_NOT_FOUND);
 
     /*** Range too late. */
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle1,
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle1,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 200, 300, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 200, 300, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(
@@ -1240,7 +1228,7 @@ TEST_CASE(ble_att_svr_test_find_type_value)
 
     /*** One entry, one attribute. */
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, handle1, handle1, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, handle1, handle1, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
@@ -1252,12 +1240,12 @@ TEST_CASE(ble_att_svr_test_find_type_value)
         } }));
 
     /*** One entry, two attributes. */
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle2,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, 0, &handle2,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, handle1, handle2, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, handle1, handle2, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
@@ -1268,68 +1256,67 @@ TEST_CASE(ble_att_svr_test_find_type_value)
             .first = 0,
         } }));
 
-    /*** Entry 1: two attributes; entry 2: one attribute. */
-    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, &handle3,
-                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
-    TEST_ASSERT(rc == 0);
-
-    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, &handle4,
-                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
-    TEST_ASSERT(rc == 0);
-
-    rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0x0001, 0xffff, 0x0001, ble_att_svr_test_attr_r_1,
-        ble_att_svr_test_attr_r_1_len);
-    TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
-        ((struct ble_att_svr_test_type_value_entry[]) { {
-            .first = handle1,
-            .last = handle2,
-        }, {
-            .first = handle4,
-            .last = handle4,
-        }, {
-            .first = 0,
-        } }));
-
-    /*** Ensure attribute with wrong value is not included. */
+    /*** Entry 1: four attributes; entry 2 (invalid value): one attribute;
+     *   entry 3: one attribute; Check that invalid value is not returned. */
     ble_att_svr_test_attr_r_2 = (uint8_t[]){0x00, 0x00};
     ble_att_svr_test_attr_r_2_len = 2;
 
-    rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0x0001, 0xffff, 0x0001, ble_att_svr_test_attr_r_1,
-        ble_att_svr_test_attr_r_1_len);
+    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, 0, &handle_desc,
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
     TEST_ASSERT(rc == 0);
-    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
-        ((struct ble_att_svr_test_type_value_entry[]) { {
-            .first = handle1,
-            .last = handle2,
-        }, {
-            .first = handle4,
-            .last = handle4,
-        }, {
-            .first = 0,
-        } }));
 
-    /*** Ensure attribute with wrong type is not included. */
-    rc = ble_att_svr_register(uuid3, HA_FLAG_PERM_RW, &handle5,
+    rc = ble_att_svr_register(uuid2, HA_FLAG_PERM_RW, 0, &handle3,
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle4,
+                              ble_att_svr_test_misc_attr_fn_r_2, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_att_svr_register(uuid1, HA_FLAG_PERM_RW, 0, &handle5,
                               ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_rx_att_find_type_value_req(
-        conn_handle, 0x0001, 0xffff, 0x0001, ble_att_svr_test_attr_r_1,
+        conn_handle, 0x0001, 0xffff, 0x2800, ble_att_svr_test_attr_r_1,
         ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(rc == 0);
     ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
         ((struct ble_att_svr_test_type_value_entry[]) { {
             .first = handle1,
-            .last = handle2,
+            .last = handle3,
         }, {
-            .first = handle4,
-            .last = handle4,
+            .first = handle5,
+            .last = handle5,
         }, {
             .first = 0,
         } }));
 
+    /*** As above, check proper range is returned with smaller search range */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 0x0001, 0x0001, 0x2800, ble_att_svr_test_attr_r_1,
+        ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]) { {
+            .first = handle1,
+            .last = handle3,
+        }, {
+            .first = 0,
+        } }));
+
+    /*** As above, check grouping by Characteristic UUID */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, handle1, handle3, 0x2803, ble_att_svr_test_attr_r_1,
+        ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]) { {
+            .first = handle2,
+            .last = handle_desc,
+        }, {
+            .first = 0,
+        } }));
 }
 
 static void
@@ -1530,7 +1517,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
         ((struct ble_hs_test_util_att_group_type_entry[]) { {
             .start_handle = 1,
             .end_handle = 5,
-            .uuid16 = 0x1122,
+            .uuid = BLE_UUID16_DECLARE(0x1122),
         }, {
             .start_handle = 0,
         } }));
@@ -1543,11 +1530,11 @@ TEST_CASE(ble_att_svr_test_read_group_type)
         ((struct ble_hs_test_util_att_group_type_entry[]) { {
             .start_handle = 1,
             .end_handle = 5,
-            .uuid16 = 0x1122,
+            .uuid = BLE_UUID16_DECLARE(0x1122),
         }, {
             .start_handle = 6,
             .end_handle = 10,
-            .uuid16 = 0x2233,
+            .uuid = BLE_UUID16_DECLARE(0x2233),
         }, {
             .start_handle = 0,
         } }));
@@ -1560,11 +1547,11 @@ TEST_CASE(ble_att_svr_test_read_group_type)
         ((struct ble_hs_test_util_att_group_type_entry[]) { {
             .start_handle = 1,
             .end_handle = 5,
-            .uuid16 = 0x1122,
+            .uuid = BLE_UUID16_DECLARE(0x1122),
         }, {
             .start_handle = 6,
             .end_handle = 10,
-            .uuid16 = 0x2233,
+            .uuid = BLE_UUID16_DECLARE(0x2233),
         }, {
             .start_handle = 0,
         } }));
@@ -1577,7 +1564,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
         ((struct ble_hs_test_util_att_group_type_entry[]) { {
             .start_handle = 11,
             .end_handle = 0xffff,
-            .uuid128 = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
+            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
         }, {
             .start_handle = 0,
         } }));
@@ -1600,30 +1587,35 @@ TEST_CASE(ble_att_svr_test_prep_write)
     }
 
     /* Register two writable attributes. */
-    ble_att_svr_test_misc_register_uuid16(0x1234, HA_FLAG_PERM_RW, 1,
+    ble_att_svr_test_misc_register_uuid(BLE_UUID16_DECLARE(0x1234),
+                                          HA_FLAG_PERM_RW, 1,
                                           ble_att_svr_test_misc_attr_fn_w_1);
-    ble_att_svr_test_misc_register_uuid16(0x8989, HA_FLAG_PERM_RW, 2,
+    ble_att_svr_test_misc_register_uuid(BLE_UUID16_DECLARE(0x8989),
+                                          HA_FLAG_PERM_RW, 2,
                                           ble_att_svr_test_misc_attr_fn_w_2);
 
     /* 3: not writable. */
-    ble_att_svr_test_misc_register_uuid16(0xabab, BLE_ATT_F_READ, 3,
+    ble_att_svr_test_misc_register_uuid(BLE_UUID16_DECLARE(0xabab),
+                                          BLE_ATT_F_READ, 3,
                                           ble_att_svr_test_misc_attr_fn_r_1);
     /* 4: Encryption required. */
-    ble_att_svr_test_misc_register_uuid16(
-        0xabac, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC, 4,
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(0xabac), BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC, 4,
         ble_att_svr_test_misc_attr_fn_w_1);
 
     /* 5: Encryption+authentication required. */
-    ble_att_svr_test_misc_register_uuid16(
-        0xabad, BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC | BLE_ATT_F_WRITE_AUTHEN,
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(0xabad),
+        BLE_ATT_F_WRITE | BLE_ATT_F_WRITE_ENC | BLE_ATT_F_WRITE_AUTHEN,
         5, ble_att_svr_test_misc_attr_fn_w_1);
 
     /* 6: Write callback always fails. */
-    ble_att_svr_test_misc_register_uuid16(
-        0xabae, BLE_ATT_F_WRITE, 6, ble_att_svr_test_misc_attr_fn_w_fail);
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(0xabae), BLE_ATT_F_WRITE, 6,
+        ble_att_svr_test_misc_attr_fn_w_fail);
 
     /*** Empty write succeeds. */
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
 
     /*** Empty cancel succeeds. */
@@ -1657,7 +1649,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
 
     /*** Failure for write starting at nonzero offset. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 1, data, 10, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_OFFSET, 1);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
@@ -1669,7 +1661,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     /*** Failure for write with gap. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 10, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 11, data, 10, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_OFFSET, 1);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
@@ -1683,14 +1675,14 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 200, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 200, data + 200, 200, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 400, data + 400, 200, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 1);
     ble_att_svr_test_misc_verify_w_1(NULL, 0);
 
     /*** Successful two part write. */
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 20, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 20, data + 20, 20, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 40);
 
@@ -1698,7 +1690,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 0, data, 35, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 35, data + 35, 43, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 78, data + 78, 1, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 79);
 
@@ -1707,7 +1699,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 7, data + 7, 10, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 0, data, 20, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 20, data + 20, 10, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 17);
     ble_att_svr_test_misc_verify_w_2(data, 30);
@@ -1717,7 +1709,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 5, data + 5, 2, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 0, data, 11, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 12, data + 11, 19, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_OFFSET, 2);
     ble_att_svr_test_misc_verify_w_1(data, 17);
     ble_att_svr_test_misc_verify_w_2(data, 30);
@@ -1727,7 +1719,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 0, data, 18, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 1, 9, data + 9, 3, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 2, 18, data + 18, 43, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      0, 0);
     ble_att_svr_test_misc_verify_w_1(data, 12);
     ble_att_svr_test_misc_verify_w_2(data, 61);
@@ -1736,7 +1728,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 0, data, 35, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 35, data + 35, 43, 0);
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 78, data + 78, 1, 0);
-    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_CONFIRM,
+    ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 6);
 }
 
@@ -1780,7 +1772,8 @@ TEST_CASE(ble_att_svr_test_prep_write_tmo)
     }
 
     /* Register a writable attribute. */
-    ble_att_svr_test_misc_register_uuid16(0x1234, HA_FLAG_PERM_RW, 1,
+    ble_att_svr_test_misc_register_uuid(BLE_UUID16_DECLARE(0x1234),
+                                          HA_FLAG_PERM_RW, 1,
                                           ble_att_svr_test_misc_attr_fn_w_1);
 
     /* Ensure timer is not set. */
@@ -1853,9 +1846,9 @@ TEST_CASE(ble_att_svr_test_oom)
     conn_handle = ble_att_svr_test_misc_init(0);
 
     /* Register an attribute (primary service) for incoming read commands. */
-    ble_att_svr_test_misc_register_uuid16(BLE_ATT_UUID_PRIMARY_SERVICE,
-                                          HA_FLAG_PERM_RW, 1,
-                                          ble_att_svr_test_misc_attr_fn_rw_1);
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE),
+        HA_FLAG_PERM_RW, 1, ble_att_svr_test_misc_attr_fn_rw_1);
     ble_att_svr_test_attr_w_1_len = 2;
     ble_att_svr_test_attr_w_1[0] = 0x12;
     ble_att_svr_test_attr_w_1[1] = 0x34;
@@ -1883,7 +1876,7 @@ TEST_CASE(ble_att_svr_test_oom)
     ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_find_info_rsp(
         (struct ble_hs_test_util_att_info_entry[]) {
-            { .handle = 1, .uuid16 = BLE_ATT_UUID_PRIMARY_SERVICE },
+            { .handle = 1, .uuid = BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE) },
             { 0 },
         });
 

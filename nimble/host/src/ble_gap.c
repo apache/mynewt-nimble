@@ -1351,6 +1351,43 @@ ble_gap_update_timer(void)
 }
 
 /**
+ * Configures a connection to use the specified GAP event callback.  A
+ * connection's GAP event callback is first specified when the connection is
+ * created, either via advertising or initiation.  This function replaces the
+ * callback that was last configured.
+ *
+ * @param conn_handle           The handle of the connection to configure.
+ * @param cb                    The callback to associate with the connection.
+ * @param cb_arg                An optional argument that the callback
+ *                                  receives.
+ * 
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if there is no connection with
+ *                                  the specified handle.
+ */
+int
+ble_gap_set_event_cb(uint16_t conn_handle, ble_gap_event_fn *cb, void *cb_arg)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        conn->bhc_cb = cb;
+        conn->bhc_cb_arg = cb_arg;
+    }
+
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    return 0;
+}
+
+/**
  * Handles timed-out GAP procedures.
  *
  * @return                      The number of ticks until this function should
@@ -2413,7 +2450,13 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
  * @param cb_arg                The optional argument to pass to the callback
  *                                  function.
  *
- * @return                      0 on success; nonzero on failure.
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if a connection attempt is
+ *                                  already in progress;
+ *                              BLE_HS_EBUSY if initiating a connection is not
+ *                                  possible because scanning is in progress;
+ *                              BLE_HS_EDONE if the specified peer is already connected;
+ *                              Other nonzero on error.
  */
 int
 ble_gap_connect(uint8_t own_addr_type,
@@ -2473,6 +2516,12 @@ ble_gap_connect(uint8_t own_addr_type,
             rc = BLE_HS_EINVAL;
             goto done;
         }
+    }
+
+    /* Verify peer not already connected. */
+    if (ble_hs_conn_find_by_addr(peer_addr_type, peer_addr) != NULL) {
+        rc = BLE_HS_EDONE;
+        goto done;
     }
 
     /* XXX: Verify conn_params. */

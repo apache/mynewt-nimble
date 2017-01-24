@@ -383,12 +383,13 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     struct ble_gatt_conn_test_arg write_rel_arg      = { 0, BLE_HS_ENOTCONN };
     struct ble_gatt_attr attr;
     uint16_t attr_handle;
+    uint16_t offset = 0;
     int rc;
 
     ble_gatt_conn_test_util_init();
 
     /*** Register an attribute to allow indicatations to be sent. */
-    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ,
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x1212), BLE_ATT_F_READ, 0,
                               &attr_handle,
                               ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);
@@ -412,7 +413,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     disc_svc_uuid_arg.exp_conn_handle = 1;
-    rc = ble_gattc_disc_svc_by_uuid(1, BLE_UUID16(0x1111),
+    rc = ble_gattc_disc_svc_by_uuid(1, BLE_UUID16_DECLARE(0x1111),
                                     ble_gatt_conn_test_disc_svc_uuid_cb,
                                     &disc_svc_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
@@ -436,7 +437,7 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
                                  &disc_all_dscs_arg);
 
     disc_chr_uuid_arg.exp_conn_handle = 2;
-    rc = ble_gattc_disc_chrs_by_uuid(2, 2, 0xffff, BLE_UUID16(0x2222),
+    rc = ble_gattc_disc_chrs_by_uuid(2, 2, 0xffff, BLE_UUID16_DECLARE(0x2222),
                                      ble_gatt_conn_test_disc_chr_uuid_cb,
                                      &disc_chr_uuid_arg);
 
@@ -446,13 +447,13 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     read_uuid_arg.exp_conn_handle = 2;
-    rc = ble_gattc_read_by_uuid(2, 1, 0xffff, BLE_UUID16(0x3333),
+    rc = ble_gattc_read_by_uuid(2, 1, 0xffff, BLE_UUID16_DECLARE(0x3333),
                                 ble_gatt_conn_test_read_uuid_cb,
                                 &read_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     read_long_arg.exp_conn_handle = 2;
-    rc = ble_gattc_read_long(2, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
+    rc = ble_gattc_read_long(2, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE, offset,
                              ble_gatt_conn_test_read_long_cb, &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -604,6 +605,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
     struct ble_gatt_attr attr;
     int32_t ticks_from_now;
     uint16_t attr_handle;
+    uint16_t offset = 0;
     int rc;
 
     ble_gatt_conn_test_util_init();
@@ -612,7 +614,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /*** Register an attribute to allow indicatations to be sent. */
-    rc = ble_att_svr_register(BLE_UUID16(0x1212), BLE_ATT_F_READ,
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x1212), BLE_ATT_F_READ, 0,
                               &attr_handle,
                               ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);
@@ -632,7 +634,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
 
     /*** Discover services by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_disc_svc_by_uuid(1, BLE_UUID16(0x1111),
+    rc = ble_gattc_disc_svc_by_uuid(1, BLE_UUID16_DECLARE(0x1111),
                                     ble_gatt_conn_test_disc_svc_uuid_cb,
                                     &disc_svc_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
@@ -664,7 +666,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
 
     /*** Discover characteristics by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_disc_chrs_by_uuid(1, 2, 0xffff, BLE_UUID16(0x2222),
+    rc = ble_gattc_disc_chrs_by_uuid(1, 2, 0xffff, BLE_UUID16_DECLARE(0x2222),
                                      ble_gatt_conn_test_disc_chr_uuid_cb,
                                      &disc_all_dscs_arg);
     TEST_ASSERT_FATAL(rc == 0);
@@ -679,7 +681,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
 
     /*** Read by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_read_by_uuid(1, 1, 0xffff, BLE_UUID16(0x3333),
+    rc = ble_gattc_read_by_uuid(1, 1, 0xffff, BLE_UUID16_DECLARE(0x3333),
                                 ble_gatt_conn_test_read_uuid_cb,
                                 &read_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
@@ -687,7 +689,7 @@ TEST_CASE(ble_gatt_conn_test_timeout)
 
     /*** Read long. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_read_long(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
+    rc = ble_gattc_read_long(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE, offset,
                              ble_gatt_conn_test_read_long_cb,
                              &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);

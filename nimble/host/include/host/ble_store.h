@@ -72,6 +72,7 @@ struct ble_store_value_sec {
     uint8_t peer_addr[6];
     uint8_t peer_addr_type;
 
+    uint8_t key_size;
     uint16_t ediv;
     uint64_t rand_num;
     uint8_t ltk[16];

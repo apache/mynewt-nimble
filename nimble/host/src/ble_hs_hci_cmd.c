@@ -1326,20 +1326,14 @@ int
 ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
     uint16_t timeout, uint8_t *dst, int dst_len)
 {
-    int rc;
-
     BLE_HS_DBG_ASSERT(
         dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN);
 
     ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_RPA_TMO,
                        BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN, dst);
 
-    rc = ble_hs_hci_cmd_body_set_resolv_priv_addr_timeout(
+    return ble_hs_hci_cmd_body_set_resolv_priv_addr_timeout(
         timeout, dst + BLE_HCI_CMD_HDR_LEN);
-    if (rc != 0) {
-        return rc;
-    }
-    return 0;
 }
 
 static int

@@ -430,7 +430,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     assert(rc == 0);
 
     /* Set transmit start time. */
-    txstart = sch->start_time + XCVR_PROC_DELAY_USECS;
+    txstart = sch->start_time + os_cputime_usecs_to_ticks(XCVR_PROC_DELAY_USECS);
     rc = ble_phy_tx_set_start_time(txstart);
     if (rc) {
         STATS_INC(ble_ll_stats, adv_late_starts);
@@ -1266,7 +1266,8 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 
         /* Try to start slave connection. If successful, stop advertising */
         pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
-        endtime = hdr->beg_cputime + BLE_TX_DUR_USECS_M(pyld_len);
+        endtime = hdr->beg_cputime +
+            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(pyld_len));
         valid = ble_ll_conn_slave_start(rxbuf, endtime, addr_type, hdr);
         if (valid) {
             ble_ll_adv_sm_stop(advsm);
