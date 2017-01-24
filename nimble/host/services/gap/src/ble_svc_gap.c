@@ -41,31 +41,31 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
     {
         /*** Service: GAP. */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid128 = BLE_UUID16(BLE_SVC_GAP_UUID16),
+        .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             /*** Characteristic: Device Name. */
-            .uuid128 = BLE_UUID16(BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
             /*** Characteristic: Appearance. */
-            .uuid128 = BLE_UUID16(BLE_SVC_GAP_CHR_UUID16_APPEARANCE),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_APPEARANCE),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
             /*** Characteristic: Peripheral Privacy Flag. */
-            .uuid128 = BLE_UUID16(BLE_SVC_GAP_CHR_UUID16_PERIPH_PRIV_FLAG),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PRIV_FLAG),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
             /*** Characteristic: Reconnection Address. */
-            .uuid128 = BLE_UUID16(BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_WRITE,
         }, {
             /*** Characteristic: Peripheral Preferred Connection Parameters. */
-            .uuid128 =
-                BLE_UUID16(BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS),
+            .uuid =
+                BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
@@ -85,7 +85,7 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
     uint16_t uuid16;
     int rc;
 
-    uuid16 = ble_uuid_128_to_16(ctxt->chr->uuid128);
+    uuid16 = ble_uuid_u16(ctxt->chr->uuid);
     assert(uuid16 != 0);
 
     switch (uuid16) {

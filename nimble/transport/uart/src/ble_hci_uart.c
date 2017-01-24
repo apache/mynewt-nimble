@@ -563,7 +563,15 @@ ble_hci_uart_rx_acl(uint8_t data)
          */
         if (pktlen > ble_hci_uart_max_acl_datalen) {
             os_mbuf_free_chain(ble_hci_uart_state.rx_acl.buf);
+#if MYNEWT_VAL(BLE_DEVICE)
             ble_hci_uart_sync_lost();
+#else
+        /*
+         * XXX: not sure what to do about host in this case. Just go back to
+         * none for now.
+         */
+        ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
+#endif
         }
     }
 

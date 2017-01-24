@@ -85,7 +85,8 @@ void ble_hs_conn_insert(struct ble_hs_conn *conn);
 void ble_hs_conn_remove(struct ble_hs_conn *conn);
 struct ble_hs_conn *ble_hs_conn_find(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_find_assert(uint16_t conn_handle);
-struct ble_hs_conn *ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr);
+struct ble_hs_conn *ble_hs_conn_find_by_addr(uint8_t addr_type,
+                                             const uint8_t *addr);
 struct ble_hs_conn *ble_hs_conn_find_by_idx(int idx);
 int ble_hs_conn_exists(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);

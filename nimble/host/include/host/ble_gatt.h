@@ -22,6 +22,7 @@
 
 #include <inttypes.h>
 #include "host/ble_att.h"
+#include "host/ble_uuid.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -80,7 +81,7 @@ struct ble_gatt_error {
 struct ble_gatt_svc {
     uint16_t start_handle;
     uint16_t end_handle;
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
 };
 
 struct ble_gatt_attr {
@@ -93,12 +94,12 @@ struct ble_gatt_chr {
     uint16_t def_handle;
     uint16_t val_handle;
     uint8_t properties;
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
 };
 
 struct ble_gatt_dsc {
     uint16_t handle;
-    uint8_t uuid128[16];
+    ble_uuid_any_t uuid;
 };
 
 typedef int ble_gatt_mtu_fn(uint16_t conn_handle,
@@ -143,7 +144,7 @@ int ble_gattc_exchange_mtu(uint16_t conn_handle,
                            ble_gatt_mtu_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
                             ble_gatt_disc_svc_fn *cb, void *cb_arg);
-int ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const void *svc_uuid128,
+int ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid,
                                ble_gatt_disc_svc_fn *cb, void *cb_arg);
 int ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
                             uint16_t end_handle,
@@ -152,7 +153,7 @@ int ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
                             uint16_t end_handle, ble_gatt_chr_fn *cb,
                             void *cb_arg);
 int ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                               uint16_t end_handle, const void *uuid128,
+                               uint16_t end_handle, const ble_uuid_t *uuid,
                                ble_gatt_chr_fn *cb, void *cb_arg);
 int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
                             uint16_t chr_end_handle,
@@ -160,9 +161,9 @@ int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                           uint16_t end_handle, const void *uuid128,
+                           uint16_t end_handle, const ble_uuid_t *uuid,
                            ble_gatt_attr_fn *cb, void *cb_arg);
-int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle,
+int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
@@ -178,7 +179,7 @@ int ble_gattc_write_flat(uint16_t conn_handle, uint16_t attr_handle,
                          const void *data, uint16_t data_len,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                         struct os_mbuf *om,
+                         uint16_t offset, struct os_mbuf *om,
                          ble_gatt_attr_fn *cb, void *cb_arg);
 int ble_gattc_write_reliable(uint16_t conn_handle,
                              struct ble_gatt_attr *attrs,
@@ -201,10 +202,10 @@ typedef uint16_t ble_gatt_chr_flags;
 
 struct ble_gatt_chr_def {
     /**
-     * Pointer to first element in a uint8_t[16]; use the BLE_UUID16 macro for
-     * 16-bit UUIDs; NULL if there are no more characteristics in the service.
+     * Pointer to characteristic UUID; use BLE_UUIDxx_DECLARE macros to declare
+     * proper UUID; NULL if there are no more characteristics in the service.
      */
-    const uint8_t *uuid128;
+    const ble_uuid_t *uuid;
 
     /**
      * Callback that gets executed when this characteristic is read or
@@ -225,6 +226,9 @@ struct ble_gatt_chr_def {
     /** Specifies the set of permitted operations for this characteristic. */
     ble_gatt_chr_flags flags;
 
+    /** Specifies minimum required key size to access this characteristic. */
+    uint8_t min_key_size;
+
     /** 
      * At registration time, this is filled in with the characteristic's value
      * attribute handle.
@@ -242,10 +246,10 @@ struct ble_gatt_svc_def {
     uint8_t type;
 
     /**
-     * Pointer to first element in a uint8_t[16]; use the BLE_UUID16 macro for
-     * 16-bit UUIDs.
+     * Pointer to service UUID; use BLE_UUIDxx_DECLARE macros to declare
+     * proper UUID; NULL if there are no more characteristics in the service.
      */
-    const uint8_t *uuid128;
+    const ble_uuid_t *uuid;
 
     /**
      * Array of pointers to other service definitions.  These services are
@@ -263,13 +267,16 @@ struct ble_gatt_svc_def {
 
 struct ble_gatt_dsc_def {
     /**
-     * The first element in a uint8_t[16]; use the BLE_UUID16 macro for 16-bit
-     * UUIDs; NULL if there are no more descriptors in the characteristic.
+     * Pointer to descriptor UUID; use BLE_UUIDxx_DECLARE macros to declare
+     * proper UUID; NULL if there are no more characteristics in the service.
      */
-    uint8_t *uuid128;
+    const ble_uuid_t *uuid;
 
     /** Specifies the set of permitted operations for this descriptor. */
     uint8_t att_flags;
+
+    /** Specifies minimum required key size to access this descriptor. */
+    uint8_t min_key_size;
 
     /** Callback that gets executed when the descriptor is read or written. */
     ble_gatt_access_fn *access_cb;
@@ -444,11 +451,11 @@ int ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs);
 
 void ble_gatts_chr_updated(uint16_t chr_def_handle);
 
-int ble_gatts_find_svc(const void *uuid128, uint16_t *out_handle);
-int ble_gatts_find_chr(const void *svc_uuid128, const void *chr_uuid128,
+int ble_gatts_find_svc(const ble_uuid_t *uuid, uint16_t *out_handle);
+int ble_gatts_find_chr(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
                        uint16_t *out_def_handle, uint16_t *out_val_handle);
-int ble_gatts_find_dsc(const void *svc_uuid128, const void *chr_uuid128,
-                       const void *dsc_uuid128, uint16_t *out_dsc_handle);
+int ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
+                       const ble_uuid_t *dsc_uuid, uint16_t *out_dsc_handle);
 
 #ifdef __cplusplus
 }

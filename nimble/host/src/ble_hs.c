@@ -392,7 +392,10 @@ ble_hs_event_reset(struct os_event *ev)
 static void
 ble_hs_event_start(struct os_event *ev)
 {
-    ble_hs_start();
+    int rc;
+
+    rc = ble_hs_start();
+    assert(rc == 0);
 }
 
 void

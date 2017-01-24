@@ -33,7 +33,7 @@ bleuart_gatt_svr_init(void);
 void
 bleuart_set_conn_handle(uint16_t conn_handle);
 
-extern const uint8_t gatt_svr_svc_uart[16];
+extern const ble_uuid128_t gatt_svr_svc_uart_uuid;
 
 #ifdef __cplusplus
 }

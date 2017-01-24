@@ -138,10 +138,9 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
-    /* XXX: We should create the SM channel even if not configured.  We need it
-     * to reject SM messages.
+    /* Create the SM channel even if not configured. We need it to reject SM
+     * messages.
      */
-#if NIMBLE_BLE_SM
     chan = ble_sm_create_chan();
     if (chan == NULL) {
         goto err;
@@ -150,7 +149,6 @@ ble_hs_conn_alloc(void)
     if (rc != 0) {
         goto err;
     }
-#endif
 
     rc = ble_gatts_conn_init(&conn->bhc_gatt_svr);
     if (rc != 0) {
@@ -260,7 +258,7 @@ ble_hs_conn_find_assert(uint16_t conn_handle)
 }
 
 struct ble_hs_conn *
-ble_hs_conn_find_by_addr(uint8_t addr_type, uint8_t *addr)
+ble_hs_conn_find_by_addr(uint8_t addr_type, const uint8_t *addr)
 {
 #if !NIMBLE_BLE_CONNECT
     return NULL;

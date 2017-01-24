@@ -285,7 +285,7 @@ ble_gatt_read_test_misc_verify_bad(uint8_t att_status,
 
 static void
 ble_gatt_read_test_misc_uuid_verify_good(
-    uint16_t start_handle, uint16_t end_handle, void *uuid128,
+    uint16_t start_handle, uint16_t end_handle, const ble_uuid_t *uuid,
     int stop_after, struct ble_hs_test_util_flat_attr *attrs)
 {
     int num_read;
@@ -297,7 +297,7 @@ ble_gatt_read_test_misc_uuid_verify_good(
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    rc = ble_gattc_read_by_uuid(2, start_handle, end_handle, uuid128,
+    rc = ble_gattc_read_by_uuid(2, start_handle, end_handle, uuid,
                                 ble_gatt_read_test_cb, &stop_after);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -337,6 +337,7 @@ ble_gatt_read_test_misc_long_verify_good(
     int chunk_sz;
     int rem_len;
     int att_op;
+    uint16_t offset = 0;
     int off;
     int rc;
 
@@ -348,8 +349,8 @@ ble_gatt_read_test_misc_long_verify_good(
         max_reads = INT_MAX;
     }
     reads_left = max_reads;
-    rc = ble_gattc_read_long(2, attr->handle, ble_gatt_read_test_long_cb,
-                             &reads_left);
+    rc = ble_gattc_read_long(2, attr->handle, offset,
+                             ble_gatt_read_test_long_cb, &reads_left);
     TEST_ASSERT_FATAL(rc == 0);
 
     off = 0;
@@ -386,13 +387,14 @@ static void
 ble_gatt_read_test_misc_long_verify_bad(
     uint8_t att_status, struct ble_hs_test_util_flat_attr *attr)
 {
+    uint16_t offset = 0;
     int rc;
 
     ble_gatt_read_test_misc_init();
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    rc = ble_gattc_read_long(2, attr->handle,
+    rc = ble_gattc_read_long(2, attr->handle, offset,
                              ble_gatt_read_test_long_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -538,7 +540,7 @@ TEST_CASE(ble_gatt_read_test_by_handle)
 TEST_CASE(ble_gatt_read_test_by_uuid)
 {
     /* Read a single seven-byte attribute. */
-    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 0,
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16_DECLARE(0x1234), 0,
         (struct ble_hs_test_util_flat_attr[]) { {
             .handle = 43,
             .value = { 1,2,3,4,5,6,7 },
@@ -548,7 +550,7 @@ TEST_CASE(ble_gatt_read_test_by_uuid)
         } });
 
     /* Read two seven-byte attributes; one response. */
-    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 0,
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16_DECLARE(0x1234), 0,
         (struct ble_hs_test_util_flat_attr[]) { {
             .handle = 43,
             .value = { 1,2,3,4,5,6,7 },
@@ -562,7 +564,7 @@ TEST_CASE(ble_gatt_read_test_by_uuid)
         } });
 
     /* Read two attributes; two responses. */
-    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 0,
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16_DECLARE(0x1234), 0,
         (struct ble_hs_test_util_flat_attr[]) { {
             .handle = 43,
             .value = { 1,2,3,4,5,6,7 },
@@ -576,7 +578,7 @@ TEST_CASE(ble_gatt_read_test_by_uuid)
         } });
 
     /* Stop after three reads. */
-    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16(0x1234), 3,
+    ble_gatt_read_test_misc_uuid_verify_good(1, 100, BLE_UUID16_DECLARE(0x1234), 3,
         (struct ble_hs_test_util_flat_attr[]) { {
             .handle = 43,
             .value = { 1,2,3,4,5,6,7 },
@@ -820,6 +822,7 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     int32_t ticks_until;
     int reads_left;
     int chunk_sz;
+    uint16_t offset = 0;
     int off;
     int rc;
 
@@ -830,7 +833,7 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     /* Initiate a read long procedure. */
     off = 0;
     reads_left = 0;
-    rc = ble_gattc_read_long(2, attr.handle, ble_gatt_read_test_long_cb,
+    rc = ble_gattc_read_long(2, attr.handle, offset, ble_gatt_read_test_long_cb,
                              &reads_left);
     TEST_ASSERT_FATAL(rc == 0);
 
