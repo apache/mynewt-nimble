@@ -2818,8 +2818,8 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc, int status)
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
-                        uint16_t chr_end_handle,
+ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
+                        uint16_t end_handle,
                         ble_gatt_dsc_fn *cb, void *cb_arg)
 {
 #if !MYNEWT_VAL(BLE_GATT_DISC_ALL_DSCS)
@@ -2839,9 +2839,9 @@ ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
 
     proc->op = BLE_GATT_OP_DISC_ALL_DSCS;
     proc->conn_handle = conn_handle;
-    proc->disc_all_dscs.chr_val_handle = chr_val_handle;
-    proc->disc_all_dscs.prev_handle = chr_val_handle;
-    proc->disc_all_dscs.end_handle = chr_end_handle;
+    proc->disc_all_dscs.chr_val_handle = start_handle;
+    proc->disc_all_dscs.prev_handle = start_handle;
+    proc->disc_all_dscs.end_handle = end_handle;
     proc->disc_all_dscs.cb = cb;
     proc->disc_all_dscs.cb_arg = cb_arg;
 
