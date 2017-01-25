@@ -295,61 +295,17 @@ int ble_sm_dbg_num_procs(void);
 
 uint8_t ble_sm_build_authreq(void);
 
-void ble_sm_pair_cmd_parse(void *payload, int len,
-                           struct ble_sm_pair_cmd *cmd);
-void ble_sm_pair_cmd_write(void *payload, int len, int is_req,
-                           struct ble_sm_pair_cmd *cmd);
 void ble_sm_pair_cmd_log(struct ble_sm_pair_cmd *cmd);
-void ble_sm_pair_confirm_parse(void *payload, int len,
-                               struct ble_sm_pair_confirm *cmd);
-void ble_sm_pair_confirm_write(void *payload, int len,
-                               struct ble_sm_pair_confirm *cmd);
 void ble_sm_pair_confirm_log(struct ble_sm_pair_confirm *cmd);
-void ble_sm_pair_random_parse(void *payload, int len,
-                              struct ble_sm_pair_random *cmd);
-void ble_sm_pair_random_write(void *payload, int len,
-                              struct ble_sm_pair_random *cmd);
 void ble_sm_pair_random_log(struct ble_sm_pair_random *cmd);
-void ble_sm_pair_fail_parse(void *payload, int len,
-                            struct ble_sm_pair_fail *cmd);
-void ble_sm_pair_fail_write(void *payload, int len,
-                            struct ble_sm_pair_fail *cmd);
 void ble_sm_pair_fail_log(struct ble_sm_pair_fail *cmd);
-void ble_sm_enc_info_parse(void *payload, int len,
-                           struct ble_sm_enc_info *cmd);
-void ble_sm_enc_info_write(void *payload, int len,
-                           struct ble_sm_enc_info *cmd);
 void ble_sm_enc_info_log(struct ble_sm_enc_info *cmd);
-void ble_sm_master_id_parse(void *payload, int len,
-                            struct ble_sm_master_id *cmd);
-void ble_sm_master_id_write(void *payload, int len,
-                            struct ble_sm_master_id *cmd);
 void ble_sm_master_id_log(struct ble_sm_master_id *cmd);
-void ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd);
-void ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd);
 void ble_sm_id_info_log(struct ble_sm_id_info *cmd);
-void ble_sm_id_addr_info_parse(void *payload, int len,
-                            struct ble_sm_id_addr_info *cmd);
-void ble_sm_id_addr_info_write(void *payload, int len,
-                               struct ble_sm_id_addr_info *cmd);
 void ble_sm_id_addr_info_log(struct ble_sm_id_addr_info *cmd);
-void ble_sm_sign_info_parse(void *payload, int len,
-                            struct ble_sm_sign_info *cmd);
-void ble_sm_sign_info_write(void *payload, int len,
-                            struct ble_sm_sign_info *cmd);
 void ble_sm_sign_info_log(struct ble_sm_sign_info *cmd);
-void ble_sm_sec_req_parse(void *payload, int len, struct ble_sm_sec_req *cmd);
-void ble_sm_sec_req_write(void *payload, int len, struct ble_sm_sec_req *cmd);
 void ble_sm_sec_req_log(struct ble_sm_sec_req *cmd);
-void ble_sm_public_key_parse(void *payload, int len,
-                             struct ble_sm_public_key *cmd);
-int ble_sm_public_key_write(void *payload, int len,
-                            struct ble_sm_public_key *cmd);
 void ble_sm_public_key_log(struct ble_sm_public_key *cmd);
-void ble_sm_dhkey_check_parse(void *payload, int len,
-                              struct ble_sm_dhkey_check *cmd);
-int ble_sm_dhkey_check_write(void *payload, int len,
-                             struct ble_sm_dhkey_check *cmd);
 void ble_sm_dhkey_check_log(struct ble_sm_dhkey_check *cmd);
 
 int ble_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out);
