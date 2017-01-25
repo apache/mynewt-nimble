@@ -293,8 +293,6 @@ void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 int ble_sm_dbg_num_procs(void);
 #endif
 
-uint8_t ble_sm_build_authreq(void);
-
 void ble_sm_pair_cmd_log(struct ble_sm_pair_cmd *cmd);
 void ble_sm_pair_confirm_log(struct ble_sm_pair_confirm *cmd);
 void ble_sm_pair_random_log(struct ble_sm_pair_random *cmd);

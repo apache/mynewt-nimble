@@ -667,7 +667,7 @@ ble_sm_rx_noop(uint16_t conn_handle, struct os_mbuf **om,
     res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
 }
 
-uint8_t
+static uint8_t
 ble_sm_build_authreq(void)
 {
     return ble_hs_cfg.sm_bonding << 0  |
