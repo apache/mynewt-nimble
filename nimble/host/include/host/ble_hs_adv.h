@@ -26,13 +26,14 @@
 extern "C" {
 #endif
 
+#define BLE_HS_ADV_MAX_SZ           BLE_HCI_MAX_ADV_DATA_LEN
+
 /** Max field payload size (account for 2-byte header). */
-#define BLE_HS_ADV_MAX_FIELD_SZ     (BLE_HCI_MAX_ADV_DATA_LEN - 2)
+#define BLE_HS_ADV_MAX_FIELD_SZ     (BLE_HS_ADV_MAX_SZ - 2)
 
 struct ble_hs_adv_fields {
     /*** 0x01 - Flags. */
     uint8_t flags;
-    unsigned flags_is_present:1;
 
     /*** 0x02,0x03 - 16-bit service class UUIDs. */
     uint16_t *uuids16;
@@ -177,6 +178,9 @@ struct ble_hs_adv_fields {
 #define BLE_HS_ADV_SVC_DATA_UUID32_MIN_LEN      4
 
 #define BLE_HS_ADV_SVC_DATA_UUID128_MIN_LEN     16
+
+int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
+                          uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
 
 #ifdef __cplusplus
 }

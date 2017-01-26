@@ -162,7 +162,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     /* Initiate advertising. */
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.tx_pwr_lvl_is_present = 1;
-    rc = ble_gap_adv_set_fields(&adv_fields);
+    rc = ble_hs_test_util_adv_set_fields(&adv_fields, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     adv_params = ble_hs_test_util_adv_params;

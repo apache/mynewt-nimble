@@ -251,6 +251,7 @@ ble_gap_test_util_verify_tx_adv_data(void)
     /* Note: Content of message verified in ble_hs_adv_test.c. */
 }
 
+#if 0
 static void
 ble_gap_test_util_verify_tx_rsp_data(void)
 {
@@ -262,6 +263,7 @@ ble_gap_test_util_verify_tx_rsp_data(void)
                                            &param_len);
     (void)param; /* XXX: Verify other fields. */
 }
+#endif
 
 static void
 ble_gap_test_util_verify_tx_adv_enable(int enabled)
@@ -631,7 +633,7 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
         .length_data = 0,
         .rssi = 0,
         .addr = { 1, 2, 3, 4, 5, 6 },
-        .data = (uint8_t[BLE_HCI_MAX_ADV_DATA_LEN]){
+        .data = (uint8_t[BLE_HS_ADV_MAX_SZ]){
             2, 
             BLE_HS_ADV_TYPE_FLAGS,
             BLE_HS_ADV_F_DISC_GEN,
@@ -1362,21 +1364,22 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
 
     cmd_idx = 0;
 
-    if (conn_mode != BLE_GAP_CONN_MODE_DIR) {
-        memset(&adv_fields, 0, sizeof adv_fields);
-        adv_fields.tx_pwr_lvl_is_present = 1;
-        adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+    memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.tx_pwr_lvl_is_present = 1;
+    adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
 
-        hci_status = ble_hs_test_util_exp_hci_status(cmd_idx, cmd_fail_idx,
-                                                     fail_status);
-        rc = ble_hs_test_util_adv_set_fields(&adv_fields, hci_status);
+    rc = ble_hs_test_util_adv_set_fields(&adv_fields, cmd_fail_idx,
+                                         fail_status);
+    if (cmd_fail_idx < 2) {
+        hci_status = fail_status;
+    } else {
+        hci_status = 0;
+    }
+    TEST_ASSERT_FATAL(rc == BLE_HS_HCI_ERR(hci_status));
+    cmd_idx += 2;
 
-        if (adv_fields.tx_pwr_lvl_is_present &&
-            adv_fields.tx_pwr_lvl == BLE_HS_ADV_TX_PWR_LVL_AUTO) {
-
-            TEST_ASSERT_FATAL(rc == BLE_HS_HCI_ERR(hci_status));
-            cmd_idx++;
-        }
+    if (rc == 0) {
+        ble_gap_test_util_verify_tx_adv_data();
     }
 
     if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
@@ -1386,6 +1389,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
                                         cmd_fail_idx - cmd_idx, fail_status);
 
         TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
+        cmd_idx++;
     }
 
     if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
@@ -1393,20 +1397,6 @@ ble_gap_test_util_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
         ble_gap_test_util_verify_tx_adv_params();
     }
     cmd_idx++;
-
-    if (conn_mode != BLE_GAP_CONN_MODE_DIR) {
-        if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
-            /* Verify tx of set advertise data command. */
-            ble_gap_test_util_verify_tx_adv_data();
-        }
-        cmd_idx++;
-
-        if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
-            /* Verify tx of set scan response data command. */
-            ble_gap_test_util_verify_tx_rsp_data();
-        }
-        cmd_idx++;
-    }
 
     if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
         /* Verify tx of set advertise enable command. */
@@ -1625,20 +1615,13 @@ TEST_CASE(ble_gap_test_case_adv_ctlr_fail)
 TEST_CASE(ble_gap_test_case_adv_hci_fail)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
-    int num_hci_cmds;
     int fail_idx;
     int d;
     int c;
 
     for (c = BLE_GAP_CONN_MODE_NON; c < BLE_GAP_CONN_MODE_MAX; c++) {
-        if (c == BLE_GAP_CONN_MODE_DIR) {
-            num_hci_cmds = 2;
-        } else {
-            num_hci_cmds = 5;
-        }
-
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
-            for (fail_idx = 0; fail_idx < num_hci_cmds; fail_idx++) {
+            for (fail_idx = 0; fail_idx < 4; fail_idx++) {
                 ble_gap_test_util_adv(BLE_ADDR_TYPE_PUBLIC,
                                       BLE_ADDR_TYPE_PUBLIC, peer_addr,
                                       c, d, 0, fail_idx, BLE_ERR_UNSUPPORTED);

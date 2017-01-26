@@ -73,14 +73,6 @@
 
 #define BLE_GAP_UPDATE_TIMEOUT                  (30 * OS_TICKS_PER_SEC)
 
-/**
- * The maximum amount of user data that can be put into the advertising data.
- * The stack will automatically insert the flags field on its own if requested
- * by the application, limiting the maximum amount of user data.
- */
-#define BLE_GAP_ADV_DATA_LIMIT_FLAGS    (BLE_HCI_MAX_ADV_DATA_LEN - 3)
-#define BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS BLE_HCI_MAX_ADV_DATA_LEN
-
 #define BLE_GAP_MAX_UPDATE_ENTRIES      1
 
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
@@ -142,8 +134,6 @@ static bssnz_t struct {
     uint8_t rsp_data[BLE_HCI_MAX_ADV_DATA_LEN];
     uint8_t adv_data_len;
     uint8_t rsp_data_len;
-
-    unsigned adv_auto_flags:1;
 } ble_gap_slave;
 
 struct ble_gap_update_entry {
@@ -185,10 +175,10 @@ STATS_NAME_START(ble_gap_stats)
     STATS_NAME(ble_gap_stats, adv_stop_fail)
     STATS_NAME(ble_gap_stats, adv_start)
     STATS_NAME(ble_gap_stats, adv_start_fail)
-    STATS_NAME(ble_gap_stats, adv_set_fields)
-    STATS_NAME(ble_gap_stats, adv_set_fields_fail)
-    STATS_NAME(ble_gap_stats, adv_rsp_set_fields)
-    STATS_NAME(ble_gap_stats, adv_rsp_set_fields_fail)
+    STATS_NAME(ble_gap_stats, adv_set_data)
+    STATS_NAME(ble_gap_stats, adv_set_data_fail)
+    STATS_NAME(ble_gap_stats, adv_rsp_set_data)
+    STATS_NAME(ble_gap_stats, adv_rsp_set_data_fail)
     STATS_NAME(ble_gap_stats, discover)
     STATS_NAME(ble_gap_stats, discover_fail)
     STATS_NAME(ble_gap_stats, initiate)
@@ -1592,7 +1582,7 @@ done:
     ble_hs_unlock();
 
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+        STATS_INC(ble_gap_stats, adv_set_data_fail);
     }
 
     return rc;
@@ -1601,93 +1591,6 @@ done:
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
-
-static int
-ble_gap_adv_rsp_data_tx(void)
-{
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
-    int rc;
-
-    rc = ble_hs_hci_cmd_build_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
-                                                   ble_gap_slave.rsp_data_len,
-                                                   buf, sizeof buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static void
-ble_gap_adv_data_set_flags(void)
-{
-    uint8_t flags;
-    int rc;
-
-    /* Calculate the value of the flags field from the discoverable mode. */
-    flags = 0;
-    switch (ble_gap_slave.disc_mode) {
-    case BLE_GAP_DISC_MODE_NON:
-        break;
-
-    case BLE_GAP_DISC_MODE_LTD:
-        flags |= BLE_HS_ADV_F_DISC_LTD;
-        break;
-
-    case BLE_GAP_DISC_MODE_GEN:
-        flags |= BLE_HS_ADV_F_DISC_GEN;
-        break;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        break;
-    }
-
-    flags |= BLE_HS_ADV_F_BREDR_UNSUP;
-
-    if (flags != 0) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
-                                 ble_gap_slave.adv_data,
-                                 &ble_gap_slave.adv_data_len,
-                                 BLE_HCI_MAX_ADV_DATA_LEN);
-        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-    }
-}
-
-static int
-ble_gap_adv_data_tx(void)
-{
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_DATA_LEN];
-    int rc;
-
-    /* Calculate the flags AD field if requested by application.  Clear the
-     * auto flag after encoding the flags so that we don't get repeated flags
-     * fields on subsequent advertising procedures.
-     */
-    if (ble_gap_slave.adv_auto_flags) {
-        ble_gap_adv_data_set_flags();
-        ble_gap_slave.adv_auto_flags = 0;
-    }
-
-    rc = ble_hs_hci_cmd_build_le_set_adv_data(ble_gap_slave.adv_data,
-                                              ble_gap_slave.adv_data_len,
-                                              buf, sizeof buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
 
 static int
 ble_gap_adv_type(const struct ble_gap_adv_params *adv_params)
@@ -1953,18 +1856,6 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
         goto done;
     }
 
-    if (adv_params->conn_mode != BLE_GAP_CONN_MODE_DIR) {
-        rc = ble_gap_adv_data_tx();
-        if (rc != 0) {
-            goto done;
-        }
-
-        rc = ble_gap_adv_rsp_data_tx();
-        if (rc != 0) {
-            goto done;
-        }
-    }
-
     ble_gap_slave.op = BLE_GAP_OP_S_ADV;
 
     rc = ble_gap_adv_enable_tx(1);
@@ -1991,6 +1882,92 @@ done:
 /**
  * Configures the data to include in subsequent advertisements.
  *
+ * @param data                  Buffer containing the advertising data.
+ * @param data_len              The size of the advertising data, in bytes.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              Other nonzero on failure.
+ */
+int
+ble_gap_adv_set_data(const uint8_t *data, int data_len)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
+    int rc;
+
+    STATS_INC(ble_gap_stats, adv_set_data);
+
+    ble_hs_lock();
+
+    /* Don't allow advertising fields to be set while advertising is active. */
+    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
+    rc = ble_hs_hci_cmd_build_le_set_adv_data(data, data_len, buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_HCI_ERR(rc);
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = 0;
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
+/**
+ * Configures the data to include in subsequent scan responses.
+ *
+ * @param data                  Buffer containing the scan response data.
+ * @param data_len              The size of the response data, in bytes.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              Other nonzero on failure.
+ */
+int
+ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
+    int rc;
+
+    ble_hs_lock();
+
+    /* Don't allow advertising fields to be set while advertising is active. */
+    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
+    rc = ble_hs_hci_cmd_build_le_set_scan_rsp_data(data, data_len,
+                                                   buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_HCI_ERR(rc);
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = 0;
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
+/**
+ * Configures the fields to include in subsequent advertisements.  This is a
+ * higher-level version of ble_gap_adv_set_data().
+ *
  * @param adv_fields            Specifies the advertisement data.
  *
  * @return                      0 on success;
@@ -2002,93 +1979,51 @@ done:
 int
 ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields)
 {
-#if !NIMBLE_BLE_ADVERTISE
-    return BLE_HS_ENOTSUP;
-#endif
-
-    int max_sz;
+    uint8_t buf[BLE_HS_ADV_MAX_SZ];
+    uint8_t buf_sz;
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_set_fields);
-
-    ble_hs_lock();
-
-    /* Don't allow advertising fields to be set while advertising is active. */
-    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EBUSY;
-        goto done;
-    }
-
-    /* If application has requested the stack to calculate the flags field
-     * automatically (flags == 0), there is less room for user data.
-     */
-    if (adv_fields->flags_is_present && adv_fields->flags == 0) {
-        max_sz = BLE_GAP_ADV_DATA_LIMIT_FLAGS;
-        ble_gap_slave.adv_auto_flags = 1;
-    } else {
-        max_sz = BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS;
-        ble_gap_slave.adv_auto_flags = 0;
-    }
-
-    rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
-                               &ble_gap_slave.adv_data_len, max_sz);
+    rc = ble_hs_adv_set_fields(adv_fields, buf, &buf_sz, sizeof buf);
     if (rc != 0) {
-        goto done;
+        return rc;
     }
 
-done:
-    ble_hs_unlock();
-
+    rc = ble_gap_adv_set_data(buf, buf_sz);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+        return rc;
     }
-    return rc;
+
+    return 0;
 }
 
 /**
- * Configures the data to include in subsequent scan responses.
+ * Configures the fields to include in subsequent scan responses.  This is a
+ * higher-level version of ble_gap_adv_rsp_set_data().
  *
  * @param adv_fields            Specifies the scan response data.
  *
  * @return                      0 on success;
  *                              BLE_HS_EBUSY if advertising is in progress;
- *                              BLE_HS_EMSGSIZE if the specified data is too
- *                                  large to fit in an advertisement;
  *                              Other nonzero on failure.
  */
 int
 ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields)
 {
-#if !NIMBLE_BLE_ADVERTISE
-    return BLE_HS_ENOTSUP;
-#endif
-
+    uint8_t buf[BLE_HS_ADV_MAX_SZ];
+    uint8_t buf_sz;
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_rsp_set_fields);
-
-    ble_hs_lock();
-
-    /* Don't allow response fields to be set while advertising is active. */
-    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EBUSY;
-        goto done;
-    }
-
-    rc = ble_hs_adv_set_fields(rsp_fields, ble_gap_slave.rsp_data,
-                               &ble_gap_slave.rsp_data_len,
-                               BLE_HCI_MAX_ADV_DATA_LEN);
+    rc = ble_hs_adv_set_fields(rsp_fields, buf, &buf_sz, sizeof buf);
     if (rc != 0) {
-        goto done;
+        return rc;
     }
 
-done:
-    ble_hs_unlock();
-
+    rc = ble_gap_adv_rsp_set_data(buf, buf_sz);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_rsp_set_fields_fail);
+        return rc;
     }
-    return rc;
+
+    return 0;
 }
 
 /**
