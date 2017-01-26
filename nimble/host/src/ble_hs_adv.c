@@ -23,6 +23,11 @@
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
+struct find_field_data {
+    uint8_t type;
+    const struct ble_hs_adv_field *field;
+};
+
 static uint16_t ble_hs_adv_uuids16[BLE_HS_ADV_MAX_FIELD_SZ / 2];
 static uint32_t ble_hs_adv_uuids32[BLE_HS_ADV_MAX_FIELD_SZ / 4];
 
@@ -558,6 +563,68 @@ ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
         src += field_len;
         src_len -= field_len;
     }
+
+    return 0;
+}
+
+int
+ble_hs_adv_parse(const uint8_t *data, uint8_t length,
+                 ble_hs_adv_parse_func_t func, void *user_data)
+{
+    const struct ble_hs_adv_field *field;
+
+    while (length > 1) {
+        field = (const void *) data;
+
+        if (field->length >= length) {
+            return BLE_HS_EBADDATA;
+        }
+
+        if (func(field, user_data) == 0) {
+            return 0;
+        }
+
+        length -= 1 + field->length;
+        length += 1 + field->length;
+    }
+
+    return 0;
+}
+
+static int
+find_field_func(const struct ble_hs_adv_field *field, void *user_data)
+{
+    struct find_field_data *ffd = user_data;
+
+    if (field->type != ffd->type) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ffd->field = field;
+
+    return 0;
+}
+
+int
+ble_hs_adv_find_field(uint8_t type, const uint8_t *data, uint8_t length,
+                      const struct ble_hs_adv_field **out)
+{
+    int rc;
+    struct find_field_data ffd = {
+            .type = type,
+            .field = NULL,
+    };
+
+    rc = ble_hs_adv_parse(data, length, find_field_func, &ffd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (!ffd.field) {
+        return BLE_HS_ENOENT;
+    }
+
+    *out = ffd.field;
 
     return 0;
 }

@@ -1056,7 +1056,7 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
     return;
 #endif
 
-    struct ble_hs_adv_fields fields;
+    const struct ble_hs_adv_field *flags;
     int rc;
 
     STATS_INC(ble_gap_stats, rx_adv_report);
@@ -1065,22 +1065,18 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
         return;
     }
 
-    rc = ble_hs_adv_parse_fields(&fields, desc->data, desc->length_data);
-    if (rc != 0) {
-        /* XXX: Increment stat. */
-        return;
-    }
-
     /* If a limited discovery procedure is active, discard non-limited
      * advertisements.
      */
-    if (ble_gap_master.disc.limited &&
-        !(fields.flags & BLE_HS_ADV_F_DISC_LTD)) {
-
-        return;
+    if (ble_gap_master.disc.limited) {
+        rc = ble_hs_adv_find_field(BLE_HS_ADV_TYPE_FLAGS, desc->data,
+                                   desc->length_data, &flags);
+        if ((rc == 0) && (flags->length == 2) &&
+            !(flags->value[0] & BLE_HS_ADV_F_DISC_LTD)) {
+            return;
+        }
     }
 
-    desc->fields = &fields;
     ble_gap_disc_report(desc);
 }
 

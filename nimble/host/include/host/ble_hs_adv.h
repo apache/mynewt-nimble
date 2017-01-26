@@ -31,6 +31,15 @@ extern "C" {
 /** Max field payload size (account for 2-byte header). */
 #define BLE_HS_ADV_MAX_FIELD_SZ     (BLE_HS_ADV_MAX_SZ - 2)
 
+struct ble_hs_adv_field {
+    uint8_t length;
+    uint8_t type;
+    uint8_t value[];
+};
+
+typedef int (* ble_hs_adv_parse_func_t) (const struct ble_hs_adv_field *,
+                                         void *);
+
 struct ble_hs_adv_fields {
     /*** 0x01 - Flags. */
     uint8_t flags;
@@ -147,6 +156,12 @@ struct ble_hs_adv_fields {
 
 int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
                           uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
+
+int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
+                            uint8_t src_len);
+
+int ble_hs_adv_parse(const uint8_t *data, uint8_t length,
+                     ble_hs_adv_parse_func_t func, void *user_data);
 
 #ifdef __cplusplus
 }
