@@ -22,6 +22,7 @@
 
 #include <inttypes.h>
 #include "host/ble_hs.h"
+#include "host/ble_hs_adv.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -222,10 +223,7 @@ struct ble_gap_disc_desc {
     uint8_t length_data;
     int8_t rssi;
     uint8_t addr[6];
-
-    /*** LE advertising report fields; both null if no data present. */
     uint8_t *data;
-    struct ble_hs_adv_fields *fields;
 
     /***
      * LE direct advertising report fields; direct_addr_type is
