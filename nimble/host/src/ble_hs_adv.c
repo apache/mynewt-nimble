@@ -108,7 +108,7 @@ ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, const uint32_t *elems,
 }
 
 /**
- * Sets the significant part of the data in outgoing advertisements.
+ * Converts a high-level set of fields to a byte buffer.
  *
  * @return                      0 on success; nonzero on failure.
  */
@@ -127,19 +127,14 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     *dst_len = 0;
 
     /*** 0x01 - Flags. */
-    /* The application has three options concerning the flags field:
-     * 1. Don't include it in advertisements (!flags_is_present).
-     * 2. Explicitly specify the value (flags_is_present && flags != 0).
-     * 3. Let stack calculate the value (flags_is_present && flags == 0).
-     *
-     * For option 3, the calculation is delayed until advertising is enabled.
-     * The delay is necessary because the flags value depends on the type of
-     * advertising being performed which is not known at this time.
+    /* The application has two options concerning the flags field:
+     * 1. Don't include it in advertisements (flags == 0).
+     * 2. Explicitly specify the value (flags != 0).
      *
      * Note: The CSS prohibits advertising a flags value of 0, so this method
-     * of specifying option 2 vs. 3 is sound.
+     * of specifying option 1 vs. 2 is sound.
      */
-    if (adv_fields->flags_is_present && adv_fields->flags != 0) {
+    if (adv_fields->flags != 0) {
         rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &adv_fields->flags,
                                  dst, dst_len, max_len);
     }
@@ -432,7 +427,6 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
             return BLE_HS_EBADDATA;
         }
         adv_fields->flags = *data;
-        adv_fields->flags_is_present = 1;
         break;
 
     case BLE_HS_ADV_TYPE_INCOMP_UUIDS16:

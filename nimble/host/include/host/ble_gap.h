@@ -543,7 +543,9 @@ int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
                       ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_adv_stop(void);
 int ble_gap_adv_active(void);
-int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields);
+int ble_gap_adv_set_data(const uint8_t *data, int data_len);
+int ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len);
+int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,

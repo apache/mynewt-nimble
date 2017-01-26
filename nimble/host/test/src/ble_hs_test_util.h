@@ -122,8 +122,11 @@ int ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
 int ble_hs_test_util_disc_cancel(uint8_t ack_status);
 void ble_hs_test_util_verify_tx_disconnect(uint16_t handle, uint8_t reason);
 void ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp);
-int ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
-                                    uint8_t hci_status);
+int ble_hs_test_util_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
+                                    int cmd_fail_idx, uint8_t hci_status);
+int ble_hs_test_util_adv_rsp_set_fields(
+    const struct ble_hs_adv_fields *adv_fields,
+    int cmd_fail_idx, uint8_t hci_status);
 int ble_hs_test_util_adv_start(uint8_t own_addr_type,
                                uint8_t peer_addr_type,
                                const uint8_t *peer_addr,

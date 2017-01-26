@@ -689,24 +689,79 @@ ble_hs_test_util_verify_tx_rd_pwr(void)
 }
 
 int
-ble_hs_test_util_adv_set_fields(struct ble_hs_adv_fields *adv_fields,
-                                uint8_t hci_status)
+ble_hs_test_util_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
+                                int cmd_fail_idx, uint8_t hci_status)
 {
+    struct ble_hs_test_util_phony_ack acks[3];
     int auto_pwr;
     int rc;
+    int i;
 
     auto_pwr = adv_fields->tx_pwr_lvl_is_present &&
                adv_fields->tx_pwr_lvl == BLE_HS_ADV_TX_PWR_LVL_AUTO;
 
+    i = 0;
     if (auto_pwr) {
-        ble_hs_test_util_set_ack_params(
-            ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                        BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
-            hci_status,
-            ((uint8_t[1]){0}), 1);
+        acks[i] = (struct ble_hs_test_util_phony_ack) {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
+            ble_hs_test_util_exp_hci_status(i, cmd_fail_idx, hci_status),
+            {0},
+            1,
+        };
+        i++;
     }
 
+    acks[i] = (struct ble_hs_test_util_phony_ack) {
+        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_DATA),
+        ble_hs_test_util_exp_hci_status(i, cmd_fail_idx, hci_status),
+    };
+    i++;
+
+    memset(acks + i, 0, sizeof acks[i]);
+    ble_hs_test_util_set_ack_seq(acks);
+
     rc = ble_gap_adv_set_fields(adv_fields);
+    if (rc == 0 && auto_pwr) {
+        /* Verify tx of set advertising params command. */
+        ble_hs_test_util_verify_tx_rd_pwr();
+    }
+
+    return rc;
+}
+
+int
+ble_hs_test_util_adv_rsp_set_fields(const struct ble_hs_adv_fields *adv_fields,
+                                    int cmd_fail_idx, uint8_t hci_status)
+{
+    struct ble_hs_test_util_phony_ack acks[3];
+    int auto_pwr;
+    int rc;
+    int i;
+
+    auto_pwr = adv_fields->tx_pwr_lvl_is_present &&
+               adv_fields->tx_pwr_lvl == BLE_HS_ADV_TX_PWR_LVL_AUTO;
+
+    i = 0;
+    if (auto_pwr) {
+        acks[i] = (struct ble_hs_test_util_phony_ack) {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
+            ble_hs_test_util_exp_hci_status(i, cmd_fail_idx, hci_status),
+            {0},
+            1,
+        };
+        i++;
+    }
+
+    acks[i] = (struct ble_hs_test_util_phony_ack) {
+        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA),
+        ble_hs_test_util_exp_hci_status(i, cmd_fail_idx, hci_status),
+    };
+    i++;
+
+    memset(acks + i, 0, sizeof acks[i]);
+    ble_hs_test_util_set_ack_seq(acks);
+
+    rc = ble_gap_adv_rsp_set_fields(adv_fields);
     if (rc == 0 && auto_pwr) {
         /* Verify tx of set advertising params command. */
         ble_hs_test_util_verify_tx_rd_pwr();
@@ -734,20 +789,6 @@ ble_hs_test_util_adv_start(uint8_t own_addr_type,
         fail_idx == i ? fail_status : 0,
     };
     i++;
-
-    if (adv_params->conn_mode != BLE_GAP_CONN_MODE_DIR) {
-        acks[i] = (struct ble_hs_test_util_phony_ack) {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_DATA),
-            ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
-        };
-        i++;
-
-        acks[i] = (struct ble_hs_test_util_phony_ack) {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA),
-            ble_hs_test_util_exp_hci_status(i, fail_idx, fail_status),
-        };
-        i++;
-    }
 
     acks[i] = (struct ble_hs_test_util_phony_ack) {
         BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE),
