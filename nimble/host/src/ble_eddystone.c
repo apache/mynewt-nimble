@@ -30,7 +30,7 @@
 #define BLE_EDDYSTONE_FRAME_TYPE_UID    0x00
 #define BLE_EDDYSTONE_FRAME_TYPE_URL    0x10
 
-static uint16_t ble_eddystone_uuids16[BLE_EDDYSTONE_MAX_UUIDS16 + 1];
+static ble_uuid16_t ble_eddystone_uuids16[BLE_EDDYSTONE_MAX_UUIDS16 + 1];
 static uint8_t ble_eddystone_svc_data[BLE_EDDYSTONE_MAX_SVC_DATA_LEN];
 
 /**
@@ -85,9 +85,9 @@ ble_eddystone_set_adv_data_gen(struct ble_hs_adv_fields *adv_fields,
         return BLE_HS_EINVAL;
     }
 
-    ble_eddystone_uuids16[0] = BLE_EDDYSTONE_SERVICE_UUID;
+    ble_eddystone_uuids16[0] = (ble_uuid16_t) BLE_UUID16_INIT(BLE_EDDYSTONE_SERVICE_UUID);
     memcpy(ble_eddystone_uuids16 + 1, adv_fields->uuids16,
-           adv_fields->num_uuids16 * 2);
+           adv_fields->num_uuids16 * sizeof(ble_uuid16_t));
     adv_fields->uuids16 = ble_eddystone_uuids16;
     adv_fields->num_uuids16++;
     adv_fields->uuids16_is_complete = 1;
