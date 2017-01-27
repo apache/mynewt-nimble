@@ -630,7 +630,7 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
     struct ble_gap_disc_desc desc = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .addr_type = BLE_ADDR_TYPE_PUBLIC,
-        .length_data = 0,
+        .length_data = 3,
         .rssi = 0,
         .addr = { 1, 2, 3, 4, 5, 6 },
         .data = (uint8_t[BLE_HS_ADV_MAX_SZ]){

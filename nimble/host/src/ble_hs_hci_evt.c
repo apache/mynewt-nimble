@@ -434,7 +434,6 @@ ble_hs_hci_evt_le_dir_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 
     /* Data fields not present in a direct advertising report. */
     desc.data = NULL;
-    desc.fields = NULL;
 
     for (i = 0; i < num_reports; i++) {
         suboff = 0;

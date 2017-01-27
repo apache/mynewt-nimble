@@ -23,8 +23,14 @@
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
 
-static uint16_t ble_hs_adv_uuids16[BLE_HS_ADV_MAX_FIELD_SZ / 2];
-static uint32_t ble_hs_adv_uuids32[BLE_HS_ADV_MAX_FIELD_SZ / 4];
+struct find_field_data {
+    uint8_t type;
+    const struct ble_hs_adv_field *field;
+};
+
+static ble_uuid16_t ble_hs_adv_uuids16[BLE_HS_ADV_MAX_FIELD_SZ / 2];
+static ble_uuid32_t ble_hs_adv_uuids32[BLE_HS_ADV_MAX_FIELD_SZ / 4];
+static ble_uuid128_t ble_hs_adv_uuids128[BLE_HS_ADV_MAX_FIELD_SZ / 16];
 
 static int
 ble_hs_adv_set_hdr(uint8_t type, uint8_t data_len, uint8_t max_len,
@@ -66,6 +72,76 @@ ble_hs_adv_set_flat(uint8_t type, int data_len, const void *data,
 }
 
 static int
+ble_hs_adv_set_array_uuid16(uint8_t type, uint8_t num_elems,
+                            const ble_uuid16_t *elems, uint8_t *dst,
+                            uint8_t *dst_len, uint8_t max_len)
+{
+    int rc;
+    int i;
+
+    rc = ble_hs_adv_set_hdr(type, num_elems * 2, max_len, dst,
+                            dst_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    for (i = 0; i < num_elems; i++) {
+        ble_uuid_flat(&elems[i].u, dst + *dst_len);
+        *dst_len += 2;
+    }
+
+    return 0;
+}
+
+static int
+ble_hs_adv_set_array_uuid32(uint8_t type, uint8_t num_elems,
+                            const ble_uuid32_t *elems, uint8_t *dst,
+                            uint8_t *dst_len, uint8_t max_len)
+{
+    int rc;
+    int i;
+
+    rc = ble_hs_adv_set_hdr(type, num_elems * 4, max_len, dst,
+                            dst_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    for (i = 0; i < num_elems; i++) {
+        /* We cannot use ble_uuid_flat here since it converts 32-bit UUIDs to
+         * 128-bit as ATT requires. In AD, 32-bit UUID shall be written as an
+         * actual 32-bit value.
+         */
+        put_le32(dst + *dst_len, elems[i].value);
+        *dst_len += 4;
+    }
+
+    return 0;
+}
+
+static int
+ble_hs_adv_set_array_uuid128(uint8_t type, uint8_t num_elems,
+                             const ble_uuid128_t *elems, uint8_t *dst,
+                             uint8_t *dst_len, uint8_t max_len)
+{
+    int rc;
+    int i;
+
+    rc = ble_hs_adv_set_hdr(type, num_elems * 16, max_len, dst,
+                            dst_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    for (i = 0; i < num_elems; i++) {
+        ble_uuid_flat(&elems[i].u, dst + *dst_len);
+        *dst_len += 16;
+    }
+
+    return 0;
+}
+
+static int
 ble_hs_adv_set_array16(uint8_t type, uint8_t num_elems, const uint16_t *elems,
                        uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
 {
@@ -80,27 +156,6 @@ ble_hs_adv_set_array16(uint8_t type, uint8_t num_elems, const uint16_t *elems,
 
     for (i = 0; i < num_elems; i++) {
         put_le16(dst + *dst_len, elems[i]);
-        *dst_len += sizeof elems[i];
-    }
-
-    return 0;
-}
-
-static int
-ble_hs_adv_set_array32(uint8_t type, uint8_t num_elems, const uint32_t *elems,
-                       uint8_t *dst, uint8_t *dst_len, uint8_t max_len)
-{
-    int rc;
-    int i;
-
-    rc = ble_hs_adv_set_hdr(type, num_elems * sizeof *elems, max_len, dst,
-                            dst_len);
-    if (rc != 0) {
-        return rc;
-    }
-
-    for (i = 0; i < num_elems; i++) {
-        put_le32(dst + *dst_len, elems[i]);
         *dst_len += sizeof elems[i];
     }
 
@@ -147,9 +202,9 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
             type = BLE_HS_ADV_TYPE_INCOMP_UUIDS16;
         }
 
-        rc = ble_hs_adv_set_array16(type, adv_fields->num_uuids16,
-                                    adv_fields->uuids16, dst, dst_len,
-                                    max_len);
+        rc = ble_hs_adv_set_array_uuid16(type, adv_fields->num_uuids16,
+                                         adv_fields->uuids16, dst, dst_len,
+                                         max_len);
         if (rc != 0) {
             return rc;
         }
@@ -163,9 +218,9 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
             type = BLE_HS_ADV_TYPE_INCOMP_UUIDS32;
         }
 
-        rc = ble_hs_adv_set_array32(type, adv_fields->num_uuids32,
-                                    adv_fields->uuids32, dst, dst_len,
-                                    max_len);
+        rc = ble_hs_adv_set_array_uuid32(type, adv_fields->num_uuids32,
+                                         adv_fields->uuids32, dst, dst_len,
+                                         max_len);
         if (rc != 0) {
             return rc;
         }
@@ -179,8 +234,9 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
             type = BLE_HS_ADV_TYPE_INCOMP_UUIDS128;
         }
 
-        rc = ble_hs_adv_set_flat(type, adv_fields->num_uuids128 * 16,
-                                 adv_fields->uuids128, dst, dst_len, max_len);
+        rc = ble_hs_adv_set_array_uuid128(type, adv_fields->num_uuids128,
+                                          adv_fields->uuids128, dst, dst_len,
+                                          max_len);
         if (rc != 0) {
             return rc;
         }
@@ -217,17 +273,6 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
 
         rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_TX_PWR_LVL, 1, &tx_pwr_lvl,
                                  dst, dst_len, max_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    /*** 0x0d - Class of device. */
-    if (adv_fields->device_class != NULL) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_DEVICE_CLASS,
-                                 BLE_HS_ADV_DEVICE_CLASS_LEN,
-                                 adv_fields->device_class, dst, dst_len,
-                                 max_len);
         if (rc != 0) {
             return rc;
         }
@@ -290,27 +335,6 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
         }
     }
 
-    /*** 0x1b - LE bluetooth device address. */
-    if (adv_fields->le_addr != NULL) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ADDR,
-                                 BLE_HS_ADV_LE_ADDR_LEN,
-                                 adv_fields->le_addr, dst, dst_len,
-                                 max_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    /*** 0x1c - LE role. */
-    if (adv_fields->le_role_is_present) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_LE_ROLE,
-                                 BLE_HS_ADV_LE_ROLE_LEN,
-                                 &adv_fields->le_role, dst, dst_len, max_len);
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
     /*** 0x20 - Service data - 32-bit UUID. */
     if (adv_fields->svc_data_uuid32 != NULL) {
         rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_SVC_DATA_UUID32,
@@ -359,6 +383,7 @@ static int
 ble_hs_adv_parse_uuids16(struct ble_hs_adv_fields *adv_fields,
                          const uint8_t *data, uint8_t data_len)
 {
+    ble_uuid_any_t uuid;
     int i;
 
     if (data_len % 2 != 0) {
@@ -369,7 +394,8 @@ ble_hs_adv_parse_uuids16(struct ble_hs_adv_fields *adv_fields,
     adv_fields->num_uuids16 = data_len / 2;
 
     for (i = 0; i < adv_fields->num_uuids16; i++) {
-        adv_fields->uuids16[i] = get_le16(data + i * 2);
+        ble_uuid_init_from_buf(&uuid, data + i * 2, 2);
+        adv_fields->uuids16[i] = uuid.u16;
     }
 
     return 0;
@@ -379,6 +405,7 @@ static int
 ble_hs_adv_parse_uuids32(struct ble_hs_adv_fields *adv_fields,
                          const uint8_t *data, uint8_t data_len)
 {
+    ble_uuid_any_t uuid;
     int i;
 
     if (data_len % 4 != 0) {
@@ -389,7 +416,30 @@ ble_hs_adv_parse_uuids32(struct ble_hs_adv_fields *adv_fields,
     adv_fields->num_uuids32 = data_len / 4;
 
     for (i = 0; i < adv_fields->num_uuids32; i++) {
-        adv_fields->uuids32[i] = get_le32(data + i * 4);
+        ble_uuid_init_from_buf(&uuid, data + i * 4, 4);
+        adv_fields->uuids32[i] = uuid.u32;
+    }
+
+    return 0;
+}
+
+static int
+ble_hs_adv_parse_uuids128(struct ble_hs_adv_fields *adv_fields,
+                          const uint8_t *data, uint8_t data_len)
+{
+    ble_uuid_any_t uuid;
+    int i;
+
+    if (data_len % 16 != 0) {
+        return BLE_HS_EBADDATA;
+    }
+
+    adv_fields->uuids128 = ble_hs_adv_uuids128;
+    adv_fields->num_uuids128 = data_len / 16;
+
+    for (i = 0; i < adv_fields->num_uuids128; i++) {
+        ble_uuid_init_from_buf(&uuid, data + i * 16, 16);
+        adv_fields->uuids128[i] = uuid.u128;
     }
 
     return 0;
@@ -462,20 +512,18 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         break;
 
     case BLE_HS_ADV_TYPE_INCOMP_UUIDS128:
-        if (data_len % 16 != 0) {
-            return BLE_HS_EBADDATA;
+        rc = ble_hs_adv_parse_uuids128(adv_fields, data, data_len);
+        if (rc != 0) {
+            return rc;
         }
-        adv_fields->uuids128 = data;
-        adv_fields->num_uuids128 = data_len / 16;
         adv_fields->uuids128_is_complete = 0;
         break;
 
     case BLE_HS_ADV_TYPE_COMP_UUIDS128:
-        if (data_len % 16 != 0) {
-            return BLE_HS_EBADDATA;
+        rc = ble_hs_adv_parse_uuids128(adv_fields, data, data_len);
+        if (rc != 0) {
+            return rc;
         }
-        adv_fields->uuids128 = data;
-        adv_fields->num_uuids128 = data_len / 16;
         adv_fields->uuids128_is_complete = 1;
         break;
 
@@ -497,13 +545,6 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         }
         adv_fields->tx_pwr_lvl = *data;
         adv_fields->tx_pwr_lvl_is_present = 1;
-        break;
-
-    case BLE_HS_ADV_TYPE_DEVICE_CLASS:
-        if (data_len != BLE_HS_ADV_DEVICE_CLASS_LEN) {
-            return BLE_HS_EBADDATA;
-        }
-        adv_fields->device_class = data;
         break;
 
     case BLE_HS_ADV_TYPE_SLAVE_ITVL_RANGE:
@@ -544,21 +585,6 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         }
         adv_fields->adv_itvl = get_le16(data);
         adv_fields->adv_itvl_is_present = 1;
-        break;
-
-    case BLE_HS_ADV_TYPE_LE_ADDR:
-        if (data_len != BLE_HS_ADV_LE_ADDR_LEN) {
-            return BLE_HS_EBADDATA;
-        }
-        adv_fields->le_addr = data;
-        break;
-
-    case BLE_HS_ADV_TYPE_LE_ROLE:
-        if (data_len != BLE_HS_ADV_LE_ROLE_LEN) {
-            return BLE_HS_EBADDATA;
-        }
-        adv_fields->le_role = *data;
-        adv_fields->le_role_is_present = 1;
         break;
 
     case BLE_HS_ADV_TYPE_SVC_DATA_UUID32:
@@ -612,6 +638,68 @@ ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
         src += field_len;
         src_len -= field_len;
     }
+
+    return 0;
+}
+
+int
+ble_hs_adv_parse(const uint8_t *data, uint8_t length,
+                 ble_hs_adv_parse_func_t func, void *user_data)
+{
+    const struct ble_hs_adv_field *field;
+
+    while (length > 1) {
+        field = (const void *) data;
+
+        if (field->length >= length) {
+            return BLE_HS_EBADDATA;
+        }
+
+        if (func(field, user_data) == 0) {
+            return 0;
+        }
+
+        length -= 1 + field->length;
+        length += 1 + field->length;
+    }
+
+    return 0;
+}
+
+static int
+find_field_func(const struct ble_hs_adv_field *field, void *user_data)
+{
+    struct find_field_data *ffd = user_data;
+
+    if (field->type != ffd->type) {
+        return BLE_HS_EAGAIN;
+    }
+
+    ffd->field = field;
+
+    return 0;
+}
+
+int
+ble_hs_adv_find_field(uint8_t type, const uint8_t *data, uint8_t length,
+                      const struct ble_hs_adv_field **out)
+{
+    int rc;
+    struct find_field_data ffd = {
+            .type = type,
+            .field = NULL,
+    };
+
+    rc = ble_hs_adv_parse(data, length, find_field_func, &ffd);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (!ffd.field) {
+        return BLE_HS_ENOENT;
+    }
+
+    *out = ffd.field;
 
     return 0;
 }
