@@ -35,8 +35,6 @@ struct hci_encrypt_change;
 
 #define BLE_SM_MTU                  65
 
-#define BLE_SM_HDR_SZ               1
-
 #define BLE_SM_OP_PAIR_REQ                      0x01
 #define BLE_SM_OP_PAIR_RSP                      0x02
 #define BLE_SM_OP_PAIR_CONFIRM                  0x03
@@ -52,6 +50,11 @@ struct hci_encrypt_change;
 #define BLE_SM_OP_PAIR_DHKEY_CHECK              0x0d
 #define BLE_SM_OP_PAIR_KEYPRESS_NOTIFY          0x0e
 
+struct ble_sm_hdr {
+    uint8_t opcode;
+    uint8_t data[0];
+} __attribute__((packed));
+
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
@@ -63,7 +66,7 @@ struct hci_encrypt_change;
  * | Initiator Key Distribution         | 1                 |
  * | Responder Key Distribution         | 1                 |
  */
-#define BLE_SM_PAIR_CMD_SZ          6
+
 struct ble_sm_pair_cmd {
     uint8_t io_cap;
     uint8_t oob_data_flag;
@@ -71,7 +74,7 @@ struct ble_sm_pair_cmd {
     uint8_t max_enc_key_size;
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -79,10 +82,10 @@ struct ble_sm_pair_cmd {
  * | (Code=0x03)                        | 1                 |
  * | Confirm Value                      | 16                |
  */
-#define BLE_SM_PAIR_CONFIRM_SZ      16
+
 struct ble_sm_pair_confirm {
     uint8_t value[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -90,10 +93,9 @@ struct ble_sm_pair_confirm {
  * | (Code=0x04)                        | 1                 |
  * | Random Value                       | 16                |
  */
-#define BLE_SM_PAIR_RANDOM_SZ       16
 struct ble_sm_pair_random {
     uint8_t value[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -101,10 +103,9 @@ struct ble_sm_pair_random {
  * | (Code=0x05)                        | 1                 |
  * | Reason                             | 1                 |
  */
-#define BLE_SM_PAIR_FAIL_SZ         1
 struct ble_sm_pair_fail {
     uint8_t reason;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -112,10 +113,9 @@ struct ble_sm_pair_fail {
  * | (Code=0x06)                        | 1                 |
  * | ltk                                | 16                |
  */
-#define BLE_SM_ENC_INFO_SZ          16
 struct ble_sm_enc_info {
     uint8_t ltk[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -124,11 +124,10 @@ struct ble_sm_enc_info {
  * | EDIV                               | 2                 |
  * | RAND                               | 8                 |
  */
-#define BLE_SM_MASTER_ID_SZ         10
 struct ble_sm_master_id {
     uint16_t ediv;
     uint64_t rand_val;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -136,11 +135,9 @@ struct ble_sm_master_id {
  * | (Code=0x08)                        | 1                 |
  * | irk                                | 16                |
  */
-#define BLE_SM_ID_INFO_SZ           16
 struct ble_sm_id_info {
-    /* Sent and stored in little-endian. */
     uint8_t irk[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -149,11 +146,10 @@ struct ble_sm_id_info {
  * | addr_type                          | 1                 |
  * | address                            | 6                 |
  */
-#define BLE_SM_ID_ADDR_INFO_SZ      7
 struct ble_sm_id_addr_info {
     uint8_t addr_type;
     uint8_t bd_addr[6];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -161,10 +157,9 @@ struct ble_sm_id_addr_info {
  * | (Code=0x0A)                        | 1                 |
  * | csrk                               | 16                |
  */
-#define BLE_SM_SIGN_INFO_SZ         16
 struct ble_sm_sign_info {
     uint8_t sig_key[16];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -172,10 +167,9 @@ struct ble_sm_sign_info {
  * | (Code=0x0B)                        | 1                 |
  * | authreq                            | 1                 |
  */
-#define BLE_SM_SEC_REQ_SZ           1
 struct ble_sm_sec_req {
     uint8_t authreq;
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -184,11 +178,10 @@ struct ble_sm_sec_req {
  * | Public Key X                       | 32                |
  * | Public Key Y                       | 32                |
  */
-#define BLE_SM_PUBLIC_KEY_SZ        64
 struct ble_sm_public_key {
     uint8_t x[32];
     uint8_t y[32];
-};
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -196,10 +189,9 @@ struct ble_sm_public_key {
  * | (Code=0x0d)                        | 1                 |
  * | DHKey Check                        | 16                |
  */
-#define BLE_SM_DHKEY_CHECK_SZ       16
 struct ble_sm_dhkey_check {
     uint8_t value[16];
-};
+} __attribute__((packed));
 
 #if NIMBLE_BLE_SM
 
@@ -260,8 +252,8 @@ struct ble_sm_proc {
     uint8_t rx_key_flags;
     uint8_t key_size;
 
-    struct ble_sm_pair_cmd pair_req;
-    struct ble_sm_pair_cmd pair_rsp;
+    uint8_t pair_req[sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd)];
+    uint8_t pair_rsp[sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd)];
     uint8_t tk[16];
     uint8_t confirm_peer[16];
     uint8_t randm[16];
@@ -301,81 +293,17 @@ void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 int ble_sm_dbg_num_procs(void);
 #endif
 
-uint8_t ble_sm_build_authreq(void);
-
-void ble_sm_pair_cmd_parse(void *payload, int len,
-                           struct ble_sm_pair_cmd *cmd);
-int ble_sm_pair_cmd_is_valid(struct ble_sm_pair_cmd *cmd);
-void ble_sm_pair_cmd_write(void *payload, int len, int is_req,
-                           struct ble_sm_pair_cmd *cmd);
-int ble_sm_pair_cmd_tx(uint16_t conn_handle, int is_req,
-                       struct ble_sm_pair_cmd *cmd);
 void ble_sm_pair_cmd_log(struct ble_sm_pair_cmd *cmd);
-void ble_sm_pair_confirm_parse(void *payload, int len,
-                               struct ble_sm_pair_confirm *cmd);
-void ble_sm_pair_confirm_write(void *payload, int len,
-                               struct ble_sm_pair_confirm *cmd);
-int ble_sm_pair_confirm_tx(uint16_t conn_handle,
-                           struct ble_sm_pair_confirm *cmd);
 void ble_sm_pair_confirm_log(struct ble_sm_pair_confirm *cmd);
-void ble_sm_pair_random_parse(void *payload, int len,
-                              struct ble_sm_pair_random *cmd);
-void ble_sm_pair_random_write(void *payload, int len,
-                              struct ble_sm_pair_random *cmd);
-int ble_sm_pair_random_tx(uint16_t conn_handle,
-                          struct ble_sm_pair_random *cmd);
 void ble_sm_pair_random_log(struct ble_sm_pair_random *cmd);
-void ble_sm_pair_fail_parse(void *payload, int len,
-                            struct ble_sm_pair_fail *cmd);
-void ble_sm_pair_fail_write(void *payload, int len,
-                            struct ble_sm_pair_fail *cmd);
-int ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason);
 void ble_sm_pair_fail_log(struct ble_sm_pair_fail *cmd);
-void ble_sm_enc_info_parse(void *payload, int len,
-                           struct ble_sm_enc_info *cmd);
-void ble_sm_enc_info_write(void *payload, int len,
-                           struct ble_sm_enc_info *cmd);
-int ble_sm_enc_info_tx(uint16_t conn_handle, struct ble_sm_enc_info *cmd);
 void ble_sm_enc_info_log(struct ble_sm_enc_info *cmd);
-void ble_sm_master_id_parse(void *payload, int len,
-                            struct ble_sm_master_id *cmd);
-void ble_sm_master_id_write(void *payload, int len,
-                            struct ble_sm_master_id *cmd);
-int ble_sm_master_id_tx(uint16_t conn_handle, struct ble_sm_master_id *cmd);
 void ble_sm_master_id_log(struct ble_sm_master_id *cmd);
-void ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd);
-int ble_sm_id_info_tx(uint16_t conn_handle, struct ble_sm_id_info *cmd);
-void ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd);
 void ble_sm_id_info_log(struct ble_sm_id_info *cmd);
-void ble_sm_id_addr_info_parse(void *payload, int len,
-                            struct ble_sm_id_addr_info *cmd);
-int ble_sm_id_addr_info_tx(uint16_t conn_handle,
-                           struct ble_sm_id_addr_info *cmd);
-void ble_sm_id_addr_info_write(void *payload, int len,
-                               struct ble_sm_id_addr_info *cmd);
 void ble_sm_id_addr_info_log(struct ble_sm_id_addr_info *cmd);
-void ble_sm_sign_info_parse(void *payload, int len,
-                            struct ble_sm_sign_info *cmd);
-int ble_sm_sign_info_tx(uint16_t conn_handle, struct ble_sm_sign_info *cmd);
-void ble_sm_sign_info_write(void *payload, int len,
-                            struct ble_sm_sign_info *cmd);
 void ble_sm_sign_info_log(struct ble_sm_sign_info *cmd);
-void ble_sm_sec_req_parse(void *payload, int len, struct ble_sm_sec_req *cmd);
-void ble_sm_sec_req_write(void *payload, int len, struct ble_sm_sec_req *cmd);
-int ble_sm_sec_req_tx(uint16_t conn_handle, struct ble_sm_sec_req *cmd);
 void ble_sm_sec_req_log(struct ble_sm_sec_req *cmd);
-void ble_sm_public_key_parse(void *payload, int len,
-                             struct ble_sm_public_key *cmd);
-int ble_sm_public_key_write(void *payload, int len,
-                            struct ble_sm_public_key *cmd);
-int ble_sm_public_key_tx(uint16_t conn_handle, struct ble_sm_public_key *cmd);
 void ble_sm_public_key_log(struct ble_sm_public_key *cmd);
-void ble_sm_dhkey_check_parse(void *payload, int len,
-                              struct ble_sm_dhkey_check *cmd);
-int ble_sm_dhkey_check_write(void *payload, int len,
-                             struct ble_sm_dhkey_check *cmd);
-int ble_sm_dhkey_check_tx(uint16_t conn_handle,
-                          struct ble_sm_dhkey_check *cmd);
 void ble_sm_dhkey_check_log(struct ble_sm_dhkey_check *cmd);
 
 int ble_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out);
@@ -428,12 +356,11 @@ void ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res);
 void ble_sm_sc_public_key_exec(struct ble_sm_proc *proc,
                                struct ble_sm_result *res,
                                void *arg);
-void ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op,
-                             struct os_mbuf **rxom, struct ble_sm_result *res);
+void ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **rxom,
+                             struct ble_sm_result *res);
 void ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc,
                                 struct ble_sm_result *res, void *arg);
-void ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op,
-                              struct os_mbuf **rxom,
+void ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **rxom,
                               struct ble_sm_result *res);
 void ble_sm_sc_init(void);
 #else
@@ -493,6 +420,8 @@ int ble_sm_init(void);
 #endif
 
 struct ble_l2cap_chan *ble_sm_create_chan(void);
+void *ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
+int ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom);
 
 #ifdef __cplusplus
 }

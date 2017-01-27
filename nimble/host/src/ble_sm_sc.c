@@ -110,24 +110,26 @@ ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
 int
 ble_sm_sc_io_action(struct ble_sm_proc *proc)
 {
+    struct ble_sm_pair_cmd *pair_req, *pair_rsp;
     int action;
 
-    if (proc->pair_req.oob_data_flag == BLE_SM_PAIR_OOB_YES ||
-        proc->pair_rsp.oob_data_flag == BLE_SM_PAIR_OOB_YES) {
+    pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
+    pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
+
+    if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES ||
+        pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
         action = BLE_SM_IOACT_OOB;
-    } else if (!(proc->pair_req.authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
-               !(proc->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
+    } else if (!(pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
+               !(pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
         action = BLE_SM_IOACT_NONE;
-    } else if (proc->pair_req.io_cap >= BLE_SM_IO_CAP_RESERVED ||
-               proc->pair_rsp.io_cap >= BLE_SM_IO_CAP_RESERVED) {
+    } else if (pair_req->io_cap >= BLE_SM_IO_CAP_RESERVED ||
+               pair_rsp->io_cap >= BLE_SM_IO_CAP_RESERVED) {
         action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_sc_init_ioa[proc->pair_rsp.io_cap]
-                                   [proc->pair_req.io_cap];
+        action = ble_sm_sc_init_ioa[pair_rsp->io_cap][pair_req->io_cap];
     } else {
-        action = ble_sm_sc_resp_ioa[proc->pair_rsp.io_cap]
-                                   [proc->pair_req.io_cap];
+        action = ble_sm_sc_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
     }
 
     switch (action) {
@@ -277,7 +279,8 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
 void
 ble_sm_sc_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    struct ble_sm_pair_confirm cmd;
+    struct ble_sm_pair_confirm *cmd;
+    struct os_mbuf *txom;
     int rc;
 
     rc = ble_sm_sc_gen_ri(proc);
@@ -288,16 +291,26 @@ ble_sm_sc_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
-    rc = ble_sm_alg_f4(ble_sm_sc_pub_key.u8, proc->pub_key_peer.x,
-                       ble_sm_our_pair_rand(proc), proc->ri, cmd.value);
-    if (rc != 0) {
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_CONFIRM, sizeof(*cmd), &txom);
+    if (cmd == NULL) {
+        rc = BLE_HS_ENOMEM;
         res->app_status = rc;
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         return;
     }
 
-    rc = ble_sm_pair_confirm_tx(proc->conn_handle, &cmd);
+    rc = ble_sm_alg_f4(ble_sm_sc_pub_key.u8, proc->pub_key_peer.x,
+                       ble_sm_our_pair_rand(proc), proc->ri, cmd->value);
+    if (rc != 0) {
+        os_mbuf_free_chain(txom);
+        res->app_status = rc;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
+
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         res->app_status = rc;
         res->enc_cb = 1;
@@ -358,13 +371,22 @@ ble_sm_sc_random_advance(struct ble_sm_proc *proc)
 void
 ble_sm_sc_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    struct ble_sm_pair_random cmd;
+    struct ble_sm_pair_random *cmd;
+    struct os_mbuf *txom;
     uint8_t ioact;
     int rc;
 
-    memcpy(cmd.value, ble_sm_our_pair_rand(proc), 16);
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_RANDOM, sizeof(*cmd), &txom);
+    if (cmd == NULL) {
+        rc = BLE_HS_ENOMEM;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
 
-    rc = ble_sm_pair_random_tx(proc->conn_handle, &cmd);
+    memcpy(cmd->value, ble_sm_our_pair_rand(proc), 16);
+
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         res->app_status = rc;
         res->enc_cb = 1;
@@ -478,7 +500,8 @@ void
 ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                           void *arg)
 {
-    struct ble_sm_public_key cmd;
+    struct ble_sm_public_key *cmd;
+    struct os_mbuf *txom;
     uint8_t ioact;
 
     res->app_status = ble_sm_sc_ensure_keys_generated();
@@ -488,9 +511,18 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         return;
     }
 
-    memcpy(cmd.x, ble_sm_sc_pub_key.u8 + 0, 32);
-    memcpy(cmd.y, ble_sm_sc_pub_key.u8 + 32, 32);
-    res->app_status = ble_sm_public_key_tx(proc->conn_handle, &cmd);
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_PUBLIC_KEY, sizeof(*cmd), &txom);
+    if (!cmd) {
+        res->app_status = BLE_HS_ENOMEM;
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        return;
+    }
+
+    memcpy(cmd->x, ble_sm_sc_pub_key.u8 + 0, 32);
+    memcpy(cmd->y, ble_sm_sc_pub_key.u8 + 32, 32);
+
+    res->app_status = ble_sm_tx(proc->conn_handle, txom);
     if (res->app_status != 0) {
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
@@ -514,15 +546,15 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 void
-ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
                         struct ble_sm_result *res)
 {
-    struct ble_sm_public_key cmd;
+    struct ble_sm_public_key *cmd;
     struct ble_sm_proc *proc;
     uint8_t ioact;
     int rc;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_PUBLIC_KEY_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->enc_cb = 1;
         return;
@@ -535,8 +567,8 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         return;
     }
 
-    ble_sm_public_key_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "public key", conn_handle, ble_sm_public_key_log, &cmd);
+    cmd = (struct ble_sm_public_key *)(*om)->om_data;
+    BLE_SM_LOG_CMD(0, "public key", conn_handle, ble_sm_public_key_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PUBLIC_KEY, -1,
@@ -545,7 +577,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
     } else {
-        proc->pub_key_peer = cmd;
+        memcpy(&proc->pub_key_peer, cmd, sizeof(*cmd));
         rc = ble_sm_alg_gen_dhkey(proc->pub_key_peer.x,
                                   proc->pub_key_peer.y,
                                   ble_sm_sc_priv_key.u32,
@@ -595,47 +627,52 @@ ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
     *out_peer_ota_addr = addrs.peer_ota_addr;
 }
 
-static void
-ble_sm_sc_dhkey_check_iocap(struct ble_sm_pair_cmd *pair_cmd,
-                            uint8_t *out_iocap)
-{
-    out_iocap[0] = pair_cmd->io_cap;
-    out_iocap[1] = pair_cmd->oob_data_flag;
-    out_iocap[2] = pair_cmd->authreq;
-}
-
 void
 ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                            void *arg)
 {
-    struct ble_sm_dhkey_check cmd;
+    struct ble_sm_dhkey_check *cmd;
     const uint8_t *our_ota_addr;
     const uint8_t *peer_ota_addr;
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
-    uint8_t iocap[3];
+    struct os_mbuf *txom;
+    uint8_t *iocap;
     int rc;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        ble_sm_sc_dhkey_check_iocap(&proc->pair_req, iocap);
+        struct ble_sm_pair_cmd *pair_req;
+
+        pair_req  = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
+        iocap = &pair_req->io_cap;
     } else {
-        ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
+        struct ble_sm_pair_cmd *pair_rsp;
+
+        pair_rsp  = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
+        iocap = &pair_rsp->io_cap;
     }
 
     ble_sm_sc_dhkey_addrs(proc,
                           &our_id_addr_type, &our_ota_addr,
                           &peer_id_addr_type, &peer_ota_addr);
 
+    cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_DHKEY_CHECK, sizeof(*cmd), &txom);
+    if (!cmd) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
                        ble_sm_peer_pair_rand(proc), proc->tk, iocap,
                        our_id_addr_type, our_ota_addr,
                        peer_id_addr_type, peer_ota_addr,
-                       cmd.value);
+                       cmd->value);
     if (rc != 0) {
+        os_mbuf_free_chain(txom);
         goto err;
     }
 
-    rc = ble_sm_dhkey_check_tx(proc->conn_handle, &cmd);
+    rc = ble_sm_tx(proc->conn_handle, txom);
     if (rc != 0) {
         goto err;
     }
@@ -662,13 +699,19 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     const uint8_t *our_ota_addr;
     uint8_t peer_id_addr_type;
     uint8_t our_id_addr_type;
-    uint8_t iocap[3];
+    uint8_t *iocap;
     uint8_t ioact;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        ble_sm_sc_dhkey_check_iocap(&proc->pair_rsp, iocap);
+        struct ble_sm_pair_cmd *pair_rsp;
+
+        pair_rsp  = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
+        iocap = &pair_rsp->io_cap;
     } else {
-        ble_sm_sc_dhkey_check_iocap(&proc->pair_req, iocap);
+        struct ble_sm_pair_cmd *pair_req;
+
+        pair_req  = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
+        iocap = &pair_req->io_cap;
     }
 
     ble_sm_sc_dhkey_addrs(proc,
@@ -717,22 +760,21 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
 }
 
 void
-ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
+ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **om,
                          struct ble_sm_result *res)
 {
-    struct ble_sm_dhkey_check cmd;
+    struct ble_sm_dhkey_check *cmd;
     struct ble_sm_proc *proc;
 
-    res->app_status = ble_hs_mbuf_pullup_base(om, BLE_SM_DHKEY_CHECK_SZ);
+    res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
         return;
     }
 
-    ble_sm_dhkey_check_parse((*om)->om_data, (*om)->om_len, &cmd);
-    BLE_SM_LOG_CMD(0, "dhkey check", conn_handle, ble_sm_dhkey_check_log,
-                   &cmd);
+    cmd = (struct ble_sm_dhkey_check *)(*om)->om_data;
+    BLE_SM_LOG_CMD(0, "dhkey check", conn_handle, ble_sm_dhkey_check_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_DHKEY_CHECK, -1,
@@ -740,7 +782,7 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, uint8_t op, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
-        ble_sm_dhkey_check_process(proc, &cmd, res);
+        ble_sm_dhkey_check_process(proc, cmd, res);
     }
     ble_hs_unlock();
 }
