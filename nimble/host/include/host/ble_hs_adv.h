@@ -21,6 +21,7 @@
 #define H_BLE_HS_ADV_
 
 #include <inttypes.h>
+#include "host/ble_uuid.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,17 +46,17 @@ struct ble_hs_adv_fields {
     uint8_t flags;
 
     /*** 0x02,0x03 - 16-bit service class UUIDs. */
-    uint16_t *uuids16;
+    ble_uuid16_t *uuids16;
     uint8_t num_uuids16;
     unsigned uuids16_is_complete:1;
 
     /*** 0x04,0x05 - 32-bit service class UUIDs. */
-    uint32_t *uuids32;
+    ble_uuid32_t *uuids32;
     uint8_t num_uuids32;
     unsigned uuids32_is_complete:1;
 
     /*** 0x06,0x07 - 128-bit service class UUIDs. */
-    void *uuids128;
+    ble_uuid128_t *uuids128;
     uint8_t num_uuids128;
     unsigned uuids128_is_complete:1;
 

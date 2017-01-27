@@ -189,7 +189,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
     adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-    adv_fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
+    adv_fields.uuids16 = (ble_uuid16_t[]) {
+        BLE_UUID16_INIT(0x0001),
+        BLE_UUID16_INIT(0x1234),
+        BLE_UUID16_INIT(0x54ab)
+    };
     adv_fields.num_uuids16 = 3;
     adv_fields.uuids16_is_complete = 1;
 
@@ -217,7 +221,11 @@ TEST_CASE(ble_hs_adv_test_case_user)
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
     adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
+    adv_fields.uuids16 = (ble_uuid16_t[]) {
+        BLE_UUID16_INIT(0x0001),
+        BLE_UUID16_INIT(0x1234),
+        BLE_UUID16_INIT(0x54ab)
+    };
     adv_fields.num_uuids16 = 3;
     adv_fields.uuids16_is_complete = 0;
 
@@ -245,7 +253,10 @@ TEST_CASE(ble_hs_adv_test_case_user)
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
     adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
+    adv_fields.uuids32 = (ble_uuid32_t[]) {
+        BLE_UUID32_INIT(0x12345678),
+        BLE_UUID32_INIT(0xabacadae)
+    };
     adv_fields.num_uuids32 = 2;
     adv_fields.uuids32_is_complete = 1;
 
@@ -273,7 +284,10 @@ TEST_CASE(ble_hs_adv_test_case_user)
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
     adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
+    adv_fields.uuids32 = (ble_uuid32_t[]) {
+        BLE_UUID32_INIT(0x12345678),
+        BLE_UUID32_INIT(0xabacadae)
+    };
     adv_fields.num_uuids32 = 2;
     adv_fields.uuids32_is_complete = 0;
 
@@ -301,9 +315,9 @@ TEST_CASE(ble_hs_adv_test_case_user)
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
     adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.uuids128 = (uint8_t[]) {
-        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+    adv_fields.uuids128 = (ble_uuid128_t[]) {
+        BLE_UUID128_INIT(0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff)
     };
     adv_fields.num_uuids128 = 1;
     adv_fields.uuids128_is_complete = 1;
@@ -335,10 +349,10 @@ TEST_CASE(ble_hs_adv_test_case_user)
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
     adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.uuids128 = (uint8_t[]) {
+    adv_fields.uuids128 = BLE_UUID128(BLE_UUID128_DECLARE(
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
-    };
+    ));
     adv_fields.num_uuids128 = 1;
     adv_fields.uuids128_is_complete = 0;
 
@@ -677,7 +691,11 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
 
     /*** Complete 16-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
-    rsp_fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
+    rsp_fields.uuids16 = (ble_uuid16_t[]) {
+        BLE_UUID16_INIT(0x0001),
+        BLE_UUID16_INIT(0x1234),
+        BLE_UUID16_INIT(0x54ab)
+    };
     rsp_fields.num_uuids16 = 3;
     rsp_fields.uuids16_is_complete = 1;
 
@@ -707,7 +725,11 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
 
     /*** Incomplete 16-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
-    rsp_fields.uuids16 = (uint16_t[]) { 0x0001, 0x1234, 0x54ab };
+    rsp_fields.uuids16 = (ble_uuid16_t[]) {
+        BLE_UUID16_INIT(0x0001),
+        BLE_UUID16_INIT(0x1234),
+        BLE_UUID16_INIT(0x54ab)
+    };
     rsp_fields.num_uuids16 = 3;
     rsp_fields.uuids16_is_complete = 0;
 
@@ -737,7 +759,10 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
 
     /*** Complete 32-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
-    rsp_fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
+    rsp_fields.uuids32 = (ble_uuid32_t[]) {
+        BLE_UUID32_INIT(0x12345678),
+        BLE_UUID32_INIT(0xabacadae)
+    };
     rsp_fields.num_uuids32 = 2;
     rsp_fields.uuids32_is_complete = 1;
 
@@ -767,7 +792,10 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
 
     /*** Incomplete 32-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
-    rsp_fields.uuids32 = (uint32_t[]) { 0x12345678, 0xabacadae };
+    rsp_fields.uuids32 = (ble_uuid32_t[]) {
+        BLE_UUID32_INIT(0x12345678),
+        BLE_UUID32_INIT(0xabacadae)
+    };
     rsp_fields.num_uuids32 = 2;
     rsp_fields.uuids32_is_complete = 0;
 
@@ -797,9 +825,9 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
 
     /*** Complete 128-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
-    rsp_fields.uuids128 = (uint8_t[]) {
-        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+    rsp_fields.uuids128 = (ble_uuid128_t[]) {
+        BLE_UUID128_INIT(0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff)
     };
     rsp_fields.num_uuids128 = 1;
     rsp_fields.uuids128_is_complete = 1;
@@ -833,9 +861,9 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
 
     /*** Incomplete 128-bit service class UUIDs. */
     memset(&rsp_fields, 0, sizeof rsp_fields);
-    rsp_fields.uuids128 = (uint8_t[]) {
-        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+    rsp_fields.uuids128 = (ble_uuid128_t[]) {
+        BLE_UUID128_INIT(0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff)
     };
     rsp_fields.num_uuids128 = 1;
     rsp_fields.uuids128_is_complete = 0;
