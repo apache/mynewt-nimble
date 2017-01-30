@@ -27,21 +27,19 @@ ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
     struct ble_l2cap_sig_hdr hdr;
     struct os_mbuf *txom;
     void *v;
-    int rc;
 
     *out_om = NULL;
     *out_payload_buf = NULL;
 
     txom = ble_hs_mbuf_l2cap_pkt();
     if (txom == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
+        return BLE_HS_ENOMEM;
     }
 
     v = os_mbuf_extend(txom, BLE_L2CAP_SIG_HDR_SZ + payload_len);
     if (v == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
+        os_mbuf_free(txom);
+        return BLE_HS_ENOMEM;
     }
 
     hdr.op = op;
@@ -54,10 +52,6 @@ ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
     *out_payload_buf = (uint8_t *)v + BLE_L2CAP_SIG_HDR_SZ;
 
     return 0;
-
-err:
-    os_mbuf_free(txom);
-    return rc;
 }
 
 static int
