@@ -1443,7 +1443,7 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     struct ble_store_key_cccd cccd_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    int new_notifications;
+    int new_notifications = 0;
     int clt_cfg_idx;
     int persist;
     int rc;
