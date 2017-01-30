@@ -54,7 +54,7 @@ ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
     return 0;
 }
 
-static int
+int
 ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
@@ -249,3 +249,30 @@ ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
 
     return ble_l2cap_sig_tx(conn_handle, txom);
 }
+
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+void *
+ble_l2cap_sig_cmd_get(uint8_t opcode, uint8_t id, uint16_t len,
+                      struct os_mbuf **txom)
+{
+    struct ble_l2cap_sig_hdr *hdr;
+
+    *txom = ble_hs_mbuf_l2cap_pkt();
+    if (*txom == NULL) {
+        return NULL;
+    }
+
+    if (os_mbuf_extend(*txom, sizeof(*hdr) + len) == NULL) {
+        os_mbuf_free_chain(*txom);
+        return NULL;
+    }
+
+    hdr = (struct ble_l2cap_sig_hdr *)(*txom)->om_data;
+
+    hdr->op = opcode;
+    hdr->identifier = id;
+    hdr->length = htole16(len);
+
+    return hdr->data;
+}
+#endif
