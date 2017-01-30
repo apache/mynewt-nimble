@@ -55,7 +55,8 @@
 #define BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT      30000   /* Milliseconds. */
 
 #define BLE_L2CAP_SIG_PROC_OP_UPDATE            0
-#define BLE_L2CAP_SIG_PROC_OP_MAX               1
+#define BLE_L2CAP_SIG_PROC_OP_CONNECT           1
+#define BLE_L2CAP_SIG_PROC_OP_MAX               2
 
 struct ble_l2cap_sig_proc {
     STAILQ_ENTRY(ble_l2cap_sig_proc) next;
@@ -70,6 +71,9 @@ struct ble_l2cap_sig_proc {
             ble_l2cap_sig_update_fn *cb;
             void *cb_arg;
         } update;
+        struct {
+            struct ble_l2cap_chan *chan;
+        } connect;
     };
 };
 
@@ -85,6 +89,14 @@ static ble_l2cap_sig_rx_fn ble_l2cap_sig_rx_noop;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_req_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_rsp_rx;
 
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_req_rx;
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_rsp_rx;
+#else
+#define ble_l2cap_sig_coc_req_rx    ble_l2cap_sig_rx_noop
+#define ble_l2cap_sig_coc_rsp_rx    ble_l2cap_sig_rx_noop
+#endif
+
 static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_REJECT]               = ble_l2cap_sig_rx_noop,
     [BLE_L2CAP_SIG_OP_CONNECT_RSP]          = ble_l2cap_sig_rx_noop,
@@ -97,7 +109,8 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_MOVE_CHAN_CONF_RSP]   = ble_l2cap_sig_rx_noop,
     [BLE_L2CAP_SIG_OP_UPDATE_REQ]           = ble_l2cap_sig_update_req_rx,
     [BLE_L2CAP_SIG_OP_UPDATE_RSP]           = ble_l2cap_sig_update_rsp_rx,
-    [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_rx_noop,
+    [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ]   = ble_l2cap_sig_coc_req_rx,
+    [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_coc_rsp_rx,
     [BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT]     = ble_l2cap_sig_rx_noop,
 };
 
@@ -471,6 +484,343 @@ done:
     return rc;
 }
 
+/*****************************************************************************
+ * $connect                                                                  *
+ *****************************************************************************/
+
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+
+static int
+ble_l2cap_sig_coc_err2ble_hs_err(uint16_t l2cap_coc_err)
+{
+    switch (l2cap_coc_err) {
+    case BLE_L2CAP_COC_ERR_CONNECTION_SUCCESS:
+        return 0;
+    case BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM:
+        return BLE_HS_ENOTSUP;
+    case BLE_L2CAP_COC_ERR_NO_RESOURCES:
+        return BLE_HS_ENOMEM;
+    case BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN:
+        return BLE_HS_EAUTHEN;
+    case BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR:
+        return BLE_HS_EAUTHOR;
+    case BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ:
+        return BLE_HS_EENCRYPT_KEY_SZ;
+    case BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC:
+        return BLE_HS_EENCRYPT;
+    case BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID:
+        return BLE_HS_EREJECT;
+    case BLE_L2CAP_COC_ERR_SOURCE_CID_ALREADY_USED:
+        return BLE_HS_EALREADY;
+    case BLE_L2CAP_COC_ERR_UNACCEPTABLE_PARAMETERS:
+        return BLE_HS_EINVAL;
+    default:
+        return BLE_HS_EUNKNOWN;
+    }
+}
+
+static int
+ble_l2cap_sig_ble_hs_err2coc_err(uint16_t ble_hs_err)
+{
+    switch (ble_hs_err) {
+    case BLE_HS_ENOMEM:
+        return BLE_L2CAP_COC_ERR_NO_RESOURCES;
+    case BLE_HS_EAUTHEN:
+        return BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN;
+    case BLE_HS_EAUTHOR:
+        return BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR;
+    case BLE_HS_EENCRYPT:
+        return BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC;
+    case BLE_HS_EENCRYPT_KEY_SZ:
+        return BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ;
+    case BLE_HS_EINVAL:
+        return BLE_L2CAP_COC_ERR_UNACCEPTABLE_PARAMETERS;
+    default:
+        return BLE_L2CAP_COC_ERR_NO_RESOURCES;
+    }
+}
+
+static void
+ble_l2cap_event_coc_connected(struct ble_l2cap_chan *chan, uint16_t status)
+{
+    struct ble_l2cap_event event = { };
+
+    event.type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    event.connect.conn_handle = chan->conn_handle;
+    event.connect.chan = chan;
+    event.connect.status = status;
+
+    chan->cb(&event, chan->cb_arg);
+}
+
+static int
+ble_l2cap_event_coc_accept(struct ble_l2cap_chan *chan, uint16_t peer_sdu_size)
+{
+    struct ble_l2cap_event event = { };
+
+    event.type = BLE_L2CAP_EVENT_COC_ACCEPT;
+    event.accept.chan = chan;
+    event.accept.conn_handle = chan->conn_handle;
+    event.accept.peer_sdu_size = peer_sdu_size;
+
+    return chan->cb(&event, chan->cb_arg);
+}
+
+static void
+ble_l2cap_sig_coc_connect_cb(struct ble_l2cap_sig_proc *proc, int status)
+{
+    struct ble_l2cap_chan *chan;
+
+    if (!proc) {
+            return;
+    }
+
+    chan = proc->connect.chan;
+    if (!chan || !chan->cb) {
+        return;
+    }
+
+    ble_l2cap_event_coc_connected(chan, status);
+}
+
+static int
+ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
+                         struct os_mbuf **om)
+{
+    int rc;
+    struct ble_l2cap_sig_le_con_req *req;
+    struct os_mbuf *txom;
+    struct ble_l2cap_sig_le_con_rsp *rsp;
+    struct ble_l2cap_coc_srv *srv;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint16_t scid;
+
+    rc = ble_hs_mbuf_pullup_base(om, sizeof(req));
+    if (rc != 0) {
+        return rc;
+    }
+
+    rsp = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP,
+                                hdr->identifier, sizeof(*rsp), &txom);
+    if (!rsp) {
+        /* Well, nothing smart we can do if there is no memory for response.
+         * Remote will timeout.
+         */
+        return 0;
+    }
+
+    req = (struct ble_l2cap_sig_le_con_req *)(*om)->om_data;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find_assert(conn_handle);
+
+    /* Check if there is server registered on this PSM */
+    srv = ble_l2cap_coc_srv_find(le16toh(req->psm));
+    if (!srv) {
+        rsp->result = htole16(BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM);
+        goto failed;
+    }
+
+    /* Verify CID */
+    scid = le16toh(req->scid);
+    if (scid < BLE_L2CAP_COC_CID_START || scid > BLE_L2CAP_COC_CID_END) {
+        /*FIXME: Check if SCID is not already used */
+        rsp->result = htole16(BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID);
+        goto failed;
+    }
+
+    chan = ble_l2cap_chan_alloc();
+    if (!chan) {
+        rsp->result = htole16(BLE_L2CAP_COC_ERR_NO_RESOURCES);
+        goto failed;
+    }
+
+    chan->cb = srv->cb;
+    chan->cb_arg = srv->cb_arg;
+    chan->conn_handle = conn_handle;
+    chan->dcid = scid;
+    chan->my_mtu = BLE_L2CAP_COC_MTU;
+
+    /* Fill up remote configuration. Note MPS is the L2CAP MTU*/
+    chan->peer_mtu = le16toh(req->mps);
+    chan->coc_tx.credits = le16toh(req->credits);
+    chan->coc_tx.mtu = le16toh(req->mtu);
+
+    rc = ble_l2cap_event_coc_accept(chan, le16toh(req->mtu));
+    if (rc != 0) {
+        uint16_t coc_err = ble_l2cap_sig_ble_hs_err2coc_err(rc);
+        ble_l2cap_chan_free(chan);
+        rsp->result = htole16(coc_err);
+        goto failed;
+    }
+
+    chan->scid = ble_l2cap_coc_get_cid();
+    chan->coc_rx.mtu = srv->mtu;
+    chan->coc_rx.credits = 10; //FIXME Calculate it
+
+    rsp->dcid = htole16(chan->scid);
+    rsp->credits = htole16(chan->coc_rx.credits);
+    rsp->mps = htole16(chan->my_mtu);
+    rsp->mtu = htole16(chan->coc_rx.mtu);
+    rsp->result = htole16(BLE_L2CAP_COC_ERR_CONNECTION_SUCCESS);
+
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
+    if (rc == 0) {
+        /* Response sent out with a success. We are connected now*/
+        ble_hs_lock();
+        ble_hs_conn_chan_insert(conn, chan);
+        ble_hs_unlock();
+    } else {
+        ble_l2cap_chan_free(chan);
+    }
+
+    /* Notify user about connection status */
+    ble_l2cap_event_coc_connected(chan, rc);
+    ble_hs_unlock();
+
+    return 0;
+
+failed:
+    ble_hs_unlock();
+    ble_l2cap_sig_tx(conn_handle, txom);
+    return 0;
+}
+
+static int
+ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
+                          struct os_mbuf **om)
+{
+    struct ble_l2cap_sig_proc *proc;
+    struct ble_l2cap_sig_le_con_rsp *rsp;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    BLE_HS_LOG(DEBUG, "L2CAP LE COC connection response received\n");
+
+    proc = ble_l2cap_sig_proc_extract(conn_handle,
+                                      BLE_L2CAP_SIG_PROC_OP_CONNECT,
+                                      hdr->identifier);
+    if (!proc) {
+        return 0;
+    }
+
+    rc = ble_hs_mbuf_pullup_base(om, sizeof(*rsp));
+    if (rc != 0) {
+        goto done;
+    }
+
+    rsp = (struct ble_l2cap_sig_le_con_rsp *)(*om)->om_data;
+
+    chan = proc->connect.chan;
+
+    if (rsp->result) {
+        rc = ble_l2cap_sig_coc_err2ble_hs_err(le16toh(rsp->result));
+        goto done;
+    }
+
+    /* Fill up remote configuration
+     * Note MPS is the L2CAP MTU
+     */
+    chan->peer_mtu = le16toh(rsp->mps);
+    chan->dcid = le16toh(rsp->dcid);
+    chan->coc_tx.mtu = le16toh(rsp->mtu);
+    chan->coc_tx.credits = le16toh(rsp->credits);
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    assert(conn != NULL);
+    ble_hs_conn_chan_insert(conn, chan);
+    ble_hs_unlock();
+
+    rc = 0;
+
+done:
+    ble_l2cap_sig_coc_connect_cb(proc, rc);
+    ble_l2cap_sig_proc_free(proc);
+
+    /* Silently ignore errors as this is response signal */
+    return 0;
+}
+
+int
+ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+                          struct os_mbuf *sdu_rx,
+                          ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    struct ble_hs_conn *conn;
+    struct ble_l2cap_sig_proc *proc;
+    struct os_mbuf *txom;
+    struct ble_l2cap_sig_le_con_req *req;
+    struct ble_l2cap_chan *chan;
+    int rc;
+
+    if (!sdu_rx || !cb) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+
+    if (!conn) {
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    chan = ble_l2cap_chan_alloc();
+    if (!chan) {
+        ble_hs_unlock();
+        return BLE_HS_ENOMEM;
+    }
+
+    proc = ble_l2cap_sig_proc_alloc();
+    if (!proc) {
+        ble_l2cap_chan_free(chan);
+        ble_hs_unlock();
+        return BLE_HS_ENOMEM;
+    }
+
+    chan->scid = ble_l2cap_coc_get_cid();
+    chan->my_mtu = BLE_L2CAP_COC_MTU;
+    chan->coc_rx.credits = 10;
+    chan->coc_rx.mtu = mtu;
+    chan->coc_rx.sdu = sdu_rx;
+    chan->cb = cb;
+    chan->cb_arg = cb_arg;
+    chan->conn_handle = conn_handle;
+
+    proc->op = BLE_L2CAP_SIG_PROC_OP_CONNECT;
+    proc->id = ble_l2cap_sig_next_id();
+    proc->conn_handle = conn_handle;
+    proc->connect.chan = chan;
+
+    req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ, proc->id,
+                                sizeof(*req), &txom);
+    if (!req) {
+        ble_l2cap_chan_free(chan);
+        ble_hs_unlock();
+        return BLE_HS_ENOMEM;
+    }
+
+    req->psm = htole16(psm);
+    req->scid = htole16(chan->scid);
+    req->mtu = htole16(chan->coc_rx.mtu);
+    req->mps = htole16(chan->my_mtu);
+    req->credits = htole16(chan->coc_rx.credits);
+
+    rc = ble_l2cap_sig_tx(proc->conn_handle, txom);
+    if (rc != 0) {
+        ble_l2cap_chan_free(chan);
+    }
+
+    ble_l2cap_sig_process_status(proc, rc);
+    ble_hs_unlock();
+
+    return rc;
+}
+#endif
+
 static int
 ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 {
@@ -620,7 +970,16 @@ ble_l2cap_sig_timer(void)
     /* Report a failure for each timed out procedure. */
     while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
         STATS_INC(ble_l2cap_stats, proc_timeout);
-        ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
+        switch(proc->op) {
+            case BLE_L2CAP_SIG_PROC_OP_UPDATE:
+                ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
+                break;
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+            case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+                ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_ETIMEOUT);
+            break;
+#endif
+        }
 
         STAILQ_REMOVE_HEAD(&temp_list, next);
         ble_l2cap_sig_proc_free(proc);

@@ -20,6 +20,7 @@
 #ifndef H_L2CAP_PRIV_
 #define H_L2CAP_PRIV_
 
+#include "ble_l2cap_coc_priv.h"
 #include "host/ble_l2cap.h"
 #include <inttypes.h>
 #include "stats/stats.h"
@@ -62,14 +63,6 @@ extern struct os_mempool ble_l2cap_chan_pool;
 typedef uint8_t ble_l2cap_chan_flags;
 
 typedef int ble_l2cap_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom);
-
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-struct ble_l2cap_coc_endpoint {
-    uint16_t mtu;
-    uint16_t credits;
-    struct os_mbuf *sdu;
-};
-#endif
 
 struct ble_l2cap_chan {
     SLIST_ENTRY(ble_l2cap_chan) next;

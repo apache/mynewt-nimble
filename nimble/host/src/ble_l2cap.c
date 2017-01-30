@@ -24,6 +24,7 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "ble_hs_priv.h"
+#include "ble_l2cap_coc_priv.h"
 
 _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
                "struct ble_l2cap_hdr must be 4 bytes");
@@ -127,19 +128,14 @@ int
 ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
                         ble_l2cap_event_fn *cb, void *cb_arg)
 {
-    /*TODO: Create server object and put it on the queue */
-    return BLE_HS_ENOTSUP;
+    return ble_l2cap_coc_create_server(psm, mtu, cb, cb_arg);
 }
 
 int
 ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
                   struct os_mbuf *sdu_rx, ble_l2cap_event_fn *cb, void *cb_arg)
 {
-    /*
-     * TODO In here we are going to create l2cap channel and send
-     * BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ
-     */
-    return BLE_HS_ENOTSUP;
+    return ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg);
 }
 
 int ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
@@ -371,6 +367,11 @@ ble_l2cap_init(void)
     }
 
     rc = ble_l2cap_sig_init();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_l2cap_coc_init();
     if (rc != 0) {
         return rc;
     }
