@@ -429,7 +429,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         ble_sm_sc_responder_verifies_random(proc)) {
 
         BLE_HS_LOG(DEBUG, "tk=");
-        ble_hs_log_flat_buf(proc->tk, 32);
+        ble_hs_log_flat_buf(proc->tk, 16);
         BLE_HS_LOG(DEBUG, "\n");
 
         rc = ble_sm_alg_f4(proc->pub_key_peer.x, ble_sm_sc_pub_key.u8,
@@ -720,7 +720,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
                           &peer_id_addr_type,
                           &peer_ota_addr);
     BLE_HS_LOG(DEBUG, "tk=");
-    ble_hs_log_flat_buf(proc->tk, 32);
+    ble_hs_log_flat_buf(proc->tk, 16);
     BLE_HS_LOG(DEBUG, "\n");
 
     res->app_status = ble_sm_alg_f6(proc->mackey,
