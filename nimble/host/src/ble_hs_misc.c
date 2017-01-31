@@ -81,16 +81,16 @@ uint8_t
 ble_hs_misc_addr_type_to_id(uint8_t addr_type)
 {
     switch (addr_type) {
-    case BLE_ADDR_TYPE_PUBLIC:
-    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
-         return BLE_ADDR_TYPE_PUBLIC;
+    case BLE_ADDR_PUBLIC:
+    case BLE_ADDR_PUBLIC_ID:
+         return BLE_ADDR_PUBLIC;
 
-    case BLE_ADDR_TYPE_RANDOM:
-    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
-         return BLE_ADDR_TYPE_RANDOM;
+    case BLE_ADDR_RANDOM:
+    case BLE_ADDR_RANDOM_ID:
+         return BLE_ADDR_RANDOM;
 
     default:
         BLE_HS_DBG_ASSERT(0);
-        return BLE_ADDR_TYPE_PUBLIC;
+        return BLE_ADDR_PUBLIC;
     }
 }

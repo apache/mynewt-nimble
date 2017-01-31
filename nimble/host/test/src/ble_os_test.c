@@ -113,8 +113,8 @@ ble_gap_direct_connect_test_connect_cb(struct ble_gap_event *event, void *arg)
 
     rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(desc.peer_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
-    TEST_ASSERT(memcmp(desc.peer_id_addr, ble_os_test_peer_addr, 6) == 0);
+    TEST_ASSERT(desc.peer_id_addr.type == BLE_ADDR_PUBLIC);
+    TEST_ASSERT(memcmp(desc.peer_id_addr.val, ble_os_test_peer_addr, 6) == 0);
 
     return 0;
 }
@@ -123,7 +123,7 @@ static void
 ble_gap_direct_connect_test_task_handler(void *arg)
 {
     struct hci_le_conn_complete evt;
-    uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
+    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int cb_called;
     int rc;
 
@@ -138,8 +138,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
 
     /* Initiate a direct connection. */
-    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                             addr, 0, NULL,
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &addr, 0, NULL,
                              ble_gap_direct_connect_test_connect_cb,
                              &cb_called, 0);
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
@@ -150,7 +149,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
-    memcpy(evt.peer_addr, addr, 6);
+    memcpy(evt.peer_addr, addr.val, 6);
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
 
@@ -214,7 +213,7 @@ ble_os_disc_test_task_handler(void *arg)
 
     /* Initiate the general discovery procedure with a 300 ms timeout. */
     memset(&disc_params, 0, sizeof disc_params);
-    rc = ble_hs_test_util_disc(BLE_ADDR_TYPE_PUBLIC, 300, &disc_params,
+    rc = ble_hs_test_util_disc(BLE_ADDR_PUBLIC, 300, &disc_params,
                                ble_os_disc_test_cb,
                                &cb_called, 0, 0);
     TEST_ASSERT(rc == 0);
@@ -281,8 +280,8 @@ ble_gap_terminate_test_task_handler(void *arg)
 {
     struct hci_disconn_complete disconn_evt;
     struct hci_le_conn_complete conn_evt;
-    uint8_t addr1[6] = { 1, 2, 3, 4, 5, 6 };
-    uint8_t addr2[6] = { 2, 3, 4, 5, 6, 7 };
+    ble_addr_t addr1 = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t addr2 = { BLE_ADDR_PUBLIC, { 2, 3, 4, 5, 6, 7 }};
     int disconn_handle;
     int rc;
 
@@ -303,25 +302,25 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Create two direct connections. */
-    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                             addr1, 0, NULL, ble_gap_terminate_cb,
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
+                             &addr1, 0, NULL, ble_gap_terminate_cb,
                              &disconn_handle, 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     conn_evt.status = BLE_ERR_SUCCESS;
     conn_evt.connection_handle = 1;
-    memcpy(conn_evt.peer_addr, addr1, 6);
+    memcpy(conn_evt.peer_addr, addr1.val, 6);
     rc = ble_gap_rx_conn_complete(&conn_evt);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                             addr2, 0, NULL, ble_gap_terminate_cb,
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
+                             &addr2, 0, NULL, ble_gap_terminate_cb,
                              &disconn_handle, 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     conn_evt.status = BLE_ERR_SUCCESS;
     conn_evt.connection_handle = 2;
-    memcpy(conn_evt.peer_addr, addr2, 6);
+    memcpy(conn_evt.peer_addr, addr2.val, 6);
     rc = ble_gap_rx_conn_complete(&conn_evt);
     TEST_ASSERT(rc == 0);
 

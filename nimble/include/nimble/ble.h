@@ -21,6 +21,8 @@
 #define H_BLE_
 
 #include <inttypes.h>
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -195,17 +197,43 @@ enum ble_error_codes
     BLE_ERR_MAX                 = 255
 };
 
-/* Address types */
-#define BLE_ADDR_TYPE_PUBLIC            (0)
-#define BLE_ADDR_TYPE_RANDOM            (1)
-#define BLE_ADDR_TYPE_RPA_PUB_DEFAULT   (2)
-#define BLE_ADDR_TYPE_RPA_RND_DEFAULT   (3)
-
 int ble_err_from_os(int os_err);
 
 /* HW error codes */
 #define BLE_HW_ERR_DO_NOT_USE           (0) /* XXX: reserve this one for now */
 #define BLE_HW_ERR_HCI_SYNC_LOSS        (1)
+
+/* Own Bluetooth Device address type */
+#define BLE_OWN_ADDR_PUBLIC                  (0x00)
+#define BLE_OWN_ADDR_RANDOM                  (0x01)
+#define BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT      (0x02)
+#define BLE_OWN_ADDR_RPA_RANDOM_DEFAULT      (0x03)
+
+/* Bluetooth Device address type */
+#define BLE_ADDR_PUBLIC      (0x00)
+#define BLE_ADDR_RANDOM      (0x01)
+#define BLE_ADDR_PUBLIC_ID   (0x02)
+#define BLE_ADDR_RANDOM_ID   (0x03)
+
+#define BLE_ADDR_ANY (&(ble_addr_t) { 0, {0, 0, 0, 0, 0, 0} })
+
+#define BLE_ADDR_IS_RPA(addr)     (((addr)->type == BLE_ADDR_RANDOM) && \
+                                   ((addr)->val[5] & 0xc0) == 0x40)
+#define BLE_ADDR_IS_NRPA(addr)    (((addr)->type == BLE_ADDR_RANDOM) && \
+                                   (((addr)->val[5] & 0xc0) == 0x00)
+#define BLE_ADDR_IS_STATIC(addr)  (((addr)->type == BLE_ADDR_RANDOM) && \
+                                   (((addr)->val[5] & 0xc0) == 0xc0)
+
+typedef struct {
+    uint8_t type;
+    uint8_t val[6];
+} ble_addr_t;
+
+
+static inline int ble_addr_cmp(const ble_addr_t *a, const ble_addr_t *b)
+{
+    return memcmp(a, b, sizeof(*a));
+}
 
 #ifdef __cplusplus
 }

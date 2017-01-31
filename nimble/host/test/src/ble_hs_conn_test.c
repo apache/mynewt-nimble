@@ -43,7 +43,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     struct hci_le_conn_complete evt;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
+    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int rc;
 
     ble_hs_test_util_init();
@@ -53,9 +53,8 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection. */
-    rc = ble_hs_test_util_connect(BLE_ADDR_TYPE_PUBLIC,
-                                        BLE_ADDR_TYPE_PUBLIC,
-                                        addr, 0, NULL, NULL, NULL, 0);
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
+                                        &addr, 0, NULL, NULL, NULL, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(ble_gap_master_in_progress());
@@ -66,7 +65,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
-    memcpy(evt.peer_addr, addr, 6);
+    memcpy(evt.peer_addr, addr.val, 6);
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
@@ -76,7 +75,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(memcmp(conn->bhc_peer_addr, addr, 6) == 0);
+    TEST_ASSERT(memcmp(conn->bhc_peer_addr.val, addr.val, 6) == 0);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
@@ -93,7 +92,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     struct ble_gap_adv_params adv_params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
+    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int rc;
 
     ble_hs_test_util_init();
@@ -106,8 +105,8 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     /* Initiate advertising. */
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_DIR;
-    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_PUBLIC,
-                                    addr, &adv_params, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
+                                    &addr, &adv_params, BLE_HS_FOREVER,
                                     NULL, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 
@@ -120,7 +119,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
-    memcpy(evt.peer_addr, addr, 6);
+    memcpy(evt.peer_addr, addr.val, 6);
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
@@ -131,7 +130,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(memcmp(conn->bhc_peer_addr, addr, 6) == 0);
+    TEST_ASSERT(memcmp(conn->bhc_peer_addr.val, addr.val, 6) == 0);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
@@ -149,7 +148,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     struct ble_gap_adv_params adv_params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    uint8_t addr[6] = { 1, 2, 3, 4, 5, 6 };
+    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int rc;
 
     ble_hs_test_util_init();
@@ -167,9 +166,8 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC,
-                                    BLE_ADDR_TYPE_PUBLIC,
-                                    addr, &adv_params,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
+                                    &addr, &adv_params,
                                     BLE_HS_FOREVER,
                                     NULL, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
@@ -183,7 +181,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
-    memcpy(evt.peer_addr, addr, 6);
+    memcpy(evt.peer_addr, addr.val, 6);
     rc = ble_gap_rx_conn_complete(&evt);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
@@ -194,7 +192,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     conn = ble_hs_conn_first();
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_handle == 2);
-    TEST_ASSERT(memcmp(conn->bhc_peer_addr, addr, 6) == 0);
+    TEST_ASSERT(memcmp(conn->bhc_peer_addr.val, addr.val, 6) == 0);
 
     chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);

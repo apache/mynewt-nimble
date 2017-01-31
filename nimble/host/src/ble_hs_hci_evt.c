@@ -377,9 +377,7 @@ ble_hs_hci_evt_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
         return rc;
     }
 
-    /* Direct address fields not present in a standard advertising report. */
-    desc.direct_addr_type = BLE_GAP_ADDR_TYPE_NONE;
-    memset(desc.direct_addr, 0, sizeof desc.direct_addr);
+    desc.direct_addr = *BLE_ADDR_ANY;
 
     data_off = 0;
     for (i = 0; i < num_reports; i++) {
@@ -390,11 +388,11 @@ ble_hs_hci_evt_le_adv_rpt(uint8_t subevent, uint8_t *data, int len)
         suboff++;
 
         off = 2 + suboff * num_reports + i;
-        desc.addr_type = data[off];
+        desc.addr.type = data[off];
         suboff++;
 
         off = 2 + suboff * num_reports + i * 6;
-        memcpy(desc.addr, data + off, 6);
+        memcpy(desc.addr.val, data + off, 6);
         suboff += 6;
 
         off = 2 + suboff * num_reports + i;
@@ -444,19 +442,19 @@ ble_hs_hci_evt_le_dir_adv_rpt(uint8_t subevent, uint8_t *data, int len)
         suboff++;
 
         off = 2 + suboff * num_reports + i;
-        desc.addr_type = data[off];
+        desc.addr.type = data[off];
         suboff++;
 
         off = 2 + suboff * num_reports + i * 6;
-        memcpy(desc.addr, data + off, 6);
+        memcpy(desc.addr.val, data + off, 6);
         suboff += 6;
 
         off = 2 + suboff * num_reports + i;
-        desc.direct_addr_type = data[off];
+        desc.direct_addr.type = data[off];
         suboff++;
 
         off = 2 + suboff * num_reports + i * 6;
-        memcpy(desc.direct_addr, data + off, 6);
+        memcpy(desc.direct_addr.val, data + off, 6);
         suboff += 6;
 
         off = 2 + suboff * num_reports + i;

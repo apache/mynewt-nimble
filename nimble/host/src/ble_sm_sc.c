@@ -609,11 +609,8 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
 }
 
 static void
-ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
-                      uint8_t *out_our_id_addr_type,
-                      const uint8_t **out_our_ota_addr,
-                      uint8_t *out_peer_id_addr_type,
-                      const uint8_t **out_peer_ota_addr)
+ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc, ble_addr_t *our_addr,
+                      ble_addr_t *peer_addr)
 {
     struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
@@ -621,10 +618,9 @@ ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
     conn = ble_hs_conn_find_assert(proc->conn_handle);
 
     ble_hs_conn_addrs(conn, &addrs);
-    *out_our_id_addr_type = addrs.our_ota_addr_type;
-    *out_our_ota_addr = addrs.our_ota_addr;
-    *out_peer_id_addr_type = addrs.peer_ota_addr_type;
-    *out_peer_ota_addr = addrs.peer_ota_addr;
+
+    *our_addr = addrs.our_ota_addr;
+    *peer_addr = addrs.peer_ota_addr;
 }
 
 void
@@ -632,10 +628,8 @@ ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
                            void *arg)
 {
     struct ble_sm_dhkey_check *cmd;
-    const uint8_t *our_ota_addr;
-    const uint8_t *peer_ota_addr;
-    uint8_t peer_id_addr_type;
-    uint8_t our_id_addr_type;
+    ble_addr_t our_addr;
+    ble_addr_t peer_addr;
     struct os_mbuf *txom;
     uint8_t *iocap;
     int rc;
@@ -652,9 +646,7 @@ ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         iocap = &pair_rsp->io_cap;
     }
 
-    ble_sm_sc_dhkey_addrs(proc,
-                          &our_id_addr_type, &our_ota_addr,
-                          &peer_id_addr_type, &peer_ota_addr);
+    ble_sm_sc_dhkey_addrs(proc, &our_addr, &peer_addr);
 
     cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_DHKEY_CHECK, sizeof(*cmd), &txom);
     if (!cmd) {
@@ -664,9 +656,8 @@ ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     rc = ble_sm_alg_f6(proc->mackey, ble_sm_our_pair_rand(proc),
                        ble_sm_peer_pair_rand(proc), proc->tk, iocap,
-                       our_id_addr_type, our_ota_addr,
-                       peer_id_addr_type, peer_ota_addr,
-                       cmd->value);
+                       our_addr.type, our_addr.val, peer_addr.type,
+                       peer_addr.val, cmd->value);
     if (rc != 0) {
         os_mbuf_free_chain(txom);
         goto err;
@@ -695,10 +686,8 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
                            struct ble_sm_result *res)
 {
     uint8_t exp_value[16];
-    const uint8_t *peer_ota_addr;
-    const uint8_t *our_ota_addr;
-    uint8_t peer_id_addr_type;
-    uint8_t our_id_addr_type;
+    ble_addr_t our_addr;
+    ble_addr_t peer_addr;
     uint8_t *iocap;
     uint8_t ioact;
 
@@ -714,11 +703,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
         iocap = &pair_req->io_cap;
     }
 
-    ble_sm_sc_dhkey_addrs(proc,
-                          &our_id_addr_type,
-                          &our_ota_addr,
-                          &peer_id_addr_type,
-                          &peer_ota_addr);
+    ble_sm_sc_dhkey_addrs(proc, &our_addr, &peer_addr);
     BLE_HS_LOG(DEBUG, "tk=");
     ble_hs_log_flat_buf(proc->tk, 16);
     BLE_HS_LOG(DEBUG, "\n");
@@ -727,8 +712,8 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
                                     ble_sm_peer_pair_rand(proc),
                                     ble_sm_our_pair_rand(proc),
                                     proc->tk, iocap,
-                                    peer_id_addr_type, peer_ota_addr,
-                                    our_id_addr_type, our_ota_addr,
+                                    peer_addr.type, peer_addr.val,
+                                    our_addr.type, our_addr.val,
                                     exp_value);
     if (res->app_status != 0) {
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;

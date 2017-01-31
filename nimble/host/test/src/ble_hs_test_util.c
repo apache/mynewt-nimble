@@ -372,11 +372,15 @@ ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
                                  const uint8_t *peer_rpa,
                                  ble_gap_event_fn *cb, void *cb_arg)
 {
+    ble_addr_t addr;
     struct hci_le_conn_complete evt;
     int rc;
 
-    ble_hs_test_util_connect(own_addr_type, peer_addr_type,
-                             peer_id_addr, 0, NULL, cb, cb_arg, 0);
+    addr.type = peer_addr_type;
+    memcpy(addr.val, peer_id_addr, 6);
+
+    ble_hs_test_util_connect(own_addr_type, &addr,
+                             0, NULL, cb, cb_arg, 0);
 
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -403,8 +407,8 @@ ble_hs_test_util_create_conn(uint16_t handle, const uint8_t *peer_id_addr,
 {
     static uint8_t null_addr[6];
 
-    ble_hs_test_util_create_rpa_conn(handle, BLE_ADDR_TYPE_PUBLIC, null_addr,
-                                     BLE_ADDR_TYPE_PUBLIC, peer_id_addr,
+    ble_hs_test_util_create_rpa_conn(handle, BLE_ADDR_PUBLIC, null_addr,
+                                     BLE_ADDR_PUBLIC, peer_id_addr,
                                      null_addr, cb, cb_arg);
 }
 
@@ -423,20 +427,20 @@ ble_hs_test_util_conn_params_dflt(struct ble_gap_conn_params *conn_params)
 
 static void
 ble_hs_test_util_hcc_from_conn_params(
-    struct hci_create_conn *hcc, uint8_t own_addr_type, uint8_t peer_addr_type,
-    const uint8_t *peer_addr, const struct ble_gap_conn_params *conn_params)
+    struct hci_create_conn *hcc, uint8_t own_addr_type,
+    const ble_addr_t *peer_addr, const struct ble_gap_conn_params *conn_params)
 {
     hcc->scan_itvl = conn_params->scan_itvl;
     hcc->scan_window = conn_params->scan_window;
 
-    if (peer_addr_type == BLE_GAP_ADDR_TYPE_WL) {
+    if (peer_addr == NULL) {
         hcc->filter_policy = BLE_HCI_CONN_FILT_USE_WL;
         hcc->peer_addr_type = 0;
         memset(hcc->peer_addr, 0, 6);
     } else {
         hcc->filter_policy = BLE_HCI_CONN_FILT_NO_WL;
-        hcc->peer_addr_type = peer_addr_type;
-        memcpy(hcc->peer_addr, peer_addr, 6);
+        hcc->peer_addr_type = peer_addr->type;
+        memcpy(hcc->peer_addr, peer_addr->val, 6);
     }
     hcc->own_addr_type = own_addr_type;
     hcc->conn_itvl_min = conn_params->itvl_min;
@@ -488,8 +492,8 @@ ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp)
 }
 
 int
-ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
-                         const uint8_t *peer_addr, int32_t duration_ms,
+ble_hs_test_util_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
+                         int32_t duration_ms,
                          const struct ble_gap_conn_params *params,
                          ble_gap_event_fn *cb, void *cb_arg,
                          uint8_t ack_status)
@@ -509,8 +513,8 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
                                     BLE_HCI_OCF_LE_CREATE_CONN),
         ack_status);
 
-    rc = ble_gap_connect(own_addr_type, peer_addr_type, peer_addr, duration_ms,
-                         params, cb, cb_arg);
+    rc = ble_gap_connect(own_addr_type, peer_addr, duration_ms, params, cb,
+                         cb_arg);
 
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(ack_status));
 
@@ -519,8 +523,8 @@ ble_hs_test_util_connect(uint8_t own_addr_type, uint8_t peer_addr_type,
         params = &dflt_params;
     }
 
-    ble_hs_test_util_hcc_from_conn_params(&hcc, own_addr_type,
-                                          peer_addr_type, peer_addr, params);
+    ble_hs_test_util_hcc_from_conn_params(&hcc, own_addr_type, peer_addr,
+                                          params);
     ble_hs_test_util_verify_tx_create_conn(&hcc);
 
     return rc;
@@ -624,8 +628,8 @@ ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
      * enabled and does not send SET_RPA_TMO every time. For test purpose
      * let's track privacy state in here.
      */
-    if ((own_addr_type == BLE_ADDR_TYPE_RPA_PUB_DEFAULT ||
-         own_addr_type == BLE_ADDR_TYPE_RPA_RND_DEFAULT) && !privacy_enabled) {
+    if ((own_addr_type == BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT ||
+         own_addr_type == BLE_OWN_ADDR_RPA_RANDOM_DEFAULT) && !privacy_enabled) {
         privacy_enabled = true;
         ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
             {
@@ -771,8 +775,7 @@ ble_hs_test_util_adv_rsp_set_fields(const struct ble_hs_adv_fields *adv_fields,
 }
 
 int
-ble_hs_test_util_adv_start(uint8_t own_addr_type,
-                           uint8_t peer_addr_type, const uint8_t *peer_addr, 
+ble_hs_test_util_adv_start(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                            const struct ble_gap_adv_params *adv_params,
                            int32_t duration_ms,
                            ble_gap_event_fn *cb, void *cb_arg,
@@ -800,7 +803,7 @@ ble_hs_test_util_adv_start(uint8_t own_addr_type,
 
     ble_hs_test_util_set_ack_seq(acks);
     
-    rc = ble_gap_adv_start(own_addr_type, peer_addr_type, peer_addr, 
+    rc = ble_gap_adv_start(own_addr_type, peer_addr,
                            duration_ms, adv_params, cb, cb_arg);
 
     return rc;
@@ -820,8 +823,7 @@ ble_hs_test_util_adv_stop(uint8_t hci_status)
 }
 
 int
-ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,
-                        uint8_t white_list_count,
+ble_hs_test_util_wl_set(ble_addr_t *addrs, uint8_t addrs_count,
                         int fail_idx, uint8_t fail_status)
 {
     struct ble_hs_test_util_phony_ack acks[64];
@@ -829,7 +831,7 @@ ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,
     int rc;
     int i;
 
-    TEST_ASSERT_FATAL(white_list_count < 63);
+    TEST_ASSERT_FATAL(addrs_count < 63);
 
     cmd_idx = 0;
     acks[cmd_idx] = (struct ble_hs_test_util_phony_ack) {
@@ -838,7 +840,7 @@ ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,
     };
     cmd_idx++;
 
-    for (i = 0; i < white_list_count; i++) {
+    for (i = 0; i < addrs_count; i++) {
         acks[cmd_idx] = (struct ble_hs_test_util_phony_ack) {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_WHITE_LIST),
             ble_hs_test_util_exp_hci_status(cmd_idx, fail_idx, fail_status),
@@ -849,7 +851,7 @@ ble_hs_test_util_wl_set(struct ble_gap_white_entry *white_list,
     memset(acks + cmd_idx, 0, sizeof acks[cmd_idx]);
 
     ble_hs_test_util_set_ack_seq(acks);
-    rc = ble_gap_wl_set(white_list, white_list_count);
+    rc = ble_gap_wl_set(addrs, addrs_count);
     return rc;
 }
 
@@ -2101,7 +2103,7 @@ ble_hs_test_util_num_cccds(void)
     struct ble_store_key_cccd key = { };
     int rc;
 
-    key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key.peer_addr = *BLE_ADDR_ANY;
     for (key.idx = 0; ; key.idx++) {
         rc = ble_store_read_cccd(&key, &val);
         switch (rc) {
@@ -2124,7 +2126,7 @@ ble_hs_test_util_num_our_secs(void)
     struct ble_store_key_sec key = { };
     int rc;
 
-    key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key.peer_addr = *BLE_ADDR_ANY;
     for (key.idx = 0; ; key.idx++) {
         rc = ble_store_read_our_sec(&key, &val);
         switch (rc) {
@@ -2147,7 +2149,7 @@ ble_hs_test_util_num_peer_secs(void)
     struct ble_store_key_sec key = { };
     int rc;
 
-    key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key.peer_addr = *BLE_ADDR_ANY;
     for (key.idx = 0; ; key.idx++) {
         rc = ble_store_read_peer_sec(&key, &val);
         switch (rc) {

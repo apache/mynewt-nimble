@@ -158,7 +158,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
         ble_hs_adv_test_misc_verify_tx_rsp_data(test_rsp_fields);
     }
 
-    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 0, NULL, &adv_params,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, &adv_params,
                                     BLE_HS_FOREVER, NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -169,7 +169,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     rc = ble_hs_test_util_adv_stop(0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_hs_test_util_adv_start(BLE_ADDR_TYPE_PUBLIC, 0, NULL, &adv_params,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, &adv_params,
                                     BLE_HS_FOREVER, NULL, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
