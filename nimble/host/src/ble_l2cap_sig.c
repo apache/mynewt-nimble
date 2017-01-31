@@ -890,7 +890,8 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     ble_hs_conn_delete_chan(conn, chan);
     ble_hs_unlock();
 
-    return ble_l2cap_sig_tx(conn_handle, txom);
+    ble_l2cap_sig_tx(conn_handle, txom);
+    return 0;
 }
 
 static void
@@ -929,7 +930,7 @@ done:
 }
 
 static int
-ble_l2cap_sig_disc_rsp_rx (uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
+ble_l2cap_sig_disc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
                            struct os_mbuf **om)
 {
     struct ble_l2cap_sig_disc_rsp *rsp;
