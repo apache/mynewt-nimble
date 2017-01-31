@@ -91,9 +91,6 @@ struct hci_conn_update;
 #define BLE_GAP_INITIAL_CONN_MIN_CE_LEN     0x0010
 #define BLE_GAP_INITIAL_CONN_MAX_CE_LEN     0x0300
 
-#define BLE_GAP_ADDR_TYPE_WL                0xff
-#define BLE_GAP_ADDR_TYPE_NONE              0xfe
-
 #define BLE_GAP_ROLE_MASTER                 0
 #define BLE_GAP_ROLE_SLAVE                  1
 
@@ -166,18 +163,14 @@ struct ble_gap_adv_params {
 
 struct ble_gap_conn_desc {
     struct ble_gap_sec_state sec_state;
-    uint8_t peer_ota_addr[6];
-    uint8_t peer_id_addr[6];
-    uint8_t our_id_addr[6];
-    uint8_t our_ota_addr[6];
+    ble_addr_t our_id_addr;
+    ble_addr_t peer_id_addr;
+    ble_addr_t our_ota_addr;
+    ble_addr_t peer_ota_addr;
     uint16_t conn_handle;
     uint16_t conn_itvl;
     uint16_t conn_latency;
     uint16_t supervision_timeout;
-    uint8_t peer_ota_addr_type;
-    uint8_t peer_id_addr_type;
-    uint8_t our_id_addr_type;
-    uint8_t our_ota_addr_type;
     uint8_t role;
     uint8_t master_clock_accuracy;
 };
@@ -219,18 +212,16 @@ struct ble_gap_passkey_params {
 struct ble_gap_disc_desc {
     /*** Common fields. */
     uint8_t event_type;
-    uint8_t addr_type;
     uint8_t length_data;
+    ble_addr_t addr;
     int8_t rssi;
-    uint8_t addr[6];
     uint8_t *data;
 
     /***
-     * LE direct advertising report fields; direct_addr_type is
-     * BLE_GAP_ADDR_TYPE_NONE if direct address fields are not present.
+     * LE direct advertising report fields; direct_addr is BLE_ADDR_ANY if
+     * direct address fields are not present.
      */
-    uint8_t direct_addr_type;
-    uint8_t direct_addr[6];
+    ble_addr_t direct_addr;
 };
 
 /**
@@ -526,17 +517,12 @@ typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
 #define BLE_GAP_DISC_MODE_LTD               1
 #define BLE_GAP_DISC_MODE_GEN               2
 
-struct ble_gap_white_entry {
-    uint8_t addr_type;
-    uint8_t addr[6];
-};
-
 int ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc);
 int ble_gap_set_event_cb(uint16_t conn_handle,
                          ble_gap_event_fn *cb, void *cb_arg);
 
-int ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
-                      const uint8_t *peer_addr, int32_t duration_ms,
+int ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
+                      int32_t duration_ms,
                       const struct ble_gap_adv_params *adv_params,
                       ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_adv_stop(void);
@@ -550,16 +536,14 @@ int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
 int ble_gap_disc_active(void);
-int ble_gap_connect(uint8_t own_addr_type,
-                    uint8_t peer_addr_type, const uint8_t *peer_addr,
+int ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                     int32_t duration_ms,
                     const struct ble_gap_conn_params *params,
                     ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_conn_cancel(void);
 int ble_gap_conn_active(void);
 int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
-int ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
-                   uint8_t white_list_count);
+int ble_gap_wl_set(const ble_addr_t *addr, uint8_t white_list_count);
 int ble_gap_update_params(uint16_t conn_handle,
                           const struct ble_gap_upd_params *params);
 int ble_gap_dbg_update_active(uint16_t conn_handle);

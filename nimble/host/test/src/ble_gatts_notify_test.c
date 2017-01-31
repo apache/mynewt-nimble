@@ -921,7 +921,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
         ble_gatts_notify_test_chr_1_len);
 
     /* Verify 'updated' state is still persisted. */
-    key_cccd.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key_cccd.peer_addr = *BLE_ADDR_ANY;
     key_cccd.chr_val_handle = ble_gatts_notify_test_chr_1_def_handle + 1;
     key_cccd.idx = 0;
 

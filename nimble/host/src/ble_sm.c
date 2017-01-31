@@ -446,8 +446,8 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
 {
     memset(value_sec, 0, sizeof *value_sec);
 
-    value_sec->peer_addr_type = peer_addr_type;
-    memcpy(value_sec->peer_addr, peer_addr, sizeof value_sec->peer_addr);
+    value_sec->peer_addr.type = peer_addr_type;
+    memcpy(value_sec->peer_addr.val, peer_addr, sizeof value_sec->peer_addr);
 
     if (keys->ediv_rand_valid && keys->ltk_valid) {
         value_sec->key_size = keys->key_size;
@@ -484,17 +484,17 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
     ble_hs_conn_addrs(conn, &addrs);
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        *out_iat = addrs.our_ota_addr_type;
-        memcpy(out_ia, addrs.our_ota_addr, 6);
+        *out_iat = addrs.our_ota_addr.type;
+        memcpy(out_ia, addrs.our_ota_addr.val, 6);
 
-        *out_rat = addrs.peer_ota_addr_type;
-        memcpy(out_ra, addrs.peer_ota_addr, 6);
+        *out_rat = addrs.peer_ota_addr.type;
+        memcpy(out_ra, addrs.peer_ota_addr.val, 6);
     } else {
-        *out_iat = addrs.peer_ota_addr_type;
-        memcpy(out_ia, addrs.peer_ota_addr, 6);
+        *out_iat = addrs.peer_ota_addr.type;
+        memcpy(out_ia, addrs.peer_ota_addr.val, 6);
 
-        *out_rat = addrs.our_ota_addr_type;
-        memcpy(out_ra, addrs.our_ota_addr, 6);
+        *out_rat = addrs.our_ota_addr.type;
+        memcpy(out_ra, addrs.our_ota_addr.val, 6);
     }
 }
 
@@ -503,8 +503,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 {
     struct ble_store_value_sec value_sec;
     struct ble_hs_conn *conn;
-    uint8_t peer_addr[6];
-    uint8_t peer_addr_type;
+    ble_addr_t peer_addr;
     int authenticated;
 
     ble_hs_lock();
@@ -514,22 +513,22 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 
     /* If we got an identity address, use that for key storage. */
     if (proc->peer_keys.addr_valid) {
-        peer_addr_type = proc->peer_keys.addr_type;
-        memcpy(peer_addr, proc->peer_keys.addr, sizeof peer_addr);
+        peer_addr.type = proc->peer_keys.addr_type;
+        memcpy(peer_addr.val, proc->peer_keys.addr, sizeof peer_addr);
     } else {
-        peer_addr_type = ble_hs_misc_addr_type_to_id(conn->bhc_peer_addr_type);
-        memcpy(peer_addr, conn->bhc_peer_addr, sizeof peer_addr);
+        peer_addr = conn->bhc_peer_addr;
+        peer_addr.type = ble_hs_misc_addr_type_to_id(conn->bhc_peer_addr.type);
     }
 
     ble_hs_unlock();
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
 
-    ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
+    ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
                             &proc->our_keys, &value_sec);
     ble_store_write_our_sec(&value_sec);
 
-    ble_sm_fill_store_value(peer_addr_type, peer_addr, authenticated,
+    ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
                             &proc->peer_keys, &value_sec);
     ble_store_write_peer_sec(&value_sec);
 }
@@ -1031,8 +1030,8 @@ ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt, uint8_t peer_addr_type,
 
     /* Tell applicaiton to look up LTK by peer address and ediv/rand pair. */
     memset(&key_sec, 0, sizeof key_sec);
-    key_sec.peer_addr_type = peer_addr_type;
-    memcpy(key_sec.peer_addr, peer_addr, 6);
+    key_sec.peer_addr.type = peer_addr_type;
+    memcpy(key_sec.peer_addr.val, peer_addr, 6);
     key_sec.ediv = evt->encrypted_diversifier;
     key_sec.rand_num = evt->random_number;
     key_sec.ediv_rand_present = 1;
@@ -1204,7 +1203,7 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     if (restore) {
         conn = ble_hs_conn_find_assert(evt->connection_handle);
         ble_hs_conn_addrs(conn, &addrs);
-        memcpy(peer_id_addr, addrs.peer_id_addr, 6);
+        memcpy(peer_id_addr, addrs.peer_id_addr.val, 6);
     }
 
     ble_hs_unlock();
@@ -1215,7 +1214,7 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
 
     if (res.app_status == 0) {
         if (restore) {
-            store_rc = ble_sm_retrieve_ltk(evt, addrs.peer_id_addr_type,
+            store_rc = ble_sm_retrieve_ltk(evt, addrs.peer_id_addr.type,
                                            peer_id_addr, &value_sec);
             if (store_rc == 0) {
                 /* Send the key to the controller. */
@@ -1666,8 +1665,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
          */
         ble_hs_conn_addrs(conn, &addrs);
         memset(&key_sec, 0, sizeof key_sec);
-        key_sec.peer_addr_type = addrs.peer_id_addr_type;
-        memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
+        key_sec.peer_addr = addrs.peer_id_addr;;
     }
 
     ble_hs_unlock();
@@ -1825,8 +1823,8 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         conn = ble_hs_conn_find_assert(proc->conn_handle);
         ble_hs_conn_addrs(conn, &addrs);
 
-        addr_info->addr_type = addrs.our_id_addr_type;
-        memcpy(addr_info->bd_addr, addrs.our_id_addr, 6);
+        addr_info->addr_type = addrs.our_id_addr.type;
+        memcpy(addr_info->bd_addr, addrs.our_id_addr.val, 6);
 
         proc->our_keys.addr_valid = 1;
         memcpy(proc->our_keys.irk, irk, 16);
@@ -2277,8 +2275,8 @@ ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
     int rc;
 
     memset(&key_sec, 0, sizeof key_sec);
-    key_sec.peer_addr_type = peer_id_addr_type;
-    memcpy(key_sec.peer_addr, peer_id_addr, sizeof key_sec.peer_addr);
+    key_sec.peer_addr.type = peer_id_addr_type;
+    memcpy(key_sec.peer_addr.val, peer_id_addr, sizeof key_sec.peer_addr);
 
     our_rc = ble_store_delete_our_sec(&key_sec);
     peer_rc = ble_store_delete_peer_sec(&key_sec);

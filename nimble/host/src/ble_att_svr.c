@@ -282,8 +282,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
             ble_hs_conn_addrs(conn, &addrs);
 
             memset(&key_sec, 0, sizeof key_sec);
-            key_sec.peer_addr_type = addrs.peer_id_addr_type;
-            memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
+            key_sec.peer_addr = addrs.peer_id_addr;
         }
         ble_hs_unlock();
 

@@ -1384,7 +1384,7 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
               params->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND;
 
     memset(&key_sec, 0, sizeof key_sec);
-    key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key_sec.peer_addr = *BLE_ADDR_ANY;
 
     rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     if (!bonding) {
@@ -1400,8 +1400,8 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
         csrk_expected =
             !!(peer_entity.key_dist & BLE_SM_PAIR_KEY_DIST_SIGN);
 
-        TEST_ASSERT(value_sec.peer_addr_type == peer_entity.id_addr_type);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_entity.id_addr, 6) == 0);
+        TEST_ASSERT(value_sec.peer_addr.type == peer_entity.id_addr_type);
+        TEST_ASSERT(memcmp(value_sec.peer_addr.val, peer_entity.id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == peer_entity.ediv);
         TEST_ASSERT(value_sec.rand_num == peer_entity.rand_num);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -1435,8 +1435,8 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
         csrk_expected =
             !!(our_entity.key_dist & BLE_SM_PAIR_KEY_DIST_SIGN);
 
-        TEST_ASSERT(value_sec.peer_addr_type == peer_entity.id_addr_type);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_entity.id_addr, 6) == 0);
+        TEST_ASSERT(value_sec.peer_addr.type == peer_entity.id_addr_type);
+        TEST_ASSERT(memcmp(value_sec.peer_addr.val, peer_entity.id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == our_entity.ediv);
         TEST_ASSERT(value_sec.rand_num == our_entity.rand_num);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -1515,7 +1515,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_sm_test_store_obj_type == BLE_STORE_OBJ_TYPE_OUR_SEC);
-    TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr_type ==
+    TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr.type ==
                 ble_hs_misc_addr_type_to_id(peer_addr_type));
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv == ediv);

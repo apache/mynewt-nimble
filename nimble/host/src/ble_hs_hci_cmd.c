@@ -162,7 +162,7 @@ static int
 ble_hs_hci_cmd_body_le_whitelist_chg(const uint8_t *addr, uint8_t addr_type,
                                      uint8_t *dst)
 {
-    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1094,7 +1094,7 @@ ble_hs_hci_cmd_body_add_to_resolv_list(uint8_t addr_type, const uint8_t *addr,
                                        const uint8_t *local_irk,
                                        uint8_t *dst)
 {
-    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1140,7 +1140,7 @@ ble_hs_hci_cmd_body_remove_from_resolv_list(uint8_t addr_type,
                                             const uint8_t *addr,
                                             uint8_t *dst)
 {
-    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1199,7 +1199,7 @@ ble_hs_hci_cmd_body_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
                                           const uint8_t *peer_identity_addr,
                                           uint8_t *dst)
 {
-    if (peer_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (peer_identity_addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1238,7 +1238,7 @@ ble_hs_hci_cmd_body_read_lcl_resolv_addr(
     const uint8_t *local_identity_addr,
     uint8_t *dst)
 {
-    if (local_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (local_identity_addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 

@@ -258,7 +258,7 @@ ble_hs_conn_find_assert(uint16_t conn_handle)
 }
 
 struct ble_hs_conn *
-ble_hs_conn_find_by_addr(uint8_t addr_type, const uint8_t *addr)
+ble_hs_conn_find_by_addr(const ble_addr_t *addr)
 {
 #if !NIMBLE_BLE_CONNECT
     return NULL;
@@ -269,9 +269,7 @@ ble_hs_conn_find_by_addr(uint8_t addr_type, const uint8_t *addr)
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
-        if (conn->bhc_peer_addr_type == addr_type &&
-            memcmp(conn->bhc_peer_addr, addr, 6) == 0) {
-
+        if (ble_addr_cmp(&conn->bhc_peer_addr, addr) == 0) {
             return conn;
         }
     }
@@ -330,43 +328,38 @@ void
 ble_hs_conn_addrs(const struct ble_hs_conn *conn,
                   struct ble_hs_conn_addrs *addrs)
 {
+    const uint8_t *our_id_addr_val;
     int rc;
 
     /* Determine our address information. */
-    addrs->our_id_addr_type =
+    addrs->our_id_addr.type =
         ble_hs_misc_addr_type_to_id(conn->bhc_our_addr_type);
-    rc = ble_hs_id_addr(addrs->our_id_addr_type, &addrs->our_id_addr, NULL);
+    rc = ble_hs_id_addr(addrs->our_id_addr.type, &our_id_addr_val, NULL);
     assert(rc == 0);
 
-    if (memcmp(conn->bhc_our_rpa_addr, ble_hs_conn_null_addr, 6) == 0) {
-        addrs->our_ota_addr_type = addrs->our_id_addr_type;
+    memcpy(addrs->our_id_addr.val, our_id_addr_val, 6);
+
+    if (memcmp(conn->bhc_our_rpa_addr.val, ble_hs_conn_null_addr, 6) == 0) {
         addrs->our_ota_addr = addrs->our_id_addr;
     } else {
-        addrs->our_ota_addr_type = BLE_ADDR_TYPE_RANDOM;
         addrs->our_ota_addr = conn->bhc_our_rpa_addr;
     }
 
     /* Determine peer address information. */
-    addrs->peer_ota_addr_type = conn->bhc_peer_addr_type;
     addrs->peer_id_addr = conn->bhc_peer_addr;
-    switch (conn->bhc_peer_addr_type) {
-    case BLE_ADDR_TYPE_PUBLIC:
-        addrs->peer_id_addr_type = BLE_ADDR_TYPE_PUBLIC;
-        addrs->peer_ota_addr = conn->bhc_peer_addr;
+    addrs->peer_ota_addr = conn->bhc_peer_addr;
+    switch (conn->bhc_peer_addr.type) {
+    case BLE_ADDR_PUBLIC:
+    case BLE_ADDR_RANDOM:
         break;
 
-    case BLE_ADDR_TYPE_RANDOM:
-        addrs->peer_id_addr_type = BLE_ADDR_TYPE_RANDOM;
-        addrs->peer_ota_addr = conn->bhc_peer_addr;
-        break;
-
-    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
-        addrs->peer_id_addr_type = BLE_ADDR_TYPE_PUBLIC;
+    case BLE_ADDR_PUBLIC_ID:
+        addrs->peer_id_addr.type = BLE_ADDR_PUBLIC;
         addrs->peer_ota_addr = conn->bhc_peer_rpa_addr;
         break;
 
-    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
-        addrs->peer_id_addr_type = BLE_ADDR_TYPE_RANDOM;
+    case BLE_ADDR_RANDOM_ID:
+        addrs->peer_id_addr.type = BLE_ADDR_RANDOM;
         addrs->peer_ota_addr = conn->bhc_peer_rpa_addr;
         break;
 

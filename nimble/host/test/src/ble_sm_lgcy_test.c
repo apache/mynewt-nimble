@@ -319,7 +319,7 @@ TEST_CASE(ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5)
         .init_id_addr = {
             0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a,
         },
-        .resp_addr_type = BLE_ADDR_TYPE_RANDOM,
+        .resp_addr_type = BLE_ADDR_RANDOM,
         .resp_id_addr = {
             0x11, 0x22, 0x11, 0x22, 0x11, 0xcc,
         },
@@ -442,7 +442,7 @@ TEST_CASE(ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5)
         .init_id_addr = {
             0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a,
         },
-        .resp_addr_type = BLE_ADDR_TYPE_RANDOM,
+        .resp_addr_type = BLE_ADDR_RANDOM,
         .resp_id_addr = {
             0x11, 0x22, 0x11, 0x22, 0x11, 0xcc,
         },

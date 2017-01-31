@@ -1127,9 +1127,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 
     /* Get the peer address type */
     if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-        txadd = BLE_ADDR_TYPE_RANDOM;
+        txadd = BLE_ADDR_RANDOM;
     } else {
-        txadd = BLE_ADDR_TYPE_PUBLIC;
+        txadd = BLE_ADDR_PUBLIC;
     }
 
     ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
@@ -1218,9 +1218,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 
         valid = 1;
         if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-            addr_type = BLE_ADDR_TYPE_RANDOM;
+            addr_type = BLE_ADDR_RANDOM;
         } else {
-            addr_type = BLE_ADDR_TYPE_PUBLIC;
+            addr_type = BLE_ADDR_PUBLIC;
         }
 
         /*
