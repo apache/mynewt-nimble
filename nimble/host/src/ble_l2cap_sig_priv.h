@@ -73,6 +73,16 @@ struct ble_l2cap_sig_le_con_rsp {
     uint16_t result;
 } __attribute__((packed));
 
+struct ble_l2cap_sig_disc_req {
+    uint16_t dcid;
+    uint16_t scid;
+} __attribute__((packed));
+
+struct ble_l2cap_sig_disc_rsp {
+    uint16_t dcid;
+    uint16_t scid;
+} __attribute__((packed));
+
 int ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
                            struct os_mbuf **out_om, void **out_payload_buf);
 void ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
@@ -103,9 +113,12 @@ int ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
                               ble_l2cap_event_fn *cb, void *cb_arg);
 void *ble_l2cap_sig_cmd_get(uint8_t opcode, uint8_t id, uint16_t len,
                             struct os_mbuf **txom);
+
+int ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan);
 #else
 #define ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg) \
                                                                 BLE_HS_ENOTSUP
+#define ble_l2cap_sig_disconnect(chan)                          BLE_HS_ENOTSUP
 #endif
 
 void ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason);

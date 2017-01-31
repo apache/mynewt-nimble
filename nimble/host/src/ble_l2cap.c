@@ -140,8 +140,7 @@ ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 
 int ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
 {
-    /*TODO Implement */
-    return BLE_HS_ENOTSUP;
+    return ble_l2cap_sig_disconnect(chan);
 }
 
 int
