@@ -342,7 +342,7 @@ ble_hs_conn_addrs(const struct ble_hs_conn *conn,
         addrs->our_ota_addr_type = addrs->our_id_addr_type;
         addrs->our_ota_addr = addrs->our_id_addr;
     } else {
-        addrs->our_ota_addr_type = conn->bhc_our_addr_type;
+        addrs->our_ota_addr_type = BLE_ADDR_TYPE_RANDOM;
         addrs->our_ota_addr = conn->bhc_our_rpa_addr;
     }
 

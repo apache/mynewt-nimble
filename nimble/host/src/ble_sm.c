@@ -484,16 +484,16 @@ ble_sm_ia_ra(struct ble_sm_proc *proc,
     ble_hs_conn_addrs(conn, &addrs);
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        *out_iat = addrs.our_id_addr_type;
+        *out_iat = addrs.our_ota_addr_type;
         memcpy(out_ia, addrs.our_ota_addr, 6);
 
-        *out_rat = addrs.peer_id_addr_type;
+        *out_rat = addrs.peer_ota_addr_type;
         memcpy(out_ra, addrs.peer_ota_addr, 6);
     } else {
-        *out_iat = addrs.peer_id_addr_type;
+        *out_iat = addrs.peer_ota_addr_type;
         memcpy(out_ia, addrs.peer_ota_addr, 6);
 
-        *out_rat = addrs.our_id_addr_type;
+        *out_rat = addrs.our_ota_addr_type;
         memcpy(out_ra, addrs.our_ota_addr, 6);
     }
 }
