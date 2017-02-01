@@ -2251,7 +2251,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     uint8_t peer_addr_type;
     uint8_t *adv_addr;
     uint8_t *peer;
-    uint8_t *init_addr;
+    uint8_t *init_addr = NULL;
     uint8_t pyld_len;
     uint8_t inita_is_rpa;
     uint32_t endtime;
@@ -2360,7 +2360,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
          * If the inita is a RPA, we must see if it resolves based on the
          * identity address of the resolved ADVA.
          */
-        if (inita_is_rpa) {
+        if (init_addr && inita_is_rpa) {
             if ((index < 0) ||
                 !ble_ll_resolv_rpa(init_addr,
                                    g_ble_ll_resolv_list[index].rl_local_irk)) {
