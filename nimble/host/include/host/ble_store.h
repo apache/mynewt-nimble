@@ -31,8 +31,6 @@ extern "C" {
 #define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
-//#define BLE_STORE_ADDR_TYPE_NONE        0xff
-
 /**
  * Used as a key for lookups of security material.  This struct corresponds to
  * the following store object types:
