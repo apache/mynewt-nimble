@@ -621,9 +621,9 @@ ble_sm_sc_dhkey_addrs(struct ble_sm_proc *proc,
     conn = ble_hs_conn_find_assert(proc->conn_handle);
 
     ble_hs_conn_addrs(conn, &addrs);
-    *out_our_id_addr_type = addrs.our_id_addr_type;
+    *out_our_id_addr_type = addrs.our_ota_addr_type;
     *out_our_ota_addr = addrs.our_ota_addr;
-    *out_peer_id_addr_type = addrs.peer_id_addr_type;
+    *out_peer_id_addr_type = addrs.peer_ota_addr_type;
     *out_peer_ota_addr = addrs.peer_ota_addr;
 }
 

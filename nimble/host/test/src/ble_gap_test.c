@@ -1300,7 +1300,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(desc.conn_handle == 54);
     TEST_ASSERT(desc.our_id_addr_type == BLE_ADDR_TYPE_PUBLIC);
-    TEST_ASSERT(desc.our_ota_addr_type == BLE_ADDR_TYPE_RPA_PUB_DEFAULT);
+    TEST_ASSERT(desc.our_ota_addr_type == BLE_ADDR_TYPE_RANDOM);
     TEST_ASSERT(desc.peer_ota_addr_type == BLE_ADDR_TYPE_RPA_RND_DEFAULT);
     TEST_ASSERT(desc.role == BLE_GAP_ROLE_MASTER);
     TEST_ASSERT(memcmp(desc.our_ota_addr,
