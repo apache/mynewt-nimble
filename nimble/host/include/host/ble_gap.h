@@ -110,6 +110,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_NOTIFY_TX             13
 #define BLE_GAP_EVENT_SUBSCRIBE             14
 #define BLE_GAP_EVENT_MTU                   15
+#define BLE_GAP_EVENT_IDENTITY_RESOLVED     16
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -504,6 +505,18 @@ struct ble_gap_event {
             /* The channel's new MTU. */
             uint16_t value;
         } mtu;
+
+        /**
+         * Represents a change in peer's identity. This is issued after
+         * successful pairing when Identity Address Information was received.
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_IDENTITY_RESOLVED
+         */
+        struct {
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+        } identity_resolved;
     };
 };
 
