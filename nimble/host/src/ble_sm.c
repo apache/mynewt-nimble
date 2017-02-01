@@ -515,7 +515,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     /* If we got an identity address, use that for key storage. */
     if (proc->peer_keys.addr_valid) {
         peer_addr.type = proc->peer_keys.addr_type;
-        memcpy(peer_addr.val, proc->peer_keys.addr, sizeof peer_addr);
+        memcpy(peer_addr.val, proc->peer_keys.addr, sizeof peer_addr.val);
 
         /* Update identity address in conn.
          * If peer's address was an RPA, we store it as RPA since peer's address
