@@ -505,6 +505,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     struct ble_hs_conn *conn;
     ble_addr_t peer_addr;
     int authenticated;
+    int identity_ev = 0;
 
     ble_hs_lock();
 
@@ -515,12 +516,42 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     if (proc->peer_keys.addr_valid) {
         peer_addr.type = proc->peer_keys.addr_type;
         memcpy(peer_addr.val, proc->peer_keys.addr, sizeof peer_addr);
+
+        /* Update identity address in conn.
+         * If peer's address was an RPA, we store it as RPA since peer's address
+         * will not be an identity address. The peer's address type has to be
+         * set as 'ID' to allow resolve 'id' and 'ota' addresses properly in
+         * conn info.
+         */
+        if (BLE_ADDR_IS_RPA(&conn->bhc_peer_addr)) {
+            conn->bhc_peer_rpa_addr = conn->bhc_peer_addr;
+        }
+
+        conn->bhc_peer_addr = peer_addr;
+
+        switch (peer_addr.type) {
+        case BLE_ADDR_PUBLIC:
+        case BLE_ADDR_PUBLIC_ID:
+            conn->bhc_peer_addr.type = BLE_ADDR_PUBLIC_ID;
+            break;
+
+        case BLE_ADDR_RANDOM:
+        case BLE_ADDR_RANDOM_ID:
+            conn->bhc_peer_addr.type = BLE_ADDR_RANDOM_ID;
+            break;
+        }
+
+        identity_ev = 1;
     } else {
         peer_addr = conn->bhc_peer_addr;
         peer_addr.type = ble_hs_misc_addr_type_to_id(conn->bhc_peer_addr.type);
     }
 
     ble_hs_unlock();
+
+    if (identity_ev) {
+        ble_gap_identity_event(proc->conn_handle);
+    }
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
 

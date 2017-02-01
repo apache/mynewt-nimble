@@ -3103,6 +3103,23 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
     }
 }
 
+void
+ble_gap_identity_event(uint16_t conn_handle)
+{
+#if !NIMBLE_BLE_SM
+    return;
+#endif
+
+    struct ble_gap_event event;
+
+    BLE_HS_LOG(DEBUG, "send identity changed");
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_IDENTITY_RESOLVED;
+    event.identity_resolved.conn_handle = conn_handle;
+    ble_gap_call_conn_event_cb(&event, conn_handle);
+}
+
 /*****************************************************************************
  * $rssi                                                                     *
  *****************************************************************************/
