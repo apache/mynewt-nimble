@@ -1764,6 +1764,24 @@ ble_hs_test_util_verify_tx_l2cap_sig_hdr(uint8_t op, uint8_t id,
     return om;
 }
 
+static void
+ble_l2cap_test_update_req_swap(struct ble_l2cap_sig_update_req *dst,
+                               struct ble_l2cap_sig_update_req *src)
+{
+    dst->itvl_min = le16toh(src->itvl_min);
+    dst->itvl_max = le16toh(src->itvl_max);
+    dst->slave_latency = le16toh(src->slave_latency);
+    dst->timeout_multiplier = le16toh(src->timeout_multiplier);
+}
+
+static void
+ble_l2cap_test_update_req_parse(void *payload, int len,
+                               struct ble_l2cap_sig_update_req *dst)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    ble_l2cap_test_update_req_swap(dst, payload);
+}
+
 /**
  * @return                      The L2CAP sig identifier in the request.
  */
@@ -1783,13 +1801,33 @@ ble_hs_test_util_verify_tx_l2cap_update_req(
                                                   &hdr);
 
     /* Verify payload. */
-    ble_l2cap_sig_update_req_parse(om->om_data, om->om_len, &req);
+    ble_l2cap_test_update_req_parse(om->om_data, om->om_len, &req);
     TEST_ASSERT(req.itvl_min == params->itvl_min);
     TEST_ASSERT(req.itvl_max == params->itvl_max);
     TEST_ASSERT(req.slave_latency == params->slave_latency);
     TEST_ASSERT(req.timeout_multiplier == params->timeout_multiplier);
 
     return hdr.identifier;
+}
+
+static void
+ble_l2cap_sig_update_rsp_parse(void *payload, int len,
+                               struct ble_l2cap_sig_update_rsp *dst)
+{
+    struct ble_l2cap_sig_update_rsp *src = payload;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    dst->result = le16toh(src->result);
+}
+
+static void
+ble_l2cap_test_update_rsp_write(void *payload, int len,
+                               struct ble_l2cap_sig_update_rsp *src)
+{
+    struct ble_l2cap_sig_update_rsp *dst = payload;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    dst->result = htole16(src->result);
 }
 
 int
@@ -1811,7 +1849,7 @@ ble_hs_test_util_rx_l2cap_update_rsp(uint16_t conn_handle,
     TEST_ASSERT_FATAL(rc == 0);
 
     rsp.result = result;
-    ble_l2cap_sig_update_rsp_write(v, BLE_L2CAP_SIG_UPDATE_RSP_SZ, &rsp);
+    ble_l2cap_test_update_rsp_write(v, BLE_L2CAP_SIG_UPDATE_RSP_SZ, &rsp);
 
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
                                               &hci_hdr, om);

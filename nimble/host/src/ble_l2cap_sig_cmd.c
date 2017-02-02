@@ -158,99 +158,6 @@ ble_l2cap_sig_reject_invalid_cid_tx(uint16_t conn_handle, uint8_t id,
                                  &data, sizeof data);
 }
 
-static void
-ble_l2cap_sig_update_req_swap(struct ble_l2cap_sig_update_req *dst,
-                              struct ble_l2cap_sig_update_req *src)
-{
-    dst->itvl_min = TOFROMLE16(src->itvl_min);
-    dst->itvl_max = TOFROMLE16(src->itvl_max);
-    dst->slave_latency = TOFROMLE16(src->slave_latency);
-    dst->timeout_multiplier = TOFROMLE16(src->timeout_multiplier);
-}
-
-void
-ble_l2cap_sig_update_req_parse(void *payload, int len,
-                               struct ble_l2cap_sig_update_req *dst)
-{
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
-    ble_l2cap_sig_update_req_swap(dst, payload);
-}
-
-void
-ble_l2cap_sig_update_req_write(void *payload, int len,
-                               struct ble_l2cap_sig_update_req *src)
-{
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
-    ble_l2cap_sig_update_req_swap(payload, src);
-}
-
-int
-ble_l2cap_sig_update_req_tx(uint16_t conn_handle, uint8_t id,
-                            struct ble_l2cap_sig_update_req *req)
-{
-    struct os_mbuf *txom;
-    void *payload_buf;
-    int rc;
-
-    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_REQ, id,
-                                BLE_L2CAP_SIG_UPDATE_REQ_SZ, &txom,
-                                &payload_buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    ble_l2cap_sig_update_req_write(payload_buf, BLE_L2CAP_SIG_UPDATE_REQ_SZ,
-                                   req);
-
-    return ble_l2cap_sig_tx(conn_handle, txom);
-}
-
-static void
-ble_l2cap_sig_update_rsp_swap(struct ble_l2cap_sig_update_rsp *dst,
-                              struct ble_l2cap_sig_update_rsp *src)
-{
-    dst->result = TOFROMLE16(src->result);
-}
-
-void
-ble_l2cap_sig_update_rsp_parse(void *payload, int len,
-                               struct ble_l2cap_sig_update_rsp *dst)
-{
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
-    ble_l2cap_sig_update_rsp_swap(dst, payload);
-}
-
-void
-ble_l2cap_sig_update_rsp_write(void *payload, int len,
-                               struct ble_l2cap_sig_update_rsp *src)
-{
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
-    ble_l2cap_sig_update_rsp_swap(payload, src);
-}
-
-int
-ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id, uint16_t result)
-{
-    struct ble_l2cap_sig_update_rsp rsp;
-    struct os_mbuf *txom;
-    void *payload_buf;
-    int rc;
-
-    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_RSP, id,
-                                BLE_L2CAP_SIG_UPDATE_RSP_SZ, &txom,
-                                &payload_buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rsp.result = result;
-    ble_l2cap_sig_update_rsp_write(payload_buf, BLE_L2CAP_SIG_UPDATE_RSP_SZ,
-                                   &rsp);
-
-    return ble_l2cap_sig_tx(conn_handle, txom);
-}
-
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
 void *
 ble_l2cap_sig_cmd_get(uint8_t opcode, uint8_t id, uint16_t len,
                       struct os_mbuf **txom)
@@ -275,4 +182,3 @@ ble_l2cap_sig_cmd_get(uint8_t opcode, uint8_t id, uint16_t len,
 
     return hdr->data;
 }
-#endif
