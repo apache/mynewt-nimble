@@ -438,7 +438,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
 
     default:
         cb_status = BLE_HS_EBADDATA;
-        rc = BLE_HS_EBADDATA;
+        rc = 0;
         break;
     }
 
