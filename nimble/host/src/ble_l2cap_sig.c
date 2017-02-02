@@ -336,7 +336,9 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
                             struct ble_l2cap_sig_hdr *hdr,
                             struct os_mbuf **om)
 {
-    struct ble_l2cap_sig_update_req req;
+    struct ble_l2cap_sig_update_req *req;
+    struct os_mbuf *txom;
+    struct ble_l2cap_sig_update_rsp *rsp;
     struct ble_gap_upd_params params;
     ble_hs_conn_flags_t conn_flags;
     uint16_t l2cap_result;
@@ -361,12 +363,12 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         return BLE_HS_EREJECT;
     }
 
-    ble_l2cap_sig_update_req_parse((*om)->om_data, (*om)->om_len, &req);
+    req = (struct ble_l2cap_sig_update_req *)(*om)->om_data;
 
-    params.itvl_min = req.itvl_min;
-    params.itvl_max = req.itvl_max;
-    params.latency = req.slave_latency;
-    params.supervision_timeout = req.timeout_multiplier;
+    params.itvl_min = le16toh(req->itvl_min);
+    params.itvl_max = le16toh(req->itvl_max);
+    params.latency = le16toh(req->slave_latency);
+    params.supervision_timeout = le16toh(req->timeout_multiplier);
     params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
     params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
 
@@ -383,11 +385,19 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
         l2cap_result = BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT;
     }
 
-    /* Send L2CAP response. */
-    rc = ble_l2cap_sig_update_rsp_tx(conn_handle, hdr->identifier,
-                                         l2cap_result);
+    rsp = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_UPDATE_RSP, hdr->identifier,
+                                sizeof(*rsp), &txom);
+    if (!rsp) {
+        /* No memory for response, lest allow to timeout on remote side */
+        return 0;
+    }
 
-    return rc;
+    rsp->result = htole16(l2cap_result);
+
+    /* Send L2CAP response. */
+    ble_l2cap_sig_tx(conn_handle, txom);
+
+    return 0;
 }
 
 static int
@@ -395,7 +405,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
                             struct ble_l2cap_sig_hdr *hdr,
                             struct os_mbuf **om)
 {
-    struct ble_l2cap_sig_update_rsp rsp;
+    struct ble_l2cap_sig_update_rsp *rsp;
     struct ble_l2cap_sig_proc *proc;
     int cb_status;
     int rc;
@@ -413,9 +423,9 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
         goto done;
     }
 
-    ble_l2cap_sig_update_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
+    rsp = (struct ble_l2cap_sig_update_rsp *)(*om)->om_data;
 
-    switch (rsp.result) {
+    switch (le16toh(rsp->result)) {
     case BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT:
         cb_status = 0;
         rc = 0;
@@ -443,7 +453,8 @@ ble_l2cap_sig_update(uint16_t conn_handle,
                      struct ble_l2cap_sig_update_params *params,
                      ble_l2cap_sig_update_fn *cb, void *cb_arg)
 {
-    struct ble_l2cap_sig_update_req req;
+    struct os_mbuf *txom;
+    struct ble_l2cap_sig_update_req *req;
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -481,12 +492,20 @@ ble_l2cap_sig_update(uint16_t conn_handle,
     proc->update.cb = cb;
     proc->update.cb_arg = cb_arg;
 
-    req.itvl_min = params->itvl_min;
-    req.itvl_max = params->itvl_max;
-    req.slave_latency = params->slave_latency;
-    req.timeout_multiplier = params->timeout_multiplier;
+    req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_UPDATE_REQ, proc->id,
+                                sizeof(*req), &txom);
+    if (!req) {
+        STATS_INC(ble_l2cap_stats, update_fail);
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
 
-    rc = ble_l2cap_sig_update_req_tx(conn_handle, proc->id, &req);
+    req->itvl_min = htole16(params->itvl_min);
+    req->itvl_max = htole16(params->itvl_max);
+    req->slave_latency = htole16(params->slave_latency);
+    req->timeout_multiplier = htole16(params->timeout_multiplier);
+
+    rc = ble_l2cap_sig_tx(conn_handle, txom);
 
 done:
     ble_l2cap_sig_process_status(proc, rc);

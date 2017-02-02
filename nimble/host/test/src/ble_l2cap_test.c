@@ -44,6 +44,24 @@ ble_l2cap_test_util_init(void)
 }
 
 static void
+ble_l2cap_test_update_req_swap(struct ble_l2cap_sig_update_req *dst,
+                              struct ble_l2cap_sig_update_req *src)
+{
+    dst->itvl_min = le16toh(src->itvl_min);
+    dst->itvl_max = le16toh(src->itvl_max);
+    dst->slave_latency = le16toh(src->slave_latency);
+    dst->timeout_multiplier = le16toh(src->timeout_multiplier);
+}
+
+static void
+ble_l2cap_test_update_req_write(void *payload, int len,
+                               struct ble_l2cap_sig_update_req *src)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    ble_l2cap_test_update_req_swap(payload, src);
+}
+
+static void
 ble_l2cap_test_util_rx_update_req(uint16_t conn_handle, uint8_t id,
                                   struct ble_l2cap_sig_update_params *params)
 {
@@ -65,7 +83,7 @@ ble_l2cap_test_util_rx_update_req(uint16_t conn_handle, uint8_t id,
     req.itvl_max = params->itvl_max;
     req.slave_latency = params->slave_latency;
     req.timeout_multiplier = params->timeout_multiplier;
-    ble_l2cap_sig_update_req_write(v, BLE_L2CAP_SIG_UPDATE_REQ_SZ, &req);
+    ble_l2cap_test_update_req_write(v, BLE_L2CAP_SIG_UPDATE_REQ_SZ, &req);
 
     ble_hs_test_util_set_ack(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
