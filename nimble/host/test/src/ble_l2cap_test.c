@@ -94,7 +94,7 @@ ble_l2cap_test_util_verify_tx_update_conn(
 }
 
 static int
-ble_l2cap_test_util_dummy_rx(uint16_t conn_handle, struct os_mbuf **om)
+ble_l2cap_test_util_dummy_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     return 0;
 }
@@ -113,7 +113,7 @@ ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     TEST_ASSERT_FATAL(chan != NULL);
 
     chan->scid = BLE_L2CAP_TEST_CID;

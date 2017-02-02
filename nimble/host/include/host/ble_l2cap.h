@@ -174,6 +174,7 @@ struct ble_l2cap_event {
 
 typedef int ble_l2cap_event_fn(struct ble_l2cap_event *event, void *arg);
 
+uint16_t ble_l2cap_get_conn_handle(struct ble_l2cap_chan *chan);
 int ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
                             ble_l2cap_event_fn *cb, void *cb_arg);
 

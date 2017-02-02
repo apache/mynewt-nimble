@@ -461,11 +461,17 @@ ble_att_chan_mtu(const struct ble_l2cap_chan *chan)
 }
 
 static int
-ble_att_rx(uint16_t conn_handle, struct os_mbuf **om)
+ble_att_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     const struct ble_att_rx_dispatch_entry *entry;
     uint8_t op;
+    uint16_t conn_handle;
     int rc;
+
+    conn_handle = ble_l2cap_get_conn_handle(chan);
+    if (!conn_handle) {
+        return BLE_HS_ENOTCONN;
+    }
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
@@ -551,11 +557,11 @@ ble_att_set_preferred_mtu(uint16_t mtu)
 }
 
 struct ble_l2cap_chan *
-ble_att_create_chan(void)
+ble_att_create_chan(uint16_t conn_handle)
 {
     struct ble_l2cap_chan *chan;
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     if (chan == NULL) {
         return NULL;
     }

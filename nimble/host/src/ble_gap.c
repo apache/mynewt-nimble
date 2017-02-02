@@ -1151,10 +1151,9 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     }
 
     /* We verified that there is a free connection when the procedure began. */
-    conn = ble_hs_conn_alloc();
+    conn = ble_hs_conn_alloc(evt->connection_handle);
     BLE_HS_DBG_ASSERT(conn != NULL);
 
-    conn->bhc_handle = evt->connection_handle;
     conn->bhc_itvl = evt->conn_itvl;
     conn->bhc_latency = evt->conn_latency;
     conn->bhc_supervision_timeout = evt->supervision_timeout;
