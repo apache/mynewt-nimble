@@ -87,7 +87,7 @@ ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
     return 0;
 }
 
-uint16_t
+static uint16_t
 ble_l2cap_coc_get_cid(void)
 {
     static uint16_t next_cid = BLE_L2CAP_COC_CID_START;
@@ -100,7 +100,7 @@ ble_l2cap_coc_get_cid(void)
     return next_cid++;
 }
 
-struct ble_l2cap_coc_srv *
+static struct ble_l2cap_coc_srv *
 ble_l2cap_coc_srv_find(uint16_t psm)
 {
     struct ble_l2cap_coc_srv *cur, *srv;
@@ -114,6 +114,59 @@ ble_l2cap_coc_srv_find(uint16_t psm)
     }
 
     return srv;
+}
+
+static int
+ble_l2cap_coc_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+    return 0;
+}
+
+struct ble_l2cap_chan *
+ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+                         struct os_mbuf *sdu_rx, ble_l2cap_event_fn *cb,
+                         void *cb_arg)
+{
+    struct ble_l2cap_chan *chan;
+
+    chan = ble_l2cap_chan_alloc();
+    if (!chan) {
+        return NULL;
+    }
+
+    chan->conn_handle = conn_handle;
+    chan->psm = psm;
+    chan->cb = cb;
+    chan->cb_arg = cb_arg;
+    chan->scid = ble_l2cap_coc_get_cid();
+    chan->my_mtu = BLE_L2CAP_COC_MTU;
+    chan->rx_fn = ble_l2cap_coc_rx_fn;
+    chan->coc_rx.mtu = mtu;
+    chan->coc_rx.credits = 10; /* FIXME Calculate it */
+    chan->coc_rx.sdu = sdu_rx;
+
+    return chan;
+}
+
+int
+ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
+                              struct ble_l2cap_chan **chan)
+{
+    struct ble_l2cap_coc_srv *srv;
+
+    /* Check if there is server registered on this PSM */
+    srv = ble_l2cap_coc_srv_find(psm);
+    if (!srv) {
+        return BLE_HS_ENOTSUP;
+    }
+
+    *chan = ble_l2cap_coc_chan_alloc(conn_handle, psm, srv->mtu, NULL, srv->cb,
+                                     srv->cb_arg);
+    if (!*chan) {
+        return BLE_HS_ENOMEM;
+    }
+
+    return 0;
 }
 
 int
