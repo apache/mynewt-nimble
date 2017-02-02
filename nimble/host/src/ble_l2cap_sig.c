@@ -551,6 +551,8 @@ static int
 ble_l2cap_sig_ble_hs_err2coc_err(uint16_t ble_hs_err)
 {
     switch (ble_hs_err) {
+    case BLE_HS_ENOTSUP:
+        return BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM;
     case BLE_HS_ENOMEM:
         return BLE_L2CAP_COC_ERR_NO_RESOURCES;
     case BLE_HS_EAUTHEN:
@@ -631,8 +633,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_l2cap_sig_le_con_req *req;
     struct os_mbuf *txom;
     struct ble_l2cap_sig_le_con_rsp *rsp;
-    struct ble_l2cap_coc_srv *srv;
-    struct ble_l2cap_chan *chan;
+    struct ble_l2cap_chan *chan = NULL;
     struct ble_hs_conn *conn;
     uint16_t scid;
 
@@ -657,13 +658,6 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
 
-    /* Check if there is server registered on this PSM */
-    srv = ble_l2cap_coc_srv_find(le16toh(req->psm));
-    if (!srv) {
-        rsp->result = htole16(BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM);
-        goto failed;
-    }
-
     /* Verify CID */
     scid = le16toh(req->scid);
     if (scid < BLE_L2CAP_COC_CID_START || scid > BLE_L2CAP_COC_CID_END) {
@@ -672,19 +666,15 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         goto failed;
     }
 
-    chan = ble_l2cap_chan_alloc();
-    if (!chan) {
-        rsp->result = htole16(BLE_L2CAP_COC_ERR_NO_RESOURCES);
+    rc = ble_l2cap_coc_create_srv_chan(conn_handle, le16toh(req->psm), &chan);
+    if (rc != 0) {
+        uint16_t coc_err = ble_l2cap_sig_ble_hs_err2coc_err(rc);
+        rsp->result = htole16(coc_err);
         goto failed;
     }
 
-    chan->cb = srv->cb;
-    chan->cb_arg = srv->cb_arg;
-    chan->conn_handle = conn_handle;
-    chan->dcid = scid;
-    chan->my_mtu = BLE_L2CAP_COC_MTU;
-
     /* Fill up remote configuration. Note MPS is the L2CAP MTU*/
+    chan->dcid = scid;
     chan->peer_mtu = le16toh(req->mps);
     chan->coc_tx.credits = le16toh(req->credits);
     chan->coc_tx.mtu = le16toh(req->mtu);
@@ -696,10 +686,6 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         rsp->result = htole16(coc_err);
         goto failed;
     }
-
-    chan->scid = ble_l2cap_coc_get_cid();
-    chan->coc_rx.mtu = srv->mtu;
-    chan->coc_rx.credits = 10; //FIXME Calculate it
 
     rsp->dcid = htole16(chan->scid);
     rsp->credits = htole16(chan->coc_rx.credits);
@@ -795,7 +781,7 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     struct ble_l2cap_sig_proc *proc;
     struct os_mbuf *txom;
     struct ble_l2cap_sig_le_con_req *req;
-    struct ble_l2cap_chan *chan;
+    struct ble_l2cap_chan *chan = NULL;
     int rc;
 
     if (!sdu_rx || !cb) {
@@ -810,7 +796,7 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
         return BLE_HS_ENOTCONN;
     }
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_coc_chan_alloc(conn_handle, psm, mtu, sdu_rx, cb, cb_arg);
     if (!chan) {
         ble_hs_unlock();
         return BLE_HS_ENOMEM;
@@ -822,15 +808,6 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
         ble_hs_unlock();
         return BLE_HS_ENOMEM;
     }
-
-    chan->scid = ble_l2cap_coc_get_cid();
-    chan->my_mtu = BLE_L2CAP_COC_MTU;
-    chan->coc_rx.credits = 10;
-    chan->coc_rx.mtu = mtu;
-    chan->coc_rx.sdu = sdu_rx;
-    chan->cb = cb;
-    chan->cb_arg = cb_arg;
-    chan->conn_handle = conn_handle;
 
     proc->op = BLE_L2CAP_SIG_PROC_OP_CONNECT;
     proc->id = ble_l2cap_sig_next_id();
