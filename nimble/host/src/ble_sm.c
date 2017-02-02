@@ -2326,14 +2326,20 @@ ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
 }
 
 static int
-ble_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
+ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_sm_result res;
     ble_sm_rx_fn *rx_cb;
     uint8_t op;
+    uint16_t conn_handle;
     int rc;
 
     STATS_INC(ble_l2cap_stats, sm_rx);
+
+    conn_handle = ble_l2cap_get_conn_handle(chan);
+    if (!conn_handle) {
+        return BLE_HS_ENOTCONN;
+    }
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
@@ -2485,10 +2491,16 @@ ble_sm_init(void)
  * simple
  */
 static int
-ble_sm_rx(uint16_t handle, struct os_mbuf **om)
+ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
+    uint16_t handle;
+
+    handle = ble_l2cap_get_conn_handle(chan);
+    if (!handle) {
+        return BLE_HS_ENOTCONN;
+    }
 
     cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_FAIL, sizeof(*cmd), &txom);
     if (cmd == NULL) {
@@ -2502,11 +2514,11 @@ ble_sm_rx(uint16_t handle, struct os_mbuf **om)
 #endif
 
 struct ble_l2cap_chan *
-ble_sm_create_chan(void)
+ble_sm_create_chan(uint16_t conn_handle)
 {
     struct ble_l2cap_chan *chan;
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     if (chan == NULL) {
         return NULL;
     }

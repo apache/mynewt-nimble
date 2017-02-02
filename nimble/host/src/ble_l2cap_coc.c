@@ -117,7 +117,7 @@ ble_l2cap_coc_srv_find(uint16_t psm)
 }
 
 static int
-ble_l2cap_coc_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom)
+ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **rxom)
 {
     return 0;
 }
@@ -129,12 +129,11 @@ ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 {
     struct ble_l2cap_chan *chan;
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     if (!chan) {
         return NULL;
     }
 
-    chan->conn_handle = conn_handle;
     chan->psm = psm;
     chan->cb = cb;
     chan->cb_arg = cb_arg;

@@ -102,7 +102,7 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 }
 
 struct ble_hs_conn *
-ble_hs_conn_alloc(void)
+ble_hs_conn_alloc(uint16_t conn_handle)
 {
 #if !NIMBLE_BLE_CONNECT
     return NULL;
@@ -117,10 +117,11 @@ ble_hs_conn_alloc(void)
         goto err;
     }
     memset(conn, 0, sizeof *conn);
+    conn->bhc_handle = conn_handle;
 
     SLIST_INIT(&conn->bhc_channels);
 
-    chan = ble_att_create_chan();
+    chan = ble_att_create_chan(conn_handle);
     if (chan == NULL) {
         goto err;
     }
@@ -129,7 +130,7 @@ ble_hs_conn_alloc(void)
         goto err;
     }
 
-    chan = ble_l2cap_sig_create_chan();
+    chan = ble_l2cap_sig_create_chan(conn_handle);
     if (chan == NULL) {
         goto err;
     }
@@ -141,7 +142,7 @@ ble_hs_conn_alloc(void)
     /* Create the SM channel even if not configured. We need it to reject SM
      * messages.
      */
-    chan = ble_sm_create_chan();
+    chan = ble_sm_create_chan(conn_handle);
     if (chan == NULL) {
         goto err;
     }

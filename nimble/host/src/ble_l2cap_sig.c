@@ -1012,10 +1012,11 @@ ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
  *****************************************************************************/
 
 static int
-ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
+ble_l2cap_sig_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_l2cap_sig_hdr hdr;
     ble_l2cap_sig_rx_fn *rx_cb;
+    uint16_t conn_handle = chan->conn_handle;
     int rc;
 
     STATS_INC(ble_l2cap_stats, sig_rx);
@@ -1054,11 +1055,11 @@ ble_l2cap_sig_rx(uint16_t conn_handle, struct os_mbuf **om)
 }
 
 struct ble_l2cap_chan *
-ble_l2cap_sig_create_chan(void)
+ble_l2cap_sig_create_chan(uint16_t conn_handle)
 {
     struct ble_l2cap_chan *chan;
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     if (chan == NULL) {
         return NULL;
     }
