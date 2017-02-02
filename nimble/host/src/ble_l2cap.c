@@ -173,6 +173,7 @@ void
 ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     conn->bhc_rx_chan = NULL;
+    os_mbuf_free_chain(chan->rx_buf);
     chan->rx_buf = NULL;
     chan->rx_len = 0;
 }
@@ -209,7 +210,7 @@ ble_l2cap_append_rx(struct ble_l2cap_chan *chan, struct os_mbuf *frag)
 static int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf *om,
-                     ble_l2cap_rx_fn **out_rx_cb, struct os_mbuf **out_rx_buf)
+                     ble_l2cap_rx_fn **out_rx_cb)
 {
     int len_diff;
     int rc;
@@ -231,7 +232,6 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     } else if (len_diff == 0) {
         /* All fragments received. */
         *out_rx_cb = chan->rx_fn;
-        *out_rx_buf = chan->rx_buf;
         rc = 0;
     } else {
         /* More fragments remain. */
@@ -299,7 +299,6 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
              struct hci_data_hdr *hci_hdr,
              struct os_mbuf *om,
              ble_l2cap_rx_fn **out_rx_cb,
-             struct os_mbuf **out_rx_buf,
              int *out_reject_cid)
 {
     struct ble_l2cap_chan *chan;
@@ -367,7 +366,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         goto err;
     }
 
-    rc = ble_l2cap_rx_payload(conn, chan, om, out_rx_cb, out_rx_buf);
+    rc = ble_l2cap_rx_payload(conn, chan, om, out_rx_cb);
     om = NULL;
     if (rc != 0) {
         goto err;

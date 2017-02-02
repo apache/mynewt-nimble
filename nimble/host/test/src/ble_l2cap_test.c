@@ -94,7 +94,7 @@ ble_l2cap_test_util_verify_tx_update_conn(
 }
 
 static int
-ble_l2cap_test_util_dummy_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
+ble_l2cap_test_util_dummy_rx(struct ble_l2cap_chan *chan)
 {
     return 0;
 }
