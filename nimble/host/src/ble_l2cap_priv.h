@@ -62,7 +62,7 @@ extern struct os_mempool ble_l2cap_chan_pool;
 
 typedef uint8_t ble_l2cap_chan_flags;
 
-typedef int ble_l2cap_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **rxom);
+typedef int ble_l2cap_rx_fn(struct ble_l2cap_chan *chan);
 
 struct ble_l2cap_chan {
     SLIST_ENTRY(ble_l2cap_chan) next;
@@ -113,7 +113,6 @@ int ble_l2cap_rx(struct ble_hs_conn *conn,
                  struct hci_data_hdr *hci_hdr,
                  struct os_mbuf *om,
                  ble_l2cap_rx_fn **out_rx_cb,
-                 struct os_mbuf **out_rx_buf,
                  int *out_reject_cid);
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *txom);

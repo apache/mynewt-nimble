@@ -2326,12 +2326,13 @@ ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
 }
 
 static int
-ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
+ble_sm_rx(struct ble_l2cap_chan *chan)
 {
     struct ble_sm_result res;
     ble_sm_rx_fn *rx_cb;
     uint8_t op;
     uint16_t conn_handle;
+    struct os_mbuf *om;
     int rc;
 
     STATS_INC(ble_l2cap_stats, sm_rx);
@@ -2341,19 +2342,22 @@ ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
         return BLE_HS_ENOTCONN;
     }
 
-    rc = os_mbuf_copydata(*om, 0, 1, &op);
+    om = chan->rx_buf;
+    BLE_HS_DBG_ASSERT(om != NULL);
+
+    rc = os_mbuf_copydata(om, 0, 1, &op);
     if (rc != 0) {
         return BLE_HS_EBADDATA;
     }
 
     /* Strip L2CAP SM header from the front of the mbuf. */
-    os_mbuf_adj(*om, 1);
+    os_mbuf_adj(om, 1);
 
     rx_cb = ble_sm_dispatch_get(op);
     if (rx_cb != NULL) {
         memset(&res, 0, sizeof res);
 
-        rx_cb(conn_handle, om, &res);
+        rx_cb(conn_handle, &om, &res);
         ble_sm_process_result(conn_handle, &res);
         rc = res.app_status;
     } else {
@@ -2491,7 +2495,7 @@ ble_sm_init(void)
  * simple
  */
 static int
-ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
+ble_sm_rx(struct ble_l2cap_chan *chan)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;

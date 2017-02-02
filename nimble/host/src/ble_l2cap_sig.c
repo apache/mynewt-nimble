@@ -1012,12 +1012,16 @@ ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
  *****************************************************************************/
 
 static int
-ble_l2cap_sig_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
+ble_l2cap_sig_rx(struct ble_l2cap_chan *chan)
 {
     struct ble_l2cap_sig_hdr hdr;
     ble_l2cap_sig_rx_fn *rx_cb;
-    uint16_t conn_handle = chan->conn_handle;
+    uint16_t conn_handle;
+    struct os_mbuf **om;
     int rc;
+
+    conn_handle = chan->conn_handle;
+    om = &chan->rx_buf;
 
     STATS_INC(ble_l2cap_stats, sig_rx);
     BLE_HS_LOG(DEBUG, "L2CAP - rxed signalling msg: ");
