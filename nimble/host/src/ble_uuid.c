@@ -105,7 +105,8 @@ ble_uuid_to_str(const ble_uuid_t *uuid, char *dst)
     case BLE_UUID_TYPE_128:
         u8p = BLE_UUID128(uuid)->value;
 
-        sprintf(dst, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x",
+        sprintf(dst, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"
+                     "%02x%02x%02x%02x%02x%02x",
                 u8p[15], u8p[14], u8p[13], u8p[12],
                 u8p[11], u8p[10],  u8p[9],  u8p[8],
                  u8p[7],  u8p[6],  u8p[5],  u8p[4],
