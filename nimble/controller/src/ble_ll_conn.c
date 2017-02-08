@@ -2646,7 +2646,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint8_t conn_nesn;
     uint8_t reply;
     uint8_t rem_bytes;
-    uint8_t opcode;
+    uint8_t opcode = 0;
     uint8_t rx_pyld_len;
     uint32_t endtime;
     struct os_mbuf *txpdu;
