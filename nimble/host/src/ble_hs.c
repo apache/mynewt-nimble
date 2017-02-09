@@ -110,7 +110,6 @@ STATS_NAME_END(ble_hs_stats)
 static struct os_eventq *
 ble_hs_evq_get(void)
 {
-    os_eventq_ensure(&ble_hs_evq, &ble_hs_ev_start);
     return ble_hs_evq;
 }
 
@@ -609,4 +608,6 @@ ble_hs_init(void)
 
     /* Configure the HCI transport to communicate with a host. */
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
+
+    ble_hs_evq_set(os_eventq_dflt_get());
 }
