@@ -75,6 +75,8 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
         return;
     }
 
+    os_mbuf_free_chain(chan->blc_rx_buf);
+
     rc = os_memblock_put(&ble_l2cap_chan_pool, chan);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
