@@ -367,6 +367,11 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
                 conn->bhc_rx_chan->blc_cid == BLE_L2CAP_CID_ATT);
     ble_hs_unlock();
+
+    /* Terminate the connection.  The received fragments should get freed.
+     * Mbuf leaks are tested in the post-test-case callback.
+     */
+    ble_hs_test_util_conn_disconnect(2);
 }
 
 TEST_CASE(ble_l2cap_test_case_frag_timeout)
