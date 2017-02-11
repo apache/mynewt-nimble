@@ -138,6 +138,15 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
     }
 }
 
+static int
+ble_att_svr_test_misc_attr_fn_r_err(uint16_t conn_handle, uint16_t attr_handle,
+                                    uint8_t op, uint16_t offset,
+                                    struct os_mbuf **om, void *arg)
+{
+    os_mbuf_append(*om, (uint8_t[4]){1,2,3,4}, 4);
+    return BLE_ATT_ERR_UNLIKELY;
+}
+
 #define BLE_ATT_SVR_TEST_LAST_SVC  11
 #define BLE_ATT_SVR_TEST_LAST_ATTR 24
 
@@ -777,6 +786,8 @@ TEST_CASE(ble_att_svr_test_read)
     uint16_t conn_handle;
     const ble_uuid_t *uuid_sec = BLE_UUID128_DECLARE( \
         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const ble_uuid_t *uuid_bad = BLE_UUID128_DECLARE( \
+        2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     const ble_uuid_t *uuid = BLE_UUID128_DECLARE( \
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, );
     int rc;
@@ -789,6 +800,16 @@ TEST_CASE(ble_att_svr_test_read)
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, 0,
                                        BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Application error. */
+    rc = ble_att_svr_register(uuid_bad, HA_FLAG_PERM_RW, 0, &attr_handle,
+                              ble_att_svr_test_misc_attr_fn_r_err, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_hs_test_util_rx_att_read_req(conn_handle, attr_handle);
+    TEST_ASSERT(rc == BLE_HS_EAPP);
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, attr_handle,
+                                       BLE_ATT_ERR_UNLIKELY);
 
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};
