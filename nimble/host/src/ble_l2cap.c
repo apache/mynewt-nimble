@@ -160,8 +160,7 @@ int ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
 int
 ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
-    /*TODO Implement */
-    return BLE_HS_ENOTSUP;
+    return ble_l2cap_coc_send(chan, sdu);
 }
 
 void
