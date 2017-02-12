@@ -281,6 +281,11 @@ ble_l2cap_event_coc_disconnected(struct ble_l2cap_chan *chan)
 {
     struct ble_l2cap_event event = { };
 
+    /* FIXME */
+    if (!chan->cb) {
+        return;
+    }
+
     event.type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
     event.disconnect.conn_handle = chan->conn_handle;
     event.disconnect.chan = chan;
