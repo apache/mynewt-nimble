@@ -585,18 +585,6 @@ ble_l2cap_event_coc_connected(struct ble_l2cap_chan *chan, uint16_t status)
     chan->cb(&event, chan->cb_arg);
 }
 
-static void
-ble_l2cap_event_coc_disconnected(struct ble_l2cap_chan *chan)
-{
-    struct ble_l2cap_event event = { };
-
-    event.type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
-    event.disconnect.conn_handle = chan->conn_handle;
-    event.disconnect.chan = chan;
-
-    chan->cb(&event, chan->cb_arg);
-}
-
 static int
 ble_l2cap_event_coc_accept(struct ble_l2cap_chan *chan, uint16_t peer_sdu_size)
 {
@@ -891,8 +879,6 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     rsp->dcid = htole16(chan->scid);
     rsp->scid = htole16(chan->dcid);
 
-    ble_l2cap_event_coc_disconnected(chan);
-
     ble_hs_conn_delete_chan(conn, chan);
     ble_hs_unlock();
 
@@ -921,8 +907,6 @@ ble_l2cap_sig_coc_disconnect_cb(struct ble_l2cap_sig_proc *proc, int status)
     if (!chan->cb) {
         goto done;
     }
-
-    ble_l2cap_event_coc_disconnected(chan);
 
 done:
     ble_hs_lock();
