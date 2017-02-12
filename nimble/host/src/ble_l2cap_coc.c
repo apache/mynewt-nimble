@@ -277,6 +277,18 @@ ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
 }
 
 void
+ble_l2cap_coc_cleanup_chan(struct ble_l2cap_chan *chan)
+{
+    /* PSM 0 is used for fixed channels. */
+    if (chan->psm == 0) {
+            return;
+    }
+
+    os_mbuf_free_chain(chan->coc_rx.sdu);
+    os_mbuf_free_chain(chan->coc_tx.sdu);
+}
+
+void
 ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
                                 uint16_t credits)
 {
