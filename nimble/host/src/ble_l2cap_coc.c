@@ -276,6 +276,18 @@ ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
     return 0;
 }
 
+static void
+ble_l2cap_event_coc_disconnected(struct ble_l2cap_chan *chan)
+{
+    struct ble_l2cap_event event = { };
+
+    event.type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+    event.disconnect.conn_handle = chan->conn_handle;
+    event.disconnect.chan = chan;
+
+    chan->cb(&event, chan->cb_arg);
+}
+
 void
 ble_l2cap_coc_cleanup_chan(struct ble_l2cap_chan *chan)
 {
@@ -283,6 +295,8 @@ ble_l2cap_coc_cleanup_chan(struct ble_l2cap_chan *chan)
     if (chan->psm == 0) {
             return;
     }
+
+    ble_l2cap_event_coc_disconnected(chan);
 
     os_mbuf_free_chain(chan->coc_rx.sdu);
     os_mbuf_free_chain(chan->coc_tx.sdu);
