@@ -166,7 +166,7 @@ ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 void
 ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
 {
-    /*TODO In here we going to update sdu_rx buffer */
+    ble_l2cap_coc_recv_ready(chan, sdu_rx);
 }
 
 void
