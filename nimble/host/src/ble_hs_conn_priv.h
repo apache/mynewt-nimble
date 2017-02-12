@@ -84,7 +84,9 @@ struct ble_hs_conn *ble_hs_conn_find_by_addr(const ble_addr_t *addr);
 struct ble_hs_conn *ble_hs_conn_find_by_idx(int idx);
 int ble_hs_conn_exists(uint16_t conn_handle);
 struct ble_hs_conn *ble_hs_conn_first(void);
-struct ble_l2cap_chan *ble_hs_conn_chan_find(struct ble_hs_conn *conn,
+struct ble_l2cap_chan *ble_hs_conn_chan_find_by_scid(struct ble_hs_conn *conn,
+                                             uint16_t cid);
+struct ble_l2cap_chan *ble_hs_conn_chan_find_by_dcid(struct ble_hs_conn *conn,
                                              uint16_t cid);
 int ble_hs_conn_chan_insert(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);

@@ -50,7 +50,7 @@ ble_hs_conn_can_alloc(void)
 }
 
 struct ble_l2cap_chan *
-ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
+ble_hs_conn_chan_find_by_scid(struct ble_hs_conn *conn, uint16_t cid)
 {
 #if !NIMBLE_BLE_CONNECT
     return NULL;
@@ -63,6 +63,27 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
             return chan;
         }
         if (chan->scid > cid) {
+            return NULL;
+        }
+    }
+
+    return NULL;
+}
+
+struct ble_l2cap_chan *
+ble_hs_conn_chan_find_by_dcid(struct ble_hs_conn *conn, uint16_t cid)
+{
+#if !NIMBLE_BLE_CONNECT
+    return NULL;
+#endif
+
+    struct ble_l2cap_chan *chan;
+
+    SLIST_FOREACH(chan, &conn->bhc_channels, next) {
+        if (chan->dcid == cid) {
+            return chan;
+        }
+        if (chan->dcid > cid) {
             return NULL;
         }
     }

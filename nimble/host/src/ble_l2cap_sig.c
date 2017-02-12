@@ -98,11 +98,13 @@ static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_req_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_rsp_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_disc_rsp_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_disc_req_rx;
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_le_credits_rx;
 #else
 #define ble_l2cap_sig_coc_req_rx    ble_l2cap_sig_rx_noop
 #define ble_l2cap_sig_coc_rsp_rx    ble_l2cap_sig_rx_noop
 #define ble_l2cap_sig_disc_rsp_rx   ble_l2cap_sig_rx_noop
 #define ble_l2cap_sig_disc_req_rx   ble_l2cap_sig_rx_noop
+#define ble_l2cap_sig_le_credits_rx   ble_l2cap_sig_rx_noop
 #endif
 
 static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
@@ -120,7 +122,7 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_UPDATE_RSP]           = ble_l2cap_sig_update_rsp_rx,
     [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ]   = ble_l2cap_sig_coc_req_rx,
     [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_coc_rsp_rx,
-    [BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT]     = ble_l2cap_sig_rx_noop,
+    [BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT]     = ble_l2cap_sig_le_credits_rx,
 };
 
 static uint8_t ble_l2cap_sig_cur_id;
@@ -876,7 +878,7 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     /* Let's find matching channel. Note that destination CID in the request
      * is from peer perspective. It is source CID from nimble perspective 
      */
-    chan = ble_hs_conn_chan_find(conn, le16toh(req->dcid));
+    chan = ble_hs_conn_chan_find_by_scid(conn, le16toh(req->dcid));
     if (!chan || (le16toh(req->scid) != chan->dcid)) {
         os_mbuf_free_chain(txom);
         ble_hs_unlock();
@@ -1005,6 +1007,50 @@ ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
     ble_l2cap_sig_process_status(proc, rc);
 
     return rc;
+}
+
+static int
+ble_l2cap_sig_le_credits_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
+                            struct os_mbuf **om)
+{
+    struct ble_l2cap_sig_le_credits *req;
+    int rc;
+
+    rc = ble_hs_mbuf_pullup_base(om, sizeof(*req));
+    if (rc != 0) {
+        return 0;
+    }
+
+    req = (struct ble_l2cap_sig_le_credits *) (*om)->om_data;
+
+    /* Ignore when peer sends zero credits */
+    if (req->credits == 0) {
+            return 0;
+    }
+
+    ble_l2cap_coc_le_credits_update(conn_handle, le16toh(req->scid),
+                                    le16toh(req->credits));
+
+    return 0;
+}
+
+int
+ble_l2cap_sig_le_credits(struct ble_l2cap_chan *chan, uint16_t credits)
+{
+    struct ble_l2cap_sig_le_credits *cmd;
+    struct os_mbuf *txom;
+
+    cmd = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT,
+                                ble_l2cap_sig_next_id(), sizeof(*cmd), &txom);
+
+    if (!cmd) {
+        return BLE_HS_ENOMEM;
+    }
+
+    cmd->scid = htole16(chan->scid);
+    cmd->credits = htole16(credits);
+
+    return ble_l2cap_sig_tx(chan->conn_handle, txom);
 }
 #endif
 /*****************************************************************************

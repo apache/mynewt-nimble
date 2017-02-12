@@ -320,7 +320,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         /* Strip L2CAP header from the front of the mbuf. */
         os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
 
-        chan = ble_hs_conn_chan_find(conn, l2cap_hdr.cid);
+        chan = ble_hs_conn_chan_find_by_scid(conn, l2cap_hdr.cid);
         if (chan == NULL) {
             rc = BLE_HS_ENOENT;
 

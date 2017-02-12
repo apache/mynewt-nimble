@@ -545,7 +545,7 @@ ble_att_set_preferred_mtu(uint16_t mtu)
 
     i = 0;
     while ((conn = ble_hs_conn_find_by_idx(i)) != NULL) {
-        chan = ble_hs_conn_chan_find(conn, BLE_L2CAP_CID_ATT);
+        chan = ble_hs_conn_chan_find_by_scid(conn, BLE_L2CAP_CID_ATT);
         BLE_HS_DBG_ASSERT(chan != NULL);
 
         if (!(chan->flags & BLE_L2CAP_CHAN_F_TXED_MTU)) {
