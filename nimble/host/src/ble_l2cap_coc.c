@@ -168,6 +168,38 @@ ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
     return 0;
 }
 
+void
+ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
+                                uint16_t credits)
+{
+    struct ble_hs_conn *conn;
+    struct ble_l2cap_chan *chan;
+
+    /* remote updated its credits */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (!conn) {
+        ble_hs_unlock();
+        return;
+    }
+
+    chan = ble_hs_conn_chan_find_by_dcid(conn, dcid);
+    if (!chan) {
+        ble_hs_unlock();
+        return;
+    }
+
+    if (chan->coc_tx.credits + credits > 0xFFFF) {
+        BLE_HS_LOG(INFO, "LE CoC credits overflow...disconnecting\n");
+        ble_l2cap_sig_disconnect(chan);
+        ble_hs_unlock();
+        return;
+    }
+
+    chan->coc_tx.credits += credits;
+    ble_hs_unlock();
+}
+
 int
 ble_l2cap_coc_init(void)
 {

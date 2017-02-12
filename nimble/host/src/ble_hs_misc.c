@@ -39,7 +39,7 @@ ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
         chan = NULL;
         rc = BLE_HS_ENOTCONN;
     } else {
-        chan = ble_hs_conn_chan_find(conn, cid);
+        chan = ble_hs_conn_chan_find_by_scid(conn, cid);
         if (chan == NULL) {
             rc = BLE_HS_ENOTCONN;
         } else {

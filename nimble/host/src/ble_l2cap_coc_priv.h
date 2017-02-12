@@ -61,6 +61,8 @@ struct ble_l2cap_chan * ble_l2cap_coc_chan_alloc(uint16_t conn_handle,
                                                  struct os_mbuf *sdu_rx,
                                                  ble_l2cap_event_fn *cb,
                                                  void *cb_arg);
+void ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
+                                    uint16_t credits);
 #else
 #define ble_l2cap_coc_init()                                    0
 #define ble_l2cap_coc_create_server(psm, mtu, cb, cb_arg)       BLE_HS_ENOTSUP
