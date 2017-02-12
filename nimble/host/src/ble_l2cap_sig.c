@@ -92,6 +92,7 @@ typedef int ble_l2cap_sig_rx_fn(uint16_t conn_handle,
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_rx_noop;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_req_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_rsp_rx;
+static ble_l2cap_sig_rx_fn ble_l2cap_sig_rx_reject;
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_req_rx;
@@ -108,7 +109,7 @@ static ble_l2cap_sig_rx_fn ble_l2cap_sig_le_credits_rx;
 #endif
 
 static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
-    [BLE_L2CAP_SIG_OP_REJECT]               = ble_l2cap_sig_rx_noop,
+    [BLE_L2CAP_SIG_OP_REJECT]               = ble_l2cap_sig_rx_reject,
     [BLE_L2CAP_SIG_OP_CONNECT_RSP]          = ble_l2cap_sig_rx_noop,
     [BLE_L2CAP_SIG_OP_CONFIG_RSP]           = ble_l2cap_sig_rx_noop,
     [BLE_L2CAP_SIG_OP_DISCONN_REQ]          = ble_l2cap_sig_disc_req_rx,
@@ -613,6 +614,15 @@ ble_l2cap_sig_coc_connect_cb(struct ble_l2cap_sig_proc *proc, int status)
     }
 
     ble_l2cap_event_coc_connected(chan, status);
+
+    if (status) {
+        /* Normally in channel free we send disconnected event to application.
+         * However in case on error during creation connection we send connected
+         * event with error status. To avoid additional disconnected event lets
+         * clear callbacks since we don't needed it anymore.*/
+        chan->cb = NULL;
+        ble_l2cap_chan_free(chan);
+    }
 }
 
 static int
@@ -1037,6 +1047,33 @@ ble_l2cap_sig_le_credits(struct ble_l2cap_chan *chan, uint16_t credits)
     return ble_l2cap_sig_tx(chan->conn_handle, txom);
 }
 #endif
+
+static int
+ble_l2cap_sig_rx_reject(uint16_t conn_handle,
+                        struct ble_l2cap_sig_hdr *hdr,
+                        struct os_mbuf **om)
+{
+    struct ble_l2cap_sig_proc *proc;
+    proc = ble_l2cap_sig_proc_extract(conn_handle,
+                                         BLE_L2CAP_SIG_PROC_OP_CONNECT,
+                                         hdr->identifier);
+   if (!proc) {
+       return 0;
+   }
+
+   switch (proc->id) {
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+       case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+           ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
+           break;
+#endif
+       default:
+           break;
+   }
+
+   ble_l2cap_sig_proc_free(proc);
+   return 0;
+}
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
