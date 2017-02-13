@@ -210,16 +210,16 @@ ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
 }
 
 int
-ble_hs_id_use_addr(uint8_t addr_type)
+ble_hs_id_use_addr(uint8_t own_addr_type)
 {
     uint8_t id_addr_type;
     int nrpa;
     int rc;
 
-    switch (addr_type) {
+    switch (own_addr_type) {
     case BLE_OWN_ADDR_PUBLIC:
     case BLE_OWN_ADDR_RANDOM:
-        rc = ble_hs_id_addr(addr_type, NULL, NULL);
+        rc = ble_hs_id_addr(own_addr_type, NULL, NULL);
         if (rc != 0) {
             return rc;
         }
@@ -227,7 +227,7 @@ ble_hs_id_use_addr(uint8_t addr_type)
 
     case BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT:
     case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
-        id_addr_type = ble_hs_misc_addr_type_to_id(addr_type);
+        id_addr_type = ble_hs_misc_addr_type_to_id(own_addr_type);
         rc = ble_hs_id_addr(id_addr_type, NULL, &nrpa);
         if (rc != 0) {
             return rc;

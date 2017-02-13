@@ -407,7 +407,7 @@ ble_hs_test_util_create_conn(uint16_t handle, const uint8_t *peer_id_addr,
 {
     static uint8_t null_addr[6];
 
-    ble_hs_test_util_create_rpa_conn(handle, BLE_ADDR_PUBLIC, null_addr,
+    ble_hs_test_util_create_rpa_conn(handle, BLE_OWN_ADDR_PUBLIC, null_addr,
                                      BLE_ADDR_PUBLIC, peer_id_addr,
                                      null_addr, cb, cb_arg);
 }
