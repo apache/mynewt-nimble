@@ -213,7 +213,7 @@ ble_os_disc_test_task_handler(void *arg)
 
     /* Initiate the general discovery procedure with a 300 ms timeout. */
     memset(&disc_params, 0, sizeof disc_params);
-    rc = ble_hs_test_util_disc(BLE_ADDR_PUBLIC, 300, &disc_params,
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, 300, &disc_params,
                                ble_os_disc_test_cb,
                                &cb_called, 0, 0);
     TEST_ASSERT(rc == 0);

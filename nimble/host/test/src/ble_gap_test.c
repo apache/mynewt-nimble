@@ -441,7 +441,7 @@ TEST_CASE(ble_gap_test_case_wl_bad_args)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** White-list-using connection in progress. */
-    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, NULL, 0, NULL,
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, NULL, 0, NULL,
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
 
@@ -562,7 +562,7 @@ TEST_CASE(ble_gap_test_case_disc_bad_args)
 
     /*** Invalid filter policy. */
     params.filter_policy = 6;
-    rc = ble_gap_disc(BLE_ADDR_PUBLIC, 0, &params,
+    rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 0, &params,
                       ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
@@ -729,7 +729,7 @@ ble_gap_test_util_disc_dflts_once(int limited)
         exp_window = BLE_GAP_SCAN_FAST_WINDOW;
     }
     ble_gap_test_util_verify_tx_set_scan_params(
-        BLE_ADDR_PUBLIC,
+        BLE_OWN_ADDR_PUBLIC,
         BLE_HCI_SCAN_TYPE_ACTIVE,
         exp_itvl,
         exp_window,
@@ -758,7 +758,7 @@ TEST_CASE(ble_gap_test_case_disc_already)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure host indicates BLE_HS_EALREADY if we try to discover. */
-    rc = ble_gap_disc(BLE_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+    rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
                                ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
@@ -777,7 +777,7 @@ TEST_CASE(ble_gap_test_case_disc_busy)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure host indicates BLE_HS_EBUSY if we try to discover. */
-    rc = ble_gap_disc(BLE_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+    rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
                                ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 }
@@ -943,13 +943,13 @@ TEST_CASE(ble_gap_test_case_conn_gen_busy)
     ble_gap_test_util_init();
 
     /* Start a discovery procedure. */
-    rc = ble_hs_test_util_disc(BLE_ADDR_PUBLIC, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER,
                                &disc_params, ble_gap_test_util_disc_cb,
                                NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure host indicates BLE_HS_EBUSY if we try to connect. */
-    rc = ble_gap_connect(BLE_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
+    rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
                          &conn_params, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 }
@@ -1009,7 +1009,7 @@ ble_gap_test_util_conn_and_cancel(uint8_t *peer_addr, uint8_t hci_status)
     memcpy(addr.val, peer_addr, 6);
 
     /* Begin creating a connection. */
-    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &addr, 0, NULL,
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &addr, 0, NULL,
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
@@ -1231,7 +1231,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
     ble_gap_test_util_init();
 
     ble_hs_test_util_create_rpa_conn(8,
-                                     BLE_ADDR_PUBLIC,
+                                     BLE_OWN_ADDR_PUBLIC,
                                      ((uint8_t[6]){0,0,0,0,0,0}),
                                      BLE_ADDR_PUBLIC,
                                      ((uint8_t[6]){2,3,4,5,6,7}),
@@ -1281,7 +1281,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
     ble_hs_test_util_create_rpa_conn(54,
                                      BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT,
                                      ((uint8_t[6]){0x40,1,2,3,4,5}),
-                                     BLE_OWN_ADDR_RPA_RANDOM_DEFAULT,
+                                     BLE_ADDR_RANDOM_ID,
                                      ((uint8_t[6]){3,4,5,6,7,8}),
                                      ((uint8_t[6]){0x50,1,2,3,4,5}),
                                      ble_gap_test_util_connect_cb,
@@ -2653,7 +2653,7 @@ ble_gap_test_util_disc_forever(void)
     memset(&params, 0, sizeof params);
 
     /* Initiate a discovery procedure with no timeout. */
-    ble_hs_test_util_disc(BLE_ADDR_PUBLIC,
+    ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC,
                           BLE_HS_FOREVER, &params, ble_gap_test_util_disc_cb,
                           NULL, -1, 0);
 
@@ -2680,7 +2680,7 @@ ble_gap_test_util_disc_timeout(int32_t duration_ms)
     memset(&params, 0, sizeof params);
 
     /* Initiate a discovery procedure with the specified timeout. */
-    ble_hs_test_util_disc(BLE_ADDR_PUBLIC,
+    ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC,
                           duration_ms, &params, ble_gap_test_util_disc_cb,
                           NULL, -1, 0);
 
