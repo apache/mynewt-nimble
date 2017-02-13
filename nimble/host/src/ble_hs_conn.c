@@ -58,11 +58,11 @@ ble_hs_conn_chan_find(struct ble_hs_conn *conn, uint16_t cid)
 
     struct ble_l2cap_chan *chan;
 
-    SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
-        if (chan->blc_cid == cid) {
+    SLIST_FOREACH(chan, &conn->bhc_channels, next) {
+        if (chan->scid == cid) {
             return chan;
         }
-        if (chan->blc_cid > cid) {
+        if (chan->scid > cid) {
             return NULL;
         }
     }
@@ -81,11 +81,11 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     struct ble_l2cap_chan *cur;
 
     prev = NULL;
-    SLIST_FOREACH(cur, &conn->bhc_channels, blc_next) {
-        if (cur->blc_cid == chan->blc_cid) {
+    SLIST_FOREACH(cur, &conn->bhc_channels, next) {
+        if (cur->scid == chan->scid) {
             return BLE_HS_EALREADY;
         }
-        if (cur->blc_cid > chan->blc_cid) {
+        if (cur->scid > chan->scid) {
             break;
         }
 
@@ -93,9 +93,9 @@ ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     }
 
     if (prev == NULL) {
-        SLIST_INSERT_HEAD(&conn->bhc_channels, chan, blc_next);
+        SLIST_INSERT_HEAD(&conn->bhc_channels, chan, next);
     } else {
-        SLIST_INSERT_AFTER(prev, chan, blc_next);
+        SLIST_INSERT_AFTER(prev, chan, next);
     }
 
     return 0;
@@ -164,14 +164,14 @@ err:
     return NULL;
 }
 
-static void
+void
 ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     if (conn->bhc_rx_chan == chan) {
         conn->bhc_rx_chan = NULL;
     }
 
-    SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, blc_next);
+    SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, next);
     ble_l2cap_chan_free(chan);
 }
 

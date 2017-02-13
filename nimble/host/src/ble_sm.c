@@ -2508,10 +2508,9 @@ ble_sm_create_chan(void)
         return NULL;
     }
 
-    chan->blc_cid = BLE_L2CAP_CID_SM;
-    chan->blc_my_mtu = BLE_SM_MTU;
-    chan->blc_default_mtu = BLE_SM_MTU;
-    chan->blc_rx_fn = ble_sm_rx;
+    chan->scid = BLE_L2CAP_CID_SM;
+    chan->my_mtu = BLE_SM_MTU;
+    chan->rx_fn = ble_sm_rx;
 
     return chan;
 }

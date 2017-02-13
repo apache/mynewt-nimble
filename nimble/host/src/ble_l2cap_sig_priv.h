@@ -20,6 +20,8 @@
 #ifndef H_BLE_L2CAP_SIG_
 #define H_BLE_L2CAP_SIG_
 
+#include "syscfg/syscfg.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,6 +33,7 @@ struct ble_l2cap_sig_hdr {
     uint8_t op;
     uint8_t identifier;
     uint16_t length;
+    uint8_t data[0];
 } __attribute__((packed));
 
 #define BLE_L2CAP_SIG_REJECT_MIN_SZ         2
@@ -54,6 +57,32 @@ struct ble_l2cap_sig_update_rsp {
 #define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT  0x0000
 #define BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT  0x0001
 
+struct ble_l2cap_sig_le_con_req {
+    uint16_t psm;
+    uint16_t scid;
+    uint16_t mtu;
+    uint16_t mps;
+    uint16_t credits;
+} __attribute__((packed));
+
+struct ble_l2cap_sig_le_con_rsp {
+    uint16_t dcid;
+    uint16_t mtu;
+    uint16_t mps;
+    uint16_t credits;
+    uint16_t result;
+} __attribute__((packed));
+
+struct ble_l2cap_sig_disc_req {
+    uint16_t dcid;
+    uint16_t scid;
+} __attribute__((packed));
+
+struct ble_l2cap_sig_disc_rsp {
+    uint16_t dcid;
+    uint16_t scid;
+} __attribute__((packed));
+
 int ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
                            struct os_mbuf **out_om, void **out_payload_buf);
 void ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
@@ -75,9 +104,22 @@ void ble_l2cap_sig_update_rsp_write(void *payload, int len,
                                     struct ble_l2cap_sig_update_rsp *src);
 int ble_l2cap_sig_update_rsp_tx(uint16_t conn_handle, uint8_t id,
                                 uint16_t result);
-
 int ble_l2cap_sig_reject_invalid_cid_tx(uint16_t conn_handle, uint8_t id,
                                         uint16_t src_cid, uint16_t dst_cid);
+int ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom);
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+int ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+                              struct os_mbuf *sdu_rx,
+                              ble_l2cap_event_fn *cb, void *cb_arg);
+void *ble_l2cap_sig_cmd_get(uint8_t opcode, uint8_t id, uint16_t len,
+                            struct os_mbuf **txom);
+
+int ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan);
+#else
+#define ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg) \
+                                                                BLE_HS_ENOTSUP
+#define ble_l2cap_sig_disconnect(chan)                          BLE_HS_ENOTSUP
+#endif
 
 void ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_l2cap_sig_timer(void);
