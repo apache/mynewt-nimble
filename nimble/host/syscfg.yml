@@ -52,6 +52,11 @@ syscfg.defs:
             passes since the previous fragment was received, the connection is
             terminated.  A value of 0 means no timeout.
         value: 30000
+    BLE_L2CAP_COC_MAX_NUM:
+        description: >
+            Defines maximum number of LE Connection Oriented Channels channels.
+            When set to (0), LE COC is not compiled in.
+        value: 0
 
     # Security manager settings.
     BLE_SM_LEGACY:

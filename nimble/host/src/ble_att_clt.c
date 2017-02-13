@@ -132,7 +132,7 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (chan == NULL) {
         rc = BLE_HS_ENOTCONN;
-    } else if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
+    } else if (chan->flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
         rc = BLE_HS_EALREADY;
     } else {
         rc = 0;
@@ -159,7 +159,7 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     ble_hs_lock();
 
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
 
     ble_hs_unlock();
 
@@ -185,7 +185,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
 
         ble_att_conn_chan_find(conn_handle, NULL, &chan);
         ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-        mtu = ble_l2cap_chan_mtu(chan);
+        mtu = ble_att_chan_mtu(chan);
 
         ble_hs_unlock();
 

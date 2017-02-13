@@ -20,6 +20,7 @@
 #ifndef H_L2CAP_PRIV_
 #define H_L2CAP_PRIV_
 
+#include "ble_l2cap_coc_priv.h"
 #include "host/ble_l2cap.h"
 #include <inttypes.h>
 #include "stats/stats.h"
@@ -64,22 +65,31 @@ typedef uint8_t ble_l2cap_chan_flags;
 typedef int ble_l2cap_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom);
 
 struct ble_l2cap_chan {
-    SLIST_ENTRY(ble_l2cap_chan) blc_next;
-    uint16_t blc_cid;
-    uint16_t blc_my_mtu;
-    uint16_t blc_peer_mtu;      /* 0 if not exchanged. */
-    uint16_t blc_default_mtu;
-    ble_l2cap_chan_flags blc_flags;
+    SLIST_ENTRY(ble_l2cap_chan) next;
+    uint16_t scid;
+    uint16_t my_mtu;
+    uint16_t peer_mtu;      /* 0 if not exchanged. */
+    ble_l2cap_chan_flags flags;
 
-    struct os_mbuf *blc_rx_buf;
-    uint16_t blc_rx_len;        /* Length of current reassembled rx packet. */
+    struct os_mbuf *rx_buf;
+    uint16_t rx_len;        /* Length of current reassembled rx packet. */
 
-    ble_l2cap_rx_fn *blc_rx_fn;
+    ble_l2cap_rx_fn *rx_fn;
+
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+    uint16_t conn_handle;
+    uint16_t dcid;
+    uint16_t psm;
+    struct ble_l2cap_coc_endpoint coc_rx;
+    struct ble_l2cap_coc_endpoint coc_tx;
+    ble_l2cap_event_fn *cb;
+    void *cb_arg;
+#endif
 };
 
 struct ble_l2cap_hdr {
-    uint16_t blh_len;
-    uint16_t blh_cid;
+    uint16_t len;
+    uint16_t cid;
 };
 
 typedef int ble_l2cap_tx_fn(struct ble_hs_conn *conn,
@@ -97,8 +107,7 @@ struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
-uint16_t ble_l2cap_chan_mtu(const struct ble_l2cap_chan *chan);
-
+bool ble_l2cap_is_mtu_req_sent(const struct ble_l2cap_chan *chan);
 
 int ble_l2cap_rx(struct ble_hs_conn *conn,
                  struct hci_data_hdr *hci_hdr,

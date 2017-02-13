@@ -125,7 +125,7 @@ ble_hs_test_util_prev_tx_dequeue(void)
 
         ble_hs_test_util_prev_tx_cur = om;
         while (OS_MBUF_PKTLEN(ble_hs_test_util_prev_tx_cur) <
-               l2cap_hdr.blh_len) {
+               l2cap_hdr.len) {
 
             om = ble_hs_test_util_prev_tx_dequeue_once(&hci_hdr);
             TEST_ASSERT_FATAL(om != NULL);
@@ -2039,8 +2039,8 @@ ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
         }
 
         if (params->rx_queue) {
-            SLIST_FOREACH(chan, &conn->bhc_channels, blc_next) {
-                count += ble_hs_test_util_mbuf_chain_len(chan->blc_rx_buf);
+            SLIST_FOREACH(chan, &conn->bhc_channels, next) {
+                count += ble_hs_test_util_mbuf_chain_len(chan->rx_buf);
             }
         }
 

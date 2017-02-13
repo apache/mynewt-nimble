@@ -702,7 +702,7 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
 
     ble_hs_lock();
     ble_att_conn_chan_find(conn_handle, NULL, &chan);
-    mtu = chan->blc_my_mtu;
+    mtu = chan->my_mtu;
     ble_hs_unlock();
 
     /* Just reuse the request buffer for the response. */
@@ -765,8 +765,8 @@ done:
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
         ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-        chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
-        mtu = ble_l2cap_chan_mtu(chan);
+        chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+        mtu = ble_att_chan_mtu(chan);
 
         ble_hs_unlock();
 
