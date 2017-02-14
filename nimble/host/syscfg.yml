@@ -46,6 +46,13 @@ syscfg.defs:
     BLE_L2CAP_SIG_MAX_PROCS:
         description: 'TBD'
         value: 1
+    BLE_L2CAP_JOIN_RX_FRAGS:
+        description: >
+            Whether to collapse incoming L2CAP fragments into a minimal set of
+            mbufs.
+                1: Slower, more memory efficient.
+                0: Faster, less memory efficient.
+        value: 1
     BLE_L2CAP_RX_FRAG_TIMEOUT:
         description: >
             Expiry time for incoming data packets (ms).  If this much time

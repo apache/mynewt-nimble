@@ -173,6 +173,28 @@ ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     ble_l2cap_forget_rx(conn, chan);
 }
 
+static void
+ble_l2cap_append_rx(struct ble_l2cap_chan *chan, struct os_mbuf *frag)
+{
+    int rc;
+
+    (void)rc;
+
+#if MYNEWT_VAL(BLE_L2CAP_JOIN_RX_FRAGS)
+    /* Copy the data from the incoming fragment into the packet in progress. */
+    rc = os_mbuf_appendfrom(chan->rx_buf, frag, 0, OS_MBUF_PKTLEN(frag));
+    if (rc == 0) {
+        os_mbuf_free_chain(frag);
+        return;
+    }
+#endif
+
+    /* Join disabled or append failed due to mbuf shortage.  Just attach the
+     * mbuf to the end of the packet.
+     */
+    os_mbuf_concat(chan->rx_buf, frag);
+}
+
 static int
 ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                      struct os_mbuf *om,
@@ -182,9 +204,11 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     int rc;
 
     if (chan->rx_buf == NULL) {
+        /* First fragment in packet. */
         chan->rx_buf = om;
     } else {
-        os_mbuf_concat(chan->rx_buf, om);
+        /* Continuation of packet in progress. */
+        ble_l2cap_append_rx(chan, om);
     }
 
     /* Determine if packet is fully reassembled. */
