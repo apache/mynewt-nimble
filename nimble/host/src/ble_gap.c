@@ -2868,7 +2868,7 @@ ble_gap_update_params(uint16_t conn_handle,
     int rc;
 
     /* Validate parameters with a spec */
-    if (ble_gap_validate_conn_params(params)) {
+    if (!ble_gap_validate_conn_params(params)) {
             return BLE_HS_EINVAL;
     }
 
