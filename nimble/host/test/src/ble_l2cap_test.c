@@ -474,7 +474,7 @@ ble_l2cap_test_util_peer_updates(int accept)
     l2cap_params.itvl_min = 0x200;
     l2cap_params.itvl_max = 0x300;
     l2cap_params.slave_latency = 0;
-    l2cap_params.timeout_multiplier = 0x100;
+    l2cap_params.timeout_multiplier = 0x500;
     ble_l2cap_test_util_rx_update_req(2, 1, &l2cap_params);
 
     /* Ensure an update response command got sent. */
@@ -485,7 +485,7 @@ ble_l2cap_test_util_peer_updates(int accept)
         params.itvl_min = 0x200;
         params.itvl_max = 0x300;
         params.latency = 0;
-        params.supervision_timeout = 0x100;
+        params.supervision_timeout = 0x500;
         params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
         params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
         ble_l2cap_test_util_verify_tx_update_conn(&params);
