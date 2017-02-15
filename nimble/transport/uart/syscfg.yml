@@ -20,14 +20,14 @@
 
 syscfg.defs:
     BLE_HCI_EVT_BUF_SIZE:
-        description: 'TBD'
+        description: 'The size of the allocated event buffers'
         # The largest event the nimble controller will send is 70 bytes.
         value: 70
     BLE_HCI_EVT_HI_BUF_COUNT:
-        description: 'TBD'
+        description: 'The number of high priority event buffers'
         value: 8
     BLE_HCI_EVT_LO_BUF_COUNT:
-        description: 'TBD'
+        description: 'The number of low priority event buffers'
         value: 8
     BLE_ACL_BUF_COUNT:
         description: 'The number of ACL data buffers'
@@ -49,20 +49,20 @@ syscfg.defs:
         value: 12
 
     BLE_HCI_UART_PORT:
-        description: 'TBD'
+        description: 'The uart to use for the HCI uart interface'
         value:            0
     BLE_HCI_UART_BAUD:
-        description: 'TBD'
+        description: 'The baud rate of the HCI uart interface'
         value:            1000000
     BLE_HCI_UART_DATA_BITS:
-        description: 'TBD'
+        description: 'Number of data bits used for HCI uart interface'
         value:       8
     BLE_HCI_UART_STOP_BITS:
-        description: 'TBD'
+        description: 'Number of stop bits used for HCI uart interface'
         value:       1
     BLE_HCI_UART_PARITY:
-        description: 'TBD'
+        description: 'Parity used for HCI uart interface'
         value:          HAL_UART_PARITY_NONE
     BLE_HCI_UART_FLOW_CTRL:
-        description: 'TBD'
+        description: 'Flow control used for HCI uart interface'
         value:       HAL_UART_FLOW_CTL_RTS_CTS
