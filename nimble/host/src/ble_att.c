@@ -561,6 +561,7 @@ ble_att_create_chan(void)
     }
 
     chan->scid = BLE_L2CAP_CID_ATT;
+    chan->dcid = BLE_L2CAP_CID_ATT;
     chan->my_mtu = ble_att_preferred_mtu_val;
     chan->rx_fn = ble_att_rx;
 

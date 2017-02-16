@@ -66,6 +66,7 @@ typedef int ble_l2cap_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom);
 
 struct ble_l2cap_chan {
     SLIST_ENTRY(ble_l2cap_chan) next;
+    uint16_t dcid;
     uint16_t scid;
     uint16_t my_mtu;
     uint16_t peer_mtu;      /* 0 if not exchanged. */
@@ -78,7 +79,6 @@ struct ble_l2cap_chan {
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
     uint16_t conn_handle;
-    uint16_t dcid;
     uint16_t psm;
     struct ble_l2cap_coc_endpoint coc_rx;
     struct ble_l2cap_coc_endpoint coc_tx;
