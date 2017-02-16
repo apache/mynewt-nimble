@@ -385,7 +385,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 {
     int rc;
 
-    txom = ble_l2cap_prepend_hdr(txom, chan->scid, OS_MBUF_PKTLEN(txom));
+    txom = ble_l2cap_prepend_hdr(txom, chan->dcid, OS_MBUF_PKTLEN(txom));
     if (txom == NULL) {
         return BLE_HS_ENOMEM;
     }
