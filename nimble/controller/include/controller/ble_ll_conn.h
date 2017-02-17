@@ -202,6 +202,11 @@ struct ble_ll_conn_sm
     uint16_t max_ce_len;
     uint16_t tx_win_off;
     uint32_t anchor_point;
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+    uint8_t anchor_point_usecs;     /* XXX: can this be uint8_t ?*/
+    uint8_t conn_itvl_usecs;
+    uint32_t conn_itvl_ticks;
+#endif
     uint32_t last_anchor_point;     /* Slave only */
     uint32_t slave_cur_tx_win_usecs;
     uint32_t slave_cur_window_widening;

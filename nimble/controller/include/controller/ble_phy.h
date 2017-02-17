@@ -70,6 +70,7 @@ struct os_mbuf;
 #define BLE_PHY_ERR_INV_PARAM       (3)
 #define BLE_PHY_ERR_NO_BUFS         (4)
 #define BLE_PHY_ERR_TX_LATE         (5)
+#define BLE_PHY_ERR_RX_LATE         (6)
 
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
@@ -86,11 +87,16 @@ int ble_phy_reset(void);
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 /* Set transmit start time */
-int ble_phy_tx_set_start_time(uint32_t cputime);
+int ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
 
 /* Set receive start time */
-int ble_phy_rx_set_start_time(uint32_t cputime);
+int ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
+#else
+/* Set transmit start time */
+int ble_phy_tx_set_start_time(uint32_t cputime);
+#endif
 
 /* Set the transmit end callback and argument */
 void ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg);
@@ -115,6 +121,27 @@ int ble_phy_txpwr_get(void);
 
 /* Disable the PHY */
 void ble_phy_disable(void);
+
+#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
+void ble_phy_stop_usec_timer(void);
+void ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs);
+#define BLE_PHY_WFR_ENABLE_RX       (0)
+#define BLE_PHY_WFR_ENABLE_TXRX     (1)
+#else
+#define ble_phy_stop_usec_timer()
+#endif
+
+/* Starts rf clock */
+void ble_phy_rfclk_enable(void);
+
+/* Stops rf clock */
+void ble_phy_rfclk_disable(void);
+
+/*
+ * Used to restart reception on same channel after wfr timer expiration or
+ * frame received.
+ */
+void ble_phy_restart_rx(void);
 
 /* Gets the current state of the PHY */
 int ble_phy_state_get(void);

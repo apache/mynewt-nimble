@@ -17,38 +17,32 @@
  * under the License.
  */
 
-#ifndef H_BLE_XCVR_
-#define H_BLE_XCVR_
+#ifndef H_BLE_LL_XCVR_
+#define H_BLE_LL_XCVR_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
-/*
- * NOTE: we have to account for the RTC output compare issue, which is why
- * this number is much larger when using the 32.768 crystal for cputime. We
- * want it to be 5 ticks.
- */
-#define XCVR_PROC_DELAY_USECS         (153)
-#else
-#define XCVR_PROC_DELAY_USECS         (50)
-#endif
-#define XCVR_RX_START_DELAY_USECS     (140)
-#define XCVR_TX_START_DELAY_USECS     (140)
-#define XCVR_TX_SCHED_DELAY_USECS     \
-    (XCVR_TX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
-#define XCVR_RX_SCHED_DELAY_USECS     \
-    (XCVR_RX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
+#ifdef BLE_XCVR_RFCLK
 
-/*
- * Define HW whitelist size. This is the total possible whitelist size;
- * not necessarily the size that will be used (may be smaller)
- */
-#define BLE_HW_WHITE_LIST_SIZE        (8)
+/* RF clock states */
+#define BLE_RFCLK_STATE_OFF     (0)
+#define BLE_RFCLK_STATE_ON      (1)
+#define BLE_RFCLK_STATE_SETTLED (2)
+
+int ble_ll_xcvr_rfclk_state(void);
+void ble_ll_xcvr_rfclk_start_now(uint32_t now);
+void ble_ll_xcvr_rfclk_stop(void);
+void ble_ll_xcvr_rfclk_enable(void);
+void ble_ll_xcvr_rfclk_disable(void);
+uint32_t ble_ll_xcvr_rfclk_time_till_settled(void);
+void ble_ll_xcvr_rfclk_timer_exp(void *arg);
+void ble_ll_xcvr_rfclk_timer_start(uint32_t cputime);
+#endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* H_BLE_XCVR_ */
+#endif /* H_LL_ */

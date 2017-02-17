@@ -42,12 +42,13 @@ extern "C" {
 #define BLE_LL_CONN_INITIAL_OFFSET          (1250)
 #define BLE_LL_CONN_ITVL_USECS              (1250)
 #define BLE_LL_CONN_TX_WIN_USECS            (1250)
+#define BLE_LL_CONN_TX_OFF_USECS            (1250)
 #define BLE_LL_CONN_CE_USECS                (625)
 #define BLE_LL_CONN_TX_WIN_MIN              (1)         /* in tx win units */
 #define BLE_LL_CONN_SLAVE_LATENCY_MAX       (499)
 
 /* Connection request duration (in usecs) */
-#define BLE_LL_CONN_REQ_DURATION            (352)
+#define BLE_LL_CONN_REQ_DURATION            (352)       /* 1 Mbps only */
 
 /* Connection handle range */
 #define BLE_LL_CONN_MAX_CONN_HANDLE         (0x0EFF)

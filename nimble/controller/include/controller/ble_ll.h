@@ -22,11 +22,39 @@
 
 #include "stats/stats.h"
 #include "os/os_eventq.h"
+#include "os/os_callout.h"
 #include "os/os_cputime.h"
 #include "nimble/nimble_opt.h"
+#include "controller/ble_phy.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+/*
+ * XXX:
+ * I guess this should not depend on the 32768 crystal to be honest. This
+ * should be done for TIMER0 as well since the rf clock chews up more current.
+ * Deal with this later.
+ *
+ * Another note: BLE_XTAL_SETTLE_TIME should be bsp related (I guess). There
+ * should be a note in there that the converted usecs to ticks value of this
+ * should not be 0. Thus: if you are using a 32.768 os cputime freq, the min
+ * value of settle time should be 31 usecs. I would suspect all settling times
+ * would exceed 31 usecs.
+ */
+
+/* Determines if we need to turn on/off rf clock */
+#undef BLE_XCVR_RFCLK
+
+/* Transceiver specific definitions */
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+
+/* We will turn on/off rf clock */
+#if MYNEWT_VAL(BLE_XTAL_SETTLE_TIME) != 0
+#define BLE_XCVR_RFCLK
+#endif
+
 #endif
 
 /* Controller revision. */
@@ -61,11 +89,22 @@ struct ble_ll_obj
 
     /* Number of ACL data packets supported */
     uint8_t ll_num_acl_pkts;
+
+#ifdef BLE_XCVR_RFCLK
+    uint8_t ll_rfclk_state;
+    uint16_t ll_xtal_ticks;
+#else
     uint8_t _pad;
+    uint16_t _pad16;
+#endif
 
     /* ACL data packet size */
     uint16_t ll_acl_pkt_size;
-    uint16_t _pad16;
+
+#ifdef BLE_XCVR_RFCLK
+    uint32_t ll_rfclk_start_time;
+    struct hal_timer ll_rfclk_timer;
+#endif
 
     /* Task event queue */
     struct os_eventq ll_evq;
@@ -362,6 +401,9 @@ void ble_ll_wfr_enable(uint32_t cputime);
 /* Disable wait for response timer */
 void ble_ll_wfr_disable(void);
 
+/* Wait for response timer expiration callback */
+void ble_ll_wfr_timer_exp(void *arg);
+
 /* Read set of features supported by the Link Layer */
 uint8_t ble_ll_read_supp_features(void);
 
@@ -383,7 +425,7 @@ int ble_ll_rand_start(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */
-#undef BLE_LL_LOG
+#define BLE_LL_LOG
 #include "console/console.h"
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
@@ -405,6 +447,11 @@ int ble_ll_rand_start(void);
 #define BLE_LL_LOG_ID_ADV_TXBEG         (50)
 #define BLE_LL_LOG_ID_ADV_TXDONE        (60)
 #define BLE_LL_LOG_ID_SCHED             (80)
+#define BLE_LL_LOG_ID_RFCLK_START       (90)
+#define BLE_LL_LOG_ID_RFCLK_ENABLE      (91)
+#define BLE_LL_LOG_ID_RFCLK_STOP        (95)
+#define BLE_LL_LOG_ID_RFCLK_SCHED_DIS   (96)
+#define BLE_LL_LOG_ID_RFCLK_SCAN_DIS    (97)
 
 #ifdef BLE_LL_LOG
 void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
