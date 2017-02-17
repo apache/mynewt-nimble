@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -624,8 +624,8 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 #if (BLETEST_THROUGHPUT_TEST == 0)
     BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): conn_handle=%u pb=%x "
                       "len=%u data=",
-               BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc), 
-               BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc), 
+               BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc),
+               BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc),
                hci_hdr.hdh_len);
     ble_hs_log_mbuf(om);
     BLE_HS_LOG(DEBUG, "\n");

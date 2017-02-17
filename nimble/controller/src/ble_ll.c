@@ -39,6 +39,7 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_xcvr.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX:
@@ -51,6 +52,11 @@
  * 4) Should look into always disabled the wfr interrupt if we receive the
  * start of a frame. Need to look at the various states to see if this is the
  * right thing to do.
+ * 5) I am not sure that if we are passed the output compare that we actually
+ * get the interrupt. Test this.
+ * 6) I am not sure that if we receive a packet while scanning that we actually
+ * go back to scanning. I need to make sure we re-enable the receive.
+ * Put an event in the log!
  */
 
 /* Supported states */
@@ -536,7 +542,9 @@ ble_ll_wfr_timer_exp(void *arg)
 void
 ble_ll_wfr_enable(uint32_t cputime)
 {
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
     os_cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
+#endif
 }
 
 /**
@@ -545,7 +553,9 @@ ble_ll_wfr_enable(uint32_t cputime)
 void
 ble_ll_wfr_disable(void)
 {
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
     os_cputime_timer_stop(&g_ble_ll_data.ll_wfr_timer);
+#endif
 }
 
 /**
@@ -786,7 +796,12 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     int rc;
     uint8_t pdu_type;
 
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+    ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, rxhdr->rem_usecs,
+               rxhdr->beg_cputime);
+#else
     ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, 0, rxhdr->beg_cputime);
+#endif
 
     /* Check channel type */
     if (chan < BLE_PHY_NUM_DATA_CHANS) {
@@ -1167,6 +1182,11 @@ ble_ll_reset(void)
     /* Set state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
+#ifdef BLE_XCVR_RFCLK
+    /* Stops rf clock and rfclock timer */
+    ble_ll_xcvr_rfclk_stop();
+#endif
+
     /* Reset our random address */
     memset(g_random_addr, 0, BLE_DEV_ADDR_LEN);
 
@@ -1211,10 +1231,25 @@ ble_ll_init(void)
 {
     int rc;
     uint8_t features;
+#ifdef BLE_XCVR_RFCLK
+    uint32_t xtal_ticks;
+#endif
     struct ble_ll_obj *lldata;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
+
+#ifdef BLE_XCVR_RFCLK
+    /* Settling time of crystal, in ticks */
+    xtal_ticks = MYNEWT_VAL(BLE_XTAL_SETTLE_TIME);
+    assert(xtal_ticks != 0);
+    g_ble_ll_data.ll_xtal_ticks = os_cputime_usecs_to_ticks(xtal_ticks);
+
+    /* Initialize rf clock timer */
+    os_cputime_timer_init(&g_ble_ll_data.ll_rfclk_timer,
+                          ble_ll_xcvr_rfclk_timer_exp, NULL);
+
+#endif
 
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
@@ -1241,9 +1276,11 @@ ble_ll_init(void)
                     ble_ll_hw_err_timer_cb,
                     NULL);
 
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
     /* Initialize wait for response timer */
     os_cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
                           NULL);
+#endif
 
     /* Initialize LL HCI */
     ble_ll_hci_init();

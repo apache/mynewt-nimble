@@ -25,7 +25,8 @@ extern "C" {
 #endif
 
 /* Time per BLE scheduler slot */
-#define BLE_LL_SCHED_USECS_PER_SLOT (1250)
+#define BLE_LL_SCHED_USECS_PER_SLOT         (1250)
+#define BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT   (41)    /* 1 tick = 30.517 usecs */
 
 /*
  * Worst case time needed for scheduled advertising item. This is the longest
@@ -45,6 +46,17 @@ extern "C" {
 #define BLE_LL_SCHED_ADV_MAX_USECS          (852)
 #define BLE_LL_SCHED_DIRECT_ADV_MAX_USECS   (502)
 #define BLE_LL_SCHED_MAX_ADV_PDU_USECS      (376)
+
+/* BLE Jitter (+/- 16 useecs) */
+#define BLE_LL_JITTER_USECS                 (16)
+
+/*
+ * This is the offset from the start of the scheduled item until the actual
+ * tx/rx should occur, in ticks.
+ */
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+extern uint8_t g_ble_ll_sched_offset_ticks;
+#endif
 
 /*
  * This is the number of slots needed to transmit and receive a maximum
@@ -69,10 +81,19 @@ extern "C" {
 struct ble_ll_sched_item;
 typedef int (*sched_cb_func)(struct ble_ll_sched_item *sch);
 
+/*
+ * Schedule item
+ *  sched_type: This is the type of the schedule item.
+ *  enqueued: Flag denoting if item is on the scheduler list. 0: no, 1:yes
+ *  remainder: # of usecs from offset till tx/rx should occur
+ *  txrx_offset: Number of ticks from start time until tx/rx should occur.
+ *
+ */
 struct ble_ll_sched_item
 {
     uint8_t         sched_type;
     uint8_t         enqueued;
+    uint8_t         remainder;
     uint32_t        start_time;
     uint32_t        end_time;
     void            *cb_arg;
@@ -94,8 +115,8 @@ void ble_ll_sched_free_item(struct ble_ll_sched_item *sch);
 
 /* Schedule a new master connection */
 struct ble_ll_conn_sm;
-int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
-                            uint8_t req_slots);
+int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
+                            struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len);
 
 /* Schedule a new slave connection */
 int ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm);
@@ -127,6 +148,11 @@ int ble_ll_sched_next_time(uint32_t *next_event_time);
 
 /* Stop the scheduler */
 void ble_ll_sched_stop(void);
+
+#ifdef BLE_XCVR_RFCLK
+/* Check if RF clock needs to be restarted */
+void ble_ll_sched_rfclk_chk_restart(void);
+#endif
 
 #ifdef __cplusplus
 }

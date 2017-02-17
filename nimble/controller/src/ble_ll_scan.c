@@ -37,6 +37,7 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_xcvr.h"
 #include "hal/hal_gpio.h"
 
 /*
@@ -588,8 +589,14 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
     }
 #endif
 
-    /* Start receiving */
-    rc = ble_phy_rx();
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+        /* XXX: probably need to make sure hfxo is running too */
+        /* XXX: can make this better; want to just start asap. */
+        rc = ble_phy_rx_set_start_time(os_cputime_get32() +
+                                       g_ble_ll_sched_offset_ticks, 0);
+#else
+        rc = ble_phy_rx();
+#endif
     if (!rc) {
         /* Enable/disable whitelisting */
         if (scansm->scan_filt_policy & 1) {
@@ -612,6 +619,37 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
     }
 }
 
+#ifdef BLE_XCVR_RFCLK
+static void
+ble_ll_scan_rfclk_chk_stop(void)
+{
+    int stop;
+    int32_t time_till_next;
+    os_sr_t sr;
+    uint32_t next_time;
+
+    stop = 0;
+    OS_ENTER_CRITICAL(sr);
+    if (ble_ll_sched_next_time(&next_time)) {
+        /*
+         * If the time until the next event is too close, dont bother to turn
+         * off the clock
+         */
+        time_till_next = (int32_t)(next_time - os_cputime_get32());
+        if (time_till_next > g_ble_ll_data.ll_xtal_ticks) {
+            stop = 1;
+        }
+    } else {
+        stop = 1;
+    }
+    if (stop) {
+        ble_ll_log(BLE_LL_LOG_ID_RFCLK_SCAN_DIS, g_ble_ll_data.ll_rfclk_state,0,0);
+        ble_ll_xcvr_rfclk_disable();
+    }
+    OS_EXIT_CRITICAL(sr);
+}
+#endif
+
 /**
  * Called to determine if we are inside or outside the scan window. If we
  * are inside the scan window it means that the device should be receiving
@@ -629,6 +667,7 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     int rc;
     uint8_t chan;
     uint32_t itvl;
+    uint32_t dt;
     uint32_t win_start;
 
     itvl = os_cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
@@ -645,7 +684,13 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     rc = 0;
     if (scansm->scan_window != scansm->scan_itvl) {
         itvl = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
-        if ((cputime - win_start) >= itvl) {
+        dt = cputime - win_start;
+        if (dt >= itvl) {
+#ifdef BLE_XCVR_RFCLK
+            if (dt < (scansm->scan_itvl - g_ble_ll_data.ll_xtal_ticks)) {
+                ble_ll_scan_rfclk_chk_stop();
+            }
+#endif
             rc = 1;
         }
     }
@@ -688,6 +733,11 @@ ble_ll_scan_sm_stop(int chk_disable)
 
             /* Set LL state to standby */
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+            /* May need to stop the rfclk */
+#ifdef BLE_XCVR_RFCLK
+            ble_ll_scan_rfclk_chk_stop();
+#endif
         }
         OS_EXIT_CRITICAL(sr);
     }
@@ -757,6 +807,9 @@ ble_ll_scan_event_proc(struct os_event *ev)
     uint32_t win_start;
     uint32_t scan_itvl;
     uint32_t next_event_time;
+#ifdef BLE_XCVR_RFCLK
+    uint32_t xtal_ticks;
+#endif
     struct ble_ll_scan_sm *scansm;
 
     /*
@@ -786,12 +839,19 @@ ble_ll_scan_event_proc(struct os_event *ev)
     dt = now - win_start;
     scansm->scan_chan = chan;
     scansm->scan_win_start_time = win_start;
+    if (scansm->scan_window != scansm->scan_itvl) {
+        win = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+    } else {
+        win = 0;
+    }
 
     /* Determine on/off state based on scan window */
     rxstate = 1;
     next_event_time = win_start + scan_itvl;
-    if (scansm->scan_window != scansm->scan_itvl) {
-        win = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (win != 0) {
         if (dt >= win) {
             rxstate = 0;
         } else {
@@ -799,7 +859,6 @@ ble_ll_scan_event_proc(struct os_event *ev)
         }
     }
 
-    OS_ENTER_CRITICAL(sr);
     /*
      * If we are not in the standby state it means that the scheduled
      * scanning event was overlapped in the schedule. In this case all we do
@@ -815,6 +874,9 @@ ble_ll_scan_event_proc(struct os_event *ev)
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
+        if (!rxstate) {
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        }
         break;
     case BLE_LL_STATE_STANDBY:
         break;
@@ -822,11 +884,70 @@ ble_ll_scan_event_proc(struct os_event *ev)
         assert(0);
         break;
     }
+
+#ifdef BLE_XCVR_RFCLK
+    if (rxstate == 0) {
+        /*
+         * We need to wake up before we need to start scanning in order
+         * to make sure the rfclock is on. If we are close to being on,
+         * enable the rfclock. If not, set wakeup time.
+         */
+        if (dt >= (scan_itvl - g_ble_ll_data.ll_xtal_ticks)) {
+            /* Start the clock if necessary */
+            if (start_scan) {
+                if (ble_ll_xcvr_rfclk_state() == BLE_RFCLK_STATE_OFF) {
+                    ble_ll_xcvr_rfclk_start_now(now);
+                    next_event_time = now + g_ble_ll_data.ll_xtal_ticks;
+                }
+            }
+        } else {
+            next_event_time -= g_ble_ll_data.ll_xtal_ticks;
+            if (start_scan) {
+                ble_ll_scan_rfclk_chk_stop();
+            }
+        }
+    }
+#endif
+
     if (start_scan && rxstate) {
+#ifdef BLE_XCVR_RFCLK
+        /* NOTE: reuse rxstate */
+        rxstate = ble_ll_xcvr_rfclk_state();
+        if (rxstate != BLE_RFCLK_STATE_SETTLED) {
+            if (rxstate == BLE_RFCLK_STATE_OFF) {
+                xtal_ticks = g_ble_ll_data.ll_xtal_ticks;
+            } else {
+                xtal_ticks = ble_ll_xcvr_rfclk_time_till_settled();
+            }
+
+            /*
+             * Only bother if we have enough time to receive anything
+             * here. The next event time will turn off the clock.
+             */
+            if (win != 0) {
+                if ((win - dt) <= xtal_ticks)  {
+                    goto rfclk_not_settled;
+                }
+            }
+
+            /*
+             * If clock off, start clock. Set next event time to now plus
+             * the clock setting time.
+             */
+            if (rxstate == BLE_RFCLK_STATE_OFF) {
+                ble_ll_xcvr_rfclk_start_now(now);
+            }
+            next_event_time = now + xtal_ticks;
+            goto rfclk_not_settled;
+        }
+#endif
         ble_ll_scan_start(scansm, scansm->scan_chan);
     }
-    OS_EXIT_CRITICAL(sr);
 
+#ifdef BLE_XCVR_RFCLK
+rfclk_not_settled:
+#endif
+    OS_EXIT_CRITICAL(sr);
     os_cputime_timer_start(&scansm->scan_timer, next_event_time);
 }
 
@@ -929,8 +1050,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (scansm->scan_rsp_pending) {
             ble_ll_scan_req_backoff(scansm, 0);
         }
-        ble_phy_disable();
-        ble_phy_rx();
+        ble_phy_restart_rx();
         return 0;
     }
 
@@ -1081,8 +1201,6 @@ ble_ll_scan_wfr_timer_exp(void)
 {
     struct ble_ll_scan_sm *scansm;
 
-    ble_phy_disable();
-
     /*
      * If we timed out waiting for a response, the scan response pending
      * flag should be set. Deal with scan backoff. Put device back into rx.
@@ -1091,7 +1209,8 @@ ble_ll_scan_wfr_timer_exp(void)
     if (scansm->scan_rsp_pending) {
         ble_ll_scan_req_backoff(scansm, 0);
     }
-    ble_phy_rx();
+
+    ble_phy_restart_rx();
 }
 
 /**
@@ -1480,7 +1599,7 @@ ble_ll_scan_init(void)
     scansm->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;
     scansm->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
 
-    /* Initialize connection supervision timer */
+    /* Initialize scanning timer */
     os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
     /* Get a scan request mbuf (packet header) and attach to state machine */

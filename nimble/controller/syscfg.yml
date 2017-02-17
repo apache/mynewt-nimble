@@ -137,6 +137,14 @@ syscfg.defs:
             material often.
         value: '32'
 
+    # Crystal setting time
+    BLE_XTAL_SETTLE_TIME:
+        description: >
+            The settling time of the high-frequency oscillator. This is
+            used to turn on/off the clock used for the radio (assuming
+            the HW supports this). This value is in microseconds.
+        value: '0'
+
     # Configuration for LL supported features.
     #
     # There are a total 8 features that the LL can support. These can be found

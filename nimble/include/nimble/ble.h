@@ -96,6 +96,9 @@ struct ble_mbuf_hdr
         struct ble_mbuf_hdr_txinfo txinfo;
     };
     uint32_t beg_cputime;
+#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
+    uint32_t rem_usecs;
+#endif
 };
 
 #define BLE_MBUF_HDR_CRC_OK(hdr)        \
