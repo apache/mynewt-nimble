@@ -2818,15 +2818,15 @@ ble_gap_validate_conn_params(const struct ble_gap_upd_params *params)
 
     /* Requirements from Bluetooth spec. v4.2 [Vol 2, Part E], 7.8.18 */
     if (params->itvl_min > params->itvl_max) {
-            return false;
+        return false;
     }
 
     if (params->itvl_min < 0x0006 || params->itvl_max > 0x0C80) {
-            return false;
+        return false;
     }
 
     if (params->latency > 0x01F3) {
-            return false;
+        return false;
     }
 
     if (params->supervision_timeout <=
@@ -2869,7 +2869,7 @@ ble_gap_update_params(uint16_t conn_handle,
 
     /* Validate parameters with a spec */
     if (!ble_gap_validate_conn_params(params)) {
-            return BLE_HS_EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     STATS_INC(ble_gap_stats, update);
