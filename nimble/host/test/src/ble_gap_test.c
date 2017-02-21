@@ -1715,6 +1715,23 @@ TEST_SUITE(ble_gap_test_suite_stop_adv)
  *****************************************************************************/
 
 static void
+ble_gap_test_util_update_verify_params(struct ble_gap_upd_params *params,
+                                      uint8_t ble_hs_err)
+{
+    int rc;
+
+    uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
+
+    ble_gap_test_util_init();
+
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
+                                 NULL);
+
+    rc = ble_hs_test_util_conn_update(2, params, 0);
+    TEST_ASSERT(rc == ble_hs_err);
+}
+
+static void
 ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params,
                                   int master,
                                   uint8_t hci_status, int event_status)
@@ -2280,6 +2297,73 @@ TEST_CASE(ble_gap_test_case_update_conn_good)
         1, 0, 0);
 }
 
+TEST_CASE(ble_gap_test_case_update_conn_verify_params)
+{
+    /* GOOD */
+    ble_gap_test_util_update_verify_params(
+        ((struct ble_gap_upd_params[]) { {
+            .itvl_min = 100,
+            .itvl_max = 100,
+            .supervision_timeout = 200,
+            .min_ce_len = 554,
+            .max_ce_len = 554,
+        }}),
+        0);
+
+    /* BAD */
+    ble_gap_test_util_update_verify_params(
+        ((struct ble_gap_upd_params[]) { {
+            .itvl_min = 1,
+            .itvl_max = 100,
+            .supervision_timeout = 200,
+            .min_ce_len = 554,
+            .max_ce_len = 554,
+        }}),
+        BLE_HS_EINVAL);
+
+    ble_gap_test_util_update_verify_params(
+        ((struct ble_gap_upd_params[]) { {
+            .itvl_min = 0x0C80 + 1,
+            .itvl_max = 100,
+            .supervision_timeout = 200,
+            .min_ce_len = 554,
+            .max_ce_len = 554,
+        }}),
+        BLE_HS_EINVAL);
+
+    ble_gap_test_util_update_verify_params(
+        ((struct ble_gap_upd_params[]) { {
+            .itvl_min = 100,
+            .itvl_max = 50,
+            .supervision_timeout = 200,
+            .min_ce_len = 554,
+            .max_ce_len = 554,
+        }}),
+        BLE_HS_EINVAL);
+
+    ble_gap_test_util_update_verify_params(
+        ((struct ble_gap_upd_params[]) { {
+            .itvl_min = 100,
+            .itvl_max = 100,
+            .supervision_timeout = 200,
+            .latency = 0x01F4,
+            .min_ce_len = 554,
+            .max_ce_len = 554,
+        }}),
+        BLE_HS_EINVAL);
+
+    ble_gap_test_util_update_verify_params(
+        ((struct ble_gap_upd_params[]) { {
+            .itvl_min = 100,
+            .itvl_max = 100,
+            .supervision_timeout = 300,
+            .latency = 1,
+            .min_ce_len = 554,
+            .max_ce_len = 554,
+        }}),
+        BLE_HS_EINVAL);
+}
+
 TEST_CASE(ble_gap_test_case_update_conn_bad)
 {
     ble_gap_test_util_update_no_l2cap(
@@ -2555,6 +2639,7 @@ TEST_SUITE(ble_gap_test_suite_update_conn)
     ble_gap_test_case_update_req_reject();
     ble_gap_test_case_update_concurrent_good();
     ble_gap_test_case_update_concurrent_hci_fail();
+    ble_gap_test_case_update_conn_verify_params();
 }
 
 /*****************************************************************************
