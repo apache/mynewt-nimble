@@ -877,15 +877,21 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     req = (struct ble_l2cap_sig_disc_req *) (*om)->om_data;
 
+    /* Let's find matching channel. Note that destination CID in the request
+     * is from peer perspective. It is source CID from nimble perspective 
+     */
     chan = ble_hs_conn_chan_find(conn, le16toh(req->dcid));
-    if (!chan || (le16toh(req->scid) != chan->scid)) {
+    if (!chan || (le16toh(req->scid) != chan->dcid)) {
         os_mbuf_free_chain(txom);
         ble_hs_unlock();
         return 0;
     }
 
-    rsp->dcid = htole16(chan->dcid);
-    rsp->scid = htole16(chan->scid);
+    /* Note that in the response destination CID is form peer perspective and
+     * it is source CID from nimble perspective.
+     */
+    rsp->dcid = htole16(chan->scid);
+    rsp->scid = htole16(chan->dcid);
 
     ble_l2cap_event_coc_disconnected(chan);
 
