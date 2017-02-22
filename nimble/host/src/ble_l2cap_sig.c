@@ -631,6 +631,8 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         return 0;
     }
 
+    memset(rsp, 0, sizeof(*rsp));
+
     req = (struct ble_l2cap_sig_le_con_req *)(*om)->om_data;
 
     ble_hs_lock();
