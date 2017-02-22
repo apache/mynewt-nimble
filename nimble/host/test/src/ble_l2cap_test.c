@@ -337,6 +337,7 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
 {
     struct ble_hs_conn *conn;
     int rc;
+    uint16_t data_len = 30;
 
     ble_l2cap_test_util_init();
 
@@ -344,7 +345,7 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
                                     NULL, NULL);
 
     /* Receive a starting fragment on the first channel. */
-    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_TEST_CID, 30);
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_TEST_CID, data_len);
     TEST_ASSERT(rc == 0);
 
     ble_hs_lock();
@@ -357,7 +358,8 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
     /* Receive a starting fragment on a different channel.  The first fragment
      * should get discarded.
      */
-    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_CID_ATT, 30);
+    ble_hs_test_util_set_att_mtu(conn->bhc_handle, data_len);
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_CID_ATT, data_len);
     TEST_ASSERT(rc == 0);
 
     ble_hs_lock();
