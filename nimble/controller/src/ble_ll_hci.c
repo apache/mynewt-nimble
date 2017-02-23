@@ -102,7 +102,7 @@ ble_ll_hci_send_noop(void)
         evbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
         evbuf[1] = 3;
         evbuf[2] = ble_ll_hci_get_num_cmd_pkts();
-        htole16(evbuf + 3, opcode);
+        put_le16(evbuf + 3, opcode);
         ble_ll_hci_event_send(evbuf);
         rc = BLE_ERR_SUCCESS;
     } else {
@@ -184,10 +184,10 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 
     /* Place the data packet length and number of packets in the buffer */
     rspbuf[0] = BLE_HCI_VER_BCS_4_2;
-    htole16(rspbuf + 1, hci_rev);
+    put_le16(rspbuf + 1, hci_rev);
     rspbuf[3] = BLE_LMP_VER_BCS_4_2;
-    htole16(rspbuf + 4, mfrg);
-    htole16(rspbuf + 6, lmp_subver);
+    put_le16(rspbuf + 4, mfrg);
+    put_le16(rspbuf + 6, lmp_subver);
     *rsplen = BLE_HCI_RD_LOC_VER_INFO_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
@@ -284,7 +284,7 @@ static int
 ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
 {
     /* Place the data packet length and number of packets in the buffer */
-    htole16(rspbuf, g_ble_ll_data.ll_acl_pkt_size);
+    put_le16(rspbuf, g_ble_ll_data.ll_acl_pkt_size);
     rspbuf[2] = g_ble_ll_data.ll_num_acl_pkts;
     *rsplen = BLE_HCI_RD_BUF_SIZE_RSPLEN;
     return BLE_ERR_SUCCESS;
@@ -314,8 +314,8 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
     uint16_t tx_time;
 
     /* Get suggested octets and time */
-    tx_oct = le16toh(cmdbuf);
-    tx_time = le16toh(cmdbuf + 2);
+    tx_oct = get_le16(cmdbuf);
+    tx_time = get_le16(cmdbuf + 2);
 
     /* If valid, write into suggested and change connection initial times */
     if (ble_ll_chk_txrx_octets(tx_oct) && ble_ll_chk_txrx_time(tx_time)) {
@@ -348,8 +348,8 @@ static int
 ble_ll_hci_le_rd_sugg_data_len(uint8_t *rspbuf, uint8_t *rsplen)
 {
     /* Place the data packet length and number of packets in the buffer */
-    htole16(rspbuf, g_ble_ll_conn_params.sugg_tx_octets);
-    htole16(rspbuf + 2, g_ble_ll_conn_params.sugg_tx_time);
+    put_le16(rspbuf, g_ble_ll_conn_params.sugg_tx_octets);
+    put_le16(rspbuf + 2, g_ble_ll_conn_params.sugg_tx_time);
     *rsplen = BLE_HCI_RD_SUGG_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
@@ -368,10 +368,10 @@ static int
 ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
 {
     /* Place the data packet length and number of packets in the buffer */
-    htole16(rspbuf, g_ble_ll_conn_params.supp_max_tx_octets);
-    htole16(rspbuf + 2, g_ble_ll_conn_params.supp_max_tx_time);
-    htole16(rspbuf + 4, g_ble_ll_conn_params.supp_max_rx_octets);
-    htole16(rspbuf + 6, g_ble_ll_conn_params.supp_max_rx_time);
+    put_le16(rspbuf, g_ble_ll_conn_params.supp_max_tx_octets);
+    put_le16(rspbuf + 2, g_ble_ll_conn_params.supp_max_tx_time);
+    put_le16(rspbuf + 4, g_ble_ll_conn_params.supp_max_rx_octets);
+    put_le16(rspbuf + 6, g_ble_ll_conn_params.supp_max_rx_time);
     *rsplen = BLE_HCI_RD_MAX_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
@@ -411,7 +411,7 @@ ble_ll_hci_le_read_supp_states(uint8_t *rspbuf, uint8_t *rsplen)
 
     /* Add list of supported states. */
     supp_states = ble_ll_read_supp_states();
-    htole64(rspbuf, supp_states);
+    put_le64(rspbuf, supp_states);
     *rsplen = BLE_HCI_RD_SUPP_STATES_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
@@ -1000,7 +1000,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     assert(cmdbuf != NULL);
 
     /* Get the opcode from the command buffer */
-    opcode = le16toh(cmdbuf);
+    opcode = get_le16(cmdbuf);
     ocf = BLE_HCI_OCF(opcode);
     ogf = BLE_HCI_OGF(opcode);
 
@@ -1039,7 +1039,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;
         cmdbuf[1] = 4 + rsplen;
         cmdbuf[2] = ble_ll_hci_get_num_cmd_pkts();
-        htole16(cmdbuf + 3, opcode);
+        put_le16(cmdbuf + 3, opcode);
         cmdbuf[5] = (uint8_t)rc;
     } else {
         /* Create a command status event */
@@ -1048,7 +1048,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         cmdbuf[1] = 4;
         cmdbuf[2] = (uint8_t)rc;
         cmdbuf[3] = ble_ll_hci_get_num_cmd_pkts();
-        htole16(cmdbuf + 4, opcode);
+        put_le16(cmdbuf + 4, opcode);
     }
 
     /* Count commands and those in error */

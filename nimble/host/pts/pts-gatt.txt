@@ -51,8 +51,8 @@ GATT/CL/GAD/BV-05-C	PASS	b conn peer_addr=<addr>
 				<repeat>
 GATT/CL/GAD/BV-06-C	PASS	b conn peer_addr=<addr>
 				b disc svc conn=<handle>
-				b disc chr conn=<handle> start=<svc-start-hdl> end=<svc-end-hdl>
-				b disc dsc conn=<handle> start=<start hdl> end=<end hdl>
+				b disc chr conn=<handle> start=<start-hdl> end=<end-hdl>
+				b disc dsc conn=<handle> start=<start-hdl> end=<end-hdl>
 				<answer YES>
 				b term conn=<handle>
 				<repeat>

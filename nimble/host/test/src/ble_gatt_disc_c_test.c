@@ -101,13 +101,13 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
             }
         }
 
-        htole16(buf + off, chars[i].def_handle);
+        put_le16(buf + off, chars[i].def_handle);
         off += 2;
 
         buf[off] = chars[i].properties;
         off++;
 
-        htole16(buf + off, chars[i].val_handle);
+        put_le16(buf + off, chars[i].val_handle);
         off += 2;
 
         ble_uuid_flat(chars[i].uuid, buf + off);

@@ -37,6 +37,7 @@
 #include "ble_hs_startup_priv.h"
 #include "ble_l2cap_priv.h"
 #include "ble_l2cap_sig_priv.h"
+#include "ble_l2cap_coc_priv.h"
 #include "ble_sm_priv.h"
 #include "ble_hs_adv_priv.h"
 #include "ble_hs_pvcy_priv.h"

@@ -2042,7 +2042,7 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
         memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
     }
     memcpy(dptr + BLE_DEV_ADDR_LEN, adva, BLE_DEV_ADDR_LEN);
-    htole16(dptr + 20, txoffset);
+    put_le16(dptr + 20, txoffset);
 
     /* Set BLE transmit header */
     ble_hdr->txinfo.hdr_byte = hdr;
@@ -2251,7 +2251,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     uint8_t peer_addr_type;
     uint8_t *adv_addr;
     uint8_t *peer;
-    uint8_t *init_addr;
+    uint8_t *init_addr = NULL;
     uint8_t pyld_len;
     uint8_t inita_is_rpa;
     uint32_t endtime;
@@ -2360,7 +2360,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
          * If the inita is a RPA, we must see if it resolves based on the
          * identity address of the resolved ADVA.
          */
-        if (inita_is_rpa) {
+        if (init_addr && inita_is_rpa) {
             if ((index < 0) ||
                 !ble_ll_resolv_rpa(init_addr,
                                    g_ble_ll_resolv_list[index].rl_local_irk)) {
@@ -2601,8 +2601,8 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                     rxbuf = rxpdu->om_data;
 
                     acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
-                    htole16(rxbuf, acl_hdr);
-                    htole16(rxbuf + 2, acl_len);
+                    put_le16(rxbuf, acl_hdr);
+                    put_le16(rxbuf + 2, acl_len);
                     ble_hci_trans_ll_acl_tx(rxpdu);
                 }
 
@@ -2646,7 +2646,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint8_t conn_nesn;
     uint8_t reply;
     uint8_t rem_bytes;
-    uint8_t opcode;
+    uint8_t opcode = 0;
     uint8_t rx_pyld_len;
     uint32_t endtime;
     struct os_mbuf *txpdu;
@@ -3076,16 +3076,16 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint32_t conn_req_end, uint8_t pat,
     dptr = rxbuf + BLE_LL_CONN_REQ_ADVA_OFF + BLE_DEV_ADDR_LEN;
 
     /* Set connection state machine information */
-    connsm->access_addr = le32toh(dptr);
+    connsm->access_addr = get_le32(dptr);
     crcinit = dptr[6];
     crcinit = (crcinit << 8) | dptr[5];
     crcinit = (crcinit << 8) | dptr[4];
     connsm->crcinit = crcinit;
     connsm->tx_win_size = dptr[7];
-    connsm->tx_win_off = le16toh(dptr + 8);
-    connsm->conn_itvl = le16toh(dptr + 10);
-    connsm->slave_latency = le16toh(dptr + 12);
-    connsm->supervision_tmo = le16toh(dptr + 14);
+    connsm->tx_win_off = get_le16(dptr + 8);
+    connsm->conn_itvl = get_le16(dptr + 10);
+    connsm->slave_latency = get_le16(dptr + 12);
+    connsm->supervision_tmo = get_le16(dptr + 14);
     memcpy(&connsm->chanmap, dptr + 16, BLE_LL_CONN_CHMAP_LEN);
     connsm->hop_inc = dptr[21] & 0x1F;
     connsm->master_sca = dptr[21] >> 5;

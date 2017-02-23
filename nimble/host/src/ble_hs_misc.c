@@ -78,19 +78,19 @@ ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
 }
 
 uint8_t
-ble_hs_misc_addr_type_to_id(uint8_t addr_type)
+ble_hs_misc_addr_type_to_id(uint8_t own_addr_type)
 {
-    switch (addr_type) {
-    case BLE_ADDR_TYPE_PUBLIC:
-    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
-         return BLE_ADDR_TYPE_PUBLIC;
+    switch (own_addr_type) {
+    case BLE_OWN_ADDR_PUBLIC:
+    case BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT:
+         return BLE_ADDR_PUBLIC;
 
-    case BLE_ADDR_TYPE_RANDOM:
-    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
-         return BLE_ADDR_TYPE_RANDOM;
+    case BLE_OWN_ADDR_RANDOM:
+    case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
+         return BLE_ADDR_RANDOM;
 
     default:
         BLE_HS_DBG_ASSERT(0);
-        return BLE_ADDR_TYPE_PUBLIC;
+        return BLE_ADDR_PUBLIC;
     }
 }

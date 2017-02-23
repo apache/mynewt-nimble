@@ -71,8 +71,8 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_HS_ENOMEM;
     }
 
-    htole16(u8p + 0, ble_svc_gatt_start_handle);
-    htole16(u8p + 2, ble_svc_gatt_end_handle);
+    put_le16(u8p + 0, ble_svc_gatt_start_handle);
+    put_le16(u8p + 2, ble_svc_gatt_end_handle);
 
     return 0;
 }

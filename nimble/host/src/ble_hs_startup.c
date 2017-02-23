@@ -67,7 +67,7 @@ ble_hs_startup_le_read_buf_sz_tx(void)
         return BLE_HS_ECONTROLLER;
     }
 
-    pktlen = le16toh(ack_params + 0);
+    pktlen = get_le16(ack_params + 0);
     max_pkts = ack_params[2];
 
     rc = ble_hs_hci_set_buf_sz(pktlen, max_pkts);

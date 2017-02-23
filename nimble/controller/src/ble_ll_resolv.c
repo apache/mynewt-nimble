@@ -356,7 +356,7 @@ ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
 {
     uint16_t tmo_secs;
 
-    tmo_secs = le16toh(cmdbuf);
+    tmo_secs = get_le16(cmdbuf);
     if (!((tmo_secs > 0) && (tmo_secs <= 0xA1B8))) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }

@@ -600,8 +600,8 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
     }
 
     /* Make sure intervals are OK (along with advertising type */
-    adv_itvl_min = le16toh(cmd);
-    adv_itvl_max = le16toh(cmd + 2);
+    adv_itvl_min = get_le16(cmd);
+    adv_itvl_max = get_le16(cmd + 2);
     adv_type = cmd[4];
 
     /*
@@ -739,11 +739,21 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 
         /* Set to standby if we are no longer advertising */
         OS_ENTER_CRITICAL(sr);
+#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+        if (g_ble_ll_cur_adv_sm == advsm) {
+            ble_phy_disable();
+            ble_ll_wfr_disable();
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+            g_ble_ll_cur_adv_sm = NULL;
+        }
+#else
         if (ble_ll_state_get() == BLE_LL_STATE_ADV) {
             ble_phy_disable();
             ble_ll_wfr_disable();
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
+            g_ble_ll_cur_adv_sm = NULL;
         }
+#endif
         OS_EXIT_CRITICAL(sr);
 
         os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
@@ -1127,9 +1137,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 
     /* Get the peer address type */
     if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-        txadd = BLE_ADDR_TYPE_RANDOM;
+        txadd = BLE_ADDR_RANDOM;
     } else {
-        txadd = BLE_ADDR_TYPE_PUBLIC;
+        txadd = BLE_ADDR_PUBLIC;
     }
 
     ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
@@ -1218,9 +1228,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 
         valid = 1;
         if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-            addr_type = BLE_ADDR_TYPE_RANDOM;
+            addr_type = BLE_ADDR_RANDOM;
         } else {
-            addr_type = BLE_ADDR_TYPE_PUBLIC;
+            addr_type = BLE_ADDR_PUBLIC;
         }
 
         /*
@@ -1654,7 +1664,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
         evbuf[2] = BLE_HCI_LE_SUBEV_ADV_STATE_CHG;
         evbuf[3] = advsm->adv_instance;
         evbuf[4] = 0x00;    /* status code */
-        htole16(evbuf + 5, connsm->conn_handle);
+        put_le16(evbuf + 5, connsm->conn_handle);
         ble_ll_hci_event_send(evbuf);
     }
 #else

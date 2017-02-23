@@ -166,6 +166,7 @@ void ble_att_inc_tx_stat(uint8_t att_op);
 void ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
                              struct os_mbuf *txom);
 void ble_att_set_peer_mtu(struct ble_l2cap_chan *chan, uint16_t peer_mtu);
+uint16_t ble_att_chan_mtu(const struct ble_l2cap_chan *chan);
 int ble_att_init(void);
 
 #define BLE_ATT_LOG_CMD(is_tx, cmd_name, conn_handle, log_cb, cmd) \

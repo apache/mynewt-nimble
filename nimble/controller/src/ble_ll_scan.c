@@ -945,9 +945,9 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     peer = rxbuf + BLE_LL_PDU_HDR_LEN;
     if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-        addr_type = BLE_ADDR_TYPE_RANDOM;
+        addr_type = BLE_ADDR_RANDOM;
     } else {
-        addr_type = BLE_ADDR_TYPE_PUBLIC;
+        addr_type = BLE_ADDR_PUBLIC;
     }
     peer_addr_type = addr_type;
 
@@ -1221,8 +1221,8 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
 
     /* Get the scan interval and window */
     scan_type = cmd[0];
-    scan_itvl  = le16toh(cmd + 1);
-    scan_window = le16toh(cmd + 3);
+    scan_itvl  = get_le16(cmd + 1);
+    scan_window = get_le16(cmd + 3);
     own_addr_type = cmd[5];
     filter_policy = cmd[6];
 

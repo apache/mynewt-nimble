@@ -83,9 +83,9 @@ ble_att_svr_test_misc_init(uint16_t mtu)
     TEST_ASSERT_FATAL(rc == 0);
 
     if (mtu != 0) {
-        chan->blc_my_mtu = mtu;
-        chan->blc_peer_mtu = mtu;
-        chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+        chan->my_mtu = mtu;
+        chan->peer_mtu = mtu;
+        chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
     }
 
     ble_hs_unlock();
@@ -136,6 +136,15 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
     default:
         return BLE_ATT_ERR_UNLIKELY;
     }
+}
+
+static int
+ble_att_svr_test_misc_attr_fn_r_err(uint16_t conn_handle, uint16_t attr_handle,
+                                    uint8_t op, uint16_t offset,
+                                    struct os_mbuf **om, void *arg)
+{
+    os_mbuf_append(*om, (uint8_t[4]){1,2,3,4}, 4);
+    return BLE_ATT_ERR_UNLIKELY;
 }
 
 #define BLE_ATT_SVR_TEST_LAST_SVC  11
@@ -398,7 +407,7 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(
     rc = ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
                                     NULL, &chan);
     TEST_ASSERT_FATAL(rc == 0);
-    mtu = ble_l2cap_chan_mtu(chan);
+    mtu = ble_att_chan_mtu(chan);
 
     ble_hs_unlock();
 
@@ -443,7 +452,7 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(uint16_t conn_handle)
 
     ble_hs_lock();
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    my_mtu = chan->blc_my_mtu;
+    my_mtu = chan->my_mtu;
     ble_hs_unlock();
 
     ble_hs_test_util_verify_tx_mtu_cmd(0, my_mtu);
@@ -480,13 +489,13 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
     for (entry = entries; entry->first != 0; entry++) {
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
-        htole16(&u16, u16);
+        put_le16(&u16, u16);
         TEST_ASSERT(u16 == entry->first);
         off += 2;
 
         rc = os_mbuf_copydata(om, off, 2, &u16);
         TEST_ASSERT(rc == 0);
-        htole16(&u16, u16);
+        put_le16(&u16, u16);
         TEST_ASSERT(u16 == entry->last);
         off += 2;
     }
@@ -529,7 +538,7 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
 
         rc = os_mbuf_copydata(om, off, 2, &handle);
         TEST_ASSERT(rc == 0);
-        handle = le16toh(&handle);
+        handle = get_le16(&handle);
         TEST_ASSERT(handle == entry->handle);
         off += 2;
 
@@ -608,8 +617,8 @@ ble_att_svr_test_misc_mtu_exchange(uint16_t my_mtu, uint16_t peer_sent,
     rc = ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
                                     &conn, &chan);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(chan->blc_peer_mtu == peer_actual);
-    TEST_ASSERT(ble_l2cap_chan_mtu(chan) == chan_mtu);
+    TEST_ASSERT(chan->peer_mtu == peer_actual);
+    TEST_ASSERT(ble_att_chan_mtu(chan) == chan_mtu);
     ble_hs_unlock();
 
 }
@@ -777,6 +786,8 @@ TEST_CASE(ble_att_svr_test_read)
     uint16_t conn_handle;
     const ble_uuid_t *uuid_sec = BLE_UUID128_DECLARE( \
         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const ble_uuid_t *uuid_bad = BLE_UUID128_DECLARE( \
+        2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     const ble_uuid_t *uuid = BLE_UUID128_DECLARE( \
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, );
     int rc;
@@ -789,6 +800,16 @@ TEST_CASE(ble_att_svr_test_read)
     TEST_ASSERT(rc != 0);
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, 0,
                                        BLE_ATT_ERR_INVALID_HANDLE);
+
+    /*** Application error. */
+    rc = ble_att_svr_register(uuid_bad, HA_FLAG_PERM_RW, 0, &attr_handle,
+                              ble_att_svr_test_misc_attr_fn_r_err, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_hs_test_util_rx_att_read_req(conn_handle, attr_handle);
+    TEST_ASSERT(rc == BLE_HS_EAPP);
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_REQ, attr_handle,
+                                       BLE_ATT_ERR_UNLIKELY);
 
     /*** Successful read. */
     ble_att_svr_test_attr_r_1 = (uint8_t[]){0,1,2,3,4,5,6,7};

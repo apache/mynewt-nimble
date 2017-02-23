@@ -575,8 +575,8 @@ ble_ll_tx_pkt_in(void)
         STAILQ_REMOVE_HEAD(&g_ble_ll_data.ll_tx_pkt_q, omp_next);
 
         /* Strip HCI ACL header to get handle and length */
-        handle = le16toh(om->om_data);
-        length = le16toh(om->om_data + 2);
+        handle = get_le16(om->om_data);
+        length = get_le16(om->om_data + 2);
         os_mbuf_adj(om, sizeof(struct hci_data_hdr));
 
         /* Do some basic error checking */

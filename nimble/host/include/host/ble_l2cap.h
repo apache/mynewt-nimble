@@ -56,6 +56,22 @@ struct ble_hs_conn;
 #define BLE_L2CAP_SIG_ERR_MTU_EXCEEDED          0x0001
 #define BLE_L2CAP_SIG_ERR_INVALID_CID           0x0002
 
+#define BLE_L2CAP_COC_ERR_CONNECTION_SUCCESS        0x0000
+#define BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM            0x0002
+#define BLE_L2CAP_COC_ERR_NO_RESOURCES              0x0004
+#define BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN       0x0005
+#define BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR       0x0006
+#define BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ       0x0007
+#define BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC          0x0008
+#define BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID        0x0009
+#define BLE_L2CAP_COC_ERR_SOURCE_CID_ALREADY_USED   0x000A
+#define BLE_L2CAP_COC_ERR_UNACCEPTABLE_PARAMETERS   0x000B
+
+#define BLE_L2CAP_EVENT_COC_CONNECTED                 0
+#define BLE_L2CAP_EVENT_COC_DISCONNECTED              1
+#define BLE_L2CAP_EVENT_COC_ACCEPT                    2
+#define BLE_L2CAP_EVENT_COC_DATA_RECEIVED             3
+
 typedef void ble_l2cap_sig_update_fn(uint16_t conn_handle, int status,
                                      void *arg);
 
@@ -69,6 +85,104 @@ struct ble_l2cap_sig_update_params {
 int ble_l2cap_sig_update(uint16_t conn_handle,
                          struct ble_l2cap_sig_update_params *params,
                          ble_l2cap_sig_update_fn *cb, void *cb_arg);
+
+struct ble_l2cap_chan;
+
+/**
+ * Represents a L2CAP-related event.
+ * When such an event occurs, the host notifies the application by passing an
+ * instance of this structure to an application-specified callback.
+ */
+struct ble_l2cap_event {
+    /**
+     * Indicates the type of L2CAP event that occurred.  This is one of the
+     * BLE_L2CAP_EVENT codes.
+     */
+    uint8_t type;
+
+    /**
+     * A discriminated union containing additional details concerning the L2CAP
+     * event.  The 'type' field indicates which member of the union is valid.
+     */
+    union {
+        /**
+         * Represents a connection attempt. Valid for the following event
+         * types:
+         *     o BLE_L2CAP_EVENT_COC_CONNECTED */
+        struct {
+            /**
+             * The status of the connection attempt;
+             *     o 0: the connection was successfully established.
+             *     o BLE host error code: the connection attempt failed for
+             *       the specified reason.
+             */
+            int status;
+
+            /** Connection handle of the relevant connection */
+            uint16_t conn_handle;
+
+            /** The L2CAP channel of the relevant L2CAP connection. */
+            struct ble_l2cap_chan *chan;
+        } connect;
+
+        /**
+         * Represents a terminated connection. Valid for the following event
+         * types:
+         *     o BLE_L2CAP_EVENT_COC_DISCONNECTED
+         */
+        struct {
+            /** Connection handle of the relevant connection */
+            uint16_t conn_handle;
+
+            /** Information about the L2CAP connection prior to termination. */
+            struct ble_l2cap_chan *chan;
+        } disconnect;
+
+        /**
+         * Represents connection accept. Valid for the following event
+         * types:
+         *     o BLE_L2CAP_EVENT_COC_ACCEPT
+         */
+        struct {
+            /** Connection handle of the relevant connection */
+            uint16_t conn_handle;
+
+            /** MTU supported by peer device on the channel */
+            uint16_t peer_sdu_size;
+
+            /** The L2CAP channel of the relevant L2CAP connection. */
+            struct ble_l2cap_chan *chan;
+        } accept;
+
+        /**
+         * Represents received data. Valid for the following event
+         * types:
+         *     o BLE_L2CAP_EVENT_COC_DATA_RECEIVED
+         */
+        struct {
+            /** Connection handle of the relevant connection */
+            uint16_t conn_handle;
+
+            /** The L2CAP channel of the relevant L2CAP connection. */
+            struct ble_l2cap_chan *chan;
+
+            /** The mbuf with received SDU. */
+            struct os_mbuf *sdu_rx;
+        } receive;
+    };
+};
+
+typedef int ble_l2cap_event_fn(struct ble_l2cap_event *event, void *arg);
+
+int ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
+                            ble_l2cap_event_fn *cb, void *cb_arg);
+
+int ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+                      struct os_mbuf *sdu_rx,
+                      ble_l2cap_event_fn *cb, void *cb_arg);
+int ble_l2cap_disconnect(struct ble_l2cap_chan *chan);
+int ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
+void ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx);
 
 #ifdef __cplusplus
 }

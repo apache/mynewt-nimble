@@ -53,7 +53,7 @@ TEST_CASE(ble_hs_hci_test_rssi)
 
     /*** Success. */
     /* Connection handle. */
-    htole16(params + 0, 1);
+    put_le16(params + 0, 1);
 
     /* RSSI. */
     params[2] = -8;
@@ -65,7 +65,7 @@ TEST_CASE(ble_hs_hci_test_rssi)
     TEST_ASSERT(rssi == -8);
 
     /*** Failure: incorrect connection handle. */
-    htole16(params + 0, 99);
+    put_le16(params + 0, 99);
 
     ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params);
 

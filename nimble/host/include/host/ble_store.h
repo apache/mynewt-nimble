@@ -21,6 +21,7 @@
 #define H_BLE_STORE_
 
 #include <inttypes.h>
+#include "nimble/ble.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,8 +30,6 @@ extern "C" {
 #define BLE_STORE_OBJ_TYPE_OUR_SEC      1
 #define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
-
-#define BLE_STORE_ADDR_TYPE_NONE        0xff
 
 /**
  * Used as a key for lookups of security material.  This struct corresponds to
@@ -41,14 +40,9 @@ extern "C" {
 struct ble_store_key_sec {
     /**
      * Key by peer identity address;
-     * Valid peer_addr_type values;
-     *    o BLE_ADDR_TYPE_PUBLIC
-     *    o BLE_ADDR_TYPE_RANDOM
-     *    o BLE_STORE_ADDR_TYPE_NONE
-     * peer_addr_type=BLE_STORE_ADDR_TYPE_NONE means don't key off peer.
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
      */
-    uint8_t peer_addr[6];
-    uint8_t peer_addr_type;
+    ble_addr_t peer_addr;
 
     /** Key by ediv; ediv_rand_present=0 means don't key off ediv. */
     uint16_t ediv;
@@ -69,8 +63,7 @@ struct ble_store_key_sec {
  *     o BLE_STORE_OBJ_TYPE_PEER_SEC
  */
 struct ble_store_value_sec {
-    uint8_t peer_addr[6];
-    uint8_t peer_addr_type;
+    ble_addr_t peer_addr;
 
     uint8_t key_size;
     uint16_t ediv;
@@ -95,10 +88,9 @@ struct ble_store_value_sec {
 struct ble_store_key_cccd {
     /**
      * Key by peer identity address;
-     * peer_addr_type=BLE_STORE_ADDR_TYPE_NONE means don't key off peer.
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
      */
-    uint8_t peer_addr[6];
-    uint8_t peer_addr_type;
+    ble_addr_t peer_addr;
 
     /**
      * Key by characteristic value handle;
@@ -115,8 +107,7 @@ struct ble_store_key_cccd {
  * This struct corresponds to the BLE_STORE_OBJ_TYPE_CCCD store object type.
  */
 struct ble_store_value_cccd {
-    uint8_t peer_addr[6];
-    uint8_t peer_addr_type;
+    ble_addr_t peer_addr;
     uint16_t chr_val_handle;
     uint16_t flags;
     unsigned value_changed:1;
