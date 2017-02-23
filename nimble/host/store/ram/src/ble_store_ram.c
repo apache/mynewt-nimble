@@ -74,10 +74,10 @@ ble_store_ram_print_value_sec(struct ble_store_value_sec *sec)
 static void
 ble_store_ram_print_key_sec(struct ble_store_key_sec *key_sec)
 {
-    if (key_sec->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) {
+    if (ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
         BLE_HS_LOG(DEBUG, "peer_addr_type=%d peer_addr=",
-                       key_sec->peer_addr_type);
-        ble_hs_log_flat_buf(key_sec->peer_addr, 6);
+                       key_sec->peer_addr.type);
+        ble_hs_log_flat_buf(key_sec->peer_addr.val, 6);
         BLE_HS_LOG(DEBUG, " ");
     }
     if (key_sec->ediv_rand_present) {
@@ -100,13 +100,8 @@ ble_store_ram_find_sec(struct ble_store_key_sec *key_sec,
     for (i = 0; i < num_value_secs; i++) {
         cur = value_secs + i;
 
-        if (key_sec->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) {
-            if (cur->peer_addr_type != key_sec->peer_addr_type) {
-                continue;
-            }
-
-            if (memcmp(cur->peer_addr, key_sec->peer_addr,
-                       sizeof cur->peer_addr) != 0) {
+        if (ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
+            if (ble_addr_cmp(&cur->peer_addr, &key_sec->peer_addr)) {
                 continue;
             }
         }
@@ -304,12 +299,8 @@ ble_store_ram_find_cccd(struct ble_store_key_cccd *key)
     for (i = 0; i < ble_store_ram_num_cccds; i++) {
         cccd = ble_store_ram_cccds + i;
 
-        if (key->peer_addr_type != BLE_STORE_ADDR_TYPE_NONE) {
-            if (cccd->peer_addr_type != key->peer_addr_type) {
-                continue;
-            }
-
-            if (memcmp(cccd->peer_addr, key->peer_addr, 6) != 0) {
+        if (ble_addr_cmp(&key->peer_addr, BLE_ADDR_ANY)) {
+            if (ble_addr_cmp(&cccd->peer_addr, &key->peer_addr)) {
                 continue;
             }
         }

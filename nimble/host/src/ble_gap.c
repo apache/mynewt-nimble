@@ -73,14 +73,6 @@
 
 #define BLE_GAP_UPDATE_TIMEOUT                  (30 * OS_TICKS_PER_SEC)
 
-/**
- * The maximum amount of user data that can be put into the advertising data.
- * The stack will automatically insert the flags field on its own if requested
- * by the application, limiting the maximum amount of user data.
- */
-#define BLE_GAP_ADV_DATA_LIMIT_FLAGS    (BLE_HCI_MAX_ADV_DATA_LEN - 3)
-#define BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS BLE_HCI_MAX_ADV_DATA_LEN
-
 #define BLE_GAP_MAX_UPDATE_ENTRIES      1
 
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
@@ -142,8 +134,6 @@ static bssnz_t struct {
     uint8_t rsp_data[BLE_HCI_MAX_ADV_DATA_LEN];
     uint8_t adv_data_len;
     uint8_t rsp_data_len;
-
-    unsigned adv_auto_flags:1;
 } ble_gap_slave;
 
 struct ble_gap_update_entry {
@@ -185,10 +175,10 @@ STATS_NAME_START(ble_gap_stats)
     STATS_NAME(ble_gap_stats, adv_stop_fail)
     STATS_NAME(ble_gap_stats, adv_start)
     STATS_NAME(ble_gap_stats, adv_start_fail)
-    STATS_NAME(ble_gap_stats, adv_set_fields)
-    STATS_NAME(ble_gap_stats, adv_set_fields_fail)
-    STATS_NAME(ble_gap_stats, adv_rsp_set_fields)
-    STATS_NAME(ble_gap_stats, adv_rsp_set_fields_fail)
+    STATS_NAME(ble_gap_stats, adv_set_data)
+    STATS_NAME(ble_gap_stats, adv_set_data_fail)
+    STATS_NAME(ble_gap_stats, adv_rsp_set_data)
+    STATS_NAME(ble_gap_stats, adv_rsp_set_data_fail)
     STATS_NAME(ble_gap_stats, discover)
     STATS_NAME(ble_gap_stats, discover_fail)
     STATS_NAME(ble_gap_stats, initiate)
@@ -245,15 +235,12 @@ ble_gap_log_duration(int32_t duration_ms)
 }
 
 static void
-ble_gap_log_conn(uint8_t own_addr_type,
-                 uint8_t peer_addr_type, const uint8_t *peer_addr,
+ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                  const struct ble_gap_conn_params *params)
 {
-    BLE_HS_LOG(INFO, "peer_addr_type=%d peer_addr=", peer_addr_type);
-    if (peer_addr == NULL) {
-        BLE_HS_LOG(INFO, "N/A");
-    } else {
-        BLE_HS_LOG_ADDR(INFO, peer_addr);
+    if (peer_addr != NULL) {
+        BLE_HS_LOG(INFO, "peer_addr_type=%d peer_addr=", peer_addr->type);
+        BLE_HS_LOG_ADDR(INFO, peer_addr->val);
     }
 
     BLE_HS_LOG(INFO, " scan_itvl=%d scan_window=%d itvl_min=%d itvl_max=%d "
@@ -288,34 +275,27 @@ ble_gap_log_update(uint16_t conn_handle,
 }
 
 static void
-ble_gap_log_wl(const struct ble_gap_white_entry *white_list,
-               uint8_t white_list_count)
+ble_gap_log_wl(const ble_addr_t *addr, uint8_t white_list_count)
 {
-    const struct ble_gap_white_entry *entry;
     int i;
 
     BLE_HS_LOG(INFO, "count=%d ", white_list_count);
 
-    for (i = 0; i < white_list_count; i++) {
-        entry = white_list + i;
-
-        BLE_HS_LOG(INFO, "entry-%d={addr_type=%d addr=", i, entry->addr_type);
-        BLE_HS_LOG_ADDR(INFO, entry->addr);
+    for (i = 0; i < white_list_count; i++, addr++) {
+        BLE_HS_LOG(INFO, "entry-%d={addr_type=%d addr=", i, addr->type);
+        BLE_HS_LOG_ADDR(INFO, addr->val);
         BLE_HS_LOG(INFO, "} ");
     }
 }
 
 static void
-ble_gap_log_adv(uint8_t own_addr_type, uint8_t peer_addr_type,
-                const uint8_t *peer_addr,
+ble_gap_log_adv(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                 const struct ble_gap_adv_params *adv_params)
 {
-    BLE_HS_LOG(INFO, "disc_mode=%d peer_addr_type=%d peer_addr=",
-               ble_gap_slave.disc_mode, peer_addr_type);
-    if(peer_addr) {
-        BLE_HS_LOG_ADDR(INFO, peer_addr);
-    } else {
-        BLE_HS_LOG(INFO, "none");
+    BLE_HS_LOG(INFO, "disc_mode=%d", ble_gap_slave.disc_mode);
+    if (direct_addr) {
+        BLE_HS_LOG(INFO, " direct_addr_type=%d direct_addr=", direct_addr->type);
+        BLE_HS_LOG_ADDR(INFO, direct_addr->val);
     }
     BLE_HS_LOG(INFO, " adv_channel_map=%d own_addr_type=%d "
                      "adv_filter_policy=%d adv_itvl_min=%d adv_itvl_max=%d "
@@ -340,14 +320,10 @@ ble_gap_fill_conn_desc(struct ble_hs_conn *conn,
 
     ble_hs_conn_addrs(conn, &addrs);
 
-    desc->our_ota_addr_type = addrs.our_ota_addr_type;
-    memcpy(desc->our_ota_addr, addrs.our_ota_addr, 6);
-    desc->our_id_addr_type = addrs.our_id_addr_type;
-    memcpy(desc->our_id_addr, addrs.our_id_addr, 6);
-    desc->peer_ota_addr_type = addrs.peer_ota_addr_type;
-    memcpy(desc->peer_ota_addr, addrs.peer_ota_addr, 6);
-    desc->peer_id_addr_type = addrs.peer_id_addr_type;
-    memcpy(desc->peer_id_addr, addrs.peer_id_addr, 6);
+    desc->our_id_addr = addrs.our_id_addr;
+    desc->peer_id_addr = addrs.peer_id_addr;
+    desc->our_ota_addr = addrs.our_ota_addr;
+    desc->peer_ota_addr = addrs.peer_ota_addr;
 
     desc->conn_handle = conn->bhc_handle;
     desc->conn_itvl = conn->bhc_itvl;
@@ -1066,7 +1042,7 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
     return;
 #endif
 
-    struct ble_hs_adv_fields fields;
+    const struct ble_hs_adv_field *flags;
     int rc;
 
     STATS_INC(ble_gap_stats, rx_adv_report);
@@ -1075,22 +1051,18 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
         return;
     }
 
-    rc = ble_hs_adv_parse_fields(&fields, desc->data, desc->length_data);
-    if (rc != 0) {
-        /* XXX: Increment stat. */
-        return;
-    }
-
     /* If a limited discovery procedure is active, discard non-limited
      * advertisements.
      */
-    if (ble_gap_master.disc.limited &&
-        !(fields.flags & BLE_HS_ADV_F_DISC_LTD)) {
-
-        return;
+    if (ble_gap_master.disc.limited) {
+        rc = ble_hs_adv_find_field(BLE_HS_ADV_TYPE_FLAGS, desc->data,
+                                   desc->length_data, &flags);
+        if ((rc == 0) && (flags->length == 2) &&
+            !(flags->value[0] & BLE_HS_ADV_F_DISC_LTD)) {
+            return;
+        }
     }
 
-    desc->fields = &fields;
     ble_gap_disc_report(desc);
 }
 
@@ -1183,12 +1155,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     BLE_HS_DBG_ASSERT(conn != NULL);
 
     conn->bhc_handle = evt->connection_handle;
-    memcpy(conn->bhc_peer_addr, evt->peer_addr, sizeof conn->bhc_peer_addr);
-    conn->bhc_peer_addr_type = evt->peer_addr_type;
-    memcpy(conn->bhc_our_rpa_addr, evt->local_rpa,
-           sizeof conn->bhc_our_rpa_addr);
-    memcpy(conn->bhc_peer_rpa_addr, evt->peer_rpa,
-           sizeof conn->bhc_peer_rpa_addr);
     conn->bhc_itvl = evt->conn_itvl;
     conn->bhc_latency = evt->conn_latency;
     conn->bhc_supervision_timeout = evt->supervision_timeout;
@@ -1206,8 +1172,14 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         ble_gap_slave_reset_state();
     }
 
-    memcpy(conn->bhc_our_rpa_addr, evt->local_rpa, 6);
-    memcpy(conn->bhc_peer_rpa_addr, evt->peer_rpa, 6);
+    conn->bhc_peer_addr.type = evt->peer_addr_type;
+    memcpy(conn->bhc_peer_addr.val, evt->peer_addr, 6);
+
+    conn->bhc_our_rpa_addr.type = BLE_ADDR_RANDOM;
+    memcpy(conn->bhc_our_rpa_addr.val, evt->local_rpa, 6);
+
+    conn->bhc_peer_rpa_addr.type = BLE_ADDR_RANDOM;
+    memcpy(conn->bhc_peer_rpa_addr.val, evt->peer_rpa, 6);
 
     ble_hs_lock();
 
@@ -1426,13 +1398,13 @@ ble_gap_wl_busy(void)
 }
 
 static int
-ble_gap_wl_tx_add(const struct ble_gap_white_entry *entry)
+ble_gap_wl_tx_add(const ble_addr_t *addr)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CHG_WHITE_LIST_LEN];
     int rc;
 
     rc = ble_hs_hci_cmd_build_le_add_to_whitelist(
-        entry->addr, entry->addr_type, buf, sizeof buf);
+        addr->val, addr->type, buf, sizeof buf);
     if (rc != 0) {
         return rc;
     }
@@ -1463,14 +1435,13 @@ ble_gap_wl_tx_clear(void)
 /**
  * Overwrites the controller's white list with the specified contents.
  *
- * @param white_list            The entries to write to the white list.
+ * @param addr                  The entries to write to the white list.
  * @param white_list_count      The number of entries in the white list.
  *
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
-               uint8_t white_list_count)
+ble_gap_wl_set(const ble_addr_t *addr, uint8_t white_list_count)
 {
 #if !MYNEWT_VAL(BLE_WHITELIST)
     return BLE_HS_ENOTSUP;
@@ -1489,8 +1460,8 @@ ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
     }
 
     for (i = 0; i < white_list_count; i++) {
-        if (white_list[i].addr_type != BLE_ADDR_TYPE_PUBLIC &&
-            white_list[i].addr_type != BLE_ADDR_TYPE_RANDOM) {
+        if (addr[i].type != BLE_ADDR_PUBLIC &&
+            addr[i].type != BLE_ADDR_RANDOM) {
 
             rc = BLE_HS_EINVAL;
             goto done;
@@ -1503,7 +1474,7 @@ ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: set whitelist; ");
-    ble_gap_log_wl(white_list, white_list_count);
+    ble_gap_log_wl(addr, white_list_count);
     BLE_HS_LOG(INFO, "\n");
 
     rc = ble_gap_wl_tx_clear();
@@ -1512,7 +1483,7 @@ ble_gap_wl_set(const struct ble_gap_white_entry *white_list,
     }
 
     for (i = 0; i < white_list_count; i++) {
-        rc = ble_gap_wl_tx_add(white_list + i);
+        rc = ble_gap_wl_tx_add(addr + i);
         if (rc != 0) {
             goto done;
         }
@@ -1592,7 +1563,7 @@ done:
     ble_hs_unlock();
 
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+        STATS_INC(ble_gap_stats, adv_set_data_fail);
     }
 
     return rc;
@@ -1601,93 +1572,6 @@ done:
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
-
-static int
-ble_gap_adv_rsp_data_tx(void)
-{
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
-    int rc;
-
-    rc = ble_hs_hci_cmd_build_le_set_scan_rsp_data(ble_gap_slave.rsp_data,
-                                                   ble_gap_slave.rsp_data_len,
-                                                   buf, sizeof buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static void
-ble_gap_adv_data_set_flags(void)
-{
-    uint8_t flags;
-    int rc;
-
-    /* Calculate the value of the flags field from the discoverable mode. */
-    flags = 0;
-    switch (ble_gap_slave.disc_mode) {
-    case BLE_GAP_DISC_MODE_NON:
-        break;
-
-    case BLE_GAP_DISC_MODE_LTD:
-        flags |= BLE_HS_ADV_F_DISC_LTD;
-        break;
-
-    case BLE_GAP_DISC_MODE_GEN:
-        flags |= BLE_HS_ADV_F_DISC_GEN;
-        break;
-
-    default:
-        BLE_HS_DBG_ASSERT(0);
-        break;
-    }
-
-    flags |= BLE_HS_ADV_F_BREDR_UNSUP;
-
-    if (flags != 0) {
-        rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
-                                 ble_gap_slave.adv_data,
-                                 &ble_gap_slave.adv_data_len,
-                                 BLE_HCI_MAX_ADV_DATA_LEN);
-        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
-    }
-}
-
-static int
-ble_gap_adv_data_tx(void)
-{
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_DATA_LEN];
-    int rc;
-
-    /* Calculate the flags AD field if requested by application.  Clear the
-     * auto flag after encoding the flags so that we don't get repeated flags
-     * fields on subsequent advertising procedures.
-     */
-    if (ble_gap_slave.adv_auto_flags) {
-        ble_gap_adv_data_set_flags();
-        ble_gap_slave.adv_auto_flags = 0;
-    }
-
-    rc = ble_hs_hci_cmd_build_le_set_adv_data(ble_gap_slave.adv_data,
-                                              ble_gap_slave.adv_data_len,
-                                              buf, sizeof buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
 
 static int
 ble_gap_adv_type(const struct ble_gap_adv_params *adv_params)
@@ -1743,8 +1627,7 @@ ble_gap_adv_dflt_itvls(uint8_t conn_mode,
 }
 
 static int
-ble_gap_adv_params_tx(uint8_t own_addr_type,
-                      uint8_t peer_addr_type, const uint8_t *peer_addr,
+ble_gap_adv_params_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                       const struct ble_gap_adv_params *adv_params)
 
 {
@@ -1753,12 +1636,12 @@ ble_gap_adv_params_tx(uint8_t own_addr_type,
     int rc;
 
     if (peer_addr == NULL) {
-        peer_addr = ble_hs_misc_null_addr;
+        peer_addr = BLE_ADDR_ANY;
     }
 
     hci_adv_params.own_addr_type = own_addr_type;
-    hci_adv_params.peer_addr_type = peer_addr_type;
-    memcpy(hci_adv_params.peer_addr, peer_addr,
+    hci_adv_params.peer_addr_type = peer_addr->type;
+    memcpy(hci_adv_params.peer_addr, peer_addr->val,
            sizeof hci_adv_params.peer_addr);
 
     /* Fill optional fields if application did not specify them. */
@@ -1795,8 +1678,7 @@ ble_gap_adv_params_tx(uint8_t own_addr_type,
 }
 
 static int
-ble_gap_adv_validate(uint8_t own_addr_type, uint8_t peer_addr_type,
-                     const uint8_t *peer_addr,
+ble_gap_adv_validate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                      const struct ble_gap_adv_params *adv_params)
 {
     if (adv_params == NULL) {
@@ -1838,10 +1720,10 @@ ble_gap_adv_validate(uint8_t own_addr_type, uint8_t peer_addr_type,
         break;
 
     case BLE_GAP_CONN_MODE_DIR:
-        if (peer_addr_type != BLE_ADDR_TYPE_PUBLIC &&
-            peer_addr_type != BLE_ADDR_TYPE_RANDOM &&
-            peer_addr_type != BLE_ADDR_TYPE_RPA_PUB_DEFAULT &&
-            peer_addr_type != BLE_ADDR_TYPE_RPA_RND_DEFAULT) {
+        if (peer_addr->type != BLE_ADDR_PUBLIC &&
+            peer_addr->type != BLE_ADDR_RANDOM &&
+            peer_addr->type != BLE_ADDR_PUBLIC_ID &&
+            peer_addr->type != BLE_ADDR_RANDOM_ID) {
 
             return BLE_HS_EINVAL;
         }
@@ -1869,18 +1751,12 @@ ble_gap_adv_validate(uint8_t own_addr_type, uint8_t peer_addr_type,
  *
  * @param own_addr_type         The type of address the stack should use for
  *                                  itself.  Valid values are:
- *                                      o BLE_ADDR_TYPE_PUBLIC
- *                                      o BLE_ADDR_TYPE_RANDOM
- *                                      o BLE_ADDR_TYPE_RPA_PUB_DEFAULT
- *                                      o BLE_ADDR_TYPE_RPA_RND_DEFAULT
- * @param peer_addr_type        Address type of the peer's identity address.
- *                                  Valid values are:
- *                                      o BLE_ADDR_TYPE_PUBLIC
- *                                      o BLE_ADDR_TYPE_RANDOM
- *                                  This parameter is ignored unless directed
- *                                  advertising is being used.
- * @param peer_addr             The peer's six-byte identity address.
- *                                  This parameter is ignored unless directed
+ *                                      o BLE_OWN_ADDR_PUBLIC
+ *                                      o BLE_OWN_ADDR_RANDOM
+ *                                      o BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT
+ *                                      o BLE_OWN_ADDR_RPA_RANDOM_DEFAULT
+ * @param direct_addr           The peer's address for directed advertising.
+ *                                  This parameter shall be non-NULL if directed
  *                                  advertising is being used.
  * @param duration_ms           The duration of the advertisement procedure.
  *                                  On expiration, the procedure ends and a
@@ -1901,8 +1777,8 @@ ble_gap_adv_validate(uint8_t own_addr_type, uint8_t peer_addr_type,
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
-                  const uint8_t *peer_addr, int32_t duration_ms,
+ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
+                  int32_t duration_ms,
                   const struct ble_gap_adv_params *adv_params,
                   ble_gap_event_fn *cb, void *cb_arg)
 {
@@ -1917,8 +1793,7 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
 
     ble_hs_lock();
 
-    rc = ble_gap_adv_validate(own_addr_type, peer_addr_type, peer_addr,
-                              adv_params);
+    rc = ble_gap_adv_validate(own_addr_type, direct_addr, adv_params);
     if (rc != 0) {
         goto done;
     }
@@ -1938,7 +1813,7 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: advertise; ");
-    ble_gap_log_adv(own_addr_type, peer_addr_type, peer_addr, adv_params);
+    ble_gap_log_adv(own_addr_type, direct_addr, adv_params);
     BLE_HS_LOG(INFO, "\n");
 
     ble_gap_slave.cb = cb;
@@ -1947,22 +1822,9 @@ ble_gap_adv_start(uint8_t own_addr_type, uint8_t peer_addr_type,
     ble_gap_slave.disc_mode = adv_params->disc_mode;
     ble_gap_slave.our_addr_type = own_addr_type;
 
-    rc = ble_gap_adv_params_tx(own_addr_type, peer_addr_type, peer_addr,
-                               adv_params);
+    rc = ble_gap_adv_params_tx(own_addr_type, direct_addr, adv_params);
     if (rc != 0) {
         goto done;
-    }
-
-    if (adv_params->conn_mode != BLE_GAP_CONN_MODE_DIR) {
-        rc = ble_gap_adv_data_tx();
-        if (rc != 0) {
-            goto done;
-        }
-
-        rc = ble_gap_adv_rsp_data_tx();
-        if (rc != 0) {
-            goto done;
-        }
     }
 
     ble_gap_slave.op = BLE_GAP_OP_S_ADV;
@@ -1991,6 +1853,92 @@ done:
 /**
  * Configures the data to include in subsequent advertisements.
  *
+ * @param data                  Buffer containing the advertising data.
+ * @param data_len              The size of the advertising data, in bytes.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              Other nonzero on failure.
+ */
+int
+ble_gap_adv_set_data(const uint8_t *data, int data_len)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
+    int rc;
+
+    STATS_INC(ble_gap_stats, adv_set_data);
+
+    ble_hs_lock();
+
+    /* Don't allow advertising fields to be set while advertising is active. */
+    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
+    rc = ble_hs_hci_cmd_build_le_set_adv_data(data, data_len, buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_HCI_ERR(rc);
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = 0;
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
+/**
+ * Configures the data to include in subsequent scan responses.
+ *
+ * @param data                  Buffer containing the scan response data.
+ * @param data_len              The size of the response data, in bytes.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              Other nonzero on failure.
+ */
+int
+ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_RSP_DATA_LEN];
+    int rc;
+
+    ble_hs_lock();
+
+    /* Don't allow advertising fields to be set while advertising is active. */
+    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
+    rc = ble_hs_hci_cmd_build_le_set_scan_rsp_data(data, data_len,
+                                                   buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_HCI_ERR(rc);
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = 0;
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
+/**
+ * Configures the fields to include in subsequent advertisements.  This is a
+ * higher-level version of ble_gap_adv_set_data().
+ *
  * @param adv_fields            Specifies the advertisement data.
  *
  * @return                      0 on success;
@@ -2002,93 +1950,51 @@ done:
 int
 ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields)
 {
-#if !NIMBLE_BLE_ADVERTISE
-    return BLE_HS_ENOTSUP;
-#endif
-
-    int max_sz;
+    uint8_t buf[BLE_HS_ADV_MAX_SZ];
+    uint8_t buf_sz;
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_set_fields);
-
-    ble_hs_lock();
-
-    /* Don't allow advertising fields to be set while advertising is active. */
-    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EBUSY;
-        goto done;
-    }
-
-    /* If application has requested the stack to calculate the flags field
-     * automatically (flags == 0), there is less room for user data.
-     */
-    if (adv_fields->flags_is_present && adv_fields->flags == 0) {
-        max_sz = BLE_GAP_ADV_DATA_LIMIT_FLAGS;
-        ble_gap_slave.adv_auto_flags = 1;
-    } else {
-        max_sz = BLE_GAP_ADV_DATA_LIMIT_NO_FLAGS;
-        ble_gap_slave.adv_auto_flags = 0;
-    }
-
-    rc = ble_hs_adv_set_fields(adv_fields, ble_gap_slave.adv_data,
-                               &ble_gap_slave.adv_data_len, max_sz);
+    rc = ble_hs_adv_set_fields(adv_fields, buf, &buf_sz, sizeof buf);
     if (rc != 0) {
-        goto done;
+        return rc;
     }
 
-done:
-    ble_hs_unlock();
-
+    rc = ble_gap_adv_set_data(buf, buf_sz);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_fields_fail);
+        return rc;
     }
-    return rc;
+
+    return 0;
 }
 
 /**
- * Configures the data to include in subsequent scan responses.
+ * Configures the fields to include in subsequent scan responses.  This is a
+ * higher-level version of ble_gap_adv_rsp_set_data().
  *
  * @param adv_fields            Specifies the scan response data.
  *
  * @return                      0 on success;
  *                              BLE_HS_EBUSY if advertising is in progress;
- *                              BLE_HS_EMSGSIZE if the specified data is too
- *                                  large to fit in an advertisement;
  *                              Other nonzero on failure.
  */
 int
 ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields)
 {
-#if !NIMBLE_BLE_ADVERTISE
-    return BLE_HS_ENOTSUP;
-#endif
-
+    uint8_t buf[BLE_HS_ADV_MAX_SZ];
+    uint8_t buf_sz;
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_rsp_set_fields);
-
-    ble_hs_lock();
-
-    /* Don't allow response fields to be set while advertising is active. */
-    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EBUSY;
-        goto done;
-    }
-
-    rc = ble_hs_adv_set_fields(rsp_fields, ble_gap_slave.rsp_data,
-                               &ble_gap_slave.rsp_data_len,
-                               BLE_HCI_MAX_ADV_DATA_LEN);
+    rc = ble_hs_adv_set_fields(rsp_fields, buf, &buf_sz, sizeof buf);
     if (rc != 0) {
-        goto done;
+        return rc;
     }
 
-done:
-    ble_hs_unlock();
-
+    rc = ble_gap_adv_rsp_set_data(buf, buf_sz);
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_rsp_set_fields_fail);
+        return rc;
     }
-    return rc;
+
+    return 0;
 }
 
 /**
@@ -2370,8 +2276,7 @@ ble_gap_disc_active(void)
  *****************************************************************************/
 
 static int
-ble_gap_conn_create_tx(uint8_t own_addr_type,
-                       uint8_t peer_addr_type, const uint8_t *peer_addr,
+ble_gap_conn_create_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                        const struct ble_gap_conn_params *params)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CREATE_CONN_LEN];
@@ -2381,7 +2286,7 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
     hcc.scan_itvl = params->scan_itvl;
     hcc.scan_window = params->scan_window;
 
-    if (peer_addr_type == BLE_GAP_ADDR_TYPE_WL) {
+    if (peer_addr == NULL) {
         /* Application wants to connect to any device in the white list.  The
          * peer address type and peer address fields are ignored by the
          * controller; fill them with dummy values.
@@ -2391,8 +2296,8 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
         memset(hcc.peer_addr, 0, sizeof hcc.peer_addr);
     } else {
         hcc.filter_policy = BLE_HCI_CONN_FILT_NO_WL;
-        hcc.peer_addr_type = peer_addr_type;
-        memcpy(hcc.peer_addr, peer_addr, sizeof hcc.peer_addr);
+        hcc.peer_addr_type = peer_addr->type;
+        memcpy(hcc.peer_addr, peer_addr->val, sizeof hcc.peer_addr);
     }
 
     hcc.own_addr_type = own_addr_type;
@@ -2421,19 +2326,13 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
  *
  * @param own_addr_type         The type of address the stack should use for
  *                                  itself during connection establishment.
- *                                      o BLE_ADDR_TYPE_PUBLIC
- *                                      o BLE_ADDR_TYPE_RANDOM
- *                                      o BLE_ADDR_TYPE_RPA_PUB_DEFAULT
- *                                      o BLE_ADDR_TYPE_RPA_RND_DEFAULT
- * @param peer_addr_type        The peer's address type.  One of:
- *                                      o BLE_HCI_CONN_PEER_ADDR_PUBLIC
- *                                      o BLE_HCI_CONN_PEER_ADDR_RANDOM
- *                                      o BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT
- *                                      o BLE_HCI_CONN_PEER_ADDR_RANDOM_IDENT
- *                                      o BLE_GAP_ADDR_TYPE_WL
- * @param peer_addr             The identity address of the peer to connect to.
- *                                  This parameter is ignored when the white
- *                                  list is used.
+ *                                      o BLE_OWN_ADDR_PUBLIC
+ *                                      o BLE_OWN_ADDR_RANDOM
+ *                                      o BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT
+ *                                      o BLE_OWN_ADDR_RPA_RANDOM_DEFAULT
+ * @param peer_addr             The address of the peer to connect to.
+ *                                  If this parameter is NULL, the white list
+ *                                  is used.
  * @param duration_ms           The duration of the discovery procedure.
  *                                  On expiration, the procedure ends and a
  *                                  BLE_GAP_EVENT_DISC_COMPLETE event is
@@ -2459,8 +2358,7 @@ ble_gap_conn_create_tx(uint8_t own_addr_type,
  *                              Other nonzero on error.
  */
 int
-ble_gap_connect(uint8_t own_addr_type,
-                uint8_t peer_addr_type, const uint8_t *peer_addr,
+ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                 int32_t duration_ms,
                 const struct ble_gap_conn_params *conn_params,
                 ble_gap_event_fn *cb, void *cb_arg)
@@ -2491,11 +2389,11 @@ ble_gap_connect(uint8_t own_addr_type,
         goto done;
     }
 
-    if (peer_addr_type != BLE_HCI_CONN_PEER_ADDR_PUBLIC &&
-        peer_addr_type != BLE_HCI_CONN_PEER_ADDR_RANDOM &&
-        peer_addr_type != BLE_HCI_CONN_PEER_ADDR_PUB_ID &&
-        peer_addr_type != BLE_HCI_CONN_PEER_ADDR_RAND_ID &&
-        peer_addr_type != BLE_GAP_ADDR_TYPE_WL) {
+    if (peer_addr &&
+        peer_addr->type != BLE_ADDR_PUBLIC &&
+        peer_addr->type != BLE_ADDR_RANDOM &&
+        peer_addr->type != BLE_ADDR_PUBLIC_ID &&
+        peer_addr->type != BLE_ADDR_RANDOM_ID) {
 
         rc = BLE_HS_EINVAL;
         goto done;
@@ -2519,7 +2417,7 @@ ble_gap_connect(uint8_t own_addr_type,
     }
 
     /* Verify peer not already connected. */
-    if (ble_hs_conn_find_by_addr(peer_addr_type, peer_addr) != NULL) {
+    if (ble_hs_conn_find_by_addr(peer_addr) != NULL) {
         rc = BLE_HS_EDONE;
         goto done;
     }
@@ -2532,17 +2430,17 @@ ble_gap_connect(uint8_t own_addr_type,
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: connect; ");
-    ble_gap_log_conn(own_addr_type, peer_addr_type, peer_addr, conn_params);
+    ble_gap_log_conn(own_addr_type, peer_addr, conn_params);
     BLE_HS_LOG(INFO, "\n");
 
     ble_gap_master.cb = cb;
     ble_gap_master.cb_arg = cb_arg;
-    ble_gap_master.conn.using_wl = peer_addr_type == BLE_GAP_ADDR_TYPE_WL;
+    ble_gap_master.conn.using_wl = peer_addr == NULL;
     ble_gap_master.conn.our_addr_type = own_addr_type;
 
     ble_gap_master.op = BLE_GAP_OP_M_CONN;
 
-    rc = ble_gap_conn_create_tx(own_addr_type, peer_addr_type, peer_addr,
+    rc = ble_gap_conn_create_tx(own_addr_type, peer_addr,
                                 conn_params);
     if (rc != 0) {
         ble_gap_master_reset_state();
@@ -2920,15 +2818,15 @@ ble_gap_validate_conn_params(const struct ble_gap_upd_params *params)
 
     /* Requirements from Bluetooth spec. v4.2 [Vol 2, Part E], 7.8.18 */
     if (params->itvl_min > params->itvl_max) {
-            return false;
+        return false;
     }
 
     if (params->itvl_min < 0x0006 || params->itvl_max > 0x0C80) {
-            return false;
+        return false;
     }
 
     if (params->latency > 0x01F3) {
-            return false;
+        return false;
     }
 
     if (params->supervision_timeout <=
@@ -2970,8 +2868,8 @@ ble_gap_update_params(uint16_t conn_handle,
     int rc;
 
     /* Validate parameters with a spec */
-    if (ble_gap_validate_conn_params(params)) {
-            return BLE_HS_EINVAL;
+    if (!ble_gap_validate_conn_params(params)) {
+        return BLE_HS_EINVAL;
     }
 
     STATS_INC(ble_gap_stats, update);
@@ -3083,8 +2981,7 @@ ble_gap_security_initiate(uint16_t conn_handle)
         ble_hs_conn_addrs(conn, &addrs);
 
         memset(&key_sec, 0, sizeof key_sec);
-        key_sec.peer_addr_type = addrs.peer_id_addr_type;
-        memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
+        key_sec.peer_addr = addrs.peer_id_addr;
     }
     ble_hs_unlock();
 
@@ -3204,6 +3101,23 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
     if (status == 0 && security_restored) {
         ble_gatts_bonding_restored(conn_handle);
     }
+}
+
+void
+ble_gap_identity_event(uint16_t conn_handle)
+{
+#if !NIMBLE_BLE_SM
+    return;
+#endif
+
+    struct ble_gap_event event;
+
+    BLE_HS_LOG(DEBUG, "send identity changed");
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_IDENTITY_RESOLVED;
+    event.identity_resolved.conn_handle = conn_handle;
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
 /*****************************************************************************

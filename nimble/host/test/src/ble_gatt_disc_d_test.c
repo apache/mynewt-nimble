@@ -98,7 +98,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
             break;
         }
 
-        htole16(buf + off, dscs[i].dsc_handle);
+        put_le16(buf + off, dscs[i].dsc_handle);
         off += 2;
 
         ble_uuid_flat(&dscs[i].dsc_uuid.u, buf + off);

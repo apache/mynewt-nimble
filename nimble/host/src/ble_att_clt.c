@@ -132,7 +132,7 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
     if (chan == NULL) {
         rc = BLE_HS_ENOTCONN;
-    } else if (chan->blc_flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
+    } else if (chan->flags & BLE_L2CAP_CHAN_F_TXED_MTU) {
         rc = BLE_HS_EALREADY;
     } else {
         rc = 0;
@@ -159,7 +159,7 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
     ble_hs_lock();
 
     ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+    chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
 
     ble_hs_unlock();
 
@@ -185,7 +185,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
 
         ble_att_conn_chan_find(conn_handle, NULL, &chan);
         ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-        mtu = ble_l2cap_chan_mtu(chan);
+        mtu = ble_att_chan_mtu(chan);
 
         ble_hs_unlock();
 
@@ -259,7 +259,7 @@ ble_att_clt_parse_find_info_entry(struct os_mbuf **rxom, uint8_t rsp_format,
         return rc;
     }
 
-    idata->attr_handle = le16toh((*rxom)->om_data);
+    idata->attr_handle = get_le16((*rxom)->om_data);
 
     switch (rsp_format) {
     case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
@@ -496,7 +496,7 @@ ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
         return rc;
     }
 
-    adata->att_handle = le16toh((*om)->om_data + 0);
+    adata->att_handle = get_le16((*om)->om_data + 0);
     adata->value_len = data_len - BLE_ATT_READ_TYPE_ADATA_BASE_SZ;
     adata->value = (*om)->om_data + BLE_ATT_READ_TYPE_ADATA_BASE_SZ;
 
@@ -681,7 +681,7 @@ ble_att_clt_build_read_mult_req(const uint16_t *att_handles,
             goto err;
         }
 
-        htole16(buf, att_handles[i]);
+        put_le16(buf, att_handles[i]);
     }
 
     *out_txom = txom;
@@ -809,8 +809,8 @@ ble_att_clt_parse_read_group_type_adata(
         return rc;
     }
 
-    adata->att_handle = le16toh((*om)->om_data + 0);
-    adata->end_group_handle = le16toh((*om)->om_data + 2);
+    adata->att_handle = get_le16((*om)->om_data + 0);
+    adata->end_group_handle = get_le16((*om)->om_data + 2);
     adata->value_len = data_len - BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ;
     adata->value = (*om)->om_data + BLE_ATT_READ_GROUP_TYPE_ADATA_BASE_SZ;
 

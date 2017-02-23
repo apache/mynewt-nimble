@@ -20,11 +20,13 @@
 
 syscfg.defs:
     BLE_DEVICE:
-        description: 'TBD'
+        description: >
+            Used by package management system to include BLE hardware
+            drivers.
         value: 1
 
     BLE_LL_PRIO:
-        description: 'TBD'
+        description: 'The priority of the LL task'
         type: 'task_priority'
         value: 0
 
@@ -51,11 +53,11 @@ syscfg.defs:
     #  The values provided below are merely meant to be an example and should
     #  be replaced by values appropriate for your platform.
     BLE_LL_OUR_SCA:
-        description: 'TBD'
+        description: 'The system clock accuracy of the device.'
         value: '60'    # in ppm
 
     BLE_LL_MASTER_SCA:
-        description: 'TBD'
+        description: 'Enumerated value based on our sca'
         value: '4'
 
     BLE_LL_TX_PWR_DBM:
@@ -77,10 +79,12 @@ syscfg.defs:
     # Configuration items for the number of duplicate advertisers and the
     # number of advertisers from which we have heard a scan response.
     BLE_LL_NUM_SCAN_DUP_ADVS:
-        description: 'TBD'
+        description: 'The number of duplicate advertisers stored.'
         value: '8'
     BLE_LL_NUM_SCAN_RSP_ADVS:
-        description: 'TBD'
+        description: >
+            The number of advertisers from which we have heard a scan
+            response. Prevents sending duplicate events to host.
         value: '8'
 
     BLE_LL_WHITELIST_SIZE:
@@ -95,16 +99,21 @@ syscfg.defs:
     # maximum size of the PDU's that will be sent and/or received in a
     # connection.
     BLE_LL_MAX_PKT_SIZE:
-        description: 'TBD'
+        description: 'The maximum PDU size that can be sent/received'
         value: '251'
     BLE_LL_SUPP_MAX_RX_BYTES:
-        description: 'TBD'
+        description: 'The maximum supported received PDU size'
         value: 'MYNEWT_VAL_BLE_LL_MAX_PKT_SIZE'
     BLE_LL_SUPP_MAX_TX_BYTES:
-        description: 'TBD'
+        description: 'The maximum supported transmit PDU size'
         value: 'MYNEWT_VAL_BLE_LL_MAX_PKT_SIZE'
     BLE_LL_CONN_INIT_MAX_TX_BYTES:
-        description: 'TBD'
+        description: >
+            Used to set the initial maximum transmit PDU size in a
+            connection. If this is set to a value greater than 27,
+            the controller will automatically attempt to do the
+            data length update procedure. The host can always tell
+            the controller to update this value.
         value: '27'
 
     # The number of slots that will be allocated to each connection
@@ -121,7 +130,11 @@ syscfg.defs:
 
     # The number of random bytes to store
     BLE_LL_RNG_BUFSIZE:
-        description: 'TBD'
+        description: >
+            The number of random bytes that the link layer will try to
+            always have available for the host to use. Decreasing this
+            value may cause host delays if the host needs lots of random
+            material often.
         value: '32'
 
     # Configuration for LL supported features.

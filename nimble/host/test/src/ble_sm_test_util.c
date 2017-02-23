@@ -69,6 +69,295 @@ struct ble_sm_test_util_entity {
         .hdh_len = (len)                                \
     })
 
+static void
+ble_sm_pair_cmd_parse(void *payload, int len, struct ble_sm_pair_cmd *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_cmd));
+
+    u8ptr = payload;
+    cmd->io_cap = u8ptr[0];
+    cmd->oob_data_flag = u8ptr[1];
+    cmd->authreq = u8ptr[2];
+    cmd->max_enc_key_size = u8ptr[3];
+    cmd->init_key_dist = u8ptr[4];
+    cmd->resp_key_dist = u8ptr[5];
+}
+
+static void
+ble_sm_pair_cmd_write(void *payload, int len, int is_req,
+                      struct ble_sm_pair_cmd *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd));
+
+    u8ptr = payload;
+    u8ptr[0] = is_req ? BLE_SM_OP_PAIR_REQ : BLE_SM_OP_PAIR_RSP;
+    u8ptr[1] = cmd->io_cap;
+    u8ptr[2] = cmd->oob_data_flag;
+    u8ptr[3] = cmd->authreq;
+    u8ptr[4] = cmd->max_enc_key_size;
+    u8ptr[5] = cmd->init_key_dist;
+    u8ptr[6] = cmd->resp_key_dist;
+}
+
+static void
+ble_sm_pair_confirm_parse(void *payload, int len,
+                          struct ble_sm_pair_confirm *cmd)
+{
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_confirm));
+    memcpy(cmd->value, payload, sizeof cmd->value);
+}
+
+static void
+ble_sm_pair_confirm_write(void *payload, int len,
+                          struct ble_sm_pair_confirm *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_confirm));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_PAIR_CONFIRM;
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->value, sizeof cmd->value);
+}
+
+static void
+ble_sm_pair_random_parse(void *payload, int len,
+                         struct ble_sm_pair_random *cmd)
+{
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_random));
+    memcpy(cmd->value, payload, sizeof cmd->value);
+}
+
+static void
+ble_sm_pair_random_write(void *payload, int len,
+                         struct ble_sm_pair_random *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_random));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_PAIR_RANDOM;
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->value, sizeof cmd->value);
+}
+
+static void
+ble_sm_pair_fail_parse(void *payload, int len, struct ble_sm_pair_fail *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_pair_fail));
+
+    u8ptr = payload;
+    cmd->reason = u8ptr[0];
+}
+
+static void
+ble_sm_enc_info_parse(void *payload, int len, struct ble_sm_enc_info *cmd)
+{
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_enc_info));
+
+    memcpy(cmd->ltk, payload, sizeof cmd->ltk);
+}
+
+static void
+ble_sm_enc_info_write(void *payload, int len, struct ble_sm_enc_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_enc_info));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_ENC_INFO;
+    memcpy(u8ptr + 1, cmd->ltk, sizeof cmd->ltk);
+}
+
+static void
+ble_sm_master_id_parse(void *payload, int len, struct ble_sm_master_id *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_master_id));
+
+    u8ptr = payload;
+
+    cmd->ediv = get_le16(u8ptr);
+    cmd->rand_val = get_le64(u8ptr + 2);
+}
+
+static void
+ble_sm_master_id_write(void *payload, int len, struct ble_sm_master_id *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_master_id));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_MASTER_ID;
+    put_le16(u8ptr + 1, cmd->ediv);
+    put_le64(u8ptr + 3, cmd->rand_val);
+}
+
+static void
+ble_sm_id_info_parse(void *payload, int len, struct ble_sm_id_info *cmd)
+{
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_id_info));
+
+    memcpy(cmd->irk, payload, 16);
+}
+
+static void
+ble_sm_id_info_write(void *payload, int len, struct ble_sm_id_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_info));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_IDENTITY_INFO;
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->irk, sizeof cmd->irk);
+}
+
+static void
+ble_sm_id_addr_info_parse(void *payload, int len,
+                          struct ble_sm_id_addr_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_id_addr_info));
+
+    u8ptr = payload;
+
+    cmd->addr_type = *u8ptr;
+    memcpy(cmd->bd_addr, u8ptr + 1, 6);
+}
+
+static void
+ble_sm_id_addr_info_write(void *payload, int len,
+                          struct ble_sm_id_addr_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_addr_info));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_IDENTITY_ADDR_INFO;
+    u8ptr[1] = cmd->addr_type;
+    memcpy(u8ptr + 2, cmd->bd_addr, sizeof cmd->bd_addr);
+}
+
+static void
+ble_sm_sign_info_parse(void *payload, int len, struct ble_sm_sign_info *cmd)
+{
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_sign_info));
+
+    memcpy(cmd->sig_key, payload, 16);
+}
+
+static void
+ble_sm_sign_info_write(void *payload, int len, struct ble_sm_sign_info *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sign_info));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_SIGN_INFO;
+    memcpy(u8ptr + sizeof(struct ble_sm_hdr), cmd->sig_key, sizeof cmd->sig_key);
+}
+
+static void
+ble_sm_sec_req_parse(void *payload, int len, struct ble_sm_sec_req *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_sec_req));
+
+    u8ptr = payload;
+    cmd->authreq = *u8ptr;
+}
+
+static void
+ble_sm_sec_req_write(void *payload, int len, struct ble_sm_sec_req *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sec_req));
+
+    u8ptr = payload;
+
+    u8ptr[0] = BLE_SM_OP_SEC_REQ;
+    u8ptr[1] = cmd->authreq;
+}
+
+static void
+ble_sm_public_key_parse(void *payload, int len, struct ble_sm_public_key *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_public_key));
+
+    u8ptr = payload;
+
+    memcpy(cmd->x, u8ptr, sizeof cmd->x);
+    u8ptr += sizeof cmd->x;
+
+    memcpy(cmd->y, u8ptr, sizeof cmd->y);
+    u8ptr += sizeof cmd->y;
+}
+
+static void
+ble_sm_public_key_write(void *payload, int len, struct ble_sm_public_key *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_public_key));
+
+    u8ptr = payload;
+
+    *u8ptr = BLE_SM_OP_PAIR_PUBLIC_KEY;
+    u8ptr++;
+
+    memcpy(u8ptr, cmd->x, sizeof cmd->x);
+    memcpy(u8ptr + 32, cmd->y, sizeof cmd->y);
+}
+
+static void
+ble_sm_dhkey_check_parse(void *payload, int len,
+                         struct ble_sm_dhkey_check *cmd)
+{
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_dhkey_check));
+
+    memcpy(cmd->value, payload, sizeof cmd->value);
+}
+
+static void
+ble_sm_dhkey_check_write(void *payload, int len,
+                         struct ble_sm_dhkey_check *cmd)
+{
+    uint8_t *u8ptr;
+
+    BLE_HS_DBG_ASSERT(len >= sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_dhkey_check));
+
+    u8ptr = payload;
+
+    *u8ptr = BLE_SM_OP_PAIR_DHKEY_CHECK;
+    u8ptr++;
+
+    memcpy(u8ptr, cmd->value, sizeof cmd->value);
+}
+
 void
 ble_sm_test_util_init(void)
 {
@@ -274,12 +563,12 @@ ble_sm_test_util_rx_pair_cmd(uint16_t conn_handle, uint8_t op,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_PAIR_CMD_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_cmd);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -321,12 +610,12 @@ ble_sm_test_util_rx_confirm(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PAIR_CONFIRM_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_confirm));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_PAIR_CONFIRM_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_confirm);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -351,12 +640,12 @@ ble_sm_test_util_rx_random(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PAIR_RANDOM_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_random));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_PAIR_RANDOM_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_pair_random);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -380,12 +669,12 @@ ble_sm_test_util_rx_sec_req(uint16_t conn_handle, struct ble_sm_sec_req *cmd,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_SEC_REQ_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sec_req));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_SEC_REQ_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sec_req);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -409,12 +698,12 @@ ble_sm_test_util_rx_public_key(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_PUBLIC_KEY_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_public_key));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_PUBLIC_KEY_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_public_key);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -439,12 +728,12 @@ ble_sm_test_util_rx_dhkey_check(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_DHKEY_CHECK_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_dhkey_check));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_DHKEY_CHECK_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_dhkey_check);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -469,12 +758,12 @@ ble_sm_test_util_rx_enc_info(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_ENC_INFO_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_enc_info));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_ENC_INFO_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_enc_info);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -499,12 +788,12 @@ ble_sm_test_util_rx_master_id(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_MASTER_ID_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_master_id));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_MASTER_ID_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_master_id);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -529,12 +818,12 @@ ble_sm_test_util_rx_id_info(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_ID_INFO_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_info));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_ID_INFO_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_info);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -559,12 +848,12 @@ ble_sm_test_util_rx_id_addr_info(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_ID_ADDR_INFO_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_addr_info));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_ID_ADDR_INFO_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_id_addr_info);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -589,12 +878,12 @@ ble_sm_test_util_rx_sign_info(uint16_t conn_handle,
 
     hci_hdr = BLE_SM_TEST_UTIL_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
-        BLE_L2CAP_HDR_SZ + BLE_SM_HDR_SZ + BLE_SM_SIGN_INFO_SZ);
+        BLE_L2CAP_HDR_SZ + sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sign_info));
 
     om = ble_hs_mbuf_l2cap_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
-    payload_len = BLE_SM_HDR_SZ + BLE_SM_SIGN_INFO_SZ;
+    payload_len = sizeof(struct ble_sm_hdr) + sizeof(struct ble_sm_sign_info);
 
     v = os_mbuf_extend(om, payload_len);
     TEST_ASSERT_FATAL(v != NULL);
@@ -614,11 +903,11 @@ ble_sm_test_util_verify_tx_hdr(uint8_t sm_op, uint16_t payload_len)
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
 
-    TEST_ASSERT(OS_MBUF_PKTLEN(om) == BLE_SM_HDR_SZ + payload_len);
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) == sizeof(struct ble_sm_hdr) + payload_len);
     TEST_ASSERT_FATAL(om->om_data[0] == sm_op);
 
-    om->om_data += BLE_SM_HDR_SZ;
-    om->om_len -= BLE_SM_HDR_SZ;
+    om->om_data += sizeof(struct ble_sm_hdr);
+    om->om_len -= sizeof(struct ble_sm_hdr);
 
     return om;
 }
@@ -631,7 +920,7 @@ ble_sm_test_util_verify_tx_pair_cmd(
     struct ble_sm_pair_cmd cmd;
     struct os_mbuf *om;
 
-    om = ble_sm_test_util_verify_tx_hdr(op, BLE_SM_PAIR_CMD_SZ);
+    om = ble_sm_test_util_verify_tx_hdr(op, sizeof(struct ble_sm_pair_cmd));
     ble_sm_pair_cmd_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.io_cap == exp_cmd->io_cap);
@@ -665,8 +954,7 @@ ble_sm_test_util_verify_tx_pair_confirm(
     struct ble_sm_pair_confirm cmd;
     struct os_mbuf *om;
 
-    om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_CONFIRM,
-                                        BLE_SM_PAIR_CONFIRM_SZ);
+    om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_CONFIRM, sizeof(cmd));
     ble_sm_pair_confirm_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.value, exp_cmd->value, 16) == 0);
@@ -680,7 +968,7 @@ ble_sm_test_util_verify_tx_pair_random(
     struct os_mbuf *om;
 
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_RANDOM,
-                                        BLE_SM_PAIR_RANDOM_SZ);
+                                        sizeof(struct ble_sm_pair_random));
     ble_sm_pair_random_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.value, exp_cmd->value, 16) == 0);
@@ -696,7 +984,7 @@ ble_sm_test_util_verify_tx_public_key(
     ble_hs_test_util_tx_all();
 
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_PUBLIC_KEY,
-                                              BLE_SM_PUBLIC_KEY_SZ);
+                                        sizeof(struct ble_sm_public_key));
     ble_sm_public_key_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.x, exp_cmd->x, sizeof cmd.x) == 0);
@@ -711,7 +999,7 @@ ble_sm_test_util_verify_tx_dhkey_check(
     struct os_mbuf *om;
 
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_DHKEY_CHECK,
-                                              BLE_SM_DHKEY_CHECK_SZ);
+                                        sizeof(struct ble_sm_dhkey_check));
     ble_sm_dhkey_check_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.value, exp_cmd->value, 16) == 0);
@@ -725,7 +1013,7 @@ ble_sm_test_util_verify_tx_enc_info(struct ble_sm_enc_info *exp_cmd)
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_ENC_INFO,
-                                        BLE_SM_ENC_INFO_SZ);
+                                        sizeof(struct ble_sm_enc_info));
     ble_sm_enc_info_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.ltk, exp_cmd->ltk, 16) == 0);
@@ -742,7 +1030,7 @@ ble_sm_test_util_verify_tx_master_id(struct ble_sm_master_id *exp_cmd)
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_MASTER_ID,
-                                        BLE_SM_MASTER_ID_SZ);
+                                        sizeof(struct ble_sm_master_id));
     ble_sm_master_id_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.ediv == exp_cmd->ediv);
@@ -757,7 +1045,7 @@ ble_sm_test_util_verify_tx_id_info(struct ble_sm_id_info *exp_cmd)
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_INFO,
-                                        BLE_SM_ID_INFO_SZ);
+                                        sizeof(struct ble_sm_id_info));
     ble_sm_id_info_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.irk, exp_cmd->irk, 16) == 0);
@@ -782,7 +1070,7 @@ ble_sm_test_util_verify_tx_id_addr_info(struct ble_sm_id_addr_info *exp_cmd)
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_IDENTITY_ADDR_INFO,
-                                        BLE_SM_ID_ADDR_INFO_SZ);
+                                        sizeof(struct ble_sm_id_addr_info));
     ble_sm_id_addr_info_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.addr_type == exp_cmd->addr_type);
@@ -798,7 +1086,7 @@ ble_sm_test_util_verify_tx_sign_info(struct ble_sm_sign_info *exp_cmd)
 
     ble_hs_test_util_tx_all();
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_SIGN_INFO,
-                                        BLE_SM_ID_INFO_SZ);
+                                        sizeof(struct ble_sm_sign_info));
     ble_sm_sign_info_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(memcmp(cmd.sig_key, exp_cmd->sig_key, 16) == 0);
@@ -815,7 +1103,7 @@ ble_sm_test_util_verify_tx_sec_req(struct ble_sm_sec_req *exp_cmd)
 
     ble_hs_test_util_tx_all();
 
-    om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_SEC_REQ, BLE_SM_SEC_REQ_SZ);
+    om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_SEC_REQ, sizeof(struct ble_sm_sec_req));
     ble_sm_sec_req_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.authreq == exp_cmd->authreq);
@@ -829,7 +1117,7 @@ ble_sm_test_util_verify_tx_pair_fail(
     struct os_mbuf *om;
 
     om = ble_sm_test_util_verify_tx_hdr(BLE_SM_OP_PAIR_FAIL,
-                                        BLE_SM_PAIR_FAIL_SZ);
+                                        sizeof(struct ble_sm_pair_fail));
     ble_sm_pair_fail_parse(om->om_data, om->om_len, &cmd);
 
     TEST_ASSERT(cmd.reason == exp_cmd->reason);
@@ -860,7 +1148,7 @@ ble_sm_test_util_verify_tx_lt_key_req_reply(uint16_t conn_handle, uint8_t *stk)
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LT_KEY_REQ_REPLY_LEN);
-    TEST_ASSERT(le16toh(param + 0) == conn_handle);
+    TEST_ASSERT(get_le16(param + 0) == conn_handle);
     TEST_ASSERT(memcmp(param + 2, stk, 16) == 0);
 }
 
@@ -874,7 +1162,7 @@ ble_sm_test_util_verify_tx_lt_key_req_neg_reply(uint16_t conn_handle)
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN);
-    TEST_ASSERT(le16toh(param + 0) == conn_handle);
+    TEST_ASSERT(get_le16(param + 0) == conn_handle);
 }
 
 static void
@@ -883,7 +1171,7 @@ ble_sm_test_util_set_lt_key_req_neg_reply_ack(uint8_t status,
 {
     static uint8_t params[BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN];
 
-    htole16(params, conn_handle);
+    put_le16(params, conn_handle);
     ble_hs_test_util_set_ack_params(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
@@ -895,7 +1183,7 @@ ble_sm_test_util_set_lt_key_req_reply_ack(uint8_t status, uint16_t conn_handle)
 {
     static uint8_t params[BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN];
 
-    htole16(params, conn_handle);
+    put_le16(params, conn_handle);
     ble_hs_test_util_set_ack_params(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
@@ -928,9 +1216,9 @@ ble_sm_test_util_verify_tx_start_enc(uint16_t conn_handle,
                                            BLE_HCI_OCF_LE_START_ENCRYPT,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LE_START_ENCRYPT_LEN);
-    TEST_ASSERT(le16toh(param + 0) == conn_handle);
-    TEST_ASSERT(le64toh(param + 2) == random_number);
-    TEST_ASSERT(le16toh(param + 10) == ediv);
+    TEST_ASSERT(get_le16(param + 0) == conn_handle);
+    TEST_ASSERT(get_le64(param + 2) == random_number);
+    TEST_ASSERT(get_le16(param + 10) == ediv);
     TEST_ASSERT(memcmp(param + 12, ltk, 16) == 0);
 }
 
@@ -1096,7 +1384,7 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
               params->pair_rsp.authreq & BLE_SM_PAIR_AUTHREQ_BOND;
 
     memset(&key_sec, 0, sizeof key_sec);
-    key_sec.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE;
+    key_sec.peer_addr = *BLE_ADDR_ANY;
 
     rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     if (!bonding) {
@@ -1112,8 +1400,8 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
         csrk_expected =
             !!(peer_entity.key_dist & BLE_SM_PAIR_KEY_DIST_SIGN);
 
-        TEST_ASSERT(value_sec.peer_addr_type == peer_entity.id_addr_type);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_entity.id_addr, 6) == 0);
+        TEST_ASSERT(value_sec.peer_addr.type == peer_entity.id_addr_type);
+        TEST_ASSERT(memcmp(value_sec.peer_addr.val, peer_entity.id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == peer_entity.ediv);
         TEST_ASSERT(value_sec.rand_num == peer_entity.rand_num);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -1147,8 +1435,8 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params,
         csrk_expected =
             !!(our_entity.key_dist & BLE_SM_PAIR_KEY_DIST_SIGN);
 
-        TEST_ASSERT(value_sec.peer_addr_type == peer_entity.id_addr_type);
-        TEST_ASSERT(memcmp(value_sec.peer_addr, peer_entity.id_addr, 6) == 0);
+        TEST_ASSERT(value_sec.peer_addr.type == peer_entity.id_addr_type);
+        TEST_ASSERT(memcmp(value_sec.peer_addr.val, peer_entity.id_addr, 6) == 0);
         TEST_ASSERT(value_sec.ediv == our_entity.ediv);
         TEST_ASSERT(value_sec.rand_num == our_entity.rand_num);
         TEST_ASSERT(value_sec.authenticated == params->authenticated);
@@ -1227,7 +1515,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
 
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_sm_test_store_obj_type == BLE_STORE_OBJ_TYPE_OUR_SEC);
-    TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr_type ==
+    TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr.type ==
                 ble_hs_misc_addr_type_to_id(peer_addr_type));
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
     TEST_ASSERT(ble_sm_test_store_key.sec.ediv == ediv);

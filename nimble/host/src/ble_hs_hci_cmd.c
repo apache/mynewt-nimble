@@ -55,7 +55,7 @@ ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len, void *buf)
     u8ptr = buf;
 
     opcode = (ogf << 10) | ocf;
-    htole16(u8ptr, opcode);
+    put_le16(u8ptr, opcode);
     u8ptr[2] = len;
 }
 
@@ -68,7 +68,7 @@ ble_hs_hci_cmd_send(uint8_t ogf, uint16_t ocf, uint8_t len, const void *cmddata)
     buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
     BLE_HS_DBG_ASSERT(buf != NULL);
 
-    htole16(buf, ogf << 10 | ocf);
+    put_le16(buf, ogf << 10 | ocf);
     buf[2] = len;
     if (len != 0) {
         memcpy(buf + BLE_HCI_CMD_HDR_LEN, cmddata, len);
@@ -117,7 +117,7 @@ ble_hs_hci_cmd_send_buf(void *buf)
 
     u8ptr = buf;
 
-    opcode = le16toh(u8ptr + 0);
+    opcode = get_le16(u8ptr + 0);
     len = u8ptr[2];
 
     rc = ble_hs_hci_cmd_send(BLE_HCI_OGF(opcode), BLE_HCI_OCF(opcode), len,
@@ -162,7 +162,7 @@ static int
 ble_hs_hci_cmd_body_le_whitelist_chg(const uint8_t *addr, uint8_t addr_type,
                                      uint8_t *dst)
 {
-    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -208,8 +208,8 @@ ble_hs_hci_cmd_body_le_set_adv_params(const struct hci_adv_params *adv,
         }
     }
 
-    htole16(dst, adv->adv_itvl_min);
-    htole16(dst + 2, adv->adv_itvl_max);
+    put_le16(dst, adv->adv_itvl_min);
+    put_le16(dst + 2, adv->adv_itvl_max);
     dst[4] = adv->adv_type;
     dst[5] = adv->own_addr_type;
     dst[6] = adv->peer_addr_type;
@@ -343,7 +343,7 @@ ble_hs_hci_cmd_build_le_set_scan_rsp_data(const uint8_t *data, uint8_t len,
 static void
 ble_hs_hci_cmd_body_set_event_mask(uint64_t event_mask, uint8_t *dst)
 {
-    htole64(dst, event_mask);
+    put_le64(dst, event_mask);
 }
 
 void
@@ -379,7 +379,7 @@ ble_hs_hci_cmd_build_set_event_mask2(uint64_t event_mask,
 static void
 ble_hs_hci_cmd_body_disconnect(uint16_t handle, uint8_t reason, uint8_t *dst)
 {
-    htole16(dst + 0, handle);
+    put_le16(dst + 0, handle);
     dst[2] = reason;
 }
 
@@ -414,7 +414,7 @@ ble_hs_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
 static void
 ble_hs_hci_cmd_body_le_set_event_mask(uint64_t event_mask, uint8_t *dst)
 {
-    htole64(dst, event_mask);
+    put_le64(dst, event_mask);
 }
 
 void
@@ -527,8 +527,8 @@ ble_hs_hci_cmd_body_le_set_scan_params(
     }
 
     dst[0] = scan_type;
-    htole16(dst + 1, scan_itvl);
-    htole16(dst + 3, scan_window);
+    put_le16(dst + 1, scan_itvl);
+    put_le16(dst + 3, scan_window);
     dst[5] = own_addr_type;
     dst[6] = filter_policy;
 
@@ -642,18 +642,18 @@ ble_hs_hci_cmd_body_le_create_connection(const struct hci_create_conn *hcc,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    htole16(cmd + 0, hcc->scan_itvl);
-    htole16(cmd + 2, hcc->scan_window);
+    put_le16(cmd + 0, hcc->scan_itvl);
+    put_le16(cmd + 2, hcc->scan_window);
     cmd[4] = hcc->filter_policy;
     cmd[5] = hcc->peer_addr_type;
     memcpy(cmd + 6, hcc->peer_addr, BLE_DEV_ADDR_LEN);
     cmd[12] = hcc->own_addr_type;
-    htole16(cmd + 13, hcc->conn_itvl_min);
-    htole16(cmd + 15, hcc->conn_itvl_max);
-    htole16(cmd + 17, hcc->conn_latency);
-    htole16(cmd + 19, hcc->supervision_timeout);
-    htole16(cmd + 21, hcc->min_ce_len);
-    htole16(cmd + 23, hcc->max_ce_len);
+    put_le16(cmd + 13, hcc->conn_itvl_min);
+    put_le16(cmd + 15, hcc->conn_itvl_max);
+    put_le16(cmd + 17, hcc->conn_latency);
+    put_le16(cmd + 19, hcc->supervision_timeout);
+    put_le16(cmd + 21, hcc->min_ce_len);
+    put_le16(cmd + 23, hcc->max_ce_len);
 
     return 0;
 }
@@ -778,13 +778,13 @@ ble_hs_hci_cmd_body_le_conn_update(const struct hci_conn_update *hcu,
                                    uint8_t *dst)
 {
     /* XXX: add parameter checking later */
-    htole16(dst + 0, hcu->handle);
-    htole16(dst + 2, hcu->conn_itvl_min);
-    htole16(dst + 4, hcu->conn_itvl_max);
-    htole16(dst + 6, hcu->conn_latency);
-    htole16(dst + 8, hcu->supervision_timeout);
-    htole16(dst + 10, hcu->min_ce_len);
-    htole16(dst + 12, hcu->max_ce_len);
+    put_le16(dst + 0, hcu->handle);
+    put_le16(dst + 2, hcu->conn_itvl_min);
+    put_le16(dst + 4, hcu->conn_itvl_max);
+    put_le16(dst + 6, hcu->conn_latency);
+    put_le16(dst + 8, hcu->supervision_timeout);
+    put_le16(dst + 10, hcu->min_ce_len);
+    put_le16(dst + 12, hcu->max_ce_len);
 
     return 0;
 }
@@ -834,7 +834,7 @@ static void
 ble_hs_hci_cmd_body_le_lt_key_req_reply(const struct hci_lt_key_req_reply *hkr,
                                         uint8_t *dst)
 {
-    htole16(dst + 0, hkr->conn_handle);
+    put_le16(dst + 0, hkr->conn_handle);
     memcpy(dst + 2, hkr->long_term_key, sizeof hkr->long_term_key);
 }
 
@@ -878,20 +878,20 @@ ble_hs_hci_cmd_build_le_lt_key_req_neg_reply(uint16_t conn_handle,
                              BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN, dst);
     dst += BLE_HCI_CMD_HDR_LEN;
 
-    htole16(dst + 0, conn_handle);
+    put_le16(dst + 0, conn_handle);
 }
 
 static void
 ble_hs_hci_cmd_body_le_conn_param_reply(const struct hci_conn_param_reply *hcr,
                                         uint8_t *dst)
 {
-    htole16(dst + 0, hcr->handle);
-    htole16(dst + 2, hcr->conn_itvl_min);
-    htole16(dst + 4, hcr->conn_itvl_max);
-    htole16(dst + 6, hcr->conn_latency);
-    htole16(dst + 8, hcr->supervision_timeout);
-    htole16(dst + 10, hcr->min_ce_len);
-    htole16(dst + 12, hcr->max_ce_len);
+    put_le16(dst + 0, hcr->handle);
+    put_le16(dst + 2, hcr->conn_itvl_min);
+    put_le16(dst + 4, hcr->conn_itvl_max);
+    put_le16(dst + 6, hcr->conn_latency);
+    put_le16(dst + 8, hcr->supervision_timeout);
+    put_le16(dst + 10, hcr->min_ce_len);
+    put_le16(dst + 12, hcr->max_ce_len);
 }
 
 void
@@ -914,13 +914,13 @@ ble_hs_hci_cmd_le_conn_param_reply(const struct hci_conn_param_reply *hcr)
     uint8_t cmd[BLE_HCI_CONN_PARAM_REPLY_LEN];
     int rc;
 
-    htole16(cmd + 0, hcr->handle);
-    htole16(cmd + 2, hcr->conn_itvl_min);
-    htole16(cmd + 4, hcr->conn_itvl_max);
-    htole16(cmd + 6, hcr->conn_latency);
-    htole16(cmd + 8, hcr->supervision_timeout);
-    htole16(cmd + 10, hcr->min_ce_len);
-    htole16(cmd + 12, hcr->max_ce_len);
+    put_le16(cmd + 0, hcr->handle);
+    put_le16(cmd + 2, hcr->conn_itvl_min);
+    put_le16(cmd + 4, hcr->conn_itvl_max);
+    put_le16(cmd + 6, hcr->conn_latency);
+    put_le16(cmd + 8, hcr->supervision_timeout);
+    put_le16(cmd + 10, hcr->min_ce_len);
+    put_le16(cmd + 12, hcr->max_ce_len);
 
     rc = ble_hs_hci_cmd_le_send(BLE_HCI_OCF_LE_REM_CONN_PARAM_RR,
                               BLE_HCI_CONN_PARAM_REPLY_LEN, cmd);
@@ -931,7 +931,7 @@ static void
 ble_hs_hci_cmd_body_le_conn_param_neg_reply(
     const struct hci_conn_param_neg_reply *hcn, uint8_t *dst)
 {
-    htole16(dst + 0, hcn->handle);
+    put_le16(dst + 0, hcn->handle);
     dst[2] = hcn->reason;
 }
 
@@ -983,9 +983,9 @@ static void
 ble_hs_hci_cmd_body_le_start_encrypt(const struct hci_start_encrypt *cmd,
                                      uint8_t *dst)
 {
-    htole16(dst + 0, cmd->connection_handle);
-    htole64(dst + 2, cmd->random_number);
-    htole16(dst + 10, cmd->encrypted_diversifier);
+    put_le16(dst + 0, cmd->connection_handle);
+    put_le64(dst + 2, cmd->random_number);
+    put_le16(dst + 10, cmd->encrypted_diversifier);
     memcpy(dst + 12, cmd->long_term_key, sizeof cmd->long_term_key);
 }
 
@@ -1018,7 +1018,7 @@ ble_hs_hci_cmd_build_le_start_encrypt(const struct hci_start_encrypt *cmd,
 static void
 ble_hs_hci_cmd_body_read_rssi(uint16_t handle, uint8_t *dst)
 {
-    htole16(dst, handle);
+    put_le16(dst, handle);
 }
 
 void
@@ -1052,9 +1052,9 @@ ble_hs_hci_cmd_body_set_data_len(uint16_t connection_handle,
         return BLE_HS_EINVAL;
     }
 
-    htole16(dst + 0, connection_handle);
-    htole16(dst + 2, tx_octets);
-    htole16(dst + 4, tx_time);
+    put_le16(dst + 0, connection_handle);
+    put_le16(dst + 2, tx_octets);
+    put_le16(dst + 4, tx_time);
 
     return 0;
 }
@@ -1094,7 +1094,7 @@ ble_hs_hci_cmd_body_add_to_resolv_list(uint8_t addr_type, const uint8_t *addr,
                                        const uint8_t *local_irk,
                                        uint8_t *dst)
 {
-    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1140,7 +1140,7 @@ ble_hs_hci_cmd_body_remove_from_resolv_list(uint8_t addr_type,
                                             const uint8_t *addr,
                                             uint8_t *dst)
 {
-    if (addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1199,7 +1199,7 @@ ble_hs_hci_cmd_body_read_peer_resolv_addr(uint8_t peer_identity_addr_type,
                                           const uint8_t *peer_identity_addr,
                                           uint8_t *dst)
 {
-    if (peer_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (peer_identity_addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1238,7 +1238,7 @@ ble_hs_hci_cmd_body_read_lcl_resolv_addr(
     const uint8_t *local_identity_addr,
     uint8_t *dst)
 {
-    if (local_identity_addr_type > BLE_ADDR_TYPE_RANDOM) {
+    if (local_identity_addr_type > BLE_ADDR_RANDOM) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1315,7 +1315,7 @@ ble_hs_hci_cmd_body_set_resolv_priv_addr_timeout(uint16_t timeout,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    htole16(dst, timeout);
+    put_le16(dst, timeout);
     return 0;
 }
 

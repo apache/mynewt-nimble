@@ -118,10 +118,10 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     struct ble_ll_len_req ctrl_req;
 
     /* Extract parameters and check if valid */
-    ctrl_req.max_rx_bytes = le16toh(dptr);
-    ctrl_req.max_rx_time = le16toh(dptr + 2);
-    ctrl_req.max_tx_bytes = le16toh(dptr + 4);
-    ctrl_req.max_tx_time = le16toh(dptr + 6);
+    ctrl_req.max_rx_bytes = get_le16(dptr);
+    ctrl_req.max_rx_time = get_le16(dptr + 2);
+    ctrl_req.max_tx_bytes = get_le16(dptr + 4);
+    ctrl_req.max_tx_time = get_le16(dptr + 6);
 
     if (!ble_ll_ctrl_chk_supp_bytes(ctrl_req.max_rx_bytes) ||
         !ble_ll_ctrl_chk_supp_bytes(ctrl_req.max_tx_bytes) ||
@@ -175,18 +175,18 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* Extract parameters and check if valid */
     req = &connsm->conn_cp;
-    req->interval_min = le16toh(dptr);
-    req->interval_max = le16toh(dptr + 2);
-    req->latency = le16toh(dptr + 4);
-    req->timeout = le16toh(dptr + 6);
+    req->interval_min = get_le16(dptr);
+    req->interval_max = get_le16(dptr + 2);
+    req->latency = get_le16(dptr + 4);
+    req->timeout = get_le16(dptr + 6);
     req->pref_periodicity = dptr[8];
-    req->ref_conn_event_cnt  = le16toh(dptr + 9);
-    req->offset0 = le16toh(dptr + 11);
-    req->offset1 = le16toh(dptr + 13);
-    req->offset2 = le16toh(dptr + 15);
-    req->offset3 = le16toh(dptr + 17);
-    req->offset4 = le16toh(dptr + 19);
-    req->offset5 = le16toh(dptr + 21);
+    req->ref_conn_event_cnt  = get_le16(dptr + 9);
+    req->offset0 = get_le16(dptr + 11);
+    req->offset1 = get_le16(dptr + 13);
+    req->offset2 = get_le16(dptr + 15);
+    req->offset3 = get_le16(dptr + 17);
+    req->offset4 = get_le16(dptr + 19);
+    req->offset5 = get_le16(dptr + 21);
 
     /* Check if parameters are valid */
     ble_err = BLE_ERR_SUCCESS;
@@ -341,10 +341,10 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 static void
 ble_ll_ctrl_datalen_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
-    htole16(dptr + 1, connsm->max_rx_octets);
-    htole16(dptr + 3, connsm->max_rx_time);
-    htole16(dptr + 5, connsm->max_tx_octets);
-    htole16(dptr + 7, connsm->max_tx_time);
+    put_le16(dptr + 1, connsm->max_rx_octets);
+    put_le16(dptr + 3, connsm->max_rx_time);
+    put_le16(dptr + 5, connsm->max_tx_octets);
+    put_le16(dptr + 7, connsm->max_tx_time);
 }
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
@@ -505,14 +505,14 @@ ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm, uint8_t opcode)
 static void
 ble_ll_ctrl_enc_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
-    htole64(dptr, connsm->enc_data.host_rand_num);
-    htole16(dptr + 8, connsm->enc_data.enc_div);
+    put_le64(dptr, connsm->enc_data.host_rand_num);
+    put_le16(dptr + 8, connsm->enc_data.enc_div);
 
 #ifdef BLE_LL_ENCRYPT_USE_TEST_DATA
     /* IV stored LSB to MSB, IVm is LSB, IVs is MSB */
-    htole64(dptr + 10, g_bletest_SKDm);
+    put_le64(dptr + 10, g_bletest_SKDm);
     swap_buf(connsm->enc_data.enc_block.plain_text + 8, dptr + 10, 8);
-    htole32(dptr + 18, g_bletest_IVm);
+    put_le32(dptr + 18, g_bletest_IVm);
     memcpy(connsm->enc_data.iv, dptr + 18, 4);
     return;
 #endif
@@ -591,16 +591,16 @@ ble_ll_ctrl_rx_enc_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     connsm->enc_data.tx_encrypted = 0;
 
     /* Extract information from request */
-    connsm->enc_data.host_rand_num = le64toh(dptr);
-    connsm->enc_data.enc_div = le16toh(dptr + 8);
+    connsm->enc_data.host_rand_num = get_le64(dptr);
+    connsm->enc_data.enc_div = get_le16(dptr + 8);
 
 #if BLE_LL_ENCRYPT_USE_TEST_DATA
     swap_buf(connsm->enc_data.enc_block.plain_text + 8, dptr + 10, 8);
     memcpy(connsm->enc_data.iv, dptr + 18, 4);
 
-    htole64(rspdata, g_bletest_SKDs);
+    put_le64(rspdata, g_bletest_SKDs);
     swap_buf(connsm->enc_data.enc_block.plain_text, rspdata, 8);
-    htole32(rspdata + 8, g_bletest_IVs);
+    put_le32(rspdata + 8, g_bletest_IVs);
     memcpy(connsm->enc_data.iv + 4, rspdata + 8, 4);
     return BLE_LL_CTRL_ENC_RSP;
 #endif
@@ -735,18 +735,18 @@ ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* If we were passed in a request, we use the parameters from the request */
     if (req) {
-        htole16(dptr, req->interval_min);
-        htole16(dptr + 2, req->interval_max);
-        htole16(dptr + 4, req->latency);
-        htole16(dptr + 6, req->timeout);
+        put_le16(dptr, req->interval_min);
+        put_le16(dptr + 2, req->interval_max);
+        put_le16(dptr + 4, req->latency);
+        put_le16(dptr + 6, req->timeout);
     } else {
         hcu = &connsm->conn_param_req;
         /* The host should have provided the parameters! */
         assert(hcu->handle != 0);
-        htole16(dptr, hcu->conn_itvl_min);
-        htole16(dptr + 2, hcu->conn_itvl_max);
-        htole16(dptr + 4, hcu->conn_latency);
-        htole16(dptr + 6, hcu->supervision_timeout);
+        put_le16(dptr, hcu->conn_itvl_min);
+        put_le16(dptr + 2, hcu->conn_itvl_max);
+        put_le16(dptr + 4, hcu->conn_latency);
+        put_le16(dptr + 6, hcu->supervision_timeout);
     }
 
     /* XXX: NOTE: if interval min and interval max are != to each
@@ -758,16 +758,16 @@ ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     dptr[8] = 0;
 
     /* XXX: deal with reference event count. what to put here? */
-    htole16(dptr + 9, connsm->event_cntr);
+    put_le16(dptr + 9, connsm->event_cntr);
 
     /* XXX: For now, dont use offsets */
     offset = 0xFFFF;
-    htole16(dptr + 11, offset);
-    htole16(dptr + 13, offset);
-    htole16(dptr + 15, offset);
-    htole16(dptr + 17, offset);
-    htole16(dptr + 19, offset);
-    htole16(dptr + 21, offset);
+    put_le16(dptr + 11, offset);
+    put_le16(dptr + 13, offset);
+    put_le16(dptr + 15, offset);
+    put_le16(dptr + 17, offset);
+    put_le16(dptr + 19, offset);
+    put_le16(dptr + 21, offset);
 }
 
 static void
@@ -778,8 +778,8 @@ ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 
     /* Fill out response */
     pyld[0] = BLE_HCI_VER_BCS_4_2;
-    htole16(pyld + 1, MYNEWT_VAL(BLE_LL_MFRG_ID));
-    htole16(pyld + 3, BLE_LL_SUB_VERS_NR);
+    put_le16(pyld + 1, MYNEWT_VAL(BLE_LL_MFRG_ID));
+    put_le16(pyld + 3, BLE_LL_SUB_VERS_NR);
 }
 
 /**
@@ -797,7 +797,7 @@ ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 
     /* Place instant into request */
     connsm->chanmap_instant = connsm->event_cntr + connsm->slave_latency + 6 + 1;
-    htole16(pyld + BLE_LL_CONN_CHMAP_LEN, connsm->chanmap_instant);
+    put_le16(pyld + BLE_LL_CONN_CHMAP_LEN, connsm->chanmap_instant);
 
     /* Set scheduled flag */
     connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
@@ -878,11 +878,11 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
 
     /* XXX: make sure this works for the connection parameter request proc. */
     pyld[0] = req->winsize;
-    htole16(pyld + 1, req->winoffset);
-    htole16(pyld + 3, req->interval);
-    htole16(pyld + 5, req->latency);
-    htole16(pyld + 7, req->timeout);
-    htole16(pyld + 9, instant);
+    put_le16(pyld + 1, req->winoffset);
+    put_le16(pyld + 3, req->interval);
+    put_le16(pyld + 5, req->latency);
+    put_le16(pyld + 7, req->timeout);
+    put_le16(pyld + 9, instant);
 
     /* Set flag in state machine to denote we have scheduled an update */
     connsm->csmflags.cfbit.conn_update_sched = 1;
@@ -984,11 +984,11 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     /* Retrieve parameters */
     reqdata = &connsm->conn_update_req;
     reqdata->winsize = dptr[0];
-    reqdata->winoffset = le16toh(dptr + 1);
-    reqdata->interval = le16toh(dptr + 3);
-    reqdata->latency = le16toh(dptr + 5);
-    reqdata->timeout = le16toh(dptr + 7);
-    reqdata->instant = le16toh(dptr + 9);
+    reqdata->winoffset = get_le16(dptr + 1);
+    reqdata->interval = get_le16(dptr + 3);
+    reqdata->latency = get_le16(dptr + 5);
+    reqdata->timeout = get_le16(dptr + 7);
+    reqdata->instant = get_le16(dptr + 9);
 
     /* XXX: validate them at some point. If they dont check out, we
        return the unknown response */
@@ -1176,8 +1176,8 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* Process the packet */
     connsm->vers_nr = dptr[0];
-    connsm->comp_id = le16toh(dptr + 1);
-    connsm->sub_vers_nr = le16toh(dptr + 3);
+    connsm->comp_id = get_le16(dptr + 1);
+    connsm->sub_vers_nr = get_le16(dptr + 3);
     connsm->csmflags.cfbit.rxd_version_ind = 1;
 
     rsp_opcode = BLE_ERR_MAX;
@@ -1210,7 +1210,7 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 
     /* If instant is in the past, we have to end the connection */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        instant = le16toh(dptr + BLE_LL_CONN_CHMAP_LEN);
+        instant = get_le16(dptr + BLE_LL_CONN_CHMAP_LEN);
         conn_events = (instant - connsm->event_cntr) & 0xFFFF;
         if (conn_events >= 32767) {
             ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);

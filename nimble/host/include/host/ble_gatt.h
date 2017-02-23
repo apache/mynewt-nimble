@@ -155,8 +155,8 @@ int ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
 int ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                                uint16_t end_handle, const ble_uuid_t *uuid,
                                ble_gatt_chr_fn *cb, void *cb_arg);
-int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t chr_val_handle,
-                            uint16_t chr_end_handle,
+int ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
+                            uint16_t end_handle,
                             ble_gatt_dsc_fn *cb, void *cb_arg);
 int ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                    ble_gatt_attr_fn *cb, void *cb_arg);

@@ -86,13 +86,13 @@ ble_l2cap_test_util_verify_tx_update_conn(
                                            BLE_HCI_OCF_LE_CONN_UPDATE,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_UPDATE_LEN);
-    TEST_ASSERT(le16toh(param + 0) == 2);
-    TEST_ASSERT(le16toh(param + 2) == params->itvl_min);
-    TEST_ASSERT(le16toh(param + 4) == params->itvl_max);
-    TEST_ASSERT(le16toh(param + 6) == params->latency);
-    TEST_ASSERT(le16toh(param + 8) == params->supervision_timeout);
-    TEST_ASSERT(le16toh(param + 10) == params->min_ce_len);
-    TEST_ASSERT(le16toh(param + 12) == params->max_ce_len);
+    TEST_ASSERT(get_le16(param + 0) == 2);
+    TEST_ASSERT(get_le16(param + 2) == params->itvl_min);
+    TEST_ASSERT(get_le16(param + 4) == params->itvl_max);
+    TEST_ASSERT(get_le16(param + 6) == params->latency);
+    TEST_ASSERT(get_le16(param + 8) == params->supervision_timeout);
+    TEST_ASSERT(get_le16(param + 10) == params->min_ce_len);
+    TEST_ASSERT(get_le16(param + 12) == params->max_ce_len);
 }
 
 static int
@@ -118,10 +118,9 @@ ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
     chan = ble_l2cap_chan_alloc();
     TEST_ASSERT_FATAL(chan != NULL);
 
-    chan->blc_cid = BLE_L2CAP_TEST_CID;
-    chan->blc_my_mtu = 240;
-    chan->blc_default_mtu = 240;
-    chan->blc_rx_fn = ble_l2cap_test_util_dummy_rx;
+    chan->scid = BLE_L2CAP_TEST_CID;
+    chan->my_mtu = 240;
+    chan->rx_fn = ble_l2cap_test_util_dummy_rx;
 
     ble_hs_conn_chan_insert(conn, chan);
 
@@ -194,7 +193,7 @@ ble_l2cap_test_util_verify_first_frag(uint16_t conn_handle,
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->blc_cid == BLE_L2CAP_TEST_CID);
+                conn->bhc_rx_chan->scid == BLE_L2CAP_TEST_CID);
 
     ble_hs_unlock();
 }
@@ -214,7 +213,7 @@ ble_l2cap_test_util_verify_middle_frag(uint16_t conn_handle,
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->blc_cid == BLE_L2CAP_TEST_CID);
+                conn->bhc_rx_chan->scid == BLE_L2CAP_TEST_CID);
 
     ble_hs_unlock();
 }
@@ -352,7 +351,7 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->blc_cid == BLE_L2CAP_TEST_CID);
+                conn->bhc_rx_chan->scid == BLE_L2CAP_TEST_CID);
     ble_hs_unlock();
 
     /* Receive a starting fragment on a different channel.  The first fragment
@@ -365,8 +364,13 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
     TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->blc_cid == BLE_L2CAP_CID_ATT);
+                conn->bhc_rx_chan->scid == BLE_L2CAP_CID_ATT);
     ble_hs_unlock();
+
+    /* Terminate the connection.  The received fragments should get freed.
+     * Mbuf leaks are tested in the post-test-case callback.
+     */
+    ble_hs_test_util_conn_disconnect(2);
 }
 
 TEST_CASE(ble_l2cap_test_case_frag_timeout)
@@ -470,7 +474,7 @@ ble_l2cap_test_util_peer_updates(int accept)
     l2cap_params.itvl_min = 0x200;
     l2cap_params.itvl_max = 0x300;
     l2cap_params.slave_latency = 0;
-    l2cap_params.timeout_multiplier = 0x100;
+    l2cap_params.timeout_multiplier = 0x500;
     ble_l2cap_test_util_rx_update_req(2, 1, &l2cap_params);
 
     /* Ensure an update response command got sent. */
@@ -481,7 +485,7 @@ ble_l2cap_test_util_peer_updates(int accept)
         params.itvl_min = 0x200;
         params.itvl_max = 0x300;
         params.latency = 0;
-        params.supervision_timeout = 0x100;
+        params.supervision_timeout = 0x500;
         params.min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN;
         params.max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN;
         ble_l2cap_test_util_verify_tx_update_conn(&params);

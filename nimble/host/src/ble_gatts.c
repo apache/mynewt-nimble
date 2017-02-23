@@ -121,8 +121,8 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
     if (buf == NULL) {
         return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
-    htole16(buf + 0, entry->handle);
-    htole16(buf + 2, entry->end_group_handle);
+    put_le16(buf + 0, entry->handle);
+    put_le16(buf + 2, entry->end_group_handle);
 
     /* Only include the service UUID if it has a 16-bit representation. */
     uuid16 = ble_uuid_u16(entry->svc->uuid);
@@ -131,7 +131,7 @@ ble_gatts_inc_access(uint16_t conn_handle, uint16_t attr_handle,
         if (buf == NULL) {
             return BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-        htole16(buf, uuid16);
+        put_le16(buf, uuid16);
     }
 
     return 0;
@@ -246,7 +246,7 @@ ble_gatts_chr_def_access(uint16_t conn_handle, uint16_t attr_handle,
     buf[0] = ble_gatts_chr_properties(chr);
 
     /* The value attribute is always immediately after the declaration. */
-    htole16(buf + 1, attr_handle + 1);
+    put_le16(buf + 1, attr_handle + 1);
 
     buf = os_mbuf_extend(*om, ble_uuid_length(chr->uuid));
     if (buf == NULL) {
@@ -666,7 +666,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         if (buf == NULL) {
             return BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-        htole16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
+        put_le16(buf, clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED);
         break;
 
     case BLE_GATT_ACCESS_OP_WRITE_DSC:
@@ -678,7 +678,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         om = os_mbuf_pullup(om, 2);
         BLE_HS_DBG_ASSERT(om != NULL);
 
-        flags = le16toh(om->om_data);
+        flags = get_le16(om->om_data);
         if ((flags & ~clt_cfg->allowed) != 0) {
             return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
         }
@@ -689,8 +689,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
 
             /* Successful writes get persisted for bonded connections. */
             if (conn->bhc_sec_state.bonded) {
-                out_cccd->peer_addr_type = conn->bhc_peer_addr_type;
-                memcpy(out_cccd->peer_addr, conn->bhc_peer_addr, 6);
+                out_cccd->peer_addr = conn->bhc_peer_addr;
                 out_cccd->chr_val_handle = chr_val_handle;
                 out_cccd->flags = clt_cfg->flags;
                 out_cccd->value_changed = 0;
@@ -1407,8 +1406,7 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
         persist = conn->bhc_sec_state.bonded &&
                   !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED);
         if (persist) {
-            cccd_value.peer_addr_type = conn->bhc_peer_addr_type;
-            memcpy(cccd_value.peer_addr, conn->bhc_peer_addr, 6);
+            cccd_value.peer_addr = conn->bhc_peer_addr;
             cccd_value.chr_val_handle = chr_val_handle;
             cccd_value.flags = clt_cfg->flags;
             cccd_value.value_changed = 0;
@@ -1443,7 +1441,7 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     struct ble_store_key_cccd cccd_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    int new_notifications;
+    int new_notifications = 0;
     int clt_cfg_idx;
     int persist;
     int rc;
@@ -1488,8 +1486,8 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     /*** Persist updated flag for unconnected and not-yet-bonded devices. */
 
     /* Retrieve each record corresponding to the modified characteristic. */
-    cccd_key.peer_addr_type = BLE_STORE_ADDR_TYPE_NONE,
-    cccd_key.chr_val_handle = chr_val_handle,
+    cccd_key.peer_addr = *BLE_ADDR_ANY;
+    cccd_key.chr_val_handle = chr_val_handle;
     cccd_key.idx = 0;
 
     while (1) {
@@ -1501,8 +1499,7 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
 
         /* Determine if this record needs to be rewritten. */
         ble_hs_lock();
-        conn = ble_hs_conn_find_by_addr(cccd_value.peer_addr_type,
-                                        cccd_value.peer_addr);
+        conn = ble_hs_conn_find_by_addr(&cccd_key.peer_addr);
 
         if (conn == NULL) {
             /* Device isn't connected; persist the changed flag so that an
@@ -1646,8 +1643,7 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
     BLE_HS_DBG_ASSERT(conn != NULL);
     BLE_HS_DBG_ASSERT(conn->bhc_sec_state.bonded);
 
-    cccd_key.peer_addr_type = conn->bhc_peer_addr_type;
-    memcpy(cccd_key.peer_addr, conn->bhc_peer_addr, 6);
+    cccd_key.peer_addr = conn->bhc_peer_addr;
     cccd_key.chr_val_handle = 0;
     cccd_key.idx = 0;
 

@@ -56,8 +56,8 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
     memcpy(buf + 4, uuid128, 16);
 
     /** Version number. */
-    htobe16(buf + 20, major);
-    htobe16(buf + 22, minor);
+    put_be16(buf + 20, major);
+    put_be16(buf + 22, minor);
 
     /** Last byte (tx power level) filled in after HCI exchange. */
 

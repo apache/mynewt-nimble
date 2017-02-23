@@ -282,8 +282,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
             ble_hs_conn_addrs(conn, &addrs);
 
             memset(&key_sec, 0, sizeof key_sec);
-            key_sec.peer_addr_type = addrs.peer_id_addr_type;
-            memcpy(key_sec.peer_addr, addrs.peer_id_addr, 6);
+            key_sec.peer_addr = addrs.peer_id_addr;
         }
         ble_hs_unlock();
 
@@ -703,7 +702,7 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
 
     ble_hs_lock();
     ble_att_conn_chan_find(conn_handle, NULL, &chan);
-    mtu = chan->blc_my_mtu;
+    mtu = chan->my_mtu;
     ble_hs_unlock();
 
     /* Just reuse the request buffer for the response. */
@@ -766,8 +765,8 @@ done:
 
         ble_att_conn_chan_find(conn_handle, &conn, &chan);
         ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-        chan->blc_flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
-        mtu = ble_l2cap_chan_mtu(chan);
+        chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+        mtu = ble_att_chan_mtu(chan);
 
         ble_hs_unlock();
 
@@ -842,7 +841,7 @@ ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
                 goto done;
             }
 
-            htole16(buf + 0, ha->ha_handle_id);
+            put_le16(buf + 0, ha->ha_handle_id);
 
             ble_uuid_flat(ha->ha_uuid, buf + 2);
 
@@ -992,14 +991,14 @@ ble_att_svr_fill_type_value_entry(struct os_mbuf *om, uint16_t first,
         return 0;
     }
 
-    htole16(&u16, first);
+    put_le16(&u16, first);
     rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         return BLE_HS_ENOMEM;
     }
 
-    htole16(&u16, last);
+    put_le16(&u16, last);
     rc = os_mbuf_append(om, &u16, 2);
     if (rc != 0) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -1359,7 +1358,7 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
                 goto done;
             }
 
-            htole16(dptr + 0, entry->ha_handle_id);
+            put_le16(dptr + 0, entry->ha_handle_id);
             memcpy(dptr + 2, buf, attr_len);
             entry_written = 1;
         }
@@ -1619,7 +1618,7 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
         /* Extract the 16-bit handle and strip it from the front of the
          * mbuf.
          */
-        handle = le16toh((*rxom)->om_data);
+        handle = get_le16((*rxom)->om_data);
         os_mbuf_adj(*rxom, 2);
 
         rc = ble_att_svr_read_handle(conn_handle, handle, 0, txom, att_err);
@@ -1735,8 +1734,8 @@ ble_att_svr_read_group_type_entry_write(struct os_mbuf *om, uint16_t mtu,
         return BLE_HS_ENOMEM;
     }
 
-    htole16(buf + 0, start_group_handle);
-    htole16(buf + 2, end_group_handle);
+    put_le16(buf + 0, start_group_handle);
+    put_le16(buf + 2, end_group_handle);
     ble_uuid_flat(service_uuid, buf + 4);
 
     return 0;

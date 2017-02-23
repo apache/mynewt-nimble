@@ -46,19 +46,21 @@ ble_hs_id_set_pub(const uint8_t *pub_addr)
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_hs_id_gen_rnd(int nrpa, uint8_t *out_addr)
+ble_hs_id_gen_rnd(int nrpa, ble_addr_t *out_addr)
 {
     int rc;
 
-    rc = ble_hs_hci_util_rand(out_addr, 6);
+    out_addr->type = BLE_ADDR_RANDOM;
+
+    rc = ble_hs_hci_util_rand(out_addr->val, 6);
     if (rc != 0) {
         return rc;
     }
 
     if (nrpa) {
-        out_addr[5] &= ~0xc0;
+        out_addr->val[5] &= ~0xc0;
     } else {
-        out_addr[5] |= 0xc0;
+        out_addr->val[5] |= 0xc0;
     }
 
     return 0;
@@ -112,8 +114,8 @@ done:
  *
  * @param id_addr_type          The type of identity address to retrieve.
  *                                  Valid values are:
- *                                      o BLE_ADDR_TYPE_PUBLIC
- *                                      o BLE_ADDR_TYPE_RANDOM
+ *                                      o BLE_ADDR_PUBLIC
+ *                                      o BLE_ADDR_RANDOM
  * @param out_id_addr           On success, this is reseated to point to the
  *                                  retrieved 6-byte identity address.
  * @param out_is_nrpa           On success, the pointed-to value indicates
@@ -137,12 +139,12 @@ ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     switch (id_addr_type) {
-    case BLE_ADDR_TYPE_PUBLIC:
+    case BLE_ADDR_PUBLIC:
         id_addr = ble_hs_id_pub;
         nrpa = 0;
         break;
 
-    case BLE_ADDR_TYPE_RANDOM:
+    case BLE_ADDR_RANDOM:
         id_addr = ble_hs_id_rnd;
         nrpa = (ble_hs_id_rnd[5] & 0xc0) == 0;
         break;
@@ -172,8 +174,8 @@ ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
  *
  * @param id_addr_type          The type of identity address to retrieve.
  *                                  Valid values are:
- *                                      o BLE_ADDR_TYPE_PUBLIC
- *                                      o BLE_ADDR_TYPE_RANDOM
+ *                                      o BLE_ADDR_PUBLIC
+ *                                      o BLE_ADDR_RANDOM
  * @param out_id_addr           On success, the requested identity address is
  *                                  copied into this buffer.  The buffer must
  *                                  be at least six bytes in size.
@@ -208,24 +210,24 @@ ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
 }
 
 int
-ble_hs_id_use_addr(uint8_t addr_type)
+ble_hs_id_use_addr(uint8_t own_addr_type)
 {
     uint8_t id_addr_type;
     int nrpa;
     int rc;
 
-    switch (addr_type) {
-    case BLE_ADDR_TYPE_PUBLIC:
-    case BLE_ADDR_TYPE_RANDOM:
-        rc = ble_hs_id_addr(addr_type, NULL, NULL);
+    switch (own_addr_type) {
+    case BLE_OWN_ADDR_PUBLIC:
+    case BLE_OWN_ADDR_RANDOM:
+        rc = ble_hs_id_addr(own_addr_type, NULL, NULL);
         if (rc != 0) {
             return rc;
         }
         break;
 
-    case BLE_ADDR_TYPE_RPA_PUB_DEFAULT:
-    case BLE_ADDR_TYPE_RPA_RND_DEFAULT:
-        id_addr_type = ble_hs_misc_addr_type_to_id(addr_type);
+    case BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT:
+    case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
+        id_addr_type = ble_hs_misc_addr_type_to_id(own_addr_type);
         rc = ble_hs_id_addr(id_addr_type, NULL, &nrpa);
         if (rc != 0) {
             return rc;

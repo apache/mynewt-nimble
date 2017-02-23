@@ -42,10 +42,10 @@ STATS_SECT_START(ble_gap_stats)
     STATS_SECT_ENTRY(adv_stop_fail)
     STATS_SECT_ENTRY(adv_start)
     STATS_SECT_ENTRY(adv_start_fail)
-    STATS_SECT_ENTRY(adv_set_fields)
-    STATS_SECT_ENTRY(adv_set_fields_fail)
-    STATS_SECT_ENTRY(adv_rsp_set_fields)
-    STATS_SECT_ENTRY(adv_rsp_set_fields_fail)
+    STATS_SECT_ENTRY(adv_set_data)
+    STATS_SECT_ENTRY(adv_set_data_fail)
+    STATS_SECT_ENTRY(adv_rsp_set_data)
+    STATS_SECT_ENTRY(adv_rsp_set_data_fail)
     STATS_SECT_ENTRY(discover)
     STATS_SECT_ENTRY(discover_fail)
     STATS_SECT_ENTRY(initiate)
@@ -94,6 +94,7 @@ void ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
                              uint8_t prev_notify, uint8_t cur_notify,
                              uint8_t prev_indicate, uint8_t cur_indicate);
 void ble_gap_mtu_event(uint16_t conn_handle, uint16_t cid, uint16_t mtu);
+void ble_gap_identity_event(uint16_t conn_handle);
 int ble_gap_master_in_progress(void);
 
 void ble_gap_conn_broken(uint16_t conn_handle, int reason);
