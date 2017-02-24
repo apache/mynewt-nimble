@@ -553,6 +553,9 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         ble_gap_identity_event(proc->conn_handle);
     }
 
+    /* Lets remove old keys if we had them */
+    ble_sm_unbond(peer_addr.type, peer_addr.val);
+
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
 
     ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,

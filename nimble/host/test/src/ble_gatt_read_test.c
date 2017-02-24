@@ -248,6 +248,9 @@ ble_gatt_read_test_misc_verify_good(struct ble_hs_test_util_flat_attr *attr)
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
+    /* Exchange MTU: We need plus 1 for the read response opcode */
+    ble_hs_test_util_set_att_mtu(2, attr->value_len + 1);
+
     rc = ble_gattc_read(2, attr->handle, ble_gatt_read_test_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
