@@ -237,6 +237,21 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     return rc;
 }
 
+static uint16_t
+ble_l2cap_get_mtu(struct ble_l2cap_chan *chan)
+{
+    if (chan->scid == BLE_L2CAP_CID_ATT) {
+        /* In case of ATT chan->my_mtu keeps preferred MTU which is later
+         * used during exchange MTU procedure. Helper below will gives us actual
+         * MTU on the channel, which is 23 or higher if exchange MTU has been
+         * done
+         */
+        return ble_att_chan_mtu(chan);
+    }
+
+    return chan->my_mtu;
+}
+
 /**
  * Processes an incoming L2CAP fragment.
  *
@@ -315,6 +330,12 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         if (chan->rx_buf != NULL) {
             /* Previous data packet never completed.  Discard old packet. */
             ble_l2cap_discard_rx(conn, chan);
+        }
+
+        if (l2cap_hdr.len > ble_l2cap_get_mtu(chan)) {
+            /* More data then we expected on the channel */
+            rc = BLE_HS_EBADDATA;
+            goto err;
         }
 
         /* Remember channel and length of L2CAP data for reassembly. */
