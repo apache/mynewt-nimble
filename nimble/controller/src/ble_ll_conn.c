@@ -3176,6 +3176,9 @@ ble_ll_conn_module_reset(void)
         g_ble_ll_conn_comp_ev = NULL;
     }
 
+    /* Reset connection we are attempting to create */
+    g_ble_ll_conn_create_sm = NULL;
+
     /* Now go through and end all the connections */
     while (1) {
         connsm = SLIST_FIRST(&g_ble_ll_conn_active_list);
