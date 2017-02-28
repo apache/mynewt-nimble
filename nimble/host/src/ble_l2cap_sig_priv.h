@@ -39,6 +39,7 @@ struct ble_l2cap_sig_hdr {
 #define BLE_L2CAP_SIG_REJECT_MIN_SZ         2
 struct ble_l2cap_sig_reject {
     uint16_t reason;
+    uint8_t data[0];
 } __attribute__((packed));
 
 #define BLE_L2CAP_SIG_UPDATE_REQ_SZ         8
