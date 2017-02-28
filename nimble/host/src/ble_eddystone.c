@@ -127,12 +127,28 @@ ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
     return BLE_HS_ENOTSUP;
 #endif
 
-    void *svc_data;
+    uint8_t *svc_data;
+    int8_t tx_pwr;
     int rc;
 
+    /* Eddystone UUID and frame type (0). */
     svc_data = ble_eddystone_set_svc_data_base(BLE_EDDYSTONE_FRAME_TYPE_UID);
-    memcpy(svc_data, uid, 16);
-    rc = ble_eddystone_set_adv_data_gen(adv_fields, 16);
+
+    /* Ranging data (Calibrated tx power at 0 meters). */
+    rc = ble_hs_hci_util_read_adv_tx_pwr(&tx_pwr);
+    if (rc != 0) {
+        return rc;
+    }
+    svc_data[0] = tx_pwr;
+
+    /* UID. */
+    memcpy(svc_data + 1, uid, 16);
+
+    /* Reserved. */
+    svc_data[17] = 0x00;
+    svc_data[18] = 0x00;
+
+    rc = ble_eddystone_set_adv_data_gen(adv_fields, 19);
     if (rc != 0) {
         return rc;
     }
