@@ -21,40 +21,6 @@
 #include "ble_hs_priv.h"
 
 int
-ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
-                       struct os_mbuf **out_om, void **out_payload_buf)
-{
-    struct ble_l2cap_sig_hdr hdr;
-    struct os_mbuf *txom;
-    void *v;
-
-    *out_om = NULL;
-    *out_payload_buf = NULL;
-
-    txom = ble_hs_mbuf_l2cap_pkt();
-    if (txom == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    v = os_mbuf_extend(txom, BLE_L2CAP_SIG_HDR_SZ + payload_len);
-    if (v == NULL) {
-        os_mbuf_free(txom);
-        return BLE_HS_ENOMEM;
-    }
-
-    hdr.op = op;
-    hdr.identifier = id;
-    hdr.length = TOFROMLE16(payload_len);
-
-    ble_l2cap_sig_hdr_write(v, BLE_L2CAP_SIG_HDR_SZ, &hdr);
-
-    *out_om = txom;
-    *out_payload_buf = (uint8_t *)v + BLE_L2CAP_SIG_HDR_SZ;
-
-    return 0;
-}
-
-int
 ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
