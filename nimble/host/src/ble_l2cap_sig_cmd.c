@@ -94,48 +94,22 @@ ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
     BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_HDR_SZ);
     ble_l2cap_sig_hdr_swap(payload, src);
 }
-static void
-ble_l2cap_sig_reject_swap(struct ble_l2cap_sig_reject *dst,
-                          struct ble_l2cap_sig_reject *src)
-{
-    dst->reason = TOFROMLE16(src->reason);
-}
-
-static void
-ble_l2cap_sig_reject_write(void *payload, uint16_t len,
-                           struct ble_l2cap_sig_reject *src,
-                           void *data, int data_len)
-{
-    uint8_t *u8ptr;
-
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_REJECT_MIN_SZ + data_len);
-
-    ble_l2cap_sig_reject_swap(payload, src);
-
-    u8ptr = payload;
-    u8ptr += BLE_L2CAP_SIG_REJECT_MIN_SZ;
-    memcpy(u8ptr, data, data_len);
-}
 
 int
 ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason,
                         void *data, int data_len)
 {
-    struct ble_l2cap_sig_reject cmd;
+    struct ble_l2cap_sig_reject *cmd;
     struct os_mbuf *txom;
-    void *payload_buf;
-    int rc;
 
-    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_REJECT, id,
-                                BLE_L2CAP_SIG_REJECT_MIN_SZ + data_len, &txom,
-                                &payload_buf);
-    if (rc != 0) {
-        return rc;
+    cmd = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_REJECT, id,
+                           sizeof(*cmd) + data_len, &txom);
+    if (!cmd) {
+        return BLE_HS_ENOMEM;
     }
 
-    cmd.reason = reason;
-    ble_l2cap_sig_reject_write(payload_buf, txom->om_len, &cmd,
-                               data, data_len);
+    cmd->reason = htole16(reason);
+    memcpy(cmd->data, data, data_len);
 
     STATS_INC(ble_l2cap_stats, sig_rx);
     return ble_l2cap_sig_tx(conn_handle, txom);
