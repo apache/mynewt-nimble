@@ -1200,17 +1200,26 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
 {
     struct ble_l2cap_sig_proc *proc;
 
-    /* If there was a connection update in progress, indicate to the
-     * application that it did not complete.
-     */
+    /* Report a failure for each timed out procedure. */
+    while ((proc = STAILQ_FIRST(&ble_l2cap_sig_procs)) != NULL) {
+        switch(proc->op) {
+            case BLE_L2CAP_SIG_PROC_OP_UPDATE:
+                ble_l2cap_sig_update_call_cb(proc, reason);
+                break;
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+            case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+                ble_l2cap_sig_coc_connect_cb(proc, reason);
+            break;
+            case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
+                ble_l2cap_sig_coc_disconnect_cb(proc, reason);
+            break;
+#endif
+            }
 
-    proc = ble_l2cap_sig_proc_extract(conn_handle,
-                                      BLE_L2CAP_SIG_PROC_OP_UPDATE, 0);
-
-    if (proc != NULL) {
-        ble_l2cap_sig_update_call_cb(proc, reason);
-        ble_l2cap_sig_proc_free(proc);
+            STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
+            ble_l2cap_sig_proc_free(proc);
     }
+
 }
 
 /**
