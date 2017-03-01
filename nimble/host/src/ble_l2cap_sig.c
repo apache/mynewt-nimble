@@ -658,11 +658,16 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
 
-    /* Verify CID */
+    /* Verify CID. Note, scid in the request is dcid for out local channel */
     scid = le16toh(req->scid);
     if (scid < BLE_L2CAP_COC_CID_START || scid > BLE_L2CAP_COC_CID_END) {
-        /*FIXME: Check if SCID is not already used */
         rsp->result = htole16(BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID);
+        goto failed;
+    }
+
+    chan = ble_hs_conn_chan_find_by_dcid(conn, scid);
+    if (chan) {
+        rsp->result = htole16(BLE_L2CAP_COC_ERR_SOURCE_CID_ALREADY_USED);
         goto failed;
     }
 
