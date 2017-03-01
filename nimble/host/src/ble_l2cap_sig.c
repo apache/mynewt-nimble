@@ -990,7 +990,8 @@ ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
     req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_DISCONN_REQ, proc->id,
                                 sizeof(*req), &txom);
     if (!req) {
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        goto done;
     }
 
     req->dcid = htole16(chan->dcid);
@@ -998,6 +999,7 @@ ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
 
     rc = ble_l2cap_sig_tx(proc->conn_handle, txom);
 
+done:
     ble_l2cap_sig_process_status(proc, rc);
 
     return rc;
