@@ -23,9 +23,9 @@
 #include <inttypes.h>
 #include "syscfg/syscfg.h"
 #include "os/queue.h"
+#include "os/os_mbuf.h"
 #include "host/ble_l2cap.h"
 #include "ble_l2cap_sig_priv.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,6 +39,7 @@ struct ble_l2cap_chan;
 struct ble_l2cap_coc_endpoint {
     uint16_t mtu;
     uint16_t credits;
+    uint16_t data_offset;
     struct os_mbuf *sdu;
 };
 
@@ -52,13 +53,27 @@ struct ble_l2cap_coc_srv {
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
 int ble_l2cap_coc_init(void);
-uint16_t ble_l2cap_coc_get_cid(void);
 int ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
                                 ble_l2cap_event_fn *cb, void *cb_arg);
-struct ble_l2cap_coc_srv * ble_l2cap_coc_srv_find(uint16_t psm);
+int ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
+                                  struct ble_l2cap_chan **chan);
+struct ble_l2cap_chan * ble_l2cap_coc_chan_alloc(uint16_t conn_handle,
+                                                 uint16_t psm, uint16_t mtu,
+                                                 struct os_mbuf *sdu_rx,
+                                                 ble_l2cap_event_fn *cb,
+                                                 void *cb_arg);
+void ble_l2cap_coc_cleanup_chan(struct ble_l2cap_chan *chan);
+void ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
+                                    uint16_t credits);
+void ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan,
+                              struct os_mbuf *sdu_rx);
+int ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
 #else
 #define ble_l2cap_coc_init()                                    0
 #define ble_l2cap_coc_create_server(psm, mtu, cb, cb_arg)       BLE_HS_ENOTSUP
+#define ble_l2cap_coc_recv_ready(chan, sdu_rx)
+#define ble_l2cap_coc_cleanup_chan(chan)
+#define ble_l2cap_coc_send(chan, sdu_tx)                        BLE_HS_ENOTSUP
 #endif
 
 #ifdef __cplusplus

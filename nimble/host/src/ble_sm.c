@@ -2326,28 +2326,38 @@ ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
 }
 
 static int
-ble_sm_rx(uint16_t conn_handle, struct os_mbuf **om)
+ble_sm_rx(struct ble_l2cap_chan *chan)
 {
     struct ble_sm_result res;
     ble_sm_rx_fn *rx_cb;
     uint8_t op;
+    uint16_t conn_handle;
+    struct os_mbuf *om;
     int rc;
 
     STATS_INC(ble_l2cap_stats, sm_rx);
 
-    rc = os_mbuf_copydata(*om, 0, 1, &op);
+    conn_handle = ble_l2cap_get_conn_handle(chan);
+    if (!conn_handle) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    om = chan->rx_buf;
+    BLE_HS_DBG_ASSERT(om != NULL);
+
+    rc = os_mbuf_copydata(om, 0, 1, &op);
     if (rc != 0) {
         return BLE_HS_EBADDATA;
     }
 
     /* Strip L2CAP SM header from the front of the mbuf. */
-    os_mbuf_adj(*om, 1);
+    os_mbuf_adj(om, 1);
 
     rx_cb = ble_sm_dispatch_get(op);
     if (rx_cb != NULL) {
         memset(&res, 0, sizeof res);
 
-        rx_cb(conn_handle, om, &res);
+        rx_cb(conn_handle, &om, &res);
         ble_sm_process_result(conn_handle, &res);
         rc = res.app_status;
     } else {
@@ -2485,10 +2495,16 @@ ble_sm_init(void)
  * simple
  */
 static int
-ble_sm_rx(uint16_t handle, struct os_mbuf **om)
+ble_sm_rx(struct ble_l2cap_chan *chan)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
+    uint16_t handle;
+
+    handle = ble_l2cap_get_conn_handle(chan);
+    if (!handle) {
+        return BLE_HS_ENOTCONN;
+    }
 
     cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_FAIL, sizeof(*cmd), &txom);
     if (cmd == NULL) {
@@ -2502,16 +2518,17 @@ ble_sm_rx(uint16_t handle, struct os_mbuf **om)
 #endif
 
 struct ble_l2cap_chan *
-ble_sm_create_chan(void)
+ble_sm_create_chan(uint16_t conn_handle)
 {
     struct ble_l2cap_chan *chan;
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     if (chan == NULL) {
         return NULL;
     }
 
     chan->scid = BLE_L2CAP_CID_SM;
+    chan->dcid = BLE_L2CAP_CID_SM;
     chan->my_mtu = BLE_SM_MTU;
     chan->rx_fn = ble_sm_rx;
 
