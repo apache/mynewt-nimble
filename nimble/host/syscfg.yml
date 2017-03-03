@@ -34,11 +34,6 @@ syscfg.defs:
         description: 'TBD'
         value: 1
 
-    # Misc settings.
-    BLE_HS_HEARTBEAT_FREQ:
-        description: 'Milliseconds.'
-        value: 1000
-
     # L2CAP settings.
     BLE_L2CAP_MAX_CHANS:
         description: 'TBD'
