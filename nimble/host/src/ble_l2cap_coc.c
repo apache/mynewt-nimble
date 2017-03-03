@@ -249,9 +249,14 @@ ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     chan->my_mtu = BLE_L2CAP_COC_MTU;
     chan->rx_fn = ble_l2cap_coc_rx_fn;
     chan->coc_rx.mtu = mtu;
-    chan->coc_rx.credits = 10; /* FIXME Calculate it */
     chan->coc_rx.sdu = sdu_rx;
 
+    /* Number of credits should allow to send full SDU with on given
+     * L2CAP MTU
+     */
+    chan->coc_rx.credits = (mtu + (chan->my_mtu - 1) / 2) / chan->my_mtu;
+
+    chan->initial_credits = chan->coc_rx.credits;
     return chan;
 }
 
@@ -459,13 +464,12 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
         return;
     }
 
-    /* FIXME 10 is hardcoded - make it better.
-     * We want to back only that much credits which remote side is missing
+    /* We want to back only that much credits which remote side is missing
      * to be able to send complete SDU.
      */
-    if (chan->coc_rx.credits < 10) {
-        ble_l2cap_sig_le_credits(chan, 10 - chan->coc_rx.credits);
-        chan->coc_rx.credits = 10;
+    if (chan->coc_rx.credits < c->initial_credits) {
+        ble_l2cap_sig_le_credits(chan, c->initial_credits - chan->coc_rx.credits);
+        chan->coc_rx.credits = c->initial_credits;
     }
 
     ble_hs_unlock();
