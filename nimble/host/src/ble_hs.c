@@ -61,9 +61,6 @@ static struct os_event ble_hs_ev_start = {
 uint8_t ble_hs_sync_state;
 static int ble_hs_reset_reason;
 
-#define BLE_HS_HEARTBEAT_OS_TICKS       \
-    (MYNEWT_VAL(BLE_HS_HEARTBEAT_FREQ) * OS_TICKS_PER_SEC / 1000)
-
 #define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)
 
 static struct os_task *ble_hs_parent_task;
