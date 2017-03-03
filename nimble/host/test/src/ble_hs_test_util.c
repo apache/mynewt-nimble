@@ -934,7 +934,6 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
 {
     struct ble_hs_conn *conn;
     ble_l2cap_rx_fn *rx_cb;
-    struct os_mbuf *rx_buf;
     int reject_cid;
     int rc;
 
@@ -942,7 +941,7 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-        rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &rx_buf, &reject_cid);
+        rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &reject_cid);
     } else {
         os_mbuf_free_chain(om);
     }
@@ -953,9 +952,8 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
         rc = BLE_HS_ENOTCONN;
     } else if (rc == 0) {
         TEST_ASSERT_FATAL(rx_cb != NULL);
-        TEST_ASSERT_FATAL(rx_buf != NULL);
-        rc = rx_cb(conn_handle, &rx_buf);
-        os_mbuf_free_chain(rx_buf);
+        rc = rx_cb(conn->bhc_rx_chan);
+        ble_l2cap_forget_rx(conn, conn->bhc_rx_chan);
     } else if (rc == BLE_HS_EAGAIN) {
         /* More fragments on the way. */
         rc = 0;
@@ -1764,6 +1762,24 @@ ble_hs_test_util_verify_tx_l2cap_sig_hdr(uint8_t op, uint8_t id,
     return om;
 }
 
+static void
+ble_l2cap_test_update_req_swap(struct ble_l2cap_sig_update_req *dst,
+                               struct ble_l2cap_sig_update_req *src)
+{
+    dst->itvl_min = le16toh(src->itvl_min);
+    dst->itvl_max = le16toh(src->itvl_max);
+    dst->slave_latency = le16toh(src->slave_latency);
+    dst->timeout_multiplier = le16toh(src->timeout_multiplier);
+}
+
+static void
+ble_l2cap_test_update_req_parse(void *payload, int len,
+                               struct ble_l2cap_sig_update_req *dst)
+{
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    ble_l2cap_test_update_req_swap(dst, payload);
+}
+
 /**
  * @return                      The L2CAP sig identifier in the request.
  */
@@ -1783,7 +1799,7 @@ ble_hs_test_util_verify_tx_l2cap_update_req(
                                                   &hdr);
 
     /* Verify payload. */
-    ble_l2cap_sig_update_req_parse(om->om_data, om->om_len, &req);
+    ble_l2cap_test_update_req_parse(om->om_data, om->om_len, &req);
     TEST_ASSERT(req.itvl_min == params->itvl_min);
     TEST_ASSERT(req.itvl_max == params->itvl_max);
     TEST_ASSERT(req.slave_latency == params->slave_latency);
@@ -1792,26 +1808,34 @@ ble_hs_test_util_verify_tx_l2cap_update_req(
     return hdr.identifier;
 }
 
+static void
+ble_l2cap_sig_update_rsp_parse(void *payload, int len,
+                               struct ble_l2cap_sig_update_rsp *dst)
+{
+    struct ble_l2cap_sig_update_rsp *src = payload;
+
+    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    dst->result = le16toh(src->result);
+}
+
 int
 ble_hs_test_util_rx_l2cap_update_rsp(uint16_t conn_handle,
                                      uint8_t id, uint16_t result)
 {
-    struct ble_l2cap_sig_update_rsp rsp;
+    struct ble_l2cap_sig_update_rsp *rsp;
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
-    void *v;
     int rc;
 
     hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_RSP_SZ);
 
-    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_RSP, id,
-                                BLE_L2CAP_SIG_UPDATE_RSP_SZ, &om, &v);
-    TEST_ASSERT_FATAL(rc == 0);
+    rsp = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_UPDATE_RSP, id,
+                                BLE_L2CAP_SIG_UPDATE_RSP_SZ, &om);
+    TEST_ASSERT_FATAL(rsp != NULL);
 
-    rsp.result = result;
-    ble_l2cap_sig_update_rsp_write(v, BLE_L2CAP_SIG_UPDATE_RSP_SZ, &rsp);
+    rsp->result = htole16(result);
 
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
                                               &hci_hdr, om);

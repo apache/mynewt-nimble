@@ -47,25 +47,23 @@ static void
 ble_l2cap_test_util_rx_update_req(uint16_t conn_handle, uint8_t id,
                                   struct ble_l2cap_sig_update_params *params)
 {
-    struct ble_l2cap_sig_update_req req;
+    struct ble_l2cap_sig_update_req *req;
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
-    void *v;
     int rc;
 
     hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
         2, BLE_HCI_PB_FIRST_FLUSH,
         BLE_L2CAP_HDR_SZ + BLE_L2CAP_SIG_HDR_SZ + BLE_L2CAP_SIG_UPDATE_REQ_SZ);
 
-    rc = ble_l2cap_sig_init_cmd(BLE_L2CAP_SIG_OP_UPDATE_REQ, id,
-                                BLE_L2CAP_SIG_UPDATE_REQ_SZ, &om, &v);
-    TEST_ASSERT_FATAL(rc == 0);
+    req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_UPDATE_REQ, id,
+                                BLE_L2CAP_SIG_UPDATE_REQ_SZ, &om);
+    TEST_ASSERT_FATAL(req != NULL);
 
-    req.itvl_min = params->itvl_min;
-    req.itvl_max = params->itvl_max;
-    req.slave_latency = params->slave_latency;
-    req.timeout_multiplier = params->timeout_multiplier;
-    ble_l2cap_sig_update_req_write(v, BLE_L2CAP_SIG_UPDATE_REQ_SZ, &req);
+    req->itvl_min = htole16(params->itvl_min);
+    req->itvl_max = htole16(params->itvl_max);
+    req->slave_latency = htole16(params->slave_latency);
+    req->timeout_multiplier = htole16(params->timeout_multiplier);
 
     ble_hs_test_util_set_ack(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
@@ -96,7 +94,7 @@ ble_l2cap_test_util_verify_tx_update_conn(
 }
 
 static int
-ble_l2cap_test_util_dummy_rx(uint16_t conn_handle, struct os_mbuf **om)
+ble_l2cap_test_util_dummy_rx(struct ble_l2cap_chan *chan)
 {
     return 0;
 }
@@ -115,7 +113,7 @@ ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
 
-    chan = ble_l2cap_chan_alloc();
+    chan = ble_l2cap_chan_alloc(conn_handle);
     TEST_ASSERT_FATAL(chan != NULL);
 
     chan->scid = BLE_L2CAP_TEST_CID;

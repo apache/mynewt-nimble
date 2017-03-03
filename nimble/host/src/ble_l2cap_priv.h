@@ -62,10 +62,12 @@ extern struct os_mempool ble_l2cap_chan_pool;
 
 typedef uint8_t ble_l2cap_chan_flags;
 
-typedef int ble_l2cap_rx_fn(uint16_t conn_handle, struct os_mbuf **rxom);
+typedef int ble_l2cap_rx_fn(struct ble_l2cap_chan *chan);
 
 struct ble_l2cap_chan {
     SLIST_ENTRY(ble_l2cap_chan) next;
+    uint16_t conn_handle;
+    uint16_t dcid;
     uint16_t scid;
     uint16_t my_mtu;
     uint16_t peer_mtu;      /* 0 if not exchanged. */
@@ -77,11 +79,10 @@ struct ble_l2cap_chan {
     ble_l2cap_rx_fn *rx_fn;
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-    uint16_t conn_handle;
-    uint16_t dcid;
     uint16_t psm;
     struct ble_l2cap_coc_endpoint coc_rx;
     struct ble_l2cap_coc_endpoint coc_tx;
+    uint16_t initial_credits;
     ble_l2cap_event_fn *cb;
     void *cb_arg;
 #endif
@@ -104,7 +105,7 @@ int ble_l2cap_parse_hdr(struct os_mbuf *om, int off,
 struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
                                       uint16_t len);
 
-struct ble_l2cap_chan *ble_l2cap_chan_alloc(void);
+struct ble_l2cap_chan *ble_l2cap_chan_alloc(uint16_t conn_handle);
 void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
 
 bool ble_l2cap_is_mtu_req_sent(const struct ble_l2cap_chan *chan);
@@ -113,11 +114,11 @@ int ble_l2cap_rx(struct ble_hs_conn *conn,
                  struct hci_data_hdr *hci_hdr,
                  struct os_mbuf *om,
                  ble_l2cap_rx_fn **out_rx_cb,
-                 struct os_mbuf **out_rx_buf,
                  int *out_reject_cid);
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *txom);
 
+void ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
 int ble_l2cap_init(void);
 
 #ifdef __cplusplus

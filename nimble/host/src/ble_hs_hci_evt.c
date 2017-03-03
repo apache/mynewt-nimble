@@ -612,7 +612,6 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     struct hci_data_hdr hci_hdr;
     struct ble_hs_conn *conn;
     ble_l2cap_rx_fn *rx_cb;
-    struct os_mbuf *rx_buf;
     uint16_t conn_handle;
     int reject_cid;
     int rc;
@@ -648,7 +647,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         reject_cid = -1;
     } else {
         /* Forward ACL data to L2CAP. */
-        rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &rx_buf, &reject_cid);
+        rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &reject_cid);
         om = NULL;
     }
 
@@ -658,9 +657,8 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     case 0:
         /* Final fragment received. */
         BLE_HS_DBG_ASSERT(rx_cb != NULL);
-        BLE_HS_DBG_ASSERT(rx_buf != NULL);
-        rc = rx_cb(conn_handle, &rx_buf);
-        os_mbuf_free_chain(rx_buf);
+        rc = rx_cb(conn->bhc_rx_chan);
+        ble_l2cap_forget_rx(conn, conn->bhc_rx_chan);
         break;
 
     case BLE_HS_EAGAIN:
