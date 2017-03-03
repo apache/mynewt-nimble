@@ -82,6 +82,7 @@ struct ble_l2cap_chan {
     uint16_t psm;
     struct ble_l2cap_coc_endpoint coc_rx;
     struct ble_l2cap_coc_endpoint coc_tx;
+    uint16_t initial_credits;
     ble_l2cap_event_fn *cb;
     void *cb_arg;
 #endif
