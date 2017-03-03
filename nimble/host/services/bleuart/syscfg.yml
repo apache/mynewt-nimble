@@ -20,5 +20,7 @@
 
 syscfg.defs:
     BLEUART_MAX_INPUT:
-        description: 'TBD'
+        description: >
+            The size of the largest line that can be received over the UART
+            service.
         value: 120

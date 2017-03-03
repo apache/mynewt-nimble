@@ -25,21 +25,30 @@ syscfg.defs:
 
     # Debug settings.
     BLE_HS_DEBUG:
-        description: 'TBD'
+        description: 'Enables extra runtime assertions.'
         value: 0
     BLE_HS_PHONY_HCI_ACKS:
-        description: 'TBD'
+        description: >
+            Rather than wait for HCI acknowledgements from a controller, the
+            host simulates incoming acks.  Only recommended for test code
+            running in the simulator.
         value: 0
     BLE_HS_REQUIRE_OS:
-        description: 'TBD'
+        description: >
+            Specifies whether the host can depend on the kernel being present.
+            This should only be disabled for unit tests running in the
+            simulator.
         value: 1
 
     # L2CAP settings.
     BLE_L2CAP_MAX_CHANS:
-        description: 'TBD'
+        description: >
+            The number of L2CAP channels to allocate.  The default value allows
+            for the signal, ATT, and SM channels for each connection.
         value: '3*MYNEWT_VAL_BLE_MAX_CONNECTIONS'
     BLE_L2CAP_SIG_MAX_PROCS:
-        description: 'TBD'
+        description: >
+            The maximum number of concurrent L2CAP signal procedures.
         value: 1
     BLE_L2CAP_JOIN_RX_FRAGS:
         description: >
@@ -69,147 +78,213 @@ syscfg.defs:
         value: 0
 
     BLE_SM_MAX_PROCS:
-        description: 'TBD'
+        description: >
+            The maximum number of concurrent security manager procedures.
         value: 1
     BLE_SM_IO_CAP:
-        description: 'TBD'
+        description: >
+            The IO capabilities to report during pairing.  Valid values are:
+                BLE_HS_IO_DISPLAY_ONLY
+                BLE_HS_IO_DISPLAY_YESNO
+                BLE_HS_IO_KEYBOARD_ONLY
+                BLE_HS_IO_NO_INPUT_OUTPUT
+                BLE_HS_IO_KEYBOARD_DISPLAY
         value: 'BLE_HS_IO_NO_INPUT_OUTPUT'
     BLE_SM_OOB_DATA_FLAG:
-        description: 'TBD'
+        description: >
+            Whether the out-of-band pairing algorithm is advertised. (0/1)
         value: 0
     BLE_SM_BONDING:
-        description: 'TBD'
+        description: >
+            Enables bonding (persistence and restoration of secure links). (0/1)
         value: 0
     BLE_SM_MITM:
-        description: 'TBD'
+        description: >
+            Whether man-in-the-middle protection is advertised during
+            pairing. (0/1)
         value: 0
     BLE_SM_KEYPRESS:
-        description: 'TBD'
+        description: >
+            Whether keypress support is advertised during pairing. (0/1)
         value: 0
     BLE_SM_OUR_KEY_DIST:
-        description: 'TBD'
+        description: >
+            A bitmap indicating which keys to distribute during pairing.  The
+            bits are defined as follows:
+                0x01: BLE_SM_PAIR_KEY_DIST_ENC
+                0x02: BLE_SM_PAIR_KEY_DIST_ID
+                0x04: BLE_SM_PAIR_KEY_DIST_SIGN
+                0x08: BLE_SM_PAIR_KEY_DIST_LINK
         value: 0
     BLE_SM_THEIR_KEY_DIST:
-        description: 'TBD'
+        description: >
+            A bitmap indicating which keys to accept during pairing.  The
+            bits are defined as follows:
+                0x01: BLE_SM_PAIR_KEY_DIST_ENC
+                0x02: BLE_SM_PAIR_KEY_DIST_ID
+                0x04: BLE_SM_PAIR_KEY_DIST_SIGN
+                0x08: BLE_SM_PAIR_KEY_DIST_LINK
         value: 0
 
     # Supported GATT procedures.  By default:
     #     o Notify and indicate are enabled;
     #     o All other procedures are enabled for centrals.
     BLE_GATT_DISC_ALL_SVCS:
-        description: 'TBD'
+        description: >
+            Enables the Discover All Primary Services GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_DISC_SVC_UUID:
-        description: 'TBD'
+        description: >
+            Enables the Discover Primary Services by Service UUID GATT
+            procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_FIND_INC_SVCS:
-        description: 'TBD'
+        description: >
+            Enables the Find Included Services GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_DISC_ALL_CHRS:
-        description: 'TBD'
+        description: >
+            Enables the Discover All Characteristics of a Service GATT
+            procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_DISC_CHR_UUID:
-        description: 'TBD'
+        description: >
+            Enables the Discover Characteristics by UUID GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_DISC_ALL_DSCS:
-        description: 'TBD'
+        description: >
+            Enables the Discover All Primary Services GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_READ:
-        description: 'TBD'
+        description: >
+            Enables the Read Characteristic Value GATT procedure. (0/1)
+            (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_READ_UUID:
-        description: 'TBD'
+        description: >
+            Enables the Read Using Characteristic UUID GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_READ_LONG:
-        description: 'TBD'
+        description: >
+            Enables the Read Long Characteristic Values GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_READ_MULT:
-        description: 'TBD'
+        description: >
+            Enables the Read Multiple Characteristic Values GATT procedure.
+            (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_WRITE_NO_RSP:
-        description: 'TBD'
+        description: >
+            Enables the Write Without Response GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_SIGNED_WRITE:
-        description: 'TBD'
+        description: >
+            Enables the Signed Write Without Response GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_WRITE:
-        description: 'TBD'
+        description: >
+            Enables the Write Characteristic Value GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_WRITE_LONG:
-        description: 'TBD'
+        description: >
+            Enables the Write Long Characteristic Values GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_WRITE_RELIABLE:
-        description: 'TBD'
+        description: >
+            Enables the Reliable Writes GATT procedure. (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
     BLE_GATT_NOTIFY:
-        description: 'TBD'
+        description: >
+            Enables sending and receiving of GATT notifications. (0/1)
         value: 1
     BLE_GATT_INDICATE:
-        description: 'TBD'
+        description: >
+            Enables sending and receiving of GATT indications. (0/1)
         value: 1
 
     # GATT options.
     BLE_GATT_READ_MAX_ATTRS:
         description: >
             The maximum number of attributes that can be read with a single
-            GATT Read Multiple Characteristic Values procedure.
+            GATT Read Multiple Characteristic Values procedure. (0/1)
         value: 8
     BLE_GATT_WRITE_MAX_ATTRS:
         description: >
             The maximum number of attributes that can be written with a single
-            GATT Reliable Write procedure.
+            GATT Reliable Write procedure. (0/1)
         value: 4
     BLE_GATT_MAX_PROCS:
         description: >
-            The maximum number of concurrent client GATT procedures.
+            The maximum number of concurrent client GATT procedures. (0/1)
         value: 4
     BLE_GATT_RESUME_RATE:
         description: >
             The rate to periodically resume GATT procedures that have stalled
-            due to memory exhaustion.  Units are milliseconds.
+            due to memory exhaustion. (0/1)  Units are milliseconds. (0/1)
         value: 1000
 
-    # Supported server ATT commands.
+    # Supported server ATT commands. (0/1)
     BLE_ATT_SVR_FIND_INFO:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Find Information Request ATT
+            commands. (0/1)
         value: 1
     BLE_ATT_SVR_FIND_TYPE:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Find By Type Value Request ATT
+            commands. (0/1)
         value: 1
     BLE_ATT_SVR_READ_TYPE:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Read By Type Request ATT commands.
+            (0/1)
         value: 1
     BLE_ATT_SVR_READ:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Read Request ATT commands. (0/1)
         value: 1
     BLE_ATT_SVR_READ_BLOB:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Read Blob Request ATT commands.
+            (0/1)
         value: 1
     BLE_ATT_SVR_READ_MULT:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Read Multiple Request ATT commands.
+            (0/1)
         value: 1
     BLE_ATT_SVR_READ_GROUP_TYPE:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Read by Group Type Request ATT
+            commands. (0/1)
         value: 1
     BLE_ATT_SVR_WRITE:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Write Request ATT commands. (0/1)
         value: 1
     BLE_ATT_SVR_WRITE_NO_RSP:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Write Command ATT commands. (0/1)
         value: 1
     BLE_ATT_SVR_SIGNED_WRITE:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Signed Write Command ATT commands.
+            (0/1)
         value: 1
     BLE_ATT_SVR_QUEUED_WRITE:
         description: >
-            Whether the device can receive ATT queued writes (prepare write
-            and execute write requests).
+            Enables processing of incoming Prepare Write Request and Execute
+            Write Request ATT commands. (0/1)
         value: 1
     BLE_ATT_SVR_NOTIFY:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Handle Value Notification ATT
+            commands. (0/1)
         value: 1
     BLE_ATT_SVR_INDICATE:
-        description: 'TBD'
+        description: >
+            Enables processing of incoming Handle Value Indication ATT
+            commands.  (0/1)
         value: 1
 
     # ATT options.
@@ -230,10 +305,12 @@ syscfg.defs:
 
     # Privacy options.
     BLE_RPA_TIMEOUT:
-        description: 'TBD'
+        description: >
+            The rate that new random addresses should be generated (seconds).
         value: 300
 
     # Miscellaneous features.
     BLE_EDDYSTONE:
-        description: 'TBD'
+        description: >
+            Enables advertising of Eddystone beacons.
         value: 1
