@@ -76,6 +76,10 @@ ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2)
     BLE_HS_DBG_ASSERT(verify_uuid(uuid1) == 0);
     BLE_HS_DBG_ASSERT(verify_uuid(uuid2) == 0);
 
+    if (uuid1->type != uuid2->type) {
+      return uuid1->type - uuid2->type;
+    }
+
     switch (uuid1->type) {
     case BLE_UUID_TYPE_16:
         return (int) BLE_UUID16(uuid1)->value - (int) BLE_UUID16(uuid2)->value;
