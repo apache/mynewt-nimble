@@ -2355,7 +2355,7 @@ TEST_CASE(ble_gap_test_case_update_conn_verify_params)
     ble_gap_test_util_update_verify_params(
         ((struct ble_gap_upd_params[]) { {
             .itvl_min = 100,
-            .itvl_max = 100,
+            .itvl_max = 600,
             .supervision_timeout = 300,
             .latency = 1,
             .min_ce_len = 554,
