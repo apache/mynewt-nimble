@@ -2828,8 +2828,13 @@ ble_gap_validate_conn_params(const struct ble_gap_upd_params *params)
         return false;
     }
 
+    /* According to specification mentioned above we should make sure that:
+     * supervision_timeout_ms > (1 + latency) * 2 * max_interval_ms
+     *    =>
+     * supervision_timeout * 10 ms > (1 + latency) * 2 * itvl_max * 1.25ms
+     */
     if (params->supervision_timeout <=
-                   (((1 + params->latency) * params->itvl_max) * 6 / 4)) {
+                   (((1 + params->latency) * params->itvl_max) / 4)) {
         return false;
     }
 
