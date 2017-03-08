@@ -1021,7 +1021,7 @@ ble_hci_uart_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_hci_uart_config();
-    SYSINIT_PANIC_ASSERT(rc == 0);
+    SYSINIT_PANIC_ASSERT_MSG(rc == 0, "Failure configuring UART HCI");
 
     memset(&ble_hci_uart_state, 0, sizeof ble_hci_uart_state);
     STAILQ_INIT(&ble_hci_uart_state.tx_pkts);
