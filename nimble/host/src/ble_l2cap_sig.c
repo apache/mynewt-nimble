@@ -695,6 +695,10 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     rc = ble_l2cap_event_coc_accept(chan, le16toh(req->mtu));
     if (rc != 0) {
         uint16_t coc_err = ble_l2cap_sig_ble_hs_err2coc_err(rc);
+
+        /* Make sure we do not send disconnect event when removing channel */
+        chan->cb = NULL;
+
         ble_l2cap_chan_free(chan);
         rsp->result = htole16(coc_err);
         goto failed;
