@@ -836,13 +836,14 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     req->mps = htole16(chan->my_mtu);
     req->credits = htole16(chan->coc_rx.credits);
 
+    ble_hs_unlock();
+
     rc = ble_l2cap_sig_tx(proc->conn_handle, txom);
     if (rc != 0) {
         ble_l2cap_chan_free(chan);
     }
 
     ble_l2cap_sig_process_status(proc, rc);
-    ble_hs_unlock();
 
     return rc;
 }
