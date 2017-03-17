@@ -222,7 +222,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
          * so since we have still buffer to handle it
          */
         rx->credits = 1;
-        ble_l2cap_sig_le_credits(chan, rx->credits);
+        ble_l2cap_sig_le_credits(chan->conn_handle, chan->scid, rx->credits);
     }
 
     BLE_HS_LOG(DEBUG, "Received partial sdu_len=%d, credits left=%d\n",
@@ -468,7 +468,10 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
      * to be able to send complete SDU.
      */
     if (chan->coc_rx.credits < c->initial_credits) {
-        ble_l2cap_sig_le_credits(chan, c->initial_credits - chan->coc_rx.credits);
+        ble_hs_unlock();
+        ble_l2cap_sig_le_credits(chan->conn_handle, chan->scid,
+                                 c->initial_credits - chan->coc_rx.credits);
+        ble_hs_lock();
         chan->coc_rx.credits = c->initial_credits;
     }
 

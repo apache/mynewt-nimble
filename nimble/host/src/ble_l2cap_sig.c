@@ -1047,7 +1047,7 @@ ble_l2cap_sig_le_credits_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 }
 
 int
-ble_l2cap_sig_le_credits(struct ble_l2cap_chan *chan, uint16_t credits)
+ble_l2cap_sig_le_credits(uint16_t conn_handle, uint16_t scid, uint16_t credits)
 {
     struct ble_l2cap_sig_le_credits *cmd;
     struct os_mbuf *txom;
@@ -1059,10 +1059,10 @@ ble_l2cap_sig_le_credits(struct ble_l2cap_chan *chan, uint16_t credits)
         return BLE_HS_ENOMEM;
     }
 
-    cmd->scid = htole16(chan->scid);
+    cmd->scid = htole16(scid);
     cmd->credits = htole16(credits);
 
-    return ble_l2cap_sig_tx(chan->conn_handle, txom);
+    return ble_l2cap_sig_tx(conn_handle, txom);
 }
 #endif
 
