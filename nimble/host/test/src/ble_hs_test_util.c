@@ -1766,6 +1766,79 @@ ble_hs_test_util_verify_tx_l2cap_sig_hdr(uint8_t op, uint8_t id,
     return om;
 }
 
+int
+ble_hs_test_util_inject_rx_l2cap_sig(uint16_t conn_handle, uint8_t opcode,
+                              uint8_t id, void *cmd, uint16_t cmd_size)
+{
+    void *r;
+    struct hci_data_hdr hci_hdr;
+    struct os_mbuf *om;
+    int rc;
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(2, BLE_HCI_PB_FIRST_FLUSH,
+                         BLE_L2CAP_HDR_SZ + BLE_L2CAP_SIG_HDR_SZ + cmd_size);
+
+    r = ble_l2cap_sig_cmd_get(opcode, id, cmd_size, &om);
+    TEST_ASSERT_FATAL(r != NULL);
+
+    memcpy(r, cmd, cmd_size);
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
+                                              &hci_hdr, om);
+    return rc;
+}
+
+/**
+ * @return  The L2CAP sig identifier in the request/response.
+ */
+uint8_t
+ble_hs_test_util_verify_tx_l2cap_sig(uint16_t opcode, void *cmd,
+                                     uint16_t cmd_size)
+{
+    struct ble_l2cap_sig_hdr hdr;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_verify_tx_l2cap_sig_hdr(opcode, 0, cmd_size, &hdr);
+    om = os_mbuf_pullup(om, cmd_size);
+
+    /* Verify payload. */
+    TEST_ASSERT(memcmp(om->om_data, cmd, cmd_size) == 0);
+
+    return hdr.identifier;
+}
+
+void
+ble_hs_test_util_verify_tx_l2cap(struct os_mbuf *txom)
+{
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+    TEST_ASSERT_FATAL(om != NULL);
+
+    /* TODO Handle fragmentation */
+    TEST_ASSERT_FATAL(os_mbuf_cmpm(om, 0, txom, 0, OS_MBUF_PKTLEN(om)) == 0);
+}
+
+void
+ble_hs_test_util_inject_rx_l2cap(uint16_t conn_handle, uint16_t cid,
+                                 struct os_mbuf *rxom)
+{
+    struct hci_data_hdr hci_hdr;
+    int rc;
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(2, BLE_HCI_PB_FIRST_FLUSH,
+                                             BLE_L2CAP_HDR_SZ +
+                                             BLE_L2CAP_SIG_HDR_SZ +
+                                             OS_MBUF_PKTLEN(rxom));
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, cid, &hci_hdr, rxom);
+    TEST_ASSERT(rc == 0);
+}
+
 static void
 ble_l2cap_test_update_req_swap(struct ble_l2cap_sig_update_req *dst,
                                struct ble_l2cap_sig_update_req *src)
