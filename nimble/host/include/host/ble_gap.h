@@ -556,7 +556,7 @@ int ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 int ble_gap_conn_cancel(void);
 int ble_gap_conn_active(void);
 int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
-int ble_gap_wl_set(const ble_addr_t *addr, uint8_t white_list_count);
+int ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count);
 int ble_gap_update_params(uint16_t conn_handle,
                           const struct ble_gap_upd_params *params);
 int ble_gap_dbg_update_active(uint16_t conn_handle);
