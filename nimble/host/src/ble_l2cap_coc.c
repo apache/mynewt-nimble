@@ -197,17 +197,19 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
     if (OS_MBUF_PKTLEN(rx->sdu) == rx->data_offset) {
         struct os_mbuf *sdu_rx = rx->sdu;
 
+        BLE_HS_LOG(DEBUG, "Received sdu_len=%d, credits left=%d\n",
+                   OS_MBUF_PKTLEN(rx->sdu), rx->credits);
+
         /* Lets get back control to os_mbuf to application.
          * Since it this callback application might want to set new sdu
          * we need to prepare space for this. Therefore we need sdu_rx
          */
-
         rx->sdu = NULL;
         rx->data_offset = 0;
 
         ble_l2cap_event_coc_received_data(chan, sdu_rx);
 
-        goto done;
+        return 0;
     }
 
     /* If we did not received full SDU and credits are 0 it means
@@ -223,8 +225,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
         ble_l2cap_sig_le_credits(chan, rx->credits);
     }
 
-done:
-    BLE_HS_LOG(DEBUG, "Received sdu_len=%d, credits left=%d\n",
+    BLE_HS_LOG(DEBUG, "Received partial sdu_len=%d, credits left=%d\n",
                OS_MBUF_PKTLEN(rx->sdu), rx->credits);
 
     return 0;
