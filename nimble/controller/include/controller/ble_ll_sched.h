@@ -78,6 +78,40 @@ struct ble_ll_sched_item;
 typedef int (*sched_cb_func)(struct ble_ll_sched_item *sch);
 
 /*
+ * Strict connection scheduling (for the master) is different than how
+ * connections are normally scheduled. With strict connection scheduling we
+ * introduce the concept of a "period". A period is a collection of slots. Each
+ * slot is 1.25 msecs in length. The number of slots in a period is determined
+ * by the syscfg value BLE_LL_CONN_INIT_SLOTS. A collection of periods is called
+ * an epoch. The length of an epoch is determined by the number of connections
+ * (BLE_MAX_CONNECTIONS plus BLE_LL_ADD_STRICT_SCHED_PERIODS). Connections
+ * will be scheduled at period boundaries. Any scanning/initiating/advertising
+ * will be done in unused periods, if possible.
+ */
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+#define BLE_LL_SCHED_PERIODS    (MYNEWT_VAL(BLE_MAX_CONNECTIONS) + \
+                                 MYNEWT_VAL(BLE_LL_ADD_STRICT_SCHED_PERIODS))
+
+struct ble_ll_sched_obj
+{
+    uint8_t sch_num_occ_periods;
+    uint32_t sch_occ_period_mask;
+    uint32_t sch_ticks_per_period;
+    uint32_t sch_ticks_per_epoch;
+    uint32_t sch_epoch_start;
+};
+
+extern struct ble_ll_sched_obj g_ble_ll_sched_data;
+
+/*
+ * XXX: TODO:
+ * -> How do we know epoch start is up to date? Not wrapped?
+ * -> for now, only do this with no more than 32 connections.
+ * -> Do not let initiating occur if no empty sched slots
+ */
+#endif
+
+/*
  * Schedule item
  *  sched_type: This is the type of the schedule item.
  *  enqueued: Flag denoting if item is on the scheduler list. 0: no, 1:yes

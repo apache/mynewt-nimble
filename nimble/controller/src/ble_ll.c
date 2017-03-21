@@ -1195,6 +1195,9 @@ ble_ll_reset(void)
     /* All this does is re-initialize the event masks so call the hci init */
     ble_ll_hci_init();
 
+    /* Reset scheduler */
+    ble_ll_sched_init();
+
     /* Set state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 

@@ -148,6 +148,27 @@ syscfg.defs:
             ensure interoperability with such devices set this value to 2 (or more).
         value: '0'
 
+    # Strict scheduling
+    BLE_LL_STRICT_CONN_SCHEDULING:
+        description: >
+            Forces the scheduler on a central to schedule connections in fixed
+            time intervals called periods. If set to 0, the scheduler is not forced
+            to do this. If set to 1, the scheduler will only schedule connections at
+            period boundaries. See comments in ble_ll_sched.h for more details.
+        value: '1'
+
+    BLE_LL_ADD_STRICT_SCHED_PERIODS:
+        description: >
+            The number of additional periods that will be allocated for strict
+            scheduling. The total # of periods allocated for strict scheduling
+            will be equal to the number of connections plus this number.
+        value: '0'
+
+    BLE_LL_USECS_PER_PERIOD:
+        description: >
+            The number of usecs per period.
+        value: '3250'
+
     # The number of random bytes to store
     BLE_LL_RNG_BUFSIZE:
         description: >
