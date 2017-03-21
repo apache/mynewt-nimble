@@ -1722,7 +1722,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 
     /* Free mbuf or send response */
 ll_ctrl_send_rsp:
-    if (rsp_opcode == 255) {
+    if (rsp_opcode == BLE_ERR_MAX) {
         os_mbuf_free_chain(om);
     } else {
         /*
