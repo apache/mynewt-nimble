@@ -1,7 +1,7 @@
 PTS test results for L2CAP
 
 PTS version: 7.0
-Tested: 10-Jan-2017
+Tested: 21-Mar-2017
 
 Results:
 PASS   test passed
@@ -181,40 +181,75 @@ L2CAP/ECF/BV-07-C		N/A
 L2CAP/ECF/BV-08-C		N/A
 -------------------------------------------------------------------------------
 
-L2CAP/LE/CPU/BV-01-C	PASS	b set adv_data flags=0
+L2CAP/LE/CPU/BV-01-C	PASS	b set adv_data flags=6
 				b adv
 				b l2cap update conn=<handle>
 L2CAP/LE/CPU/BV-02-C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 L2CAP/LE/CPU/BI-01-C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
-L2CAP/LE/CPU/BI-02-C	PASS	b set adv_data flags=0
+L2CAP/LE/CPU/BI-02-C	PASS	b set adv_data flags=6
 				b adv
 -------------------------------------------------------------------------------
 
-L2CAP/LE/REJ/BI-01-C	PASS	b set adv_data flags=0
+L2CAP/LE/REJ/BI-01-C	PASS	b set adv_data flags=6
 				b adv
-L2CAP/LE/REJ/BI-02-C	PASS	b set adv_data flags=0
+L2CAP/LE/REJ/BI-02-C	PASS	b set adv_data flags=6
 				b adv
 				b term conn=<handle>
 -------------------------------------------------------------------------------
 
-L2CAP/LE/CFC/BV-01-C	N/A
-L2CAP/LE/CFC/BV-02-C	N/A
-L2CAP/LE/CFC/BV-03-C	N/A
-L2CAP/LE/CFC/BV-04-C	N/A
-L2CAP/LE/CFC/BV-05-C	N/A
-L2CAP/LE/CFC/BV-06-C	N/A
-L2CAP/LE/CFC/BV-07-C	N/A
-L2CAP/LE/CFC/BI-01-C	N/A
-L2CAP/LE/CFC/BV-08-C	N/A
-L2CAP/LE/CFC/BV-09-C	N/A
-L2CAP/LE/CFC/BV-16-C	N/A
+L2CAP/LE/CFC/BV-01-C	PASS	b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-02-C	PASS	b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-03-C	PASS	b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+				b l2cap send conn=<handle> idx=0 bytes=15
+L2CAP/LE/CFC/BV-04-C	PASS	b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=<not suppported psm from ixit>
+L2CAP/LE/CFC/BV-05-C	PASS	b set adv_data flags=6
+				b adv
+L2CAP/LE/CFC/BV-06-C	PASS	b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+				b l2cap send conn=<handle> idx=0 bytes=15
+L2CAP/LE/CFC/BV-07-C	PASS	b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+L2CAP/LE/CFC/BI-01-C	PASS	b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+L2CAP/LE/CFC/BV-08-C	PASS	b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+				b l2cap disconnect conn=<handle> idx=0
+L2CAP/LE/CFC/BV-09-C	PASS	b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+L2CAP/LE/CFC/BV-16-C	PASS    b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=90
 L2CAP/LE/CFC/BV-17-C	N/A
-L2CAP/LE/CFC/BV-18-C	N/A
-L2CAP/LE/CFC/BV-19-C	N/A
-L2CAP/LE/CFC/BV-20-C	N/A
-L2CAP/LE/CFC/BV-21-C	N/A
+L2CAP/LE/CFC/BV-18-C	PASS    b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-19-C	PASS    NOTE: TSPC_L2CAP_3_16 (multiple channel support) must be checked
+				b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-20-C	PASS	NOTE: TSPC_L2CAP_3_16 (multiple channel support) must be checked
+				b set adv_data flags=6
+				b l2cap create_srv psm=<your psm>
+				b adv
+				b term conn=<handle>
+L2CAP/LE/CFC/BV-21-C	PASS	b set adv_data flags=6
+				b adv
+				b l2cap connect conn=<handle> psm=90
 -------------------------------------------------------------------------------
 
 L2CAP/LE/CID/BV-01-C	N/A
