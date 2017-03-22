@@ -1559,6 +1559,10 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 
     ble_ll_log(BLE_LL_LOG_ID_LL_CTRL_RX, opcode, len, 0);
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+    restart_encryption = 0;
+#endif
+
     /* If opcode comes from reserved value or CtrlData fields is invalid
      * we shall respond with LL_UNKNOWN_RSP
      */
@@ -1568,10 +1572,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
         goto ll_ctrl_send_rsp;
     }
-
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
-    restart_encryption = 0;
-#endif
 
     /* Check if the feature is supported. */
     switch (opcode) {
