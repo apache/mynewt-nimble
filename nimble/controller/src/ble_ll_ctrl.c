@@ -1522,6 +1522,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     int restart_encryption;
 #endif
+    int rc = 0;
 
     /* XXX: where do we validate length received and packet header length?
      * do this in LL task when received. Someplace!!! What I mean
@@ -1558,10 +1559,14 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 
     ble_ll_log(BLE_LL_LOG_ID_LL_CTRL_RX, opcode, len, 0);
 
-    /* opcode must be good */
+    /* If opcode comes from reserved value or CtrlData fields is invalid
+     * we shall respond with LL_UNKNOWN_RSP
+     */
     if ((opcode >= BLE_LL_CTRL_OPCODES) ||
         (len != g_ble_ll_ctrl_pkt_lengths[opcode])) {
-        goto rx_malformed_ctrl;
+        rc = -1;
+        rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
+        goto ll_ctrl_send_rsp;
     }
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
@@ -1626,7 +1631,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_LENGTH_REQ:
         /* Extract parameters and check if valid */
         if (ble_ll_ctrl_len_proc(connsm, dptr)) {
-            goto rx_malformed_ctrl;
+            rc  = -1;
+            rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
+            goto ll_ctrl_send_rsp;
         }
 
         /*
@@ -1647,7 +1654,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_DATA_LEN_UPD) {
             /* Process the received data */
             if (ble_ll_ctrl_len_proc(connsm, dptr)) {
-                goto rx_malformed_ctrl;
+                rc = -1;
+                rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
+                goto ll_ctrl_send_rsp;
             }
 
             /* Stop the control procedure */
@@ -1743,11 +1752,7 @@ ll_ctrl_send_rsp:
         }
 #endif
     }
-    return 0;
-
-rx_malformed_ctrl:
-    os_mbuf_free_chain(om);
-    return -1;
+    return rc;
 }
 
 /**
