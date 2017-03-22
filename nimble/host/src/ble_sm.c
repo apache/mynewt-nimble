@@ -710,12 +710,12 @@ ble_sm_build_authreq(void)
 }
 
 static int
-ble_sm_io_action(struct ble_sm_proc *proc)
+ble_sm_io_action(struct ble_sm_proc *proc, uint8_t *action)
 {
     if (proc->flags & BLE_SM_PROC_F_SC) {
-        return ble_sm_sc_io_action(proc);
+        return ble_sm_sc_io_action(proc, action);
     } else {
-        return ble_sm_lgcy_io_action(proc);
+        return ble_sm_lgcy_io_action(proc, action);
     }
 }
 
@@ -744,8 +744,13 @@ int
 ble_sm_proc_can_advance(struct ble_sm_proc *proc)
 {
     uint8_t ioact;
+    int rc;
 
-    ioact = ble_sm_io_action(proc);
+    rc = ble_sm_io_action(proc, &ioact);
+    if (rc != 0) {
+        BLE_HS_DBG_ASSERT(0);
+    }
+
     if (ble_sm_ioact_state(ioact) != proc->state) {
         return 1;
     }
@@ -1379,7 +1384,13 @@ ble_sm_confirm_rx(uint16_t conn_handle, struct os_mbuf **om,
             proc->state = BLE_SM_PROC_STATE_RANDOM;
             res->execute = 1;
         } else {
-            ioact = ble_sm_io_action(proc);
+            int rc;
+
+            rc = ble_sm_io_action(proc, &ioact);
+            if (rc != 0) {
+                BLE_HS_DBG_ASSERT(0);
+            }
+
             if (ble_sm_ioact_state(ioact) == proc->state) {
                 proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
             }
@@ -1503,7 +1514,9 @@ ble_sm_pair_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         ble_sm_pair_cfg(proc);
         proc->state = ble_sm_state_after_pair(proc);
 
-        ioact = ble_sm_io_action(proc);
+        rc = ble_sm_io_action(proc, &ioact);
+        BLE_HS_DBG_ASSERT(rc == 0);
+
         if (ble_sm_ioact_state(ioact) == proc->state) {
             res->passkey_params.action = ioact;
         }
@@ -1621,15 +1634,23 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
         } else {
+            int rc;
+
             ble_sm_pair_cfg(proc);
 
-            proc->state = ble_sm_state_after_pair(proc);
-            ioact = ble_sm_io_action(proc);
-            if (ble_sm_ioact_state(ioact) == proc->state) {
-                res->passkey_params.action = ioact;
-            }
-            if (ble_sm_proc_can_advance(proc)) {
-                res->execute = 1;
+            rc = ble_sm_io_action(proc, &ioact);
+            if (rc != 0) {
+                res->sm_err = BLE_SM_ERR_AUTHREQ;
+                res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
+                res->enc_cb = 1;
+            } else {
+                proc->state = ble_sm_state_after_pair(proc);
+                if (ble_sm_ioact_state(ioact) == proc->state) {
+                    res->passkey_params.action = ioact;
+                }
+                if (ble_sm_proc_can_advance(proc)) {
+                    res->execute = 1;
+                }
             }
         }
     }
@@ -2373,6 +2394,7 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
     int rc;
+    uint8_t action;
 
     memset(&res, 0, sizeof res);
 
@@ -2383,7 +2405,7 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
         rc = BLE_HS_ENOENT;
     } else if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
         rc = BLE_HS_EALREADY;
-    } else if (pkey->action != ble_sm_io_action(proc)) {
+    } else if ((ble_sm_io_action(proc, &action) == 0) && pkey->action != action) {
         /* Application provided incorrect IO type. */
         rc = BLE_HS_EINVAL;
     } else if (ble_sm_ioact_state(pkey->action) != proc->state) {

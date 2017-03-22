@@ -61,31 +61,30 @@ static const uint8_t ble_sm_lgcy_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
 };
 
 int
-ble_sm_lgcy_io_action(struct ble_sm_proc *proc)
+ble_sm_lgcy_io_action(struct ble_sm_proc *proc, uint8_t *action)
 {
     struct ble_sm_pair_cmd *pair_req, *pair_rsp;
-    int action;
 
     pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
     pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
 
     if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES &&
         pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
-        action = BLE_SM_IOACT_OOB;
+        *action = BLE_SM_IOACT_OOB;
     } else if (!(pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
                !(pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
-        action = BLE_SM_IOACT_NONE;
+        *action = BLE_SM_IOACT_NONE;
     } else if (pair_req->io_cap >= BLE_SM_IO_CAP_RESERVED ||
                pair_rsp->io_cap >= BLE_SM_IO_CAP_RESERVED) {
-        action = BLE_SM_IOACT_NONE;
+        *action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_lgcy_init_ioa[pair_rsp->io_cap][pair_req->io_cap];
+        *action = ble_sm_lgcy_init_ioa[pair_rsp->io_cap][pair_req->io_cap];
     } else {
-        action = ble_sm_lgcy_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
+        *action = ble_sm_lgcy_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
     }
 
-    switch (action) {
+    switch (*action) {
     case BLE_SM_IOACT_NONE:
         proc->pair_alg = BLE_SM_PAIR_ALG_JW;
         break;
@@ -103,10 +102,10 @@ ble_sm_lgcy_io_action(struct ble_sm_proc *proc)
 
     default:
         BLE_HS_DBG_ASSERT(0);
-        break;
+        return BLE_HS_EINVAL;
     }
 
-    return action;
+    return 0;
 }
 
 void
