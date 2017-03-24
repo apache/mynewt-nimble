@@ -3252,7 +3252,6 @@ ble_gattc_read_long_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_read_long_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_blob_req blob_req;
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
@@ -3263,9 +3262,9 @@ ble_gattc_read_long_tx(struct ble_gattc_proc *proc)
             return rc;
         }
     } else {
-        blob_req.babq_handle = proc->read_long.handle;
-        blob_req.babq_offset = proc->read_long.offset;
-        rc = ble_att_clt_tx_read_blob(proc->conn_handle, &blob_req);
+        rc = ble_att_clt_tx_read_blob(proc->conn_handle,
+                                      proc->read_long.handle,
+                                      proc->read_long.offset);
         if (rc != 0) {
             return rc;
         }

@@ -612,27 +612,29 @@ ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
  *****************************************************************************/
 
 int
-ble_att_clt_tx_read_blob(uint16_t conn_handle,
-                         const struct ble_att_read_blob_req *req)
+ble_att_clt_tx_read_blob(uint16_t conn_handle, uint16_t handle, uint16_t offset)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_BLOB
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_read_blob_req *req;
     struct os_mbuf *txom;
     int rc;
 
-    if (req->babq_handle == 0) {
+    if (handle == 0) {
         return BLE_HS_EINVAL;
     }
 
-    rc = ble_att_clt_init_req(BLE_ATT_READ_BLOB_REQ_SZ, &txom);
-    if (rc != 0) {
-        return rc;
+    req = ble_att_cmd_get(BLE_ATT_OP_READ_BLOB_REQ, sizeof(*req), &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
-    ble_att_read_blob_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
+    req->babq_handle = htole16(handle);
+    req->babq_offset = htole16(offset);
+
+    rc = ble_att_tx(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
