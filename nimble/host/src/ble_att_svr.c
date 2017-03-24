@@ -2632,7 +2632,6 @@ ble_att_svr_build_indicate_rsp(struct os_mbuf **rxom,
                                struct os_mbuf **out_txom, uint8_t *out_att_err)
 {
     struct os_mbuf *txom;
-    uint8_t *dst;
     int rc;
 
     /* Allocate a new buffer for the response.  An indicate response never
@@ -2644,14 +2643,11 @@ ble_att_svr_build_indicate_rsp(struct os_mbuf **rxom,
         goto done;
     }
 
-    dst = os_mbuf_extend(txom, BLE_ATT_INDICATE_RSP_SZ);
-    if (dst == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_INDICATE_RSP, 0, txom) == NULL) {
         rc = BLE_HS_ENOMEM;
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto done;
     }
-
-    ble_att_indicate_rsp_write(dst, BLE_ATT_INDICATE_RSP_SZ);
 
     rc = 0;
 
@@ -2667,33 +2663,34 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_indicate_req req;
+    struct ble_att_indicate_req *req;
     struct os_mbuf *txom;
-    uint16_t err_handle;
+    uint16_t handle;
     uint8_t att_err;
     int rc;
+
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
-    err_handle = 0;
+    handle = 0;
 
-    if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_INDICATE_REQ_BASE_SZ) {
-        rc = BLE_HS_EBADDATA;
-        goto done;
-    }
-
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_INDICATE_REQ_BASE_SZ, NULL);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), NULL);
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_indicate_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_indicate_req *)(*rxom)->om_data;
     BLE_ATT_LOG_CMD(0, "indicate req", conn_handle,
-                    ble_att_indicate_req_log, &req);
-    err_handle = req.baiq_handle;
+                    ble_att_indicate_req_log, req);
 
-    if (req.baiq_handle == 0) {
+    handle = le16toh(req->baiq_handle);
+
+    if (handle == 0) {
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -2707,9 +2704,9 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
     /* Strip the request base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, BLE_ATT_INDICATE_REQ_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*req));
 
-    ble_gap_notify_rx_event(conn_handle, req.baiq_handle, *rxom, 1);
+    ble_gap_notify_rx_event(conn_handle, handle, *rxom, 1);
     *rxom = NULL;
 
     BLE_ATT_LOG_EMPTY_CMD(1, "indicate rsp", conn_handle);
@@ -2718,7 +2715,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 
 done:
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_INDICATE_REQ,
-                            att_err, err_handle);
+                            att_err, handle);
     return rc;
 }
 
