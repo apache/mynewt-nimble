@@ -280,9 +280,8 @@ int ble_att_clt_tx_write_req(uint16_t conn_handle, uint16_t handle,
                              struct os_mbuf *txom);
 int ble_att_clt_tx_write_cmd(uint16_t conn_handle, uint16_t handle,
                              struct os_mbuf *txom);
-int ble_att_clt_tx_prep_write(uint16_t conn_handle,
-                              const struct ble_att_prep_write_cmd *req,
-                              struct os_mbuf *txom);
+int ble_att_clt_tx_prep_write(uint16_t conn_handle, uint16_t handle,
+                              uint16_t offset, struct os_mbuf *txom);
 int ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_tx_exec_write(uint16_t conn_handle,
                               const struct ble_att_exec_write_req *req);

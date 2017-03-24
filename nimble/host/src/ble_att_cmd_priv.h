@@ -269,6 +269,7 @@ struct ble_att_write_req {
 struct ble_att_prep_write_cmd {
     uint16_t bapc_handle;
     uint16_t bapc_offset;
+    uint16_t bapc_value[0];
 } __attribute__((packed));
 
 /**
