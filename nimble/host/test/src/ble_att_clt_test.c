@@ -227,8 +227,7 @@ ble_att_clt_test_misc_exec_good(uint8_t flags)
 
     conn_handle = ble_att_clt_test_misc_init();
 
-    req.baeq_flags = flags;
-    rc = ble_att_clt_tx_exec_write(conn_handle, &req);
+    rc = ble_att_clt_tx_exec_write(conn_handle, flags);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -481,7 +480,6 @@ TEST_CASE(ble_att_clt_test_rx_prep_write)
 
 TEST_CASE(ble_att_clt_test_tx_exec_write)
 {
-    struct ble_att_exec_write_req req;
     uint16_t conn_handle;
     int rc;
 
@@ -492,8 +490,7 @@ TEST_CASE(ble_att_clt_test_tx_exec_write)
     ble_att_clt_test_misc_exec_good(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /*** Success: nonzero == execute. */
-    req.baeq_flags = 0x02;
-    rc = ble_att_clt_tx_exec_write(conn_handle, &req);
+    rc = ble_att_clt_tx_exec_write(conn_handle, 0x02);
     TEST_ASSERT(rc == 0);
 }
 
