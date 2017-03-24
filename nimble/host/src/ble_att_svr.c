@@ -2590,30 +2590,35 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_notify_req req;
+    struct ble_att_notify_req *req;
+    uint16_t handle;
     int rc;
 
-    if (OS_MBUF_PKTLEN(*rxom) < BLE_ATT_NOTIFY_REQ_BASE_SZ) {
-        return BLE_HS_EBADDATA;
-    }
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_NOTIFY_REQ_BASE_SZ, NULL);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), NULL);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
     }
 
-    ble_att_notify_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
-    BLE_ATT_LOG_CMD(0, "notify req", conn_handle,
-                    ble_att_notify_req_log, &req);
+    req = (struct ble_att_notify_req *)(*rxom)->om_data;
 
-    if (req.banq_handle == 0) {
+    BLE_ATT_LOG_CMD(0, "notify req", conn_handle,
+                    ble_att_notify_req_log, req);
+
+    handle = le16toh(req->banq_handle);
+
+    if (handle == 0) {
         return BLE_HS_EBADDATA;
     }
 
     /* Strip the request base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, BLE_ATT_NOTIFY_REQ_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*req));
 
-    ble_gap_notify_rx_event(conn_handle, req.banq_handle, *rxom, 0);
+    ble_gap_notify_rx_event(conn_handle, handle, *rxom, 0);
     *rxom = NULL;
 
     return 0;
