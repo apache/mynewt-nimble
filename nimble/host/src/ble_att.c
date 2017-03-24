@@ -490,6 +490,9 @@ ble_att_rx(struct ble_l2cap_chan *chan)
 
     ble_att_inc_rx_stat(op);
 
+    /* Strip L2CAP ATT header from the front of the mbuf. */
+    os_mbuf_adj(*om, 1);
+
     rc = entry->bde_fn(conn_handle, om);
     if (rc != 0) {
         return rc;

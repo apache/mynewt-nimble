@@ -36,11 +36,6 @@ ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_error_rsp *rsp;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*rsp));
     if (rc != 0) {
         return rc;
@@ -122,11 +117,6 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_l2cap_chan *chan;
     uint16_t mtu;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     mtu = 0;
 
@@ -250,11 +240,6 @@ ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **om)
     struct ble_att_find_info_rsp *rsp;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*om, 1);
-
     rc = ble_hs_mbuf_pullup_base(om, sizeof(*rsp));
     if (rc != 0) {
         goto done;
@@ -361,11 +346,6 @@ ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 
     BLE_ATT_LOG_EMPTY_CMD(0, "find type value rsp", conn_handle);
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Parse the Handles-Information-List field, passing each entry to GATT. */
     rc = 0;
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
@@ -431,11 +411,6 @@ ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_read_type_rsp *rsp;
     uint8_t data_len;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*rsp));
     if (rc != 0) {
@@ -526,11 +501,6 @@ ble_att_clt_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 
     BLE_ATT_LOG_EMPTY_CMD(0, "read rsp", conn_handle);
 
-    /* Reponse consists of a one-byte opcode (already verified) and a variable
-     * length Attribute Value field.  Strip the opcode from the response.
-     */
-    os_mbuf_adj(*rxom, BLE_ATT_READ_RSP_BASE_SZ);
-
     /* Pass the Attribute Value field to GATT. */
     ble_gattc_rx_read_rsp(conn_handle, 0, rxom);
     return 0;
@@ -583,11 +553,6 @@ ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 
     BLE_ATT_LOG_EMPTY_CMD(0, "read blob rsp", conn_handle);
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Pass the Attribute Value field to GATT. */
     ble_gattc_rx_read_blob_rsp(conn_handle, 0, rxom);
     return 0;
@@ -636,11 +601,6 @@ ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     BLE_ATT_LOG_EMPTY_CMD(0, "read mult rsp", conn_handle);
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     /* Pass the Attribute Value field to GATT. */
     ble_gattc_rx_read_mult_rsp(conn_handle, 0, rxom);
@@ -718,11 +678,6 @@ ble_att_clt_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     struct ble_att_read_group_type_rsp *rsp;
     uint8_t len;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*rsp));
     if (rc != 0) {
@@ -901,11 +856,6 @@ ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     uint16_t handle, offset;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     handle = 0;
     offset = 0;
@@ -970,11 +920,6 @@ ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 #if !NIMBLE_BLE_ATT_CLT_EXEC_WRITE
     return BLE_HS_ENOTSUP;
 #endif
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     BLE_ATT_LOG_EMPTY_CMD(0, "exec write rsp", conn_handle);
 
