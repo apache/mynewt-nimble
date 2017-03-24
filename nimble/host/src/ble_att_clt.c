@@ -333,53 +333,41 @@ done:
  * $find by type value                                                       *
  *****************************************************************************/
 
+/*
+ * TODO consider this to accept UUID instead of value, it is used only for this
+ * anyway
+ */
 int
-ble_att_clt_tx_find_type_value(uint16_t conn_handle,
-                               const struct ble_att_find_type_value_req *req,
+ble_att_clt_tx_find_type_value(uint16_t conn_handle, uint16_t start_handle,
+                               uint16_t end_handle, uint16_t attribute_type,
                                const void *attribute_value, int value_len)
 {
 #if !NIMBLE_BLE_ATT_CLT_FIND_TYPE
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_find_type_value_req *req;
     struct os_mbuf *txom;
-    int rc;
 
-    txom = NULL;
-
-    if (req->bavq_start_handle == 0 ||
-        req->bavq_start_handle > req->bavq_end_handle) {
-
-        rc = BLE_HS_EINVAL;
-        goto err;
+    if (start_handle == 0 || start_handle > end_handle) {
+        return BLE_HS_EINVAL;
     }
 
-    rc = ble_att_clt_init_req(BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ, &txom);
-    if (rc != 0) {
-        goto err;
+    req = ble_att_cmd_get(BLE_ATT_OP_FIND_INFO_REQ, sizeof(*req) + value_len,
+                          &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    ble_att_find_type_value_req_write(txom->om_data, txom->om_len, req);
-    rc = os_mbuf_append(txom, attribute_value, value_len);
-    if (rc != 0) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
+    req->bavq_start_handle = htole16(start_handle);
+    req->bavq_end_handle = htole16(end_handle);
+    req->bavq_attr_type = htole16(attribute_type);
+    memcpy(req->bavq_value, attribute_value, value_len);
 
     BLE_ATT_LOG_CMD(1, "find type value req", conn_handle,
                     ble_att_find_type_value_req_log, req);
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
+    return ble_att_tx(conn_handle, txom);
 }
 
 static int

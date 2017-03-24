@@ -1619,18 +1619,16 @@ ble_gattc_disc_svc_uuid_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_disc_svc_uuid_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_find_type_value_req req;
     uint8_t val[16];
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    req.bavq_start_handle = proc->disc_svc_uuid.prev_handle + 1;
-    req.bavq_end_handle = 0xffff;
-    req.bavq_attr_type = BLE_ATT_UUID_PRIMARY_SERVICE;
-
     ble_uuid_flat(&proc->disc_svc_uuid.service_uuid.u, val);
-    rc = ble_att_clt_tx_find_type_value(proc->conn_handle, &req, val,
+    rc = ble_att_clt_tx_find_type_value(proc->conn_handle,
+                                        proc->disc_svc_uuid.prev_handle + 1,
+                                        0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
+                                        val,
                                         ble_uuid_length(&proc->disc_svc_uuid.service_uuid.u));
     if (rc != 0) {
         return rc;
