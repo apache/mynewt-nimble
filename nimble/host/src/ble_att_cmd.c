@@ -610,9 +610,15 @@ ble_att_write_cmd_write(void *payload, int len,
 }
 
 void
-ble_att_write_cmd_log(const struct ble_att_write_req *cmd)
+ble_att_write_cmd_log(const struct ble_att_write_cmd *cmd)
 {
-    BLE_HS_LOG(DEBUG, "handle=0x%04x", cmd->bawq_handle);
+    BLE_HS_LOG(DEBUG, "handle=0x%04x", cmd->handle);
+}
+
+void
+ble_att_write_req_log(const struct ble_att_write_req *req)
+{
+    BLE_HS_LOG(DEBUG, "handle=0x%04x", req->bawq_handle);
 }
 
 static void

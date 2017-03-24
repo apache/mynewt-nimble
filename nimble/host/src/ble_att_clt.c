@@ -789,62 +789,41 @@ done:
  * $write                                                                    *
  *****************************************************************************/
 
-static int
-ble_att_clt_tx_write_req_or_cmd(uint16_t conn_handle,
-                                const struct ble_att_write_req *req,
-                                struct os_mbuf *txom, int is_req)
-{
-    int rc;
-
-    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_WRITE_REQ_BASE_SZ);
-    if (txom == NULL) {
-        return BLE_HS_ENOMEM;
-    }
-
-    if (is_req) {
-        ble_att_write_req_write(txom->om_data, BLE_ATT_WRITE_REQ_BASE_SZ, req);
-    } else {
-        ble_att_write_cmd_write(txom->om_data, BLE_ATT_WRITE_REQ_BASE_SZ, req);
-    }
-
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
 int
-ble_att_clt_tx_write_req(uint16_t conn_handle,
-                         const struct ble_att_write_req *req,
+ble_att_clt_tx_write_req(uint16_t conn_handle, uint16_t handle,
                          struct os_mbuf *txom)
 {
 #if !NIMBLE_BLE_ATT_CLT_WRITE
     return BLE_HS_ENOTSUP;
 #endif
 
-    int rc;
+    struct ble_att_write_req *req;
+    struct os_mbuf *txom2;
 
-    rc = ble_att_clt_tx_write_req_or_cmd(conn_handle, req, txom, 1);
-    if (rc != 0) {
-        return rc;
+    req = ble_att_cmd_get(BLE_ATT_OP_WRITE_REQ, sizeof(*req), &txom2);
+    if (req == NULL) {
+        os_mbuf_free_chain(txom);
+        return BLE_HS_ENOMEM;
     }
 
-    BLE_ATT_LOG_CMD(1, "write req", conn_handle, ble_att_write_cmd_log, req);
+    req->bawq_handle = htole16(handle);
+    os_mbuf_concat(txom2, txom);
 
-    return 0;
+    BLE_ATT_LOG_CMD(1, "write req", conn_handle, ble_att_write_req_log, req);
+
+    return ble_att_tx(conn_handle, txom2);
 }
 
 int
-ble_att_clt_tx_write_cmd(uint16_t conn_handle,
-                         const struct ble_att_write_req *req,
+ble_att_clt_tx_write_cmd(uint16_t conn_handle, uint16_t handle,
                          struct os_mbuf *txom)
 {
 #if !NIMBLE_BLE_ATT_CLT_WRITE_NO_RSP
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_write_cmd *cmd;
+    struct os_mbuf *txom2;
     uint8_t b;
     int rc;
     int i;
@@ -860,14 +839,18 @@ ble_att_clt_tx_write_cmd(uint16_t conn_handle,
     }
     
 
-    rc = ble_att_clt_tx_write_req_or_cmd(conn_handle, req, txom, 0);
-    if (rc != 0) {
-        return rc;
+    cmd = ble_att_cmd_get(BLE_ATT_OP_WRITE_CMD, sizeof(*cmd), &txom2);
+    if (cmd == NULL) {
+        os_mbuf_free_chain(txom);
+        return BLE_HS_ENOMEM;
     }
 
-    BLE_ATT_LOG_CMD(1, "write cmd", conn_handle, ble_att_write_cmd_log, req);
+    cmd->handle = htole16(handle);
+    os_mbuf_concat(txom2, txom);
 
-    return 0;
+    BLE_ATT_LOG_CMD(1, "write cmd", conn_handle, ble_att_write_cmd_log, cmd);
+
+    return ble_att_tx(conn_handle, txom2);
 }
 
 int
