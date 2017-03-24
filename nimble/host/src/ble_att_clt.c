@@ -667,71 +667,36 @@ ble_att_clt_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 /*****************************************************************************
  * $read multiple                                                            *
  *****************************************************************************/
-
-static int
-ble_att_clt_build_read_mult_req(const uint16_t *att_handles,
-                                int num_att_handles,
-                                struct os_mbuf **out_txom)
-{
-    struct os_mbuf *txom;
-    void *buf;
-    int rc;
-    int i;
-
-    *out_txom = NULL;
-
-    rc = ble_att_clt_init_req(BLE_ATT_READ_MULT_REQ_BASE_SZ, &txom);
-    if (rc != 0) {
-        goto err;
-    }
-    ble_att_read_mult_req_write(txom->om_data, txom->om_len);
-
-    for (i = 0; i < num_att_handles; i++) {
-        buf = os_mbuf_extend(txom, 2);
-        if (buf == NULL) {
-            rc = BLE_HS_ENOMEM;
-            goto err;
-        }
-
-        put_le16(buf, att_handles[i]);
-    }
-
-    *out_txom = txom;
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
-}
-
 int
-ble_att_clt_tx_read_mult(uint16_t conn_handle, const uint16_t *att_handles,
-                         int num_att_handles)
+ble_att_clt_tx_read_mult(uint16_t conn_handle, const uint16_t *handles,
+                         int num_handles)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_MULT
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_read_mult_req *req;
     struct os_mbuf *txom;
-    int rc;
+    int i;
 
     BLE_ATT_LOG_EMPTY_CMD(1, "reqd mult req", conn_handle);
 
-    if (num_att_handles < 1) {
+    if (num_handles < 1) {
         return BLE_HS_EINVAL;
     }
 
-    rc = ble_att_clt_build_read_mult_req(att_handles, num_att_handles, &txom);
-    if (rc != 0) {
-        return rc;
+    req = ble_att_cmd_get(BLE_ATT_OP_READ_MULT_REQ,
+                          sizeof(req->handles[0]) * num_handles,
+                          &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    if (rc != 0) {
-        return rc;
+    for(i = 0; i < num_handles; i++) {
+        req->handles[i] = htole16(handles[i]);
     }
 
-    return 0;
+    return ble_att_tx(conn_handle, txom);
 }
 
 int

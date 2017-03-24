@@ -195,6 +195,9 @@ struct ble_att_read_blob_req {
  * | Set Of Handles                     | 4 to (ATT_MTU-1)  |
  */
 #define BLE_ATT_READ_MULT_REQ_BASE_SZ   1
+struct ble_att_read_mult_req {
+        uint16_t handles[0];
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
