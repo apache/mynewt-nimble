@@ -1547,43 +1547,46 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_read_blob_req req;
+    struct ble_att_read_blob_req *req;
     struct os_mbuf *txom;
-    uint16_t err_handle;
-    uint8_t *dptr;
+    uint16_t err_handle, offset;
     uint8_t att_err;
     int rc;
+
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
     err_handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_READ_BLOB_REQ_SZ, &att_err);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_read_blob_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_read_blob_req *)(*rxom)->om_data;
     BLE_ATT_LOG_CMD(0, "read blob req", conn_handle, ble_att_read_blob_req_log,
-                    &req);
+                    req);
 
-    err_handle = req.babq_handle;
+    err_handle = le16toh(req->babq_handle);
+    offset = le16toh(req->babq_offset);
 
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
     os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
-    dptr = os_mbuf_extend(txom, 1);
-    if (dptr == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_BLOB_RSP, 0, txom) == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
-    *dptr = BLE_ATT_OP_READ_BLOB_RSP;
 
-    rc = ble_att_svr_read_handle(conn_handle, req.babq_handle, req.babq_offset,
+    rc = ble_att_svr_read_handle(conn_handle, err_handle, offset,
                                  txom, &att_err);
     if (rc != 0) {
         goto done;
