@@ -872,52 +872,47 @@ ble_att_clt_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
  *****************************************************************************/
 
 int
-ble_att_clt_tx_prep_write(uint16_t conn_handle,
-                          const struct ble_att_prep_write_cmd *req,
-                          struct os_mbuf *txom)
+ble_att_clt_tx_prep_write(uint16_t conn_handle, uint16_t handle,
+                          uint16_t offset, struct os_mbuf *txom)
 {
 #if !NIMBLE_BLE_ATT_CLT_PREP_WRITE
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_prep_write_cmd *req;
+    struct os_mbuf *txom2;
     int rc;
 
-    if (req->bapc_handle == 0) {
+    if (handle == 0) {
         rc = BLE_HS_EINVAL;
         goto err;
     }
 
-    if (req->bapc_offset + OS_MBUF_PKTLEN(txom) > BLE_ATT_ATTR_MAX_LEN) {
+    if (offset + OS_MBUF_PKTLEN(txom) > BLE_ATT_ATTR_MAX_LEN) {
         rc = BLE_HS_EINVAL;
         goto err;
     }
 
     if (OS_MBUF_PKTLEN(txom) >
         ble_att_mtu(conn_handle) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ) {
-
         rc = BLE_HS_EINVAL;
         goto err;
     }
 
-    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
-    if (txom == NULL) {
+    req = ble_att_cmd_get(BLE_ATT_OP_PREP_WRITE_REQ, sizeof(*req), &txom2);
+    if (req == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
 
-    ble_att_prep_write_req_write(txom->om_data, BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
-                                 req);
-
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
+    req->bapc_handle = htole16(handle);
+    req->bapc_offset = htole16(offset);
+    os_mbuf_concat(txom2, txom);
 
     BLE_ATT_LOG_CMD(1, "prep write req", conn_handle,
                     ble_att_prep_write_cmd_log, req);
 
-    return 0;
+    return ble_att_tx(conn_handle, txom2);
 
 err:
     os_mbuf_free_chain(txom);

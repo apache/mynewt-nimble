@@ -199,10 +199,8 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
 
     conn_handle = ble_att_clt_test_misc_init();
 
-    req.bapc_handle = handle;
-    req.bapc_offset = offset;
     om = ble_hs_test_util_om_from_flat(attr_data, attr_data_len);
-    rc = ble_att_clt_tx_prep_write(conn_handle, &req, om);
+    rc = ble_att_clt_tx_prep_write(conn_handle, handle, offset, om);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_tx_all();
@@ -247,7 +245,6 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
                                uint8_t *attr_data, uint16_t attr_data_len,
                                int status)
 {
-    struct ble_att_prep_write_cmd req;
     struct os_mbuf *om;
     uint16_t conn_handle;
     int rc;
@@ -256,9 +253,7 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
 
     om = ble_hs_test_util_om_from_flat(attr_data, attr_data_len);
 
-    req.bapc_handle = handle;
-    req.bapc_offset = offset;
-    rc = ble_att_clt_tx_prep_write(conn_handle, &req, om);
+    rc = ble_att_clt_tx_prep_write(conn_handle, handle, offset, om);
     TEST_ASSERT(rc == status);
 }
 

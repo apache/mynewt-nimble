@@ -3816,7 +3816,6 @@ ble_gattc_write_long_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
     struct os_mbuf *om;
     int write_len;
@@ -3859,10 +3858,9 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
         goto done;
     }
 
-    prep_req.bapc_handle = proc->write_long.attr.handle;
-    prep_req.bapc_offset = proc->write_long.attr.offset;
-
-    rc = ble_att_clt_tx_prep_write(proc->conn_handle, &prep_req, om);
+    rc = ble_att_clt_tx_prep_write(proc->conn_handle,
+                                   proc->write_long.attr.handle,
+                                   proc->write_long.attr.offset, om);
     om = NULL;
     if (rc != 0) {
         goto done;
@@ -4130,7 +4128,6 @@ ble_gattc_write_reliable_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_write_reliable_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_prep_write_cmd prep_req;
     struct ble_att_exec_write_req exec_req;
     struct ble_gatt_attr *attr;
     struct os_mbuf *om;
@@ -4175,10 +4172,8 @@ ble_gattc_write_reliable_tx(struct ble_gattc_proc *proc)
         goto done;
     }
 
-    prep_req.bapc_handle = attr->handle;
-    prep_req.bapc_offset = attr->offset;
-
-    rc = ble_att_clt_tx_prep_write(proc->conn_handle, &prep_req, om);
+    rc = ble_att_clt_tx_prep_write(proc->conn_handle, attr->handle,
+                                   attr->offset, om);
     om = NULL;
     if (rc != 0) {
         goto done;
