@@ -32,7 +32,6 @@
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_conn_priv.h"
 #include "ble_hs_atomic_priv.h"
-#include "ble_hs_endian_priv.h"
 #include "ble_hs_mbuf_priv.h"
 #include "ble_hs_startup_priv.h"
 #include "ble_l2cap_priv.h"
