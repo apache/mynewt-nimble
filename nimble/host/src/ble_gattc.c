@@ -1850,7 +1850,6 @@ static int
 ble_gattc_find_inc_svcs_tx(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_type_req read_type_req;
-    struct ble_att_read_req read_req;
     ble_uuid16_t uuid = BLE_UUID16_INIT(BLE_ATT_UUID_INCLUDE);
     int rc;
 
@@ -1869,8 +1868,8 @@ ble_gattc_find_inc_svcs_tx(struct ble_gattc_proc *proc)
         }
     } else {
         /* Read the UUID of the previously found service. */
-        read_req.barq_handle = proc->find_inc_svcs.cur_start;
-        rc = ble_att_clt_tx_read(proc->conn_handle, &read_req);
+        rc = ble_att_clt_tx_read(proc->conn_handle,
+                                 proc->find_inc_svcs.cur_start);
         if (rc != 0) {
             return rc;
         }
@@ -2950,11 +2949,9 @@ ble_gattc_read_rx_read_rsp(struct ble_gattc_proc *proc, int status,
 static int
 ble_gattc_read_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_req req;
     int rc;
 
-    req.barq_handle = proc->read.handle;
-    rc = ble_att_clt_tx_read(proc->conn_handle, &req);
+    rc = ble_att_clt_tx_read(proc->conn_handle, proc->read.handle);
     if (rc != 0) {
         return rc;
     }
@@ -3256,14 +3253,12 @@ static int
 ble_gattc_read_long_tx(struct ble_gattc_proc *proc)
 {
     struct ble_att_read_blob_req blob_req;
-    struct ble_att_read_req read_req;
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     if (proc->read_long.offset == 0) {
-        read_req.barq_handle = proc->read_long.handle;
-        rc = ble_att_clt_tx_read(proc->conn_handle, &read_req);
+        rc = ble_att_clt_tx_read(proc->conn_handle, proc->read_long.handle);
         if (rc != 0) {
             return rc;
         }
