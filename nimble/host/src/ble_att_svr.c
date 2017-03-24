@@ -733,11 +733,6 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     txom = NULL;
     mtu = 0;
 
@@ -923,11 +918,6 @@ ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
     uint16_t err_handle, start_handle, end_handle;
     uint8_t att_err;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
@@ -1243,11 +1233,6 @@ ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    /* TODO move this to common part
-    * Strip L2CAP ATT header from the front of the mbuf.
-    */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
@@ -1424,11 +1409,6 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
 
@@ -1498,11 +1478,6 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
@@ -1552,11 +1527,6 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     uint16_t err_handle, offset;
     uint8_t att_err;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
@@ -1675,11 +1645,6 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     BLE_ATT_LOG_EMPTY_CMD(0, "read mult req", conn_handle);
 
@@ -1943,11 +1908,6 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     int om_uuid_len;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
 
@@ -2054,11 +2014,6 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
@@ -2113,11 +2068,6 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     uint16_t handle;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
@@ -2424,11 +2374,6 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
@@ -2519,11 +2464,6 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t flags;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     /* Initialize some values in case of early error. */
     txom = NULL;
     err_handle = 0;
@@ -2595,11 +2535,6 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     uint16_t handle;
     int rc;
 
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
-
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), NULL);
     if (rc != 0) {
         return BLE_HS_ENOMEM;
@@ -2669,11 +2604,6 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     uint16_t handle;
     uint8_t att_err;
     int rc;
-
-    /* TODO move this to common part
-     * Strip L2CAP ATT header from the front of the mbuf.
-     */
-    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
