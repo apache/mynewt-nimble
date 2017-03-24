@@ -89,11 +89,7 @@ struct ble_l2cap_sig_le_credits {
     uint16_t credits;
 } __attribute__((packed));
 
-int ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
-                           struct os_mbuf **out_om, void **out_payload_buf);
 void ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
-                             struct ble_l2cap_sig_hdr *hdr);
-void ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
                              struct ble_l2cap_sig_hdr *hdr);
 int ble_l2cap_sig_reject_tx(uint16_t conn_handle,
                             uint8_t id, uint16_t reason,

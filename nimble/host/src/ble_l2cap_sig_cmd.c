@@ -53,14 +53,6 @@ ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
     ble_l2cap_sig_hdr_swap(dst, payload);
 }
 
-void
-ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
-                        struct ble_l2cap_sig_hdr *src)
-{
-    BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_HDR_SZ);
-    ble_l2cap_sig_hdr_swap(payload, src);
-}
-
 int
 ble_l2cap_sig_reject_tx(uint16_t conn_handle, uint8_t id, uint16_t reason,
                         void *data, int data_len)
