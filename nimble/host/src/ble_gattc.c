@@ -1849,7 +1849,6 @@ ble_gattc_find_inc_svcs_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_find_inc_svcs_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_type_req read_type_req;
     ble_uuid16_t uuid = BLE_UUID16_INIT(BLE_ATT_UUID_INCLUDE);
     int rc;
 
@@ -1857,12 +1856,9 @@ ble_gattc_find_inc_svcs_tx(struct ble_gattc_proc *proc)
 
     if (proc->find_inc_svcs.cur_start == 0) {
         /* Find the next included service. */
-        read_type_req.batq_start_handle =
-            proc->find_inc_svcs.prev_handle + 1;
-        read_type_req.batq_end_handle = proc->find_inc_svcs.end_handle;
-
         rc = ble_att_clt_tx_read_type(proc->conn_handle,
-                                      &read_type_req, &uuid.u);
+                                      proc->find_inc_svcs.prev_handle + 1,
+                                      proc->find_inc_svcs.end_handle, &uuid.u);
         if (rc != 0) {
             return rc;
         }
@@ -2182,16 +2178,14 @@ ble_gattc_disc_all_chrs_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_disc_all_chrs_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_type_req req;
     ble_uuid16_t uuid = BLE_UUID16_INIT(BLE_ATT_UUID_CHARACTERISTIC);
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    req.batq_start_handle = proc->disc_all_chrs.prev_handle + 1;
-    req.batq_end_handle = proc->disc_all_chrs.end_handle;
-
-    rc = ble_att_clt_tx_read_type(proc->conn_handle, &req, &uuid.u);
+    rc = ble_att_clt_tx_read_type(proc->conn_handle,
+                                  proc->disc_all_chrs.prev_handle + 1,
+                                  proc->disc_all_chrs.end_handle, &uuid.u);
     if (rc != 0) {
         return rc;
     }
@@ -2428,16 +2422,14 @@ ble_gattc_disc_chr_uuid_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_disc_chr_uuid_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_type_req req;
     ble_uuid16_t uuid = BLE_UUID16_INIT(BLE_ATT_UUID_CHARACTERISTIC);
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    req.batq_start_handle = proc->disc_chr_uuid.prev_handle + 1;
-    req.batq_end_handle = proc->disc_chr_uuid.end_handle;
-
-    rc = ble_att_clt_tx_read_type(proc->conn_handle, &req, &uuid.u);
+    rc = ble_att_clt_tx_read_type(proc->conn_handle,
+                                  proc->disc_chr_uuid.prev_handle + 1,
+                                  proc->disc_chr_uuid.end_handle, &uuid.u);
     if (rc != 0) {
         return rc;
     }
@@ -3127,19 +3119,10 @@ ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
 static int
 ble_gattc_read_uuid_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_type_req req;
-    int rc;
-
-    req.batq_start_handle = proc->read_uuid.start_handle;
-    req.batq_end_handle = proc->read_uuid.end_handle;
-
-    rc = ble_att_clt_tx_read_type(proc->conn_handle, &req,
-                                  &proc->read_uuid.chr_uuid.u);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_att_clt_tx_read_type(proc->conn_handle,
+                                    proc->read_uuid.start_handle,
+                                    proc->read_uuid.end_handle,
+                                    &proc->read_uuid.chr_uuid.u);
 }
 
 /**

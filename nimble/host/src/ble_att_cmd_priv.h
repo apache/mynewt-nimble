@@ -130,6 +130,7 @@ struct ble_att_find_type_value_req {
 struct ble_att_read_type_req {
     uint16_t batq_start_handle;
     uint16_t batq_end_handle;
+    uint8_t uuid[0];
 } __attribute__((packed));
 
 /**
