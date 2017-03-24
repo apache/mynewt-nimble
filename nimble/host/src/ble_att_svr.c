@@ -568,43 +568,26 @@ ble_att_svr_write_handle(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 static int
-ble_att_svr_tx_error_rsp(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
-                         struct os_mbuf *txom, uint8_t req_op,
-                         uint16_t handle, uint8_t error_code)
+ble_att_svr_tx_error_rsp(uint16_t conn_handle, struct os_mbuf *txom,
+                         uint8_t req_op, uint16_t handle, uint8_t error_code)
 {
-    struct ble_att_error_rsp rsp;
-    void *dst;
-    int rc;
+    struct ble_att_error_rsp *rsp;
 
     BLE_HS_DBG_ASSERT(error_code != 0);
     BLE_HS_DBG_ASSERT(OS_MBUF_PKTLEN(txom) == 0);
 
-    dst = os_mbuf_extend(txom, BLE_ATT_ERROR_RSP_SZ);
-    if (dst == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
+    rsp = ble_att_cmd_prepare(BLE_ATT_OP_ERROR_RSP, sizeof(*rsp), txom);
+    if (rsp == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    rsp.baep_req_op = req_op;
-    rsp.baep_handle = handle;
-    rsp.baep_error_code = error_code;
+    rsp->baep_req_op = req_op;
+    rsp->baep_handle = htole16(handle);
+    rsp->baep_error_code = error_code;
 
-    ble_att_error_rsp_write(dst, BLE_ATT_ERROR_RSP_SZ, &rsp);
+    BLE_ATT_LOG_CMD(1, "error rsp", conn_handle, ble_att_error_rsp_log, rsp);
 
-    rc = ble_l2cap_tx(conn, chan, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
-
-    BLE_ATT_LOG_CMD(1, "error rsp", conn->bhc_handle,
-                    ble_att_error_rsp_log, &rsp);
-
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
+    return ble_att_tx(conn_handle, txom);
 }
 
 /**
@@ -664,26 +647,26 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int hs_status, struct os_mbuf *om,
                 if (hs_status != 0) {
                     err_status = BLE_ATT_ERR_UNLIKELY;
                 }
-            }
-
-            if (hs_status != 0) {
-                STATS_INC(ble_att_stats, error_rsp_tx);
-
-                /* Reuse om for error response. */
-                if (om == NULL) {
-                    om = ble_hs_mbuf_l2cap_pkt();
-                } else {
-                    os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
-                }
-                if (om != NULL) {
-                    ble_att_svr_tx_error_rsp(conn, chan, om, att_op,
-                                             err_handle, err_status);
-                    om = NULL;
-                }
-            }
+           }
         }
 
         ble_hs_unlock();
+
+        if (hs_status != 0) {
+            STATS_INC(ble_att_stats, error_rsp_tx);
+
+            /* Reuse om for error response. */
+            if (om == NULL) {
+                om = ble_hs_mbuf_l2cap_pkt();
+            } else {
+                os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
+            }
+            if (om != NULL) {
+                ble_att_svr_tx_error_rsp(conn_handle, om, att_op,
+                                         err_handle, err_status);
+                om = NULL;
+            }
+        }
     }
 
     /* Free mbuf if it was not consumed (i.e., if the send failed). */
