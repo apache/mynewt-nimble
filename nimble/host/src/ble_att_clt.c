@@ -26,36 +26,6 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
-static int
-ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
-{
-    struct ble_l2cap_chan *chan;
-    struct ble_hs_conn *conn;
-    int rc;
-
-    BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
-    ble_att_inc_tx_stat(txom->om_data[0]);
-
-    ble_hs_lock();
-
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (rc != 0) {
-        rc = BLE_HS_ENOTCONN;
-    } else {
-        ble_att_truncate_to_mtu(chan, txom);
-        rc = ble_l2cap_tx(conn, chan, txom);
-        txom = NULL;
-    }
-
-    ble_hs_unlock();
-
-    if (rc != 0) {
-        os_mbuf_free_chain(txom);
-    }
-
-    return rc;
-}
-
 /*****************************************************************************
  * $error response                                                           *
  *****************************************************************************/
@@ -1015,40 +985,35 @@ err:
  *****************************************************************************/
 
 int
-ble_att_clt_tx_indicate(uint16_t conn_handle,
-                        const struct ble_att_indicate_req *req,
+ble_att_clt_tx_indicate(uint16_t conn_handle, uint16_t handle,
                         struct os_mbuf *txom)
 {
 #if !NIMBLE_BLE_ATT_CLT_INDICATE
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_indicate_req *req;
+    struct os_mbuf *txom2;
     int rc;
 
-    if (req->baiq_handle == 0) {
+    if (handle == 0) {
         rc = BLE_HS_EINVAL;
         goto err;
     }
 
-    txom = os_mbuf_prepend_pullup(txom, BLE_ATT_INDICATE_REQ_BASE_SZ);
-    if (txom == NULL) {
+    req = ble_att_cmd_get(BLE_ATT_OP_INDICATE_REQ, sizeof(*req), &txom2);
+    if (req == NULL) {
         rc = BLE_HS_ENOMEM;
         goto err;
     }
 
-    ble_att_indicate_req_write(txom->om_data, BLE_ATT_INDICATE_REQ_BASE_SZ,
-                               req);
-
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
+    req->baiq_handle = htole16(handle);
+    os_mbuf_concat(txom2, txom);
 
     BLE_ATT_LOG_CMD(1, "indicate req", conn_handle, ble_att_indicate_req_log,
                     req);
 
-    return 0;
+    return ble_att_tx(conn_handle, txom2);
 
 err:
     os_mbuf_free_chain(txom);
