@@ -116,14 +116,15 @@ ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **rxom)
  *****************************************************************************/
 
 int
-ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
+ble_att_clt_tx_mtu(uint16_t conn_handle, uint16_t mtu)
 {
+    struct ble_att_mtu_cmd *req;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
     int rc;
 
-    if (req->bamc_mtu < BLE_ATT_MTU_DFLT) {
+    if (mtu < BLE_ATT_MTU_DFLT) {
         return BLE_HS_EINVAL;
     }
 
@@ -143,13 +144,14 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, const struct ble_att_mtu_cmd *req)
         return rc;
     }
 
-    rc = ble_att_clt_init_req(BLE_ATT_MTU_CMD_SZ, &txom);
-    if (rc != 0) {
-        return rc;
+    req = ble_att_cmd_get(BLE_ATT_OP_MTU_REQ, sizeof(*req), &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
-    ble_att_mtu_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
+    req->bamc_mtu = htole16(mtu);
+
+    rc = ble_att_tx(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
