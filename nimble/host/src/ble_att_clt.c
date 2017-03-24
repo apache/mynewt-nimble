@@ -247,23 +247,29 @@ ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **om)
 #endif
 
     struct ble_att_find_info_idata idata;
-    struct ble_att_find_info_rsp rsp;
+    struct ble_att_find_info_rsp *rsp;
     int rc;
 
-    rc = ble_hs_mbuf_pullup_base(om, BLE_ATT_FIND_INFO_RSP_BASE_SZ);
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*om, 1);
+
+    rc = ble_hs_mbuf_pullup_base(om, sizeof(*rsp));
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_find_info_rsp_parse((*om)->om_data, (*om)->om_len, &rsp);
+    rsp = (struct ble_att_find_info_rsp *)(*om)->om_data;
+
     BLE_ATT_LOG_CMD(0, "find info rsp", conn_handle, ble_att_find_info_rsp_log,
-                    &rsp);
+                    rsp);
 
     /* Strip the response base from the front of the mbuf. */
-    os_mbuf_adj((*om), BLE_ATT_FIND_INFO_RSP_BASE_SZ);
+    os_mbuf_adj((*om), sizeof(*rsp));
 
     while (OS_MBUF_PKTLEN(*om) > 0) {
-        rc = ble_att_clt_parse_find_info_entry(om, rsp.bafp_format, &idata);
+        rc = ble_att_clt_parse_find_info_entry(om, rsp->bafp_format, &idata);
         if (rc != 0) {
             goto done;
         }
