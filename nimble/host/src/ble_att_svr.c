@@ -2018,7 +2018,6 @@ ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
                             uint8_t *att_err)
 {
     struct os_mbuf *txom;
-    uint8_t *dst;
     int rc;
 
     /* Allocate a new buffer for the response.  A write response never reuses
@@ -2029,14 +2028,11 @@ ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
         goto done;
     }
 
-    dst = os_mbuf_extend(txom, BLE_ATT_WRITE_RSP_SZ);
-    if (dst == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_WRITE_RSP, 0, txom) == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
-
-    *dst = BLE_ATT_OP_WRITE_RSP;
 
     rc = 0;
 
@@ -2052,29 +2048,33 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_write_req req;
+    struct ble_att_write_req *req;
     struct os_mbuf *txom;
-    uint16_t err_handle;
+    uint16_t handle;
     uint8_t att_err;
     int rc;
+
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
-    err_handle = 0;
+    handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_WRITE_REQ_BASE_SZ,
-                                     &att_err);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
-    ble_att_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
-    BLE_ATT_LOG_CMD(0, "write req", conn_handle,
-                    ble_att_write_req_log, &req);
+    req = (struct ble_att_write_req *)(*rxom)->om_data;
 
-    err_handle = req.bawq_handle;
+    BLE_ATT_LOG_CMD(0, "write req", conn_handle,
+                    ble_att_write_req_log, req);
+
+    handle = le16toh(req->bawq_handle);
 
     /* Allocate the write response.  This must be done prior to processing the
      * request.  See the note at the top of this file for details.
@@ -2085,10 +2085,9 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
     /* Strip the request base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*req));
 
-    rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, 0, rxom,
-                                  &att_err);
+    rc = ble_att_svr_write_handle(conn_handle, handle, 0, rxom, &att_err);
     if (rc != 0) {
         goto done;
     }
@@ -2099,7 +2098,7 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
 done:
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_WRITE_REQ,
-                            att_err, err_handle);
+                            att_err, handle);
     return rc;
 }
 
