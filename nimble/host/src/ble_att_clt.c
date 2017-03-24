@@ -118,23 +118,29 @@ ble_att_clt_tx_mtu(uint16_t conn_handle, uint16_t mtu)
 int
 ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-    struct ble_att_mtu_cmd cmd;
+    struct ble_att_mtu_cmd *cmd;
     struct ble_l2cap_chan *chan;
     uint16_t mtu;
     int rc;
 
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
     mtu = 0;
 
-    rc = ble_hs_mbuf_pullup_base(rxom, BLE_ATT_MTU_CMD_SZ);
+    rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*cmd));
     if (rc == 0) {
-        ble_att_mtu_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
-        BLE_ATT_LOG_CMD(0, "mtu rsp", conn_handle, ble_att_mtu_cmd_log, &cmd);
+        cmd = (struct ble_att_mtu_cmd *)(*rxom)->om_data;
+
+        BLE_ATT_LOG_CMD(0, "mtu rsp", conn_handle, ble_att_mtu_cmd_log, cmd);
 
         ble_hs_lock();
 
         rc = ble_att_conn_chan_find(conn_handle, NULL, &chan);
         if (rc == 0) {
-            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
+            ble_att_set_peer_mtu(chan, le16toh(cmd->bamc_mtu));
             mtu = ble_att_chan_mtu(chan);
         }
 
