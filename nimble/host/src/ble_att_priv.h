@@ -268,8 +268,8 @@ int ble_att_clt_tx_read_group_type(uint16_t conn_handle,
                                    const ble_uuid_t *uuid128);
 int ble_att_clt_rx_read_group_type(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
-int ble_att_clt_tx_find_info(uint16_t conn_handle,
-                             const struct ble_att_find_info_req *req);
+int ble_att_clt_tx_find_info(uint16_t conn_handle, uint16_t start_handle,
+                             uint16_t end_handle);
 int ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom);
 int ble_att_clt_tx_find_type_value(
     uint16_t conn_handle, const struct ble_att_find_type_value_req *req,

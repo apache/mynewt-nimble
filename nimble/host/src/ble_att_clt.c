@@ -209,37 +209,32 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
  *****************************************************************************/
 
 int
-ble_att_clt_tx_find_info(uint16_t conn_handle,
-                         const struct ble_att_find_info_req *req)
+ble_att_clt_tx_find_info(uint16_t conn_handle, uint16_t start_handle,
+                         uint16_t end_handle)
 {
 #if !NIMBLE_BLE_ATT_CLT_FIND_INFO
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_find_info_req *req;
     struct os_mbuf *txom;
-    int rc;
 
-    if (req->bafq_start_handle == 0 ||
-        req->bafq_start_handle > req->bafq_end_handle) {
-
+    if (start_handle == 0 || start_handle > end_handle) {
         return BLE_HS_EINVAL;
     }
 
-    rc = ble_att_clt_init_req(BLE_ATT_FIND_INFO_REQ_SZ, &txom);
-    if (rc != 0) {
-        return rc;
+    req = ble_att_cmd_get(BLE_ATT_OP_FIND_INFO_REQ, sizeof(*req), &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
-    ble_att_find_info_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    if (rc != 0) {
-        return rc;
-    }
+    req->bafq_start_handle = htole16(start_handle);
+    req->bafq_end_handle = htole16(end_handle);
 
     BLE_ATT_LOG_CMD(1, "find info req", conn_handle,
                     ble_att_find_info_req_log, req);
 
-    return 0;
+    return ble_att_tx(conn_handle, txom);
 }
 
 static int
