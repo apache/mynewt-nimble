@@ -27,38 +27,6 @@
 #include "ble_hs_priv.h"
 
 static int
-ble_att_clt_init_req(uint16_t initial_sz, struct os_mbuf **out_txom)
-{
-    struct os_mbuf *om;
-    void *buf;
-    int rc;
-
-    *out_txom = NULL;
-
-    om = ble_hs_mbuf_l2cap_pkt();
-    if (om == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    buf = os_mbuf_extend(om, initial_sz);
-    if (buf == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
-
-    /* The caller expects the initial buffer to be at the start of the mbuf. */
-    BLE_HS_DBG_ASSERT(buf == om->om_data);
-
-    *out_txom = om;
-    return 0;
-
-err:
-    os_mbuf_free_chain(om);
-    return rc;
-}
-
-static int
 ble_att_clt_tx_req(uint16_t conn_handle, struct os_mbuf *txom)
 {
     struct ble_l2cap_chan *chan;
@@ -955,23 +923,24 @@ done:
  *****************************************************************************/
 
 int
-ble_att_clt_tx_exec_write(uint16_t conn_handle,
-                          const struct ble_att_exec_write_req *req)
+ble_att_clt_tx_exec_write(uint16_t conn_handle, uint8_t flags)
 {
 #if !NIMBLE_BLE_ATT_CLT_EXEC_WRITE
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_exec_write_req *req;
     struct os_mbuf *txom;
     int rc;
 
-    rc = ble_att_clt_init_req(BLE_ATT_EXEC_WRITE_REQ_SZ, &txom);
-    if (rc != 0) {
-        return rc;
+    req = ble_att_cmd_get(BLE_ATT_OP_EXEC_WRITE_REQ, sizeof(*req), &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
-    ble_att_exec_write_req_write(txom->om_data, txom->om_len, req);
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
+    req->baeq_flags = flags;
+
+    rc = ble_att_tx(conn_handle, txom);
     if (rc != 0) {
         return rc;
     }
