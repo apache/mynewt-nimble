@@ -1267,28 +1267,23 @@ ble_gattc_mtu_err(struct ble_gattc_proc *proc, int status, uint16_t att_handle)
 static int
 ble_gattc_mtu_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_mtu_cmd req;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    uint16_t mtu;
     int rc;
 
     ble_hs_lock();
     rc = ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
     if (rc == 0) {
-        req.bamc_mtu = chan->my_mtu;
+        mtu = chan->my_mtu;
     }
     ble_hs_unlock();
 
-    if (rc != 0) {
-        return rc;
+    if (rc == 0) {
+        rc = ble_att_clt_tx_mtu(proc->conn_handle, mtu);
     }
 
-    rc = ble_att_clt_tx_mtu(proc->conn_handle, &req);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return rc;
 }
 
 /**

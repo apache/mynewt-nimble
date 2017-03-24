@@ -278,11 +278,9 @@ ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
 static void
 ble_att_clt_test_misc_tx_mtu(uint16_t conn_handle, uint16_t mtu, int status)
 {
-    struct ble_att_mtu_cmd req;
     int rc;
 
-    req.bamc_mtu = mtu;
-    rc = ble_att_clt_tx_mtu(conn_handle, &req);
+    rc = ble_att_clt_tx_mtu(conn_handle, mtu);
     TEST_ASSERT(rc == status);
 
     if (rc == 0) {
