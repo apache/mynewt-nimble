@@ -4574,7 +4574,6 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_indicate_req req;
     struct ble_gattc_proc *proc;
     struct ble_hs_conn *conn;
     struct os_mbuf *om;
@@ -4611,8 +4610,7 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
         goto done;
     }
 
-    req.baiq_handle = chr_val_handle;
-    rc = ble_att_clt_tx_indicate(conn_handle, &req, om);
+    rc = ble_att_clt_tx_indicate(conn_handle, chr_val_handle, om);
     om = NULL;
     if (rc != 0) {
         goto done;
