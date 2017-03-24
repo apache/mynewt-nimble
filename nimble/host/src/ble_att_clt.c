@@ -419,24 +419,6 @@ ble_att_clt_tx_read_type(uint16_t conn_handle, uint16_t start_handle,
     return ble_att_tx(conn_handle, txom);
 }
 
-static int
-ble_att_clt_parse_read_type_adata(struct os_mbuf **om, int data_len,
-                                  struct ble_att_read_type_adata *adata)
-{
-    int rc;
-
-    rc = ble_hs_mbuf_pullup_base(om, data_len);
-    if (rc != 0) {
-        return rc;
-    }
-
-    adata->att_handle = get_le16((*om)->om_data + 0);
-    adata->value_len = data_len - BLE_ATT_READ_TYPE_ADATA_BASE_SZ;
-    adata->value = (*om)->om_data + BLE_ATT_READ_TYPE_ADATA_BASE_SZ;
-
-    return 0;
-}
-
 int
 ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -445,30 +427,51 @@ ble_att_clt_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_read_type_adata adata;
-    struct ble_att_read_type_rsp rsp;
+    struct ble_att_attr_data_list *data;
+    struct ble_att_read_type_rsp *rsp;
+    uint8_t data_len;
     int rc;
 
-    rc = ble_hs_mbuf_pullup_base(rxom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
+    rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*rsp));
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_read_type_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &rsp);
+    rsp = (struct ble_att_read_type_rsp *)(*rxom)->om_data;
+
     BLE_ATT_LOG_CMD(0, "read type rsp", conn_handle, ble_att_read_type_rsp_log,
-                    &rsp);
+                    rsp);
+
+    data_len = rsp->batp_length;
 
     /* Strip the response base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*rsp));
+
+    if (data_len < sizeof(*data)) {
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
 
     /* Parse the Attribute Data List field, passing each entry to the GATT. */
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
-        rc = ble_att_clt_parse_read_type_adata(rxom, rsp.batp_length, &adata);
+        rc = ble_hs_mbuf_pullup_base(rxom, data_len);
         if (rc != 0) {
-            goto done;
+            break;
         }
 
+        data = (struct ble_att_attr_data_list *)(*rxom)->om_data;
+
+        adata.att_handle = le16toh(data->handle);
+        adata.value_len = data_len - sizeof(*data);
+        adata.value = data->value;
+
         ble_gattc_rx_read_type_adata(conn_handle, &adata);
-        os_mbuf_adj(*rxom, rsp.batp_length);
+        os_mbuf_adj(*rxom, data_len);
     }
 
 done:
