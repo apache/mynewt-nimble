@@ -707,50 +707,34 @@ ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 
 int
 ble_att_clt_tx_read_group_type(uint16_t conn_handle,
-                               const struct ble_att_read_group_type_req *req,
+                               uint16_t start_handle, uint16_t end_handle,
                                const ble_uuid_t *uuid)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_GROUP_TYPE
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_read_group_type_req *req;
     struct os_mbuf *txom;
-    int rc;
 
-    txom = NULL;
-
-    if (req->bagq_start_handle == 0 ||
-        req->bagq_start_handle > req->bagq_end_handle) {
-
-        rc = BLE_HS_EINVAL;
-        goto err;
+    if (start_handle == 0 || start_handle > end_handle) {
+        return BLE_HS_EINVAL;
     }
 
-    rc = ble_att_clt_init_req(BLE_ATT_READ_GROUP_TYPE_REQ_BASE_SZ, &txom);
-    if (rc != 0) {
-        goto err;
-    }
-    ble_att_read_group_type_req_write(txom->om_data, txom->om_len, req);
-
-    rc = ble_uuid_to_mbuf(uuid, txom);
-    if (rc != 0) {
-        goto err;
+    req = ble_att_cmd_get(BLE_ATT_OP_READ_GROUP_TYPE_REQ,
+                          sizeof(*req) + ble_uuid_length(uuid), &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
+    req->bagq_start_handle = htole16(start_handle);
+    req->bagq_end_handle = htole16(end_handle);
+    ble_uuid_flat(uuid, req->uuid);
 
     BLE_ATT_LOG_CMD(1, "read group type req", conn_handle,
                     ble_att_read_group_type_req_log, req);
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
+    return ble_att_tx(conn_handle, txom);
 }
 
 static int
