@@ -297,20 +297,17 @@ TEST_CASE(ble_att_clt_test_tx_write)
 
 TEST_CASE(ble_att_clt_test_tx_read)
 {
-    struct ble_att_read_req req;
     uint16_t conn_handle;
     int rc;
 
     conn_handle = ble_att_clt_test_misc_init();
 
     /*** Success. */
-    req.barq_handle = 1;
-    rc = ble_att_clt_tx_read(conn_handle, &req);
+    rc = ble_att_clt_tx_read(conn_handle, 1);
     TEST_ASSERT(rc == 0);
 
     /*** Error: handle of 0. */
-    req.barq_handle = 0;
-    rc = ble_att_clt_tx_read(conn_handle, &req);
+    rc = ble_att_clt_tx_read(conn_handle, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
