@@ -21,9 +21,17 @@
 #define H_BLE_ATT_CMD_
 
 #include <inttypes.h>
+#include <stddef.h>
+#include "os/os_mbuf.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct ble_att_hdr {
+    uint8_t opcode;
+    uint8_t data[0];
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -411,6 +419,10 @@ void ble_att_indicate_req_write(void *payload, int len,
 void ble_att_indicate_rsp_parse(const void *payload, int len);
 void ble_att_indicate_rsp_write(void *payload, int len);
 void ble_att_indicate_req_log(const struct ble_att_indicate_req *cmd);
+
+void *ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom);
+void *ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
+int ble_att_tx(uint16_t conn_handle, struct os_mbuf *txom);
 
 #ifdef __cplusplus
 }

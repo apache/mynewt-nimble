@@ -26,6 +26,61 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
+void *
+ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom)
+{
+    struct ble_att_hdr *hdr;
+
+    if (os_mbuf_extend(txom, sizeof(*hdr) + len) == NULL) {
+        os_mbuf_free_chain(txom);
+        return NULL;
+    }
+
+    hdr = (struct ble_att_hdr *)(txom)->om_data;
+
+    hdr->opcode = opcode;
+
+    return hdr->data;
+}
+
+void *
+ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom)
+{
+    *txom = ble_hs_mbuf_l2cap_pkt();
+    if (*txom == NULL) {
+        return NULL;
+    }
+
+    return ble_att_cmd_prepare(opcode, len, *txom);
+}
+
+int
+ble_att_tx(uint16_t conn_handle, struct os_mbuf *txom)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
+    ble_att_inc_tx_stat(txom->om_data[0]);
+
+    ble_hs_lock();
+
+    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT, &conn,
+                                    &chan);
+    if (chan == NULL) {
+        os_mbuf_free_chain(txom);
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        ble_att_truncate_to_mtu(chan, txom);
+        rc = ble_l2cap_tx(conn, chan, txom);
+    }
+
+    ble_hs_unlock();
+
+    return rc;
+}
+
 static const void *
 ble_att_init_parse(uint8_t op, const void *payload,
                    int min_len, int actual_len)
