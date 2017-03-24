@@ -161,9 +161,8 @@ STATS_NAME_END(ble_phy_stats)
  */
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
-/* XXX: test this. only needs 43 bytes. Should just not use the macro for this*/
-/* Per nordic, the number of bytes needed for scratch is 16 + MAX_PKT_SIZE */
-#define NRF_ENC_SCRATCH_WORDS   (((MYNEWT_VAL(BLE_LL_MAX_PKT_SIZE) + 16) + 3) / 4)
+/* Per nordic, the number of bytes needed for scratch is 16 + MAX_PKT_SIZE. */
+#define NRF_ENC_SCRATCH_WORDS   (((NRF_MAX_ENCRYPTED_PYLD_LEN + 16) + 3) / 4)
 
 uint32_t g_nrf_encrypt_scratchpad[NRF_ENC_SCRATCH_WORDS];
 
