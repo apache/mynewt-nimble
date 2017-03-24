@@ -25,8 +25,6 @@
 extern "C" {
 #endif
 
-struct ble_l2cap_chan;
-
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
