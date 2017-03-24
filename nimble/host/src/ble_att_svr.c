@@ -679,11 +679,10 @@ static int
 ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
                           struct os_mbuf **out_txom, uint8_t *att_err)
 {
-    struct ble_att_mtu_cmd cmd;
+    struct ble_att_mtu_cmd *cmd;
     struct ble_l2cap_chan *chan;
     struct os_mbuf *txom;
     uint16_t mtu;
-    void *dst;
     int rc;
 
     *att_err = 0; /* Silence unnecessary warning. */
@@ -705,17 +704,16 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
     *rxom = NULL;
     os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
-    dst = os_mbuf_extend(txom, BLE_ATT_MTU_CMD_SZ);
-    if (dst == NULL) {
+    cmd = ble_att_cmd_prepare(BLE_ATT_OP_MTU_RSP, sizeof(*cmd), txom);
+    if (cmd == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
 
-    cmd.bamc_mtu = mtu;
+    cmd->bamc_mtu = htole16(mtu);
 
-    ble_att_mtu_rsp_write(dst, BLE_ATT_MTU_CMD_SZ, &cmd);
-    BLE_ATT_LOG_CMD(1, "mtu rsp", conn_handle, ble_att_mtu_cmd_log, &cmd);
+    BLE_ATT_LOG_CMD(1, "mtu rsp", conn_handle, ble_att_mtu_cmd_log, cmd);
 
     rc = 0;
 
@@ -727,7 +725,7 @@ done:
 int
 ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
 {
-    struct ble_att_mtu_cmd cmd;
+    struct ble_att_mtu_cmd *cmd;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
@@ -735,15 +733,23 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
-    txom = NULL;
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_MTU_CMD_SZ, &att_err);
+    txom = NULL;
+    mtu = 0;
+
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*cmd), &att_err);
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_mtu_req_parse((*rxom)->om_data, (*rxom)->om_len, &cmd);
-    BLE_ATT_LOG_CMD(0, "mtu req", conn_handle, ble_att_mtu_cmd_log, &cmd);
+    cmd = (struct ble_att_mtu_cmd *)(*rxom)->om_data;
+    BLE_ATT_LOG_CMD(0, "mtu req", conn_handle, ble_att_mtu_cmd_log, cmd);
+
+    mtu = le16toh(cmd->bamc_mtu);
 
     rc = ble_att_svr_build_mtu_rsp(conn_handle, rxom, &txom, &att_err);
     if (rc != 0) {
@@ -760,7 +766,7 @@ done:
 
         rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
         if (rc == 0) {
-            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
+            ble_att_set_peer_mtu(chan, mtu);
             chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
             mtu = ble_att_chan_mtu(chan);
         }
