@@ -105,6 +105,7 @@ struct ble_att_find_type_value_req {
     uint16_t bavq_start_handle;
     uint16_t bavq_end_handle;
     uint16_t bavq_attr_type;
+    uint16_t bavq_value[0];
 } __attribute__((packed));
 
 /**

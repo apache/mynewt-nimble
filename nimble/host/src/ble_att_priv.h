@@ -271,9 +271,9 @@ int ble_att_clt_rx_read_group_type(uint16_t conn_handle,
 int ble_att_clt_tx_find_info(uint16_t conn_handle, uint16_t start_handle,
                              uint16_t end_handle);
 int ble_att_clt_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom);
-int ble_att_clt_tx_find_type_value(
-    uint16_t conn_handle, const struct ble_att_find_type_value_req *req,
-    const void *attribute_value, int value_len);
+int ble_att_clt_tx_find_type_value(uint16_t conn_handle, uint16_t start_handle,
+                                   uint16_t end_handle, uint16_t attribute_type,
+                                   const void *attribute_value, int value_len);
 int ble_att_clt_rx_find_type_value(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
 int ble_att_clt_tx_write_req(uint16_t conn_handle,
