@@ -445,52 +445,35 @@ ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
  *****************************************************************************/
 
 int
-ble_att_clt_tx_read_type(uint16_t conn_handle,
-                         const struct ble_att_read_type_req *req,
-                         const ble_uuid_t *uuid)
+ble_att_clt_tx_read_type(uint16_t conn_handle, uint16_t start_handle,
+                         uint16_t end_handle, const ble_uuid_t *uuid)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_TYPE
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_att_read_type_req *req;
     struct os_mbuf *txom;
-    int rc;
 
-    txom = NULL;
-
-    if (req->batq_start_handle == 0 ||
-        req->batq_start_handle > req->batq_end_handle) {
-
-        rc = BLE_HS_EINVAL;
-        goto err;
+    if (start_handle == 0 || start_handle > end_handle) {
+        return BLE_HS_EINVAL;
     }
 
-    rc = ble_att_clt_init_req(BLE_ATT_READ_TYPE_REQ_BASE_SZ, &txom);
-    if (rc != 0) {
-        goto err;
+    req = ble_att_cmd_get(BLE_ATT_OP_READ_TYPE_REQ,
+                          sizeof(*req) + ble_uuid_length(uuid), &txom);
+    if (req == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
-    ble_att_read_type_req_write(txom->om_data, txom->om_len, req);
-    rc = ble_uuid_to_mbuf(uuid, txom);
-    if (rc != 0) {
-        rc = BLE_HS_ENOMEM;
-        goto err;
-    }
+    req->batq_start_handle = htole16(start_handle);
+    req->batq_end_handle = htole16(end_handle);
 
-    rc = ble_att_clt_tx_req(conn_handle, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto err;
-    }
+    ble_uuid_flat(uuid, req->uuid);
 
     BLE_ATT_LOG_CMD(1, "read type req", conn_handle,
                     ble_att_read_type_req_log, req);
 
-    return 0;
-
-err:
-    os_mbuf_free_chain(txom);
-    return rc;
+    return ble_att_tx(conn_handle, txom);
 }
 
 static int
