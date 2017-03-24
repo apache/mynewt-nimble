@@ -151,8 +151,15 @@ struct ble_att_read_type_req {
  * | Attribute Data List                | 2 to (ATT_MTU-2)  |
  */
 #define BLE_ATT_READ_TYPE_RSP_BASE_SZ       2
+
+struct ble_att_attr_data_list {
+    uint16_t handle;
+    uint8_t value[0];
+} __attribute__((packed));
+
 struct ble_att_read_type_rsp {
     uint8_t batp_length;
+    struct ble_att_attr_data_list batp_list[0];
 } __attribute__((packed));
 
 #define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     2
