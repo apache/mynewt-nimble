@@ -637,10 +637,10 @@ ble_att_clt_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
 
     BLE_ATT_LOG_EMPTY_CMD(0, "read mult rsp", conn_handle);
 
-    /* Reponse consists of a one-byte opcode (already verified) and a variable
-     * length Attribute Value field.  Strip the opcode from the response.
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
      */
-    os_mbuf_adj(*rxom, BLE_ATT_READ_MULT_RSP_BASE_SZ);
+    os_mbuf_adj(*rxom, 1);
 
     /* Pass the Attribute Value field to GATT. */
     ble_gattc_rx_read_mult_rsp(conn_handle, 0, rxom);
