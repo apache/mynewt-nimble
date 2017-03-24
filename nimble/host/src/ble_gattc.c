@@ -4405,7 +4405,6 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_notify_req req;
     int rc;
 
     STATS_INC(ble_gattc_stats, notify);
@@ -4430,8 +4429,7 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         }
     }
 
-    req.banq_handle = chr_val_handle;
-    rc = ble_att_clt_tx_notify(conn_handle, &req, txom);
+    rc = ble_att_clt_tx_notify(conn_handle, chr_val_handle, txom);
     txom = NULL;
     if (rc != 0) {
         goto err;
