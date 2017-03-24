@@ -2679,15 +2679,13 @@ ble_gattc_disc_all_dscs_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_disc_all_dscs_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_find_info_req req;
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    req.bafq_start_handle = proc->disc_all_dscs.prev_handle + 1;
-    req.bafq_end_handle = proc->disc_all_dscs.end_handle;
-
-    rc = ble_att_clt_tx_find_info(proc->conn_handle, &req);
+    rc = ble_att_clt_tx_find_info(proc->conn_handle,
+                                  proc->disc_all_dscs.prev_handle + 1,
+                                  proc->disc_all_dscs.end_handle);
     if (rc != 0) {
         return rc;
     }

@@ -77,34 +77,25 @@ ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle,
 
 TEST_CASE(ble_att_clt_test_tx_find_info)
 {
-    struct ble_att_find_info_req req;
     uint16_t conn_handle;
     int rc;
 
     conn_handle = ble_att_clt_test_misc_init();
 
     /*** Success. */
-    req.bafq_start_handle = 1;
-    req.bafq_end_handle = 0xffff;
-    rc = ble_att_clt_tx_find_info(conn_handle, &req);
+    rc = ble_att_clt_tx_find_info(conn_handle, 1, 0xffff);
     TEST_ASSERT(rc == 0);
 
     /*** Error: start handle of 0. */
-    req.bafq_start_handle = 0;
-    req.bafq_end_handle = 0xffff;
-    rc = ble_att_clt_tx_find_info(conn_handle, &req);
+    rc = ble_att_clt_tx_find_info(conn_handle, 0, 0xffff);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Error: start handle greater than end handle. */
-    req.bafq_start_handle = 500;
-    req.bafq_end_handle = 499;
-    rc = ble_att_clt_tx_find_info(conn_handle, &req);
+    rc = ble_att_clt_tx_find_info(conn_handle, 500, 499);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** Success; start and end handles equal. */
-    req.bafq_start_handle = 500;
-    req.bafq_end_handle = 500;
-    rc = ble_att_clt_tx_find_info(conn_handle, &req);
+    rc = ble_att_clt_tx_find_info(conn_handle, 500, 500);
     TEST_ASSERT(rc == 0);
 }
 
