@@ -971,17 +971,15 @@ ble_att_clt_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    int rc;
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
     BLE_ATT_LOG_EMPTY_CMD(0, "exec write rsp", conn_handle);
 
-    rc = ble_hs_mbuf_pullup_base(rxom, BLE_ATT_EXEC_WRITE_RSP_SZ);
-    if (rc == 0) {
-        ble_att_exec_write_rsp_parse((*rxom)->om_data, (*rxom)->om_len);
-    }
-
-    ble_gattc_rx_exec_write_rsp(conn_handle, rc);
-    return rc;
+    ble_gattc_rx_exec_write_rsp(conn_handle, 0);
+    return 0;
 }
 
 /*****************************************************************************
