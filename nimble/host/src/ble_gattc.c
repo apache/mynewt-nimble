@@ -3560,15 +3560,13 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_write_req req;
     int rc;
 
     STATS_INC(ble_gattc_stats, write_no_rsp);
 
     ble_gattc_log_write(attr_handle, OS_MBUF_PKTLEN(txom), 0);
 
-    req.bawq_handle = attr_handle;
-    rc = ble_att_clt_tx_write_cmd(conn_handle, &req, txom);
+    rc = ble_att_clt_tx_write_cmd(conn_handle, attr_handle, txom);
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, write);
     }
@@ -3692,7 +3690,6 @@ ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_write_req req;
     struct ble_gattc_proc *proc;
     int rc;
 
@@ -3712,8 +3709,7 @@ ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
 
     ble_gattc_log_write(attr_handle, OS_MBUF_PKTLEN(txom), 1);
 
-    req.bawq_handle = attr_handle;
-    rc = ble_att_clt_tx_write_req(conn_handle, &req, txom);
+    rc = ble_att_clt_tx_write_req(conn_handle, attr_handle, txom);
     txom = NULL;
     if (rc != 0) {
         goto done;

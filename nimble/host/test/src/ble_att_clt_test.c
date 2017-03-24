@@ -59,8 +59,7 @@ ble_att_clt_test_misc_verify_tx_write(uint16_t handle_id, void *value,
 }
 
 static void
-ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle,
-                                     struct ble_att_write_req *req,
+ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle, uint16_t handle,
                                      void *value, int value_len, int is_req)
 {
     struct os_mbuf *om;
@@ -68,9 +67,9 @@ ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle,
 
     om = ble_hs_test_util_om_from_flat(value, value_len);
     if (is_req) {
-        rc = ble_att_clt_tx_write_req(conn_handle, req, om);
+        rc = ble_att_clt_tx_write_req(conn_handle, handle, om);
     } else {
-        rc = ble_att_clt_tx_write_cmd(conn_handle, req, om);
+        rc = ble_att_clt_tx_write_cmd(conn_handle, handle, om);
     }
     TEST_ASSERT(rc == 0);
 }
@@ -167,7 +166,6 @@ TEST_CASE(ble_att_clt_test_rx_find_info)
 static void
 ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
 {
-    struct ble_att_write_req req;
     uint16_t conn_handle;
     uint8_t value300[500] = { 0 };
     uint8_t value5[5] = { 6, 7, 54, 34, 8 };
@@ -175,16 +173,14 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
     conn_handle = ble_att_clt_test_misc_init();
 
     /*** 5-byte write. */
-    req.bawq_handle = 0x1234;
-    ble_att_clt_test_tx_write_req_or_cmd(conn_handle, &req, value5,
+    ble_att_clt_test_tx_write_req_or_cmd(conn_handle, 0x1234, value5,
                                          sizeof value5, is_req);
     ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0x1234, value5, sizeof value5,
                                           is_req);
 
     /*** Overlong write; verify command truncated to ATT MTU. */
-    req.bawq_handle = 0xab83;
-    ble_att_clt_test_tx_write_req_or_cmd(conn_handle, &req, value300,
+    ble_att_clt_test_tx_write_req_or_cmd(conn_handle, 0xab83, value300,
                                          sizeof value300, is_req);
     ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0xab83, value300,

@@ -252,6 +252,7 @@ struct ble_att_read_group_type_rsp {
 #define BLE_ATT_WRITE_REQ_BASE_SZ       3
 struct ble_att_write_req {
     uint16_t bawq_handle;
+    uint8_t value[0];
 } __attribute__((packed));
 
 #define BLE_ATT_WRITE_RSP_SZ            1
@@ -321,6 +322,19 @@ struct ble_att_indicate_req {
  * | Attribute Opcode                   | 1                 |
  */
 #define BLE_ATT_INDICATE_RSP_SZ         1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Handle                   | 2                 |
+ * | Attribute Value                    | 0 to (ATT_MTU-3)  |
+ */
+#define BLE_ATT_WRITE_CMD_BASE_SZ       3
+struct ble_att_write_cmd {
+    uint16_t handle;
+    uint8_t value[0];
+} __attribute__((packed));
 
 void ble_att_error_rsp_parse(const void *payload, int len,
                              struct ble_att_error_rsp *rsp);
@@ -396,7 +410,8 @@ void ble_att_write_cmd_parse(const void *payload, int len,
                              struct ble_att_write_req *req);
 void ble_att_write_cmd_write(void *payload, int len,
                              const struct ble_att_write_req *req);
-void ble_att_write_cmd_log(const struct ble_att_write_req *cmd);
+void ble_att_write_cmd_log(const struct ble_att_write_cmd *cmd);
+void ble_att_write_req_log(const struct ble_att_write_req *req);
 void ble_att_prep_write_req_parse(const void *payload, int len,
                                   struct ble_att_prep_write_cmd *cmd);
 void ble_att_prep_write_req_write(void *payload, int len,

@@ -2055,7 +2055,7 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
     ble_att_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     BLE_ATT_LOG_CMD(0, "write req", conn_handle,
-                    ble_att_write_cmd_log, &req);
+                    ble_att_write_req_log, &req);
 
     err_handle = req.bawq_handle;
 
@@ -2105,7 +2105,7 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
 
     ble_att_write_cmd_parse((*rxom)->om_data, (*rxom)->om_len, &req);
     BLE_ATT_LOG_CMD(0, "write cmd", conn_handle,
-                    ble_att_write_cmd_log, &req);
+                    ble_att_write_req_log, &req);
 
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);

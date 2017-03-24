@@ -276,11 +276,9 @@ int ble_att_clt_tx_find_type_value(uint16_t conn_handle, uint16_t start_handle,
                                    const void *attribute_value, int value_len);
 int ble_att_clt_rx_find_type_value(uint16_t conn_handle,
                                    struct os_mbuf **rxom);
-int ble_att_clt_tx_write_req(uint16_t conn_handle,
-                             const struct ble_att_write_req *req,
+int ble_att_clt_tx_write_req(uint16_t conn_handle, uint16_t handle,
                              struct os_mbuf *txom);
-int ble_att_clt_tx_write_cmd(uint16_t conn_handle,
-                             const struct ble_att_write_req *req,
+int ble_att_clt_tx_write_cmd(uint16_t conn_handle, uint16_t handle,
                              struct os_mbuf *txom);
 int ble_att_clt_tx_prep_write(uint16_t conn_handle,
                               const struct ble_att_prep_write_cmd *req,
