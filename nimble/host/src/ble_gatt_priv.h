@@ -126,7 +126,7 @@ void ble_gattc_rx_find_type_value_hinfo(
 void ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status);
 void ble_gattc_rx_write_rsp(uint16_t conn_handle);
 void ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
-                                 struct ble_att_prep_write_cmd *rsp,
+                                 uint16_t handle, uint16_t offset,
                                  struct os_mbuf **rxom);
 void ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status);
 void ble_gattc_rx_indicate_rsp(uint16_t conn_handle);
