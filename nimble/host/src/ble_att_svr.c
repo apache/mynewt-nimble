@@ -1085,7 +1085,8 @@ ble_att_svr_is_valid_group_end(const ble_uuid_t *uuid_group,
  */
 static int
 ble_att_svr_fill_type_value(uint16_t conn_handle,
-                            struct ble_att_find_type_value_req *req,
+                            uint16_t start_handle, uint16_t end_handle,
+                            ble_uuid16_t attr_type,
                             struct os_mbuf *rxom, struct os_mbuf *txom,
                             uint16_t mtu, uint8_t *out_att_err)
 {
@@ -1094,13 +1095,11 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
     uint16_t attr_len;
     uint16_t first;
     uint16_t prev;
-    ble_uuid16_t attr_type;
     int any_entries;
     int rc;
 
     first = 0;
     prev = 0;
-    attr_type = (ble_uuid16_t) BLE_UUID16_INIT(req->bavq_attr_type);
     rc = 0;
 
     /* Iterate through the attribute list, keeping track of the current
@@ -1108,12 +1107,12 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
      * written to the response.
      */
     STAILQ_FOREACH(ha, &ble_att_svr_list, ha_next) {
-        if (ha->ha_handle_id < req->bavq_start_handle) {
+        if (ha->ha_handle_id < start_handle) {
             continue;
         }
 
         /* Continue to look for end of group in case group is in progress. */
-        if (!first && ha->ha_handle_id > req->bavq_end_handle) {
+        if (!first && ha->ha_handle_id > end_handle) {
             break;
         }
 
@@ -1135,7 +1134,7 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
 
             /* Break in case we were just looking for end of group past the end
              * handle ID. */
-            if (ha->ha_handle_id > req->bavq_end_handle) {
+            if (ha->ha_handle_id > end_handle) {
                 break;
             }
         }
@@ -1149,7 +1148,8 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
             if (rc != 0) {
                 goto done;
             }
-            rc = os_mbuf_cmpf(rxom, BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
+            /* value is at the end of req */
+            rc = os_mbuf_cmpf(rxom, sizeof(struct ble_att_find_type_value_req),
                               buf, attr_len);
             if (rc == 0) {
                 first = ha->ha_handle_id;
@@ -1184,7 +1184,9 @@ done:
 
 static int
 ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
-                                      struct ble_att_find_type_value_req *req,
+                                      uint16_t start_handle,
+                                      uint16_t end_handle,
+                                      ble_uuid16_t attr_type,
                                       struct os_mbuf **rxom,
                                       struct os_mbuf **out_txom,
                                       uint8_t *out_att_err)
@@ -1199,19 +1201,19 @@ ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
         goto done;
     }
 
-    /* Write the response base at the start of the buffer. */
-    buf = os_mbuf_extend(txom, BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ);
+    /* info list is filled later on */
+    buf = ble_att_cmd_prepare(BLE_ATT_OP_FIND_TYPE_VALUE_RSP, 0, txom);
     if (buf == NULL) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
-    buf[0] = BLE_ATT_OP_FIND_TYPE_VALUE_RSP;
 
     /* Write the variable length Information Data field. */
     mtu = ble_att_mtu(conn_handle);
 
-    rc = ble_att_svr_fill_type_value(conn_handle, req, *rxom, txom, mtu,
+    rc = ble_att_svr_fill_type_value(conn_handle, start_handle, end_handle,
+                                     attr_type, *rxom, txom, mtu,
                                      out_att_err);
     if (rc != 0) {
         goto done;
@@ -1233,44 +1235,50 @@ ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_find_type_value_req req;
+    struct ble_att_find_type_value_req *req;
+    uint16_t start_handle, end_handle;
+    ble_uuid16_t attr_type;
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
+
+    /* TODO move this to common part
+    * Strip L2CAP ATT header from the front of the mbuf.
+    */
+    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
     err_handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
-                                     &att_err);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
-    ble_att_find_type_value_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_find_type_value_req *)(*rxom)->om_data;
+    start_handle = le16toh(req->bavq_start_handle);
+    end_handle = le16toh(req->bavq_end_handle);
+    attr_type = (ble_uuid16_t) BLE_UUID16_INIT(le16toh(req->bavq_attr_type));
     BLE_ATT_LOG_CMD(0, "find type value req", conn_handle,
-                    ble_att_find_type_value_req_log, &req);
+                    ble_att_find_type_value_req_log, req);
 
     /* Tx error response if start handle is greater than end handle or is equal
      * to 0 (Vol. 3, Part F, 3.4.3.3).
      */
-    if (req.bavq_start_handle > req.bavq_end_handle ||
-        req.bavq_start_handle == 0) {
-
+    if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
-        err_handle = req.bavq_start_handle;
+        err_handle = start_handle;
         rc = BLE_HS_EBADDATA;
         goto done;
     }
-
-    rc = ble_att_svr_build_find_type_value_rsp(conn_handle, &req, rxom,
+    rc = ble_att_svr_build_find_type_value_rsp(conn_handle, start_handle,
+                                               end_handle, attr_type, rxom,
                                                &txom, &att_err);
     if (rc != 0) {
-        err_handle = req.bavq_start_handle;
+        err_handle = start_handle;
         goto done;
     }
 
