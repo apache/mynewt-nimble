@@ -331,15 +331,20 @@ static int
 ble_att_clt_parse_find_type_value_hinfo(
     struct os_mbuf **om, struct ble_att_find_type_value_hinfo *dst)
 {
+    struct ble_att_handle_group *group;
     int rc;
 
-    rc = os_mbuf_copydata(*om, 0, BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ, dst);
+    rc = ble_hs_mbuf_pullup_base(om, sizeof(*group));
     if (rc != 0) {
         return BLE_HS_EBADDATA;
     }
 
-    dst->attr_handle = TOFROMLE16(dst->attr_handle);
-    dst->group_end_handle = TOFROMLE16(dst->group_end_handle);
+    group = (struct ble_att_handle_group *)(*om)->om_data;
+
+    dst->attr_handle = le16toh(group->attr_handle);
+    dst->group_end_handle = le16toh(group->group_end_handle);
+
+    os_mbuf_adj((*om), sizeof(*group));
 
     return 0;
 }
@@ -356,11 +361,10 @@ ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
 
     BLE_ATT_LOG_EMPTY_CMD(0, "find type value rsp", conn_handle);
 
-    /* Reponse consists of a one-byte opcode (already verified) and a variable
-     * length Handles-Information-List field.  Strip the opcode from the
-     * response.
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
      */
-    os_mbuf_adj(*rxom, BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ);
+    os_mbuf_adj(*rxom, 1);
 
     /* Parse the Handles-Information-List field, passing each entry to GATT. */
     rc = 0;
@@ -371,7 +375,6 @@ ble_att_clt_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
         }
 
         ble_gattc_rx_find_type_value_hinfo(conn_handle, &hinfo);
-        os_mbuf_adj(*rxom, BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ);
     }
 
     /* Notify GATT client that the full response has been parsed. */

@@ -117,6 +117,15 @@ struct ble_att_find_type_value_req {
 #define BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ     1
 #define BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ   4
 
+struct ble_att_handle_group {
+        uint16_t attr_handle;
+        uint16_t group_end_handle;
+} __attribute__((packed));
+
+struct ble_att_find_type_value_rsp {
+    struct ble_att_handle_group list[0];
+} __attribute__((packed));
+
 /**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
