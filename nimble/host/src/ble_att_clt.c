@@ -715,31 +715,39 @@ ble_att_clt_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_read_group_type_adata adata;
-    struct ble_att_read_group_type_rsp rsp;
+    struct ble_att_read_group_type_rsp *rsp;
+    uint8_t len;
     int rc;
 
-    rc = ble_hs_mbuf_pullup_base(rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
+    rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*rsp));
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_read_group_type_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &rsp);
+    rsp = (struct ble_att_read_group_type_rsp *)(*rxom)->om_data;
+
     BLE_ATT_LOG_CMD(0, "read group type rsp", conn_handle,
-                    ble_att_read_group_type_rsp_log, &rsp);
+                    ble_att_read_group_type_rsp_log, rsp);
+
+    len = rsp->bagp_length;
 
     /* Strip the base from the front of the response. */
-    os_mbuf_adj(*rxom, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*rsp));
 
     /* Parse the Attribute Data List field, passing each entry to GATT. */
     while (OS_MBUF_PKTLEN(*rxom) > 0) {
-        rc = ble_att_clt_parse_read_group_type_adata(rxom, rsp.bagp_length,
-                                                     &adata);
+        rc = ble_att_clt_parse_read_group_type_adata(rxom, len, &adata);
         if (rc != 0) {
             goto done;
         }
 
         ble_gattc_rx_read_group_type_adata(conn_handle, &adata);
-        os_mbuf_adj(*rxom, rsp.bagp_length);
+        os_mbuf_adj(*rxom, len);
     }
 
 done:
