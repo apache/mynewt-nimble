@@ -1431,7 +1431,8 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
         pktlen != BLE_ATT_READ_TYPE_REQ_SZ_128) {
 
         /* Malformed packet; discard. */
-        return BLE_HS_EBADDATA;
+        rc = BLE_HS_EBADDATA;
+        goto done;
     }
 
     rc = ble_att_svr_pullup_req_base(rxom, pktlen, &att_err);
