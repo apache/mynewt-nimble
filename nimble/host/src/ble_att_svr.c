@@ -2354,7 +2354,7 @@ ble_att_svr_prep_write(uint16_t conn_handle,
 
 static int
 ble_att_svr_insert_prep_entry(uint16_t conn_handle,
-                              const struct ble_att_prep_write_cmd *req,
+                              uint16_t handle, uint16_t offset,
                               const struct os_mbuf *rxom,
                               uint8_t *out_att_err)
 {
@@ -2369,15 +2369,15 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
     if (prep_entry == NULL) {
         return BLE_HS_ENOMEM;
     }
-    prep_entry->bape_handle = req->bapc_handle;
-    prep_entry->bape_offset = req->bapc_offset;
+    prep_entry->bape_handle = handle;
+    prep_entry->bape_offset = offset;
 
     /* Append attribute value from request onto prep mbuf. */
     rc = os_mbuf_appendfrom(
         prep_entry->bape_value,
         rxom,
-        BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
-        OS_MBUF_PKTLEN(rxom) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+        sizeof(struct ble_att_prep_write_cmd),
+        OS_MBUF_PKTLEN(rxom) - sizeof(struct ble_att_prep_write_cmd));
     if (rc != 0) {
         /* Failed to allocate an mbuf to hold the additional data. */
         ble_att_svr_prep_free(prep_entry);
@@ -2391,8 +2391,7 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
     }
 
     prep_prev = ble_att_svr_prep_find_prev(&conn->bhc_att_svr,
-                                           req->bapc_handle,
-                                           req->bapc_offset);
+                                           handle, offset);
     if (prep_prev == NULL) {
         SLIST_INSERT_HEAD(&conn->bhc_att_svr.basc_prep_list, prep_entry,
                           bape_next);
@@ -2417,31 +2416,37 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_prep_write_cmd req;
+    struct ble_att_prep_write_cmd *req;
     struct ble_att_svr_entry *attr_entry;
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
     int rc;
 
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
     err_handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ,
-                                     &att_err);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
         err_handle = 0;
         goto done;
     }
 
-    ble_att_prep_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
-    BLE_ATT_LOG_CMD(0, "prep write req", conn_handle,
-                    ble_att_prep_write_cmd_log, &req);
-    err_handle = req.bapc_handle;
+    req = (struct ble_att_prep_write_cmd *)(*rxom)->om_data;
 
-    attr_entry = ble_att_svr_find_by_handle(req.bapc_handle);
+    BLE_ATT_LOG_CMD(0, "prep write req", conn_handle,
+                    ble_att_prep_write_cmd_log, req);
+
+    err_handle = le16toh(req->bapc_handle);
+
+    attr_entry = ble_att_svr_find_by_handle(le16toh(req->bapc_handle));
 
     /* A prepare write request gets rejected for the following reasons:
      * 1. Insufficient authorization.
@@ -2466,7 +2471,9 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
     ble_hs_lock();
-    rc = ble_att_svr_insert_prep_entry(conn_handle, &req, *rxom, &att_err);
+    rc = ble_att_svr_insert_prep_entry(conn_handle, le16toh(req->bapc_handle),
+                                       le16toh(req->bapc_offset), *rxom,
+                                       &att_err);
     ble_hs_unlock();
 
     /* Reuse rxom for response.  On success, the response is identical to
@@ -2480,10 +2487,12 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
+    /* adjust for ATT header */
+    os_mbuf_prepend(txom, 1);
     txom->om_data[0] = BLE_ATT_OP_PREP_WRITE_RSP;
 
     BLE_ATT_LOG_CMD(1, "prep write rsp", conn_handle,
-                    ble_att_prep_write_cmd_log, &req);
+                    ble_att_prep_write_cmd_log, req);
 
     rc = 0;
 
