@@ -4647,7 +4647,7 @@ done:
  * procedure.
  */
 void
-ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
+ble_gattc_rx_err(uint16_t conn_handle, uint16_t handle, uint16_t status)
 {
     struct ble_gattc_proc *proc;
     ble_gattc_err_fn *err_cb;
@@ -4656,8 +4656,7 @@ ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp)
     if (proc != NULL) {
         err_cb = ble_gattc_err_dispatch_get(proc->op);
         if (err_cb != NULL) {
-            err_cb(proc, BLE_HS_ERR_ATT_BASE + rsp->baep_error_code,
-                   rsp->baep_handle);
+            err_cb(proc, BLE_HS_ERR_ATT_BASE + status, handle);
         }
         ble_gattc_proc_free(proc);
     }
