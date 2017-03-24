@@ -1103,8 +1103,7 @@ ble_sm_ltk_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
         return BLE_HS_ECONTROLLER;
     }
 
-    ack_conn_handle = TOFROMLE16(ack_conn_handle);
-    if (ack_conn_handle != conn_handle) {
+    if (le16toh(ack_conn_handle) != conn_handle) {
         return BLE_HS_ECONTROLLER;
     }
 
@@ -1129,8 +1128,7 @@ ble_sm_ltk_req_neg_reply_tx(uint16_t conn_handle)
         return BLE_HS_ECONTROLLER;
     }
 
-    ack_conn_handle = TOFROMLE16(ack_conn_handle);
-    if (ack_conn_handle != conn_handle) {
+    if (le16toh(ack_conn_handle) != conn_handle) {
         return BLE_HS_ECONTROLLER;
     }
 
