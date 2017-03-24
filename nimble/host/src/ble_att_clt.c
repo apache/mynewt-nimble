@@ -884,7 +884,8 @@ ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
 done:
     /* Notify GATT client that the full response has been parsed. */
-    ble_gattc_rx_prep_write_rsp(conn_handle, rc, &rsp, rxom);
+    ble_gattc_rx_prep_write_rsp(conn_handle, rc, rsp.bapc_handle,
+                                rsp.bapc_offset, rxom);
     return rc;
 }
 

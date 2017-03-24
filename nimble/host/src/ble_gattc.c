@@ -335,7 +335,7 @@ typedef int ble_gattc_rx_adata_fn(struct ble_gattc_proc *proc,
                                   struct ble_att_read_type_adata *adata);
 
 typedef int ble_gattc_rx_prep_fn(struct ble_gattc_proc *proc, int status,
-                                 struct ble_att_prep_write_cmd *rsp,
+                                 uint16_t handle, uint16_t offset,
                                  struct os_mbuf **om);
 
 typedef int ble_gattc_rx_attr_fn(struct ble_gattc_proc *proc, int status,
@@ -3917,7 +3917,8 @@ ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
  */
 static int
 ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
-                             int status, struct ble_att_prep_write_cmd *rsp,
+                             int status,
+                             uint16_t handle, uint16_t offset,
                              struct os_mbuf **rxom)
 {
     struct os_mbuf *om;
@@ -3943,15 +3944,15 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
         rc = BLE_HS_EBADDATA;
         goto err;
     }
-    if (rsp->bapc_handle != proc->write_long.attr.handle) {
+    if (handle != proc->write_long.attr.handle) {
         rc = BLE_HS_EBADDATA;
         goto err;
     }
-    if (rsp->bapc_offset != proc->write_long.attr.offset) {
+    if (offset != proc->write_long.attr.offset) {
         rc = BLE_HS_EBADDATA;
         goto err;
     }
-    if (rsp->bapc_offset + OS_MBUF_PKTLEN(om) >
+    if (offset + OS_MBUF_PKTLEN(om) >
         OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
 
         rc = BLE_HS_EBADDATA;
@@ -3962,7 +3963,7 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
         goto err;
     }
     if (os_mbuf_cmpm(om, 0,
-                     proc->write_long.attr.om, rsp->bapc_offset,
+                     proc->write_long.attr.om, offset,
                      proc->write_long.length) != 0) {
 
         rc = BLE_HS_EBADDATA;
@@ -4225,7 +4226,7 @@ ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
 static int
 ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
                                  int status,
-                                 struct ble_att_prep_write_cmd *rsp,
+                                 uint16_t handle, uint16_t offset,
                                  struct os_mbuf **rxom)
 {
     struct ble_gatt_attr *attr;
@@ -4252,15 +4253,15 @@ ble_gattc_write_reliable_rx_prep(struct ble_gattc_proc *proc,
     attr = proc->write_reliable.attrs + proc->write_reliable.cur_attr;
 
     /* Verify the response. */
-    if (rsp->bapc_handle != attr->handle) {
+    if (handle != attr->handle) {
         rc = BLE_HS_EBADDATA;
         goto err;
     }
-    if (rsp->bapc_offset != attr->offset) {
+    if (offset != attr->offset) {
         rc = BLE_HS_EBADDATA;
         goto err;
     }
-    if (os_mbuf_cmpm(attr->om, rsp->bapc_offset, om, 0,
+    if (os_mbuf_cmpm(attr->om, offset, om, 0,
                      proc->write_reliable.length) != 0) {
 
         rc = BLE_HS_EBADDATA;
@@ -4958,7 +4959,7 @@ ble_gattc_rx_write_rsp(uint16_t conn_handle)
  */
 void
 ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
-                            struct ble_att_prep_write_cmd *rsp,
+                            uint16_t handle, uint16_t offset,
                             struct os_mbuf **om)
 {
 #if !NIMBLE_BLE_ATT_CLT_PREP_WRITE
@@ -4973,7 +4974,7 @@ ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
                                          ble_gattc_rx_prep_entries,
                                          &rx_entry);
     if (proc != NULL) {
-        rc = rx_entry->cb(proc, status, rsp, om);
+        rc = rx_entry->cb(proc, status, handle, offset, om);
         ble_gattc_process_status(proc, rc);
     }
 }
