@@ -1293,20 +1293,20 @@ done:
 
 static int
 ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
-                                struct ble_att_read_type_req *req,
+                                uint16_t start_handle, uint16_t end_handle,
                                 const ble_uuid_t *uuid,
                                 struct os_mbuf **rxom,
                                 struct os_mbuf **out_txom,
                                 uint8_t *att_err,
                                 uint16_t *err_handle)
 {
-    struct ble_att_read_type_rsp rsp;
+    struct ble_att_attr_data_list *data;
+    struct ble_att_read_type_rsp *rsp;
     struct ble_att_svr_entry *entry;
     struct os_mbuf *txom;
     uint16_t attr_len;
     uint16_t mtu;
     uint8_t buf[19];
-    uint8_t *dptr;
     int entry_written;
     int txomlen;
     int prev_attr_len;
@@ -1314,7 +1314,7 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
 
     *att_err = 0;    /* Silence unnecessary warning. */
 
-    *err_handle = req->batq_start_handle;
+    *err_handle = start_handle;
     entry_written = 0;
     prev_attr_len = 0;
 
@@ -1326,8 +1326,9 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     /* Allocate space for the respose base, but don't fill in the fields.  They
      * get filled in at the end, when we know the value of the length field.
      */
-    dptr = os_mbuf_extend(txom, BLE_ATT_READ_TYPE_RSP_BASE_SZ);
-    if (dptr == NULL) {
+
+    rsp = ble_att_cmd_prepare(BLE_ATT_OP_READ_TYPE_RSP, sizeof(*rsp), txom);
+    if (rsp == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
         rc = BLE_HS_ENOMEM;
@@ -1339,13 +1340,13 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     /* Find all matching attributes, writing a record for each. */
     entry = NULL;
     while (1) {
-        entry = ble_att_svr_find_by_uuid(entry, uuid, req->batq_end_handle);
+        entry = ble_att_svr_find_by_uuid(entry, uuid, end_handle);
         if (entry == NULL) {
             rc = BLE_HS_ENOENT;
             break;
         }
 
-        if (entry->ha_handle_id >= req->batq_start_handle) {
+        if (entry->ha_handle_id >= start_handle) {
             rc = ble_att_svr_read_flat(conn_handle, entry, 0, sizeof buf, buf,
                                        &attr_len, att_err);
             if (rc != 0) {
@@ -1368,16 +1369,16 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
                 break;
             }
 
-            dptr = os_mbuf_extend(txom, 2 + attr_len);
-            if (dptr == NULL) {
+            data = os_mbuf_extend(txom, 2 + attr_len);
+            if (data == NULL) {
                 *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
                 *err_handle = entry->ha_handle_id;
                 rc = BLE_HS_ENOMEM;
                 goto done;
             }
 
-            put_le16(dptr + 0, entry->ha_handle_id);
-            memcpy(dptr + 2, buf, attr_len);
+            data->handle = htole16(entry->ha_handle_id);
+            memcpy(data->value, buf, attr_len);
             entry_written = 1;
         }
     }
@@ -1397,10 +1398,9 @@ done:
         *att_err = 0;
 
         /* Fill the response base. */
-        rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ + prev_attr_len;
-        ble_att_read_type_rsp_write(txom->om_data, txom->om_len, &rsp);
+        rsp->batp_length = htole16(sizeof(*data) + prev_attr_len);
         BLE_ATT_LOG_CMD(1, "read type rsp", conn_handle,
-                        ble_att_read_type_rsp_log, &rsp);
+                        ble_att_read_type_rsp_log, rsp);
     }
 
     *out_txom = txom;
@@ -1415,7 +1415,8 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_read_type_req req;
+    struct ble_att_read_type_req *req;
+    uint16_t start_handle, end_handle;
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint16_t pktlen;
@@ -1423,14 +1424,18 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
     /* Initialize some values in case of early error. */
     txom = NULL;
 
     pktlen = OS_MBUF_PKTLEN(*rxom);
-    if (pktlen != BLE_ATT_READ_TYPE_REQ_SZ_16 &&
-        pktlen != BLE_ATT_READ_TYPE_REQ_SZ_128) {
-
-        /* Malformed packet; discard. */
+    if (pktlen != sizeof(*req) + 2 && pktlen != sizeof(*req) + 16) {
+        /* Malformed packet */
+        err_handle = 0;
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1441,21 +1446,23 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    ble_att_read_type_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_read_type_req *)(*rxom)->om_data;
+
     BLE_ATT_LOG_CMD(0, "read type req", conn_handle, ble_att_read_type_req_log,
-                    &req);
+                    req);
 
+    start_handle = le16toh(req->batq_start_handle);
+    end_handle = le16toh(req->batq_end_handle);
 
-    if (req.batq_start_handle > req.batq_end_handle ||
-        req.batq_start_handle == 0) {
-
+    if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
-        err_handle = req.batq_start_handle;
+        err_handle = start_handle;
         rc = BLE_HS_EBADDATA;
         goto done;
     }
 
-    rc = ble_uuid_init_from_mbuf(&uuid, *rxom, 5, (*rxom)->om_len - 5);
+    rc = ble_uuid_init_from_mbuf(&uuid, *rxom, sizeof(*req),
+                                 pktlen - sizeof(*req));
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = 0;
@@ -1463,8 +1470,9 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_att_svr_build_read_type_rsp(conn_handle, &req, &uuid.u,
-                                         rxom, &txom, &att_err, &err_handle);
+    rc = ble_att_svr_build_read_type_rsp(conn_handle, start_handle, end_handle,
+                                         &uuid.u, rxom, &txom, &att_err,
+                                         &err_handle);
     if (rc != 0) {
         goto done;
     }
