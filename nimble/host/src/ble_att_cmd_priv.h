@@ -222,6 +222,7 @@ struct ble_att_read_mult_req {
 struct ble_att_read_group_type_req {
     uint16_t bagq_start_handle;
     uint16_t bagq_end_handle;
+    uint8_t uuid[0];
 } __attribute__((packed));
 
 /**

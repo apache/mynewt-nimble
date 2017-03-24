@@ -1385,15 +1385,14 @@ ble_gattc_disc_all_svcs_tmo(struct ble_gattc_proc *proc)
 static int
 ble_gattc_disc_all_svcs_tx(struct ble_gattc_proc *proc)
 {
-    struct ble_att_read_group_type_req req;
     ble_uuid16_t uuid = BLE_UUID16_INIT(BLE_ATT_UUID_PRIMARY_SERVICE);
     int rc;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    req.bagq_start_handle = proc->disc_all_svcs.prev_handle + 1;
-    req.bagq_end_handle = 0xffff;
-    rc = ble_att_clt_tx_read_group_type(proc->conn_handle, &req, &uuid.u);
+    rc = ble_att_clt_tx_read_group_type(proc->conn_handle,
+                                        proc->disc_all_svcs.prev_handle + 1,
+                                        0xffff, &uuid.u);
     if (rc != 0) {
         return rc;
     }
