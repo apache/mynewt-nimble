@@ -1612,7 +1612,6 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
     struct os_mbuf *txom;
     uint16_t handle;
     uint16_t mtu;
-    uint8_t *dptr;
     int rc;
 
     mtu = ble_att_mtu(conn_handle);
@@ -1623,14 +1622,12 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
         goto done;
     }
 
-    dptr = os_mbuf_extend(txom, BLE_ATT_READ_MULT_RSP_BASE_SZ);
-    if (dptr == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_MULT_RSP, 0, txom) == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
-    ble_att_read_mult_rsp_write(dptr, BLE_ATT_READ_MULT_RSP_BASE_SZ);
 
     /* Iterate through requested handles, reading the corresponding attribute
      * for each.  Stop when there are no more handles to process, or the
@@ -1679,6 +1676,11 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
     uint8_t att_err;
     int rc;
 
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
     BLE_ATT_LOG_EMPTY_CMD(0, "read mult req", conn_handle);
 
     /* Initialize some values in case of early error. */
@@ -1686,30 +1688,11 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
     err_handle = 0;
     att_err = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_READ_MULT_REQ_BASE_SZ,
-                                     &att_err);
-    if (rc != 0) {
-        err_handle = 0;
-        goto done;
-    }
-
-    ble_att_read_mult_req_parse((*rxom)->om_data, (*rxom)->om_len);
-
-    /* Strip opcode from request. */
-    os_mbuf_adj(*rxom, BLE_ATT_READ_MULT_REQ_BASE_SZ);
-
     rc = ble_att_svr_build_read_mult_rsp(conn_handle, rxom, &txom, &att_err,
                                          &err_handle);
-    if (rc != 0) {
-        goto done;
-    }
 
-    rc = 0;
-
-done:
-    rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
-                            att_err, err_handle);
-    return rc;
+    return ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
+                              att_err, err_handle);
 }
 
 static int
