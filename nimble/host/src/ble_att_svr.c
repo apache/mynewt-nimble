@@ -2109,30 +2109,31 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_write_req req;
+    struct ble_att_write_req *req;
     uint8_t att_err;
+    uint16_t handle;
     int rc;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_WRITE_REQ_BASE_SZ,
-                                     &att_err);
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
+
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
         return rc;
     }
 
-    ble_att_write_cmd_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_write_req *)(*rxom)->om_data;
     BLE_ATT_LOG_CMD(0, "write cmd", conn_handle,
-                    ble_att_write_req_log, &req);
+                    ble_att_write_req_log, req);
+
+    handle = le16toh(req->bawq_handle);
 
     /* Strip the request base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, BLE_ATT_WRITE_REQ_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*req));
 
-    rc = ble_att_svr_write_handle(conn_handle, req.bawq_handle, 0, rxom,
-                                  &att_err);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_att_svr_write_handle(conn_handle, handle, 0, rxom, &att_err);
 }
 
 /**
