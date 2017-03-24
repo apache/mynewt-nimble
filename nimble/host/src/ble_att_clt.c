@@ -897,28 +897,37 @@ ble_att_clt_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_prep_write_cmd rsp;
+    struct ble_att_prep_write_cmd *rsp;
+    uint16_t handle, offset;
     int rc;
 
-    /* Initialize some values in case of early error. */
-    memset(&rsp, 0, sizeof rsp);
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
-    rc = ble_hs_mbuf_pullup_base(rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    /* Initialize some values in case of early error. */
+    handle = 0;
+    offset = 0;
+
+    rc = ble_hs_mbuf_pullup_base(rxom, sizeof(*rsp));
     if (rc != 0) {
         goto done;
     }
 
-    ble_att_prep_write_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &rsp);
+    rsp = (struct ble_att_prep_write_cmd *)(*rxom)->om_data;
     BLE_ATT_LOG_CMD(0, "prep write rsp", conn_handle,
-                    ble_att_prep_write_cmd_log, &rsp);
+                    ble_att_prep_write_cmd_log, rsp);
+
+    handle = le16toh(rsp->bapc_handle);
+    offset = le16toh(rsp->bapc_offset);
 
     /* Strip the base from the front of the response. */
-    os_mbuf_adj(*rxom, BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    os_mbuf_adj(*rxom, sizeof(*rsp));
 
 done:
     /* Notify GATT client that the full response has been parsed. */
-    ble_gattc_rx_prep_write_rsp(conn_handle, rc, rsp.bapc_handle,
-                                rsp.bapc_offset, rxom);
+    ble_gattc_rx_prep_write_rsp(conn_handle, rc, handle, offset, rxom);
     return rc;
 }
 
