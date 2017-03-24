@@ -36,21 +36,17 @@ ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom)
     return rc;
 }
 
-static void
-ble_l2cap_sig_hdr_swap(struct ble_l2cap_sig_hdr *dst,
-                       struct ble_l2cap_sig_hdr *src)
-{
-    dst->op = src->op;
-    dst->identifier = src->identifier;
-    dst->length = TOFROMLE16(src->length);
-}
-
 void
 ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
                         struct ble_l2cap_sig_hdr *dst)
 {
+    struct ble_l2cap_sig_hdr *src = payload;
+
     BLE_HS_DBG_ASSERT(len >= BLE_L2CAP_SIG_HDR_SZ);
-    ble_l2cap_sig_hdr_swap(dst, payload);
+
+    dst->op = src->op;
+    dst->identifier = src->identifier;
+    dst->length = le16toh(src->length);
 }
 
 int
