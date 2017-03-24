@@ -44,7 +44,7 @@ ble_att_clt_rx_error(uint16_t conn_handle, struct os_mbuf **rxom)
     ble_att_error_rsp_parse((*rxom)->om_data, (*rxom)->om_len, &rsp);
     BLE_ATT_LOG_CMD(0, "error rsp", conn_handle, ble_att_error_rsp_log, &rsp);
 
-    ble_gattc_rx_err(conn_handle, &rsp);
+    ble_gattc_rx_err(conn_handle, rsp.baep_handle, rsp.baep_error_code);
 
     return 0;
 }
