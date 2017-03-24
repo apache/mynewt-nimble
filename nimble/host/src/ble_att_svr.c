@@ -797,8 +797,8 @@ done:
  * @return                      0 on success; nonzero on failure.
  */
 static int
-ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
-                      uint16_t mtu, uint8_t *format)
+ble_att_svr_fill_info(uint16_t start_handle, uint16_t end_handle,
+                      struct os_mbuf *om, uint16_t mtu, uint8_t *format)
 {
     struct ble_att_svr_entry *ha;
     uint8_t *buf;
@@ -811,11 +811,11 @@ ble_att_svr_fill_info(struct ble_att_find_info_req *req, struct os_mbuf *om,
     rc = 0;
 
     STAILQ_FOREACH(ha, &ble_att_svr_list, ha_next) {
-        if (ha->ha_handle_id > req->bafq_end_handle) {
+        if (ha->ha_handle_id > end_handle) {
             rc = 0;
             goto done;
         }
-        if (ha->ha_handle_id >= req->bafq_start_handle) {
+        if (ha->ha_handle_id >= start_handle) {
             if (ha->ha_uuid->type == BLE_UUID_TYPE_16) {
                 if (*format == 0) {
                     *format = BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT;
@@ -864,15 +864,14 @@ done:
 
 static int
 ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
-                                struct ble_att_find_info_req *req,
+                                uint16_t start_handle, uint16_t end_handle,
                                 struct os_mbuf **rxom,
                                 struct os_mbuf **out_txom,
                                 uint8_t *att_err)
 {
-    struct ble_att_find_info_rsp rsp;
+    struct ble_att_find_info_rsp *rsp;
     struct os_mbuf *txom;
     uint16_t mtu;
-    void *buf;
     int rc;
 
     /* Just reuse the request buffer for the response. */
@@ -883,20 +882,19 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     /* Write the response base at the start of the buffer.  The format field is
      * unknown at this point; it will be filled in later.
      */
-    buf = os_mbuf_extend(txom, BLE_ATT_FIND_INFO_RSP_BASE_SZ);
-    if (buf == NULL) {
+    rsp = ble_att_cmd_prepare(BLE_ATT_OP_FIND_INFO_RSP, sizeof(*rsp), txom);
+    if (rsp == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
     }
 
-    ble_att_find_info_rsp_write(buf, BLE_ATT_FIND_INFO_RSP_BASE_SZ, &rsp);
-
     /* Write the variable length Information Data field, populating the format
      * field as appropriate.
      */
     mtu = ble_att_mtu(conn_handle);
-    rc = ble_att_svr_fill_info(req, txom, mtu, txom->om_data + 1);
+    rc = ble_att_svr_fill_info(start_handle, end_handle, txom, mtu,
+                               &rsp->bafp_format);
     if (rc != 0) {
         *att_err = BLE_ATT_ERR_ATTR_NOT_FOUND;
         rc = BLE_HS_ENOENT;
@@ -904,7 +902,7 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     }
 
     BLE_ATT_LOG_CMD(1, "find info rsp", conn_handle, ble_att_find_info_rsp_log,
-                    &rsp);
+                    rsp);
 
     rc = 0;
 
@@ -920,43 +918,50 @@ ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_find_info_req req;
+    struct ble_att_find_info_req *req;
     struct os_mbuf *txom;
-    uint16_t err_handle;
+    uint16_t err_handle, start_handle, end_handle;
     uint8_t att_err;
     int rc;
+
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
     att_err = 0;
     err_handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_FIND_INFO_REQ_SZ, &att_err);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
         err_handle = 0;
         goto done;
     }
 
-    ble_att_find_info_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_find_info_req *)(*rxom)->om_data;
+    start_handle = le16toh(req->bafq_start_handle);
+    end_handle = le16toh(req->bafq_end_handle);
+
     BLE_ATT_LOG_CMD(0, "find info req", conn_handle, ble_att_find_info_req_log,
-                    &req);
+                    req);
 
     /* Tx error response if start handle is greater than end handle or is equal
      * to 0 (Vol. 3, Part F, 3.4.3.1).
      */
-    if (req.bafq_start_handle > req.bafq_end_handle ||
-        req.bafq_start_handle == 0) {
-
+    if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
-        err_handle = req.bafq_start_handle;
+        err_handle = start_handle;
         rc = BLE_HS_EBADDATA;
         goto done;
     }
 
-    rc = ble_att_svr_build_find_info_rsp(conn_handle, &req, rxom, &txom,
-                                         &att_err);
+    rc = ble_att_svr_build_find_info_rsp(conn_handle,
+                                        start_handle, end_handle,
+                                        rxom, &txom, &att_err);
     if (rc != 0) {
-        err_handle = req.bafq_start_handle;
+        err_handle = start_handle;
         goto done;
     }
 
