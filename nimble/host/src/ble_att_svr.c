@@ -2502,38 +2502,6 @@ done:
     return rc;
 }
 
-/**
- * @return                      0 on success; nonzero on failure.
- */
-static int
-ble_att_svr_build_exec_write_rsp(struct os_mbuf **rxom,
-                                 struct os_mbuf **out_txom, uint8_t *att_err)
-{
-    struct os_mbuf *txom;
-    uint8_t *dst;
-    int rc;
-
-    /* Just reuse the request buffer for the response. */
-    txom = *rxom;
-    *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
-
-    dst = os_mbuf_extend(txom, BLE_ATT_EXEC_WRITE_RSP_SZ);
-    if (dst == NULL) {
-        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
-
-    ble_att_exec_write_rsp_write(dst, BLE_ATT_EXEC_WRITE_RSP_SZ);
-
-    rc = 0;
-
-done:
-    *out_txom = txom;
-    return rc;
-}
-
 int
 ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 {
@@ -2542,30 +2510,42 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_prep_entry_list prep_list;
-    struct ble_att_exec_write_req req;
+    struct ble_att_exec_write_req *req;
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
     uint16_t err_handle;
     uint8_t att_err;
+    uint8_t flags;
     int rc;
+
+    /* TODO move this to common part
+     * Strip L2CAP ATT header from the front of the mbuf.
+     */
+    os_mbuf_adj(*rxom, 1);
 
     /* Initialize some values in case of early error. */
     txom = NULL;
+    err_handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, BLE_ATT_EXEC_WRITE_REQ_SZ,
-                                     &att_err);
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
-    ble_att_exec_write_req_parse((*rxom)->om_data, (*rxom)->om_len, &req);
+    req = (struct ble_att_exec_write_req *)(*rxom)->om_data;
     BLE_ATT_LOG_CMD(0, "exec write req", conn_handle,
-                    ble_att_exec_write_req_log, &req);
+                    ble_att_exec_write_req_log, req);
 
-    rc = ble_att_svr_build_exec_write_rsp(rxom, &txom, &att_err);
-    if (rc != 0) {
-        err_handle = 0;
+    flags = req->baeq_flags;
+
+    /* Just reuse the request buffer for the response. */
+    txom = *rxom;
+    *rxom = NULL;
+    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+
+    if (ble_att_cmd_prepare(BLE_ATT_OP_EXEC_WRITE_RSP, 0, txom) == NULL) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        rc = BLE_HS_ENOMEM;
         goto done;
     }
 
@@ -2585,7 +2565,7 @@ done:
         SLIST_INIT(&conn->bhc_att_svr.basc_prep_list);
         ble_hs_unlock();
 
-        if (req.baeq_flags) {
+        if (flags) {
             /* Perform attribute writes. */
             att_err = ble_att_svr_prep_write(conn_handle, &prep_list,
                                              &err_handle);
