@@ -475,10 +475,7 @@ ble_hs_start(void)
         return rc;
     }
 
-    rc = ble_hs_sync();
-    if (rc != 0) {
-        return rc;
-    }
+    ble_hs_sync();
 
     return 0;
 }
