@@ -99,12 +99,15 @@ typedef union {
 #define BLE_UUID128(u) \
     ((ble_uuid128_t *) (u))
 
+/** Includes trailing \0. */
 #define BLE_UUID_STR_LEN (37)
 
 int ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len);
 int ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2);
 char *ble_uuid_to_str(const ble_uuid_t *uuid, char *dst);
 uint16_t ble_uuid_u16(const ble_uuid_t *uuid);
+
+int ble_uuid_to_s(char *dst, int dst_sz, const void *uuid128);
 
 #ifdef __cplusplus
 }
