@@ -49,10 +49,6 @@ extern STATS_SECT_DECL(ble_l2cap_stats) ble_l2cap_stats;
 
 extern struct os_mempool ble_l2cap_chan_pool;
 
-#define BLE_L2CAP_CID_ATT           4
-#define BLE_L2CAP_CID_SIG           5
-#define BLE_L2CAP_CID_SM            6
-
 /* This is nimble specific; packets sent to the black hole CID do not elicit
  * an "invalid CID" response.
  */

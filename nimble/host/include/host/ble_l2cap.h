@@ -28,6 +28,10 @@ extern "C" {
 struct ble_l2cap_sig_update_req;
 struct ble_hs_conn;
 
+#define BLE_L2CAP_CID_ATT           4
+#define BLE_L2CAP_CID_SIG           5
+#define BLE_L2CAP_CID_SM            6
+
 #define BLE_L2CAP_SIG_OP_REJECT                 0x01
 #define BLE_L2CAP_SIG_OP_CONNECT_REQ            0x02
 #define BLE_L2CAP_SIG_OP_CONNECT_RSP            0x03
