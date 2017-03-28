@@ -685,25 +685,6 @@ ble_hci_uart_free_pkt(uint8_t type, uint8_t *cmdevt, struct os_mbuf *acl)
     }
 }
 
-static void
-ble_hci_uart_free_mem(void)
-{
-    free(ble_hci_uart_evt_hi_buf);
-    ble_hci_uart_evt_hi_buf = NULL;
-
-    free(ble_hci_uart_evt_lo_buf);
-    ble_hci_uart_evt_lo_buf = NULL;
-
-    free(ble_hci_uart_pkt_buf);
-    ble_hci_uart_pkt_buf = NULL;
-
-    free(ble_hci_uart_acl_buf);
-    ble_hci_uart_acl_buf = NULL;
-
-    free(ble_hci_uart_cmd_buf);
-    ble_hci_uart_cmd_buf = NULL;
-}
-
 static int
 ble_hci_uart_config(void)
 {
@@ -967,7 +948,7 @@ ble_hci_trans_reset(void)
  * @return                      0 on success;
  *                              A BLE_ERR_[...] error code on failure.
  */
-int
+void
 ble_hci_uart_init(void)
 {
     int acl_data_length;
@@ -976,8 +957,6 @@ ble_hci_uart_init(void)
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
-
-    ble_hci_uart_free_mem();
 
     /*
      * The MBUF payload size must accommodate the HCI data header size plus the
@@ -994,14 +973,11 @@ ble_hci_uart_init(void)
                             acl_block_size,
                             "ble_hci_uart_acl_pool",
                             &ble_hci_uart_acl_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool, &ble_hci_uart_acl_pool,
                            acl_block_size, MYNEWT_VAL(BLE_ACL_BUF_COUNT));
-    assert(rc == 0);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     /*
      * Create memory pool of HCI command buffers. NOTE: we currently dont
@@ -1014,30 +990,21 @@ ble_hci_uart_init(void)
                             BLE_HCI_TRANS_CMD_SZ,
                             "ble_hci_uart_cmd_pool",
                             &ble_hci_uart_cmd_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = mem_malloc_mempool(&ble_hci_uart_evt_hi_pool,
                             MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
                             MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
                             "ble_hci_uart_evt_hi_pool",
                             &ble_hci_uart_evt_hi_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = mem_malloc_mempool(&ble_hci_uart_evt_lo_pool,
                             MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
                             MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
                             "ble_hci_uart_evt_lo_pool",
                             &ble_hci_uart_evt_lo_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     /*
      * Create memory pool of packet list nodes. NOTE: the number of these
@@ -1051,22 +1018,11 @@ ble_hci_uart_init(void)
                             sizeof (struct ble_hci_uart_pkt),
                             "ble_hci_uart_pkt_pool",
                             &ble_hci_uart_pkt_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_hci_uart_config();
-    if (rc != 0) {
-        goto err;
-    }
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     memset(&ble_hci_uart_state, 0, sizeof ble_hci_uart_state);
     STAILQ_INIT(&ble_hci_uart_state.tx_pkts);
-
-    return 0;
-
-err:
-    ble_hci_uart_free_mem();
-    return rc;
 }

@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-int ble_hci_uart_init(void);
+void ble_hci_uart_init(void);
 
 #ifdef __cplusplus
 }
