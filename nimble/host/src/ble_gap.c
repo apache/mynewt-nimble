@@ -2384,12 +2384,6 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
         goto done;
     }
 
-    /* Verify peer not already connected. */
-    if (ble_hs_conn_find_by_addr(peer_addr) != NULL) {
-        rc = BLE_HS_EDONE;
-        goto done;
-    }
-
     if (!ble_hs_conn_can_alloc()) {
         rc = BLE_HS_ENOMEM;
         goto done;
