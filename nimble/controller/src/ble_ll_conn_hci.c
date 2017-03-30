@@ -481,15 +481,15 @@ ble_ll_conn_create(uint8_t *cmdbuf)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    /* Make sure we can allocate an event to send the connection complete */
+    if (ble_ll_init_alloc_conn_comp_ev()) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
     /* Make sure we can accept a connection! */
     connsm = ble_ll_conn_sm_get();
     if (connsm == NULL) {
         return BLE_ERR_CONN_LIMIT;
-    }
-
-    /* Make sure we can allocate an event to send the connection complete */
-    if (ble_ll_init_alloc_conn_comp_ev()) {
-        return BLE_ERR_MEM_CAPACITY;
     }
 
     /* Initialize state machine in master role and start state machine */
