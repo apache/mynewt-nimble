@@ -2396,6 +2396,19 @@ init_rx_isr_exit:
     rxpdu = ble_ll_rxpdu_alloc(pyld_len + BLE_LL_PDU_HDR_LEN);
     if (rxpdu == NULL) {
         ble_phy_disable();
+
+        /*
+         * XXX: possible allocate the PDU when we start initiating?
+         * I cannot say I like this solution, but if we cannot allocate a PDU
+         * to hand up to the LL, we need to remove the connection we just
+         * scheduled since the connection state machine will not get processed
+         * by link layer properly. For now, just remove it from the scheduler
+         */
+        if (CONN_F_CONN_REQ_TXD(connsm) == 1) {
+            CONN_F_CONN_REQ_TXD(connsm) = 0;
+            ble_ll_sched_rmv_elem(&connsm->conn_sch);
+        }
+
         ble_phy_rx();
         rc = 0;
     } else {
