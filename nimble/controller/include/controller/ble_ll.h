@@ -425,7 +425,7 @@ int ble_ll_rand_start(void);
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
  */
-#define BLE_LL_LOG
+#undef BLE_LL_LOG
 #include "console/console.h"
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
