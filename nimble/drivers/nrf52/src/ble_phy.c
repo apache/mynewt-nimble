@@ -694,6 +694,10 @@ ble_phy_rx_start_isr(void)
     usecs = NRF_TIMER0->CC[1] - 40;
     ticks = os_cputime_usecs_to_ticks(usecs);
     ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
+    if (ble_hdr->rem_usecs == 31) {
+        ble_hdr->rem_usecs = 0;
+        ++ticks;
+    }
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
 #else
     ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
@@ -1152,6 +1156,7 @@ ble_phy_rx_set_start_time(void)
     } else {
         rc = 0;
     }
+    return rc;
 }
 #endif
 #endif

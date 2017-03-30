@@ -25,9 +25,18 @@ extern "C" {
 #endif
 
 /* Transceiver specific defintions */
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+/*
+ * NOTE: we have to account for the RTC output compare issue, which is why
+ * this number is much larger when using the 32.768 crystal.
+ */
+#define XCVR_PROC_DELAY_USECS         (230)
+#else
+#define XCVR_PROC_DELAY_USECS         (100)
+#endif
+
 #define XCVR_RX_START_DELAY_USECS     (140)
 #define XCVR_TX_START_DELAY_USECS     (140)
-#define XCVR_PROC_DELAY_USECS         (100)
 #define XCVR_TX_SCHED_DELAY_USECS     \
     (XCVR_TX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
 #define XCVR_RX_SCHED_DELAY_USECS     \

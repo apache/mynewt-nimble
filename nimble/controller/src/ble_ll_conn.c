@@ -242,9 +242,13 @@ ble_ll_conn_calc_itvl_ticks(struct ble_ll_conn_sm *connsm)
      */
     usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     ticks = os_cputime_usecs_to_ticks(usecs);
-    connsm->conn_itvl_ticks = ticks;
     connsm->conn_itvl_usecs = (uint8_t)(usecs -
                                         os_cputime_ticks_to_usecs(ticks));
+    if (connsm->conn_itvl_usecs == 31) {
+        connsm->conn_itvl_usecs = 0;
+        ++ticks;
+    }
+    connsm->conn_itvl_ticks = ticks;
 }
 #endif
 
