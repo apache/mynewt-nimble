@@ -619,7 +619,7 @@ err:
  * sent instead.
  *
  * @param conn_handle           The handle of the connection to send over.
- * @param rc                    The status indicating whether to transmit an
+ * @param hs_status             The status indicating whether to transmit an
  *                                  affirmative response or an error.
  * @param txom                  Contains the affirmative response payload.
  * @param att_op                If an error is transmitted, this is the value
@@ -631,14 +631,15 @@ err:
  *                                  field.
  */
 static int
-ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
+ble_att_svr_tx_rsp(uint16_t conn_handle, int hs_status, struct os_mbuf *om,
                    uint8_t att_op, uint8_t err_status, uint16_t err_handle)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     int do_tx;
+    int rc;
 
-    if (rc != 0 && err_status == 0) {
+    if (hs_status != 0 && err_status == 0) {
         /* Processing failed, but err_status of 0 means don't send error. */
         do_tx = 0;
     } else {
@@ -648,32 +649,37 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
     if (do_tx) {
         ble_hs_lock();
 
-        ble_att_conn_chan_find(conn_handle, &conn, &chan);
-        if (rc == 0) {
-            BLE_HS_DBG_ASSERT(om != NULL);
-
-            ble_att_inc_tx_stat(om->om_data[0]);
-            ble_att_truncate_to_mtu(chan, om);
-            rc = ble_l2cap_tx(conn, chan, om);
-            om = NULL;
-            if (rc != 0) {
-                err_status = BLE_ATT_ERR_UNLIKELY;
-            }
-        }
-
+        rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
         if (rc != 0) {
-            STATS_INC(ble_att_stats, error_rsp_tx);
+            /* No longer connected. */
+            hs_status = rc;
+        } else {
+            if (hs_status == 0) {
+                BLE_HS_DBG_ASSERT(om != NULL);
 
-            /* Reuse om for error response. */
-            if (om == NULL) {
-                om = ble_hs_mbuf_l2cap_pkt();
-            } else {
-                os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
-            }
-            if (om != NULL) {
-                ble_att_svr_tx_error_rsp(conn, chan, om, att_op,
-                                         err_handle, err_status);
+                ble_att_inc_tx_stat(om->om_data[0]);
+                ble_att_truncate_to_mtu(chan, om);
+                hs_status = ble_l2cap_tx(conn, chan, om);
                 om = NULL;
+                if (hs_status != 0) {
+                    err_status = BLE_ATT_ERR_UNLIKELY;
+                }
+            }
+
+            if (hs_status != 0) {
+                STATS_INC(ble_att_stats, error_rsp_tx);
+
+                /* Reuse om for error response. */
+                if (om == NULL) {
+                    om = ble_hs_mbuf_l2cap_pkt();
+                } else {
+                    os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
+                }
+                if (om != NULL) {
+                    ble_att_svr_tx_error_rsp(conn, chan, om, att_op,
+                                             err_handle, err_status);
+                    om = NULL;
+                }
             }
         }
 
@@ -683,7 +689,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int rc, struct os_mbuf *om,
     /* Free mbuf if it was not consumed (i.e., if the send failed). */
     os_mbuf_free_chain(om);
 
-    return rc;
+    return hs_status;
 }
 
 static int
@@ -701,9 +707,15 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
     txom = NULL;
 
     ble_hs_lock();
-    ble_att_conn_chan_find(conn_handle, NULL, &chan);
-    mtu = chan->my_mtu;
+    rc = ble_att_conn_chan_find(conn_handle, NULL, &chan);
+    if (rc == 0) {
+        mtu = chan->my_mtu;
+    }
     ble_hs_unlock();
+
+    if (rc != 0) {
+        goto done;
+    }
 
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
@@ -763,14 +775,18 @@ done:
     if (rc == 0) {
         ble_hs_lock();
 
-        ble_att_conn_chan_find(conn_handle, &conn, &chan);
-        ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
-        chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
-        mtu = ble_att_chan_mtu(chan);
+        rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+        if (rc == 0) {
+            ble_att_set_peer_mtu(chan, cmd.bamc_mtu);
+            chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+            mtu = ble_att_chan_mtu(chan);
+        }
 
         ble_hs_unlock();
 
-        ble_gap_mtu_event(conn_handle, BLE_L2CAP_CID_ATT, mtu);
+        if (rc == 0) {
+            ble_gap_mtu_event(conn_handle, BLE_L2CAP_CID_ATT, mtu);
+        }
     }
     return rc;
 }

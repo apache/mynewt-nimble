@@ -994,16 +994,20 @@ ble_hs_test_util_set_att_mtu(uint16_t conn_handle, uint16_t mtu)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    int rc;
 
     if (mtu <= BLE_ATT_MTU_DFLT) {
         return;
     }
 
     ble_hs_lock();
-    ble_att_conn_chan_find(conn_handle, &conn, &chan);
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    assert(rc == 0);
     chan->my_mtu = mtu;
     chan->peer_mtu = mtu;
     chan->flags |= BLE_L2CAP_CHAN_F_TXED_MTU;
+
     ble_hs_unlock();
 }
 
