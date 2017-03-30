@@ -1270,9 +1270,15 @@ ble_gattc_mtu_tx(struct ble_gattc_proc *proc)
     int rc;
 
     ble_hs_lock();
-    ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
-    req.bamc_mtu = chan->my_mtu;
+    rc = ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
+    if (rc == 0) {
+        req.bamc_mtu = chan->my_mtu;
+    }
     ble_hs_unlock();
+
+    if (rc != 0) {
+        return rc;
+    }
 
     rc = ble_att_clt_tx_mtu(proc->conn_handle, &req);
     if (rc != 0) {

@@ -143,12 +143,12 @@ ble_att_rx_dispatch_entry_find(uint8_t op)
     return NULL;
 }
 
-void
+int
 ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
                        struct ble_l2cap_chan **out_chan)
 {
-    ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT,
-                                    out_conn, out_chan);
+    return ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
+                                      out_conn, out_chan);
 }
 
 void
@@ -414,11 +414,12 @@ ble_att_mtu(uint16_t conn_handle)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     uint16_t mtu;
+    int rc;
 
     ble_hs_lock();
 
-    ble_att_conn_chan_find(conn_handle, &conn, &chan);
-    if (chan != NULL) {
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    if (rc == 0) {
         mtu = ble_att_chan_mtu(chan);
     } else {
         mtu = 0;

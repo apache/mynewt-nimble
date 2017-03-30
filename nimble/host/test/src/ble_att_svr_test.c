@@ -449,10 +449,14 @@ ble_att_svr_test_misc_verify_tx_mtu_rsp(uint16_t conn_handle)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     uint16_t my_mtu;
+    int rc;
 
     ble_hs_lock();
-    ble_att_conn_chan_find(conn_handle, &conn, &chan);
+
+    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    assert(rc == 0);
     my_mtu = chan->my_mtu;
+
     ble_hs_unlock();
 
     ble_hs_test_util_verify_tx_mtu_cmd(0, my_mtu);
