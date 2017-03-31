@@ -558,6 +558,7 @@ extern "C" {
 #define BLE_HCI_VER_BCS_4_0                 (6)
 #define BLE_HCI_VER_BCS_4_1                 (7)
 #define BLE_HCI_VER_BCS_4_2                 (8)
+#define BLE_HCI_VER_BCS_5_0                 (9)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -568,6 +569,7 @@ extern "C" {
 #define BLE_LMP_VER_BCS_4_0                 (6)
 #define BLE_LMP_VER_BCS_4_1                 (7)
 #define BLE_LMP_VER_BCS_4_2                 (8)
+#define BLE_LMP_VER_BCS_5_0                 (9)
 
 /* Sub-event 0x0A: enhanced connection complete */
 #define BLE_HCI_LE_ENH_CONN_COMPLETE_LEN    (31)

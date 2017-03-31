@@ -183,9 +183,9 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
     mfrg = MYNEWT_VAL(BLE_LL_MFRG_ID);
 
     /* Place the data packet length and number of packets in the buffer */
-    rspbuf[0] = BLE_HCI_VER_BCS_4_2;
+    rspbuf[0] = BLE_HCI_VER_BCS_5_0;
     put_le16(rspbuf + 1, hci_rev);
-    rspbuf[3] = BLE_LMP_VER_BCS_4_2;
+    rspbuf[3] = BLE_LMP_VER_BCS_5_0;
     put_le16(rspbuf + 4, mfrg);
     put_le16(rspbuf + 6, lmp_subver);
     *rsplen = BLE_HCI_RD_LOC_VER_INFO_RSPLEN;
