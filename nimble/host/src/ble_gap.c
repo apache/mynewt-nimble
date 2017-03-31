@@ -2869,6 +2869,7 @@ ble_gap_update_params(uint16_t conn_handle,
 
     struct ble_l2cap_sig_update_params l2cap_params;
     struct ble_gap_update_entry *entry;
+    struct ble_gap_update_entry *dup;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -2889,8 +2890,9 @@ ble_gap_update_params(uint16_t conn_handle,
         goto done;
     }
 
-    entry = ble_gap_update_entry_find(conn_handle, NULL);
-    if (entry != NULL) {
+    /* Don't allow two concurrent updates to the same connection. */
+    dup = ble_gap_update_entry_find(conn_handle, NULL);
+    if (dup != NULL) {
         rc = BLE_HS_EALREADY;
         goto done;
     }
@@ -2928,6 +2930,10 @@ done:
     } else {
         ble_gap_update_entry_free(entry);
 
+        /* If the l2cap_params struct is populated, the only error is that the
+         * controller doesn't support the connection parameters request
+         * procedure.  In this case, fallback to the L2CAP update procedure.
+         */
         if (l2cap_params.itvl_min != 0) {
             rc = ble_l2cap_sig_update(conn_handle,
                                       &l2cap_params,
