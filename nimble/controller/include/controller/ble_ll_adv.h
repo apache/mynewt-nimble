@@ -44,7 +44,6 @@ extern "C" {
 #define BLE_LL_ADV_ITVL_MS_MAX          (10240)         /* msecs */
 #define BLE_LL_ADV_ITVL_SCAN_MIN        (160)           /* units */
 #define BLE_LL_ADV_ITVL_SCAN_MS_MIN     (100)           /* msecs */
-#define BLE_LL_ADV_ITVL_NONCONN_MIN     (160)           /* units */
 #define BLE_LL_ADV_ITVL_NONCONN_MS_MIN  (100)           /* msecs */
 #define BLE_LL_ADV_DELAY_MS_MIN         (0)             /* msecs */
 #define BLE_LL_ADV_DELAY_MS_MAX         (10)            /* msecs */

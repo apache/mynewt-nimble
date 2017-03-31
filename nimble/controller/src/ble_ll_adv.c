@@ -633,7 +633,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
         break;
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
     case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
-        min_itvl = BLE_LL_ADV_ITVL_NONCONN_MIN;
+        min_itvl = 0;
         break;
     default:
         /* This will cause an invalid parameter error */
