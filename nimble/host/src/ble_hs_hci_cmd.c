@@ -27,11 +27,17 @@
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_dbg_priv.h"
 #include "ble_hs_priv.h"
+#include "ble_monitor_priv.h"
 
 static int
 ble_hs_hci_cmd_transport(uint8_t *cmdbuf)
 {
     int rc;
+
+#if BLE_MONITOR
+    ble_monitor_send(BLE_MONITOR_OPCODE_COMMAND_PKT, cmdbuf,
+                     cmdbuf[2] + BLE_HCI_CMD_HDR_LEN);
+#endif
 
     rc = ble_hci_trans_hs_cmd_tx(cmdbuf);
     switch (rc) {
