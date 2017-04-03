@@ -52,11 +52,6 @@
  * 4) Should look into always disabled the wfr interrupt if we receive the
  * start of a frame. Need to look at the various states to see if this is the
  * right thing to do.
- * 5) I am not sure that if we are passed the output compare that we actually
- * get the interrupt. Test this.
- * 6) I am not sure that if we receive a packet while scanning that we actually
- * go back to scanning. I need to make sure we re-enable the receive.
- * Put an event in the log!
  */
 
 /* Supported states */
@@ -987,6 +982,12 @@ ble_ll_event_dbuf_overflow(struct os_event *ev)
     ble_ll_hci_ev_databuf_overflow();
 }
 
+static void
+ble_ll_event_comp_pkts(struct os_event *ev)
+{
+    ble_ll_conn_num_comp_pkts_event_send(NULL);
+}
+
 /**
  * Link Layer task.
  *
@@ -1268,7 +1269,10 @@ ble_ll_init(void)
     /* Initialize transmit (from host) and receive packet (from phy) event */
     lldata->ll_rx_pkt_ev.ev_cb = ble_ll_event_rx_pkt;
     lldata->ll_tx_pkt_ev.ev_cb = ble_ll_event_tx_pkt;
+
+    /* Initialize data buffer overflow event and completed packets */
     lldata->ll_dbuf_overflow_ev.ev_cb = ble_ll_event_dbuf_overflow;
+    lldata->ll_comp_pkt_ev.ev_cb = ble_ll_event_comp_pkts;
 
     /* Initialize the HW error timer */
     os_callout_init(&g_ble_ll_data.ll_hw_err_timer,

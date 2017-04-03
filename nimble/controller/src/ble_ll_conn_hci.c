@@ -253,11 +253,15 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
     uint8_t *comp_pkt_ptr;
     uint8_t handles;
 
+    if (connsm == NULL) {
+        goto skip_conn;
+    }
+
     /*
      * At some periodic rate, make sure we go through all active connections
      * and send the number of completed packet events. We do this mainly
      * because the spec says we must update the host even though no packets
-     * have completed by there are data packets in the controller buffers
+     * have completed but there are data packets in the controller buffers
      * (i.e. enqueued in a connection state machine).
      */
     if ((uint32_t)(g_ble_ll_last_num_comp_pkt_evt - os_time_get()) <
@@ -283,6 +287,7 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
     }
 
     /* Iterate through all the active, created connections */
+skip_conn:
     evbuf = NULL;
     handles = 0;
     handle_ptr = NULL;

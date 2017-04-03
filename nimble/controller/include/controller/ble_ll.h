@@ -123,6 +123,9 @@ struct ble_ll_obj
     /* Data buffer overflow event */
     struct os_event ll_dbuf_overflow_ev;
 
+    /* Number of completed packets event */
+    struct os_event ll_comp_pkt_ev;
+
     /* HW error callout */
     struct os_callout ll_hw_err_timer;
 };

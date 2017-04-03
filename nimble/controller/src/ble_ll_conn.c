@@ -986,7 +986,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         }
 
         ticks = os_cputime_usecs_to_ticks(ticks);
-        if ((os_cputime_get32() + ticks) < next_event_time) {
+        if ((int32_t)((os_cputime_get32() + ticks) - next_event_time) < 0) {
             md = 1;
         }
      }
@@ -3010,6 +3010,10 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                             bletest_completed_pkt(connsm->conn_handle);
 #endif
                             ++connsm->completed_pkts;
+                            if (connsm->completed_pkts > 2) {
+                                os_eventq_put(&g_ble_ll_data.ll_evq,
+                                              &g_ble_ll_data.ll_comp_pkt_ev);
+                            }
                         }
                         os_mbuf_free_chain(txpdu);
                         connsm->cur_tx_pdu = NULL;
@@ -3464,5 +3468,3 @@ ble_ll_conn_module_init(void)
     /* Call reset to finish reset of initialization */
     ble_ll_conn_module_reset();
 }
-
-
