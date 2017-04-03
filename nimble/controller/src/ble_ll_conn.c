@@ -679,15 +679,9 @@ ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
 uint8_t
 ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
 {
-    int     i;
-    int     j;
-    uint8_t chan;
     uint8_t curchan;
     uint8_t remap_index;
     uint8_t bitpos;
-    uint8_t cntr;
-    uint8_t mask;
-    uint8_t usable_chans;
 
     /* Get next unmapped channel */
     curchan = conn->last_unmapped_chan + conn->hop_inc;
@@ -700,35 +694,14 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
 
     /* Is this a valid channel? */
     bitpos = 1 << (curchan & 0x07);
-    if ((conn->chanmap[curchan >> 3] & bitpos) == 0) {
-
-        /* Calculate remap index */
-        remap_index = curchan % conn->num_used_chans;
-
-        /* NOTE: possible to build a map but this would use memory. For now,
-           we just calculate */
-        /* Iterate through channel map to find this channel */
-        chan = 0;
-        cntr = 0;
-        for (i = 0; i < BLE_LL_CONN_CHMAP_LEN; i++) {
-            usable_chans = conn->chanmap[i];
-            if (usable_chans != 0) {
-                mask = 0x01;
-                for (j = 0; j < 8; j++) {
-                    if (usable_chans & mask) {
-                        if (cntr == remap_index) {
-                            return (chan + j);
-                        }
-                        ++cntr;
-                    }
-                    mask <<= 1;
-                }
-            }
-            chan += 8;
-        }
+    if (conn->chanmap[curchan >> 3] & bitpos) {
+        return curchan;
     }
 
-    return curchan;
+    /* Calculate remap index */
+    remap_index = curchan % conn->num_used_chans;
+
+    return ble_ll_conn_csa2_remapped_channel(remap_index, conn->chanmap);
 }
 
 /**
