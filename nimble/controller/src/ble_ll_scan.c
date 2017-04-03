@@ -404,12 +404,14 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
     inita = NULL;
     subev = BLE_HCI_LE_SUBEV_ADV_RPT;
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
-        if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-            if ((inita[5] & 0x40) == 0x40) {
-                subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
-            }
+        inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+        if ((inita[5] & 0x40) == 0x40) {
+            subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
+        } else {
+            /* Let's ignore it if address is not resolvable */
+            return;
         }
+
         evtype = BLE_HCI_ADV_RPT_EVTYPE_DIR_IND;
         event_len = BLE_HCI_LE_ADV_DIRECT_RPT_LEN;
         adv_data_len = 0;
