@@ -563,6 +563,111 @@ ble_ll_conn_calc_access_addr(void)
     return aa;
 }
 
+static uint16_t
+ble_ll_conn_csa2_perm(uint16_t in)
+{
+    uint16_t out = 0;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        out |= ((in >> i) & 0x00000001) << (7 - i);
+    }
+
+    for (i = 8; i < 16; i++) {
+        out |= ((in >> i) & 0x00000001) << (15 + 8 - i);
+    }
+
+    return out;
+}
+
+static uint16_t
+ble_ll_conn_csa2_prng(uint16_t counter, uint16_t ch_id)
+{
+    uint16_t prn_e;
+
+    prn_e = counter ^ ch_id;
+
+    prn_e = ble_ll_conn_csa2_perm(prn_e);
+    prn_e = (prn_e * 17) + ch_id;
+
+    prn_e = ble_ll_conn_csa2_perm(prn_e);
+    prn_e = (prn_e * 17) + ch_id;
+
+    prn_e = ble_ll_conn_csa2_perm(prn_e);
+    prn_e = (prn_e * 17) + ch_id;
+
+    prn_e = prn_e ^ ch_id;
+
+    return prn_e;
+}
+
+static uint8_t
+ble_ll_conn_csa2_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
+{
+    uint8_t cntr;
+    uint8_t mask;
+    uint8_t usable_chans;
+    uint8_t chan;
+    int i, j;
+
+    /* NOTE: possible to build a map but this would use memory. For now,
+       we just calculate */
+    /* Iterate through channel map to find this channel */
+    chan = 0;
+    cntr = 0;
+    for (i = 0; i < BLE_LL_CONN_CHMAP_LEN; i++) {
+        usable_chans = chanmap[i];
+        if (usable_chans != 0) {
+            mask = 0x01;
+            for (j = 0; j < 8; j++) {
+                if (usable_chans & mask) {
+                    if (cntr == remap_index) {
+                        return (chan + j);
+                    }
+                    ++cntr;
+                }
+                mask <<= 1;
+            }
+        }
+        chan += 8;
+    }
+
+    /* we should never reach here */
+    assert(0);
+    return 0;
+}
+
+uint8_t
+ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
+{
+    uint16_t channel_unmapped;
+    uint16_t channel_id;
+    uint8_t remap_index;
+
+    uint16_t prn_e;
+    uint8_t bitpos;
+
+    channel_id = ((conn->access_addr & 0xffff0000) >> 16) ^
+                  (conn->access_addr & 0x0000ffff);
+
+    prn_e = ble_ll_conn_csa2_prng(conn->event_cntr, channel_id);
+
+    channel_unmapped = prn_e % 37;
+
+    /*
+     * If unmapped channel is the channel index of a used channel it is used
+     * as channel index.
+     */
+    bitpos = 1 << (channel_unmapped & 0x07);
+    if (conn->chanmap[channel_unmapped >> 3] & bitpos) {
+        return channel_unmapped;
+    }
+
+    remap_index = (conn->num_used_chans * prn_e) / 0x10000;
+
+    return ble_ll_conn_csa2_remapped_channel(remap_index, conn->chanmap);
+}
+
 /**
  * Determine data channel index to be used for the upcoming/current
  * connection event
