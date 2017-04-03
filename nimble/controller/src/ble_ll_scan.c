@@ -467,7 +467,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
             evbuf += 5;
             if (inita) {
                 evbuf[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
-                memcpy(evbuf + 1, inita, adv_data_len);
+                memcpy(evbuf + 1, inita, BLE_DEV_ADDR_LEN);
                 evbuf += BLE_DEV_ADDR_LEN + 1;
             } else {
                 evbuf[7] = adv_data_len;
