@@ -465,19 +465,23 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
 
             orig_evbuf = evbuf;
             evbuf += 5;
+
+            /* The advertisers address type and address are always in event */
+            evbuf[0] = addr_type;
+            memcpy(evbuf + 1, adv_addr, BLE_DEV_ADDR_LEN);
+            evbuf += BLE_DEV_ADDR_LEN + 1;
+
             if (inita) {
                 evbuf[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
                 memcpy(evbuf + 1, inita, BLE_DEV_ADDR_LEN);
                 evbuf += BLE_DEV_ADDR_LEN + 1;
             } else {
-                evbuf[7] = adv_data_len;
-                memcpy(evbuf + 8, rxbuf + BLE_DEV_ADDR_LEN, adv_data_len);
-                evbuf[8 + adv_data_len] = hdr->rxinfo.rssi;
+                evbuf[0] = adv_data_len;
+                memcpy(evbuf + 1, rxbuf + BLE_DEV_ADDR_LEN, adv_data_len);
+                evbuf += adv_data_len + 1;
             }
 
-            /* The advertisers address type and address are always in event */
-            evbuf[0] = addr_type;
-            memcpy(evbuf + 1, adv_addr, BLE_DEV_ADDR_LEN);
+            evbuf[0] = hdr->rxinfo.rssi;
 
             rc = ble_ll_hci_event_send(orig_evbuf);
             if (!rc) {
