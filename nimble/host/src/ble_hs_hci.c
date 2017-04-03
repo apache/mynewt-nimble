@@ -25,6 +25,7 @@
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_dbg_priv.h"
+#include "ble_monitor_priv.h"
 
 #define BLE_HCI_CMD_TIMEOUT     (OS_TICKS_PER_SEC)
 
@@ -233,6 +234,12 @@ ble_hs_hci_wait_for_ack(void)
     switch (rc) {
     case 0:
         BLE_HS_DBG_ASSERT(ble_hs_hci_ack != NULL);
+
+#if BLE_MONITOR
+        ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, ble_hs_hci_ack,
+                         ble_hs_hci_ack[1] + BLE_HCI_EVENT_HDR_LEN);
+#endif
+
         break;
     case OS_TIMEOUT:
         rc = BLE_HS_ETIMEOUT_HCI;

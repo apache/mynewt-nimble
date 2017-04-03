@@ -28,6 +28,7 @@
 #include "console/console.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
+#include "ble_monitor_priv.h"
 
 #define BLE_HS_HCI_EVT_COUNT                    \
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) +     \
@@ -182,6 +183,10 @@ ble_hs_process_tx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_tx_q)) != NULL) {
+#if BLE_MONITOR
+        ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_TX_PKT, om);
+#endif
+
         ble_hci_trans_hs_acl_tx(om);
     }
 }
@@ -192,6 +197,10 @@ ble_hs_process_rx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
+#if BLE_MONITOR
+        ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
+#endif
+
         ble_hs_hci_evt_acl_process(om);
     }
 }
@@ -362,6 +371,11 @@ ble_hs_event_rx_hci_ev(struct os_event *ev)
     hci_evt = ev->ev_arg;
     rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+#if BLE_MONITOR
+    ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, hci_evt,
+                     hci_evt[1] + BLE_HCI_EVENT_HDR_LEN);
+#endif
 
     ble_hs_hci_evt_process(hci_evt);
 }
@@ -562,6 +576,11 @@ ble_hs_init(void)
         .ev_cb = ble_hs_event_start,
     };
 
+#if BLE_MONITOR
+    rc = ble_monitor_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
+
     ble_hs_hci_init();
 
     rc = ble_hs_conn_init();
@@ -604,4 +623,8 @@ ble_hs_init(void)
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
     ble_hs_evq_set(os_eventq_dflt_get());
+
+#if BLE_MONITOR
+    ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");
+#endif
 }
