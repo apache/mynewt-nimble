@@ -1703,7 +1703,9 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
      * and we should not send an event
      */
     if (ble_err) {
-        if (ble_err == BLE_ERR_UNK_CONN_ID) {
+
+        if ((connsm->csmflags.cfbit.terminate_ind_rxd == 0) &&
+            (ble_err == BLE_ERR_UNK_CONN_ID)) {
             evbuf = ble_ll_init_get_conn_comp_ev();
             ble_ll_conn_comp_event_send(connsm, ble_err, evbuf, NULL);
         } else {
