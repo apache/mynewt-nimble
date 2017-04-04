@@ -217,6 +217,9 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
         ble_hs_conn_delete_chan(conn, chan);
     }
 
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+    memset(conn, 0xff, sizeof *conn);
+#endif
     rc = os_memblock_put(&ble_hs_conn_pool, conn);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 

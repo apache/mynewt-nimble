@@ -393,7 +393,9 @@ ble_sm_proc_free(struct ble_sm_proc *proc)
 
     if (proc != NULL) {
         ble_sm_dbg_assert_not_inserted(proc);
-
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+        memset(proc, 0xff, sizeof *proc);
+#endif
         rc = os_memblock_put(&ble_sm_proc_pool, proc);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }

@@ -2170,6 +2170,9 @@ ble_att_svr_prep_free(struct ble_att_prep_entry *entry)
 {
     if (entry != NULL) {
         os_mbuf_free_chain(entry->bape_value);
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+        memset(entry, 0xff, sizeof *entry);
+#endif
         os_memblock_put(&ble_att_svr_prep_entry_pool, entry);
     }
 }
