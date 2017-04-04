@@ -332,6 +332,11 @@ ble_phy_rx(void)
     return 0;
 }
 
+void
+ble_phy_restart_rx(void)
+{
+}
+
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /**
  * Called to enable encryption at the PHY. Note that this state will persist

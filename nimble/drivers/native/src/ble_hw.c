@@ -32,6 +32,20 @@
 /* We use this to keep track of which entries are set to valid addresses */
 static uint8_t g_ble_hw_whitelist_mask;
 
+/* Returns public device address or -1 if not present */
+int
+ble_hw_get_public_addr(ble_addr_t *addr)
+{
+    return -1;
+}
+
+/* Returns random static address or -1 if not present */
+int
+ble_hw_get_static_addr(ble_addr_t *addr)
+{
+    return -1;
+}
+
 /**
  * Clear the whitelist
  *
