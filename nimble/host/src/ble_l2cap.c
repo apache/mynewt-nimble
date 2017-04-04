@@ -81,6 +81,9 @@ ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
     os_mbuf_free_chain(chan->rx_buf);
     ble_l2cap_coc_cleanup_chan(chan);
 
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+    memset(chan, 0xff, sizeof *chan);
+#endif
     rc = os_memblock_put(&ble_l2cap_chan_pool, chan);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 

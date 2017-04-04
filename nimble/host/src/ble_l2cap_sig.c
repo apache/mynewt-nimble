@@ -206,6 +206,9 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
     if (proc != NULL) {
         ble_l2cap_sig_dbg_assert_proc_not_inserted(proc);
 
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+        memset(proc, 0xff, sizeof *proc);
+#endif
         rc = os_memblock_put(&ble_l2cap_sig_proc_pool, proc);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
