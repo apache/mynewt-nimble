@@ -284,6 +284,9 @@ struct ble_ll_conn_sm
  */
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 
+/* required for unit testing */
+uint8_t ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn);
+
 #ifdef __cplusplus
 }
 #endif
