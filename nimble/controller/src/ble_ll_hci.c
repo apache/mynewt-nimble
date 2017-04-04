@@ -619,7 +619,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     /* Check the length to make sure it is valid */
     cmdlen = g_ble_hci_le_cmd_len[ocf];
-    if (len != cmdlen) {
+    if (len != cmdlen && cmdlen != BLE_HCI_VARIABLE_LEN) {
         goto ll_hci_le_cmd_exit;
     }
 

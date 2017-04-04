@@ -73,6 +73,37 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     BLE_HCI_RD_PEER_RESOLV_ADDR_LEN,    /* 0x002B: read peer resolvable addr */
     BLE_HCI_RD_LOC_RESOLV_ADDR_LEN,     /* 0x002C: read local resolvable addr */
     sizeof(uint8_t),                    /* 0x002D: set addr resolution enable */
-    sizeof(uint16_t),                   /* 0x002E: Set resolv priv addr tmo */
-    0,                                  /* 0x002F: Read max data length */
+    sizeof(uint16_t),                   /* 0x002E: set resolv priv addr tmo */
+    0,                                  /* 0x002F: read max data length */
+    BLE_HCI_LE_RD_PHY_LEN,              /* 0x0030: read maximum default PHY */
+    BLE_HCI_LE_SET_DEFAULT_PHY_LEN,     /* 0x0031: set default PHY */
+    BLE_HCI_LE_SET_PHY_LEN,             /* 0x0032: set PHY */
+    BLE_HCI_LE_ENH_RCVR_TEST_LEN,       /* 0x0033: enhanced receiver test */
+    BLE_HCI_LE_ENH_TRANS_TEST_LEN,      /* 0x0034: enhanced transmitter test */
+    BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN,/* 0x0035: set adv. set random address */
+    BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN,   /* 0x0036: set ext. adv params */
+    BLE_HCI_LE_SET_EXT_ADV_DATA_LEN,    /* 0x0037: set ext. adv. data */
+    BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_LEN,/* 0x0038: set ext. scan resp. data */
+    BLE_HCI_LE_SET_EXT_ADV_ENABLE_LEN,  /* 0x0039: set ext. adv. enable */
+    0,                                  /* 0x003A: read max adv. data len */
+    0,                                  /* 0x003B: read number of sup. adv. sets */
+    BLE_HCI_LE_REMOVE_ADV_SET_LEN,      /* 0x003C: remove adv. set */
+    0,                                  /* 0x003D: clear advertising sets */
+    BLE_HCI_LE_SET_PER_ADV_PARAMS_LEN,  /* 0x003E: set periodic adv. param. */
+    BLE_HCI_LE_SET_PER_ADV_DATA_LEN,    /* 0x003F: set periodic adv. data */
+    BLE_HCI_LE_SET_PER_ADV_ENABLE_LEN,  /* 0x0040: periodic adv. enable */
+    BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN,  /* 0x0041: set ext. scan param. */
+    BLE_HCI_LE_SET_EXT_SCAN_ENABLE_LEN, /* 0x0042: set ext. scan enable */
+    BLE_HCI_LE_EXT_CREATE_CONN_LEN,     /* 0x0043: ext. create connection */
+    BLE_HCI_LE_PER_ADV_CREATE_SYNC_LEN, /* 0x0044: periodic adv. create sync */
+    0,                                  /* 0x0045: periodic adv. create sync cancel */
+    0,                                  /* 0x0046: periodic adv. terminate sync */
+    BLE_HCI_LE_ADD_DEV_TO_PER_ADV_LIST_LEN,  /* 0x0047: add dev to per. adv. list */
+    BLE_HCI_LE_REM_DEV_FROM_PER_ADV_LIST_LEN,/* 0x0048: remove dev from per. adv. list */
+    0,                                  /* 0x0049: clear periodic adv. list */
+    0,                                  /* 0x004A: read periodic list size */
+    0,                                  /* 0x004B: read transmit power */
+    0,                                  /* 0x004C: read RF path */
+    BLE_HCI_LE_WR_RF_PATH_COMPENSATION_LEN, /* 0x004D: write RF path */
+    BLE_HCI_LE_SET_PRIVACY_MODE_LEN,    /* 0x004E: set privacy mode */
 };
