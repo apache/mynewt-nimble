@@ -1854,6 +1854,15 @@ ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
 
     TEST_ASSERT(ble_gap_dbg_update_active(2));
 
+    /* Attempt two duplicate updates; ensure BLE_HS_EALREADY gets returned
+     * both times.  Make sure initial update still completes successfully
+     * (MYNEWT-702).
+     */
+    rc = ble_hs_test_util_conn_update(2, params, 0);
+    TEST_ASSERT(rc == BLE_HS_EALREADY);
+    rc = ble_hs_test_util_conn_update(2, params, 0);
+    TEST_ASSERT(rc == BLE_HS_EALREADY);
+
     l2cap_params.itvl_min = params->itvl_min;
     l2cap_params.itvl_max = params->itvl_max;
     l2cap_params.slave_latency = params->latency;
