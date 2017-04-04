@@ -2620,6 +2620,9 @@ ble_gap_update_entry_free(struct ble_gap_update_entry *entry)
     int rc;
 
     if (entry != NULL) {
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+        memset(entry, 0xff, sizeof *entry);
+#endif
         rc = os_memblock_put(&ble_gap_update_entry_pool, entry);
         BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
@@ -2928,8 +2931,6 @@ done:
     if (rc == 0) {
         ble_hs_timer_resched();
     } else {
-        ble_gap_update_entry_free(entry);
-
         /* If the l2cap_params struct is populated, the only error is that the
          * controller doesn't support the connection parameters request
          * procedure.  In this case, fallback to the L2CAP update procedure.
@@ -2945,6 +2946,7 @@ done:
     if (rc == 0) {
         SLIST_INSERT_HEAD(&ble_gap_update_entries, entry, next);
     } else {
+        ble_gap_update_entry_free(entry);
         STATS_INC(ble_gap_stats, update_fail);
     }
     ble_hs_unlock();
