@@ -992,12 +992,12 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* XXX: validate them at some point. If they dont check out, we
        return the unknown response */
+    rsp_opcode = BLE_ERR_MAX;
 
     /* If instant is in the past, we have to end the connection */
     conn_events = (reqdata->instant - connsm->event_cntr) & 0xFFFF;
     if (conn_events >= 32767) {
         ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
-        rsp_opcode = BLE_ERR_MAX;
     } else {
         connsm->csmflags.cfbit.conn_update_sched = 1;
     }
