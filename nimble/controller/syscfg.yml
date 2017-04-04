@@ -203,3 +203,12 @@ syscfg.defs:
             policy feature. Currently, this feature is not supported by the
             nimble controller.
         value: '0'
+
+    BLE_PUBLIC_DEV_ADDR:
+        description: >
+            Allows the target or app to override the public device address
+            used by the controller. If all zero, the controller will
+            attempt to retrieve the public device address from its
+            chip specific location. If non-zero, this address will
+            be used.
+        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
