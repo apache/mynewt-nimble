@@ -21,7 +21,6 @@
 #include <string.h>
 #include "os/os.h"
 #include "os/os_cputime.h"
-#include "bsp.h"
 #include "ble/xcvr.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
