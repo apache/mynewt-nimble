@@ -47,6 +47,9 @@ syscfg.defs:
     BLE_MONITOR_UART_BAUDRATE:
         description: Baudrate for monitor interface UART
         value: 1000000
+    BLE_MONITOR_RTT:
+        description: Enables monitor interface over RTT
+        value: 0
 
     # L2CAP settings.
     BLE_L2CAP_MAX_CHANS:

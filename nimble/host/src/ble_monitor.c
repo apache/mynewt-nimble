@@ -21,10 +21,19 @@
 
 #if BLE_MONITOR
 
+#if MYNEWT_VAL(BLE_MONITOR_UART) && MYNEWT_VAL(BLE_MONITOR_RTT)
+#error "Cannot enable monitor over UART and RTT at the same time!"
+#endif
+
 #include <stdio.h>
 #include <inttypes.h>
 #include "os/os.h"
+#if MYNEWT_VAL(BLE_MONITOR_UART)
 #include "uart/uart.h"
+#endif
+#if MYNEWT_VAL(BLE_MONITOR_RTT)
+#include "rtt/SEGGER_RTT.h"
+#endif
 #include "ble_monitor_priv.h"
 
 /* UTC Timestamp for Jan 2016 00:00:00 */
@@ -32,12 +41,20 @@
 
 struct os_mutex lock;
 
+#if MYNEWT_VAL(BLE_MONITOR_UART)
 struct uart_dev *uart;
 
 static uint8_t tx_ringbuf[64];
 static uint8_t tx_ringbuf_head;
 static uint8_t tx_ringbuf_tail;
+#endif
 
+#if MYNEWT_VAL(BLE_MONITOR_RTT)
+static uint8_t rtt_buf[256];
+static int rtt_index;
+#endif
+
+#if MYNEWT_VAL(BLE_MONITOR_UART)
 static inline int
 inc_and_wrap(int i, int max)
 {
@@ -92,6 +109,15 @@ monitor_write(const void *buf, size_t len)
 
     uart_start_tx(uart);
 }
+#endif
+
+#if MYNEWT_VAL(BLE_MONITOR_RTT)
+static void
+monitor_write(const void *buf, size_t len)
+{
+    SEGGER_RTT_WriteNoLock(rtt_index, buf, len);
+}
+#endif
 
 static void
 encode_monitor_hdr(struct ble_monitor_hdr *hdr, int64_t ts, uint16_t opcode,
@@ -123,6 +149,7 @@ encode_monitor_hdr(struct ble_monitor_hdr *hdr, int64_t ts, uint16_t opcode,
 int
 ble_monitor_init(void)
 {
+#if MYNEWT_VAL(BLE_MONITOR_UART)
     struct uart_conf uc = {
         .uc_speed = MYNEWT_VAL(BLE_MONITOR_UART_BAUDRATE),
         .uc_databits = 8,
@@ -139,6 +166,15 @@ ble_monitor_init(void)
     if (!uart) {
         return -1;
     }
+#endif
+
+#if MYNEWT_VAL(BLE_MONITOR_RTT)
+    rtt_index = SEGGER_RTT_AllocUpBuffer("monitor", rtt_buf, sizeof(rtt_buf),
+                                         SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
+    if (rtt_index < 0) {
+        return -1;
+    }
+#endif
 
     os_mutex_init(&lock);
 

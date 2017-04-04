@@ -23,7 +23,7 @@
 #include <syscfg/syscfg.h>
 
 #undef BLE_MONITOR
-#define BLE_MONITOR (MYNEWT_VAL(BLE_MONITOR_UART))
+#define BLE_MONITOR (MYNEWT_VAL(BLE_MONITOR_UART) || MYNEWT_VAL(BLE_MONITOR_RTT))
 
 #ifdef __cplusplus
 extern "C" {
