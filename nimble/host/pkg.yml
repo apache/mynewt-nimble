@@ -36,6 +36,9 @@ pkg.deps.BLE_SM_LEGACY:
 pkg.deps.BLE_SM_SC:
     - crypto/tinycrypt
 
+pkg.deps.BLE_MONITOR_RTT:
+    - hw/drivers/rtt
+
 pkg.req_apis:
     - ble_transport
     - console
