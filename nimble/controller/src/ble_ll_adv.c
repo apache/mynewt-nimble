@@ -243,6 +243,9 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     switch (advsm->adv_type) {
     case BLE_HCI_ADV_TYPE_ADV_IND:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
+
+        /* CSA #2 is supported */
+        pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
         break;
 
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
@@ -256,6 +259,10 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
+
+        /* CSA #2 is supported */
+        pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
+
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
         if (advsm->adv_rxadd) {

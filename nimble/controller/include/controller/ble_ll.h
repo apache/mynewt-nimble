@@ -252,6 +252,7 @@ struct ble_dev_addr
  * -> Payload (max 37 bytes)
  */
 #define BLE_ADV_PDU_HDR_TYPE_MASK           (0x0F)
+#define BLE_ADV_PDU_HDR_CHSEL_MASK          (0x20)
 #define BLE_ADV_PDU_HDR_TXADD_MASK          (0x40)
 #define BLE_ADV_PDU_HDR_RXADD_MASK          (0x80)
 #define BLE_ADV_PDU_HDR_LEN_MASK            (0x3F)
@@ -264,6 +265,9 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_TYPE_SCAN_RSP           (4)
 #define BLE_ADV_PDU_TYPE_CONNECT_REQ        (5)
 #define BLE_ADV_PDU_TYPE_ADV_SCAN_IND       (6)
+
+/* If Channel Selection Algorithm #2 is supported */
+#define BLE_ADV_PDU_HDR_CHSEL               (0x20)
 
 /*
  * TxAdd and RxAdd bit definitions. A 0 is a public address; a 1 is a
