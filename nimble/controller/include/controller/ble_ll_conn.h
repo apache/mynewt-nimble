@@ -115,6 +115,7 @@ union ble_ll_conn_sm_flags {
         uint32_t encrypted:1;
         uint32_t encrypt_chg_sent:1;
         uint32_t le_ping_supp:1;
+        uint32_t csa2_supp:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -272,6 +273,7 @@ struct ble_ll_conn_sm
 #define CONN_F_ENCRYPTED(csm)       ((csm)->csmflags.cfbit.encrypted)
 #define CONN_F_ENC_CHANGE_SENT(csm) ((csm)->csmflags.cfbit.encrypt_chg_sent)
 #define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
+#define CONN_F_CSA2_SUPP(csm)       ((csm)->csmflags.cfbit.csa2_supp)
 
 /* Role */
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)

@@ -1574,6 +1574,19 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
 }
 
+static void
+ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool use_csa2)
+{
+    /* calculate the next data channel */
+    if (use_csa2) {
+        CONN_F_CSA2_SUPP(connsm) = 1;
+        connsm->data_chan_index = ble_ll_conn_calc_dci_csa2(connsm);
+    } else {
+        connsm->last_unmapped_chan = 0;
+        connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
+    }
+}
+
 /**
  * Create a new connection state machine. This is done once per
  * connection when the HCI command "create connection" is issued to the
@@ -1611,10 +1624,6 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
      * parameter update request and the rest of the parameters are valid.
      */
     connsm->conn_param_req.handle = 0;
-
-    /* Calculate the next data channel */
-    connsm->last_unmapped_chan = 0;
-    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
 
     /* Connection end event */
     connsm->conn_ev_end.ev_arg = connsm;
@@ -1936,10 +1945,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
 
     /* Calculate data channel index of next connection event */
-    while (latency > 0) {
-        connsm->last_unmapped_chan = connsm->unmapped_chan;
-        connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
-        --latency;
+    if (CONN_F_CSA2_SUPP(connsm)) {
+        connsm->data_chan_index = ble_ll_conn_calc_dci_csa2(connsm);
+    } else {
+        while (latency > 0) {
+            connsm->last_unmapped_chan = connsm->unmapped_chan;
+            connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
+            --latency;
+        }
     }
 
     /*
@@ -2269,9 +2282,11 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
 
     assert(m != NULL);
 
-    /* Retain pdu type but clear txadd/rxadd bits */
+    /* clear txadd/rxadd bits only */
     ble_hdr = BLE_MBUF_HDR_PTR(m);
-    hdr = ble_hdr->txinfo.hdr_byte & BLE_ADV_PDU_HDR_TYPE_MASK;
+    hdr = ble_hdr->txinfo.hdr_byte &
+          ~(BLE_ADV_PDU_HDR_RXADD_MASK | BLE_ADV_PDU_HDR_TXADD_MASK);
+
     if (addr_type) {
         /* Set random address */
         hdr |= BLE_ADV_PDU_HDR_RXADD_MASK;
@@ -2487,6 +2502,8 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
         /* Connection has been created. Stop scanning */
         g_ble_ll_conn_create_sm = NULL;
         ble_ll_scan_sm_stop(0);
+
+        ble_ll_conn_set_csa(connsm, rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK);
         ble_ll_conn_created(connsm, NULL);
     } else {
         ble_ll_scan_chk_resume();
@@ -3436,6 +3453,7 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr)
     /* Start the connection state machine */
     connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
     ble_ll_conn_sm_new(connsm);
+    ble_ll_conn_set_csa(connsm, rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK);
 
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
