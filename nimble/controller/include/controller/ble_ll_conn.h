@@ -178,7 +178,7 @@ struct ble_ll_conn_sm
     uint8_t cur_ctrl_proc;
     uint8_t disconnect_reason;
     uint8_t rxd_disconnect_reason;
-    uint8_t common_features;        /* Just a uint8 for now */
+    uint32_t common_features;
     uint8_t vers_nr;
     uint16_t pending_ctrl_procs;
     uint16_t event_cntr;
