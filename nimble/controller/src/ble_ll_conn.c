@@ -2446,6 +2446,9 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     uint8_t inita_is_rpa;
     struct os_mbuf *rxpdu;
     struct ble_ll_conn_sm *connsm;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    struct ble_ll_resolv_entry *rl;
+#endif
 
     /* Get connection state machine to use if connection to be established */
     connsm = g_ble_ll_conn_create_sm;
@@ -2469,7 +2472,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         chk_send_req = 1;
         break;
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        /* XXX: needs to be fixed for privacy */
         chk_send_req = 0;
         init_addr = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
         addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
@@ -2519,15 +2521,32 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         if (ble_ll_is_rpa(adv_addr, addr_type) && ble_ll_resolv_enabled()) {
             index = ble_hw_resolv_list_match();
             if (index >= 0) {
+                rl = &g_ble_ll_resolv_list[index];
+
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
                 connsm->rpa_index = index;
-                peer = g_ble_ll_resolv_list[index].rl_identity_addr;
-                peer_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+                peer = rl->rl_identity_addr;
+                peer_addr_type = rl->rl_addr_type;
                 resolved = 1;
+
+                /* Assure privacy */
+                if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+                    !inita_is_rpa) {
+                    goto init_rx_isr_exit;
+                }
             } else {
                 if (chk_wl) {
                     goto init_rx_isr_exit;
                 }
+            }
+        } else if (ble_ll_resolv_enabled()) {
+            /* Let's see if we have IRK with that peer. If so lets make sure
+             * privacy mode is correct together with initA
+             */
+            rl = ble_ll_resolv_list_find(adv_addr, addr_type);
+            if (rl && !inita_is_rpa &&
+               (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+                goto init_rx_isr_exit;
             }
         }
 #endif

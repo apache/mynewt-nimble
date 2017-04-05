@@ -34,7 +34,8 @@ struct ble_ll_resolv_entry
 {
     uint8_t rl_addr_type;
     uint8_t rl_local_rpa_set;
-    uint16_t rl_reserved;
+    uint8_t rl_reserved;
+    uint8_t rl_priv_mode;
     uint8_t rl_local_irk[16];
     uint8_t rl_peer_irk[16];
     uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
@@ -84,6 +85,9 @@ int ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa,
 
 /* Set the resolvable private address timeout */
 int ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf);
+
+/* Set the privacy mode */
+int ble_ll_resolve_set_priv_mode(uint8_t *cmdbuf);
 
 /* Get the RPA timeout, in seconds */
 uint32_t ble_ll_resolv_get_rpa_tmo(void);
