@@ -1336,6 +1336,52 @@ ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
         timeout, dst + BLE_HCI_CMD_HDR_LEN);
 }
 
+
+static int
+ble_hs_hci_cmd_body_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
+                                     uint8_t priv_mode, uint8_t *dst)
+{
+    /* In this command addr type can be either:
+     *  - public identity (0x00)
+     *  - random (static) identity (0x01)
+     */
+    if (addr_type > BLE_ADDR_RANDOM) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    dst[0] = addr_type;
+    memcpy(dst + 1, addr, BLE_DEV_ADDR_LEN);
+    dst[7] = priv_mode;
+
+    return 0;
+}
+
+/*
+ *  OGF=0x08 OCF=0x004e
+ */
+int
+ble_hs_hci_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
+                                  uint8_t priv_mode, uint8_t *dst,
+                                  uint16_t dst_len)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_PRIVACY_MODE_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE,
+                             BLE_HCI_LE_SET_PRIVACY_MODE_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    rc = ble_hs_hci_cmd_body_le_set_priv_mode(addr, addr_type, priv_mode, dst);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+
+
+}
 static int
 ble_hs_hci_cmd_body_set_random_addr(const struct hci_rand_addr *paddr,
                                     uint8_t *dst)
