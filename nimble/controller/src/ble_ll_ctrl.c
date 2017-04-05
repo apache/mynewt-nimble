@@ -1022,6 +1022,7 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                            uint8_t *rspbuf, uint8_t opcode)
 {
     uint8_t rsp_opcode;
+    uint32_t remote_feat;
 
     /*
      * Only accept slave feature requests if we are a master and feature
@@ -1038,11 +1039,13 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         }
     }
 
+    remote_feat = get_le32(dptr);
+
     /* Set common features and reply */
     rsp_opcode = BLE_LL_CTRL_FEATURE_RSP;
-    connsm->common_features = dptr[0] & ble_ll_read_supp_features();
+    connsm->common_features = remote_feat & ble_ll_read_supp_features();
     memset(rspbuf + 1, 0, 8);
-    rspbuf[1] = connsm->common_features;
+    put_le32(rspbuf + 1, connsm->common_features);
 
     return rsp_opcode;
 }
@@ -1283,7 +1286,8 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             } else {
                 opcode = BLE_LL_CTRL_SLAVE_FEATURE_REQ;
             }
-            ctrdata[0] = ble_ll_read_supp_features();
+
+            put_le32(ctrdata, ble_ll_read_supp_features());
             break;
         case BLE_LL_CTRL_PROC_VERSION_XCHG:
             opcode = BLE_LL_CTRL_VERSION_IND;
@@ -1511,8 +1515,8 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 int
 ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 {
-    uint8_t features;
-    uint8_t feature;
+    uint32_t features;
+    uint32_t feature;
     uint8_t len;
     uint8_t opcode;
     uint8_t rsp_opcode;
