@@ -566,6 +566,10 @@ int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
                                 uint16_t ediv, uint64_t rand_val, int auth);
 int ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi);
 
+#define BLE_GAP_PRIVATE_MODE_NETWORK        0
+#define BLE_GAP_PRIVATE_MODE_DEVICE         1
+int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
+
 #ifdef __cplusplus
 }
 #endif

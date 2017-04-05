@@ -431,6 +431,12 @@ ble_gap_extract_conn_cb(uint16_t conn_handle,
     }
 }
 
+int
+ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode)
+{
+    return ble_hs_pvcy_set_mode(peer_addr, priv_mode);
+}
+
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
