@@ -485,6 +485,8 @@ extern "C" {
 
 /* --- LE set privacy mode (OCF 0x004E) */
 #define BLE_HCI_LE_SET_PRIVACY_MODE_LEN             (8)
+#define BLE_HCI_PRIVACY_NETWORK                     (0)
+#define BLE_HCI_PRIVACY_DEVICE                      (1)
 
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)

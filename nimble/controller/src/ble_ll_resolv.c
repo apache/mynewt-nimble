@@ -241,6 +241,9 @@ ble_ll_resolv_list_add(uint8_t *cmdbuf)
         swap_buf(rl->rl_peer_irk, cmdbuf + 7, 16);
         swap_buf(rl->rl_local_irk, cmdbuf + 23, 16);
 
+        /* By default use ptivacy network mode */
+        rl->rl_priv_mode = BLE_HCI_PRIVACY_NETWORK;
+
         /*
          * Add peer IRK to HW resolving list. If we can add it, also
          * generate a local RPA now to save time later.
@@ -368,6 +371,34 @@ ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
     g_ble_ll_resolv_data.rpa_tmo = tmo_secs * OS_TICKS_PER_SEC;
     return os_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
                             (int32_t)g_ble_ll_resolv_data.rpa_tmo);
+}
+
+int
+ble_ll_resolve_set_priv_mode(uint8_t *cmdbuf)
+{
+    struct ble_ll_resolv_entry *rl;
+
+    if (ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
+        g_ble_ll_conn_create_sm) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if (!ble_ll_resolv_enabled()) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* cmdbuf = addr_type(0) | addr(6) | priv_mode(1) */
+    rl = ble_ll_resolv_list_find(&cmdbuf[1], cmdbuf[0]);
+    if (!rl) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (cmdbuf[7] > BLE_HCI_PRIVACY_DEVICE) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    rl->rl_priv_mode = cmdbuf[7];
+    return 0;
 }
 
 /**
