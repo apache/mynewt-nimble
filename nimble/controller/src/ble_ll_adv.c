@@ -1724,6 +1724,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     advsm->conn_comp_ev = NULL;
 
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
+    ble_ll_hci_ev_le_csa(connsm);
 }
 
 /**
