@@ -794,4 +794,9 @@ ble_hci_sock_init(void)
 
     rc = ble_hci_sock_config();
     SYSINIT_PANIC_ASSERT_MSG(rc == 0, "Failure configuring socket HCI");
+
+    rc = stats_init_and_reg(STATS_HDR(hci_sock_stats),
+                          STATS_SIZE_INIT_PARMS(hci_sock_stats, STATS_SIZE_32),
+                          STATS_NAME_INIT_PARMS(hci_sock_stats), "hci_socket");
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }
