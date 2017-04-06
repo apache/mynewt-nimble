@@ -35,4 +35,4 @@ pkg.deps:
     - net/nimble
 
 pkg.init:
-    ble_ll_init: 200
+    ble_ll_init: 250
