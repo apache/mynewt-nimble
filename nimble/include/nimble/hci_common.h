@@ -662,6 +662,9 @@ extern "C" {
 /* LE data length change event (sub event 0x07) */
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
+/* LE Channel Selection Algorithm event (sub event 0x14) */
+#define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG_LEN   (4)
+
 /* Bluetooth Assigned numbers for version information.*/
 #define BLE_HCI_VER_BCS_1_0b                (0)
 #define BLE_HCI_VER_BCS_1_1                 (1)
