@@ -44,6 +44,12 @@ struct ble_ll_resolv_data g_ble_ll_resolv_data;
 
 struct ble_ll_resolv_entry g_ble_ll_resolv_list[MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE)];
 
+static int
+ble_ll_is_controller_busy(void)
+{
+    return ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
+           g_ble_ll_conn_create_sm;
+}
 /**
  * Called to determine if a change is allowed to the resolving list at this
  * time. We are not allowed to modify the resolving list if address translation
@@ -58,8 +64,7 @@ ble_ll_resolv_list_chg_allowed(void)
     int rc;
 
     if (g_ble_ll_resolv_data.addr_res_enabled &&
-            (ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
-             g_ble_ll_conn_create_sm)) {
+       ble_ll_is_controller_busy()) {
         rc = 0;
     } else {
         rc = 1;
@@ -310,8 +315,7 @@ ble_ll_resolv_enable_cmd(uint8_t *cmdbuf)
     int32_t tmo;
     uint8_t enabled;
 
-    if (ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
-        g_ble_ll_conn_create_sm) {
+    if (ble_ll_is_controller_busy()) {
         rc = BLE_ERR_CMD_DISALLOWED;
     } else {
         enabled = cmdbuf[0];
@@ -378,8 +382,7 @@ ble_ll_resolve_set_priv_mode(uint8_t *cmdbuf)
 {
     struct ble_ll_resolv_entry *rl;
 
-    if (ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
-        g_ble_ll_conn_create_sm) {
+    if (ble_ll_is_controller_busy()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
