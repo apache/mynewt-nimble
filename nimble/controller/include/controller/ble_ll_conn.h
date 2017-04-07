@@ -149,6 +149,7 @@ struct ble_ll_conn_sm
     uint8_t chanmap[BLE_LL_CONN_CHMAP_LEN];
     uint8_t req_chanmap[BLE_LL_CONN_CHMAP_LEN];
     uint16_t chanmap_instant;
+    uint16_t channel_id; /* TODO could be union with hop and last chan used */
     uint8_t hop_inc;
     uint8_t data_chan_index;
     uint8_t unmapped_chan;

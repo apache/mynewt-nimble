@@ -641,16 +641,12 @@ uint8_t
 ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
 {
     uint16_t channel_unmapped;
-    uint16_t channel_id;
     uint8_t remap_index;
 
     uint16_t prn_e;
     uint8_t bitpos;
 
-    channel_id = ((conn->access_addr & 0xffff0000) >> 16) ^
-                  (conn->access_addr & 0x0000ffff);
-
-    prn_e = ble_ll_conn_csa2_prng(conn->event_cntr, channel_id);
+    prn_e = ble_ll_conn_csa2_prng(conn->event_cntr, conn->channel_id);
 
     channel_unmapped = prn_e % 37;
 
@@ -1580,6 +1576,8 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool use_csa2)
     /* calculate the next data channel */
     if (use_csa2) {
         CONN_F_CSA2_SUPP(connsm) = 1;
+        connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
+                              (connsm->access_addr & 0x0000ffff);
         connsm->data_chan_index = ble_ll_conn_calc_dci_csa2(connsm);
     } else {
         connsm->last_unmapped_chan = 0;
