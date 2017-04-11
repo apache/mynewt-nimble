@@ -599,6 +599,7 @@ ble_ll_conn_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
     return 0;
 }
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
 static uint16_t
 ble_ll_conn_csa2_perm(uint16_t in)
 {
@@ -663,6 +664,7 @@ ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
 
     return ble_ll_conn_remapped_channel(remap_index, conn->chanmap);
 }
+#endif
 
 static uint8_t
 ble_ll_conn_calc_dci_csa1(struct ble_ll_conn_sm *conn)
@@ -706,9 +708,11 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
 {
     uint8_t index;
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     if (CONN_F_CSA2_SUPP(conn)) {
         return ble_ll_conn_calc_dci_csa2(conn);
     }
+#endif
 
     index = conn->data_chan_index;
 
@@ -1593,17 +1597,21 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
 static void
 ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 {
-    /* calculate the next data channel */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     if (chsel) {
         CONN_F_CSA2_SUPP(connsm) = 1;
         connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
                               (connsm->access_addr & 0x0000ffff);
 
+        /* calculate the next data channel */
         connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 0);
         return;
     }
+#endif
 
     connsm->last_unmapped_chan = 0;
+
+    /* calculate the next data channel */
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 1);
 }
 
@@ -2133,7 +2141,9 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         } else {
             evbuf = ble_ll_init_get_conn_comp_ev();
             ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, NULL);
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
             ble_ll_hci_ev_le_csa(connsm);
+#endif
         }
     }
 

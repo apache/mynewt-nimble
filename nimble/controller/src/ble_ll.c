@@ -1339,8 +1339,10 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_LE_PING;
 #endif
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     /* CSA2 */
     features |= BLE_LL_FEAT_CSA2;
+#endif
 
     /* Initialize random number generation */
     ble_ll_rand_init();

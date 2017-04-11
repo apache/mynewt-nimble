@@ -244,8 +244,9 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     case BLE_HCI_ADV_TYPE_ADV_IND:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
 
-        /* CSA #2 is supported */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
+#endif
         break;
 
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
@@ -260,8 +261,9 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
 
-        /* CSA #2 is supported */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
+#endif
 
         adv_data_len = 0;
         pdulen = BLE_ADV_DIRECT_IND_LEN;
@@ -1724,7 +1726,10 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     advsm->conn_comp_ev = NULL;
 
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     ble_ll_hci_ev_le_csa(connsm);
+#endif
 }
 
 /**
