@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "os/os.h"
+#include "log/log.h"
 #if MYNEWT_VAL(BLE_MONITOR_UART)
 #include "uart/uart.h"
 #endif
@@ -118,6 +119,19 @@ monitor_write(const void *buf, size_t len)
     SEGGER_RTT_WriteNoLock(rtt_index, buf, len);
 }
 #endif
+
+static size_t btmon_write(FILE *instance, const char *bp, size_t n)
+{
+    monitor_write(bp, n);
+
+    return n;
+}
+
+static FILE *btmon = (FILE *) &(struct File) {
+    .vmt = &(struct File_methods) {
+        .write = btmon_write,
+    },
+};
 
 static void
 encode_monitor_hdr(struct ble_monitor_hdr *hdr, int64_t ts, uint16_t opcode,
@@ -239,6 +253,60 @@ ble_monitor_new_index(uint8_t bus, uint8_t *addr, const char *name)
     pkt.name[sizeof(pkt.name) - 1] = '\0';
 
     ble_monitor_send(BLE_MONITOR_OPCODE_NEW_INDEX, &pkt, sizeof(pkt));
+
+    return 0;
+}
+
+int
+ble_monitor_log(int level, const char *fmt, ...)
+{
+    struct ble_monitor_hdr hdr;
+    struct ble_monitor_user_logging ulog;
+    const char id[] = "nimble";
+    va_list va;
+    int len;
+
+    va_start(va, fmt);
+    len = vsprintf(NULL, fmt, va);
+    va_end(va);
+
+    switch (level) {
+    case LOG_LEVEL_ERROR:
+        ulog.priority = 3;
+        break;
+    case LOG_LEVEL_WARN:
+        ulog.priority = 4;
+        break;
+    case LOG_LEVEL_INFO:
+        ulog.priority = 6;
+        break;
+    case LOG_LEVEL_DEBUG:
+        ulog.priority = 7;
+        break;
+    default:
+        ulog.priority = 8;
+        break;
+    }
+
+    ulog.ident_len = sizeof(id);
+
+    encode_monitor_hdr(&hdr, -1, BLE_MONITOR_OPCODE_USER_LOGGING,
+                       sizeof(ulog) + sizeof(id) + len + 1);
+
+    os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+
+    monitor_write(&hdr, sizeof(hdr));
+    monitor_write(&ulog, sizeof(ulog));
+    monitor_write(id, sizeof(id));
+
+    va_start(va, fmt);
+    vfprintf(btmon, fmt, va);
+    va_end(va);
+
+    /* null-terminate string */
+    monitor_write("", 1);
+
+    os_mutex_release(&lock);
 
     return 0;
 }
