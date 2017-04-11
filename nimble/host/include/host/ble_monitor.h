@@ -29,7 +29,7 @@
 extern "C" {
 #endif
 
-// TODO: API goes here...
+int ble_monitor_log(int level, const char *fmt, ...);
 
 #ifdef __cplusplus
 }
