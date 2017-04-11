@@ -431,6 +431,9 @@ extern "C" {
 
 /* --- LE set PHY (OCF 0x0032) */
 #define BLE_HCI_LE_SET_PHY_LEN                      (7)
+#define BLE_HCI_LE_PHY_CODED_ANY                    (0x0000)
+#define BLE_HCI_LE_PHY_CODED_S2_PREF                (0x0001)
+#define BLE_HCI_LE_PHY_CODED_S8_PREF                (0x0002)
 
 /* --- LE enhanced receiver test (OCF 0x0033) */
 #define BLE_HCI_LE_ENH_RCVR_TEST_LEN                (3)
