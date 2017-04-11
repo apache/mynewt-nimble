@@ -126,8 +126,9 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
 
-    /* CSA #2 is supported */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
+#endif
 
     /* Set BLE transmit header */
     ble_ll_mbuf_init(m, BLE_CONNECT_REQ_LEN, pdu_type);

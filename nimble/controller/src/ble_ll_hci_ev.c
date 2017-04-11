@@ -273,6 +273,7 @@ ble_ll_hci_ev_databuf_overflow(void)
  *
  * @param connsm Pointer to connection state machine
  */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
 void
 ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
 {
@@ -290,3 +291,4 @@ ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
         }
     }
 }
+#endif

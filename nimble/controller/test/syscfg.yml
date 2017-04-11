@@ -19,3 +19,4 @@
 # Package: net/nimble/controller/test
 
 syscfg.vals:
+    BLE_LL_CFG_FEAT_LE_CSA2: 1
