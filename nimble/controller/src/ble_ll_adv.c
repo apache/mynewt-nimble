@@ -345,12 +345,11 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     ble_ll_mbuf_init(m, pdulen, hdr);
 
     /*
-     * XXX: Am I sure this is correct? The adva in this packet will be the
-     * same one that was being advertised and is based on the peer identity
-     * address in the set advertising parameters. If a different peer sends
-     * us a scan request (for some reason) we will reply with an adva that
-     * was not generated based on the local irk of the peer sending the scan
-     * request.
+     * The adva in this packet will be the same one that was being advertised
+     * and is based on the peer identity address in the set advertising
+     * parameters. If a different peer sends us a scan request (for some reason)
+     * we will reply with an adva that was not generated based on the local irk
+     * of the peer sending the scan request.
      */
 
     /* Construct scan response */
