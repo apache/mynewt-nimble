@@ -152,7 +152,6 @@ struct ble_ll_conn_sm
     uint16_t channel_id; /* TODO could be union with hop and last chan used */
     uint8_t hop_inc;
     uint8_t data_chan_index;
-    uint8_t unmapped_chan;
     uint8_t last_unmapped_chan;
     uint8_t num_used_chans;
 
@@ -288,7 +287,7 @@ struct ble_ll_conn_sm
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 
 /* required for unit testing */
-uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn);
+uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
 
 #ifdef __cplusplus
 }

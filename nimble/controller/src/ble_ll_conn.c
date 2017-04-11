@@ -664,24 +664,12 @@ ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
     return ble_ll_conn_remapped_channel(remap_index, conn->chanmap);
 }
 
-/**
- * Determine data channel index to be used for the upcoming/current
- * connection event
- *
- * @param conn
- *
- * @return uint8_t
- */
-uint8_t
-ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
+static uint8_t
+ble_ll_conn_calc_dci_csa1(struct ble_ll_conn_sm *conn)
 {
     uint8_t curchan;
     uint8_t remap_index;
     uint8_t bitpos;
-
-    if (CONN_F_CSA2_SUPP(conn)) {
-        return ble_ll_conn_calc_dci_csa2(conn);
-    }
 
     /* Get next unmapped channel */
     curchan = conn->last_unmapped_chan + conn->hop_inc;
@@ -689,8 +677,8 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
         curchan -= BLE_PHY_NUM_DATA_CHANS;
     }
 
-    /* Set the current unmapped channel */
-    conn->unmapped_chan = curchan;
+    /* Save unmapped channel */
+    conn->last_unmapped_chan = curchan;
 
     /* Is this a valid channel? */
     bitpos = 1 << (curchan & 0x07);
@@ -702,6 +690,34 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
     remap_index = curchan % conn->num_used_chans;
 
     return ble_ll_conn_remapped_channel(remap_index, conn->chanmap);
+}
+
+/**
+ * Determine data channel index to be used for the upcoming/current
+ * connection event
+ *
+ * @param conn
+ * @param latency Used only for CSA #1
+ *
+ * @return uint8_t
+ */
+uint8_t
+ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
+{
+    uint8_t index;
+
+    if (CONN_F_CSA2_SUPP(conn)) {
+        return ble_ll_conn_calc_dci_csa2(conn);
+    }
+
+    index = conn->data_chan_index;
+
+    while (latency > 0) {
+        index = ble_ll_conn_calc_dci_csa1(conn);
+        latency--;
+    }
+
+    return index;
 }
 
 /**
@@ -1583,12 +1599,12 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
         connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
                               (connsm->access_addr & 0x0000ffff);
 
-        connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
+        connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 0);
         return;
     }
 
     connsm->last_unmapped_chan = 0;
-    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
+    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 1);
 }
 
 /**
@@ -1949,15 +1965,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
 
     /* Calculate data channel index of next connection event */
-    if (CONN_F_CSA2_SUPP(connsm)) {
-        connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
-    } else {
-        while (latency > 0) {
-            connsm->last_unmapped_chan = connsm->unmapped_chan;
-            connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
-            --latency;
-        }
-    }
+    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, latency);
 
     /*
      * If we are trying to terminate connection, check if next wake time is
