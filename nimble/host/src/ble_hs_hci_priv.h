@@ -165,6 +165,9 @@ int ble_hs_hci_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
 
 int ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst,
                                  int dst_len);
+int ble_hs_hci_build_le_set_default_phy(uint8_t tx_phys_mask,
+                                        uint8_t rx_phys_mask,
+                                        uint8_t *dst, int dst_len);
 #ifdef __cplusplus
 }
 #endif
