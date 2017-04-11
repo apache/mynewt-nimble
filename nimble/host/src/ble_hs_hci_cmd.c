@@ -1241,9 +1241,8 @@ ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst, int dst_len)
 }
 
 static int
-ble_hs_hci_cmd_body_le_set_default_phy(uint8_t tx_phys_mask,
-                                       uint8_t rx_phys_mask,
-                                       uint8_t *dst)
+ble_hs_hci_verify_le_phy_params(uint8_t tx_phys_mask, uint8_t rx_phys_mask,
+                                uint16_t phy_opts)
 {
     if (tx_phys_mask > (BLE_HCI_LE_PHY_1M_PREF_MASK |
                         BLE_HCI_LE_PHY_2M_PREF_MASK |
@@ -1255,6 +1254,24 @@ ble_hs_hci_cmd_body_le_set_default_phy(uint8_t tx_phys_mask,
                         BLE_HCI_LE_PHY_2M_PREF_MASK |
                         BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (phy_opts > BLE_HCI_LE_PHY_CODED_S8_PREF) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return 0;
+}
+
+static int
+ble_hs_hci_cmd_body_le_set_default_phy(uint8_t tx_phys_mask,
+                                       uint8_t rx_phys_mask, uint8_t *dst)
+{
+    int rc;
+
+    rc = ble_hs_hci_verify_le_phy_params(tx_phys_mask, rx_phys_mask, 0);
+    if (rc !=0 ) {
+        return rc;
     }
 
     if (tx_phys_mask == 0) {
@@ -1291,6 +1308,59 @@ ble_hs_hci_build_le_set_default_phy(uint8_t tx_phys_mask, uint8_t rx_phys_mask,
 
     return ble_hs_hci_cmd_body_le_set_default_phy(tx_phys_mask, rx_phys_mask,
                                                   dst);
+}
+
+static int
+ble_hs_hci_cmd_body_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+                               uint8_t rx_phys_mask, uint16_t phy_opts,
+                               uint8_t *dst)
+{
+    int rc;
+
+    rc = ble_hs_hci_verify_le_phy_params(tx_phys_mask, rx_phys_mask, phy_opts);
+    if (rc != 0) {
+        return rc;
+    }
+
+    put_le16(dst, conn_handle);
+
+    if (tx_phys_mask == 0) {
+        dst[2] |= BLE_HCI_LE_PHY_NO_TX_PREF_MASK;
+    } else {
+        dst[3] = tx_phys_mask;
+    }
+
+    if (rx_phys_mask == 0){
+        dst[2] |= BLE_HCI_LE_PHY_NO_RX_PREF_MASK;
+    } else {
+        dst[4] = rx_phys_mask;
+    }
+
+    put_le16(dst + 5, phy_opts);
+
+    return 0;
+}
+
+/*
+ * OGF=0x08 OCF=0x0032
+ */
+int
+ble_hs_hci_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+                            uint8_t rx_phys_mask, uint16_t phy_opts,
+                            uint8_t *dst, int dst_len)
+{
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_PHY_LEN);
+
+    memset(dst, 0, dst_len);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PHY,
+                             BLE_HCI_LE_SET_PHY_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    return ble_hs_hci_cmd_body_le_set_phy(conn_handle, tx_phys_mask,
+                                          rx_phys_mask, phy_opts, dst);
 }
 
 static int
