@@ -563,6 +563,42 @@ ble_ll_conn_calc_access_addr(void)
     return aa;
 }
 
+static uint8_t
+ble_ll_conn_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
+{
+    uint8_t cntr;
+    uint8_t mask;
+    uint8_t usable_chans;
+    uint8_t chan;
+    int i, j;
+
+    /* NOTE: possible to build a map but this would use memory. For now,
+       we just calculate */
+    /* Iterate through channel map to find this channel */
+    chan = 0;
+    cntr = 0;
+    for (i = 0; i < BLE_LL_CONN_CHMAP_LEN; i++) {
+        usable_chans = chanmap[i];
+        if (usable_chans != 0) {
+            mask = 0x01;
+            for (j = 0; j < 8; j++) {
+                if (usable_chans & mask) {
+                    if (cntr == remap_index) {
+                        return (chan + j);
+                    }
+                    ++cntr;
+                }
+                mask <<= 1;
+            }
+        }
+        chan += 8;
+    }
+
+    /* we should never reach here */
+    assert(0);
+    return 0;
+}
+
 static uint16_t
 ble_ll_conn_csa2_perm(uint16_t in)
 {
@@ -601,42 +637,6 @@ ble_ll_conn_csa2_prng(uint16_t counter, uint16_t ch_id)
     return prn_e;
 }
 
-static uint8_t
-ble_ll_conn_csa2_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
-{
-    uint8_t cntr;
-    uint8_t mask;
-    uint8_t usable_chans;
-    uint8_t chan;
-    int i, j;
-
-    /* NOTE: possible to build a map but this would use memory. For now,
-       we just calculate */
-    /* Iterate through channel map to find this channel */
-    chan = 0;
-    cntr = 0;
-    for (i = 0; i < BLE_LL_CONN_CHMAP_LEN; i++) {
-        usable_chans = chanmap[i];
-        if (usable_chans != 0) {
-            mask = 0x01;
-            for (j = 0; j < 8; j++) {
-                if (usable_chans & mask) {
-                    if (cntr == remap_index) {
-                        return (chan + j);
-                    }
-                    ++cntr;
-                }
-                mask <<= 1;
-            }
-        }
-        chan += 8;
-    }
-
-    /* we should never reach here */
-    assert(0);
-    return 0;
-}
-
 uint8_t
 ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
 {
@@ -661,7 +661,7 @@ ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
 
     remap_index = (conn->num_used_chans * prn_e) / 0x10000;
 
-    return ble_ll_conn_csa2_remapped_channel(remap_index, conn->chanmap);
+    return ble_ll_conn_remapped_channel(remap_index, conn->chanmap);
 }
 
 /**
@@ -697,7 +697,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
     /* Calculate remap index */
     remap_index = curchan % conn->num_used_chans;
 
-    return ble_ll_conn_csa2_remapped_channel(remap_index, conn->chanmap);
+    return ble_ll_conn_remapped_channel(remap_index, conn->chanmap);
 }
 
 /**
