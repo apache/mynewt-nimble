@@ -437,6 +437,85 @@ ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode)
     return ble_hs_pvcy_set_mode(peer_addr, priv_mode);
 }
 
+int
+ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy)
+{
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_RD_PHY_LEN];
+    uint8_t rspbuf[4];
+    uint8_t rsplen;
+    int rc;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    rc = ble_hs_hci_build_le_read_phy(conn_handle, buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_hci_cmd_tx(buf, rspbuf, sizeof(rspbuf), &rsplen);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (rsplen != sizeof(rspbuf)) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    /* First two octets is conn_handle. We can ignore it */
+
+    *tx_phy = rspbuf[2];
+    *rx_phy = rspbuf[3];
+
+    return 0;
+}
+
+int
+ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask, uint8_t rx_phys_mask)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_DEFAULT_PHY_LEN];
+    int rc;
+
+    rc = ble_hs_hci_build_le_set_default_phy(tx_phys_mask, rx_phys_mask, buf,
+                                             sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
+}
+
+int
+ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+                   uint8_t rx_phys_mask, uint16_t phy_opts)
+{
+    struct ble_hs_conn *conn;
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_PHY_LEN];
+    int rc;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    rc = ble_hs_hci_build_le_set_phy(conn_handle, tx_phys_mask, rx_phys_mask,
+                                     phy_opts, buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
+}
+
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
@@ -1215,6 +1294,21 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
 
     rc = ble_gap_call_conn_event_cb(&event, conn_handle);
     return rc;
+}
+
+void
+ble_gap_rx_phy_update_complete(struct hci_le_phy_upd_complete *evt)
+{
+    struct ble_gap_event event;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_PHY_UPDATE_COMPLETE;
+    event.phy_updated.status = evt->status;
+    event.phy_updated.conn_handle = evt->connection_handle;
+    event.phy_updated.tx_phy = evt->tx_phy;
+    event.phy_updated.rx_phy = evt->rx_phy;
+
+    ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 }
 
 static int32_t

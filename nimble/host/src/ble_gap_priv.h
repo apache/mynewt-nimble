@@ -81,6 +81,7 @@ void ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt);
 void ble_gap_rx_param_req(struct hci_le_conn_param_req *evt);
 int ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                                 struct ble_gap_upd_params *params);
+void ble_gap_rx_phy_update_complete(struct hci_le_phy_upd_complete *evt);
 void ble_gap_enc_event(uint16_t conn_handle, int status,
                        int security_restored);
 void ble_gap_passkey_event(uint16_t conn_handle,
