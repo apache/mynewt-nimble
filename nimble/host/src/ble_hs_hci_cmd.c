@@ -1241,6 +1241,59 @@ ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst, int dst_len)
 }
 
 static int
+ble_hs_hci_cmd_body_le_set_default_phy(uint8_t tx_phys_mask,
+                                       uint8_t rx_phys_mask,
+                                       uint8_t *dst)
+{
+    if (tx_phys_mask > (BLE_HCI_LE_PHY_1M_PREF_MASK |
+                        BLE_HCI_LE_PHY_2M_PREF_MASK |
+                        BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (rx_phys_mask > (BLE_HCI_LE_PHY_1M_PREF_MASK |
+                        BLE_HCI_LE_PHY_2M_PREF_MASK |
+                        BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (tx_phys_mask == 0) {
+        dst[0] |= BLE_HCI_LE_PHY_NO_TX_PREF_MASK;
+    } else {
+        dst[1] = tx_phys_mask;
+    }
+
+    if (rx_phys_mask == 0){
+        dst[0] |= BLE_HCI_LE_PHY_NO_RX_PREF_MASK;
+    } else {
+        dst[2] = rx_phys_mask;
+    }
+
+    return 0;
+}
+
+/*
+ * OGF=0x08 OCF=0x0031
+ */
+int
+ble_hs_hci_build_le_set_default_phy(uint8_t tx_phys_mask, uint8_t rx_phys_mask,
+                                    uint8_t *dst, int dst_len)
+{
+
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_DEFAULT_PHY_LEN);
+
+    memset(dst, 0, dst_len);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_DEFAULT_PHY,
+                             BLE_HCI_LE_SET_DEFAULT_PHY_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    return ble_hs_hci_cmd_body_le_set_default_phy(tx_phys_mask, rx_phys_mask,
+                                                  dst);
+}
+
+static int
 ble_hs_hci_cmd_body_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
                                      uint8_t priv_mode, uint8_t *dst)
 {
