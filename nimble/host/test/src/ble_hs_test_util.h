@@ -150,6 +150,13 @@ int ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
                               struct os_mbuf *om);
 int ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
                                            const void *data, int len);
+uint8_t ble_hs_test_util_verify_tx_l2cap_sig(uint16_t opcode, void *cmd,
+                                                 uint16_t cmd_size);
+int ble_hs_test_util_inject_rx_l2cap_sig(uint16_t conn_handle, uint8_t opcode,
+                                     uint8_t id, void *cmd, uint16_t cmd_size);
+void ble_hs_test_util_verify_tx_l2cap(struct os_mbuf *txom);
+void ble_hs_test_util_inject_rx_l2cap(uint16_t conn_handle, uint16_t cid,
+                                      struct os_mbuf *rxom);
 void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 void ble_hs_test_util_set_att_mtu(uint16_t conn_handle, uint16_t mtu);
 int ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req,

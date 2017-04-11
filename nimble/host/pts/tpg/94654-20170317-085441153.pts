@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project><qdid>90359</qdid><name>mynewt</name>
+<project><qdid>94654</qdid><name>mynewt-Updated</name>
 	<pics>
 		<profile>
 		<name>L2CAP</name>
@@ -12,6 +12,7 @@
 			<item><table>2</table><row>41</row></item>
 			<item><table>2</table><row>42</row></item>
 			<item><table>2</table><row>43</row></item>
+			<item><table>2</table><row>45</row></item>
 			<item><table>2</table><row>46</row></item>
 			<item><table>2</table><row>47</row></item>
 			<item><table>3</table><row>1</row></item>
