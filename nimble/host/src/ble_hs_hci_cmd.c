@@ -1222,6 +1222,23 @@ ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
         timeout, dst + BLE_HCI_CMD_HDR_LEN);
 }
 
+/*
+ * OGF=0x08 OCF=0x0030
+ */
+int
+ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_RD_PHY_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_PHY,
+                             BLE_HCI_LE_RD_PHY_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    put_le16(dst, conn_handle);
+
+    return 0;
+}
 
 static int
 ble_hs_hci_cmd_body_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
