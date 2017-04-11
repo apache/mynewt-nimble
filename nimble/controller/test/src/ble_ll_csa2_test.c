@@ -36,6 +36,8 @@ TEST_CASE(ble_ll_csa2_test_1)
 
     memset(&conn, 0, sizeof(conn));
 
+    CONN_F_CSA2_SUPP(&conn) = 1;
+
     /*
      * based on sample data from CoreSpec 5.0 Vol 6 Part C 3.1
      * (all channels used)
@@ -51,15 +53,15 @@ TEST_CASE(ble_ll_csa2_test_1)
     conn.chanmap[3] = 0x1f;
 
     conn.event_cntr = 1;
-    rc = ble_ll_conn_calc_dci_csa2(&conn);
+    rc = ble_ll_conn_calc_dci(&conn);
     TEST_ASSERT(rc == 20);
 
     conn.event_cntr = 2;
-    rc = ble_ll_conn_calc_dci_csa2(&conn);
+    rc = ble_ll_conn_calc_dci(&conn);
     TEST_ASSERT(rc == 6);
 
     conn.event_cntr = 3;
-    rc = ble_ll_conn_calc_dci_csa2(&conn);
+    rc = ble_ll_conn_calc_dci(&conn);
     TEST_ASSERT(rc == 21);
 }
 
@@ -76,6 +78,8 @@ TEST_CASE(ble_ll_csa2_test_2)
 
     memset(&conn, 0, sizeof(conn));
 
+    CONN_F_CSA2_SUPP(&conn) = 1;
+
     /*
      * based on sample data from CoreSpec 5.0 Vol 6 Part C 3.2
      * (9 channels used)
@@ -91,15 +95,15 @@ TEST_CASE(ble_ll_csa2_test_2)
     conn.chanmap[4] = 0x1e;
 
     conn.event_cntr = 6;
-    rc = ble_ll_conn_calc_dci_csa2(&conn);
+    rc = ble_ll_conn_calc_dci(&conn);
     TEST_ASSERT(rc == 23);
 
     conn.event_cntr = 7;
-    rc = ble_ll_conn_calc_dci_csa2(&conn);
+    rc = ble_ll_conn_calc_dci(&conn);
     TEST_ASSERT(rc == 9);
 
     conn.event_cntr = 8;
-    rc = ble_ll_conn_calc_dci_csa2(&conn);
+    rc = ble_ll_conn_calc_dci(&conn);
     TEST_ASSERT(rc == 34);
 }
 
