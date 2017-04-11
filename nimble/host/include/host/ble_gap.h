@@ -111,6 +111,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_SUBSCRIBE             14
 #define BLE_GAP_EVENT_MTU                   15
 #define BLE_GAP_EVENT_IDENTITY_RESOLVED     16
+#define BLE_GAP_EVENT_PHY_UPDATE_COMPLETE   17
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -517,6 +518,24 @@ struct ble_gap_event {
             /** The handle of the relevant connection. */
             uint16_t conn_handle;
         } identity_resolved;
+
+        /**
+         * Represents a change of PHY. This is issue after successful
+         * change on PHY.
+         */
+        struct {
+            int status;
+            uint16_t conn_handle;
+
+            /**
+             * Indicates enabled TX/RX PHY. Possible values:
+             *     o BLE_GAP_LE_PHY_1M
+             *     o BLE_GAP_LE_PHY_2M
+             *     o BLE_GAP_LE_PHY_CODED
+             */
+            uint8_t tx_phy;
+            uint8_t rx_phy;
+        } phy_updated;
     };
 };
 
@@ -570,6 +589,22 @@ int ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi);
 #define BLE_GAP_PRIVATE_MODE_DEVICE         1
 int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
 
+#define BLE_GAP_LE_PHY_1M                   1
+#define BLE_GAP_LE_PHY_2M                   2
+#define BLE_GAP_LE_CODED                    3
+int ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy);
+
+#define BLE_GAP_LE_PHY_1M_MASK              0x01
+#define BLE_GAP_LE_PHY_2M_MASK              0x02
+#define BLE_GAP_LE_PHY_CODED_MASK           0x04
+int ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask,
+                                        uint8_t rx_phys_mask);
+
+#define BLE_GAP_LE_PHY_CODED_ANY            0
+#define BLE_GAP_LE_PHY_CODED_S2             1
+#define BLE_GAP_LE_PHY_CODED_S8             2
+int ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+                                uint8_t rx_phys_mask, uint16_t phy_opts);
 #ifdef __cplusplus
 }
 #endif

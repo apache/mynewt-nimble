@@ -46,6 +46,7 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_conn_upd_complete;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_lt_key_req;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_conn_parm_req;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_dir_adv_rpt;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_phy_update_complete;
 
 /* Statistics */
 struct host_hci_stats
@@ -92,6 +93,8 @@ static const struct ble_hs_hci_evt_le_dispatch_entry
     { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, ble_hs_hci_evt_le_conn_parm_req },
     { BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE, ble_hs_hci_evt_le_conn_complete },
     { BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT, ble_hs_hci_evt_le_dir_adv_rpt },
+    { BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE,
+        ble_hs_hci_evt_le_phy_update_complete },
 };
 
 #define BLE_HS_HCI_EVT_LE_DISPATCH_SZ \
@@ -559,6 +562,26 @@ ble_hs_hci_evt_le_conn_parm_req(uint8_t subevent, uint8_t *data, int len)
     }
 
     ble_gap_rx_param_req(&evt);
+
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_phy_update_complete(uint8_t subevent, uint8_t *data, int len)
+{
+    struct hci_le_phy_upd_complete evt;
+
+    if (len < BLE_HCI_LE_PHY_UPD_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    evt.subevent_code = data[0];
+    evt.status = data[1];
+    evt.connection_handle = get_le16(data + 2);
+    evt.tx_phy = data[4];
+    evt.rx_phy = data[5];
+
+    ble_gap_rx_phy_update_complete(&evt);
 
     return 0;
 }

@@ -671,6 +671,9 @@ extern "C" {
 /* LE data length change event (sub event 0x07) */
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
+/* LE PHY update complete event (sub event 0x0C) */
+#define BLE_HCI_LE_PHY_UPD_LEN              (6)
+
 /* LE Channel Selection Algorithm event (sub event 0x14) */
 #define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG_LEN   (4)
 
@@ -872,6 +875,16 @@ struct hci_read_rssi_ack_params
     uint16_t connection_handle;
     uint8_t status;
     int8_t rssi;
+};
+
+/* PHY updated completed LE meta subevent */
+struct hci_le_phy_upd_complete
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint16_t connection_handle;
+    uint8_t tx_phy;
+    uint8_t rx_phy;
 };
 
 #define BLE_HCI_DATA_HDR_SZ                 4
