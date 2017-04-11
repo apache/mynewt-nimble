@@ -162,6 +162,9 @@ int ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
 int ble_hs_hci_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
                                       uint8_t priv_mode, uint8_t *dst,
                                       uint16_t dst_len);
+
+int ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst,
+                                 int dst_len);
 #ifdef __cplusplus
 }
 #endif
