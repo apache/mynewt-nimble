@@ -637,7 +637,7 @@ ble_ll_conn_csa2_prng(uint16_t counter, uint16_t ch_id)
     return prn_e;
 }
 
-uint8_t
+static uint8_t
 ble_ll_conn_calc_dci_csa2(struct ble_ll_conn_sm *conn)
 {
     uint16_t channel_unmapped;
@@ -678,6 +678,10 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn)
     uint8_t curchan;
     uint8_t remap_index;
     uint8_t bitpos;
+
+    if (CONN_F_CSA2_SUPP(conn)) {
+        return ble_ll_conn_calc_dci_csa2(conn);
+    }
 
     /* Get next unmapped channel */
     curchan = conn->last_unmapped_chan + conn->hop_inc;
@@ -1571,18 +1575,20 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
 }
 
 static void
-ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool use_csa2)
+ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 {
     /* calculate the next data channel */
-    if (use_csa2) {
+    if (chsel) {
         CONN_F_CSA2_SUPP(connsm) = 1;
         connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
                               (connsm->access_addr & 0x0000ffff);
-        connsm->data_chan_index = ble_ll_conn_calc_dci_csa2(connsm);
-    } else {
-        connsm->last_unmapped_chan = 0;
+
         connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
+        return;
     }
+
+    connsm->last_unmapped_chan = 0;
+    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
 }
 
 /**
@@ -1944,7 +1950,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
     /* Calculate data channel index of next connection event */
     if (CONN_F_CSA2_SUPP(connsm)) {
-        connsm->data_chan_index = ble_ll_conn_calc_dci_csa2(connsm);
+        connsm->data_chan_index = ble_ll_conn_calc_dci(connsm);
     } else {
         while (latency > 0) {
             connsm->last_unmapped_chan = connsm->unmapped_chan;
