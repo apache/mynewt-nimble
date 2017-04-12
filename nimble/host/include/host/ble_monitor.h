@@ -31,6 +31,8 @@ extern "C" {
 
 int ble_monitor_log(int level, const char *fmt, ...);
 
+int ble_monitor_out(int c);
+
 #ifdef __cplusplus
 }
 #endif

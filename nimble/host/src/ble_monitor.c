@@ -311,4 +311,23 @@ ble_monitor_log(int level, const char *fmt, ...)
     return 0;
 }
 
+int
+ble_monitor_out(int c)
+{
+    static char buf[128];
+    static size_t len;
+
+    if (c != '\n' && len < sizeof(buf) - 1) {
+        buf[len++] = c;
+        return c;
+    }
+
+    buf[len++] = '\0';
+
+    ble_monitor_send(BLE_MONITOR_OPCODE_SYSTEM_NOTE, buf, len);
+    len = 0;
+
+    return c;
+}
+
 #endif
