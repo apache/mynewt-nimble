@@ -43,6 +43,7 @@
 #include "ble_hs_id_priv.h"
 #include "ble_uuid_priv.h"
 #include "host/ble_hs.h"
+#include "host/ble_monitor.h"
 #include "nimble/nimble_opt.h"
 #include "stats/stats.h"
 #ifdef __cplusplus
@@ -119,7 +120,7 @@ void ble_hs_hw_error(uint8_t hw_code);
 void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
 
-#if MYNEWT_VAL(LOG_LEVEL) <= LOG_LEVEL_DEBUG
+#if MYNEWT_VAL(LOG_LEVEL) <= LOG_LEVEL_DEBUG && !BLE_MONITOR
 
 #define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,                \
                        log_cb, cmd) do                                        \
