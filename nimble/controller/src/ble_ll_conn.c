@@ -1738,9 +1738,13 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     uint32_t usecs;
 #endif
 
-
     /* XXX: deal with connection request procedure here as well */
     ble_ll_conn_chk_csm_flags(connsm);
+
+    /* If unable to start terminate procedure, start it now */
+    if (connsm->disconnect_reason && !CONN_F_TERMINATE_STARTED(connsm)) {
+        ble_ll_ctrl_terminate_start(connsm);
+    }
 
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
@@ -1867,7 +1871,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * passed the termination timeout. If so, no need to continue with
      * connection as we will time out anyway.
      */
-    if (connsm->pending_ctrl_procs & (1 << BLE_LL_CTRL_PROC_TERMINATE)) {
+    if (CONN_F_TERMINATE_STARTED(connsm)) {
         if ((int32_t)(connsm->terminate_timeout - connsm->anchor_point) <= 0) {
             return -1;
         }

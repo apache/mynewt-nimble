@@ -102,7 +102,7 @@ union ble_ll_conn_sm_flags {
         uint32_t allow_slave_latency:1;
         uint32_t slave_set_last_anchor:1;
         uint32_t awaiting_host_reply:1;
-        uint32_t send_conn_upd_event:1;
+        uint32_t terminate_started:1;
         uint32_t conn_update_sched:1;
         uint32_t host_expects_upd_event:1;
         uint32_t version_ind_sent:1;
@@ -270,6 +270,7 @@ struct ble_ll_conn_sm
 #define CONN_F_ENCRYPTED(csm)       ((csm)->csmflags.cfbit.encrypted)
 #define CONN_F_ENC_CHANGE_SENT(csm) ((csm)->csmflags.cfbit.encrypt_chg_sent)
 #define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
+#define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
 
 /* Role */
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)
