@@ -194,8 +194,6 @@ struct ble_ll_conn_sm
     uint32_t last_scheduled;
 
     /* Connection timing */
-    uint16_t conn_itvl_min;
-    uint16_t conn_itvl_max;
     uint16_t conn_itvl;
     uint16_t slave_latency;
     uint16_t supervision_tmo;
