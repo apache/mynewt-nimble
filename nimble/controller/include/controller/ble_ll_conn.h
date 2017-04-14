@@ -273,6 +273,7 @@ struct ble_ll_conn_sm
 #define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
 #define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
 #define CONN_F_CSA2_SUPP(csm)       ((csm)->csmflags.cfbit.csa2_supp)
+#define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
 
 /* Role */
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)
