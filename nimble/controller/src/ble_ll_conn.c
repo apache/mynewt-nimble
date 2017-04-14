@@ -1564,8 +1564,6 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     }
 
     /* XXX: for now, just make connection interval equal to max */
-    connsm->conn_itvl_min = hcc->conn_itvl_min;
-    connsm->conn_itvl_max = hcc->conn_itvl_max;
     connsm->conn_itvl = hcc->conn_itvl_max;
 
     /* Check the min/max CE lengths are less than connection interval */
