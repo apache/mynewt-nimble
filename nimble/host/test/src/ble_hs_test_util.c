@@ -1526,6 +1526,41 @@ ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags)
 }
 
 void
+ble_hs_test_util_verify_tx_find_type_value(uint16_t start_handle,
+                                           uint16_t end_handle,
+                                           uint16_t attr_type,
+                                           const void *value,
+                                           uint16_t value_len)
+{
+    struct ble_att_find_type_value_req req;
+    struct os_mbuf *om;
+
+    ble_hs_test_util_tx_all();
+    om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om != NULL);
+    TEST_ASSERT(om->om_len == BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + value_len);
+
+    ble_att_find_type_value_req_parse(om->om_data, om->om_len, &req);
+    TEST_ASSERT(req.bavq_start_handle == start_handle);
+    TEST_ASSERT(req.bavq_end_handle == end_handle);
+    TEST_ASSERT(req.bavq_attr_type == attr_type);
+    TEST_ASSERT(memcmp(om->om_data + BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ,
+                       value,
+                       value_len) == 0);
+}
+
+void
+ble_hs_test_util_verify_tx_disc_svc_uuid(const ble_uuid_t *uuid)
+{
+    uint8_t uuid_buf[16];
+
+    ble_uuid_flat(uuid, uuid_buf);
+    ble_hs_test_util_verify_tx_find_type_value(
+        1, 0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
+        uuid_buf, ble_uuid_length(uuid));
+}
+
+void
 ble_hs_test_util_verify_tx_read_rsp_gen(uint8_t att_op,
                                         uint8_t *attr_data, int attr_len)
 {

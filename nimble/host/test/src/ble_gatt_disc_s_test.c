@@ -292,6 +292,8 @@ ble_gatt_disc_s_test_misc_good_uuid(
                                     ble_gatt_disc_s_test_misc_disc_cb, NULL);
     TEST_ASSERT(rc == 0);
 
+    ble_hs_test_util_verify_tx_disc_svc_uuid(services[0].uuid);
+
     ble_gatt_disc_s_test_misc_rx_uuid_rsp(2, services);
     ble_gatt_disc_s_test_misc_verify_services(services);
 }
