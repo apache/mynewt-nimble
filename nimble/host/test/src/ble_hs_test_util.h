@@ -231,6 +231,12 @@ void ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle,
                                            uint16_t offset,
                                            const void *data, int data_len);
 void ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags);
+void ble_hs_test_util_verify_tx_find_type_value(uint16_t start_handle,
+                                                uint16_t end_handle,
+                                                uint16_t attr_type,
+                                                const void *value,
+                                                uint16_t value_len);
+void ble_hs_test_util_verify_tx_disc_svc_uuid(const ble_uuid_t *uuid);
 void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
 void ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data,
                                               int attr_len);
