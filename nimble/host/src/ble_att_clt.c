@@ -295,7 +295,7 @@ ble_att_clt_tx_find_type_value(uint16_t conn_handle, uint16_t start_handle,
         return BLE_HS_EINVAL;
     }
 
-    req = ble_att_cmd_get(BLE_ATT_OP_FIND_INFO_REQ, sizeof(*req) + value_len,
+    req = ble_att_cmd_get(BLE_ATT_OP_FIND_TYPE_VALUE_REQ, sizeof(*req) + value_len,
                           &txom);
     if (req == NULL) {
         return BLE_HS_ENOMEM;
