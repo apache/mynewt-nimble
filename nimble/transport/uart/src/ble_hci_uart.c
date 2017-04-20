@@ -275,6 +275,7 @@ ble_hci_uart_tx_pkt_type(void)
 static int
 ble_hci_uart_tx_char(void *arg)
 {
+    uint8_t u8;
     int rc = -1;
 
     switch (ble_hci_uart_state.tx_type) {
@@ -293,12 +294,19 @@ ble_hci_uart_tx_char(void *arg)
         break;
 
     case BLE_HCI_UART_H4_ACL:
-        rc = *OS_MBUF_DATA(ble_hci_uart_state.tx_acl, uint8_t *);
+        /* Copy the first unsent byte from the tx buffer and remove it from the
+         * source.
+         */
+        os_mbuf_copydata(ble_hci_uart_state.tx_acl, 0, 1, &u8);
         os_mbuf_adj(ble_hci_uart_state.tx_acl, 1);
-        if (!OS_MBUF_PKTLEN(ble_hci_uart_state.tx_acl)) {
+
+        /* Free the tx buffer if this is the last byte to send. */
+        if (OS_MBUF_PKTLEN(ble_hci_uart_state.tx_acl) == 0) {
             os_mbuf_free_chain(ble_hci_uart_state.tx_acl);
             ble_hci_uart_state.tx_type = BLE_HCI_UART_H4_NONE;
         }
+
+        rc = u8;
         break;
     }
 
