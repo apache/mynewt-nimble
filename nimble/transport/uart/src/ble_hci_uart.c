@@ -125,6 +125,16 @@ struct ble_hci_uart_pkt {
     uint8_t type;
 };
 
+/**
+ * Structure for transmitting ACL packets over UART
+ *
+ */
+struct ble_hci_uart_h4_acl_tx
+{
+    uint8_t *dptr;
+    struct os_mbuf *tx_acl;
+};
+
 static struct {
     /*** State of data received over UART. */
     uint8_t rx_type;    /* Pending packet type. 0 means nothing pending */
@@ -135,9 +145,10 @@ static struct {
 
     /*** State of data transmitted over UART. */
     uint8_t tx_type;    /* Pending packet type. 0 means nothing pending */
+    uint16_t rem_tx_len; /* Used for acl tx only currently */
     union {
         struct ble_hci_uart_cmd tx_cmd;
-        struct os_mbuf *tx_acl;
+        struct ble_hci_uart_h4_acl_tx tx_pkt;
     };
     STAILQ_HEAD(, ble_hci_uart_pkt) tx_pkts; /* Packet queue to send to UART */
 } ble_hci_uart_state;
@@ -169,6 +180,12 @@ ble_hci_uart_acl_tx(struct os_mbuf *om)
 {
     struct ble_hci_uart_pkt *pkt;
     os_sr_t sr;
+
+    /* If this packet is zero length, just free it */
+    if (OS_MBUF_PKTLEN(om) == 0) {
+        os_mbuf_free_chain(om);
+        return 0;
+    }
 
     pkt = os_memblock_get(&ble_hci_uart_pkt_pool);
     if (pkt == NULL) {
@@ -220,6 +237,7 @@ static int
 ble_hci_uart_tx_pkt_type(void)
 {
     struct ble_hci_uart_pkt *pkt;
+    struct os_mbuf *om;
     os_sr_t sr;
     int rc;
 
@@ -255,7 +273,12 @@ ble_hci_uart_tx_pkt_type(void)
 
     case BLE_HCI_UART_H4_ACL:
         ble_hci_uart_state.tx_type = BLE_HCI_UART_H4_ACL;
-        ble_hci_uart_state.tx_acl = pkt->data;
+        om = (struct os_mbuf *)pkt->data;
+        /* NOTE: first mbuf must have non-zero length */
+        os_mbuf_trim_front(om);
+        ble_hci_uart_state.tx_pkt.tx_acl = om;
+        ble_hci_uart_state.tx_pkt.dptr = om->om_data;
+        ble_hci_uart_state.rem_tx_len = OS_MBUF_PKTLEN(om);
         break;
 
     default:
@@ -276,7 +299,8 @@ static int
 ble_hci_uart_tx_char(void *arg)
 {
     uint8_t u8;
-    int rc = -1;
+    int rc;
+    struct os_mbuf *om;
 
     switch (ble_hci_uart_state.tx_type) {
     case BLE_HCI_UART_H4_NONE: /* No pending packet, pick one from the queue */
@@ -297,16 +321,35 @@ ble_hci_uart_tx_char(void *arg)
         /* Copy the first unsent byte from the tx buffer and remove it from the
          * source.
          */
-        os_mbuf_copydata(ble_hci_uart_state.tx_acl, 0, 1, &u8);
-        os_mbuf_adj(ble_hci_uart_state.tx_acl, 1);
-
-        /* Free the tx buffer if this is the last byte to send. */
-        if (OS_MBUF_PKTLEN(ble_hci_uart_state.tx_acl) == 0) {
-            os_mbuf_free_chain(ble_hci_uart_state.tx_acl);
+        u8 = ble_hci_uart_state.tx_pkt.dptr[0];
+        --ble_hci_uart_state.rem_tx_len;
+        if (ble_hci_uart_state.rem_tx_len == 0) {
+            os_mbuf_free_chain(ble_hci_uart_state.tx_pkt.tx_acl);
             ble_hci_uart_state.tx_type = BLE_HCI_UART_H4_NONE;
+        } else {
+            om = ble_hci_uart_state.tx_pkt.tx_acl;
+            --om->om_len;
+            if (om->om_len == 0) {
+                /* Remove and free any zero mbufs */
+                while ((om != NULL) && (om->om_len == 0)) {
+                    ble_hci_uart_state.tx_pkt.tx_acl = SLIST_NEXT(om, om_next);
+                    os_mbuf_free(om);
+                    om = ble_hci_uart_state.tx_pkt.tx_acl;
+                }
+                /* NOTE: om should never be NULL! What to do? */
+                if (om == NULL) {
+                    ble_hci_uart_state.tx_type = BLE_HCI_UART_H4_NONE;
+                } else {
+                    ble_hci_uart_state.tx_pkt.dptr = om->om_data;
+                }
+            } else {
+                ble_hci_uart_state.tx_pkt.dptr++;
+            }
         }
-
         rc = u8;
+        break;
+    default:
+        rc = -1;
         break;
     }
 
@@ -931,7 +974,7 @@ ble_hci_trans_reset(void)
 
     ble_hci_uart_free_pkt(ble_hci_uart_state.tx_type,
                           ble_hci_uart_state.tx_cmd.data,
-                          ble_hci_uart_state.tx_acl);
+                          ble_hci_uart_state.tx_pkt.tx_acl);
     ble_hci_uart_state.tx_type = BLE_HCI_UART_H4_NONE;
 
     while ((pkt = STAILQ_FIRST(&ble_hci_uart_state.tx_pkts)) != NULL) {
