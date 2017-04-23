@@ -1290,7 +1290,8 @@ ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
         CONN_F_HOST_PHY_UPDATE(connsm) = 1;
     } else {
         /*
-         * We could be doing a peer-initiated PHY update procedure. If
+         * We could be doing a peer-initiated PHY update procedure. If this
+         * is the case the requested phy preferences will not both be 0. If
          * we are not done with a peer-initiated procedure we just set the
          * pending bit but do not start the control procedure.
          */
