@@ -427,13 +427,13 @@ extern "C" {
 #define BLE_HCI_LE_SET_DEFAULT_PHY_LEN              (3)
 #define BLE_HCI_LE_PHY_NO_TX_PREF_MASK              (0x01)
 #define BLE_HCI_LE_PHY_NO_RX_PREF_MASK              (0x02)
-#define BLE_HCI_LE_PHY_PREF_MASK_ALL                \
-    (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_2M_PREF_MASK |  \
-     BLE_HCI_LE_PHY_CODED_PREF_MASK)
-
 #define BLE_HCI_LE_PHY_1M_PREF_MASK                 (0x01)
 #define BLE_HCI_LE_PHY_2M_PREF_MASK                 (0x02)
 #define BLE_HCI_LE_PHY_CODED_PREF_MASK              (0x04)
+
+#define BLE_HCI_LE_PHY_PREF_MASK_ALL                \
+    (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_2M_PREF_MASK |  \
+     BLE_HCI_LE_PHY_CODED_PREF_MASK)
 
 /* --- LE set PHY (OCF 0x0032) */
 #define BLE_HCI_LE_SET_PHY_LEN                      (7)
