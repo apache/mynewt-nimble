@@ -236,13 +236,6 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
 /**
  * Called to create and send the number of completed packets event to the
  * host.
- *
- * Because of the ridiculous spec, all the connection handles are contiguous
- * and then all the completed packets are contiguous. In order to avoid
- * multiple passes through the connection list or allocating a large stack
- * variable or malloc, I just use the event buffer and place the completed
- * packets after the last possible handle. I then copy the completed packets
- * to make it contiguous with the handles.
  */
 void
 ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
@@ -1021,7 +1014,8 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
         /*
          * XXX: For now; we will simply ignore what the host asks as we are
-         * allowed to do so by the spec.
+         * allowed to do so by the spec. If we implement this and something
+         * changes we need to send data length change event.
          */
     }
 
@@ -1201,6 +1195,124 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
 wr_auth_exit:
     put_le16(rsp, handle);
     *rsplen = BLE_HCI_WR_AUTH_PYLD_TMO_LEN;
+    return rc;
+}
+#endif
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+/**
+ * Read current phy for connection (OGF=8, OCF==0x0030)
+ *
+ * @param cmdbuf
+ * @param rsplen
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = get_le16(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else {
+        rsp[2] = connsm->phy_data.cur_tx_phy;
+        rsp[3] = connsm->phy_data.cur_rx_phy;
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    put_le16(rsp, handle);
+    *rsplen = BLE_HCI_LE_RD_PHY_RSPLEN;
+    return rc;
+}
+
+/**
+ * Set PHY preferences for connection
+ *
+ * @param cmdbuf
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
+{
+    int rc;
+    uint8_t phy_options;
+    uint8_t tx_phys;
+    uint8_t rx_phys;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = get_le16(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /*
+     * If host has requested a PHY update and we are not finished do
+     * not allow another one
+     */
+    if (CONN_F_HOST_PHY_UPDATE(connsm)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    phy_options = cmdbuf[5];
+    if (phy_options > BLE_HCI_LE_PHY_CODED_S8_PREF) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    connsm->phy_data.phy_options = phy_options;
+
+    /* Check valid parameters */
+    rc = ble_ll_hci_chk_phy_masks(cmdbuf + 2, &tx_phys, &rx_phys);
+    if (rc) {
+        goto phy_cmd_param_err;
+    }
+
+    connsm->phy_data.host_pref_tx_phys = tx_phys,
+    connsm->phy_data.host_pref_rx_phys = rx_phys;
+
+    /*
+     * The host preferences override the default phy preferences. Currently,
+     * the only reason the controller will initiate a procedure on its own
+     * is due to the fact that the host set default preferences. So if there
+     * is a pending control procedure and it has not yet started, we do not
+     * need to perform the default controller procedure.
+     */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE)) {
+        if (connsm->cur_ctrl_proc != BLE_LL_CTRL_PROC_PHY_UPDATE) {
+            CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+        }
+        CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+    } else {
+        /*
+         * We could be doing a peer-initiated PHY update procedure. If this
+         * is the case the requested phy preferences will not both be 0. If
+         * we are not done with a peer-initiated procedure we just set the
+         * pending bit but do not start the control procedure.
+         */
+        if (CONN_F_PEER_PHY_UPDATE(connsm)) {
+            connsm->pending_ctrl_procs |= BLE_LL_CTRL_PROC_PHY_UPDATE;
+        } else {
+            /* Check if we should start phy update procedure */
+            if (!ble_ll_conn_chk_phy_upd_start(connsm)) {
+                CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+            } else {
+                /*
+                 * Set flag to send a PHY update complete event. We set flag
+                 * even if we do not do an update procedure since we have to
+                 * inform the host even if we decide not to change anything.
+                 */
+                CONN_F_PHY_UPDATE_EVENT(connsm) = 1;
+            }
+        }
+    }
+
+phy_cmd_param_err:
     return rc;
 }
 #endif

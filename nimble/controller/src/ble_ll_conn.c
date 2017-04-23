@@ -229,6 +229,42 @@ STATS_NAME_END(ble_ll_conn_stats)
 
 static void ble_ll_conn_event_end(struct os_event *ev);
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+/**
+ * Checks to see if we should start a PHY update procedure
+ *
+ * If current phy is not one of the preferred we need to start control
+ * procedure.
+ *
+ * XXX: we could also decide to change the PHY if RSSI is really good
+ * and we are currently at 1Mbps or lower data rate and we could use
+ * a higher data rate.
+ *
+ * @param connsm
+ * @return 0: success; -1: no phy update procedure started
+ */
+int
+ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *csm)
+{
+    int rc;
+
+    /* If no host preferences or  */
+    if (((csm->phy_data.host_pref_tx_phys == 0) &&
+         (csm->phy_data.host_pref_rx_phys == 0)) ||
+        ((csm->phy_data.host_pref_tx_phys & CONN_CUR_TX_PHY_MASK(csm)) &&
+         (csm->phy_data.host_pref_rx_phys & CONN_CUR_RX_PHY_MASK(csm)))) {
+        rc = -1;
+    } else {
+        csm->phy_data.req_pref_tx_phys = csm->phy_data.host_pref_tx_phys;
+        csm->phy_data.req_pref_rx_phys = csm->phy_data.host_pref_rx_phys;
+        ble_ll_ctrl_proc_start(csm, BLE_LL_CTRL_PROC_PHY_UPDATE);
+        rc = 0;
+    }
+
+    return rc;
+}
+#endif
+
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 static void
 ble_ll_conn_calc_itvl_ticks(struct ble_ll_conn_sm *connsm)
@@ -905,6 +941,16 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
         ble_ll_hci_ev_conn_update(connsm, update_status);
         connsm->csmflags.cfbit.host_expects_upd_event = 0;
     }
+
+    /* Check if we need to send PHY update complete event */
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    if (CONN_F_PHY_UPDATE_EVENT(connsm)) {
+        if (!ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS)) {
+            /* Sent event. Clear flag */
+            CONN_F_PHY_UPDATE_EVENT(connsm) = 0;
+        }
+    }
+#endif
 }
 
 /**
@@ -1640,6 +1686,17 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->conn_rssi = BLE_LL_CONN_UNKNOWN_RSSI;
     connsm->rpa_index = -1;
 
+    /* XXX: TODO set these based on PHY that started connection */
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    connsm->phy_data.cur_tx_phy = BLE_HCI_LE_PHY_1M;
+    connsm->phy_data.cur_rx_phy = BLE_HCI_LE_PHY_1M;
+    connsm->phy_data.req_pref_tx_phys = 0;
+    connsm->phy_data.req_pref_rx_phys = 0;
+    connsm->phy_data.host_pref_tx_phys = g_ble_ll_data.ll_pref_tx_phys;
+    connsm->phy_data.host_pref_rx_phys = g_ble_ll_data.ll_pref_rx_phys;
+    connsm->phy_data.phy_options = 0;
+#endif
+
     /* Reset current control procedure */
     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
     connsm->pending_ctrl_procs = 0;
@@ -1836,6 +1893,8 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 /**
  * Called to move to the next connection event.
  *
+ * Context: Link Layer task.
+ *
  * @param connsm
  *
  * @return int
@@ -1861,11 +1920,18 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         ble_ll_ctrl_terminate_start(connsm);
     }
 
+    /*
+     * XXX TODO: I think this is technically incorrect. We can allow slave
+     * latency if we are doing one of these updates as long as we
+     * know that the master has received the ACK to the PDU that set
+     * the instant
+     */
     /* Set event counter to the next connection event that we will tx/rx in */
     itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
     latency = 1;
     if (connsm->csmflags.cfbit.allow_slave_latency      &&
         !connsm->csmflags.cfbit.conn_update_sched       &&
+        !CONN_F_PHY_UPDATE_SCHED(connsm)                &&
         !connsm->csmflags.cfbit.chanmap_update_scheduled) {
         if (connsm->csmflags.cfbit.pkt_rxd) {
             latency += connsm->slave_latency;
@@ -1973,6 +2039,21 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* XXX: host could have resent channel map command. Need to
            check to make sure we dont have to restart! */
     }
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    if (CONN_F_PHY_UPDATE_SCHED(connsm) &&
+        (connsm->event_cntr == connsm->phy_instant)) {
+        /* Set cur phy to new phy */
+        connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
+        connsm->phy_data.cur_rx_phy = connsm->phy_data.new_rx_phy;
+
+        /* Clear flags and set flag to send event at next instant */
+        CONN_F_PHY_UPDATE_SCHED(connsm) = 0;
+        CONN_F_PHY_UPDATE_EVENT(connsm) = 1;
+
+        ble_ll_ctrl_phy_update_proc_complete(connsm);
+    }
+#endif
 
     /* Calculate data channel index of next connection event */
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, latency);
@@ -2125,6 +2206,19 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
     /* Send connection complete event to inform host of connection */
     if (rc) {
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+        /*
+         * If we have default phy preferences and they are different than
+         * the current PHY's in use, start update procedure.
+         */
+        /*
+         * XXX: should we attempt to start this without knowing if
+         * the other side can support it?
+         */
+        if (!ble_ll_conn_chk_phy_upd_start(connsm)) {
+            CONN_F_CTRLR_PHY_UPDATE(connsm) = 1;
+        }
+#endif
         /*
          * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
          * exceeds the minimum, data length procedure needs to occur

@@ -161,7 +161,6 @@ extern "C" {
 #define BLE_HCI_OCF_LE_SET_PRIVACY_MODE             (0x004E)
 
 /* Command Specific Definitions */
-
 #define BLE_HCI_VARIABLE_LEN                (0xFF)
 
 /* --- Disconnect command (OGF 0x01, OCF 0x0006) --- */
@@ -418,12 +417,19 @@ extern "C" {
 #define BLE_HCI_RD_MAX_DATALEN_RSPLEN       (8)
 
 /* --- LE read maximum default PHY (OCF 0x0030) */
-#define BLE_HCI_LE_RD_PHY_LEN                       (2)
+#define BLE_HCI_LE_RD_PHY_LEN               (2)
+#define BLE_HCI_LE_RD_PHY_RSPLEN            (4)
+#define BLE_HCI_LE_PHY_1M                   (1)
+#define BLE_HCI_LE_PHY_2M                   (2)
+#define BLE_HCI_LE_PHY_CODED                (3)
 
 /* --- LE set default PHY (OCF 0x0031) */
 #define BLE_HCI_LE_SET_DEFAULT_PHY_LEN              (3)
 #define BLE_HCI_LE_PHY_NO_TX_PREF_MASK              (0x01)
 #define BLE_HCI_LE_PHY_NO_RX_PREF_MASK              (0x02)
+#define BLE_HCI_LE_PHY_PREF_MASK_ALL                \
+    (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_2M_PREF_MASK |  \
+     BLE_HCI_LE_PHY_CODED_PREF_MASK)
 
 #define BLE_HCI_LE_PHY_1M_PREF_MASK                 (0x01)
 #define BLE_HCI_LE_PHY_2M_PREF_MASK                 (0x02)

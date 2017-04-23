@@ -290,6 +290,75 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+/**
+ * Checks the preferred phy masks for validity and places the preferred masks
+ * in the input phy masks
+ *
+ * @param cmdbuf Pointer to command buffer where phy masks are located
+ * @param txphy Pointer to output tx phy mask
+ * @param rxphy Pointer to output rx phy mask
+ *
+ * @return int BLE_ERR_SUCCESS or BLE_ERR_INV_HCI_CMD_PARMS
+ */
+int
+ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy)
+{
+    int rc;
+    uint8_t all_phys;
+    uint8_t rx_phys;
+    uint8_t tx_phys;
+
+    /* Check for valid values */
+    all_phys = cmdbuf[0];
+    tx_phys = cmdbuf[1] & BLE_HCI_LE_PHY_PREF_MASK_ALL;
+    rx_phys = cmdbuf[2] & BLE_HCI_LE_PHY_PREF_MASK_ALL;
+
+    if (((all_phys & BLE_HCI_LE_PHY_TX_PREF) && (tx_phys == 0)) ||
+        ((all_phys & BLE_HCI_LE_PHY_RX_PREF) && (rx_phys == 0))) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    } else {
+        /* If phy not supported, wipe its bit */
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+        tx_phys &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
+        rx_phys &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
+#endif
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+        tx_phys &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
+        rx_phys &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
+#endif
+        /* Set the default PHY preferences */
+        if ((all_phys & BLE_HCI_LE_PHY_TX_PREF) == 0) {
+            tx_phys = 0;
+        }
+        *txphy = tx_phys;
+        if ((all_phys & BLE_HCI_LE_PHY_RX_PREF) == 0) {
+            rx_phys = 0;
+        }
+        *rxphy = rx_phys;
+        rc = BLE_ERR_SUCCESS;
+    }
+    return rc;
+}
+
+/**
+ * Set PHY preferences for connection
+ *
+ * @param cmdbuf
+ *
+ * @return int
+ */
+static int
+ble_ll_hci_le_set_def_phy(uint8_t *cmdbuf)
+{
+    int rc;
+
+    rc = ble_ll_hci_chk_phy_masks(cmdbuf, &g_ble_ll_data.ll_pref_tx_phys,
+                                  &g_ble_ll_data.ll_pref_rx_phys);
+    return rc;
+}
+#endif
+
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
 /**
  * HCI write suggested default data length command.
@@ -322,6 +391,8 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
         g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
         g_ble_ll_conn_params.sugg_tx_time = tx_time;
 
+        /* XXX TODO: This has to change! They do not have to be the same
+           at this point. Deal with this */
         if ((tx_time <= g_ble_ll_conn_params.supp_max_tx_time) &&
             (tx_oct <= g_ble_ll_conn_params.supp_max_tx_octets)) {
             g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
@@ -500,6 +571,7 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_START_ENCRYPT:
     case BLE_HCI_OCF_LE_RD_P256_PUBKEY:
     case BLE_HCI_OCF_LE_GEN_DHKEY:
+    case BLE_HCI_OCF_LE_SET_PHY:
         rc = 1;
         break;
     default:
@@ -768,6 +840,17 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         break;
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    case BLE_HCI_OCF_LE_RD_PHY:
+        rc = ble_ll_conn_hci_le_rd_phy(cmdbuf, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SET_DEFAULT_PHY:
+        rc = ble_ll_hci_le_set_def_phy(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_SET_PHY:
+        rc = ble_ll_conn_hci_le_set_phy(cmdbuf);
+        break;
+#endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
