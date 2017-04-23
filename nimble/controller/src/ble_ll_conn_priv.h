@@ -162,6 +162,10 @@ void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
 int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 
+int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
+int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
+int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
+
 #ifdef __cplusplus
 }
 #endif

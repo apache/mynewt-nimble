@@ -1174,6 +1174,10 @@ ble_ll_reset(void)
     memset(&g_ble_ll_log, 0, sizeof(g_ble_ll_log));
 #endif
 
+    /* Reset any preferred PHYs */
+    g_ble_ll_data.ll_pref_tx_phys = 0;
+    g_ble_ll_data.ll_pref_rx_phys = 0;
+
     /* Reset connection module */
     ble_ll_conn_module_reset();
 
@@ -1342,6 +1346,14 @@ ble_ll_init(void)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     /* CSA2 */
     features |= BLE_LL_FEAT_CSA2;
+#endif
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) == 1)
+    features |= BLE_LL_FEAT_LE_2M_PHY;
+#endif
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    features |= BLE_LL_FEAT_LE_CODED_PHY;
 #endif
 
     /* Initialize random number generation */

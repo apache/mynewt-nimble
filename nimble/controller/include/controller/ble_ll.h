@@ -57,6 +57,12 @@ extern "C" {
 
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+#define BLE_LL_BT5_PHY_SUPPORTED    (1)
+#else
+#define BLE_LL_BT5_PHY_SUPPORTED    (0)
+#endif
+
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
 
@@ -90,18 +96,16 @@ struct ble_ll_obj
     /* Number of ACL data packets supported */
     uint8_t ll_num_acl_pkts;
 
-#ifdef BLE_XCVR_RFCLK
-    uint8_t ll_rfclk_state;
-    uint16_t ll_xtal_ticks;
-#else
-    uint8_t _pad;
-    uint16_t _pad16;
-#endif
-
     /* ACL data packet size */
     uint16_t ll_acl_pkt_size;
 
+    /* Preferred PHY's */
+    uint8_t ll_pref_tx_phys;
+    uint8_t ll_pref_rx_phys;
+
 #ifdef BLE_XCVR_RFCLK
+    uint8_t ll_rfclk_state;
+    uint16_t ll_xtal_ticks;
     uint32_t ll_rfclk_start_time;
     struct hal_timer ll_rfclk_timer;
 #endif

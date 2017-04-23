@@ -292,3 +292,36 @@ ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
     }
 }
 #endif
+
+/**
+ * Send a PHY update complete event
+ *
+ * @param connsm Pointer to connection state machine
+ * @param status error status of event
+ */
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+int
+ble_ll_hci_ev_phy_update(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    int rc;
+    uint8_t *evbuf;
+
+    rc = 0;
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE)) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = BLE_HCI_LE_PHY_UPD_COMP_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE;
+            evbuf[3] = status;
+            put_le16(evbuf + 4, connsm->conn_handle);
+            evbuf[6] = connsm->phy_data.cur_tx_phy;
+            evbuf[7] = connsm->phy_data.cur_rx_phy;
+            ble_ll_hci_event_send(evbuf);
+        } else {
+            rc = BLE_ERR_MEM_CAPACITY;
+        }
+    }
+    return rc;
+}
+#endif

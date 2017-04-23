@@ -210,6 +210,16 @@ syscfg.defs:
             Selection Algorithm #2.
         value: '0'
 
+    BLE_LL_CFG_FEAT_LE_2M_PHY:
+        description: >
+            This option is used to enable/disable support for the 2Mbps PHY.
+        value: '0'
+
+    BLE_LL_CFG_FEAT_LE_CODED_PHY:
+        description: >
+            This option is used to enable/disable support for the coded PHY.
+        value: '0'
+
     BLE_PUBLIC_DEV_ADDR:
         description: >
             Allows the target or app to override the public device address

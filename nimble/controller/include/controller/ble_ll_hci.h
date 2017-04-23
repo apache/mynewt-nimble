@@ -54,6 +54,8 @@ int ble_ll_hci_event_send(uint8_t *evbuf);
 /* Sends a command complete with a no-op opcode to host */
 int ble_ll_hci_send_noop(void);
 
+/* Checks the preferref phy masks from set default phy and set phy commands */
+int ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy);
 
 #ifdef __cplusplus
 }
