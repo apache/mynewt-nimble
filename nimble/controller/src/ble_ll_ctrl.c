@@ -192,26 +192,24 @@ ble_ll_ctrl_chk_supp_time(uint16_t t)
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 /**
- * Called when an unknown response or ext reject received while performing
- * a PHY update procedure
+ * Called to cancel a phy update procedure.
  *
  * @param connsm
  * @param ble_err
  */
 void
-ble_ll_ctrl_phy_update_rejected(strcut ble_ll_conn_sm *connsm, uint8_t ble_err)
+ble_ll_ctrl_phy_update_cancel(strcut ble_ll_conn_sm *connsm, uint8_t ble_err)
 {
     /* cancel any pending phy update procedures */
     CLR_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
 
     /* Check if the host wants an event */
-    if (CONN_F_HOST_PHY_UPDATE(connsm) == 1) {
+    if (CONN_F_HOST_PHY_UPDATE(connsm)) {
         ble_ll_hci_ev_phy_update(connsm, ble_err);
         CONN_F_HOST_PHY_UPDATE(connsm) = 0;
     }
 
     /* Clear any bits for phy updates that might be in progress */
-    CONN_F_PEER_PHY_UPDATE(connsm) = 0;
     CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
 }
 #endif
@@ -419,7 +417,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         break;
 #if (BLE_LL_BT5_PHY_SUPPORTED ==1)
     case BLE_LL_CTRL_PHY_REQ:
-        ble_ll_ctrl_phy_update_rejected(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
+        ble_ll_ctrl_phy_update_cancel(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         ctrl_proc = BLE_LL_CTRL_PROC_PHY_UPDATE;
         break;
 #endif
@@ -452,8 +450,6 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
 
     if (CONN_F_PEER_PHY_UPDATE(connsm)) {
         CONN_F_PEER_PHY_UPDATE(connsm) = 0;
-        /* Must check if we need to start procedure */
-        chk_proc_stop = 0;
     } else if (CONN_F_CTRLR_PHY_UPDATE(connsm)) {
         CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
     } else {
@@ -467,9 +463,11 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
 
     /* Must check if we need to start host procedure */
     if (chk_host_phy) {
-        if (CONN_F_HOST_PHY_UPDATE(connsm) == 1) {
+        if (CONN_F_HOST_PHY_UPDATE(connsm)) {
             if (ble_ll_conn_chk_phy_upd_start(connsm)) {
                 CONN_F_HOST_PHY_UPDATE(connsm) = 0;
+            } else {
+                chk_proc_stop = 0;
             }
         }
     }
@@ -692,22 +690,15 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
                 connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
             }
 
-            /* If there is a PHY update procedure pending clear it */
-            CLR_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
+            /* If there is a PHY update procedure pending cancel it */
+            ble_ll_ctrl_phy_update_cancel(connsm, err);
 
-            /* Need to send event to host if the host phy update is pending */
-            if (CONN_F_HOST_PHY_UPDATE(connsm)) {
-                CONN_F_HOST_PHY_UPDATE(connsm) = 0;
-                ble_ll_hci_ev_phy_update(connsm, err);
-            }
-
-            /* Clear any flags we do not want around */
-            CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+            /* XXX: ? Should not be any phy update events */
             CONN_F_PHY_UPDATE_EVENT(connsm) = 0;
         }
 
         /* XXX: TODO: if we started another procedure with an instant
-           why are we doing this? Need to look into this */
+         * why are we doing this? Need to look into this.*/
 
         /* Respond to master's phy update procedure */
         CONN_F_PEER_PHY_UPDATE(connsm) = 1;
@@ -1454,7 +1445,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 #endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PROC_PHY_UPDATE:
-        ble_ll_ctrl_phy_update_rejected(connsm, ble_error);
+        ble_ll_ctrl_phy_update_cancel(connsm, ble_error);
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         break;
 #endif
