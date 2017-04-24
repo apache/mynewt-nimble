@@ -338,6 +338,7 @@ ble_hci_uart_tx_char(void *arg)
                 }
                 /* NOTE: om should never be NULL! What to do? */
                 if (om == NULL) {
+                    assert(0);
                     ble_hci_uart_state.tx_type = BLE_HCI_UART_H4_NONE;
                 } else {
                     ble_hci_uart_state.tx_pkt.dptr = om->om_data;
