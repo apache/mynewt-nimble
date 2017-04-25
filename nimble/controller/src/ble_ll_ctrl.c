@@ -295,7 +295,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     case BLE_LL_CTRL_LENGTH_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_DATA_LEN_UPD;
         break;
-    case BLE_LL_CTRL_CONN_UPDATE_REQ:
+    case BLE_LL_CTRL_CONN_UPDATE_IND:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
@@ -911,7 +911,7 @@ ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, uint8_t *rsp,
     } else {
         /* Create a connection update pdu */
         ble_ll_ctrl_conn_upd_make(connsm, rsp + 1, req);
-        rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
+        rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
     }
 
     return rsp_opcode;
@@ -1270,7 +1270,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 
         switch (ctrl_proc) {
         case BLE_LL_CTRL_PROC_CONN_UPDATE:
-            opcode = BLE_LL_CTRL_CONN_UPDATE_REQ;
+            opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
             ble_ll_ctrl_conn_upd_make(connsm, ctrdata, NULL);
             break;
         case BLE_LL_CTRL_PROC_CHAN_MAP_UPD:
@@ -1628,7 +1628,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     /* Process opcode */
     rsp_opcode = BLE_ERR_MAX;
     switch (opcode) {
-    case BLE_LL_CTRL_CONN_UPDATE_REQ:
+    case BLE_LL_CTRL_CONN_UPDATE_IND:
         rsp_opcode = ble_ll_ctrl_rx_conn_update(connsm, dptr, rspbuf);
         break;
     case BLE_LL_CTRL_CHANNEL_MAP_REQ:
