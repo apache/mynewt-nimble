@@ -189,7 +189,7 @@ ble_hs_startup_set_evmask_tx(void)
     ble_hs_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
-        return rc;
+        BLE_HS_LOG(WARN, "ble_hs_startup_set_evmask_tx() failed\n");
     }
 
     return 0;
