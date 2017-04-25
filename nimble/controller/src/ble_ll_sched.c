@@ -365,12 +365,13 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * request transmission. Note that adv_rxend is the end of the received
      * advertisement, so we need to add an IFS plus the time it takes to send
      * the connection request. The 1.25 msecs starts from the end of the conn
-     * request.
+     * request. Also include minimum WindowOffset value if configured.
      */
     dur = os_cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
     earliest_start = adv_rxend +
         os_cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
-                                  BLE_LL_CONN_INITIAL_OFFSET);
+                                  BLE_LL_CONN_INITIAL_OFFSET +
+                                  MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) * BLE_LL_CONN_TX_OFF_USECS);
     earliest_end = earliest_start + dur;
     itvl_t = os_cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
 #endif
@@ -385,7 +386,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     if (!ble_ll_sched_insert_if_empty(sch)) {
         /* Nothing in schedule. Schedule as soon as possible */
         rc = 0;
-        connsm->tx_win_off = 0;
+        connsm->tx_win_off = MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET);
     } else {
         os_cputime_timer_stop(&g_ble_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
