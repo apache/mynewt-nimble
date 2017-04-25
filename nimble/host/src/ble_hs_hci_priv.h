@@ -241,6 +241,9 @@ int ble_hs_hci_cmd_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
 #if MYNEWT_VAL(BLE_EXT_ADV)
 #endif
 
+int ble_hs_hci_cmd_build_le_read_remote_feat(uint16_t handle, uint8_t *dst,
+                                                                 int dst_len);
+
 #ifdef __cplusplus
 }
 #endif
