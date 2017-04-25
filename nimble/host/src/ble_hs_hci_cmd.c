@@ -1839,3 +1839,25 @@ ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
     return ble_hs_hci_cmd_body_set_random_addr(&r_addr,
                                              dst + BLE_HCI_CMD_HDR_LEN);
 }
+
+static void
+ble_hs_hci_cmd_body_le_read_remote_feat(uint16_t handle, uint8_t *dst)
+{
+    put_le16(dst, handle);
+}
+
+int
+ble_hs_hci_cmd_build_le_read_remote_feat(uint16_t handle, uint8_t *dst,
+                                                                 int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_RD_REM_FEAT_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT,
+                             BLE_HCI_CONN_RD_REM_FEAT_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    ble_hs_hci_cmd_body_le_read_remote_feat(handle, dst);
+
+    return 0;
+}

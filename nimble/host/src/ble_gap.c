@@ -1182,6 +1182,26 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
     ble_gap_disc_report(desc);
 }
 #endif
+
+static int
+ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_RD_REM_FEAT_LEN];
+    int rc;
+
+    rc = ble_hs_hci_cmd_build_le_read_remote_feat(handle, buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 /**
  * Processes an incoming connection-complete HCI event.
  */
@@ -1308,7 +1328,28 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     event.connect.status = 0;
     ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 
+    ble_gap_rd_rem_sup_feat_tx(evt->connection_handle);
+
     return 0;
+}
+
+void
+ble_gap_rx_rd_rem_sup_feat_complete(struct hci_le_rd_rem_supp_feat_complete *evt)
+{
+#if !NIMBLE_BLE_CONNECT
+    return;
+#endif
+
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(evt->connection_handle);
+    if (conn != NULL && evt->status == 0) {
+            conn->supported_feat = get_le32(evt->features);
+    }
+
+    ble_hs_unlock();
 }
 
 int

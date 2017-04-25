@@ -967,6 +967,15 @@ struct hci_le_conn_param_req
     uint16_t timeout;
 };
 
+/* Read Remote Supported Features complete LE meta subevent */
+struct hci_le_rd_rem_supp_feat_complete
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint16_t connection_handle;
+    uint8_t features[8];
+};
+
 /* LE long term key request event (note: fields out of order). */
 struct hci_le_lt_key_req
 {
