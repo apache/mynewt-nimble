@@ -36,6 +36,14 @@ struct ble_hs_hci_ack {
     uint8_t bha_hci_handle;
 };
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+struct ble_hs_hci_ext_scan_param {
+    uint8_t scan_type;
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+};
+
+#endif
 int ble_hs_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
                       uint8_t *out_evt_buf_len);
 int ble_hs_hci_cmd_tx_empty_ack(void *cmd);
@@ -158,6 +166,21 @@ int ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
 int ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
                                          uint8_t *dst, int dst_len);
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+int ble_hs_hci_cmd_build_le_set_ext_scan_params(uint8_t own_addr_type,
+                                               uint8_t filter_policy,
+                                               uint8_t phy_mask,
+                                               uint8_t phy_count,
+                                               struct ble_hs_hci_ext_scan_param *params[],
+                                               uint8_t *dst, uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_set_ext_scan_enable(uint8_t enable,
+                                                uint8_t filter_dups,
+                                                uint16_t duration,
+                                                uint16_t period,
+                                                uint8_t *dst, uint16_t dst_len);
+
+#endif
 
 int ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,
                                       uint8_t mod_idx,

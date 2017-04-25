@@ -487,6 +487,8 @@ extern "C" {
 
 /* --- LE set extended scan parameters (OCF 0x0041) */
 #define BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN           BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_EXT_SCAN_BASE_LEN                (3)
+#define BLE_HCI_LE_EXT_SCAN_SINGLE_PARAM_LEN        (5)
 
 /* --- LE set extended scan enable (OCF 0x0042) */
 #define BLE_HCI_LE_SET_EXT_SCAN_ENABLE_LEN          (6)
