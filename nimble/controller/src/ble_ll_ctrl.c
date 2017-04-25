@@ -1283,6 +1283,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             } else {
                 opcode = BLE_LL_CTRL_SLAVE_FEATURE_REQ;
             }
+            memset(ctrdata, 0, BLE_LL_CTRL_FEATURE_LEN);
             ctrdata[0] = ble_ll_read_supp_features();
             break;
         case BLE_LL_CTRL_PROC_VERSION_XCHG:
