@@ -28,6 +28,24 @@ extern "C" {
 struct ble_hs_conn;
 struct os_mbuf;
 
+#define BLE_HS_HCI_LE_FEAT_ENCRYPTION                   (0x00000001)
+#define BLE_HS_HCI_LE_FEAT_CONN_PARAM_REQUEST           (0x00000002)
+#define BLE_HS_HCI_LE_FEAT_EXT_REJECT                   (0x00000004)
+#define BLE_HS_HCI_LE_FEAT_SLAVE_FEAT_EXCHANGE          (0x00000008)
+#define BLE_HS_HCI_LE_FEAT_PING                         (0x00000010)
+#define BLE_HS_HCI_LE_FEAT_DATA_PACKET_LENGTH_EXT       (0x00000020)
+#define BLE_HS_HCI_LE_FEAT_LL_PRIVACY                   (0x00000040)
+#define BLE_HS_HCI_LE_FEAT_EXT_SCANNER_FILTER_POLICIES  (0x00000080)
+#define BLE_HS_HCI_LE_FEAT_2M_PHY                       (0x00000100)
+#define BLE_HS_HCI_LE_FEAT_STABLE_MOD_INDEX_TX          (0x00000200)
+#define BLE_HS_HCI_LE_FEAT_STABLE_MOD_INDEX_RX          (0x00000400)
+#define BLE_HS_HCI_LE_FEAT_CODED_PHY                    (0x00000800)
+#define BLE_HS_HCI_LE_FEAT_EXT_ADV                      (0x00001000)
+#define BLE_HS_HCI_LE_FEAT_PERIODIC_ADV                 (0x00002000)
+#define BLE_HS_HCI_LE_FEAT_CSA2                         (0x00004000)
+#define BLE_HS_HCI_LE_FEAT_POWER_CLASS_1                (0x00008000)
+#define BLE_HS_HCI_LE_FEAT_MIN_NUM_USED_CHAN            (0x00010000)
+
 struct ble_hs_hci_ack {
     int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
     uint8_t *bha_params;
@@ -56,6 +74,9 @@ int ble_hs_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
 int ble_hs_hci_cmd_tx_empty_ack(void *cmd);
 void ble_hs_hci_rx_ack(uint8_t *ack_ev);
 void ble_hs_hci_init(void);
+
+void ble_hs_hci_set_le_supported_feat(uint32_t feat);
+uint32_t ble_hs_hci_get_le_supported_feat(void);
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 typedef int ble_hs_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);

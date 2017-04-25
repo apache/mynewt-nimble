@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "host/ble_hs.h"
+#include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
 
 static int
@@ -28,6 +29,7 @@ ble_hs_startup_le_read_sup_f_tx(void)
     uint8_t ack_params[BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN];
     uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t ack_params_len;
+    uint32_t feat;
     int rc;
 
     ble_hs_hci_cmd_build_le_read_loc_supp_feat(buf, sizeof buf);
@@ -41,7 +43,9 @@ ble_hs_startup_le_read_sup_f_tx(void)
         return BLE_HS_ECONTROLLER;
     }
 
-    /* XXX: Do something with the supported features bit map. */
+    /* For now 32-bits of features is enough */
+    feat = get_le32(ack_params);
+    ble_hs_hci_set_le_supported_feat(feat);
 
     return 0;
 }
