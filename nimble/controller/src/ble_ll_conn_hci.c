@@ -815,7 +815,7 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     /* See if this feature is supported on both sides */
     if ((connsm->common_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            return BLE_ERR_UNKNOWN_HCI_CMD;
+            return BLE_ERR_CMD_DISALLOWED;
         }
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
