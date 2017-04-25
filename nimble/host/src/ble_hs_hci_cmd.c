@@ -1364,6 +1364,84 @@ ble_hs_hci_cmd_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
 }
 
 static int
+ble_hs_hci_cmd_body_le_enhanced_recv_test(uint8_t chan, uint8_t phy,
+                                          uint8_t mod_idx, uint8_t *dst)
+{
+    /* Parameters check according to Bluetooth 5.0 Vol 2, Part E
+     * 7.8.50 LE Enhanced Receiver Test Command
+     */
+    if (phy > BLE_HCI_LE_PHY_CODED || chan > 0x27 || mod_idx > 1) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    dst[0] = chan;
+    dst[1] = phy;
+    dst[2] = mod_idx;
+
+    return 0;
+}
+
+/*
+ * OGF=0x08 OCF=0x0033
+ */
+int
+ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,
+                                      uint8_t mod_idx,
+                                      uint8_t *dst, uint16_t dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+            dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_ENH_RCVR_TEST_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ENH_RCVR_TEST,
+                             BLE_HCI_LE_ENH_RCVR_TEST_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    return ble_hs_hci_cmd_body_le_enhanced_recv_test(rx_chan, phy, mod_idx, dst);
+}
+
+static int
+ble_hs_hci_cmd_body_le_enhanced_trans_test(uint8_t chan, uint8_t test_data_len,
+                                           uint8_t packet_payload_idx,
+                                           uint8_t phy,
+                                           uint8_t *dst)
+{
+    /* Parameters check according to Bluetooth 5.0 Vol 2, Part E
+     * 7.8.51 LE Enhanced Transmitter Test Command
+     */
+    if (phy > BLE_HCI_LE_PHY_CODED_S2 || chan > 0x27 ||
+            packet_payload_idx > 0x07) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    dst[0] = chan;
+    dst[1] = test_data_len;
+    dst[2] = packet_payload_idx;
+    dst[3] = phy;
+
+    return 0;
+}
+
+/*
+ * OGF=0x08 OCF=0x0034
+ */
+int
+ble_hs_hci_cmd_build_le_enh_trans_test(uint8_t tx_chan, uint8_t test_data_len,
+                                       uint8_t packet_payload_idx, uint8_t phy,
+                                       uint8_t *dst, uint16_t dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+            dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_ENH_TRANS_TEST_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ENH_TRANS_TEST,
+                             BLE_HCI_LE_ENH_TRANS_TEST_LEN, dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    return ble_hs_hci_cmd_body_le_enhanced_trans_test(tx_chan, test_data_len,
+                                                      packet_payload_idx,
+                                                      phy, dst);
+}
+
+static int
 ble_hs_hci_cmd_body_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
                                      uint8_t priv_mode, uint8_t *dst)
 {
