@@ -449,9 +449,14 @@ extern "C" {
 
 /* --- LE enhanced receiver test (OCF 0x0033) */
 #define BLE_HCI_LE_ENH_RCVR_TEST_LEN                (3)
+#define BLE_HCI_LE_PHY_1M                           (1)
+#define BLE_HCI_LE_PHY_2M                           (2)
+#define BLE_HCI_LE_PHY_CODED                        (3)
 
 /* --- LE enhanced transmitter test (OCF 0x0034) */
 #define BLE_HCI_LE_ENH_TRANS_TEST_LEN               (4)
+#define BLE_HCI_LE_PHY_CODED_S8                     (3)
+#define BLE_HCI_LE_PHY_CODED_S2                     (4)
 
 /* --- LE set advertising set random address (OCF 0x0035) */
 #define BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN         (7)

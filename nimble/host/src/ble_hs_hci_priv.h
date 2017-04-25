@@ -155,9 +155,19 @@ int ble_hs_hci_cmd_build_set_addr_res_en(
     uint8_t enable, uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
     uint16_t timeout, uint8_t *dst, int dst_len);
-
 int ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
                                          uint8_t *dst, int dst_len);
+
+
+int ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,
+                                      uint8_t mod_idx,
+                                      uint8_t *dst, uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_enh_trans_test(uint8_t tx_chan,
+                                       uint8_t test_data_len,
+                                       uint8_t packet_payload_idx,
+                                       uint8_t phy,
+                                       uint8_t *dst, uint16_t dst_len);
 
 int ble_hs_hci_cmd_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
                                       uint8_t priv_mode, uint8_t *dst,
