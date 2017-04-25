@@ -191,7 +191,7 @@ extern "C" {
 /* --- LE advertising channel tx power (OCF 0x0007) */
 #define BLE_HCI_ADV_CHAN_TXPWR_ACK_PARAM_LEN   (2)  /* Includes status byte. */
 #define BLE_HCI_ADV_CHAN_TXPWR_MIN             (-20)
-#define BLE_HCI_ADV_CHAN_TXPWR_MAX             (10)
+#define BLE_HCI_ADV_CHAN_TXPWR_MAX             (12)
 
 /* --- LE set advertising data (OCF 0x0008) */
 #define BLE_HCI_MAX_ADV_DATA_LEN            (31)
