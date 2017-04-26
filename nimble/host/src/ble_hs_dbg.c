@@ -144,6 +144,11 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
                        get_le32(evdata + 2), get_le16(evdata + 10));
         break;
 
+    case BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE:
+            BLE_HS_LOG(DEBUG, "PHY update. handle=%u tx=%u rx=%u\n",
+                       get_le16(evdata + 1), evdata[3], evdata[4]);
+        break;
+
     default:
         BLE_HS_LOG(DEBUG, "\tUnknown LE event\n");
         break;

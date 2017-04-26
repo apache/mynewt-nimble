@@ -1025,7 +1025,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
         ble_hdr = BLE_MBUF_HDR_PTR(m);
 
-        /* WWW: need to check this with phy update procedure. There are
+        /* XXX: TODO: need to check this with phy update procedure. There are
            limitations if we have started update */
 
         /* Determine packet length we will transmit */
@@ -1085,7 +1085,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         /* Get next event time */
         next_event_time = ble_ll_conn_get_next_sched_time(connsm);
 
-        /* WWW: need to check this with phy update procedure. There are
+        /* XXX: TODO: need to check this with phy update procedure. There are
            limitations if we have started update */
 
         /*
@@ -1507,7 +1507,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
             pkthdr = OS_MBUF_PKTHDR(txpdu);
         }
 
-        /* WWW: need to check this with phy update procedure. There are
+        /* XXX: TODO: need to check this with phy update procedure. There are
            limitations if we have started update */
         if (txpdu) {
             txhdr = BLE_MBUF_HDR_PTR(txpdu);
@@ -2062,6 +2062,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     if (CONN_F_PHY_UPDATE_SCHED(connsm) &&
         (connsm->event_cntr == connsm->phy_instant)) {
+
         /* Set cur phy to new phy */
         connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
         connsm->phy_data.tx_phy_mode = connsm->phy_data.cur_tx_phy;
@@ -3287,8 +3288,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         os_mbuf_free_chain(txpdu);
                         connsm->cur_tx_pdu = NULL;
                     } else {
-                        /* WWW: need to check this with phy update procedure. There are
-                           limitations if we have started update */
+                        /*  XXX: TODO need to check with phy update procedure.
+                         *  There are limitations if we have started update */
                         rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
                         if (rem_bytes > connsm->eff_max_tx_octets) {
                             txhdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
@@ -3383,7 +3384,7 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     ble_hdr->txinfo.pyld_len = length;
     ble_hdr->txinfo.hdr_byte = hdr_byte;
 
-    /* WWW: need to check this with phy update procedure. There are
+    /* XXX: TODO: need to check this with phy update procedure. There are
        limitations if we have started update */
     /*
      * We need to set the initial payload length if the total length of the
@@ -3675,8 +3676,7 @@ ble_ll_conn_module_reset(void)
     conn_params = &g_ble_ll_conn_params;
     max_phy_pyld = ble_phy_max_data_pdu_pyld();
 
-    /* WWW: change these on change of phy */
-
+    /* NOTE: this all assumes that the default phy is 1Mbps */
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_RX_BYTES), max_phy_pyld);
     conn_params->supp_max_rx_octets = maxbytes;
     conn_params->supp_max_rx_time =

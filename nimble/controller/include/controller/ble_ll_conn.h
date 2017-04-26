@@ -128,12 +128,19 @@ union ble_ll_conn_sm_flags {
 /**
  * Structure used for PHY data inside a connection.
  *
+ * NOTE: the new phy's are the phys we will change to when a phy update
+ * procedure is ongoing and the event counter hits the instant.
+ *
  * tx_phy_mode: chip specific phy mode for tx
- * rx_phy_mode: chip specific phy mode for tx
+ * rx_phy_mode: chip specific phy mode for rx
  * cur_tx_phy: value denoting current tx_phy (not a bitmask!)
  * cur_rx_phy: value denoting current rx phy (not a bitmask!)
- * pref_tx_phys: bitmask of preferred transmit PHYs
- * pref_rx_phys: bitmask of preferred receive PHYs
+ * new_tx_phy: value denoting new tx_phy (not a bitmask!)
+ * new_rx_phy: value denoting new rx phy (not a bitmask!)
+ * req_pref_tx_phy: tx phy sent in a phy request (may be different than host)
+ * req_pref_rx_phy: rx phy sent in a phy request (may be different than host)
+ * host_pref_tx_phys: bitmask of preferred transmit PHYs sent by host
+ * host_pref_rx_phys: bitmask of preferred receive PHYs sent by host
  * phy_options: preferred phy options for coded phy
  */
 struct ble_ll_conn_phy_data

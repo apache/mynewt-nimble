@@ -117,8 +117,9 @@ ble_hs_startup_le_set_evmask_tx(void)
      *     0x0000000000000020 LE Remote Connection Parameter Request Event
      *     0x0000000000000040 LE Data Length Change Event
      *     0x0000000000000200 LE Enhanced Connection Complete Event
+     *     0x0000000000000800 LE PHY Update Complete Event
      */
-    ble_hs_hci_cmd_build_le_set_event_mask(0x000000000000027f,
+    ble_hs_hci_cmd_build_le_set_event_mask(0x0000000000000A7f,
                                            buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
