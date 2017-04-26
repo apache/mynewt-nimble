@@ -89,11 +89,7 @@ struct ble_l2cap_sig_le_credits {
     uint16_t credits;
 } __attribute__((packed));
 
-int ble_l2cap_sig_init_cmd(uint8_t op, uint8_t id, uint8_t payload_len,
-                           struct os_mbuf **out_om, void **out_payload_buf);
 void ble_l2cap_sig_hdr_parse(void *payload, uint16_t len,
-                             struct ble_l2cap_sig_hdr *hdr);
-void ble_l2cap_sig_hdr_write(void *payload, uint16_t len,
                              struct ble_l2cap_sig_hdr *hdr);
 int ble_l2cap_sig_reject_tx(uint16_t conn_handle,
                             uint8_t id, uint16_t reason,
@@ -108,7 +104,8 @@ int ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
                               struct os_mbuf *sdu_rx,
                               ble_l2cap_event_fn *cb, void *cb_arg);
 int ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan);
-int ble_l2cap_sig_le_credits(struct ble_l2cap_chan *chan, uint16_t credits);
+int ble_l2cap_sig_le_credits(uint16_t conn_handle, uint16_t scid,
+                             uint16_t credits);
 #else
 #define ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg) \
                                                                 BLE_HS_ENOTSUP

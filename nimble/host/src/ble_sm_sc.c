@@ -108,31 +108,30 @@ ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
 #endif
 
 int
-ble_sm_sc_io_action(struct ble_sm_proc *proc)
+ble_sm_sc_io_action(struct ble_sm_proc *proc, uint8_t *action)
 {
     struct ble_sm_pair_cmd *pair_req, *pair_rsp;
-    int action;
 
     pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
     pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
 
     if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES ||
         pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
-        action = BLE_SM_IOACT_OOB;
+        *action = BLE_SM_IOACT_OOB;
     } else if (!(pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
                !(pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
-        action = BLE_SM_IOACT_NONE;
+        *action = BLE_SM_IOACT_NONE;
     } else if (pair_req->io_cap >= BLE_SM_IO_CAP_RESERVED ||
                pair_rsp->io_cap >= BLE_SM_IO_CAP_RESERVED) {
-        action = BLE_SM_IOACT_NONE;
+        *action = BLE_SM_IOACT_NONE;
     } else if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        action = ble_sm_sc_init_ioa[pair_rsp->io_cap][pair_req->io_cap];
+        *action = ble_sm_sc_init_ioa[pair_rsp->io_cap][pair_req->io_cap];
     } else {
-        action = ble_sm_sc_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
+        *action = ble_sm_sc_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
     }
 
-    switch (action) {
+    switch (*action) {
     case BLE_SM_IOACT_NONE:
         proc->pair_alg = BLE_SM_PAIR_ALG_JW;
         break;
@@ -155,10 +154,10 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc)
 
     default:
         BLE_HS_DBG_ASSERT(0);
-        break;
+        return BLE_HS_EINVAL;
     }
 
-    return action;
+    return 0;
 }
 
 static int
@@ -403,7 +402,9 @@ ble_sm_sc_random_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
             return;
         }
 
-        ioact = ble_sm_sc_io_action(proc);
+        rc = ble_sm_sc_io_action(proc, &ioact);
+        BLE_HS_DBG_ASSERT(rc == 0);
+
         if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
@@ -480,8 +481,13 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         ble_sm_sc_random_advance(proc);
+        int rc;
 
-        ioact = ble_sm_sc_io_action(proc);
+        rc = ble_sm_sc_io_action(proc, &ioact);
+        if (rc != 0) {
+            BLE_HS_DBG_ASSERT(0);
+        }
+
         if (ble_sm_ioact_state(ioact) == proc->state &&
             !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
 
@@ -531,8 +537,13 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
+        int rc;
 
-        ioact = ble_sm_sc_io_action(proc);
+        rc = ble_sm_sc_io_action(proc, &ioact);
+        if (rc != 0) {
+            BLE_HS_DBG_ASSERT(0);
+        }
+
         if (ble_sm_ioact_state(ioact) == proc->state) {
             res->passkey_params.action = ioact;
         }
@@ -588,9 +599,15 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->enc_cb = 1;
         } else {
             if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+                int rc;
+
                 proc->state = BLE_SM_PROC_STATE_CONFIRM;
 
-                ioact = ble_sm_sc_io_action(proc);
+                rc = ble_sm_sc_io_action(proc, &ioact);
+                if (rc != 0) {
+                        BLE_HS_DBG_ASSERT(0);
+                }
+
                 if (ble_sm_ioact_state(ioact) == proc->state) {
                     res->passkey_params.action = ioact;
                 }
@@ -690,6 +707,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     ble_addr_t peer_addr;
     uint8_t *iocap;
     uint8_t ioact;
+    int rc;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         struct ble_sm_pair_cmd *pair_rsp;
@@ -729,8 +747,11 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
         return;
     }
 
+    rc = ble_sm_sc_io_action(proc, &ioact);
+    if (rc != 0) {
+        BLE_HS_DBG_ASSERT(0);
+    }
 
-    ioact = ble_sm_sc_io_action(proc);
     if (ble_sm_ioact_state(ioact) == proc->state) {
         proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
     }

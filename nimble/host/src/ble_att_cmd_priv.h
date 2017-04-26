@@ -21,11 +21,17 @@
 #define H_BLE_ATT_CMD_
 
 #include <inttypes.h>
+#include <stddef.h>
+#include "os/os_mbuf.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ble_l2cap_chan;
+struct ble_att_hdr {
+    uint8_t opcode;
+    uint8_t data[0];
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -99,6 +105,7 @@ struct ble_att_find_type_value_req {
     uint16_t bavq_start_handle;
     uint16_t bavq_end_handle;
     uint16_t bavq_attr_type;
+    uint16_t bavq_value[0];
 } __attribute__((packed));
 
 /**
@@ -109,6 +116,15 @@ struct ble_att_find_type_value_req {
  */
 #define BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ     1
 #define BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ   4
+
+struct ble_att_handle_group {
+        uint16_t attr_handle;
+        uint16_t group_end_handle;
+} __attribute__((packed));
+
+struct ble_att_find_type_value_rsp {
+    struct ble_att_handle_group list[0];
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -124,6 +140,7 @@ struct ble_att_find_type_value_req {
 struct ble_att_read_type_req {
     uint16_t batq_start_handle;
     uint16_t batq_end_handle;
+    uint8_t uuid[0];
 } __attribute__((packed));
 
 /**
@@ -134,8 +151,15 @@ struct ble_att_read_type_req {
  * | Attribute Data List                | 2 to (ATT_MTU-2)  |
  */
 #define BLE_ATT_READ_TYPE_RSP_BASE_SZ       2
+
+struct ble_att_attr_data_list {
+    uint16_t handle;
+    uint8_t value[0];
+} __attribute__((packed));
+
 struct ble_att_read_type_rsp {
     uint8_t batp_length;
+    struct ble_att_attr_data_list batp_list[0];
 } __attribute__((packed));
 
 #define BLE_ATT_READ_TYPE_ADATA_BASE_SZ     2
@@ -189,6 +213,9 @@ struct ble_att_read_blob_req {
  * | Set Of Handles                     | 4 to (ATT_MTU-1)  |
  */
 #define BLE_ATT_READ_MULT_REQ_BASE_SZ   1
+struct ble_att_read_mult_req {
+        uint16_t handles[0];
+} __attribute__((packed));
 
 /**
  * | Parameter                          | Size (octets)     |
@@ -212,6 +239,7 @@ struct ble_att_read_blob_req {
 struct ble_att_read_group_type_req {
     uint16_t bagq_start_handle;
     uint16_t bagq_end_handle;
+    uint8_t uuid[0];
 } __attribute__((packed));
 
 /**
@@ -240,6 +268,7 @@ struct ble_att_read_group_type_rsp {
 #define BLE_ATT_WRITE_REQ_BASE_SZ       3
 struct ble_att_write_req {
     uint16_t bawq_handle;
+    uint8_t value[0];
 } __attribute__((packed));
 
 #define BLE_ATT_WRITE_RSP_SZ            1
@@ -256,6 +285,7 @@ struct ble_att_write_req {
 struct ble_att_prep_write_cmd {
     uint16_t bapc_handle;
     uint16_t bapc_offset;
+    uint16_t bapc_value[0];
 } __attribute__((packed));
 
 /**
@@ -309,6 +339,19 @@ struct ble_att_indicate_req {
  * | Attribute Opcode                   | 1                 |
  */
 #define BLE_ATT_INDICATE_RSP_SZ         1
+
+/**
+ * | Parameter                          | Size (octets)     |
+ * +------------------------------------+-------------------+
+ * | Attribute Opcode                   | 1                 |
+ * | Attribute Handle                   | 2                 |
+ * | Attribute Value                    | 0 to (ATT_MTU-3)  |
+ */
+#define BLE_ATT_WRITE_CMD_BASE_SZ       3
+struct ble_att_write_cmd {
+    uint16_t handle;
+    uint8_t value[0];
+} __attribute__((packed));
 
 void ble_att_error_rsp_parse(const void *payload, int len,
                              struct ble_att_error_rsp *rsp);
@@ -384,7 +427,8 @@ void ble_att_write_cmd_parse(const void *payload, int len,
                              struct ble_att_write_req *req);
 void ble_att_write_cmd_write(void *payload, int len,
                              const struct ble_att_write_req *req);
-void ble_att_write_cmd_log(const struct ble_att_write_req *cmd);
+void ble_att_write_cmd_log(const struct ble_att_write_cmd *cmd);
+void ble_att_write_req_log(const struct ble_att_write_req *req);
 void ble_att_prep_write_req_parse(const void *payload, int len,
                                   struct ble_att_prep_write_cmd *cmd);
 void ble_att_prep_write_req_write(void *payload, int len,
@@ -413,6 +457,10 @@ void ble_att_indicate_req_write(void *payload, int len,
 void ble_att_indicate_rsp_parse(const void *payload, int len);
 void ble_att_indicate_rsp_write(void *payload, int len);
 void ble_att_indicate_req_log(const struct ble_att_indicate_req *cmd);
+
+void *ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom);
+void *ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
+int ble_att_tx(uint16_t conn_handle, struct os_mbuf *txom);
 
 #ifdef __cplusplus
 }

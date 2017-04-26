@@ -17,22 +17,22 @@
 # under the License.
 #
 
-pkg.name: net/nimble/controller
-pkg.description: Controller side of the nimble Bluetooth Smart stack.
+pkg.name: net/nimble/transport/socket
+pkg.description: Provides HCI transport over socket interface
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
 
-pkg.req_apis:
-    - ble_driver
-    - ble_transport
-    - stats
-
 pkg.deps:
+    - hw/hal
     - kernel/os
     - net/nimble
+    - util/mem
+
+pkg.apis:
+    - ble_transport
 
 pkg.init:
-    ble_ll_init: 250
+    ble_hci_sock_init: 500

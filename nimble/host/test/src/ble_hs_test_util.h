@@ -150,6 +150,13 @@ int ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
                               struct os_mbuf *om);
 int ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
                                            const void *data, int len);
+uint8_t ble_hs_test_util_verify_tx_l2cap_sig(uint16_t opcode, void *cmd,
+                                                 uint16_t cmd_size);
+int ble_hs_test_util_inject_rx_l2cap_sig(uint16_t conn_handle, uint8_t opcode,
+                                     uint8_t id, void *cmd, uint16_t cmd_size);
+void ble_hs_test_util_verify_tx_l2cap(struct os_mbuf *txom);
+void ble_hs_test_util_inject_rx_l2cap(uint16_t conn_handle, uint16_t cid,
+                                      struct os_mbuf *rxom);
 void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 void ble_hs_test_util_set_att_mtu(uint16_t conn_handle, uint16_t mtu);
 int ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req,
@@ -224,6 +231,12 @@ void ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle,
                                            uint16_t offset,
                                            const void *data, int data_len);
 void ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags);
+void ble_hs_test_util_verify_tx_find_type_value(uint16_t start_handle,
+                                                uint16_t end_handle,
+                                                uint16_t attr_type,
+                                                const void *value,
+                                                uint16_t value_len);
+void ble_hs_test_util_verify_tx_disc_svc_uuid(const ble_uuid_t *uuid);
 void ble_hs_test_util_verify_tx_read_rsp(uint8_t *attr_data, int attr_len);
 void ble_hs_test_util_verify_tx_read_blob_rsp(uint8_t *attr_data,
                                               int attr_len);
