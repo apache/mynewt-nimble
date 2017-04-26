@@ -28,7 +28,7 @@
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
-#include "nrf52_bitfields.h"
+#include "nrf.h"
 
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
@@ -55,11 +55,13 @@ extern uint32_t g_nrf_irk_list[];
 /* Maximum length of frames */
 #define NRF_MAXLEN              (255)
 #define NRF_BALEN               (3)     /* For base address of 3 bytes */
-#define NRF_RX_START_OFFSET     (5)
 
 /* Maximum tx power */
 #define NRF_TX_PWR_MAX_DBM      (4)
 #define NRF_TX_PWR_MIN_DBM      (-40)
+
+/* The number of different modulations */
+#define BLE_PHY_NUM_MODULATIONS (4)
 
 /* BLE PHY data structure */
 struct ble_phy_obj
@@ -73,8 +75,12 @@ struct ble_phy_obj
     uint8_t phy_encrypted;
     uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
+    uint8_t phy_txtorx_phy;
+    uint8_t phy_cur_phy;
+    uint8_t phy_pkt_start_off[BLE_PHY_NUM_MODULATIONS];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
+    uint32_t phy_pcnf0;
     struct ble_mbuf_hdr rxhdr;
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
@@ -180,6 +186,68 @@ struct nrf_ccm_data
 } __attribute__((packed));
 
 struct nrf_ccm_data g_nrf_ccm_data;
+#endif
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+/**
+ * Calculate the length of BLE PDU
+ *
+ * Returns the number of usecs it will take to transmit a PDU of payload
+ * length 'len' bytes. Each byte takes 8 usecs. This routine includes the LL
+ * overhead: preamble (1), access addr (4) and crc (3) and the PDU header (2)
+ * for a total of 10 bytes.
+ *
+ * @param pyld_len PDU payload length (does not include include header).
+ * @param phy PHY modulation being used.
+ *
+ * @return uint32_t The number of usecs it will take to transmit a PDU of
+ *                  length 'len' bytes.
+ */
+uint32_t
+ble_phy_pdu_dur(uint8_t pyld_len, int phy)
+{
+    uint32_t usecs;
+
+    if (phy == BLE_PHY_1M) {
+        /* 8 usecs per byte */
+        usecs = (pyld_len + BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN
+                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 3;
+    } else if (phy == BLE_PHY_2M) {
+        /* 4 usecs per byte */
+        usecs = (pyld_len + (2 * BLE_LL_PREAMBLE_LEN) + BLE_LL_ACC_ADDR_LEN
+                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 2;
+    } else {
+        /* XXX: TODO implement */
+        assert(0);
+    }
+    return usecs;
+}
+
+
+/* Packet start offset (in usecs). This is the preamble plus access address. */
+uint32_t
+ble_phy_pdu_start_off(int phy)
+{
+    return g_ble_phy_data.phy_pkt_start_off[phy];
+}
+
+void
+ble_phy_set_mode(int cur_phy, int txtorx_phy)
+{
+
+    if (cur_phy == BLE_PHY_1M) {
+        NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
+        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;    /* Default is 8 bits */
+    } else if (cur_phy == BLE_PHY_2M) {
+        NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
+        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 | RADIO_PCNF0_PLEN_16bit;
+    } else {
+        /* XXX: TODO added coded PHY */
+        assert(0);
+    }
+    g_ble_phy_data.phy_cur_phy = (uint8_t)cur_phy;
+    g_ble_phy_data.phy_txtorx_phy = (uint8_t)txtorx_phy;
+}
 #endif
 
 /**
@@ -381,21 +449,25 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
 {
     uint32_t end_time;
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    int phy;
+
+    phy = g_ble_phy_data.phy_cur_phy;
+#endif
     if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
         /*
          * Timeout occurs an IFS time plus time it takes to receive address
          * from the transmit end. We add additional time to make sure the
          * address event comes before the compare. Note that transmit end
          * is captured in CC[2]
-         *
-         * XXX: this assumes 1Mbps as 40 usecs is header rx time for 1Mbps
          */
-        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS + 40 + 16;
+        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
+            ble_phy_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
     } else {
         /* CC[0] is set to when RXEN occurs. NOTE: the extra 16 usecs is
            jitter */
         end_time = NRF_TIMER0->CC[0] + XCVR_RX_START_DELAY_USECS + wfr_usecs +
-            40 + 16;
+            ble_phy_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
     }
 
     /* wfr_secs is the time from rxen until timeout */
@@ -486,15 +558,16 @@ ble_phy_rx_xcvr_setup(void)
 static void
 ble_phy_tx_end_isr(void)
 {
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    int phy;
+#endif
     uint8_t was_encrypted;
     uint8_t transition;
     uint8_t txlen;
     uint32_t wfr_time;
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768)
     uint32_t txstart;
-#endif
 
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768)
     /*
      * Read captured tx start time. This is not the actual transmit start
      * time but it is the time at which the address event occurred
@@ -545,6 +618,15 @@ ble_phy_tx_end_isr(void)
 
     transition = g_ble_phy_data.phy_transition;
     if (transition == BLE_PHY_TRANSITION_TX_RX) {
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+        /* See if a new phy has been specified for tx to rx transition */
+        phy = g_ble_phy_data.phy_txtorx_phy;
+        if (phy != g_ble_phy_data.phy_cur_phy) {
+            ble_phy_set_mode(phy, phy);
+        }
+#endif
+
         /* Packet pointer needs to be reset. */
         ble_phy_rx_xcvr_setup();
 
@@ -559,8 +641,13 @@ ble_phy_tx_end_isr(void)
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
 #else
-        wfr_time = BLE_LL_WFR_USECS - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
-        wfr_time += BLE_TX_DUR_USECS_M(txlen);
+        /*
+         * NOTE: technically we only need to add the jitter once but we
+         * add twice the jitter just to be sure.
+         */
+        wfr_time = BLE_LL_IFS + (2 * BLE_LL_JITTER_USECS) +
+            ble_phy_pdu_start_off(phy) - ble_phy_pdu_start_off(phy);
+        wfr_time += ble_phy_pdu_dur(txlen, phy);
         wfr_time = os_cputime_usecs_to_ticks(wfr_time);
         ble_ll_wfr_enable(txstart + wfr_time);
 #endif
@@ -686,12 +773,11 @@ ble_phy_rx_start_isr(void)
 
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     /*
-     * Calculate receive start time. We assume that the header time is
-     * 40 usecs (only 1 mbps supported right now).
+     * Calculate receive start time.
      *
      * XXX: possibly use other routine with remainder!
      */
-    usecs = NRF_TIMER0->CC[1] - 40;
+    usecs = NRF_TIMER0->CC[1] - ble_phy_pdu_start_off(g_ble_phy_data.phy_cur_phy);
     ticks = os_cputime_usecs_to_ticks(usecs);
     ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
     if (ble_hdr->rem_usecs == 31) {
@@ -701,7 +787,7 @@ ble_phy_rx_start_isr(void)
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
 #else
     ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
-        os_cputime_usecs_to_ticks(BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET));
+        os_cputime_usecs_to_ticks(ble_phy_pdu_start_off(g_ble_phy_data.phy_cur_phy));
 #endif
 
     /* XXX: I wonder if we always have the 1st byte. If we need to wait for
@@ -812,6 +898,15 @@ ble_phy_init(void)
 {
     int rc;
 
+    /* XXX: TODO add coded phy */
+    /* Set packet start offsets for various phys */
+    g_ble_phy_data.phy_pkt_start_off[BLE_PHY_1M] = 40;  /* 40 usecs */
+    g_ble_phy_data.phy_pkt_start_off[BLE_PHY_2M] = 24;  /* 24 usecs */
+
+    /* Default phy to use is 1M */
+    g_ble_phy_data.phy_cur_phy = BLE_PHY_1M;
+    g_ble_phy_data.phy_txtorx_phy = BLE_PHY_1M;
+
 #if !defined(BLE_XCVR_RFCLK)
     uint32_t os_tmo;
 
@@ -841,10 +936,11 @@ ble_phy_init(void)
 
     /* Set configuration registers */
     NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
-    NRF_RADIO->PCNF0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos)    |
-                       RADIO_PCNF0_S1INCL_Msk                       |
-                       (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos)        |
-                       (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
+    g_ble_phy_data.phy_pcnf0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos)    |
+                               RADIO_PCNF0_S1INCL_Msk                       |
+                               (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos)        |
+                               (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
+    NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;
 
     /* XXX: should maxlen be 251 for encryption? */
     NRF_RADIO->PCNF1 = NRF_MAXLEN |
@@ -1061,6 +1157,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     }
     return rc;
 }
+
 /**
  * Called to set the start time of a reception
  *

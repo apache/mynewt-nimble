@@ -198,7 +198,7 @@ ble_ll_ctrl_chk_supp_time(uint16_t t)
  * @param ble_err
  */
 void
-ble_ll_ctrl_phy_update_cancel(strcut ble_ll_conn_sm *connsm, uint8_t ble_err)
+ble_ll_ctrl_phy_update_cancel(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 {
     /* cancel any pending phy update procedures */
     CLR_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
@@ -754,11 +754,11 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 void
 ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
-    uint8_t new_tx_phy_mask;
-    uint8_t new_rx_phy_mask;
+    int no_change;
+    uint8_t new_m_to_s_mask;
+    uint8_t new_s_to_m_mask;
     uint8_t new_tx_phy;
     uint8_t new_rx_phy;
-    int no_change;
     uint16_t instant;
     uint16_t delta;
 
@@ -777,17 +777,22 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
          * doing either a PEER, CTRLR, or HOST phy update.
          */
         /* get the new phy masks and see if we need to change */
-        new_tx_phy_mask = dptr[0];
-        new_rx_phy_mask = dptr[1];
+        new_m_to_s_mask = dptr[0];
+        new_s_to_m_mask = dptr[1];
         instant = get_le16(dptr + 2);
 
-        no_change = 0;
-        if ((new_tx_phy_mask == 0) && (new_rx_phy_mask == 0)) {
+        if ((new_m_to_s_mask == 0) && (new_s_to_m_mask == 0)) {
             /* No change in phy */
             no_change = 1;
         } else {
-            new_tx_phy = ble_ll_ctrl_phy_mask_to_numeric(new_tx_phy_mask);
-            new_rx_phy = ble_ll_ctrl_phy_mask_to_numeric(new_rx_phy_mask);
+            no_change = 0;
+            /*
+             * NOTE: from the slaves perspective, the m to s phy is the one
+             * that the slave will receive on; s to m is the one it will
+             * transmit on
+             */
+            new_rx_phy = ble_ll_ctrl_phy_mask_to_numeric(new_m_to_s_mask);
+            new_tx_phy = ble_ll_ctrl_phy_mask_to_numeric(new_s_to_m_mask);
 
             if ((new_tx_phy == 0) && (new_rx_phy == 0)) {
                 /* XXX: this is an error! What to do??? */
@@ -795,7 +800,7 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
             }
 
             if ((new_tx_phy == connsm->phy_data.cur_tx_phy) &&
-                (new_rx_phy == connsm->phy_data.cur_tx_phy)) {
+                (new_rx_phy == connsm->phy_data.cur_rx_phy)) {
                 no_change = 1;
             }
         }
@@ -1961,11 +1966,8 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 {
     int i;
 
-    /* WWW: new rules! Cannot start certain control procedures if other
+    /* XXX: TODO new rules! Cannot start certain control procedures if other
      * ones are peer initiated. We need to wait. Deal with this.
-     *
-     * WWW: Do not forget code that when some of these things end we need
-     * to check to start other control procedures
      */
 
     /*

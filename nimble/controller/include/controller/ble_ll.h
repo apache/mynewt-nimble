@@ -66,16 +66,8 @@ extern "C" {
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
 
-/*
- * The amount of time that we will wait to hear the start of a receive
- * packet after we have transmitted a packet. This time is at least
- * an IFS time plus the time to receive the preamble and access address (which
- * is 40 usecs). We add an additional 32 usecs just to be safe.
- *
- * XXX: move this definition and figure out how we determine the worst-case
- * jitter (spec. should have this).
- */
-#define BLE_LL_WFR_USECS    (BLE_LL_IFS + 40 + 32)
+/* Timing jitter as per spec is +/16 usecs */
+#define BLE_LL_JITTER_USECS         (16)
 
 /* Packet queue header definition */
 STAILQ_HEAD(ble_ll_pkt_q, os_mbuf_pkthdr);
@@ -219,7 +211,7 @@ struct ble_dev_addr
 /*
  * LL packet format
  *
- *  -> Preamble         (1 byte)
+ *  -> Preamble         (1/2 bytes)
  *  -> Access Address   (4 bytes)
  *  -> PDU              (2 to 257 octets)
  *  -> CRC              (3 bytes)
@@ -227,31 +219,10 @@ struct ble_dev_addr
 #define BLE_LL_PREAMBLE_LEN     (1)
 #define BLE_LL_ACC_ADDR_LEN     (4)
 #define BLE_LL_CRC_LEN          (3)
-#define BLE_LL_OVERHEAD_LEN     \
-    (BLE_LL_CRC_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_PREAMBLE_LEN)
 #define BLE_LL_PDU_HDR_LEN      (2)
 #define BLE_LL_MIN_PDU_LEN      (BLE_LL_PDU_HDR_LEN)
 #define BLE_LL_MAX_PDU_LEN      (257)
 #define BLE_LL_CRCINIT_ADV      (0x555555)
-#define BLE_LL_PDU_OVERHEAD     (BLE_LL_OVERHEAD_LEN + BLE_LL_PDU_HDR_LEN)
-
-/**
- * ll pdu tx time get
- *
- * Returns the number of usecs it will take to transmit a PDU of payload
- * length 'len' bytes. Each byte takes 8 usecs. This routine includes the LL
- * overhead: preamble (1), access addr (4) and crc (3) and the PDU header (2)
- * for a total of 10 bytes.
- *
- * @param len The length of the PDU payload (does not include include header).
- *
- * @return uint16_t The number of usecs it will take to transmit a PDU of
- *                  length 'len' bytes.
- */
-#define BLE_TX_DUR_USECS_M(len)     (((len) + BLE_LL_PDU_OVERHEAD) << 3)
-
-/* Calculates the time it takes to transmit 'len' bytes */
-#define BLE_TX_LEN_USECS_M(len)     ((len) << 3)
 
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)

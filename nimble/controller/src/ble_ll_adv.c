@@ -484,6 +484,10 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_set_mode(BLE_PHY_1M, BLE_PHY_1M);
+#endif
+
     /* Transmit advertisement */
     rc = ble_phy_tx(adv_pdu, end_trans);
     os_mbuf_free_chain(adv_pdu);
@@ -523,7 +527,7 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
     sch->sched_type = BLE_LL_SCHED_TYPE_ADV;
 
     /* Set end time to maximum time this schedule item may take */
-    max_usecs = BLE_TX_DUR_USECS_M(advsm->adv_pdu_len);
+    max_usecs = ble_phy_pdu_dur(advsm->adv_pdu_len, BLE_PHY_1M);
     switch (advsm->adv_type) {
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
@@ -1216,6 +1220,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         scan_rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
         if (scan_rsp) {
+            /* XXX TODO: assume we do not need to change phy mode */
             ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
             rc = ble_phy_tx(scan_rsp, BLE_PHY_TRANSITION_NONE);
             if (!rc) {

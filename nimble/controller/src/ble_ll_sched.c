@@ -306,6 +306,11 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     struct ble_ll_sched_item *entry;
     struct ble_ll_sched_item *sch;
 
+    /*
+     * XXX: TODO this code assumes the advertisement and connect request were
+     * sent at 1Mbps.
+     */
+
     /* Get schedule element from connection */
     rc = -1;
     sch = &connsm->conn_sch;
@@ -360,7 +365,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     itvl_t = connsm->conn_itvl_ticks;
 #else
     adv_rxend = ble_hdr->beg_cputime +
-        os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(pyld_len));
+        os_cputime_usecs_to_ticks(ble_phy_pdu_dur(pyld_len, BLE_PHY_1M));
     /*
      * The earliest start time is 1.25 msecs from the end of the connect
      * request transmission. Note that adv_rxend is the end of the received
@@ -370,8 +375,9 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      */
     dur = os_cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
     earliest_start = adv_rxend +
-        os_cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
-                                  BLE_LL_CONN_INITIAL_OFFSET);
+        os_cputime_usecs_to_ticks(BLE_LL_IFS +
+            ble_phy_pdu_dur(BLE_CONNECT_REQ_LEN, BLE_PHY_1M) +
+            BLE_LL_CONN_INITIAL_OFFSET);
     earliest_end = earliest_start + dur;
     itvl_t = os_cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
 #endif

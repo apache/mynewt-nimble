@@ -55,7 +55,6 @@ extern uint32_t g_nrf_irk_list[];
 /* Maximum length of frames */
 #define NRF_MAXLEN              (255)
 #define NRF_BALEN               (3)     /* For base address of 3 bytes */
-#define NRF_RX_START_OFFSET     (5)
 
 /* Maximum tx power */
 #define NRF_TX_PWR_MAX_DBM      (4)
@@ -385,16 +384,14 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
          * Timeout occurs an IFS time plus time it takes to receive address
          * from the transmit end. We add additional time to make sure the
          * address event comes before the compare. Note that transmit end
-         * is captured in CC[2]
-         *
-         * XXX: this assumes 1Mbps as 40 usecs is header rx time for 1Mbps
+         * is captured in CC[2]. I just made up the 16 usecs I add here.
          */
-        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS + 40 + 16;
+        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
+            ble_phy_pdu_start_off(BLE_PHY_1M) + 16;
     } else {
-        /* CC[0] is set to when RXEN occurs. NOTE: the extra 16 usecs is
-           jitter */
+        /* CC[0] is set to when RXEN occurs. */
         end_time = NRF_TIMER0->CC[0] + XCVR_RX_START_DELAY_USECS + wfr_usecs +
-            40 + 16;
+            ble_phy_pdu_start_off(BLE_PHY_1M) + BLE_LL_JITTER_USECS;
     }
 
     /* wfr_secs is the time from rxen until timeout */
@@ -568,8 +565,10 @@ ble_phy_tx_end_isr(void)
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
 #else
-        wfr_time = BLE_LL_WFR_USECS - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
-        wfr_time += BLE_TX_DUR_USECS_M(txlen);
+        wfr_time = (BLE_LL_IFS + ble_phy_pdu_start_off(BLE_PHY_1M) +
+                    (2 * BLE_LL_JITTER_USECS)) -
+                    ble_phy_pdu_start_off(BLE_PHY_1M);
+        wfr_time += ble_phy_pdu_dur(txlen, BLE_PHY_1M);
         wfr_time = os_cputime_usecs_to_ticks(wfr_time);
         ble_ll_wfr_enable(txstart + wfr_time);
 #endif
@@ -699,12 +698,11 @@ ble_phy_rx_start_isr(void)
 
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     /*
-     * Calculate receive start time. We assume that the header time is
-     * 40 usecs (only 1 mbps supported right now).
+     * Calculate receive start time.
      *
      * XXX: possibly use other routine with remainder!
      */
-    usecs = NRF_TIMER0->CC[1] - 40;
+    usecs = NRF_TIMER0->CC[1] - ble_phy_pdu_start_off(BLE_PHY_1M);
     ticks = os_cputime_usecs_to_ticks(usecs);
     ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
     if (ble_hdr->rem_usecs == 31) {
@@ -714,7 +712,7 @@ ble_phy_rx_start_isr(void)
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
 #else
     ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
-        os_cputime_usecs_to_ticks(BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET));
+        os_cputime_usecs_to_ticks(ble_phy_pdu_start_off(BLE_PHY_1M));
 #endif
 
     /* Wait to get 1st byte of frame */
