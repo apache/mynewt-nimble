@@ -64,6 +64,7 @@ extern "C" {
 
 #define PHY_UNCODED                    (0)
 #define PHY_CODED                      (1)
+#define PHY_NOT_CONFIGURED             (0xFF)
 
 struct ble_ll_scan_params
 {
@@ -100,7 +101,9 @@ struct ble_ll_scan_sm
     uint16_t period;
 
     uint8_t cur_phy;
+    uint8_t next_phy;
     struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
+    uint8_t ext_scanning;
 };
 
 /* Scan types */
@@ -113,7 +116,11 @@ struct ble_ll_scan_sm
 int ble_ll_scan_set_scan_params(uint8_t *cmd);
 
 /* Turn scanning on/off */
-int ble_ll_scan_set_enable(uint8_t *cmd);
+int ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext);
+
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+int ble_ll_set_ext_scan_params(uint8_t *cmd);
+#endif
 
 /*--- Controller Internal API ---*/
 /* Initialize the scanner */

@@ -1410,6 +1410,109 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+static int
+ble_ll_check_scan_params(uint8_t type, uint16_t itvl, uint16_t window)
+{
+    /* Check scan type */
+    if ((type != BLE_HCI_SCAN_TYPE_PASSIVE) &&
+        (type != BLE_HCI_SCAN_TYPE_ACTIVE)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check interval and window */
+    if ((itvl < BLE_HCI_SCAN_ITVL_MIN) ||
+        (itvl > BLE_HCI_SCAN_ITVL_MAX) ||
+        (window < BLE_HCI_SCAN_WINDOW_MIN) ||
+        (window > BLE_HCI_SCAN_WINDOW_MAX) ||
+        (itvl < window)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return 0;
+}
+
+int
+ble_ll_set_ext_scan_params(uint8_t *cmd)
+{
+    struct ble_ll_scan_params new_params[BLE_LL_SCAN_PHY_NUMBER] = { };
+    struct ble_ll_scan_params *uncoded = &new_params[PHY_UNCODED];
+    struct ble_ll_scan_params *coded = &new_params[PHY_CODED];
+    uint8_t idx;
+    int rc;
+
+    /* If already enabled, we return an error */
+    if (g_ble_ll_scan_sm.scan_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* Check own addr type */
+    if (cmd[0] > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    coded->own_addr_type = cmd[0];
+    uncoded->own_addr_type = cmd[0];
+
+    /* Check scanner filter policy */
+    if (cmd[1] > BLE_HCI_SCAN_FILT_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    coded->scan_filt_policy = cmd[1];
+    uncoded->scan_filt_policy = cmd[1];
+
+    if ((cmd[2] == 0) || (cmd[2] >
+            (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_CODED_PREF_MASK))) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    idx = 3;
+    if (cmd[2] & BLE_HCI_LE_PHY_1M_PREF_MASK) {
+        uncoded->scan_type = cmd[idx];
+        idx++;
+        uncoded->scan_itvl = get_le16(cmd + idx);
+        idx += 2;
+        uncoded->scan_window = get_le16(cmd + idx);
+        idx += 2;
+
+        rc = ble_ll_check_scan_params(uncoded->scan_type,
+                                      uncoded->scan_itvl,
+                                      uncoded->scan_window);
+        if (rc) {
+            return rc;
+        }
+
+        /* That means user whats to use this PHY for scanning */
+        uncoded->configured = 1;
+    }
+
+    if (cmd[2] & BLE_HCI_LE_PHY_CODED_PREF_MASK) {
+        coded->scan_type = cmd[idx];
+        idx++;
+        coded->scan_itvl = get_le16(cmd + idx);
+        idx += 2;
+        coded->scan_window = get_le16(cmd + idx);
+        idx += 2;
+
+        rc = ble_ll_check_scan_params(coded->scan_type,
+                                      coded->scan_itvl,
+                                      coded->scan_window);
+        if (rc) {
+            return rc;
+        }
+
+        /* That means user whats to use this PHY for scanning */
+        coded->configured = 1;
+    }
+
+    memcpy(g_ble_ll_scan_params, new_params, sizeof(new_params));
+
+    return 0;
+}
+
+#endif
+
 /**
  * ble ll scan set enable
  *
@@ -1422,7 +1525,7 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
  * @return int BLE error code.
  */
 int
-ble_ll_scan_set_enable(uint8_t *cmd)
+ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
 {
     int rc;
     uint8_t filter_dups;
@@ -1430,6 +1533,8 @@ ble_ll_scan_set_enable(uint8_t *cmd)
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
     struct ble_ll_scan_params *scanphy;
+    uint16_t dur;
+    uint16_t period;
     int i;
 
     /* Check for valid parameters */
@@ -1439,11 +1544,31 @@ ble_ll_scan_set_enable(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    rc = BLE_ERR_SUCCESS;
     scansm = &g_ble_ll_scan_sm;
+
+    scansm->ext_scanning = ext;
+
+    if (ext) {
+        /* TODO: Mark that extended scan is ongoing in order to send
+        * correct advertising report
+        */
+
+        dur = get_le16(cmd + 2);
+        period = get_le16(cmd + 4);
+
+        /* TODO Use period and duration */
+        (void) dur;
+        (void) period;
+    }
+
+    rc = BLE_ERR_SUCCESS;
     if (enable) {
         /* If already enabled, do nothing */
         if (!scansm->scan_enabled) {
+
+            scansm->cur_phy = PHY_NOT_CONFIGURED;
+            scansm->next_phy = PHY_NOT_CONFIGURED;
+
             for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
                 scanphy = &scansm->phy_data[i];
                 scanp = &g_ble_ll_scan_params[i];
@@ -1459,10 +1584,13 @@ ble_ll_scan_set_enable(uint8_t *cmd)
                 scanphy->scan_filt_policy = scanp->scan_filt_policy;
                 scanphy->own_addr_type = scanp->own_addr_type;
                 scansm->scan_filt_dups = filter_dups;
-            }
 
-            /* Start the scanning state machine */
-            scansm->cur_phy = PHY_UNCODED;
+                if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
+                    scansm->cur_phy = i;
+                } else {
+                    scansm->next_phy = i;
+                }
+            }
 
             rc = ble_ll_scan_sm_start(scansm);
         } else {

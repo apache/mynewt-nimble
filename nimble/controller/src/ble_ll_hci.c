@@ -735,7 +735,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_adv_set_enable(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
-        rc = ble_ll_scan_set_enable(cmdbuf);
+        rc = ble_ll_scan_set_enable(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
         rc = ble_ll_scan_set_scan_params(cmdbuf);
@@ -836,6 +836,14 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_SET_PRIVACY_MODE:
         rc = ble_ll_resolve_set_priv_mode(cmdbuf);
         break;
+#endif
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
+        rc = ble_ll_set_ext_scan_params(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
+        rc = ble_ll_scan_set_enable(cmdbuf, 1);
+    break;
 #endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
