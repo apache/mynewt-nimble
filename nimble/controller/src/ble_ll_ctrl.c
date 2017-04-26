@@ -648,8 +648,17 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 static void
 ble_ll_ctrl_phy_req_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
 {
-    ctrdata[0] = connsm->phy_data.host_pref_tx_phys;
-    ctrdata[1] = connsm->phy_data.host_pref_rx_phys;
+    /* If no preference we use current phy */
+    if (connsm->phy_data.host_pref_tx_phys == 0) {
+        ctrdata[0] = CONN_CUR_TX_PHY_MASK(connsm);
+    } else {
+        ctrdata[0] = connsm->phy_data.host_pref_tx_phys;
+    }
+    if (connsm->phy_data.host_pref_rx_phys == 0) {
+        ctrdata[1] = CONN_CUR_RX_PHY_MASK(connsm);
+    } else {
+        ctrdata[1] = connsm->phy_data.host_pref_rx_phys;
+    }
 }
 
 static uint8_t
@@ -727,6 +736,7 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_PHY_UPDATE) {
             ble_ll_ctrl_phy_update_ind_make(connsm, dptr, rsp, 0);
+            os_callout_stop(&connsm->ctrl_proc_rsp_timer);
             rsp_opcode = BLE_LL_CTRL_PHY_UPDATE_IND;
         }
 

@@ -240,7 +240,8 @@ ble_phy_set_mode(int cur_phy, int txtorx_phy)
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;    /* Default is 8 bits */
     } else if (cur_phy == BLE_PHY_2M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
-        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 | RADIO_PCNF0_PLEN_16bit;
+        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
+            (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos);
     } else {
         /* XXX: TODO added coded PHY */
         assert(0);
