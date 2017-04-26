@@ -827,7 +827,7 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
                     rc = BLE_ERR_CMD_DISALLOWED;
                 } else {
                     /* This control procedure better not be pending! */
-                    assert(!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_TERMINATE));
+                    assert(CONN_F_TERMINATE_STARTED(connsm) == 0);
 
                     /* Record the disconnect reason */
                     connsm->disconnect_reason = reason;

@@ -1398,7 +1398,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
     ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
     om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
     if (om) {
-        connsm->pending_ctrl_procs |= (1 << ctrl_proc);
+        CONN_F_TERMINATE_STARTED(connsm) = 1;
 
         /* Set terminate "timeout" */
         usecs = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
@@ -1462,14 +1462,19 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 {
     int i;
 
-    /* If we are terminating, dont start any new procedures */
+    /*
+     * If we are terminating, dont start any new procedures but start
+     * terminate if needed
+     */
     if (connsm->disconnect_reason) {
-        /*
-         * If the terminate procedure is not pending it means we were not
-         * able to start it right away (no control pdu was available).
-         * Start it now.
-         */
-        ble_ll_ctrl_terminate_start(connsm);
+        if (!CONN_F_TERMINATE_STARTED(connsm)) {
+            /*
+             * If the terminate procedure has not started it means we were not
+             * able to start it right away (no control pdu was available).
+             * Start it now. No need to start any other procedures.
+             */
+            ble_ll_ctrl_terminate_start(connsm);
+        }
         return;
     }
 

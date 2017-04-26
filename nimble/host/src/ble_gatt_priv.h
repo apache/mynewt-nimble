@@ -107,7 +107,7 @@ struct ble_gatts_conn {
 int ble_gattc_locked_by_cur_task(void);
 void ble_gatts_indicate_fail_notconn(uint16_t conn_handle);
 
-void ble_gattc_rx_err(uint16_t conn_handle, struct ble_att_error_rsp *rsp);
+void ble_gattc_rx_err(uint16_t conn_handle, uint16_t handle, uint16_t status);
 void ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu);
 void ble_gattc_rx_read_type_adata(uint16_t conn_handle,
                                   struct ble_att_read_type_adata *adata);
@@ -126,7 +126,7 @@ void ble_gattc_rx_find_type_value_hinfo(
 void ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status);
 void ble_gattc_rx_write_rsp(uint16_t conn_handle);
 void ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
-                                 struct ble_att_prep_write_cmd *rsp,
+                                 uint16_t handle, uint16_t offset,
                                  struct os_mbuf **rxom);
 void ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status);
 void ble_gattc_rx_indicate_rsp(uint16_t conn_handle);
