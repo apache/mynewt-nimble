@@ -179,6 +179,34 @@ void ble_phy_resolv_list_enable(void);
 /* Disable phy resolving list */
 void ble_phy_resolv_list_disable(void);
 
+/*
+ * These definitions are used for the 'phy' parameters in the API listed below.
+ * These are numbered in a specific order to save code. The HCI definitions for
+ * the PHY modes for 1Mbps and 2Mbps are the same here. For the coded phy
+ * they need to be translated from the HCI number to either 0 or 3. This
+ * was done in order to save code when translating between the HCI phy value
+ * and the phy API.
+ */
+#define BLE_PHY_CODED_125KBPS   (0)
+#define BLE_PHY_1M              (1)
+#define BLE_PHY_2M              (2)
+#define BLE_PHY_CODED_500KBPS   (3)
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
+uint32_t ble_phy_pdu_dur(uint8_t len, int phy);
+uint32_t ble_phy_pdu_start_off(int phy);
+void ble_phy_set_mode(int cur_phy, int txtorx_phy);
+#else
+#define ble_phy_pdu_dur(len, phy)   \
+    (((len) + BLE_LL_PDU_HDR_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_PREAMBLE_LEN \
+      + BLE_LL_CRC_LEN) << 3)
+
+#define ble_phy_pdu_start_off(phy)      (40)
+
+#endif
+
+
+
 #ifdef __cplusplus
 }
 #endif

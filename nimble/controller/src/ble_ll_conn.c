@@ -117,17 +117,6 @@ extern void bletest_completed_pkt(uint16_t handle);
  *  1) The current connection event has not ended but a schedule item starts
  */
 
-/*
- * The amount of time that we will wait to hear the start of a receive
- * packet after we have transmitted a packet. This time is at least
- * an IFS time plus the time to receive the preamble and access address. We
- * add an additional 32 usecs just to be safe.
- *
- * XXX: move this definition and figure out how we determine the worst-case
- * jitter (spec. should have this).
- */
-#define BLE_LL_WFR_USECS                    (BLE_LL_IFS + 40 + 32)
-
 /* This is a dummy structure we use for the empty PDU */
 struct ble_ll_empty_pdu
 {
@@ -1036,6 +1025,9 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
         ble_hdr = BLE_MBUF_HDR_PTR(m);
 
+        /* WWW: need to check this with phy update procedure. There are
+           limitations if we have started update */
+
         /* Determine packet length we will transmit */
         cur_txlen = connsm->eff_max_tx_octets;
         pktlen = pkthdr->omp_len;
@@ -1093,6 +1085,9 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         /* Get next event time */
         next_event_time = ble_ll_conn_get_next_sched_time(connsm);
 
+        /* WWW: need to check this with phy update procedure. There are
+           limitations if we have started update */
+
         /*
          * Dont bother to set the MD bit if we cannot do the following:
          *  -> wait IFS, send the current frame.
@@ -1122,8 +1117,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
          * received a frame and we are replying to it.
          */
         ticks = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
-                BLE_TX_DUR_USECS_M(next_txlen) +
-                BLE_TX_DUR_USECS_M(cur_txlen);
+                ble_phy_pdu_dur(next_txlen, connsm->phy_data.tx_phy_mode) +
+                ble_phy_pdu_dur(cur_txlen, connsm->phy_data.tx_phy_mode);
 
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             ticks += (BLE_LL_IFS + connsm->eff_max_rx_time);
@@ -1271,6 +1266,10 @@ conn_tx_pdu:
     }
 #endif
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_set_mode(connsm->phy_data.tx_phy_mode,connsm->phy_data.rx_phy_mode);
+#endif
+
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
     rc = ble_phy_tx(m, end_transition);
@@ -1387,6 +1386,11 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
                 ble_phy_encrypt_disable();
             }
 #endif
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_set_mode(connsm->phy_data.rx_phy_mode,connsm->phy_data.rx_phy_mode);
+#endif
+
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         /* XXX: what is this really for the slave? */
         start = sch->start_time + g_ble_ll_sched_offset_ticks;
@@ -1433,8 +1437,13 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
                 (2 * connsm->slave_cur_window_widening);
             ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, usecs);
 #else
-            usecs = connsm->slave_cur_tx_win_usecs + BLE_LL_WFR_USECS +
-                connsm->slave_cur_window_widening;
+            /*
+             * NOTE: technically we do not need twice the jitter but I want
+             * to be sure we do not bail out early.
+             */
+            usecs = connsm->slave_cur_tx_win_usecs + BLE_LL_IFS +
+                ble_phy_pdu_start_off(connsm->rx_phy_mode) +
+                (BLE_LL_JITTER_USECS * 2) + connsm->slave_cur_window_widening;
             wfr_time = connsm->anchor_point + os_cputime_usecs_to_ticks(usecs);
             ble_ll_wfr_enable(wfr_time);
 #endif
@@ -1498,16 +1507,18 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
             pkthdr = OS_MBUF_PKTHDR(txpdu);
         }
 
+        /* WWW: need to check this with phy update procedure. There are
+           limitations if we have started update */
         if (txpdu) {
             txhdr = BLE_MBUF_HDR_PTR(txpdu);
             rem_bytes = pkthdr->omp_len - txhdr->txinfo.offset;
             if (rem_bytes > connsm->eff_max_tx_octets) {
                 rem_bytes = connsm->eff_max_tx_octets;
             }
-            usecs = BLE_TX_DUR_USECS_M(rem_bytes);
+            usecs = ble_phy_pdu_dur(rem_bytes, connsm->phy_data.tx_phy_mode);
         } else {
             /* We will send empty pdu (just a LL header) */
-            usecs = BLE_TX_DUR_USECS_M(0);
+            usecs = ble_phy_pdu_dur(0, connsm->phy_data.tx_phy_mode);
         }
         usecs += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
 
@@ -1690,6 +1701,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     connsm->phy_data.cur_tx_phy = BLE_HCI_LE_PHY_1M;
     connsm->phy_data.cur_rx_phy = BLE_HCI_LE_PHY_1M;
+    connsm->phy_data.tx_phy_mode = BLE_PHY_1M;
+    connsm->phy_data.rx_phy_mode = BLE_PHY_1M;
     connsm->phy_data.req_pref_tx_phys = 0;
     connsm->phy_data.req_pref_rx_phys = 0;
     connsm->phy_data.host_pref_tx_phys = g_ble_ll_data.ll_pref_tx_phys;
@@ -1921,6 +1934,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
 
     /*
+     * XXX: TODO Probably want to add checks to see if we need to start
+     * a control procedure here as an instant may have prevented us from
+     * starting one.
+     */
+
+    /*
      * XXX TODO: I think this is technically incorrect. We can allow slave
      * latency if we are doing one of these updates as long as we
      * know that the master has received the ACK to the PDU that set
@@ -2045,7 +2064,13 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         (connsm->event_cntr == connsm->phy_instant)) {
         /* Set cur phy to new phy */
         connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
+        connsm->phy_data.tx_phy_mode = connsm->phy_data.cur_tx_phy;
         connsm->phy_data.cur_rx_phy = connsm->phy_data.new_rx_phy;
+        connsm->phy_data.rx_phy_mode = connsm->phy_data.cur_rx_phy;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+        /* XXX: TODO convert to coded phy mode if new phy is coded */
+#endif
 
         /* Clear flags and set flag to send event at next instant */
         CONN_F_PHY_UPDATE_SCHED(connsm) = 0;
@@ -2129,6 +2154,8 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
     uint32_t endtime;
     uint32_t usecs;
 
+    /* XXX: TODO this assumes we received in 1M phy */
+
     /* Set state to created */
     connsm->conn_state = BLE_LL_CONN_STATE_CREATED;
 
@@ -2162,7 +2189,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
         usecs = rxhdr->rem_usecs + 1250 +
             (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-            BLE_TX_DUR_USECS_M(BLE_CONNECT_REQ_LEN);
+            ble_phy_pdu_dur(BLE_CONNECT_REQ_LEN, BLE_PHY_1M);
 
         /* Anchor point is cputime. */
         endtime = os_cputime_usecs_to_ticks(usecs);
@@ -2182,7 +2209,8 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 #else
         connsm->last_anchor_point = rxhdr->beg_cputime;
         endtime = rxhdr->beg_cputime +
-            os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(BLE_CONNECT_REQ_LEN));
+            os_cputime_usecs_to_ticks(ble_phy_pdu_dur(BLE_CONNECT_REQ_LEN,
+                                                      BLE_PHY_1M));
         connsm->slave_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
@@ -2535,6 +2563,7 @@ ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset,
     int rc;
     struct os_mbuf *m;
 
+    /* XXX: TODO: assume we are already on correct phy */
     m = ble_ll_scan_get_pdu();
     ble_ll_conn_req_pdu_update(m, adva, addr_type, txoffset, rpa_index);
     ble_phy_set_txend_cb(ble_ll_conn_req_txend, NULL);
@@ -3111,13 +3140,20 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         goto conn_exit;
     }
 
-    /* Calculate the end time of the received PDU */
+    /*
+     * Calculate the end time of the received PDU. NOTE: this looks strange
+     * but for the 32768 crystal we add the time it takes to send the packet
+     * to the 'additional usecs' field to save some calculations.
+     */
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     endtime = rxhdr->beg_cputime;
-    add_usecs = rxhdr->rem_usecs + BLE_TX_DUR_USECS_M(rx_pyld_len);
+    add_usecs = rxhdr->rem_usecs +
+        ble_phy_pdu_dur(rx_pyld_len, connsm->phy_data.rx_phy_mode);
 #else
     endtime = rxhdr->beg_cputime +
-        os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(rx_pyld_len));
+        os_cputime_usecs_to_ticks(ble_phy_pdu_dur(rx_pyld_len,
+                                                  connsm->phy_data.rx_phy_mode));
+
     add_usecs = 0;
 #endif
 
@@ -3251,6 +3287,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         os_mbuf_free_chain(txpdu);
                         connsm->cur_tx_pdu = NULL;
                     } else {
+                        /* WWW: need to check this with phy update procedure. There are
+                           limitations if we have started update */
                         rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
                         if (rem_bytes > connsm->eff_max_tx_octets) {
                             txhdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
@@ -3345,6 +3383,8 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     ble_hdr->txinfo.pyld_len = length;
     ble_hdr->txinfo.hdr_byte = hdr_byte;
 
+    /* WWW: need to check this with phy update procedure. There are
+       limitations if we have started update */
     /*
      * We need to set the initial payload length if the total length of the
      * PDU exceeds the maximum allowed for the connection for any single tx.
@@ -3635,20 +3675,22 @@ ble_ll_conn_module_reset(void)
     conn_params = &g_ble_ll_conn_params;
     max_phy_pyld = ble_phy_max_data_pdu_pyld();
 
+    /* WWW: change these on change of phy */
+
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_RX_BYTES), max_phy_pyld);
     conn_params->supp_max_rx_octets = maxbytes;
     conn_params->supp_max_rx_time =
-        BLE_TX_DUR_USECS_M(maxbytes + BLE_LL_DATA_MIC_LEN);
+        ble_phy_pdu_dur(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_1M);
 
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_TX_BYTES), max_phy_pyld);
     conn_params->supp_max_tx_octets = maxbytes;
     conn_params->supp_max_tx_time =
-        BLE_TX_DUR_USECS_M(maxbytes + BLE_LL_DATA_MIC_LEN);
+        ble_phy_pdu_dur(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_1M);
 
     maxbytes = min(MYNEWT_VAL(BLE_LL_CONN_INIT_MAX_TX_BYTES), max_phy_pyld);
     conn_params->conn_init_max_tx_octets = maxbytes;
     conn_params->conn_init_max_tx_time =
-        BLE_TX_DUR_USECS_M(maxbytes + BLE_LL_DATA_MIC_LEN);
+        ble_phy_pdu_dur(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_1M);
 
     conn_params->sugg_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     conn_params->sugg_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;

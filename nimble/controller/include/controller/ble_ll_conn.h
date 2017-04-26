@@ -128,23 +128,27 @@ union ble_ll_conn_sm_flags {
 /**
  * Structure used for PHY data inside a connection.
  *
+ * tx_phy_mode: chip specific phy mode for tx
+ * rx_phy_mode: chip specific phy mode for tx
  * cur_tx_phy: value denoting current tx_phy (not a bitmask!)
- * cur_rx_phy: value denoting current rx phy (not a bitmask)
+ * cur_rx_phy: value denoting current rx phy (not a bitmask!)
  * pref_tx_phys: bitmask of preferred transmit PHYs
  * pref_rx_phys: bitmask of preferred receive PHYs
  * phy_options: preferred phy options for coded phy
  */
 struct ble_ll_conn_phy_data
 {
-    uint8_t cur_tx_phy: 2;
-    uint8_t cur_rx_phy: 2;
-    uint8_t new_tx_phy: 2;
-    uint8_t new_rx_phy: 2;
-    uint16_t host_pref_tx_phys: 3;
-    uint16_t host_pref_rx_phys: 3;
-    uint16_t req_pref_tx_phys: 3;
-    uint16_t req_pref_rx_phys: 3;
-    uint16_t phy_options: 2;
+    uint32_t tx_phy_mode: 2;
+    uint32_t rx_phy_mode: 2;
+    uint32_t cur_tx_phy: 2;
+    uint32_t cur_rx_phy: 2;
+    uint32_t new_tx_phy: 2;
+    uint32_t new_rx_phy: 2;
+    uint32_t host_pref_tx_phys: 3;
+    uint32_t host_pref_rx_phys: 3;
+    uint32_t req_pref_tx_phys: 3;
+    uint32_t req_pref_rx_phys: 3;
+    uint32_t phy_options: 2;
 }  __attribute__((packed));
 
 #define CONN_CUR_TX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_tx_phy - 1))

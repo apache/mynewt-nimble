@@ -47,9 +47,6 @@ extern "C" {
 #define BLE_LL_SCHED_DIRECT_ADV_MAX_USECS   (502)
 #define BLE_LL_SCHED_MAX_ADV_PDU_USECS      (376)
 
-/* BLE Jitter (+/- 16 useecs) */
-#define BLE_LL_JITTER_USECS                 (16)
-
 /*
  * This is the offset from the start of the scheduled item until the actual
  * tx/rx should occur, in ticks.

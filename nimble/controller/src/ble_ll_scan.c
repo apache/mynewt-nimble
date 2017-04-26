@@ -595,6 +595,10 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
     }
 #endif
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_set_mode(BLE_PHY_1M, BLE_PHY_1M);
+#endif
+
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         /* XXX: probably need to make sure hfxo is running too */
         /* XXX: can make this better; want to just start asap. */
@@ -1141,6 +1145,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (scansm->backoff_count == 0) {
             /* Setup to transmit the scan request */
             adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+
+            /* XXX: TODO assume we are on correct phy */
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
             rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_TX_RX);
 
