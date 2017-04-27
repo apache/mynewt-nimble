@@ -2064,9 +2064,13 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         (connsm->event_cntr == connsm->phy_instant)) {
 
         /* Set cur phy to new phy */
-        connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
+        if (connsm->phy_data.new_tx_phy) {
+            connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
+        }
         connsm->phy_data.tx_phy_mode = connsm->phy_data.cur_tx_phy;
-        connsm->phy_data.cur_rx_phy = connsm->phy_data.new_rx_phy;
+        if (connsm->phy_data.new_rx_phy) {
+            connsm->phy_data.cur_rx_phy = connsm->phy_data.new_rx_phy;
+        }
         connsm->phy_data.rx_phy_mode = connsm->phy_data.cur_rx_phy;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
