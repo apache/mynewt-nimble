@@ -1233,7 +1233,7 @@ int
 ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
 {
     int rc;
-    uint8_t phy_options;
+    uint16_t phy_options;
     uint8_t tx_phys;
     uint8_t rx_phys;
     uint16_t handle;
@@ -1253,11 +1253,11 @@ ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    phy_options = cmdbuf[5];
+    phy_options = get_le16(cmdbuf + 5);
     if (phy_options > BLE_HCI_LE_PHY_CODED_S8_PREF) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
-    connsm->phy_data.phy_options = phy_options;
+    connsm->phy_data.phy_options = phy_options & 0x03;
 
     /* Check valid parameters */
     rc = ble_ll_hci_chk_phy_masks(cmdbuf + 2, &tx_phys, &rx_phys);
