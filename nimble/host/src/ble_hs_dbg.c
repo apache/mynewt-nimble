@@ -247,7 +247,6 @@ ble_hs_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
 {
     uint8_t handles;
     uint8_t *handle_ptr;
-    uint8_t *pkt_ptr;
     uint16_t handle;
     uint16_t pkts;
 
@@ -263,12 +262,10 @@ ble_hs_dbg_num_comp_pkts_disp(uint8_t *evdata, uint8_t len)
                handles);
     if (handles) {
         handle_ptr = evdata + 1;
-        pkt_ptr = handle_ptr + (2 * handles);
         while (handles) {
             handle = get_le16(handle_ptr);
-            handle_ptr += 2;
-            pkts = get_le16(pkt_ptr);
-            pkt_ptr += 2;
+            pkts = get_le16(handle_ptr + 2);
+            handle_ptr += 4;
             BLE_HS_LOG(DEBUG, "handle:%u pkts:%u\n", handle, pkts);
             --handles;
         }
