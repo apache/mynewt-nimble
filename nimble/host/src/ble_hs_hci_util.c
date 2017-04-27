@@ -55,8 +55,7 @@ ble_hs_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
     if (params_len != 1                     ||
         *out_tx_pwr < BLE_HCI_ADV_CHAN_TXPWR_MIN ||
         *out_tx_pwr > BLE_HCI_ADV_CHAN_TXPWR_MAX) {
-
-        return BLE_HS_ECONTROLLER;
+        BLE_HS_LOG(WARN, "advertiser txpwr out of range\n");
     }
 
     return 0;
