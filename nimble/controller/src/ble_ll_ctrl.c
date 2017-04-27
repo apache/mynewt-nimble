@@ -1831,7 +1831,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
         case BLE_LL_CTRL_PROC_PHY_UPDATE:
             opcode = BLE_LL_CTRL_PHY_REQ;
-            ble_ll_ctrl_phy_req_rsp_make(connsm, dptr);
+            ble_ll_ctrl_phy_req_rsp_make(connsm, ctrdata);
             break;
 #endif
         default:
