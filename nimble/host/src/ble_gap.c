@@ -2217,7 +2217,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
     if (!params.passive) {
         rc = ble_hs_id_use_addr(own_addr_type);
         if (rc != 0) {
-            return rc;
+            goto done;
         }
     }
 
@@ -2426,7 +2426,7 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
     rc = ble_hs_id_use_addr(own_addr_type);
     if (rc != 0) {
-        return rc;
+        goto done;
     }
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: connect; ");
