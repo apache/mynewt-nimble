@@ -229,7 +229,9 @@ static inline int ble_ll_conn_phy_to_phy_mode(int phy, int phy_options)
     phy_mode = phy;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-        /* XXX: TODO convert to coded phy mode if new phy is coded */
+    if (phy == BLE_PHY_CODED && phy_options == BLE_HCI_LE_PHY_CODED_S8_PREF) {
+        phy_mode = BLE_PHY_MODE_CODED_125KBPS;
+    }
 #endif
 
     return phy_mode;

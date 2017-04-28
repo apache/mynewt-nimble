@@ -51,6 +51,8 @@ extern uint32_t g_nrf_irk_list[];
  */
 #define NRF_LFLEN_BITS          (8)
 #define NRF_S0_LEN              (1)
+#define NRF_CI_LEN              (2)
+#define NRF_TERM_LEN            (3)
 
 /* Maximum length of frames */
 #define NRF_MAXLEN              (255)
@@ -77,7 +79,7 @@ struct ble_phy_obj
     uint8_t phy_tx_pyld_len;
     uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
-    uint8_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODULATIONS];
+    uint16_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODULATIONS];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     uint32_t phy_pcnf0;
@@ -189,6 +191,17 @@ struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+
+static inline int ble_phy_pdu_coded_dur(int pyld_len, int s)
+{
+    /*
+     * Specification provides duration for each PDU field directly in us so we
+     * can use them directly here (Vol 6, Part B, 2.2).
+     */
+    return 80 + 256 + 16 + 24 + /* Preamble + Access Address + CI + TERM1 */
+            s * ((BLE_LL_PDU_HDR_LEN + pyld_len) * 8 + 24 + 3); /* PDU + CRC + TERM2 */
+}
+
 /**
  * Calculate the length of BLE PDU
  *
@@ -216,15 +229,19 @@ ble_phy_mode_pdu_dur(uint8_t pyld_len, int phy_mode)
         /* 4 usecs per byte */
         usecs = (pyld_len + (2 * BLE_LL_PREAMBLE_LEN) + BLE_LL_ACC_ADDR_LEN
                  + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 2;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+        usecs = ble_phy_pdu_coded_dur(pyld_len, 8);
+    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        usecs = ble_phy_pdu_coded_dur(pyld_len, 2);
     } else {
-        /* XXX: TODO implement */
         assert(0);
     }
     return usecs;
 }
 
 
-/* Packet start offset (in usecs). This is the preamble plus access address. */
+/* Packet start offset (in usecs). This is the preamble plus access address.
+ * For LE Coded PHY this also includes CI and TERM1. */
 uint32_t
 ble_phy_mode_pdu_start_off(int phy_mode)
 {
@@ -241,10 +258,22 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
             (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos);
+    } else if (cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+        NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
+        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
+            (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) |
+            (NRF_CI_LEN << RADIO_PCNF0_CILEN_Pos) |
+            (NRF_TERM_LEN << RADIO_PCNF0_TERMLEN_Pos);
+    } else if (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
+        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
+            (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) |
+            (NRF_CI_LEN << RADIO_PCNF0_CILEN_Pos) |
+            (NRF_TERM_LEN << RADIO_PCNF0_TERMLEN_Pos);
     } else {
-        /* XXX: TODO added coded PHY */
         assert(0);
     }
+
     g_ble_phy_data.phy_cur_phy_mode = (uint8_t)cur_phy_mode;
     g_ble_phy_data.phy_txtorx_phy_mode = (uint8_t)txtorx_phy_mode;
 }
@@ -898,10 +927,11 @@ ble_phy_init(void)
 {
     int rc;
 
-    /* XXX: TODO add coded phy */
     /* Set packet start offsets for various phys */
     g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_1M] = 40;  /* 40 usecs */
     g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_2M] = 24;  /* 24 usecs */
+    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_CODED_125KBPS] = 376;  /* 376 usecs */
+    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_CODED_500KBPS] = 376;  /* 376 usecs */
 
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
