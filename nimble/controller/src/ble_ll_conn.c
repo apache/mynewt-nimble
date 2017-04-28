@@ -1442,7 +1442,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
              * to be sure we do not bail out early.
              */
             usecs = connsm->slave_cur_tx_win_usecs + BLE_LL_IFS +
-                ble_phy_pdu_start_off(connsm->rx_phy_mode) +
+                ble_phy_pdu_start_off(connsm->phy_data.rx_phy_mode) +
                 (BLE_LL_JITTER_USECS * 2) + connsm->slave_cur_window_widening;
             wfr_time = connsm->anchor_point + os_cputime_usecs_to_ticks(usecs);
             ble_ll_wfr_enable(wfr_time);
