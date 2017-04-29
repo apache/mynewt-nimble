@@ -314,3 +314,14 @@ syscfg.defs:
         description: >
             Enables advertising of Eddystone beacons.
         value: 1
+
+    # Store settings.
+    BLE_STORE_MAX_BONDS:
+        description: >
+            Number of bonds to persist before recycling old ones.
+        value: 4
+    BLE_STORE_MAX_CCCDS:
+        description: >
+            Number of client characteristic configuration descriptors to
+            persist before recycling old ones.
+        value: 16

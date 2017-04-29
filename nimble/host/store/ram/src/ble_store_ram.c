@@ -27,21 +27,20 @@
 #include <string.h>
 
 #include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "host/ble_hs.h"
 #include "store/ram/ble_store_ram.h"
 
-/* XXX: This should be configurable. */
-#define STORE_MAX_SLV_LTKS   4
-#define STORE_MAX_MST_LTKS   4
-#define STORE_MAX_CCCDS      16
-
-static struct ble_store_value_sec ble_store_ram_our_secs[STORE_MAX_SLV_LTKS];
+static struct ble_store_value_sec
+    ble_store_ram_our_secs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
 static int ble_store_ram_num_our_secs;
 
-static struct ble_store_value_sec ble_store_ram_peer_secs[STORE_MAX_MST_LTKS];
+static struct ble_store_value_sec
+    ble_store_ram_peer_secs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
 static int ble_store_ram_num_peer_secs;
 
-static struct ble_store_value_cccd ble_store_ram_cccds[STORE_MAX_CCCDS];
+static struct ble_store_value_cccd
+    ble_store_ram_cccds[MYNEWT_VAL(BLE_STORE_MAX_CCCDS)];
 static int ble_store_ram_num_cccds;
 
 /*****************************************************************************
@@ -156,7 +155,7 @@ ble_store_ram_write_our_sec(struct ble_store_value_sec *value_sec)
     idx = ble_store_ram_find_sec(&key_sec, ble_store_ram_our_secs,
                                  ble_store_ram_num_our_secs);
     if (idx == -1) {
-        if (ble_store_ram_num_our_secs >= STORE_MAX_SLV_LTKS) {
+        if (ble_store_ram_num_our_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             BLE_HS_LOG(DEBUG, "error persisting our sec; too many entries "
                               "(%d)\n", ble_store_ram_num_our_secs);
             return BLE_HS_ENOMEM;
@@ -270,7 +269,7 @@ ble_store_ram_write_peer_sec(struct ble_store_value_sec *value_sec)
     idx = ble_store_ram_find_sec(&key_sec, ble_store_ram_peer_secs,
                                  ble_store_ram_num_peer_secs);
     if (idx == -1) {
-        if (ble_store_ram_num_peer_secs >= STORE_MAX_MST_LTKS) {
+        if (ble_store_ram_num_peer_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             BLE_HS_LOG(DEBUG, "error persisting peer sec; too many entries "
                              "(%d)\n", ble_store_ram_num_peer_secs);
             return BLE_HS_ENOMEM;
@@ -346,7 +345,7 @@ ble_store_ram_write_cccd(struct ble_store_value_cccd *value_cccd)
     ble_store_key_from_value_cccd(&key_cccd, value_cccd);
     idx = ble_store_ram_find_cccd(&key_cccd);
     if (idx == -1) {
-        if (ble_store_ram_num_cccds >= STORE_MAX_SLV_LTKS) {
+        if (ble_store_ram_num_cccds >= MYNEWT_VAL(BLE_STORE_MAX_CCCDS)) {
             BLE_HS_LOG(DEBUG, "error persisting cccd; too many entries (%d)\n",
                        ble_store_ram_num_cccds);
             return BLE_HS_ENOMEM;
