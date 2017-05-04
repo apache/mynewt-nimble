@@ -26,7 +26,7 @@
 #include "nimble/ble_hci_trans.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_id.h"
-#include "store/ram/ble_store_ram.h"
+#include "store/config/ble_store_config.h"
 #include "transport/ram/ble_hci_ram.h"
 #include "ble_hs_test_util.h"
 
@@ -2328,7 +2328,7 @@ ble_hs_test_util_store_read(int obj_type, const union ble_store_key *key,
     ble_sm_test_store_obj_type = obj_type;
     ble_sm_test_store_key = *key;
 
-    rc = ble_store_ram_read(obj_type, key, value);
+    rc = ble_store_config_read(obj_type, key, value);
     ble_sm_test_store_value = *value;
 
     return rc;
@@ -2341,7 +2341,7 @@ ble_hs_test_util_store_write(int obj_type, const union ble_store_value *value)
 
     ble_sm_test_store_obj_type = obj_type;
 
-    rc = ble_store_ram_write(obj_type, value);
+    rc = ble_store_config_write(obj_type, value);
     ble_sm_test_store_value = *value;
 
     return rc;
@@ -2355,7 +2355,7 @@ ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
     ble_sm_test_store_obj_type = obj_type;
     ble_sm_test_store_key = *key;
 
-    rc = ble_store_ram_delete(obj_type, key);
+    rc = ble_store_config_delete(obj_type, key);
     return rc;
 }
 
