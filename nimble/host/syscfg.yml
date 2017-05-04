@@ -322,10 +322,15 @@ syscfg.defs:
     # Store settings.
     BLE_STORE_MAX_BONDS:
         description: >
-            Number of bonds to persist before recycling old ones.
-        value: 4
+            Maximum number of bonds that can be persisted.  Note: increasing
+            this value may also require increasing the capacity of the
+            underlying storage mechanism.
+        value: 3
     BLE_STORE_MAX_CCCDS:
         description: >
-            Number of client characteristic configuration descriptors to
-            persist before recycling old ones.
-        value: 16
+            Maximum number of client characteristic configuration descriptors
+            that can be persisted.  Note: increasing this value may also
+            require increasing the capacity of the underlying storage
+            mechanism.
+
+        value: 8

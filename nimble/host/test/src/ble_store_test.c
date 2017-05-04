@@ -115,7 +115,7 @@ ble_store_test_util_overflow_sec(int is_our_sec)
 
 TEST_CASE(ble_store_test_peers)
 {
-    struct ble_store_value_sec secs[4] = {
+    struct ble_store_value_sec secs[3] = {
         {
             .peer_addr = { BLE_ADDR_PUBLIC,     { 1, 2, 3, 4, 5, 6 } },
             .ltk_present = 1,
@@ -129,12 +129,8 @@ TEST_CASE(ble_store_test_peers)
             .peer_addr = { BLE_ADDR_PUBLIC,     { 2, 3, 4, 5, 6, 7 } },
             .ltk_present = 1,
         },
-        {
-            .peer_addr = { BLE_ADDR_RANDOM,     { 3, 4, 5, 6, 7, 8 } },
-            .ltk_present = 1,
-        },
     };
-    ble_addr_t peer_addrs[4];
+    ble_addr_t peer_addrs[3];
     int num_addrs;
     int rc;
     int i;
@@ -188,6 +184,9 @@ TEST_CASE(ble_store_test_delete_peer)
             .chr_val_handle = 5,
         },
     };
+    union ble_store_value value;
+    union ble_store_key key;
+    int count;
     int rc;
     int i;
 
@@ -211,6 +210,35 @@ TEST_CASE(ble_store_test_delete_peer)
 
     /* Ensure all traces of first peer have been removed. */
     ble_store_test_util_verify_peer_deleted(&secs[0].peer_addr);
+
+    /* Ensure second peer data is still intact. */
+    ble_store_key_from_value_sec(&key.sec, secs + 1);
+
+    rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(count == 1);
+
+    rc = ble_store_read_our_sec(&key.sec, &value.sec);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(memcmp(&value.sec, secs + 1, sizeof value.sec) == 0);
+
+    rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(count == 1);
+
+    rc = ble_store_read_peer_sec(&key.sec, &value.sec);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(memcmp(&value.sec, secs + 1, sizeof value.sec) == 0);
+
+    ble_store_key_from_value_cccd(&key.cccd, cccds + 2);
+
+    rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_CCCD, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(count == 1);
+
+    rc = ble_store_read_cccd(&key.cccd, &value.cccd);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(memcmp(&value.cccd, cccds + 2, sizeof value.cccd) == 0);
 
     /* Delete second peer. */
     rc = ble_store_util_delete_peer(&secs[1].peer_addr);
@@ -272,15 +300,15 @@ TEST_CASE(ble_store_test_count)
 
     /* Write some test data. */
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 3; i++) {
         rc = ble_store_write_our_sec(secs + i);
         TEST_ASSERT_FATAL(rc == 0);
     }
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < 2; i++) {
         rc = ble_store_write_peer_sec(secs + i);
         TEST_ASSERT_FATAL(rc == 0);
     }
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 1; i++) {
         rc = ble_store_write_cccd(cccds + i);
         TEST_ASSERT_FATAL(rc == 0);
     }
@@ -288,15 +316,15 @@ TEST_CASE(ble_store_test_count)
     /*** Verify counts after populating store. */
     rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(count == 4);
+    TEST_ASSERT(count == 3);
 
     rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(count == 3);
+    TEST_ASSERT(count == 2);
 
     rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_CCCD, &count);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(count == 2);
+    TEST_ASSERT(count == 1);
 }
 
 TEST_CASE(ble_store_test_overflow)
