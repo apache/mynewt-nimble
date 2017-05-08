@@ -247,7 +247,6 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
     int event_sent;
     uint8_t *evbuf;
     uint8_t *handle_ptr;
-    uint8_t *comp_pkt_ptr;
     uint8_t handles;
 
     if (connsm == NULL) {
@@ -288,7 +287,6 @@ skip_conn:
     evbuf = NULL;
     handles = 0;
     handle_ptr = NULL;
-    comp_pkt_ptr = NULL;
     event_sent = 0;
     SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
         /*
@@ -305,15 +303,13 @@ skip_conn:
                 }
                 handles = 0;
                 handle_ptr = evbuf + 3;
-                comp_pkt_ptr = handle_ptr + (sizeof(uint16_t) * max_handles);
             }
 
             /* Add handle and complete packets */
             put_le16(handle_ptr, connsm->conn_handle);
-            put_le16(comp_pkt_ptr, connsm->completed_pkts);
+            put_le16(handle_ptr + 2, connsm->completed_pkts);
             connsm->completed_pkts = 0;
-            handle_ptr += sizeof(uint16_t);
-            comp_pkt_ptr += sizeof(uint16_t);
+            handle_ptr += (2 * sizeof(uint16_t));
             ++handles;
 
             /* Send now if the buffer is full. */
@@ -334,10 +330,6 @@ skip_conn:
         evbuf[0] = BLE_HCI_EVCODE_NUM_COMP_PKTS;
         evbuf[1] = (handles * 2 * sizeof(uint16_t)) + 1;
         evbuf[2] = handles;
-        if (handles < max_handles) {
-            /* Make the pkt counts contiguous with handles */
-            memmove(handle_ptr, evbuf + 3 + (max_handles * 2), handles * 2);
-        }
         ble_ll_hci_event_send(evbuf);
         event_sent = 1;
     }

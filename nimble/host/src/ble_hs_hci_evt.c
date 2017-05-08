@@ -222,8 +222,9 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
     off++;
 
     for (i = 0; i < num_handles; i++) {
-        handle = get_le16(data + off + 2 * i);
-        num_pkts = get_le16(data + off + 2 * num_handles + 2 * i);
+        handle = get_le16(data + off);
+        num_pkts = get_le16(data + off + 2);
+        off += (2 * sizeof(uint16_t));
 
         /* XXX: Do something with these values. */
         (void)handle;
