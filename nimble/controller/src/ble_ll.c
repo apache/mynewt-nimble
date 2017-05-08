@@ -1388,9 +1388,10 @@ ble_ll_log_dump_index(int i)
 
     log = &g_ble_ll_log[i];
 
+    /* TODO cast is a workaround until this is fixed properly */
     console_printf("cputime=%lu id=%u a8=%u a16=%u a32=%lu\n",
-                   log->cputime, log->log_id, log->log_a8,
-                   log->log_a16, log->log_a32);
+                   (unsigned long)log->cputime, log->log_id, log->log_a8,
+                   log->log_a16, (unsigned long)log->log_a32);
 }
 
 void
