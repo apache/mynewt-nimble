@@ -605,4 +605,16 @@ ble_phy_resolv_list_disable(void)
 {
     g_ble_phy_data.phy_privacy = 0;
 }
+
+/**
+ * Return the transceiver state
+ *
+ * @return int transceiver state.
+ */
+uint8_t
+ble_phy_xcvr_state_get(void)
+{
+   return g_ble_phy_data.phy_state;
+}
+
 #endif
