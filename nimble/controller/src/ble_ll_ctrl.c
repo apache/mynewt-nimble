@@ -625,13 +625,13 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         connsm->phy_instant = instant;
         CONN_F_PHY_UPDATE_SCHED(connsm) = 1;
 
-        /* Convert m_to_s and s_to_m to masks */
-        m_to_s = 1 << (m_to_s - 1);
-        s_to_m = 1 << (s_to_m - 1);
-
         /* Set new phys to use when instant occurs */
         connsm->phy_data.new_tx_phy = m_to_s;
         connsm->phy_data.new_rx_phy = s_to_m;
+
+        /* Convert m_to_s and s_to_m to masks */
+        m_to_s = 1 << (m_to_s - 1);
+        s_to_m = 1 << (s_to_m - 1);
     }
 
     ctrdata[0] = m_to_s;
