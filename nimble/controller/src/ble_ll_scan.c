@@ -1199,12 +1199,12 @@ ble_ll_scan_chk_resume(void)
 }
 
 /**
- * Connection supervision timer callback; means that the connection supervision
- * timeout has been reached and we should perform the appropriate actions.
+ * Scan timer callback; means that the scan window timeout has been reached
+ * and we should perform the appropriate actions.
  *
  * Context: Interrupt (cputimer)
  *
- * @param arg Pointer to connection state machine.
+ * @param arg Pointer to scan state machine.
  */
 void
 ble_ll_scan_timer_cb(void *arg)
