@@ -61,7 +61,7 @@
 
 
 /* The scanning parameters set by host */
-struct ble_ll_scan_params g_ble_ll_scan_params;
+struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
 
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
@@ -576,6 +576,7 @@ static void
 ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
 {
     int rc;
+    struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
 
     /* Set channel */
     rc = ble_phy_setchan(chan, 0, 0);
@@ -620,7 +621,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
         }
 
         /* Set link layer state to scanning */
-        if (scansm->scan_type == BLE_SCAN_TYPE_INITIATE) {
+        if (scanphy->scan_type == BLE_SCAN_TYPE_INITIATE) {
             ble_ll_state_set(BLE_LL_STATE_INITIATING);
         } else {
             ble_ll_state_set(BLE_LL_STATE_SCANNING);
@@ -683,9 +684,10 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     uint32_t itvl;
     uint32_t dt;
     uint32_t win_start;
+    struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
 
-    itvl = os_cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
-    chan = scansm->scan_chan;
+    itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
+    chan = scanphy->scan_chan;
     win_start = scansm->scan_win_start_time;
     while ((int32_t)(cputime - win_start) >= itvl) {
         win_start += itvl;
@@ -696,12 +698,12 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     }
 
     rc = 0;
-    if (scansm->scan_window != scansm->scan_itvl) {
-        itvl = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+    if (scanphy->scan_window != scanphy->scan_itvl) {
+        itvl = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
         dt = cputime - win_start;
         if (dt >= itvl) {
 #ifdef BLE_XCVR_RFCLK
-            if (dt < (scansm->scan_itvl - g_ble_ll_data.ll_xtal_ticks)) {
+            if (dt < (scanphy->scan_itvl - g_ble_ll_data.ll_xtal_ticks)) {
                 ble_ll_scan_rfclk_chk_stop();
             }
 #endif
@@ -780,7 +782,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     scansm->scan_enabled = 1;
 
     /* Set first advertising channel */
-    scansm->scan_chan = BLE_PHY_ADV_CHAN_START;
+    scansm->phy_data[scansm->cur_phy].scan_chan = BLE_PHY_ADV_CHAN_START;
 
     /* Reset scan request backoff parameters to default */
     scansm->upper_limit = 1;
@@ -825,6 +827,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
     uint32_t xtal_ticks;
 #endif
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanphy;
 
     /*
      * Get the scanning state machine. If not enabled (this is possible), just
@@ -836,11 +839,13 @@ ble_ll_scan_event_proc(struct os_event *ev)
         return;
     }
 
+    scanphy = &scansm->phy_data[scansm->cur_phy];
+
     /* Make sure the scan window start time and channel are up to date. */
     now = os_cputime_get32();
 
-    scan_itvl = os_cputime_usecs_to_ticks(scansm->scan_itvl * BLE_HCI_SCAN_ITVL);
-    chan = scansm->scan_chan;
+    scan_itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
+    chan = scanphy->scan_chan;
     win_start = scansm->scan_win_start_time;
     while ((int32_t)(now - win_start) >= scan_itvl) {
         win_start += scan_itvl;
@@ -851,10 +856,10 @@ ble_ll_scan_event_proc(struct os_event *ev)
     }
 
     dt = now - win_start;
-    scansm->scan_chan = chan;
+    scanphy->scan_chan = chan;
     scansm->scan_win_start_time = win_start;
-    if (scansm->scan_window != scansm->scan_itvl) {
-        win = os_cputime_usecs_to_ticks(scansm->scan_window * BLE_HCI_SCAN_ITVL);
+    if (scanphy->scan_window != scanphy->scan_itvl) {
+        win = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
     } else {
         win = 0;
     }
@@ -955,7 +960,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
             goto rfclk_not_settled;
         }
 #endif
-        ble_ll_scan_start(scansm, scansm->scan_chan);
+        ble_ll_scan_start(scansm, scanphy->scan_chan);
     }
 
 #ifdef BLE_XCVR_RFCLK
@@ -984,11 +989,13 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint8_t *rxflags)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanphy;
 
     rc = 0;
     scansm = &g_ble_ll_scan_sm;
+    scanphy = &scansm->phy_data[scansm->cur_phy];
 
-    switch (scansm->scan_type) {
+    switch (scanphy->scan_type) {
     case BLE_SCAN_TYPE_ACTIVE:
         /* If adv ind or scan ind, we may send scan request */
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
@@ -1050,9 +1057,11 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     uint8_t *rxbuf;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanphy;
 
     /* Get scanning state machine */
     scansm = &g_ble_ll_scan_sm;
+    scanphy = &scansm->phy_data[scansm->cur_phy];
 
     /*
      * The reason we do something different here (as opposed to failed CRC) is
@@ -1090,7 +1099,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
-        if (scansm->scan_type == BLE_SCAN_TYPE_ACTIVE) {
+        if (scanphy->scan_type == BLE_SCAN_TYPE_ACTIVE) {
             chk_send_req = 1;
         }
         chk_wl = 1;
@@ -1388,12 +1397,15 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     }
 
     /* Store scan parameters */
-    scanp = &g_ble_ll_scan_params;
+    scanp = &g_ble_ll_scan_params[PHY_UNCODED];
+    scanp->configured = 1;
     scanp->scan_type = scan_type;
     scanp->scan_itvl = scan_itvl;
     scanp->scan_window = scan_window;
     scanp->scan_filt_policy = filter_policy;
     scanp->own_addr_type = own_addr_type;
+    
+    g_ble_ll_scan_params[PHY_CODED].configured = 0;
 
     return 0;
 }
@@ -1417,6 +1429,8 @@ ble_ll_scan_set_enable(uint8_t *cmd)
     uint8_t enable;
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
+    struct ble_ll_scan_params *scanphy;
+    int i;
 
     /* Check for valid parameters */
     enable = cmd[0];
@@ -1430,19 +1444,36 @@ ble_ll_scan_set_enable(uint8_t *cmd)
     if (enable) {
         /* If already enabled, do nothing */
         if (!scansm->scan_enabled) {
-            scanp = &g_ble_ll_scan_params;
+            for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+                scanphy = &scansm->phy_data[i];
+                scanp = &g_ble_ll_scan_params[i];
+
+                if (!scanp->configured) {
+                    continue;
+                }
+
+                scanphy->configured = scanp->configured;
+                scanphy->scan_type = scanp->scan_type;
+                scanphy->scan_itvl = scanp->scan_itvl;
+                scanphy->scan_window = scanp->scan_window;
+                scanphy->scan_filt_policy = scanp->scan_filt_policy;
+                scanphy->own_addr_type = scanp->own_addr_type;
+                scansm->scan_filt_dups = filter_dups;
+            }
+
             /* Start the scanning state machine */
-            scansm->scan_type = scanp->scan_type;
-            scansm->scan_itvl = scanp->scan_itvl;
-            scansm->scan_window = scanp->scan_window;
-            scansm->scan_filt_policy = scanp->scan_filt_policy;
-            scansm->own_addr_type = scanp->own_addr_type;
-            scansm->scan_filt_dups = filter_dups;
+            scansm->cur_phy = PHY_UNCODED;
+
             rc = ble_ll_scan_sm_start(scansm);
         } else {
             /* Controller does not allow initiating and scanning.*/
-            if (scansm->scan_type == BLE_SCAN_TYPE_INITIATE) {
-                rc = BLE_ERR_CMD_DISALLOWED;
+            for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+                scanphy = &scansm->phy_data[i];
+                if (scanphy->configured &&
+                        scanphy->scan_type == BLE_SCAN_TYPE_INITIATE) {
+                        rc = BLE_ERR_CMD_DISALLOWED;
+                        break;
+                }
             }
         }
     } else {
@@ -1480,13 +1511,17 @@ int
 ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
 {
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanphy;
 
     scansm = &g_ble_ll_scan_sm;
-    scansm->scan_type = BLE_SCAN_TYPE_INITIATE;
-    scansm->scan_itvl = hcc->scan_itvl;
-    scansm->scan_window = hcc->scan_window;
     scansm->scan_filt_policy = hcc->filter_policy;
     scansm->own_addr_type = hcc->own_addr_type;
+
+    scanphy = &scansm->phy_data[scansm->cur_phy];
+    scanphy->scan_itvl = hcc->scan_itvl;
+    scanphy->scan_window = hcc->scan_window;
+    scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
+
     return ble_ll_scan_sm_start(scansm);
 }
 
@@ -1612,23 +1647,25 @@ ble_ll_scan_init(void)
 {
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
+    int i;
 
     /* Clear state machine in case re-initialized */
     scansm = &g_ble_ll_scan_sm;
     memset(scansm, 0, sizeof(struct ble_ll_scan_sm));
 
     /* Clear scan parameters in case re-initialized */
-    scanp = &g_ble_ll_scan_params;
-    memset(scanp, 0, sizeof(struct ble_ll_scan_params));
+    memset(g_ble_ll_scan_params, 0, sizeof(g_ble_ll_scan_params));
 
     /* Initialize scanning window end event */
     scansm->scan_sched_ev.ev_cb = ble_ll_scan_event_proc;
     scansm->scan_sched_ev.ev_arg = scansm;
 
-    /* Set all non-zero default parameters */
-    scanp->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;
-    scanp->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
-
+    for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+        /* Set all non-zero default parameters */
+        scanp = &g_ble_ll_scan_params[i];
+        scanp->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;
+        scanp->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
+    }
     /* Initialize scanning timer */
     os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
