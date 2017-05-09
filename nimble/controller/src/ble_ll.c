@@ -1352,7 +1352,7 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_LE_2M_PHY;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY) == 1)
     features |= BLE_LL_FEAT_LE_CODED_PHY;
 #endif
 
