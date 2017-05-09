@@ -1330,7 +1330,7 @@ scan_continue:
      * we have failed the scan request (as we would have reset the scan rsp
      * pending flag if we received a valid response
      */
-    if (scansm->scan_rsp_pending && scan_rsp_chk) {
+    if (scansm && scansm->scan_rsp_pending && scan_rsp_chk) {
         ble_ll_scan_req_backoff(scansm, 0);
     }
 
