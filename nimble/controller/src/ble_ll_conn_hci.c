@@ -1265,8 +1265,8 @@ ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
         goto phy_cmd_param_err;
     }
 
-    connsm->phy_data.host_pref_tx_phys = tx_phys,
-    connsm->phy_data.host_pref_rx_phys = rx_phys;
+    connsm->phy_data.host_pref_tx_phys_mask = tx_phys,
+    connsm->phy_data.host_pref_rx_phys_mask = rx_phys;
 
     /*
      * The host preferences override the default phy preferences. Currently,

@@ -485,7 +485,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_phy_set_mode(BLE_PHY_1M, BLE_PHY_1M);
+    ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
 #endif
 
     /* Transmit advertisement */
@@ -527,7 +527,7 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
     sch->sched_type = BLE_LL_SCHED_TYPE_ADV;
 
     /* Set end time to maximum time this schedule item may take */
-    max_usecs = ble_phy_pdu_dur(advsm->adv_pdu_len, BLE_PHY_1M);
+    max_usecs = ble_phy_mode_pdu_dur(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
     switch (advsm->adv_type) {
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:

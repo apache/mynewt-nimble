@@ -492,9 +492,9 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
  * BLE_HCI_LE_PHY_CODED                 (3)
  */
 static uint8_t
-ble_ll_ctrl_phy_mask_to_numeric(uint8_t phy_mask)
+ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask)
 {
-    uint8_t numeric;
+    uint8_t phy;
 
     /*
      * NOTE: wipe out unsupported PHYs. There should not be an unsupported
@@ -507,24 +507,24 @@ ble_ll_ctrl_phy_mask_to_numeric(uint8_t phy_mask)
     phy_mask &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
 #endif
 
-    if (phy_mask & BLE_HCI_LE_PHY_1M_PREF_MASK) {
-        numeric = BLE_HCI_LE_PHY_1M;
-        phy_mask &= ~BLE_HCI_LE_PHY_1M_PREF_MASK;
-    } else if (phy_mask & BLE_HCI_LE_PHY_2M_PREF_MASK) {
-        numeric = BLE_HCI_LE_PHY_2M;
-        phy_mask &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
-    } else if (phy_mask & BLE_HCI_LE_PHY_CODED_PREF_MASK) {
-        numeric = BLE_HCI_LE_PHY_CODED;
-        phy_mask &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
+    if (phy_mask & BLE_PHY_MASK_1M) {
+        phy = BLE_PHY_1M;
+        phy_mask &= ~BLE_PHY_MASK_1M;
+    } else if (phy_mask & BLE_PHY_MASK_2M) {
+        phy = BLE_PHY_2M;
+        phy_mask &= ~BLE_PHY_MASK_2M;
+    } else if (phy_mask & BLE_PHY_MASK_CODED) {
+        phy = BLE_PHY_CODED;
+        phy_mask &= ~BLE_PHY_MASK_CODED;
     } else {
-        numeric = 0;
+        phy = 0;
     }
 
     if (phy_mask != 0) {
-        numeric = 0;
+        phy = 0;
     }
 
-    return numeric;
+    return phy;
 }
 
 /**
@@ -540,18 +540,18 @@ ble_ll_ctrl_phy_mask_to_numeric(uint8_t phy_mask)
  * @return uint8_t The phy to use (not a mask)
  */
 static uint8_t
-ble_ll_ctrl_find_new_phy(uint8_t prefs)
+ble_ll_ctrl_find_new_phy(uint8_t phy_mask_prefs)
 {
     uint8_t new_phy;
 
-    new_phy = prefs;
+    new_phy = phy_mask_prefs;
     if (new_phy) {
-        if (new_phy & BLE_HCI_LE_PHY_2M_PREF_MASK) {
-            new_phy = BLE_HCI_LE_PHY_2M;
-        } else if (new_phy & BLE_HCI_LE_PHY_1M_PREF_MASK) {
-            new_phy = BLE_HCI_LE_PHY_1M;
+        if (new_phy & BLE_PHY_MASK_2M) {
+            new_phy = BLE_PHY_2M;
+        } else if (new_phy & BLE_PHY_MASK_1M) {
+            new_phy = BLE_PHY_1M;
         } else {
-            new_phy = BLE_HCI_LE_PHY_CODED;
+            new_phy = BLE_PHY_CODED;
         }
     }
 
@@ -582,11 +582,11 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* Get m_to_s and s_to_m masks */
     if (slave_req) {
-        m_to_s = connsm->phy_data.host_pref_tx_phys & rx_phys;
-        s_to_m = connsm->phy_data.host_pref_rx_phys & tx_phys;
+        m_to_s = connsm->phy_data.host_pref_tx_phys_mask & rx_phys;
+        s_to_m = connsm->phy_data.host_pref_rx_phys_mask & tx_phys;
     } else {
-        m_to_s = connsm->phy_data.req_pref_tx_phys & rx_phys;
-        s_to_m = connsm->phy_data.req_pref_rx_phys & tx_phys;
+        m_to_s = connsm->phy_data.req_pref_tx_phys_mask & rx_phys;
+        s_to_m = connsm->phy_data.req_pref_rx_phys_mask & tx_phys;
     }
 
     /* Find new phys. If not different than current, set to 0 */
@@ -649,15 +649,15 @@ static void
 ble_ll_ctrl_phy_req_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
 {
     /* If no preference we use current phy */
-    if (connsm->phy_data.host_pref_tx_phys == 0) {
+    if (connsm->phy_data.host_pref_tx_phys_mask == 0) {
         ctrdata[0] = CONN_CUR_TX_PHY_MASK(connsm);
     } else {
-        ctrdata[0] = connsm->phy_data.host_pref_tx_phys;
+        ctrdata[0] = connsm->phy_data.host_pref_tx_phys_mask;
     }
-    if (connsm->phy_data.host_pref_rx_phys == 0) {
+    if (connsm->phy_data.host_pref_rx_phys_mask == 0) {
         ctrdata[1] = CONN_CUR_RX_PHY_MASK(connsm);
     } else {
-        ctrdata[1] = connsm->phy_data.host_pref_rx_phys;
+        ctrdata[1] = connsm->phy_data.host_pref_rx_phys_mask;
     }
 }
 
@@ -801,8 +801,8 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
              * that the slave will receive on; s to m is the one it will
              * transmit on
              */
-            new_rx_phy = ble_ll_ctrl_phy_mask_to_numeric(new_m_to_s_mask);
-            new_tx_phy = ble_ll_ctrl_phy_mask_to_numeric(new_s_to_m_mask);
+            new_rx_phy = ble_ll_ctrl_phy_from_phy_mask(new_m_to_s_mask);
+            new_tx_phy = ble_ll_ctrl_phy_from_phy_mask(new_s_to_m_mask);
 
             if ((new_tx_phy == 0) && (new_rx_phy == 0)) {
                 /* XXX: this is an error! What to do??? */

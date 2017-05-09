@@ -596,7 +596,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
 #endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_phy_set_mode(BLE_PHY_1M, BLE_PHY_1M);
+    ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
 #endif
 
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768

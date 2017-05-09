@@ -20,6 +20,8 @@
 #ifndef H_BLE_PHY_
 #define H_BLE_PHY_
 
+#include "nimble/hci_common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -187,25 +189,33 @@ void ble_phy_resolv_list_disable(void);
  * was done in order to save code when translating between the HCI phy value
  * and the phy API.
  */
-#define BLE_PHY_CODED_125KBPS   (0)
-#define BLE_PHY_1M              (1)
-#define BLE_PHY_2M              (2)
-#define BLE_PHY_CODED_500KBPS   (3)
+#define BLE_PHY_MODE_1M             (1)
+#define BLE_PHY_MODE_2M             (2)
+#define BLE_PHY_MODE_CODED_125KBPS  (0)
+#define BLE_PHY_MODE_CODED_500KBPS  (3)
+
+/* PHY numbers (compatible with HCI) */
+#define BLE_PHY_1M                  (BLE_HCI_LE_PHY_1M)
+#define BLE_PHY_2M                  (BLE_HCI_LE_PHY_2M)
+#define BLE_PHY_CODED               (BLE_HCI_LE_PHY_CODED)
+
+/* PHY bitmasks (compatible with HCI) */
+#define BLE_PHY_MASK_1M             (BLE_HCI_LE_PHY_1M_PREF_MASK)
+#define BLE_PHY_MASK_2M             (BLE_HCI_LE_PHY_2M_PREF_MASK)
+#define BLE_PHY_MASK_CODED          (BLE_HCI_LE_PHY_CODED_PREF_MASK)
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
-uint32_t ble_phy_pdu_dur(uint8_t len, int phy);
-uint32_t ble_phy_pdu_start_off(int phy);
-void ble_phy_set_mode(int cur_phy, int txtorx_phy);
+uint32_t ble_phy_mode_pdu_dur(uint8_t len, int phy);
+uint32_t ble_phy_mode_pdu_start_off(int phy);
+void ble_phy_mode_set(int cur_phy, int txtorx_phy);
 #else
-#define ble_phy_pdu_dur(len, phy)   \
+#define ble_phy_mode_pdu_dur(len, phy)      \
     (((len) + BLE_LL_PDU_HDR_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_PREAMBLE_LEN \
       + BLE_LL_CRC_LEN) << 3)
 
-#define ble_phy_pdu_start_off(phy)      (40)
+#define ble_phy_mode_pdu_start_off(phy)     (40)
 
 #endif
-
-
 
 #ifdef __cplusplus
 }
