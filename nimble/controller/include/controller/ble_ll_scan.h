@@ -22,6 +22,7 @@
 
 #include "controller/ble_ll_sched.h"
 #include "hal/hal_timer.h"
+#include "syscfg/syscfg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,22 +55,31 @@ extern "C" {
 #define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
 #define BLE_SCAN_MAX_PKT_LEN            (37)
 
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+    /* For Bluetooth 5.0 we need state machine for two PHYs*/
+#define BLE_LL_SCAN_PHY_NUMBER          (2)
+#else
+#define BLE_LL_SCAN_PHY_NUMBER          (1)
+#endif
+
+#define PHY_UNCODED                    (0)
+#define PHY_CODED                      (1)
+
 struct ble_ll_scan_params
 {
-    uint8_t scan_type;
     uint8_t own_addr_type;
     uint8_t scan_filt_policy;
+    uint8_t configured;
+    uint8_t scan_type;
+    uint8_t scan_chan;
     uint16_t scan_itvl;
     uint16_t scan_window;
 };
 
-/* Scanning state machine (used when initiating as well) */
 struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
-    uint8_t scan_type;
     uint8_t own_addr_type;
-    uint8_t scan_chan;
     uint8_t scan_filt_policy;
     uint8_t scan_filt_dups;
     uint8_t scan_rsp_pending;
@@ -77,14 +87,20 @@ struct ble_ll_scan_sm
     uint8_t scan_rsp_cons_ok;
     int8_t scan_rpa_index;
     uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
+
+    /* XXX: Shall we count backoff per phy? */
     uint16_t upper_limit;
     uint16_t backoff_count;
-    uint16_t scan_itvl;
-    uint16_t scan_window;
     uint32_t scan_win_start_time;
     struct os_mbuf *scan_req_pdu;
     struct os_event scan_sched_ev;
     struct hal_timer scan_timer;
+
+    uint16_t duration;
+    uint16_t period;
+
+    uint8_t cur_phy;
+    struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
 };
 
 /* Scan types */
