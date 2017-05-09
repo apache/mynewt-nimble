@@ -151,10 +151,10 @@ struct ble_ll_conn_phy_data
     uint32_t cur_rx_phy: 2;
     uint32_t new_tx_phy: 2;
     uint32_t new_rx_phy: 2;
-    uint32_t host_pref_tx_phys: 3;
-    uint32_t host_pref_rx_phys: 3;
-    uint32_t req_pref_tx_phys: 3;
-    uint32_t req_pref_rx_phys: 3;
+    uint32_t host_pref_tx_phys_mask: 3;
+    uint32_t host_pref_rx_phys_mask: 3;
+    uint32_t req_pref_tx_phys_mask: 3;
+    uint32_t req_pref_rx_phys_mask: 3;
     uint32_t phy_options: 2;
 }  __attribute__((packed));
 

@@ -75,9 +75,9 @@ struct ble_phy_obj
     uint8_t phy_encrypted;
     uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
-    uint8_t phy_txtorx_phy;
-    uint8_t phy_cur_phy;
-    uint8_t phy_pkt_start_off[BLE_PHY_NUM_MODULATIONS];
+    uint8_t phy_txtorx_phy_mode;
+    uint8_t phy_cur_phy_mode;
+    uint8_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODULATIONS];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     uint32_t phy_pcnf0;
@@ -198,21 +198,21 @@ struct nrf_ccm_data g_nrf_ccm_data;
  * for a total of 10 bytes.
  *
  * @param pyld_len PDU payload length (does not include include header).
- * @param phy PHY modulation being used.
+ * @param phy_mode PHY modulation being used.
  *
  * @return uint32_t The number of usecs it will take to transmit a PDU of
  *                  length 'len' bytes.
  */
 uint32_t
-ble_phy_pdu_dur(uint8_t pyld_len, int phy)
+ble_phy_mode_pdu_dur(uint8_t pyld_len, int phy_mode)
 {
     uint32_t usecs;
 
-    if (phy == BLE_PHY_1M) {
+    if (phy_mode == BLE_PHY_MODE_1M) {
         /* 8 usecs per byte */
         usecs = (pyld_len + BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN
                  + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 3;
-    } else if (phy == BLE_PHY_2M) {
+    } else if (phy_mode == BLE_PHY_MODE_2M) {
         /* 4 usecs per byte */
         usecs = (pyld_len + (2 * BLE_LL_PREAMBLE_LEN) + BLE_LL_ACC_ADDR_LEN
                  + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 2;
@@ -226,19 +226,18 @@ ble_phy_pdu_dur(uint8_t pyld_len, int phy)
 
 /* Packet start offset (in usecs). This is the preamble plus access address. */
 uint32_t
-ble_phy_pdu_start_off(int phy)
+ble_phy_mode_pdu_start_off(int phy_mode)
 {
-    return g_ble_phy_data.phy_pkt_start_off[phy];
+    return g_ble_phy_data.phy_mode_pkt_start_off[phy_mode];
 }
 
 void
-ble_phy_set_mode(int cur_phy, int txtorx_phy)
+ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
 {
-
-    if (cur_phy == BLE_PHY_1M) {
+    if (cur_phy_mode == BLE_PHY_MODE_1M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;    /* Default is 8 bits */
-    } else if (cur_phy == BLE_PHY_2M) {
+    } else if (cur_phy_mode == BLE_PHY_MODE_2M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
             (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos);
@@ -246,8 +245,8 @@ ble_phy_set_mode(int cur_phy, int txtorx_phy)
         /* XXX: TODO added coded PHY */
         assert(0);
     }
-    g_ble_phy_data.phy_cur_phy = (uint8_t)cur_phy;
-    g_ble_phy_data.phy_txtorx_phy = (uint8_t)txtorx_phy;
+    g_ble_phy_data.phy_cur_phy_mode = (uint8_t)cur_phy_mode;
+    g_ble_phy_data.phy_txtorx_phy_mode = (uint8_t)txtorx_phy_mode;
 }
 #endif
 
@@ -453,7 +452,7 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     int phy;
 
-    phy = g_ble_phy_data.phy_cur_phy;
+    phy = g_ble_phy_data.phy_cur_phy_mode;
 #endif
     if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
         /*
@@ -463,12 +462,12 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
          * is captured in CC[2]
          */
         end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
-            ble_phy_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
+            ble_phy_mode_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
     } else {
         /* CC[0] is set to when RXEN occurs. NOTE: the extra 16 usecs is
            jitter */
         end_time = NRF_TIMER0->CC[0] + XCVR_RX_START_DELAY_USECS + wfr_usecs +
-            ble_phy_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
+            ble_phy_mode_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
     }
 
     /* wfr_secs is the time from rxen until timeout */
@@ -622,9 +621,9 @@ ble_phy_tx_end_isr(void)
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
         /* See if a new phy has been specified for tx to rx transition */
-        phy = g_ble_phy_data.phy_txtorx_phy;
-        if (phy != g_ble_phy_data.phy_cur_phy) {
-            ble_phy_set_mode(phy, phy);
+        phy = g_ble_phy_data.phy_txtorx_phy_mode;
+        if (phy != g_ble_phy_data.phy_cur_phy_mode) {
+            ble_phy_mode_set(phy, phy);
         }
 #endif
 
@@ -647,8 +646,8 @@ ble_phy_tx_end_isr(void)
          * add twice the jitter just to be sure.
          */
         wfr_time = BLE_LL_IFS + (2 * BLE_LL_JITTER_USECS) +
-            ble_phy_pdu_start_off(phy) - ble_phy_pdu_start_off(phy);
-        wfr_time += ble_phy_pdu_dur(txlen, phy);
+            ble_phy_mode_pdu_start_off(phy) - ble_phy_mode_pdu_start_off(phy);
+        wfr_time += ble_phy_mode_pdu_dur(txlen, phy);
         wfr_time = os_cputime_usecs_to_ticks(wfr_time);
         ble_ll_wfr_enable(txstart + wfr_time);
 #endif
@@ -778,7 +777,7 @@ ble_phy_rx_start_isr(void)
      *
      * XXX: possibly use other routine with remainder!
      */
-    usecs = NRF_TIMER0->CC[1] - ble_phy_pdu_start_off(g_ble_phy_data.phy_cur_phy);
+    usecs = NRF_TIMER0->CC[1] - ble_phy_mode_pdu_start_off(g_ble_phy_data.phy_cur_phy_mode);
     ticks = os_cputime_usecs_to_ticks(usecs);
     ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
     if (ble_hdr->rem_usecs == 31) {
@@ -788,7 +787,7 @@ ble_phy_rx_start_isr(void)
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
 #else
     ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
-        os_cputime_usecs_to_ticks(ble_phy_pdu_start_off(g_ble_phy_data.phy_cur_phy));
+        os_cputime_usecs_to_ticks(ble_phy_mode_pdu_start_off(g_ble_phy_data.phy_cur_phy_mode));
 #endif
 
     /* XXX: I wonder if we always have the 1st byte. If we need to wait for
@@ -901,12 +900,12 @@ ble_phy_init(void)
 
     /* XXX: TODO add coded phy */
     /* Set packet start offsets for various phys */
-    g_ble_phy_data.phy_pkt_start_off[BLE_PHY_1M] = 40;  /* 40 usecs */
-    g_ble_phy_data.phy_pkt_start_off[BLE_PHY_2M] = 24;  /* 24 usecs */
+    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_1M] = 40;  /* 40 usecs */
+    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_2M] = 24;  /* 24 usecs */
 
     /* Default phy to use is 1M */
-    g_ble_phy_data.phy_cur_phy = BLE_PHY_1M;
-    g_ble_phy_data.phy_txtorx_phy = BLE_PHY_1M;
+    g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
+    g_ble_phy_data.phy_txtorx_phy_mode = BLE_PHY_MODE_1M;
 
 #if !defined(BLE_XCVR_RFCLK)
     uint32_t os_tmo;

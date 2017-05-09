@@ -387,11 +387,11 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
          * is captured in CC[2]. I just made up the 16 usecs I add here.
          */
         end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
-            ble_phy_pdu_start_off(BLE_PHY_1M) + 16;
+            ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M) + 16;
     } else {
         /* CC[0] is set to when RXEN occurs. */
         end_time = NRF_TIMER0->CC[0] + XCVR_RX_START_DELAY_USECS + wfr_usecs +
-            ble_phy_pdu_start_off(BLE_PHY_1M) + BLE_LL_JITTER_USECS;
+            ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M) + BLE_LL_JITTER_USECS;
     }
 
     /* wfr_secs is the time from rxen until timeout */
@@ -565,10 +565,10 @@ ble_phy_tx_end_isr(void)
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
 #else
-        wfr_time = (BLE_LL_IFS + ble_phy_pdu_start_off(BLE_PHY_1M) +
+        wfr_time = (BLE_LL_IFS + ble_phy_mode_pdu_start_off(BLE_PHY_1M) +
                     (2 * BLE_LL_JITTER_USECS)) -
-                    ble_phy_pdu_start_off(BLE_PHY_1M);
-        wfr_time += ble_phy_pdu_dur(txlen, BLE_PHY_1M);
+                    ble_phy_mode_pdu_start_off(BLE_PHY_1M);
+        wfr_time += ble_phy_mode_pdu_dur(txlen, BLE_PHY_1M);
         wfr_time = os_cputime_usecs_to_ticks(wfr_time);
         ble_ll_wfr_enable(txstart + wfr_time);
 #endif
@@ -702,7 +702,7 @@ ble_phy_rx_start_isr(void)
      *
      * XXX: possibly use other routine with remainder!
      */
-    usecs = NRF_TIMER0->CC[1] - ble_phy_pdu_start_off(BLE_PHY_1M);
+    usecs = NRF_TIMER0->CC[1] - ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M);
     ticks = os_cputime_usecs_to_ticks(usecs);
     ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
     if (ble_hdr->rem_usecs == 31) {
@@ -712,7 +712,7 @@ ble_phy_rx_start_isr(void)
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
 #else
     ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
-        os_cputime_usecs_to_ticks(ble_phy_pdu_start_off(BLE_PHY_1M));
+        os_cputime_usecs_to_ticks(ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M));
 #endif
 
     /* Wait to get 1st byte of frame */
