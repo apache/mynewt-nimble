@@ -531,6 +531,7 @@ ble_ll_conn_calc_access_addr(void)
     uint8_t bits_diff;
     uint8_t consecutive;
     uint8_t transitions;
+    uint8_t ones;
 
     /* Calculate a random access address */
     aa = 0;
@@ -570,6 +571,7 @@ ble_ll_conn_calc_access_addr(void)
         /* Cannot have more than 24 transitions */
         transitions = 0;
         consecutive = 0;
+        ones = 0;
         mask = 0x00000001;
         while (mask < 0x80000000) {
             prev_bit = aa & mask;
@@ -590,14 +592,33 @@ ble_ll_conn_calc_access_addr(void)
                 }
             }
 
+            if (prev_bit) {
+                ones++;
+            }
+
+            /* 8 lsb should have at least three 1 */
+            if (mask == 0x00000100 && ones < 3) {
+                break;
+            }
+
+            /* 16 lsb should have no more than 11 transitions */
+            if (mask == 0x00010000 && transitions > 11) {
+                break;
+            }
+
             /* This is invalid! */
             if (consecutive > 6) {
                 break;
             }
         }
 
+        /* Invalid sequence found */
+        if (mask != 0x80000000) {
+            continue;
+        }
+
         /* Cannot be more than 24 transitions */
-        if ((consecutive > 6) || (transitions > 24)) {
+        if (transitions > 24) {
             continue;
         }
 
