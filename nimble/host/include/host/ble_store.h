@@ -205,6 +205,10 @@ void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    struct ble_store_value_cccd *value);
 
+void ble_store_key_from_value(int obj_type,
+                              union ble_store_key *out_key,
+                              union ble_store_value *value);
+
 typedef int ble_store_iterator_fn(int obj_type,
                                   union ble_store_value *val,
                                   void *cookie);
@@ -212,6 +216,14 @@ typedef int ble_store_iterator_fn(int obj_type,
 int ble_store_iterate(int obj_type,
                       ble_store_iterator_fn *callback,
                       void *cookie);
+
+/*** Utility functions. */
+
+int ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs,
+                                int *out_num_peers,
+                                int max_peers);
+int ble_store_util_delete_all(int type, const union ble_store_key *key);
+int ble_store_util_delete_peer(const ble_addr_t *peer_id_addr); 
 
 #ifdef __cplusplus
 }
