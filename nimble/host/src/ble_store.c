@@ -236,6 +236,27 @@ ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
     out_key->idx = 0;
 }
 
+void
+ble_store_key_from_value(int obj_type,
+                         union ble_store_key *out_key,
+                         union ble_store_value *value)
+{
+    switch (obj_type) {
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+        ble_store_key_from_value_sec(&out_key->sec, &value->sec);
+        break;
+
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        ble_store_key_from_value_cccd(&out_key->cccd, &value->cccd);
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
+    }
+}
+
 int
 ble_store_iterate(int obj_type,
                   ble_store_iterator_fn *callback,
@@ -258,6 +279,7 @@ ble_store_iterate(int obj_type,
         case BLE_STORE_OBJ_TYPE_CCCD:
             key.cccd.peer_addr = *BLE_ADDR_ANY;
             pidx = &key.cccd.idx;
+            break;
         default:
             BLE_HS_DBG_ASSERT(0);
             return BLE_HS_EINVAL;
