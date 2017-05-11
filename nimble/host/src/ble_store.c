@@ -268,7 +268,11 @@ void ble_store_iterate(int obj_type,
             /* read error or no more entries */
             break;
         } else if (callback) {
-            callback(obj_type, &value, cookie);
+            rc = callback(obj_type, &value, cookie);
+            if (rc != 0) {
+                /* User function indicates to stop iterating. */
+                break;
+            }
         }
         idx++;
     }
