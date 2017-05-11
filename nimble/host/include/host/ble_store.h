@@ -209,9 +209,10 @@ typedef int ble_store_iterator_fn(int obj_type,
                                   union ble_store_value *val,
                                   void *cookie);
 
-void ble_store_iterate(int obj_type,
-                       ble_store_iterator_fn *callback,
-                       void *cookie);
+int ble_store_iterate(int obj_type,
+                      ble_store_iterator_fn *callback,
+                      void *cookie);
+
 #ifdef __cplusplus
 }
 #endif

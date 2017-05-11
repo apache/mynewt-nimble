@@ -236,14 +236,16 @@ ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
     out_key->idx = 0;
 }
 
-void ble_store_iterate(int obj_type,
-                       ble_store_iterator_fn *callback,
-                       void *cookie)
+int
+ble_store_iterate(int obj_type,
+                  ble_store_iterator_fn *callback,
+                  void *cookie)
 {
     union ble_store_key key;
     union ble_store_value value;
     int idx = 0;
     uint8_t *pidx;
+    int rc;
 
     /* a magic value to retrieve anything */
     memset(&key, 0, sizeof(key));
@@ -257,23 +259,33 @@ void ble_store_iterate(int obj_type,
             key.cccd.peer_addr = *BLE_ADDR_ANY;
             pidx = &key.cccd.idx;
         default:
-            return;
+            BLE_HS_DBG_ASSERT(0);
+            return BLE_HS_EINVAL;
     }
 
     while (1) {
-        int rc;
         *pidx = idx;
         rc = ble_store_read(obj_type, &key, &value);
-        if (rc != 0) {
-            /* read error or no more entries */
-            break;
-        } else if (callback) {
-            rc = callback(obj_type, &value, cookie);
-            if (rc != 0) {
-                /* User function indicates to stop iterating. */
-                break;
+        switch (rc) {
+        case 0:
+            if (callback != NULL) {
+                rc = callback(obj_type, &value, cookie);
+                if (rc != 0) {
+                    /* User function indicates to stop iterating. */
+                    return 0;
+                }
             }
+            break;
+
+        case BLE_HS_ENOENT:
+            /* No more entries. */
+            return 0;
+
+        default:
+            /* Read error. */
+            return rc;
         }
+
         idx++;
     }
 }
