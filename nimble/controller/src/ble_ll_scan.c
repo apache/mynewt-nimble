@@ -573,13 +573,13 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
  * @return int
  */
 static void
-ble_ll_scan_start(struct ble_ll_scan_sm *scansm, uint8_t chan)
+ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 {
     int rc;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
 
     /* Set channel */
-    rc = ble_phy_setchan(chan, 0, 0);
+    rc = ble_phy_setchan(scanphy->scan_chan, 0, 0);
     assert(rc == 0);
 
     /*
@@ -665,6 +665,27 @@ ble_ll_scan_rfclk_chk_stop(void)
 }
 #endif
 
+static uint32_t
+ble_ll_scan_get_current_scan_win(struct ble_ll_scan_sm *scansm, uint32_t cputime)
+{
+    uint32_t itvl;
+    struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
+
+    /* Well, in case we missed to schedule scan, lets move to next stan interval.
+     */
+    itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
+    while ((int32_t)(cputime - scansm->scan_win_start_time) >= itvl) {
+        scansm->scan_win_start_time += itvl;
+
+        /* If we missed scan window, make sure we update scan channel */
+        ++scanphy->scan_chan;
+        if (scanphy->scan_chan == BLE_PHY_NUM_CHANS) {
+            scanphy->scan_chan = BLE_PHY_ADV_CHAN_START;
+        }
+    }
+
+    return scansm->scan_win_start_time;
+}
 /**
  * Called to determine if we are inside or outside the scan window. If we
  * are inside the scan window it means that the device should be receiving
@@ -679,25 +700,13 @@ ble_ll_scan_rfclk_chk_stop(void)
 static int
 ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
 {
-    int rc;
-    uint8_t chan;
     uint32_t itvl;
     uint32_t dt;
     uint32_t win_start;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
 
-    itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
-    chan = scanphy->scan_chan;
-    win_start = scansm->scan_win_start_time;
-    while ((int32_t)(cputime - win_start) >= itvl) {
-        win_start += itvl;
-        ++chan;
-        if (chan == BLE_PHY_NUM_CHANS) {
-            chan = BLE_PHY_ADV_CHAN_START;
-        }
-    }
+    win_start = ble_ll_scan_get_current_scan_win(scansm, cputime);
 
-    rc = 0;
     if (scanphy->scan_window != scanphy->scan_itvl) {
         itvl = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
         dt = cputime - win_start;
@@ -707,16 +716,11 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
                 ble_ll_scan_rfclk_chk_stop();
             }
 #endif
-            rc = 1;
+            return 1;
         }
     }
 
-    if (!rc) {
-        /* Turn on the receiver and set state */
-        ble_ll_scan_start(scansm, chan);
-    }
-
-    return rc;
+    return 0;
 }
 
 /**
@@ -960,7 +964,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
             goto rfclk_not_settled;
         }
 #endif
-        ble_ll_scan_start(scansm, scanphy->scan_chan);
+        ble_ll_scan_start(scansm);
     }
 
 #ifdef BLE_XCVR_RFCLK
@@ -1191,8 +1195,10 @@ ble_ll_scan_chk_resume(void)
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_enabled) {
         OS_ENTER_CRITICAL(sr);
-        if (ble_ll_state_get() == BLE_LL_STATE_STANDBY) {
-            ble_ll_scan_window_chk(scansm, os_cputime_get32());
+        if (ble_ll_state_get() == BLE_LL_STATE_STANDBY &&
+                    ble_ll_scan_window_chk(scansm, os_cputime_get32()) == 0) {
+            /* Turn on the receiver and set state */
+            ble_ll_scan_start(scansm);
         }
         OS_EXIT_CRITICAL(sr);
     }
