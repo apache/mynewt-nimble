@@ -148,7 +148,7 @@ union ble_store_value {
  *                              BLE_HS_ENOENT if no matching object was found;
  *                              Other nonzero on error.
  */
-typedef int ble_store_read_fn(int obj_type, union ble_store_key *key,
+typedef int ble_store_read_fn(int obj_type, const union ble_store_key *key,
                               union ble_store_value *dst);
 
 /**
@@ -164,7 +164,7 @@ typedef int ble_store_read_fn(int obj_type, union ble_store_key *key,
  * @return                      0 if the object was successfully written;
  *                              Other nonzero on error.
  */
-typedef int ble_store_write_fn(int obj_type, union ble_store_value *val);
+typedef int ble_store_write_fn(int obj_type, const union ble_store_value *val);
 
 /**
  * Searches the store for the first object matching the specified criteria.  If
@@ -179,35 +179,35 @@ typedef int ble_store_write_fn(int obj_type, union ble_store_value *val);
  *                              BLE_HS_ENOENT if no matching object was found;
  *                              Other nonzero on error.
  */
-typedef int ble_store_delete_fn(int obj_type, union ble_store_key *key);
+typedef int ble_store_delete_fn(int obj_type, const union ble_store_key *key);
 
-int ble_store_read(int obj_type, union ble_store_key *key,
+int ble_store_read(int obj_type, const union ble_store_key *key,
                    union ble_store_value *val);
-int ble_store_write(int obj_type, union ble_store_value *val);
-int ble_store_delete(int obj_type, union ble_store_key *key);
+int ble_store_write(int obj_type, const union ble_store_value *val);
+int ble_store_delete(int obj_type, const union ble_store_key *key);
 
-int ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
+int ble_store_read_our_sec(const struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec);
-int ble_store_write_our_sec(struct ble_store_value_sec *value_sec);
-int ble_store_delete_our_sec(struct ble_store_key_sec *key_sec);
-int ble_store_read_peer_sec(struct ble_store_key_sec *key_sec,
+int ble_store_write_our_sec(const struct ble_store_value_sec *value_sec);
+int ble_store_delete_our_sec(const struct ble_store_key_sec *key_sec);
+int ble_store_read_peer_sec(const struct ble_store_key_sec *key_sec,
                             struct ble_store_value_sec *value_sec);
-int ble_store_write_peer_sec(struct ble_store_value_sec *value_sec);
-int ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec);
+int ble_store_write_peer_sec(const struct ble_store_value_sec *value_sec);
+int ble_store_delete_peer_sec(const struct ble_store_key_sec *key_sec);
 
-int ble_store_read_cccd(struct ble_store_key_cccd *key,
+int ble_store_read_cccd(const struct ble_store_key_cccd *key,
                         struct ble_store_value_cccd *out_value);
-int ble_store_write_cccd(struct ble_store_value_cccd *value);
-int ble_store_delete_cccd(struct ble_store_key_cccd *key);
+int ble_store_write_cccd(const struct ble_store_value_cccd *value);
+int ble_store_delete_cccd(const struct ble_store_key_cccd *key);
 
 void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
-                                  struct ble_store_value_sec *value);
+                                  const struct ble_store_value_sec *value);
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
-                                   struct ble_store_value_cccd *value);
+                                   const struct ble_store_value_cccd *value);
 
 void ble_store_key_from_value(int obj_type,
                               union ble_store_key *out_key,
-                              union ble_store_value *value);
+                              const union ble_store_value *value);
 
 typedef int ble_store_iterator_fn(int obj_type,
                                   union ble_store_value *val,

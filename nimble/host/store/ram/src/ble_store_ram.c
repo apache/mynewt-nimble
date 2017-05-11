@@ -48,7 +48,7 @@ static int ble_store_ram_num_cccds;
  *****************************************************************************/
 
 static void
-ble_store_ram_print_value_sec(struct ble_store_value_sec *sec)
+ble_store_ram_print_value_sec(const struct ble_store_value_sec *sec)
 {
     if (sec->ltk_present) {
         BLE_HS_LOG(DEBUG, "ediv=%u rand=%llu authenticated=%d ltk=",
@@ -71,7 +71,7 @@ ble_store_ram_print_value_sec(struct ble_store_value_sec *sec)
 }
 
 static void
-ble_store_ram_print_key_sec(struct ble_store_key_sec *key_sec)
+ble_store_ram_print_key_sec(const struct ble_store_key_sec *key_sec)
 {
     if (ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
         BLE_HS_LOG(DEBUG, "peer_addr_type=%d peer_addr=",
@@ -86,11 +86,11 @@ ble_store_ram_print_key_sec(struct ble_store_key_sec *key_sec)
 }
 
 static int
-ble_store_ram_find_sec(struct ble_store_key_sec *key_sec,
-                       struct ble_store_value_sec *value_secs,
+ble_store_ram_find_sec(const struct ble_store_key_sec *key_sec,
+                       const struct ble_store_value_sec *value_secs,
                        int num_value_secs)
 {
-    struct ble_store_value_sec *cur;
+    const struct ble_store_value_sec *cur;
     int skipped;
     int i;
 
@@ -127,7 +127,7 @@ ble_store_ram_find_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_read_our_sec(struct ble_store_key_sec *key_sec,
+ble_store_ram_read_our_sec(const struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec)
 {
     int idx;
@@ -143,7 +143,7 @@ ble_store_ram_read_our_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_write_our_sec(struct ble_store_value_sec *value_sec)
+ble_store_ram_write_our_sec(const struct ble_store_value_sec *value_sec)
 {
     struct ble_store_key_sec key_sec;
     int idx;
@@ -191,7 +191,7 @@ ble_store_ram_delete_obj(void *values, int value_size, int idx,
 }
 
 static int
-ble_store_ram_delete_sec(struct ble_store_key_sec *key_sec,
+ble_store_ram_delete_sec(const struct ble_store_key_sec *key_sec,
                          struct ble_store_value_sec *value_secs,
                          int *num_value_secs)
 {
@@ -213,7 +213,7 @@ ble_store_ram_delete_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_delete_our_sec(struct ble_store_key_sec *key_sec)
+ble_store_ram_delete_our_sec(const struct ble_store_key_sec *key_sec)
 {
     int rc;
 
@@ -227,7 +227,7 @@ ble_store_ram_delete_our_sec(struct ble_store_key_sec *key_sec)
 }
 
 static int
-ble_store_ram_delete_peer_sec(struct ble_store_key_sec *key_sec)
+ble_store_ram_delete_peer_sec(const struct ble_store_key_sec *key_sec)
 {
     int rc;
 
@@ -241,7 +241,7 @@ ble_store_ram_delete_peer_sec(struct ble_store_key_sec *key_sec)
 }
 
 static int
-ble_store_ram_read_peer_sec(struct ble_store_key_sec *key_sec,
+ble_store_ram_read_peer_sec(const struct ble_store_key_sec *key_sec,
                             struct ble_store_value_sec *value_sec)
 {
     int idx;
@@ -257,7 +257,7 @@ ble_store_ram_read_peer_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_write_peer_sec(struct ble_store_value_sec *value_sec)
+ble_store_ram_write_peer_sec(const struct ble_store_value_sec *value_sec)
 {
     struct ble_store_key_sec key_sec;
     int idx;
@@ -288,7 +288,7 @@ ble_store_ram_write_peer_sec(struct ble_store_value_sec *value_sec)
  *****************************************************************************/
 
 static int
-ble_store_ram_find_cccd(struct ble_store_key_cccd *key)
+ble_store_ram_find_cccd(const struct ble_store_key_cccd *key)
 {
     struct ble_store_value_cccd *cccd;
     int skipped;
@@ -322,8 +322,8 @@ ble_store_ram_find_cccd(struct ble_store_key_cccd *key)
 }
 
 static int
-ble_store_ram_read_cccd(struct ble_store_key_cccd *key_cccd,
-                struct ble_store_value_cccd *value_cccd)
+ble_store_ram_read_cccd(const struct ble_store_key_cccd *key_cccd,
+                        struct ble_store_value_cccd *value_cccd)
 {
     int idx;
 
@@ -337,7 +337,7 @@ ble_store_ram_read_cccd(struct ble_store_key_cccd *key_cccd,
 }
 
 static int
-ble_store_ram_write_cccd(struct ble_store_value_cccd *value_cccd)
+ble_store_ram_write_cccd(const struct ble_store_value_cccd *value_cccd)
 {
     struct ble_store_key_cccd key_cccd;
     int idx;
@@ -369,7 +369,7 @@ ble_store_ram_write_cccd(struct ble_store_value_cccd *value_cccd)
  * @return                      0 if a key was found; else BLE_HS_ENOENT.
  */
 int
-ble_store_ram_read(int obj_type, union ble_store_key *key,
+ble_store_ram_read(int obj_type, const union ble_store_key *key,
                    union ble_store_value *value)
 {
     int rc;
@@ -413,7 +413,7 @@ ble_store_ram_read(int obj_type, union ble_store_key *key,
  *                                  full.
  */
 int
-ble_store_ram_write(int obj_type, union ble_store_value *val)
+ble_store_ram_write(int obj_type, const union ble_store_value *val)
 {
     int rc;
 
@@ -436,7 +436,7 @@ ble_store_ram_write(int obj_type, union ble_store_value *val)
 }
 
 int
-ble_store_ram_delete(int obj_type, union ble_store_key *key)
+ble_store_ram_delete(int obj_type, const union ble_store_key *key)
 {
     int rc;
 

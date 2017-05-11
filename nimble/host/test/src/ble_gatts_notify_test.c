@@ -74,9 +74,9 @@ ble_gatts_notify_test_events[BLE_GATTS_NOTIFY_TEST_MAX_EVENTS];
 
 static int ble_gatts_notify_test_num_events;
 
-typedef int ble_store_write_fn(int obj_type, union ble_store_value *val);
+typedef int ble_store_write_fn(int obj_type, const union ble_store_value *val);
 
-typedef int ble_store_delete_fn(int obj_type, union ble_store_key *key);
+typedef int ble_store_delete_fn(int obj_type, const union ble_store_key *key);
 
 static int
 ble_gatts_notify_test_util_gap_event(struct ble_gap_event *event, void *arg)
