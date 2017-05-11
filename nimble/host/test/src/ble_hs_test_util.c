@@ -2320,7 +2320,7 @@ ble_hs_test_util_num_peer_secs(void)
 }
 
 static int
-ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
+ble_hs_test_util_store_read(int obj_type, const union ble_store_key *key,
                             union ble_store_value *value)
 {
     int rc;
@@ -2335,7 +2335,7 @@ ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
 }
 
 static int
-ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
+ble_hs_test_util_store_write(int obj_type, const union ble_store_value *value)
 {
     int rc;
 
@@ -2348,7 +2348,7 @@ ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
 }
 
 static int
-ble_hs_test_util_store_delete(int obj_type, union ble_store_key *key)
+ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
 {
     int rc;
 
