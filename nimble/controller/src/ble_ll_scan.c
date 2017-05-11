@@ -818,9 +818,8 @@ static void
 ble_ll_scan_event_proc(struct os_event *ev)
 {
     os_sr_t sr;
-    int rxstate;
+    int inside_window;
     int start_scan;
-    uint8_t chan;
     uint32_t now;
     uint32_t dt;
     uint32_t win;
@@ -829,6 +828,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
     uint32_t next_event_time;
 #ifdef BLE_XCVR_RFCLK
     uint32_t xtal_ticks;
+    int xtal_state;
 #endif
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanphy;
@@ -838,48 +838,39 @@ ble_ll_scan_event_proc(struct os_event *ev)
      * leave and do nothing (just make sure timer is stopped).
      */
     scansm = (struct ble_ll_scan_sm *)ev->ev_arg;
+    scanphy = &scansm->phy_data[scansm->cur_phy];
+
     if (!scansm->scan_enabled) {
         os_cputime_timer_stop(&scansm->scan_timer);
         return;
     }
 
-    scanphy = &scansm->phy_data[scansm->cur_phy];
-
     /* Make sure the scan window start time and channel are up to date. */
     now = os_cputime_get32();
+    win_start = ble_ll_scan_get_current_scan_win(scansm, now);
 
-    scan_itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
-    chan = scanphy->scan_chan;
-    win_start = scansm->scan_win_start_time;
-    while ((int32_t)(now - win_start) >= scan_itvl) {
-        win_start += scan_itvl;
-        ++chan;
-        if (chan == BLE_PHY_NUM_CHANS) {
-            chan = BLE_PHY_ADV_CHAN_START;
-        }
-    }
-
+    /* Check if we are in scan window */
     dt = now - win_start;
-    scanphy->scan_chan = chan;
-    scansm->scan_win_start_time = win_start;
+
     if (scanphy->scan_window != scanphy->scan_itvl) {
         win = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
+        inside_window = dt < win ? 1 : 0;
     } else {
         win = 0;
+        /* In case continous scan lets assume we area always in the window*/
+        inside_window = 1;
     }
 
     /* Determine on/off state based on scan window */
-    rxstate = 1;
-    next_event_time = win_start + scan_itvl;
+    scan_itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl *
+                                                    BLE_HCI_SCAN_ITVL);
 
     OS_ENTER_CRITICAL(sr);
 
-    if (win != 0) {
-        if (dt >= win) {
-            rxstate = 0;
-        } else {
-            next_event_time = win_start + win;
-        }
+    if (win != 0 && inside_window) {
+        next_event_time = win_start + win;
+    } else {
+        next_event_time = win_start + scan_itvl;
     }
 
     /*
@@ -897,7 +888,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
-        if (!rxstate) {
+        if (!inside_window) {
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
         }
         break;
@@ -909,7 +900,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
     }
 
 #ifdef BLE_XCVR_RFCLK
-    if (rxstate == 0) {
+    if (inside_window == 0) {
         /*
          * We need to wake up before we need to start scanning in order
          * to make sure the rfclock is on. If we are close to being on,
@@ -932,12 +923,11 @@ ble_ll_scan_event_proc(struct os_event *ev)
     }
 #endif
 
-    if (start_scan && rxstate) {
+    if (start_scan && inside_window) {
 #ifdef BLE_XCVR_RFCLK
-        /* NOTE: reuse rxstate */
-        rxstate = ble_ll_xcvr_rfclk_state();
-        if (rxstate != BLE_RFCLK_STATE_SETTLED) {
-            if (rxstate == BLE_RFCLK_STATE_OFF) {
+            xtal_state = ble_ll_xcvr_rfclk_state();
+        if (xtal_state != BLE_RFCLK_STATE_SETTLED) {
+            if (xtal_state == BLE_RFCLK_STATE_OFF) {
                 xtal_ticks = g_ble_ll_data.ll_xtal_ticks;
             } else {
                 xtal_ticks = ble_ll_xcvr_rfclk_time_till_settled();
@@ -957,7 +947,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
              * If clock off, start clock. Set next event time to now plus
              * the clock setting time.
              */
-            if (rxstate == BLE_RFCLK_STATE_OFF) {
+            if (xtal_state == BLE_RFCLK_STATE_OFF) {
                 ble_ll_xcvr_rfclk_start_now(now);
             }
             next_event_time = now + xtal_ticks;
