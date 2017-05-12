@@ -50,9 +50,10 @@ extern uint32_t g_nrf_irk_list[];
  * zero bit S1 field. The preamble is 8 bits long.
  */
 #define NRF_LFLEN_BITS          (8)
-#define NRF_S0_LEN              (1)
-#define NRF_CI_LEN              (2)
-#define NRF_TERM_LEN            (3)
+#define NRF_S0LEN               (1)
+#define NRF_S1LEN_BITS          (0)
+#define NRF_CILEN_BITS          (2)
+#define NRF_TERMLEN_BITS        (3)
 
 /* Maximum length of frames */
 #define NRF_MAXLEN              (255)
@@ -253,7 +254,8 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
 {
     if (cur_phy_mode == BLE_PHY_MODE_1M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
-        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;    /* Default is 8 bits */
+        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
+            (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
     } else if (cur_phy_mode == BLE_PHY_MODE_2M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
@@ -262,14 +264,14 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
             (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) |
-            (NRF_CI_LEN << RADIO_PCNF0_CILEN_Pos) |
-            (NRF_TERM_LEN << RADIO_PCNF0_TERMLEN_Pos);
+            (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) |
+            (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos);
     } else if (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
         NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
             (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) |
-            (NRF_CI_LEN << RADIO_PCNF0_CILEN_Pos) |
-            (NRF_TERM_LEN << RADIO_PCNF0_TERMLEN_Pos);
+            (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) |
+            (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos);
     } else {
         assert(0);
     }
@@ -968,8 +970,8 @@ ble_phy_init(void)
     NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
     g_ble_phy_data.phy_pcnf0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos)    |
                                RADIO_PCNF0_S1INCL_Msk                       |
-                               (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos)        |
-                               (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
+                               (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos)        |
+                               (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos);
     NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;
 
     /* XXX: should maxlen be 251 for encryption? */
