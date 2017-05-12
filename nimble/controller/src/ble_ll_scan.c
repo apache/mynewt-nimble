@@ -665,6 +665,17 @@ ble_ll_scan_rfclk_chk_stop(void)
 }
 #endif
 
+static uint8_t
+ble_ll_scan_get_next_adv_prim_chan(uint8_t chan)
+{
+    ++chan;
+    if (chan == BLE_PHY_NUM_CHANS) {
+        chan = BLE_PHY_ADV_CHAN_START;
+    }
+
+    return chan;
+}
+
 static uint32_t
 ble_ll_scan_get_current_scan_win(struct ble_ll_scan_sm *scansm, uint32_t cputime)
 {
@@ -674,17 +685,15 @@ ble_ll_scan_get_current_scan_win(struct ble_ll_scan_sm *scansm, uint32_t cputime
     /* Well, in case we missed to schedule scan, lets move to next stan interval.
      */
     itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
-    while ((int32_t)(cputime - scansm->scan_win_start_time) >= itvl) {
-        scansm->scan_win_start_time += itvl;
+    while ((int32_t)(cputime - scanphy->scan_win_start_time) >= itvl) {
+        scanphy->scan_win_start_time += itvl;
 
         /* If we missed scan window, make sure we update scan channel */
-        ++scanphy->scan_chan;
-        if (scanphy->scan_chan == BLE_PHY_NUM_CHANS) {
-            scanphy->scan_chan = BLE_PHY_ADV_CHAN_START;
-        }
+        scanphy->scan_chan =
+                ble_ll_scan_get_next_adv_prim_chan(scanphy->scan_chan);
     }
 
-    return scansm->scan_win_start_time;
+    return scanphy->scan_win_start_time;
 }
 /**
  * Called to determine if we are inside or outside the scan window. If we
@@ -788,6 +797,10 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     /* Set first advertising channel */
     scansm->phy_data[scansm->cur_phy].scan_chan = BLE_PHY_ADV_CHAN_START;
 
+    if (scansm->next_phy != scansm->cur_phy) {
+        scansm->phy_data[scansm->next_phy].scan_chan = BLE_PHY_ADV_CHAN_START;
+    }
+
     /* Reset scan request backoff parameters to default */
     scansm->upper_limit = 1;
     scansm->backoff_count = 1;
@@ -799,12 +812,78 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 
     /* XXX: align to current or next slot???. */
     /* Schedule start time now */
-    scansm->scan_win_start_time = os_cputime_get32();
+    scansm->phy_data[scansm->cur_phy].scan_win_start_time = os_cputime_get32();
 
     /* Post scanning event to start off the scanning process */
     ble_ll_event_send(&scansm->scan_sched_ev);
 
     return BLE_ERR_SUCCESS;
+}
+
+static void
+ble_ll_scan_switch_phy(struct ble_ll_scan_sm *scansm)
+{
+    uint8_t tmp;
+
+    if (scansm->next_phy == PHY_NOT_CONFIGURED) {
+        return;
+    }
+
+    tmp = scansm->next_phy;
+    scansm->next_phy = scansm->cur_phy;
+    scansm->cur_phy = tmp;
+
+    /*TODO Modify PHY*/
+}
+
+/**
+ * Called to change PHY if needed and set new event time
+ *
+ * Context: Link Layer task.
+ *
+ * @param arg
+ */
+static uint32_t
+ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
+                                 uint32_t next_event_time)
+{
+    struct ble_ll_scan_params *cur_phy;
+    struct ble_ll_scan_params *next_phy;
+    uint32_t now;
+    uint32_t win;
+
+    /* Lets check if we want to switch to other PHY */
+    if (scansm->cur_phy == scansm->next_phy ||
+            scansm->next_phy == PHY_NOT_CONFIGURED) {
+        return next_event_time;
+    }
+
+    cur_phy = &scansm->phy_data[scansm->cur_phy];
+    next_phy = &scansm->phy_data[scansm->next_phy];
+
+    cur_phy->next_event_start = next_event_time;
+
+    if ((int32_t)(next_phy->next_event_start - next_event_time)<  0) {
+        /* Other PHY already wanted to scan. Allow it */
+        ble_ll_scan_switch_phy(scansm);
+        now = os_cputime_get32();
+        if ((int32_t)(next_phy->next_event_start - now) <= 0) {
+            /* Start with new channel only if PHY was scanning already */
+            if (next_phy->next_event_start != 0) {
+                next_phy->scan_chan =
+                        ble_ll_scan_get_next_adv_prim_chan(next_phy->scan_chan);
+            }
+            next_phy->scan_win_start_time = now;
+            win = os_cputime_usecs_to_ticks(next_phy->scan_window *
+                                            BLE_HCI_SCAN_ITVL);
+
+            next_phy->next_event_start = now + win;
+            ble_ll_scan_start(scansm);
+        }
+        next_event_time = next_phy->next_event_start;
+    }
+
+    return next_event_time;
 }
 
 /**
@@ -955,6 +1034,10 @@ ble_ll_scan_event_proc(struct os_event *ev)
         }
 #endif
         ble_ll_scan_start(scansm);
+    } else {
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+      next_event_time = ble_ll_scan_start_next_phy(scansm, next_event_time);
+#endif
     }
 
 #ifdef BLE_XCVR_RFCLK

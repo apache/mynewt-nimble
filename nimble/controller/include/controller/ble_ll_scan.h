@@ -75,6 +75,8 @@ struct ble_ll_scan_params
     uint8_t scan_chan;
     uint16_t scan_itvl;
     uint16_t scan_window;
+    uint32_t scan_win_start_time;
+    uint32_t next_event_start;
 };
 
 struct ble_ll_scan_sm
