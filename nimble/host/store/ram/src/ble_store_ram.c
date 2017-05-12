@@ -322,6 +322,28 @@ ble_store_ram_find_cccd(const struct ble_store_key_cccd *key)
 }
 
 static int
+ble_store_ram_delete_cccd(const struct ble_store_key_cccd *key_cccd)
+{
+    int idx;
+    int rc;
+
+    idx = ble_store_ram_find_cccd(key_cccd);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    rc = ble_store_ram_delete_obj(ble_store_ram_cccds,
+                                  sizeof *ble_store_ram_cccds,
+                                  idx,
+                                  &ble_store_ram_num_cccds);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
 ble_store_ram_read_cccd(const struct ble_store_key_cccd *key_cccd,
                         struct ble_store_value_cccd *value_cccd)
 {
@@ -450,8 +472,8 @@ ble_store_ram_delete(int obj_type, const union ble_store_key *key)
         return rc;
 
     case BLE_STORE_OBJ_TYPE_CCCD:
-        /* XXX: There is no good reason not to support this. */
-        return BLE_HS_ENOTSUP;
+        rc = ble_store_ram_delete_cccd(&key->cccd);
+        return rc;
 
     default:
         return BLE_HS_ENOTSUP;
