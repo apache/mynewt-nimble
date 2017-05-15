@@ -980,9 +980,9 @@ ble_phy_init(void)
                        (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
                        RADIO_PCNF1_WHITEEN_Msk;
 
-    /* Set base0 with the advertising access address */
-    NRF_RADIO->BASE0 = (BLE_ACCESS_ADDR_ADV << 8) & 0xFFFFFF00;
-    NRF_RADIO->PREFIX0 = (BLE_ACCESS_ADDR_ADV >> 24) & 0xFF;
+    /* Set logical address 1 for TX and RX */
+    NRF_RADIO->TXADDRESS  = 0;
+    NRF_RADIO->RXADDRESSES  = (1 << 0);
 
     /* Configure the CRC registers */
     NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
@@ -1431,6 +1431,26 @@ ble_phy_txpwr_set(int dbm)
 }
 
 /**
+ * ble phy set access addr
+ *
+ * Set access address.
+ *
+ * @param access_addr Access address
+ *
+ * @return int 0: success; PHY error code otherwise
+ */
+int
+ble_phy_set_access_addr(uint32_t access_addr)
+{
+    NRF_RADIO->BASE0 = (access_addr << 8);
+    NRF_RADIO->PREFIX0 = (NRF_RADIO->PREFIX0 & 0xFFFFFF00) | (access_addr >> 24);
+
+    g_ble_phy_data.phy_access_address = access_addr;
+
+    return 0;
+}
+
+/**
  * ble phy txpwr get
  *
  * Get the transmit power.
@@ -1461,7 +1481,6 @@ int
 ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 {
     uint8_t freq;
-    uint32_t prefix;
 
     assert(chan < BLE_PHY_NUM_CHANS);
 
@@ -1483,16 +1502,9 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         }
 
         /* Set current access address */
-        g_ble_phy_data.phy_access_address = access_addr;
+        ble_phy_set_access_addr(access_addr);
 
-        /* Configure logical address 1 and crcinit */
-        prefix = NRF_RADIO->PREFIX0;
-        prefix &= 0xffff00ff;
-        prefix |= ((access_addr >> 24) & 0xFF) << 8;
-        NRF_RADIO->BASE1 = (access_addr << 8) & 0xFFFFFF00;
-        NRF_RADIO->PREFIX0 = prefix;
-        NRF_RADIO->TXADDRESS = 1;
-        NRF_RADIO->RXADDRESSES = (1 << 1);
+        /* Configure crcinit */
         NRF_RADIO->CRCINIT = crcinit;
     } else {
         if (chan == 37) {
@@ -1505,13 +1517,11 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
             freq = BLE_PHY_CHAN_SPACING_MHZ * 40;
         }
 
-        /* Logical adddress 0 preconfigured */
-        NRF_RADIO->TXADDRESS = 0;
-        NRF_RADIO->RXADDRESSES = (1 << 0);
-        NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
-
         /* Set current access address */
-        g_ble_phy_data.phy_access_address = BLE_ACCESS_ADDR_ADV;
+        ble_phy_set_access_addr(BLE_ACCESS_ADDR_ADV);
+
+        /* Configure crcinit */
+        NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
     }
 
     /* Set the frequency and the data whitening initial value */
