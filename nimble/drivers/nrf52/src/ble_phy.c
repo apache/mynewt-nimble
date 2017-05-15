@@ -985,7 +985,7 @@ ble_phy_init(void)
     NRF_RADIO->PREFIX0 = (BLE_ACCESS_ADDR_ADV >> 24) & 0xFF;
 
     /* Configure the CRC registers */
-    NRF_RADIO->CRCCNF = RADIO_CRCCNF_SKIPADDR_Msk | RADIO_CRCCNF_LEN_Three;
+    NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
 
     /* Configure BLE poly */
     NRF_RADIO->CRCPOLY = 0x0100065B;
