@@ -988,7 +988,7 @@ ble_phy_init(void)
     NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
 
     /* Configure BLE poly */
-    NRF_RADIO->CRCPOLY = 0x0100065B;
+    NRF_RADIO->CRCPOLY = 0x0000065B;
 
     /* Configure IFS */
     NRF_RADIO->TIFS = BLE_LL_IFS;
