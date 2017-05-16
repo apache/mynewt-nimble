@@ -159,16 +159,16 @@ int ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
 int ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
                                          uint8_t *dst, int dst_len);
 
-int ble_hs_hci_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
+int ble_hs_hci_cmd_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
                                       uint8_t priv_mode, uint8_t *dst,
                                       uint16_t dst_len);
 
-int ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst,
+int ble_hs_hci_cmd_build_le_read_phy(uint16_t conn_handle, uint8_t *dst,
                                  int dst_len);
-int ble_hs_hci_build_le_set_default_phy(uint8_t tx_phys_mask,
+int ble_hs_hci_cmd_build_le_set_default_phy(uint8_t tx_phys_mask,
                                         uint8_t rx_phys_mask,
                                         uint8_t *dst, int dst_len);
-int ble_hs_hci_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+int ble_hs_hci_cmd_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
                                 uint8_t rx_phys_mask, uint16_t phy_opts,
                                 uint8_t *dst, int dst_len);
 #ifdef __cplusplus

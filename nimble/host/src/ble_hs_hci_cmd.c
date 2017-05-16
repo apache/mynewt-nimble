@@ -1226,7 +1226,7 @@ ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
  * OGF=0x08 OCF=0x0030
  */
 int
-ble_hs_hci_build_le_read_phy(uint16_t conn_handle, uint8_t *dst, int dst_len)
+ble_hs_hci_cmd_build_le_read_phy(uint16_t conn_handle, uint8_t *dst, int dst_len)
 {
     BLE_HS_DBG_ASSERT(
         dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_RD_PHY_LEN);
@@ -1293,8 +1293,8 @@ ble_hs_hci_cmd_body_le_set_default_phy(uint8_t tx_phys_mask,
  * OGF=0x08 OCF=0x0031
  */
 int
-ble_hs_hci_build_le_set_default_phy(uint8_t tx_phys_mask, uint8_t rx_phys_mask,
-                                    uint8_t *dst, int dst_len)
+ble_hs_hci_cmd_build_le_set_default_phy(uint8_t tx_phys_mask, uint8_t rx_phys_mask,
+                                        uint8_t *dst, int dst_len)
 {
 
     BLE_HS_DBG_ASSERT(
@@ -1345,9 +1345,9 @@ ble_hs_hci_cmd_body_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
  * OGF=0x08 OCF=0x0032
  */
 int
-ble_hs_hci_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
-                            uint8_t rx_phys_mask, uint16_t phy_opts,
-                            uint8_t *dst, int dst_len)
+ble_hs_hci_cmd_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+                                uint8_t rx_phys_mask, uint16_t phy_opts,
+                                uint8_t *dst, int dst_len)
 {
 
     BLE_HS_DBG_ASSERT(
@@ -1386,9 +1386,9 @@ ble_hs_hci_cmd_body_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
  *  OGF=0x08 OCF=0x004e
  */
 int
-ble_hs_hci_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
-                                  uint8_t priv_mode, uint8_t *dst,
-                                  uint16_t dst_len)
+ble_hs_hci_cmd_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
+                                      uint8_t priv_mode, uint8_t *dst,
+                                      uint16_t dst_len)
 {
     BLE_HS_DBG_ASSERT(
         dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_PRIVACY_MODE_LEN);
