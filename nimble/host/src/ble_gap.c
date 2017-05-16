@@ -447,7 +447,7 @@ ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy)
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_hs_hci_build_le_read_phy(conn_handle, buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_le_read_phy(conn_handle, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -475,7 +475,7 @@ ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask, uint8_t rx_phys_mask)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_DEFAULT_PHY_LEN];
     int rc;
 
-    rc = ble_hs_hci_build_le_set_default_phy(tx_phys_mask, rx_phys_mask, buf,
+    rc = ble_hs_hci_cmd_build_le_set_default_phy(tx_phys_mask, rx_phys_mask, buf,
                                              sizeof(buf));
     if (rc != 0) {
         return rc;
@@ -500,7 +500,7 @@ ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
         return BLE_HS_ENOTCONN;
     }
 
-    rc = ble_hs_hci_build_le_set_phy(conn_handle, tx_phys_mask, rx_phys_mask,
+    rc = ble_hs_hci_cmd_build_le_set_phy(conn_handle, tx_phys_mask, rx_phys_mask,
                                      phy_opts, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
