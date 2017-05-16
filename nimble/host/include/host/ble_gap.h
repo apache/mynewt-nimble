@@ -188,6 +188,12 @@ struct ble_gap_conn_params {
     uint16_t max_ce_len;
 };
 
+struct ble_gap_ext_disc_params {
+    uint16_t itvl;
+    uint16_t window;
+    uint8_t passive:1;
+};
+
 struct ble_gap_disc_params {
     uint16_t itvl;
     uint16_t window;
@@ -224,6 +230,9 @@ struct ble_gap_disc_desc {
      * direct address fields are not present.
      */
     ble_addr_t direct_addr;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    uint8_t tx_power;
+#endif
 };
 
 /**
@@ -566,6 +575,12 @@ int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
                  ble_gap_event_fn *cb, void *cb_arg);
+int ble_gap_ext_disc(uint8_t own_addr_type, uint16_t duration, uint16_t period,
+                     uint8_t filter_duplicates, uint8_t filter_policy,
+                     uint8_t limited,
+                     const struct ble_gap_ext_disc_params *uncoded_params,
+                     const struct ble_gap_ext_disc_params *coded_params,
+                     ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_disc_cancel(void);
 int ble_gap_disc_active(void);
 int ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
