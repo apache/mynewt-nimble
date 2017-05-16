@@ -494,6 +494,14 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
          */
         end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
             ble_phy_mode_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
+
+        /*
+         * FIXME!
+         * on Coded PHY the time calculated above seems to be too short - adding
+         * extra 32us "solves" the problem (extra 16us, i.e. doubling the jitter
+         * is not enough). Need to figure out what is wrong here.
+         */
+        end_time += 32;
     } else {
         /* CC[0] is set to when RXEN occurs. NOTE: the extra 16 usecs is
            jitter */
