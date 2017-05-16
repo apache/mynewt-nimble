@@ -486,7 +486,7 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
             rc = ble_ll_hci_event_send(orig_evbuf);
             if (!rc) {
                 /* If filtering, add it to list of duplicate addresses */
-                if (g_ble_ll_scan_sm.scan_filt_dups) {
+                if (scansm->scan_filt_dups) {
                     ble_ll_scan_add_dup_adv(adv_addr, txadd, subev);
                 }
             }

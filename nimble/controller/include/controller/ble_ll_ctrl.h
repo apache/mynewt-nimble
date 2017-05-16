@@ -54,7 +54,7 @@ extern "C" {
  *  -> Opcode   (1 byte)
  *  -> Data     (0 - 26 bytes)
  */
-#define BLE_LL_CTRL_CONN_UPDATE_REQ     (0)
+#define BLE_LL_CTRL_CONN_UPDATE_IND     (0)
 #define BLE_LL_CTRL_CHANNEL_MAP_REQ     (1)
 #define BLE_LL_CTRL_TERMINATE_IND       (2)
 #define BLE_LL_CTRL_ENC_REQ             (3)

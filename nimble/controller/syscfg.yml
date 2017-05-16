@@ -128,6 +128,16 @@ syscfg.defs:
             scheduled items will be at least this far apart
         value: '4'
 
+    BLE_LL_CONN_INIT_MIN_WIN_OFFSET:
+        description: >
+            This is the minimum number of "slots" for WindowOffset value used for
+            CONNECT_IND when creating new connection as a master. Each slot is 1.25
+            msecs long. Increasing this value will delay first connection event after
+            connection is created. However, older TI CC254x controllers cannot change
+            connection parameters later if WindowOffset was set to 0 in CONNECT_IND. To
+            ensure interoperability with such devices set this value to 2 (or more).
+        value: '0'
+
     # The number of random bytes to store
     BLE_LL_RNG_BUFSIZE:
         description: >

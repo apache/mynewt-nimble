@@ -608,8 +608,8 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    /* See if we support this feature */
-    if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+    /* See if this feature is supported on both sides */
+    if ((connsm->common_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             return BLE_ERR_UNKNOWN_HCI_CMD;
         }
