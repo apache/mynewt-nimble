@@ -443,6 +443,7 @@ ble_sm_update_sec_state(uint16_t conn_handle, int encrypted,
 static void
 ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
                         int authenticated,
+                        int sc,
                         struct ble_sm_keys *keys,
                         struct ble_store_value_sec *value_sec)
 {
@@ -460,6 +461,7 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
         value_sec->ltk_present = 1;
 
         value_sec->authenticated = !!authenticated;
+        value_sec->sc = !!sc;
     }
 
     if (keys->irk_valid) {
@@ -508,6 +510,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     ble_addr_t peer_addr;
     int authenticated;
     int identity_ev = 0;
+    int sc;
 
     ble_hs_lock();
 
@@ -559,13 +562,14 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     ble_sm_unbond(peer_addr.type, peer_addr.val);
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
+    sc = proc->flags & BLE_SM_PROC_F_SC;
 
     ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
-                            &proc->our_keys, &value_sec);
+                            sc, &proc->our_keys, &value_sec);
     ble_store_write_our_sec(&value_sec);
 
     ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
-                            &proc->peer_keys, &value_sec);
+                            sc, &proc->peer_keys, &value_sec);
     ble_store_write_peer_sec(&value_sec);
 }
 

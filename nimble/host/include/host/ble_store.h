@@ -69,15 +69,16 @@ struct ble_store_value_sec {
     uint16_t ediv;
     uint64_t rand_num;
     uint8_t ltk[16];
-    unsigned ltk_present:1;
+    uint8_t ltk_present:1;
 
     uint8_t irk[16];
-    unsigned irk_present:1;
+    uint8_t irk_present:1;
 
     uint8_t csrk[16];
-    unsigned csrk_present:1;
+    uint8_t csrk_present:1;
 
     unsigned authenticated:1;
+    uint8_t sc:1;
 };
 
 /**
