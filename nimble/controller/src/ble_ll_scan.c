@@ -577,6 +577,9 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 {
     int rc;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    uint8_t phy_mode;
+#endif
 
     /* Set channel */
     rc = ble_phy_setchan(scanphy->scan_chan, 0, 0);
@@ -601,7 +604,8 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 #endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
+    phy_mode = ble_ll_phy_to_phy_mode(scanphy->phy, BLE_HCI_LE_PHY_CODED_ANY);
+    ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
@@ -833,7 +837,7 @@ ble_ll_scan_switch_phy(struct ble_ll_scan_sm *scansm)
     scansm->next_phy = scansm->cur_phy;
     scansm->cur_phy = tmp;
 
-    /*TODO Modify PHY*/
+    /* PHY is changing in ble_ll_scan_start() */
 }
 
 /**
@@ -1883,6 +1887,10 @@ ble_ll_scan_init(void)
         scanp->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;
         scanp->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
     }
+
+    scansm->phy_data[PHY_UNCODED].phy = BLE_PHY_1M;
+    scansm->phy_data[PHY_CODED].phy = BLE_PHY_CODED;
+
     /* Initialize scanning timer */
     os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
