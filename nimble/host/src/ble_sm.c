@@ -783,7 +783,8 @@ ble_sm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg)
     }
 }
 
-static void pair_fail_tx(uint16_t conn_handle, uint8_t reason)
+static void
+ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
@@ -832,7 +833,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
         }
 
         if (res->sm_err != 0) {
-            pair_fail_tx(conn_handle, res->sm_err);
+            ble_sm_pair_fail_tx(conn_handle, res->sm_err);
         }
 
         ble_hs_unlock();
