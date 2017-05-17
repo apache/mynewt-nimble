@@ -68,6 +68,7 @@ extern "C" {
 
 struct ble_ll_scan_params
 {
+    uint8_t phy;
     uint8_t own_addr_type;
     uint8_t scan_filt_policy;
     uint8_t configured;
