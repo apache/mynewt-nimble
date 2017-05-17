@@ -114,6 +114,7 @@ void ble_sm_test_util_peer_lgcy_fail_confirm(
     struct ble_sm_pair_random *random_rsp,
     struct ble_sm_pair_fail *fail_rsp);
 
+void ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_params *params);
 void ble_sm_test_util_peer_lgcy_good(struct ble_sm_test_params *params);
 void ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num);
 void ble_sm_test_util_peer_sc_good(struct ble_sm_test_params *params);
