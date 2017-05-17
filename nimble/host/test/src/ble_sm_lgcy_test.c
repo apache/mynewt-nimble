@@ -288,7 +288,7 @@ TEST_CASE(ble_sm_lgcy_peer_pk_iio4_rio0_b1_iat0_rat0_ik7_rk7)
             0x96, 0x20, 0xe4, 0x29, 0xb7, 0x58, 0x22, 0x7a,
         },
         .pair_alg = 1,
-        .authenticated = true,
+        .authenticated = 0,
         .passkey_info = {
             .passkey = {
                 .action = BLE_SM_IOACT_DISP,
