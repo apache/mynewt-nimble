@@ -97,7 +97,6 @@ struct ble_sm_io {
 
 #if NIMBLE_BLE_SM
 int ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey);
-int ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr);
 #else
 #define ble_sm_inject_io(conn_handle, pkey) \
     ((void)(conn_handle), BLE_HS_ENOTSUP)
