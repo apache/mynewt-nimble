@@ -27,21 +27,20 @@
 #include <string.h>
 
 #include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
 #include "host/ble_hs.h"
 #include "store/ram/ble_store_ram.h"
 
-/* XXX: This should be configurable. */
-#define STORE_MAX_SLV_LTKS   4
-#define STORE_MAX_MST_LTKS   4
-#define STORE_MAX_CCCDS      16
-
-static struct ble_store_value_sec ble_store_ram_our_secs[STORE_MAX_SLV_LTKS];
+static struct ble_store_value_sec
+    ble_store_ram_our_secs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
 static int ble_store_ram_num_our_secs;
 
-static struct ble_store_value_sec ble_store_ram_peer_secs[STORE_MAX_MST_LTKS];
+static struct ble_store_value_sec
+    ble_store_ram_peer_secs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
 static int ble_store_ram_num_peer_secs;
 
-static struct ble_store_value_cccd ble_store_ram_cccds[STORE_MAX_CCCDS];
+static struct ble_store_value_cccd
+    ble_store_ram_cccds[MYNEWT_VAL(BLE_STORE_MAX_CCCDS)];
 static int ble_store_ram_num_cccds;
 
 /*****************************************************************************
@@ -49,7 +48,7 @@ static int ble_store_ram_num_cccds;
  *****************************************************************************/
 
 static void
-ble_store_ram_print_value_sec(struct ble_store_value_sec *sec)
+ble_store_ram_print_value_sec(const struct ble_store_value_sec *sec)
 {
     if (sec->ltk_present) {
         BLE_HS_LOG(DEBUG, "ediv=%u rand=%llu authenticated=%d ltk=",
@@ -72,7 +71,7 @@ ble_store_ram_print_value_sec(struct ble_store_value_sec *sec)
 }
 
 static void
-ble_store_ram_print_key_sec(struct ble_store_key_sec *key_sec)
+ble_store_ram_print_key_sec(const struct ble_store_key_sec *key_sec)
 {
     if (ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
         BLE_HS_LOG(DEBUG, "peer_addr_type=%d peer_addr=",
@@ -87,11 +86,11 @@ ble_store_ram_print_key_sec(struct ble_store_key_sec *key_sec)
 }
 
 static int
-ble_store_ram_find_sec(struct ble_store_key_sec *key_sec,
-                       struct ble_store_value_sec *value_secs,
+ble_store_ram_find_sec(const struct ble_store_key_sec *key_sec,
+                       const struct ble_store_value_sec *value_secs,
                        int num_value_secs)
 {
-    struct ble_store_value_sec *cur;
+    const struct ble_store_value_sec *cur;
     int skipped;
     int i;
 
@@ -128,7 +127,7 @@ ble_store_ram_find_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_read_our_sec(struct ble_store_key_sec *key_sec,
+ble_store_ram_read_our_sec(const struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec)
 {
     int idx;
@@ -144,7 +143,7 @@ ble_store_ram_read_our_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_write_our_sec(struct ble_store_value_sec *value_sec)
+ble_store_ram_write_our_sec(const struct ble_store_value_sec *value_sec)
 {
     struct ble_store_key_sec key_sec;
     int idx;
@@ -156,7 +155,7 @@ ble_store_ram_write_our_sec(struct ble_store_value_sec *value_sec)
     idx = ble_store_ram_find_sec(&key_sec, ble_store_ram_our_secs,
                                  ble_store_ram_num_our_secs);
     if (idx == -1) {
-        if (ble_store_ram_num_our_secs >= STORE_MAX_SLV_LTKS) {
+        if (ble_store_ram_num_our_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             BLE_HS_LOG(DEBUG, "error persisting our sec; too many entries "
                               "(%d)\n", ble_store_ram_num_our_secs);
             return BLE_HS_ENOMEM;
@@ -192,7 +191,7 @@ ble_store_ram_delete_obj(void *values, int value_size, int idx,
 }
 
 static int
-ble_store_ram_delete_sec(struct ble_store_key_sec *key_sec,
+ble_store_ram_delete_sec(const struct ble_store_key_sec *key_sec,
                          struct ble_store_value_sec *value_secs,
                          int *num_value_secs)
 {
@@ -214,7 +213,7 @@ ble_store_ram_delete_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_delete_our_sec(struct ble_store_key_sec *key_sec)
+ble_store_ram_delete_our_sec(const struct ble_store_key_sec *key_sec)
 {
     int rc;
 
@@ -228,7 +227,7 @@ ble_store_ram_delete_our_sec(struct ble_store_key_sec *key_sec)
 }
 
 static int
-ble_store_ram_delete_peer_sec(struct ble_store_key_sec *key_sec)
+ble_store_ram_delete_peer_sec(const struct ble_store_key_sec *key_sec)
 {
     int rc;
 
@@ -242,7 +241,7 @@ ble_store_ram_delete_peer_sec(struct ble_store_key_sec *key_sec)
 }
 
 static int
-ble_store_ram_read_peer_sec(struct ble_store_key_sec *key_sec,
+ble_store_ram_read_peer_sec(const struct ble_store_key_sec *key_sec,
                             struct ble_store_value_sec *value_sec)
 {
     int idx;
@@ -258,7 +257,7 @@ ble_store_ram_read_peer_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_ram_write_peer_sec(struct ble_store_value_sec *value_sec)
+ble_store_ram_write_peer_sec(const struct ble_store_value_sec *value_sec)
 {
     struct ble_store_key_sec key_sec;
     int idx;
@@ -270,7 +269,7 @@ ble_store_ram_write_peer_sec(struct ble_store_value_sec *value_sec)
     idx = ble_store_ram_find_sec(&key_sec, ble_store_ram_peer_secs,
                                  ble_store_ram_num_peer_secs);
     if (idx == -1) {
-        if (ble_store_ram_num_peer_secs >= STORE_MAX_MST_LTKS) {
+        if (ble_store_ram_num_peer_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             BLE_HS_LOG(DEBUG, "error persisting peer sec; too many entries "
                              "(%d)\n", ble_store_ram_num_peer_secs);
             return BLE_HS_ENOMEM;
@@ -289,7 +288,7 @@ ble_store_ram_write_peer_sec(struct ble_store_value_sec *value_sec)
  *****************************************************************************/
 
 static int
-ble_store_ram_find_cccd(struct ble_store_key_cccd *key)
+ble_store_ram_find_cccd(const struct ble_store_key_cccd *key)
 {
     struct ble_store_value_cccd *cccd;
     int skipped;
@@ -323,8 +322,30 @@ ble_store_ram_find_cccd(struct ble_store_key_cccd *key)
 }
 
 static int
-ble_store_ram_read_cccd(struct ble_store_key_cccd *key_cccd,
-                struct ble_store_value_cccd *value_cccd)
+ble_store_ram_delete_cccd(const struct ble_store_key_cccd *key_cccd)
+{
+    int idx;
+    int rc;
+
+    idx = ble_store_ram_find_cccd(key_cccd);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    rc = ble_store_ram_delete_obj(ble_store_ram_cccds,
+                                  sizeof *ble_store_ram_cccds,
+                                  idx,
+                                  &ble_store_ram_num_cccds);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_store_ram_read_cccd(const struct ble_store_key_cccd *key_cccd,
+                        struct ble_store_value_cccd *value_cccd)
 {
     int idx;
 
@@ -338,7 +359,7 @@ ble_store_ram_read_cccd(struct ble_store_key_cccd *key_cccd,
 }
 
 static int
-ble_store_ram_write_cccd(struct ble_store_value_cccd *value_cccd)
+ble_store_ram_write_cccd(const struct ble_store_value_cccd *value_cccd)
 {
     struct ble_store_key_cccd key_cccd;
     int idx;
@@ -346,7 +367,7 @@ ble_store_ram_write_cccd(struct ble_store_value_cccd *value_cccd)
     ble_store_key_from_value_cccd(&key_cccd, value_cccd);
     idx = ble_store_ram_find_cccd(&key_cccd);
     if (idx == -1) {
-        if (ble_store_ram_num_cccds >= STORE_MAX_SLV_LTKS) {
+        if (ble_store_ram_num_cccds >= MYNEWT_VAL(BLE_STORE_MAX_CCCDS)) {
             BLE_HS_LOG(DEBUG, "error persisting cccd; too many entries (%d)\n",
                        ble_store_ram_num_cccds);
             return BLE_HS_ENOMEM;
@@ -370,7 +391,7 @@ ble_store_ram_write_cccd(struct ble_store_value_cccd *value_cccd)
  * @return                      0 if a key was found; else BLE_HS_ENOENT.
  */
 int
-ble_store_ram_read(int obj_type, union ble_store_key *key,
+ble_store_ram_read(int obj_type, const union ble_store_key *key,
                    union ble_store_value *value)
 {
     int rc;
@@ -414,7 +435,7 @@ ble_store_ram_read(int obj_type, union ble_store_key *key,
  *                                  full.
  */
 int
-ble_store_ram_write(int obj_type, union ble_store_value *val)
+ble_store_ram_write(int obj_type, const union ble_store_value *val)
 {
     int rc;
 
@@ -437,7 +458,7 @@ ble_store_ram_write(int obj_type, union ble_store_value *val)
 }
 
 int
-ble_store_ram_delete(int obj_type, union ble_store_key *key)
+ble_store_ram_delete(int obj_type, const union ble_store_key *key)
 {
     int rc;
 
@@ -451,8 +472,8 @@ ble_store_ram_delete(int obj_type, union ble_store_key *key)
         return rc;
 
     case BLE_STORE_OBJ_TYPE_CCCD:
-        /* XXX: There is no good reason not to support this. */
-        return BLE_HS_ENOTSUP;
+        rc = ble_store_ram_delete_cccd(&key->cccd);
+        return rc;
 
     default:
         return BLE_HS_ENOTSUP;
