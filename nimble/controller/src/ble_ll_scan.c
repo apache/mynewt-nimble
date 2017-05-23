@@ -582,7 +582,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 #endif
 
     /* Set channel */
-    rc = ble_phy_setchan(scanphy->scan_chan, 0, 0);
+    rc = ble_phy_setchan(scanphy->scan_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
     assert(rc == 0);
 
     /*
