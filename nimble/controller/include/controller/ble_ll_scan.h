@@ -54,6 +54,15 @@ extern "C" {
 #define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
 #define BLE_SCAN_MAX_PKT_LEN            (37)
 
+struct ble_ll_scan_params
+{
+    uint8_t scan_type;
+    uint8_t own_addr_type;
+    uint8_t scan_filt_policy;
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+};
+
 /* Scanning state machine (used when initiating as well) */
 struct ble_ll_scan_sm
 {

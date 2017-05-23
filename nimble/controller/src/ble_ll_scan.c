@@ -59,6 +59,10 @@
     #error "Cannot have more than 255 scan response entries!"
 #endif
 
+
+/* The scanning parameters set by host */
+struct ble_ll_scan_params g_ble_ll_scan_params;
+
 /* The scanning state machine global object */
 struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
@@ -1337,6 +1341,7 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     uint16_t scan_itvl;
     uint16_t scan_window;
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanp;
 
     /* If already enabled, we return an error */
     scansm = &g_ble_ll_scan_sm;
@@ -1376,12 +1381,13 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Set state machine parameters */
-    scansm->scan_type = scan_type;
-    scansm->scan_itvl = scan_itvl;
-    scansm->scan_window = scan_window;
-    scansm->scan_filt_policy = filter_policy;
-    scansm->own_addr_type = own_addr_type;
+    /* Store scan parameters */
+    scanp = &g_ble_ll_scan_params;
+    scanp->scan_type = scan_type;
+    scanp->scan_itvl = scan_itvl;
+    scanp->scan_window = scan_window;
+    scanp->scan_filt_policy = filter_policy;
+    scanp->own_addr_type = own_addr_type;
 
     return 0;
 }
@@ -1404,6 +1410,7 @@ ble_ll_scan_set_enable(uint8_t *cmd)
     uint8_t filter_dups;
     uint8_t enable;
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanp;
 
     /* Check for valid parameters */
     enable = cmd[0];
@@ -1417,7 +1424,13 @@ ble_ll_scan_set_enable(uint8_t *cmd)
     if (enable) {
         /* If already enabled, do nothing */
         if (!scansm->scan_enabled) {
+            scanp = &g_ble_ll_scan_params;
             /* Start the scanning state machine */
+            scansm->scan_type = scanp->scan_type;
+            scansm->scan_itvl = scanp->scan_itvl;
+            scansm->scan_window = scanp->scan_window;
+            scansm->scan_filt_policy = scanp->scan_filt_policy;
+            scansm->own_addr_type = scanp->own_addr_type;
             scansm->scan_filt_dups = filter_dups;
             rc = ble_ll_scan_sm_start(scansm);
         } else {
@@ -1592,18 +1605,23 @@ void
 ble_ll_scan_init(void)
 {
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanp;
 
     /* Clear state machine in case re-initialized */
     scansm = &g_ble_ll_scan_sm;
     memset(scansm, 0, sizeof(struct ble_ll_scan_sm));
+
+    /* Clear scan parameters in case re-initialized */
+    scanp = &g_ble_ll_scan_params;
+    memset(scanp, 0, sizeof(struct ble_ll_scan_params));
 
     /* Initialize scanning window end event */
     scansm->scan_sched_ev.ev_cb = ble_ll_scan_event_proc;
     scansm->scan_sched_ev.ev_arg = scansm;
 
     /* Set all non-zero default parameters */
-    scansm->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;
-    scansm->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
+    scanp->scan_itvl = BLE_HCI_SCAN_ITVL_DEF;
+    scanp->scan_window = BLE_HCI_SCAN_WINDOW_DEF;
 
     /* Initialize scanning timer */
     os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
