@@ -528,12 +528,8 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* Set current access address */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        g_ble_phy_data.phy_access_address = access_addr;
-    } else {
-        g_ble_phy_data.phy_access_address = BLE_ACCESS_ADDR_ADV;
-    }
+    g_ble_phy_data.phy_access_address = access_addr;
+
     g_ble_phy_data.phy_chan = chan;
 
     return 0;

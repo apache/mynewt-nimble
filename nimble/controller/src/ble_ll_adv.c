@@ -434,7 +434,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_txpwr_set(advsm->adv_txpwr);
 
     /* Set channel */
-    rc = ble_phy_setchan(advsm->adv_chan, 0, 0);
+    rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
     assert(rc == 0);
 
     /* Set transmit start time. */

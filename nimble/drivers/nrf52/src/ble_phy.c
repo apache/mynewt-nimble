@@ -1493,10 +1493,10 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         }
 
         /* Set current access address */
-        ble_phy_set_access_addr(BLE_ACCESS_ADDR_ADV);
+        ble_phy_set_access_addr(access_addr);
 
         /* Configure crcinit */
-        NRF_RADIO->CRCINIT = BLE_LL_CRCINIT_ADV;
+        NRF_RADIO->CRCINIT = crcinit;
     }
 
     /* Set the frequency and the data whitening initial value */
