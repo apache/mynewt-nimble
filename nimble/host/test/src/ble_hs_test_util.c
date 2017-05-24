@@ -953,7 +953,7 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
     } else if (rc == 0) {
         TEST_ASSERT_FATAL(rx_cb != NULL);
         rc = rx_cb(conn->bhc_rx_chan);
-        ble_l2cap_forget_rx(conn, conn->bhc_rx_chan);
+        ble_l2cap_remove_rx(conn, conn->bhc_rx_chan);
     } else if (rc == BLE_HS_EAGAIN) {
         /* More fragments on the way. */
         rc = 0;
