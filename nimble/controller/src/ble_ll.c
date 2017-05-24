@@ -197,6 +197,25 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 /** Our random address */
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
+static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
+{
+    [BLE_PHY_MODE_1M] =
+            (BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_CRC_LEN +
+                    BLE_LL_PDU_HDR_LEN) << 3,
+    [BLE_PHY_MODE_2M] =
+            (BLE_LL_PREAMBLE_LEN * 2 + BLE_LL_ACC_ADDR_LEN + BLE_LL_CRC_LEN +
+                    BLE_LL_PDU_HDR_LEN) << 2,
+    /* For Coded PHY we have exact TX times provided by specification:
+     * - Preamble, Access Address, CI, TERM1 (always coded as S=8)
+     * - PDU, CRC, TERM2 (coded as S=2 or S=8)
+     * (Vol 6, Part B, 2.2).
+     */
+    [BLE_PHY_MODE_CODED_125KBPS] =
+            (80 + 256 + 16 + 24 + 8 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
+    [BLE_PHY_MODE_CODED_500KBPS] =
+            (80 + 256 + 16 + 24 + 2 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
+};
+
 /* XXX: temporary logging until we transition to real logging */
 #ifdef BLE_LL_LOG
 struct ble_ll_log
@@ -1227,17 +1246,6 @@ ble_ll_seed_prng(void)
 }
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
-static inline uint32_t
-ble_ll_pdu_tx_time_get_coded(int payload_len, int s)
-{
-    /*
-     * Specification provides duration for each PDU field directly in us so we
-     * can use them directly here (Vol 6, Part B, 2.2).
-     */
-    return 80 + 256 + 16 + 24 + /* Preamble + Access Address + CI + TERM1 */
-            s * ((BLE_LL_PDU_HDR_LEN + payload_len) * 8 + 24 + 3); /* PDU + CRC + TERM2 */
-}
-
 uint32_t
 ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
 {
@@ -1245,19 +1253,21 @@ ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
 
     if (phy_mode == BLE_PHY_MODE_1M) {
         /* 8 usecs per byte */
-        usecs = (payload_len + BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN
-                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 3;
+        usecs = payload_len << 3;
     } else if (phy_mode == BLE_PHY_MODE_2M) {
         /* 4 usecs per byte */
-        usecs = (payload_len + (2 * BLE_LL_PREAMBLE_LEN) + BLE_LL_ACC_ADDR_LEN
-                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 2;
+        usecs = payload_len << 2;
     } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
-        usecs = ble_ll_pdu_tx_time_get_coded(payload_len, 8);
+        /* S=8 => 8 * 8 = 64 usecs per byte */
+        usecs = payload_len << 6;
     } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
-        usecs = ble_ll_pdu_tx_time_get_coded(payload_len, 2);
+        /* S=2 => 2 * 8 = 16 usecs per byte */
+        usecs = payload_len << 4;
     } else {
         assert(0);
     }
+
+    usecs += g_ble_ll_pdu_header_tx_time[phy_mode];
 
     return usecs;
 
