@@ -193,54 +193,6 @@ struct nrf_ccm_data g_nrf_ccm_data;
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
-static inline int ble_phy_pdu_coded_dur(int pyld_len, int s)
-{
-    /*
-     * Specification provides duration for each PDU field directly in us so we
-     * can use them directly here (Vol 6, Part B, 2.2).
-     */
-    return 80 + 256 + 16 + 24 + /* Preamble + Access Address + CI + TERM1 */
-            s * ((BLE_LL_PDU_HDR_LEN + pyld_len) * 8 + 24 + 3); /* PDU + CRC + TERM2 */
-}
-
-/**
- * Calculate the length of BLE PDU
- *
- * Returns the number of usecs it will take to transmit a PDU of payload
- * length 'len' bytes. Each byte takes 8 usecs. This routine includes the LL
- * overhead: preamble (1), access addr (4) and crc (3) and the PDU header (2)
- * for a total of 10 bytes.
- *
- * @param pyld_len PDU payload length (does not include include header).
- * @param phy_mode PHY modulation being used.
- *
- * @return uint32_t The number of usecs it will take to transmit a PDU of
- *                  length 'len' bytes.
- */
-uint32_t
-ble_phy_mode_pdu_dur(uint8_t pyld_len, int phy_mode)
-{
-    uint32_t usecs;
-
-    if (phy_mode == BLE_PHY_MODE_1M) {
-        /* 8 usecs per byte */
-        usecs = (pyld_len + BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN
-                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 3;
-    } else if (phy_mode == BLE_PHY_MODE_2M) {
-        /* 4 usecs per byte */
-        usecs = (pyld_len + (2 * BLE_LL_PREAMBLE_LEN) + BLE_LL_ACC_ADDR_LEN
-                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 2;
-    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
-        usecs = ble_phy_pdu_coded_dur(pyld_len, 8);
-    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
-        usecs = ble_phy_pdu_coded_dur(pyld_len, 2);
-    } else {
-        assert(0);
-    }
-    return usecs;
-}
-
-
 /* Packet start offset (in usecs). This is the preamble plus access address.
  * For LE Coded PHY this also includes CI and TERM1. */
 uint32_t

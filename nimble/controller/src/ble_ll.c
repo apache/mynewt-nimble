@@ -1226,6 +1226,44 @@ ble_ll_seed_prng(void)
     srand(seed);
 }
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
+static inline uint32_t
+ble_ll_pdu_tx_time_get_coded(int payload_len, int s)
+{
+    /*
+     * Specification provides duration for each PDU field directly in us so we
+     * can use them directly here (Vol 6, Part B, 2.2).
+     */
+    return 80 + 256 + 16 + 24 + /* Preamble + Access Address + CI + TERM1 */
+            s * ((BLE_LL_PDU_HDR_LEN + payload_len) * 8 + 24 + 3); /* PDU + CRC + TERM2 */
+}
+
+uint32_t
+ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
+{
+    uint32_t usecs;
+
+    if (phy_mode == BLE_PHY_MODE_1M) {
+        /* 8 usecs per byte */
+        usecs = (payload_len + BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN
+                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 3;
+    } else if (phy_mode == BLE_PHY_MODE_2M) {
+        /* 4 usecs per byte */
+        usecs = (payload_len + (2 * BLE_LL_PREAMBLE_LEN) + BLE_LL_ACC_ADDR_LEN
+                 + BLE_LL_CRC_LEN + BLE_LL_PDU_HDR_LEN) << 2;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+        usecs = ble_ll_pdu_tx_time_get_coded(payload_len, 8);
+    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        usecs = ble_ll_pdu_tx_time_get_coded(payload_len, 2);
+    } else {
+        assert(0);
+    }
+
+    return usecs;
+
+}
+#endif
+
 /**
  * Initialize the Link Layer. Should be called only once
  *
