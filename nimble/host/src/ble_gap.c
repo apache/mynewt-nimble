@@ -3137,7 +3137,7 @@ int
 ble_gap_repeat_pairing_event(const struct ble_gap_repeat_pairing *rp)
 {
 #if !NIMBLE_BLE_SM
-    return;
+    return 0;
 #endif
 
     struct ble_gap_event event;
