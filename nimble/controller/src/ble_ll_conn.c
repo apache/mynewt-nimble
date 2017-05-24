@@ -1159,8 +1159,8 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
          * received a frame and we are replying to it.
          */
         ticks = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
-                ble_phy_mode_pdu_dur(next_txlen, connsm->phy_data.tx_phy_mode) +
-                ble_phy_mode_pdu_dur(cur_txlen, connsm->phy_data.tx_phy_mode);
+            ble_ll_pdu_tx_time_get(next_txlen, connsm->phy_data.tx_phy_mode) +
+            ble_ll_pdu_tx_time_get(cur_txlen, connsm->phy_data.tx_phy_mode);
 
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             ticks += (BLE_LL_IFS + connsm->eff_max_rx_time);
@@ -1557,10 +1557,11 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
             if (rem_bytes > connsm->eff_max_tx_octets) {
                 rem_bytes = connsm->eff_max_tx_octets;
             }
-            usecs = ble_phy_mode_pdu_dur(rem_bytes, connsm->phy_data.tx_phy_mode);
+            usecs = ble_ll_pdu_tx_time_get(rem_bytes,
+                                               connsm->phy_data.tx_phy_mode);
         } else {
             /* We will send empty pdu (just a LL header) */
-            usecs = ble_phy_mode_pdu_dur(0, connsm->phy_data.tx_phy_mode);
+            usecs = ble_ll_pdu_tx_time_get(0, connsm->phy_data.tx_phy_mode);
         }
         usecs += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
 
@@ -2237,7 +2238,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
         usecs = rxhdr->rem_usecs + 1250 +
             (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-            ble_phy_mode_pdu_dur(BLE_CONNECT_REQ_LEN, BLE_PHY_MODE_1M);
+            ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN, BLE_PHY_MODE_1M);
 
         /* Anchor point is cputime. */
         endtime = os_cputime_usecs_to_ticks(usecs);
@@ -3196,10 +3197,10 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     endtime = rxhdr->beg_cputime;
     add_usecs = rxhdr->rem_usecs +
-        ble_phy_mode_pdu_dur(rx_pyld_len, connsm->phy_data.rx_phy_mode);
+            ble_ll_pdu_tx_time_get(rx_pyld_len, connsm->phy_data.rx_phy_mode);
 #else
     endtime = rxhdr->beg_cputime +
-        os_cputime_usecs_to_ticks(ble_phy_mode_pdu_dur(rx_pyld_len,
+        os_cputime_usecs_to_ticks(ble_ll_pdu_tx_time_get(rx_pyld_len,
                                                   connsm->phy_data.rx_phy_mode));
 
     add_usecs = 0;
@@ -3727,17 +3728,17 @@ ble_ll_conn_module_reset(void)
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_RX_BYTES), max_phy_pyld);
     conn_params->supp_max_rx_octets = maxbytes;
     conn_params->supp_max_rx_time =
-        ble_phy_mode_pdu_dur(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
 
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_TX_BYTES), max_phy_pyld);
     conn_params->supp_max_tx_octets = maxbytes;
     conn_params->supp_max_tx_time =
-        ble_phy_mode_pdu_dur(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
 
     maxbytes = min(MYNEWT_VAL(BLE_LL_CONN_INIT_MAX_TX_BYTES), max_phy_pyld);
     conn_params->conn_init_max_tx_octets = maxbytes;
     conn_params->conn_init_max_tx_time =
-        ble_phy_mode_pdu_dur(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
 
     conn_params->sugg_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     conn_params->sugg_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;
