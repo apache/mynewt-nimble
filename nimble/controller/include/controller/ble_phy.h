@@ -194,6 +194,9 @@ void ble_phy_resolv_list_disable(void);
 #define BLE_PHY_MODE_CODED_125KBPS  (0)
 #define BLE_PHY_MODE_CODED_500KBPS  (3)
 
+/* The number of different modes */
+#define BLE_PHY_NUM_MODE            (4)
+
 /* PHY numbers (compatible with HCI) */
 #define BLE_PHY_1M                  (BLE_HCI_LE_PHY_1M)
 #define BLE_PHY_2M                  (BLE_HCI_LE_PHY_2M)
