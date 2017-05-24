@@ -63,9 +63,6 @@ extern uint32_t g_nrf_irk_list[];
 #define NRF_TX_PWR_MAX_DBM      (4)
 #define NRF_TX_PWR_MIN_DBM      (-40)
 
-/* The number of different modulations */
-#define BLE_PHY_NUM_MODULATIONS (4)
-
 /* BLE PHY data structure */
 struct ble_phy_obj
 {
@@ -80,7 +77,7 @@ struct ble_phy_obj
     uint8_t phy_tx_pyld_len;
     uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
-    uint16_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODULATIONS];
+    uint16_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODE];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     uint32_t phy_pcnf0;
