@@ -337,6 +337,9 @@ uint32_t ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode);
             + BLE_LL_PREAMBLE_LEN + BLE_LL_CRC_LEN) << 3)
 #endif
 
+/* Calculate maximum octets of PDU payload which can be transmitted during
+ * 'usecs' on a PHY 'phy_mode'. */
+uint16_t ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode);
 
 /* Is this address a resolvable private address? */
 int ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type);

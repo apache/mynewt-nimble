@@ -1272,6 +1272,42 @@ ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
     return usecs;
 
 }
+
+uint16_t
+ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
+{
+    uint32_t header_tx_time;
+    uint16_t octets;
+
+    assert(phy_mode < BLE_PHY_NUM_MODE);
+
+    header_tx_time = g_ble_ll_pdu_header_tx_time[phy_mode];
+
+    if (usecs < header_tx_time) {
+        // XXX: this is obviously incorrect, what should we do?
+        return 0;
+    }
+
+    usecs -= header_tx_time;
+
+    if (phy_mode == BLE_PHY_MODE_1M) {
+        /* 8 usecs per byte */
+        octets = usecs >> 3;
+    } else if (phy_mode == BLE_PHY_MODE_2M) {
+        /* 4 usecs per byte */
+        octets = usecs >> 2;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+        /* S=8 => 8 * 8 = 64 usecs per byte */
+        octets = usecs >> 6;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        /* S=2 => 2 * 8 = 16 usecs per byte */
+        octets = usecs >> 4;
+    } else {
+        assert(0);
+    }
+
+    return octets;
+}
 #endif
 
 /**
