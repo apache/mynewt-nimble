@@ -1713,6 +1713,23 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 1);
 }
 
+static void
+ble_ll_update_max_tx_octets_phy_mode(struct ble_ll_conn_sm *connsm)
+{
+    uint32_t usecs;
+
+    usecs = connsm->eff_max_tx_time;
+
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_1M] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_1M);
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_2M] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_2M);
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_CODED_125KBPS] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_125KBPS);
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_CODED_500KBPS] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_500KBPS);
+}
+
 /**
  * Create a new connection state machine. This is done once per
  * connection when the HCI command "create connection" is issued to the
@@ -1793,6 +1810,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->eff_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
 
+    ble_ll_update_max_tx_octets_phy_mode(connsm);
+
     /* Reset encryption data */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     memset(&connsm->enc_data, 0, sizeof(struct ble_ll_conn_enc_data));
@@ -1851,6 +1870,8 @@ ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
     if (eff_time != connsm->eff_max_tx_time) {
         connsm->eff_max_tx_time = eff_time;
         send_event = 1;
+
+        ble_ll_update_max_tx_octets_phy_mode(connsm);
     }
     eff_bytes = min(connsm->rem_max_tx_octets, connsm->max_rx_octets);
     if (eff_bytes != connsm->eff_max_rx_octets) {
