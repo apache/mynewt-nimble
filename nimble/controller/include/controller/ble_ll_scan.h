@@ -56,6 +56,8 @@ extern "C" {
 #define BLE_SCAN_MAX_PKT_LEN            (37)
 
 #if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#define BLE_EXT_SCAN_MAX_PKT_LEN        (256)
+
     /* For Bluetooth 5.0 we need state machine for two PHYs*/
 #define BLE_LL_SCAN_PHY_NUMBER          (2)
 #else
@@ -78,6 +80,16 @@ struct ble_ll_scan_params
     uint16_t scan_window;
     uint32_t scan_win_start_time;
     uint32_t next_event_start;
+};
+
+struct ble_ll_aux_data {
+    uint8_t chan;
+    uint32_t offset;
+    uint8_t aux_phy;
+    uint8_t aux_primary_phy;
+    uint8_t mode;
+    uint8_t scanning;
+    struct ble_ll_sched_item sch;
 };
 
 struct ble_ll_scan_sm
@@ -107,6 +119,7 @@ struct ble_ll_scan_sm
     uint8_t next_phy;
     struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
     uint8_t ext_scanning;
+    struct ble_ll_aux_data *cur_aux_data;
 };
 
 /* Scan types */
@@ -133,7 +146,7 @@ void ble_ll_scan_init(void);
 void ble_ll_scan_reset(void);
 
 /* Called when Link Layer starts to receive a PDU and is in scanning state */
-int ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint8_t *rxflags);
+int ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags);
 
 /* Called when Link Layer has finished receiving a PDU while scanning */
 int ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
@@ -175,6 +188,22 @@ void ble_ll_scan_chk_resume(void);
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);
+
+int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
+                                struct ble_mbuf_hdr *ble_hdr,
+                                uint8_t **addr, uint8_t *addr_type,
+                                uint8_t **inita, uint8_t *inita_is_rpa,
+                                int *ext_mode);
+
+/* Get aux ptr from ext advertising */
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+/* Called to parse extended advertising*/
+struct ble_ll_ext_adv;
+int ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
+                              struct ble_ll_ext_adv *parsed_evt);
+
+void ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan);
+#endif
 
 #ifdef __cplusplus
 }

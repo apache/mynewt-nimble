@@ -776,6 +776,9 @@ ble_phy_rx_start_isr(void)
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
     ble_hdr->rxinfo.phy = ble_phy_get_cur_phy();
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+    ble_hdr->rxinfo.aux_data = NULL;
+#endif
 
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     /*
@@ -872,6 +875,8 @@ ble_phy_isr(void)
         if (g_ble_phy_data.phy_state == BLE_PHY_STATE_RX) {
             NRF_RADIO->EVENTS_DISABLED = 0;
             ble_ll_wfr_timer_exp(NULL);
+        } else if (g_ble_phy_data.phy_state == BLE_PHY_STATE_IDLE) {
+            assert(0);
         } else {
             ble_phy_tx_end_isr();
         }

@@ -385,7 +385,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
         if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
             // transmitWindowDelay=2500us
             // 2500-150 = 2350us =~ 77.00 ticks
-            earliest_start = ble_hdr->beg_cputime + 77;
+            earliest_start = ble_hdr->beg_cputime + 105;
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
             // transmitWindowDelay=2500us
             // 2500-150 = 2350us =~ 77.00 ticks
@@ -1050,6 +1050,129 @@ ble_ll_sched_rfclk_chk_restart(void)
 
 #endif
 
+/**
+ * Called to schedule a aux scan.
+ *
+ * Context: Interrupt
+ *
+ * @param scansm
+ *
+ * @return int
+ */
+
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+int
+ble_ll_sched_is_busy_in(uint32_t usec)
+{
+    struct ble_ll_sched_item *sch;
+    uint32_t now = os_cputime_get32();
+
+    /* Get head of list to restart timer */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    if (!sch) {
+        return 0;
+    }
+
+    if (now + os_cputime_usecs_to_ticks(usec) < sch->start_time) {
+        return 0;
+    }
+
+    return 1;
+}
+
+int
+ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
+                      struct ble_ll_scan_sm *scansm,
+                      struct ble_ll_aux_data *aux_scan)
+{
+    int rc;
+    os_sr_t sr;
+    uint32_t earliest_start;
+    uint32_t earliest_end;
+    uint32_t dur;
+    uint32_t now;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *sch;
+
+    /* TODO Handle multiple scheduled items */
+    sch = &aux_scan->sch;
+
+    now =  ble_hdr->beg_cputime;
+    earliest_start = now + os_cputime_usecs_to_ticks(aux_scan->offset);
+
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
+    earliest_start -= g_ble_ll_sched_offset_ticks;
+#endif
+
+    /* TODO: FIX duration. We should assure as much time as we need for specific PHY.
+     * Also we need to take mode into account e.g in order to do
+     * scan req and aux conn req
+     */
+    if (aux_scan->aux_phy == BLE_PHY_CODED) {
+        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
+    } else {
+        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
+    }
+
+    earliest_end = earliest_start + os_cputime_usecs_to_ticks(dur);
+
+    /* We have to find a place for this schedule */
+    OS_ENTER_CRITICAL(sr);
+
+    /* The schedule item must occur after current running item (if any) */
+    sch->start_time = earliest_start;
+    sch->end_time = earliest_end;
+
+    if (!ble_ll_sched_insert_if_empty(sch)) {
+        /* Nothing in schedule. Schedule as soon as possible
+         * If we are here it means sch has been added to the scheduler */
+        rc = 0;
+        goto done;
+    }
+
+    /* Try to find slot for aux scan. */
+    os_cputime_timer_stop(&g_ble_ll_sched_timer);
+    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+        /* Set these because overlap function needs them to be set */
+        sch->start_time = earliest_start;
+        sch->end_time = earliest_end;
+
+        /* We can insert if before entry in list */
+        if (sch->end_time <= entry->start_time) {
+            rc = 0;
+            TAILQ_INSERT_BEFORE(entry, sch, link);
+            sch->enqueued = 1;
+            break;
+        }
+
+        /* Check for overlapping events. For now drop if it overlaps with
+         * anything. We can make it smarter later on
+         */
+        if (ble_ll_sched_is_overlap(sch, entry)) {
+            OS_EXIT_CRITICAL(sr);
+            return -1;
+        }
+    }
+
+    if (!entry) {
+        rc = 0;
+        TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 1;
+    }
+
+done:
+
+    /* Get head of list to restart timer */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+    OS_EXIT_CRITICAL(sr);
+
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    STATS_INC(ble_ll_stats, aux_scheduled);
+    return rc;
+}
+#endif
 
 /**
  * Stop the scheduler

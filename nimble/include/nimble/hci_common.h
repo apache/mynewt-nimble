@@ -209,6 +209,12 @@ extern "C" {
 #define BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD  (4)
 #define BLE_HCI_ADV_TYPE_MAX                (4)
 
+#define BLE_HCI_ADV_CONN_MASK               (0x0001)
+#define BLE_HCI_ADV_SCAN_MASK               (0x0002)
+#define BLE_HCI_ADV_DIRECT_MASK             (0x0004)
+#define BLE_HCI_ADV_SCAN_RSP_MASK           (0x0008)
+#define BLE_HCI_ADV_LEGACY_MASK             (0x0010)
+
 /* Own address types */
 #define BLE_HCI_ADV_OWN_ADDR_PUBLIC         (0)
 #define BLE_HCI_ADV_OWN_ADDR_RANDOM         (1)
@@ -644,6 +650,14 @@ extern "C" {
 #define BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND     (2)
 #define BLE_HCI_ADV_RPT_EVTYPE_NONCONN_IND  (3)
 #define BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP     (4)
+
+/* Bluetooth 5, Vol 2, Part E, 7.7.65.13 */
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_IND                 (0x13)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_DIRECT_IND          (0x15)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_SCAN_IND            (0x12)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_NONCON_IND          (0x10)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_SCAN_RSP_ADV_IND        (0x1b)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_SCAN_RSP_ADV_SCAN_IND   (0x1a)
 
 /* LE sub-event specific definitions */
 #define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */

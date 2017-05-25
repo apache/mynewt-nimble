@@ -167,6 +167,7 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, rx_adv_ind)
     STATS_NAME(ble_ll_stats, rx_adv_direct_ind)
     STATS_NAME(ble_ll_stats, rx_adv_nonconn_ind)
+    STATS_NAME(ble_ll_stats, rx_adv_ext_ind)
     STATS_NAME(ble_ll_stats, rx_scan_reqs)
     STATS_NAME(ble_ll_stats, rx_scan_rsps)
     STATS_NAME(ble_ll_stats, rx_connect_reqs)
@@ -180,6 +181,10 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, scan_req_txf)
     STATS_NAME(ble_ll_stats, scan_req_txg)
     STATS_NAME(ble_ll_stats, scan_rsp_txg)
+    STATS_NAME(ble_ll_stats, aux_missed_adv)
+    STATS_NAME(ble_ll_stats, aux_scheduled)
+    STATS_NAME(ble_ll_stats, aux_received)
+    STATS_NAME(ble_ll_stats, aux_fired_for_read)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct os_event *ev);
@@ -266,6 +271,9 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
 {
     /* Count received packet types  */
     switch (pdu_type) {
+    case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
+        STATS_INC(ble_ll_stats, rx_adv_ext_ind);
+        break;
     case BLE_ADV_PDU_TYPE_ADV_IND:
         STATS_INC(ble_ll_stats, rx_adv_ind);
         break;
@@ -906,6 +914,8 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
             if ((len < BLE_DEV_ADDR_LEN) || (len > BLE_ADV_SCAN_IND_MAX_LEN)) {
                 badpkt = 1;
             }
+            break;
+        case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
             break;
         case BLE_ADV_PDU_TYPE_CONNECT_REQ:
             if (len != BLE_CONNECT_REQ_LEN) {
