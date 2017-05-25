@@ -104,12 +104,6 @@ int ble_ll_sched_init(void);
 /* Remove item(s) from schedule */
 void ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch);
 
-/* Get a schedule item */
-struct ble_ll_sched_item *ble_ll_sched_get_item(void);
-
-/* Free a schedule item */
-void ble_ll_sched_free_item(struct ble_ll_sched_item *sch);
-
 /* Schedule a new master connection */
 struct ble_ll_conn_sm;
 int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
