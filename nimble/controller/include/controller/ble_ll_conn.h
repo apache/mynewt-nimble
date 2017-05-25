@@ -191,6 +191,7 @@ struct ble_ll_conn_sm
     uint16_t rem_max_rx_time;
     uint16_t eff_max_tx_time;
     uint16_t eff_max_rx_time;
+    uint8_t max_tx_octets_phy_mode[BLE_PHY_NUM_MODE];
 
     /* XXX: TODO: could make this conditional */
     struct ble_ll_conn_phy_data phy_data;
