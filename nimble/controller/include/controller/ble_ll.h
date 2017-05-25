@@ -147,6 +147,7 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(rx_adv_ind)
     STATS_SECT_ENTRY(rx_adv_direct_ind)
     STATS_SECT_ENTRY(rx_adv_nonconn_ind)
+    STATS_SECT_ENTRY(rx_adv_ext_ind)
     STATS_SECT_ENTRY(rx_scan_reqs)
     STATS_SECT_ENTRY(rx_scan_rsps)
     STATS_SECT_ENTRY(rx_connect_reqs)
@@ -160,6 +161,10 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(scan_req_txf)
     STATS_SECT_ENTRY(scan_req_txg)
     STATS_SECT_ENTRY(scan_rsp_txg)
+    STATS_SECT_ENTRY(aux_missed_adv)
+    STATS_SECT_ENTRY(aux_scheduled)
+    STATS_SECT_ENTRY(aux_received)
+    STATS_SECT_ENTRY(aux_fired_for_read)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
@@ -249,6 +254,14 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_TYPE_SCAN_RSP           (4)
 #define BLE_ADV_PDU_TYPE_CONNECT_REQ        (5)
 #define BLE_ADV_PDU_TYPE_ADV_SCAN_IND       (6)
+#define BLE_ADV_PDU_TYPE_ADV_EXT_IND        (7)
+#define BLE_ADV_PDU_TYPE_AUX_ADV_IND        BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_SCAN_RSP       BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_SYNC_IND       BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_CHAIN_IND      BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ    BLE_ADV_PDU_TYPE_CONNECT_REQ
+#define BLE_ADV_PDU_TYPE_AUX_SCAN_REQ       BLE_ADV_PDU_TYPE_SCAN_REQ
+#define BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP    (8)
 
 /* If Channel Selection Algorithm #2 is supported */
 #define BLE_ADV_PDU_HDR_CHSEL               (0x20)
@@ -316,6 +329,10 @@ struct ble_dev_addr
  */
 #define BLE_CONNECT_REQ_LEN         (34)
 #define BLE_CONNECT_REQ_PDU_LEN     (BLE_CONNECT_REQ_LEN + BLE_LL_PDU_HDR_LEN)
+
+#define BLE_SCAN_REQ_LEN            (12)
+#define BLE_SCAN_RSP_MAX_LEN        (37)
+#define BLE_SCAN_RSP_MAX_EXT_LEN    (251)
 
 /*--- External API ---*/
 /* Initialize the Link Layer */
