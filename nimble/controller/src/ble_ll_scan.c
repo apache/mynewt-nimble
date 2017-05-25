@@ -374,6 +374,42 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
     return;
 }
 
+static int
+ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
+                           uint8_t addr_type, uint8_t *addr, uint8_t rssi,
+                           uint8_t adv_data_len, uint8_t *adv_data, uint8_t *inita)
+{
+    uint8_t *evbuf;
+    uint8_t *tmp;
+
+    evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+    if (!evbuf) {
+        return -1;
+    }
+
+    evbuf[0] = BLE_HCI_EVCODE_LE_META;
+    evbuf[1] = event_len;
+    evbuf[2] = subev;
+    evbuf[3] = 1;       /* number of reports */
+    evbuf[4] = evtype;
+    evbuf[5] = addr_type;
+    memcpy(&evbuf[6], addr, BLE_DEV_ADDR_LEN);
+
+    tmp = &evbuf[12];
+    if (inita) {
+        tmp[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+        memcpy(tmp + 1, inita, BLE_DEV_ADDR_LEN);
+        tmp += BLE_DEV_ADDR_LEN + 1;
+    } else if (adv_data_len) {
+        tmp[0] = adv_data_len;
+        memcpy(tmp + 1, adv_data, adv_data_len);
+        tmp += adv_data_len + 1;
+    }
+
+    tmp[0] = rssi;
+
+    return ble_ll_hci_event_send(evbuf);
+}
 /**
  * Send an advertising report to the host.
  *
@@ -387,7 +423,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
  * @param scansm
  */
 static void
-ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
+ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
                            struct ble_mbuf_hdr *hdr,
                            struct ble_ll_scan_sm *scansm)
 {
@@ -397,16 +433,19 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
 #endif
     uint8_t evtype;
     uint8_t subev;
-    uint8_t *evbuf;
-    uint8_t *orig_evbuf;
     uint8_t *adv_addr;
     uint8_t *inita;
     uint8_t addr_type;
     uint8_t adv_data_len;
+    uint8_t *adv_data = NULL;
     uint8_t event_len;
 
     inita = NULL;
     subev = BLE_HCI_LE_SUBEV_ADV_RPT;
+    if (!ble_ll_hci_is_le_event_enabled(subev)) {
+        return;
+    }
+
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
         inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
         if ((inita[5] & 0x40) == 0x40) {
@@ -432,68 +471,41 @@ ble_ll_hci_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
         adv_data_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
         adv_data_len -= BLE_DEV_ADDR_LEN;
         event_len = BLE_HCI_LE_ADV_RPT_MIN_LEN + adv_data_len;
+        adv_data = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
     }
 
-    if (ble_ll_hci_is_le_event_enabled(subev)) {
-        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
-        if (evbuf) {
-            evbuf[0] = BLE_HCI_EVCODE_LE_META;
-            evbuf[1] = event_len;
-            evbuf[2] = subev;
-            evbuf[3] = 1;       /* number of reports */
-            evbuf[4] = evtype;
+    if (txadd) {
+        addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+    } else {
+        addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
+    }
 
-            if (txadd) {
-                addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
-            } else {
-                addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-            }
-
-            rxbuf += BLE_LL_PDU_HDR_LEN;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-            if (BLE_MBUF_HDR_RESOLVED(hdr)) {
-                index = scansm->scan_rpa_index;
-                adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
-                /*
-                 * NOTE: this looks a bit odd, but the resolved address types
-                 * are 2 greater than the unresolved ones in the spec, so
-                 * we just add 2 here.
-                 */
-                addr_type = g_ble_ll_resolv_list[index].rl_addr_type + 2;
-            } else {
-                adv_addr = rxbuf;
-            }
+    if (BLE_MBUF_HDR_RESOLVED(hdr)) {
+        index = scansm->scan_rpa_index;
+        adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+        /*
+         * NOTE: this looks a bit odd, but the resolved address types
+         * are 2 greater than the unresolved ones in the spec, so
+         * we just add 2 here.
+         */
+        addr_type = g_ble_ll_resolv_list[index].rl_addr_type + 2;
+    } else {
+        adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+    }
 #else
-            adv_addr = rxbuf;
+    adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 #endif
 
-            orig_evbuf = evbuf;
-            evbuf += 5;
-
-            /* The advertisers address type and address are always in event */
-            evbuf[0] = addr_type;
-            memcpy(evbuf + 1, adv_addr, BLE_DEV_ADDR_LEN);
-            evbuf += BLE_DEV_ADDR_LEN + 1;
-
-            if (inita) {
-                evbuf[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
-                memcpy(evbuf + 1, inita, BLE_DEV_ADDR_LEN);
-                evbuf += BLE_DEV_ADDR_LEN + 1;
-            } else {
-                evbuf[0] = adv_data_len;
-                memcpy(evbuf + 1, rxbuf + BLE_DEV_ADDR_LEN, adv_data_len);
-                evbuf += adv_data_len + 1;
-            }
-
-            evbuf[0] = hdr->rxinfo.rssi;
-
-            rc = ble_ll_hci_event_send(orig_evbuf);
-            if (!rc) {
-                /* If filtering, add it to list of duplicate addresses */
-                if (scansm->scan_filt_dups) {
-                    ble_ll_scan_add_dup_adv(adv_addr, txadd, subev);
-                }
-            }
+    rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
+                                    addr_type, adv_addr,
+                                    hdr->rxinfo.rssi,
+                                    adv_data_len, adv_data,
+                                    inita);
+    if (!rc) {
+        /* If filtering, add it to list of duplicate addresses */
+        if (scansm->scan_filt_dups) {
+            ble_ll_scan_add_dup_adv(adv_addr, txadd, subev);
         }
     }
 }
@@ -1414,7 +1426,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     /* Send the advertising report */
-    ble_ll_hci_send_adv_report(ptype, ident_addr_type, rxbuf, hdr, scansm);
+    ble_ll_scan_send_adv_report(ptype, ident_addr_type, rxbuf, hdr, scansm);
 
 scan_continue:
     /*
