@@ -173,19 +173,12 @@ ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
 }
 
 void
-ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+ble_l2cap_remove_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     conn->bhc_rx_chan = NULL;
     os_mbuf_free_chain(chan->rx_buf);
     chan->rx_buf = NULL;
     chan->rx_len = 0;
-}
-
-static void
-ble_l2cap_discard_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
-{
-    os_mbuf_free_chain(chan->rx_buf);
-    ble_l2cap_forget_rx(conn, chan);
 }
 
 static void
@@ -230,7 +223,7 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
     len_diff = OS_MBUF_PKTLEN(chan->rx_buf) - chan->rx_len;
     if (len_diff > 0) {
         /* More data than expected; data corruption. */
-        ble_l2cap_discard_rx(conn, chan);
+        ble_l2cap_remove_rx(conn, chan);
         rc = BLE_HS_EBADDATA;
     } else if (len_diff == 0) {
         /* All fragments received. */
@@ -341,7 +334,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 
         if (chan->rx_buf != NULL) {
             /* Previous data packet never completed.  Discard old packet. */
-            ble_l2cap_discard_rx(conn, chan);
+            ble_l2cap_remove_rx(conn, chan);
         }
 
         if (l2cap_hdr.len > ble_l2cap_get_mtu(chan)) {

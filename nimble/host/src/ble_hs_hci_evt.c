@@ -659,7 +659,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         /* Final fragment received. */
         BLE_HS_DBG_ASSERT(rx_cb != NULL);
         rc = rx_cb(conn->bhc_rx_chan);
-        ble_l2cap_forget_rx(conn, conn->bhc_rx_chan);
+        ble_l2cap_remove_rx(conn, conn->bhc_rx_chan);
         break;
 
     case BLE_HS_EAGAIN:
