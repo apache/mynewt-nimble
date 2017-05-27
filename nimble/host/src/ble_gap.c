@@ -292,7 +292,7 @@ static void
 ble_gap_log_adv(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                 const struct ble_gap_adv_params *adv_params)
 {
-    BLE_HS_LOG(INFO, "disc_mode=%d", ble_gap_slave.disc_mode);
+    BLE_HS_LOG(INFO, "disc_mode=%d", adv_params->disc_mode);
     if (direct_addr) {
         BLE_HS_LOG(INFO, " direct_addr_type=%d direct_addr=", direct_addr->type);
         BLE_HS_LOG_ADDR(INFO, direct_addr->val);
