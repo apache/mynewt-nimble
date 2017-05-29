@@ -2727,6 +2727,27 @@ ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
     }
 }
 
+static int
+ble_ll_conn_adv_decode_addr(struct ble_ll_conn_sm *connsm, uint8_t pdu_type,
+                            uint8_t *rxbuf, uint8_t **addr,
+                            uint8_t *addr_type, uint8_t **inita,
+                            uint8_t *inita_is_rpa, struct ble_mbuf_hdr *ble_hdr)
+{
+    *addr_type = ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
+    *addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+
+    if (pdu_type != BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+        *inita = NULL;
+        *inita_is_rpa = 0;
+        return 0;
+    }
+
+    *inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+    if (*addr_type) {
+        *inita_is_rpa = (uint8_t)ble_ll_is_rpa(*inita, *addr_type);
+    }
+    return 0;
+}
 /**
  * Called when a receive PDU has ended and we are in the initiating state.
  *
@@ -2745,7 +2766,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 {
     int rc;
     int resolved;
-    int chk_send_req;
     int chk_wl;
     int index;
     uint8_t pdu_type;
@@ -2779,18 +2799,17 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     inita_is_rpa = 0;
 
+    /* Lets get addresses from advertising report*/
+    if (ble_ll_conn_adv_decode_addr(connsm, pdu_type, rxbuf, &adv_addr,
+                                    &addr_type,
+                                    &init_addr, &inita_is_rpa, ble_hdr)) {
+        goto init_rx_isr_exit;
+    }
+
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
-        chk_send_req = 1;
         break;
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        chk_send_req = 0;
-        init_addr = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-        addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
-        if (addr_type) {
-            inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, addr_type);
-        }
-
         /*
          * If we expect our address to be private and the INITA is not,
          * we dont respond!
@@ -2798,111 +2817,104 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
             if (!inita_is_rpa) {
                 goto init_rx_isr_exit;
-            } else {
-                chk_send_req = 1;
             }
         } else {
-            if (ble_ll_is_our_devaddr(init_addr, addr_type)) {
-                chk_send_req = 1;
+            if (!ble_ll_is_our_devaddr(init_addr, addr_type)) {
+                goto init_rx_isr_exit;
             }
         }
         break;
     default:
-        chk_send_req = 0;
-        break;
+        goto init_rx_isr_exit;
     }
 
     /* Should we send a connect request? */
-    if (chk_send_req) {
-        /* Get advertisers address type */
-        adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
-        if (rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK) {
-            addr_type = BLE_HCI_CONN_PEER_ADDR_RANDOM;
-        } else {
-            addr_type = BLE_HCI_CONN_PEER_ADDR_PUBLIC;
-        }
+    index = -1;
+    peer = adv_addr;
+    peer_addr_type = addr_type;
 
-        index = -1;
-        peer = adv_addr;
-        peer_addr_type = addr_type;
-
-        resolved = 0;
-        chk_wl = ble_ll_scan_whitelist_enabled();
+    resolved = 0;
+    chk_wl = ble_ll_scan_whitelist_enabled();
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-        if (ble_ll_is_rpa(adv_addr, addr_type) && ble_ll_resolv_enabled()) {
-            index = ble_hw_resolv_list_match();
-            if (index >= 0) {
-                rl = &g_ble_ll_resolv_list[index];
+    if (ble_ll_is_rpa(adv_addr, addr_type) && ble_ll_resolv_enabled()) {
+        index = ble_hw_resolv_list_match();
+        if (index >= 0) {
+            rl = &g_ble_ll_resolv_list[index];
 
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
-                connsm->rpa_index = index;
-                peer = rl->rl_identity_addr;
-                peer_addr_type = rl->rl_addr_type;
-                resolved = 1;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
+            connsm->rpa_index = index;
+            peer = rl->rl_identity_addr;
+            peer_addr_type = rl->rl_addr_type;
+            resolved = 1;
 
-                /* Assure privacy */
-                if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
-                    !inita_is_rpa) {
-                    goto init_rx_isr_exit;
-                }
-            } else {
-                if (chk_wl) {
-                    goto init_rx_isr_exit;
-                }
+            /* Assure privacy */
+            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+                !inita_is_rpa) {
+                goto init_rx_isr_exit;
             }
-        } else if (ble_ll_resolv_enabled()) {
-            /* Let's see if we have IRK with that peer. If so lets make sure
-             * privacy mode is correct together with initA
-             */
-            rl = ble_ll_resolv_list_find(adv_addr, addr_type);
-            if (rl && !inita_is_rpa &&
-               (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+        } else {
+            if (chk_wl) {
                 goto init_rx_isr_exit;
             }
         }
+    } else if (ble_ll_resolv_enabled()) {
+        /* Let's see if we have IRK with that peer. If so lets make sure
+         * privacy mode is correct together with initA
+         */
+        rl = ble_ll_resolv_list_find(adv_addr, addr_type);
+        if (rl && !inita_is_rpa &&
+           (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+            goto init_rx_isr_exit;
+        }
+    }
 #endif
 
-        /* Check filter policy */
-        if (chk_wl) {
-            if (!ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
-                goto init_rx_isr_exit;
-            }
-        } else {
-            /* Must match the connection address */
-            if (!ble_ll_conn_is_peer_adv(addr_type, adv_addr, index)) {
-                goto init_rx_isr_exit;
-            }
+    /* Check filter policy */
+    if (chk_wl) {
+        if (!ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
+            goto init_rx_isr_exit;
         }
-        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
-
-        /*
-         * If the inita is a RPA, we must see if it resolves based on the
-         * identity address of the resolved ADVA.
-         */
-        if (init_addr && inita_is_rpa) {
-            if ((index < 0) ||
-                !ble_ll_resolv_rpa(init_addr,
-                                   g_ble_ll_resolv_list[index].rl_local_irk)) {
-                goto init_rx_isr_exit;
-            }
+    } else {
+        /* Must match the connection address */
+        if (!ble_ll_conn_is_peer_adv(addr_type, adv_addr, index)) {
+            goto init_rx_isr_exit;
         }
+    }
+    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
 
-        /* Attempt to schedule new connection. Possible that this might fail */
+    /*
+     * If the inita is a RPA, we must see if it resolves based on the
+     * identity address of the resolved ADVA.
+     */
+    if (init_addr && inita_is_rpa) {
+        if ((index < 0) ||
+            !ble_ll_resolv_rpa(init_addr,
+                               g_ble_ll_resolv_list[index].rl_local_irk)) {
+            goto init_rx_isr_exit;
+        }
+    }
+
+    /* Attempt to schedule new connection. Possible that this might fail */
         if (!ble_ll_sched_master_new(connsm, ble_hdr, pyld_len)) {
-            /* Setup to transmit the connect request */
-            rc = ble_ll_conn_request_send(addr_type, adv_addr,
-                                          connsm->tx_win_off, index);
-            if (!rc) {
-                CONN_F_CONN_REQ_TXD(connsm) = 1;
-                STATS_INC(ble_ll_conn_stats, conn_req_txd);
-            } else {
-                ble_ll_sched_rmv_elem(&connsm->conn_sch);
+        /* Setup to transmit the connect request */
+        rc = ble_ll_conn_request_send(addr_type, adv_addr,
+                                      connsm->tx_win_off, index);
+        if (!rc) {
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+            if (ble_hdr->rxinfo.channel) {
+                /* Lets wait for */
+                    ble_ll_sched_rmv_elem(&connsm->conn_sch);
             }
+#endif
+            CONN_F_CONN_REQ_TXD(connsm) = 1;
+            STATS_INC(ble_ll_conn_stats, conn_req_txd);
         } else {
-            /* Count # of times we could not set schedule */
-            STATS_INC(ble_ll_conn_stats, cant_set_sched);
+            ble_ll_sched_rmv_elem(&connsm->conn_sch);
         }
+    } else {
+        /* Count # of times we could not set schedule */
+        STATS_INC(ble_ll_conn_stats, cant_set_sched);
     }
 
 init_rx_isr_exit:
