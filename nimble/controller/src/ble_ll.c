@@ -629,12 +629,12 @@ static void
 ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
 {
     uint8_t crcok;
-    uint8_t chan;
+    bool connection_data;
 
     crcok = BLE_MBUF_HDR_CRC_OK(hdr);
-    chan = hdr->rxinfo.channel;
+    connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_CONNECTION);
     if (crcok) {
-        if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        if (connection_data) {
             STATS_INC(ble_ll_stats, rx_data_pdu_crc_ok);
             STATS_INCN(ble_ll_stats, rx_data_bytes_crc_ok, len);
         } else {
@@ -643,7 +643,7 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
             ble_ll_count_rx_adv_pdus(pdu_type);
         }
     } else {
-        if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        if (connection_data) {
             STATS_INC(ble_ll_stats, rx_data_pdu_crc_err);
             STATS_INCN(ble_ll_stats, rx_data_bytes_crc_err, len);
         } else {
@@ -689,26 +689,28 @@ ble_ll_rx_pkt_in(void)
         ble_ll_count_rx_stats(ble_hdr, pkthdr->omp_len, pdu_type);
 
         /* Process the data or advertising pdu */
-        if (ble_hdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
+        /* Process the PDU */
+        switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
+        case BLE_LL_STATE_CONNECTION:
             ble_ll_conn_rx_data_pdu(m, ble_hdr);
-        } else {
-            /* Process the PDU */
-            switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
-            case BLE_LL_STATE_ADV:
-                ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
-                break;
-            case BLE_LL_STATE_SCANNING:
-                ble_ll_scan_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
-                break;
-            case BLE_LL_STATE_INITIATING:
-                ble_ll_init_rx_pkt_in(rxbuf, ble_hdr);
-                break;
-            default:
-                /* Any other state should never occur */
-                STATS_INC(ble_ll_stats, bad_ll_state);
-                break;
-            }
-
+            /* m is going to be free by function above */
+            m = NULL;
+            break;
+        case BLE_LL_STATE_ADV:
+            ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
+            break;
+        case BLE_LL_STATE_SCANNING:
+            ble_ll_scan_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
+            break;
+        case BLE_LL_STATE_INITIATING:
+            ble_ll_init_rx_pkt_in(rxbuf, ble_hdr);
+            break;
+        default:
+            /* Any other state should never occur */
+            STATS_INC(ble_ll_stats, bad_ll_state);
+            break;
+        }
+        if (m) {
             /* Free the packet buffer */
             os_mbuf_free_chain(m);
         }
@@ -817,25 +819,13 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, 0, rxhdr->beg_cputime);
 #endif
 
-    /* Check channel type */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        /*
-         * Data channel pdu. We should be in CONNECTION state with an
-         * ongoing connection
-         */
-        if (g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION) {
-            rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
-        } else {
-            STATS_INC(ble_ll_stats, bad_ll_state);
-            rc = 0;
-        }
-        return rc;
-    }
-
     /* Advertising channel PDU */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
     switch (g_ble_ll_data.ll_state) {
+        case BLE_LL_STATE_CONNECTION:
+        rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
+        break;
     case BLE_LL_STATE_ADV:
         rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
@@ -849,11 +839,6 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
-        break;
-    case BLE_LL_STATE_CONNECTION:
-        /* Should not occur */
-        assert(0);
-        rc = 0;
         break;
     default:
         /* Should not be in this state! */
@@ -885,24 +870,17 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     int badpkt;
     uint8_t pdu_type;
     uint8_t len;
-    uint8_t chan;
     uint8_t crcok;
     struct os_mbuf *rxpdu;
 
-    /* Get channel and CRC status from BLE header */
-    chan = rxhdr->rxinfo.channel;
+    /* Get CRC status from BLE header */
     crcok = BLE_MBUF_HDR_CRC_OK(rxhdr);
 
     ble_ll_log(BLE_LL_LOG_ID_RX_END, rxbuf[0],
                ((uint16_t)rxhdr->rxinfo.flags << 8) | rxbuf[1],
                rxhdr->beg_cputime);
 
-    /* Check channel type */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        /*
-         * Data channel pdu. We should be in CONNECTION state with an
-         * ongoing connection.
-         */
+    if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_CONNECTION) {
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
         return rc;
     }
