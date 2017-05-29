@@ -423,6 +423,15 @@ int ble_ll_rand_data_get(uint8_t *buf, uint8_t len);
 void ble_ll_rand_prand_get(uint8_t *prand);
 int ble_ll_rand_start(void);
 
+static inline int
+ble_ll_get_addr_type(uint8_t txrxflag)
+{
+    if (txrxflag) {
+        return BLE_HCI_ADV_OWN_ADDR_RANDOM;
+    }
+    return BLE_HCI_ADV_OWN_ADDR_PUBLIC;
+}
+
 /*
  * XXX: temporary LL debug log. Will get removed once we transition to real
  * log
