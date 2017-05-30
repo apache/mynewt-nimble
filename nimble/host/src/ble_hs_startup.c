@@ -176,7 +176,7 @@ ble_hs_startup_set_evmask_tx(void)
      *     0x0000800000000000 Encryption Key Refresh Complete Event
      *     0x2000000000000000 LE Meta-Event
      */
-    ble_hs_hci_cmd_build_set_event_mask(0x20009fffffffffff, buf, sizeof buf);
+    ble_hs_hci_cmd_build_set_event_mask(0x20009807ffffffff, buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
