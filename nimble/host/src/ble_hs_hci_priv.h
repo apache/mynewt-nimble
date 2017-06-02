@@ -108,7 +108,6 @@ void ble_hs_hci_cmd_build_le_set_scan_enable(uint8_t enable,
 int ble_hs_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups);
 int ble_hs_hci_cmd_build_le_create_connection(
     const struct hci_create_conn *hcc, uint8_t *cmd, int cmd_len);
-int ble_hs_hci_cmd_le_create_connection(const struct hci_create_conn *hcc);
 void ble_hs_hci_cmd_build_le_clear_whitelist(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_le_add_to_whitelist(const uint8_t *addr,
                                              uint8_t addr_type,
