@@ -216,6 +216,27 @@ int ble_phy_get_cur_phy(void);
 
 #endif
 
+static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
+{
+    int phy_mode;
+
+    /*
+     * Mode values are set in a way that 1M, 2M and Coded(S=2) are equivalent
+     * to 1M, 2M and Coded in HCI. The only conversion is needed for Coded(S=8)
+     * which uses non-HCI value.
+     */
+
+    phy_mode = phy;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (phy == BLE_PHY_CODED && phy_options == BLE_HCI_LE_PHY_CODED_S8_PREF) {
+        phy_mode = BLE_PHY_MODE_CODED_125KBPS;
+    }
+#endif
+
+    return phy_mode;
+}
+
 #ifdef __cplusplus
 }
 #endif

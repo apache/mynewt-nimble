@@ -216,27 +216,6 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
 STATS_NAME_END(ble_ll_conn_stats)
 
-static inline int ble_ll_conn_phy_to_phy_mode(int phy, int phy_options)
-{
-    int phy_mode;
-
-    /*
-     * Mode values are set in a way that 1M, 2M and Coded(S=2) are equivalent
-     * to 1M, 2M and Coded in HCI. The only conversion is needed for Coded(S=8)
-     * which uses non-HCI value.
-     */
-
-    phy_mode = phy;
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    if (phy == BLE_PHY_CODED && phy_options == BLE_HCI_LE_PHY_CODED_S8_PREF) {
-        phy_mode = BLE_PHY_MODE_CODED_125KBPS;
-    }
-#endif
-
-    return phy_mode;
-}
-
 static void ble_ll_conn_event_end(struct os_event *ev);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -2151,14 +2130,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         if (connsm->phy_data.new_tx_phy) {
             connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
             connsm->phy_data.tx_phy_mode =
-                                ble_ll_conn_phy_to_phy_mode(connsm->phy_data.cur_tx_phy,
+                                ble_ll_phy_to_phy_mode(connsm->phy_data.cur_tx_phy,
                                                    connsm->phy_data.phy_options);
         }
 
         if (connsm->phy_data.new_rx_phy) {
             connsm->phy_data.cur_rx_phy = connsm->phy_data.new_rx_phy;
             connsm->phy_data.rx_phy_mode =
-                                ble_ll_conn_phy_to_phy_mode(connsm->phy_data.cur_rx_phy,
+                                ble_ll_phy_to_phy_mode(connsm->phy_data.cur_rx_phy,
                                                    connsm->phy_data.phy_options);
         }
 
