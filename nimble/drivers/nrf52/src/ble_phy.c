@@ -228,6 +228,23 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
     g_ble_phy_data.phy_cur_phy_mode = (uint8_t)cur_phy_mode;
     g_ble_phy_data.phy_txtorx_phy_mode = (uint8_t)txtorx_phy_mode;
 }
+
+int
+ble_phy_get_cur_phy(void)
+{
+    switch (g_ble_phy_data.phy_cur_phy_mode) {
+        case BLE_PHY_MODE_1M:
+            return BLE_PHY_1M;
+        case BLE_PHY_MODE_2M:
+            return BLE_PHY_2M;
+        case BLE_PHY_MODE_CODED_125KBPS:
+        case BLE_PHY_MODE_CODED_500KBPS:
+            return BLE_PHY_CODED;
+        default:
+            assert(0);
+            return -1;
+    }
+}
 #endif
 
 /**
