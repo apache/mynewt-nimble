@@ -993,6 +993,28 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
  *
  * @return int 0: success; otherwise failure to transmit
  */
+static uint16_t
+ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
+{
+    uint16_t phy_max_tx_octets;
+    uint16_t ret;
+
+    phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
+                                                     connsm->phy_data.tx_phy_mode);
+
+    ret = pyld_len;
+
+    if (ret > connsm->eff_max_tx_octets) {
+        ret = connsm->eff_max_tx_octets;
+    }
+
+    if (ret > phy_max_tx_octets) {
+        ret = phy_max_tx_octets;
+    }
+
+    return ret;
+}
+
 static int
 ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
 {
@@ -1067,15 +1089,13 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         STAILQ_REMOVE_HEAD(&connsm->conn_txq, omp_next);
         ble_hdr = BLE_MBUF_HDR_PTR(m);
 
-        /* XXX: TODO: need to check this with phy update procedure. There are
-           limitations if we have started update */
-
-        /* Determine packet length we will transmit */
-        cur_txlen = connsm->eff_max_tx_octets;
+        /*
+         * We dequeued new packet for transmission so need to calculate payload
+         * length we can send over current PHY. Effectively, this determines
+         * fragmentation of packet into PDUs.
+         */
         pktlen = pkthdr->omp_len;
-        if (cur_txlen > pktlen) {
-            cur_txlen = pktlen;
-        }
+        cur_txlen = ble_ll_conn_adjust_pyld_len(connsm, pktlen);
         ble_hdr->txinfo.pyld_len = cur_txlen;
 
         /* NOTE: header was set when first enqueued */
@@ -3422,6 +3442,10 @@ conn_exit:
 }
 
 /**
+ * Called to adjust payload length to fit into max effective octets and TX time
+ * on current PHY.
+ */
+/**
  * Called to enqueue a packet on the transmit queue of a connection. Should
  * only be called by the controller.
  *
@@ -3450,18 +3474,12 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     ble_hdr = BLE_MBUF_HDR_PTR(om);
     ble_hdr->txinfo.flags = 0;
     ble_hdr->txinfo.offset = 0;
-    ble_hdr->txinfo.pyld_len = length;
     ble_hdr->txinfo.hdr_byte = hdr_byte;
 
-    /* XXX: TODO: need to check this with phy update procedure. There are
-       limitations if we have started update */
     /*
-     * We need to set the initial payload length if the total length of the
-     * PDU exceeds the maximum allowed for the connection for any single tx.
+     * Initial payload length is calculate when packet is dequeued, there's no
+     * need to do this now.
      */
-    if (length > connsm->eff_max_tx_octets) {
-        ble_hdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
-    }
 
     lifo = 0;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
