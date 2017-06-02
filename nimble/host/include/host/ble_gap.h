@@ -587,6 +587,12 @@ int ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                     int32_t duration_ms,
                     const struct ble_gap_conn_params *params,
                     ble_gap_event_fn *cb, void *cb_arg);
+int ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
+                        int32_t duration_ms, uint8_t phy_mask,
+                        const struct ble_gap_conn_params *phy_1m_conn_params,
+                        const struct ble_gap_conn_params *phy_2m_conn_params,
+                        const struct ble_gap_conn_params *phy_coded_conn_params,
+                        ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_conn_cancel(void);
 int ble_gap_conn_active(void);
 int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
