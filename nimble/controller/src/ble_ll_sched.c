@@ -209,13 +209,18 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     rc = 0;
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
         if (ble_ll_sched_is_overlap(sch, entry)) {
-            /* Only insert if this element is older than all that we overlap */
-            if (!ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
+            if (entry->sched_type == BLE_LL_SCHED_TYPE_AUX_SCAN) {
+                /* Do nothing, we start_mark overlap below */
+            } else if (!ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
                                     (struct ble_ll_conn_sm *)entry->cb_arg)) {
+                /* Only insert if this element is older than all that we
+                 * overlap
+                 */
                 start_overlap = NULL;
                 rc = -1;
                 break;
             }
+
             if (start_overlap == NULL) {
                 start_overlap = entry;
                 end_overlap = entry;
@@ -242,12 +247,22 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     entry = start_overlap;
     while (entry) {
         start_overlap = TAILQ_NEXT(entry,link);
-        if (entry->sched_type == BLE_LL_SCHED_TYPE_CONN) {
+        switch (entry->sched_type) {
+            case BLE_LL_SCHED_TYPE_CONN:
             tmp = (struct ble_ll_conn_sm *)entry->cb_arg;
             ble_ll_event_send(&tmp->conn_ev_end);
-        } else {
-            assert(entry->sched_type == BLE_LL_SCHED_TYPE_ADV);
-            ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)entry->cb_arg);
+            break;
+            case BLE_LL_SCHED_TYPE_ADV:
+                ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)
+                                                  entry->cb_arg);
+                break;
+            case BLE_LL_SCHED_TYPE_AUX_SCAN:
+                ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)
+                                          entry->cb_arg);
+                break;
+            default:
+                assert(0);
+                break;
         }
 
         TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
@@ -384,16 +399,16 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
          */
         if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
             // transmitWindowDelay=2500us
-            // 2500-150 = 2350us =~ 77.00 ticks
-            earliest_start = ble_hdr->beg_cputime + 105;
+            // 2500+150+CONN_REQ(80 + 272) = 3002us =~ 98.00 ticks
+            earliest_start = ble_hdr->beg_cputime + 98;
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
             // transmitWindowDelay=2500us
-            // 2500-150 = 2350us =~ 77.00 ticks
-            earliest_start = ble_hdr->beg_cputime + 77;
+            // 2500+150+CONN_REQ(136 + 44) = 2830us =~ 93.00 ticks
+            earliest_start = ble_hdr->beg_cputime + 93;
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_CODED) {
             // transmitWindowDelay=3750us
-            // 3750-150 = 3600us =~ 117.96 ticks
-            earliest_start = ble_hdr->beg_cputime + 118;
+            // 3750+150+CONN_REQ(2176 + 720) = 6796us =~ 222.80 ticks
+            earliest_start = ble_hdr->beg_cputime + 223;
         } else {
             assert(0);
         }

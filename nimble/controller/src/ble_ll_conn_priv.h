@@ -96,6 +96,16 @@ void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
 void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
                              struct hci_create_conn *hcc);
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+void ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
+                                 struct hci_ext_create_conn *hcc);
+
+void ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
+                                struct hci_ext_conn_params *hcc_params,
+                                int tx_phy, int tx_phy_ops,
+                                int rx_phy, int rx_phy_ops);
+#endif
+
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_len_req *req);
@@ -112,10 +122,12 @@ void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
 int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
-void ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
+void ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
+                           struct ble_mbuf_hdr *ble_hdr);
 int ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                            struct ble_mbuf_hdr *ble_hdr);
 void ble_ll_conn_wfr_timer_exp(void);
+void ble_ll_conn_init_wrf_timer_exp(void);
 int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
 uint32_t ble_ll_conn_get_ce_end_time(void);
 void ble_ll_conn_event_halt(void);
@@ -162,7 +174,10 @@ int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
 int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
 int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
-
+void ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan);
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+int ble_ll_ext_conn_create(uint8_t *cmdbuf);
+#endif
 #ifdef __cplusplus
 }
 #endif

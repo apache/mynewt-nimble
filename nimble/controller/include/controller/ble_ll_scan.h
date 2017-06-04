@@ -68,6 +68,10 @@ extern "C" {
 #define PHY_CODED                      (1)
 #define PHY_NOT_CONFIGURED             (0xFF)
 
+#define BLE_LL_EXT_ADV_MODE_NON_CONN    (0x00)
+#define BLE_LL_EXT_ADV_MODE_CONN        (0x01)
+#define BLE_LL_EXT_ADV_MODE_SCAN        (0x02)
+
 struct ble_ll_scan_params
 {
     uint8_t phy;
@@ -196,7 +200,16 @@ int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                                 int *ext_mode);
 
 /* Get aux ptr from ext advertising */
+int ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
+                             struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
+                             struct ble_ll_aux_data **aux_data);
+
 #if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+/* Initialize the extended scanner when we start initiating */
+struct hci_ext_create_conn;
+int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
+                                    struct ble_ll_scan_sm **sm);
+
 /* Called to parse extended advertising*/
 struct ble_ll_ext_adv;
 int ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,

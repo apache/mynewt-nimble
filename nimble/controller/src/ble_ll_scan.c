@@ -81,10 +81,6 @@ struct ble_ll_scan_sm g_ble_ll_scan_sm;
 #define BLE_LL_EXT_ADV_SYNC_INFO_SIZE   (18)
 #define BLE_LL_EXT_ADV_TX_POWER_SIZE    (1)
 
-#define BLE_LL_EXT_ADV_MODE_NON_CONN    (0x00)
-#define BLE_LL_EXT_ADV_MODE_CONN        (0x01)
-#define BLE_LL_EXT_ADV_MODE_SCAN        (0x02)
-
 struct ble_ll_ext_adv_hdr
 {
     uint8_t mode;
@@ -1424,7 +1420,7 @@ ble_ll_ext_scan_parse_adv_info(struct ble_ll_scan_sm *scansm,
     evt->sid = (adv_info >> 12);
 }
 
-static int
+int
 ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
                          struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
                          struct ble_ll_aux_data **aux_data)
@@ -1637,6 +1633,10 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
 
+    if (!inita) {
+        return 0;
+    }
+
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
         *inita = ext_hdr + i;
         *inita_type =
@@ -1676,7 +1676,8 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
     uint8_t inita_type;
 #endif
 
-    if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+    if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND &&
+        pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
         /* Legacy advertising */
         *addr_type = ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         *addr = rxbuf + BLE_LL_PDU_HDR_LEN;
@@ -2487,6 +2488,62 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
 
     return ble_ll_scan_sm_start(scansm);
 }
+
+#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+int
+ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
+                                struct ble_ll_scan_sm **sm)
+{
+    struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanphy;
+    struct hci_ext_conn_params *params;
+    int rc;
+
+    scansm = &g_ble_ll_scan_sm;
+    scansm->scan_filt_policy = hcc->filter_policy;
+    scansm->own_addr_type = hcc->own_addr_type;
+    scansm->cur_phy = PHY_NOT_CONFIGURED;
+    scansm->next_phy = PHY_NOT_CONFIGURED;
+    scansm->ext_scanning = 1;
+
+    if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
+        params = &hcc->params[0];
+        scanphy = &scansm->phy_data[PHY_UNCODED];
+
+        scanphy->scan_itvl = params->scan_itvl;
+        scanphy->scan_window = params->scan_window;
+        scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
+        scansm->cur_phy = PHY_UNCODED;
+    }
+
+    if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
+        params = &hcc->params[2];
+        scanphy = &scansm->phy_data[PHY_CODED];
+
+        scanphy->scan_itvl = params->scan_itvl;
+        scanphy->scan_window = params->scan_window;
+        scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
+        if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
+            scansm->cur_phy = PHY_CODED;
+        } else {
+            scansm->next_phy = PHY_CODED;
+        }
+    }
+
+    rc = ble_ll_scan_sm_start(scansm);
+    if (sm == NULL) {
+        return rc;
+    }
+
+    if (rc == BLE_ERR_SUCCESS) {
+        *sm = scansm;
+    } else {
+        *sm = NULL;
+    }
+
+    return rc;
+}
+#endif
 
 /**
  * Checks to see if the scanner is enabled.

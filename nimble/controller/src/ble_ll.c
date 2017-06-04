@@ -172,6 +172,7 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, rx_scan_rsps)
     STATS_NAME(ble_ll_stats, rx_connect_reqs)
     STATS_NAME(ble_ll_stats, rx_scan_ind)
+    STATS_NAME(ble_ll_stats, rx_aux_connect_rsp)
     STATS_NAME(ble_ll_stats, adv_txg)
     STATS_NAME(ble_ll_stats, adv_late_starts)
     STATS_NAME(ble_ll_stats, sched_state_conn_errs)
@@ -185,6 +186,8 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, aux_scheduled)
     STATS_NAME(ble_ll_stats, aux_received)
     STATS_NAME(ble_ll_stats, aux_fired_for_read)
+    STATS_NAME(ble_ll_stats, aux_conn_req_tx)
+    STATS_NAME(ble_ll_stats, aux_conn_rsp_err)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct os_event *ev);
@@ -291,6 +294,9 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
         break;
     case BLE_ADV_PDU_TYPE_CONNECT_REQ:
         STATS_INC(ble_ll_stats, rx_connect_reqs);
+        break;
+    case BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP:
+        STATS_INC(ble_ll_stats, rx_aux_connect_rsp);
         break;
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
         STATS_INC(ble_ll_stats, rx_scan_ind);
@@ -544,8 +550,9 @@ ble_ll_wfr_timer_exp(void *arg)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_wfr_timer_exp();
             break;
-        /* Do nothing here. Fall through intentional */
         case BLE_LL_STATE_INITIATING:
+            ble_ll_conn_init_wrf_timer_exp();
+            break;
         default:
             break;
         }
@@ -711,7 +718,7 @@ ble_ll_rx_pkt_in(void)
             ble_ll_scan_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
         case BLE_LL_STATE_INITIATING:
-            ble_ll_init_rx_pkt_in(rxbuf, ble_hdr);
+            ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
         default:
             /* Any other state should never occur */
@@ -819,6 +826,7 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     uint8_t pdu_type;
+    struct ble_ll_conn_sm *connsm;
 
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, rxhdr->rem_usecs,
@@ -838,12 +846,21 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
     case BLE_LL_STATE_INITIATING:
+        connsm = g_ble_ll_conn_create_sm;
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
-            (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND)) {
+            (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND ||
+             pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND ||
+             pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP)) {
             rc = 1;
+
+            if (connsm && connsm->scansm && connsm->scansm->cur_aux_data) {
+                STATS_INC(ble_ll_stats, aux_received);
+            }
+
         } else {
             rc = 0;
         }
+
         break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
@@ -914,6 +931,8 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
             if ((len < BLE_DEV_ADDR_LEN) || (len > BLE_ADV_SCAN_IND_MAX_LEN)) {
                 badpkt = 1;
             }
+            break;
+        case BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP:
             break;
         case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
             break;
