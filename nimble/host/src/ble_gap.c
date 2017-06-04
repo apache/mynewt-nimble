@@ -665,8 +665,15 @@ ble_gap_master_connect_cancelled(void)
     }
 }
 
+
+static int
+ble_gap_is_extended_disc(void)
+{
+    return ble_gap_master.disc.extended;
+}
+
 static void
-ble_gap_disc_report(struct ble_gap_disc_desc *desc)
+ble_gap_disc_report(void *desc)
 {
     struct ble_gap_master_state state;
     struct ble_gap_event event;
@@ -675,8 +682,17 @@ ble_gap_disc_report(struct ble_gap_disc_desc *desc)
 
     if (state.cb != NULL) {
         memset(&event, 0, sizeof event);
-        event.type = BLE_GAP_EVENT_DISC;
-        event.disc = *desc;
+        if (ble_gap_is_extended_disc()) {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+            event.type = BLE_GAP_EVENT_EXT_DISC;
+            event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
+#else
+            assert(0);
+#endif
+        } else {
+            event.type = BLE_GAP_EVENT_DISC;
+            event.disc = *((struct ble_gap_disc_desc *)desc);
+        }
 
         state.cb(&event, state.cb_arg);
     }
@@ -1114,6 +1130,33 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
     return rc;
 }
 
+static int
+ble_gap_rx_adv_report_sanity_check(uint8_t *adv_data, uint8_t adv_data_len)
+{
+    const struct ble_hs_adv_field *flags;
+    int rc;
+
+    STATS_INC(ble_gap_stats, rx_adv_report);
+
+    if (ble_gap_master.op != BLE_GAP_OP_M_DISC) {
+        return -1;
+    }
+
+    /* If a limited discovery procedure is active, discard non-limited
+     * advertisements.
+     */
+    if (ble_gap_master.disc.limited) {
+        rc = ble_hs_adv_find_field(BLE_HS_ADV_TYPE_FLAGS, adv_data,
+                                   adv_data_len, &flags);
+        if ((rc == 0) && (flags->length == 2) &&
+            !(flags->value[0] & BLE_HS_ADV_F_DISC_LTD)) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 void
 ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
 {
@@ -1121,30 +1164,24 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
     return;
 #endif
 
-    const struct ble_hs_adv_field *flags;
-    int rc;
-
-    STATS_INC(ble_gap_stats, rx_adv_report);
-
-    if (ble_gap_master.op != BLE_GAP_OP_M_DISC) {
+    if (ble_gap_rx_adv_report_sanity_check(desc->data, desc->length_data)) {
         return;
-    }
-
-    /* If a limited discovery procedure is active, discard non-limited
-     * advertisements.
-     */
-    if (ble_gap_master.disc.limited) {
-        rc = ble_hs_adv_find_field(BLE_HS_ADV_TYPE_FLAGS, desc->data,
-                                   desc->length_data, &flags);
-        if ((rc == 0) && (flags->length == 2) &&
-            !(flags->value[0] & BLE_HS_ADV_F_DISC_LTD)) {
-            return;
-        }
     }
 
     ble_gap_disc_report(desc);
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+void
+ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
+{
+    if (ble_gap_rx_adv_report_sanity_check(desc->data, desc->length_data)) {
+        return;
+    }
+
+    ble_gap_disc_report(desc);
+}
+#endif
 /**
  * Processes an incoming connection-complete HCI event.
  */
@@ -2207,12 +2244,6 @@ ble_gap_ext_disc_enable_tx(uint8_t enable, uint8_t filter_duplicates,
 }
 #endif
 
-static int
-ble_gap_is_extended_disc(void)
-{
-    return ble_gap_master.disc.extended;
-}
-
 /**
  * Cancels the discovery procedure currently in progress.  A success return
  * code indicates that scanning has been fully aborted; a new discovery or
@@ -2516,6 +2547,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
 
     ble_gap_master.disc.limited = params.limited;
     ble_gap_master.cb = cb;
+    ble_gap_master.disc.extended = 0;
     ble_gap_master.cb_arg = cb_arg;
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: discovery; ");
@@ -2636,7 +2668,7 @@ ble_gap_ext_conn_create_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                            const struct ble_gap_conn_params *phy_coded_conn_params)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + sizeof(struct hci_ext_create_conn)];
-    struct hci_ext_create_conn hcc = {};
+    struct hci_ext_create_conn hcc = {0};
     int rc;
 
     if (peer_addr == NULL) {

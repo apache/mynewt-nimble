@@ -112,6 +112,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_MTU                   15
 #define BLE_GAP_EVENT_IDENTITY_RESOLVED     16
 #define BLE_GAP_EVENT_PHY_UPDATE_COMPLETE   17
+#define BLE_GAP_EVENT_EXT_DISC              18
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -217,6 +218,28 @@ struct ble_gap_passkey_params {
     uint32_t numcmp;
 };
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+struct ble_gap_ext_disc_desc {
+    /*** Common fields. */
+    uint8_t props;
+    uint8_t data_status;
+    uint8_t legacy_event_type;
+    ble_addr_t addr;
+    int8_t rssi;
+    uint8_t tx_power;
+    uint8_t sid;
+    uint8_t prim_phy;
+    uint8_t sec_phy;
+    uint8_t length_data;
+    uint8_t *data;
+    /***
+     * LE direct advertising report fields; direct_addr is BLE_ADDR_ANY if
+     * direct address fields are not present.
+     */
+    ble_addr_t direct_addr;
+};
+#endif
+
 struct ble_gap_disc_desc {
     /*** Common fields. */
     uint8_t event_type;
@@ -230,9 +253,6 @@ struct ble_gap_disc_desc {
      * direct address fields are not present.
      */
     ble_addr_t direct_addr;
-#if MYNEWT_VAL(BLE_EXT_ADV)
-    uint8_t tx_power;
-#endif
 };
 
 /**
@@ -293,6 +313,14 @@ struct ble_gap_event {
          */
         struct ble_gap_disc_desc disc;
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        /**
+         * Represents an extended advertising report received during a discovery
+         * procedure.  Valid for the following event types:
+         *     o BLE_GAP_EVENT_EXT_DISC
+         */
+        struct ble_gap_ext_disc_desc ext_disc;
+#endif
         /**
          * Represents an attempt to update a connection's parameters.  If the
          * attempt was successful, the connection's descriptor reflects the

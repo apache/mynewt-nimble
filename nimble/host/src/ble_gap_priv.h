@@ -74,6 +74,9 @@ extern STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;
 #define BLE_GAP_CONN_MODE_MAX               3
 #define BLE_GAP_DISC_MODE_MAX               3
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+void ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc);
+#endif
 void ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc);
 int ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt);
 void ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt);

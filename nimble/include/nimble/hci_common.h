@@ -215,6 +215,10 @@ extern "C" {
 #define BLE_HCI_ADV_SCAN_RSP_MASK           (0x0008)
 #define BLE_HCI_ADV_LEGACY_MASK             (0x0010)
 
+#define BLE_HCI_ADV_COMPLETED               (0x00)
+#define BLE_HCI_ADV_INCOMPLETE              (0x01)
+#define BLE_HCI_ADV_CORRUPTED               (0x10)
+
 /* Own address types */
 #define BLE_HCI_ADV_OWN_ADDR_PUBLIC         (0)
 #define BLE_HCI_ADV_OWN_ADDR_RANDOM         (1)
@@ -802,6 +806,29 @@ struct hci_ext_create_conn
     uint8_t init_phy_mask;
     struct hci_ext_conn_params params[3];
 };
+
+struct hci_ext_adv_report_param {
+    uint16_t evt_type;
+    uint8_t addr_type;
+    uint8_t addr[6];
+    uint8_t prim_phy;
+    uint8_t sec_phy;
+    uint8_t sid;
+    uint8_t tx_power;
+    int8_t rssi;
+    uint16_t per_adv_itvl;
+    uint8_t dir_addr_type;
+    uint8_t dir_addr[6];
+    uint8_t adv_data_len;
+    uint8_t adv_data[0];
+} __attribute__((packed));
+
+struct hci_ext_adv_report {
+    /* We support one report per event for now */
+    uint8_t subevt;
+    uint8_t num_reports;
+    struct hci_ext_adv_report_param params[0];
+} __attribute__((packed));
 #endif
 
 /* LE connection update command (ocf=0x0013). */
