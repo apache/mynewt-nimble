@@ -359,8 +359,45 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
     dur = req_slots * BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
-    adv_rxend = os_cputime_get32();
-    earliest_start = adv_rxend + 57;    /* XXX: only works for 1 Mbps */
+    if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
+        /*
+         * We received packet on advertising channel which means this is a legacy
+         * PDU on 1 Mbps - we do as described above.
+         */
+        adv_rxend = os_cputime_get32();
+        earliest_start = adv_rxend + 57;
+    } else {
+        /*
+         * We received packet on data channel which means this is AUX_CONNECT_RSP
+         * received on secondary adv channel - we know exactly how much time does
+         * it take to receive packets since they have constant length.
+         *
+         * The first packet can be scheduled T_IFS + transmitWindowDelay from the
+         * end of AUX_CONNECT_REQ (assume transmitWindowOffset=0 for now) and we
+         * assume that AUX_CONNECT_RSP was received T_IFS after that packet, so
+         * we schedule at transmitWindowDelay-T_IFS since start of AUX_CONNECT_RSP.
+         *
+         * FIXME: we could actually use precise time from AUX_CONNECT_REQ but
+         * FIXME: this should be good enough for now
+         *
+         * FIXME: not sure about transmitWindowSize yet...
+         */
+        if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
+            // transmitWindowDelay=2500us
+            // 2500-150 = 2350us =~ 77.00 ticks
+            earliest_start = ble_hdr->beg_cputime + 77;
+        } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
+            // transmitWindowDelay=2500us
+            // 2500-150 = 2350us =~ 77.00 ticks
+            earliest_start = ble_hdr->beg_cputime + 77;
+        } else if (ble_hdr->rxinfo.phy == BLE_PHY_CODED) {
+            // transmitWindowDelay=3750us
+            // 3750-150 = 3600us =~ 117.96 ticks
+            earliest_start = ble_hdr->beg_cputime + 118;
+        } else {
+            assert(0);
+        }
+    }
     earliest_end = earliest_start + dur;
     itvl_t = connsm->conn_itvl_ticks;
 #else
