@@ -152,6 +152,7 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(rx_scan_rsps)
     STATS_SECT_ENTRY(rx_connect_reqs)
     STATS_SECT_ENTRY(rx_scan_ind)
+    STATS_SECT_ENTRY(rx_aux_connect_rsp)
     STATS_SECT_ENTRY(adv_txg)
     STATS_SECT_ENTRY(adv_late_starts)
     STATS_SECT_ENTRY(sched_state_conn_errs)
@@ -165,6 +166,8 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(aux_scheduled)
     STATS_SECT_ENTRY(aux_received)
     STATS_SECT_ENTRY(aux_fired_for_read)
+    STATS_SECT_ENTRY(aux_conn_req_tx)
+    STATS_SECT_ENTRY(aux_conn_rsp_err)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
