@@ -975,22 +975,15 @@ ble_sm_key_dist(struct ble_sm_proc *proc,
 }
 
 static int
-ble_sm_chk_store_overflow_once(int is_our_sec, uint16_t conn_handle)
+ble_sm_chk_store_overflow_by_type(int obj_type, uint16_t conn_handle)
 {
 #if !MYNEWT_VAL(BLE_SM_BONDING)
     return 0;
 #endif
 
     struct ble_store_status_event event;
-    int obj_type;
     int count;
     int rc;
-
-    if (is_our_sec) {
-        obj_type = BLE_STORE_OBJ_TYPE_OUR_SEC;
-    } else {
-        obj_type = BLE_STORE_OBJ_TYPE_PEER_SEC;
-    }
 
     rc = ble_store_util_count(obj_type, &count);
     if (rc != 0) {
@@ -1027,12 +1020,14 @@ ble_sm_chk_store_overflow(uint16_t conn_handle)
 {
     int rc;
 
-    rc = ble_sm_chk_store_overflow_once(0, conn_handle);
+    rc = ble_sm_chk_store_overflow_by_type(BLE_STORE_OBJ_TYPE_PEER_SEC,
+                                           conn_handle);
     if (rc != 0) {
         return rc;
     }
 
-    rc = ble_sm_chk_store_overflow_once(1, conn_handle);
+    rc = ble_sm_chk_store_overflow_by_type(BLE_STORE_OBJ_TYPE_OUR_SEC,
+                                           conn_handle);
     if (rc != 0) {
         return rc;
     }
