@@ -4419,29 +4419,30 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         txom = ble_hs_mbuf_att_pkt();
         if (txom == NULL) {
             rc = BLE_HS_ENOMEM;
-            goto err;
+            goto done;
         }
         rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
                                      chr_val_handle, 0, txom, NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
             rc = BLE_HS_EAPP;
-            goto err;
+            goto done;
         }
     }
 
     rc = ble_att_clt_tx_notify(conn_handle, chr_val_handle, txom);
     txom = NULL;
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
-    return 0;
-
-err:
+done:
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, notify_fail);
     }
+
+    /* Tell the application that a notification transmission was attempted. */
+    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
 
     os_mbuf_free_chain(txom);
 
@@ -4470,9 +4471,6 @@ ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
     int rc;
 
     rc = ble_gattc_notify_custom(conn_handle, chr_val_handle, NULL);
-
-    /* Tell the application that a notification transmission was attempted. */
-    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
 
     return rc;
 }
