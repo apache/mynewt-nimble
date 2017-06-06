@@ -129,11 +129,6 @@ static bssnz_t struct {
     unsigned our_addr_type:2;
     ble_gap_event_fn *cb;
     void *cb_arg;
-
-    uint8_t adv_data[BLE_HCI_MAX_ADV_DATA_LEN];
-    uint8_t rsp_data[BLE_HCI_MAX_ADV_DATA_LEN];
-    uint8_t adv_data_len;
-    uint8_t rsp_data_len;
 } ble_gap_slave;
 
 struct ble_gap_update_entry {
@@ -292,20 +287,18 @@ static void
 ble_gap_log_adv(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                 const struct ble_gap_adv_params *adv_params)
 {
-    BLE_HS_LOG(INFO, "disc_mode=%d", ble_gap_slave.disc_mode);
+    BLE_HS_LOG(INFO, "disc_mode=%d", adv_params->disc_mode);
     if (direct_addr) {
         BLE_HS_LOG(INFO, " direct_addr_type=%d direct_addr=", direct_addr->type);
         BLE_HS_LOG_ADDR(INFO, direct_addr->val);
     }
     BLE_HS_LOG(INFO, " adv_channel_map=%d own_addr_type=%d "
-                     "adv_filter_policy=%d adv_itvl_min=%d adv_itvl_max=%d "
-                     "adv_data_len=%d",
+                     "adv_filter_policy=%d adv_itvl_min=%d adv_itvl_max=%d",
                adv_params->channel_map,
                own_addr_type,
                adv_params->filter_policy,
                adv_params->itvl_min,
-               adv_params->itvl_max,
-               ble_gap_slave.adv_data_len);
+               adv_params->itvl_max);
 }
 
 /*****************************************************************************
