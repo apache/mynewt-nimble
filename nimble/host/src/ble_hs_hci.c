@@ -369,7 +369,7 @@ ble_hs_hci_max_acl_payload_sz(void)
 static struct os_mbuf *
 ble_hs_hci_frag_alloc(uint16_t frag_size, void *arg)
 {
-    return ble_hs_mbuf_acm_pkt();
+    return ble_hs_mbuf_acl_pkt();
 }
 
 static struct os_mbuf *

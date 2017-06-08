@@ -436,7 +436,7 @@ ble_gatts_notify_test_misc_rx_indicate_rsp(uint16_t conn_handle,
 static void
 ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle,
                                        uint16_t attr_handle,
-                                       uint8_t *attr_data, int attr_len)
+                                       const uint8_t *attr_data, int attr_len)
 {
     struct ble_att_notify_req req;
     struct os_mbuf *om;
@@ -461,7 +461,7 @@ ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle,
 static void
 ble_gatts_notify_test_misc_verify_tx_i(uint16_t conn_handle,
                                        uint16_t attr_handle,
-                                       uint8_t *attr_data, int attr_len)
+                                       const uint8_t *attr_data, int attr_len)
 {
     struct ble_att_indicate_req req;
     struct os_mbuf *om;
@@ -578,8 +578,11 @@ ble_gatts_notify_test_restore_bonding(uint16_t conn_handle,
 
 TEST_CASE(ble_gatts_notify_test_n)
 {
+    static const uint8_t fourbytes[] = { 1, 2, 3, 4 };
+    struct os_mbuf *om;
     uint16_t conn_handle;
     uint16_t flags;
+    int rc;
 
     ble_gatts_notify_test_misc_init(&conn_handle, 0,
                                     BLE_GATTS_CLT_CFG_F_NOTIFY,
@@ -592,6 +595,21 @@ TEST_CASE(ble_gatts_notify_test_n)
     flags = ble_gatts_notify_test_misc_read_notify(
         conn_handle, ble_gatts_notify_test_chr_2_def_handle);
     TEST_ASSERT(flags == BLE_GATTS_CLT_CFG_F_NOTIFY);
+
+    /* Verify custom notification data. */
+    om = ble_hs_mbuf_from_flat(fourbytes, sizeof fourbytes);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_gattc_notify_custom(conn_handle,
+                                 ble_gatts_notify_test_chr_1_def_handle + 1,
+                                 om);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatts_notify_test_misc_verify_tx_n(
+        conn_handle,
+        ble_gatts_notify_test_chr_1_def_handle + 1,
+        fourbytes,
+        sizeof fourbytes);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -655,12 +673,35 @@ TEST_CASE(ble_gatts_notify_test_n)
 
 TEST_CASE(ble_gatts_notify_test_i)
 {
+    static const uint8_t fourbytes[] = { 1, 2, 3, 4 };
+    struct os_mbuf *om;
     uint16_t conn_handle;
     uint16_t flags;
+    int rc;
 
     ble_gatts_notify_test_misc_init(&conn_handle, 0,
                                     BLE_GATTS_CLT_CFG_F_INDICATE,
                                     BLE_GATTS_CLT_CFG_F_INDICATE);
+
+    /* Verify custom indication data. */
+    om = ble_hs_mbuf_from_flat(fourbytes, sizeof fourbytes);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    rc = ble_gattc_indicate_custom(conn_handle,
+                                   ble_gatts_notify_test_chr_1_def_handle + 1,
+                                   om);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_gatts_notify_test_misc_verify_tx_i(
+        conn_handle,
+        ble_gatts_notify_test_chr_1_def_handle + 1,
+        fourbytes,
+        sizeof fourbytes);
+
+    /* Receive the confirmation for the indication. */
+    ble_gatts_notify_test_misc_rx_indicate_rsp(
+        conn_handle,
+        ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
