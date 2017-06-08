@@ -115,7 +115,6 @@ int ble_hs_locked_by_cur_task(void);
 int ble_hs_is_parent_task(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
-void ble_hs_sched_reset(int reason);
 void ble_hs_hw_error(uint8_t hw_code);
 void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
