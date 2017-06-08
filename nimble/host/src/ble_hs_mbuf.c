@@ -58,13 +58,13 @@ ble_hs_mbuf_bare_pkt(void)
 }
 
 /**
- * Allocates an mbuf suitable for an HCI ACM data packet.
+ * Allocates an mbuf suitable for an HCI ACL data packet.
  *
  * @return                  An empty mbuf on success; null on memory
  *                              exhaustion.
  */
 struct os_mbuf *
-ble_hs_mbuf_acm_pkt(void)
+ble_hs_mbuf_acl_pkt(void)
 {
     return ble_hs_mbuf_gen_pkt(BLE_HCI_DATA_HDR_SZ);
 }
@@ -72,7 +72,7 @@ ble_hs_mbuf_acm_pkt(void)
 /**
  * Allocates an mbuf suitable for an L2CAP data packet.  The resulting packet
  * has sufficient leading space for:
- *     o ACM data header
+ *     o ACL data header
  *     o L2CAP B-frame header
  *
  * @return                  An empty mbuf on success; null on memory
@@ -87,7 +87,7 @@ ble_hs_mbuf_l2cap_pkt(void)
 /**
  * Allocates an mbuf suitable for an ATT command packet.  The resulting packet
  * has sufficient leading space for:
- *     o ACM data header
+ *     o ACL data header
  *     o L2CAP B-frame header
  *     o Largest ATT command base (prepare write request / response).
  *
