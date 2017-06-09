@@ -647,7 +647,7 @@ ble_ll_hci_vendor_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = BLE_ERR_SUCCESS;
         }
         break;
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     case BLE_HCI_OCF_MULTI_ADV:
         if (cmdlen > 0) {
             rc = ble_ll_adv_multi_adv_cmd(cmdbuf, cmdlen, rspbuf, rsplen);
