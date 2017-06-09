@@ -1638,10 +1638,8 @@ ble_ll_adv_event_done(struct os_event *ev)
 int
 ble_ll_adv_can_chg_whitelist(void)
 {
-    int rc;
     struct ble_ll_adv_sm *advsm;
-
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    int rc;
     int i;
 
     rc = 1;
@@ -1653,15 +1651,6 @@ ble_ll_adv_can_chg_whitelist(void)
             break;
         }
     }
-#else
-    advsm = &g_ble_ll_adv_sm[0];
-    if (advsm->adv_enabled &&
-        (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
-        rc = 0;
-    } else {
-        rc = 1;
-    }
-#endif
 
     return rc;
 }
