@@ -103,7 +103,7 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
 #endif
 };
@@ -659,7 +659,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
     }
 
     /* Deal with multi-advertising command specific*/
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     if (is_multi) {
         /* Get and check advertising power */
         advsm->adv_txpwr = cmd[22];
@@ -741,7 +741,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 
         /* Set to standby if we are no longer advertising */
         OS_ENTER_CRITICAL(sr);
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
         if (g_ble_ll_cur_adv_sm == advsm) {
             ble_phy_disable();
             ble_ll_wfr_disable();
@@ -805,7 +805,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      * is why I chose command disallowed.
      */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
         if (!ble_ll_is_valid_random_addr(advsm->adv_random_addr)) {
             return BLE_ERR_CMD_DISALLOWED;
         }
@@ -842,7 +842,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
         addr = g_dev_addr;
         advsm->adv_txadd = 0;
     } else {
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
         addr = advsm->adv_random_addr;
 #else
         addr = g_random_addr;
@@ -1041,7 +1041,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance)
     return BLE_ERR_SUCCESS;
 }
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
 int
 ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
 {
@@ -1330,7 +1330,7 @@ int
 ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 {
     int rc;
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     struct ble_mbuf_hdr *rxhdr;
 #endif
 
@@ -1338,7 +1338,7 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
     if (rxpdu == NULL) {
         ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
     } else {
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
         rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
         rxhdr->rxinfo.advsm = g_ble_ll_cur_adv_sm;
 #endif
@@ -1382,7 +1382,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     int adv_event_over;
     struct ble_ll_adv_sm *advsm;
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     advsm = (struct ble_ll_adv_sm *)hdr->rxinfo.advsm;
 #else
     advsm = &g_ble_ll_adv_sm[0];
@@ -1667,7 +1667,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     uint8_t *evbuf;
     struct ble_ll_adv_sm *advsm;
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     advsm = (struct ble_ll_adv_sm *)rxhdr->rxinfo.advsm;
     evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
     if (evbuf) {
