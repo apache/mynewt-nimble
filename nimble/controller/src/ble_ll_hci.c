@@ -582,6 +582,7 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
 /**
  * Returns the vendor specific capabilities
  *
@@ -647,13 +648,11 @@ ble_ll_hci_vendor_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
             rc = BLE_ERR_SUCCESS;
         }
         break;
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     case BLE_HCI_OCF_MULTI_ADV:
         if (cmdlen > 0) {
             rc = ble_ll_adv_multi_adv_cmd(cmdbuf, cmdlen, rspbuf, rsplen);
         }
         break;
-#endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
@@ -662,6 +661,7 @@ ble_ll_hci_vendor_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     /* XXX: for now, all vendor commands return a command complete */
     return rc;
 }
+#endif
 
 /**
  * Process a LE command sent from the host to the controller. The HCI command
@@ -1122,9 +1122,11 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     case BLE_HCI_OGF_LE:
         rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
+#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     case BLE_HCI_OGF_VENDOR:
         rc = ble_ll_hci_vendor_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
+#endif
     default:
         /* XXX: Need to support other OGF. For now, return unsupported */
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
