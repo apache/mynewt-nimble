@@ -2027,6 +2027,7 @@ ble_ll_adv_multi_adv_cmd(uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
 }
 #endif
 
+
 /**
  * Called when the LL receives a scan request or connection request
  *
@@ -2112,6 +2113,11 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     /* Setup to transmit the scan response if appropriate */
     rc = -1;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
+        if (advsm->scan_req_notif) {
+            ble_ll_hci_ev_send_scan_req_recv(advsm->adv_instance, peer,
+                                             peer_addr_type);
+        }
+
         scan_rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
         if (scan_rsp) {
             /* XXX TODO: assume we do not need to change phy mode */

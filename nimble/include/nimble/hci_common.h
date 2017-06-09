@@ -723,6 +723,9 @@ extern "C" {
 /* LE PHY update complete event (sub event 0x0C) */
 #define BLE_HCI_LE_PHY_UPD_LEN              (6)
 
+/* LE Scan Request Received event (sub event 0x13) */
+#define BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD_LEN   (9)
+
 /* LE Channel Selection Algorithm event (sub event 0x14) */
 #define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG_LEN   (4)
 
