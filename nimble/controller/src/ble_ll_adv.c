@@ -116,6 +116,7 @@ struct ble_ll_adv_sm
     uint8_t sec_phy;   /* TODO */
     uint8_t sid;       /* TODO */
     uint8_t scan_req_notif; /* TODO */
+    uint8_t conn_rsp_tx;
 #endif
 };
 
@@ -633,6 +634,66 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 
     memcpy(dptr, advsm->scan_rsp_data, advsm->scan_rsp_len);
     dptr += advsm->scan_rsp_len;
+
+    return m;
+}
+
+/**
+ * Create a AUX connect response PDU
+ *
+ * @param advsm
+ */
+static struct os_mbuf *
+ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
+                                 uint8_t rxadd)
+{
+    uint8_t     *dptr;
+    uint8_t     pdulen;
+    uint8_t     ext_hdr_len;
+    uint8_t     ext_hdr_flags;
+    uint8_t     hdr;
+    struct os_mbuf *m;
+
+    /* ext hdr len */
+    pdulen = 1;
+
+    /* flags,AdvA and TargetA */
+    ext_hdr_len = 1 + BLE_LL_EXT_ADV_ADVA_SIZE + BLE_LL_EXT_ADV_TARGETA_SIZE;
+    ext_hdr_flags = (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+    ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_TARGETA_BIT);
+
+    pdulen += ext_hdr_len;
+
+    /* Obtain scan response buffer */
+    m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
+    if (!m) {
+        return NULL;
+    }
+
+    /* Set BLE transmit header */
+    hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP | rxadd;
+    if (advsm->adv_txadd) {
+        hdr |= BLE_ADV_PDU_HDR_TXADD_MASK;
+    }
+
+    ble_ll_mbuf_init(m, pdulen, hdr);
+
+    /* Construct connect response */
+    dptr = m->om_data;
+
+    /* ext hdr len and adv mode (00b) */
+    dptr[0] = ext_hdr_len;
+    dptr += 1;
+
+    /* ext hdr flags */
+    dptr[0] = ext_hdr_flags;
+    dptr += 1;
+
+    memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    memcpy(dptr, peer, BLE_LL_EXT_ADV_TARGETA_SIZE);
+    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
 
     return m;
 }
@@ -2052,7 +2113,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     uint8_t *peer;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_adv_sm *advsm;
-    struct os_mbuf *scan_rsp;
+    struct os_mbuf *rsp;
 
     /* See if adva in the request (scan or connect) matches what we sent */
     advsm = g_ble_ll_cur_adv_sm;
@@ -2112,22 +2173,51 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 
     /* Setup to transmit the scan response if appropriate */
     rc = -1;
+
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         if (advsm->scan_req_notif) {
             ble_ll_hci_ev_send_scan_req_recv(advsm->adv_instance, peer,
                                              peer_addr_type);
         }
 
-        scan_rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
-        if (scan_rsp) {
+        rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
+        if (rsp) {
             /* XXX TODO: assume we do not need to change phy mode */
             ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
-            rc = ble_phy_tx(scan_rsp, BLE_PHY_TRANSITION_NONE);
+            rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
             if (!rc) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
                 STATS_INC(ble_ll_stats, scan_rsp_txg);
             }
-            os_mbuf_free_chain(scan_rsp);
+            os_mbuf_free_chain(rsp);
+        }
+    } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ) {
+        /*
+         * Only accept connect requests from the desired address if we
+         * are doing directed advertising
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+            if (memcmp(advsm->peer_addr, peer, BLE_DEV_ADDR_LEN)) {
+                return -1;
+            }
+        }
+
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return -1;
+        }
+
+        /* use remote address used over the air */
+        rsp = ble_ll_adv_aux_conn_rsp_pdu_make(advsm,
+                                               rxbuf + BLE_LL_PDU_HDR_LEN,
+                                               rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
+        if (rsp) {
+            ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
+            rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
+            if (!rc) {
+                advsm->conn_rsp_tx = 1;
+                //STATS_INC(ble_ll_stats, scan_rsp_txg); TODO
+            }
+            os_mbuf_free_chain(rsp);
         }
     }
 
@@ -2219,9 +2309,13 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 #endif
 
         /* Try to start slave connection. If successful, stop advertising */
-        valid = ble_ll_conn_slave_start(rxbuf, addr_type, hdr);
+        valid = ble_ll_conn_slave_start(rxbuf, addr_type, hdr,
+                          !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
         if (valid) {
-            ble_ll_adv_sm_stop(advsm);
+            /* stop advertising only if not transmitting connection response */
+            if (!advsm->conn_rsp_tx) {
+                ble_ll_adv_sm_stop(advsm);
+            }
         }
     }
 
@@ -2447,6 +2541,12 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     uint32_t max_delay_ticks;
 
     assert(advsm->adv_enabled);
+
+    /* stop advertising this was due to transmitting connection response */
+    if (advsm->conn_rsp_tx) {
+        ble_ll_adv_sm_stop(advsm);
+        return;
+    }
 
     if (advsm->adv_secondary) {
         ble_ll_adv_secondary_done(advsm);

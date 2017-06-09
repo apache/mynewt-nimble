@@ -3714,7 +3714,8 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
  * @return 0: connection not started; 1 connecton started
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr,
+                        bool force_csa2)
 {
     int rc;
     uint32_t temp;
@@ -3804,7 +3805,9 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr)
     /* Start the connection state machine */
     connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
     ble_ll_conn_sm_new(connsm);
-    ble_ll_conn_set_csa(connsm, rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK);
+
+    ble_ll_conn_set_csa(connsm,
+                        force_csa2 || (rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK));
 
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
