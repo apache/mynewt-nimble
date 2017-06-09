@@ -774,7 +774,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
-        rc = ble_ll_adv_set_enable(cmdbuf, 0);
+        rc = ble_ll_adv_set_enable(cmdbuf[0], 0, 0, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
         rc = ble_ll_scan_set_enable(cmdbuf, 0);
