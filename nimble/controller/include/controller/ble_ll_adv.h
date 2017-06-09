@@ -165,9 +165,6 @@ void ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf,
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);
 
-/* Called when an advertising event has been scheduled */
-void ble_ll_adv_scheduled(struct ble_ll_adv_sm *, uint32_t sch_start);
-
 /*
  * Called when an advertising event has been removed from the scheduler
  * without being run.
