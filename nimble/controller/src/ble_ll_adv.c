@@ -511,13 +511,8 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     }
 }
 
-/**
- * Create a scan response PDU
- *
- * @param advsm
- */
 static struct os_mbuf *
-ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
 {
     uint8_t     scan_rsp_len;
     uint8_t     *dptr;
@@ -559,6 +554,85 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     if (scan_rsp_len != 0) {
         memcpy(dptr + BLE_DEV_ADDR_LEN, advsm->scan_rsp_data, scan_rsp_len);
     }
+
+    return m;
+}
+
+/**
+ * Create a scan response PDU
+ *
+ * @param advsm
+ */
+static struct os_mbuf *
+ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t     *dptr;
+    uint8_t     pdulen;
+    uint8_t     ext_hdr_len;
+    uint8_t     ext_hdr_flags;
+    uint8_t     hdr;
+    struct os_mbuf *m;
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        return ble_ll_adv_scan_rsp_legacy_pdu_make(advsm);
+    }
+
+    /* ext hdr len + SCAN_RSP */
+    pdulen = 1 + advsm->scan_rsp_len;
+
+    /* flags, adva and optional TX power */
+    ext_hdr_len = 1 + BLE_LL_EXT_ADV_ADVA_SIZE;
+    ext_hdr_flags = (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    pdulen += ext_hdr_len;
+
+    /* Obtain scan response buffer */
+    m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
+    if (!m) {
+        return NULL;
+    }
+
+    /* Set BLE transmit header */
+    hdr = BLE_ADV_PDU_TYPE_AUX_SCAN_RSP;
+    if (advsm->adv_txadd) {
+        hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+    }
+
+    ble_ll_mbuf_init(m, pdulen, hdr);
+
+    /* Construct scan response */
+    dptr = m->om_data;
+
+    /* ext hdr len and adv mode (00b) */
+    dptr[0] = ext_hdr_len;
+    dptr += 1;
+
+    /* ext hdr flags */
+    dptr[0] = ext_hdr_flags;
+    dptr += 1;
+
+    /*
+     * The adva in this packet will be the same one that was being advertised
+     * and is based on the peer identity address in the set advertising
+     * parameters. If a different peer sends us a scan request (for some reason)
+     * we will reply with an adva that was not generated based on the local irk
+     * of the peer sending the scan request.
+     */
+    memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+        dptr[0] = advsm->adv_txpwr;
+        dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    memcpy(dptr, advsm->scan_rsp_data, advsm->scan_rsp_len);
+    dptr += advsm->scan_rsp_len;
 
     return m;
 }
@@ -2075,6 +2149,13 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
     uint8_t addr_type;
     uint8_t *inita;
     uint8_t *ident_addr;
+
+    /* Don't create connection if AUX_CONNECT_RSP was not send */
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+        if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD)) {
+            return 0;
+        }
+    }
 
     /* Check filter policy. */
     valid = 0;
