@@ -178,6 +178,14 @@ void ble_ll_adv_halt(struct ble_ll_adv_sm *advsm);
 /* Called to determine if advertising is enabled */
 uint8_t ble_ll_adv_enabled(void);
 
+int ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance);
+int ble_ll_adv_remove(uint8_t instance);
+int ble_ll_adv_clear_all(void);
+int ble_ll_adv_ext_set_param(uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_adv_ext_set_enable(uint8_t *cmdbuf, uint8_t len);
+
 #ifdef __cplusplus
 }
 #endif
