@@ -1050,7 +1050,20 @@ ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
     if (instance >= BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
+
     advsm = &g_ble_ll_adv_sm[instance];
+
+    /*
+     * Reject if connectable advertising is on
+     * Core Spec Vol. 2 Part E 7.8.52
+     */
+    if (advsm->adv_enabled &&
+            (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD ||
+             advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD ||
+             advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
     memcpy(advsm->adv_random_addr, addr, BLE_DEV_ADDR_LEN);
     return BLE_ERR_SUCCESS;
 }
