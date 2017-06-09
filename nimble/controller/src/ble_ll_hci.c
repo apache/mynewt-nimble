@@ -582,6 +582,47 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/** HCI LE read maximum advertising data length command. Returns the controllers
+* max supported advertising data length;
+*
+* @param rspbuf Pointer to response buffer
+* @param rsplen Length of response buffer
+*
+* @return int BLE error code
+*/
+static int
+ble_ll_adv_rd_max_adv_data_len(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    put_le16(rspbuf, BLE_ADV_DATA_MAX_LEN);
+    *rsplen = BLE_HCI_RD_MAX_ADV_DATA_LEN;
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * HCI LE read number of supported advertising sets
+ *
+ * @param rspbuf Pointer to response buffer
+ * @param rsplen Length of response buffer
+ *
+ * @return int BLE error code
+ */
+static int
+ble_ll_adv_rd_sup_adv_sets(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    rspbuf[0] = BLE_LL_ADV_INSTANCES;
+    *rsplen = BLE_HCI_RD_NR_SUP_ADV_SETS;
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_ext_adv_set_remove(uint8_t *cmd)
+{
+    return ble_ll_adv_remove(cmd[0]);
+}
+
+#endif
+
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
 /**
  * Returns the vendor specific capabilities
@@ -852,6 +893,35 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         break;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+    case BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR:
+        rc = ble_ll_adv_set_random_addr(cmdbuf + 1, cmdbuf[0]);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM:
+        rc = ble_ll_adv_ext_set_param(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_DATA:
+        rc = ble_ll_adv_ext_set_adv_data(cmdbuf, cmdlen);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA:
+        rc = ble_ll_adv_ext_set_scan_rsp(cmdbuf, cmdlen);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE:
+        rc =  ble_ll_adv_ext_set_enable(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_RD_MAX_ADV_DATA_LEN:
+        rc = ble_ll_adv_rd_max_adv_data_len(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_RD_NUM_OF_ADV_SETS:
+        rc = ble_ll_adv_rd_sup_adv_sets(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_REMOVE_ADV_SET:
+        rc =  ble_ll_ext_adv_set_remove(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_CLEAR_ADV_SETS:
+        rc =  ble_ll_adv_clear_all();
+        break;
+#endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_HCI_OCF_LE_RD_PHY:
         rc = ble_ll_conn_hci_le_rd_phy(cmdbuf, rspbuf, rsplen);

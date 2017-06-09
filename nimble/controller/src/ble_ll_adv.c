@@ -1043,6 +1043,34 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance)
 
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
 int
+ble_ll_adv_ext_set_param(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    /* TODO */
+    return BLE_ERR_UNKNOWN_HCI_CMD;
+}
+
+int
+ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen)
+{
+    /* TODO */
+    return BLE_ERR_UNKNOWN_HCI_CMD;
+}
+
+int
+ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen)
+{
+    /* TODO */
+    return BLE_ERR_UNKNOWN_HCI_CMD;
+}
+
+int
+ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
+{
+    /* TODO */
+    return BLE_ERR_UNKNOWN_HCI_CMD;
+}
+
+int
 ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
 {
     struct ble_ll_adv_sm *advsm;
@@ -1066,6 +1094,20 @@ ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
 
     memcpy(advsm->adv_random_addr, addr, BLE_DEV_ADDR_LEN);
     return BLE_ERR_SUCCESS;
+}
+
+int
+ble_ll_adv_remove(uint8_t instance)
+{
+    /* TODO */
+    return BLE_ERR_UNKNOWN_HCI_CMD;
+}
+
+int
+ble_ll_adv_clear_all(void)
+{
+    /* TODO */
+    return BLE_ERR_UNKNOWN_HCI_CMD;
 }
 
 /**

@@ -471,6 +471,12 @@ extern "C" {
 /* --- LE remove advertising set (OCF 0x003C) */
 #define BLE_HCI_LE_REMOVE_ADV_SET_LEN               (1)
 
+/* --- LE read maximum advertising data length (OCF 0x003A) */
+#define BLE_HCI_RD_MAX_ADV_DATA_LEN                 (2)
+
+/* --- LE read number of supported advertising sets (OCF 0x003B) */
+#define BLE_HCI_RD_NR_SUP_ADV_SETS                  (1)
+
 /* --- LE set periodic advertising parameters (OCF 0x003E) */
 #define BLE_HCI_LE_SET_PER_ADV_PARAMS_LEN           (7)
 
