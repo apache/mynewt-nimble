@@ -105,6 +105,8 @@ struct ble_ll_adv_sm
     struct ble_ll_sched_item adv_sch;
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
+    uint16_t duration; /* TODO */
+    uint8_t events;    /* TODO */
 #endif
 };
 
@@ -947,10 +949,10 @@ ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
  * @return int
  */
 int
-ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance)
+ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
+                          uint8_t events)
 {
     int rc;
-    uint8_t enable;
     struct ble_ll_adv_sm *advsm;
 
     if (instance >= BLE_LL_ADV_INSTANCES) {
@@ -960,8 +962,10 @@ ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance)
     advsm = &g_ble_ll_adv_sm[instance];
 
     rc = BLE_ERR_SUCCESS;
-    enable = cmd[0];
     if (enable == 1) {
+        advsm->duration = duration;
+        advsm->events = events;
+
         /* If already enabled, do nothing */
         if (!advsm->adv_enabled) {
             /* Start the advertising state machine */
@@ -1063,11 +1067,87 @@ ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen)
     return BLE_ERR_UNKNOWN_HCI_CMD;
 }
 
+struct ext_adv_set {
+    uint8_t handle;
+    uint16_t duration;
+    uint8_t events;
+} __attribute__((packed));
+
+/**
+ * HCI LE extended advertising enable command
+ *
+ * @param cmd Pointer to command data
+ * @param len Command data length
+ *
+ * @return int BLE error code
+ */
 int
 ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
 {
-    /* TODO */
-    return BLE_ERR_UNKNOWN_HCI_CMD;
+    struct ext_adv_set* set;
+    uint8_t enable;
+    uint8_t sets;
+    int i, j, rc;
+
+    if (len < 2) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    enable = cmd[0];
+    sets = cmd[1];
+    cmd += 2;
+
+    /* check if length is correct */
+    if (len != 2 + (sets * sizeof (*set))) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (sets > BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (sets == 0) {
+        if (enable) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* disable all instances */
+        for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
+            ble_ll_adv_set_enable(i, 0, 0, 0);
+        }
+
+        return BLE_ERR_SUCCESS;
+    }
+
+    set = (void *) cmd;
+    /* validate instances */
+    for (i = 0; i < sets; i++) {
+        if (set->handle > BLE_LL_ADV_INSTANCES) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* validate duplicated sets */
+        for (j = 1; j < sets - i; j++) {
+            if (set->handle == set[j].handle) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
+        }
+
+        set++;
+    }
+
+    set = (void *) cmd;
+    for (i = 0; i < sets; i++) {
+        rc = ble_ll_adv_set_enable(set->handle, enable, le16toh(set->duration),
+                                   set->events);
+        if (rc) {
+            return rc;
+        }
+
+        set++;
+    }
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
@@ -1156,7 +1236,7 @@ ble_ll_adv_multi_adv_cmd(uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
         break;
     case BLE_HCI_MULTI_ADV_ENABLE:
         if (cmdlen == BLE_HCI_MULTI_ADV_ENABLE_LEN) {
-            rc = ble_ll_adv_set_enable(cmdbuf, cmdbuf[1]);
+            rc = ble_ll_adv_set_enable(cmdbuf[0], cmdbuf[1], 0, 0);
         }
         break;
     default:
