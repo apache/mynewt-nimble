@@ -768,7 +768,8 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_adv_read_txpwr(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
-        rc = ble_ll_adv_set_adv_data(cmdbuf, 0);
+        rc = ble_ll_adv_set_adv_data(cmdbuf, 0,
+                                     BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
         rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, 0);
