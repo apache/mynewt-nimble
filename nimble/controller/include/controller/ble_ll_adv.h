@@ -127,10 +127,8 @@ int ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi);
 /* Read advertising channel power */
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
 int ble_ll_adv_multi_adv_cmd(uint8_t *cmd, uint8_t cmdlen, uint8_t *rspbuf,
                              uint8_t *rsplen);
-#endif
 
 /*---- API used by BLE LL ----*/
 /* Send the connection complete event */
