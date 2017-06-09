@@ -120,7 +120,8 @@ int ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
 int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation);
 
 /* Set scan response data */
-int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance);
+int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance,
+                                 uint8_t operation);
 
 /* Set advertising parameters */
 int ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi);

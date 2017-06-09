@@ -469,6 +469,10 @@ extern "C" {
 
 /* --- LE set extended scan response data (OCF 0x0038) */
 #define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_LEN        BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT        (0)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST      (1)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST       (2)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE   (3)
 
 /* --- LE set extended advertising enable (OCF 0x0039) */
 #define BLE_HCI_LE_SET_EXT_ADV_ENABLE_LEN           BLE_HCI_VARIABLE_LEN

@@ -991,25 +991,81 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
  * @return int
  */
 int
-ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance)
+ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 {
     uint8_t datalen;
+    uint8_t off = 0;
     struct ble_ll_adv_sm *advsm;
-
-    /* Check for valid scan response data length */
-    datalen = cmd[0];
-    if (datalen > BLE_SCAN_RSP_DATA_MAX_LEN) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
 
     if (instance >= BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Copy the new data into the advertising structure. */
     advsm = &g_ble_ll_adv_sm[instance];
-    advsm->scan_rsp_len = datalen;
-    memcpy(advsm->scan_rsp_data, cmd + 1, datalen);
+    datalen = cmd[0];
+
+    /* check if type of advertising support scan rsp */
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    switch (operation) {
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            if (datalen > BLE_ADV_DATA_MAX_LEN) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
+        }
+
+        break;
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST:
+        /* TODO mark scan rsp as complete? */
+        /* fall through */
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        if (!datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        off = advsm->scan_rsp_len;
+        break;
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        if (!datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        break;
+    default:
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check for valid advertising data length */
+    if (datalen + off > BLE_SCAN_RSP_DATA_MAX_LEN) {
+        advsm->scan_rsp_len = 0;
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    /* DID shall be updated when host provides new scan response data */
+    advsm->did = rand() & 0x0fff;
+
+    /* Copy the new data into the advertising structure. */
+    advsm->scan_rsp_len = datalen + off;
+    memcpy(advsm->scan_rsp_data + off, cmd + 1, datalen);
 
     return BLE_ERR_SUCCESS;
 }
@@ -1145,8 +1201,14 @@ ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen)
 int
 ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    /* TODO */
-    return BLE_ERR_UNKNOWN_HCI_CMD;
+    /* check if length is correct */
+    if (cmdlen < 4) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* TODO fragment preference ignored for now */
+
+    return ble_ll_adv_set_scan_rsp_data(cmdbuf + 3, cmdbuf[0], cmdbuf[1]);
 }
 
 struct ext_adv_set {
@@ -1347,7 +1409,8 @@ ble_ll_adv_multi_adv_cmd(uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
         break;
     case BLE_HCI_MULTI_ADV_SCAN_RSP_DATA:
         if (cmdlen == BLE_HCI_MULTI_ADV_SCAN_RSP_DATA_LEN) {
-            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, cmdbuf[32]);
+            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, cmdbuf[32],
+                                BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE);
         }
         break;
     case BLE_HCI_MULTI_ADV_SET_RAND_ADDR:
