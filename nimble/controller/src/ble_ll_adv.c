@@ -115,6 +115,7 @@ struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_done(struct ble_ll_adv_sm *advsm);
+static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 /**
@@ -1176,11 +1177,35 @@ ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
     return BLE_ERR_SUCCESS;
 }
 
+/**
+ * HCI LE extended advertising remove command
+ *
+ * @param instance Advertising instance to be removed
+ *
+ * @return int BLE error code
+ */
 int
 ble_ll_adv_remove(uint8_t instance)
 {
-    /* TODO */
-    return BLE_ERR_UNKNOWN_HCI_CMD;
+    struct ble_ll_adv_sm *advsm;
+
+    /* TODO
+     * Should we allow any value for instance ID?
+     */
+
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    advsm = &g_ble_ll_adv_sm[instance];
+
+    if (advsm->adv_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    ble_ll_adv_sm_init(advsm);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
@@ -1904,6 +1929,23 @@ ble_ll_adv_enabled(void)
     return g_ble_ll_adv_sm[0].adv_enabled;
 }
 
+static void
+ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t i = advsm->adv_instance;
+
+    memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
+
+    advsm->adv_instance = i;
+    advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
+    advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
+    advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
+
+    /* Initialize advertising tx done event */
+    advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
+    advsm->adv_txdone_ev.ev_arg = advsm;
+}
+
 /**
  * Initialize the advertising functionality of a BLE device. This should
  * be called once on initialization
@@ -1912,22 +1954,11 @@ void
 ble_ll_adv_init(void)
 {
     int i;
-    struct ble_ll_adv_sm *advsm;
 
     /* Set default advertising parameters */
     for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
-        advsm = &g_ble_ll_adv_sm[i];
-
-        memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
-
-        advsm->adv_instance = i;
-        advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
-        advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
-        advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
-
-        /* Initialize advertising tx done event */
-        advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
-        advsm->adv_txdone_ev.ev_arg = advsm;
+        g_ble_ll_adv_sm[i].adv_instance = i;
+        ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }
 }
 
