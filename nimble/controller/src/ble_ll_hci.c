@@ -900,7 +900,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_adv_set_random_addr(cmdbuf + 1, cmdbuf[0]);
         break;
     case BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM:
-        rc = ble_ll_adv_ext_set_param(rspbuf, rsplen);
+        rc = ble_ll_adv_ext_set_param(cmdbuf, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_EXT_ADV_DATA:
         rc = ble_ll_adv_ext_set_adv_data(cmdbuf, cmdlen);
