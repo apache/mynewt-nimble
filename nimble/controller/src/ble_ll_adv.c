@@ -1208,11 +1208,25 @@ ble_ll_adv_remove(uint8_t instance)
     return BLE_ERR_SUCCESS;
 }
 
+/**
+ * HCI LE extended advertising clear command
+ *
+ * @return int BLE error code
+ */
 int
 ble_ll_adv_clear_all(void)
 {
-    /* TODO */
-    return BLE_ERR_UNKNOWN_HCI_CMD;
+    int i;
+
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
+        if (g_ble_ll_adv_sm[i].adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+    }
+
+    ble_ll_adv_reset();
+
+    return BLE_ERR_SUCCESS;
 }
 
 /**
