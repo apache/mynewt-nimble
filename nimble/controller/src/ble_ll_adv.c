@@ -105,9 +105,14 @@ struct ble_ll_adv_sm
     struct ble_ll_sched_item adv_sch;
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
+    uint16_t props; /* TODO */
     uint16_t duration; /* TODO */
     uint8_t events;    /* TODO */
     uint16_t did;      /* TODO */
+    uint8_t pri_phy;   /* TODO */
+    uint8_t sec_phy;   /* TODO */
+    uint8_t sid;       /* TODO */
+    uint8_t scan_req_notif; /* TODO */
 #endif
 };
 
@@ -1179,10 +1184,173 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
 int
-ble_ll_adv_ext_set_param(uint8_t *rspbuf, uint8_t *rsplen)
+ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
-    /* TODO */
-    return BLE_ERR_UNKNOWN_HCI_CMD;
+    uint8_t adv_filter_policy;
+    uint8_t adv_chanmask;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint32_t adv_itvl_min;
+    uint32_t adv_itvl_max;
+    uint16_t min_itvl = 0;
+    uint16_t props;
+    struct ble_ll_adv_sm *advsm;
+    uint8_t pri_phy;
+    uint8_t sec_phy;
+    uint8_t sid;
+    uint8_t scan_req_notif;
+
+    if (cmdbuf[0] >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    advsm = &g_ble_ll_adv_sm[cmdbuf[0]];
+    if (advsm->adv_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    props = get_le16(&cmdbuf[1]);
+
+    adv_itvl_min = cmdbuf[5] << 16 | cmdbuf[4] << 8 | cmdbuf[3];
+    adv_itvl_max = cmdbuf[8] << 16 | cmdbuf[7] << 8 | cmdbuf[6];
+
+    if (props & ~BLE_HCI_LE_SET_EXT_ADV_PROP_MASK) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if (advsm->adv_len > BLE_ADV_DATA_MAX_LEN ||
+            advsm->scan_rsp_len > BLE_SCAN_RSP_DATA_MAX_LEN) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* if legacy bit is set possible values are limited */
+        switch (props) {
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN:
+            break;
+        default:
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    } else {
+        /* HD directed advertising allowed only on legacy PDUs */
+        if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* if ext advertising PDUs are used then it shall not be both
+         * connectable and scanable
+         */
+        if ((props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) &&
+            (props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+        min_itvl = BLE_LL_ADV_ITVL_MIN;
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+        if (advsm->adv_len || advsm->scan_rsp_len) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* Ignore min/max interval */
+        min_itvl = 0;
+        adv_itvl_min = 0;
+        adv_itvl_max = 0;
+    }
+
+    /* Make sure interval minimum is valid for the advertising type
+     * TODO for now limit those to values from legacy advertising
+     */
+    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) ||
+        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
+        (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* There are only three adv channels, so check for any outside the range */
+    adv_chanmask = cmdbuf[9];
+    if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check own and peer address type */
+    own_addr_type = cmdbuf[10];
+    peer_addr_type = cmdbuf[11];
+
+    if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
+        (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        /* Reset RPA timer so we generate a new RPA */
+        advsm->adv_rpa_timer = os_time_get();
+    }
+#else
+    /* If we dont support privacy some address types wont work */
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+#endif
+
+    adv_filter_policy = cmdbuf[18];
+    /* Check filter policy (valid only for undirected */
+    if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
+         adv_filter_policy > BLE_HCI_ADV_FILT_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    pri_phy = cmdbuf[20];
+    if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_CODED) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    sec_phy = cmdbuf[22];
+    if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_2M &&
+        pri_phy != BLE_HCI_LE_PHY_CODED) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    sid = cmdbuf[23];
+    if (sid > 0x0f) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    scan_req_notif = cmdbuf[24];
+    if (scan_req_notif > 0x01) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    advsm->adv_directed = props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED;
+    if (advsm->adv_directed) {
+        memcpy(advsm->peer_addr, &cmdbuf[12], BLE_DEV_ADDR_LEN);
+    }
+
+    advsm->adv_txpwr = 0; /* TODO rspbuf[21];*/
+    advsm->own_addr_type = own_addr_type;
+    advsm->peer_addr_type = peer_addr_type;
+    advsm->adv_filter_policy = adv_filter_policy;
+    advsm->adv_chanmask = adv_chanmask;
+    advsm->adv_itvl_min = adv_itvl_min;
+    advsm->adv_itvl_max = adv_itvl_max;
+    advsm->pri_phy = pri_phy;
+    advsm->sec_phy = sec_phy;
+    advsm->sid = sid;
+    advsm->scan_req_notif = scan_req_notif;
+    advsm->props = props;
+
+    rspbuf[0] = advsm->adv_txpwr;
+    *rsplen = 1;
+
+    return 0;
 }
 
 int
