@@ -595,7 +595,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
 }
 
 int
-ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
+ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb)
 {
     int rc;
     os_sr_t sr;
@@ -646,7 +646,9 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
         sch = TAILQ_FIRST(&g_ble_ll_sched_q);
     }
 
-    ble_ll_adv_scheduled((struct ble_ll_adv_sm *)orig->cb_arg, adv_start);
+    if (cb) {
+        cb((struct ble_ll_adv_sm *)orig->cb_arg, adv_start);
+    }
 
 #ifdef BLE_XCVR_RFCLK
     if (orig == sch) {
