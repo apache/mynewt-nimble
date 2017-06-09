@@ -294,6 +294,30 @@ ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
 #endif
 
 /**
+ * Sends the LE Scan Request Received event
+ *
+ */
+void
+ble_ll_hci_ev_send_scan_req_recv(uint8_t adv_handle, const uint8_t *peer,
+                                 uint8_t peer_addr_type)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD)) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD;
+            evbuf[3] = adv_handle;
+            evbuf[4] = peer_addr_type;
+            memcpy(&evbuf[5], peer, BLE_DEV_ADDR_LEN);
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+
+/**
  * Send a PHY update complete event
  *
  * @param connsm Pointer to connection state machine
