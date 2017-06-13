@@ -71,6 +71,13 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
     fields.mfg_data = buf;
     fields.mfg_data_len = sizeof buf;
 
+    /* Advertise two flags:
+     *     o Discoverability in forthcoming advertisement (general)
+     *     o BLE-only (BR/EDR unsupported).
+     */
+    fields.flags = BLE_HS_ADV_F_DISC_GEN |
+                   BLE_HS_ADV_F_BREDR_UNSUP;
+
     rc = ble_gap_adv_set_fields(&fields);
     return rc;
 }

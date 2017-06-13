@@ -48,6 +48,7 @@ int ble_os_test_all(void);
 int ble_sm_lgcy_test_suite(void);
 int ble_sm_sc_test_suite(void);
 int ble_sm_test_all(void);
+int ble_store_test_all(void);
 int ble_uuid_test_all(void);
 
 #ifdef __cplusplus

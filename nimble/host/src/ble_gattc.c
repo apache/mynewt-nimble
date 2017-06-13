@@ -4419,29 +4419,30 @@ ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         txom = ble_hs_mbuf_att_pkt();
         if (txom == NULL) {
             rc = BLE_HS_ENOMEM;
-            goto err;
+            goto done;
         }
         rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
                                      chr_val_handle, 0, txom, NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
             rc = BLE_HS_EAPP;
-            goto err;
+            goto done;
         }
     }
 
     rc = ble_att_clt_tx_notify(conn_handle, chr_val_handle, txom);
     txom = NULL;
     if (rc != 0) {
-        goto err;
+        goto done;
     }
 
-    return 0;
-
-err:
+done:
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, notify_fail);
     }
+
+    /* Tell the application that a notification transmission was attempted. */
+    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
 
     os_mbuf_free_chain(txom);
 
@@ -4470,9 +4471,6 @@ ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
     int rc;
 
     rc = ble_gattc_notify_custom(conn_handle, chr_val_handle, NULL);
-
-    /* Tell the application that a notification transmission was attempted. */
-    ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
 
     return rc;
 }
@@ -4565,11 +4563,13 @@ ble_gatts_indicate_fail_notconn(uint16_t conn_handle)
  * @param chr_val_handle        The value attribute handle of the
  *                                  characteristic to include in the outgoing
  *                                  indication.
+ * @param txom                  The data to include in the indication.
  *
  * @return                      0 on success; nonzero on failure.
  */
 int
-ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
+ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
+                          struct os_mbuf *txom)
 {
 #if !MYNEWT_VAL(BLE_GATT_INDICATE)
     return BLE_HS_ENOTSUP;
@@ -4577,12 +4577,9 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
 
     struct ble_gattc_proc *proc;
     struct ble_hs_conn *conn;
-    struct os_mbuf *om;
     int rc;
 
     STATS_INC(ble_gattc_stats, indicate);
-
-    om = NULL;
 
     proc = ble_gattc_proc_alloc();
     if (proc == NULL) {
@@ -4596,23 +4593,28 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
 
     ble_gattc_log_indicate(chr_val_handle);
 
-    om = ble_hs_mbuf_att_pkt();
-    if (om == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto done;
+    if (txom == NULL) {
+        /* No custom attribute data; read the value from the specified
+         * attribute.
+         */
+        txom = ble_hs_mbuf_att_pkt();
+        if (txom == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto done;
+        }
+
+        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, chr_val_handle,
+                                     0, txom, NULL);
+        if (rc != 0) {
+            /* Fatal error; application disallowed attribute read. */
+            BLE_HS_DBG_ASSERT(0);
+            rc = BLE_HS_EAPP;
+            goto done;
+        }
     }
 
-    rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, chr_val_handle, 0,
-                                 om, NULL);
-    if (rc != 0) {
-        /* Fatal error; application disallowed attribute read. */
-        BLE_HS_DBG_ASSERT(0);
-        rc = BLE_HS_EAPP;
-        goto done;
-    }
-
-    rc = ble_att_clt_tx_indicate(conn_handle, chr_val_handle, om);
-    om = NULL;
+    rc = ble_att_clt_tx_indicate(conn_handle, chr_val_handle, txom);
+    txom = NULL;
     if (rc != 0) {
         goto done;
     }
@@ -4625,7 +4627,6 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
     }
     ble_hs_unlock();
 
-
 done:
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, indicate_fail);
@@ -4635,8 +4636,26 @@ done:
     ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 1);
 
     ble_gattc_process_status(proc, rc);
-    os_mbuf_free_chain(om);
+    os_mbuf_free_chain(txom);
     return rc;
+}
+
+/**
+ * Sends a characteristic indication.  The content of the message is read from
+ * the specified characteristic.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_val_handle        The value attribute handle of the
+ *                                  characteristic to include in the outgoing
+ *                                  indication.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int
+ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
+{
+    return ble_gattc_indicate_custom(conn_handle, chr_val_handle, NULL);
 }
 
 /*****************************************************************************

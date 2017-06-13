@@ -188,6 +188,8 @@ int ble_gattc_write_reliable(uint16_t conn_handle,
 int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
                             struct os_mbuf *om);
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
+int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
+                              struct os_mbuf *txom);
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
 int ble_gattc_init(void);
