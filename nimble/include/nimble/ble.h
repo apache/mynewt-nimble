@@ -208,6 +208,9 @@ enum ble_error_codes
     BLE_ERR_CONN_ESTABLISHMENT  = 62,
     BLE_ERR_MAC_CONN_FAIL       = 63,
     BLE_ERR_COARSE_CLK_ADJ      = 64,
+    BLE_ERR_TYPE0_SUBMAP_NDEF   = 65,
+    BLE_ERR_UNK_ADV_INDENT      = 66,
+    BLE_RR_LIMIT_REACHED        = 67,
     BLE_ERR_MAX                 = 255
 };
 

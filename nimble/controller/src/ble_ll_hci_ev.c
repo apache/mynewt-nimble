@@ -318,6 +318,31 @@ ble_ll_hci_ev_send_scan_req_recv(uint8_t adv_handle, const uint8_t *peer,
 }
 
 /**
+ * Sends the LE Advertising Set Terminated event
+ *
+ */
+void
+ble_ll_hci_ev_send_adv_set_terminated(uint8_t status, uint8_t adv_handle,
+                                      uint16_t conn_handle, uint8_t events)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED)) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED;
+            evbuf[3] = status;
+            evbuf[4] = adv_handle;
+            put_le16(evbuf + 5, conn_handle);
+            evbuf[7] = events;
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+
+/**
  * Send a PHY update complete event
  *
  * @param connsm Pointer to connection state machine
