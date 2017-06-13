@@ -110,7 +110,8 @@ struct ble_ll_adv_sm
 
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
     uint16_t duration; /* TODO */
-    uint8_t events;    /* TODO */
+    uint8_t events_max;
+    uint8_t events;
     uint16_t did;      /* TODO */
     uint8_t pri_phy;   /* TODO */
     uint8_t sec_phy;   /* TODO */
@@ -1459,7 +1460,8 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
     rc = BLE_ERR_SUCCESS;
     if (enable == 1) {
         advsm->duration = duration;
-        advsm->events = events;
+        advsm->events_max = events;
+        advsm->events = 0;
 
         /* If already enabled, do nothing */
         if (!advsm->adv_enabled) {
@@ -2500,6 +2502,16 @@ ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
 
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
+        ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+                                              advsm->adv_instance, 0,
+                                              advsm->events);
+         /* Disable advertising */
+         advsm->adv_enabled = 0;
+         ble_ll_scan_chk_resume();
+         return;
+    }
+
     /* TODO calculate this 5000 based on ext_adv sched time and channel used */
     advsm->adv_secondary_start_time = advsm->adv_pdu_start_time +
                                       os_cputime_usecs_to_ticks(5000) +
@@ -2566,6 +2578,10 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     final_adv_chan = ble_ll_adv_final_chan(advsm);
 
     if (advsm->adv_chan == final_adv_chan) {
+        if (advsm->events_max) {
+            advsm->events++;
+        }
+
         /* Check if we need to resume scanning */
         ble_ll_scan_chk_resume();
 
@@ -2646,6 +2662,23 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
             ble_ll_scan_chk_resume();
             return;
         }
+    }
+
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
+        /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
+         * AUX is done.
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+                                                  advsm->adv_instance, 0,
+                                                  advsm->events);
+
+            /* Disable advertising */
+            advsm->adv_enabled = 0;
+            ble_ll_scan_chk_resume();
+        }
+
+        return;
     }
 
     /* We need to regenerate our RPA's if we have passed timeout */
@@ -2745,6 +2778,9 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     advsm->conn_comp_ev = NULL;
 
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
+
+    ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
+                                          connsm->conn_handle, advsm->events);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     ble_ll_hci_ev_le_csa(connsm);
