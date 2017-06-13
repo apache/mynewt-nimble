@@ -114,7 +114,8 @@ int ble_l2cap_rx(struct ble_hs_conn *conn,
 int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                  struct os_mbuf *txom);
 
-void ble_l2cap_forget_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
+void ble_l2cap_remove_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
+
 int ble_l2cap_init(void);
 
 #ifdef __cplusplus

@@ -519,6 +519,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         peer_addr.type = proc->peer_keys.addr_type;
         memcpy(peer_addr.val, proc->peer_keys.addr, sizeof peer_addr.val);
 
+        conn->bhc_peer_addr = peer_addr;
         /* Update identity address in conn.
          * If peer's address was an RPA, we store it as RPA since peer's address
          * will not be an identity address. The peer's address type has to be
@@ -527,20 +528,18 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
          */
         if (BLE_ADDR_IS_RPA(&conn->bhc_peer_addr)) {
             conn->bhc_peer_rpa_addr = conn->bhc_peer_addr;
-        }
 
-        conn->bhc_peer_addr = peer_addr;
+            switch (peer_addr.type) {
+            case BLE_ADDR_PUBLIC:
+            case BLE_ADDR_PUBLIC_ID:
+                conn->bhc_peer_addr.type = BLE_ADDR_PUBLIC_ID;
+                break;
 
-        switch (peer_addr.type) {
-        case BLE_ADDR_PUBLIC:
-        case BLE_ADDR_PUBLIC_ID:
-            conn->bhc_peer_addr.type = BLE_ADDR_PUBLIC_ID;
-            break;
-
-        case BLE_ADDR_RANDOM:
-        case BLE_ADDR_RANDOM_ID:
-            conn->bhc_peer_addr.type = BLE_ADDR_RANDOM_ID;
-            break;
+            case BLE_ADDR_RANDOM:
+            case BLE_ADDR_RANDOM_ID:
+                conn->bhc_peer_addr.type = BLE_ADDR_RANDOM_ID;
+                break;
+            }
         }
 
         identity_ev = 1;
@@ -2353,7 +2352,7 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
     ble_sm_rx_fn *rx_cb;
     uint8_t op;
     uint16_t conn_handle;
-    struct os_mbuf *om;
+    struct os_mbuf **om;
     int rc;
 
     STATS_INC(ble_l2cap_stats, sm_rx);
@@ -2363,22 +2362,22 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
         return BLE_HS_ENOTCONN;
     }
 
-    om = chan->rx_buf;
-    BLE_HS_DBG_ASSERT(om != NULL);
+    om = &chan->rx_buf;
+    BLE_HS_DBG_ASSERT(*om != NULL);
 
-    rc = os_mbuf_copydata(om, 0, 1, &op);
+    rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
         return BLE_HS_EBADDATA;
     }
 
     /* Strip L2CAP SM header from the front of the mbuf. */
-    os_mbuf_adj(om, 1);
+    os_mbuf_adj(*om, 1);
 
     rx_cb = ble_sm_dispatch_get(op);
     if (rx_cb != NULL) {
         memset(&res, 0, sizeof res);
 
-        rx_cb(conn_handle, &om, &res);
+        rx_cb(conn_handle, om, &res);
         ble_sm_process_result(conn_handle, &res);
         rc = res.app_status;
     } else {

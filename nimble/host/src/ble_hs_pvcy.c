@@ -66,7 +66,7 @@ ble_hs_pvcy_set_resolve_enabled(int enable)
 }
 
 int
-ble_hs_pvcy_remove_entry(uint8_t addr_type, uint8_t *addr)
+ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr)
 {
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_RMV_FROM_RESOLV_LIST_LEN];
     int rc;
@@ -105,7 +105,8 @@ ble_hs_pvcy_clear_entries(void)
 }
 
 int
-ble_hs_pvcy_add_entry(uint8_t *addr, uint8_t addr_type, uint8_t *irk)
+ble_hs_pvcy_add_entry(const uint8_t *addr, uint8_t addr_type,
+                      const uint8_t *irk)
 {
     struct hci_add_dev_to_resolving_list add;
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_ADD_TO_RESOLV_LIST_LEN];

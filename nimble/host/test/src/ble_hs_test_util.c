@@ -953,7 +953,7 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
     } else if (rc == 0) {
         TEST_ASSERT_FATAL(rx_cb != NULL);
         rc = rx_cb(conn->bhc_rx_chan);
-        ble_l2cap_forget_rx(conn, conn->bhc_rx_chan);
+        ble_l2cap_remove_rx(conn, conn->bhc_rx_chan);
     } else if (rc == BLE_HS_EAGAIN) {
         /* More fragments on the way. */
         rc = 0;
@@ -2320,7 +2320,7 @@ ble_hs_test_util_num_peer_secs(void)
 }
 
 static int
-ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
+ble_hs_test_util_store_read(int obj_type, const union ble_store_key *key,
                             union ble_store_value *value)
 {
     int rc;
@@ -2335,7 +2335,7 @@ ble_hs_test_util_store_read(int obj_type, union ble_store_key *key,
 }
 
 static int
-ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
+ble_hs_test_util_store_write(int obj_type, const union ble_store_value *value)
 {
     int rc;
 
@@ -2348,7 +2348,7 @@ ble_hs_test_util_store_write(int obj_type, union ble_store_value *value)
 }
 
 static int
-ble_hs_test_util_store_delete(int obj_type, union ble_store_key *key)
+ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
 {
     int rc;
 

@@ -23,7 +23,7 @@
 #include "ble_hs_priv.h"
 
 int
-ble_store_read(int obj_type, union ble_store_key *key,
+ble_store_read(int obj_type, const union ble_store_key *key,
                union ble_store_value *val)
 {
     int rc;
@@ -38,7 +38,7 @@ ble_store_read(int obj_type, union ble_store_key *key,
 }
 
 int
-ble_store_write(int obj_type, union ble_store_value *val)
+ble_store_write(int obj_type, const union ble_store_value *val)
 {
     int rc;
 
@@ -52,7 +52,7 @@ ble_store_write(int obj_type, union ble_store_value *val)
 }
 
 int
-ble_store_delete(int obj_type, union ble_store_key *key)
+ble_store_delete(int obj_type, const union ble_store_key *key)
 {
     int rc;
 
@@ -66,7 +66,7 @@ ble_store_delete(int obj_type, union ble_store_key *key)
 }
 
 int
-ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
+ble_store_read_our_sec(const struct ble_store_key_sec *key_sec,
                        struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
@@ -84,7 +84,8 @@ ble_store_read_our_sec(struct ble_store_key_sec *key_sec,
 }
 
 static int
-ble_store_persist_sec(int obj_type, struct ble_store_value_sec *value_sec)
+ble_store_persist_sec(int obj_type,
+                      const struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
     int rc;
@@ -101,7 +102,7 @@ ble_store_persist_sec(int obj_type, struct ble_store_value_sec *value_sec)
 }
 
 int
-ble_store_write_our_sec(struct ble_store_value_sec *value_sec)
+ble_store_write_our_sec(const struct ble_store_value_sec *value_sec)
 {
     int rc;
 
@@ -110,7 +111,7 @@ ble_store_write_our_sec(struct ble_store_value_sec *value_sec)
 }
 
 int
-ble_store_delete_our_sec(struct ble_store_key_sec *key_sec)
+ble_store_delete_our_sec(const struct ble_store_key_sec *key_sec)
 {
     union ble_store_key *store_key;
     int rc;
@@ -121,7 +122,7 @@ ble_store_delete_our_sec(struct ble_store_key_sec *key_sec)
 }
 
 int
-ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec)
+ble_store_delete_peer_sec(const struct ble_store_key_sec *key_sec)
 {
     union ble_store_key *store_key;
     int rc;
@@ -132,7 +133,7 @@ ble_store_delete_peer_sec(struct ble_store_key_sec *key_sec)
 }
 
 int
-ble_store_read_peer_sec(struct ble_store_key_sec *key_sec,
+ble_store_read_peer_sec(const struct ble_store_key_sec *key_sec,
                         struct ble_store_value_sec *value_sec)
 {
     union ble_store_value *store_value;
@@ -154,7 +155,7 @@ ble_store_read_peer_sec(struct ble_store_key_sec *key_sec,
 }
 
 int
-ble_store_write_peer_sec(struct ble_store_value_sec *value_sec)
+ble_store_write_peer_sec(const struct ble_store_value_sec *value_sec)
 {
     int rc;
 
@@ -180,7 +181,7 @@ ble_store_write_peer_sec(struct ble_store_value_sec *value_sec)
 }
 
 int
-ble_store_read_cccd(struct ble_store_key_cccd *key,
+ble_store_read_cccd(const struct ble_store_key_cccd *key,
                     struct ble_store_value_cccd *out_value)
 {
     union ble_store_value *store_value;
@@ -194,7 +195,7 @@ ble_store_read_cccd(struct ble_store_key_cccd *key,
 }
 
 int
-ble_store_write_cccd(struct ble_store_value_cccd *value)
+ble_store_write_cccd(const struct ble_store_value_cccd *value)
 {
     union ble_store_value *store_value;
     int rc;
@@ -205,7 +206,7 @@ ble_store_write_cccd(struct ble_store_value_cccd *value)
 }
 
 int
-ble_store_delete_cccd(struct ble_store_key_cccd *key)
+ble_store_delete_cccd(const struct ble_store_key_cccd *key)
 {
     union ble_store_key *store_key;
     int rc;
@@ -217,7 +218,7 @@ ble_store_delete_cccd(struct ble_store_key_cccd *key)
 
 void
 ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
-                              struct ble_store_value_cccd *value)
+                              const struct ble_store_value_cccd *value)
 {
     out_key->peer_addr = value->peer_addr;
     out_key->chr_val_handle = value->chr_val_handle;
@@ -226,7 +227,7 @@ ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
 
 void
 ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
-                             struct ble_store_value_sec *value)
+                             const struct ble_store_value_sec *value)
 {
     out_key->peer_addr = value->peer_addr;
 
@@ -236,14 +237,37 @@ ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
     out_key->idx = 0;
 }
 
-void ble_store_iterate(int obj_type,
-                       ble_store_iterator_fn *callback,
-                       void *cookie)
+void
+ble_store_key_from_value(int obj_type,
+                         union ble_store_key *out_key,
+                         const union ble_store_value *value)
+{
+    switch (obj_type) {
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+        ble_store_key_from_value_sec(&out_key->sec, &value->sec);
+        break;
+
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        ble_store_key_from_value_cccd(&out_key->cccd, &value->cccd);
+        break;
+
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
+    }
+}
+
+int
+ble_store_iterate(int obj_type,
+                  ble_store_iterator_fn *callback,
+                  void *cookie)
 {
     union ble_store_key key;
     union ble_store_value value;
     int idx = 0;
     uint8_t *pidx;
+    int rc;
 
     /* a magic value to retrieve anything */
     memset(&key, 0, sizeof(key));
@@ -256,20 +280,35 @@ void ble_store_iterate(int obj_type,
         case BLE_STORE_OBJ_TYPE_CCCD:
             key.cccd.peer_addr = *BLE_ADDR_ANY;
             pidx = &key.cccd.idx;
+            break;
         default:
-            return;
+            BLE_HS_DBG_ASSERT(0);
+            return BLE_HS_EINVAL;
     }
 
     while (1) {
-        int rc;
         *pidx = idx;
         rc = ble_store_read(obj_type, &key, &value);
-        if (rc != 0) {
-            /* read error or no more entries */
+        switch (rc) {
+        case 0:
+            if (callback != NULL) {
+                rc = callback(obj_type, &value, cookie);
+                if (rc != 0) {
+                    /* User function indicates to stop iterating. */
+                    return 0;
+                }
+            }
             break;
-        } else if (callback) {
-            callback(obj_type, &value, cookie);
+
+        case BLE_HS_ENOENT:
+            /* No more entries. */
+            return 0;
+
+        default:
+            /* Read error. */
+            return rc;
         }
+
         idx++;
     }
 }

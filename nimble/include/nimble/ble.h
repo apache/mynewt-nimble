@@ -235,7 +235,14 @@ typedef struct {
 
 static inline int ble_addr_cmp(const ble_addr_t *a, const ble_addr_t *b)
 {
-    return memcmp(a, b, sizeof(*a));
+    int type_diff;
+
+    type_diff = a->type - b->type;
+    if (type_diff != 0) {
+        return type_diff;
+    }
+
+    return memcmp(a->val, b->val, sizeof(a->val));
 }
 
 #ifdef __cplusplus
