@@ -112,11 +112,11 @@ struct ble_ll_adv_sm
     uint16_t duration; /* TODO */
     uint8_t events_max;
     uint8_t events;
-    uint16_t did;      /* TODO */
-    uint8_t pri_phy;   /* TODO */
-    uint8_t sec_phy;   /* TODO */
-    uint8_t sid;       /* TODO */
-    uint8_t scan_req_notif; /* TODO */
+    uint16_t did;
+    uint8_t pri_phy;
+    uint8_t sec_phy;
+    uint8_t sid;
+    uint8_t scan_req_notif;
     uint8_t conn_rsp_tx;
 #endif
 };
