@@ -1186,7 +1186,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 int
 ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
-    int rc;
+    int rc = 0;
 
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to TXEN since we are transmitting */
