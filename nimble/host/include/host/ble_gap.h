@@ -111,6 +111,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_SUBSCRIBE             14
 #define BLE_GAP_EVENT_MTU                   15
 #define BLE_GAP_EVENT_IDENTITY_RESOLVED     16
+#define BLE_GAP_EVENT_REPEAT_PAIRING        17
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -125,6 +126,9 @@ struct hci_conn_update;
  * (bonding restored).
  */
 #define BLE_GAP_SUBSCRIBE_REASON_RESTORE    3
+
+#define BLE_GAP_REPEAT_PAIRING_RETRY        1
+#define BLE_GAP_REPEAT_PAIRING_IGNORE       2
 
 struct ble_gap_sec_state {
     unsigned encrypted:1;
@@ -223,6 +227,25 @@ struct ble_gap_disc_desc {
      * direct address fields are not present.
      */
     ble_addr_t direct_addr;
+};
+
+struct ble_gap_repeat_pairing {
+    /** The handle of the relevant connection. */
+    uint16_t conn_handle;
+
+    /** Properties of the existing bond. */
+    uint8_t cur_key_size;
+    uint8_t cur_authenticated:1;
+    uint8_t cur_sc:1;
+
+    /**
+     * Properties of the imminent secure link if the pairing procedure is
+     * allowed to continue.
+     */
+    uint8_t new_key_size;
+    uint8_t new_authenticated:1;
+    uint8_t new_sc:1;
+    uint8_t new_bonding:1;
 };
 
 /**
@@ -517,6 +540,22 @@ struct ble_gap_event {
             /** The handle of the relevant connection. */
             uint16_t conn_handle;
         } identity_resolved;
+
+        /**
+         * Represents a peer's attempt to pair despite a bond already existing.
+         * The application has two options for handling this event type:
+         *     o Retry: Return BLE_GAP_REPEAT_PAIRING_RETRY after deleting the
+         *              conflicting bond.  The stack will verify the bond has
+         *              been deleted and continue the pairing procedure.  If
+         *              the bond is still present, this event will be reported
+         *              again.
+         *     o Ignore: Return BLE_GAP_REPEAT_PAIRING_IGNORE.  The stack will
+         *               silently ignore the pairing request.
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_REPEAT_PAIRING
+         */
+        struct ble_gap_repeat_pairing repeat_pairing;
     };
 };
 
