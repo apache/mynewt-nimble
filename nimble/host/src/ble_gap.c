@@ -3126,6 +3126,23 @@ ble_gap_identity_event(uint16_t conn_handle)
     ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
+int
+ble_gap_repeat_pairing_event(const struct ble_gap_repeat_pairing *rp)
+{
+#if !NIMBLE_BLE_SM
+    return 0;
+#endif
+
+    struct ble_gap_event event;
+    int rc;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_REPEAT_PAIRING;
+    event.repeat_pairing = *rp;
+    rc = ble_gap_call_conn_event_cb(&event, rp->conn_handle);
+    return rc;
+}
+
 /*****************************************************************************
  * $rssi                                                                     *
  *****************************************************************************/

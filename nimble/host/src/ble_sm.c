@@ -443,6 +443,7 @@ ble_sm_update_sec_state(uint16_t conn_handle, int encrypted,
 static void
 ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
                         int authenticated,
+                        int sc,
                         struct ble_sm_keys *keys,
                         struct ble_store_value_sec *value_sec)
 {
@@ -460,6 +461,7 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
         value_sec->ltk_present = 1;
 
         value_sec->authenticated = !!authenticated;
+        value_sec->sc = !!sc;
     }
 
     if (keys->irk_valid) {
@@ -508,6 +510,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     ble_addr_t peer_addr;
     int authenticated;
     int identity_ev = 0;
+    int sc;
 
     ble_hs_lock();
 
@@ -554,17 +557,15 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         ble_gap_identity_event(proc->conn_handle);
     }
 
-    /* Lets remove old keys if we had them */
-    ble_sm_unbond(peer_addr.type, peer_addr.val);
-
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
+    sc = proc->flags & BLE_SM_PROC_F_SC;
 
     ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
-                            &proc->our_keys, &value_sec);
+                            sc, &proc->our_keys, &value_sec);
     ble_store_write_our_sec(&value_sec);
 
     ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
-                            &proc->peer_keys, &value_sec);
+                            sc, &proc->peer_keys, &value_sec);
     ble_store_write_peer_sec(&value_sec);
 }
 
@@ -782,7 +783,8 @@ ble_sm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res, void *arg)
     }
 }
 
-static void pair_fail_tx(uint16_t conn_handle, uint8_t reason)
+static void
+ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
@@ -794,6 +796,84 @@ static void pair_fail_tx(uint16_t conn_handle, uint8_t reason)
         cmd->reason = reason;
         ble_sm_tx(conn_handle, txom);
     }
+}
+
+/**
+ * Reads a bond from storage.
+ */
+static int
+ble_sm_read_bond(uint16_t conn_handle, struct ble_store_value_sec *out_bond)
+{
+    struct ble_store_key_sec key_sec;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    if (rc != 0) {
+        return rc;
+    }
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = desc.peer_id_addr;
+
+    rc = ble_store_read_peer_sec(&key_sec, out_bond);
+    return rc;
+}
+
+/**
+ * Checks if the specified peer is already bonded.  If it is, the application
+ * is queried about how to proceed: retry or ignore.  The application should
+ * only indicate a retry if it deleted the old bond.
+ *
+ * @param conn_handle           The handle of the connection over which the
+ *                                  pairing request was received.
+ * @param proc_flags            The security flags associated with the
+ *                                  conflicting SM procedure.
+ * @param key_size              The key size of the conflicting SM procedure.
+ *
+ * @return                      0 if the procedure should continue;
+ *                              nonzero if the request should be ignored.
+ */
+static int
+ble_sm_chk_repeat_pairing(uint16_t conn_handle,
+                          ble_sm_proc_flags proc_flags,
+                          uint8_t key_size)
+{
+    struct ble_gap_repeat_pairing rp;
+    struct ble_store_value_sec bond;
+    int rc;
+
+    do {
+        /* If the peer isn't bonded, indicate that the pairing procedure should
+         * continue.
+         */
+        rc = ble_sm_read_bond(conn_handle, &bond);
+        switch (rc) {
+        case 0:
+            break;
+        case BLE_HS_ENOENT:
+            return 0;
+        default:
+            return rc;
+        }
+
+        /* Peer is already bonded.  Ask the application what to do about it. */
+        rp.conn_handle = conn_handle;
+        rp.cur_key_size = bond.key_size;
+        rp.cur_authenticated = bond.authenticated;
+        rp.cur_sc = bond.sc;
+
+        rp.new_key_size = key_size;
+        rp.new_authenticated = !!(proc_flags & BLE_SM_PROC_F_AUTHENTICATED);
+        rp.new_sc = !!(proc_flags & BLE_SM_PROC_F_SC);
+        rp.new_bonding = !!(proc_flags & BLE_SM_PROC_F_BONDING);
+
+        rc = ble_gap_repeat_pairing_event(&rp);
+    } while (rc == BLE_GAP_REPEAT_PAIRING_RETRY);
+
+    BLE_HS_LOG(DEBUG, "silently ignoring pair request from bonded peer");
+
+    return BLE_HS_EALREADY;
 }
 
 void
@@ -831,7 +911,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
         }
 
         if (res->sm_err != 0) {
-            pair_fail_tx(conn_handle, res->sm_err);
+            ble_sm_pair_fail_tx(conn_handle, res->sm_err);
         }
 
         ble_hs_unlock();
@@ -1422,6 +1502,8 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
     uint8_t init_key_dist;
     uint8_t resp_key_dist;
     uint8_t rx_key_dist;
+    uint8_t ioact;
+    int rc;
 
     pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
     pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
@@ -1460,6 +1542,52 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
 
     proc->key_size = min(pair_req->max_enc_key_size,
                          pair_rsp->max_enc_key_size);
+
+    rc = ble_sm_io_action(proc, &ioact);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+}
+
+static void
+ble_sm_pair_base_fill(struct ble_sm_pair_cmd *cmd)
+{
+    cmd->io_cap = ble_hs_cfg.sm_io_cap;
+    cmd->oob_data_flag = ble_hs_cfg.sm_oob_data_flag;
+    cmd->authreq = ble_sm_build_authreq();
+    cmd->max_enc_key_size = BLE_SM_PAIR_KEY_SZ_MAX;
+}
+
+static void
+ble_sm_pair_req_fill(struct ble_sm_proc *proc)
+{
+    struct ble_sm_pair_cmd *req;
+
+    req = (void *)(proc->pair_req + 1);
+
+    proc->pair_req[0] = BLE_SM_OP_PAIR_REQ;
+    ble_sm_pair_base_fill(req);
+    req->init_key_dist = ble_hs_cfg.sm_our_key_dist;
+    req->resp_key_dist = ble_hs_cfg.sm_their_key_dist;
+}
+
+static void
+ble_sm_pair_rsp_fill(struct ble_sm_proc *proc)
+{
+    const struct ble_sm_pair_cmd *req;
+    struct ble_sm_pair_cmd *rsp;
+
+    req = (void *)(proc->pair_req + 1);
+    rsp = (void *)(proc->pair_rsp + 1);
+
+    proc->pair_rsp[0] = BLE_SM_OP_PAIR_RSP;
+    ble_sm_pair_base_fill(rsp);
+
+    /* The response's key distribution flags field is the intersection of
+     * the peer's preferences and our capabilities.
+     */
+    rsp->init_key_dist = req->init_key_dist &
+                         ble_hs_cfg.sm_their_key_dist;
+    rsp->resp_key_dist = req->resp_key_dist &
+                         ble_hs_cfg.sm_our_key_dist;
 }
 
 static void
@@ -1481,36 +1609,15 @@ ble_sm_pair_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         goto err;
     }
 
-    cmd->io_cap = ble_hs_cfg.sm_io_cap;
-    cmd->oob_data_flag = ble_hs_cfg.sm_oob_data_flag;
-    cmd->authreq = ble_sm_build_authreq();
-    cmd->max_enc_key_size = BLE_SM_PAIR_KEY_SZ_MAX;
-
     if (is_req) {
-        cmd->init_key_dist = ble_hs_cfg.sm_our_key_dist;
-        cmd->resp_key_dist = ble_hs_cfg.sm_their_key_dist;
+        ble_sm_pair_req_fill(proc);
+        memcpy(cmd, proc->pair_req + 1, sizeof(*cmd));
     } else {
-        struct ble_sm_pair_cmd *pair_req;
-
-        pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
-        /* The response's key distribution flags field is the intersection of
-         * the peer's preferences and our capabilities.
+        /* The response was already generated when we processed the incoming
+         * request.
          */
+        memcpy(cmd, proc->pair_rsp + 1, sizeof(*cmd));
 
-        cmd->init_key_dist = pair_req->init_key_dist &
-                             ble_hs_cfg.sm_their_key_dist;
-        cmd->resp_key_dist = pair_req->resp_key_dist &
-                             ble_hs_cfg.sm_our_key_dist;
-    }
-
-    if (is_req) {
-        proc->pair_req[0] = BLE_SM_OP_PAIR_REQ;
-        memcpy(proc->pair_req + 1, cmd, sizeof(*cmd));
-    } else {
-        proc->pair_rsp[0] = BLE_SM_OP_PAIR_RSP;
-        memcpy(proc->pair_rsp + 1, cmd, sizeof(*cmd));
-
-        ble_sm_pair_cfg(proc);
         proc->state = ble_sm_state_after_pair(proc);
 
         rc = ble_sm_io_action(proc, &ioact);
@@ -1551,6 +1658,13 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
     struct ble_hs_conn *conn;
+    ble_sm_proc_flags proc_flags;
+    uint8_t key_size;
+    int rc;
+
+    /* Silence spurious unused-variable warnings. */
+    proc_flags = 0;
+    key_size = 0;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*req));
     if (res->app_status != 0) {
@@ -1595,11 +1709,34 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
         } else {
+            /* The request looks good.  Precalculate our pairing response and
+             * determine some properties of the imminent link.  We need this
+             * information in case this is a repeated pairing attempt (i.e., we
+             * are already bonded to this peer).  In that case, we include the
+             * information in a notification to the app.
+             */
+            ble_sm_pair_rsp_fill(proc);
+            ble_sm_pair_cfg(proc);
+
+            proc_flags = proc->flags;
+            key_size = proc->key_size;
             res->execute = 1;
         }
     }
 
     ble_hs_unlock();
+
+    /* Check if we are already bonded to this peer.  If so, give the
+     * application an opportunity to delete the old bond.
+     */
+    if (res->app_status == 0) {
+        rc = ble_sm_chk_repeat_pairing(conn_handle, proc_flags, key_size);
+        if (rc != 0) {
+            /* The app indicated that the pairing request should be ignored. */
+            res->app_status = rc;
+            res->execute = 0;
+        }
+    }
 }
 
 static void
@@ -2306,43 +2443,6 @@ ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
     ble_sm_process_result(conn_handle, &res);
 
     return res.app_status;
-}
-
-/**
- * Deletes the bonding association with the specified peer.  That is, this
- * function erases the security material that was persisted when we paired with
- * the specified peer.
- *
- * @param peer_id_addr_type     The identity address type of the peer.
- * @param peer_id_addr          The peer's identity address.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOENT if there is no bond to the
- *                                  specified peer.
- */                             
-int
-ble_sm_unbond(uint8_t peer_id_addr_type, const uint8_t *peer_id_addr)
-{
-    struct ble_store_key_sec key_sec;
-    int peer_rc;
-    int our_rc;
-    int rc;
-
-    memset(&key_sec, 0, sizeof key_sec);
-    key_sec.peer_addr.type = peer_id_addr_type;
-    memcpy(key_sec.peer_addr.val, peer_id_addr, sizeof key_sec.peer_addr);
-
-    our_rc = ble_store_delete_our_sec(&key_sec);
-    peer_rc = ble_store_delete_peer_sec(&key_sec);
-
-    if (our_rc == BLE_HS_ENOENT && peer_rc == BLE_HS_ENOENT) {
-        rc = BLE_HS_ENOENT;
-    } else if (our_rc == 0) {
-        rc = peer_rc;
-    } else {
-        rc = our_rc;
-    }
-    return rc;
 }
 
 static int
