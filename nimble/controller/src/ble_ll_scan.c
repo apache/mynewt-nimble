@@ -145,7 +145,7 @@ static os_membuf_t ext_adv_mem[ OS_MEMPOOL_SIZE(OUTSTANDING_AUX,
 
 static struct os_mempool ext_adv_pool;
 
-static void ble_ll_scan_start(struct ble_ll_scan_sm *scansm);
+static int ble_ll_scan_start(struct ble_ll_scan_sm *scansm);
 
 static int
 ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
@@ -163,7 +163,12 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     assert(scansm->cur_aux_data != NULL);
     scansm->cur_aux_data->scanning = 1;
 
-    ble_ll_scan_start(scansm);
+    if (ble_ll_scan_start(scansm)) {
+        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        scansm->cur_aux_data = NULL;
+        ble_ll_event_send(&scansm->scan_sched_ev);
+        goto done;
+    }
 
     STATS_INC(ble_ll_stats, aux_fired_for_read);
     ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, BLE_LL_SCHED_ADV_MAX_USECS);
@@ -805,7 +810,7 @@ ble_ll_get_chan_to_scan(struct ble_ll_scan_sm *scansm, uint8_t *chan,
  *
  * @return int
  */
-static void
+static int
 ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 {
     int rc;
@@ -844,12 +849,12 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 #endif
 
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
-        /* XXX: probably need to make sure hfxo is running too */
-        /* XXX: can make this better; want to just start asap. */
-        rc = ble_phy_rx_set_start_time(os_cputime_get32() +
-                                       g_ble_ll_sched_offset_ticks, 0);
+    /* XXX: probably need to make sure hfxo is running too */
+    /* XXX: can make this better; want to just start asap. */
+    rc = ble_phy_rx_set_start_time(os_cputime_get32() +
+                                   g_ble_ll_sched_offset_ticks, 0);
 #else
-        rc = ble_phy_rx();
+    rc = ble_phy_rx();
 #endif
     if (!rc) {
         /* Enable/disable whitelisting */
@@ -871,6 +876,8 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     if (scansm->scan_rsp_pending) {
         ble_ll_scan_req_backoff(scansm, 0);
     }
+
+    return rc;
 }
 
 #ifdef BLE_XCVR_RFCLK
