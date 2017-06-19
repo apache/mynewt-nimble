@@ -290,8 +290,9 @@ void ble_sm_dbg_set_next_master_id_rand(uint64_t next_master_id_rand);
 void ble_sm_dbg_set_next_ltk(uint8_t *next_ltk);
 void ble_sm_dbg_set_next_csrk(uint8_t *next_csrk);
 void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
-int ble_sm_dbg_num_procs(void);
 #endif
+
+int ble_sm_num_procs(void);
 
 void ble_sm_pair_cmd_log(struct ble_sm_pair_cmd *cmd);
 void ble_sm_pair_confirm_log(struct ble_sm_pair_confirm *cmd);
@@ -403,7 +404,6 @@ int ble_sm_init(void);
 
 #else
 
-#define ble_sm_dbg_num_procs() 0
 #define ble_sm_enc_change_rx(evt) ((void)(evt))
 #define ble_sm_ltk_req_rx(evt) ((void)(evt))
 #define ble_sm_enc_key_refresh_rx(evt) ((void)(evt))
