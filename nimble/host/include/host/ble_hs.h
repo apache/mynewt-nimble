@@ -71,6 +71,7 @@ struct os_event;
 #define BLE_HS_EAUTHOR              24
 #define BLE_HS_EENCRYPT             25
 #define BLE_HS_EENCRYPT_KEY_SZ      26
+#define BLE_HS_ESTORE_CAP           27
 
 #define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
@@ -151,6 +152,16 @@ struct ble_hs_cfg {
     ble_store_read_fn *store_read_cb;
     ble_store_write_fn *store_write_cb;
     ble_store_delete_fn *store_delete_cb;
+
+    /**
+     * This callback gets executed when a persistence operation cannot be
+     * performed or a persistence failure is imminent.  For example, if is
+     * insufficient storage capacity for a record to be persisted, this
+     * function gets called to give the application the opportunity to make
+     * room.
+     */
+    ble_store_status_fn *store_status_cb;
+    void *store_status_arg;
 };
 
 extern struct ble_hs_cfg ble_hs_cfg;

@@ -149,7 +149,7 @@ TEST_CASE(ble_sm_test_case_conn_broken)
     /* Initiate the pairing procedure. */
     rc = ble_hs_test_util_security_initiate(2, 0);
     TEST_ASSERT_FATAL(rc == 0);
-    TEST_ASSERT(ble_sm_dbg_num_procs() == 1);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
     ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Terminate the connection. */
