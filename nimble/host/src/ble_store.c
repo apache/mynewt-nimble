@@ -44,7 +44,6 @@ ble_store_read(int obj_type, const union ble_store_key *key,
 int
 ble_store_write(int obj_type, const union ble_store_value *val)
 {
-    struct ble_store_status_event event;
     int rc;
 
     if (ble_hs_cfg.store_write_cb == NULL) {
@@ -63,10 +62,7 @@ ble_store_write(int obj_type, const union ble_store_value *val)
             /* Record didn't fit.  Give the application the opportunity to free
              * up some space.
              */
-            event.obj_type = obj_type;
-            event.event_code = BLE_STORE_EVENT_OVERFLOW;
-            event.value = val;
-            rc = ble_store_status(&event);
+            rc = ble_store_overflow_event(obj_type, val);
             if (rc != 0) {
                 return rc;
             }
@@ -98,7 +94,7 @@ ble_store_delete(int obj_type, const union ble_store_key *key)
     return rc;
 }
 
-int
+static int
 ble_store_status(struct ble_store_status_event *event)
 {
     int rc;
@@ -112,6 +108,30 @@ ble_store_status(struct ble_store_status_event *event)
     }
 
     return rc;
+}
+
+int
+ble_store_overflow_event(int obj_type, const union ble_store_value *value)
+{
+    struct ble_store_status_event event;
+
+    event.event_code = BLE_STORE_EVENT_OVERFLOW;
+    event.obj_type = obj_type;
+    event.value = value;
+
+    return ble_store_status(&event);
+}
+
+int
+ble_store_overflow_next_event(int obj_type, uint16_t conn_handle)
+{
+    struct ble_store_status_event event;
+
+    event.event_code = BLE_STORE_EVENT_OVERFLOW_NEXT;
+    event.obj_type = obj_type;
+    event.conn_handle = conn_handle;
+
+    return ble_store_status(&event);
 }
 
 int

@@ -981,7 +981,6 @@ ble_sm_chk_store_overflow_by_type(int obj_type, uint16_t conn_handle)
     return 0;
 #endif
 
-    struct ble_store_status_event event;
     int count;
     int rc;
 
@@ -1003,11 +1002,7 @@ ble_sm_chk_store_overflow_by_type(int obj_type, uint16_t conn_handle)
     /* No capacity for an additional bond.  Tell the application to make
      * room.
      */
-    memset(&event, 0, sizeof event);
-    event.obj_type = obj_type;
-    event.event_code = BLE_STORE_EVENT_OVERFLOW_NEXT;
-    event.conn_handle = conn_handle;
-    rc = ble_store_status(&event);
+    rc = ble_store_overflow_next_event(obj_type, conn_handle);
     if (rc != 0) {
         return rc;
     }

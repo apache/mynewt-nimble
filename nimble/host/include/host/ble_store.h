@@ -243,7 +243,8 @@ int ble_store_read(int obj_type, const union ble_store_key *key,
                    union ble_store_value *val);
 int ble_store_write(int obj_type, const union ble_store_value *val);
 int ble_store_delete(int obj_type, const union ble_store_key *key);
-int ble_store_status(struct ble_store_status_event *event);
+int ble_store_overflow_event(int obj_type, const union ble_store_value *value);
+int ble_store_overflow_next_event(int obj_type, uint16_t conn_handle);
 
 int ble_store_read_our_sec(const struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec);
