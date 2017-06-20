@@ -288,6 +288,10 @@ syscfg.defs:
         value: 1
 
     # ATT options.
+    BLE_ATT_PREFERRED_MTU:
+        description: The preferred MTU to indicate in MTU exchange commands.
+        value: 256
+
     BLE_ATT_SVR_MAX_PREP_ENTRIES:
         description: >
             A GATT server uses these when a peer performs a "write long

@@ -101,7 +101,6 @@ struct os_mbuf;
  * 512-byte attribute value.
  */
 #define BLE_ATT_MTU_MAX                     527
-#define BLE_ATT_MTU_PREFERRED_DFLT          527
 
 int ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om);
 int ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om);
