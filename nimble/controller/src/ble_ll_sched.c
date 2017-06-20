@@ -1175,7 +1175,7 @@ ble_ll_sched_init(void)
      * tx/rx should occur, in ticks. We also "round up" to the nearest tick.
      */
     g_ble_ll_sched_offset_ticks =
-        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
+        (uint8_t) os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
 
     /* Initialize cputimer for the scheduler */
     os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
