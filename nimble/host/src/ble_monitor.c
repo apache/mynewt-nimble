@@ -53,6 +53,10 @@ static uint8_t tx_ringbuf_tail;
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 static uint8_t rtt_buf[256];
 static int rtt_index;
+#if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+static uint8_t rtt_pktbuf[256];
+static size_t rtt_pktbuf_pos;
+#endif
 #endif
 
 #if MYNEWT_VAL(BLE_MONITOR_UART)
@@ -116,7 +120,31 @@ monitor_write(const void *buf, size_t len)
 static void
 monitor_write(const void *buf, size_t len)
 {
+#if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+    struct ble_monitor_hdr *hdr = (struct ble_monitor_hdr *) rtt_pktbuf;
+    bool discard;
+
+    /* We will discard any packet which exceeds length of intermediate buffer */
+    discard = rtt_pktbuf_pos + len > sizeof(rtt_pktbuf);
+
+    if (!discard) {
+        memcpy(rtt_pktbuf + rtt_pktbuf_pos, buf, len);
+    }
+
+    rtt_pktbuf_pos += len;
+    if (rtt_pktbuf_pos < sizeof(hdr->data_len) + hdr->data_len) {
+        return;
+    }
+
+    // TODO: count dropped packets
+    if (!discard) {
+        SEGGER_RTT_WriteNoLock(rtt_index, rtt_pktbuf, rtt_pktbuf_pos);
+    }
+
+    rtt_pktbuf_pos = 0;
+#else
     SEGGER_RTT_WriteNoLock(rtt_index, buf, len);
+#endif
 }
 #endif
 
@@ -183,8 +211,14 @@ ble_monitor_init(void)
 #endif
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
+#if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+    rtt_index = SEGGER_RTT_AllocUpBuffer("monitor", rtt_buf, sizeof(rtt_buf),
+                                         SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+#else
     rtt_index = SEGGER_RTT_AllocUpBuffer("monitor", rtt_buf, sizeof(rtt_buf),
                                          SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
+#endif
+
     if (rtt_index < 0) {
         return -1;
     }
