@@ -50,6 +50,14 @@ syscfg.defs:
     BLE_MONITOR_RTT:
         description: Enables monitor interface over RTT
         value: 0
+    BLE_MONITOR_RTT_BUFFERED:
+        description: >
+            Enables buffering when using monitor interface over RTT. The data
+            are written to RTT once complete packet is created in intermediate
+            buffer. This allows to skip complete packet if there is not enough
+            space in RTT buffer (e.g. there is no reader connected). If disabled,
+            monitor will simply block waiting for RTT to free space in buffer.
+        value: 1
 
     # L2CAP settings.
     BLE_L2CAP_MAX_CHANS:
