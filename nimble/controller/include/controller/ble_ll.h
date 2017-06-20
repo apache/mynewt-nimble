@@ -31,6 +31,10 @@
 extern "C" {
 #endif
 
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
+#error 32.768kHz clock required
+#endif
+
 /*
  * XXX:
  * I guess this should not depend on the 32768 crystal to be honest. This
