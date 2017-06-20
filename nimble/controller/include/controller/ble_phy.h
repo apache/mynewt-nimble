@@ -26,6 +26,14 @@
 extern "C" {
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) && !MYNEWT_VAL(BSP_NRF52840)
+#error LE 2M PHY can only be enabled on nRF52840
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY) && !MYNEWT_VAL(BSP_NRF52840)
+#error LE Coded PHY can only be enabled on nRF52840
+#endif
+
 /* Forward declarations */
 struct os_mbuf;
 
