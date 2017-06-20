@@ -2291,9 +2291,24 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         connsm->last_anchor_point = rxhdr->beg_cputime;
 
         usecs = rxhdr->rem_usecs + 1250 +
-            (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-            ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
-                                 connsm->phy_data.tx_phy_mode);
+                (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
+                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
+                                       connsm->phy_data.rx_phy_mode);
+
+        if (rxhdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
+            switch (rxhdr->rxinfo.phy) {
+            case BLE_PHY_1M:
+                usecs += 1250;
+                break;
+            case BLE_PHY_CODED:
+                usecs += 2500;
+                break;
+            case BLE_PHY_2M:
+            default:
+                assert(0);
+                break;
+            }
+        }
 
         /* Anchor point is cputime. */
         endtime = os_cputime_usecs_to_ticks(usecs);
