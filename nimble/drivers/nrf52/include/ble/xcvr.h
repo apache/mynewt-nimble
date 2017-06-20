@@ -24,16 +24,11 @@
 extern "C" {
 #endif
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 /*
- * NOTE: we have to account for the RTC output compare issue, which is why
- * this number is much larger when using the 32.768 crystal for cputime. We
- * want it to be 5 ticks.
+ * NOTE: we have to account for the RTC output compare issue. We want it to be
+ * 5 ticks.
  */
 #define XCVR_PROC_DELAY_USECS         (153)
-#else
-#define XCVR_PROC_DELAY_USECS         (50)
-#endif
 #define XCVR_RX_START_DELAY_USECS     (140)
 #define XCVR_TX_START_DELAY_USECS     (140)
 #define XCVR_TX_SCHED_DELAY_USECS     \

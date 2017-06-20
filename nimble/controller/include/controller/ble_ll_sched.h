@@ -51,9 +51,7 @@ extern "C" {
  * This is the offset from the start of the scheduled item until the actual
  * tx/rx should occur, in ticks.
  */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 extern uint8_t g_ble_ll_sched_offset_ticks;
-#endif
 
 /*
  * This is the number of slots needed to transmit and receive a maximum

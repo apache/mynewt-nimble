@@ -577,9 +577,6 @@ ble_ll_wfr_timer_exp(void *arg)
 void
 ble_ll_wfr_enable(uint32_t cputime)
 {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-    os_cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
-#endif
 }
 
 /**
@@ -588,9 +585,6 @@ ble_ll_wfr_enable(uint32_t cputime)
 void
 ble_ll_wfr_disable(void)
 {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-    os_cputime_timer_stop(&g_ble_ll_data.ll_wfr_timer);
-#endif
 }
 
 /**
@@ -834,12 +828,8 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     uint8_t pdu_type;
     struct ble_ll_conn_sm *connsm;
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, rxhdr->rem_usecs,
                rxhdr->beg_cputime);
-#else
-    ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, 0, rxhdr->beg_cputime);
-#endif
 
     /* Advertising channel PDU */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
@@ -1393,12 +1383,6 @@ ble_ll_init(void)
                     &g_ble_ll_data.ll_evq,
                     ble_ll_hw_err_timer_cb,
                     NULL);
-
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-    /* Initialize wait for response timer */
-    os_cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
-                          NULL);
-#endif
 
     /* Initialize LL HCI */
     ble_ll_hci_init();

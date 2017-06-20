@@ -438,14 +438,8 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     assert(rc == 0);
 
     /* Set transmit start time. */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     txstart = sch->start_time + g_ble_ll_sched_offset_ticks;
     rc = ble_phy_tx_set_start_time(txstart, sch->remainder);
-#else
-    txstart = sch->start_time +
-        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-    rc = ble_phy_tx_set_start_time(txstart);
-#endif
     if (rc) {
         STATS_INC(ble_ll_stats, adv_late_starts);
         goto adv_tx_done;
@@ -547,13 +541,8 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
      */
     max_usecs += XCVR_PROC_DELAY_USECS;
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     sch->start_time = advsm->adv_pdu_start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-#else
-    sch->start_time = advsm->adv_pdu_start_time -
-        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
     sch->end_time = advsm->adv_pdu_start_time +
         os_cputime_usecs_to_ticks(max_usecs);
 }
@@ -918,14 +907,8 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 void
 ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
 {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* The event start time is when we start transmission of the adv PDU */
     advsm->adv_event_start_time = sch_start + g_ble_ll_sched_offset_ticks;
-#else
-    /* The event start time is when we start transmission of the adv PDU */
-    advsm->adv_event_start_time = sch_start +
-        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
 
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
@@ -1556,12 +1539,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          * The scheduled time better be in the future! If it is not, we will
          * just keep advancing until we the time is in the future
          */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         start_time = advsm->adv_pdu_start_time - g_ble_ll_sched_offset_ticks;
-#else
-        start_time = advsm->adv_pdu_start_time -
-            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
 
         delta_t = (int32_t)(start_time - os_cputime_get32());
         if (delta_t < 0) {
@@ -1592,13 +1570,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          * We will transmit right away. Set next pdu start time to now
          * plus a xcvr start delay just so we dont count late adv starts
          */
-        advsm->adv_pdu_start_time = os_cputime_get32();
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
-        advsm->adv_pdu_start_time += g_ble_ll_sched_offset_ticks;
-#else
-        advsm->adv_pdu_start_time +=
-            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
+        advsm->adv_pdu_start_time = os_cputime_get32() +
+                                    g_ble_ll_sched_offset_ticks;
         resched_pdu = 1;
     }
 
@@ -1637,11 +1610,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         rc = ble_ll_sched_adv_reschedule(&advsm->adv_sch, &start_time,
                                          max_delay_ticks);
         if (!rc) {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
             start_time += g_ble_ll_sched_offset_ticks;
-#else
-            start_time += os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
             advsm->adv_event_start_time = start_time;
             advsm->adv_pdu_start_time = start_time;
         }
