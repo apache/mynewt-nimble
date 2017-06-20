@@ -383,11 +383,12 @@ ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
  * already be set.
  *
  * @param cputime
+ * @param rem_usecs
  *
  * @return int
  */
 int
-ble_phy_tx_set_start_time(uint32_t cputime)
+ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     return 0;
 }
@@ -402,11 +403,12 @@ ble_phy_tx_set_start_time(uint32_t cputime)
  * already be set.
  *
  * @param cputime
+ * @param rem_usecs
  *
  * @return int
  */
 int
-ble_phy_rx_set_start_time(uint32_t cputime)
+ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     return 0;
 }
@@ -614,3 +616,8 @@ ble_phy_xcvr_state_get(void)
 }
 
 #endif
+
+void
+ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
+{
+}
