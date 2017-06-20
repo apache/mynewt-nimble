@@ -82,8 +82,7 @@ struct ble_ll_adv_sm
     uint8_t scan_rsp_len;
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
-    uint8_t adv_txadd;              /* note: can be 1 bit */
-    uint8_t adv_rxadd;              /* note: can be 1 bit */
+    uint8_t flags;
     int8_t adv_txpwr;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
@@ -116,10 +115,13 @@ struct ble_ll_adv_sm
     uint8_t pri_phy;
     uint8_t sec_phy;
     uint8_t sid;
-    uint8_t scan_req_notif;
-    uint8_t conn_rsp_tx;
 #endif
 };
+
+#define BLE_LL_ADV_SM_FLAG_TX_ADD           0x01
+#define BLE_LL_ADV_SM_FLAG_RX_ADD           0x02
+#define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF   0x04
+#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD     0x08
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
@@ -161,12 +163,12 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
                 ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                                       advsm->initiator_addr, 0);
                 if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
-                    advsm->adv_rxadd = 1;
+                    advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
                 } else {
                     if (advsm->own_addr_type & 1) {
-                        advsm->adv_rxadd = 1;
+                        advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
                     } else {
-                        advsm->adv_rxadd = 0;
+                        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
                     }
                 }
             }
@@ -174,12 +176,12 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 
             /* May have to reset txadd bit */
             if (ble_ll_is_rpa(advsm->adva, 1)) {
-                advsm->adv_txadd = 1;
+                advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
             } else {
                 if (advsm->own_addr_type & 1) {
-                    advsm->adv_txadd = 1;
+                    advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
                 } else {
-                    advsm->adv_txadd = 0;
+                    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
                 }
             }
         }
@@ -260,7 +262,7 @@ ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
 #endif
 
-        if (advsm->adv_rxadd) {
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_RX_ADD) {
             pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
         }
 
@@ -285,7 +287,7 @@ ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
     /* Set TxAdd to random if needed. */
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -441,7 +443,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     }
 
     /* Set TxAdd to random if needed. */
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -536,7 +538,7 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
     /* Set BLE transmit header */
     pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
     hdr = BLE_ADV_PDU_TYPE_SCAN_RSP;
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -601,7 +603,7 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 
     /* Set BLE transmit header */
     hdr = BLE_ADV_PDU_TYPE_AUX_SCAN_RSP;
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -673,7 +675,7 @@ ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
 
     /* Set BLE transmit header */
     hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP | rxadd;
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_MASK;
     }
 
@@ -1307,6 +1309,11 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t *addr;
     uint8_t *evbuf;
 
+    /* only clear flags that are not set from HCI */
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+
     /*
      * This is not in the specification. I will reject the command with a
      * command disallowed error if no random address has been sent by the
@@ -1344,23 +1351,20 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     /* Set advertising address */
     if ((advsm->own_addr_type & 1) == 0) {
         addr = g_dev_addr;
-        advsm->adv_txadd = 0;
     } else {
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
         addr = advsm->adv_random_addr;
 #else
         addr = g_random_addr;
 #endif
-        advsm->adv_txadd = 1;
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
     }
     memcpy(advsm->adva, addr, BLE_DEV_ADDR_LEN);
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         memcpy(advsm->initiator_addr, advsm->peer_addr, BLE_DEV_ADDR_LEN);
         if (advsm->peer_addr_type & 1) {
-            advsm->adv_rxadd = 1;
-        } else {
-            advsm->adv_rxadd = 0;
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
         }
     }
 
@@ -1833,8 +1837,13 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     advsm->pri_phy = pri_phy;
     advsm->sec_phy = sec_phy;
     advsm->sid = sid;
-    advsm->scan_req_notif = scan_req_notif;
     advsm->props = props;
+
+    if (scan_req_notif) {
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
+    } else {
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
+    }
 
     rspbuf[0] = advsm->adv_txpwr;
     *rsplen = 1;
@@ -2177,7 +2186,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     rc = -1;
 
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
-        if (advsm->scan_req_notif) {
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF) {
             ble_ll_hci_ev_send_scan_req_recv(advsm->adv_instance, peer,
                                              peer_addr_type);
         }
@@ -2216,7 +2225,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
             ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
             rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
             if (!rc) {
-                advsm->conn_rsp_tx = 1;
+                advsm->flags |= BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
                 //STATS_INC(ble_ll_stats, scan_rsp_txg); TODO
             }
             os_mbuf_free_chain(rsp);
@@ -2315,7 +2324,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
                           !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
         if (valid) {
             /* stop advertising only if not transmitting connection response */
-            if (!advsm->conn_rsp_tx) {
+            if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD)) {
                 ble_ll_adv_sm_stop(advsm);
             }
         }
@@ -2555,7 +2564,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     assert(advsm->adv_enabled);
 
     /* stop advertising this was due to transmitting connection response */
-    if (advsm->conn_rsp_tx) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
         ble_ll_adv_sm_stop(advsm);
         return;
     }
