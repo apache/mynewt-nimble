@@ -587,7 +587,7 @@ ble_att_init(void)
 {
     int rc;
 
-    ble_att_preferred_mtu_val = BLE_ATT_MTU_PREFERRED_DFLT;
+    ble_att_preferred_mtu_val = MYNEWT_VAL(BLE_ATT_PREFERRED_MTU);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_att_stats), STATS_SIZE_INIT_PARMS(ble_att_stats,
