@@ -76,6 +76,7 @@ struct ble_mbuf_hdr_rxinfo
 };
 
 /* Flag definitions for rxinfo  */
+#define BLE_MBUF_HDR_F_RESOLVED         (0x0800)
 #define BLE_MBUF_HDR_F_EXT_ADV          (0x0400)
 #define BLE_MBUF_HDR_F_AUX_PTR_WAIT     (0x0200)
 #define BLE_MBUF_HDR_F_AUX_INVALID      (0x0100)
@@ -84,8 +85,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010)
 #define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x0008)
-#define BLE_MBUF_HDR_F_RESOLVED         (0x0004)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0003)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0007)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
