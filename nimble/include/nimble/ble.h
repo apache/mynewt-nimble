@@ -109,22 +109,22 @@ struct ble_mbuf_hdr
 };
 
 #define BLE_MBUF_HDR_AUX_INVALID(hdr) \
-    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_INVALID)
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_INVALID))
 
 #define BLE_MBUF_HDR_WAIT_AUX(hdr)      \
-	((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_PTR_WAIT)
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_PTR_WAIT))
 
 #define BLE_MBUF_HDR_CRC_OK(hdr)        \
-    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_CRC_OK)
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_CRC_OK))
 
 #define BLE_MBUF_HDR_MIC_FAILURE(hdr)   \
-    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_MIC_FAILURE)
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_MIC_FAILURE))
 
 #define BLE_MBUF_HDR_RESOLVED(hdr)      \
-    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RESOLVED)
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RESOLVED))
 
 #define BLE_MBUF_HDR_RX_STATE(hdr)      \
-    ((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK)
+    ((uint8_t)((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK))
 
 #define BLE_MBUF_HDR_PTR(om)            \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
