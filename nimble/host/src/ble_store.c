@@ -116,20 +116,20 @@ ble_store_overflow_event(int obj_type, const union ble_store_value *value)
     struct ble_store_status_event event;
 
     event.event_code = BLE_STORE_EVENT_OVERFLOW;
-    event.obj_type = obj_type;
-    event.value = value;
+    event.overflow.obj_type = obj_type;
+    event.overflow.value = value;
 
     return ble_store_status(&event);
 }
 
 int
-ble_store_overflow_next_event(int obj_type, uint16_t conn_handle)
+ble_store_full_event(int obj_type, uint16_t conn_handle)
 {
     struct ble_store_status_event event;
 
-    event.event_code = BLE_STORE_EVENT_OVERFLOW_NEXT;
-    event.obj_type = obj_type;
-    event.conn_handle = conn_handle;
+    event.event_code = BLE_STORE_EVENT_FULL;
+    event.full.obj_type = obj_type;
+    event.full.conn_handle = conn_handle;
 
     return ble_store_status(&event);
 }
