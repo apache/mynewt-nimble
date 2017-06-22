@@ -124,13 +124,15 @@ int ble_phy_txpwr_get(void);
 /* Disable the PHY */
 void ble_phy_disable(void);
 
+#define BLE_PHY_WFR_ENABLE_RX       (0)
+#define BLE_PHY_WFR_ENABLE_TXRX     (1)
+
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
 void ble_phy_stop_usec_timer(void);
 void ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs);
-#define BLE_PHY_WFR_ENABLE_RX       (0)
-#define BLE_PHY_WFR_ENABLE_TXRX     (1)
 #else
 #define ble_phy_stop_usec_timer()
+#define ble_phy_wfr_enable(txrx, wfr_usecs)
 #endif
 
 /* Starts rf clock */

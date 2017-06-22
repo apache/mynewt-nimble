@@ -2390,7 +2390,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 #else
         connsm->last_anchor_point = rxhdr->beg_cputime;
         endtime = rxhdr->beg_cputime +
-            os_cputime_usecs_to_ticks(ble_phy_mode_pdu_dur(BLE_CONNECT_REQ_LEN,
+            os_cputime_usecs_to_ticks(ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
                                                       BLE_PHY_1M));
         connsm->slave_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
