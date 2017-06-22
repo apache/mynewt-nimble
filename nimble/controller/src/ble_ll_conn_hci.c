@@ -86,7 +86,7 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
 
     if ((itvl_min > itvl_max) ||
         (itvl_min < BLE_HCI_CONN_ITVL_MIN) ||
-        (itvl_min > BLE_HCI_CONN_ITVL_MAX) ||
+        (itvl_max > BLE_HCI_CONN_ITVL_MAX) ||
         (latency > BLE_HCI_CONN_LATENCY_MAX) ||
         (spvn_tmo < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
         (spvn_tmo > BLE_HCI_CONN_SPVN_TIMEOUT_MAX)) {
