@@ -1447,18 +1447,19 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         }
     } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-            if (CONN_F_ENCRYPTED(connsm)) {
-                ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
-                                       connsm->enc_data.iv,
-                                       connsm->enc_data.enc_block.cipher_text,
-                                       1);
-            } else {
-                ble_phy_encrypt_disable();
-            }
+        if (CONN_F_ENCRYPTED(connsm)) {
+            ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
+                                   connsm->enc_data.iv,
+                                   connsm->enc_data.enc_block.cipher_text,
+                                   1);
+        } else {
+            ble_phy_encrypt_disable();
+        }
 #endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_phy_mode_set(connsm->phy_data.rx_phy_mode,connsm->phy_data.rx_phy_mode);
+        ble_phy_mode_set(connsm->phy_data.rx_phy_mode,
+                             connsm->phy_data.rx_phy_mode);
 #endif
 
 #if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
