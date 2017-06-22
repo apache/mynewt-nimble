@@ -35,7 +35,7 @@ extern "C" {
 #define BLE_STORE_EVENT_OVERFLOW        1
 
 /** About to execute a procedure that may fail due to overflow. */
-#define BLE_STORE_EVENT_OVERFLOW_NEXT   2
+#define BLE_STORE_EVENT_FULL            2
 
 /**
  * Used as a key for lookups of security material.  This struct corresponds to
@@ -140,12 +140,6 @@ union ble_store_value {
 
 struct ble_store_status_event {
     /**
-     * The type of object that failed to persist; one of the
-     * BLE_STORE_OBJ_TYPE_[...] codes.
-     */
-    int obj_type;
-
-    /**
      * The type of event being reported; one of the BLE_STORE_EVENT_TYPE_[...]
      * codes.
      */
@@ -157,18 +151,30 @@ struct ble_store_status_event {
      */
     union {
         /**
-         * The record that failed to be written.  Valid for the following event
-         * types:
+         * Represents a write that failed due to storage exhaustion.  Valid for
+         * the following event types:
          *     o BLE_STORE_EVENT_OVERFLOW
          */
-        const union ble_store_value *value;
+        struct {
+            /** The type of object that failed to be written. */
+            int obj_type;
+
+            /** The object that failed to be written. */
+            const union ble_store_value *value;
+        } overflow;
 
         /**
-         * The connection handle of the peer.  Valid for the following event
-         * types:
-         *     o BLE_STORE_EVENT_OVERFLOW_NEXT
+         * Represents the possiblity that a scheduled write will fail due to
+         * storage exhaustion.  Valid for the following event types:
+         *     o BLE_STORE_EVENT_FULL
          */
-        uint16_t conn_handle;
+        struct {
+            /** The type of object that may fail to be written. */
+            int obj_type;
+
+            /** The handle of the connection which prompted the write. */
+            uint16_t conn_handle;
+        } full;
     };
 };
 
@@ -244,7 +250,7 @@ int ble_store_read(int obj_type, const union ble_store_key *key,
 int ble_store_write(int obj_type, const union ble_store_value *val);
 int ble_store_delete(int obj_type, const union ble_store_key *key);
 int ble_store_overflow_event(int obj_type, const union ble_store_value *value);
-int ble_store_overflow_next_event(int obj_type, uint16_t conn_handle);
+int ble_store_full_event(int obj_type, uint16_t conn_handle);
 
 int ble_store_read_our_sec(const struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec);

@@ -224,28 +224,29 @@ ble_store_util_delete_oldest_peer(void)
  * operation.
  *
  * Note: This is not the best behavior for an actual product because
- * unintersting peers could cause important bonds to be deleted.  This is
+ * uninteresting peers could cause important bonds to be deleted.  This is
  * useful for demonstrations and sample apps.
  */
 int
 ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
 {
-    int rc;
-
     switch (event->event_code) {
     case BLE_STORE_EVENT_OVERFLOW:
-    case BLE_STORE_EVENT_OVERFLOW_NEXT:
-        switch (event->obj_type) {
+        switch (event->overflow.obj_type) {
             case BLE_STORE_OBJ_TYPE_OUR_SEC:
             case BLE_STORE_OBJ_TYPE_PEER_SEC:
             case BLE_STORE_OBJ_TYPE_CCCD:
-                rc = ble_store_util_delete_oldest_peer();
-                return rc;
+                return ble_store_util_delete_oldest_peer();
 
             default:
                 return BLE_HS_EUNKNOWN;
         }
-        return BLE_HS_EUNKNOWN;
+
+    case BLE_STORE_EVENT_FULL:
+        /* Just proceed with the operation.  If it results in an overflow,
+         * we'll delete a record when the overflow occurs.
+         */
+        return 0;
 
     default:
         return BLE_HS_EUNKNOWN;

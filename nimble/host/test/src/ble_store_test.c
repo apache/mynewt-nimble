@@ -101,10 +101,11 @@ ble_store_test_util_overflow_sec(int is_our_sec)
         } else {
             /* This record should have caused an overflow. */
             TEST_ASSERT(rc == BLE_HS_ESTORE_CAP);
-            TEST_ASSERT(ble_store_test_status_event.obj_type == obj_type);
             TEST_ASSERT(ble_store_test_status_event.event_code ==
                         BLE_STORE_EVENT_OVERFLOW);
-            TEST_ASSERT(ble_store_test_status_event.value == &val);
+            TEST_ASSERT(ble_store_test_status_event.overflow.obj_type ==
+                        obj_type);
+            TEST_ASSERT(ble_store_test_status_event.overflow.value == &val);
             break;
         }
 

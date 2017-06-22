@@ -1002,7 +1002,7 @@ ble_sm_chk_store_overflow_by_type(int obj_type, uint16_t conn_handle)
     /* No capacity for an additional bond.  Tell the application to make
      * room.
      */
-    rc = ble_store_overflow_next_event(obj_type, conn_handle);
+    rc = ble_store_full_event(obj_type, conn_handle);
     if (rc != 0) {
         return rc;
     }
