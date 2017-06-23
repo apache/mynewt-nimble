@@ -1285,6 +1285,7 @@ ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
     return usecs;
 
 }
+#endif
 
 uint16_t
 ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
@@ -1321,7 +1322,6 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
 
     return octets;
 }
-#endif
 
 /**
  * Initialize the Link Layer. Should be called only once

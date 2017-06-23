@@ -228,10 +228,12 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
     g_ble_phy_data.phy_cur_phy_mode = (uint8_t)cur_phy_mode;
     g_ble_phy_data.phy_txtorx_phy_mode = (uint8_t)txtorx_phy_mode;
 }
+#endif
 
 int
 ble_phy_get_cur_phy(void)
 {
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     switch (g_ble_phy_data.phy_cur_phy_mode) {
         case BLE_PHY_MODE_1M:
             return BLE_PHY_1M;
@@ -244,8 +246,10 @@ ble_phy_get_cur_phy(void)
             assert(0);
             return -1;
     }
-}
+#else
+    return BLE_PHY_1M;
 #endif
+}
 
 /**
  * Copies the data from the phy receive buffer into a mbuf chain.

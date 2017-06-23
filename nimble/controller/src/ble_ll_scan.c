@@ -818,7 +818,9 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     int rc;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
     uint8_t scan_chan;
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     uint8_t phy_mode;
+#endif
     int phy;
 
     ble_ll_get_chan_to_scan(scansm, &scan_chan, &phy);
