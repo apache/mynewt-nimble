@@ -256,10 +256,12 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
                 ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)
                                                   entry->cb_arg);
                 break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
             case BLE_LL_SCHED_TYPE_AUX_SCAN:
                 ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)
                                           entry->cb_arg);
                 break;
+#endif
             default:
                 assert(0);
                 break;
@@ -1075,7 +1077,7 @@ ble_ll_sched_rfclk_chk_restart(void)
  * @return int
  */
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
 ble_ll_sched_is_busy_in(uint32_t usec)
 {

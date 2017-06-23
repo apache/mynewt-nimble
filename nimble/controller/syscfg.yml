@@ -230,6 +230,13 @@ syscfg.defs:
             This option is used to enable/disable support for the coded PHY.
         value: '0'
 
+    BLE_LL_CFG_FEAT_LL_EXT_ADV:
+        description: >
+            This option is used to enable/disable support for Extended
+            Advertising Feature. That means extended scanner, advertiser
+            and connect.
+        value: 0
+
     BLE_PUBLIC_DEV_ADDR:
         description: >
             Allows the target or app to override the public device address

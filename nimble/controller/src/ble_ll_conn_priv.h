@@ -96,7 +96,7 @@ void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
 void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
                              struct hci_create_conn *hcc);
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 void ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
                                  struct hci_ext_create_conn *hcc);
 
@@ -175,7 +175,7 @@ int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
 int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
 int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan);
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int ble_ll_ext_conn_create(uint8_t *cmdbuf);
 #endif
 #ifdef __cplusplus

@@ -70,7 +70,7 @@ struct ble_mbuf_hdr_rxinfo
 #if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
     void *advsm;   /* advertising state machine */
 #endif
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     void *aux_data;
 #endif
 };

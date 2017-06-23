@@ -789,6 +789,7 @@ ble_ll_conn_wfr_timer_exp(void)
 void
 ble_ll_conn_init_wrf_timer_exp(void)
 {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_scan_sm *scansm;
 
@@ -804,6 +805,7 @@ ble_ll_conn_init_wrf_timer_exp(void)
         STATS_INC(ble_ll_stats, aux_missed_adv);
         ble_ll_event_send(&scansm->scan_sched_ev);
     }
+#endif
 }
 /**
  * Callback for slave when it transmits a data pdu and the connection event
@@ -1728,7 +1730,7 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     }
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 
 void
 ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
@@ -1750,7 +1752,7 @@ ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
 static void
 ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy ,int rx_phy)
 {
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+
     struct ble_ll_conn_phy_data *phy_data = &connsm->phy_data;
 
     phy_data->rx_phy_mode = ble_ll_phy_to_phy_mode(rx_phy,
@@ -1761,7 +1763,6 @@ ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy ,int rx_phy)
                                                    BLE_HCI_LE_PHY_CODED_ANY);
     phy_data->cur_tx_phy = tx_phy;
 
-#endif
 }
 
 void
@@ -2805,11 +2806,13 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
         return;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         /* Do nothing, we need AUX_CONN_RSP*/
         ble_ll_scan_aux_data_free(ble_hdr->rxinfo.aux_data);
         return;
     }
+#endif
 
     /* If we have sent a connect request, we need to enter CONNECTION state */
     if (connsm && CONN_F_CONN_REQ_TXD(connsm)) {
@@ -2861,7 +2864,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
             ble_ll_conn_set_csa(connsm, rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK);
         }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* Lets take last used phy */
         ble_ll_conn_set_phy(connsm, ble_hdr->rxinfo.phy, ble_hdr->rxinfo.phy);
 #endif
@@ -2902,17 +2905,19 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     uint8_t conn_req_end_trans;
     struct os_mbuf *rxpdu;
     struct ble_ll_conn_sm *connsm;
-    struct ble_ll_scan_sm *scansm;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_scan_sm *scansm;
     uint8_t phy;
     struct ble_ll_aux_data *aux_data = NULL;
+#endif
     int ext_adv_mode = -1;
 
     /* Get connection state machine to use if connection to be established */
     connsm = g_ble_ll_conn_create_sm;
-    scansm = connsm->scansm;
+
     /*
      * We have to restart receive if we cant hand up pdu. We return 0 so that
      * the phy does not get disabled.
@@ -2927,7 +2932,9 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     inita_is_rpa = 0;
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    scansm = connsm->scansm;
+
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm) {
             goto init_rx_isr_exit;
@@ -2956,6 +2963,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
         break;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
         /* Lets see if we have addr. If not we need to wait for aux ptr*/
         if (!adv_addr || !(ext_adv_mode & BLE_LL_EXT_ADV_MODE_CONN)) {
@@ -2982,6 +2991,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         }
         /* if there is direct address lets fall down and check it.*/
         // no break
+#endif
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
             /*
              * If we expect our address to be private and the INITA is not,
@@ -3072,11 +3082,13 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         }
     }
 
+    /* For CONNECT_IND we don't go into RX state */
+    conn_req_end_trans = BLE_PHY_TRANSITION_NONE;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* Check if we should send AUX_CONNECT_REQ and wait for AUX_CONNECT_RSP */
     if (ble_hdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
         conn_req_end_trans = BLE_PHY_TRANSITION_TX_RX;
-    } else {
-        conn_req_end_trans = BLE_PHY_TRANSITION_NONE;
     }
 
     if (connsm->scansm->ext_scanning) {
@@ -3091,6 +3103,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                                        phy, BLE_HCI_LE_PHY_CODED_ANY);
 
     }
+#endif
 
     /* Create the connection request */
     ble_ll_conn_req_pdu_make(connsm, ble_hdr->rxinfo.channel);

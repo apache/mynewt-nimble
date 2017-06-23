@@ -136,6 +136,7 @@ static uint8_t g_ble_ll_scan_num_dup_advs;
 struct ble_ll_scan_advertisers
 g_ble_ll_scan_dup_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)];
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /*TODO Make it MYNEWT_VAL*/
 #define OUTSTANDING_AUX 10
 
@@ -197,6 +198,7 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
 
     return 0;
 }
+#endif
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
 static void
@@ -480,7 +482,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
     return;
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 
 static struct ble_ll_ext_adv *
 ble_ll_scan_init_ext_adv(void)
@@ -686,7 +688,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
     adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 #endif
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->ext_scanning) {
         rc = ble_ll_hci_send_legacy_ext_adv_report(subev, evtype,
                                                    addr_type, adv_addr,
@@ -785,7 +787,7 @@ ble_ll_get_chan_to_scan(struct ble_ll_scan_sm *scansm, uint8_t *chan,
                         int *phy)
 {
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_aux_data *aux_data = scansm->cur_aux_data;
 
     if (!scansm->ext_scanning || !aux_data || !aux_data->scanning) {
@@ -995,12 +997,14 @@ ble_ll_scan_sm_stop(int chk_disable)
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     OS_ENTER_CRITICAL(sr);
     if (scansm->cur_aux_data) {
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
     }
     OS_EXIT_CRITICAL(sr);
+#endif
 
     /* Count # of times stopped */
     STATS_INC(ble_ll_stats, scan_stops);
@@ -1073,6 +1077,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     return BLE_ERR_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
 ble_ll_scan_switch_phy(struct ble_ll_scan_sm *scansm)
 {
@@ -1138,6 +1143,7 @@ ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
 
     return next_event_time;
 }
+#endif
 
 /**
  * Called to process the scanning OS event which was posted to the LL task
@@ -1294,7 +1300,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
 #endif
         ble_ll_scan_start(scansm);
     } else {
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
       next_event_time = ble_ll_scan_start_next_phy(scansm, next_event_time);
 #endif
     }
@@ -1372,7 +1378,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
     return rc;
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static int
 ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
 {
@@ -1679,7 +1685,7 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                             uint8_t **inita, uint8_t *inita_is_rpa,
                             int *ext_mode)
 {
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t inita_type;
 #endif
 
@@ -1707,7 +1713,7 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
     }
 
     /* Extended advertising */
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ble_ll_scan_get_addr_from_ext_adv(rxbuf, ble_hdr, addr, addr_type,
                                           inita, &inita_type, ext_mode)) {
         return -1;
@@ -1748,9 +1754,9 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanphy;
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
-    struct ble_ll_aux_data *aux_data = NULL;
     int ext_adv_mode = -1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_aux_data *aux_data = NULL;
     uint8_t phy_mode;
 #endif
 
@@ -1782,7 +1788,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm->ext_scanning) {
             goto scan_rx_isr_exit;
@@ -1818,6 +1824,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Determine if request may be sent and if whitelist needs to be checked */
     chk_send_req = 0;
     switch (pdu_type) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
 
         ble_hdr->rxinfo.aux_data = scansm->cur_aux_data;
@@ -1834,6 +1841,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         }
         chk_wl = 1;
     break;
+#endif
     case BLE_ADV_PDU_TYPE_ADV_IND:
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
         if (scanphy->scan_type == BLE_SCAN_TYPE_ACTIVE) {
@@ -1901,13 +1909,14 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         /* We want to send a request. See if backoff allows us */
         --scansm->backoff_count;
         if (scansm->backoff_count == 0) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
             phy_mode = ble_ll_phy_to_phy_mode(ble_hdr->rxinfo.phy,
                                               BLE_HCI_LE_PHY_CODED_ANY);
             if (ble_ll_scan_has_enought_time_for_scan(ble_hdr->rxinfo.channel,
                                                       phy_mode)) {
                 goto scan_rx_isr_exit;
             }
-
+#endif
             /* XXX: TODO assume we are on correct phy */
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
             rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_TX_RX);
@@ -1986,7 +1995,7 @@ ble_ll_scan_wfr_timer_exp(void)
         ble_ll_scan_req_backoff(scansm, 0);
     }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->cur_aux_data) {
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
@@ -1998,7 +2007,7 @@ ble_ll_scan_wfr_timer_exp(void)
     ble_phy_restart_rx();
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 void
 ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
 {
@@ -2077,7 +2086,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 
     /* TODO ADD FILTER POLICY */
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm->ext_scanning) {
             goto scan_continue;
@@ -2243,7 +2252,7 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static int
 ble_ll_check_scan_params(uint8_t type, uint16_t itvl, uint16_t window)
 {
@@ -2496,7 +2505,7 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
     return ble_ll_scan_sm_start(scansm);
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
 ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
                                 struct ble_ll_scan_sm **sm)
@@ -2675,7 +2684,9 @@ ble_ll_scan_init(void)
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
     int i;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     os_error_t err;
+#endif
 
     /* Clear state machine in case re-initialized */
     scansm = &g_ble_ll_scan_sm;
@@ -2706,7 +2717,7 @@ ble_ll_scan_init(void)
                                               sizeof(struct ble_mbuf_hdr));
     assert(scansm->scan_req_pdu != NULL);
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     err = os_mempool_init(&ext_adv_pool,
                           OUTSTANDING_AUX,
                           sizeof (struct ble_ll_aux_data),
