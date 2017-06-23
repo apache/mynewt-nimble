@@ -776,7 +776,7 @@ ble_phy_rx_start_isr(void)
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
     ble_hdr->rxinfo.phy = ble_phy_get_cur_phy();
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_hdr->rxinfo.aux_data = NULL;
 #endif
 

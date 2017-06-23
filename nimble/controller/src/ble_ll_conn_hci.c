@@ -518,7 +518,7 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     return rc;
 }
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 
 int
 ble_ll_ext_conn_create(uint8_t *cmdbuf)

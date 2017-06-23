@@ -315,7 +315,9 @@ struct ble_ll_conn_sm
     struct ble_ll_conn_params conn_cp;
 
     struct ble_ll_scan_sm *scansm;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct hci_ext_create_conn initial_params;
+#endif
 
 };
 

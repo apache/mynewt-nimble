@@ -838,7 +838,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_resolve_set_priv_mode(cmdbuf);
         break;
 #endif
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
         rc = ble_ll_set_ext_scan_params(cmdbuf);
         break;

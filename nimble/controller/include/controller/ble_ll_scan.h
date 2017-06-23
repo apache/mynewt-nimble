@@ -55,7 +55,7 @@ extern "C" {
 #define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
 #define BLE_SCAN_MAX_PKT_LEN            (37)
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_EXT_SCAN_MAX_PKT_LEN        (256)
 
     /* For Bluetooth 5.0 we need state machine for two PHYs*/
@@ -138,7 +138,7 @@ int ble_ll_scan_set_scan_params(uint8_t *cmd);
 /* Turn scanning on/off */
 int ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext);
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int ble_ll_set_ext_scan_params(uint8_t *cmd);
 #endif
 
@@ -199,12 +199,12 @@ int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                                 uint8_t **inita, uint8_t *inita_is_rpa,
                                 int *ext_mode);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /* Get aux ptr from ext advertising */
 int ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
                              struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
                              struct ble_ll_aux_data **aux_data);
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
 /* Initialize the extended scanner when we start initiating */
 struct hci_ext_create_conn;
 int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,

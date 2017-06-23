@@ -51,6 +51,3 @@ syscfg.defs:
             advertising instances is this number plus 1 (assuming the device
             supports advertising).
         value: 0
-    BLE_EXT_SCAN_SUPPORT:
-        description: "Enable extended scan support from Bluetooth 5.0"
-        value: 0

@@ -771,7 +771,7 @@ struct hci_create_conn
     uint16_t max_ce_len;
 };
 
-#if MYNEWT_VAL(BLE_EXT_SCAN_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) || MYNEWT_VAL(BLE_EXT_ADV)
 /* LE create connection command (ocf=0x0043). */
 struct hci_ext_conn_params
 {
