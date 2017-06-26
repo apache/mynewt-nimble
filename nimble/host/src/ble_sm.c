@@ -195,28 +195,13 @@ ble_sm_dbg_set_next_csrk(uint8_t *next_csrk)
     ble_sm_dbg_next_csrk_set = 1;
 }
 
-int
-ble_sm_dbg_num_procs(void)
-{
-    struct ble_sm_proc *proc;
-    int cnt;
-
-    cnt = 0;
-    STAILQ_FOREACH(proc, &ble_sm_procs, next) {
-        BLE_HS_DBG_ASSERT(cnt < MYNEWT_VAL(BLE_SM_MAX_PROCS));
-        cnt++;
-    }
-
-    return cnt;
-}
-
 #endif
 
 static void
 ble_sm_dbg_assert_no_cycles(void)
 {
 #if MYNEWT_VAL(BLE_HS_DEBUG)
-    ble_sm_dbg_num_procs();
+    ble_sm_num_procs();
 #endif
 }
 
@@ -235,6 +220,24 @@ ble_sm_dbg_assert_not_inserted(struct ble_sm_proc *proc)
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
+
+/**
+ * Calculates the number of active SM procedures.
+ */
+int
+ble_sm_num_procs(void)
+{
+    struct ble_sm_proc *proc;
+    int cnt;
+
+    cnt = 0;
+    STAILQ_FOREACH(proc, &ble_sm_procs, next) {
+        BLE_HS_DBG_ASSERT(cnt < MYNEWT_VAL(BLE_SM_MAX_PROCS));
+        cnt++;
+    }
+
+    return cnt;
+}
 
 int
 ble_sm_gen_pair_rand(uint8_t *pair_rand)
@@ -971,6 +974,62 @@ ble_sm_key_dist(struct ble_sm_proc *proc,
     }
 }
 
+static int
+ble_sm_chk_store_overflow_by_type(int obj_type, uint16_t conn_handle)
+{
+#if !MYNEWT_VAL(BLE_SM_BONDING)
+    return 0;
+#endif
+
+    int count;
+    int rc;
+
+    rc = ble_store_util_count(obj_type, &count);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* Pessimistically assume all active procs will persist bonds. */
+    ble_hs_lock();
+    count += ble_sm_num_procs();
+    ble_hs_unlock();
+
+    if (count < MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+        /* There is sufficient capacity for another bond. */
+        return 0;
+    }
+
+    /* No capacity for an additional bond.  Tell the application to make
+     * room.
+     */
+    rc = ble_store_full_event(obj_type, conn_handle);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_sm_chk_store_overflow(uint16_t conn_handle)
+{
+    int rc;
+
+    rc = ble_sm_chk_store_overflow_by_type(BLE_STORE_OBJ_TYPE_PEER_SEC,
+                                           conn_handle);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_sm_chk_store_overflow_by_type(BLE_STORE_OBJ_TYPE_OUR_SEC,
+                                           conn_handle);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 /*****************************************************************************
  * $enc                                                                      *
  *****************************************************************************/
@@ -1689,6 +1748,20 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         ble_sm_proc_free(proc);
     }
 
+    ble_hs_unlock();
+
+    /* Check if there is storage capacity for a new bond.  If there isn't, ask
+     * the application to make room.
+     */
+    rc = ble_sm_chk_store_overflow(conn_handle);
+    if (rc != 0) {
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->app_status = rc;
+        return;
+    }
+
+    ble_hs_lock();
+
     proc = ble_sm_proc_alloc();
     if (proc != NULL) {
         proc->conn_handle = conn_handle;
@@ -1746,6 +1819,7 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
     struct ble_sm_pair_cmd *rsp;
     struct ble_sm_proc *proc;
     uint8_t ioact;
+    int rc;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*rsp));
     if (res->app_status != 0) {
@@ -1770,8 +1844,6 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
         } else {
-            int rc;
-
             ble_sm_pair_cfg(proc);
 
             rc = ble_sm_io_action(proc, &ioact);
@@ -2325,30 +2397,40 @@ ble_sm_pair_initiate(uint16_t conn_handle)
 {
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
+    int rc;
 
     /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
+    ble_hs_unlock();
+
     if (proc != NULL) {
         res.app_status = BLE_HS_EALREADY;
-
-        /* Set pointer to null so that existing entry doesn't get freed. */
-        proc = NULL;
-    } else {
-        proc = ble_sm_proc_alloc();
-        if (proc == NULL) {
-            res.app_status = BLE_HS_ENOMEM;
-        } else {
-            proc->conn_handle = conn_handle;
-            proc->state = BLE_SM_PROC_STATE_PAIR;
-            proc->flags |= BLE_SM_PROC_F_INITIATOR;
-            ble_sm_insert(proc);
-
-            res.execute = 1;
-        }
+        return BLE_HS_EALREADY;
     }
 
-    ble_hs_unlock();
+    /* Check if there is storage capacity for a new bond.  If there isn't, ask
+     * the application to make room.
+     */
+    rc = ble_sm_chk_store_overflow(conn_handle);
+    if (rc != 0) {
+        return rc;
+    }
+
+    proc = ble_sm_proc_alloc();
+    if (proc == NULL) {
+        res.app_status = BLE_HS_ENOMEM;
+    } else {
+        proc->conn_handle = conn_handle;
+        proc->state = BLE_SM_PROC_STATE_PAIR;
+        proc->flags |= BLE_SM_PROC_F_INITIATOR;
+
+        ble_hs_lock();
+        ble_sm_insert(proc);
+        ble_hs_unlock();
+
+        res.execute = 1;
+    }
 
     if (proc != NULL) {
         ble_sm_process_result(conn_handle, &res);
