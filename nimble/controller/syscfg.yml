@@ -245,3 +245,7 @@ syscfg.defs:
             chip specific location. If non-zero, this address will
             be used.
         value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
+
+syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
+    BLE_LL_CFG_FEAT_LE_CSA2: 1
+
