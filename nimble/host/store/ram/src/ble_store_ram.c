@@ -158,7 +158,7 @@ ble_store_ram_write_our_sec(const struct ble_store_value_sec *value_sec)
         if (ble_store_ram_num_our_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             BLE_HS_LOG(DEBUG, "error persisting our sec; too many entries "
                               "(%d)\n", ble_store_ram_num_our_secs);
-            return BLE_HS_ENOMEM;
+            return BLE_HS_ESTORE_CAP;
         }
 
         idx = ble_store_ram_num_our_secs;
@@ -272,7 +272,7 @@ ble_store_ram_write_peer_sec(const struct ble_store_value_sec *value_sec)
         if (ble_store_ram_num_peer_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             BLE_HS_LOG(DEBUG, "error persisting peer sec; too many entries "
                              "(%d)\n", ble_store_ram_num_peer_secs);
-            return BLE_HS_ENOMEM;
+            return BLE_HS_ESTORE_CAP;
         }
 
         idx = ble_store_ram_num_peer_secs;
@@ -370,7 +370,7 @@ ble_store_ram_write_cccd(const struct ble_store_value_cccd *value_cccd)
         if (ble_store_ram_num_cccds >= MYNEWT_VAL(BLE_STORE_MAX_CCCDS)) {
             BLE_HS_LOG(DEBUG, "error persisting cccd; too many entries (%d)\n",
                        ble_store_ram_num_cccds);
-            return BLE_HS_ENOMEM;
+            return BLE_HS_ESTORE_CAP;
         }
 
         idx = ble_store_ram_num_cccds;
@@ -431,8 +431,8 @@ ble_store_ram_read(int obj_type, const union ble_store_key *key,
 /**
  * Adds the specified object to the database.
  *
- * @return                      0 on success; BLE_HS_ENOMEM if the database is
- *                                  full.
+ * @return                      0 on success; BLE_HS_ESTORE_CAP if the database
+ *                                  is full.
  */
 int
 ble_store_ram_write(int obj_type, const union ble_store_value *val)
