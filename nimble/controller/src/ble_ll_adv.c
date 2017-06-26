@@ -84,6 +84,7 @@ struct ble_ll_adv_sm
     int8_t adv_rpa_index;
     uint8_t flags;
     int8_t adv_txpwr;
+    uint16_t props;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
@@ -100,18 +101,16 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
-    uint16_t props;
 #if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
-    uint8_t adv_secondary;
-    uint8_t adv_secondary_chan;
     uint32_t adv_secondary_start_time;
     struct ble_ll_sched_item adv_secondary_sch;
-
-    uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
     uint16_t duration; /* TODO */
+    uint16_t did;
+    uint8_t adv_secondary;
+    uint8_t adv_secondary_chan;
+    uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
     uint8_t events_max;
     uint8_t events;
-    uint16_t did;
     uint8_t pri_phy;
     uint8_t sec_phy;
     uint8_t sid;
