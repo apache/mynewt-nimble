@@ -203,6 +203,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
 /* LL timing */
 #define BLE_LL_IFS                  (150)       /* usecs */
+#define BLE_LL_MAFS                 (300)       /* usecs */
 
 /*
  * BLE LL device address. Note that element 0 of the array is the LSB and

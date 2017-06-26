@@ -1286,6 +1286,26 @@ ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
 }
 
 static void
+ble_ll_set_adv_secondary_start_time(struct ble_ll_adv_sm *advsm)
+{
+    static const uint8_t bits[8] = {0, 1, 1, 2, 1, 2, 2, 3};
+    struct ble_ll_sched_item *sched = &advsm->adv_sch;
+    uint32_t ext_duration;
+    uint8_t chans;
+
+    assert(advsm->adv_chanmask <= BLE_HCI_ADV_CHANMASK_DEF);
+
+    chans = bits[advsm->adv_chanmask];
+
+    ext_duration = (int32_t)(sched->end_time - sched->start_time);
+    ext_duration += os_cputime_usecs_to_ticks(BLE_LL_IFS) * (chans -1);
+
+    advsm->adv_secondary_start_time = advsm->adv_event_start_time +
+                                      ext_duration +
+                                      os_cputime_usecs_to_ticks(BLE_LL_MAFS);
+}
+
+static void
 ble_ll_adv_secondary_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
 {
     advsm->adv_secondary_start_time = sch_start;
@@ -1410,11 +1430,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     ble_ll_sched_adv_new(&advsm->adv_sch, ble_ll_adv_scheduled);
 
     if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
-        /* TODO calculate this 5000 based on ext_adv sched time and channel used */
-        advsm->adv_secondary_start_time = advsm->adv_pdu_start_time +
-                                        os_cputime_usecs_to_ticks(2000) +
-                                        os_cputime_usecs_to_ticks(300);
-
+        ble_ll_set_adv_secondary_start_time(advsm);
         ble_ll_adv_secondary_set_sched(advsm);
         ble_ll_sched_adv_new(&advsm->adv_secondary_sch,
                              ble_ll_adv_secondary_scheduled);
@@ -2521,21 +2537,19 @@ ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
          return;
     }
 
-    /* TODO calculate this 5000 based on ext_adv sched time and channel used */
-    advsm->adv_secondary_start_time = advsm->adv_pdu_start_time +
-                                      os_cputime_usecs_to_ticks(5000) +
-                                      os_cputime_usecs_to_ticks(300);
-
+    ble_ll_set_adv_secondary_start_time(advsm);
     ble_ll_adv_secondary_set_sched(advsm);
 
     /*
      * In the unlikely event we cant reschedule this, just post a done
      * event and we will reschedule the next advertising event
+     *
+     * TODO should we give scheduler more flexibility with delay?
      */
      /* Reschedule advertising event */
      rc = ble_ll_sched_adv_reschedule(&advsm->adv_secondary_sch,
                                       &advsm->adv_secondary_start_time,
-                                      os_cputime_usecs_to_ticks(5000));
+                                      os_cputime_usecs_to_ticks(0));
      if (rc) {
          os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
      }
