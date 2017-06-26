@@ -1709,6 +1709,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     uint8_t sec_phy;
     uint8_t sid;
     uint8_t scan_req_notif;
+    int8_t tx_power;
 
     if (cmdbuf[0] >= BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1843,7 +1844,14 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         memcpy(advsm->peer_addr, &cmdbuf[12], BLE_DEV_ADDR_LEN);
     }
 
-    advsm->adv_txpwr = 0; /* TODO rspbuf[21];*/
+    tx_power = (int8_t) rspbuf[21];
+    if (tx_power == 127) {
+        /* no preference */
+        advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+    } else {
+        advsm->adv_txpwr = ble_phy_txpower_round(tx_power);
+    }
+
     advsm->own_addr_type = own_addr_type;
     advsm->peer_addr_type = peer_addr_type;
     advsm->adv_filter_policy = adv_filter_policy;
