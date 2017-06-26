@@ -51,3 +51,7 @@ syscfg.defs:
             advertising instances is this number plus 1 (assuming the device
             supports advertising).
         value: 0
+    BLE_EXT_ADV:
+        description: >
+            This enables extended advertising feature.
+        value: 0
