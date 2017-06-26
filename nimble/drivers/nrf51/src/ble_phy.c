@@ -568,7 +568,7 @@ ble_phy_tx_end_isr(void)
         wfr_time = (BLE_LL_IFS + ble_phy_mode_pdu_start_off(BLE_PHY_1M) +
                     (2 * BLE_LL_JITTER_USECS)) -
                     ble_phy_mode_pdu_start_off(BLE_PHY_1M);
-        wfr_time += ble_phy_mode_pdu_dur(txlen, BLE_PHY_1M);
+        wfr_time += ble_ll_pdu_tx_time_get(txlen, BLE_PHY_1M);
         wfr_time = os_cputime_usecs_to_ticks(wfr_time);
         ble_ll_wfr_enable(txstart + wfr_time);
 #endif
