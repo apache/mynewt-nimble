@@ -610,6 +610,7 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
     }
 
     if (hcc->init_phy_mask & BLE_PHY_MASK_2M) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
         /* Move to connection parameters */
         hcc_params = &hcc->params[1];
         iter += 4;
@@ -635,9 +636,13 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         }
 
         iter += 4;
+#else
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+#endif
     }
 
     if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
         hcc_params = &hcc->params[2];
         hcc_params->scan_itvl = get_le16(cmdbuf + iter);
         hcc_params->scan_window = get_le16(cmdbuf + iter + 2);
@@ -670,6 +675,9 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         }
 
         iter += 4;
+#else
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+#endif
     }
 
     /* Make sure we can allocate an event to send the connection complete */
