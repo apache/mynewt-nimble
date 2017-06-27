@@ -695,6 +695,10 @@ ble_phy_rx_start_isr(void)
     ble_hdr->rxinfo.flags = ble_ll_state_get();
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
+    ble_hdr->rxinfo.phy = BLE_PHY_1M;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_hdr->rxinfo.aux_data = NULL;
+#endif
 
 #if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     /*
