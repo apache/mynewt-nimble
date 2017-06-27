@@ -39,9 +39,7 @@ struct hal_timer g_ble_ll_sched_timer;
 uint8_t g_ble_ll_sched_xtal_ticks;
 #endif
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 uint8_t g_ble_ll_sched_offset_ticks;
-#endif
 
 #define BLE_LL_SCHED_ADV_WORST_CASE_USECS       \
     (BLE_LL_SCHED_MAX_ADV_PDU_USECS + BLE_LL_IFS + BLE_LL_SCHED_ADV_MAX_USECS \
@@ -166,7 +164,6 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     /* Get schedule element from connection */
     sch = &connsm->conn_sch;
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* Set schedule start and end times */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
@@ -176,16 +173,6 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     } else {
         sch->remainder = connsm->anchor_point_usecs;
     }
-#else
-    /* Set schedule start and end times */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        usecs = XCVR_RX_SCHED_DELAY_USECS;
-        usecs += connsm->slave_cur_window_widening;
-    } else {
-        usecs = XCVR_TX_SCHED_DELAY_USECS;
-    }
-    sch->start_time = connsm->anchor_point - os_cputime_usecs_to_ticks(usecs);
-#endif
     sch->end_time = connsm->ce_end_time;
 
     /* Better be past current time or we just leave */
@@ -333,7 +320,6 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     sch = &connsm->conn_sch;
     req_slots = MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS);
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* XXX:
      * The calculations for the 32kHz crystal bear alot of explanation. The
      * earliest possible time that the master can start the connection with a
@@ -417,25 +403,6 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     }
     earliest_end = earliest_start + dur;
     itvl_t = connsm->conn_itvl_ticks;
-#else
-    adv_rxend = ble_hdr->beg_cputime +
-        os_cputime_usecs_to_ticks(ble_ll_pdu_tx_time_get(pyld_len, BLE_PHY_MODE_1M));
-    /*
-     * The earliest start time is 1.25 msecs from the end of the connect
-     * request transmission. Note that adv_rxend is the end of the received
-     * advertisement, so we need to add an IFS plus the time it takes to send
-     * the connection request. The 1.25 msecs starts from the end of the conn
-     * request. Also include minimum WindowOffset value if configured.
-     */
-    dur = os_cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
-    earliest_start = adv_rxend +
-        os_cputime_usecs_to_ticks(BLE_LL_IFS +
-                                  ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN, BLE_PHY_MODE_1M) +
-                                  BLE_LL_CONN_INITIAL_OFFSET +
-                                  MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) * BLE_LL_CONN_TX_OFF_USECS);
-    earliest_end = earliest_start + dur;
-    itvl_t = os_cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
-#endif
 
     /* We have to find a place for this schedule */
     OS_ENTER_CRITICAL(sr);
@@ -483,7 +450,6 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
         if (!rc) {
             /* calculate number of window offsets. Each offset is 1.25 ms */
             sch->enqueued = 1;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
             /*
              * NOTE: we dont add sched offset ticks as we want to under-estimate
              * the transmit window slightly since the window size is currently
@@ -491,28 +457,18 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
              */
             dur = os_cputime_ticks_to_usecs(earliest_start - initial_start);
             connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
-#else
-            dur = os_cputime_ticks_to_usecs(earliest_start - initial_start);
-            dur += XCVR_TX_SCHED_DELAY_USECS;
-            connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
-#endif
         }
     }
 
     if (!rc) {
         sch->start_time = earliest_start;
         sch->end_time = earliest_end;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         /*
          * Since we have the transmit window to transmit in, we dont need
          * to set the anchor point usecs; just transmit to the nearest tick.
          */
         connsm->anchor_point = earliest_start + g_ble_ll_sched_offset_ticks;
         connsm->anchor_point_usecs = 0;
-#else
-        connsm->anchor_point = earliest_start +
-            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
         connsm->ce_end_time = earliest_end;
     }
 
@@ -554,7 +510,6 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
     sch = &connsm->conn_sch;
 
     /* Set schedule start and end times */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /*
      * XXX: for now, we dont care about anchor point usecs for the slave. It
      * does not matter if we turn on the receiver up to one tick before w
@@ -563,11 +518,6 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
      */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks -
         os_cputime_usecs_to_ticks(connsm->slave_cur_window_widening) - 1;
-#else
-    sch->start_time = connsm->anchor_point -
-        os_cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS +
-                                  connsm->slave_cur_window_widening);
-#endif
     sch->end_time = connsm->ce_end_time;
     sch->remainder = 0;
 
@@ -1224,10 +1174,8 @@ ble_ll_sched_init(void)
      * This is the offset from the start of the scheduled item until the actual
      * tx/rx should occur, in ticks. We also "round up" to the nearest tick.
      */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     g_ble_ll_sched_offset_ticks =
-        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
-#endif
+        (uint8_t) os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
 
     /* Initialize cputimer for the scheduler */
     os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
