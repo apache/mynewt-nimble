@@ -247,6 +247,12 @@ syscfg.defs:
             and connect.
         value: MYNEWT_VAL_BLE_EXT_ADV
 
+    BLE_LL_EXT_ADV_AUX_PTR_CNT:
+         description: >
+            This option configure a max number of scheduled outstanding auxiliary
+            packets for receive on secondary advertising channel.
+         value: 0
+
     BLE_PUBLIC_DEV_ADDR:
         description: >
             Allows the target or app to override the public device address
@@ -259,3 +265,4 @@ syscfg.defs:
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
+    BLE_LL_EXT_ADV_AUX_PTR_CNT: 5
