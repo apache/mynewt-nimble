@@ -104,7 +104,7 @@ struct ble_ll_adv_sm
     uint32_t adv_secondary_start_time;
     struct ble_ll_sched_item adv_secondary_sch;
     uint16_t duration; /* TODO */
-    uint16_t did;
+    uint16_t adi;
     uint8_t adv_secondary;
     uint8_t adv_secondary_chan;
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
@@ -112,7 +112,6 @@ struct ble_ll_adv_sm
     uint8_t events;
     uint8_t pri_phy;
     uint8_t sec_phy;
-    uint8_t sid;
 #endif
 };
 
@@ -475,10 +474,8 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     }
 
     if (adi) {
-        dptr[0] = advsm->did & 0x00ff;
-        dptr[1] = advsm->did >> 8;
-        dptr[1] |= (advsm->sid) << 4;
-
+        dptr[0] = advsm->adi & 0x00ff;
+        dptr[1] = advsm->adi >> 8;
         dptr += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
     }
 
@@ -1556,7 +1553,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* DID shall be updated when host provides new scan response data */
-    advsm->did = rand() & 0x0fff;
+    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
 #endif
 
     /* Copy the new data into the advertising structure. */
@@ -1620,7 +1617,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
         }
 
         /* update DID only */
-        advsm->did = rand() & 0x0fff;
+        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
         /* TODO mark adv data as complete? */
@@ -1667,7 +1664,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* DID shall be updated when host provides new advertising data */
-    advsm->did = rand() & 0x0fff;
+    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
 #endif
 
     /* Copy the new data into the advertising structure. */
@@ -1845,7 +1842,9 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     advsm->adv_itvl_max = adv_itvl_max;
     advsm->pri_phy = pri_phy;
     advsm->sec_phy = sec_phy;
-    advsm->sid = sid;
+    /* Update SID only */
+    advsm->adi = (advsm->adi & 0x0fff) | ((sid << 12));
+
     advsm->props = props;
 
     if (scan_req_notif) {
