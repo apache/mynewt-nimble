@@ -67,10 +67,9 @@ struct ble_mbuf_hdr_rxinfo
     uint8_t handle;
     int8_t  rssi;
     int8_t  phy;
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
-    void *advsm;   /* advertising state machine */
-#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* TODO  this could be just one user-data pointer */
+    void *advsm;   /* advertising state machine */
     void *aux_data;
 #endif
 };

@@ -124,13 +124,10 @@ int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance,
                                  uint8_t operation);
 
 /* Set advertising parameters */
-int ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi);
+int ble_ll_adv_set_adv_params(uint8_t *cmd);
 
 /* Read advertising channel power */
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
-
-int ble_ll_adv_multi_adv_cmd(uint8_t *cmd, uint8_t cmdlen, uint8_t *rspbuf,
-                             uint8_t *rsplen);
 
 /*---- API used by BLE LL ----*/
 /* Send the connection complete event */

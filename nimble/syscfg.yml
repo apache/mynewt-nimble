@@ -41,9 +41,6 @@ syscfg.defs:
             Enables the BLE whitelist for controlling who to connect to or
             accept a connection from. (0/1)
         value: 1
-    BLE_ANDROID_MULTI_ADV_SUPPORT:
-        description: 'Support for Android Vendor multi-advertisers HCI commands'
-        value: 0
     BLE_MULTI_ADV_INSTANCES:
         description: >
             This is the number of multi-advertising instances. This is NOT the
