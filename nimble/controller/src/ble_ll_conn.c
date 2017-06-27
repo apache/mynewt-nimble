@@ -3092,7 +3092,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     }
 
     if (connsm->scansm->ext_scanning) {
-            phy = ble_phy_get_cur_phy();
+            phy = ble_hdr->rxinfo.phy;
 
             /* Update connection state machine with appropriate parameters for
              * certain PHY
