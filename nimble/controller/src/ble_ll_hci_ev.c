@@ -297,6 +297,7 @@ ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
  * Sends the LE Scan Request Received event
  *
  */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 void
 ble_ll_hci_ev_send_scan_req_recv(uint8_t adv_handle, const uint8_t *peer,
                                  uint8_t peer_addr_type)
@@ -316,11 +317,13 @@ ble_ll_hci_ev_send_scan_req_recv(uint8_t adv_handle, const uint8_t *peer,
         }
     }
 }
+#endif
 
 /**
  * Sends the LE Advertising Set Terminated event
  *
  */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 void
 ble_ll_hci_ev_send_adv_set_terminated(uint8_t status, uint8_t adv_handle,
                                       uint16_t conn_handle, uint8_t events)
@@ -341,6 +344,7 @@ ble_ll_hci_ev_send_adv_set_terminated(uint8_t status, uint8_t adv_handle,
         }
     }
 }
+#endif
 
 /**
  * Send a PHY update complete event
