@@ -397,20 +397,6 @@ ble_hs_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
     ble_hs_hci_cmd_body_disconnect(handle, reason, dst);
 }
 
-int
-ble_hs_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
-{
-    uint8_t cmd[BLE_HCI_DISCONNECT_CMD_LEN];
-    int rc;
-
-    ble_hs_hci_cmd_body_disconnect(handle, reason, cmd);
-    rc = ble_hs_hci_cmd_send(BLE_HCI_OGF_LINK_CTRL,
-                           BLE_HCI_OCF_DISCONNECT_CMD,
-                           BLE_HCI_DISCONNECT_CMD_LEN,
-                           cmd);
-    return rc;
-}
-
 static void
 ble_hs_hci_cmd_body_le_set_event_mask(uint64_t event_mask, uint8_t *dst)
 {
