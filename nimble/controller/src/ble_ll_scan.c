@@ -852,14 +852,10 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* XXX: probably need to make sure hfxo is running too */
     /* XXX: can make this better; want to just start asap. */
     rc = ble_phy_rx_set_start_time(os_cputime_get32() +
                                    g_ble_ll_sched_offset_ticks, 0);
-#else
-    rc = ble_phy_rx();
-#endif
     if (!rc) {
         /* Enable/disable whitelisting */
         if (scansm->scan_filt_policy & 1) {

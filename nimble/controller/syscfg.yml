@@ -25,6 +25,11 @@ syscfg.defs:
             drivers.
         value: 1
 
+    BLE_LP_CLOCK:
+        description: >
+            Used by BSP packages to configure LP clock for controller.
+        value: 1
+
     BLE_LL_PRIO:
         description: 'The priority of the LL task'
         type: 'task_priority'
