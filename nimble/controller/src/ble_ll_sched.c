@@ -1019,36 +1019,65 @@ ble_ll_sched_rfclk_chk_restart(void)
 
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/**
+ * Called to check if there is place for comming scan req.
+ *
+ * @param chan
+ * @param phy_mode
+ *
+ * @return int 0: Clear for scan req 1: there is an upcoming event
+ */
+int
+ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode)
+{
+    struct ble_ll_sched_item *sch;
+    uint32_t usec_dur;
+    uint32_t now = os_cputime_get32();
+
+    /* Lets calculate roughly how much time we need for scan req and scan rsp */
+    usec_dur = ble_ll_pdu_tx_time_get(BLE_SCAN_REQ_LEN, phy_mode);
+    if (chan >=  BLE_PHY_NUM_DATA_CHANS) {
+        usec_dur += ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_LEN, phy_mode);
+    } else {
+        usec_dur += ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_EXT_LEN, phy_mode);
+    }
+
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    while (sch) {
+        /* Let's check if there is no scheduled item which want to start within
+         * given usecs.*/
+        if ((int32_t)(sch->start_time - now + os_cputime_usecs_to_ticks(usec_dur)) > 0) {
+            /* We are fine. Have time for scan req */
+            return 0;
+        }
+
+        /* There is something in the scheduler. If it is not aux ptr we assume
+         * it is more important that scan req
+         */
+        if (sch->sched_type != BLE_LL_SCHED_TYPE_AUX_SCAN) {
+            return 1;
+        }
+
+        ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)sch->cb_arg);
+        TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 0;
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+    return 0;
+}
+
 /**
  * Called to schedule a aux scan.
  *
  * Context: Interrupt
  *
+ * @param ble_hdr
  * @param scansm
+ * @param aux_scan
  *
- * @return int
+ * @return 0 on success, 1 otherwise
  */
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int
-ble_ll_sched_is_busy_in(uint32_t usec)
-{
-    struct ble_ll_sched_item *sch;
-    uint32_t now = os_cputime_get32();
-
-    /* Get head of list to restart timer */
-    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
-    if (!sch) {
-        return 0;
-    }
-
-    if (now + os_cputime_usecs_to_ticks(usec) < sch->start_time) {
-        return 0;
-    }
-
-    return 1;
-}
-
 int
 ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
                       struct ble_ll_scan_sm *scansm,
