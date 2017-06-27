@@ -2249,7 +2249,9 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     scanp->scan_filt_policy = filter_policy;
     scanp->own_addr_type = own_addr_type;
     
+#if (BLE_LL_SCAN_PHY_NUMBER == 2)
     g_ble_ll_scan_params[PHY_CODED].configured = 0;
+#endif
 
     return 0;
 }
@@ -2713,7 +2715,9 @@ ble_ll_scan_init(void)
     }
 
     scansm->phy_data[PHY_UNCODED].phy = BLE_PHY_1M;
+#if (BLE_LL_SCAN_PHY_NUMBER == 2)
     scansm->phy_data[PHY_CODED].phy = BLE_PHY_CODED;
+#endif
 
     /* Initialize scanning timer */
     os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
