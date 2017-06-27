@@ -1657,23 +1657,6 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
 
     return 0;
 }
-
-static int
-ble_ll_scan_has_enought_time_for_scan(uint32_t chan, uint8_t phy_mode)
-{
-    uint32_t scan_req_usec;
-    uint32_t scan_rsp_usec;
-
-    scan_req_usec = ble_ll_pdu_tx_time_get(BLE_SCAN_REQ_LEN, phy_mode);
-    if (chan >=  BLE_PHY_NUM_DATA_CHANS) {
-        scan_rsp_usec = ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_LEN, phy_mode);
-    } else {
-        scan_rsp_usec = ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_EXT_LEN, phy_mode);
-    }
-
-    return !ble_ll_sched_is_busy_in(scan_req_usec + scan_rsp_usec);
-}
-
 #endif
 
 int
@@ -1910,8 +1893,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
             phy_mode = ble_ll_phy_to_phy_mode(ble_hdr->rxinfo.phy,
                                               BLE_HCI_LE_PHY_CODED_ANY);
-            if (ble_ll_scan_has_enought_time_for_scan(ble_hdr->rxinfo.channel,
-                                                      phy_mode)) {
+            if (ble_ll_sched_scan_req_over_aux_ptr(ble_hdr->rxinfo.channel,
+                                                   phy_mode)) {
                 goto scan_rx_isr_exit;
             }
 #endif
@@ -1919,8 +1902,10 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
             rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_TX_RX);
 
-            /* Set "waiting for scan response" flag */
-            scansm->scan_rsp_pending = 1;
+            if (rc == 0) {
+                /* Set "waiting for scan response" flag */
+                scansm->scan_rsp_pending = 1;
+            }
         }
     }
 
@@ -2018,7 +2003,6 @@ static void
 ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *rxbuf,
                                struct ble_mbuf_hdr *hdr)
 {
-    struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     struct ble_ll_ext_adv *evt;
     int rc;
 
@@ -2037,16 +2021,11 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *rxbuf,
     evt->event_len = sizeof(struct ble_ll_ext_adv) + evt->adv_data_len;
     evt->rssi = hdr->rxinfo.rssi;
 
-    if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK) {
+    if (BLE_MBUF_HDR_SCAN_RSP_RCV(hdr)) {
         evt->evt_type |= BLE_HCI_ADV_SCAN_RSP_MASK;
     }
-    rc = ble_ll_hci_event_send((uint8_t *)evt);
-    if (!rc) {
-        /* If filtering, add it to list of duplicate addresses */
-        if (scansm->scan_filt_dups) {
-            //TODO ble_ll_scan_add_dup_adv(adv_addr, txadd, subev);
-        }
-    }
+
+    ble_ll_hci_event_send((uint8_t *)evt);
 }
 #endif
 /**
@@ -2074,7 +2053,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Set scan response check flag */
-    scan_rsp_chk = hdr->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+    scan_rsp_chk = BLE_MBUF_HDR_SCAN_RSP_RCV(hdr);
 
     /* We dont care about scan requests or connect requests */
     if (!BLE_MBUF_HDR_CRC_OK(hdr) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
@@ -2104,8 +2083,12 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
         ble_ll_scan_switch_phy(scansm);
 
-        if (scansm && scansm->scan_rsp_pending && !scan_rsp_chk) {
-            return;
+        if (scansm && scansm->scan_rsp_pending) {
+            if (!scan_rsp_chk) {
+                /* Let's wait for scan response */
+                return;
+            }
+            ble_ll_scan_req_backoff(scansm, 1);
         }
 
         goto scan_continue;;
