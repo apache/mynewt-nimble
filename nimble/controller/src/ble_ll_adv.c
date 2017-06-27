@@ -27,7 +27,6 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_vendor.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
@@ -101,7 +100,7 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint32_t adv_secondary_start_time;
     struct ble_ll_sched_item adv_secondary_sch;
     uint16_t duration; /* TODO */
@@ -1049,35 +1048,22 @@ ble_ll_adv_halt(struct ble_ll_adv_sm *advsm)
  * @return int
  */
 int
-ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
+ble_ll_adv_set_adv_params(uint8_t *cmd)
 {
     uint8_t adv_type;
     uint8_t adv_filter_policy;
     uint8_t adv_chanmask;
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
-    uint8_t offset;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint16_t min_itvl;
     struct ble_ll_adv_sm *advsm;
     uint16_t props;
 
-    /* If already enabled, we return an error */
-    if (instance >= BLE_LL_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[instance];
+    advsm = &g_ble_ll_adv_sm[0];
     if (advsm->adv_enabled) {
         return BLE_ERR_CMD_DISALLOWED;
-    }
-
-    /* Add offset if this is a multi-advertising command */
-    if (is_multi) {
-        offset = 6;
-    } else {
-        offset = 0;
     }
 
     /* Make sure intervals are OK (along with advertising type */
@@ -1089,7 +1075,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
      * Get the filter policy now since we will ignore it if we are doing
      * directed advertising
      */
-    adv_filter_policy = cmd[14 + offset];
+    adv_filter_policy = cmd[14];
 
     /* Assume min interval based on low duty cycle/indirect advertising */
     min_itvl = BLE_LL_ADV_ITVL_MIN;
@@ -1136,44 +1122,19 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
 
     /* Check own and peer address type */
     own_addr_type =  cmd[5];
-    peer_addr_type = cmd[6 + offset];
+    peer_addr_type = cmd[6];
 
     if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
         (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Deal with multi-advertising command specific*/
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
-    if (is_multi) {
-        /* Get and check advertising power */
-        advsm->adv_txpwr = cmd[22];
-        if (advsm->adv_txpwr > 20) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        }
-
-        /* Get own address if it is there. */
-        if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        } else {
-            if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                /* Use this random address if set in own address */
-                if (ble_ll_is_valid_random_addr(cmd + 6)) {
-                    memcpy(advsm->adv_random_addr, cmd + 6, BLE_DEV_ADDR_LEN);
-                }
-            }
-        }
-    } else {
-        advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
-    }
-#else
     advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
-#endif
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Copy peer address */
-        memcpy(advsm->peer_addr, cmd + 7 + offset, BLE_DEV_ADDR_LEN);
+        memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
 
         /* Reset RPA timer so we generate a new RPA */
         advsm->adv_rpa_timer = os_time_get();
@@ -1186,7 +1147,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
 #endif
 
     /* There are only three adv channels, so check for any outside the range */
-    adv_chanmask = cmd[13 + offset];
+    adv_chanmask = cmd[13];
     if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -1230,7 +1191,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 
         /* Set to standby if we are no longer advertising */
         OS_ENTER_CRITICAL(sr);
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (g_ble_ll_cur_adv_sm == advsm) {
             ble_phy_disable();
             ble_ll_wfr_disable();
@@ -1333,17 +1294,10 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
 
-    /*
-     * This is not in the specification. I will reject the command with a
-     * command disallowed error if no random address has been sent by the
-     * host. All the parameter errors refer to the command
-     * parameter (which in this case is just enable or disable) so that
-     * is why I chose command disallowed.
-     */
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (!ble_ll_is_valid_random_addr(advsm->adv_random_addr)) {
-            return BLE_ERR_CMD_DISALLOWED;
+            return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 #else
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
@@ -1371,7 +1325,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     if ((advsm->own_addr_type & 1) == 0) {
         addr = g_dev_addr;
     } else {
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         addr = advsm->adv_random_addr;
 #else
         addr = g_random_addr;
@@ -1691,7 +1645,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
     return BLE_ERR_SUCCESS;
 }
 
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
 ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -2058,68 +2012,6 @@ ble_ll_adv_clear_all(void)
 
     return BLE_ERR_SUCCESS;
 }
-
-/**
- * Process the multi-advertising command
- *
- * NOTE: the command length was already checked to make sure it is non-zero.
- *
- * @param cmdbuf    Pointer to command buffer
- * @param cmdlen    The length of the command data
- * @param rspbuf    Pointer to response buffer
- * @param rsplen    Pointer to response length
- *
- * @return int
- */
-int
-ble_ll_adv_multi_adv_cmd(uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
-                         uint8_t *rsplen)
-{
-    int rc;
-    uint8_t subcmd;
-
-    /* NOTE: the command length includes the sub command byte */
-    rc = BLE_ERR_INV_HCI_CMD_PARMS;
-    subcmd = cmdbuf[0];
-    ++cmdbuf;
-    switch (subcmd) {
-    case BLE_HCI_MULTI_ADV_PARAMS:
-        if (cmdlen == BLE_HCI_MULTI_ADV_PARAMS_LEN) {
-            rc = ble_ll_adv_set_adv_params(cmdbuf, cmdbuf[21], 1);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_DATA:
-        if (cmdlen == BLE_HCI_MULTI_ADV_DATA_LEN) {
-            rc = ble_ll_adv_set_adv_data(cmdbuf, cmdbuf[32],
-                                     BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_SCAN_RSP_DATA:
-        if (cmdlen == BLE_HCI_MULTI_ADV_SCAN_RSP_DATA_LEN) {
-            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, cmdbuf[32],
-                                BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_SET_RAND_ADDR:
-        if (cmdlen == BLE_HCI_MULTI_ADV_SET_RAND_ADDR_LEN) {
-            rc = ble_ll_adv_set_random_addr(cmdbuf, cmdbuf[6]);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_ENABLE:
-        if (cmdlen == BLE_HCI_MULTI_ADV_ENABLE_LEN) {
-            rc = ble_ll_adv_set_enable(cmdbuf[0], cmdbuf[1], 0, 0);
-        }
-        break;
-    default:
-        rc = BLE_ERR_UNKNOWN_HCI_CMD;
-        break;
-    }
-
-    rspbuf[0] = subcmd;
-    *rsplen = 1;
-
-    return rc;
-}
 #endif
 
 
@@ -2381,7 +2273,7 @@ int
 ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 {
     int rc;
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_mbuf_hdr *rxhdr;
 #endif
 
@@ -2389,7 +2281,7 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
     if (rxpdu == NULL) {
         ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
     } else {
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
         rxhdr->rxinfo.advsm = g_ble_ll_cur_adv_sm;
 #endif
@@ -2433,7 +2325,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     int adv_event_over;
     struct ble_ll_adv_sm *advsm;
 
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     advsm = (struct ble_ll_adv_sm *)hdr->rxinfo.advsm;
 #else
     advsm = &g_ble_ll_adv_sm[0];
@@ -2787,18 +2679,8 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     uint8_t *evbuf;
     struct ble_ll_adv_sm *advsm;
 
-#if MYNEWT_VAL(BLE_ANDROID_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     advsm = (struct ble_ll_adv_sm *)rxhdr->rxinfo.advsm;
-    evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
-    if (evbuf) {
-        evbuf[0] = BLE_HCI_EVCODE_LE_META;
-        evbuf[1] = 5;   /* Length of event, including sub-event code */
-        evbuf[2] = BLE_HCI_LE_SUBEV_ADV_STATE_CHG;
-        evbuf[3] = advsm->adv_instance;
-        evbuf[4] = 0x00;    /* status code */
-        put_le16(evbuf + 5, connsm->conn_handle);
-        ble_ll_hci_event_send(evbuf);
-    }
 #else
     advsm = &g_ble_ll_adv_sm[0];
 #endif
