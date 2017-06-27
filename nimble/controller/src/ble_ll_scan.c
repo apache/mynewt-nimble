@@ -137,10 +137,8 @@ struct ble_ll_scan_advertisers
 g_ble_ll_scan_dup_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)];
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-/*TODO Make it MYNEWT_VAL*/
-#define OUTSTANDING_AUX 10
-
-static os_membuf_t ext_adv_mem[ OS_MEMPOOL_SIZE(OUTSTANDING_AUX,
+static os_membuf_t ext_adv_mem[ OS_MEMPOOL_SIZE(
+                    MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                     sizeof (struct ble_ll_aux_data))
 ];
 
@@ -2738,7 +2736,7 @@ ble_ll_scan_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     err = os_mempool_init(&ext_adv_pool,
-                          OUTSTANDING_AUX,
+                          MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                           sizeof (struct ble_ll_aux_data),
                           ext_adv_mem,
                           "ble_ll_aux_scan_pool");
