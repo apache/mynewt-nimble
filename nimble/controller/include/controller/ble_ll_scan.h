@@ -58,7 +58,7 @@ extern "C" {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_EXT_SCAN_MAX_PKT_LEN        (256)
 
-    /* For Bluetooth 5.0 we need state machine for two PHYs*/
+/* For Bluetooth 5.0 we need state machine for two PHYs*/
 #define BLE_LL_SCAN_PHY_NUMBER          (2)
 #else
 #define BLE_LL_SCAN_PHY_NUMBER          (1)
