@@ -26,7 +26,6 @@
 #include "host/ble_sm.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_hs_id.h"
-#include "store/ram/ble_store_ram.h"
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"
 
