@@ -105,7 +105,6 @@ struct ble_ll_adv_sm
     struct ble_ll_sched_item adv_secondary_sch;
     uint16_t duration; /* TODO */
     uint16_t adi;
-    uint8_t adv_secondary;
     uint8_t adv_secondary_chan;
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
     uint8_t events_max;
@@ -119,6 +118,7 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_RX_ADD           0x02
 #define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF   0x04
 #define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD     0x08
+#define BLE_LL_ADV_SM_FLAG_SECONDARY        0x10
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
@@ -372,7 +372,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     ext_hdr_flags = 0;
 
 
-    if (advsm->adv_secondary) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_SECONDARY) {
         pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
 
         adi = true;
@@ -816,7 +816,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    advsm->adv_secondary = 0;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SECONDARY;
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -964,7 +964,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-    advsm->adv_secondary = 1;
+    advsm->flags |= BLE_LL_ADV_SM_FLAG_SECONDARY;
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -1310,6 +1310,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SECONDARY;
 
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -2522,7 +2523,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         return;
     }
 
-    if (advsm->adv_secondary) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_SECONDARY) {
         ble_ll_adv_secondary_done(advsm);
         return;
     }
