@@ -724,22 +724,28 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
  * NOTE: connect requests and scan requests are not passed here
  *
  * @param pdu_type
- * @param rxbuf
+ * @param adv_addr
+ * @param adv_addr_type
+ * @param init_addr
+ * @param init_addr_type
+ * @param flags
  *
  * @return int 0: pdu allowed by filter policy. 1: pdu not allowed
  */
 static int
-ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
+ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *adv_addr,
+                              uint8_t adv_addr_type, uint8_t *init_addr,
+                              uint8_t init_addr_type, uint8_t devmatch)
 {
-    uint8_t *addr;
-    uint8_t addr_type;
     int use_whitelist;
     int chk_inita;
+    struct ble_ll_scan_params *params =
+                        &g_ble_ll_scan_sm.phy_data[g_ble_ll_scan_sm.cur_phy];
 
     use_whitelist = 0;
     chk_inita = 0;
 
-    switch (g_ble_ll_scan_sm.scan_filt_policy) {
+    switch (params->scan_filt_policy) {
     case BLE_HCI_SCAN_FILT_NO_WL:
         break;
     case BLE_HCI_SCAN_FILT_USE_WL:
@@ -760,7 +766,7 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
     /* If we are using the whitelist, check that first */
     if (use_whitelist && (pdu_type != BLE_ADV_PDU_TYPE_SCAN_RSP)) {
         /* If there was a devmatch, we will allow the PDU */
-        if (flags & BLE_MBUF_HDR_F_DEVMATCH) {
+        if (devmatch) {
             return 0;
         } else {
             return 1;
@@ -770,10 +776,8 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *rxbuf, uint8_t flags)
     /* If this is a directed advertisement, check that it is for us */
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
         /* Is this for us? If not, is it resolvable */
-        addr = rxbuf + BLE_LL_PDU_HDR_LEN;
-        addr_type = rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK;
-        if (!ble_ll_is_our_devaddr(addr + BLE_DEV_ADDR_LEN, addr_type)) {
-            if (!chk_inita || !ble_ll_is_rpa(addr, addr_type)) {
+        if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
+            if (!chk_inita || !ble_ll_is_rpa(adv_addr, adv_addr_type)) {
                 return 1;
             }
         }
@@ -858,7 +862,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
                                    g_ble_ll_sched_offset_ticks, 0);
     if (!rc) {
         /* Enable/disable whitelisting */
-        if (scansm->scan_filt_policy & 1) {
+        if (scanphy->scan_filt_policy & 1) {
             ble_ll_whitelist_enable();
         } else {
             ble_ll_whitelist_disable();
@@ -1663,13 +1667,9 @@ int
 ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                             struct ble_mbuf_hdr *ble_hdr,
                             uint8_t **addr, uint8_t *addr_type,
-                            uint8_t **inita, uint8_t *inita_is_rpa,
+                            uint8_t **inita, uint8_t *inita_type,
                             int *ext_mode)
 {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    uint8_t inita_type;
-#endif
-
     if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND &&
         pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
         /* Legacy advertising */
@@ -1682,21 +1682,20 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
 
         if (pdu_type != BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
             *inita = NULL;
-            *inita_is_rpa = 0;
+            *inita_type = 0;
             return 0;
         }
 
         *inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-        if (*addr_type) {
-            *inita_is_rpa = (uint8_t)ble_ll_is_rpa(*inita, *addr_type);
-        }
+        *inita_type = ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
+
         return 0;
     }
 
     /* Extended advertising */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ble_ll_scan_get_addr_from_ext_adv(rxbuf, ble_hdr, addr, addr_type,
-                                          inita, &inita_type, ext_mode)) {
+                                          inita, inita_type, ext_mode)) {
         return -1;
     }
 #else
@@ -1845,7 +1844,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     adv_addr = peer;
     addr_type = peer_addr_type;
 
-    if ((scansm->scan_filt_policy & 1) == 0) {
+    if ((scanphy->scan_filt_policy & 1) == 0) {
         chk_wl = 0;
     }
     resolved = 0;
@@ -1870,9 +1869,6 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* If whitelist enabled, check to see if device is in the white list */
     if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
-        if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-        }
         goto scan_rx_isr_exit;
     }
     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
@@ -2046,11 +2042,14 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     uint8_t *adva;
     uint8_t *ident_addr;
     uint8_t ident_addr_type;
+    uint8_t *init_addr = NULL;
+    uint8_t init_addr_type;
     uint8_t txadd;
     uint8_t rxadd;
     uint8_t scan_rsp_chk;
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     struct ble_mbuf_hdr *ble_hdr;
+    int ext_adv_mode = -1;
 
     /* Set scan response check flag */
     scan_rsp_chk = BLE_MBUF_HDR_SCAN_RSP_RCV(hdr);
@@ -2061,48 +2060,19 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         goto scan_continue;
     }
 
-    /* TODO ADD FILTER POLICY */
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-        if (!scansm->ext_scanning) {
-            goto scan_continue;
-        }
-
-        if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
-            ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
-            goto scan_continue;
-        }
-
-        if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-            /*TODO Handle chained AUX*/
-            goto scan_continue;
-        }
-
-        ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
-        ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
-        ble_ll_scan_switch_phy(scansm);
-
-        if (scansm && scansm->scan_rsp_pending) {
-            if (!scan_rsp_chk) {
-                /* Let's wait for scan response */
-                return;
-            }
-            ble_ll_scan_req_backoff(scansm, 1);
-        }
-
-        goto scan_continue;;
+    if (ble_ll_scan_adv_decode_addr(ptype, rxbuf, hdr,
+                                    &adv_addr, &txadd,
+                                    &init_addr, &init_addr_type,
+                                    &ext_adv_mode)) {
+       return;
     }
-#endif
 
     /* Check the scanner filter policy */
-    if (ble_ll_scan_chk_filter_policy(ptype, rxbuf, hdr->rxinfo.flags)) {
+    if (ble_ll_scan_chk_filter_policy(ptype, adv_addr, txadd, init_addr,
+                                      init_addr_type,
+                                      BLE_MBUF_HDR_DEVMATCH(hdr))) {
         goto scan_continue;
     }
-
-    /* Get advertisers address type and a pointer to the address */
-    txadd = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
-    adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 
     ident_addr = adv_addr;
     ident_addr_type = txadd;
@@ -2152,6 +2122,37 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             goto scan_continue;
         }
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+        if (!scansm->ext_scanning) {
+            goto scan_continue;
+        }
+
+        if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
+            ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+            goto scan_continue;
+        }
+
+        if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+            /*TODO Handle chained AUX*/
+            goto scan_continue;
+        }
+
+        ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
+        ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+        ble_ll_scan_switch_phy(scansm);
+
+        if (scansm && scansm->scan_rsp_pending) {
+            if (!scan_rsp_chk) {
+                return;
+            }
+
+            ble_ll_scan_req_backoff(scansm, 1);
+        }
+        goto scan_continue;
+    }
+#endif
 
     /* Send the advertising report */
     ble_ll_scan_send_adv_report(ptype, ident_addr_type, rxbuf, hdr, scansm);
@@ -2463,9 +2464,11 @@ ble_ll_scan_can_chg_whitelist(void)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *params;
 
     scansm = &g_ble_ll_scan_sm;
-    if (scansm->scan_enabled && (scansm->scan_filt_policy & 1)) {
+    params = &scansm->phy_data[scansm->cur_phy];
+    if (scansm->scan_enabled && (params->scan_filt_policy & 1)) {
         rc = 0;
     } else {
         rc = 1;
@@ -2481,10 +2484,10 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
     struct ble_ll_scan_params *scanphy;
 
     scansm = &g_ble_ll_scan_sm;
-    scansm->scan_filt_policy = hcc->filter_policy;
     scansm->own_addr_type = hcc->own_addr_type;
 
     scanphy = &scansm->phy_data[scansm->cur_phy];
+    scanphy->scan_filt_policy = hcc->filter_policy;
     scanphy->scan_itvl = hcc->scan_itvl;
     scanphy->scan_window = hcc->scan_window;
     scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
@@ -2503,7 +2506,6 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
     int rc;
 
     scansm = &g_ble_ll_scan_sm;
-    scansm->scan_filt_policy = hcc->filter_policy;
     scansm->own_addr_type = hcc->own_addr_type;
     scansm->cur_phy = PHY_NOT_CONFIGURED;
     scansm->next_phy = PHY_NOT_CONFIGURED;
@@ -2516,6 +2518,7 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
         scanphy->scan_itvl = params->scan_itvl;
         scanphy->scan_window = params->scan_window;
         scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
+        scanphy->scan_filt_policy = hcc->filter_policy;
         scansm->cur_phy = PHY_UNCODED;
     }
 
@@ -2526,6 +2529,7 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
         scanphy->scan_itvl = params->scan_itvl;
         scanphy->scan_window = params->scan_window;
         scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
+        scanphy->scan_filt_policy = hcc->filter_policy;
         if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
             scansm->cur_phy = PHY_CODED;
         } else {
@@ -2625,7 +2629,10 @@ ble_ll_scan_get_pdu(void)
 int
 ble_ll_scan_whitelist_enabled(void)
 {
-    return g_ble_ll_scan_sm.scan_filt_policy & 1;
+    struct ble_ll_scan_params *params;
+
+    params = &g_ble_ll_scan_sm.phy_data[g_ble_ll_scan_sm.cur_phy];
+    return params->scan_filt_policy & 1;
 }
 
 /**
