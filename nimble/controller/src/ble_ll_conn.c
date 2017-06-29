@@ -2824,6 +2824,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     uint8_t *adv_addr;
     uint8_t *peer;
     uint8_t *init_addr = NULL;
+    uint8_t init_addr_type;
     uint8_t pyld_len;
     uint8_t inita_is_rpa;
     uint8_t conn_req_end_trans;
@@ -2879,10 +2880,12 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     /* Lets get addresses from advertising report*/
     if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr,
                                     &adv_addr, &addr_type,
-                                    &init_addr, &inita_is_rpa,
+                                    &init_addr, &init_addr_type,
                                     &ext_adv_mode)) {
         goto init_rx_isr_exit;
     }
+
+    inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
 
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:

@@ -105,6 +105,9 @@ struct ble_mbuf_hdr
     uint32_t rem_usecs;
 };
 
+#define BLE_MBUF_HDR_DEVMATCH(hdr) \
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_DEVMATCH))
+
 #define BLE_MBUF_HDR_SCAN_RSP_RCV(hdr) \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK))
 
