@@ -241,9 +241,6 @@ syscfg.defs:
             Advertising Feature. That means extended scanner, advertiser
             and connect.
         value: MYNEWT_VAL_BLE_EXT_ADV
-        restrictions:
-            - 'BLE_EXT_ADV if 1'
-            - '!BLE_EXT_ADV if 0'
 
     BLE_PUBLIC_DEV_ADDR:
         description: >
