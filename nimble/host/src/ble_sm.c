@@ -1573,17 +1573,26 @@ ble_sm_pair_cfg(struct ble_sm_proc *proc)
         proc->flags |= BLE_SM_PROC_F_SC;
     }
 
+    ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        rx_key_dist = resp_key_dist;
+    } else {
+        rx_key_dist = init_key_dist;
+    }
+
     if (pair_req->authreq & BLE_SM_PAIR_AUTHREQ_BOND &&
         pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_BOND) {
 
         proc->flags |= BLE_SM_PROC_F_BONDING;
     }
 
-    ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
-    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        rx_key_dist = resp_key_dist;
-    } else {
-        rx_key_dist = init_key_dist;
+    /* In legacy mode, bonding requires the exchange of keys.  If no key
+     * exchange was specified, pretend bonding is not enabled.
+     */
+    if (!(proc->flags & BLE_SM_PROC_F_SC) &&
+        (init_key_dist == 0 || resp_key_dist == 0)) {
+
+        proc->flags &= ~BLE_SM_PROC_F_BONDING;
     }
 
     proc->rx_key_flags = 0;
