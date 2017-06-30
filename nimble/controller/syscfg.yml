@@ -258,4 +258,4 @@ syscfg.defs:
 
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
-
+    BLE_HW_WHITELIST_ENABLE: 0
