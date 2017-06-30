@@ -31,6 +31,12 @@ extern "C" {
 #define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
+/** Failed to persist record; insufficient storage capacity. */
+#define BLE_STORE_EVENT_OVERFLOW        1
+
+/** About to execute a procedure that may fail due to overflow. */
+#define BLE_STORE_EVENT_FULL            2
+
 /**
  * Used as a key for lookups of security material.  This struct corresponds to
  * the following store object types:
@@ -69,15 +75,16 @@ struct ble_store_value_sec {
     uint16_t ediv;
     uint64_t rand_num;
     uint8_t ltk[16];
-    unsigned ltk_present:1;
+    uint8_t ltk_present:1;
 
     uint8_t irk[16];
-    unsigned irk_present:1;
+    uint8_t irk_present:1;
 
     uint8_t csrk[16];
-    unsigned csrk_present:1;
+    uint8_t csrk_present:1;
 
     unsigned authenticated:1;
+    uint8_t sc:1;
 };
 
 /**
@@ -131,6 +138,46 @@ union ble_store_value {
     struct ble_store_value_cccd cccd;
 };
 
+struct ble_store_status_event {
+    /**
+     * The type of event being reported; one of the BLE_STORE_EVENT_TYPE_[...]
+     * codes.
+     */
+    int event_code;
+
+    /**
+     * Additional data related to the event; the valid field is inferred from
+     * the obj_type,event_code pair.
+     */
+    union {
+        /**
+         * Represents a write that failed due to storage exhaustion.  Valid for
+         * the following event types:
+         *     o BLE_STORE_EVENT_OVERFLOW
+         */
+        struct {
+            /** The type of object that failed to be written. */
+            int obj_type;
+
+            /** The object that failed to be written. */
+            const union ble_store_value *value;
+        } overflow;
+
+        /**
+         * Represents the possiblity that a scheduled write will fail due to
+         * storage exhaustion.  Valid for the following event types:
+         *     o BLE_STORE_EVENT_FULL
+         */
+        struct {
+            /** The type of object that may fail to be written. */
+            int obj_type;
+
+            /** The handle of the connection which prompted the write. */
+            uint16_t conn_handle;
+        } full;
+    };
+};
+
 /**
  * Searches the store for an object matching the specified criteria.  If a
  * match is found, it is read from the store and the dst parameter is populated
@@ -181,10 +228,29 @@ typedef int ble_store_write_fn(int obj_type, const union ble_store_value *val);
  */
 typedef int ble_store_delete_fn(int obj_type, const union ble_store_key *key);
 
+/**
+ * Indicates an inability to perform a store operation.  This callback should
+ * do one of two things:
+ *     o Address the problem and return 0, indicating that the store operation
+ *       should proceed.
+ *     o Return nonzero to indicate that the store operation should be aborted.
+ *
+ * @param event                 Describes the store event being reported.
+ * @param arg                   Optional user argument.
+ *
+ * @return                      0 if the store operation should proceed;
+ *                              nonzero if the store operation should be
+ *                                  aborted.
+ */
+typedef int ble_store_status_fn(struct ble_store_status_event *event,
+                                void *arg);
+
 int ble_store_read(int obj_type, const union ble_store_key *key,
                    union ble_store_value *val);
 int ble_store_write(int obj_type, const union ble_store_value *val);
 int ble_store_delete(int obj_type, const union ble_store_key *key);
+int ble_store_overflow_event(int obj_type, const union ble_store_value *value);
+int ble_store_full_event(int obj_type, uint16_t conn_handle);
 
 int ble_store_read_our_sec(const struct ble_store_key_sec *key_sec,
                            struct ble_store_value_sec *value_sec);
@@ -224,6 +290,9 @@ int ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs,
                                 int max_peers);
 int ble_store_util_delete_all(int type, const union ble_store_key *key);
 int ble_store_util_delete_peer(const ble_addr_t *peer_id_addr); 
+int ble_store_util_delete_oldest_peer(void);
+int ble_store_util_count(int type, int *out_count);
+int ble_store_util_status_rr(struct ble_store_status_event *event, void *arg);
 
 #ifdef __cplusplus
 }

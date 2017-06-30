@@ -162,3 +162,93 @@ ble_store_util_delete_all(int type, const union ble_store_key *key)
 
     return 0;
 }
+
+static int
+ble_store_util_iter_count(int obj_type,
+                          union ble_store_value *val,
+                          void *arg)
+{
+    int *count;
+
+    count = arg;
+    (*count)++;
+
+    return 0;
+}
+
+int
+ble_store_util_count(int type, int *out_count)
+{
+    int rc;
+
+    *out_count = 0;
+    rc = ble_store_iterate(type,
+                           ble_store_util_iter_count,
+                           out_count);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+ble_store_util_delete_oldest_peer(void)
+{
+    ble_addr_t peer_id_addrs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+    int num_peers;
+    int rc;
+
+    rc = ble_store_util_bonded_peers(
+            peer_id_addrs, &num_peers,
+            sizeof peer_id_addrs / sizeof peer_id_addrs[0]);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (num_peers == 0) {
+        return 0;
+    }
+
+    rc = ble_store_util_delete_peer(&peer_id_addrs[0]);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
+ * Round-robin status callback.  If a there is insufficient storage capacity
+ * for a new record, delete the oldest bond and proceed with the persist
+ * operation.
+ *
+ * Note: This is not the best behavior for an actual product because
+ * uninteresting peers could cause important bonds to be deleted.  This is
+ * useful for demonstrations and sample apps.
+ */
+int
+ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
+{
+    switch (event->event_code) {
+    case BLE_STORE_EVENT_OVERFLOW:
+        switch (event->overflow.obj_type) {
+            case BLE_STORE_OBJ_TYPE_OUR_SEC:
+            case BLE_STORE_OBJ_TYPE_PEER_SEC:
+            case BLE_STORE_OBJ_TYPE_CCCD:
+                return ble_store_util_delete_oldest_peer();
+
+            default:
+                return BLE_HS_EUNKNOWN;
+        }
+
+    case BLE_STORE_EVENT_FULL:
+        /* Just proceed with the operation.  If it results in an overflow,
+         * we'll delete a record when the overflow occurs.
+         */
+        return 0;
+
+    default:
+        return BLE_HS_EUNKNOWN;
+    }
+}
