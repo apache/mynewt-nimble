@@ -2291,9 +2291,24 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         connsm->last_anchor_point = rxhdr->beg_cputime;
 
         usecs = rxhdr->rem_usecs + 1250 +
-            (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-            ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
-                                 connsm->phy_data.tx_phy_mode);
+                (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
+                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
+                                       connsm->phy_data.rx_phy_mode);
+
+        if (rxhdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
+            switch (rxhdr->rxinfo.phy) {
+            case BLE_PHY_1M:
+                usecs += 1250;
+                break;
+            case BLE_PHY_CODED:
+                usecs += 2500;
+                break;
+            case BLE_PHY_2M:
+            default:
+                assert(0);
+                break;
+            }
+        }
 
         /* Anchor point is cputime. */
         endtime = os_cputime_usecs_to_ticks(usecs);
@@ -3714,7 +3729,8 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
  * @return 0: connection not started; 1 connecton started
  */
 int
-ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr)
+ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr,
+                        bool force_csa2)
 {
     int rc;
     uint32_t temp;
@@ -3804,7 +3820,9 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr)
     /* Start the connection state machine */
     connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
     ble_ll_conn_sm_new(connsm);
-    ble_ll_conn_set_csa(connsm, rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK);
+
+    ble_ll_conn_set_csa(connsm,
+                        force_csa2 || (rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK));
 
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;

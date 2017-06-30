@@ -1213,6 +1213,29 @@ ble_phy_txpwr_set(int dbm)
 }
 
 /**
+ * ble phy txpwr round
+ *
+ * Get the rounded transmit output power (in dBm).
+ *
+ * @param dbm Power output in dBm.
+ *
+ * @return int Rounded power in dBm
+ */
+int ble_phy_txpower_round(int dbm)
+{
+    /* "Rail" power level if outside supported range */
+    if (dbm > NRF_TX_PWR_MAX_DBM) {
+        dbm = NRF_TX_PWR_MAX_DBM;
+    } else {
+        if (dbm < NRF_TX_PWR_MIN_DBM) {
+            dbm = NRF_TX_PWR_MIN_DBM;
+        }
+    }
+
+    return dbm;
+}
+
+/**
  * ble phy txpwr get
  *
  * Get the transmit power.

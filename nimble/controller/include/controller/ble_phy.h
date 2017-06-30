@@ -121,6 +121,9 @@ int ble_phy_rssi_get(void);
 /* Set the transmit power */
 int ble_phy_txpwr_set(int dbm);
 
+/* Get highest allowed power from range */
+int ble_phy_txpower_round(int dbm);
+
 /* Get the transmit power */
 int ble_phy_txpwr_get(void);
 

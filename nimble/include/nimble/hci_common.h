@@ -467,18 +467,47 @@ extern "C" {
 
 /* --- LE set extended advertising parameters (OCF 0x0036) */
 #define BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN            (25)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE     (0x0001)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE       (0x0002)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED        (0x0004)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED     (0x0008)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY          (0x0010)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV        (0x0020)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR      (0x0040)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_MASK            (0x7F)
+
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND      (0x0013)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR   (0x0015)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR   (0x001d)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN     (0x0012)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN  (0x0010)
 
 /* --- LE set extended advertising data (OCF 0x0037) */
 #define BLE_HCI_LE_SET_EXT_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT        (0)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST      (1)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST       (2)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE   (3)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED  (4)
 
 /* --- LE set extended scan response data (OCF 0x0038) */
 #define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_LEN        BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT        (0)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST      (1)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST       (2)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE   (3)
 
 /* --- LE set extended advertising enable (OCF 0x0039) */
 #define BLE_HCI_LE_SET_EXT_ADV_ENABLE_LEN           BLE_HCI_VARIABLE_LEN
 
 /* --- LE remove advertising set (OCF 0x003C) */
 #define BLE_HCI_LE_REMOVE_ADV_SET_LEN               (1)
+
+/* --- LE read maximum advertising data length (OCF 0x003A) */
+#define BLE_HCI_RD_MAX_ADV_DATA_LEN                 (2)
+
+/* --- LE read number of supported advertising sets (OCF 0x003B) */
+#define BLE_HCI_RD_NR_SUP_ADV_SETS                  (1)
 
 /* --- LE set periodic advertising parameters (OCF 0x003E) */
 #define BLE_HCI_LE_SET_PER_ADV_PARAMS_LEN           (7)
@@ -705,6 +734,12 @@ extern "C" {
 
 /* LE PHY update complete event (sub event 0x0C) */
 #define BLE_HCI_LE_PHY_UPD_LEN              (6)
+
+/*  LE Advertising Set Terminated Event (sub event 0x12) */
+#define BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED_LEN   (6)
+
+/* LE Scan Request Received event (sub event 0x13) */
+#define BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD_LEN   (9)
 
 /* LE Channel Selection Algorithm event (sub event 0x14) */
 #define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG_LEN   (4)

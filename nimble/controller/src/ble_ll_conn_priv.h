@@ -112,7 +112,7 @@ void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
 
 /* Advertising interface */
 int ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat,
-                            struct ble_mbuf_hdr *rxhdr);
+                            struct ble_mbuf_hdr *rxhdr, bool force_csa2);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
