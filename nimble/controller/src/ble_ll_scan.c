@@ -2117,6 +2117,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
                 /* Perform scan request backoff procedure */
                 ble_ll_scan_req_backoff(scansm, 1);
             }
+        } else {
+            /* Ignore if this is not ours */
+            goto scan_continue;
         }
     }
 
