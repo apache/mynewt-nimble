@@ -64,6 +64,7 @@ int
 ble_sm_lgcy_io_action(struct ble_sm_proc *proc, uint8_t *action)
 {
     struct ble_sm_pair_cmd *pair_req, *pair_rsp;
+    int authenticated;
 
     pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
     pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
@@ -84,6 +85,9 @@ ble_sm_lgcy_io_action(struct ble_sm_proc *proc, uint8_t *action)
         *action = ble_sm_lgcy_resp_ioa[pair_rsp->io_cap][pair_req->io_cap];
     }
 
+    authenticated = (pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
+                    (pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM);
+
     switch (*action) {
     case BLE_SM_IOACT_NONE:
         proc->pair_alg = BLE_SM_PAIR_ALG_JW;
@@ -91,13 +95,17 @@ ble_sm_lgcy_io_action(struct ble_sm_proc *proc, uint8_t *action)
 
     case BLE_SM_IOACT_OOB:
         proc->pair_alg = BLE_SM_PAIR_ALG_OOB;
-        proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        if (authenticated) {
+            proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        }
         break;
 
     case BLE_SM_IOACT_INPUT:
     case BLE_SM_IOACT_DISP:
         proc->pair_alg = BLE_SM_PAIR_ALG_PASSKEY;
-        proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        if (authenticated) {
+            proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
+        }
         break;
 
     default:

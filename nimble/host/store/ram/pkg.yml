@@ -18,7 +18,10 @@
 #
 
 pkg.name: net/nimble/host/store/ram
-pkg.description: RAM-based persistence layer for the NimBLE host.
+pkg.description: >
+    DEPRECATED; for a RAM-only BLE store, use store/config and set
+    BLE_STORE_CONFIG_PERSIST to 0.  RAM-based persistence layer for the NimBLE
+    host.
 pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
