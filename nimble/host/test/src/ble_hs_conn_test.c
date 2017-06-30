@@ -79,7 +79,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
 
     chan = ble_hs_conn_chan_find_by_scid(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
-    TEST_ASSERT(chan->my_mtu == BLE_ATT_MTU_PREFERRED_DFLT);
+    TEST_ASSERT(chan->my_mtu == MYNEWT_VAL(BLE_ATT_PREFERRED_MTU));
     TEST_ASSERT(chan->peer_mtu == 0);
 
     ble_hs_unlock();
@@ -133,7 +133,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
 
     chan = ble_hs_conn_chan_find_by_scid(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
-    TEST_ASSERT(chan->my_mtu == BLE_ATT_MTU_PREFERRED_DFLT);
+    TEST_ASSERT(chan->my_mtu == MYNEWT_VAL(BLE_ATT_PREFERRED_MTU));
     TEST_ASSERT(chan->peer_mtu == 0);
 
     ble_hs_unlock();
@@ -194,7 +194,7 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
 
     chan = ble_hs_conn_chan_find_by_scid(conn, BLE_L2CAP_CID_ATT);
     TEST_ASSERT_FATAL(chan != NULL);
-    TEST_ASSERT(chan->my_mtu == BLE_ATT_MTU_PREFERRED_DFLT);
+    TEST_ASSERT(chan->my_mtu == MYNEWT_VAL(BLE_ATT_PREFERRED_MTU));
     TEST_ASSERT(chan->peer_mtu == 0);
 
     ble_hs_unlock();

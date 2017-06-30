@@ -288,6 +288,10 @@ syscfg.defs:
         value: 1
 
     # ATT options.
+    BLE_ATT_PREFERRED_MTU:
+        description: The preferred MTU to indicate in MTU exchange commands.
+        value: 256
+
     BLE_ATT_SVR_MAX_PREP_ENTRIES:
         description: >
             A GATT server uses these when a peer performs a "write long
@@ -318,10 +322,15 @@ syscfg.defs:
     # Store settings.
     BLE_STORE_MAX_BONDS:
         description: >
-            Number of bonds to persist before recycling old ones.
-        value: 4
+            Maximum number of bonds that can be persisted.  Note: increasing
+            this value may also require increasing the capacity of the
+            underlying storage mechanism.
+        value: 3
     BLE_STORE_MAX_CCCDS:
         description: >
-            Number of client characteristic configuration descriptors to
-            persist before recycling old ones.
-        value: 16
+            Maximum number of client characteristic configuration descriptors
+            that can be persisted.  Note: increasing this value may also
+            require increasing the capacity of the underlying storage
+            mechanism.
+
+        value: 8

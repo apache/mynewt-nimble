@@ -2080,6 +2080,18 @@ ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs)
     return 0;
 }
 
+void
+ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb)
+{
+    int i;
+
+    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
+        cb(ble_gatts_svc_entries[i].svc,
+           ble_gatts_svc_entries[i].handle,
+           ble_gatts_svc_entries[i].end_group_handle);
+    }
+}
+
 int
 ble_gatts_init(void)
 {

@@ -28,11 +28,15 @@ ble_store_read(int obj_type, const union ble_store_key *key,
 {
     int rc;
 
+    ble_hs_lock();
+
     if (ble_hs_cfg.store_read_cb == NULL) {
         rc = BLE_HS_ENOTSUP;
     } else {
         rc = ble_hs_cfg.store_read_cb(obj_type, key, val);
     }
+
+    ble_hs_unlock();
 
     return rc;
 }
@@ -43,12 +47,33 @@ ble_store_write(int obj_type, const union ble_store_value *val)
     int rc;
 
     if (ble_hs_cfg.store_write_cb == NULL) {
-        rc = BLE_HS_ENOTSUP;
-    } else {
-        rc = ble_hs_cfg.store_write_cb(obj_type, val);
+        return BLE_HS_ENOTSUP;
     }
 
-    return rc;
+    while (1) {
+        ble_hs_lock();
+        rc = ble_hs_cfg.store_write_cb(obj_type, val);
+        ble_hs_unlock();
+
+        switch (rc) {
+        case 0:
+            return 0;
+        case BLE_HS_ESTORE_CAP:
+            /* Record didn't fit.  Give the application the opportunity to free
+             * up some space.
+             */
+            rc = ble_store_overflow_event(obj_type, val);
+            if (rc != 0) {
+                return rc;
+            }
+
+            /* Application made room for the record; try again. */
+            break;
+
+        default:
+            return rc;
+        }
+    }
 }
 
 int
@@ -56,21 +81,65 @@ ble_store_delete(int obj_type, const union ble_store_key *key)
 {
     int rc;
 
+    ble_hs_lock();
+
     if (ble_hs_cfg.store_delete_cb == NULL) {
         rc = BLE_HS_ENOTSUP;
     } else {
         rc = ble_hs_cfg.store_delete_cb(obj_type, key);
     }
 
+    ble_hs_unlock();
+
     return rc;
+}
+
+static int
+ble_store_status(struct ble_store_status_event *event)
+{
+    int rc;
+
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+
+    if (ble_hs_cfg.store_status_cb == NULL) {
+        rc = BLE_HS_ENOTSUP;
+    } else {
+        rc = ble_hs_cfg.store_status_cb(event, ble_hs_cfg.store_status_arg);
+    }
+
+    return rc;
+}
+
+int
+ble_store_overflow_event(int obj_type, const union ble_store_value *value)
+{
+    struct ble_store_status_event event;
+
+    event.event_code = BLE_STORE_EVENT_OVERFLOW;
+    event.overflow.obj_type = obj_type;
+    event.overflow.value = value;
+
+    return ble_store_status(&event);
+}
+
+int
+ble_store_full_event(int obj_type, uint16_t conn_handle)
+{
+    struct ble_store_status_event event;
+
+    event.event_code = BLE_STORE_EVENT_FULL;
+    event.full.obj_type = obj_type;
+    event.full.conn_handle = conn_handle;
+
+    return ble_store_status(&event);
 }
 
 int
 ble_store_read_our_sec(const struct ble_store_key_sec *key_sec,
                        struct ble_store_value_sec *value_sec)
 {
+    const union ble_store_key *store_key;
     union ble_store_value *store_value;
-    union ble_store_key *store_key;
     int rc;
 
     BLE_HS_DBG_ASSERT(key_sec->peer_addr.type == BLE_ADDR_PUBLIC ||
