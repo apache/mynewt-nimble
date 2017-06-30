@@ -24,10 +24,12 @@
 extern "C" {
 #endif
 
+#include "syscfg/syscfg.h"
+
 #if defined(ARCH_sim)
 #define BLE_USES_HW_WHITELIST   (0)
 #else
-#define BLE_USES_HW_WHITELIST   (1)
+#define BLE_USES_HW_WHITELIST   MYNEWT_VAL(BLE_HW_WHITELIST_ENABLE)
 #endif
 
 /* Returns the number of hw whitelist elements */
