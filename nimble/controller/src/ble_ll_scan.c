@@ -505,6 +505,10 @@ ble_ll_scan_init_ext_adv(void)
     evt->tx_power = 127;
     /* Init RSSI with "Not available" which is 127 */
     evt->rssi = 127;
+    /* Init SID with "Not available" which is 0xFF */
+    evt->sid = 0xFF;
+    /* Init address type with "anonymous" which is 0xFF */
+    evt->addr_type = 0xFF;
 
     return evt;
 }
