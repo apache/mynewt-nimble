@@ -31,6 +31,7 @@
 #include "host/ble_hs_log.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_hs_mbuf.h"
+#include "host/ble_ibeacon.h"
 #include "host/ble_l2cap.h"
 #include "host/ble_sm.h"
 #include "host/ble_store.h"
