@@ -203,6 +203,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
 /* LL timing */
 #define BLE_LL_IFS                  (150)       /* usecs */
+#define BLE_LL_MAFS                 (300)       /* usecs */
 
 /*
  * BLE LL device address. Note that element 0 of the array is the LSB and
@@ -269,6 +270,34 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ    BLE_ADV_PDU_TYPE_CONNECT_REQ
 #define BLE_ADV_PDU_TYPE_AUX_SCAN_REQ       BLE_ADV_PDU_TYPE_SCAN_REQ
 #define BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP    (8)
+
+#define BLE_ADV_PDU_TYPE_AUX_SCAN_REQ       BLE_ADV_PDU_TYPE_SCAN_REQ
+#define BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ    BLE_ADV_PDU_TYPE_CONNECT_REQ
+#define BLE_ADV_PDU_TYPE_ADV_EXT_IND        (7)
+#define BLE_ADV_PDU_TYPE_AUX_ADV_IND        BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_SCAN_RSP       BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_SYNC_IND       BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_CHAIN_IND      BLE_ADV_PDU_TYPE_ADV_EXT_IND
+#define BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP    (8)
+
+#define BLE_LL_EXT_ADV_ADVA_BIT         (0)
+#define BLE_LL_EXT_ADV_TARGETA_BIT      (1)
+#define BLE_LL_EXT_ADV_RFU_BIT          (2)
+#define BLE_LL_EXT_ADV_DATA_INFO_BIT    (3)
+#define BLE_LL_EXT_ADV_AUX_PTR_BIT      (4)
+#define BLE_LL_EXT_ADV_SYNC_INFO_BIT    (5)
+#define BLE_LL_EXT_ADV_TX_POWER_BIT     (6)
+
+#define BLE_LL_EXT_ADV_ADVA_SIZE        (6)
+#define BLE_LL_EXT_ADV_TARGETA_SIZE     (6)
+#define BLE_LL_EXT_ADV_DATA_INFO_SIZE   (2)
+#define BLE_LL_EXT_ADV_AUX_PTR_SIZE     (3)
+#define BLE_LL_EXT_ADV_SYNC_INFO_SIZE   (18)
+#define BLE_LL_EXT_ADV_TX_POWER_SIZE    (1)
+
+#define BLE_LL_EXT_ADV_MODE_NON_CONN    (0x00)
+#define BLE_LL_EXT_ADV_MODE_CONN        (0x01)
+#define BLE_LL_EXT_ADV_MODE_SCAN        (0x02)
 
 /* If Channel Selection Algorithm #2 is supported */
 #define BLE_ADV_PDU_HDR_CHSEL               (0x20)

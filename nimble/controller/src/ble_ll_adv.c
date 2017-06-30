@@ -27,7 +27,6 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_vendor.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
@@ -73,7 +72,6 @@ struct ble_ll_adv_sm
 {
     uint8_t adv_enabled;
     uint8_t adv_instance;
-    uint8_t adv_type;
     uint8_t adv_len;
     uint8_t adv_chanmask;
     uint8_t adv_filter_policy;
@@ -83,10 +81,9 @@ struct ble_ll_adv_sm
     uint8_t scan_rsp_len;
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
-    uint8_t adv_directed;           /* note: can be 1 bit */
-    uint8_t adv_txadd;              /* note: can be 1 bit */
-    uint8_t adv_rxadd;              /* note: can be 1 bit */
+    uint8_t flags;
     int8_t adv_txpwr;
+    uint16_t props;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
@@ -103,16 +100,32 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct os_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    uint32_t adv_secondary_start_time;
+    struct ble_ll_sched_item adv_secondary_sch;
+    uint16_t duration; /* TODO */
+    uint16_t adi;
+    uint8_t adv_secondary_chan;
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
+    uint8_t events_max;
+    uint8_t events;
+    uint8_t pri_phy;
+    uint8_t sec_phy;
 #endif
 };
+
+#define BLE_LL_ADV_SM_FLAG_TX_ADD           0x01
+#define BLE_LL_ADV_SM_FLAG_RX_ADD           0x02
+#define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF   0x04
+#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD     0x08
+#define BLE_LL_ADV_SM_FLAG_SECONDARY        0x10
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_done(struct ble_ll_adv_sm *advsm);
+static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 /**
@@ -143,16 +156,16 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
             ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                                   advsm->adva, 1);
 
-            if (advsm->adv_directed) {
+            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
                 ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                                       advsm->initiator_addr, 0);
                 if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
-                    advsm->adv_rxadd = 1;
+                    advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
                 } else {
                     if (advsm->own_addr_type & 1) {
-                        advsm->adv_rxadd = 1;
+                        advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
                     } else {
-                        advsm->adv_rxadd = 0;
+                        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
                     }
                 }
             }
@@ -160,12 +173,12 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 
             /* May have to reset txadd bit */
             if (ble_ll_is_rpa(advsm->adva, 1)) {
-                advsm->adv_txadd = 1;
+                advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
             } else {
                 if (advsm->own_addr_type & 1) {
-                    advsm->adv_txadd = 1;
+                    advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
                 } else {
-                    advsm->adv_txadd = 0;
+                    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
                 }
             }
         }
@@ -223,12 +236,12 @@ ble_ll_adv_final_chan(struct ble_ll_adv_sm *advsm)
 }
 
 /**
- * Create the advertising PDU
+ * Create the advertising legacy PDU
  *
  * @param advsm Pointer to advertisement state machine
  */
 static void
-ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
+ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
 {
     uint8_t     adv_data_len;
     uint8_t     *dptr;
@@ -239,45 +252,29 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     adv_data_len = advsm->adv_len;
     pdulen = BLE_DEV_ADDR_LEN + adv_data_len;
 
-    /* Must be an advertising type! */
-    switch (advsm->adv_type) {
-    case BLE_HCI_ADV_TYPE_ADV_IND:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
-
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
-        pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
-#endif
-        break;
-
-    case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_NONCONN_IND;
-        break;
-
-    case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
-        pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
-        break;
-
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
 #endif
 
-        adv_data_len = 0;
-        pdulen = BLE_ADV_DIRECT_IND_LEN;
-        if (advsm->adv_rxadd) {
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_RX_ADD) {
             pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
         }
-        break;
 
-        /* Set these to avoid compiler warnings */
-    default:
-        pdulen = 0;
-        pdu_type = 0;
-        adv_data_len = 0xFF;
-        break;
+        adv_data_len = 0;
+        pdulen = BLE_ADV_DIRECT_IND_LEN;
+    } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+        pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
+#endif
+    } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
+    } else {
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_NONCONN_IND;
     }
 
     /* An invalid advertising data length indicates a memory overwrite */
@@ -287,7 +284,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
     /* Set TxAdd to random if needed. */
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -300,7 +297,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     dptr += BLE_DEV_ADDR_LEN;
 
     /* For ADV_DIRECT_IND add inita */
-    if (advsm->adv_directed) {
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         memcpy(dptr, advsm->initiator_addr, BLE_DEV_ADDR_LEN);
     }
 
@@ -310,13 +307,213 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     }
 }
 
-/**
- * Create a scan response PDU
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/* TODO this shouldn't be needed
  *
- * @param advsm
+ * PDU could be constructed before scheduling and held in mbuf until
+ * transmission
+ *
  */
+static uint8_t
+ble_ll_adv_secondary_pdu_len(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t pdulen;
+
+    pdulen = 2 + BLE_LL_PDU_HDR_LEN + BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
+            advsm->adv_len) {
+        pdulen += advsm->adv_len;
+    }
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+        pdulen += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) ||
+            (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE)) {
+        pdulen += BLE_LL_EXT_ADV_TARGETA_SIZE;
+    }
+
+    return pdulen;
+}
+
+/**
+ * Create the advertising PDU
+ */
+static void
+ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
+{
+    uint8_t *dptr;
+    uint8_t pdulen;
+    uint8_t pdu_type;
+
+    bool adva = false;
+    bool targeta = false;
+    bool adi = false;
+    bool aux_ptr = false;
+    bool tx_power = false;
+    bool adv_data = false;
+    uint8_t adv_mode;
+    uint8_t ext_hdr_len;
+    uint8_t ext_hdr_flags;
+    uint32_t offset;
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        return ble_ll_adv_legacy_pdu_make(advsm, m);
+    }
+
+    pdulen = 1; /* ext hdr len + AdvMode */
+
+    ext_hdr_len = 0;
+
+    /* TODO for now always add flags */
+    ext_hdr_len += 1;
+    ext_hdr_flags = 0;
+
+
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_SECONDARY) {
+        pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
+
+        adi = true;
+        adva = true;
+
+        if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
+                advsm->adv_len) {
+            adv_data = true;
+        }
+
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+            tx_power = true;
+        }
+
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+            targeta = true;
+        }
+
+    } else {
+        /* only ADV_EXT_IND goes on primary advertising channels */
+        pdu_type = BLE_ADV_PDU_TYPE_ADV_EXT_IND;
+
+        /* TODO in some cases we could avoid auxiliary packet */
+        aux_ptr = true;
+        adi = true;
+    }
+
+    adv_mode = 0;
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+        adv_mode |= BLE_LL_EXT_ADV_MODE_CONN;
+    }
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
+            adv_mode |= BLE_LL_EXT_ADV_MODE_SCAN;
+    }
+
+    if (adva) {
+        ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
+    }
+
+    if (targeta) {
+        ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_TARGETA_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_TARGETA_SIZE;
+    }
+
+    if (adi) {
+        ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
+
+    if (aux_ptr) {
+        ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+    }
+
+    if (tx_power) {
+        ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    /* TODO ACAD */
+
+    if (adv_data) {
+        pdulen += advsm->adv_len;
+    }
+
+    /* Set TxAdd to random if needed. */
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+    }
+
+    pdulen += ext_hdr_len;
+
+    /* Set the PDU length in the state machine (includes header) */
+    advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
+
+    ble_ll_mbuf_init(m, pdulen, pdu_type);
+
+    /* Construct advertisement */
+    dptr = m->om_data;
+
+    /* ext hdr len and adv mode */
+    dptr[0] = ext_hdr_len | (adv_mode << 6);
+    dptr += 1;
+
+    /* ext hdr flags */
+    dptr[0] = ext_hdr_flags;
+    dptr += 1;
+
+    if (adva) {
+        memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+        dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+    }
+
+    if (targeta) {
+        memcpy(dptr, advsm->initiator_addr, BLE_LL_EXT_ADV_TARGETA_SIZE);
+        dptr += BLE_LL_EXT_ADV_TARGETA_SIZE;
+    }
+
+    if (adi) {
+        dptr[0] = advsm->adi & 0x00ff;
+        dptr[1] = advsm->adi >> 8;
+        dptr += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
+
+    if (aux_ptr) {
+        offset = advsm->adv_secondary_start_time - os_cputime_get32() + 1;
+
+        /* in usecs */
+        offset = os_cputime_ticks_to_usecs(offset);
+
+        dptr[0] = advsm->adv_secondary_chan;
+
+        if (offset > 245700) {
+            dptr[0] |= 0x80;
+            offset = offset / 300;
+        } else {
+            offset = offset / 30;
+        }
+
+        dptr[1] = (offset & 0x000000ff);
+        dptr[2] = ((offset >> 8) & 0x0000001f) | (advsm->sec_phy - 1) << 5; //TODO;
+
+        dptr += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+    }
+
+    if (tx_power) {
+        dptr[0] = advsm->adv_txpwr;
+        dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    if (adv_data) {
+        memcpy(dptr, advsm->adv_data, advsm->adv_len);
+        dptr += advsm->adv_len;
+    }
+}
+#endif
+
 static struct os_mbuf *
-ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
 {
     uint8_t     scan_rsp_len;
     uint8_t     *dptr;
@@ -338,7 +535,7 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     /* Set BLE transmit header */
     pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
     hdr = BLE_ADV_PDU_TYPE_SCAN_RSP;
-    if (advsm->adv_txadd) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
@@ -361,6 +558,147 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 
     return m;
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/**
+ * Create a scan response PDU
+ *
+ * @param advsm
+ */
+static struct os_mbuf *
+ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t     *dptr;
+    uint8_t     pdulen;
+    uint8_t     ext_hdr_len;
+    uint8_t     ext_hdr_flags;
+    uint8_t     hdr;
+    struct os_mbuf *m;
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        return ble_ll_adv_scan_rsp_legacy_pdu_make(advsm);
+    }
+
+    /* ext hdr len + SCAN_RSP */
+    pdulen = 1 + advsm->scan_rsp_len;
+
+    /* flags, adva and optional TX power */
+    ext_hdr_len = 1 + BLE_LL_EXT_ADV_ADVA_SIZE;
+    ext_hdr_flags = (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    pdulen += ext_hdr_len;
+
+    /* Obtain scan response buffer */
+    m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
+    if (!m) {
+        return NULL;
+    }
+
+    /* Set BLE transmit header */
+    hdr = BLE_ADV_PDU_TYPE_AUX_SCAN_RSP;
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+        hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+    }
+
+    ble_ll_mbuf_init(m, pdulen, hdr);
+
+    /* Construct scan response */
+    dptr = m->om_data;
+
+    /* ext hdr len and adv mode (00b) */
+    dptr[0] = ext_hdr_len;
+    dptr += 1;
+
+    /* ext hdr flags */
+    dptr[0] = ext_hdr_flags;
+    dptr += 1;
+
+    /*
+     * The adva in this packet will be the same one that was being advertised
+     * and is based on the peer identity address in the set advertising
+     * parameters. If a different peer sends us a scan request (for some reason)
+     * we will reply with an adva that was not generated based on the local irk
+     * of the peer sending the scan request.
+     */
+    memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+        dptr[0] = advsm->adv_txpwr;
+        dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    memcpy(dptr, advsm->scan_rsp_data, advsm->scan_rsp_len);
+    dptr += advsm->scan_rsp_len;
+
+    return m;
+}
+
+/**
+ * Create a AUX connect response PDU
+ *
+ * @param advsm
+ */
+static struct os_mbuf *
+ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
+                                 uint8_t rxadd)
+{
+    uint8_t     *dptr;
+    uint8_t     pdulen;
+    uint8_t     ext_hdr_len;
+    uint8_t     ext_hdr_flags;
+    uint8_t     hdr;
+    struct os_mbuf *m;
+
+    /* ext hdr len */
+    pdulen = 1;
+
+    /* flags,AdvA and TargetA */
+    ext_hdr_len = 1 + BLE_LL_EXT_ADV_ADVA_SIZE + BLE_LL_EXT_ADV_TARGETA_SIZE;
+    ext_hdr_flags = (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+    ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_TARGETA_BIT);
+
+    pdulen += ext_hdr_len;
+
+    /* Obtain scan response buffer */
+    m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
+    if (!m) {
+        return NULL;
+    }
+
+    /* Set BLE transmit header */
+    hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP | rxadd;
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+        hdr |= BLE_ADV_PDU_HDR_TXADD_MASK;
+    }
+
+    ble_ll_mbuf_init(m, pdulen, hdr);
+
+    /* Construct connect response */
+    dptr = m->om_data;
+
+    /* ext hdr len and adv mode (00b) */
+    dptr[0] = ext_hdr_len;
+    dptr += 1;
+
+    /* ext hdr flags */
+    dptr[0] = ext_hdr_flags;
+    dptr += 1;
+
+    memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    memcpy(dptr, peer, BLE_LL_EXT_ADV_TARGETA_SIZE);
+    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    return m;
+}
+#endif
 
 /**
  * Called to indicate the advertising event is over.
@@ -460,12 +798,13 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 #endif
 
     /* Set phy mode based on type of advertisement */
-    if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
-        end_trans = BLE_PHY_TRANSITION_NONE;
-        ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
-    } else {
+    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
+        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
         end_trans = BLE_PHY_TRANSITION_TX_RX;
         ble_phy_set_txend_cb(NULL, NULL);
+    } else {
+        end_trans = BLE_PHY_TRANSITION_NONE;
+        ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
     }
 
     /* Get an advertising mbuf (packet header)  */
@@ -476,10 +815,22 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SECONDARY;
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
+    } else {
+        ble_phy_mode_set(advsm->pri_phy, advsm->pri_phy);
+    }
+#endif
+#else
+    ble_ll_adv_legacy_pdu_make(advsm, adv_pdu);
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
+#endif
 #endif
 
     /* Transmit advertisement */
@@ -521,18 +872,20 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
     sch->sched_type = BLE_LL_SCHED_TYPE_ADV;
 
     /* Set end time to maximum time this schedule item may take */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
+    } else {
+        max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, advsm->pri_phy);
+    }
+#else
     max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
-    switch (advsm->adv_type) {
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
+#endif
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
-        break;
-    case BLE_HCI_ADV_TYPE_ADV_IND:
-    case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
+    } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
-        break;
-    default:
-        break;
     }
 
     /*
@@ -546,6 +899,143 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
     sch->end_time = advsm->adv_pdu_start_time +
         os_cputime_usecs_to_ticks(max_usecs);
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static int
+ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    uint8_t end_trans;
+    uint32_t txstart;
+    struct ble_ll_adv_sm *advsm;
+    struct os_mbuf *adv_pdu;
+
+    /* Get the state machine for the event */
+    advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
+
+    /* Set the current advertiser */
+    g_ble_ll_cur_adv_sm = advsm;
+
+    /* Set the power */
+    ble_phy_txpwr_set(advsm->adv_txpwr);
+
+    /* Set channel */
+    rc = ble_phy_setchan(advsm->adv_secondary_chan, BLE_ACCESS_ADDR_ADV,
+                         BLE_LL_CRCINIT_ADV);
+    assert(rc == 0);
+
+    /* Set transmit start time. */
+    txstart = sch->start_time + g_ble_ll_sched_offset_ticks;
+    rc = ble_phy_tx_set_start_time(txstart, sch->remainder);
+    if (rc) {
+        STATS_INC(ble_ll_stats, adv_late_starts);
+        goto adv_tx_done;
+    }
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+    /* XXX: automatically do this in the phy based on channel? */
+    ble_phy_encrypt_disable();
+#endif
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    advsm->adv_rpa_index = -1;
+    if (ble_ll_resolv_enabled()) {
+        ble_phy_resolv_list_enable();
+    } else {
+        ble_phy_resolv_list_disable();
+    }
+#endif
+
+    /* Set phy mode based on type of advertisement */
+    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
+        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        ble_phy_set_txend_cb(NULL, NULL);
+    } else {
+        end_trans = BLE_PHY_TRANSITION_NONE;
+        ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
+    }
+
+    /* Get an advertising mbuf (packet header)  */
+    adv_pdu = os_msys_get_pkthdr(BLE_ADV_MAX_PKT_LEN,
+                                 sizeof(struct ble_mbuf_hdr));
+    if (!adv_pdu) {
+        ble_phy_disable();
+        goto adv_tx_done;
+    }
+
+    advsm->flags |= BLE_LL_ADV_SM_FLAG_SECONDARY;
+    ble_ll_adv_pdu_make(advsm, adv_pdu);
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+     ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
+#endif
+
+    /* Transmit advertisement */
+    rc = ble_phy_tx(adv_pdu, end_trans);
+    os_mbuf_free_chain(adv_pdu);
+    if (rc) {
+        goto adv_tx_done;
+    }
+
+    /* Enable/disable whitelisting based on filter policy */
+    if (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE) {
+        ble_ll_whitelist_enable();
+    } else {
+        ble_ll_whitelist_disable();
+    }
+
+    /* Set link layer state to advertising */
+    ble_ll_state_set(BLE_LL_STATE_ADV);
+
+    /* Count # of adv. sent */
+    STATS_INC(ble_ll_stats, adv_txg);
+
+    return BLE_LL_SCHED_STATE_RUNNING;
+
+adv_tx_done:
+    ble_ll_adv_tx_done(advsm);
+    return BLE_LL_SCHED_STATE_DONE;
+}
+
+static void
+ble_ll_adv_secondary_set_sched(struct ble_ll_adv_sm *advsm)
+{
+    uint32_t max_usecs;
+    struct ble_ll_sched_item *sch;
+
+    sch = &advsm->adv_secondary_sch;
+    sch->cb_arg = advsm;
+    sch->sched_cb = ble_ll_adv_secondary_tx_start_cb;
+    sch->sched_type = BLE_LL_SCHED_TYPE_ADV;
+
+    /* TODO we could use CSA2 for this
+     * (will be needed for periodic advertising anyway)
+     */
+    advsm->adv_secondary_chan = rand() % BLE_PHY_NUM_DATA_CHANS;
+
+    /* Set end time to maximum time this schedule item may take */
+    max_usecs = ble_ll_pdu_tx_time_get(ble_ll_adv_secondary_pdu_len(advsm),
+                                       advsm->sec_phy);
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+        max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
+    } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+        max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
+    }
+
+    /*
+     * XXX: For now, just schedule some additional time so we insure we have
+     * enough time to do everything we want.
+     */
+    max_usecs += XCVR_PROC_DELAY_USECS;
+
+    sch->start_time = advsm->adv_secondary_start_time - g_ble_ll_sched_offset_ticks;
+    sch->remainder = 0;
+    sch->end_time = advsm->adv_secondary_start_time +
+        os_cputime_usecs_to_ticks(max_usecs);
+}
+#endif
 
 /**
  * Called when advertising need to be halted. This normally should not be called
@@ -571,34 +1061,22 @@ ble_ll_adv_halt(struct ble_ll_adv_sm *advsm)
  * @return int
  */
 int
-ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
+ble_ll_adv_set_adv_params(uint8_t *cmd)
 {
     uint8_t adv_type;
     uint8_t adv_filter_policy;
     uint8_t adv_chanmask;
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
-    uint8_t offset;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
     uint16_t min_itvl;
     struct ble_ll_adv_sm *advsm;
+    uint16_t props;
 
-    /* If already enabled, we return an error */
-    if (instance >= BLE_LL_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[instance];
+    advsm = &g_ble_ll_adv_sm[0];
     if (advsm->adv_enabled) {
         return BLE_ERR_CMD_DISALLOWED;
-    }
-
-    /* Add offset if this is a multi-advertising command */
-    if (is_multi) {
-        offset = 6;
-    } else {
-        offset = 0;
     }
 
     /* Make sure intervals are OK (along with advertising type */
@@ -610,36 +1088,42 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
      * Get the filter policy now since we will ignore it if we are doing
      * directed advertising
      */
-    adv_filter_policy = cmd[14 + offset];
+    adv_filter_policy = cmd[14];
 
     /* Assume min interval based on low duty cycle/indirect advertising */
     min_itvl = BLE_LL_ADV_ITVL_MIN;
 
-    advsm->adv_directed = 0;
     switch (adv_type) {
-    /* Fall through intentional */
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
+        adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
+        memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
+
         /* Ignore min/max interval */
         min_itvl = 0;
         adv_itvl_min = 0;
         adv_itvl_max = 0;
 
+        props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR ;
+        break;
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
         adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
-        advsm->adv_directed = 1;
         memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
+
+        props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR ;
         break;
     case BLE_HCI_ADV_TYPE_ADV_IND:
-        /* Nothing to do */
+        props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND;
         break;
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
+        min_itvl = 0;
+        props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN;
+        break;
     case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
         min_itvl = 0;
+        props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN;
         break;
     default:
-        /* This will cause an invalid parameter error */
-        min_itvl = 0xFFFF;
-        break;
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     /* Make sure interval minimum is valid for the advertising type */
@@ -651,44 +1135,19 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
 
     /* Check own and peer address type */
     own_addr_type =  cmd[5];
-    peer_addr_type = cmd[6 + offset];
+    peer_addr_type = cmd[6];
 
     if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
         (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Deal with multi-advertising command specific*/
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
-    if (is_multi) {
-        /* Get and check advertising power */
-        advsm->adv_txpwr = cmd[22];
-        if (advsm->adv_txpwr > 20) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        }
-
-        /* Get own address if it is there. */
-        if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        } else {
-            if (own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                /* Use this random address if set in own address */
-                if (ble_ll_is_valid_random_addr(cmd + 6)) {
-                    memcpy(advsm->adv_random_addr, cmd + 6, BLE_DEV_ADDR_LEN);
-                }
-            }
-        }
-    } else {
-        advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
-    }
-#else
     advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
-#endif
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Copy peer address */
-        memcpy(advsm->peer_addr, cmd + 7 + offset, BLE_DEV_ADDR_LEN);
+        memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
 
         /* Reset RPA timer so we generate a new RPA */
         advsm->adv_rpa_timer = os_time_get();
@@ -701,7 +1160,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
 #endif
 
     /* There are only three adv channels, so check for any outside the range */
-    adv_chanmask = cmd[13 + offset];
+    adv_chanmask = cmd[13];
     if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -718,7 +1177,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi)
     advsm->adv_chanmask = adv_chanmask;
     advsm->adv_itvl_min = adv_itvl_min;
     advsm->adv_itvl_max = adv_itvl_max;
-    advsm->adv_type = adv_type;
+    advsm->props = props;
 
     return 0;
 }
@@ -739,9 +1198,15 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         /* Remove any scheduled advertising items */
         ble_ll_sched_rmv_elem(&advsm->adv_sch);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+            ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
+        }
+#endif
+
         /* Set to standby if we are no longer advertising */
         OS_ENTER_CRITICAL(sr);
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (g_ble_ll_cur_adv_sm == advsm) {
             ble_phy_disable();
             ble_ll_wfr_disable();
@@ -779,6 +1244,50 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
     }
 }
 
+static void
+ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
+{
+    /* The event start time is when we start transmission of the adv PDU */
+    advsm->adv_event_start_time = sch_start + g_ble_ll_sched_offset_ticks;
+    advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+
+    /*
+     * Set the time at which we must end directed, high-duty cycle advertising.
+     * Does not matter that we calculate this value if we are not doing high
+     * duty cycle advertising.
+     */
+    advsm->adv_dir_hd_end_time = advsm->adv_event_start_time +
+        os_cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
+}
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_set_adv_secondary_start_time(struct ble_ll_adv_sm *advsm)
+{
+    static const uint8_t bits[8] = {0, 1, 1, 2, 1, 2, 2, 3};
+    struct ble_ll_sched_item *sched = &advsm->adv_sch;
+    uint32_t ext_duration;
+    uint8_t chans;
+
+    assert(advsm->adv_chanmask <= BLE_HCI_ADV_CHANMASK_DEF);
+
+    chans = bits[advsm->adv_chanmask];
+
+    ext_duration = (int32_t)(sched->end_time - sched->start_time);
+    ext_duration += os_cputime_usecs_to_ticks(BLE_LL_IFS) * (chans -1);
+
+    advsm->adv_secondary_start_time = advsm->adv_event_start_time +
+                                      ext_duration +
+                                      os_cputime_usecs_to_ticks(BLE_LL_MAFS);
+}
+
+static void
+ble_ll_adv_secondary_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
+{
+    advsm->adv_secondary_start_time = sch_start;
+}
+#endif
+
 /**
  * Start the advertising state machine. This is called when the host sends
  * the "enable advertising" command and is not called again while in the
@@ -797,17 +1306,16 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t *addr;
     uint8_t *evbuf;
 
-    /*
-     * This is not in the specification. I will reject the command with a
-     * command disallowed error if no random address has been sent by the
-     * host. All the parameter errors refer to the command
-     * parameter (which in this case is just enable or disable) so that
-     * is why I chose command disallowed.
-     */
+    /* only clear flags that are not set from HCI */
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SECONDARY;
+
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (!ble_ll_is_valid_random_addr(advsm->adv_random_addr)) {
-            return BLE_ERR_CMD_DISALLOWED;
+            return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 #else
         if (!ble_ll_is_valid_random_addr(g_random_addr)) {
@@ -820,10 +1328,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      * Get an event with which to send the connection complete event if
      * this is connectable
      */
-    switch (advsm->adv_type) {
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
-    case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD:
-    case BLE_HCI_ADV_TYPE_ADV_IND:
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         /* We expect this to be NULL but if not we wont allocate one... */
         if (advsm->conn_comp_ev == NULL) {
             evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
@@ -832,31 +1337,25 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
             }
             advsm->conn_comp_ev = evbuf;
         }
-        break;
-    default:
-        break;
     }
 
     /* Set advertising address */
     if ((advsm->own_addr_type & 1) == 0) {
         addr = g_dev_addr;
-        advsm->adv_txadd = 0;
     } else {
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         addr = advsm->adv_random_addr;
 #else
         addr = g_random_addr;
 #endif
-        advsm->adv_txadd = 1;
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
     }
     memcpy(advsm->adva, addr, BLE_DEV_ADDR_LEN);
 
-    if (advsm->adv_directed) {
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         memcpy(advsm->initiator_addr, advsm->peer_addr, BLE_DEV_ADDR_LEN);
         if (advsm->peer_addr_type & 1) {
-            advsm->adv_rxadd = 1;
-        } else {
-            advsm->adv_rxadd = 0;
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
         }
     }
 
@@ -869,7 +1368,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->adv_enabled = 1;
 
     /* Determine the advertising interval we will use */
-    if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         /* Set it to max. allowed for high duty cycle advertising */
         advsm->adv_itvl_usecs = BLE_LL_ADV_PDU_ITVL_HD_MS_MAX;
     } else {
@@ -899,26 +1398,18 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      * times to the earliest possible start/end.
      */
     ble_ll_adv_set_sched(advsm);
-    ble_ll_sched_adv_new(&advsm->adv_sch);
+    ble_ll_sched_adv_new(&advsm->adv_sch, ble_ll_adv_scheduled);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+        ble_ll_set_adv_secondary_start_time(advsm);
+        ble_ll_adv_secondary_set_sched(advsm);
+        ble_ll_sched_adv_new(&advsm->adv_secondary_sch,
+                             ble_ll_adv_secondary_scheduled);
+    }
+#endif
 
     return BLE_ERR_SUCCESS;
-}
-
-void
-ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
-{
-    /* The event start time is when we start transmission of the adv PDU */
-    advsm->adv_event_start_time = sch_start + g_ble_ll_sched_offset_ticks;
-
-    advsm->adv_pdu_start_time = advsm->adv_event_start_time;
-
-    /*
-     * Set the time at which we must end directed, high-duty cycle advertising.
-     * Does not matter that we calculate this value if we are not doing high
-     * duty cycle advertising.
-     */
-    advsm->adv_dir_hd_end_time = advsm->adv_event_start_time +
-        os_cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
 }
 
 /**
@@ -947,10 +1438,10 @@ ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
  * @return int
  */
 int
-ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance)
+ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
+                          uint8_t events)
 {
     int rc;
-    uint8_t enable;
     struct ble_ll_adv_sm *advsm;
 
     if (instance >= BLE_LL_ADV_INSTANCES) {
@@ -960,8 +1451,13 @@ ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance)
     advsm = &g_ble_ll_adv_sm[instance];
 
     rc = BLE_ERR_SUCCESS;
-    enable = cmd[0];
     if (enable == 1) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        advsm->duration = duration;
+        advsm->events_max = events;
+        advsm->events = 0;
+#endif
+
         /* If already enabled, do nothing */
         if (!advsm->adv_enabled) {
             /* Start the advertising state machine */
@@ -985,25 +1481,85 @@ ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance)
  * @return int
  */
 int
-ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance)
+ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 {
     uint8_t datalen;
+    uint8_t off = 0;
     struct ble_ll_adv_sm *advsm;
-
-    /* Check for valid scan response data length */
-    datalen = cmd[0];
-    if (datalen > BLE_SCAN_RSP_DATA_MAX_LEN) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
 
     if (instance >= BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Copy the new data into the advertising structure. */
     advsm = &g_ble_ll_adv_sm[instance];
-    advsm->scan_rsp_len = datalen;
-    memcpy(advsm->scan_rsp_data, cmd + 1, datalen);
+    datalen = cmd[0];
+
+    /* check if type of advertising support scan rsp */
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    switch (operation) {
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            if (datalen > BLE_ADV_DATA_MAX_LEN) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
+        }
+
+        break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST:
+        /* TODO mark scan rsp as complete? */
+        /* fall through */
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        if (!datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        off = advsm->scan_rsp_len;
+        break;
+    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        if (!datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        break;
+#endif
+    default:
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check for valid advertising data length */
+    if (datalen + off > BLE_SCAN_RSP_DATA_MAX_LEN) {
+        advsm->scan_rsp_len = 0;
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* DID shall be updated when host provides new scan response data */
+    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+#endif
+
+    /* Copy the new data into the advertising structure. */
+    advsm->scan_rsp_len = datalen + off;
+    memcpy(advsm->scan_rsp_data + off, cmd + 1, datalen);
 
     return BLE_ERR_SUCCESS;
 }
@@ -1018,30 +1574,401 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance)
  * @return int 0: success; BLE_ERR_INV_HCI_CMD_PARMS otherwise.
  */
 int
-ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance)
+ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 {
     uint8_t datalen;
+    uint8_t off = 0;
     struct ble_ll_adv_sm *advsm;
-
-    /* Check for valid advertising data length */
-    datalen = cmd[0];
-    if (datalen > BLE_ADV_DATA_MAX_LEN) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
 
     if (instance >= BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Copy the new data into the advertising structure. */
     advsm = &g_ble_ll_adv_sm[instance];
-    advsm->adv_len = datalen;
-    memcpy(advsm->adv_data, cmd + 1, datalen);
+    datalen = cmd[0];
+
+    /* check if type of advertising support adv data */
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    } else {
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    }
+
+    switch (operation) {
+    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            if (datalen > BLE_ADV_DATA_MAX_LEN) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
+        }
+
+        break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (!advsm->adv_enabled || !advsm->adv_len || datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* update DID only */
+        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        return BLE_ERR_SUCCESS;
+    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
+        /* TODO mark adv data as complete? */
+        /* fall through */
+    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (!datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        off = advsm->adv_len;
+        break;
+    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST:
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        if (!datalen) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        break;
+#endif
+    default:
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check for valid advertising data length */
+    if (datalen + off > BLE_ADV_DATA_MAX_LEN) {
+        advsm->adv_len = 0;
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* DID shall be updated when host provides new advertising data */
+    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+#endif
+
+    /* Copy the new data into the advertising structure. */
+    advsm->adv_len = datalen + off;
+    memcpy(advsm->adv_data + off, cmd + 1, datalen);
 
     return BLE_ERR_SUCCESS;
 }
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+int
+ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    uint8_t adv_filter_policy;
+    uint8_t adv_chanmask;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint32_t adv_itvl_min;
+    uint32_t adv_itvl_max;
+    uint16_t min_itvl = 0;
+    uint16_t props;
+    struct ble_ll_adv_sm *advsm;
+    uint8_t pri_phy;
+    uint8_t sec_phy;
+    uint8_t sid;
+    uint8_t scan_req_notif;
+    int8_t tx_power;
+
+    if (cmdbuf[0] >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    advsm = &g_ble_ll_adv_sm[cmdbuf[0]];
+    if (advsm->adv_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    props = get_le16(&cmdbuf[1]);
+
+    adv_itvl_min = cmdbuf[5] << 16 | cmdbuf[4] << 8 | cmdbuf[3];
+    adv_itvl_max = cmdbuf[8] << 16 | cmdbuf[7] << 8 | cmdbuf[6];
+
+    if (props & ~BLE_HCI_LE_SET_EXT_ADV_PROP_MASK) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if (advsm->adv_len > BLE_ADV_DATA_MAX_LEN ||
+            advsm->scan_rsp_len > BLE_SCAN_RSP_DATA_MAX_LEN) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* if legacy bit is set possible values are limited */
+        switch (props) {
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN:
+        case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN:
+            break;
+        default:
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    } else {
+        /* HD directed advertising allowed only on legacy PDUs */
+        if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* if ext advertising PDUs are used then it shall not be both
+         * connectable and scanable
+         */
+        if ((props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) &&
+            (props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+        min_itvl = BLE_LL_ADV_ITVL_MIN;
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+        if (advsm->adv_len || advsm->scan_rsp_len) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* Ignore min/max interval */
+        min_itvl = 0;
+        adv_itvl_min = 0;
+        adv_itvl_max = 0;
+    }
+
+    /* Make sure interval minimum is valid for the advertising type
+     * TODO for now limit those to values from legacy advertising
+     */
+    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) ||
+        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
+        (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* There are only three adv channels, so check for any outside the range */
+    adv_chanmask = cmdbuf[9];
+    if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check own and peer address type */
+    own_addr_type = cmdbuf[10];
+    peer_addr_type = cmdbuf[11];
+
+    if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
+        (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        /* Reset RPA timer so we generate a new RPA */
+        advsm->adv_rpa_timer = os_time_get();
+    }
+#else
+    /* If we dont support privacy some address types wont work */
+    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+#endif
+
+    adv_filter_policy = cmdbuf[18];
+    /* Check filter policy (valid only for undirected */
+    if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
+         adv_filter_policy > BLE_HCI_ADV_FILT_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    pri_phy = cmdbuf[20];
+    if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_CODED) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    sec_phy = cmdbuf[22];
+    if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_2M &&
+        pri_phy != BLE_HCI_LE_PHY_CODED) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    sid = cmdbuf[23];
+    if (sid > 0x0f) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    scan_req_notif = cmdbuf[24];
+    if (scan_req_notif > 0x01) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+        memcpy(advsm->peer_addr, &cmdbuf[12], BLE_DEV_ADDR_LEN);
+    }
+
+    tx_power = (int8_t) rspbuf[21];
+    if (tx_power == 127) {
+        /* no preference */
+        advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+    } else {
+        advsm->adv_txpwr = ble_phy_txpower_round(tx_power);
+    }
+
+    advsm->own_addr_type = own_addr_type;
+    advsm->peer_addr_type = peer_addr_type;
+    advsm->adv_filter_policy = adv_filter_policy;
+    advsm->adv_chanmask = adv_chanmask;
+    advsm->adv_itvl_min = adv_itvl_min;
+    advsm->adv_itvl_max = adv_itvl_max;
+    advsm->pri_phy = pri_phy;
+    advsm->sec_phy = sec_phy;
+    /* Update SID only */
+    advsm->adi = (advsm->adi & 0x0fff) | ((sid << 12));
+
+    advsm->props = props;
+
+    if (scan_req_notif) {
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
+    } else {
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
+    }
+
+    rspbuf[0] = advsm->adv_txpwr;
+    *rsplen = 1;
+
+    return 0;
+}
+
+int
+ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen)
+{
+    /* check if length is correct */
+    if (cmdlen < 4) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* TODO fragment preference ignored for now */
+
+    return ble_ll_adv_set_adv_data(cmdbuf + 3, cmdbuf[0], cmdbuf[1]);
+}
+
+int
+ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen)
+{
+    /* check if length is correct */
+    if (cmdlen < 4) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* TODO fragment preference ignored for now */
+
+    return ble_ll_adv_set_scan_rsp_data(cmdbuf + 3, cmdbuf[0], cmdbuf[1]);
+}
+
+struct ext_adv_set {
+    uint8_t handle;
+    uint16_t duration;
+    uint8_t events;
+} __attribute__((packed));
+
+/**
+ * HCI LE extended advertising enable command
+ *
+ * @param cmd Pointer to command data
+ * @param len Command data length
+ *
+ * @return int BLE error code
+ */
+int
+ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
+{
+    struct ext_adv_set* set;
+    uint8_t enable;
+    uint8_t sets;
+    int i, j, rc;
+
+    if (len < 2) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    enable = cmd[0];
+    sets = cmd[1];
+    cmd += 2;
+
+    /* check if length is correct */
+    if (len != 2 + (sets * sizeof (*set))) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (sets > BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (sets == 0) {
+        if (enable) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* disable all instances */
+        for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
+            ble_ll_adv_set_enable(i, 0, 0, 0);
+        }
+
+        return BLE_ERR_SUCCESS;
+    }
+
+    set = (void *) cmd;
+    /* validate instances */
+    for (i = 0; i < sets; i++) {
+        if (set->handle > BLE_LL_ADV_INSTANCES) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        /* validate duplicated sets */
+        for (j = 1; j < sets - i; j++) {
+            if (set->handle == set[j].handle) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
+        }
+
+        set++;
+    }
+
+    set = (void *) cmd;
+    for (i = 0; i < sets; i++) {
+        rc = ble_ll_adv_set_enable(set->handle, enable, le16toh(set->duration),
+                                   set->events);
+        if (rc) {
+            return rc;
+        }
+
+        set++;
+    }
+
+    return BLE_ERR_SUCCESS;
+}
+
 int
 ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
 {
@@ -1050,71 +1977,75 @@ ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
     if (instance >= BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
+
     advsm = &g_ble_ll_adv_sm[instance];
+
+    /*
+     * Reject if connectable advertising is on
+     * Core Spec Vol. 2 Part E 7.8.52
+     */
+    if (advsm->adv_enabled &&
+            (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
     memcpy(advsm->adv_random_addr, addr, BLE_DEV_ADDR_LEN);
     return BLE_ERR_SUCCESS;
 }
 
 /**
- * Process the multi-advertising command
+ * HCI LE extended advertising remove command
  *
- * NOTE: the command length was already checked to make sure it is non-zero.
+ * @param instance Advertising instance to be removed
  *
- * @param cmdbuf    Pointer to command buffer
- * @param cmdlen    The length of the command data
- * @param rspbuf    Pointer to response buffer
- * @param rsplen    Pointer to response length
- *
- * @return int
+ * @return int BLE error code
  */
 int
-ble_ll_adv_multi_adv_cmd(uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
-                         uint8_t *rsplen)
+ble_ll_adv_remove(uint8_t instance)
 {
-    int rc;
-    uint8_t subcmd;
+    struct ble_ll_adv_sm *advsm;
 
-    /* NOTE: the command length includes the sub command byte */
-    rc = BLE_ERR_INV_HCI_CMD_PARMS;
-    subcmd = cmdbuf[0];
-    ++cmdbuf;
-    switch (subcmd) {
-    case BLE_HCI_MULTI_ADV_PARAMS:
-        if (cmdlen == BLE_HCI_MULTI_ADV_PARAMS_LEN) {
-            rc = ble_ll_adv_set_adv_params(cmdbuf, cmdbuf[21], 1);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_DATA:
-        if (cmdlen == BLE_HCI_MULTI_ADV_DATA_LEN) {
-            rc = ble_ll_adv_set_adv_data(cmdbuf, cmdbuf[32]);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_SCAN_RSP_DATA:
-        if (cmdlen == BLE_HCI_MULTI_ADV_SCAN_RSP_DATA_LEN) {
-            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, cmdbuf[32]);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_SET_RAND_ADDR:
-        if (cmdlen == BLE_HCI_MULTI_ADV_SET_RAND_ADDR_LEN) {
-            rc = ble_ll_adv_set_random_addr(cmdbuf, cmdbuf[6]);
-        }
-        break;
-    case BLE_HCI_MULTI_ADV_ENABLE:
-        if (cmdlen == BLE_HCI_MULTI_ADV_ENABLE_LEN) {
-            rc = ble_ll_adv_set_enable(cmdbuf, cmdbuf[1]);
-        }
-        break;
-    default:
-        rc = BLE_ERR_UNKNOWN_HCI_CMD;
-        break;
+    /* TODO
+     * Should we allow any value for instance ID?
+     */
+
+    if (instance >= BLE_LL_ADV_INSTANCES) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    rspbuf[0] = subcmd;
-    *rsplen = 1;
+    advsm = &g_ble_ll_adv_sm[instance];
 
-    return rc;
+    if (advsm->adv_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    ble_ll_adv_sm_init(advsm);
+
+    return BLE_ERR_SUCCESS;
+}
+
+/**
+ * HCI LE extended advertising clear command
+ *
+ * @return int BLE error code
+ */
+int
+ble_ll_adv_clear_all(void)
+{
+    int i;
+
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
+        if (g_ble_ll_adv_sm[i].adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+    }
+
+    ble_ll_adv_reset();
+
+    return BLE_ERR_SUCCESS;
 }
 #endif
+
 
 /**
  * Called when the LL receives a scan request or connection request
@@ -1140,7 +2071,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     uint8_t *peer;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_adv_sm *advsm;
-    struct os_mbuf *scan_rsp;
+    struct os_mbuf *rsp;
 
     /* See if adva in the request (scan or connect) matches what we sent */
     advsm = g_ble_ll_cur_adv_sm;
@@ -1200,18 +2131,58 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 
     /* Setup to transmit the scan response if appropriate */
     rc = -1;
+
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
-        scan_rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
-        if (scan_rsp) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF) {
+            ble_ll_hci_ev_send_scan_req_recv(advsm->adv_instance, peer,
+                                             peer_addr_type);
+        }
+
+        rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
+#else
+        rsp = ble_ll_adv_scan_rsp_legacy_pdu_make(advsm);
+#endif
+        if (rsp) {
             /* XXX TODO: assume we do not need to change phy mode */
             ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
-            rc = ble_phy_tx(scan_rsp, BLE_PHY_TRANSITION_NONE);
+            rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
             if (!rc) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
                 STATS_INC(ble_ll_stats, scan_rsp_txg);
             }
-            os_mbuf_free_chain(scan_rsp);
+            os_mbuf_free_chain(rsp);
         }
+    } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ) {
+        /*
+         * Only accept connect requests from the desired address if we
+         * are doing directed advertising
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+            if (memcmp(advsm->peer_addr, peer, BLE_DEV_ADDR_LEN)) {
+                return -1;
+            }
+        }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            return -1;
+        }
+
+        /* use remote address used over the air */
+        rsp = ble_ll_adv_aux_conn_rsp_pdu_make(advsm,
+                                               rxbuf + BLE_LL_PDU_HDR_LEN,
+                                               rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
+        if (rsp) {
+            ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
+            rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
+            if (!rc) {
+                advsm->flags |= BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+                //STATS_INC(ble_ll_stats, scan_rsp_txg); TODO
+            }
+            os_mbuf_free_chain(rsp);
+        }
+#endif
     }
 
     return rc;
@@ -1239,6 +2210,13 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
     uint8_t *inita;
     uint8_t *ident_addr;
 
+    /* Don't create connection if AUX_CONNECT_RSP was not send */
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+        if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD)) {
+            return 0;
+        }
+    }
+
     /* Check filter policy. */
     valid = 0;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -1258,8 +2236,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
          * Only accept connect requests from the desired address if we
          * are doing directed advertising
          */
-        if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) ||
-            (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD)) {
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
             ident_addr = inita;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -1296,9 +2273,13 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 #endif
 
         /* Try to start slave connection. If successful, stop advertising */
-        valid = ble_ll_conn_slave_start(rxbuf, addr_type, hdr);
+        valid = ble_ll_conn_slave_start(rxbuf, addr_type, hdr,
+                          !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
         if (valid) {
-            ble_ll_adv_sm_stop(advsm);
+            /* stop advertising only if not transmitting connection response */
+            if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD)) {
+                ble_ll_adv_sm_stop(advsm);
+            }
         }
     }
 
@@ -1330,7 +2311,7 @@ int
 ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 {
     int rc;
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_mbuf_hdr *rxhdr;
 #endif
 
@@ -1338,7 +2319,7 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
     if (rxpdu == NULL) {
         ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
     } else {
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
         rxhdr->rxinfo.advsm = g_ble_ll_cur_adv_sm;
 #endif
@@ -1382,7 +2363,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     int adv_event_over;
     struct ble_ll_adv_sm *advsm;
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     advsm = (struct ble_ll_adv_sm *)hdr->rxinfo.advsm;
 #else
     advsm = &g_ble_ll_adv_sm[0];
@@ -1449,16 +2430,13 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
     advsm = g_ble_ll_cur_adv_sm;
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
         /* Only accept scan requests if we are indirect adv or scan adv */
-        if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND) ||
-            (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
             rc = 1;
         }
     } else {
         /* Only accept connect requests if connectable advertising event */
         if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
-            if ((advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) ||
-                (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD) ||
-                (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_IND)) {
+            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
                 rc = 0;
             }
         }
@@ -1474,6 +2452,47 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 
     return rc;
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
+{
+    int rc;
+
+    ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
+    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+
+    /* Check if we need to resume scanning */
+    ble_ll_scan_chk_resume();
+
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
+        ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+                                              advsm->adv_instance, 0,
+                                              advsm->events);
+         /* Disable advertising */
+         advsm->adv_enabled = 0;
+         ble_ll_scan_chk_resume();
+         return;
+    }
+
+    ble_ll_set_adv_secondary_start_time(advsm);
+    ble_ll_adv_secondary_set_sched(advsm);
+
+    /*
+     * In the unlikely event we cant reschedule this, just post a done
+     * event and we will reschedule the next advertising event
+     *
+     * TODO should we give scheduler more flexibility with delay?
+     */
+     /* Reschedule advertising event */
+     rc = ble_ll_sched_adv_reschedule(&advsm->adv_secondary_sch,
+                                      &advsm->adv_secondary_start_time,
+                                      os_cputime_usecs_to_ticks(0));
+     if (rc) {
+         os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+     }
+}
+#endif
 
 /**
  * Called when an advertising event is over.
@@ -1497,8 +2516,22 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 
     assert(advsm->adv_enabled);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* stop advertising this was due to transmitting connection response */
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+        ble_ll_adv_sm_stop(advsm);
+        return;
+    }
+
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_SECONDARY) {
+        ble_ll_adv_secondary_done(advsm);
+        return;
+    }
+#endif
+
     /* Remove the element from the schedule if it is still there. */
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
+
     os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
     /*
@@ -1509,6 +2542,12 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     final_adv_chan = ble_ll_adv_final_chan(advsm);
 
     if (advsm->adv_chan == final_adv_chan) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (advsm->events_max) {
+            advsm->events++;
+        }
+#endif
+
         /* Check if we need to resume scanning */
         ble_ll_scan_chk_resume();
 
@@ -1525,11 +2564,11 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          * add the random advDelay as the scheduling code will do that.
          */
         itvl = advsm->adv_itvl_usecs;
-        if (advsm->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+            max_delay_ticks = 0;
+        } else {
             max_delay_ticks =
                 os_cputime_usecs_to_ticks(BLE_LL_ADV_DELAY_MS_MAX * 1000);
-        } else {
-            max_delay_ticks = 0;
         }
         tick_itvl = os_cputime_usecs_to_ticks(itvl);
         advsm->adv_event_start_time += tick_itvl;
@@ -1579,7 +2618,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
      * Stop high duty cycle directed advertising if we have been doing
      * it for more than 1.28 seconds
      */
-    if (advsm->adv_type == BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
             /* Disable advertising */
             advsm->adv_enabled = 0;
@@ -1590,6 +2629,25 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
             return;
         }
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
+        /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
+         * AUX is done.
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+                                                  advsm->adv_instance, 0,
+                                                  advsm->events);
+
+            /* Disable advertising */
+            advsm->adv_enabled = 0;
+            ble_ll_scan_chk_resume();
+        }
+
+        return;
+    }
+#endif
 
     /* We need to regenerate our RPA's if we have passed timeout */
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
@@ -1638,10 +2696,8 @@ ble_ll_adv_event_done(struct os_event *ev)
 int
 ble_ll_adv_can_chg_whitelist(void)
 {
-    int rc;
     struct ble_ll_adv_sm *advsm;
-
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+    int rc;
     int i;
 
     rc = 1;
@@ -1653,15 +2709,6 @@ ble_ll_adv_can_chg_whitelist(void)
             break;
         }
     }
-#else
-    advsm = &g_ble_ll_adv_sm[0];
-    if (advsm->adv_enabled &&
-        (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
-        rc = 0;
-    } else {
-        rc = 1;
-    }
-#endif
 
     return rc;
 }
@@ -1678,18 +2725,8 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     uint8_t *evbuf;
     struct ble_ll_adv_sm *advsm;
 
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     advsm = (struct ble_ll_adv_sm *)rxhdr->rxinfo.advsm;
-    evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
-    if (evbuf) {
-        evbuf[0] = BLE_HCI_EVCODE_LE_META;
-        evbuf[1] = 5;   /* Length of event, including sub-event code */
-        evbuf[2] = BLE_HCI_LE_SUBEV_ADV_STATE_CHG;
-        evbuf[3] = advsm->adv_instance;
-        evbuf[4] = 0x00;    /* status code */
-        put_le16(evbuf + 5, connsm->conn_handle);
-        ble_ll_hci_event_send(evbuf);
-    }
 #else
     advsm = &g_ble_ll_adv_sm[0];
 #endif
@@ -1699,6 +2736,11 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     advsm->conn_comp_ev = NULL;
 
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
+                                          connsm->conn_handle, advsm->events);
+#endif
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     ble_ll_hci_ev_le_csa(connsm);
@@ -1780,6 +2822,23 @@ ble_ll_adv_enabled(void)
     return g_ble_ll_adv_sm[0].adv_enabled;
 }
 
+static void
+ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t i = advsm->adv_instance;
+
+    memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
+
+    advsm->adv_instance = i;
+    advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
+    advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
+    advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
+
+    /* Initialize advertising tx done event */
+    advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
+    advsm->adv_txdone_ev.ev_arg = advsm;
+}
+
 /**
  * Initialize the advertising functionality of a BLE device. This should
  * be called once on initialization
@@ -1788,22 +2847,11 @@ void
 ble_ll_adv_init(void)
 {
     int i;
-    struct ble_ll_adv_sm *advsm;
 
     /* Set default advertising parameters */
     for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
-        advsm = &g_ble_ll_adv_sm[i];
-
-        memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
-
-        advsm->adv_instance = i;
-        advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
-        advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
-        advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
-
-        /* Initialize advertising tx done event */
-        advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
-        advsm->adv_txdone_ev.ev_arg = advsm;
+        g_ble_ll_adv_sm[i].adv_instance = i;
+        ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }
 }
 

@@ -113,24 +113,21 @@ int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type,
                          uint8_t *init_addr, uint16_t adv_itvl, void *handle);
 
 /* Start or stop advertising */
-int ble_ll_adv_set_enable(uint8_t *cmd, uint8_t instance);
+int ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
+                          uint8_t event);
 
 /* Set advertising data */
-int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance);
+int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation);
 
 /* Set scan response data */
-int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance);
+int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance,
+                                 uint8_t operation);
 
 /* Set advertising parameters */
-int ble_ll_adv_set_adv_params(uint8_t *cmd, uint8_t instance, int is_multi);
+int ble_ll_adv_set_adv_params(uint8_t *cmd);
 
 /* Read advertising channel power */
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
-
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
-int ble_ll_adv_multi_adv_cmd(uint8_t *cmd, uint8_t cmdlen, uint8_t *rspbuf,
-                             uint8_t *rsplen);
-#endif
 
 /*---- API used by BLE LL ----*/
 /* Send the connection complete event */
@@ -165,9 +162,6 @@ void ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf,
 /* Boolean function denoting whether or not the whitelist can be changed */
 int ble_ll_adv_can_chg_whitelist(void);
 
-/* Called when an advertising event has been scheduled */
-void ble_ll_adv_scheduled(struct ble_ll_adv_sm *, uint32_t sch_start);
-
 /*
  * Called when an advertising event has been removed from the scheduler
  * without being run.
@@ -179,6 +173,14 @@ void ble_ll_adv_halt(struct ble_ll_adv_sm *advsm);
 
 /* Called to determine if advertising is enabled */
 uint8_t ble_ll_adv_enabled(void);
+
+int ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance);
+int ble_ll_adv_remove(uint8_t instance);
+int ble_ll_adv_clear_all(void);
+int ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_adv_ext_set_enable(uint8_t *cmdbuf, uint8_t len);
 
 #ifdef __cplusplus
 }
