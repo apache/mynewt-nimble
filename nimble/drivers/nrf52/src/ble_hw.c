@@ -28,6 +28,7 @@
 #include "nrf52_bitfields.h"
 #include "controller/ble_hw.h"
 #include "bsp/cmsis_nvic.h"
+#include "os/os_trace_api.h"
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -283,6 +284,8 @@ ble_rng_isr(void)
 {
     uint8_t rnum;
 
+    os_trace_enter_isr();
+
     /* No callback? Clear and disable interrupts */
     if (g_ble_rng_isr_cb == NULL) {
         NRF_RNG->INTENCLR = 1;
@@ -297,6 +300,7 @@ ble_rng_isr(void)
         rnum = (uint8_t)NRF_RNG->VALUE;
         (*g_ble_rng_isr_cb)(rnum);
     }
+    os_trace_exit_isr();
 }
 
 /**

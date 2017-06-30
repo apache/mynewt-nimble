@@ -372,18 +372,6 @@ ble_hs_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
     ble_hs_hci_cmd_body_disconnect(handle, reason, dst);
 }
 
-int
-ble_hs_hci_cmd_disconnect(uint16_t handle, uint8_t reason)
-{
-    uint8_t cmd[BLE_HCI_DISCONNECT_CMD_LEN];
-
-    ble_hs_hci_cmd_body_disconnect(handle, reason, cmd);
-    return ble_hs_hci_cmd_send(BLE_HCI_OGF_LINK_CTRL,
-                           BLE_HCI_OCF_DISCONNECT_CMD,
-                           BLE_HCI_DISCONNECT_CMD_LEN,
-                           cmd);
-}
-
 static void
 ble_hs_hci_cmd_body_le_set_event_mask(uint64_t event_mask, uint8_t *dst)
 {
@@ -956,6 +944,50 @@ ble_hs_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst, int dst_len)
     dst += BLE_HCI_CMD_HDR_LEN;
 
     ble_hs_hci_cmd_body_read_rssi(handle, dst);
+}
+
+/**
+ * LE Set Host Channel Classification
+ *
+ * OGF = 0x08 (LE)
+ * OCF = 0x0014
+ */
+void
+ble_hs_hci_cmd_build_le_set_host_chan_class(const uint8_t *chan_map,
+                                            uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_HOST_CHAN_CLASS_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS,
+                             BLE_HCI_SET_HOST_CHAN_CLASS_LEN,
+                             dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    memcpy(dst, chan_map, BLE_HCI_SET_HOST_CHAN_CLASS_LEN);
+}
+
+/**
+ * LE Read Channel Map
+ *
+ * OGF = 0x08 (LE)
+ * OCF = 0x0015
+ */
+void
+ble_hs_hci_cmd_build_le_read_chan_map(uint16_t conn_handle,
+                                      uint8_t *dst, int dst_len)
+{
+    BLE_HS_DBG_ASSERT(
+        dst_len >= BLE_HCI_CMD_HDR_LEN + BLE_HCI_RD_CHANMAP_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_RD_CHAN_MAP,
+                             BLE_HCI_RD_CHANMAP_LEN,
+                             dst);
+    dst += BLE_HCI_CMD_HDR_LEN;
+
+    put_le16(dst + 0, conn_handle);
 }
 
 static int

@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include "nimble/hci_common.h"
+#include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
 
 uint16_t
@@ -190,6 +191,101 @@ ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
 
     out_hdr->hdh_handle_pb_bc = get_le16(&out_hdr->hdh_handle_pb_bc);
     out_hdr->hdh_len = get_le16(&out_hdr->hdh_len);
+
+    return 0;
+}
+
+/**
+ * Queries the controller for the channel map used with the specified
+ * connection.  The channel map is represented as an array of five bytes, with
+ * each bit corresponding to an individual channel.  The array is interpreted
+ * as little-endian, such that:
+ *     map[0] & 0x01 --> Channel 0.
+ *     map[0] & 0x02 --> Channel 1.
+ *     ...
+ *     map[1] & 0x01 --> Channel 8.
+ *
+ * As there are 37 channels, only the first 37 bits get written.
+ *
+ * If a bit is 1, the corresponding channel is used.  Otherwise, the channel is
+ * unused.
+ *
+ * @param conn_handle           The handle of the connection whose channel map
+ *                                  is being read.
+ * @param out_chan_map          On success, the retrieved channel map gets
+ *                                  written here.  This buffer must have a size
+ *                                  >= 5 bytes.
+ *
+ * @return                      0 on success;
+ *                              A BLE host HCI return code if the controller
+ *                                  rejected the request;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
+int
+ble_hs_hci_read_chan_map(uint16_t conn_handle, uint8_t *out_chan_map)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_RD_CHANMAP_LEN];
+    uint8_t params[BLE_HCI_RD_CHANMAP_RSP_LEN];
+    uint16_t params_conn_handle;
+    uint8_t params_len;
+    int rc;
+
+    ble_hs_hci_cmd_build_le_read_chan_map(conn_handle, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx(buf, params, BLE_HCI_RD_CHANMAP_RSP_LEN,
+                           &params_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (params_len != BLE_HCI_RD_CHANMAP_RSP_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    params_conn_handle = get_le16(params + 0);
+    if (params_conn_handle != conn_handle) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    memcpy(out_chan_map, params + 2, 5);
+
+    return 0;
+}
+
+/**
+ * Instructs the controller to use the specified channel map.  The channel map
+ * is represented as an array of five bytes, with each bit corresponding to an
+ * individual channel.  The array is interpreted as little-endian, such that:
+ *     map[0] & 0x01 --> Channel 0.
+ *     map[0] & 0x02 --> Channel 1.
+ *     ...
+ *     map[1] & 0x01 --> Channel 8.
+ *
+ * As there are 37 channels, only the first 37 bits should be written are used.
+ *
+ * If a bit is 1, the corresponding channel can be used.  Otherwise, the
+ * channel should not be used.
+ *
+ * @param chan_map              The channel map to configure.  This buffer
+ *                                  should have a size of 5 bytes.
+ *
+ * @return                      0 on success;
+ *                              A BLE host HCI return code if the controller
+ *                                  rejected the request;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
+int
+ble_hs_hci_set_chan_class(const uint8_t *chan_map)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_HOST_CHAN_CLASS_LEN];
+    int rc;
+
+    ble_hs_hci_cmd_build_le_set_host_chan_class(chan_map, buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
 
     return 0;
 }

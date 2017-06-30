@@ -85,10 +85,12 @@ void ble_hs_hci_cmd_build_set_event_mask2(uint64_t event_mask, uint8_t *dst,
                                           int dst_len);
 void ble_hs_hci_cmd_build_disconnect(uint16_t handle, uint8_t reason,
                                      uint8_t *dst, int dst_len);
-int ble_hs_hci_cmd_disconnect(uint16_t handle, uint8_t reason);
 void ble_hs_hci_cmd_build_read_rssi(uint16_t handle, uint8_t *dst,
                                     int dst_len);
-int ble_hs_hci_cmd_read_rssi(uint16_t handle);
+void ble_hs_hci_cmd_build_le_set_host_chan_class(const uint8_t *chan_map,
+                                                 uint8_t *dst, int dst_len);
+void ble_hs_hci_cmd_build_le_read_chan_map(uint16_t conn_handle,
+                                           uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_le_set_scan_rsp_data(const uint8_t *data, uint8_t len,
                                               uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_le_set_adv_data(const uint8_t *data, uint8_t len,
