@@ -1517,6 +1517,27 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     return rsp_opcode;
 }
 
+static void
+ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
+{
+    if (!(connsm->conn_features & BLE_LL_FEAT_DATA_LEN_EXT)) {
+        return;
+    }
+
+    /*
+     * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
+     * exceeds the minimum, data length procedure needs to occur
+     */
+    if ((connsm->max_tx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+        (connsm->max_rx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+        (connsm->max_tx_time <= BLE_LL_CONN_SUPP_TIME_MIN) &&
+        (connsm->max_rx_time <= BLE_LL_CONN_SUPP_TIME_MIN)) {
+        return;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
+}
+
 /**
  * Called when we receive a feature request or a slave initiated feature
  * request.
@@ -1569,8 +1590,11 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     put_le32(rspbuf + 1, our_feat);
     rspbuf[1] = connsm->conn_features;
 
-    /* We now have remote features */
-    connsm->csmflags.cfbit.rxd_features = 1;
+    /* If this is the first time we received remote features, try to start DLE */
+    if (!connsm->csmflags.cfbit.rxd_features) {
+        ble_ll_ctrl_initiate_dle(connsm);
+        connsm->csmflags.cfbit.rxd_features = 1;
+    }
 
     return rsp_opcode;
 }
@@ -2220,8 +2244,11 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_FEATURE_RSP:
         connsm->conn_features = dptr[0];
         memcpy(connsm->remote_features, dptr + 1, 7);
-        /* We now have remote features */
-        connsm->csmflags.cfbit.rxd_features = 1;
+        /* If this is the first time we received remote features, try to start DLE */
+        if (!connsm->csmflags.cfbit.rxd_features) {
+            ble_ll_ctrl_initiate_dle(connsm);
+            connsm->csmflags.cfbit.rxd_features = 1;
+        }
         /* Stop the control procedure */
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
