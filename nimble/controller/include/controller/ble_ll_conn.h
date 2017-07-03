@@ -228,7 +228,8 @@ struct ble_ll_conn_sm
     uint8_t disconnect_reason;
     uint8_t rxd_disconnect_reason;
     uint8_t vers_nr;
-    uint32_t common_features;
+    uint8_t conn_features;
+    uint8_t remote_features[7];
     uint16_t pending_ctrl_procs;
     uint16_t event_cntr;
     uint16_t completed_pkts;
