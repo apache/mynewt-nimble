@@ -1821,7 +1821,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->disconnect_reason = 0;
-    connsm->common_features = 0;
+    connsm->conn_features = 0;
+    memset(connsm->remote_features, 0, sizeof(connsm->remote_features));
     connsm->vers_nr = 0;
     connsm->comp_id = 0;
     connsm->sub_vers_nr = 0;
