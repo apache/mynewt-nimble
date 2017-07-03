@@ -124,6 +124,8 @@ union ble_ll_conn_sm_flags {
         uint32_t peer_phy_update: 1; /* XXX:combine with ctrlr udpate bit? */
         uint32_t aux_conn_req: 1;
         uint32_t aux_conn_rsp: 1;
+        uint32_t rxd_features:1;
+        uint32_t pending_hci_rd_features:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -291,6 +293,8 @@ struct ble_ll_conn_sm
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     struct os_callout auth_pyld_timer;
 #endif
+
+    struct os_callout rd_features_timer;
 
     /*
      * XXX: a note on all these structures for control procedures. First off,
