@@ -100,7 +100,6 @@ struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
     uint8_t own_addr_type;
-    uint8_t scan_filt_policy;
     uint8_t scan_filt_dups;
     uint8_t scan_rsp_pending;
     uint8_t scan_rsp_cons_fails;
@@ -196,7 +195,7 @@ void ble_ll_scan_wfr_timer_exp(void);
 int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                                 struct ble_mbuf_hdr *ble_hdr,
                                 uint8_t **addr, uint8_t *addr_type,
-                                uint8_t **inita, uint8_t *inita_is_rpa,
+                                uint8_t **inita, uint8_t *init_addr_type,
                                 int *ext_mode);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
