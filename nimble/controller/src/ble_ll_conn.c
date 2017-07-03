@@ -1596,6 +1596,22 @@ ble_ll_conn_auth_pyld_timer_cb(struct os_event *ev)
     ble_ll_conn_auth_pyld_timer_start(connsm);
 }
 
+void
+ble_ll_conn_rd_features_timer_cb(struct os_event *ev)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
+
+    if (!connsm->csmflags.cfbit.pending_hci_rd_features ||
+                                        !connsm->csmflags.cfbit.rxd_features) {
+        return;
+    }
+
+    ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+    connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+}
+
 /**
  * Start (or restart) the authenticated payload timer
  *
@@ -1900,6 +1916,11 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
                     connsm);
 #endif
 
+    os_callout_init(&connsm->rd_features_timer,
+                    &g_ble_ll_data.ll_evq,
+                    ble_ll_conn_rd_features_timer_cb,
+                    connsm);
+
     ble_ll_conn_calc_itvl_ticks(connsm);
 
     /* Add to list of active connections */
@@ -1985,6 +2006,8 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     os_callout_stop(&connsm->auth_pyld_timer);
 #endif
 
+    os_callout_stop(&connsm->rd_features_timer);
+
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
 
@@ -2029,6 +2052,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         } else {
             ble_ll_disconn_comp_event_send(connsm, ble_err);
         }
+    }
+
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNK_CONN_ID);
     }
 
     /* Put connection state machine back on free list */
@@ -2362,19 +2389,6 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
             CONN_F_CTRLR_PHY_UPDATE(connsm) = 1;
         }
 #endif
-        /*
-         * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
-         * exceeds the minimum, data length procedure needs to occur
-         */
-        if ((connsm->max_tx_octets > BLE_LL_CONN_SUPP_BYTES_MIN) ||
-            (connsm->max_rx_octets > BLE_LL_CONN_SUPP_BYTES_MIN) ||
-            (connsm->max_tx_time > BLE_LL_CONN_SUPP_TIME_MIN) ||
-            (connsm->max_rx_time > BLE_LL_CONN_SUPP_TIME_MIN)) {
-            /* Start the data length update procedure */
-            if (ble_ll_read_supp_features() & BLE_LL_FEAT_DATA_LEN_EXT) {
-                ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
-            }
-        }
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             ble_ll_adv_send_conn_comp_ev(connsm, rxhdr);
         } else {
@@ -2384,6 +2398,9 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
             ble_ll_hci_ev_le_csa(connsm);
 #endif
         }
+
+        /* Initiate features exchange */
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
     }
 
     return rc;

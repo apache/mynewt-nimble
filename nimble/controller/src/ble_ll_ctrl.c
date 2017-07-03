@@ -433,7 +433,11 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         if (ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
+            if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+                ble_ll_hci_ev_rd_rem_used_feat(connsm,
+                                                   BLE_ERR_UNSUPP_REM_FEATURE);
+            }
+            connsm->csmflags.cfbit.pending_hci_rd_features = 0;
         }
     }
 }
@@ -1565,6 +1569,9 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     put_le32(rspbuf + 1, our_feat);
     rspbuf[1] = connsm->conn_features;
 
+    /* We now have remote features */
+    connsm->csmflags.cfbit.rxd_features = 1;
+
     return rsp_opcode;
 }
 
@@ -2213,10 +2220,16 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_FEATURE_RSP:
         connsm->conn_features = dptr[0];
         memcpy(connsm->remote_features, dptr + 1, 7);
+        /* We now have remote features */
+        connsm->csmflags.cfbit.rxd_features = 1;
         /* Stop the control procedure */
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+        }
+        /* Send event to host if pending features read */
+        if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+            connsm->csmflags.cfbit.pending_hci_rd_features = 0;
         }
         break;
     case BLE_LL_CTRL_VERSION_IND:
