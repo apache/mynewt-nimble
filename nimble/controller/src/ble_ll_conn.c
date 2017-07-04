@@ -1752,9 +1752,7 @@ ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
         connsm->max_ce_len = hcc_params->max_ce_len;
     }
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     ble_ll_conn_calc_itvl_ticks(connsm);
-#endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     ble_ll_conn_set_phy(connsm, tx_phy, rx_phy);
