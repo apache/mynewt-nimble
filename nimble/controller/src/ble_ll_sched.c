@@ -1097,10 +1097,7 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
 
     now =  ble_hdr->beg_cputime;
     earliest_start = now + os_cputime_usecs_to_ticks(aux_scan->offset);
-
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     earliest_start -= g_ble_ll_sched_offset_ticks;
-#endif
 
     /* TODO: FIX duration. We should assure as much time as we need for specific PHY.
      * Also we need to take mode into account e.g in order to do

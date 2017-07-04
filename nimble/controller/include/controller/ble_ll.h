@@ -51,13 +51,9 @@ extern "C" {
 /* Determines if we need to turn on/off rf clock */
 #undef BLE_XCVR_RFCLK
 
-/* Transceiver specific definitions */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
-
 /* We will turn on/off rf clock */
 #if MYNEWT_VAL(BLE_XTAL_SETTLE_TIME) != 0
 #define BLE_XCVR_RFCLK
-#endif
 
 #endif
 
