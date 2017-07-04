@@ -988,8 +988,13 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
     uint16_t phy_max_tx_octets;
     uint16_t ret;
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
                                                      connsm->phy_data.tx_phy_mode);
+#else
+    phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
+                                                     BLE_PHY_MODE_1M);
+#endif
 
     ret = pyld_len;
 
@@ -1702,6 +1707,7 @@ ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
     connsm->initial_params = *hcc;
 }
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 static void
 ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy ,int rx_phy)
 {
@@ -1717,6 +1723,7 @@ ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy ,int rx_phy)
     phy_data->cur_tx_phy = tx_phy;
 
 }
+#endif
 
 void
 ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
@@ -1749,7 +1756,9 @@ ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
     ble_ll_conn_calc_itvl_ticks(connsm);
 #endif
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     ble_ll_conn_set_phy(connsm, tx_phy, rx_phy);
+#endif
 }
 
 
@@ -2789,8 +2798,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
         }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
         /* Lets take last used phy */
         ble_ll_conn_set_phy(connsm, ble_hdr->rxinfo.phy, ble_hdr->rxinfo.phy);
+#endif
 #endif
         ble_ll_conn_created(connsm, NULL);
     } else {

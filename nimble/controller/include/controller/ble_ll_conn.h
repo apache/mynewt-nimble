@@ -196,9 +196,10 @@ struct ble_ll_conn_sm
     uint16_t eff_max_rx_time;
     uint8_t max_tx_octets_phy_mode[BLE_PHY_NUM_MODE];
 
-    /* XXX: TODO: could make this conditional */
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     struct ble_ll_conn_phy_data phy_data;
     uint16_t phy_instant;
+#endif
 
     /* Used to calculate data channel index for connection */
     uint8_t chanmap[BLE_LL_CONN_CHMAP_LEN];
