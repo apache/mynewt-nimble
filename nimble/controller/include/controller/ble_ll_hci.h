@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 /* For supported commands */
-#define BLE_LL_SUPP_CMD_LEN (36)
+#define BLE_LL_SUPP_CMD_LEN (40)
 extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 
 /* The largest event the controller will send. */
