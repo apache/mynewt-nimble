@@ -2485,13 +2485,18 @@ ble_ll_scan_can_chg_whitelist(void)
 }
 
 int
-ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
+ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
+                            struct ble_ll_scan_sm **sm)
 {
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanphy;
+    int rc;
 
     scansm = &g_ble_ll_scan_sm;
     scansm->own_addr_type = hcc->own_addr_type;
+    scansm->ext_scanning = 0;
+    scansm->cur_phy = PHY_UNCODED;
+    scansm->next_phy = PHY_NOT_CONFIGURED;
 
     scanphy = &scansm->phy_data[scansm->cur_phy];
     scanphy->scan_filt_policy = hcc->filter_policy;
@@ -2499,7 +2504,18 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc)
     scanphy->scan_window = hcc->scan_window;
     scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
 
-    return ble_ll_scan_sm_start(scansm);
+    rc = ble_ll_scan_sm_start(scansm);
+    if (sm == NULL) {
+        return rc;
+    }
+
+    if (rc == BLE_ERR_SUCCESS) {
+        *sm = scansm;
+    } else {
+        *sm = NULL;
+    }
+
+    return rc;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)

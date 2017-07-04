@@ -169,7 +169,8 @@ int ble_ll_scan_whitelist_enabled(void);
 
 /* Initialize the scanner when we start initiating */
 struct hci_create_conn;
-int ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
+int ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
+                                struct ble_ll_scan_sm **sm);
 
 /* Returns the PDU allocated by the scanner */
 struct os_mbuf *ble_ll_scan_get_pdu(void);

@@ -506,7 +506,7 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     /* CSA will be selected when advertising is received */
 
     /* Start scanning */
-    rc = ble_ll_scan_initiator_start(hcc);
+    rc = ble_ll_scan_initiator_start(hcc, &connsm->scansm);
     if (rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
