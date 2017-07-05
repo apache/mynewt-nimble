@@ -294,8 +294,6 @@ struct ble_ll_conn_sm
     struct os_callout auth_pyld_timer;
 #endif
 
-    struct os_callout rd_features_timer;
-
     /*
      * XXX: a note on all these structures for control procedures. First off,
      * all of these need to be ifdef'd to save memory. Another thing to

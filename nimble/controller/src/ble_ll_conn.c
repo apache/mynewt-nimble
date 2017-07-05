@@ -1916,11 +1916,6 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
                     connsm);
 #endif
 
-    os_callout_init(&connsm->rd_features_timer,
-                    &g_ble_ll_data.ll_evq,
-                    ble_ll_conn_rd_features_timer_cb,
-                    connsm);
-
     ble_ll_conn_calc_itvl_ticks(connsm);
 
     /* Add to list of active connections */
@@ -2006,8 +2001,6 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     os_callout_stop(&connsm->auth_pyld_timer);
 #endif
 
-    os_callout_stop(&connsm->rd_features_timer);
-
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
 
@@ -2037,6 +2030,16 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
 
     /*
+     * If we have features and there's pending HCI command, send an event before
+     * disconnection event so it does make sense to host.
+     */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features &&
+                                        connsm->csmflags.cfbit.rxd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
+
+    /*
      * We need to send a disconnection complete event or a connection complete
      * event when the connection ends. We send a connection complete event
      * only when we were told to cancel the connection creation. If the
@@ -2054,8 +2057,13 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         }
     }
 
+    /*
+     * If there is still pending read features request HCI command, send an
+     * event to complete it.
+     */
     if (connsm->csmflags.cfbit.pending_hci_rd_features) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNK_CONN_ID);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
     }
 
     /* Put connection state machine back on free list */
@@ -2533,6 +2541,13 @@ ble_ll_conn_event_end(struct os_event *ev)
 
     /* If we have completed packets, send an event */
     ble_ll_conn_num_comp_pkts_event_send(connsm);
+
+    /* If we have features and there's pending HCI command, send an event */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features &&
+                                        connsm->csmflags.cfbit.rxd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
 }
 
 /**

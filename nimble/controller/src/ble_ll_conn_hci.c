@@ -768,8 +768,6 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
 
     connsm->csmflags.cfbit.pending_hci_rd_features = 1;
 
-    os_callout_reset(&connsm->rd_features_timer, 0);
-
     return BLE_ERR_SUCCESS;
 }
 
