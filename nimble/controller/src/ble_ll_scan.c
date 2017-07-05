@@ -1417,6 +1417,10 @@ ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
             aux_scan->offset *= 10;
     }
 
+    if (aux_scan->offset < BLE_LL_MAFS) {
+        return -1;
+    }
+
     aux_scan->aux_phy =
             ble_ll_ext_adv_phy_mode_to_local_phy((aux_ptr_field >> 21) & 0x07);
     if (aux_scan->aux_phy < 0) {
@@ -1483,8 +1487,10 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
-        ble_ll_ext_scan_parse_aux_ptr(scansm, &tmp_aux_data, ext_hdr + i);
-        i += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+
+        if (ble_ll_ext_scan_parse_aux_ptr(scansm, &tmp_aux_data, ext_hdr + i) < 0) {
+            return -1;
+        }
 
         if (ble_ll_scan_ext_adv_init(aux_data) < 0) {
             return -1;
