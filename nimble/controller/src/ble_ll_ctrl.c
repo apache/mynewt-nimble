@@ -433,7 +433,11 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         if (ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
+            if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+                ble_ll_hci_ev_rd_rem_used_feat(connsm,
+                                                   BLE_ERR_UNSUPP_REM_FEATURE);
+            }
+            connsm->csmflags.cfbit.pending_hci_rd_features = 0;
         }
     }
 }
@@ -1513,6 +1517,27 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     return rsp_opcode;
 }
 
+static void
+ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
+{
+    if (!(connsm->conn_features & BLE_LL_FEAT_DATA_LEN_EXT)) {
+        return;
+    }
+
+    /*
+     * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
+     * exceeds the minimum, data length procedure needs to occur
+     */
+    if ((connsm->max_tx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+        (connsm->max_rx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+        (connsm->max_tx_time <= BLE_LL_CONN_SUPP_TIME_MIN) &&
+        (connsm->max_rx_time <= BLE_LL_CONN_SUPP_TIME_MIN)) {
+        return;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
+}
+
 /**
  * Called when we receive a feature request or a slave initiated feature
  * request.
@@ -1530,7 +1555,7 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                            uint8_t *rspbuf, uint8_t opcode)
 {
     uint8_t rsp_opcode;
-    uint32_t remote_feat;
+    uint32_t our_feat;
 
     /*
      * Only accept slave feature requests if we are a master and feature
@@ -1547,13 +1572,29 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         }
     }
 
-    remote_feat = get_le32(dptr);
+    our_feat = ble_ll_read_supp_features();
 
-    /* Set common features and reply */
     rsp_opcode = BLE_LL_CTRL_FEATURE_RSP;
-    connsm->common_features = remote_feat & ble_ll_read_supp_features();
+
+    /*
+     * 1st octet of features should be common features of local and remote
+     * controller - we call this 'connection features'
+     * remaining octets are features of controller which sends PDU, in this case
+     * it's our controller
+     *
+     * See: Vol 6, Part B, section 2.4.2.10
+     */
+
+    connsm->conn_features = dptr[0] & our_feat;
     memset(rspbuf + 1, 0, 8);
-    put_le32(rspbuf + 1, connsm->common_features);
+    put_le32(rspbuf + 1, our_feat);
+    rspbuf[1] = connsm->conn_features;
+
+    /* If this is the first time we received remote features, try to start DLE */
+    if (!connsm->csmflags.cfbit.rxd_features) {
+        ble_ll_ctrl_initiate_dle(connsm);
+        connsm->csmflags.cfbit.rxd_features = 1;
+    }
 
     return rsp_opcode;
 }
@@ -2132,7 +2173,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         features = ble_ll_read_supp_features();
         if ((features & feature) == 0) {
             if (opcode == BLE_LL_CTRL_ENC_REQ) {
-                if (connsm->common_features & BLE_LL_FEAT_EXTENDED_REJ) {
+                if (connsm->conn_features & BLE_LL_FEAT_EXTENDED_REJ) {
                     rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
                     rspbuf[1] = opcode;
                     rspbuf[2] = BLE_ERR_UNSUPP_REM_FEATURE;
@@ -2201,11 +2242,21 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
+        connsm->conn_features = dptr[0];
+        memcpy(connsm->remote_features, dptr + 1, 7);
+        /* If this is the first time we received remote features, try to start DLE */
+        if (!connsm->csmflags.cfbit.rxd_features) {
+            ble_ll_ctrl_initiate_dle(connsm);
+            connsm->csmflags.cfbit.rxd_features = 1;
+        }
         /* Stop the control procedure */
-        connsm->common_features = dptr[0];
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+        }
+        /* Send event to host if pending features read */
+        if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+            connsm->csmflags.cfbit.pending_hci_rd_features = 0;
         }
         break;
     case BLE_LL_CTRL_VERSION_IND:
@@ -2321,7 +2372,7 @@ ble_ll_ctrl_reject_ind_send(struct ble_ll_conn_sm *connsm, uint8_t rej_opcode,
         rspbuf = om->om_data;
         opcode = BLE_LL_CTRL_REJECT_IND_EXT;
         if (rej_opcode == BLE_LL_CTRL_ENC_REQ) {
-            if ((connsm->common_features & BLE_LL_FEAT_EXTENDED_REJ) == 0) {
+            if ((connsm->conn_features & BLE_LL_FEAT_EXTENDED_REJ) == 0) {
                 opcode = BLE_LL_CTRL_REJECT_IND;
             }
         }

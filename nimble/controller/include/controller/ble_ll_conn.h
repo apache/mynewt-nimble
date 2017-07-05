@@ -124,6 +124,8 @@ union ble_ll_conn_sm_flags {
         uint32_t peer_phy_update: 1; /* XXX:combine with ctrlr udpate bit? */
         uint32_t aux_conn_req: 1;
         uint32_t aux_conn_rsp: 1;
+        uint32_t rxd_features:1;
+        uint32_t pending_hci_rd_features:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -228,7 +230,8 @@ struct ble_ll_conn_sm
     uint8_t disconnect_reason;
     uint8_t rxd_disconnect_reason;
     uint8_t vers_nr;
-    uint32_t common_features;
+    uint8_t conn_features;
+    uint8_t remote_features[7];
     uint16_t pending_ctrl_procs;
     uint16_t event_cntr;
     uint16_t completed_pkts;
