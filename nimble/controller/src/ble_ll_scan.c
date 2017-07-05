@@ -1151,6 +1151,8 @@ ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
 static void
 ble_ll_aux_scan_rsp_failed(struct ble_ll_scan_sm *scansm)
 {
+    STATS_INC(ble_ll_stats, aux_scan_rsp_err);
+
     if (scansm->cur_aux_data) {
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
@@ -1928,6 +1930,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 if (ble_hdr->rxinfo.channel <  BLE_PHY_NUM_DATA_CHANS) {
                     /* Let's keep the aux ptr as a reference to scan rsp */
                     scansm->cur_aux_data = ble_hdr->rxinfo.aux_data;
+                    STATS_INC(ble_ll_stats, aux_scan_req_tx);
                 }
 #endif
             }
