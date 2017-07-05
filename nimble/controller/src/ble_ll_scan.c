@@ -1573,8 +1573,6 @@ ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         return -1;
     }
 
-    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_EXT_ADV;
-
     scansm = &g_ble_ll_scan_sm;
 
     if (!scansm->ext_scanning) {
