@@ -188,6 +188,8 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, aux_fired_for_read)
     STATS_NAME(ble_ll_stats, aux_conn_req_tx)
     STATS_NAME(ble_ll_stats, aux_conn_rsp_err)
+    STATS_NAME(ble_ll_stats, aux_scan_req_tx)
+    STATS_NAME(ble_ll_stats, aux_scan_rsp_err)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct os_event *ev);
