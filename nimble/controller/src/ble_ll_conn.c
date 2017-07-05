@@ -1596,6 +1596,22 @@ ble_ll_conn_auth_pyld_timer_cb(struct os_event *ev)
     ble_ll_conn_auth_pyld_timer_start(connsm);
 }
 
+void
+ble_ll_conn_rd_features_timer_cb(struct os_event *ev)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
+
+    if (!connsm->csmflags.cfbit.pending_hci_rd_features ||
+                                        !connsm->csmflags.cfbit.rxd_features) {
+        return;
+    }
+
+    ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+    connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+}
+
 /**
  * Start (or restart) the authenticated payload timer
  *
@@ -1819,7 +1835,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->disconnect_reason = 0;
-    connsm->common_features = 0;
+    connsm->conn_features = 0;
+    memset(connsm->remote_features, 0, sizeof(connsm->remote_features));
     connsm->vers_nr = 0;
     connsm->comp_id = 0;
     connsm->sub_vers_nr = 0;
@@ -2011,6 +2028,16 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
 
     /*
+     * If we have features and there's pending HCI command, send an event before
+     * disconnection event so it does make sense to host.
+     */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features &&
+                                        connsm->csmflags.cfbit.rxd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
+
+    /*
      * We need to send a disconnection complete event or a connection complete
      * event when the connection ends. We send a connection complete event
      * only when we were told to cancel the connection creation. If the
@@ -2026,6 +2053,15 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         } else {
             ble_ll_disconn_comp_event_send(connsm, ble_err);
         }
+    }
+
+    /*
+     * If there is still pending read features request HCI command, send an
+     * event to complete it.
+     */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNK_CONN_ID);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
     }
 
     /* Put connection state machine back on free list */
@@ -2359,19 +2395,6 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
             CONN_F_CTRLR_PHY_UPDATE(connsm) = 1;
         }
 #endif
-        /*
-         * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
-         * exceeds the minimum, data length procedure needs to occur
-         */
-        if ((connsm->max_tx_octets > BLE_LL_CONN_SUPP_BYTES_MIN) ||
-            (connsm->max_rx_octets > BLE_LL_CONN_SUPP_BYTES_MIN) ||
-            (connsm->max_tx_time > BLE_LL_CONN_SUPP_TIME_MIN) ||
-            (connsm->max_rx_time > BLE_LL_CONN_SUPP_TIME_MIN)) {
-            /* Start the data length update procedure */
-            if (ble_ll_read_supp_features() & BLE_LL_FEAT_DATA_LEN_EXT) {
-                ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
-            }
-        }
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             ble_ll_adv_send_conn_comp_ev(connsm, rxhdr);
         } else {
@@ -2381,6 +2404,9 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
             ble_ll_hci_ev_le_csa(connsm);
 #endif
         }
+
+        /* Initiate features exchange */
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
     }
 
     return rc;
@@ -2513,6 +2539,13 @@ ble_ll_conn_event_end(struct os_event *ev)
 
     /* If we have completed packets, send an event */
     ble_ll_conn_num_comp_pkts_event_send(connsm);
+
+    /* If we have features and there's pending HCI command, send an event */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features &&
+                                        connsm->csmflags.cfbit.rxd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
 }
 
 /**

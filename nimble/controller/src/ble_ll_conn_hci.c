@@ -761,15 +761,12 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
         return BLE_ERR_UNK_CONN_ID;
     }
 
-    /* See if we support this feature */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        if ((ble_ll_read_supp_features() & BLE_LL_FEAT_SLAVE_INIT) == 0) {
-            return BLE_ERR_UNKNOWN_HCI_CMD;
-        }
+    /* If already pending exit with error */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        return BLE_ERR_CMD_DISALLOWED;
     }
 
-    /* Start the control procedure */
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+    connsm->csmflags.cfbit.pending_hci_rd_features = 1;
 
     return BLE_ERR_SUCCESS;
 }
@@ -813,9 +810,9 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     }
 
     /* See if this feature is supported on both sides */
-    if ((connsm->common_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+    if ((connsm->conn_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            return BLE_ERR_UNKNOWN_HCI_CMD;
+            return BLE_ERR_CMD_DISALLOWED;
         }
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {

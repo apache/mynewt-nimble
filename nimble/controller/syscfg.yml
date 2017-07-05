@@ -188,7 +188,7 @@ syscfg.defs:
             This option enables/disables the connection parameter request
             procedure.  This is implemented in the controller but is disabled
             by default.
-        value: '0'
+        value: '1'
 
     BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
         description: >

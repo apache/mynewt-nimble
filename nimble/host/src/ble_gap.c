@@ -25,6 +25,7 @@
 #include "mem/mem.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
+#include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
 
 /**
@@ -1182,6 +1183,26 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
     ble_gap_disc_report(desc);
 }
 #endif
+
+static int
+ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_CONN_RD_REM_FEAT_LEN];
+    int rc;
+
+    rc = ble_hs_hci_cmd_build_le_read_remote_feat(handle, buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 /**
  * Processes an incoming connection-complete HCI event.
  */
@@ -1308,7 +1329,28 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     event.connect.status = 0;
     ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 
+    ble_gap_rd_rem_sup_feat_tx(evt->connection_handle);
+
     return 0;
+}
+
+void
+ble_gap_rx_rd_rem_sup_feat_complete(struct hci_le_rd_rem_supp_feat_complete *evt)
+{
+#if !NIMBLE_BLE_CONNECT
+    return;
+#endif
+
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(evt->connection_handle);
+    if (conn != NULL && evt->status == 0) {
+            conn->supported_feat = get_le32(evt->features);
+    }
+
+    ble_hs_unlock();
 }
 
 int
@@ -3435,7 +3477,10 @@ ble_gap_update_params(uint16_t conn_handle,
     struct ble_gap_update_entry *entry;
     struct ble_gap_update_entry *dup;
     struct ble_hs_conn *conn;
+    int l2cap_update;
     int rc;
+
+    l2cap_update = 0;
 
     /* Validate parameters with a spec */
     if (!ble_gap_validate_conn_params(params)) {
@@ -3475,32 +3520,28 @@ ble_gap_update_params(uint16_t conn_handle,
     ble_gap_log_update(conn_handle, params);
     BLE_HS_LOG(INFO, "\n");
 
-    rc = ble_gap_update_tx(conn_handle, params);
-
-    /* If our controller reports that it doesn't support the update procedure,
-     * and we are the slave, fail over to the L2CAP update procedure.
+    /*
+     * If LL update procedure is not supported on this connection and we are the
+     * slave, fail over to the L2CAP update procedure.
      */
-    if (rc == BLE_HS_HCI_ERR(BLE_ERR_UNKNOWN_HCI_CMD) &&
-        !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
-
-        ble_gap_update_to_l2cap(params, &l2cap_params);
+    if ((conn->supported_feat & BLE_HS_HCI_LE_FEAT_CONN_PARAM_REQUEST) == 0 &&
+            !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+        l2cap_update = 1;
+        rc = 0;
+    } else {
+        rc = ble_gap_update_tx(conn_handle, params);
     }
 
 done:
     ble_hs_unlock();
 
-    if (rc == 0) {
+    if (!l2cap_update) {
         ble_hs_timer_resched();
     } else {
-        /* If the l2cap_params struct is populated, the only error is that the
-         * controller doesn't support the connection parameters request
-         * procedure.  In this case, fallback to the L2CAP update procedure.
-         */
-        if (l2cap_params.itvl_min != 0) {
-            rc = ble_l2cap_sig_update(conn_handle,
-                                      &l2cap_params,
-                                      ble_gap_update_l2cap_cb, NULL);
-        }
+        ble_gap_update_to_l2cap(params, &l2cap_params);
+
+        rc = ble_l2cap_sig_update(conn_handle, &l2cap_params,
+                                              ble_gap_update_l2cap_cb, NULL);
     }
 
     ble_hs_lock();

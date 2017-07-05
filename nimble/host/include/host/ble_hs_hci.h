@@ -20,6 +20,8 @@
 #ifndef H_BLE_HS_HCI_
 #define H_BLE_HS_HCI_
 
+#include <inttypes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

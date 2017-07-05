@@ -151,6 +151,7 @@ void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);
 int ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf);
+int ble_ll_conn_hci_read_rem_features_complete(void);
 int ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf,
                                 uint8_t *rsplen);

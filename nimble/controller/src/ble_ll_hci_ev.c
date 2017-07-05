@@ -198,7 +198,8 @@ ble_ll_hci_ev_rd_rem_used_feat(struct ble_ll_conn_sm *connsm, uint8_t status)
             evbuf[3] = status;
             put_le16(evbuf + 4, connsm->conn_handle);
             memset(evbuf + 6, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
-            put_le32(evbuf + 6, connsm->common_features);
+            evbuf[6] = connsm->conn_features;
+            memcpy(evbuf + 7, connsm->remote_features, 7);
             ble_ll_hci_event_send(evbuf);
         }
     }
