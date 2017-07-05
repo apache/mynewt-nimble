@@ -1274,6 +1274,7 @@ ble_ll_set_adv_secondary_start_time(struct ble_ll_adv_sm *advsm)
     chans = bits[advsm->adv_chanmask];
 
     ext_duration = (int32_t)(sched->end_time - sched->start_time);
+    ext_duration *= chans;
     ext_duration += os_cputime_usecs_to_ticks(BLE_LL_IFS) * (chans -1);
 
     advsm->adv_secondary_start_time = advsm->adv_event_start_time +
