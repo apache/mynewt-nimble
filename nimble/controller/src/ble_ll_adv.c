@@ -338,6 +338,22 @@ ble_ll_adv_secondary_pdu_len(struct ble_ll_adv_sm *advsm)
     return pdulen;
 }
 
+static uint8_t
+ble_ll_adv_aux_scan_rsp_len(struct ble_ll_adv_sm *advsm)
+{
+    uint8_t pdulen;
+
+    pdulen = 2 + BLE_LL_PDU_HDR_LEN + BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+        pdulen += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    pdulen += advsm->scan_rsp_len;
+
+    return pdulen;
+}
+
 /**
  * Create the advertising PDU
  */
@@ -875,18 +891,25 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
+
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+            max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
+        } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+            max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
+        }
     } else {
-        max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, advsm->pri_phy);
+        /* in ADV_EXT_IND we always set only ADI and AUX */
+        max_usecs = ble_ll_pdu_tx_time_get(10, advsm->pri_phy);
     }
 #else
     max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
-#endif
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
     } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
     }
+#endif
 
     /*
      * XXX: For now, just schedule some additional time so we insure we have
@@ -1018,10 +1041,21 @@ ble_ll_adv_secondary_set_sched(struct ble_ll_adv_sm *advsm)
     max_usecs = ble_ll_pdu_tx_time_get(ble_ll_adv_secondary_pdu_len(advsm),
                                        advsm->sec_phy);
 
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-        max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
-    } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
-        max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+        max_usecs += BLE_LL_IFS +
+                     /* AUX_CONN_REQ */
+                     ble_ll_pdu_tx_time_get(34 + 14, advsm->sec_phy)  +
+                     BLE_LL_IFS +
+                     /* AUX_CONN_RSP */
+                     ble_ll_pdu_tx_time_get(14, advsm->sec_phy);
+    } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
+        max_usecs += BLE_LL_IFS +
+                     /* AUX_SCAN_REQ */
+                     ble_ll_pdu_tx_time_get(12, advsm->sec_phy)  +
+                     BLE_LL_IFS +
+                     /* AUX_SCAN_RSP */
+                     ble_ll_pdu_tx_time_get(ble_ll_adv_aux_scan_rsp_len(advsm),
+                                            advsm->sec_phy);
     }
 
     /*
