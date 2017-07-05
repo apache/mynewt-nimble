@@ -64,3 +64,5 @@ syscfg.defs:
         description: 'linux kernel device'
         value: 0
 
+syscfg.vals.BLE_EXT_ADV:
+    BLE_HCI_EVT_BUF_SIZE: 274
