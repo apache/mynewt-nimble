@@ -170,6 +170,8 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(aux_conn_rsp_err)
     STATS_SECT_ENTRY(aux_scan_req_tx)
     STATS_SECT_ENTRY(aux_scan_rsp_err)
+    STATS_SECT_ENTRY(aux_chain_cnt)
+    STATS_SECT_ENTRY(aux_chain_err)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 

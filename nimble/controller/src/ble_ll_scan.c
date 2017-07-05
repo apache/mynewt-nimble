@@ -1497,6 +1497,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+        tmp_aux_data.did = get_le16(ext_hdr + i);
         i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
     }
 
@@ -1506,18 +1507,43 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             return -1;
         }
 
-        if (ble_ll_scan_ext_adv_init(aux_data) < 0) {
+        if (scansm->cur_aux_data) {
+            /* If we are here that means there is chain advertising. */
+
+            /* TODO Collision; Do smth smart when did does not match */
+            if (tmp_aux_data.did != (*aux_data)->did) {
+                STATS_INC(ble_ll_stats, aux_chain_err);
+                (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
+            }
+
+            /* Lets reuse old aux_data */
+            *aux_data = scansm->cur_aux_data;
+            (*aux_data)->flags |= BLE_LL_AUX_CHAIN_BIT;
+            (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_BIT;
+        } else if (ble_ll_scan_ext_adv_init(aux_data) < 0) {
             return -1;
         }
 
         (*aux_data)->aux_phy = tmp_aux_data.aux_phy;
-        (*aux_data)->aux_primary_phy = ble_hdr->rxinfo.phy;
+
+        if (!scansm->cur_aux_data) {
+            /* In case of chaining adv do not overwrite*/
+            (*aux_data)->aux_primary_phy = ble_hdr->rxinfo.phy;
+        }
+
         (*aux_data)->chan = tmp_aux_data.chan;
         (*aux_data)->offset = tmp_aux_data.offset;
         (*aux_data)->mode = tmp_aux_data.mode;
 
         return 0;
     }
+
+    /*If there is no new aux ptr, just get current one */
+    (*aux_data) = scansm->cur_aux_data;
+    scansm->cur_aux_data = NULL;
+
+    /* Clear incomplete flag */
+    (*aux_data)->flags &= ~BLE_LL_AUX_INCOMPLETE_BIT;
 
     return 1;
 }
@@ -1622,12 +1648,26 @@ ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
      * advertising.
      */
     aux_data = ble_hdr->rxinfo.aux_data;
-    if (aux_data) {
-        out_evt->sec_phy = aux_data->aux_phy;
-        out_evt->prim_phy = aux_data->aux_primary_phy;
-    } else {
+    if (!aux_data) {
         out_evt->prim_phy = ble_hdr->rxinfo.phy;
+        goto done;
     }
+
+    out_evt->sec_phy = aux_data->aux_phy;
+    out_evt->prim_phy = aux_data->aux_primary_phy;
+
+    /* Set event type */
+    if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
+        out_evt->evt_type |= (BLE_HCI_ADV_INCOMPLETE << 8);
+    } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+        out_evt->evt_type |= (BLE_HCI_ADV_CORRUPTED << 8);
+    }
+
+    if (BLE_MBUF_HDR_SCAN_RSP_RCV(ble_hdr)) {
+        out_evt->evt_type |= BLE_HCI_ADV_SCAN_RSP_MASK;
+    }
+
+done:
 
     return 0;
 }
@@ -1809,12 +1849,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             /* AUX to be proceed. Set this flag anyway, so LL know to ignore this packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
             if (ble_ll_sched_aux_scan(ble_hdr, scansm, aux_data)) {
-               ble_ll_scan_aux_data_free(aux_data);
-               aux_data = NULL;
-               rc = -1;
-               goto scan_rx_isr_exit;
+                aux_data->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
             }
         }
+
+        ble_hdr->rxinfo.aux_data = aux_data;
+        scansm->cur_aux_data = NULL;
         rc = -1;
     }
 #endif
@@ -1831,11 +1871,6 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     switch (pdu_type) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
-
-        ble_hdr->rxinfo.aux_data = scansm->cur_aux_data;
-        /*TODO Add support for chain */
-        scansm->cur_aux_data = NULL;
-
         if (!peer) {
             /*Wait for AUX ptr */
             goto scan_rx_isr_exit;
@@ -2012,6 +2047,7 @@ ble_ll_scan_wfr_timer_exp(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->cur_aux_data) {
+        /*TODO handle chain incomplete, data truncated */
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
         STATS_INC(ble_ll_stats, aux_missed_adv);
@@ -2053,10 +2089,6 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *rxbuf,
     evt->event_len = sizeof(struct ble_ll_ext_adv) + evt->adv_data_len;
     evt->rssi = hdr->rxinfo.rssi;
 
-    if (BLE_MBUF_HDR_SCAN_RSP_RCV(hdr)) {
-        evt->evt_type |= BLE_HCI_ADV_SCAN_RSP_MASK;
-    }
-
     ble_ll_hci_event_send((uint8_t *)evt);
 }
 #endif
@@ -2086,6 +2118,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     struct ble_mbuf_hdr *ble_hdr;
     int ext_adv_mode = -1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_aux_data *aux_data;
+#endif
 
     /* Set scan response check flag */
     scan_rsp_chk = BLE_MBUF_HDR_SCAN_RSP_RCV(hdr);
@@ -2173,9 +2208,16 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             goto scan_continue;
         }
 
+        aux_data = hdr->rxinfo.aux_data;
+
+        /* Let's see if that packet contains aux ptr*/
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-            /*TODO Handle chained AUX*/
-            goto scan_continue;
+            if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+                /* This is just beacon. Let's wait for more data */
+                goto scan_continue;
+            }
+
+            STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
         ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
@@ -2190,7 +2232,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             scansm->cur_aux_data = NULL;
         }
 
-        ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+        if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+            /* If there is no chaining, we can remove data. Otherwise it is
+             * already scheduled for next aux*/
+            ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+        }
 
         goto scan_continue;
     }

@@ -86,6 +86,12 @@ struct ble_ll_scan_params
     uint32_t next_event_start;
 };
 
+#define BLE_LL_AUX_CHAIN_BIT            0x01
+#define BLE_LL_AUX_INCOMPLETE_BIT       0x02
+#define BLE_LL_AUX_INCOMPLETE_ERR_BIT   0x04
+
+#define BLE_LL_CHECK_AUX_FLAG(aux_data, flag) (!!((aux_data)->flags & flag))
+
 struct ble_ll_aux_data {
     uint8_t chan;
     uint32_t offset;
@@ -93,6 +99,8 @@ struct ble_ll_aux_data {
     uint8_t aux_primary_phy;
     uint8_t mode;
     uint8_t scanning;
+    uint8_t flags;
+    uint16_t did;
     struct ble_ll_sched_item sch;
 };
 
