@@ -561,7 +561,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t subev, uint8_t evtype,
     }
 
     evt->rssi = rssi;
-    evt->prim_phy = BLE_PHY_MODE_1M;
+    evt->prim_phy = BLE_PHY_1M;
 
     return ble_ll_hci_event_send((uint8_t *) evt);
 }
