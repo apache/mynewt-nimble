@@ -381,3 +381,40 @@ ble_store_iterate(int obj_type,
         idx++;
     }
 }
+
+/**
+ * Deletes all objects from the BLE host store.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int
+ble_store_clear(void)
+{
+    const uint8_t obj_types[] = {
+        BLE_STORE_OBJ_TYPE_OUR_SEC,
+        BLE_STORE_OBJ_TYPE_PEER_SEC,
+        BLE_STORE_OBJ_TYPE_CCCD,
+    };
+    union ble_store_key key;
+    int obj_type;
+    int rc;
+    int i;
+
+    /* A zeroed key will always retrieve the first value. */
+    memset(&key, 0, sizeof key);
+
+    for (i = 0; i < sizeof obj_types / sizeof obj_types[0]; i++) {
+        obj_type = obj_types[i];
+
+        do {
+            rc = ble_store_delete(obj_type, &key);
+        } while (rc == 0);
+
+        /* BLE_HS_ENOENT means we deleted everything. */
+        if (rc != BLE_HS_ENOENT) {
+            return rc;
+        }
+    }
+
+    return 0;
+}

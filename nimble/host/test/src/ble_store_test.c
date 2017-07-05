@@ -113,6 +113,18 @@ ble_store_test_util_overflow_sec(int is_our_sec)
     }
 }
 
+static int
+ble_store_test_util_count(int obj_type)
+{
+    int count;
+    int rc;
+
+    rc = ble_store_util_count(obj_type, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    return count;
+}
+
 TEST_CASE(ble_store_test_peers)
 {
     struct ble_store_value_sec secs[3] = {
@@ -333,6 +345,76 @@ TEST_CASE(ble_store_test_overflow)
     ble_store_test_util_overflow_sec(1);
 }
 
+TEST_CASE(ble_store_test_clear)
+{
+    const struct ble_store_value_sec secs[2] = {
+        {
+            .peer_addr = { BLE_ADDR_PUBLIC,     { 1, 2, 3, 4, 5, 6 } },
+            .ltk_present = 1,
+        },
+        {
+            /* Address value is a duplicate of above, but type differs. */
+            .peer_addr = { BLE_ADDR_RANDOM,     { 1, 2, 3, 4, 5, 6 } },
+            .ltk_present = 1,
+        },
+    };
+    const struct ble_store_value_cccd cccds[3] = {
+        /* First two belong to first peer. */
+        {
+            .peer_addr = secs[0].peer_addr,
+            .chr_val_handle = 5,
+        },
+        {
+            .peer_addr = secs[0].peer_addr,
+            .chr_val_handle = 8,
+        },
+
+        /* Last belongs to second peer. */
+        {
+            .peer_addr = secs[1].peer_addr,
+            .chr_val_handle = 5,
+        },
+    };
+    int rc;
+    int i;
+
+    ble_hs_test_util_init();
+
+    for (i = 0; i < sizeof secs / sizeof secs[0]; i++) {
+        rc = ble_store_write_our_sec(secs + i);
+        TEST_ASSERT_FATAL(rc == 0);
+        rc = ble_store_write_peer_sec(secs + i);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    for (i = 0; i < sizeof cccds / sizeof cccds[0]; i++) {
+        rc = ble_store_write_cccd(cccds + i);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    /* Sanity check. */
+    TEST_ASSERT_FATAL(
+        ble_store_test_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC) == 2);
+    TEST_ASSERT_FATAL(
+        ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 2);
+    TEST_ASSERT_FATAL(
+        ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 3);
+
+    /* Ensure store is empty after clear gets called. */
+    rc = ble_store_clear();
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC) == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 0);
+
+    /* Ensure second clear succeeds with no effect. */
+    rc = ble_store_clear();
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC) == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 0);
+}
+
 TEST_SUITE(ble_store_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -341,6 +423,7 @@ TEST_SUITE(ble_store_suite)
     ble_store_test_delete_peer();
     ble_store_test_count();
     ble_store_test_overflow();
+    ble_store_test_clear();
 }
 
 int
