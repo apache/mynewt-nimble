@@ -1147,6 +1147,15 @@ ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
 
     return next_event_time;
 }
+
+static void
+ble_ll_aux_scan_rsp_failed(struct ble_ll_scan_sm *scansm)
+{
+    if (scansm->cur_aux_data) {
+        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        scansm->cur_aux_data = NULL;
+    }
+}
 #endif
 
 /**
@@ -1364,10 +1373,13 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
                 *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
             } else {
                 ble_ll_scan_req_backoff(scansm, 0);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+                ble_ll_aux_scan_rsp_failed(scansm);
+#endif
             }
         }
 
-        if (scansm->cur_aux_data) {
+        if (scansm->cur_aux_data && !scansm->scan_rsp_pending ) {
             STATS_INC(ble_ll_stats, aux_received);
         }
 
@@ -1761,6 +1773,9 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     if (rxpdu == NULL) {
         if (scansm->scan_rsp_pending) {
             ble_ll_scan_req_backoff(scansm, 0);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+            ble_ll_aux_scan_rsp_failed(scansm);
+#endif
         }
         ble_phy_restart_rx();
         return 0;
@@ -1909,6 +1924,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             if (rc == 0) {
                 /* Set "waiting for scan response" flag */
                 scansm->scan_rsp_pending = 1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+                if (ble_hdr->rxinfo.channel <  BLE_PHY_NUM_DATA_CHANS) {
+                    /* Let's keep the aux ptr as a reference to scan rsp */
+                    scansm->cur_aux_data = ble_hdr->rxinfo.aux_data;
+                }
+#endif
             }
         }
     }
@@ -1980,6 +2001,10 @@ ble_ll_scan_wfr_timer_exp(void)
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_rsp_pending) {
         ble_ll_scan_req_backoff(scansm, 0);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_ll_aux_scan_rsp_failed(scansm);
+        ble_ll_event_send(&scansm->scan_sched_ev);
+#endif
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -2151,7 +2176,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         }
 
         ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
-        ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
         ble_ll_scan_switch_phy(scansm);
 
         if (scansm && scansm->scan_rsp_pending) {
@@ -2160,7 +2184,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             }
 
             ble_ll_scan_req_backoff(scansm, 1);
+            scansm->cur_aux_data = NULL;
         }
+
+        ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+
         goto scan_continue;
     }
 #endif
