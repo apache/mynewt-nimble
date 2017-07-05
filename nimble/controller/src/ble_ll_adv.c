@@ -278,7 +278,7 @@ ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     }
 
     /* An invalid advertising data length indicates a memory overwrite */
-    assert(adv_data_len <= BLE_ADV_DATA_MAX_LEN);
+    assert(adv_data_len <= BLE_ADV_LEGACY_DATA_MAX_LEN);
 
     /* Set the PDU length in the state machine (includes header) */
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
@@ -522,7 +522,7 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
     struct os_mbuf *m;
 
     /* Obtain scan response buffer */
-    m = os_msys_get_pkthdr(BLE_SCAN_RSP_DATA_MAX_LEN + BLE_DEV_ADDR_LEN,
+    m = os_msys_get_pkthdr(BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN + BLE_DEV_ADDR_LEN,
                            sizeof(struct ble_mbuf_hdr));
     if (!m) {
         return NULL;
@@ -530,7 +530,7 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
 
     /* Make sure that the length is valid */
     scan_rsp_len = advsm->scan_rsp_len;
-    assert(scan_rsp_len <= BLE_SCAN_RSP_DATA_MAX_LEN);
+    assert(scan_rsp_len <= BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN);
 
     /* Set BLE transmit header */
     pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
@@ -808,7 +808,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Get an advertising mbuf (packet header)  */
-    adv_pdu = os_msys_get_pkthdr(BLE_ADV_MAX_PKT_LEN,
+    adv_pdu = os_msys_get_pkthdr(BLE_ADV_LEGACY_MAX_PKT_LEN,
                                  sizeof(struct ble_mbuf_hdr));
     if (!adv_pdu) {
         ble_phy_disable();
@@ -957,7 +957,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Get an advertising mbuf (packet header)  */
-    adv_pdu = os_msys_get_pkthdr(BLE_ADV_MAX_PKT_LEN,
+    adv_pdu = os_msys_get_pkthdr(BLE_ADV_LEGACY_MAX_PKT_LEN,
                                  sizeof(struct ble_mbuf_hdr));
     if (!adv_pdu) {
         ble_phy_disable();
@@ -1502,7 +1502,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
     switch (operation) {
     case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-            if (datalen > BLE_ADV_DATA_MAX_LEN) {
+            if (datalen > BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN) {
                 return BLE_ERR_INV_HCI_CMD_PARMS;
             }
         }
@@ -1601,7 +1601,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
     switch (operation) {
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-            if (datalen > BLE_ADV_DATA_MAX_LEN) {
+            if (datalen > BLE_ADV_LEGACY_DATA_MAX_LEN) {
                 return BLE_ERR_INV_HCI_CMD_PARMS;
             }
         }
@@ -1713,8 +1713,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     }
 
     if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        if (advsm->adv_len > BLE_ADV_DATA_MAX_LEN ||
-            advsm->scan_rsp_len > BLE_SCAN_RSP_DATA_MAX_LEN) {
+        if (advsm->adv_len > BLE_ADV_LEGACY_DATA_MAX_LEN ||
+            advsm->scan_rsp_len > BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
