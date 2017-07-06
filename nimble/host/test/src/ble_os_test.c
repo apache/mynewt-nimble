@@ -144,6 +144,10 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!cb_called);
 
+    /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
+    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+
     /* Receive an HCI connection-complete event. */
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -305,6 +309,9 @@ ble_gap_terminate_test_task_handler(void *arg)
     ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
                              &addr1, 0, NULL, ble_gap_terminate_cb,
                              &disconn_handle, 0);
+    /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
+    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     conn_evt.status = BLE_ERR_SUCCESS;
@@ -316,6 +323,9 @@ ble_gap_terminate_test_task_handler(void *arg)
     ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
                              &addr2, 0, NULL, ble_gap_terminate_cb,
                              &disconn_handle, 0);
+    /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
+    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     conn_evt.status = BLE_ERR_SUCCESS;
