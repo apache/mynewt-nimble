@@ -519,6 +519,28 @@ ble_ll_conn_create(uint8_t *cmdbuf)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_conn_init_hcc_params(struct hci_ext_create_conn *hcc,
+                            int valid_param_idx)
+{
+    struct hci_ext_conn_params *hcc_params = &hcc->params[valid_param_idx];
+
+    if (valid_param_idx != 0 && !(hcc->init_phy_mask & BLE_PHY_MASK_1M)) {
+        hcc->params[0] = *hcc_params;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    if (valid_param_idx != 1 && !(hcc->init_phy_mask & BLE_PHY_MASK_2M)) {
+        hcc->params[1] = *hcc_params;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (valid_param_idx != 2 && !(hcc->init_phy_mask & BLE_PHY_MASK_CODED)) {
+        hcc->params[2] = *hcc_params;
+    }
+#endif
+}
 
 int
 ble_ll_ext_conn_create(uint8_t *cmdbuf)
@@ -528,6 +550,7 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
     struct hci_ext_create_conn *hcc;
     struct hci_ext_conn_params *hcc_params;
     struct ble_ll_conn_sm *connsm;
+    int valid_param_idx = -1;
     int iter;
 
     /* If we are already creating a connection we should leave */
@@ -573,6 +596,12 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    if (!(hcc->init_phy_mask & BLE_HCI_LE_PHY_1M_PREF_MASK) &&
+            !(hcc->init_phy_mask & BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
+        /* At least one of those need to be set */
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     iter = 10;
     if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
         hcc_params = &hcc->params[0];
@@ -607,6 +636,7 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         }
 
         iter += 4;
+        valid_param_idx = 0;
     }
 
     if (hcc->init_phy_mask & BLE_PHY_MASK_2M) {
@@ -675,6 +705,9 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         }
 
         iter += 4;
+        if (valid_param_idx < 0) {
+            valid_param_idx = 2;
+        }
 #else
         return BLE_ERR_INV_HCI_CMD_PARMS;
 #endif
@@ -690,6 +723,8 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
     if (connsm == NULL) {
         return BLE_ERR_CONN_LIMIT;
     }
+
+    ble_ll_conn_init_hcc_params(hcc, valid_param_idx);
 
     /* Initialize state machine in master role and start state machine */
     ble_ll_conn_ext_master_init(connsm, hcc);
