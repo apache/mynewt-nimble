@@ -43,6 +43,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include "os/os.h"
 
 #if MYNEWT_VAL(BLE_SOCK_USE_TCP)
 #include <sys/errno.h>
@@ -139,6 +140,11 @@ STATS_NAME_END(hci_sock_stats)
 #define BLE_HCI_UART_H4_SKIP_CMD    0x81
 #define BLE_HCI_UART_H4_SKIP_ACL    0x82
 
+#define BLE_SOCK_STACK_SIZE         \
+    OS_STACK_ALIGN(MYNEWT_VAL(BLE_SOCK_STACK_SIZE))
+
+struct os_task ble_sock_task;
+
 static struct os_mempool ble_hci_sock_evt_hi_pool;
 static void *ble_hci_sock_evt_hi_buf;
 static struct os_mempool ble_hci_sock_evt_lo_pool;
@@ -158,7 +164,7 @@ static void *ble_hci_sock_rx_acl_arg;
 
 static struct ble_hci_sock_state {
     int sock;
-    struct os_eventq *evq;
+    struct os_eventq evq;
     struct os_event ev;
     struct os_callout timer;
 
@@ -399,7 +405,7 @@ ble_hci_sock_rx_ev(struct os_event *ev)
 
     rc = ble_hci_sock_rx_msg();
     if (rc == 0) {
-        os_eventq_put(ble_hci_sock_state.evq, &ble_hci_sock_state.ev);
+        os_eventq_put(&ble_hci_sock_state.evq, &ble_hci_sock_state.ev);
     } else {
         os_callout_reset(&ble_hci_sock_state.timer, OS_TICKS_PER_SEC / 100);
     }
@@ -712,12 +718,29 @@ ble_hci_trans_reset(void)
     return 0;
 }
 
-void
-ble_hci_sock_set_evq(struct os_eventq *evq)
+static void
+ble_hci_sock_ack_handler(void *arg)
 {
-    ble_hci_sock_state.evq = evq;
+    while (1) {
+        os_eventq_run(&ble_hci_sock_state.evq);
+    }
+}
+
+static void
+ble_hci_sock_init_task(void)
+{
+    os_stack_t *pstack;
+
+    pstack = malloc(sizeof(os_stack_t)*BLE_SOCK_STACK_SIZE);
+    assert(pstack);
+
+    os_task_init(&ble_sock_task, "sock", ble_hci_sock_ack_handler, NULL,
+                 MYNEWT_VAL(BLE_SOCK_TASK_PRIO), OS_WAIT_FOREVER, pstack,
+                 BLE_SOCK_STACK_SIZE);
+
+    os_eventq_init(&ble_hci_sock_state.evq);
     os_callout_stop(&ble_hci_sock_state.timer);
-    os_callout_init(&ble_hci_sock_state.timer, ble_hci_sock_state.evq,
+    os_callout_init(&ble_hci_sock_state.timer, &ble_hci_sock_state.evq,
                     ble_hci_sock_rx_ev, NULL);
 }
 
@@ -740,7 +763,7 @@ ble_hci_sock_init(void)
     memset(&ble_hci_sock_state, 0, sizeof(ble_hci_sock_state));
     ble_hci_sock_state.sock = -1;
 
-    ble_hci_sock_set_evq(os_eventq_dflt_get());
+    ble_hci_sock_init_task();
     ble_hci_sock_state.ev.ev_cb = ble_hci_sock_rx_ev;
 
     /*
