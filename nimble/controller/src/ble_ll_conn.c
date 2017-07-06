@@ -2773,7 +2773,6 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         /* Do nothing, we need AUX_CONN_RSP*/
-        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.aux_data);
         return;
     }
 #endif
@@ -2863,7 +2862,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     uint8_t pdu_type;
     uint8_t addr_type;
     uint8_t peer_addr_type;
-    uint8_t *adv_addr;
+    uint8_t *adv_addr = NULL;
     uint8_t *peer;
     uint8_t *init_addr = NULL;
     uint8_t init_addr_type;
@@ -2935,25 +2934,26 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
-        /* Lets see if we have addr. If not we need to wait for aux ptr*/
-        if (!adv_addr || !(ext_adv_mode & BLE_LL_EXT_ADV_MODE_CONN)) {
+        rc = -1;
+
+        /* If this is not connectable adv mode, lets skip it */
+        if (!(ext_adv_mode & BLE_LL_EXT_ADV_MODE_CONN)) {
+            ble_ll_scan_aux_data_free(aux_data);
             goto init_rx_isr_exit;
         }
 
-        if (aux_data) {
-            /* AUX to be proceed. Set this flag anyway, so LL know to ignore
-             * this packet
-             * */
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+        if (!adv_addr) {
+            /*If address is not here it is beacon. Wait for aux */
             if (ble_ll_sched_aux_scan(ble_hdr, scansm, aux_data)) {
                 ble_ll_scan_aux_data_free(aux_data);
+            } else {
+                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
             }
-            rc = -1;
             goto init_rx_isr_exit;
+        } else {
+            /*Ok, we got device address. Remove aux data. We don't need it*/
+            ble_ll_scan_aux_data_free(aux_data);
         }
-
-        ble_hdr->rxinfo.aux_data = scansm->cur_aux_data;
-        scansm->cur_aux_data = NULL;
 
         if (!init_addr) {
             break;
