@@ -313,12 +313,6 @@ syscfg.defs:
             The rate that new random addresses should be generated (seconds).
         value: 300
 
-    # Miscellaneous features.
-    BLE_EDDYSTONE:
-        description: >
-            Enables advertising of Eddystone beacons.
-        value: 1
-
     # Store settings.
     BLE_STORE_MAX_BONDS:
         description: >

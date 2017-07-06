@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include "nimble/hci_common.h"
 #include "host/ble_att.h"
+#include "host/ble_eddystone.h"
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs_adv.h"
