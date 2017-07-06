@@ -52,8 +52,14 @@ extern "C" {
 #define BLE_LL_ADV_STATE_HD_MAX         (1280)          /* msecs */
 
 /* Maximum advertisement data length */
-#define BLE_ADV_DATA_MAX_LEN            (31)
-#define BLE_ADV_MAX_PKT_LEN             (37)
+#define BLE_ADV_LEGACY_DATA_MAX_LEN     (31)
+#define BLE_ADV_LEGACY_MAX_PKT_LEN      (37)
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#define BLE_ADV_DATA_MAX_LEN            MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)
+#else
+#define BLE_ADV_DATA_MAX_LEN            BLE_ADV_LEGACY_DATA_MAX_LEN
+#endif
 
 /*
  * ADV_IND
