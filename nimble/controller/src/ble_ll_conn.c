@@ -2341,12 +2341,12 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         if (rxhdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
             switch (rxhdr->rxinfo.phy) {
             case BLE_PHY_1M:
+            case BLE_PHY_2M:
                 usecs += 1250;
                 break;
             case BLE_PHY_CODED:
                 usecs += 2500;
                 break;
-            case BLE_PHY_2M:
             default:
                 assert(0);
                 break;
