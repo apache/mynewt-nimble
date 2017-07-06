@@ -52,16 +52,17 @@ extern "C" {
  * Sent by the LL in the advertising state; received by the LL in the
  * scanning state.
  */
-#define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
-#define BLE_SCAN_MAX_PKT_LEN            (37)
+#define BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN       (31)
+#define BLE_SCAN_LEGACY_MAX_PKT_LEN            (37)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-#define BLE_EXT_SCAN_MAX_PKT_LEN        (256)
+#define BLE_SCAN_RSP_DATA_MAX_LEN       MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)
 
 /* For Bluetooth 5.0 we need state machine for two PHYs*/
 #define BLE_LL_SCAN_PHY_NUMBER          (2)
 #else
 #define BLE_LL_SCAN_PHY_NUMBER          (1)
+#define BLE_SCAN_RSP_DATA_MAX_LEN       BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN
 #endif
 
 #define PHY_UNCODED                    (0)
