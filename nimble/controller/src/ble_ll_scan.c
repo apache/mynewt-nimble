@@ -1510,14 +1510,15 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
         if (scansm->cur_aux_data) {
             /* If we are here that means there is chain advertising. */
 
+            /* Lets reuse old aux_data */
+            *aux_data = scansm->cur_aux_data;
+
             /* TODO Collision; Do smth smart when did does not match */
             if (tmp_aux_data.did != (*aux_data)->did) {
                 STATS_INC(ble_ll_stats, aux_chain_err);
                 (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
             }
 
-            /* Lets reuse old aux_data */
-            *aux_data = scansm->cur_aux_data;
             (*aux_data)->flags |= BLE_LL_AUX_CHAIN_BIT;
             (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_BIT;
         } else if (ble_ll_scan_ext_adv_init(aux_data) < 0) {
