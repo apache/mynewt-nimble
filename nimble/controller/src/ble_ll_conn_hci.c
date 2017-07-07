@@ -42,6 +42,7 @@
 static uint32_t g_ble_ll_last_num_comp_pkt_evt;
 extern uint8_t *g_ble_ll_conn_comp_ev;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static const uint8_t ble_ll_valid_conn_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
                                 | BLE_HCI_LE_PHY_2M_PREF_MASK
@@ -55,6 +56,8 @@ static const uint8_t ble_ll_conn_required_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MAS
                             | BLE_HCI_LE_PHY_CODED_PREF_MASK
 #endif
                             );
+#endif
+
 /**
  * Allocate an event to send a connection complete event when initiating
  *
