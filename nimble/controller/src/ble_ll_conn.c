@@ -2874,6 +2874,7 @@ ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr)
             STATS_INC(ble_ll_stats, aux_received);
         }
 
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_EXT_ADV;
         return 1;
     }
 

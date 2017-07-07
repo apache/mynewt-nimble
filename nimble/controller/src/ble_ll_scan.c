@@ -1356,8 +1356,12 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
     case BLE_SCAN_TYPE_ACTIVE:
         /* If adv ind or scan ind, we may send scan request */
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
-            (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND) ||
-            (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning)) {
+            (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND)) {
+            rc = 1;
+        }
+
+        if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning)) {
+            *rxflags |= BLE_MBUF_HDR_F_EXT_ADV;
             rc = 1;
         }
 
