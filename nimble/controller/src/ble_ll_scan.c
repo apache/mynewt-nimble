@@ -1335,7 +1335,8 @@ rfclk_not_settled:
  *
  * Context: Interrupt
  *
- * @param rxpdu Pointer to where received data is being stored.
+ * @param pdu_type
+ * @param rxflags
  *
  * @return int
  *  0: we will not attempt to reply to this frame
