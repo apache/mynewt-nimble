@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/hci_common.h"
@@ -29,10 +30,7 @@
 int
 main(int argc, char **argv)
 {
-    ts_config.ts_print_results = 1;
-    tu_parse_args(argc, argv);
-
-    tu_init();
+    sysinit();
 
     ble_att_clt_test_all();
     ble_att_svr_test_all();

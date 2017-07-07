@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include "sysinit/sysinit.h"
 #include "stats/stats.h"
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
@@ -2362,7 +2363,7 @@ ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
 void
 ble_hs_test_util_init_no_start(void)
 {
-    tu_init();
+    sysinit();
 
     os_eventq_init(&ble_hs_test_util_evq);
     STAILQ_INIT(&ble_hs_test_util_prev_tx_queue);
