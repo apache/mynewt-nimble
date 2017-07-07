@@ -2886,6 +2886,8 @@ ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr)
  * Context: Interrupt
  *
  * @param rxpdu
+ * @param crcok
+ * @param ble_hdr
  *
  * @return int
  *       < 0: Disable the phy after reception.
