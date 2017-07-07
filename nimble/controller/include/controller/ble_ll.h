@@ -485,11 +485,6 @@ ble_ll_get_addr_type(uint8_t txrxflag)
     return BLE_HCI_ADV_OWN_ADDR_PUBLIC;
 }
 
-/*
- * XXX: temporary LL debug log. Will get removed once we transition to real
- * log
- */
-#define BLE_LL_LOG
 #include "console/console.h"
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
