@@ -124,6 +124,7 @@ int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
 void ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
                            struct ble_mbuf_hdr *ble_hdr);
+int ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr);
 int ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                            struct ble_mbuf_hdr *ble_hdr);
 void ble_ll_conn_wfr_timer_exp(void);
