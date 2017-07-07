@@ -42,6 +42,19 @@
 static uint32_t g_ble_ll_last_num_comp_pkt_evt;
 extern uint8_t *g_ble_ll_conn_comp_ev;
 
+static const uint8_t ble_ll_valid_conn_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+                                | BLE_HCI_LE_PHY_2M_PREF_MASK
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+                                | BLE_HCI_LE_PHY_CODED_PREF_MASK
+#endif
+                              );
+static const uint8_t ble_ll_conn_required_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+                            | BLE_HCI_LE_PHY_CODED_PREF_MASK
+#endif
+                            );
 /**
  * Allocate an event to send a connection complete event when initiating
  *
@@ -590,14 +603,11 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
     }
 
     hcc->init_phy_mask = cmdbuf[9];
-    if (hcc->init_phy_mask > (BLE_HCI_LE_PHY_1M_PREF_MASK |
-                                BLE_HCI_LE_PHY_2M_PREF_MASK |
-                                BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
+    if (hcc->init_phy_mask & ~ble_ll_valid_conn_phy_mask) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (!(hcc->init_phy_mask & BLE_HCI_LE_PHY_1M_PREF_MASK) &&
-            !(hcc->init_phy_mask & BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
+    if (!(hcc->init_phy_mask & ble_ll_conn_required_phy_mask)) {
         /* At least one of those need to be set */
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -639,8 +649,8 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         valid_param_idx = 0;
     }
 
-    if (hcc->init_phy_mask & BLE_PHY_MASK_2M) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    if (hcc->init_phy_mask & BLE_PHY_MASK_2M) {
         /* Move to connection parameters */
         hcc_params = &hcc->params[1];
         iter += 4;
@@ -666,13 +676,11 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         }
 
         iter += 4;
-#else
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-#endif
     }
+#endif
 
-    if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
         hcc_params = &hcc->params[2];
         hcc_params->scan_itvl = get_le16(cmdbuf + iter);
         hcc_params->scan_window = get_le16(cmdbuf + iter + 2);
@@ -708,10 +716,8 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
         if (valid_param_idx < 0) {
             valid_param_idx = 2;
         }
-#else
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-#endif
     }
+#endif
 
     /* Make sure we can allocate an event to send the connection complete */
     if (ble_ll_init_alloc_conn_comp_ev()) {
