@@ -283,6 +283,8 @@ int ble_store_iterate(int obj_type,
                       ble_store_iterator_fn *callback,
                       void *cookie);
 
+int ble_store_clear(void);
+
 /*** Utility functions. */
 
 int ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs,
