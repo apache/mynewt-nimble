@@ -211,6 +211,9 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                                        sizeof ble_svc_ans_alert_not_ctrl_pt,
                                        &ble_svc_ans_alert_not_ctrl_pt,
                                        NULL);
+            if (rc != 0) {
+                return rc;
+            }
 
             /* Get command ID and category ID */
             cmd_id = ble_svc_ans_alert_not_ctrl_pt[0];
