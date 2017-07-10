@@ -121,10 +121,15 @@ ble_hs_startup_le_set_evmask_tx(void)
      *     0x0000000000000020 LE Remote Connection Parameter Request Event
      *     0x0000000000000040 LE Data Length Change Event
      *     0x0000000000000200 LE Enhanced Connection Complete Event
+     *     0x0000000000000400 LE Directed Advertising Report Event
      *     0x0000000000000800 LE PHY Update Complete Event
+     *     0x0000000000001000 LE Extended Advertising Report Event
+     *     0x0000000000010000 LE Extended Scan Timeout Event
+     *     0x0000000000020000 LE Extended Advertising Set Terminated Event
+     *     0x0000000000040000 LE Scan Request Received Event
+     *     0x0000000000080000 LE Channel Selection Algorithm Event
      */
-    ble_hs_hci_cmd_build_le_set_event_mask(0x0000000000000A7f,
-                                           buf, sizeof buf);
+    ble_hs_hci_cmd_build_le_set_event_mask(0x00000000000F1A7F, buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx_empty_ack(buf);
     if (rc != 0) {
         return rc;
