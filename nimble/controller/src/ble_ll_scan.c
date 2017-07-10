@@ -1793,7 +1793,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     int resolved;
     uint8_t pdu_type;
     uint8_t addr_type;
-    uint8_t peer_addr_type;
+    uint8_t peer_addr_type = 0;
     uint8_t *adv_addr = NULL;
     uint8_t *peer = NULL;
     uint8_t *rxbuf;
@@ -2110,13 +2110,13 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int index;
 #endif
-    uint8_t *adv_addr;
+    uint8_t *adv_addr = NULL;
     uint8_t *adva;
     uint8_t *ident_addr;
     uint8_t ident_addr_type;
     uint8_t *init_addr = NULL;
-    uint8_t init_addr_type;
-    uint8_t txadd;
+    uint8_t init_addr_type = 0;
+    uint8_t txadd = 0;
     uint8_t rxadd;
     uint8_t scan_rsp_chk;
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
