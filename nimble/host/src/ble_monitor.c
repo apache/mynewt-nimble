@@ -151,7 +151,8 @@ monitor_write(const void *buf, size_t len)
 }
 #endif
 
-static size_t btmon_write(FILE *instance, const char *bp, size_t n)
+static size_t
+btmon_write(FILE *instance, const char *bp, size_t n)
 {
     monitor_write(bp, n);
 
