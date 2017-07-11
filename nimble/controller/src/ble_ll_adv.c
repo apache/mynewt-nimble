@@ -2555,7 +2555,6 @@ ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
                                               advsm->events);
          /* Disable advertising */
          advsm->adv_enabled = 0;
-         ble_ll_scan_chk_resume();
          return;
     }
 
