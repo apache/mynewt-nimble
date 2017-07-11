@@ -2840,11 +2840,54 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
 }
 
 /**
+ * Called when a receive PDU has started and we are in the initiating state.
+ *
+ * Context: Interrupt
+ *
+ * @param pdu_type
+ * @param ble_hdr
+ *
+ * @return int
+ *  0: we will not attempt to reply to this frame
+ *  1: we may send a response to this frame.
+ */
+int
+ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr)
+{
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_scan_sm *scansm;
+
+    connsm = g_ble_ll_conn_create_sm;
+    if (!connsm) {
+        return 0;
+    }
+    scansm = connsm->scansm;
+
+    if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
+        (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND ||
+         pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP)) {
+        return 1;
+    }
+
+    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning) {
+        if (connsm->scansm->cur_aux_data) {
+            STATS_INC(ble_ll_stats, aux_received);
+        }
+
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_EXT_ADV;
+        return 1;
+    }
+
+    return 0;
+}
+/**
  * Called when a receive PDU has ended and we are in the initiating state.
  *
  * Context: Interrupt
  *
  * @param rxpdu
+ * @param crcok
+ * @param ble_hdr
  *
  * @return int
  *       < 0: Disable the phy after reception.
