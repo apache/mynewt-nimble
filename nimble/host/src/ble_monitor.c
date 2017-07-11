@@ -94,6 +94,9 @@ monitor_uart_queue_char(uint8_t ch)
             tx_ringbuf_tail) {
         uart_start_tx(uart);
         OS_EXIT_CRITICAL(sr);
+        if (os_started()) {
+            os_time_delay(1);
+        }
         OS_ENTER_CRITICAL(sr);
     }
 
