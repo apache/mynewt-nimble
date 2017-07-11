@@ -300,9 +300,9 @@ ble_monitor_new_index(uint8_t bus, uint8_t *addr, const char *name)
 int
 ble_monitor_log(int level, const char *fmt, ...)
 {
+    static const char id[] = "nimble";
     struct ble_monitor_hdr hdr;
     struct ble_monitor_user_logging ulog;
-    const char id[] = "nimble";
     va_list va;
     int len;
 
