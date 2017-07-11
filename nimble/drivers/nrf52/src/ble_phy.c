@@ -521,7 +521,6 @@ ble_phy_rx_xcvr_setup(void)
     if (g_ble_phy_data.phy_privacy) {
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
-        NRF_AAR->ADDRPTR = (uint32_t)dptr;
         NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
         NRF_AAR->EVENTS_END = 0;
         NRF_AAR->EVENTS_RESOLVED = 0;
@@ -724,9 +723,6 @@ ble_phy_rx_start_isr(void)
     uint32_t usecs;
     uint32_t ticks;
     struct ble_mbuf_hdr *ble_hdr;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-    uint8_t *dptr;
-#endif
 
     /* Clear events and clear interrupt */
     NRF_RADIO->EVENTS_ADDRESS = 0;
@@ -795,19 +791,24 @@ ble_phy_rx_start_isr(void)
             NRF_RADIO->EVENTS_BCMATCH = 0;
             NRF_PPI->CHENSET = PPI_CHEN_CH23_Msk;
 
-            dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
-            /* Lets skip S0, len, S1*/
-            dptr += 3;
-
+            /*
+             * Setup AAR to resolve AdvA and trigger it after complete address
+             * is received, i.e. after PDU header and AdvA is received.
+             *
+             * AdvA starts at 4th octet in receive buffer, after S0, len and S1
+             * fields.
+             *
+             * In case of extended advertising AdvA is located after extended
+             * header (+2 octets).
+             */
             if (BLE_MBUF_HDR_EXT_ADV(&g_ble_phy_data.rxhdr)) {
-                /* In case of extended advertising we need to move pointer by
-                 * additional two bytes */
-                dptr += 2;
+                NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[5];
                 NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN + 2) * 8;
+
             } else {
+                NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[3];
                 NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8;
             }
-            NRF_AAR->ADDRPTR = (uint32_t)dptr;
         }
 #endif
     } else {
