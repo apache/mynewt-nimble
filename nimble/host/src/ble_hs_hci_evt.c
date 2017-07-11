@@ -25,6 +25,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
 #include "host/ble_gap.h"
+#include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 #include "ble_hs_dbg_priv.h"
 
@@ -605,6 +606,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     }
 
 #if (BLETEST_THROUGHPUT_TEST == 0)
+#if !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): conn_handle=%u pb=%x "
                       "len=%u data=",
                BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc),
@@ -612,6 +614,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
                hci_hdr.hdh_len);
     ble_hs_log_mbuf(om);
     BLE_HS_LOG(DEBUG, "\n");
+#endif
 #endif
 
     if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {

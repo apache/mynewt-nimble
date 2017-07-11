@@ -24,6 +24,7 @@
 #include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
+#include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 
 static void
@@ -452,7 +453,7 @@ ble_hs_dbg_cmd_status_disp(uint8_t *evdata, uint8_t len)
 void
 ble_hs_dbg_event_disp(uint8_t *evbuf)
 {
-#if MYNEWT_VAL(LOG_LEVEL) > LOG_LEVEL_DEBUG
+#if MYNEWT_VAL(LOG_LEVEL) > LOG_LEVEL_DEBUG || BLE_MONITOR
     return;
 #endif
 

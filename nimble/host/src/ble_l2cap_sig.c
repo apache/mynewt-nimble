@@ -46,6 +46,7 @@
 #include <errno.h>
 #include "console/console.h"
 #include "nimble/ble.h"
+#include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 
 /*****************************************************************************
@@ -740,7 +741,9 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_hs_conn *conn;
     int rc;
 
+#if !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "L2CAP LE COC connection response received\n");
+#endif
 
     proc = ble_l2cap_sig_proc_extract(conn_handle,
                                       BLE_L2CAP_SIG_PROC_OP_CONNECT,
@@ -1109,9 +1112,12 @@ ble_l2cap_sig_rx(struct ble_l2cap_chan *chan)
     om = &chan->rx_buf;
 
     STATS_INC(ble_l2cap_stats, sig_rx);
+
+#if !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "L2CAP - rxed signalling msg: ");
     ble_hs_log_mbuf(*om);
     BLE_HS_LOG(DEBUG, "\n");
+#endif
 
     rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_HDR_SZ);
     if (rc != 0) {
