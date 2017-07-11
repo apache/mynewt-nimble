@@ -216,10 +216,12 @@ ble_monitor_init(void)
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
-    rtt_index = SEGGER_RTT_AllocUpBuffer("monitor", rtt_buf, sizeof(rtt_buf),
+    rtt_index = SEGGER_RTT_AllocUpBuffer(MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_NAME),
+                                         rtt_buf, sizeof(rtt_buf),
                                          SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 #else
-    rtt_index = SEGGER_RTT_AllocUpBuffer("monitor", rtt_buf, sizeof(rtt_buf),
+    rtt_index = SEGGER_RTT_AllocUpBuffer(MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_NAME),
+                                         rtt_buf, sizeof(rtt_buf),
                                          SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 #endif
 
