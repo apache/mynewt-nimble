@@ -554,9 +554,11 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
  * Context: Interrupt
  */
 void
-ble_ll_adv_halt(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_halt(void)
 {
-    ble_ll_adv_tx_done(advsm);
+    if (g_ble_ll_cur_adv_sm != NULL) {
+        ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
+    }
 }
 
 /**
