@@ -307,7 +307,7 @@ ble_monitor_log(int level, const char *fmt, ...)
     int len;
 
     va_start(va, fmt);
-    len = vsprintf(NULL, fmt, va);
+    len = vsnprintf(NULL, 0, fmt, va);
     va_end(va);
 
     switch (level) {
