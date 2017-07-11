@@ -207,8 +207,8 @@ ble_monitor_init(void)
         .uc_cb_arg = NULL,
     };
 
-    uart = (struct uart_dev *)os_dev_open("uart0", OS_TIMEOUT_NEVER,
-                                             &uc);
+    uart = (struct uart_dev *)os_dev_open(MYNEWT_VAL(BLE_MONITOR_UART_DEV),
+                                          OS_TIMEOUT_NEVER, &uc);
     if (!uart) {
         return -1;
     }

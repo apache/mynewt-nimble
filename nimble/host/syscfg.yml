@@ -44,6 +44,9 @@ syscfg.defs:
     BLE_MONITOR_UART:
         description: Enables monitor interface over UART
         value: 0
+    BLE_MONITOR_UART_DEV:
+        description: Monitor interface UART device
+        value: '"uart0"'
     BLE_MONITOR_UART_BAUDRATE:
         description: Baudrate for monitor interface UART
         value: 1000000
