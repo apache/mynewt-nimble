@@ -89,7 +89,7 @@ struct ble_ll_adv_sm
     uint32_t adv_itvl_usecs;
     uint32_t adv_event_start_time;
     uint32_t adv_pdu_start_time;
-    uint32_t adv_dir_hd_end_time;
+    uint32_t adv_end_time;
     uint32_t adv_rpa_timer;
     uint8_t adva[BLE_DEV_ADDR_LEN];
     uint8_t adv_rpa[BLE_DEV_ADDR_LEN];
@@ -103,7 +103,7 @@ struct ble_ll_adv_sm
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint32_t adv_secondary_start_time;
     struct ble_ll_sched_item adv_secondary_sch;
-    uint16_t duration; /* TODO */
+    uint16_t duration;
     uint16_t adi;
     uint8_t adv_secondary_chan;
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
@@ -1285,13 +1285,22 @@ ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
     advsm->adv_event_start_time = sch_start + g_ble_ll_sched_offset_ticks;
     advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
-    /*
-     * Set the time at which we must end directed, high-duty cycle advertising.
-     * Does not matter that we calculate this value if we are not doing high
-     * duty cycle advertising.
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* this is validated for HD adv so no need to do additional checks here
+     * duration is in 10ms units
      */
-    advsm->adv_dir_hd_end_time = advsm->adv_event_start_time +
-        os_cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
+    if (advsm->duration) {
+        advsm->adv_end_time = advsm->adv_event_start_time +
+                             os_cputime_usecs_to_ticks(advsm->duration * 10000);
+    }
+#else
+    /* Set the time at which we must end directed, high-duty cycle advertising.
+     */
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+        advsm->adv_end_time = advsm->adv_event_start_time +
+                     os_cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
+    }
+#endif
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1473,7 +1482,7 @@ ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
  * @return int
  */
 int
-ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
+ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
                           uint8_t events)
 {
     int rc;
@@ -1488,6 +1497,14 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
     rc = BLE_ERR_SUCCESS;
     if (enable == 1) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        /* handle specifics of HD dir adv enabled in legacy way */
+        if (duration < 0) {
+            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+                duration = BLE_LL_ADV_STATE_HD_MAX / 10;
+            } else {
+                duration = 0;
+            }
+        }
         advsm->duration = duration;
         advsm->events_max = events;
         advsm->events = 0;
@@ -1938,6 +1955,7 @@ struct ext_adv_set {
 int
 ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
 {
+    struct ble_ll_adv_sm *advsm;
     struct ext_adv_set* set;
     uint8_t enable;
     uint8_t sets;
@@ -1984,6 +2002,16 @@ ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
         for (j = 1; j < sets - i; j++) {
             if (set->handle == set[j].handle) {
                 return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
+        }
+
+        if (enable) {
+            advsm = &g_ble_ll_adv_sm[set->handle];
+
+            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+                if (set->duration == 0 || le16toh(set->duration) > 128) {
+                    return BLE_ERR_INV_HCI_CMD_PARMS;
+                }
             }
         }
 
@@ -2500,13 +2528,33 @@ ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
 
+    /* check if advertising timed out */
+    if (advsm->duration &&
+        advsm->adv_secondary_start_time >= advsm->adv_end_time) {
+        ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
+                                              advsm->adv_instance, 0, 0);
+
+        /*
+         * For high duty directed advertising we need to send connection
+         * complete event with proper status
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                        advsm->conn_comp_ev, advsm);
+            advsm->conn_comp_ev = NULL;
+        }
+
+        /* Disable advertising */
+        advsm->adv_enabled = 0;
+        return;
+    }
+
     if (advsm->events_max && (advsm->events >= advsm->events_max)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
                                               advsm->adv_instance, 0,
                                               advsm->events);
          /* Disable advertising */
          advsm->adv_enabled = 0;
-         ble_ll_scan_chk_resume();
          return;
     }
 
@@ -2649,12 +2697,37 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         resched_pdu = 1;
     }
 
-    /*
-     * Stop high duty cycle directed advertising if we have been doing
-     * it for more than 1.28 seconds
-     */
+    /* check if advertising timed out */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (advsm->duration &&
+        advsm->adv_pdu_start_time >= advsm->adv_end_time) {
+        /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
+         * AUX is done.
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
+                                                  advsm->adv_instance, 0, 0);
+
+            /*
+             * For high duty directed advertising we need to send connection
+             * complete event with proper status
+             */
+            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+                ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                            advsm->conn_comp_ev, advsm);
+                advsm->conn_comp_ev = NULL;
+            }
+
+            /* Disable advertising */
+            advsm->adv_enabled = 0;
+            ble_ll_scan_chk_resume();
+        }
+
+        return;
+    }
+#else
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-        if (advsm->adv_pdu_start_time >= advsm->adv_dir_hd_end_time) {
+        if (advsm->adv_pdu_start_time >= advsm->adv_end_time) {
             /* Disable advertising */
             advsm->adv_enabled = 0;
             ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
@@ -2664,6 +2737,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
             return;
         }
     }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->events_max && (advsm->events >= advsm->events_max)) {
