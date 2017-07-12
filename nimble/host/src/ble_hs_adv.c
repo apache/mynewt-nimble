@@ -192,6 +192,10 @@ ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     if (adv_fields->flags != 0) {
         rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &adv_fields->flags,
                                  dst, dst_len, max_len);
+
+        if (rc != 0) {
+            return rc;
+        }
     }
 
     /*** 0x02,0x03 - 16-bit service class UUIDs. */
