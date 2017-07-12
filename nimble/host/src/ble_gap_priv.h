@@ -21,6 +21,7 @@
 #define H_BLE_GAP_CONN_
 
 #include <inttypes.h>
+#include "syscfg/syscfg.h"
 #include "stats/stats.h"
 #include "host/ble_gap.h"
 #ifdef __cplusplus
@@ -102,6 +103,10 @@ void ble_gap_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_gap_timer(void);
 
 int ble_gap_init(void);
+
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+int ble_gap_dbg_update_active(uint16_t conn_handle);
+#endif
 
 #ifdef __cplusplus
 }

@@ -1951,7 +1951,7 @@ ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
  *                              BLE_HS_EINVAL if the svcs array contains an
  *                                  invalid resource definition.
  */
-int
+static int
 ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
                           struct ble_gatt_resources *res)
 {
