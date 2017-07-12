@@ -149,11 +149,43 @@ int ble_gattc_init(void);
 #define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
 #define BLE_GATTS_INC_SVC_LEN_UUID              6
 
+/**
+ * Contains counts of resources required by the GATT server.  The contents of
+ * this struct are generally used to populate a configuration struct before
+ * the host is initialized.
+ */
+struct ble_gatt_resources {
+    /** Number of services. */
+    uint16_t svcs;
+
+    /** Number of included services. */
+    uint16_t incs;
+
+    /** Number of characteristics. */
+    uint16_t chrs;
+
+    /** Number of descriptors. */
+    uint16_t dscs;
+
+    /**
+     * Number of client characteristic configuration descriptors.  Each of
+     * these also contributes to the total descriptor count.
+     */
+    uint16_t cccds;
+
+    /** Total number of ATT attributes. */
+    uint16_t attrs;
+};
+
 int ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle);
 int ble_gatts_send_next_indicate(uint16_t conn_handle);
 void ble_gatts_tx_notifications(void);
 void ble_gatts_bonding_restored(uint16_t conn_handle);
 void ble_gatts_connection_broken(uint16_t conn_handle);
+void ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb);
+int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
+                            ble_gatt_register_fn *register_cb,
+                            void *cb_arg);
 
 /*** @misc. */
 int ble_gatts_conn_can_alloc(void);

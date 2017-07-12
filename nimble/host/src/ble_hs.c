@@ -111,6 +111,13 @@ ble_hs_evq_get(void)
     return ble_hs_evq;
 }
 
+/**
+ * Designates the specified event queue for NimBLE host work.  By default, the
+ * host uses the default event queue and runs in the main task.  This function
+ * is useful if you want the host to run in a different task.
+ *
+ * @param evq                   The event queue to use for host work.
+ */
 void
 ble_hs_evq_set(struct os_eventq *evq)
 {
@@ -441,6 +448,13 @@ ble_hs_notifications_sched(void)
     os_eventq_put(ble_hs_evq_get(), &ble_hs_ev_tx_notifications);
 }
 
+/**
+ * Causes the host to reset the NimBLE stack as soon as possible.  The
+ * application is notified when the reset occurs via the host reset callback.
+ *
+ * @param reason                The host error code that gets passed to the
+ *                                  reset callback.
+ */
 void
 ble_hs_sched_reset(int reason)
 {
@@ -503,7 +517,7 @@ ble_hs_start(void)
  *
  * @return                      0 on success; nonzero on failure.
  */
-int
+static int
 ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
