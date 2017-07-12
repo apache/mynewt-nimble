@@ -119,7 +119,7 @@ int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type,
                          uint8_t *init_addr, uint16_t adv_itvl, void *handle);
 
 /* Start or stop advertising */
-int ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, uint16_t duration,
+int ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
                           uint8_t event);
 
 /* Set advertising data */
