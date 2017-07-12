@@ -176,7 +176,7 @@ void ble_ll_adv_scheduled(struct ble_ll_adv_sm *, uint32_t sch_start);
 void ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm);
 
 /* Called to halt currently running advertising event */
-void ble_ll_adv_halt(struct ble_ll_adv_sm *advsm);
+void ble_ll_adv_halt(void);
 
 /* Called to determine if advertising is enabled */
 uint8_t ble_ll_adv_enabled(void);
