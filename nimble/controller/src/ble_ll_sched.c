@@ -278,6 +278,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
+    assert(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -658,6 +659,8 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb)
 
     OS_EXIT_CRITICAL(sr);
 
+    /* Restart timer */
+    assert(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -1162,6 +1165,8 @@ done:
 
     OS_EXIT_CRITICAL(sr);
 
+    /* Restart timer */
+    assert(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     STATS_INC(ble_ll_stats, aux_scheduled);
