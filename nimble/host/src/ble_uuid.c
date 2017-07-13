@@ -50,6 +50,18 @@ static int verify_uuid(const ble_uuid_t *uuid)
 }
 #endif
 
+/**
+ * Constructs a UUID object from a byte array.
+ *
+ * @param uuid                  On success, this gets populated with the
+ *                                  constructed UUID.
+ * @param buf                   The source buffer to parse.
+ * @param len                   The size of the buffer, in bytes.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EINVAL if the source buffer does not
+ *                                  contain a valid UUID.
+ */
 int
 ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len)
 {
@@ -71,6 +83,15 @@ ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len)
     return BLE_HS_EINVAL;
 }
 
+/**
+ * Compares two Bluetooth UUIDs.
+ *
+ * @param uuid1                 The first UUID to compare.
+ * @param uuid2                 The second UUID to compare.
+ *
+ * @return                      0 if the two UUIDs are equal;
+ *                              nonzero if the UUIDs differ.
+ */
 int
 ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2)
 {
@@ -95,6 +116,19 @@ ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2)
     return 0;
 }
 
+/**
+ * Converts the specified UUID to its string representation.
+ *
+ * Example string representations:
+ *     o 16-bit:  0x1234
+ *     o 32-bit:  0x12345678
+ *     o 128-bit: 12345678-1234-1234-1234-123456789abc
+ *
+ * @param uuid                  The source UUID to convert.
+ * @param dst                   The destination buffer.
+ *
+ * @return                      A pointer to the supplied destination buffer.
+ */
 char *
 ble_uuid_to_str(const ble_uuid_t *uuid, char *dst)
 {
@@ -125,6 +159,14 @@ ble_uuid_to_str(const ble_uuid_t *uuid, char *dst)
     return dst;
 }
 
+/**
+ * Converts the specified 16-bit UUID to a uint16_t.
+ *
+ * @param uuid                  The source UUID to convert.
+ *
+ * @return                      The converted integer on success;
+ *                              0 if the specified UUID is not 16 bits.
+ */
 uint16_t
 ble_uuid_u16(const ble_uuid_t *uuid)
 {
