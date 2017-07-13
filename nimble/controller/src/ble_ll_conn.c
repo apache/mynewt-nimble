@@ -3909,6 +3909,11 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr,
     connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
     ble_ll_conn_sm_new(connsm);
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    /* Lets take last used phy */
+    ble_ll_conn_set_phy(connsm, rxhdr->rxinfo.phy, rxhdr->rxinfo.phy);
+#endif
+
     ble_ll_conn_set_csa(connsm,
                         force_csa2 || (rxbuf[0] & BLE_ADV_PDU_HDR_CHSEL_MASK));
 
