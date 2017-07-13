@@ -2109,7 +2109,7 @@ done:
 
 /**
  * Configures the fields to include in subsequent advertisements.  This is a
- * higher-level version of ble_gap_adv_set_data().
+ * convenience wrapper for ble_gap_adv_set_data().
  *
  * @param adv_fields            Specifies the advertisement data.
  *
@@ -2141,7 +2141,7 @@ ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields)
 
 /**
  * Configures the fields to include in subsequent scan responses.  This is a
- * higher-level version of ble_gap_adv_rsp_set_data().
+ * convenience wrapper for ble_gap_adv_rsp_set_data().
  *
  * @param adv_fields            Specifies the scan response data.
  *

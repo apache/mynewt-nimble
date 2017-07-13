@@ -140,20 +140,20 @@ struct ble_gap_sec_state {
 };
 
 /**
- * @param discoverable_mode     One of the following constants:
- *                                  o BLE_GAP_DISC_MODE_NON
- *                                      (non-discoverable; 3.C.9.2.2).
- *                                  o BLE_GAP_DISC_MODE_LTD
- *                                      (limited-discoverable; 3.C.9.2.3).
- *                                  o BLE_GAP_DISC_MODE_GEN
- *                                      (general-discoverable; 3.C.9.2.4).
- * @param connectable_mode      One of the following constants:
+ * conn_mode:                   One of the following constants:
  *                                  o BLE_GAP_CONN_MODE_NON
  *                                      (non-connectable; 3.C.9.3.2).
  *                                  o BLE_GAP_CONN_MODE_DIR
  *                                      (directed-connectable; 3.C.9.3.3).
  *                                  o BLE_GAP_CONN_MODE_UND
  *                                      (undirected-connectable; 3.C.9.3.4).
+ * disc_mode:                   One of the following constants:
+ *                                  o BLE_GAP_DISC_MODE_NON
+ *                                      (non-discoverable; 3.C.9.2.2).
+ *                                  o BLE_GAP_DISC_MODE_LTD
+ *                                      (limited-discoverable; 3.C.9.2.3).
+ *                                  o BLE_GAP_DISC_MODE_GEN
+ *                                      (general-discoverable; 3.C.9.2.4).
  */
 struct ble_gap_adv_params {
     /*** Mandatory fields. */
@@ -666,7 +666,6 @@ int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
 int ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count);
 int ble_gap_update_params(uint16_t conn_handle,
                           const struct ble_gap_upd_params *params);
-int ble_gap_dbg_update_active(uint16_t conn_handle);
 int ble_gap_security_initiate(uint16_t conn_handle);
 int ble_gap_pair_initiate(uint16_t conn_handle);
 int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,

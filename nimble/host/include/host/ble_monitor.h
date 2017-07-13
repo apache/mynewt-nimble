@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -17,22 +17,24 @@
  * under the License.
  */
 
-#include "sysinit/sysinit.h"
-#include "syscfg/syscfg.h"
-#include "controller/ble_ll_test.h"
-#include "os/os.h"
-#include "testutil/testutil.h"
+#ifndef H_BLE_MONITOR_
+#define H_BLE_MONITOR_
 
-#if MYNEWT_VAL(SELFTEST)
+#include <syscfg/syscfg.h>
 
-int
-main(int argc, char **argv)
-{
-    sysinit();
+#undef BLE_MONITOR
+#define BLE_MONITOR (MYNEWT_VAL(BLE_MONITOR_UART) || MYNEWT_VAL(BLE_MONITOR_RTT))
 
-    ble_ll_csa2_test_all();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    return tu_any_failed;
+int ble_monitor_log(int level, const char *fmt, ...);
+
+int ble_monitor_out(int c);
+
+#ifdef __cplusplus
 }
+#endif
 
 #endif

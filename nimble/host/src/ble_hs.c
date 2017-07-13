@@ -28,6 +28,7 @@
 #include "console/console.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
+#include "ble_monitor_priv.h"
 
 #define BLE_HS_HCI_EVT_COUNT                    \
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) +     \
@@ -110,6 +111,13 @@ ble_hs_evq_get(void)
     return ble_hs_evq;
 }
 
+/**
+ * Designates the specified event queue for NimBLE host work.  By default, the
+ * host uses the default event queue and runs in the main task.  This function
+ * is useful if you want the host to run in a different task.
+ *
+ * @param evq                   The event queue to use for host work.
+ */
 void
 ble_hs_evq_set(struct os_eventq *evq)
 {
@@ -182,6 +190,10 @@ ble_hs_process_tx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_tx_q)) != NULL) {
+#if BLE_MONITOR
+        ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_TX_PKT, om);
+#endif
+
         ble_hci_trans_hs_acl_tx(om);
     }
 }
@@ -192,6 +204,10 @@ ble_hs_process_rx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
+#if BLE_MONITOR
+        ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
+#endif
+
         ble_hs_hci_evt_acl_process(om);
     }
 }
@@ -363,6 +379,11 @@ ble_hs_event_rx_hci_ev(struct os_event *ev)
     rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
+#if BLE_MONITOR
+    ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, hci_evt,
+                     hci_evt[1] + BLE_HCI_EVENT_HDR_LEN);
+#endif
+
     ble_hs_hci_evt_process(hci_evt);
 }
 
@@ -427,6 +448,13 @@ ble_hs_notifications_sched(void)
     os_eventq_put(ble_hs_evq_get(), &ble_hs_ev_tx_notifications);
 }
 
+/**
+ * Causes the host to reset the NimBLE stack as soon as possible.  The
+ * application is notified when the reset occurs via the host reset callback.
+ *
+ * @param reason                The host error code that gets passed to the
+ *                                  reset callback.
+ */
 void
 ble_hs_sched_reset(int reason)
 {
@@ -489,7 +517,7 @@ ble_hs_start(void)
  *
  * @return                      0 on success; nonzero on failure.
  */
-int
+static int
 ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
@@ -562,6 +590,11 @@ ble_hs_init(void)
         .ev_cb = ble_hs_event_start,
     };
 
+#if BLE_MONITOR
+    rc = ble_monitor_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
+
     ble_hs_hci_init();
 
     rc = ble_hs_conn_init();
@@ -604,4 +637,8 @@ ble_hs_init(void)
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
     ble_hs_evq_set(os_eventq_dflt_get());
+
+#if BLE_MONITOR
+    ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");
+#endif
 }
