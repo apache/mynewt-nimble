@@ -363,41 +363,33 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
     dur = req_slots * BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
+    adv_rxend = os_cputime_get32();
     if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
         /*
          * We received packet on advertising channel which means this is a legacy
          * PDU on 1 Mbps - we do as described above.
          */
-        adv_rxend = os_cputime_get32();
         earliest_start = adv_rxend + 57;
     } else {
         /*
-         * We received packet on data channel which means this is AUX_CONNECT_RSP
-         * received on secondary adv channel - we know exactly how much time does
-         * it take to receive packets since they have constant length.
+         * The calculations are similar as above.
          *
-         * The first packet can be scheduled T_IFS + transmitWindowDelay from the
-         * end of AUX_CONNECT_REQ (assume transmitWindowOffset=0 for now) and we
-         * assume that AUX_CONNECT_RSP was received T_IFS after that packet, so
-         * we schedule at transmitWindowDelay-T_IFS since start of AUX_CONNECT_RSP.
+         * We received packet on data channel which means this is AUX_ADV_IND
+         * received on secondary adv channel. We can schedule first packet at
+         * the earliest after "T_IFS + AUX_CONNECT_REQ + transmitWindowDelay".
+         * AUX_CONNECT_REQ and transmitWindowDelay times vary depending on which
+         * PHY we received on.
          *
-         * FIXME: we could actually use precise time from AUX_CONNECT_REQ but
-         * FIXME: this should be good enough for now
-         *
-         * FIXME: not sure about transmitWindowSize yet...
          */
         if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
-            // transmitWindowDelay=2500us
-            // 2500+150+CONN_REQ(80 + 272) = 3002us =~ 98.00 ticks
-            earliest_start = ble_hdr->beg_cputime + 98;
+            // 150 + 352 + 2500 = 3002us = 98.37 ticks
+            earliest_start = adv_rxend + 98;
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
-            // transmitWindowDelay=2500us
-            // 2500+150+CONN_REQ(136 + 44) = 2830us =~ 93.00 ticks
-            earliest_start = ble_hdr->beg_cputime + 93;
+            // 150 + 180 + 2500 = 2830us = 92.73 ticks
+            earliest_start = adv_rxend + 93;
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_CODED) {
-            // transmitWindowDelay=3750us
-            // 3750+150+CONN_REQ(2176 + 720) = 6796us =~ 222.80 ticks
-            earliest_start = ble_hdr->beg_cputime + 223;
+            // 150 + 2896 + 3750 = 6796us = 222.69 ticks
+            earliest_start = adv_rxend + 223;
         } else {
             assert(0);
         }
