@@ -35,6 +35,10 @@ extern "C" {
  */
 #define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
 #define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MIN_UNCODED   (328)   /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX_UNCODED   (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MIN_CODED     (2704)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX_CODED     (17040) /* usecs */
 #define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */
 #define BLE_LL_CONN_SUPP_BYTES_MAX          (251)   /* bytes */
 
@@ -69,6 +73,8 @@ struct ble_ll_conn_global_params
     uint8_t sugg_tx_octets;
     uint16_t sugg_tx_time;
     uint16_t conn_init_max_tx_time;
+    uint16_t conn_init_max_tx_time_uncoded;
+    uint16_t conn_init_max_tx_time_coded;
     uint16_t supp_max_tx_time;
     uint16_t supp_max_rx_time;
 };
@@ -102,8 +108,7 @@ void ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
 
 void ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
                                 struct hci_ext_conn_params *hcc_params,
-                                int tx_phy, int tx_phy_ops,
-                                int rx_phy, int rx_phy_ops);
+                                int phy);
 #endif
 
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);

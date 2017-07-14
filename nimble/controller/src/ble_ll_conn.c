@@ -1704,6 +1704,23 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     }
 }
 
+static void
+ble_ll_update_max_tx_octets_phy_mode(struct ble_ll_conn_sm *connsm)
+{
+    uint32_t usecs;
+
+    usecs = connsm->eff_max_tx_time;
+
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_1M] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_1M);
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_2M] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_2M);
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_CODED_125KBPS] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_125KBPS);
+    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_CODED_500KBPS] =
+            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_500KBPS);
+}
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 
 void
@@ -1740,13 +1757,45 @@ ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy, int rx_phy)
     phy_data->cur_tx_phy = tx_phy;
 
 }
+
+static void
+ble_ll_conn_init_phy(struct ble_ll_conn_sm *connsm, int phy)
+{
+    struct ble_ll_conn_global_params *conngp;
+
+    /* Always initialize symmetric PHY - controller can change this later */
+    ble_ll_conn_set_phy(connsm, phy, phy);
+
+    /* Update data length management to match initial PHY */
+    conngp = &g_ble_ll_conn_params;
+    connsm->max_tx_octets = conngp->conn_init_max_tx_octets;
+    connsm->max_rx_octets = conngp->supp_max_rx_octets;
+    if (phy == BLE_PHY_CODED) {
+        connsm->max_tx_time = conngp->conn_init_max_tx_time_coded;
+        connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
+        connsm->rem_max_tx_time = BLE_LL_CONN_SUPP_TIME_MIN_CODED;
+        connsm->rem_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN_CODED;
+    } else {
+        connsm->max_tx_time = conngp->conn_init_max_tx_time_uncoded;
+        connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_UNCODED;
+        connsm->rem_max_tx_time = BLE_LL_CONN_SUPP_TIME_MIN_UNCODED;
+        connsm->rem_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN_UNCODED;
+    }
+    connsm->eff_max_tx_time = connsm->rem_max_tx_time;
+    connsm->eff_max_rx_time = connsm->rem_max_rx_time;
+    connsm->rem_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
+    connsm->rem_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
+    connsm->eff_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
+    connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
+
+    ble_ll_update_max_tx_octets_phy_mode(connsm);
+}
+
 #endif
 
 void
 ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
-                           struct hci_ext_conn_params *hcc_params,
-                           int tx_phy, int tx_phy_ops,
-                           int rx_phy, int rx_phy_ops)
+                           struct hci_ext_conn_params *hcc_params, int phy)
 {
     /* Set slave latency and supervision timeout */
     connsm->slave_latency = hcc_params->conn_latency;
@@ -1772,7 +1821,7 @@ ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
     ble_ll_conn_calc_itvl_ticks(connsm);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_ll_conn_set_phy(connsm, tx_phy, rx_phy);
+    ble_ll_conn_init_phy(connsm, phy);
 #endif
 }
 
@@ -1798,23 +1847,6 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 
     /* calculate the next data channel */
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 1);
-}
-
-static void
-ble_ll_update_max_tx_octets_phy_mode(struct ble_ll_conn_sm *connsm)
-{
-    uint32_t usecs;
-
-    usecs = connsm->eff_max_tx_time;
-
-    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_1M] =
-            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_1M);
-    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_2M] =
-            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_2M);
-    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_CODED_125KBPS] =
-            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_125KBPS);
-    connsm->max_tx_octets_phy_mode[BLE_PHY_MODE_CODED_500KBPS] =
-            ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_500KBPS);
 }
 
 /**
@@ -2831,7 +2863,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
         /* Lets take last used phy */
-        ble_ll_conn_set_phy(connsm, ble_hdr->rxinfo.phy, ble_hdr->rxinfo.phy);
+        ble_ll_conn_init_phy(connsm, ble_hdr->rxinfo.phy);
 #endif
 #endif
         ble_ll_conn_created(connsm, NULL);
@@ -3112,8 +3144,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
              */
             ble_ll_conn_ext_set_params(connsm,
                                        &connsm->initial_params.params[phy - 1],
-                                       phy, BLE_HCI_LE_PHY_CODED_ANY,
-                                       phy, BLE_HCI_LE_PHY_CODED_ANY);
+                                       phy);
 
     }
 #endif
@@ -3911,8 +3942,8 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr,
     ble_ll_conn_sm_new(connsm);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    /* Lets take last used phy */
-    ble_ll_conn_set_phy(connsm, rxhdr->rxinfo.phy, rxhdr->rxinfo.phy);
+    /* Use the same PHY as we received CONNECT_REQ on */
+    ble_ll_conn_init_phy(connsm, rxhdr->rxinfo.phy);
 #endif
 
     ble_ll_conn_set_csa(connsm,
@@ -3982,18 +4013,34 @@ ble_ll_conn_module_reset(void)
     /* NOTE: this all assumes that the default phy is 1Mbps */
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_RX_BYTES), max_phy_pyld);
     conn_params->supp_max_rx_octets = maxbytes;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    conn_params->supp_max_rx_time =
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN,
+                               BLE_PHY_MODE_CODED_125KBPS);
+#else
     conn_params->supp_max_rx_time =
         ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+#endif
 
     maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_TX_BYTES), max_phy_pyld);
     conn_params->supp_max_tx_octets = maxbytes;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    conn_params->supp_max_tx_time =
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN,
+                               BLE_PHY_MODE_CODED_125KBPS);
+#else
     conn_params->supp_max_tx_time =
         ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+#endif
 
     maxbytes = min(MYNEWT_VAL(BLE_LL_CONN_INIT_MAX_TX_BYTES), max_phy_pyld);
     conn_params->conn_init_max_tx_octets = maxbytes;
     conn_params->conn_init_max_tx_time =
         ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+    conn_params->conn_init_max_tx_time_uncoded =
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
+    conn_params->conn_init_max_tx_time_coded =
+        ble_ll_pdu_tx_time_get(maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_CODED_125KBPS);
 
     conn_params->sugg_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     conn_params->sugg_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;
