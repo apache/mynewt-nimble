@@ -1724,8 +1724,9 @@ ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
 }
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+
 static void
-ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy ,int rx_phy)
+ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy, int rx_phy)
 {
 
     struct ble_ll_conn_phy_data *phy_data = &connsm->phy_data;
