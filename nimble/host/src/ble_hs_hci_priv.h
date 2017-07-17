@@ -211,6 +211,35 @@ int ble_hs_hci_cmd_build_le_set_ext_scan_enable(uint8_t enable,
 
 int ble_hs_hci_cmd_build_le_ext_create_conn(const struct hci_ext_create_conn *hcc,
                                             uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_set_random_addr(uint8_t handle,
+                                                const uint8_t *addr,
+                                                uint8_t *cmd, int cmd_len);
+
+
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_data(uint8_t handle, uint8_t operation,
+                                     uint8_t frag_pref,
+                                     const uint8_t *data, uint8_t data_len,
+                                     uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_scan_rsp(uint8_t handle, uint8_t operation,
+                                         uint8_t frag_pref,
+                                         const uint8_t *data, uint8_t data_len,
+                                         uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_enable(uint8_t enable, uint8_t sets_num,
+                                       const struct hci_ext_adv_set *sets,
+                                       uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
+                                       const struct hci_ext_adv_params *params,
+                                       uint8_t *cmd, int cmd_len);
 #endif
 
 int ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,
