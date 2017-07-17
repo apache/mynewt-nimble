@@ -301,8 +301,8 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
  */
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
 int
-ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
-                        uint8_t req_slots)
+ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
+                        struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
 {
     int rc;
     os_sr_t sr;
@@ -311,7 +311,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
     uint32_t earliest_end;
     uint32_t dur;
     uint32_t itvl_t;
-
+    uint32_t adv_rxend;
     int i;
     uint32_t tpp;
     uint32_t tse;

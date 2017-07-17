@@ -217,9 +217,6 @@ struct ble_ll_conn_sm
     uint8_t period_occ_mask;    /* mask: period 0 = 0x01, period 3 = 0x08 */
 #endif
 
-    /* RSSI */
-    int8_t conn_rssi;
-
     /* Ack/Flow Control */
     uint8_t tx_seqnum;          /* note: can be 1 bit */
     uint8_t next_exp_seqnum;    /* note: can be 1 bit */
