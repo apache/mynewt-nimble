@@ -512,7 +512,7 @@ ble_ll_scan_init_ext_adv(void)
 }
 
 static int
-ble_ll_hci_send_legacy_ext_adv_report(uint8_t subev, uint8_t evtype,
+ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       uint8_t addr_type, uint8_t *addr,
                                       uint8_t rssi,
                                       uint8_t adv_data_len, uint8_t *adv_data,
@@ -698,7 +698,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->ext_scanning) {
-        rc = ble_ll_hci_send_legacy_ext_adv_report(subev, evtype,
+        rc = ble_ll_hci_send_legacy_ext_adv_report(evtype,
                                                    addr_type, adv_addr,
                                                    hdr->rxinfo.rssi,
                                                    adv_data_len, adv_data,
