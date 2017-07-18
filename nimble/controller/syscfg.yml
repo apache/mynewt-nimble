@@ -155,7 +155,7 @@ syscfg.defs:
             time intervals called periods. If set to 0, the scheduler is not forced
             to do this. If set to 1, the scheduler will only schedule connections at
             period boundaries. See comments in ble_ll_sched.h for more details.
-        value: '1'
+        value: '0'
 
     BLE_LL_ADD_STRICT_SCHED_PERIODS:
         description: >

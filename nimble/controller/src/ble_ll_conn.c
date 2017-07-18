@@ -897,6 +897,10 @@ ble_ll_conn_continue_rx_encrypt(void *arg)
 static uint32_t
 ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
 {
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    uint32_t ce_end;
+    ce_end = connsm->ce_end_time;
+#else
     uint32_t ce_end;
     uint32_t next_sched_time;
 
@@ -913,6 +917,7 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
             ce_end = next_sched_time;
         }
     }
+#endif
 
     return ce_end;
 }
