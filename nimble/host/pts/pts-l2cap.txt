@@ -1,7 +1,7 @@
 PTS test results for L2CAP
 
 PTS version: 7.0
-Tested: 21-Mar-2017
+Tested: 18-Jul-2017
 
 Results:
 PASS   test passed
