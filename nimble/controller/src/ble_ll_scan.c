@@ -595,7 +595,7 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
         tmp[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
         memcpy(tmp + 1, inita, BLE_DEV_ADDR_LEN);
         tmp += BLE_DEV_ADDR_LEN + 1;
-    } else if (adv_data_len) {
+    } else {
         tmp[0] = adv_data_len;
         memcpy(tmp + 1, adv_data, adv_data_len);
         tmp += adv_data_len + 1;
