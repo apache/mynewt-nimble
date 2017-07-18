@@ -549,15 +549,17 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t subev, uint8_t evtype,
     evt->addr_type = addr_type;
     memcpy(evt->addr, addr, BLE_DEV_ADDR_LEN);
 
+    evt->event_len = sizeof(*evt);
+
     if (inita) {
         /* TODO Really ?? */
         evt->dir_addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
         memcpy(evt->dir_addr, inita, BLE_DEV_ADDR_LEN);
-        evt->event_len = sizeof(*evt) + BLE_DEV_ADDR_LEN  + 1;
-    } else if (adv_data_len <  (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - sizeof(*evt))) {
+        evt->event_len += BLE_DEV_ADDR_LEN  + 1;
+    } else if (adv_data_len <= (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - sizeof(*evt))) {
         evt->adv_data_len = adv_data_len;
         memcpy(evt->adv_data, adv_data, adv_data_len);
-        evt->event_len = sizeof(*evt) + adv_data_len;
+        evt->event_len += adv_data_len;
     }
 
     evt->rssi = rssi;
