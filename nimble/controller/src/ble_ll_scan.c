@@ -599,14 +599,18 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
     memcpy(&evbuf[6], addr, BLE_DEV_ADDR_LEN);
 
     tmp = &evbuf[12];
-    if (inita) {
+    if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
+        assert(inita);
         tmp[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
         memcpy(tmp + 1, inita, BLE_DEV_ADDR_LEN);
         tmp += BLE_DEV_ADDR_LEN + 1;
-    } else {
+    } else if (subev == BLE_HCI_LE_SUBEV_ADV_RPT) {
         tmp[0] = adv_data_len;
         memcpy(tmp + 1, adv_data, adv_data_len);
         tmp += adv_data_len + 1;
+    } else {
+        assert(0);
+        return -1;
     }
 
     tmp[0] = rssi;
