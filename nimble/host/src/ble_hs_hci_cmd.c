@@ -1785,6 +1785,132 @@ ble_hs_hci_cmd_build_le_ext_create_conn(const struct hci_ext_create_conn *hcc,
                                                   cmd + BLE_HCI_CMD_HDR_LEN);
 }
 
+int
+ble_hs_hci_cmd_build_le_ext_adv_set_random_addr(uint8_t handle,
+                                                const uint8_t *addr,
+                                                uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >=
+                    BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR,
+                             BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN, cmd);
+    cmd += BLE_HCI_CMD_HDR_LEN;
+
+    cmd[0] = handle;
+    memcpy(cmd + 1, addr, BLE_DEV_ADDR_LEN);
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_data(uint8_t handle, uint8_t operation,
+                                     uint8_t frag_pref,
+                                     const uint8_t *data, uint8_t data_len,
+                                     uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_CMD_HDR_LEN + 4 + data_len);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_DATA,
+                             4 + data_len, cmd);
+    cmd += BLE_HCI_CMD_HDR_LEN;
+
+    cmd[0] = handle;
+    cmd[1] = operation;
+    cmd[2] = frag_pref;
+    cmd[3] = data_len;
+    memcpy(cmd + 4, data, data_len);
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_scan_rsp(uint8_t handle, uint8_t operation,
+                                         uint8_t frag_pref,
+                                         const uint8_t *data, uint8_t data_len,
+                                         uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_CMD_HDR_LEN + 4 + data_len);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA,
+                             4 + data_len, cmd);
+    cmd += BLE_HCI_CMD_HDR_LEN;
+
+    cmd[0] = handle;
+    cmd[1] = operation;
+    cmd[2] = frag_pref;
+    cmd[3] = data_len;
+    memcpy(cmd + 4, data, data_len);
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_enable(uint8_t enable, uint8_t sets_num,
+                                       const struct hci_ext_adv_set *sets,
+                                       uint8_t *cmd, int cmd_len)
+{
+    int i;
+
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_CMD_HDR_LEN + 2 + (sets_num * 4));
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE,
+                             2 + (sets_num * 4), cmd);
+    cmd += BLE_HCI_CMD_HDR_LEN;
+
+    cmd[0] = enable;
+    cmd[1] = sets_num;
+
+    cmd += 2;
+
+    for (i = 0; i < sets_num; i++) {
+        cmd[0] = sets[i].handle;
+        put_le16(&cmd[1], sets[i].duration);
+        cmd[3] = sets[i].events;
+
+        cmd += 4;
+    }
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
+                                       const struct hci_ext_adv_params *params,
+                                       uint8_t *cmd, int cmd_len)
+{
+    uint32_t tmp;
+
+    BLE_HS_DBG_ASSERT(cmd_len >=
+                      BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN);
+
+    ble_hs_hci_cmd_write_hdr(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM,
+                             BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN, cmd);
+    cmd += BLE_HCI_CMD_HDR_LEN;
+
+    cmd[0] = handle;
+    put_le16(&cmd[1], params->properties);
+
+    tmp = htole32(params->min_interval);
+    memcpy(&cmd[3], &tmp, 3);
+
+    tmp = htole32(params->max_interval);
+    memcpy(&cmd[6], &tmp, 3);
+
+    cmd[9] = params->chan_map;
+    cmd[10] = params->own_addr_type;
+    cmd[11] = params->peer_addr_type;
+    memcpy(&cmd[12], params->peer_addr, BLE_DEV_ADDR_LEN);
+    cmd[18] = params->filter_policy;
+    cmd[19] = params->tx_power;
+    cmd[20] = params->primary_phy;
+    cmd[21] = params->max_skip;
+    cmd[22] = params->secondary_phy;
+    cmd[23] = params->sid;
+    cmd[24] = params->scan_req_notif;
+
+    return 0;
+}
 #endif
 
 static int

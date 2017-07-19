@@ -864,6 +864,33 @@ struct hci_ext_adv_report {
     uint8_t num_reports;
     struct hci_ext_adv_report_param params[0];
 } __attribute__((packed));
+
+/* Ext Adv Set enable parameters, not in HCI order */
+struct hci_ext_adv_set
+{
+    uint8_t handle;
+    uint8_t events;
+    uint16_t duration;
+};
+
+/* Ext Advertising Parameters */
+struct hci_ext_adv_params
+{
+    uint16_t properties;
+    uint32_t min_interval;
+    uint32_t max_interval;
+    uint8_t chan_map;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[6];
+    uint8_t filter_policy;
+    uint8_t tx_power;
+    uint8_t primary_phy;
+    uint8_t max_skip;
+    uint8_t secondary_phy;
+    uint8_t sid;
+    uint8_t scan_req_notif;
+};
 #endif
 
 /* LE connection update command (ocf=0x0013). */
