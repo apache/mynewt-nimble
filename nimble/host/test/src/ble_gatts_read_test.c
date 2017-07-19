@@ -73,13 +73,11 @@ static uint16_t ble_gatts_read_test_chr_2_val_handle;
 static void
 ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
 {
-    int rc;
-
     ble_hs_test_util_init();
 
-    rc = ble_gatts_register_svcs(ble_gatts_read_test_svcs,
-                                 ble_gatts_read_test_misc_reg_cb, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_reg_svcs(ble_gatts_read_test_svcs,
+                              ble_gatts_read_test_misc_reg_cb,
+                              NULL);
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_1_def_handle != 0);
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_1_val_handle ==
                       ble_gatts_read_test_chr_1_def_handle + 1);
