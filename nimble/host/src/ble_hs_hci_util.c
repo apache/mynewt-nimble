@@ -126,7 +126,12 @@ ble_hs_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
 int
 ble_hs_hci_util_set_random_addr(const uint8_t *addr)
 {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    /* this buffer is larger and can handle both commands */
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN];
+#else
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RAND_ADDR_LEN];
+#endif
     int rc;
 
     /* set the address in the controller */
@@ -137,7 +142,23 @@ ble_hs_hci_util_set_random_addr(const uint8_t *addr)
     }
 
     rc = ble_hs_hci_cmd_tx_empty_ack(buf);
-    return rc;
+    if (rc != 0) {
+        return rc;
+    }
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    /* TODO
+     * Since we currently support only 1 instance we can set random address
+     * here. For now advertising handle is hardcoded.
+     */
+    rc = ble_hs_hci_cmd_build_le_ext_adv_set_random_addr(0, addr, buf,
+                                                         sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+#endif
+
+    return 0;
 }
 
 int

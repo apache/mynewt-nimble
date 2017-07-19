@@ -639,6 +639,12 @@ int ble_gap_adv_set_data(const uint8_t *data, int data_len);
 int ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len);
 int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+int ble_gap_adv_set_tx_power(int8_t tx_power);
+int ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy);
+#endif
+
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
                  ble_gap_event_fn *cb, void *cb_arg);
