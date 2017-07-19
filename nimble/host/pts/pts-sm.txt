@@ -1,7 +1,7 @@
 PTS test results for SM
 
 PTS version: 7.0
-Tested: 10-Jan-2017
+Tested: 18-Jul-2017
 
 Results:
 PASS	test passed
@@ -18,10 +18,11 @@ SM/MAS/PROT/BV-01-C	PASS	b conn peer_addr=<addr>
 				b sec pair conn=<handle>
 -------------------------------------------------------------------------------
 
-SM/SLA/JW/BV-01-C		N/A
-SM/SLA/JW/BV-05-C	PASS	b conn peer_addr=<addr>
+SM/MAS/JW/BV-01-C		N/A
+SM/MAS/JW/BV-05-C	PASS	b conn peer_addr=<addr>
 				b sec pair conn=<handle>
 				b term conn=<handle>
+                                <repeat>
 SM/MAS/JW/BI-01-C	PASS	b conn peer_addr=<addr>
 				b sec pair conn=<handle>
 SM/MAS/JW/BI-04-C	PASS	b conn peer_addr=<addr>
@@ -40,7 +41,7 @@ SM/MAS/PKE/BI-01-C	PASS	b set sm_data io_capabilities=1
 				b conn peer_addr=<addr>
 				b sec pair conn=<handle>
 				b passkey conn=<handle> action=3 key=123456
-				Note: enter passkey other than '123456' in PTS
+				Note: enter invalid passkey
 SM/MAS/PKE/BI-02-C	PASS	b set sm_data io_capabilities=1
 				b conn peer_addr=<addr>
 				b sec pair conn=<handle>
@@ -107,7 +108,7 @@ SM/SLA/PKE/BV-05-C	PASS	b set sm_data io_capabilities=1
 SM/SLA/PKE/BI-03-C	PASS	b set sm_data io_capabilities=1
 				b adv
 				b passkey conn=<handle> action=3 key=123456
-				Note: enter passkey other than '123456' in PTS
+				Note: enter invalid passkey
 -------------------------------------------------------------------------------
 
 SM/SLA/OOB/BV-02-C		N/A
@@ -122,27 +123,37 @@ SM/SLA/OOB/BI-02-C		N/A
 -------------------------------------------------------------------------------
 
 SM/SLA/EKS/BV-02-C	PASS	b adv
+				b passkey conn=<handle> action=3 key=123456
+				Note: enter '123456' passkey in PTS
 SM/SLA/EKS/BI-02-C	PASS	b adv
 -------------------------------------------------------------------------------
 
 SM/SLA/KDU/BV-01-C	PASS	b set sm_data our_key_dist=1
 				b adv
+				b passkey conn=<handle> action=3 key=123456
+				Note: enter '123456' passkey in PTS
 SM/SLA/KDU/BV-02-C	PASS	b set sm_data our_key_dist=2
 				b adv
+				b passkey conn=<handle> action=3 key=123456
+				Note: enter '123456' passkey in PTS
 SM/SLA/KDU/BV-03-C	PASS	b set sm_data our_key_dist=4
 				b adv
+				b passkey conn=<handle> action=3 key=123456
+				Note: enter '123456' passkey in PTS
 SM/SLA/KDU/BV-07-C	PASS	b set sm_data our_key_dist=1
 				b adv
+				b adv
+				b passkey conn=<handle> action=3 key=123456
+				Note: enter '123456' passkey in PTS
 -------------------------------------------------------------------------------
 
 SM/SLA/SIP/BV-01-C	PASS	b set sm_data io_capabilities=2
 				b adv
 				b sec start conn=<handle>
-				b passkey conn=1 action=2 key=<passkey>
+				b passkey conn=<handle> action=2 key=<passkey>
 -------------------------------------------------------------------------------
 
-SM/SLA/SIE/BV-01-C	PASS	b set sm_data bonding=1
-				b set sm_data our_key_dist=1
+SM/SLA/SIE/BV-01-C	PASS	b set sm_data bonding=1 our_key_dist=7 their_key_dist=7
 				b adv
 				b adv
 				b sec start conn=<handle>
