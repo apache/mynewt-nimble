@@ -307,6 +307,34 @@ ble_gatts_chr_inc_val_stat(uint8_t gatt_op)
     }
 }
 
+/**
+ * Indicates whether the set of registered services can be modified.  The
+ * service set is mutable if:
+ *     o No peers are connected, and
+ *     o No GAP operations are active (advertise, discover, or connect).
+ *
+ * @return                      true if the GATT service set can be modified;
+ *                              false otherwise.
+ */
+static bool
+ble_gatts_mutable(void)
+{
+    /* Ensure no active GAP procedures. */
+    if (ble_gap_adv_active() ||
+        ble_gap_disc_active() ||
+        ble_gap_conn_active()) {
+
+        return false;
+    }
+
+    /* Ensure no established connections. */
+    if (ble_hs_conn_first() != NULL) {
+        return false;
+    }
+
+    return true;
+}
+
 static int
 ble_gatts_val_access(uint16_t conn_handle, uint16_t attr_handle,
                      uint16_t offset, struct ble_gatt_access_ctxt *gatt_ctxt,
@@ -1139,6 +1167,18 @@ ble_gatts_free_mem(void)
     ble_gatts_svc_entries = NULL;
 }
 
+/**
+ * Makes all registered services available to peers.  This function gets called
+ * automatically by the NimBLE host on startup; manual calls are only necessary
+ * for replacing the set of supported services with a new one.  This function
+ * requires that:
+ *     o No peers are connected, and
+ *     o No GAP operations are active (advertise, discover, or connect).
+ *
+ * @return                      0 on success;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
 int
 ble_gatts_start(void)
 {
@@ -1151,6 +1191,12 @@ ble_gatts_start(void)
     int rc;
     int i;
 
+    ble_hs_lock(); 
+    if (!ble_gatts_mutable()) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
     ble_gatts_free_mem();
 
     if (ble_hs_max_client_configs > 0) {
@@ -1159,7 +1205,7 @@ ble_gatts_start(void)
                              sizeof (struct ble_gatts_clt_cfg)));
         if (ble_gatts_clt_cfg_mem == NULL) {
             rc = BLE_HS_ENOMEM;
-            goto err;
+            goto done;
         }
     }
 
@@ -1168,7 +1214,7 @@ ble_gatts_start(void)
             malloc(ble_hs_max_services * sizeof *ble_gatts_svc_entries);
         if (ble_gatts_svc_entries == NULL) {
             rc = BLE_HS_ENOMEM;
-            goto err;
+            goto done;
         }
     }
 
@@ -1179,13 +1225,14 @@ ble_gatts_start(void)
                                      ble_hs_cfg.gatts_register_cb,
                                      ble_hs_cfg.gatts_register_arg);
         if (rc != 0) {
-            goto err;
+            goto done;
         }
     }
     ble_gatts_free_svc_defs();
 
     if (ble_gatts_num_cfgable_chrs == 0) {
-        return 0;
+        rc = 0;
+        goto done;
     }
 
     /* Initialize client-configuration memory pool. */
@@ -1195,7 +1242,7 @@ ble_gatts_start(void)
                          "ble_gatts_clt_cfg_pool");
     if (rc != 0) {
         rc = BLE_HS_EOS;
-        goto err;
+        goto done;
     }
 
     /* Allocate the cached array of handles for the configuration
@@ -1204,7 +1251,7 @@ ble_gatts_start(void)
     ble_gatts_clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
     if (ble_gatts_clt_cfgs == NULL) {
         rc = BLE_HS_ENOMEM;
-        goto err;
+        goto done;
     }
 
     /* Fill the cache. */
@@ -1223,11 +1270,13 @@ ble_gatts_start(void)
         }
     }
 
-    return 0;
+done:
+    if (rc != 0) {
+        ble_gatts_free_mem();
+        ble_gatts_free_svc_defs();
+    }
 
-err:
-    ble_gatts_free_mem();
-    ble_gatts_free_svc_defs();
+    ble_hs_unlock();
     return rc;
 }
 
@@ -1729,7 +1778,8 @@ ble_gatts_find_svc_entry(const ble_uuid_t *uuid)
 }
 
 static int
-ble_gatts_find_svc_chr_attr(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
+ble_gatts_find_svc_chr_attr(const ble_uuid_t *svc_uuid,
+                            const ble_uuid_t *chr_uuid,
                             struct ble_gatts_svc_entry **out_svc_entry,
                             struct ble_att_svr_entry **out_att_chr)
 {
@@ -1905,7 +1955,7 @@ ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
 
 /**
  * Queues a set of service definitions for registration.  All services queued
- * in this manner get registered when ble_hs_init() is called.
+ * in this manner get registered when ble_gatts_start() is called.
  *
  * @param svcs                  An array of service definitions to queue for
  *                                  registration.  This array must be
@@ -1919,18 +1969,30 @@ int
 ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
 {
     void *p;
+    int rc;
+
+    ble_hs_lock(); 
+    if (!ble_gatts_mutable()) {
+        rc = BLE_HS_EBUSY;
+        goto done;
+    }
 
     p = realloc(ble_gatts_svc_defs,
                 (ble_gatts_num_svc_defs + 1) * sizeof *ble_gatts_svc_defs);
     if (p == NULL) {
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        goto done;
     }
 
     ble_gatts_svc_defs = p;
     ble_gatts_svc_defs[ble_gatts_num_svc_defs] = svcs;
     ble_gatts_num_svc_defs++;
 
-    return 0;
+    rc = 0;
+
+done:
+    ble_hs_unlock();
+    return rc;
 }
 
 /**
@@ -2090,6 +2152,41 @@ ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb)
            ble_gatts_svc_entries[i].handle,
            ble_gatts_svc_entries[i].end_group_handle);
     }
+}
+
+/**
+ * Resets the GATT server to its initial state.  On success, this function
+ * removes all supported services, characteristics, and descriptors.  This
+ * function requires that:
+ *     o No peers are connected, and
+ *     o No GAP operations are active (advertise, discover, or connect).
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if the GATT server could not be
+ *                                  reset due to existing connections or active
+ *                                  GAP procedures.
+ */
+int
+ble_gatts_reset(void)
+{
+    int rc;
+
+    ble_hs_lock();
+
+    if (!ble_gatts_mutable()) {
+        rc = BLE_HS_EBUSY;
+    } else {
+        /* Unregister all ATT attributes. */
+        ble_att_svr_reset();
+        ble_gatts_num_cfgable_chrs = 0;
+        rc = 0;
+
+        /* Note: gatts memory gets freed on next call to ble_gatts_start(). */
+    }
+
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int

@@ -72,6 +72,12 @@ ble_att_svr_entry_alloc(void)
     return entry;
 }
 
+static void
+ble_att_svr_entry_free(struct ble_att_svr_entry *entry)
+{
+    os_memblock_put(&ble_att_svr_entry_pool, entry);
+}
+
 /**
  * Allocate the next handle id and return it.
  *
@@ -2646,6 +2652,21 @@ done:
     rc = ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_INDICATE_REQ,
                             att_err, handle);
     return rc;
+}
+
+void
+ble_att_svr_reset(void)
+{
+    struct ble_att_svr_entry *entry;
+
+    while ((entry = STAILQ_FIRST(&ble_att_svr_list)) != NULL) {
+        STAILQ_REMOVE_HEAD(&ble_att_svr_list, ha_next);
+        ble_att_svr_entry_free(entry);
+    }
+
+    /* Note: prep entries do not get freed here because it is assumed there are
+     * no established connections.
+     */
 }
 
 static void
