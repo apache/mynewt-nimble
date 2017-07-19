@@ -592,11 +592,7 @@ ble_sm_test_util_repeat_pairing_cb(const struct ble_gap_repeat_pairing *rp)
             ble_sm_test_repeat_pairing.params.pair_rsp.max_enc_key_size));
     TEST_ASSERT(
         rp->new_authenticated ==
-            ((ble_sm_test_repeat_pairing.params.pair_req.authreq &
-              BLE_SM_PAIR_AUTHREQ_MITM)
-                &&
-             (ble_sm_test_repeat_pairing.params.pair_rsp.authreq &
-              BLE_SM_PAIR_AUTHREQ_MITM)));
+            !!(ble_sm_test_repeat_pairing.params.passkey_info.passkey.action));
     TEST_ASSERT(
         rp->new_sc ==
             ((ble_sm_test_repeat_pairing.params.pair_req.authreq &
