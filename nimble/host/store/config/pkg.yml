@@ -19,7 +19,7 @@
 
 pkg.name: net/nimble/host/store/config
 pkg.description: sys/config-based persistence layer for the NimBLE host.
-pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble
