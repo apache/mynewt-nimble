@@ -1066,9 +1066,11 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     scansm->scan_enabled = 1;
 
     /* Set first advertising channel */
+    assert(scansm->cur_phy != PHY_NOT_CONFIGURED);
     scansm->phy_data[scansm->cur_phy].scan_chan = BLE_PHY_ADV_CHAN_START;
 
-    if (scansm->next_phy != scansm->cur_phy) {
+    if (scansm->next_phy != PHY_NOT_CONFIGURED &&
+            scansm->next_phy != scansm->cur_phy) {
         scansm->phy_data[scansm->next_phy].scan_chan = BLE_PHY_ADV_CHAN_START;
     }
 
