@@ -22,6 +22,7 @@
 
 #include "controller/ble_ll_sched.h"
 #include "hal/hal_timer.h"
+#include "syscfg/syscfg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,40 +52,86 @@ extern "C" {
  * Sent by the LL in the advertising state; received by the LL in the
  * scanning state.
  */
-#define BLE_SCAN_RSP_DATA_MAX_LEN       (31)
-#define BLE_SCAN_MAX_PKT_LEN            (37)
+#define BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN       (31)
+#define BLE_SCAN_LEGACY_MAX_PKT_LEN            (37)
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#define BLE_SCAN_RSP_DATA_MAX_LEN       MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)
+
+/* For Bluetooth 5.0 we need state machine for two PHYs*/
+#define BLE_LL_SCAN_PHY_NUMBER          (2)
+#else
+#define BLE_LL_SCAN_PHY_NUMBER          (1)
+#define BLE_SCAN_RSP_DATA_MAX_LEN       BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN
+#endif
+
+#define PHY_UNCODED                    (0)
+#define PHY_CODED                      (1)
+#define PHY_NOT_CONFIGURED             (0xFF)
+
+#define BLE_LL_EXT_ADV_MODE_NON_CONN    (0x00)
+#define BLE_LL_EXT_ADV_MODE_CONN        (0x01)
+#define BLE_LL_EXT_ADV_MODE_SCAN        (0x02)
 
 struct ble_ll_scan_params
 {
-    uint8_t scan_type;
+    uint8_t phy;
     uint8_t own_addr_type;
     uint8_t scan_filt_policy;
+    uint8_t configured;
+    uint8_t scan_type;
+    uint8_t scan_chan;
     uint16_t scan_itvl;
     uint16_t scan_window;
+    uint32_t scan_win_start_time;
+    uint32_t next_event_start;
 };
 
-/* Scanning state machine (used when initiating as well) */
+#define BLE_LL_AUX_CHAIN_BIT            0x01
+#define BLE_LL_AUX_INCOMPLETE_BIT       0x02
+#define BLE_LL_AUX_INCOMPLETE_ERR_BIT   0x04
+
+#define BLE_LL_CHECK_AUX_FLAG(aux_data, flag) (!!((aux_data)->flags & flag))
+
+struct ble_ll_aux_data {
+    uint8_t chan;
+    uint32_t offset;
+    uint8_t aux_phy;
+    uint8_t aux_primary_phy;
+    uint8_t mode;
+    uint8_t scanning;
+    uint8_t flags;
+    uint16_t did;
+    struct ble_ll_sched_item sch;
+};
+
 struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
-    uint8_t scan_type;
     uint8_t own_addr_type;
-    uint8_t scan_chan;
-    uint8_t scan_filt_policy;
     uint8_t scan_filt_dups;
     uint8_t scan_rsp_pending;
     uint8_t scan_rsp_cons_fails;
     uint8_t scan_rsp_cons_ok;
     int8_t scan_rpa_index;
     uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
+
+    /* XXX: Shall we count backoff per phy? */
     uint16_t upper_limit;
     uint16_t backoff_count;
-    uint16_t scan_itvl;
-    uint16_t scan_window;
     uint32_t scan_win_start_time;
     struct os_mbuf *scan_req_pdu;
     struct os_event scan_sched_ev;
     struct hal_timer scan_timer;
+
+    uint16_t duration;
+    uint16_t period;
+
+    uint8_t cur_phy;
+    uint8_t next_phy;
+    struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
+    uint8_t ext_scanning;
+    struct ble_ll_aux_data *cur_aux_data;
 };
 
 /* Scan types */
@@ -97,7 +144,11 @@ struct ble_ll_scan_sm
 int ble_ll_scan_set_scan_params(uint8_t *cmd);
 
 /* Turn scanning on/off */
-int ble_ll_scan_set_enable(uint8_t *cmd);
+int ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+int ble_ll_set_ext_scan_params(uint8_t *cmd);
+#endif
 
 /*--- Controller Internal API ---*/
 /* Initialize the scanner */
@@ -107,7 +158,7 @@ void ble_ll_scan_init(void);
 void ble_ll_scan_reset(void);
 
 /* Called when Link Layer starts to receive a PDU and is in scanning state */
-int ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint8_t *rxflags);
+int ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags);
 
 /* Called when Link Layer has finished receiving a PDU while scanning */
 int ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
@@ -127,7 +178,8 @@ int ble_ll_scan_whitelist_enabled(void);
 
 /* Initialize the scanner when we start initiating */
 struct hci_create_conn;
-int ble_ll_scan_initiator_start(struct hci_create_conn *hcc);
+int ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
+                                struct ble_ll_scan_sm **sm);
 
 /* Returns the PDU allocated by the scanner */
 struct os_mbuf *ble_ll_scan_get_pdu(void);
@@ -149,6 +201,31 @@ void ble_ll_scan_chk_resume(void);
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);
+
+int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
+                                struct ble_mbuf_hdr *ble_hdr,
+                                uint8_t **addr, uint8_t *addr_type,
+                                uint8_t **inita, uint8_t *init_addr_type,
+                                int *ext_mode);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/* Get aux ptr from ext advertising */
+int ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
+                             struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
+                             struct ble_ll_aux_data **aux_data);
+
+/* Initialize the extended scanner when we start initiating */
+struct hci_ext_create_conn;
+int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
+                                    struct ble_ll_scan_sm **sm);
+
+/* Called to parse extended advertising*/
+struct ble_ll_ext_adv;
+int ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
+                              struct ble_ll_ext_adv *parsed_evt);
+
+void ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan);
+#endif
 
 #ifdef __cplusplus
 }

@@ -57,7 +57,7 @@ extern "C" {
  * Number of LE commands. NOTE: this is really just used to size the array
  * containing the lengths of the LE commands.
  */
-#define BLE_HCI_NUM_LE_CMDS                 (48)
+#define BLE_HCI_NUM_LE_CMDS                 (79)
 
 /* List of OCF for Link Control commands (OGF=0x01) */
 #define BLE_HCI_OCF_DISCONNECT_CMD          (0x0006)
@@ -81,55 +81,88 @@ extern "C" {
 #define BLE_HCI_OCF_RD_RSSI                 (0x0005)
 
 /* List of OCF for LE commands (OGF = 0x08) */
-#define BLE_HCI_OCF_LE_SET_EVENT_MASK       (0x0001)
-#define BLE_HCI_OCF_LE_RD_BUF_SIZE          (0x0002)
-#define BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT     (0x0003)
+#define BLE_HCI_OCF_LE_SET_EVENT_MASK               (0x0001)
+#define BLE_HCI_OCF_LE_RD_BUF_SIZE                  (0x0002)
+#define BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT             (0x0003)
 /* NOTE: 0x0004 is intentionally left undefined */
-#define BLE_HCI_OCF_LE_SET_RAND_ADDR        (0x0005)
-#define BLE_HCI_OCF_LE_SET_ADV_PARAMS       (0x0006)
-#define BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR    (0x0007)
-#define BLE_HCI_OCF_LE_SET_ADV_DATA         (0x0008)
-#define BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA    (0x0009)
-#define BLE_HCI_OCF_LE_SET_ADV_ENABLE       (0x000A)
-#define BLE_HCI_OCF_LE_SET_SCAN_PARAMS      (0x000B)
-#define BLE_HCI_OCF_LE_SET_SCAN_ENABLE      (0x000C)
-#define BLE_HCI_OCF_LE_CREATE_CONN          (0x000D)
-#define BLE_HCI_OCF_LE_CREATE_CONN_CANCEL   (0x000E)
-#define BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE   (0x000F)
-#define BLE_HCI_OCF_LE_CLEAR_WHITE_LIST     (0x0010)
-#define BLE_HCI_OCF_LE_ADD_WHITE_LIST       (0x0011)
-#define BLE_HCI_OCF_LE_RMV_WHITE_LIST       (0x0012)
-#define BLE_HCI_OCF_LE_CONN_UPDATE          (0x0013)
-#define BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS  (0x0014)
-#define BLE_HCI_OCF_LE_RD_CHAN_MAP          (0x0015)
-#define BLE_HCI_OCF_LE_RD_REM_FEAT          (0x0016)
-#define BLE_HCI_OCF_LE_ENCRYPT              (0x0017)
-#define BLE_HCI_OCF_LE_RAND                 (0x0018)
-#define BLE_HCI_OCF_LE_START_ENCRYPT        (0x0019)
-#define BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY     (0x001A)
-#define BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY (0x001B)
-#define BLE_HCI_OCF_LE_RD_SUPP_STATES       (0x001C)
-#define BLE_HCI_OCF_LE_RX_TEST              (0x001D)
-#define BLE_HCI_OCF_LE_TX_TEST              (0x001E)
-#define BLE_HCI_OCF_LE_TEST_END             (0x001F)
-#define BLE_HCI_OCF_LE_REM_CONN_PARAM_RR    (0x0020)
-#define BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR   (0x0021)
-#define BLE_HCI_OCF_LE_SET_DATA_LEN         (0x0022)
-#define BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN (0x0023)
-#define BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN (0x0024)
-#define BLE_HCI_OCF_LE_RD_P256_PUBKEY       (0x0025)
-#define BLE_HCI_OCF_LE_GEN_DHKEY            (0x0026)
-#define BLE_HCI_OCF_LE_ADD_RESOLV_LIST      (0x0027)
-#define BLE_HCI_OCF_LE_RMV_RESOLV_LIST      (0x0028)
-#define BLE_HCI_OCF_LE_CLR_RESOLV_LIST      (0x0029)
-#define BLE_HCI_OCF_LE_RD_RESOLV_LIST_SIZE  (0x002A)
-#define BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR  (0x002B)
-#define BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR (0x002C)
-#define BLE_HCI_OCF_LE_SET_ADDR_RES_EN      (0x002D)
-#define BLE_HCI_OCF_LE_SET_RPA_TMO          (0x002E)
-#define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN      (0x002F)
+#define BLE_HCI_OCF_LE_SET_RAND_ADDR                (0x0005)
+#define BLE_HCI_OCF_LE_SET_ADV_PARAMS               (0x0006)
+#define BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR            (0x0007)
+#define BLE_HCI_OCF_LE_SET_ADV_DATA                 (0x0008)
+#define BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA            (0x0009)
+#define BLE_HCI_OCF_LE_SET_ADV_ENABLE               (0x000A)
+#define BLE_HCI_OCF_LE_SET_SCAN_PARAMS              (0x000B)
+#define BLE_HCI_OCF_LE_SET_SCAN_ENABLE              (0x000C)
+#define BLE_HCI_OCF_LE_CREATE_CONN                  (0x000D)
+#define BLE_HCI_OCF_LE_CREATE_CONN_CANCEL           (0x000E)
+#define BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE           (0x000F)
+#define BLE_HCI_OCF_LE_CLEAR_WHITE_LIST             (0x0010)
+#define BLE_HCI_OCF_LE_ADD_WHITE_LIST               (0x0011)
+#define BLE_HCI_OCF_LE_RMV_WHITE_LIST               (0x0012)
+#define BLE_HCI_OCF_LE_CONN_UPDATE                  (0x0013)
+#define BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS          (0x0014)
+#define BLE_HCI_OCF_LE_RD_CHAN_MAP                  (0x0015)
+#define BLE_HCI_OCF_LE_RD_REM_FEAT                  (0x0016)
+#define BLE_HCI_OCF_LE_ENCRYPT                      (0x0017)
+#define BLE_HCI_OCF_LE_RAND                         (0x0018)
+#define BLE_HCI_OCF_LE_START_ENCRYPT                (0x0019)
+#define BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY             (0x001A)
+#define BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY         (0x001B)
+#define BLE_HCI_OCF_LE_RD_SUPP_STATES               (0x001C)
+#define BLE_HCI_OCF_LE_RX_TEST                      (0x001D)
+#define BLE_HCI_OCF_LE_TX_TEST                      (0x001E)
+#define BLE_HCI_OCF_LE_TEST_END                     (0x001F)
+#define BLE_HCI_OCF_LE_REM_CONN_PARAM_RR            (0x0020)
+#define BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR           (0x0021)
+#define BLE_HCI_OCF_LE_SET_DATA_LEN                 (0x0022)
+#define BLE_HCI_OCF_LE_RD_SUGG_DEF_DATA_LEN         (0x0023)
+#define BLE_HCI_OCF_LE_WR_SUGG_DEF_DATA_LEN         (0x0024)
+#define BLE_HCI_OCF_LE_RD_P256_PUBKEY               (0x0025)
+#define BLE_HCI_OCF_LE_GEN_DHKEY                    (0x0026)
+#define BLE_HCI_OCF_LE_ADD_RESOLV_LIST              (0x0027)
+#define BLE_HCI_OCF_LE_RMV_RESOLV_LIST              (0x0028)
+#define BLE_HCI_OCF_LE_CLR_RESOLV_LIST              (0x0029)
+#define BLE_HCI_OCF_LE_RD_RESOLV_LIST_SIZE          (0x002A)
+#define BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR          (0x002B)
+#define BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR         (0x002C)
+#define BLE_HCI_OCF_LE_SET_ADDR_RES_EN              (0x002D)
+#define BLE_HCI_OCF_LE_SET_RPA_TMO                  (0x002E)
+#define BLE_HCI_OCF_LE_RD_MAX_DATA_LEN              (0x002F)
+#define BLE_HCI_OCF_LE_RD_PHY                       (0x0030)
+#define BLE_HCI_OCF_LE_SET_DEFAULT_PHY              (0x0031)
+#define BLE_HCI_OCF_LE_SET_PHY                      (0x0032)
+#define BLE_HCI_OCF_LE_ENH_RCVR_TEST                (0x0033)
+#define BLE_HCI_OCF_LE_ENH_TRANS_TEST               (0x0034)
+#define BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR         (0x0035)
+#define BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM            (0x0036)
+#define BLE_HCI_OCF_LE_SET_EXT_ADV_DATA             (0x0037)
+#define BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA        (0x0038)
+#define BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE           (0x0039)
+#define BLE_HCI_OCF_LE_RD_MAX_ADV_DATA_LEN          (0x003A)
+#define BLE_HCI_OCF_LE_RD_NUM_OF_ADV_SETS           (0x003B)
+#define BLE_HCI_OCF_LE_REMOVE_ADV_SET               (0x003C)
+#define BLE_HCI_OCF_LE_CLEAR_ADV_SETS               (0x003D)
+#define BLE_HCI_OCF_LE_SET_PER_ADV_PARAMS           (0x003E)
+#define BLE_HCI_OCF_LE_SET_PER_ADV_DATA             (0x003F)
+#define BLE_HCI_OCF_LE_SET_PER_ADV_ENABLE           (0x0040)
+#define BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM           (0x0041)
+#define BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE          (0x0042)
+#define BLE_HCI_OCF_LE_EXT_CREATE_CONN              (0x0043)
+#define BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC          (0x0044)
+#define BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC_CANCEL   (0x0045)
+#define BLE_HCI_OCF_LE_PER_ADV_TERM_SYNC            (0x0046)
+#define BLE_HCI_OCF_LE_ADD_DEV_TO_PER_ADV_LIST      (0x0047)
+#define BLE_HCI_OCF_LE_REM_DEV_FROM_PER_ADV_LIST    (0x0048)
+#define BLE_HCI_OCF_LE_CLEAR_PER_ADV_LIST           (0x0049)
+#define BLE_HCI_OCF_LE_RD_PER_ADV_LIST_SIZE         (0x004A)
+#define BLE_HCI_OCF_LE_RD_TRANSMIT_POWER            (0x004B)
+#define BLE_HCI_OCF_LE_RD_RF_PATH_COMPENSATION      (0x004C)
+#define BLE_HCI_OCF_LE_WR_RF_PATH_COMPENSATION      (0x004D)
+#define BLE_HCI_OCF_LE_SET_PRIVACY_MODE             (0x004E)
 
 /* Command Specific Definitions */
+#define BLE_HCI_VARIABLE_LEN                (0xFF)
+
 /* --- Disconnect command (OGF 0x01, OCF 0x0006) --- */
 #define BLE_HCI_DISCONNECT_CMD_LEN          (3)
 
@@ -175,6 +208,16 @@ extern "C" {
 #define BLE_HCI_ADV_TYPE_ADV_NONCONN_IND    (3)
 #define BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_LD  (4)
 #define BLE_HCI_ADV_TYPE_MAX                (4)
+
+#define BLE_HCI_ADV_CONN_MASK               (0x0001)
+#define BLE_HCI_ADV_SCAN_MASK               (0x0002)
+#define BLE_HCI_ADV_DIRECT_MASK             (0x0004)
+#define BLE_HCI_ADV_SCAN_RSP_MASK           (0x0008)
+#define BLE_HCI_ADV_LEGACY_MASK             (0x0010)
+
+#define BLE_HCI_ADV_COMPLETED               (0x00)
+#define BLE_HCI_ADV_INCOMPLETE              (0x01)
+#define BLE_HCI_ADV_CORRUPTED               (0x10)
 
 /* Own address types */
 #define BLE_HCI_ADV_OWN_ADDR_PUBLIC         (0)
@@ -383,6 +426,130 @@ extern "C" {
 /* --- LE read maximum data length (OCF 0x002F) */
 #define BLE_HCI_RD_MAX_DATALEN_RSPLEN       (8)
 
+/* --- LE read maximum default PHY (OCF 0x0030) */
+#define BLE_HCI_LE_RD_PHY_LEN               (2)
+#define BLE_HCI_LE_RD_PHY_RSPLEN            (4)
+#define BLE_HCI_LE_PHY_1M                   (1)
+#define BLE_HCI_LE_PHY_2M                   (2)
+#define BLE_HCI_LE_PHY_CODED                (3)
+
+/* --- LE set default PHY (OCF 0x0031) */
+#define BLE_HCI_LE_SET_DEFAULT_PHY_LEN              (3)
+#define BLE_HCI_LE_PHY_NO_TX_PREF_MASK              (0x01)
+#define BLE_HCI_LE_PHY_NO_RX_PREF_MASK              (0x02)
+#define BLE_HCI_LE_PHY_1M_PREF_MASK                 (0x01)
+#define BLE_HCI_LE_PHY_2M_PREF_MASK                 (0x02)
+#define BLE_HCI_LE_PHY_CODED_PREF_MASK              (0x04)
+
+#define BLE_HCI_LE_PHY_PREF_MASK_ALL                \
+    (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_2M_PREF_MASK |  \
+     BLE_HCI_LE_PHY_CODED_PREF_MASK)
+
+/* --- LE set PHY (OCF 0x0032) */
+#define BLE_HCI_LE_SET_PHY_LEN                      (7)
+#define BLE_HCI_LE_PHY_CODED_ANY                    (0x0000)
+#define BLE_HCI_LE_PHY_CODED_S2_PREF                (0x0001)
+#define BLE_HCI_LE_PHY_CODED_S8_PREF                (0x0002)
+
+/* --- LE enhanced receiver test (OCF 0x0033) */
+#define BLE_HCI_LE_ENH_RCVR_TEST_LEN                (3)
+#define BLE_HCI_LE_PHY_1M                           (1)
+#define BLE_HCI_LE_PHY_2M                           (2)
+#define BLE_HCI_LE_PHY_CODED                        (3)
+
+/* --- LE enhanced transmitter test (OCF 0x0034) */
+#define BLE_HCI_LE_ENH_TRANS_TEST_LEN               (4)
+#define BLE_HCI_LE_PHY_CODED_S8                     (3)
+#define BLE_HCI_LE_PHY_CODED_S2                     (4)
+
+/* --- LE set advertising set random address (OCF 0x0035) */
+#define BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN         (7)
+
+/* --- LE set extended advertising parameters (OCF 0x0036) */
+#define BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN            (25)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE     (0x0001)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE       (0x0002)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED        (0x0004)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED     (0x0008)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY          (0x0010)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV        (0x0020)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR      (0x0040)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_MASK            (0x7F)
+
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND      (0x0013)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR   (0x0015)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR   (0x001d)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN     (0x0012)
+#define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN  (0x0010)
+
+/* --- LE set extended advertising data (OCF 0x0037) */
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT        (0)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST      (1)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST       (2)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE   (3)
+#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED  (4)
+
+/* --- LE set extended scan response data (OCF 0x0038) */
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_LEN        BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT        (0)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST      (1)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST       (2)
+#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE   (3)
+
+/* --- LE set extended advertising enable (OCF 0x0039) */
+#define BLE_HCI_LE_SET_EXT_ADV_ENABLE_LEN           BLE_HCI_VARIABLE_LEN
+
+/* --- LE remove advertising set (OCF 0x003C) */
+#define BLE_HCI_LE_REMOVE_ADV_SET_LEN               (1)
+
+/* --- LE read maximum advertising data length (OCF 0x003A) */
+#define BLE_HCI_RD_MAX_ADV_DATA_LEN                 (2)
+
+/* --- LE read number of supported advertising sets (OCF 0x003B) */
+#define BLE_HCI_RD_NR_SUP_ADV_SETS                  (1)
+
+/* --- LE set periodic advertising parameters (OCF 0x003E) */
+#define BLE_HCI_LE_SET_PER_ADV_PARAMS_LEN           (7)
+
+/* --- LE set periodic advertising data (OCF 0x003F) */
+#define BLE_HCI_LE_SET_PER_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
+
+/* --- LE periodic advertising enable (OCF 0x0040) */
+#define BLE_HCI_LE_SET_PER_ADV_ENABLE_LEN           (2)
+
+/* --- LE set extended scan parameters (OCF 0x0041) */
+#define BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN           BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_EXT_SCAN_BASE_LEN                (3)
+#define BLE_HCI_LE_EXT_SCAN_SINGLE_PARAM_LEN        (5)
+
+/* --- LE set extended scan enable (OCF 0x0042) */
+#define BLE_HCI_LE_SET_EXT_SCAN_ENABLE_LEN          (6)
+
+/* --- LE extended create connection (OCF 0x0043) */
+#define BLE_HCI_LE_EXT_CREATE_CONN_LEN              BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_EXT_CREATE_CONN_BASE_LEN         (10)
+
+/* --- LE periodic advertising create sync (OCF 0x0044) */
+#define BLE_HCI_LE_PER_ADV_CREATE_SYNC_LEN          (14)
+
+/* --- LE periodic advertising terminate (OCF 0x0046) */
+#define BLE_HCI_LE_PER_ADV_TERM_SYNC_LEN            (2)
+
+/* --- LE add device to periodic advertising list (OCF 0x0047) */
+#define BLE_HCI_LE_ADD_DEV_TO_PER_ADV_LIST_LEN      (8)
+
+/* --- LE remove device from periodic advertising list (OCF 0x0048) */
+#define BLE_HCI_LE_REM_DEV_FROM_PER_ADV_LIST_LEN    (8)
+
+/* --- LE write RF path (OCF 0x004D) */
+#define BLE_HCI_LE_WR_RF_PATH_COMPENSATION_LEN      (4)
+
+/* --- LE set privacy mode (OCF 0x004E) */
+#define BLE_HCI_LE_SET_PRIVACY_MODE_LEN             (8)
+#define BLE_HCI_PRIVACY_NETWORK                     (0)
+#define BLE_HCI_PRIVACY_DEVICE                      (1)
+
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
 #define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)
@@ -463,17 +630,26 @@ extern "C" {
 #define BLE_HCI_EVCODE_AUTH_PYLD_TMO        (0x57)
 
 /* LE sub-event codes */
-#define BLE_HCI_LE_SUBEV_CONN_COMPLETE      (0x01)
-#define BLE_HCI_LE_SUBEV_ADV_RPT            (0x02)
-#define BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE  (0x03)
-#define BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT   (0x04)
-#define BLE_HCI_LE_SUBEV_LT_KEY_REQ         (0x05)
-#define BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ  (0x06)
-#define BLE_HCI_LE_SUBEV_DATA_LEN_CHG       (0x07)
-#define BLE_HCI_LE_SUBEV_RD_LOC_P256_PUBKEY (0x08)
-#define BLE_HCI_LE_SUBEV_GEN_DHKEY_COMPLETE (0x09)
-#define BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE  (0x0A)
-#define BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT     (0x0B)
+#define BLE_HCI_LE_SUBEV_CONN_COMPLETE          (0x01)
+#define BLE_HCI_LE_SUBEV_ADV_RPT                (0x02)
+#define BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE      (0x03)
+#define BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT       (0x04)
+#define BLE_HCI_LE_SUBEV_LT_KEY_REQ             (0x05)
+#define BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ      (0x06)
+#define BLE_HCI_LE_SUBEV_DATA_LEN_CHG           (0x07)
+#define BLE_HCI_LE_SUBEV_RD_LOC_P256_PUBKEY     (0x08)
+#define BLE_HCI_LE_SUBEV_GEN_DHKEY_COMPLETE     (0x09)
+#define BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE      (0x0A)
+#define BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT         (0x0B)
+#define BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE    (0x0C)
+#define BLE_HCI_LE_SUBEV_EXT_ADV_RPT            (0x0D)
+#define BLE_HCI_LE_SUBEV_PER_ADV_SYNC_ESTAB     (0x0E)
+#define BLE_HCI_LE_SUBEV_PER_ADV_RPT            (0x0F)
+#define BLE_HCI_LE_SUBEV_PER_ADV_SYNC_LOST      (0x10)
+#define BLE_HCI_LE_SUBEV_SCAN_TIMEOUT           (0x11)
+#define BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED     (0x12)
+#define BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD          (0x13)
+#define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG           (0x14)
 
 /* Generic event header */
 #define BLE_HCI_EVENT_HDR_LEN               (2)
@@ -516,6 +692,14 @@ extern "C" {
 #define BLE_HCI_ADV_RPT_EVTYPE_NONCONN_IND  (3)
 #define BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP     (4)
 
+/* Bluetooth 5, Vol 2, Part E, 7.7.65.13 */
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_IND                 (0x13)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_DIRECT_IND          (0x15)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_SCAN_IND            (0x12)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_ADV_NONCON_IND          (0x10)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_SCAN_RSP_ADV_IND        (0x1b)
+#define BLE_HCI_LEGACY_ADV_EVTYPE_SCAN_RSP_ADV_SCAN_IND   (0x1a)
+
 /* LE sub-event specific definitions */
 #define BLE_HCI_LE_MIN_LEN                  (1) /* Not including event hdr. */
 
@@ -548,6 +732,18 @@ extern "C" {
 /* LE data length change event (sub event 0x07) */
 #define BLE_HCI_LE_DATA_LEN_CHG_LEN         (11)
 
+/* LE PHY update complete event (sub event 0x0C) */
+#define BLE_HCI_LE_PHY_UPD_LEN              (6)
+
+/*  LE Advertising Set Terminated Event (sub event 0x12) */
+#define BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED_LEN   (6)
+
+/* LE Scan Request Received event (sub event 0x13) */
+#define BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD_LEN   (9)
+
+/* LE Channel Selection Algorithm event (sub event 0x14) */
+#define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG_LEN   (4)
+
 /* Bluetooth Assigned numbers for version information.*/
 #define BLE_HCI_VER_BCS_1_0b                (0)
 #define BLE_HCI_VER_BCS_1_1                 (1)
@@ -558,6 +754,7 @@ extern "C" {
 #define BLE_HCI_VER_BCS_4_0                 (6)
 #define BLE_HCI_VER_BCS_4_1                 (7)
 #define BLE_HCI_VER_BCS_4_2                 (8)
+#define BLE_HCI_VER_BCS_5_0                 (9)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -568,6 +765,7 @@ extern "C" {
 #define BLE_LMP_VER_BCS_4_0                 (6)
 #define BLE_LMP_VER_BCS_4_1                 (7)
 #define BLE_LMP_VER_BCS_4_2                 (8)
+#define BLE_LMP_VER_BCS_5_0                 (9)
 
 /* Sub-event 0x0A: enhanced connection complete */
 #define BLE_HCI_LE_ENH_CONN_COMPLETE_LEN    (31)
@@ -619,6 +817,81 @@ struct hci_create_conn
     uint16_t min_ce_len;
     uint16_t max_ce_len;
 };
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+/* LE create connection command (ocf=0x0043). */
+struct hci_ext_conn_params
+{
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+struct hci_ext_create_conn
+{
+    uint8_t filter_policy;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+    uint8_t init_phy_mask;
+    struct hci_ext_conn_params params[3];
+};
+
+struct hci_ext_adv_report_param {
+    uint16_t evt_type;
+    uint8_t addr_type;
+    uint8_t addr[6];
+    uint8_t prim_phy;
+    uint8_t sec_phy;
+    uint8_t sid;
+    uint8_t tx_power;
+    int8_t rssi;
+    uint16_t per_adv_itvl;
+    uint8_t dir_addr_type;
+    uint8_t dir_addr[6];
+    uint8_t adv_data_len;
+    uint8_t adv_data[0];
+} __attribute__((packed));
+
+struct hci_ext_adv_report {
+    /* We support one report per event for now */
+    uint8_t subevt;
+    uint8_t num_reports;
+    struct hci_ext_adv_report_param params[0];
+} __attribute__((packed));
+
+/* Ext Adv Set enable parameters, not in HCI order */
+struct hci_ext_adv_set
+{
+    uint8_t handle;
+    uint8_t events;
+    uint16_t duration;
+};
+
+/* Ext Advertising Parameters */
+struct hci_ext_adv_params
+{
+    uint16_t properties;
+    uint32_t min_interval;
+    uint32_t max_interval;
+    uint8_t chan_map;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[6];
+    uint8_t filter_policy;
+    uint8_t tx_power;
+    uint8_t primary_phy;
+    uint8_t max_skip;
+    uint8_t secondary_phy;
+    uint8_t sid;
+    uint8_t scan_req_notif;
+};
+#endif
 
 /* LE connection update command (ocf=0x0013). */
 struct hci_conn_update
@@ -721,6 +994,15 @@ struct hci_le_conn_param_req
     uint16_t timeout;
 };
 
+/* Read Remote Supported Features complete LE meta subevent */
+struct hci_le_rd_rem_supp_feat_complete
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint16_t connection_handle;
+    uint8_t features[8];
+};
+
 /* LE long term key request event (note: fields out of order). */
 struct hci_le_lt_key_req
 {
@@ -744,6 +1026,16 @@ struct hci_read_rssi_ack_params
     uint16_t connection_handle;
     uint8_t status;
     int8_t rssi;
+};
+
+/* PHY updated completed LE meta subevent */
+struct hci_le_phy_upd_complete
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint16_t connection_handle;
+    uint8_t tx_phy;
+    uint8_t rx_phy;
 };
 
 #define BLE_HCI_DATA_HDR_SZ                 4

@@ -276,6 +276,10 @@ ble_phy_isr(void)
         ble_hdr->rxinfo.flags = 0;
         ble_hdr->rxinfo.rssi = -77;    /* XXX: dummy rssi */
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
+        ble_hdr->rxinfo.phy = BLE_PHY_1M;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_hdr->rxinfo.aux_data = NULL;
+#endif
 
         /* Count PHY crc errors and valid packets */
         crcok = 1;
@@ -383,11 +387,12 @@ ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
  * already be set.
  *
  * @param cputime
+ * @param rem_usecs
  *
  * @return int
  */
 int
-ble_phy_tx_set_start_time(uint32_t cputime)
+ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     return 0;
 }
@@ -402,11 +407,12 @@ ble_phy_tx_set_start_time(uint32_t cputime)
  * already be set.
  *
  * @param cputime
+ * @param rem_usecs
  *
  * @return int
  */
 int
-ble_phy_rx_set_start_time(uint32_t cputime)
+ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     return 0;
 }
@@ -492,6 +498,29 @@ ble_phy_txpwr_set(int dbm)
 }
 
 /**
+ * ble phy txpwr round
+ *
+ * Get the rounded transmit output power (in dBm).
+ *
+ * @param dbm Power output in dBm.
+ *
+ * @return int Rounded power in dBm
+ */
+int ble_phy_txpower_round(int dbm)
+{
+    /* "Rail" power level if outside supported range */
+    if (dbm > BLE_XCVR_TX_PWR_MAX_DBM) {
+        dbm = BLE_XCVR_TX_PWR_MAX_DBM;
+    } else {
+        if (dbm < BLE_XCVR_TX_PWR_MIN_DBM) {
+            dbm = BLE_XCVR_TX_PWR_MIN_DBM;
+        }
+    }
+
+    return dbm;
+}
+
+/**
  * ble phy txpwr get
  *
  * Get the transmit power.
@@ -528,12 +557,8 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* Set current access address */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        g_ble_phy_data.phy_access_address = access_addr;
-    } else {
-        g_ble_phy_data.phy_access_address = BLE_ACCESS_ADDR_ADV;
-    }
+    g_ble_phy_data.phy_access_address = access_addr;
+
     g_ble_phy_data.phy_chan = chan;
 
     return 0;
@@ -605,4 +630,21 @@ ble_phy_resolv_list_disable(void)
 {
     g_ble_phy_data.phy_privacy = 0;
 }
+
+/**
+ * Return the transceiver state
+ *
+ * @return int transceiver state.
+ */
+uint8_t
+ble_phy_xcvr_state_get(void)
+{
+   return g_ble_phy_data.phy_state;
+}
+
 #endif
+
+void
+ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
+{
+}

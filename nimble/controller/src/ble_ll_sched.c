@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include "bsp/bsp.h"
 #include "os/os.h"
 #include "os/os_cputime.h"
 #include "ble/xcvr.h"
@@ -38,9 +39,7 @@ struct hal_timer g_ble_ll_sched_timer;
 uint8_t g_ble_ll_sched_xtal_ticks;
 #endif
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 uint8_t g_ble_ll_sched_offset_ticks;
-#endif
 
 #define BLE_LL_SCHED_ADV_WORST_CASE_USECS       \
     (BLE_LL_SCHED_MAX_ADV_PDU_USECS + BLE_LL_IFS + BLE_LL_SCHED_ADV_MAX_USECS \
@@ -165,7 +164,6 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     /* Get schedule element from connection */
     sch = &connsm->conn_sch;
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* Set schedule start and end times */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
@@ -175,16 +173,6 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     } else {
         sch->remainder = connsm->anchor_point_usecs;
     }
-#else
-    /* Set schedule start and end times */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        usecs = XCVR_RX_SCHED_DELAY_USECS;
-        usecs += connsm->slave_cur_window_widening;
-    } else {
-        usecs = XCVR_TX_SCHED_DELAY_USECS;
-    }
-    sch->start_time = connsm->anchor_point - os_cputime_usecs_to_ticks(usecs);
-#endif
     sch->end_time = connsm->ce_end_time;
 
     /* Better be past current time or we just leave */
@@ -208,13 +196,18 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     rc = 0;
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
         if (ble_ll_sched_is_overlap(sch, entry)) {
-            /* Only insert if this element is older than all that we overlap */
-            if (!ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
+            if (entry->sched_type == BLE_LL_SCHED_TYPE_AUX_SCAN) {
+                /* Do nothing, we start_mark overlap below */
+            } else if (!ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
                                     (struct ble_ll_conn_sm *)entry->cb_arg)) {
+                /* Only insert if this element is older than all that we
+                 * overlap
+                 */
                 start_overlap = NULL;
                 rc = -1;
                 break;
             }
+
             if (start_overlap == NULL) {
                 start_overlap = entry;
                 end_overlap = entry;
@@ -241,12 +234,24 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     entry = start_overlap;
     while (entry) {
         start_overlap = TAILQ_NEXT(entry,link);
-        if (entry->sched_type == BLE_LL_SCHED_TYPE_CONN) {
+        switch (entry->sched_type) {
+            case BLE_LL_SCHED_TYPE_CONN:
             tmp = (struct ble_ll_conn_sm *)entry->cb_arg;
             ble_ll_event_send(&tmp->conn_ev_end);
-        } else {
-            assert(entry->sched_type == BLE_LL_SCHED_TYPE_ADV);
-            ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)entry->cb_arg);
+            break;
+            case BLE_LL_SCHED_TYPE_ADV:
+                ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)
+                                                  entry->cb_arg);
+                break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+            case BLE_LL_SCHED_TYPE_AUX_SCAN:
+                ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)
+                                          entry->cb_arg);
+                break;
+#endif
+            default:
+                assert(0);
+                break;
         }
 
         TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
@@ -273,6 +278,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
+    assert(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -305,12 +311,16 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     struct ble_ll_sched_item *entry;
     struct ble_ll_sched_item *sch;
 
+    /*
+     * XXX: TODO this code assumes the advertisement and connect request were
+     * sent at 1Mbps.
+     */
+
     /* Get schedule element from connection */
     rc = -1;
     sch = &connsm->conn_sch;
     req_slots = MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS);
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* XXX:
      * The calculations for the 32kHz crystal bear alot of explanation. The
      * earliest possible time that the master can start the connection with a
@@ -354,27 +364,38 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      */
     dur = req_slots * BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
     adv_rxend = os_cputime_get32();
-    earliest_start = adv_rxend + 57;    /* XXX: only works for 1 Mbps */
+    if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
+        /*
+         * We received packet on advertising channel which means this is a legacy
+         * PDU on 1 Mbps - we do as described above.
+         */
+        earliest_start = adv_rxend + 57;
+    } else {
+        /*
+         * The calculations are similar as above.
+         *
+         * We received packet on data channel which means this is AUX_ADV_IND
+         * received on secondary adv channel. We can schedule first packet at
+         * the earliest after "T_IFS + AUX_CONNECT_REQ + transmitWindowDelay".
+         * AUX_CONNECT_REQ and transmitWindowDelay times vary depending on which
+         * PHY we received on.
+         *
+         */
+        if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
+            // 150 + 352 + 2500 = 3002us = 98.37 ticks
+            earliest_start = adv_rxend + 98;
+        } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
+            // 150 + 180 + 2500 = 2830us = 92.73 ticks
+            earliest_start = adv_rxend + 93;
+        } else if (ble_hdr->rxinfo.phy == BLE_PHY_CODED) {
+            // 150 + 2896 + 3750 = 6796us = 222.69 ticks
+            earliest_start = adv_rxend + 223;
+        } else {
+            assert(0);
+        }
+    }
     earliest_end = earliest_start + dur;
     itvl_t = connsm->conn_itvl_ticks;
-#else
-    adv_rxend = ble_hdr->beg_cputime +
-        os_cputime_usecs_to_ticks(BLE_TX_DUR_USECS_M(pyld_len));
-    /*
-     * The earliest start time is 1.25 msecs from the end of the connect
-     * request transmission. Note that adv_rxend is the end of the received
-     * advertisement, so we need to add an IFS plus the time it takes to send
-     * the connection request. The 1.25 msecs starts from the end of the conn
-     * request. Also include minimum WindowOffset value if configured.
-     */
-    dur = os_cputime_usecs_to_ticks(req_slots * BLE_LL_SCHED_USECS_PER_SLOT);
-    earliest_start = adv_rxend +
-        os_cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
-                                  BLE_LL_CONN_INITIAL_OFFSET +
-                                  MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) * BLE_LL_CONN_TX_OFF_USECS);
-    earliest_end = earliest_start + dur;
-    itvl_t = os_cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
-#endif
 
     /* We have to find a place for this schedule */
     OS_ENTER_CRITICAL(sr);
@@ -422,7 +443,6 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
         if (!rc) {
             /* calculate number of window offsets. Each offset is 1.25 ms */
             sch->enqueued = 1;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
             /*
              * NOTE: we dont add sched offset ticks as we want to under-estimate
              * the transmit window slightly since the window size is currently
@@ -430,28 +450,18 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
              */
             dur = os_cputime_ticks_to_usecs(earliest_start - initial_start);
             connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
-#else
-            dur = os_cputime_ticks_to_usecs(earliest_start - initial_start);
-            dur += XCVR_TX_SCHED_DELAY_USECS;
-            connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
-#endif
         }
     }
 
     if (!rc) {
         sch->start_time = earliest_start;
         sch->end_time = earliest_end;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         /*
          * Since we have the transmit window to transmit in, we dont need
          * to set the anchor point usecs; just transmit to the nearest tick.
          */
         connsm->anchor_point = earliest_start + g_ble_ll_sched_offset_ticks;
         connsm->anchor_point_usecs = 0;
-#else
-        connsm->anchor_point = earliest_start +
-            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
-#endif
         connsm->ce_end_time = earliest_end;
     }
 
@@ -493,7 +503,6 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
     sch = &connsm->conn_sch;
 
     /* Set schedule start and end times */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /*
      * XXX: for now, we dont care about anchor point usecs for the slave. It
      * does not matter if we turn on the receiver up to one tick before w
@@ -502,11 +511,6 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
      */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks -
         os_cputime_usecs_to_ticks(connsm->slave_cur_window_widening) - 1;
-#else
-    sch->start_time = connsm->anchor_point -
-        os_cputime_usecs_to_ticks(XCVR_RX_SCHED_DELAY_USECS +
-                                  connsm->slave_cur_window_widening);
-#endif
     sch->end_time = connsm->ce_end_time;
     sch->remainder = 0;
 
@@ -584,7 +588,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
 }
 
 int
-ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
+ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb)
 {
     int rc;
     os_sr_t sr;
@@ -635,7 +639,9 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
         sch = TAILQ_FIRST(&g_ble_ll_sched_q);
     }
 
-    ble_ll_adv_scheduled((struct ble_ll_adv_sm *)orig->cb_arg, adv_start);
+    if (cb) {
+        cb((struct ble_ll_adv_sm *)orig->cb_arg, adv_start);
+    }
 
 #ifdef BLE_XCVR_RFCLK
     if (orig == sch) {
@@ -645,6 +651,8 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch)
 
     OS_EXIT_CRITICAL(sr);
 
+    /* Restart timer */
+    assert(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -1006,6 +1014,157 @@ ble_ll_sched_rfclk_chk_restart(void)
 
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/**
+ * Called to check if there is place for comming scan req.
+ *
+ * @param chan
+ * @param phy_mode
+ *
+ * @return int 0: Clear for scan req 1: there is an upcoming event
+ */
+int
+ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode)
+{
+    struct ble_ll_sched_item *sch;
+    uint32_t usec_dur;
+    uint32_t now = os_cputime_get32();
+
+    /* Lets calculate roughly how much time we need for scan req and scan rsp */
+    usec_dur = ble_ll_pdu_tx_time_get(BLE_SCAN_REQ_LEN, phy_mode);
+    if (chan >=  BLE_PHY_NUM_DATA_CHANS) {
+        usec_dur += ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_LEN, phy_mode);
+    } else {
+        usec_dur += ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_EXT_LEN, phy_mode);
+    }
+
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    while (sch) {
+        /* Let's check if there is no scheduled item which want to start within
+         * given usecs.*/
+        if ((int32_t)(sch->start_time - now + os_cputime_usecs_to_ticks(usec_dur)) > 0) {
+            /* We are fine. Have time for scan req */
+            return 0;
+        }
+
+        /* There is something in the scheduler. If it is not aux ptr we assume
+         * it is more important that scan req
+         */
+        if (sch->sched_type != BLE_LL_SCHED_TYPE_AUX_SCAN) {
+            return 1;
+        }
+
+        ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)sch->cb_arg);
+        TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 0;
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+    return 0;
+}
+
+/**
+ * Called to schedule a aux scan.
+ *
+ * Context: Interrupt
+ *
+ * @param ble_hdr
+ * @param scansm
+ * @param aux_scan
+ *
+ * @return 0 on success, 1 otherwise
+ */
+int
+ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
+                      struct ble_ll_scan_sm *scansm,
+                      struct ble_ll_aux_data *aux_scan)
+{
+    int rc;
+    os_sr_t sr;
+    uint32_t earliest_start;
+    uint32_t earliest_end;
+    uint32_t dur;
+    uint32_t now;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *sch;
+
+    /* TODO Handle multiple scheduled items */
+    sch = &aux_scan->sch;
+
+    now =  ble_hdr->beg_cputime;
+    earliest_start = now + os_cputime_usecs_to_ticks(aux_scan->offset);
+    earliest_start -= g_ble_ll_sched_offset_ticks;
+
+    /* TODO: FIX duration. We should assure as much time as we need for specific PHY.
+     * Also we need to take mode into account e.g in order to do
+     * scan req and aux conn req
+     */
+    if (aux_scan->aux_phy == BLE_PHY_CODED) {
+        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
+    } else {
+        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
+    }
+
+    earliest_end = earliest_start + os_cputime_usecs_to_ticks(dur);
+
+    /* We have to find a place for this schedule */
+    OS_ENTER_CRITICAL(sr);
+
+    /* The schedule item must occur after current running item (if any) */
+    sch->start_time = earliest_start;
+    sch->end_time = earliest_end;
+
+    if (!ble_ll_sched_insert_if_empty(sch)) {
+        /* Nothing in schedule. Schedule as soon as possible
+         * If we are here it means sch has been added to the scheduler */
+        rc = 0;
+        goto done;
+    }
+
+    /* Try to find slot for aux scan. */
+    os_cputime_timer_stop(&g_ble_ll_sched_timer);
+    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+        /* Set these because overlap function needs them to be set */
+        sch->start_time = earliest_start;
+        sch->end_time = earliest_end;
+
+        /* We can insert if before entry in list */
+        if (sch->end_time <= entry->start_time) {
+            rc = 0;
+            TAILQ_INSERT_BEFORE(entry, sch, link);
+            sch->enqueued = 1;
+            break;
+        }
+
+        /* Check for overlapping events. For now drop if it overlaps with
+         * anything. We can make it smarter later on
+         */
+        if (ble_ll_sched_is_overlap(sch, entry)) {
+            OS_EXIT_CRITICAL(sr);
+            return -1;
+        }
+    }
+
+    if (!entry) {
+        rc = 0;
+        TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 1;
+    }
+
+done:
+
+    /* Get head of list to restart timer */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+    OS_EXIT_CRITICAL(sr);
+
+    /* Restart timer */
+    assert(sch != NULL);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    STATS_INC(ble_ll_stats, aux_scheduled);
+    return rc;
+}
+#endif
 
 /**
  * Stop the scheduler
@@ -1040,10 +1199,8 @@ ble_ll_sched_init(void)
      * This is the offset from the start of the scheduled item until the actual
      * tx/rx should occur, in ticks. We also "round up" to the nearest tick.
      */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     g_ble_ll_sched_offset_ticks =
-        os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
-#endif
+        (uint8_t) os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
 
     /* Initialize cputimer for the scheduler */
     os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);

@@ -537,6 +537,7 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
     ble_hs_test_util_create_rpa_conn(2, out_us->addr_type, out_us->rpa,
                                      out_peer->addr_type,
                                      out_peer->id_addr, out_peer->rpa,
+                                     BLE_HS_TEST_CONN_FEAT_ALL,
                                      ble_sm_test_util_conn_cb,
                                      NULL);
 
@@ -591,11 +592,7 @@ ble_sm_test_util_repeat_pairing_cb(const struct ble_gap_repeat_pairing *rp)
             ble_sm_test_repeat_pairing.params.pair_rsp.max_enc_key_size));
     TEST_ASSERT(
         rp->new_authenticated ==
-            ((ble_sm_test_repeat_pairing.params.pair_req.authreq &
-              BLE_SM_PAIR_AUTHREQ_MITM)
-                &&
-             (ble_sm_test_repeat_pairing.params.pair_rsp.authreq &
-              BLE_SM_PAIR_AUTHREQ_MITM)));
+            !!(ble_sm_test_repeat_pairing.params.passkey_info.passkey.action));
     TEST_ASSERT(
         rp->new_sc ==
             ((ble_sm_test_repeat_pairing.params.pair_req.authreq &
@@ -1613,6 +1610,7 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
 
     ble_hs_test_util_create_rpa_conn(2, our_addr_type, our_rpa, peer_addr_type,
                                      peer_id_addr, peer_rpa,
+                                     BLE_HS_TEST_CONN_FEAT_ALL,
                                      ble_sm_test_util_conn_cb, NULL);
 
     /* This test inspects and modifies the connection object after unlocking
@@ -1743,7 +1741,8 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
 
     ble_hs_test_util_create_rpa_conn(2, our_addr_type, our_rpa,
                                      peer_addr_type, peer_id_addr,
-                                     peer_rpa, ble_sm_test_util_conn_cb, NULL);
+                                     peer_rpa, BLE_HS_TEST_CONN_FEAT_ALL,
+                                     ble_sm_test_util_conn_cb, NULL);
 
     /* This test inspects and modifies the connection object after unlocking
      * the host mutex.  It is not OK for real code to do this, but this test
@@ -2919,6 +2918,7 @@ ble_sm_test_util_repeat_pairing(struct ble_sm_test_params *params, int sc)
     ble_hs_test_util_create_rpa_conn(2, our_entity.addr_type, our_entity.rpa,
                                      peer_entity.addr_type,
                                      peer_entity.id_addr, peer_entity.rpa,
+                                     BLE_HS_TEST_CONN_FEAT_ALL,
                                      ble_sm_test_util_conn_cb,
                                      NULL);
     ble_hs_lock();

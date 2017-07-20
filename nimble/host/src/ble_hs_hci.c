@@ -36,6 +36,7 @@ static struct os_sem ble_hs_hci_sem;
 static uint8_t *ble_hs_hci_ack;
 static uint16_t ble_hs_hci_buf_sz;
 static uint8_t ble_hs_hci_max_pkts;
+static uint32_t ble_hs_hci_sup_feat;
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 static ble_hs_hci_phony_ack_fn *ble_hs_hci_phony_ack_cb;
@@ -465,6 +466,18 @@ err:
 
     os_mbuf_free_chain(txom);
     return rc;
+}
+
+void
+ble_hs_hci_set_le_supported_feat(uint32_t feat)
+{
+    ble_hs_hci_sup_feat = feat;
+}
+
+uint32_t
+ble_hs_hci_get_le_supported_feat(void)
+{
+    return ble_hs_hci_sup_feat;
 }
 
 void

@@ -50,6 +50,8 @@ struct ble_hs_conn {
     uint16_t bhc_supervision_timeout;
     uint8_t bhc_master_clock_accuracy;
 
+    uint32_t supported_feat;
+
     ble_hs_conn_flags_t bhc_flags;
 
     struct ble_l2cap_chan_list bhc_channels;

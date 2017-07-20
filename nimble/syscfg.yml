@@ -41,9 +41,6 @@ syscfg.defs:
             Enables the BLE whitelist for controlling who to connect to or
             accept a connection from. (0/1)
         value: 1
-    BLE_MULTI_ADV_SUPPORT:
-        description: 'Support for multi-advertisers'
-        value: 0
     BLE_MULTI_ADV_INSTANCES:
         description: >
             This is the number of multi-advertising instances. This is NOT the
@@ -51,3 +48,13 @@ syscfg.defs:
             advertising instances is this number plus 1 (assuming the device
             supports advertising).
         value: 0
+    BLE_EXT_ADV:
+        description: >
+            This enables extended advertising feature.
+        value: 0
+    BLE_EXT_ADV_MAX_SIZE:
+        description: >
+            This allows to configure maximum size of advertising data and
+            scan response data used in LE Advertising Extensions.
+            Valid range 31-238.
+        value: 31

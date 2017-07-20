@@ -38,7 +38,8 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_CONN_PARAM_REQ (6)
 #define BLE_LL_CTRL_PROC_LE_PING        (7)
 #define BLE_LL_CTRL_PROC_DATA_LEN_UPD   (8)
-#define BLE_LL_CTRL_PROC_NUM            (9)
+#define BLE_LL_CTRL_PROC_PHY_UPDATE     (9)
+#define BLE_LL_CTRL_PROC_NUM            (10)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
@@ -75,9 +76,13 @@ extern "C" {
 #define BLE_LL_CTRL_PING_RSP            (19)
 #define BLE_LL_CTRL_LENGTH_REQ          (20)
 #define BLE_LL_CTRL_LENGTH_RSP          (21)
+#define BLE_LL_CTRL_PHY_REQ             (22)
+#define BLE_LL_CTRL_PHY_RSP             (23)
+#define BLE_LL_CTRL_PHY_UPDATE_IND      (24)
+#define BLE_LL_CTRL_MIN_USED_CHAN_IND   (25)
 
 /* Maximum opcode value */
-#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_LENGTH_RSP + 1)
+#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_MIN_USED_CHAN_IND + 1)
 
 extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
@@ -130,6 +135,12 @@ struct ble_ll_enc_rsp
 };
 
 #define BLE_LL_CTRL_ENC_RSP_LEN             (12)
+
+/* LL control start/pause enc request and response */
+#define BLE_LL_CTRL_START_ENC_REQ_LEN       (0)
+#define BLE_LL_CTRL_START_ENC_RSP_LEN       (0)
+#define BLE_LL_CTRL_PAUSE_ENC_REQ_LEN       (0)
+#define BLE_LL_CTRL_PAUSE_ENC_RSP_LEN       (0)
 
 /*
  * LL control unknown response
@@ -190,7 +201,7 @@ struct ble_ll_conn_params
     uint16_t offset5;
 };
 
-#define BLE_LL_CTRL_CONN_PARAMS_LEN     (24)
+#define BLE_LL_CTRL_CONN_PARAMS_LEN     (23)
 
 /* LL control reject ind ext */
 struct ble_ll_reject_ind_ext
@@ -221,6 +232,14 @@ struct ble_ll_len_req
 
 #define BLE_LL_CTRL_LENGTH_REQ_LEN      (8)
 
+/* PHY request/response */
+#define BLE_LL_CTRL_PHY_REQ_LEN         (2)
+#define BLE_LL_CTRL_PHY_RSP_LEN         (2)
+#define BLE_LL_CTRL_PHY_UPD_IND_LEN     (4)
+
+/* Min used channels */
+#define BLE_LL_CTRL_MIN_USED_CHAN_LEN   (2)
+
 /* API */
 struct ble_ll_conn_sm;
 void ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc);
@@ -250,9 +269,14 @@ void ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status);
 int ble_ll_hci_ev_ltk_req(struct ble_ll_conn_sm *connsm);
 int ble_ll_hci_ev_hw_err(uint8_t hw_err);
 void ble_ll_hci_ev_databuf_overflow(void);
-
-
+void ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm);
+void ble_ll_hci_ev_send_scan_req_recv(uint8_t adv_handle, const uint8_t *peer,
+                                      uint8_t peer_addr_type);
+void ble_ll_hci_ev_send_adv_set_terminated(uint8_t status, uint8_t adv_handle,
+                                           uint16_t conn_handle, uint8_t events);
+int ble_ll_hci_ev_phy_update(struct ble_ll_conn_sm *connsm, uint8_t status);
 void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
+void ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm);
 
 #ifdef __cplusplus
 }

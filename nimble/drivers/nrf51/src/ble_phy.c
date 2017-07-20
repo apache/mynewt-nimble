@@ -55,7 +55,6 @@ extern uint32_t g_nrf_irk_list[];
 /* Maximum length of frames */
 #define NRF_MAXLEN              (255)
 #define NRF_BALEN               (3)     /* For base address of 3 bytes */
-#define NRF_RX_START_OFFSET     (5)
 
 /* Maximum tx power */
 #define NRF_TX_PWR_MAX_DBM      (4)
@@ -85,9 +84,7 @@ struct ble_phy_obj
     struct ble_mbuf_hdr rxhdr;
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     uint32_t phy_start_cputime;
-#endif
 };
 struct ble_phy_obj g_ble_phy_data;
 
@@ -282,7 +279,6 @@ nrf_wait_disabled(void)
     }
 }
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 /**
  *
  *
@@ -385,16 +381,14 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
          * Timeout occurs an IFS time plus time it takes to receive address
          * from the transmit end. We add additional time to make sure the
          * address event comes before the compare. Note that transmit end
-         * is captured in CC[2]
-         *
-         * XXX: this assumes 1Mbps as 40 usecs is header rx time for 1Mbps
+         * is captured in CC[2]. I just made up the 16 usecs I add here.
          */
-        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS + 40 + 16;
+        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
+            ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M) + 16;
     } else {
-        /* CC[0] is set to when RXEN occurs. NOTE: the extra 16 usecs is
-           jitter */
+        /* CC[0] is set to when RXEN occurs. */
         end_time = NRF_TIMER0->CC[0] + XCVR_RX_START_DELAY_USECS + wfr_usecs +
-            40 + 16;
+            ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M) + BLE_LL_JITTER_USECS;
     }
 
     /* wfr_secs is the time from rxen until timeout */
@@ -407,7 +401,6 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
     /* Enable the disabled interrupt so we time out on events compare */
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
 }
-#endif
 
 /**
  * Setup transceiver for receive.
@@ -448,7 +441,6 @@ ble_phy_rx_xcvr_setup(void)
                            (NRF_S0_LEN << RADIO_PCNF0_S0LEN_Pos);
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
-        NRF_AAR->ADDRPTR = (uint32_t)dptr;
         NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
         NRF_AAR->EVENTS_END = 0;
         NRF_AAR->EVENTS_RESOLVED = 0;
@@ -499,18 +491,6 @@ ble_phy_tx_end_isr(void)
     uint8_t transition;
     uint8_t txlen;
     uint32_t wfr_time;
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768)
-    uint32_t txstart;
-#endif
-
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768)
-    /*
-     * Read captured tx start time. This is not the actual transmit start
-     * time but it is the time at which the address event occurred
-     * (after transmission of access address)
-     */
-    txstart = NRF_TIMER0->CC[1];
-#endif
 
     /* If this transmission was encrypted we need to remember it */
     was_encrypted = g_ble_phy_data.phy_encrypted;
@@ -519,13 +499,8 @@ ble_phy_tx_end_isr(void)
     assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
 
     /* Log the event */
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_data.phy_tx_pyld_len,
                was_encrypted, NRF_TIMER0->CC[2]);
-#else
-    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_data.phy_tx_pyld_len,
-               was_encrypted, txstart);
-#endif
 
     /* Clear events and clear interrupt on disabled event */
     NRF_RADIO->EVENTS_DISABLED = 0;
@@ -565,16 +540,8 @@ ble_phy_tx_end_isr(void)
         if (txlen && was_encrypted) {
             txlen += BLE_LL_DATA_MIC_LEN;
         }
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
-#else
-        wfr_time = BLE_LL_WFR_USECS - BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET);
-        wfr_time += BLE_TX_DUR_USECS_M(txlen);
-        wfr_time = os_cputime_usecs_to_ticks(wfr_time);
-        ble_ll_wfr_enable(txstart + wfr_time);
-#endif
     } else {
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
         /*
          * XXX: not sure we need to stop the timer here all the time. Or that
          * it should be stopped here.
@@ -583,10 +550,6 @@ ble_phy_tx_end_isr(void)
         NRF_TIMER0->TASKS_SHUTDOWN = 1;
         NRF_PPI->CHENCLR = PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk |
                            PPI_CHEN_CH20_Msk | PPI_CHEN_CH31_Msk;
-#else
-        /* Disable automatic TXEN */
-        NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
-#endif
         assert(transition == BLE_PHY_TRANSITION_NONE);
     }
 }
@@ -674,37 +637,33 @@ ble_phy_rx_start_isr(void)
 {
     int rc;
     uint32_t state;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     uint32_t usecs;
     uint32_t ticks;
-#endif
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Clear events and clear interrupt */
     NRF_RADIO->EVENTS_ADDRESS = 0;
 
     /* Clear wfr timer channels and DISABLED interrupt */
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_ADDRESS_Msk;
     NRF_PPI->CHENCLR = PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk;
-#else
-    NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
-#endif
 
     /* Initialize flags, channel and state in ble header at rx start */
     ble_hdr = &g_ble_phy_data.rxhdr;
     ble_hdr->rxinfo.flags = ble_ll_state_get();
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
+    ble_hdr->rxinfo.phy = BLE_PHY_1M;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_hdr->rxinfo.aux_data = NULL;
+#endif
 
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     /*
-     * Calculate receive start time. We assume that the header time is
-     * 40 usecs (only 1 mbps supported right now).
+     * Calculate receive start time.
      *
      * XXX: possibly use other routine with remainder!
      */
-    usecs = NRF_TIMER0->CC[1] - 40;
+    usecs = NRF_TIMER0->CC[1] - ble_phy_mode_pdu_start_off(BLE_PHY_MODE_1M);
     ticks = os_cputime_usecs_to_ticks(usecs);
     ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
     if (ble_hdr->rem_usecs == 31) {
@@ -712,10 +671,6 @@ ble_phy_rx_start_isr(void)
         ++ticks;
     }
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
-#else
-    ble_hdr->beg_cputime = NRF_TIMER0->CC[1] -
-        os_cputime_usecs_to_ticks(BLE_TX_LEN_USECS_M(NRF_RX_START_OFFSET));
-#endif
 
     /* Wait to get 1st byte of frame */
     while (1) {
@@ -748,7 +703,24 @@ ble_phy_rx_start_isr(void)
         if (g_ble_phy_data.phy_privacy) {
             NRF_RADIO->EVENTS_BCMATCH = 0;
             NRF_PPI->CHENSET = PPI_CHEN_CH23_Msk;
-            NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8;
+            /*
+             * Setup AAR to resolve AdvA and trigger it after complete address
+             * is received, i.e. after PDU header and AdvA is received.
+             *
+             * AdvA starts at 4th octet in receive buffer, after S0, len and S1
+             * fields.
+             *
+             * In case of extended advertising AdvA is located after extended
+             * header (+2 octets).
+             */
+            if (BLE_MBUF_HDR_EXT_ADV(&g_ble_phy_data.rxhdr)) {
+                NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[5];
+                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN + 2) * 8;
+
+            } else {
+                NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[3];
+                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8;
+            }
         }
 #endif
     } else {
@@ -777,24 +749,18 @@ ble_phy_isr(void)
 
     /* We get this if we have started to receive a frame */
     if ((irq_en & RADIO_INTENCLR_ADDRESS_Msk) && NRF_RADIO->EVENTS_ADDRESS) {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         irq_en &= ~RADIO_INTENCLR_DISABLED_Msk;
-#endif
         ble_phy_rx_start_isr();
     }
 
     /* Check for disabled event. This only happens for transmits now */
     if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO->EVENTS_DISABLED) {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
         if (g_ble_phy_data.phy_state == BLE_PHY_STATE_RX) {
             NRF_RADIO->EVENTS_DISABLED = 0;
             ble_ll_wfr_timer_exp(NULL);
         } else {
             ble_phy_tx_end_isr();
         }
-#else
-        ble_phy_tx_end_isr();
-#endif
     }
 
     /* Receive packet end (we dont enable this for transmit) */
@@ -871,13 +837,8 @@ ble_phy_init(void)
     /* Configure IFS */
     NRF_RADIO->TIFS = BLE_LL_IFS;
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     /* Captures tx/rx start in timer0 cc 1 and tx/rx end in timer0 cc 2 */
     NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk | PPI_CHEN_CH27_Msk;
-#else
-    /* Captures tx/rx start in timer0 capture 1 */
-    NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk;
-#endif
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     NRF_CCM->INTENCLR = 0xffffffff;
@@ -897,7 +858,6 @@ ble_phy_init(void)
 #endif
 
     /* TIMER0 setup for PHY when using RTC */
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
     NRF_TIMER0->TASKS_STOP = 1;
     NRF_TIMER0->TASKS_SHUTDOWN = 1;
     NRF_TIMER0->BITMODE = 3;    /* 32-bit timer */
@@ -915,7 +875,6 @@ ble_phy_init(void)
     NRF_PPI->CH[4].TEP = (uint32_t)&(NRF_TIMER0->TASKS_CAPTURE[3]);
     NRF_PPI->CH[5].EEP = (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]);
     NRF_PPI->CH[5].TEP = (uint32_t)&(NRF_RADIO->TASKS_DISABLE);
-#endif
 
     /* Set isr in vector table and enable interrupt */
     NVIC_SetPriority(RADIO_IRQn, 0);
@@ -1035,7 +994,6 @@ ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg)
     g_ble_phy_data.txend_arg = arg;
 }
 
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
 /**
  * Called to set the start time of a transmission.
  *
@@ -1117,65 +1075,6 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     }
     return rc;
 }
-#else
-/**
- * Called to set the start time of a transmission.
- *
- * This function is called to set the start time when we are not going from
- * rx to tx automatically.
- *
- * NOTE: care must be taken when calling this function. The channel should
- * already be set.
- *
- * @param cputime   This is the tick at which the 1st bit of the preamble
- *                  should be transmitted
- * @return int
- */
-int
-ble_phy_tx_set_start_time(uint32_t cputime)
-{
-    int rc;
-
-    cputime -= os_cputime_usecs_to_ticks(XCVR_TX_START_DELAY_USECS);
-    NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
-    NRF_TIMER0->CC[0] = cputime;
-    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-    NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
-    if ((int32_t)(os_cputime_get32() - cputime) >= 0) {
-        STATS_INC(ble_phy_stats, tx_late);
-        ble_phy_disable();
-        rc = BLE_PHY_ERR_TX_LATE;
-    } else {
-        rc = 0;
-    }
-
-    return rc;
-}
-
-#if 0
-int
-ble_phy_rx_set_start_time(void)
-{
-    /*
-     * XXX: For now, we dont use this function if we are not using the
-     * RTC. Keeping the code around just in case we want to use it later.
-     */
-    NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
-    NRF_TIMER0->CC[0] = cputime;
-    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-    NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
-    if ((int32_t)(os_cputime_get32() - cputime) >= 0) {
-        STATS_INC(ble_phy_stats, rx_late);
-        NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
-        NRF_RADIO->TASKS_RXEN = 1;
-        rc =  BLE_PHY_ERR_RX_LATE;
-    } else {
-        rc = 0;
-    }
-    return rc;
-}
-#endif
-#endif
 
 int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
@@ -1330,6 +1229,29 @@ ble_phy_txpwr_set(int dbm)
 }
 
 /**
+ * ble phy txpwr round
+ *
+ * Get the rounded transmit output power (in dBm).
+ *
+ * @param dbm Power output in dBm.
+ *
+ * @return int Rounded power in dBm
+ */
+int ble_phy_txpower_round(int dbm)
+{
+    /* "Rail" power level if outside supported range */
+    if (dbm > NRF_TX_PWR_MAX_DBM) {
+        dbm = NRF_TX_PWR_MAX_DBM;
+    } else {
+        if (dbm < NRF_TX_PWR_MIN_DBM) {
+            dbm = NRF_TX_PWR_MIN_DBM;
+        }
+    }
+
+    return dbm;
+}
+
+/**
  * ble phy txpwr get
  *
  * Get the transmit power.
@@ -1423,7 +1345,6 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     return 0;
 }
 
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
 /**
  * Stop the timer used to count microseconds when using RTC for cputime
  */
@@ -1434,7 +1355,6 @@ ble_phy_stop_usec_timer(void)
     NRF_TIMER0->TASKS_SHUTDOWN = 1;
     NRF_RTC0->EVTENCLR = RTC_EVTENSET_COMPARE0_Msk;
 }
-#endif
 
 /**
  * ble phy disable irq and ppi

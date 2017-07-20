@@ -16,30 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/transport/ram
+# Package: net/nimble/controller/test
 
-syscfg.defs:
-    BLE_HCI_EVT_HI_BUF_COUNT:
-        description: 'Number of high-priority event buffers.'
-        value:  2
-
-    BLE_HCI_EVT_LO_BUF_COUNT:
-        description: 'Number of low-priority event buffers.'
-        value:  8
-
-    BLE_HCI_EVT_BUF_SIZE:
-        description: 'Size of each event buffer, in bytes.'
-        value:  70
-
-    BLE_ACL_BUF_COUNT:
-        description: 'The number of ACL data buffers'
-        value: 4
-
-    BLE_ACL_BUF_SIZE:
-        description: >
-            This is the maximum size of the data portion of HCI ACL data
-            packets. It does not include the HCI data header (of 4 bytes).
-        value: 255
-
-syscfg.vals.BLE_EXT_ADV:
-    BLE_HCI_EVT_BUF_SIZE: 274
+syscfg.vals:
+    BLE_LL_CFG_FEAT_LE_CSA2: 1

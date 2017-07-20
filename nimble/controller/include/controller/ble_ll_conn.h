@@ -25,6 +25,7 @@
 #include "nimble/hci_common.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_ctrl.h"
+#include "controller/ble_phy.h"
 #include "hal/hal_timer.h"
 
 #ifdef __cplusplus
@@ -115,9 +116,55 @@ union ble_ll_conn_sm_flags {
         uint32_t encrypted:1;
         uint32_t encrypt_chg_sent:1;
         uint32_t le_ping_supp:1;
+        uint32_t csa2_supp:1;
+        uint32_t host_phy_update: 1;
+        uint32_t phy_update_sched: 1;
+        uint32_t ctrlr_phy_update: 1;
+        uint32_t phy_update_event: 1;
+        uint32_t peer_phy_update: 1; /* XXX:combine with ctrlr udpate bit? */
+        uint32_t aux_conn_req: 1;
+        uint32_t aux_conn_rsp: 1;
+        uint32_t rxd_features:1;
+        uint32_t pending_hci_rd_features:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
+
+/**
+ * Structure used for PHY data inside a connection.
+ *
+ * NOTE: the new phy's are the phys we will change to when a phy update
+ * procedure is ongoing and the event counter hits the instant.
+ *
+ * tx_phy_mode: chip specific phy mode for tx
+ * rx_phy_mode: chip specific phy mode for rx
+ * cur_tx_phy: value denoting current tx_phy (not a bitmask!)
+ * cur_rx_phy: value denoting current rx phy (not a bitmask!)
+ * new_tx_phy: value denoting new tx_phy (not a bitmask!)
+ * new_rx_phy: value denoting new rx phy (not a bitmask!)
+ * req_pref_tx_phy: tx phy sent in a phy request (may be different than host)
+ * req_pref_rx_phy: rx phy sent in a phy request (may be different than host)
+ * host_pref_tx_phys: bitmask of preferred transmit PHYs sent by host
+ * host_pref_rx_phys: bitmask of preferred receive PHYs sent by host
+ * phy_options: preferred phy options for coded phy
+ */
+struct ble_ll_conn_phy_data
+{
+    uint32_t tx_phy_mode: 2;
+    uint32_t rx_phy_mode: 2;
+    uint32_t cur_tx_phy: 2;
+    uint32_t cur_rx_phy: 2;
+    uint32_t new_tx_phy: 2;
+    uint32_t new_rx_phy: 2;
+    uint32_t host_pref_tx_phys_mask: 3;
+    uint32_t host_pref_rx_phys_mask: 3;
+    uint32_t req_pref_tx_phys_mask: 3;
+    uint32_t req_pref_rx_phys_mask: 3;
+    uint32_t phy_options: 2;
+}  __attribute__((packed));
+
+#define CONN_CUR_TX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_tx_phy - 1))
+#define CONN_CUR_RX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_rx_phy - 1))
 
 /* Connection state machine */
 struct ble_ll_conn_sm
@@ -129,6 +176,12 @@ struct ble_ll_conn_sm
     uint16_t conn_handle;
     uint8_t conn_state;
     uint8_t conn_role;          /* Can possibly be 1 bit */
+
+    /* RSSI */
+    int8_t conn_rssi;
+
+    /* For privacy */
+    int8_t rpa_index;
 
     /* Connection data length management */
     uint8_t max_tx_octets;
@@ -143,19 +196,22 @@ struct ble_ll_conn_sm
     uint16_t rem_max_rx_time;
     uint16_t eff_max_tx_time;
     uint16_t eff_max_rx_time;
+    uint8_t max_tx_octets_phy_mode[BLE_PHY_NUM_MODE];
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    struct ble_ll_conn_phy_data phy_data;
+    uint16_t phy_instant;
+#endif
 
     /* Used to calculate data channel index for connection */
     uint8_t chanmap[BLE_LL_CONN_CHMAP_LEN];
     uint8_t req_chanmap[BLE_LL_CONN_CHMAP_LEN];
     uint16_t chanmap_instant;
+    uint16_t channel_id; /* TODO could be union with hop and last chan used */
     uint8_t hop_inc;
     uint8_t data_chan_index;
-    uint8_t unmapped_chan;
     uint8_t last_unmapped_chan;
     uint8_t num_used_chans;
-
-    /* RSSI */
-    int8_t conn_rssi;
 
     /* Ack/Flow Control */
     uint8_t tx_seqnum;          /* note: can be 1 bit */
@@ -165,9 +221,6 @@ struct ble_ll_conn_sm
     uint8_t last_rxd_hdr_byte;  /* note: possibly can make 1 bit since we
                                    only use the MD bit now */
 
-    /* For privacy */
-    int8_t rpa_index;
-
     /* connection event mgmt */
     uint8_t reject_reason;
     uint8_t host_reply_opcode;
@@ -176,8 +229,9 @@ struct ble_ll_conn_sm
     uint8_t cur_ctrl_proc;
     uint8_t disconnect_reason;
     uint8_t rxd_disconnect_reason;
-    uint8_t common_features;        /* Just a uint8 for now */
     uint8_t vers_nr;
+    uint8_t conn_features;
+    uint8_t remote_features[7];
     uint16_t pending_ctrl_procs;
     uint16_t event_cntr;
     uint16_t completed_pkts;
@@ -200,11 +254,9 @@ struct ble_ll_conn_sm
     uint16_t max_ce_len;
     uint16_t tx_win_off;
     uint32_t anchor_point;
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     uint8_t anchor_point_usecs;     /* XXX: can this be uint8_t ?*/
     uint8_t conn_itvl_usecs;
     uint32_t conn_itvl_ticks;
-#endif
     uint32_t last_anchor_point;     /* Slave only */
     uint32_t slave_cur_tx_win_usecs;
     uint32_t slave_cur_window_widening;
@@ -215,6 +267,10 @@ struct ble_ll_conn_sm
     uint8_t peer_addr_type;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
 
+    /*
+     * XXX: TODO. Could save memory. Have single event at LL and put these
+     * on a singly linked list. Only would need list pointer here.
+     */
     /* Connection end event */
     struct os_event conn_ev_end;
 
@@ -260,6 +316,12 @@ struct ble_ll_conn_sm
 
     /* XXX: for now, just store them all */
     struct ble_ll_conn_params conn_cp;
+
+    struct ble_ll_scan_sm *scansm;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct hci_ext_create_conn initial_params;
+#endif
+
 };
 
 /* Flags */
@@ -271,6 +333,15 @@ struct ble_ll_conn_sm
 #define CONN_F_ENC_CHANGE_SENT(csm) ((csm)->csmflags.cfbit.encrypt_chg_sent)
 #define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
 #define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
+#define CONN_F_CSA2_SUPP(csm)       ((csm)->csmflags.cfbit.csa2_supp)
+#define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
+#define CONN_F_HOST_PHY_UPDATE(csm) ((csm)->csmflags.cfbit.host_phy_update)
+#define CONN_F_PHY_UPDATE_SCHED(csm) ((csm)->csmflags.cfbit.phy_update_sched)
+#define CONN_F_CTRLR_PHY_UPDATE(csm) ((csm)->csmflags.cfbit.ctrlr_phy_update)
+#define CONN_F_PHY_UPDATE_EVENT(csm) ((csm)->csmflags.cfbit.phy_update_event)
+#define CONN_F_PEER_PHY_UPDATE(csm)  ((csm)->csmflags.cfbit.peer_phy_update)
+#define CONN_F_AUX_CONN_REQ(csm)  ((csm)->csmflags.cfbit.aux_conn_req)
+#define CONN_F_AUX_CONN_RSP(csm)  ((csm)->csmflags.cfbit.aux_conn_rsp)
 
 /* Role */
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)
@@ -282,6 +353,9 @@ struct ble_ll_conn_sm
  *
  */
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
+
+/* required for unit testing */
+uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
 
 #ifdef __cplusplus
 }

@@ -66,3 +66,6 @@ syscfg.defs:
     BLE_HCI_UART_FLOW_CTRL:
         description: 'Flow control used for HCI uart interface'
         value:       HAL_UART_FLOW_CTL_RTS_CTS
+
+syscfg.vals.BLE_EXT_ADV:
+    BLE_HCI_EVT_BUF_SIZE: 274

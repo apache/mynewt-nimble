@@ -1,7 +1,7 @@
 PTS test results for GATT
 
 PTS version: 7.0
-Tested: 10-Jan-2017
+Tested: 18-Jul-2017
 
 Results:
 PASS	test passed
@@ -62,6 +62,7 @@ GATT/CL/GAD/BV-08-C	N/A
 
 GATT/CL/GAR/BV-01-C	PASS	b conn peer_addr=<addr>
 				b read conn=<handle> attr=<val_handle>
+				<answer YES>
 				b term conn=<handle>
 GATT/CL/GAR/BI-01-C	PASS	b conn peer_addr=<addr>
 				b read conn=<handle> attr=<val_handle>
@@ -342,11 +343,8 @@ GATT/CL/GAN/BV-01-C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 -------------------------------------------------------------------------------
 
-GATT/CL/GAI/BV-01-C	PASS	PTS Errata 15328
-				b conn peer_addr=<addr>
-				b write conn=<handle> attr=<val_handle> value=02:00
-				Note: verify that the indication was received
-				b term conn=<handle>
+GATT/CL/GAI/BV-01-C	PASS	b adv
+                                b chrup attr=<val_handle>
 -------------------------------------------------------------------------------
 
 GATT/CL/GAS/BV-01-C	PASS	b conn peer_addr=<addr>
@@ -371,7 +369,8 @@ GATT/CL/GPA/BV-11-C	N/A
 GATT/CL/GPA/BV-12-C	N/A
 -------------------------------------------------------------------------------
 
-GATT/SR/GAC/BV-01-C	PASS	b adv
+GATT/SR/GAC/BV-01-C	PASS	b set mtu=25
+				b adv
 				b adv
 -------------------------------------------------------------------------------
 
@@ -472,8 +471,9 @@ GATT/SR/GAW/BI-15-C	PASS	b adv
 GATT/SR/GAW/BI-17-C	N/A
 GATT/SR/GAW/BI-18-C	PASS	b adv
 GATT/SR/GAW/BI-19-C	PASS	b adv
+GATT/SR/GAW/BV-11-C	PASS	b adv
 GATT/SR/GAW/BV-07-C	PASS	b adv
-GATT/SR/GAW/BV-08-C	PASS	b adv
+GATT/SR/GAW/BV-08-C	INCONC	b adv   Errata 15358
 GATT/SR/GAW/BI-20-C	PASS	b adv
 				<enter ffff>
 GATT/SR/GAW/BI-21-C	PASS	b adv
@@ -501,7 +501,7 @@ GATT/SR/GAN/BV-01-C	PASS	b adv
 -------------------------------------------------------------------------------
 
 GATT/SR/GAI/BV-01-C	PASS	b adv
-				b chrup attr=<val_handle>
+				b write conn=<handle> value=02:00 attr=<val_handle>
 -------------------------------------------------------------------------------
 
 GATT/SR/GAS/BV-01-C	PASS	Note: set TSPX_security_enabled to TRUE

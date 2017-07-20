@@ -35,6 +35,10 @@ extern "C" {
  */
 #define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
 #define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MIN_UNCODED   (328)   /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX_UNCODED   (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MIN_CODED     (2704)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX_CODED     (17040) /* usecs */
 #define BLE_LL_CONN_SUPP_BYTES_MIN          (27)    /* bytes */
 #define BLE_LL_CONN_SUPP_BYTES_MAX          (251)   /* bytes */
 
@@ -46,9 +50,6 @@ extern "C" {
 #define BLE_LL_CONN_CE_USECS                (625)
 #define BLE_LL_CONN_TX_WIN_MIN              (1)         /* in tx win units */
 #define BLE_LL_CONN_SLAVE_LATENCY_MAX       (499)
-
-/* Connection request duration (in usecs) */
-#define BLE_LL_CONN_REQ_DURATION            (352)       /* 1 Mbps only */
 
 /* Connection handle range */
 #define BLE_LL_CONN_MAX_CONN_HANDLE         (0x0EFF)
@@ -72,6 +73,8 @@ struct ble_ll_conn_global_params
     uint8_t sugg_tx_octets;
     uint16_t sugg_tx_time;
     uint16_t conn_init_max_tx_time;
+    uint16_t conn_init_max_tx_time_uncoded;
+    uint16_t conn_init_max_tx_time_coded;
     uint16_t supp_max_tx_time;
     uint16_t supp_max_rx_time;
 };
@@ -99,13 +102,22 @@ void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
 void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
                              struct hci_create_conn *hcc);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+void ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
+                                 struct hci_ext_create_conn *hcc);
+
+void ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
+                                struct hci_ext_conn_params *hcc_params,
+                                int phy);
+#endif
+
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_len_req *req);
 
 /* Advertising interface */
 int ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat,
-                            struct ble_mbuf_hdr *rxhdr);
+                            struct ble_mbuf_hdr *rxhdr, bool force_csa2);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
@@ -115,10 +127,13 @@ void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
 int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
-void ble_ll_init_rx_pkt_in(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr);
+void ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
+                           struct ble_mbuf_hdr *ble_hdr);
+int ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr);
 int ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                            struct ble_mbuf_hdr *ble_hdr);
 void ble_ll_conn_wfr_timer_exp(void);
+void ble_ll_conn_init_wrf_timer_exp(void);
 int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
 uint32_t ble_ll_conn_get_ce_end_time(void);
 void ble_ll_conn_event_halt(void);
@@ -142,6 +157,7 @@ void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);
 int ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf);
+int ble_ll_conn_hci_read_rem_features_complete(void);
 int ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf,
                                 uint8_t *rsplen);
@@ -162,6 +178,13 @@ void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
 int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 
+int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
+int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
+int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
+void ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+int ble_ll_ext_conn_create(uint8_t *cmdbuf);
+#endif
 #ifdef __cplusplus
 }
 #endif

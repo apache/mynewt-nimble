@@ -42,6 +42,22 @@
 static uint32_t g_ble_ll_last_num_comp_pkt_evt;
 extern uint8_t *g_ble_ll_conn_comp_ev;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static const uint8_t ble_ll_valid_conn_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+                                | BLE_HCI_LE_PHY_2M_PREF_MASK
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+                                | BLE_HCI_LE_PHY_CODED_PREF_MASK
+#endif
+                              );
+static const uint8_t ble_ll_conn_required_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+                            | BLE_HCI_LE_PHY_CODED_PREF_MASK
+#endif
+                            );
+#endif
+
 /**
  * Allocate an event to send a connection complete event when initiating
  *
@@ -86,7 +102,7 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
 
     if ((itvl_min > itvl_max) ||
         (itvl_min < BLE_HCI_CONN_ITVL_MIN) ||
-        (itvl_min > BLE_HCI_CONN_ITVL_MAX) ||
+        (itvl_max > BLE_HCI_CONN_ITVL_MAX) ||
         (latency > BLE_HCI_CONN_LATENCY_MAX) ||
         (spvn_tmo < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
         (spvn_tmo > BLE_HCI_CONN_SPVN_TIMEOUT_MAX)) {
@@ -113,8 +129,8 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
  *
  * @param connsm
  */
-static void
-ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
+void
+ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan)
 {
     uint8_t pdu_type;
     uint8_t *dptr;
@@ -125,6 +141,13 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm)
 
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    /* We need CSA2 bit only for legacy connect */
+    if (chan >= BLE_PHY_NUM_DATA_CHANS) {
+        pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
+    }
+#endif
 
     /* Set BLE transmit header */
     ble_ll_mbuf_init(m, BLE_CONNECT_REQ_LEN, pdu_type);
@@ -232,13 +255,6 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
 /**
  * Called to create and send the number of completed packets event to the
  * host.
- *
- * Because of the ridiculous spec, all the connection handles are contiguous
- * and then all the completed packets are contiguous. In order to avoid
- * multiple passes through the connection list or allocating a large stack
- * variable or malloc, I just use the event buffer and place the completed
- * packets after the last possible handle. I then copy the completed packets
- * to make it contiguous with the handles.
  */
 void
 ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
@@ -395,6 +411,21 @@ ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t reason)
     }
 }
 
+static int
+ble_ll_conn_hci_chk_scan_params(uint16_t itvl, uint16_t window)
+{
+    /* Check interval and window */
+    if ((itvl < BLE_HCI_SCAN_ITVL_MIN) ||
+        (itvl > BLE_HCI_SCAN_ITVL_MAX) ||
+        (window < BLE_HCI_SCAN_WINDOW_MIN) ||
+        (window > BLE_HCI_SCAN_WINDOW_MAX) ||
+        (itvl < window)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return 0;
+}
+
 /**
  * Process the HCI command to create a connection.
  *
@@ -427,12 +458,8 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     hcc->scan_itvl = get_le16(cmdbuf);
     hcc->scan_window = get_le16(cmdbuf + 2);
 
-    /* Check interval and window */
-    if ((hcc->scan_itvl < BLE_HCI_SCAN_ITVL_MIN) ||
-        (hcc->scan_itvl > BLE_HCI_SCAN_ITVL_MAX) ||
-        (hcc->scan_window < BLE_HCI_SCAN_WINDOW_MIN) ||
-        (hcc->scan_window > BLE_HCI_SCAN_WINDOW_MAX) ||
-        (hcc->scan_itvl < hcc->scan_window)) {
+    rc = ble_ll_conn_hci_chk_scan_params(hcc->scan_itvl, hcc->scan_window);
+    if (rc) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -492,12 +519,10 @@ ble_ll_conn_create(uint8_t *cmdbuf)
     /* Initialize state machine in master role and start state machine */
     ble_ll_conn_master_init(connsm, hcc);
     ble_ll_conn_sm_new(connsm);
-
-    /* Create the connection request */
-    ble_ll_conn_req_pdu_make(connsm);
+    /* CSA will be selected when advertising is received */
 
     /* Start scanning */
-    rc = ble_ll_scan_initiator_start(hcc);
+    rc = ble_ll_scan_initiator_start(hcc, &connsm->scansm);
     if (rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
@@ -508,6 +533,227 @@ ble_ll_conn_create(uint8_t *cmdbuf)
 
     return rc;
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_conn_init_hcc_params(struct hci_ext_create_conn *hcc,
+                            int valid_param_idx)
+{
+    struct hci_ext_conn_params *hcc_params = &hcc->params[valid_param_idx];
+
+    if (valid_param_idx != 0 && !(hcc->init_phy_mask & BLE_PHY_MASK_1M)) {
+        hcc->params[0] = *hcc_params;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    if (valid_param_idx != 1 && !(hcc->init_phy_mask & BLE_PHY_MASK_2M)) {
+        hcc->params[1] = *hcc_params;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (valid_param_idx != 2 && !(hcc->init_phy_mask & BLE_PHY_MASK_CODED)) {
+        hcc->params[2] = *hcc_params;
+    }
+#endif
+}
+
+int
+ble_ll_ext_conn_create(uint8_t *cmdbuf)
+{
+    int rc;
+    struct hci_ext_create_conn ccdata;
+    struct hci_ext_create_conn *hcc;
+    struct hci_ext_conn_params *hcc_params;
+    struct ble_ll_conn_sm *connsm;
+    int valid_param_idx = -1;
+    int iter;
+
+    /* If we are already creating a connection we should leave */
+    if (g_ble_ll_conn_create_sm) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* If already enabled, we return an error */
+    if (ble_ll_scan_enabled()) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* Retrieve command data */
+    hcc = &ccdata;
+    memset (hcc, 0, sizeof(*hcc));
+
+    /* Check filter policy */
+    hcc->filter_policy = cmdbuf[0];
+    if (hcc->filter_policy > BLE_HCI_INITIATOR_FILT_POLICY_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Get own address type (used in connection request) */
+    hcc->own_addr_type = cmdbuf[1];
+    if (hcc->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Get peer address type and address only if no whitelist used */
+    if (hcc->filter_policy == 0) {
+        hcc->peer_addr_type = cmdbuf[2];
+        if (hcc->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_MAX) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        memcpy(&hcc->peer_addr, cmdbuf + 3, BLE_DEV_ADDR_LEN);
+    }
+
+    hcc->init_phy_mask = cmdbuf[9];
+    if (hcc->init_phy_mask & ~ble_ll_valid_conn_phy_mask) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!(hcc->init_phy_mask & ble_ll_conn_required_phy_mask)) {
+        /* At least one of those need to be set */
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    iter = 10;
+    if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
+        hcc_params = &hcc->params[0];
+        hcc_params->scan_itvl = get_le16(cmdbuf + iter);
+        hcc_params->scan_window = get_le16(cmdbuf + iter + 2);
+        iter += 4;
+
+        rc = ble_ll_conn_hci_chk_scan_params(hcc_params->scan_itvl,
+                                             hcc_params->scan_window);
+        if (rc) {
+            return rc;
+        }
+
+        hcc_params->conn_itvl_min = get_le16(cmdbuf + iter);
+        hcc_params->conn_itvl_max = get_le16(cmdbuf + iter + 2);
+        hcc_params->conn_latency = get_le16(cmdbuf + iter + 4);
+        hcc_params->supervision_timeout = get_le16(cmdbuf + iter + 6);
+        rc = ble_ll_conn_hci_chk_conn_params(hcc_params->conn_itvl_min,
+                                             hcc_params->conn_itvl_max,
+                                             hcc_params->conn_latency,
+                                             hcc_params->supervision_timeout);
+        if (rc) {
+            return rc;
+        }
+        iter += 8;
+
+        /* Min/max connection event lengths */
+        hcc_params->min_ce_len = get_le16(cmdbuf + iter);
+        hcc_params->max_ce_len = get_le16(cmdbuf + iter + 2);
+        if (hcc_params->min_ce_len > hcc_params->max_ce_len) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        iter += 4;
+        valid_param_idx = 0;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    if (hcc->init_phy_mask & BLE_PHY_MASK_2M) {
+        /* Move to connection parameters */
+        hcc_params = &hcc->params[1];
+        iter += 4;
+
+        hcc_params->conn_itvl_min = get_le16(cmdbuf + iter);
+        hcc_params->conn_itvl_max = get_le16(cmdbuf + iter + 2);
+        hcc_params->conn_latency = get_le16(cmdbuf + iter + 4);
+        hcc_params->supervision_timeout = get_le16(cmdbuf + iter + 6);
+        rc = ble_ll_conn_hci_chk_conn_params(hcc_params->conn_itvl_min,
+                                             hcc_params->conn_itvl_max,
+                                             hcc_params->conn_latency,
+                                             hcc_params->supervision_timeout);
+        if (rc) {
+            return rc;
+        }
+        iter += 8;
+
+        /* Min/max connection event lengths */
+        hcc_params->min_ce_len = get_le16(cmdbuf + iter);
+        hcc_params->max_ce_len = get_le16(cmdbuf + iter + 2);
+        if (hcc_params->min_ce_len > hcc_params->max_ce_len) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        iter += 4;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
+        hcc_params = &hcc->params[2];
+        hcc_params->scan_itvl = get_le16(cmdbuf + iter);
+        hcc_params->scan_window = get_le16(cmdbuf + iter + 2);
+        iter += 4;
+
+        rc = ble_ll_conn_hci_chk_scan_params(hcc_params->scan_itvl,
+                                             hcc_params->scan_window);
+        if (rc) {
+            return rc;
+        }
+
+        hcc_params->conn_itvl_min = get_le16(cmdbuf + iter);
+        hcc_params->conn_itvl_max = get_le16(cmdbuf + iter + 2);
+        hcc_params->conn_latency = get_le16(cmdbuf + iter + 4);
+        hcc_params->supervision_timeout = get_le16(cmdbuf + iter + 6);
+        rc = ble_ll_conn_hci_chk_conn_params(hcc_params->conn_itvl_min,
+                                             hcc_params->conn_itvl_max,
+                                             hcc_params->conn_latency,
+                                             hcc_params->supervision_timeout);
+        if (rc) {
+            return rc;
+        }
+        iter += 8;
+
+        /* Min/max connection event lengths */
+        hcc_params->min_ce_len = get_le16(cmdbuf + iter);
+        hcc_params->max_ce_len = get_le16(cmdbuf + iter + 2);
+        if (hcc_params->min_ce_len > hcc_params->max_ce_len) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        iter += 4;
+        if (valid_param_idx < 0) {
+            valid_param_idx = 2;
+        }
+    }
+#endif
+
+    /* Make sure we can allocate an event to send the connection complete */
+    if (ble_ll_init_alloc_conn_comp_ev()) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    /* Make sure we can accept a connection! */
+    connsm = ble_ll_conn_sm_get();
+    if (connsm == NULL) {
+        return BLE_ERR_CONN_LIMIT;
+    }
+
+    ble_ll_conn_init_hcc_params(hcc, valid_param_idx);
+
+    /* Initialize state machine in master role and start state machine */
+    ble_ll_conn_ext_master_init(connsm, hcc);
+    ble_ll_conn_sm_new(connsm);
+
+    /* CSA will be selected when advertising is received */
+
+    /* Start scanning */
+    rc = ble_ll_scan_ext_initiator_start(hcc, &connsm->scansm);
+    if (rc) {
+        SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
+        STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
+    } else {
+        /* Set the connection state machine we are trying to create. */
+        g_ble_ll_conn_create_sm = connsm;
+    }
+
+    return rc;
+}
+#endif
 
 static int
 ble_ll_conn_process_conn_params(uint8_t *cmdbuf, struct ble_ll_conn_sm *connsm)
@@ -559,15 +805,12 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
         return BLE_ERR_UNK_CONN_ID;
     }
 
-    /* See if we support this feature */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        if ((ble_ll_read_supp_features() & BLE_LL_FEAT_SLAVE_INIT) == 0) {
-            return BLE_ERR_UNKNOWN_HCI_CMD;
-        }
+    /* If already pending exit with error */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        return BLE_ERR_CMD_DISALLOWED;
     }
 
-    /* Start the control procedure */
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+    connsm->csmflags.cfbit.pending_hci_rd_features = 1;
 
     return BLE_ERR_SUCCESS;
 }
@@ -611,9 +854,9 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     }
 
     /* See if this feature is supported on both sides */
-    if ((connsm->common_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+    if ((connsm->conn_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            return BLE_ERR_UNKNOWN_HCI_CMD;
+            return BLE_ERR_CMD_DISALLOWED;
         }
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
@@ -1008,7 +1251,8 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
         /*
          * XXX: For now; we will simply ignore what the host asks as we are
-         * allowed to do so by the spec.
+         * allowed to do so by the spec. If we implement this and something
+         * changes we need to send data length change event.
          */
     }
 
@@ -1188,6 +1432,125 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
 wr_auth_exit:
     put_le16(rsp, handle);
     *rsplen = BLE_HCI_WR_AUTH_PYLD_TMO_LEN;
+    return rc;
+}
+#endif
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+/**
+ * Read current phy for connection (OGF=8, OCF==0x0030)
+ *
+ * @param cmdbuf
+ * @param rsplen
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = get_le16(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+    } else {
+        rsp[2] = connsm->phy_data.cur_tx_phy;
+        rsp[3] = connsm->phy_data.cur_rx_phy;
+        rc = BLE_ERR_SUCCESS;
+    }
+
+    put_le16(rsp, handle);
+    *rsplen = BLE_HCI_LE_RD_PHY_RSPLEN;
+    return rc;
+}
+
+/**
+ * Set PHY preferences for connection
+ *
+ * @param cmdbuf
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
+{
+    int rc;
+    uint16_t phy_options;
+    uint8_t tx_phys;
+    uint8_t rx_phys;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    handle = get_le16(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /*
+     * If host has requested a PHY update and we are not finished do
+     * not allow another one
+     */
+    if (CONN_F_HOST_PHY_UPDATE(connsm)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    phy_options = get_le16(cmdbuf + 5);
+    if (phy_options > BLE_HCI_LE_PHY_CODED_S8_PREF) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Check valid parameters */
+    rc = ble_ll_hci_chk_phy_masks(cmdbuf + 2, &tx_phys, &rx_phys);
+    if (rc) {
+        goto phy_cmd_param_err;
+    }
+
+    connsm->phy_data.phy_options = phy_options & 0x03;
+    connsm->phy_data.host_pref_tx_phys_mask = tx_phys,
+    connsm->phy_data.host_pref_rx_phys_mask = rx_phys;
+
+    /*
+     * The host preferences override the default phy preferences. Currently,
+     * the only reason the controller will initiate a procedure on its own
+     * is due to the fact that the host set default preferences. So if there
+     * is a pending control procedure and it has not yet started, we do not
+     * need to perform the default controller procedure.
+     */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE)) {
+        if (connsm->cur_ctrl_proc != BLE_LL_CTRL_PROC_PHY_UPDATE) {
+            CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+        }
+        CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+    } else {
+        /*
+         * We could be doing a peer-initiated PHY update procedure. If this
+         * is the case the requested phy preferences will not both be 0. If
+         * we are not done with a peer-initiated procedure we just set the
+         * pending bit but do not start the control procedure.
+         */
+        if (CONN_F_PEER_PHY_UPDATE(connsm)) {
+            connsm->pending_ctrl_procs |= BLE_LL_CTRL_PROC_PHY_UPDATE;
+            CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+        } else {
+            /* Check if we should start phy update procedure */
+            if (!ble_ll_conn_chk_phy_upd_start(connsm)) {
+                CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+            } else {
+                /*
+                 * Set flag to send a PHY update complete event. We set flag
+                 * even if we do not do an update procedure since we have to
+                 * inform the host even if we decide not to change anything.
+                 */
+                CONN_F_PHY_UPDATE_EVENT(connsm) = 1;
+            }
+        }
+    }
+
+phy_cmd_param_err:
     return rc;
 }
 #endif

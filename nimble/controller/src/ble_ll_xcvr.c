@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
+#include <stddef.h>
 #include "syscfg/syscfg.h"
 #include "os/os_cputime.h"
 #include "controller/ble_phy.h"
