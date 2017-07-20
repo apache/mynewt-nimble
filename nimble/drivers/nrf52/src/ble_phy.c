@@ -545,6 +545,7 @@ ble_phy_rx_xcvr_setup(void)
     NRF_RADIO->EVENTS_DEVMATCH = 0;
     NRF_RADIO->EVENTS_BCMATCH = 0;
     NRF_RADIO->EVENTS_RSSIEND = 0;
+    NRF_RADIO->EVENTS_CRCOK = 0;
     NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
                         RADIO_SHORTS_READY_START_Msk |
                         RADIO_SHORTS_DISABLED_TXEN_Msk |
@@ -665,7 +666,7 @@ ble_phy_rx_end_isr(void)
     dptr += 3;
 
     /* Count PHY crc errors and valid packets */
-    crcok = (uint8_t)NRF_RADIO->CRCSTATUS;
+    crcok = NRF_RADIO->EVENTS_CRCOK;
     if (!crcok) {
         STATS_INC(ble_phy_stats, rx_crc_err);
     } else {
