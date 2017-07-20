@@ -785,6 +785,30 @@ ble_ll_conn_wfr_timer_exp(void)
 }
 
 void
+ble_ll_conn_reset_pending_aux_conn_rsp(void)
+{
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    return;
+#endif
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = g_ble_ll_conn_create_sm;
+    if (!connsm) {
+        return;
+    }
+
+    if (CONN_F_AUX_CONN_REQ(connsm)) {
+        STATS_INC(ble_ll_stats, aux_conn_rsp_err);
+        CONN_F_CONN_REQ_TXD(connsm) = 0;
+        CONN_F_AUX_CONN_REQ(connsm) = 0;
+        ble_ll_sched_rmv_elem(&connsm->conn_sch);
+        return;
+    }
+
+    return;
+}
+
+void
 ble_ll_conn_init_wrf_timer_exp(void)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -795,6 +819,8 @@ ble_ll_conn_init_wrf_timer_exp(void)
     if (!connsm) {
         return;
     }
+
+    ble_ll_conn_reset_pending_aux_conn_rsp();
 
     scansm = connsm->scansm;
     if (scansm && scansm->cur_aux_data) {
@@ -1382,16 +1408,6 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     connsm = (struct ble_ll_conn_sm *)sch->cb_arg;
     g_ble_ll_conn_cur_sm = connsm;
     assert(connsm);
-
-    if (CONN_F_AUX_CONN_REQ(connsm) && !CONN_F_AUX_CONN_RSP(connsm)) {
-        /*We are here when AUX_CONN_REQ has been sent but we did not receive
-         * AUX CONN RSP. Forget about last aux_conn_req and scan again
-         */
-
-        CONN_F_AUX_CONN_REQ(connsm) = 0;
-        ble_ll_scan_chk_resume();
-        return BLE_LL_SCHED_STATE_DONE;
-    }
 
     /* Disable whitelisting as connections do not use it */
     ble_ll_whitelist_disable();
@@ -2990,14 +3006,33 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     connsm = g_ble_ll_conn_create_sm;
 
     rc = -1;
+    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+
+
     if (!crcok) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        /* Invalid packet - make sure we do not wait for AUX_CONNECT_RSP */
+        ble_ll_conn_reset_pending_aux_conn_rsp();
+#endif
+
         /* Ignore this packet - do not send to LL */
         goto init_rx_isr_ignore_exit;
     }
 
-    /* Only interested in ADV IND or ADV DIRECT IND */
-    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* If we sent AUX_CONNECT_REQ, we only expect AUX_CONNECT_RSP here */
+    if (CONN_F_AUX_CONN_REQ(connsm)) {
+        if (pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
+            STATS_INC(ble_ll_stats, aux_conn_rsp_err);
+            CONN_F_CONN_REQ_TXD(connsm) = 0;
+            CONN_F_AUX_CONN_REQ(connsm) = 0;
+            ble_ll_sched_rmv_elem(&connsm->conn_sch);
+        }
+        goto init_rx_isr_exit;
+    }
+#endif
+
     inita_is_rpa = 0;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3078,10 +3113,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                 }
             }
             break;
-    case BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP:
-        CONN_F_AUX_CONN_RSP(connsm) = 1;
-        rc = -1;
-        goto init_rx_isr_exit;
     default:
         goto init_rx_isr_exit;
     }
