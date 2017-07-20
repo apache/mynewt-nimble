@@ -791,7 +791,7 @@ ble_ll_conn_init_wrf_timer_exp(void)
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_scan_sm *scansm;
 
-    connsm = g_ble_ll_conn_cur_sm;
+    connsm = g_ble_ll_conn_create_sm;
     if (!connsm) {
         return;
     }
