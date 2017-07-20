@@ -25,6 +25,16 @@ syscfg.defs:
             drivers.
         value: 1
 
+    BLE_LP_CLOCK:
+        description: >
+            Used by BSP packages to configure LP clock for controller.
+        value: 1
+
+    BLE_HW_WHITELIST_ENABLE:
+        description: >
+            Used to enable hardware white list
+        value: 1
+
     BLE_LL_PRIO:
         description: 'The priority of the LL task'
         type: 'task_priority'
@@ -178,7 +188,7 @@ syscfg.defs:
             This option enables/disables the connection parameter request
             procedure.  This is implemented in the controller but is disabled
             by default.
-        value: '0'
+        value: '1'
 
     BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
         description: >
@@ -214,6 +224,35 @@ syscfg.defs:
             nimble controller.
         value: '0'
 
+    BLE_LL_CFG_FEAT_LE_CSA2:
+        description: >
+            This option is used to enable/disable support for LE Channel
+            Selection Algorithm #2.
+        value: '0'
+
+    BLE_LL_CFG_FEAT_LE_2M_PHY:
+        description: >
+            This option is used to enable/disable support for the 2Mbps PHY.
+        value: '0'
+
+    BLE_LL_CFG_FEAT_LE_CODED_PHY:
+        description: >
+            This option is used to enable/disable support for the coded PHY.
+        value: '0'
+
+    BLE_LL_CFG_FEAT_LL_EXT_ADV:
+        description: >
+            This option is used to enable/disable support for Extended
+            Advertising Feature. That means extended scanner, advertiser
+            and connect.
+        value: MYNEWT_VAL_BLE_EXT_ADV
+
+    BLE_LL_EXT_ADV_AUX_PTR_CNT:
+         description: >
+            This option configure a max number of scheduled outstanding auxiliary
+            packets for receive on secondary advertising channel.
+         value: 0
+
     BLE_PUBLIC_DEV_ADDR:
         description: >
             Allows the target or app to override the public device address
@@ -222,3 +261,8 @@ syscfg.defs:
             chip specific location. If non-zero, this address will
             be used.
         value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
+
+syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
+    BLE_LL_CFG_FEAT_LE_CSA2: 1
+    BLE_HW_WHITELIST_ENABLE: 0
+    BLE_LL_EXT_ADV_AUX_PTR_CNT: 5

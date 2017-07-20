@@ -71,6 +71,9 @@ struct ble_hs_test_util_att_group_type_entry {
         .hdh_len = (len)                                \
     })
 
+#define BLE_HS_TEST_CONN_FEAT_ALL               (0xFF)
+#define BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM     (0xFD)
+
 void ble_hs_test_util_prev_tx_enqueue(struct os_mbuf *om);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue(void);
 struct os_mbuf *ble_hs_test_util_prev_tx_dequeue_pullup(void);
@@ -95,8 +98,12 @@ void ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
                                       uint8_t peer_addr_type,
                                       const uint8_t *peer_id_addr,
                                       const uint8_t *peer_rpa,
+                                      uint8_t conn_features,
                                       ble_gap_event_fn *cb, void *cb_arg);
 void ble_hs_test_util_create_conn(uint16_t handle, const uint8_t *addr,
+                                  ble_gap_event_fn *cb, void *cb_arg);
+void ble_hs_test_util_create_conn_feat(uint16_t handle, const uint8_t *addr,
+                                  uint8_t conn_features,
                                   ble_gap_event_fn *cb, void *cb_arg);
 int ble_hs_test_util_connect(uint8_t own_addr_type,
                                    const ble_addr_t *peer_addr,

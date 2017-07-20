@@ -832,6 +832,10 @@ TEST_CASE(ble_gap_test_case_conn_gen_good)
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == BLE_HS_ENOTCONN);
 
+    /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
+    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+
     /* Receive connection complete event. */
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -1055,6 +1059,10 @@ TEST_CASE(ble_gap_test_case_conn_cancel_ctlr_fail)
      */
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
+    /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
+    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+
     /* Allow connection complete to succeed. */
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -1236,6 +1244,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
                                      BLE_ADDR_PUBLIC,
                                      ((uint8_t[6]){2,3,4,5,6,7}),
                                      ((uint8_t[6]){0,0,0,0,0,0}),
+                                     BLE_HS_TEST_CONN_FEAT_ALL,
                                      ble_gap_test_util_connect_cb,
                                      NULL);
 
@@ -1284,6 +1293,7 @@ TEST_CASE(ble_gap_test_case_conn_find)
                                      BLE_ADDR_RANDOM_ID,
                                      ((uint8_t[6]){3,4,5,6,7,8}),
                                      ((uint8_t[6]){0x50,1,2,3,4,5}),
+                                     BLE_HS_TEST_CONN_FEAT_ALL,
                                      ble_gap_test_util_connect_cb,
                                      NULL);
 
@@ -1402,6 +1412,15 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
 
         /* Receive a connection complete event. */
         if (conn_mode != BLE_GAP_CONN_MODE_NON) {
+            if (connect_status == BLE_ERR_SUCCESS) {
+                /*
+                 * ble_gap_rx_conn_complete() will send extra HCI command, need
+                 * phony ack
+                 */
+                ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                         BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+            }
+
             memset(&evt, 0, sizeof evt);
             evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
             evt.status = connect_status;
@@ -1808,7 +1827,6 @@ ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params,
 
 static void
 ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
-                               uint8_t hci_status, int event_status,
                                uint16_t l2cap_result)
 {
     struct ble_l2cap_sig_update_params l2cap_params;
@@ -1820,8 +1838,9 @@ ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn_feat(2, peer_addr,
+                                      BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM,
+                                      ble_gap_test_util_connect_cb, NULL);
 
     ble_hs_lock();
     conn = ble_hs_conn_find(2);
@@ -1834,34 +1853,10 @@ ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
      */
     ble_gap_test_util_reset_cb_info();
 
-    rc = ble_hs_test_util_conn_update(2, params, hci_status);
+    rc = ble_hs_test_util_conn_update(2, params, 0xFF);
     TEST_ASSERT(rc == 0);
 
-    /* Verify tx of connection update command. */
-    ble_gap_test_util_verify_tx_update_conn(params);
-
-    switch (hci_status) {
-    case 0:
-        /* Receive connection update complete event. */
-        ble_gap_test_util_rx_update_complete(event_status, params);
-        break;
-    case BLE_ERR_UNKNOWN_HCI_CMD:
-        break;
-    default:
-        TEST_ASSERT_FATAL(0);
-        break;
-    }
-
     TEST_ASSERT(ble_gap_dbg_update_active(2));
-
-    /* Attempt two duplicate updates; ensure BLE_HS_EALREADY gets returned
-     * both times.  Make sure initial update still completes successfully
-     * (MYNEWT-702).
-     */
-    rc = ble_hs_test_util_conn_update(2, params, 0);
-    TEST_ASSERT(rc == BLE_HS_EALREADY);
-    rc = ble_hs_test_util_conn_update(2, params, 0);
-    TEST_ASSERT(rc == BLE_HS_EALREADY);
 
     l2cap_params.itvl_min = params->itvl_min;
     l2cap_params.itvl_max = params->itvl_max;
@@ -1974,8 +1969,9 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn_feat(2, peer_addr,
+                                      BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM,
+                                      ble_gap_test_util_connect_cb, NULL);
 
     ble_hs_lock();
     conn = ble_hs_conn_find(2);
@@ -1988,23 +1984,8 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
      */
     ble_gap_test_util_reset_cb_info();
 
-    rc = ble_hs_test_util_conn_update(2, params, hci_status);
+    rc = ble_hs_test_util_conn_update(2, params, 0xFF);
     TEST_ASSERT(rc == 0);
-
-    /* Verify tx of connection update command. */
-    ble_gap_test_util_verify_tx_update_conn(params);
-
-    switch (hci_status) {
-    case 0:
-        /* Receive connection update complete event. */
-        ble_gap_test_util_rx_update_complete(event_status, params);
-        break;
-    case BLE_ERR_UNKNOWN_HCI_CMD:
-        break;
-    default:
-        TEST_ASSERT_FATAL(0);
-        break;
-    }
 
     TEST_ASSERT(ble_gap_dbg_update_active(2));
 
@@ -2418,26 +2399,11 @@ TEST_CASE(ble_gap_test_case_update_conn_l2cap)
         .max_ce_len = 456,
     };
 
-    /* Accepted L2CAP failover; success. */
-    ble_gap_test_util_update_l2cap(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0,
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
-    ble_gap_test_util_update_l2cap(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
+    /* Accepted L2CAP. */
+    ble_gap_test_util_update_l2cap(&params, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
 
-    /* Accepted L2CAP failover; failure. */
-    ble_gap_test_util_update_l2cap(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0, 
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
-    ble_gap_test_util_update_l2cap(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
-
-    /* Rejected L2CAP failovers. */
-    ble_gap_test_util_update_l2cap(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0, 
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
-    ble_gap_test_util_update_l2cap(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
-
-    /* Don't attempt L2CAP failover on other event status. */
-    ble_gap_test_util_update_l2cap(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0, 0);
+    /* Rejected L2CAP. */
+    ble_gap_test_util_update_l2cap(&params, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
 }
 
 TEST_CASE(ble_gap_test_case_update_peer_good)

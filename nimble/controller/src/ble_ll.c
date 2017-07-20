@@ -167,10 +167,12 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, rx_adv_ind)
     STATS_NAME(ble_ll_stats, rx_adv_direct_ind)
     STATS_NAME(ble_ll_stats, rx_adv_nonconn_ind)
+    STATS_NAME(ble_ll_stats, rx_adv_ext_ind)
     STATS_NAME(ble_ll_stats, rx_scan_reqs)
     STATS_NAME(ble_ll_stats, rx_scan_rsps)
     STATS_NAME(ble_ll_stats, rx_connect_reqs)
     STATS_NAME(ble_ll_stats, rx_scan_ind)
+    STATS_NAME(ble_ll_stats, rx_aux_connect_rsp)
     STATS_NAME(ble_ll_stats, adv_txg)
     STATS_NAME(ble_ll_stats, adv_late_starts)
     STATS_NAME(ble_ll_stats, sched_state_conn_errs)
@@ -180,6 +182,16 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, scan_req_txf)
     STATS_NAME(ble_ll_stats, scan_req_txg)
     STATS_NAME(ble_ll_stats, scan_rsp_txg)
+    STATS_NAME(ble_ll_stats, aux_missed_adv)
+    STATS_NAME(ble_ll_stats, aux_scheduled)
+    STATS_NAME(ble_ll_stats, aux_received)
+    STATS_NAME(ble_ll_stats, aux_fired_for_read)
+    STATS_NAME(ble_ll_stats, aux_conn_req_tx)
+    STATS_NAME(ble_ll_stats, aux_conn_rsp_err)
+    STATS_NAME(ble_ll_stats, aux_scan_req_tx)
+    STATS_NAME(ble_ll_stats, aux_scan_rsp_err)
+    STATS_NAME(ble_ll_stats, aux_chain_cnt)
+    STATS_NAME(ble_ll_stats, aux_chain_err)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct os_event *ev);
@@ -187,7 +199,13 @@ static void ble_ll_event_tx_pkt(struct os_event *ev);
 static void ble_ll_event_dbuf_overflow(struct os_event *ev);
 
 /* The BLE LL task data structure */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/* TODO: This is for testing. Check it we really need it */
+#define BLE_LL_STACK_SIZE   (128)
+#else
 #define BLE_LL_STACK_SIZE   (80)
+#endif
+
 struct os_task g_ble_ll_task;
 os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
 
@@ -196,6 +214,25 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 
 /** Our random address */
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
+
+static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
+{
+    [BLE_PHY_MODE_1M] =
+            (BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_CRC_LEN +
+                    BLE_LL_PDU_HDR_LEN) << 3,
+    [BLE_PHY_MODE_2M] =
+            (BLE_LL_PREAMBLE_LEN * 2 + BLE_LL_ACC_ADDR_LEN + BLE_LL_CRC_LEN +
+                    BLE_LL_PDU_HDR_LEN) << 2,
+    /* For Coded PHY we have exact TX times provided by specification:
+     * - Preamble, Access Address, CI, TERM1 (always coded as S=8)
+     * - PDU, CRC, TERM2 (coded as S=2 or S=8)
+     * (Vol 6, Part B, 2.2).
+     */
+    [BLE_PHY_MODE_CODED_125KBPS] =
+            (80 + 256 + 16 + 24 + 8 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
+    [BLE_PHY_MODE_CODED_500KBPS] =
+            (80 + 256 + 16 + 24 + 2 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
+};
 
 /* XXX: temporary logging until we transition to real logging */
 #ifdef BLE_LL_LOG
@@ -247,6 +284,9 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
 {
     /* Count received packet types  */
     switch (pdu_type) {
+    case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
+        STATS_INC(ble_ll_stats, rx_adv_ext_ind);
+        break;
     case BLE_ADV_PDU_TYPE_ADV_IND:
         STATS_INC(ble_ll_stats, rx_adv_ind);
         break;
@@ -264,6 +304,9 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
         break;
     case BLE_ADV_PDU_TYPE_CONNECT_REQ:
         STATS_INC(ble_ll_stats, rx_connect_reqs);
+        break;
+    case BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP:
+        STATS_INC(ble_ll_stats, rx_aux_connect_rsp);
         break;
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
         STATS_INC(ble_ll_stats, rx_scan_ind);
@@ -517,8 +560,9 @@ ble_ll_wfr_timer_exp(void *arg)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_wfr_timer_exp();
             break;
-        /* Do nothing here. Fall through intentional */
         case BLE_LL_STATE_INITIATING:
+            ble_ll_conn_init_wrf_timer_exp();
+            break;
         default:
             break;
         }
@@ -537,9 +581,6 @@ ble_ll_wfr_timer_exp(void *arg)
 void
 ble_ll_wfr_enable(uint32_t cputime)
 {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-    os_cputime_timer_start(&g_ble_ll_data.ll_wfr_timer, cputime);
-#endif
 }
 
 /**
@@ -548,9 +589,6 @@ ble_ll_wfr_enable(uint32_t cputime)
 void
 ble_ll_wfr_disable(void)
 {
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-    os_cputime_timer_stop(&g_ble_ll_data.ll_wfr_timer);
-#endif
 }
 
 /**
@@ -610,12 +648,12 @@ static void
 ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
 {
     uint8_t crcok;
-    uint8_t chan;
+    bool connection_data;
 
     crcok = BLE_MBUF_HDR_CRC_OK(hdr);
-    chan = hdr->rxinfo.channel;
+    connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_CONNECTION);
     if (crcok) {
-        if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        if (connection_data) {
             STATS_INC(ble_ll_stats, rx_data_pdu_crc_ok);
             STATS_INCN(ble_ll_stats, rx_data_bytes_crc_ok, len);
         } else {
@@ -624,7 +662,7 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
             ble_ll_count_rx_adv_pdus(pdu_type);
         }
     } else {
-        if (chan < BLE_PHY_NUM_DATA_CHANS) {
+        if (connection_data) {
             STATS_INC(ble_ll_stats, rx_data_pdu_crc_err);
             STATS_INCN(ble_ll_stats, rx_data_bytes_crc_err, len);
         } else {
@@ -670,26 +708,28 @@ ble_ll_rx_pkt_in(void)
         ble_ll_count_rx_stats(ble_hdr, pkthdr->omp_len, pdu_type);
 
         /* Process the data or advertising pdu */
-        if (ble_hdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
+        /* Process the PDU */
+        switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
+        case BLE_LL_STATE_CONNECTION:
             ble_ll_conn_rx_data_pdu(m, ble_hdr);
-        } else {
-            /* Process the PDU */
-            switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
-            case BLE_LL_STATE_ADV:
-                ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
-                break;
-            case BLE_LL_STATE_SCANNING:
-                ble_ll_scan_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
-                break;
-            case BLE_LL_STATE_INITIATING:
-                ble_ll_init_rx_pkt_in(rxbuf, ble_hdr);
-                break;
-            default:
-                /* Any other state should never occur */
-                STATS_INC(ble_ll_stats, bad_ll_state);
-                break;
-            }
-
+            /* m is going to be free by function above */
+            m = NULL;
+            break;
+        case BLE_LL_STATE_ADV:
+            ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
+            break;
+        case BLE_LL_STATE_SCANNING:
+            ble_ll_scan_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
+            break;
+        case BLE_LL_STATE_INITIATING:
+            ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
+            break;
+        default:
+            /* Any other state should never occur */
+            STATS_INC(ble_ll_stats, bad_ll_state);
+            break;
+        }
+        if (m) {
             /* Free the packet buffer */
             os_mbuf_free_chain(m);
         }
@@ -791,50 +831,24 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     int rc;
     uint8_t pdu_type;
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, rxhdr->rem_usecs,
                rxhdr->beg_cputime);
-#else
-    ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, 0, rxhdr->beg_cputime);
-#endif
-
-    /* Check channel type */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        /*
-         * Data channel pdu. We should be in CONNECTION state with an
-         * ongoing connection
-         */
-        if (g_ble_ll_data.ll_state == BLE_LL_STATE_CONNECTION) {
-            rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
-        } else {
-            STATS_INC(ble_ll_stats, bad_ll_state);
-            rc = 0;
-        }
-        return rc;
-    }
 
     /* Advertising channel PDU */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
     switch (g_ble_ll_data.ll_state) {
+        case BLE_LL_STATE_CONNECTION:
+        rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
+        break;
     case BLE_LL_STATE_ADV:
         rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
     case BLE_LL_STATE_INITIATING:
-        if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
-            (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND)) {
-            rc = 1;
-        } else {
-            rc = 0;
-        }
+        rc = ble_ll_init_rx_isr_start(pdu_type, rxhdr);
         break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
-        break;
-    case BLE_LL_STATE_CONNECTION:
-        /* Should not occur */
-        assert(0);
-        rc = 0;
         break;
     default:
         /* Should not be in this state! */
@@ -866,24 +880,17 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     int badpkt;
     uint8_t pdu_type;
     uint8_t len;
-    uint8_t chan;
     uint8_t crcok;
     struct os_mbuf *rxpdu;
 
-    /* Get channel and CRC status from BLE header */
-    chan = rxhdr->rxinfo.channel;
+    /* Get CRC status from BLE header */
     crcok = BLE_MBUF_HDR_CRC_OK(rxhdr);
 
     ble_ll_log(BLE_LL_LOG_ID_RX_END, rxbuf[0],
                ((uint16_t)rxhdr->rxinfo.flags << 8) | rxbuf[1],
                rxhdr->beg_cputime);
 
-    /* Check channel type */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        /*
-         * Data channel pdu. We should be in CONNECTION state with an
-         * ongoing connection.
-         */
+    if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_CONNECTION) {
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
         return rc;
     }
@@ -909,6 +916,10 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
             if ((len < BLE_DEV_ADDR_LEN) || (len > BLE_ADV_SCAN_IND_MAX_LEN)) {
                 badpkt = 1;
             }
+            break;
+        case BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP:
+            break;
+        case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
             break;
         case BLE_ADV_PDU_TYPE_CONNECT_REQ:
             if (len != BLE_CONNECT_REQ_LEN) {
@@ -1071,9 +1082,9 @@ ble_ll_read_supp_states(void)
 /**
  * Returns the features supported by the link layer
  *
- * @return uint8_t bitmask of supported features.
+ * @return uint32_t bitmask of supported features.
  */
-uint8_t
+uint32_t
 ble_ll_read_supp_features(void)
 {
     return g_ble_ll_data.ll_supp_features;
@@ -1174,6 +1185,10 @@ ble_ll_reset(void)
     memset(&g_ble_ll_log, 0, sizeof(g_ble_ll_log));
 #endif
 
+    /* Reset any preferred PHYs */
+    g_ble_ll_data.ll_pref_tx_phys = 0;
+    g_ble_ll_data.ll_pref_rx_phys = 0;
+
     /* Reset connection module */
     ble_ll_conn_module_reset();
 
@@ -1222,6 +1237,71 @@ ble_ll_seed_prng(void)
     srand(seed);
 }
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
+uint32_t
+ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
+{
+    uint32_t usecs;
+
+    if (phy_mode == BLE_PHY_MODE_1M) {
+        /* 8 usecs per byte */
+        usecs = payload_len << 3;
+    } else if (phy_mode == BLE_PHY_MODE_2M) {
+        /* 4 usecs per byte */
+        usecs = payload_len << 2;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+        /* S=8 => 8 * 8 = 64 usecs per byte */
+        usecs = payload_len << 6;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        /* S=2 => 2 * 8 = 16 usecs per byte */
+        usecs = payload_len << 4;
+    } else {
+        assert(0);
+    }
+
+    usecs += g_ble_ll_pdu_header_tx_time[phy_mode];
+
+    return usecs;
+
+}
+#endif
+
+uint16_t
+ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
+{
+    uint32_t header_tx_time;
+    uint16_t octets;
+
+    assert(phy_mode < BLE_PHY_NUM_MODE);
+
+    header_tx_time = g_ble_ll_pdu_header_tx_time[phy_mode];
+
+    if (usecs < header_tx_time) {
+        // XXX: this is obviously incorrect, what should we do?
+        return 0;
+    }
+
+    usecs -= header_tx_time;
+
+    if (phy_mode == BLE_PHY_MODE_1M) {
+        /* 8 usecs per byte */
+        octets = usecs >> 3;
+    } else if (phy_mode == BLE_PHY_MODE_2M) {
+        /* 4 usecs per byte */
+        octets = usecs >> 2;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+        /* S=8 => 8 * 8 = 64 usecs per byte */
+        octets = usecs >> 6;
+    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        /* S=2 => 2 * 8 = 16 usecs per byte */
+        octets = usecs >> 4;
+    } else {
+        assert(0);
+    }
+
+    return octets;
+}
+
 /**
  * Initialize the Link Layer. Should be called only once
  *
@@ -1231,7 +1311,7 @@ void
 ble_ll_init(void)
 {
     int rc;
-    uint8_t features;
+    uint32_t features;
 #ifdef BLE_XCVR_RFCLK
     uint32_t xtal_ticks;
 #endif
@@ -1293,12 +1373,6 @@ ble_ll_init(void)
                     ble_ll_hw_err_timer_cb,
                     NULL);
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-    /* Initialize wait for response timer */
-    os_cputime_timer_init(&g_ble_ll_data.ll_wfr_timer, ble_ll_wfr_timer_exp,
-                          NULL);
-#endif
-
     /* Initialize LL HCI */
     ble_ll_hci_init();
 
@@ -1339,6 +1413,19 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_LE_PING;
 #endif
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    /* CSA2 */
+    features |= BLE_LL_FEAT_CSA2;
+#endif
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) == 1)
+    features |= BLE_LL_FEAT_LE_2M_PHY;
+#endif
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY) == 1)
+    features |= BLE_LL_FEAT_LE_CODED_PHY;
+#endif
+
     /* Initialize random number generation */
     ble_ll_rand_init();
 
@@ -1371,9 +1458,10 @@ ble_ll_log_dump_index(int i)
 
     log = &g_ble_ll_log[i];
 
+    /* TODO cast is a workaround until this is fixed properly */
     console_printf("cputime=%lu id=%u a8=%u a16=%u a32=%lu\n",
-                   log->cputime, log->log_id, log->log_a8,
-                   log->log_a16, log->log_a32);
+                   (unsigned long)log->cputime, log->log_id, log->log_a8,
+                   log->log_a16, (unsigned long)log->log_a32);
 }
 
 void

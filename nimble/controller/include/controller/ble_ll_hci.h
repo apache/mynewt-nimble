@@ -25,11 +25,11 @@ extern "C" {
 #endif
 
 /* For supported commands */
-#define BLE_LL_SUPP_CMD_LEN (36)
+#define BLE_LL_SUPP_CMD_LEN (40)
 extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 
 /* The largest event the controller will send. */
-#define BLE_LL_MAX_EVT_LEN  (70)
+#define BLE_LL_MAX_EVT_LEN  MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE)
 
 /*
  * This determines the number of outstanding commands allowed from the
@@ -54,6 +54,8 @@ int ble_ll_hci_event_send(uint8_t *evbuf);
 /* Sends a command complete with a no-op opcode to host */
 int ble_ll_hci_send_noop(void);
 
+/* Checks the preferref phy masks from set default phy and set phy commands */
+int ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy);
 
 #ifdef __cplusplus
 }

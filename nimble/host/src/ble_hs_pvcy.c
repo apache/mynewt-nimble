@@ -206,3 +206,18 @@ ble_hs_pvcy_our_irk(const uint8_t **out_irk)
     *out_irk = ble_hs_pvcy_irk;
     return 0;
 }
+
+int
+ble_hs_pvcy_set_mode(const ble_addr_t *addr, uint8_t priv_mode)
+{
+    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_PRIVACY_MODE_LEN];
+    int rc;
+
+    rc = ble_hs_hci_cmd_build_le_set_priv_mode(addr->val, addr->type, priv_mode,
+                                           buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_hs_hci_cmd_tx(buf, NULL, 0, NULL);
+}

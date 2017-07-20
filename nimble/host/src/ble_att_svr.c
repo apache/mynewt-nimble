@@ -515,7 +515,7 @@ static int
 ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
                   uint16_t offset, struct os_mbuf **om, uint8_t *out_att_err)
 {
-    uint8_t att_err;
+    uint8_t att_err = 0;
     int rc;
 
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
@@ -1411,18 +1411,18 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
 
     /* Initialize some values in case of early error. */
     txom = NULL;
+    err_handle = 0;
+    att_err = 0;
 
     pktlen = OS_MBUF_PKTLEN(*rxom);
     if (pktlen != sizeof(*req) + 2 && pktlen != sizeof(*req) + 16) {
         /* Malformed packet */
-        err_handle = 0;
         rc = BLE_HS_EBADDATA;
         goto done;
     }
 
     rc = ble_att_svr_pullup_req_base(rxom, pktlen, &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
@@ -1445,7 +1445,6 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
                                  pktlen - sizeof(*req));
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_PDU;
-        err_handle = 0;
         rc = BLE_HS_EMSGSIZE;
         goto done;
     }
@@ -1910,18 +1909,18 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
 
     /* Initialize some values in case of early error. */
     txom = NULL;
+    err_handle = 0;
+    att_err = 0;
 
     pktlen = OS_MBUF_PKTLEN(*rxom);
     if (pktlen != sizeof(*req) + 2 && pktlen != sizeof(*req) + 16) {
         /* Malformed packet */
-        err_handle = 0;
         rc = BLE_HS_EBADDATA;
         goto done;
     }
 
     rc = ble_att_svr_pullup_req_base(rxom, pktlen, &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 
@@ -2381,7 +2380,6 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
-        err_handle = 0;
         goto done;
     }
 

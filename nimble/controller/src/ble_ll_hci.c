@@ -24,7 +24,6 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/hci_vendor.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_adv.h"
@@ -183,9 +182,9 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
     mfrg = MYNEWT_VAL(BLE_LL_MFRG_ID);
 
     /* Place the data packet length and number of packets in the buffer */
-    rspbuf[0] = BLE_HCI_VER_BCS_4_2;
+    rspbuf[0] = BLE_HCI_VER_BCS_5_0;
     put_le16(rspbuf + 1, hci_rev);
-    rspbuf[3] = BLE_LMP_VER_BCS_4_2;
+    rspbuf[3] = BLE_LMP_VER_BCS_5_0;
     put_le16(rspbuf + 4, mfrg);
     put_le16(rspbuf + 6, lmp_subver);
     *rsplen = BLE_HCI_RD_LOC_VER_INFO_RSPLEN;
@@ -290,6 +289,75 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+/**
+ * Checks the preferred phy masks for validity and places the preferred masks
+ * in the input phy masks
+ *
+ * @param cmdbuf Pointer to command buffer where phy masks are located
+ * @param txphy Pointer to output tx phy mask
+ * @param rxphy Pointer to output rx phy mask
+ *
+ * @return int BLE_ERR_SUCCESS or BLE_ERR_INV_HCI_CMD_PARMS
+ */
+int
+ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy)
+{
+    int rc;
+    uint8_t all_phys;
+    uint8_t rx_phys;
+    uint8_t tx_phys;
+
+    /* Check for valid values */
+    all_phys = cmdbuf[0];
+    tx_phys = cmdbuf[1] & BLE_HCI_LE_PHY_PREF_MASK_ALL;
+    rx_phys = cmdbuf[2] & BLE_HCI_LE_PHY_PREF_MASK_ALL;
+
+    if ((!(all_phys & BLE_HCI_LE_PHY_NO_TX_PREF_MASK) && (tx_phys == 0)) ||
+        (!(all_phys & BLE_HCI_LE_PHY_NO_RX_PREF_MASK) && (rx_phys == 0))) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    } else {
+        /* If phy not supported, wipe its bit */
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+        tx_phys &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
+        rx_phys &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
+#endif
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+        tx_phys &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
+        rx_phys &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
+#endif
+        /* Set the default PHY preferences */
+        if (all_phys & BLE_HCI_LE_PHY_NO_TX_PREF_MASK) {
+            tx_phys = 0;
+        }
+        *txphy = tx_phys;
+        if (all_phys & BLE_HCI_LE_PHY_NO_RX_PREF_MASK) {
+            rx_phys = 0;
+        }
+        *rxphy = rx_phys;
+        rc = BLE_ERR_SUCCESS;
+    }
+    return rc;
+}
+
+/**
+ * Set PHY preferences for connection
+ *
+ * @param cmdbuf
+ *
+ * @return int
+ */
+static int
+ble_ll_hci_le_set_def_phy(uint8_t *cmdbuf)
+{
+    int rc;
+
+    rc = ble_ll_hci_chk_phy_masks(cmdbuf, &g_ble_ll_data.ll_pref_tx_phys,
+                                  &g_ble_ll_data.ll_pref_rx_phys);
+    return rc;
+}
+#endif
+
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
 /**
  * HCI write suggested default data length command.
@@ -322,6 +390,8 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
         g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
         g_ble_ll_conn_params.sugg_tx_time = tx_time;
 
+        /* XXX TODO: This has to change! They do not have to be the same
+           at this point. Deal with this */
         if ((tx_time <= g_ble_ll_conn_params.supp_max_tx_time) &&
             (tx_oct <= g_ble_ll_conn_params.supp_max_tx_octets)) {
             g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
@@ -390,7 +460,8 @@ ble_ll_hci_le_read_local_features(uint8_t *rspbuf, uint8_t *rsplen)
 {
     /* Add list of supported features. */
     memset(rspbuf, 0, BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN);
-    rspbuf[0] = ble_ll_read_supp_features();
+    put_le32(rspbuf, ble_ll_read_supp_features());
+
     *rsplen = BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
@@ -495,10 +566,12 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     switch (ocf) {
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
     case BLE_HCI_OCF_LE_CREATE_CONN:
+    case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
     case BLE_HCI_OCF_LE_CONN_UPDATE:
     case BLE_HCI_OCF_LE_START_ENCRYPT:
     case BLE_HCI_OCF_LE_RD_P256_PUBKEY:
     case BLE_HCI_OCF_LE_GEN_DHKEY:
+    case BLE_HCI_OCF_LE_SET_PHY:
         rc = 1;
         break;
     default:
@@ -508,8 +581,25 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/** HCI LE read maximum advertising data length command. Returns the controllers
+* max supported advertising data length;
+*
+* @param rspbuf Pointer to response buffer
+* @param rsplen Length of response buffer
+*
+* @return int BLE error code
+*/
+static int
+ble_ll_adv_rd_max_adv_data_len(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    put_le16(rspbuf, BLE_ADV_DATA_MAX_LEN);
+    *rsplen = BLE_HCI_RD_MAX_ADV_DATA_LEN;
+    return BLE_ERR_SUCCESS;
+}
+
 /**
- * Returns the vendor specific capabilities
+ * HCI LE read number of supported advertising sets
  *
  * @param rspbuf Pointer to response buffer
  * @param rsplen Length of response buffer
@@ -517,77 +607,20 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
  * @return int BLE error code
  */
 static int
-ble_ll_hci_vendor_caps(uint8_t *rspbuf, uint8_t *rsplen)
+ble_ll_adv_rd_sup_adv_sets(uint8_t *rspbuf, uint8_t *rsplen)
 {
-    /* Clear all bytes */
-    memset(rspbuf, 0, 14);
-
-    /* Fill out the ones we support */
     rspbuf[0] = BLE_LL_ADV_INSTANCES;
-    rspbuf[9] = 0x60;
-    *rsplen = 14;
+    *rsplen = BLE_HCI_RD_NR_SUP_ADV_SETS;
     return BLE_ERR_SUCCESS;
 }
 
-/**
- * Process a vendor command sent from the host to the controller. The HCI
- * command has a 3 byte command header followed by data. The header is:
- *  -> opcode (2 bytes)
- *  -> Length of parameters (1 byte; does include command header bytes).
- *
- * @param cmdbuf Pointer to command buffer. Points to start of command header.
- * @param ocf    Opcode command field.
- * @param *rsplen Pointer to length of response
- *
- * @return int  This function returns a BLE error code. If a command status
- *              event should be returned as opposed to command complete,
- *              256 gets added to the return value.
- */
 static int
-ble_ll_hci_vendor_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+ble_ll_ext_adv_set_remove(uint8_t *cmd)
 {
-    int rc;
-    uint8_t cmdlen;
-    uint8_t *rspbuf;
-
-    /* Assume error; if all pass rc gets set to 0 */
-    rc = BLE_ERR_INV_HCI_CMD_PARMS;
-
-    /* Get length from command */
-    cmdlen = cmdbuf[sizeof(uint16_t)];
-
-    /*
-     * The command response pointer points into the same buffer as the
-     * command data itself. That is fine, as each command reads all the data
-     * before crafting a response.
-     */
-    rspbuf = cmdbuf + BLE_HCI_EVENT_CMD_COMPLETE_MIN_LEN;
-
-    /* Move past HCI command header */
-    cmdbuf += BLE_HCI_CMD_HDR_LEN;
-
-    switch (ocf) {
-    case BLE_HCI_OCF_VENDOR_CAPS:
-        if (cmdlen == 0) {
-            ble_ll_hci_vendor_caps(rspbuf, rsplen);
-            rc = BLE_ERR_SUCCESS;
-        }
-        break;
-#if MYNEWT_VAL(BLE_MULTI_ADV_SUPPORT)
-    case BLE_HCI_OCF_MULTI_ADV:
-        if (cmdlen > 0) {
-            rc = ble_ll_adv_multi_adv_cmd(cmdbuf, cmdlen, rspbuf, rsplen);
-        }
-        break;
-#endif
-    default:
-        rc = BLE_ERR_UNKNOWN_HCI_CMD;
-        break;
-    }
-
-    /* XXX: for now, all vendor commands return a command complete */
-    return rc;
+    return ble_ll_adv_remove(cmd[0]);
 }
+
+#endif
 
 /**
  * Process a LE command sent from the host to the controller. The HCI command
@@ -619,7 +652,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
 
     /* Check the length to make sure it is valid */
     cmdlen = g_ble_hci_le_cmd_len[ocf];
-    if (len != cmdlen) {
+    if (len != cmdlen && cmdlen != BLE_HCI_VARIABLE_LEN) {
         goto ll_hci_le_cmd_exit;
     }
 
@@ -647,22 +680,24 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_set_random_addr(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
-        rc = ble_ll_adv_set_adv_params(cmdbuf, 0, 0);
+        rc = ble_ll_adv_set_adv_params(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR:
         rc = ble_ll_adv_read_txpwr(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
-        rc = ble_ll_adv_set_adv_data(cmdbuf, 0);
+        rc = ble_ll_adv_set_adv_data(cmdbuf, 0,
+                                     BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
-        rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, 0);
+        rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, 0,
+                                BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE);
         break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
-        rc = ble_ll_adv_set_enable(cmdbuf, 0);
+        rc = ble_ll_adv_set_enable(0, cmdbuf[0], -1, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
-        rc = ble_ll_scan_set_enable(cmdbuf);
+        rc = ble_ll_scan_set_enable(cmdbuf, 0);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
         rc = ble_ll_scan_set_scan_params(cmdbuf);
@@ -760,10 +795,64 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     case BLE_HCI_OCF_LE_SET_RPA_TMO:
         rc = ble_ll_resolv_set_rpa_tmo(cmdbuf);
         break;
+    case BLE_HCI_OCF_LE_SET_PRIVACY_MODE:
+        rc = ble_ll_resolve_set_priv_mode(cmdbuf);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
+        rc = ble_ll_set_ext_scan_params(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
+        rc = ble_ll_scan_set_enable(cmdbuf, 1);
+        break;
+    case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
+        rc = ble_ll_ext_conn_create(cmdbuf);
+        break;
 #endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         break;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+    case BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR:
+        rc = ble_ll_adv_set_random_addr(cmdbuf + 1, cmdbuf[0]);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM:
+        rc = ble_ll_adv_ext_set_param(cmdbuf, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_DATA:
+        rc = ble_ll_adv_ext_set_adv_data(cmdbuf, cmdlen);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA:
+        rc = ble_ll_adv_ext_set_scan_rsp(cmdbuf, cmdlen);
+        break;
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE:
+        rc =  ble_ll_adv_ext_set_enable(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_RD_MAX_ADV_DATA_LEN:
+        rc = ble_ll_adv_rd_max_adv_data_len(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_RD_NUM_OF_ADV_SETS:
+        rc = ble_ll_adv_rd_sup_adv_sets(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_REMOVE_ADV_SET:
+        rc =  ble_ll_ext_adv_set_remove(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_CLEAR_ADV_SETS:
+        rc =  ble_ll_adv_clear_all();
+        break;
+#endif
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    case BLE_HCI_OCF_LE_RD_PHY:
+        rc = ble_ll_conn_hci_le_rd_phy(cmdbuf, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SET_DEFAULT_PHY:
+        rc = ble_ll_hci_le_set_def_phy(cmdbuf);
+        break;
+    case BLE_HCI_OCF_LE_SET_PHY:
+        rc = ble_ll_conn_hci_le_set_phy(cmdbuf);
+        break;
+#endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
@@ -1022,9 +1111,6 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         break;
     case BLE_HCI_OGF_LE:
         rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
-        break;
-    case BLE_HCI_OGF_VENDOR:
-        rc = ble_ll_hci_vendor_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
     default:
         /* XXX: Need to support other OGF. For now, return unsupported */

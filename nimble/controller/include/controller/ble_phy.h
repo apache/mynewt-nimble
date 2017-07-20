@@ -20,8 +20,18 @@
 #ifndef H_BLE_PHY_
 #define H_BLE_PHY_
 
+#include "nimble/hci_common.h"
+
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) && !MYNEWT_VAL(BSP_NRF52840)
+#error LE 2M PHY can only be enabled on nRF52840
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY) && !MYNEWT_VAL(BSP_NRF52840)
+#error LE Coded PHY can only be enabled on nRF52840
 #endif
 
 /* Forward declarations */
@@ -87,16 +97,11 @@ int ble_phy_reset(void);
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
 /* Set transmit start time */
 int ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
 
 /* Set receive start time */
 int ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
-#else
-/* Set transmit start time */
-int ble_phy_tx_set_start_time(uint32_t cputime);
-#endif
 
 /* Set the transmit end callback and argument */
 void ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg);
@@ -116,20 +121,20 @@ int ble_phy_rssi_get(void);
 /* Set the transmit power */
 int ble_phy_txpwr_set(int dbm);
 
+/* Get highest allowed power from range */
+int ble_phy_txpower_round(int dbm);
+
 /* Get the transmit power */
 int ble_phy_txpwr_get(void);
 
 /* Disable the PHY */
 void ble_phy_disable(void);
 
-#if (MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768)
-void ble_phy_stop_usec_timer(void);
-void ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs);
 #define BLE_PHY_WFR_ENABLE_RX       (0)
 #define BLE_PHY_WFR_ENABLE_TXRX     (1)
-#else
-#define ble_phy_stop_usec_timer()
-#endif
+
+void ble_phy_stop_usec_timer(void);
+void ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs);
 
 /* Starts rf clock */
 void ble_phy_rfclk_enable(void);
@@ -178,6 +183,62 @@ void ble_phy_resolv_list_enable(void);
 
 /* Disable phy resolving list */
 void ble_phy_resolv_list_disable(void);
+
+/*
+ * These definitions are used for the 'phy' parameters in the API listed below.
+ * These are numbered in a specific order to save code. The HCI definitions for
+ * the PHY modes for 1Mbps and 2Mbps are the same here. For the coded phy
+ * they need to be translated from the HCI number to either 0 or 3. This
+ * was done in order to save code when translating between the HCI phy value
+ * and the phy API.
+ */
+#define BLE_PHY_MODE_1M             (1)
+#define BLE_PHY_MODE_2M             (2)
+#define BLE_PHY_MODE_CODED_125KBPS  (0)
+#define BLE_PHY_MODE_CODED_500KBPS  (3)
+
+/* The number of different modes */
+#define BLE_PHY_NUM_MODE            (4)
+
+/* PHY numbers (compatible with HCI) */
+#define BLE_PHY_1M                  (BLE_HCI_LE_PHY_1M)
+#define BLE_PHY_2M                  (BLE_HCI_LE_PHY_2M)
+#define BLE_PHY_CODED               (BLE_HCI_LE_PHY_CODED)
+
+/* PHY bitmasks (compatible with HCI) */
+#define BLE_PHY_MASK_1M             (BLE_HCI_LE_PHY_1M_PREF_MASK)
+#define BLE_PHY_MASK_2M             (BLE_HCI_LE_PHY_2M_PREF_MASK)
+#define BLE_PHY_MASK_CODED          (BLE_HCI_LE_PHY_CODED_PREF_MASK)
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
+uint32_t ble_phy_mode_pdu_start_off(int phy);
+void ble_phy_mode_set(int cur_phy, int txtorx_phy);
+#else
+#define ble_phy_mode_pdu_start_off(phy)     (40)
+
+#endif
+
+int ble_phy_get_cur_phy(void);
+static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
+{
+    int phy_mode;
+
+    /*
+     * Mode values are set in a way that 1M, 2M and Coded(S=2) are equivalent
+     * to 1M, 2M and Coded in HCI. The only conversion is needed for Coded(S=8)
+     * which uses non-HCI value.
+     */
+
+    phy_mode = phy;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (phy == BLE_PHY_CODED && phy_options == BLE_HCI_LE_PHY_CODED_S8_PREF) {
+        phy_mode = BLE_PHY_MODE_CODED_125KBPS;
+    }
+#endif
+
+    return phy_mode;
+}
 
 #ifdef __cplusplus
 }

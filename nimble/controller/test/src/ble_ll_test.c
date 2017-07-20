@@ -17,25 +17,22 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_PVCY_PRIV_
-#define H_BLE_HS_PVCY_PRIV_
+#include "sysinit/sysinit.h"
+#include "syscfg/syscfg.h"
+#include "controller/ble_ll_test.h"
+#include "os/os.h"
+#include "testutil/testutil.h"
 
-#include <inttypes.h>
+#if MYNEWT_VAL(SELFTEST)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int
+main(int argc, char **argv)
+{
+    sysinit();
 
-int ble_hs_pvcy_set_our_irk(const uint8_t *irk);
-int ble_hs_pvcy_our_irk(const uint8_t **out_irk);
-int ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr);
-int ble_hs_pvcy_add_entry(const uint8_t *addr, uint8_t addrtype,
-                          const uint8_t *irk);
-int ble_hs_pvcy_ensure_started(void);
-int ble_hs_pvcy_set_mode(const ble_addr_t *addr, uint8_t priv_mode);
+    ble_ll_csa2_test_all();
 
-#ifdef __cplusplus
+    return tu_any_failed;
 }
-#endif
 
 #endif

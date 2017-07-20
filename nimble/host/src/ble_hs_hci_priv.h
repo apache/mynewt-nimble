@@ -28,6 +28,24 @@ extern "C" {
 struct ble_hs_conn;
 struct os_mbuf;
 
+#define BLE_HS_HCI_LE_FEAT_ENCRYPTION                   (0x00000001)
+#define BLE_HS_HCI_LE_FEAT_CONN_PARAM_REQUEST           (0x00000002)
+#define BLE_HS_HCI_LE_FEAT_EXT_REJECT                   (0x00000004)
+#define BLE_HS_HCI_LE_FEAT_SLAVE_FEAT_EXCHANGE          (0x00000008)
+#define BLE_HS_HCI_LE_FEAT_PING                         (0x00000010)
+#define BLE_HS_HCI_LE_FEAT_DATA_PACKET_LENGTH_EXT       (0x00000020)
+#define BLE_HS_HCI_LE_FEAT_LL_PRIVACY                   (0x00000040)
+#define BLE_HS_HCI_LE_FEAT_EXT_SCANNER_FILTER_POLICIES  (0x00000080)
+#define BLE_HS_HCI_LE_FEAT_2M_PHY                       (0x00000100)
+#define BLE_HS_HCI_LE_FEAT_STABLE_MOD_INDEX_TX          (0x00000200)
+#define BLE_HS_HCI_LE_FEAT_STABLE_MOD_INDEX_RX          (0x00000400)
+#define BLE_HS_HCI_LE_FEAT_CODED_PHY                    (0x00000800)
+#define BLE_HS_HCI_LE_FEAT_EXT_ADV                      (0x00001000)
+#define BLE_HS_HCI_LE_FEAT_PERIODIC_ADV                 (0x00002000)
+#define BLE_HS_HCI_LE_FEAT_CSA2                         (0x00004000)
+#define BLE_HS_HCI_LE_FEAT_POWER_CLASS_1                (0x00008000)
+#define BLE_HS_HCI_LE_FEAT_MIN_NUM_USED_CHAN            (0x00010000)
+
 struct ble_hs_hci_ack {
     int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
     uint8_t *bha_params;
@@ -36,11 +54,29 @@ struct ble_hs_hci_ack {
     uint8_t bha_hci_handle;
 };
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+struct ble_hs_hci_ext_scan_param {
+    uint8_t scan_type;
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+};
+
+struct ble_hs_hci_ext_conn_params {
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint16_t conn_itvl;
+    uint16_t conn_windows;
+};
+#endif
+
 int ble_hs_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
                       uint8_t *out_evt_buf_len);
 int ble_hs_hci_cmd_tx_empty_ack(void *cmd);
 void ble_hs_hci_rx_ack(uint8_t *ack_ev);
 void ble_hs_hci_init(void);
+
+void ble_hs_hci_set_le_supported_feat(uint32_t feat);
+uint32_t ble_hs_hci_get_le_supported_feat(void);
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 typedef int ble_hs_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);
@@ -102,7 +138,6 @@ void ble_hs_hci_cmd_build_le_set_scan_enable(uint8_t enable,
 int ble_hs_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups);
 int ble_hs_hci_cmd_build_le_create_connection(
     const struct hci_create_conn *hcc, uint8_t *cmd, int cmd_len);
-int ble_hs_hci_cmd_le_create_connection(const struct hci_create_conn *hcc);
 void ble_hs_hci_cmd_build_le_clear_whitelist(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_le_add_to_whitelist(const uint8_t *addr,
                                              uint8_t addr_type,
@@ -157,9 +192,86 @@ int ble_hs_hci_cmd_build_set_addr_res_en(
     uint8_t enable, uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(
     uint16_t timeout, uint8_t *dst, int dst_len);
-
 int ble_hs_hci_cmd_build_set_random_addr(const uint8_t *addr,
                                          uint8_t *dst, int dst_len);
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+int ble_hs_hci_cmd_build_le_set_ext_scan_params(uint8_t own_addr_type,
+                                               uint8_t filter_policy,
+                                               uint8_t phy_mask,
+                                               uint8_t phy_count,
+                                               struct ble_hs_hci_ext_scan_param *params[],
+                                               uint8_t *dst, uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_set_ext_scan_enable(uint8_t enable,
+                                                uint8_t filter_dups,
+                                                uint16_t duration,
+                                                uint16_t period,
+                                                uint8_t *dst, uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_ext_create_conn(const struct hci_ext_create_conn *hcc,
+                                            uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_set_random_addr(uint8_t handle,
+                                                const uint8_t *addr,
+                                                uint8_t *cmd, int cmd_len);
+
+
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_data(uint8_t handle, uint8_t operation,
+                                     uint8_t frag_pref,
+                                     const uint8_t *data, uint8_t data_len,
+                                     uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_scan_rsp(uint8_t handle, uint8_t operation,
+                                         uint8_t frag_pref,
+                                         const uint8_t *data, uint8_t data_len,
+                                         uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_enable(uint8_t enable, uint8_t sets_num,
+                                       const struct hci_ext_adv_set *sets,
+                                       uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
+                                       const struct hci_ext_adv_params *params,
+                                       uint8_t *cmd, int cmd_len);
+#endif
+
+int ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,
+                                          uint8_t mod_idx,
+                                          uint8_t *dst, uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_enh_trans_test(uint8_t tx_chan,
+                                           uint8_t test_data_len,
+                                           uint8_t packet_payload_idx,
+                                           uint8_t phy,
+                                           uint8_t *dst, uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_set_priv_mode(const uint8_t *addr, uint8_t addr_type,
+                                          uint8_t priv_mode, uint8_t *dst,
+                                          uint16_t dst_len);
+
+int ble_hs_hci_cmd_build_le_read_phy(uint16_t conn_handle, uint8_t *dst,
+                                     int dst_len);
+
+int ble_hs_hci_cmd_build_le_set_default_phy(uint8_t tx_phys_mask,
+                                            uint8_t rx_phys_mask,
+                                            uint8_t *dst, int dst_len);
+
+int ble_hs_hci_cmd_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
+                                    uint8_t rx_phys_mask, uint16_t phy_opts,
+                                    uint8_t *dst, int dst_len);
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+#endif
+
+int ble_hs_hci_cmd_build_le_read_remote_feat(uint16_t handle, uint8_t *dst,
+                                                                 int dst_len);
 
 #ifdef __cplusplus
 }
