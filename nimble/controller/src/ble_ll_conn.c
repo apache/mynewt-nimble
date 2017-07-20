@@ -2989,10 +2989,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     /* Get connection state machine to use if connection to be established */
     connsm = g_ble_ll_conn_create_sm;
 
-    /*
-     * We have to restart receive if we cant hand up pdu. We return 0 so that
-     * the phy does not get disabled.
-     */
     rc = -1;
     pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
     if (!crcok) {
