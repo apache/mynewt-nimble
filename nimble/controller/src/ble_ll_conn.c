@@ -2992,7 +2992,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     rc = -1;
     pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
     if (!crcok) {
-        goto init_rx_isr_exit;
+        /* Ignore this packet - do not send to LL */
+        goto init_rx_isr_ignore_exit;
     }
 
     /* Only interested in ADV IND or ADV DIRECT IND */
@@ -3225,6 +3226,7 @@ init_rx_isr_exit:
         ble_ll_rx_pdu_in(rxpdu);
     }
 
+init_rx_isr_ignore_exit:
     if (rc) {
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
     }
