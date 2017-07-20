@@ -38,6 +38,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_xcvr.h"
+#include "ble_ll_conn_priv.h"
 #include "hal/hal_gpio.h"
 
 /*
@@ -1256,6 +1257,14 @@ ble_ll_scan_event_proc(struct os_event *ev)
          start_scan = 0;
         break;
     case BLE_LL_STATE_INITIATING:
+        /* Must disable PHY since we will move to a new channel */
+        ble_phy_disable();
+        if (!inside_window) {
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        }
+        /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
+        ble_ll_conn_reset_pending_aux_conn_rsp();
+        break;
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
