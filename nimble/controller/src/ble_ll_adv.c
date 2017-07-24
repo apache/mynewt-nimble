@@ -2243,7 +2243,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
             rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
             if (!rc) {
                 advsm->flags |= BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
-                //STATS_INC(ble_ll_stats, scan_rsp_txg); TODO
+                STATS_INC(ble_ll_stats, aux_conn_rsp_tx);
             }
             os_mbuf_free_chain(rsp);
         }
