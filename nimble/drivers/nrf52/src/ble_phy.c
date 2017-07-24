@@ -493,9 +493,11 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 static uint32_t
 ble_phy_get_ccm_datarate(void)
 {
+#if BLE_LL_BT5_PHY_SUPPORTED
     switch (g_ble_phy_data.phy_cur_phy_mode) {
     case BLE_PHY_MODE_1M:
         return CCM_MODE_DATARATE_1Mbit << CCM_MODE_DATARATE_Pos;
@@ -509,7 +511,11 @@ ble_phy_get_ccm_datarate(void)
 
     assert(0);
     return 0;
+#else
+    return CCM_MODE_DATARATE_1Mbit << CCM_MODE_DATARATE_Pos;
+#endif
 }
+#endif
 
 /**
  * Setup transceiver for receive.
