@@ -77,6 +77,7 @@ struct ble_phy_obj
     uint8_t phy_tx_pyld_len;
     uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
+    uint8_t phy_bcc_offset;
     uint16_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODE];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
@@ -544,8 +545,23 @@ ble_phy_rx_xcvr_setup(void)
     g_ble_phy_data.phy_rx_started = 0;
     g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
 
+#if BLE_LL_BT5_PHY_SUPPORTED
+    /*
+     * On Coded PHY there are CI and TERM1 fields before PDU starts so we need
+     * to take this into account when setting up BCC.
+     */
+    if (g_ble_phy_data.phy_cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS ||
+            g_ble_phy_data.phy_cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        g_ble_phy_data.phy_bcc_offset = 5;
+    } else {
+        g_ble_phy_data.phy_bcc_offset = 0;
+    }
+#else
+    g_ble_phy_data.phy_bcc_offset = 0;
+#endif
+
     /* I want to know when 1st byte received (after address) */
-    NRF_RADIO->BCC = 8; /* in bits */
+    NRF_RADIO->BCC = 8 + g_ble_phy_data.phy_bcc_offset; /* in bits */
     NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->EVENTS_DEVMATCH = 0;
     NRF_RADIO->EVENTS_BCMATCH = 0;
@@ -809,11 +825,12 @@ ble_phy_rx_start_isr(void)
              */
             if (BLE_MBUF_HDR_EXT_ADV(&g_ble_phy_data.rxhdr)) {
                 NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[5];
-                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN + 2) * 8;
-
+                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN + 2) * 8 +
+                                 g_ble_phy_data.phy_bcc_offset;
             } else {
                 NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[3];
-                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8;
+                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8 +
+                                 g_ble_phy_data.phy_bcc_offset;
             }
         }
 #endif
