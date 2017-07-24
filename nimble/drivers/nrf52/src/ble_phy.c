@@ -493,6 +493,24 @@ ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
 }
 
+static uint32_t
+ble_phy_get_ccm_datarate(void)
+{
+    switch (g_ble_phy_data.phy_cur_phy_mode) {
+    case BLE_PHY_MODE_1M:
+        return CCM_MODE_DATARATE_1Mbit << CCM_MODE_DATARATE_Pos;
+    case BLE_PHY_MODE_2M:
+        return CCM_MODE_DATARATE_2Mbit << CCM_MODE_DATARATE_Pos;
+    case BLE_PHY_MODE_CODED_125KBPS:
+        return CCM_MODE_DATARATE_125Kbps << CCM_MODE_DATARATE_Pos;
+    case BLE_PHY_MODE_CODED_500KBPS:
+        return CCM_MODE_DATARATE_500Kbps << CCM_MODE_DATARATE_Pos;
+    }
+
+    assert(0);
+    return 0;
+}
+
 /**
  * Setup transceiver for receive.
  */
@@ -510,7 +528,8 @@ ble_phy_rx_xcvr_setup(void)
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
         NRF_CCM->OUTPTR = (uint32_t)dptr;
         NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
-        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption;
+        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption |
+                                                    ble_phy_get_ccm_datarate();
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
         NRF_CCM->SHORTS = 0;
         NRF_CCM->EVENTS_ERROR = 0;
@@ -1237,7 +1256,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
         NRF_CCM->OUTPTR = (uint32_t)pktptr;
         NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
         NRF_CCM->EVENTS_ERROR = 0;
-        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk;
+        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | ble_phy_get_ccm_datarate();
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
         NRF_PPI->CHENSET = PPI_CHEN_CH24_Msk;
     } else {
