@@ -562,7 +562,7 @@ ble_ll_wfr_timer_exp(void *arg)
             ble_ll_scan_wfr_timer_exp();
             break;
         case BLE_LL_STATE_INITIATING:
-            ble_ll_conn_init_wrf_timer_exp();
+            ble_ll_conn_init_wfr_timer_exp();
             break;
         default:
             break;
