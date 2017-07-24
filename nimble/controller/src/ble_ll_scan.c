@@ -1481,6 +1481,24 @@ ble_ll_ext_scan_parse_adv_info(struct ble_ll_scan_sm *scansm,
     evt->sid = (adv_info >> 12);
 }
 
+/**
+ * ble_ll_scan_get_aux_data
+ *
+ * Get aux data pointer. It is new allocated data for beacon or currently
+ * processing aux data pointer
+ *
+ * Context: Interrupt
+ *
+ * @param scansm
+ * @param ble_hdr
+ * @param rxbuf
+ * @param aux_data
+ *
+ * @return int
+ *  0: new allocated aux data
+ *  1: current processing aux data
+ * -1: error
+ */
 int
 ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
                          struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
@@ -1863,7 +1881,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (!scansm->ext_scanning) {
             goto scan_rx_isr_exit;
         }
-        /* Let see if there is AUX ptr. If so schedule for getting it */
+        /* Create new aux data for beacon or get current processing aux ptr */
         rc = ble_ll_scan_get_aux_data(scansm, ble_hdr, rxbuf, &aux_data);
         if (rc < 0) {
             /* No memory or broken packet */
