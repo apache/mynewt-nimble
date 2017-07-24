@@ -809,7 +809,7 @@ ble_ll_conn_reset_pending_aux_conn_rsp(void)
 }
 
 void
-ble_ll_conn_init_wrf_timer_exp(void)
+ble_ll_conn_init_wfr_timer_exp(void)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_conn_sm *connsm;
