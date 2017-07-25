@@ -3062,8 +3062,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         goto init_rx_isr_exit;
     }
 
-    inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
-
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
         break;
@@ -3102,6 +3100,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
              * If we expect our address to be private and the INITA is not,
              * we dont respond!
              */
+            inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
             if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
                 if (!inita_is_rpa) {
                     goto init_rx_isr_exit;
@@ -3137,7 +3136,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             resolved = 1;
 
             /* Assure privacy */
-            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) && init_addr &&
                 !inita_is_rpa) {
                 goto init_rx_isr_exit;
             }
@@ -3146,7 +3145,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                 goto init_rx_isr_exit;
             }
         }
-    } else if (ble_ll_resolv_enabled()) {
+    } else if (init_addr && ble_ll_resolv_enabled()) {
+
         /* Let's see if we have IRK with that peer. If so lets make sure
          * privacy mode is correct together with initA
          */
