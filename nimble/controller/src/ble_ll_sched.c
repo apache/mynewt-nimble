@@ -1347,24 +1347,22 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
     uint32_t now;
     struct ble_ll_sched_item *entry;
     struct ble_ll_sched_item *sch;
+    int phy_mode;
 
-    /* TODO Handle multiple scheduled items */
     sch = &aux_scan->sch;
 
     now =  ble_hdr->beg_cputime;
     earliest_start = now + os_cputime_usecs_to_ticks(aux_scan->offset);
     earliest_start -= g_ble_ll_sched_offset_ticks;
 
-    /* TODO: FIX duration. We should assure as much time as we need for specific PHY.
-     * Also we need to take mode into account e.g in order to do
-     * scan req and aux conn req
+    /* Let's calculate time we reserve for aux packet. For now we assume to wait
+     * for fixed number of bytes and handle possible interrupting it in
+     * ble_ll_sched_execute_item(). This is because aux packet can be up to
+     * 256bytes and we don't want to block sched that long
      */
-    if (aux_scan->aux_phy == BLE_PHY_CODED) {
-        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
-    } else {
-        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
-    }
-
+    phy_mode = ble_ll_phy_to_phy_mode(aux_scan->aux_phy,
+                                      BLE_HCI_LE_PHY_CODED_ANY);
+    dur = ble_ll_pdu_tx_time_get(BLE_LL_SCHED_AUX_PTR_DFLT_BYTES_NUM, phy_mode);
     earliest_end = earliest_start + os_cputime_usecs_to_ticks(dur);
 
     /* We have to find a place for this schedule */
