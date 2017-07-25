@@ -771,6 +771,9 @@ ble_phy_rx_start_isr(void)
     uint32_t usecs;
     uint32_t ticks;
     struct ble_mbuf_hdr *ble_hdr;
+    uint8_t *dptr;
+
+    dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
 
     /* Clear events and clear interrupt */
     NRF_RADIO->EVENTS_ADDRESS = 0;
@@ -825,7 +828,7 @@ ble_phy_rx_start_isr(void)
     }
 
     /* Call Link Layer receive start function */
-    rc = ble_ll_rx_start((uint8_t *)&g_ble_phy_rx_buf[0] + 3,
+    rc = ble_ll_rx_start(dptr + 3,
                          g_ble_phy_data.phy_chan,
                          &g_ble_phy_data.rxhdr);
     if (rc >= 0) {
@@ -850,11 +853,11 @@ ble_phy_rx_start_isr(void)
              * header (+2 octets).
              */
             if (BLE_MBUF_HDR_EXT_ADV(&g_ble_phy_data.rxhdr)) {
-                NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[5];
+                NRF_AAR->ADDRPTR = (uint32_t)(dptr + 5);
                 NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN + 2) * 8 +
                                  g_ble_phy_data.phy_bcc_offset;
             } else {
-                NRF_AAR->ADDRPTR = (uint32_t)&g_ble_phy_rx_buf[3];
+                NRF_AAR->ADDRPTR = (uint32_t)(dptr + 3);
                 NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8 +
                                  g_ble_phy_data.phy_bcc_offset;
             }
