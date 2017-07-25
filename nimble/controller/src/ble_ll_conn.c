@@ -808,6 +808,22 @@ ble_ll_conn_reset_pending_aux_conn_rsp(void)
     return;
 }
 
+bool
+ble_ll_conn_init_pending_aux_conn_rsp(void)
+{
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    return false;
+#endif
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = g_ble_ll_conn_create_sm;
+    if (!connsm) {
+        return false;
+    }
+
+    return CONN_F_AUX_CONN_REQ(connsm);
+}
+
 void
 ble_ll_conn_init_wfr_timer_exp(void)
 {
