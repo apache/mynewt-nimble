@@ -151,11 +151,32 @@ static int
 ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
 {
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
+    uint8_t lls = ble_ll_state_get();
 
-    /* In case scan has been disabled just drop the scheduled item*/
-    if (!scansm->scan_enabled) {
+    /* In case scan has been disabled or there is other aux ptr in progress
+     * just drop the scheduled item
+     */
+    if (!scansm->scan_enabled || scansm->cur_aux_data) {
         ble_ll_scan_aux_data_free(sch->cb_arg);
         goto done;
+    }
+
+    /* Check if there is no aux connect sent. If so drop the sched item */
+    if (lls == BLE_LL_STATE_INITIATING && ble_ll_conn_init_pending_aux_conn_rsp()) {
+        ble_ll_scan_aux_data_free(sch->cb_arg);
+        goto done;
+    }
+
+    /* This function is called only when scanner is running. This can happen
+     *  in 3 states:
+     * BLE_LL_STATE_SCANNING
+     * BLE_LL_STATE_INITIATING
+     * BLE_LL_STATE_STANDBY
+     */
+    if (lls != BLE_LL_STATE_STANDBY) {
+        ble_phy_disable();
+        ble_ll_wfr_disable();
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
     }
 
     /* When doing RX for AUX pkt, cur_aux_data keeps valid aux data */
@@ -341,6 +362,24 @@ next_dup_adv:
     }
 
     return NULL;
+}
+
+/**
+ * Do scan machine clean up on PHY disabled
+ *
+ */
+void
+ble_ll_scan_clean_cur_aux_data(void)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
+
+    /* If scanner was reading aux ptr, we need to clean it up */
+    if (scansm && scansm->cur_aux_data) {
+        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        scansm->cur_aux_data = NULL;
+    }
+#endif
 }
 
 /**
@@ -1015,10 +1054,7 @@ ble_ll_scan_sm_stop(int chk_disable)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     OS_ENTER_CRITICAL(sr);
-    if (scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
-        scansm->cur_aux_data = NULL;
-    }
+    ble_ll_scan_clean_cur_aux_data();
     OS_EXIT_CRITICAL(sr);
 #endif
 
@@ -1163,14 +1199,10 @@ ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
 }
 
 static void
-ble_ll_aux_scan_rsp_failed(struct ble_ll_scan_sm *scansm)
+ble_ll_aux_scan_rsp_failed(void)
 {
     STATS_INC(ble_ll_stats, aux_scan_rsp_err);
-
-    if (scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
-        scansm->cur_aux_data = NULL;
-    }
+    ble_ll_scan_clean_cur_aux_data();
 }
 #endif
 
@@ -1403,7 +1435,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
             } else {
                 ble_ll_scan_req_backoff(scansm, 0);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-                ble_ll_aux_scan_rsp_failed(scansm);
+                ble_ll_aux_scan_rsp_failed();
 #endif
             }
         }
@@ -1860,7 +1892,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (scansm->scan_rsp_pending) {
             ble_ll_scan_req_backoff(scansm, 0);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-            ble_ll_aux_scan_rsp_failed(scansm);
+            ble_ll_aux_scan_rsp_failed();
 #endif
         }
         ble_phy_restart_rx();
@@ -2084,7 +2116,7 @@ ble_ll_scan_wfr_timer_exp(void)
     if (scansm->scan_rsp_pending) {
         ble_ll_scan_req_backoff(scansm, 0);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        ble_ll_aux_scan_rsp_failed(scansm);
+        ble_ll_aux_scan_rsp_failed();
         ble_ll_event_send(&scansm->scan_sched_ev);
 #endif
     }

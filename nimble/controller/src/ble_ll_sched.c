@@ -1107,30 +1107,51 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     int rc;
     uint8_t lls;
 
+    lls = ble_ll_state_get();
+    if (lls == BLE_LL_STATE_STANDBY) {
+        goto sched;
+    }
+
+    /* If aux scan scheduled and LL is in state when scanner is running
+     * in 3 states:
+     * BLE_LL_STATE_SCANNING
+     * BLE_LL_STATE_INITIATING
+     * BLE_LL_STATE_STANDBY
+     *
+     * Let scanner to decide to disable phy or not.
+     */
+    if (sch->sched_type == BLE_LL_SCHED_TYPE_AUX_SCAN) {
+        if (lls == BLE_LL_STATE_INITIATING || lls == BLE_LL_STATE_SCANNING) {
+            goto sched;
+        }
+    }
+
     /*
      * This is either an advertising event or connection event start. If
      * we are scanning or initiating just stop it.
      */
-    lls = ble_ll_state_get();
-    if (lls != BLE_LL_STATE_STANDBY) {
-        /* We have to disable the PHY no matter what */
-        ble_phy_disable();
-        ble_ll_wfr_disable();
-        if (lls == BLE_LL_STATE_SCANNING) {
-            ble_ll_state_set(BLE_LL_STATE_STANDBY);
-        } else if (lls == BLE_LL_STATE_INITIATING) {
-            ble_ll_state_set(BLE_LL_STATE_STANDBY);
-            /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
-            ble_ll_conn_reset_pending_aux_conn_rsp();
-        } else if (lls == BLE_LL_STATE_ADV) {
-            STATS_INC(ble_ll_stats, sched_state_adv_errs);
-            ble_ll_adv_halt();
-        } else {
-            STATS_INC(ble_ll_stats, sched_state_conn_errs);
-            ble_ll_conn_event_halt();
-        }
+
+    /* We have to disable the PHY no matter what */
+    ble_phy_disable();
+    ble_ll_wfr_disable();
+
+    if (lls == BLE_LL_STATE_SCANNING) {
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        ble_ll_scan_clean_cur_aux_data();
+    } else if (lls == BLE_LL_STATE_INITIATING) {
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        ble_ll_scan_clean_cur_aux_data();
+        /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
+        ble_ll_conn_reset_pending_aux_conn_rsp();
+    } else if (lls == BLE_LL_STATE_ADV) {
+        STATS_INC(ble_ll_stats, sched_state_adv_errs);
+        ble_ll_adv_halt();
+    } else {
+        STATS_INC(ble_ll_stats, sched_state_conn_errs);
+        ble_ll_conn_event_halt();
     }
 
+sched:
     assert(sch->sched_cb);
     rc = sch->sched_cb(sch);
     return rc;

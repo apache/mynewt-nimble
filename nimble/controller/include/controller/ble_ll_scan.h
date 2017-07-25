@@ -227,6 +227,9 @@ int ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
 void ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan);
 #endif
 
+/* Called to clean up current aux data */
+void ble_ll_scan_clean_cur_aux_data(void);
+
 #ifdef __cplusplus
 }
 #endif
