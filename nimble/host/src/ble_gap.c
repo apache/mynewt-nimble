@@ -160,7 +160,7 @@ ble_gap_update_entry_remove(uint16_t conn_handle);
 static void
 ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg);
 
-static int ble_gap_adv_enable_tx(int enable);
+static int ble_gap_adv_enable_tx(int enable, bool directed);
 static int ble_gap_conn_cancel_tx(void);
 static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
 
@@ -1457,7 +1457,7 @@ ble_gap_slave_timer(void)
     /*** Timer expired; process event. */
 
     /* Stop advertising. */
-    rc = ble_gap_adv_enable_tx(0);
+    rc = ble_gap_adv_enable_tx(0, false);
     if (rc != 0) {
         /* Failed to stop advertising; try again in 100 ms. */
         return 100;
@@ -1683,17 +1683,21 @@ done:
  *****************************************************************************/
 
 static int
-ble_gap_adv_enable_tx(int enable)
+ble_gap_adv_enable_tx(int enable, bool directed)
 {
 #if MYNEWT_VAL(BLE_EXT_ADV)
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + 6];
-    static const struct hci_ext_adv_set set = {0, 0, 0};
+    struct hci_ext_adv_set set = {0, 0, 0};
 #else
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_ADV_ENABLE_LEN];
 #endif
     int rc;
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
+    if (enable && directed) {
+        set.duration = 128;
+    }
+
     rc = ble_hs_hci_cmd_build_le_ext_adv_enable(!!enable, 1, &set, buf,
                                                 sizeof(buf));
     if (rc != 0) {
@@ -1742,7 +1746,7 @@ ble_gap_adv_stop(void)
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: stop advertising.\n");
 
-    rc = ble_gap_adv_enable_tx(0);
+    rc = ble_gap_adv_enable_tx(0, false);
     if (rc != 0) {
         goto done;
     }
@@ -2148,7 +2152,7 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
 
     ble_gap_slave.op = BLE_GAP_OP_S_ADV;
 
-    rc = ble_gap_adv_enable_tx(1);
+    rc = ble_gap_adv_enable_tx(1, direct_addr != NULL);
     if (rc != 0) {
         ble_gap_slave_reset_state();
         goto done;
