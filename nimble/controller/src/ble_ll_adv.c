@@ -1802,7 +1802,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         min_itvl = BLE_LL_ADV_ITVL_MIN;
     }
 
-    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         if (advsm->adv_len || advsm->scan_rsp_len) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
