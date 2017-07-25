@@ -786,8 +786,9 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *adv_addr,
         }
     }
 
-    /* If this is a directed advertisement, check that it is for us */
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+    /* If this is a directed advertisement, init_addr is not NULL.
+     * Check that it is for us */
+    if (init_addr) {
         /* Is this for us? If not, is it resolvable */
         if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
             if (!chk_inita || !ble_ll_is_rpa(adv_addr, adv_addr_type)) {
