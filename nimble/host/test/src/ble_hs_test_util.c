@@ -408,7 +408,7 @@ ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
     evt2.subevent_code = BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT;
     evt2.status = BLE_ERR_SUCCESS;
     evt2.connection_handle = handle;
-    memcpy(evt2.features, (uint8_t[]){ conn_features, 0, 0, 0, 0, 0, 0, 0 }, 8);
+    memcpy(evt2.features, ((uint8_t[]){ conn_features, 0, 0, 0, 0, 0, 0, 0 }), 8);
 
     ble_gap_rx_rd_rem_sup_feat_complete(&evt2);
 
