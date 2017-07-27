@@ -2948,6 +2948,10 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     /* Initialize advertising tx done event */
     advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
     advsm->adv_txdone_ev.ev_arg = advsm;
+
+    /*XXX Configure instances to be legacy on start */
+    advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
+    advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
 }
 
 /**
