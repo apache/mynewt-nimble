@@ -235,7 +235,7 @@ struct ble_gatt_chr_def {
      * At registration time, this is filled in with the characteristic's value
      * attribute handle.
      */
-    uint16_t * const val_handle;
+    uint16_t *val_handle;
 };
 
 struct ble_gatt_svc_def {
