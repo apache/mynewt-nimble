@@ -1742,25 +1742,6 @@ ble_ll_update_max_tx_octets_phy_mode(struct ble_ll_conn_sm *connsm)
             ble_ll_pdu_max_tx_octets_get(usecs, BLE_PHY_MODE_CODED_500KBPS);
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-
-void
-ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
-                        struct hci_ext_create_conn *hcc)
-{
-
-    ble_ll_conn_master_common_init(connsm);
-
-    /* Set own address type and peer address if needed */
-    connsm->own_addr_type = hcc->own_addr_type;
-    if (hcc->filter_policy == 0) {
-        memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
-        connsm->peer_addr_type = hcc->peer_addr_type;
-    }
-
-    connsm->initial_params = *hcc;
-}
-
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
 static void
@@ -1813,6 +1794,25 @@ ble_ll_conn_init_phy(struct ble_ll_conn_sm *connsm, int phy)
 }
 
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+
+void
+ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
+                        struct hci_ext_create_conn *hcc)
+{
+
+    ble_ll_conn_master_common_init(connsm);
+
+    /* Set own address type and peer address if needed */
+    connsm->own_addr_type = hcc->own_addr_type;
+    if (hcc->filter_policy == 0) {
+        memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
+        connsm->peer_addr_type = hcc->peer_addr_type;
+    }
+
+    connsm->initial_params = *hcc;
+}
 
 void
 ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
