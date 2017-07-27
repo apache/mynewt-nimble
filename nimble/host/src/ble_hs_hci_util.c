@@ -156,6 +156,11 @@ ble_hs_hci_util_set_random_addr(const uint8_t *addr)
     if (rc != 0) {
         return rc;
     }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    if (rc != 0) {
+        return rc;
+    }
 #endif
 
     return 0;
