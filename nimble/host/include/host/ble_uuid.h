@@ -104,6 +104,7 @@ typedef union {
 
 int ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len);
 int ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2);
+void ble_uuid_copy(ble_uuid_any_t *dst, const ble_uuid_t *src);
 char *ble_uuid_to_str(const ble_uuid_t *uuid, char *dst);
 uint16_t ble_uuid_u16(const ble_uuid_t *uuid);
 
