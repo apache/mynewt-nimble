@@ -945,7 +945,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
      * arg).
      */
     rc = ble_att_svr_register(uuid, BLE_ATT_F_READ, 0, out_handle,
-                                     ble_gatts_svc_access, (void *)svc);
+                              ble_gatts_svc_access, (void *)svc);
     if (rc != 0) {
         return rc;
     }
@@ -1198,6 +1198,11 @@ ble_gatts_start(void)
     }
 
     ble_gatts_free_mem();
+
+    rc = ble_att_svr_start();
+    if (rc != 0) {
+        goto done;
+    }
 
     if (ble_hs_max_client_configs > 0) {
         ble_gatts_clt_cfg_mem = malloc(
