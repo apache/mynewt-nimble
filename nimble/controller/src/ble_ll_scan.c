@@ -60,6 +60,13 @@
     #error "Cannot have more than 255 scan response entries!"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static const uint8_t ble_ll_valid_scan_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+                                | BLE_HCI_LE_PHY_CODED_PREF_MASK
+#endif
+                              );
+#endif
 
 /* The scanning parameters set by host */
 struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
@@ -2456,8 +2463,7 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
     coded->scan_filt_policy = cmd[1];
     uncoded->scan_filt_policy = cmd[1];
 
-    if ((cmd[2] == 0) || (cmd[2] >
-            (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_CODED_PREF_MASK))) {
+    if (!(cmd[2] & ble_ll_valid_scan_phy_mask)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -2481,8 +2487,8 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
         uncoded->configured = 1;
     }
 
-    if (cmd[2] & BLE_HCI_LE_PHY_CODED_PREF_MASK) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (cmd[2] & BLE_HCI_LE_PHY_CODED_PREF_MASK) {
         coded->scan_type = cmd[idx];
         idx++;
         coded->scan_itvl = get_le16(cmd + idx);
@@ -2499,10 +2505,8 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
 
         /* That means user whats to use this PHY for scanning */
         coded->configured = 1;
-#else
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-#endif
     }
+#endif
 
     /* For now we don't accept request for continuous scan if 2 PHYs are
      * requested.
