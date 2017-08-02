@@ -640,9 +640,11 @@ ble_phy_rx_start_isr(void)
     uint32_t usecs;
     uint32_t ticks;
     struct ble_mbuf_hdr *ble_hdr;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     uint8_t *dptr;
 
     dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
+#endif
 
     /* Clear events and clear interrupt */
     NRF_RADIO->EVENTS_ADDRESS = 0;
