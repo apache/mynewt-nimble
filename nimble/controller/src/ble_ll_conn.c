@@ -1075,6 +1075,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
     struct os_mbuf_pkthdr *nextpkthdr;
     struct ble_ll_empty_pdu empty_pdu;
     ble_phy_tx_end_func txend_func;
+    int tx_phy_mode;
 
     /* For compiler warnings... */
     ble_hdr = NULL;
@@ -1219,9 +1220,15 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
          * now. This is not the most accurate especially if we have
          * received a frame and we are replying to it.
          */
+#if BLE_LL_BT5_PHY_SUPPORTED
+        tx_phy_mode = connsm->phy_data.tx_phy_mode;
+#else
+        tx_phy_mode = BLE_PHY_MODE_1M;
+#endif
+
         ticks = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
-            ble_ll_pdu_tx_time_get(next_txlen, connsm->phy_data.tx_phy_mode) +
-            ble_ll_pdu_tx_time_get(cur_txlen, connsm->phy_data.tx_phy_mode);
+            ble_ll_pdu_tx_time_get(next_txlen, tx_phy_mode) +
+            ble_ll_pdu_tx_time_get(cur_txlen, tx_phy_mode);
 
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             ticks += (BLE_LL_IFS + connsm->eff_max_rx_time);
@@ -1569,6 +1576,13 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_mbuf_hdr *txhdr;
     uint32_t allowed_usecs;
+    int tx_phy_mode;
+
+#if BLE_LL_BT5_PHY_SUPPORTED
+    tx_phy_mode = connsm->phy_data.tx_phy_mode;
+#else
+    tx_phy_mode = BLE_PHY_MODE_1M;
+#endif
 
     rc = 1;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
@@ -1593,11 +1607,10 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
             if (rem_bytes > connsm->eff_max_tx_octets) {
                 rem_bytes = connsm->eff_max_tx_octets;
             }
-            usecs = ble_ll_pdu_tx_time_get(rem_bytes,
-                                               connsm->phy_data.tx_phy_mode);
+            usecs = ble_ll_pdu_tx_time_get(rem_bytes, tx_phy_mode);
         } else {
             /* We will send empty pdu (just a LL header) */
-            usecs = ble_ll_pdu_tx_time_get(0, connsm->phy_data.tx_phy_mode);
+            usecs = ble_ll_pdu_tx_time_get(0, tx_phy_mode);
         }
         usecs += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
 
@@ -2388,6 +2401,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
     uint8_t *evbuf;
     uint32_t endtime;
     uint32_t usecs;
+    int rx_phy_mode;
 
     /* XXX: TODO this assumes we received in 1M phy */
 
@@ -2421,10 +2435,14 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
          */
         connsm->last_anchor_point = rxhdr->beg_cputime;
 
+#if BLE_LL_BT5_PHY_SUPPORTED
+        rx_phy_mode = connsm->phy_data.rx_phy_mode;
+#else
+        rx_phy_mode = BLE_PHY_MODE_1M;
+#endif
         usecs = rxhdr->rem_usecs + 1250 +
                 (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
-                                       connsm->phy_data.rx_phy_mode);
+                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN, rx_phy_mode);
 
         if (rxhdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
             switch (rxhdr->rxinfo.phy) {
@@ -3525,6 +3543,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     struct ble_ll_conn_sm *connsm;
     struct os_mbuf *rxpdu;
     struct ble_mbuf_hdr *txhdr;
+    int rx_phy_mode;
 
     /* Retrieve the header and payload length */
     hdr_byte = rxbuf[0];
@@ -3556,8 +3575,13 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      * to the 'additional usecs' field to save some calculations.
      */
     endtime = rxhdr->beg_cputime;
+#if BLE_LL_BT5_PHY_SUPPORTED
+    rx_phy_mode = connsm->phy_data.rx_phy_mode;
+#else
+    rx_phy_mode = BLE_PHY_MODE_1M;
+#endif
     add_usecs = rxhdr->rem_usecs +
-            ble_ll_pdu_tx_time_get(rx_pyld_len, connsm->phy_data.rx_phy_mode);
+            ble_ll_pdu_tx_time_get(rx_pyld_len, rx_phy_mode);
 
     /*
      * Check the packet CRC. A connection event can continue even if the
