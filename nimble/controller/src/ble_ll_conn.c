@@ -2706,13 +2706,18 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
     ble_hdr->txinfo.hdr_byte = hdr;
 }
 
-/* Returns true if the address matches the connection peer address */
+/* Returns true if the address matches the connection peer address having in
+ * mind privacy mode
+ */
 static int
 ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
 {
     int rc;
     uint8_t *peer_addr;
     struct ble_ll_conn_sm *connsm;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    struct ble_ll_resolv_entry *rl;
+#endif
 
     /* XXX: Deal with different types of random addresses here! */
     connsm = g_ble_ll_conn_create_sm;
@@ -2724,10 +2729,30 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     /* Fall-through intentional */
     case BLE_HCI_CONN_PEER_ADDR_PUBLIC:
     case BLE_HCI_CONN_PEER_ADDR_RANDOM:
-        if (addr_type != connsm->peer_addr_type) {
+        if (addr_type == connsm->peer_addr_type) {
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+                /* Peer uses its identity address. Let's verify privacy mode*/
+            if (ble_ll_resolv_enabled()) {
+                rl = ble_ll_resolv_list_find(adva, addr_type);
+                if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+                    return 0;
+                }
+            }
+#endif
+            peer_addr = adva;
+            break;
+        }
+
+        /* Check if peer uses RPA. If so and it match, use it as controller
+         * supports privacy mode
+         */
+        if ((index < 0) ||
+            (g_ble_ll_resolv_list[index].rl_addr_type != connsm->peer_addr_type)) {
             return 0;
         }
-        peer_addr = adva;
+
+        peer_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+
         break;
     case BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT:
         if ((index < 0) ||
