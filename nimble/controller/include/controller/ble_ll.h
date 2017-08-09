@@ -383,13 +383,7 @@ int ble_ll_is_valid_random_addr(uint8_t *addr);
 
 /* Calculate the amount of time in microseconds a PDU with payload length of
  * 'payload_len' will take to transmit on a PHY 'phy_mode'. */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
 uint32_t ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode);
-#else
-#define ble_ll_pdu_tx_time_get(payload_len, phy_mode) \
-    (((payload_len) + BLE_LL_PDU_HDR_LEN + BLE_LL_ACC_ADDR_LEN \
-            + BLE_LL_PREAMBLE_LEN + BLE_LL_CRC_LEN) << 3)
-#endif
 
 /* Calculate maximum octets of PDU payload which can be transmitted during
  * 'usecs' on a PHY 'phy_mode'. */

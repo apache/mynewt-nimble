@@ -1241,12 +1241,12 @@ ble_ll_seed_prng(void)
     srand(seed);
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
 uint32_t
 ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
 {
     uint32_t usecs;
 
+#if (BLE_LL_BT5_PHY_SUPPORTED)
     if (phy_mode == BLE_PHY_MODE_1M) {
         /* 8 usecs per byte */
         usecs = payload_len << 3;
@@ -1264,11 +1264,13 @@ ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
     }
 
     usecs += g_ble_ll_pdu_header_tx_time[phy_mode];
+#else
+    usecs = (((payload_len) + BLE_LL_PDU_HDR_LEN + BLE_LL_ACC_ADDR_LEN
+            + BLE_LL_PREAMBLE_LEN + BLE_LL_CRC_LEN) << 3);
+#endif
 
     return usecs;
-
 }
-#endif
 
 uint16_t
 ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
