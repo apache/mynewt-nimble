@@ -1107,30 +1107,51 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     int rc;
     uint8_t lls;
 
+    lls = ble_ll_state_get();
+    if (lls == BLE_LL_STATE_STANDBY) {
+        goto sched;
+    }
+
+    /* If aux scan scheduled and LL is in state when scanner is running
+     * in 3 states:
+     * BLE_LL_STATE_SCANNING
+     * BLE_LL_STATE_INITIATING
+     * BLE_LL_STATE_STANDBY
+     *
+     * Let scanner to decide to disable phy or not.
+     */
+    if (sch->sched_type == BLE_LL_SCHED_TYPE_AUX_SCAN) {
+        if (lls == BLE_LL_STATE_INITIATING || lls == BLE_LL_STATE_SCANNING) {
+            goto sched;
+        }
+    }
+
     /*
      * This is either an advertising event or connection event start. If
      * we are scanning or initiating just stop it.
      */
-    lls = ble_ll_state_get();
-    if (lls != BLE_LL_STATE_STANDBY) {
-        /* We have to disable the PHY no matter what */
-        ble_phy_disable();
-        ble_ll_wfr_disable();
-        if (lls == BLE_LL_STATE_SCANNING) {
-            ble_ll_state_set(BLE_LL_STATE_STANDBY);
-        } else if (lls == BLE_LL_STATE_INITIATING) {
-            ble_ll_state_set(BLE_LL_STATE_STANDBY);
-            /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
-            ble_ll_conn_reset_pending_aux_conn_rsp();
-        } else if (lls == BLE_LL_STATE_ADV) {
-            STATS_INC(ble_ll_stats, sched_state_adv_errs);
-            ble_ll_adv_halt();
-        } else {
-            STATS_INC(ble_ll_stats, sched_state_conn_errs);
-            ble_ll_conn_event_halt();
-        }
+
+    /* We have to disable the PHY no matter what */
+    ble_phy_disable();
+    ble_ll_wfr_disable();
+
+    if (lls == BLE_LL_STATE_SCANNING) {
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        ble_ll_scan_clean_cur_aux_data();
+    } else if (lls == BLE_LL_STATE_INITIATING) {
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        ble_ll_scan_clean_cur_aux_data();
+        /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
+        ble_ll_conn_reset_pending_aux_conn_rsp();
+    } else if (lls == BLE_LL_STATE_ADV) {
+        STATS_INC(ble_ll_stats, sched_state_adv_errs);
+        ble_ll_adv_halt();
+    } else {
+        STATS_INC(ble_ll_stats, sched_state_conn_errs);
+        ble_ll_conn_event_halt();
     }
 
+sched:
     assert(sch->sched_cb);
     rc = sch->sched_cb(sch);
     return rc;
@@ -1326,24 +1347,22 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
     uint32_t now;
     struct ble_ll_sched_item *entry;
     struct ble_ll_sched_item *sch;
+    int phy_mode;
 
-    /* TODO Handle multiple scheduled items */
     sch = &aux_scan->sch;
 
     now =  ble_hdr->beg_cputime;
     earliest_start = now + os_cputime_usecs_to_ticks(aux_scan->offset);
     earliest_start -= g_ble_ll_sched_offset_ticks;
 
-    /* TODO: FIX duration. We should assure as much time as we need for specific PHY.
-     * Also we need to take mode into account e.g in order to do
-     * scan req and aux conn req
+    /* Let's calculate time we reserve for aux packet. For now we assume to wait
+     * for fixed number of bytes and handle possible interrupting it in
+     * ble_ll_sched_execute_item(). This is because aux packet can be up to
+     * 256bytes and we don't want to block sched that long
      */
-    if (aux_scan->aux_phy == BLE_PHY_CODED) {
-        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
-    } else {
-        dur = 2 * BLE_LL_SCHED_ADV_MAX_USECS;
-    }
-
+    phy_mode = ble_ll_phy_to_phy_mode(aux_scan->aux_phy,
+                                      BLE_HCI_LE_PHY_CODED_ANY);
+    dur = ble_ll_pdu_tx_time_get(BLE_LL_SCHED_AUX_PTR_DFLT_BYTES_NUM, phy_mode);
     earliest_end = earliest_start + os_cputime_usecs_to_ticks(dur);
 
     /* We have to find a place for this schedule */
