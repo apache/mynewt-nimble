@@ -58,7 +58,7 @@ static void
 ble_gap_test_util_init(void)
 {
     ble_hs_test_util_init();
-    ble_hs_test_util_set_static_rnd_addr();
+    ble_hs_test_util_set_static_rnd_addr((uint8_t[6]){ 1, 2, 3, 4, 5, 0xc0 });
     ble_gap_test_util_reset_cb_info();
 }
 

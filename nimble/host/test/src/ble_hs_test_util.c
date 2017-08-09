@@ -2004,9 +2004,8 @@ ble_hs_test_util_verify_tx_l2cap_update_rsp(uint8_t exp_id,
 }
 
 void
-ble_hs_test_util_set_static_rnd_addr(void)
+ble_hs_test_util_set_static_rnd_addr(const uint8_t *addr)
 {
-    uint8_t addr[6] = { 1, 2, 3, 4, 5, 0xc1 };
     int rc;
 
     ble_hs_test_util_set_ack(
@@ -2432,4 +2431,7 @@ ble_hs_test_util_init(void)
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_prev_hci_tx_clear();
+
+    /* Clear random address. */
+    ble_hs_test_util_set_static_rnd_addr((uint8_t[6]){ 0, 0, 0, 0, 0, 0 });
 }
