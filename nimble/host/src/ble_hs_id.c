@@ -117,10 +117,14 @@ done:
  *                                      o BLE_ADDR_PUBLIC
  *                                      o BLE_ADDR_RANDOM
  * @param out_id_addr           On success, this is reseated to point to the
- *                                  retrieved 6-byte identity address.
+ *                                  retrieved 6-byte identity address.  Pass
+ *                                  NULL if you do not require this
+ *                                  information.
+
  * @param out_is_nrpa           On success, the pointed-to value indicates
  *                                  whether the retrieved address is a
- *                                  non-resolvable private address.
+ *                                  non-resolvable private address.  Pass NULL
+ *                                  if you do not require this information.
  *
  * @return                      0 on success;
  *                              BLE_HS_EINVAL if an invalid address type was
@@ -178,10 +182,12 @@ ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
  *                                      o BLE_ADDR_RANDOM
  * @param out_id_addr           On success, the requested identity address is
  *                                  copied into this buffer.  The buffer must
- *                                  be at least six bytes in size.
+ *                                  be at least six bytes in size.  Pass NULL
+ *                                  if you do not require this information.
  * @param out_is_nrpa           On success, the pointed-to value indicates
  *                                  whether the retrieved address is a
- *                                  non-resolvable private address.
+ *                                  non-resolvable private address.  Pass NULL
+ *                                  if you do not require this information.
  *
  * @return                      0 on success;
  *                              BLE_HS_EINVAL if an invalid address type was
@@ -200,7 +206,7 @@ ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
     ble_hs_lock();
 
     rc = ble_hs_id_addr(id_addr_type, &addr, out_is_nrpa);
-    if (rc == 0) {
+    if (rc == 0 && out_id_addr != NULL) {
         memcpy(out_id_addr, addr, 6);
     }
 
