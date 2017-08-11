@@ -6,18 +6,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-static inline bool bt_mesh_friend_dst_is_lpn(u16_t dst)
+#ifndef __FRIEND_H__
+#define __FRIEND_H__
+
+#include "mesh/mesh.h"
+
+static inline bool
+bt_mesh_friend_dst_is_lpn(u16_t dst)
 {
-#if defined(CONFIG_BLUETOOTH_MESH_FRIEND)
-	return (dst == bt_mesh.frnd.lpn);
+#if (MYNEWT_VAL(BLE_MESH_FRIEND))
+    return (dst == bt_mesh.frnd.lpn);
 #else
-	return false;
+    return false;
 #endif
 }
 
-bool bt_mesh_friend_enqueue(struct net_buf *buf, u16_t dst);
+bool
+bt_mesh_friend_enqueue(struct os_mbuf *buf, u16_t dst);
 
-int bt_mesh_friend_poll(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
-int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
+int
+bt_mesh_friend_poll(struct bt_mesh_net_rx *rx, struct os_mbuf *buf);
+int
+bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf);
 
-int bt_mesh_friend_init(void);
+int
+bt_mesh_friend_init(void);
+
+#endif

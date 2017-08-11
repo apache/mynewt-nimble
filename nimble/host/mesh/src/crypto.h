@@ -5,6 +5,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#ifndef __CRYPTO_H__
+#define __CRYPTO_H__
+
+#include "mesh/mesh.h"
 
 struct bt_mesh_sg {
 	const void *data;
@@ -30,12 +34,12 @@ static inline bool bt_mesh_s1(const char *m, u8_t salt[16])
 }
 
 int bt_mesh_k1(const u8_t *ikm, size_t ikm_len, const u8_t salt[16],
-	       const u8_t *info, size_t info_len, u8_t okm[16]);
+	       const char *info, u8_t okm[16]);
 
 #define bt_mesh_k1_str(ikm, ikm_len, salt_str, info, okm) \
 ({ \
 	const u8_t salt[16] = salt_str; \
-	bt_mesh_k1(ikm, ikm_len, salt, info, strlen(info), okm); \
+	bt_mesh_k1(ikm, ikm_len, salt, info, okm); \
 })
 
 int bt_mesh_k2(const u8_t n[16], const u8_t *p, size_t p_len,
@@ -78,7 +82,7 @@ static inline int bt_mesh_session_key(const u8_t dhkey[32],
 				      const u8_t prov_salt[16],
 				      u8_t session_key[16])
 {
-	return bt_mesh_k1(dhkey, 32, prov_salt, "prsk", 4, session_key);
+	return bt_mesh_k1(dhkey, 32, prov_salt, "prsk", session_key);
 }
 
 static inline int bt_mesh_prov_nonce(const u8_t dhkey[32],
@@ -88,7 +92,7 @@ static inline int bt_mesh_prov_nonce(const u8_t dhkey[32],
 	u8_t tmp[16];
 	int err;
 
-	err = bt_mesh_k1(dhkey, 32, prov_salt, "prsn", 4, tmp);
+	err = bt_mesh_k1(dhkey, 32, prov_salt, "prsn", tmp);
 	if (!err) {
 		memcpy(nonce, tmp + 3, 13);
 	}
@@ -100,7 +104,7 @@ static inline int bt_mesh_dev_key(const u8_t dhkey[32],
 				  const u8_t prov_salt[16],
 				  u8_t dev_key[16])
 {
-	return bt_mesh_k1(dhkey, 32, prov_salt, "prdk", 4, dev_key);
+	return bt_mesh_k1(dhkey, 32, prov_salt, "prdk", dev_key);
 }
 
 static inline int bt_mesh_prov_salt(const u8_t conf_salt[16],
@@ -121,26 +125,26 @@ static inline int bt_mesh_prov_salt(const u8_t conf_salt[16],
 int bt_mesh_net_obfuscate(u8_t *pdu, u32_t iv_index,
 			  const u8_t privacy_key[16]);
 
-int bt_mesh_net_encrypt(const u8_t key[16], struct net_buf_simple *buf,
+int bt_mesh_net_encrypt(const u8_t key[16], struct os_mbuf *buf,
 			u32_t iv_index, bool proxy);
 
-int bt_mesh_net_decrypt(const u8_t key[16], struct net_buf_simple *buf,
+int bt_mesh_net_decrypt(const u8_t key[16], struct os_mbuf *buf,
 			u32_t iv_index, bool proxy);
 
 int bt_mesh_app_encrypt(const u8_t key[16], bool dev_key, u8_t aszmic,
-			struct net_buf_simple *buf, const u8_t *ad,
+			struct os_mbuf *buf, const u8_t *ad,
 			u8_t mic_len, u16_t src, u16_t dst,
 			u32_t seq_num, u32_t iv_index);
 
 int bt_mesh_app_decrypt(const u8_t key[16], bool dev_key, u8_t aszmic,
-			struct net_buf_simple *buf, u8_t mic_len,
-			struct net_buf_simple *out, const u8_t *ad,
+			struct os_mbuf *buf, u8_t mic_len,
+			struct os_mbuf *out, const u8_t *ad,
 			u16_t src, u16_t dst, u32_t seq_num,
 			u32_t iv_index);
 
 u8_t bt_mesh_fcs_calc(const u8_t *data, u8_t data_len);
 
-bool bt_mesh_fcs_check(struct net_buf_simple *buf, u8_t received_fcs);
+bool bt_mesh_fcs_check(struct os_mbuf *buf, u8_t received_fcs);
 
 int bt_mesh_virtual_addr(const u8_t virtual_label[16], u16_t *addr);
 
@@ -154,3 +158,5 @@ int bt_mesh_prov_conf(const u8_t conf_key[16], const u8_t rand[16],
 
 int bt_mesh_prov_decrypt(const u8_t key[16], u8_t nonce[13],
 			 const u8_t data[25 + 8], u8_t out[25]);
+
+#endif

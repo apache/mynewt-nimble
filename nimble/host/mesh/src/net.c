@@ -6,25 +6,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <atomic.h>
-#include <misc/util.h>
-#include <misc/byteorder.h>
 
-#include <net/buf.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/conn.h>
-#include <bluetooth/mesh.h>
+#include "os/os_mbuf.h"
+#include "mesh/mesh.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BLUETOOTH_MESH_DEBUG_NET)
-#include "common/log.h"
+#define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_MSG_DEBUG_NET)
+#include "host/ble_hs_log.h"
 
 #include "crypto.h"
 #include "adv.h"
-#include "mesh.h"
+#include "mesh_priv.h"
 #include "net.h"
 #include "lpn.h"
 #include "friend.h"
@@ -37,13 +31,13 @@
 /* Seq limit after IV Update is triggered */
 #define IV_UPDATE_SEQ_LIMIT 8000000
 
-#if defined(CONFIG_BLUETOOTH_MESH_IV_UPDATE_TEST)
+#if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
 /* Small test timeout for IV Update Procedure testing */
 #define IV_UPDATE_TIMEOUT  K_SECONDS(120)
 #else
 /* Maximum time to stay in IV Update mode (96 < time < 144) */
 #define IV_UPDATE_TIMEOUT  K_HOURS(120)
-#endif /* CONFIG_BLUETOOTH_MESH_IV_UPDATE_TEST */
+#endif /* MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST) */
 
 #define IVI(pdu)           ((pdu)[0] >> 7)
 #define NID(pdu)           ((pdu)[0] & 0x7f)
@@ -51,10 +45,10 @@
 #define TTL(pdu)           ((pdu)[1] & 0x7f)
 
 /* Determine how many friendship credentials we need */
-#if defined(CONFIG_BLUETOOTH_MESH_FRIEND)
-#define FRIEND_CRED_COUNT CONFIG_BLUETOOTH_MESH_FRIEND_LPN_COUNT
-#elif defined(CONFIG_BLUETOOTH_MESH_LOW_POWER)
-#define FRIEND_CRED_COUNT CONFIG_BLUETOOTH_MESH_SUBNET_COUNT
+#if (MYNEWT_VAL(BLE_MESH_FRIEND))
+#define FRIEND_CRED_COUNT MYNEWT_VAL(BLE_MESH_FRIEND_LPN_COUNT)
+#elif (MYNEWT_VAL(BLE_MESH_LOW_POWER))
+#define FRIEND_CRED_COUNT MYNEWT_VAL(BLE_MESH_SUBNET_COUNT)
 #else
 #define FRIEND_CRED_COUNT 0
 #endif
@@ -63,18 +57,18 @@
 static struct bt_mesh_friend_cred friend_cred[FRIEND_CRED_COUNT];
 #endif
 
-static u64_t msg_cache[CONFIG_BLUETOOTH_MESH_MSG_CACHE_SIZE];
+static u64_t msg_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
 static u16_t msg_cache_next;
 
 /* Singleton network context (the implementation only supports one) */
 struct bt_mesh_net bt_mesh = {
 	.sub = {
-		[0 ... (CONFIG_BLUETOOTH_MESH_SUBNET_COUNT - 1)] = {
+		[0 ... (MYNEWT_VAL(BLE_MESH_SUBNET_COUNT) - 1)] = {
 			.net_idx = BT_MESH_KEY_UNUSED,
 		}
 	},
 	.app_keys = {
-		[0 ... (CONFIG_BLUETOOTH_MESH_APP_KEY_COUNT - 1)] = {
+		[0 ... (MYNEWT_VAL(BLE_MESH_APP_KEY_COUNT) - 1)] = {
 			.net_idx = BT_MESH_KEY_UNUSED,
 		}
 	},
@@ -83,7 +77,7 @@ struct bt_mesh_net bt_mesh = {
 static u32_t dup_cache[4];
 static int   dup_cache_next;
 
-static bool check_dup(struct net_buf_simple *data)
+static bool check_dup(struct os_mbuf *data)
 {
 	const u8_t *tail = net_buf_simple_tail(data);
 	u32_t val;
@@ -103,18 +97,18 @@ static bool check_dup(struct net_buf_simple *data)
 	return false;
 }
 
-static u64_t msg_hash(struct net_buf_simple *pdu)
+static u64_t msg_hash(struct os_mbuf *pdu)
 {
 	u8_t *tpdu_last;
 	u64_t hash;
 
 	/* Last byte of TransportPDU */
-	tpdu_last = net_buf_simple_tail(pdu) - (CTL(pdu->data) ? 8 : 4) - 1;
+	tpdu_last = net_buf_simple_tail(pdu) - (CTL(pdu->om_data) ? 8 : 4) - 1;
 
-	((u8_t *)(&hash))[0] = pdu->data[0];
-	((u8_t *)(&hash))[1] = (pdu->data[1] & 0xc0);
+	((u8_t *)(&hash))[0] = pdu->om_data[0];
+	((u8_t *)(&hash))[1] = (pdu->om_data[1] & 0xc0);
 	((u8_t *)(&hash))[2] = *tpdu_last;
-	memcpy(&((u8_t *)&hash)[3], &pdu->data[2], 5);
+	memcpy(&((u8_t *)&hash)[3], &pdu->om_data[2], 5);
 
 	return hash;
 }
@@ -138,7 +132,7 @@ static bool msg_is_known(u64_t hash)
 	return false;
 }
 
-static inline u32_t net_seq(struct net_buf_simple *buf)
+static inline u32_t net_seq(struct os_mbuf *buf)
 {
 	return ((net_buf_simple_pull_u8(buf) << 16) & 0xff0000) |
 		((net_buf_simple_pull_u8(buf) << 8) & 0xff00) |
@@ -190,7 +184,7 @@ int bt_mesh_net_keys_create(struct bt_mesh_subnet_keys *keys,
 
 	BT_DBG("NetID %s", bt_hex(keys->net_id, 8));
 
-#if defined(CONFIG_BLUETOOTH_MESH_GATT_PROXY)
+#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 	err = bt_mesh_identity_key(key, keys->identity);
 	if (err) {
 		BT_ERR("Unable to generate IdentityKey");
@@ -211,8 +205,8 @@ int bt_mesh_net_keys_create(struct bt_mesh_subnet_keys *keys,
 	return 0;
 }
 
-#if (defined(CONFIG_BLUETOOTH_MESH_LOW_POWER) || \
-     defined(CONFIG_BLUETOOTH_MESH_FRIEND))
+#if ((MYNEWT_VAL(BLE_MESH_LOW_POWER)) || \
+     (MYNEWT_VAL(BLE_MESH_FRIEND)))
 int bt_mesh_friend_cred_set(struct bt_mesh_friend_cred *cred, u8_t idx,
 			    const u8_t net_key[16])
 {
@@ -220,7 +214,7 @@ int bt_mesh_friend_cred_set(struct bt_mesh_friend_cred *cred, u8_t idx,
 	int err;
 	u8_t p[9];
 
-#if defined(CONFIG_BLUETOOTH_MESH_LOW_POWER)
+#if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
 	if (cred->addr == bt_mesh.lpn.frnd) {
 		lpn_addr = bt_mesh_primary_addr();
 		frnd_addr = cred->addr;
@@ -449,7 +443,7 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 	bt_mesh.valid = 1;
 	sub->net_idx = idx;
 
-	if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_GATT_PROXY)) {
+	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
 		sub->node_id = BT_MESH_NODE_IDENTITY_RUNNING;
 	} else {
 		sub->node_id = BT_MESH_NODE_IDENTITY_NOT_SUPPORTED;
@@ -503,8 +497,8 @@ bool bt_mesh_kr_update(struct bt_mesh_subnet *sub, u8_t new_kr, bool new_key)
 			BT_DBG("KR Phase 0x%02x -> Normal", sub->kr_phase);
 			memcpy(&sub->keys[0], &sub->keys[1],
 			       sizeof(sub->keys[0]));
-			if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_LOW_POWER) ||
-			    IS_ENABLED(CONFIG_BLUETOOTH_MESH_FRIEND)) {
+			if ((MYNEWT_VAL(BLE_MESH_LOW_POWER)) ||
+			    (MYNEWT_VAL(BLE_MESH_FRIEND))) {
 				bt_mesh_friend_cred_refresh(sub->net_idx);
 			}
 			sub->kr_phase = BT_MESH_KR_NORMAL;
@@ -575,7 +569,7 @@ void bt_mesh_iv_update(u32_t iv_index, bool iv_update)
 		}
 	}
 
-	if (!IS_ENABLED(CONFIG_BLUETOOTH_MESH_IV_UPDATE_TEST)) {
+	if (!(MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST))) {
 		s64_t delta = k_uptime_get() - bt_mesh.last_update;
 
 		if (delta < K_HOURS(96)) {
@@ -619,13 +613,13 @@ do_update:
 	}
 }
 
-int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct net_buf *buf,
+int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 		       bool new_key, bool friend_cred, bt_mesh_adv_func_t cb)
 {
 	const u8_t *enc, *priv;
 	int err;
 
-	BT_DBG("net_idx 0x%04x, len %u", sub->net_idx, buf->len);
+	BT_DBG("net_idx 0x%04x, len %u", sub->net_idx, buf->om_len);
 
 	if (friend_cred) {
 		err = friend_cred_get(sub->net_idx, BT_MESH_ADDR_UNASSIGNED,
@@ -638,30 +632,30 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct net_buf *buf,
 		priv = sub->keys[new_key].privacy;
 	}
 
-	err = bt_mesh_net_obfuscate(buf->data, BT_MESH_NET_IVI_TX, priv);
+	err = bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_TX, priv);
 	if (err) {
 		BT_ERR("deobfuscate failed (err %d)", err);
 		return err;
 	}
 
-	err = bt_mesh_net_decrypt(enc, &buf->b, BT_MESH_NET_IVI_TX, false);
+	err = bt_mesh_net_decrypt(enc, buf, BT_MESH_NET_IVI_TX, false);
 	if (err) {
 		BT_ERR("decrypt failed (err %d)", err);
 		return err;
 	}
 
 	/* Update with a new sequence number */
-	buf->data[2] = (bt_mesh.seq >> 16);
-	buf->data[3] = (bt_mesh.seq >> 8);
-	buf->data[4] = bt_mesh.seq++;
+	buf->om_data[2] = (bt_mesh.seq >> 16);
+	buf->om_data[3] = (bt_mesh.seq >> 8);
+	buf->om_data[4] = bt_mesh.seq++;
 
-	err = bt_mesh_net_encrypt(enc, &buf->b, BT_MESH_NET_IVI_TX, false);
+	err = bt_mesh_net_encrypt(enc, buf, BT_MESH_NET_IVI_TX, false);
 	if (err) {
 		BT_ERR("encrypt failed (err %d)", err);
 		return err;
 	}
 
-	err = bt_mesh_net_obfuscate(buf->data, BT_MESH_NET_IVI_TX, priv);
+	err = bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_TX, priv);
 	if (err) {
 		BT_ERR("obfuscate failed (err %d)", err);
 		return err;
@@ -677,20 +671,20 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct net_buf *buf,
 	return 0;
 }
 
-#if defined(CONFIG_BLUETOOTH_MESH_LOCAL_INTERFACE)
-static void bt_mesh_net_local(struct k_work *work)
+#if (MYNEWT_VAL(BLE_MESH_LOCAL_INTERFACE))
+static void bt_mesh_net_local(struct os_event *work)
 {
-	struct net_buf *buf;
+	struct os_mbuf *buf;
 
 	while ((buf = net_buf_get(&bt_mesh.local_queue, K_NO_WAIT))) {
-		BT_DBG("len %u: %s", buf->len, bt_hex(buf->data, buf->len));
-		bt_mesh_net_recv(&buf->b, 0, BT_MESH_NET_IF_LOCAL);
+		BT_DBG("len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
+		bt_mesh_net_recv(buf, 0, BT_MESH_NET_IF_LOCAL);
 		net_buf_unref(buf);
 	}
 }
 #endif
 
-int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct net_buf_simple *buf,
+int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		       bool proxy)
 {
 	const bool ctl = (tx->ctx->app_idx == BT_MESH_KEY_UNUSED);
@@ -759,21 +753,21 @@ int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct net_buf_simple *buf,
 		return err;
 	}
 
-	return bt_mesh_net_obfuscate(buf->data, BT_MESH_NET_IVI_TX, priv);
+	return bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_TX, priv);
 }
 
-int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct net_buf *buf,
+int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		     bt_mesh_adv_func_t cb)
 {
 	int err;
 
 	BT_DBG("src 0x%04x dst 0x%04x len %u headroom %zu tailroom %zu",
-	       tx->src, tx->ctx->addr, buf->len, net_buf_headroom(buf),
+	       tx->src, tx->ctx->addr, buf->om_len, net_buf_headroom(buf),
 	       net_buf_tailroom(buf));
-	BT_DBG("Payload len %u: %s", buf->len, bt_hex(buf->data, buf->len));
+	BT_DBG("Payload len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 	BT_DBG("Seq 0x%06x", bt_mesh.seq);
 
-#if defined(CONFIG_BLUETOOTH_MESH_LOW_POWER)
+#if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
 	/* Communication between LPN & Friend should always be using
 	 * the Friendship Credentials. Any other destination should
 	 * use the Master Credentials.
@@ -787,21 +781,21 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct net_buf *buf,
 		tx->ctx->send_ttl = bt_mesh_default_ttl_get();
 	}
 
-	err = bt_mesh_net_encode(tx, &buf->b, false);
+	err = bt_mesh_net_encode(tx, buf, false);
 	if (err) {
 		goto done;
 	}
 
 	/* Deliver to GATT Proxy Clients if necessary */
-	if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_GATT_PROXY)) {
-		if (bt_mesh_proxy_relay(&buf->b, tx->ctx->addr) &&
+	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
+		if (bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
 		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
 			err = 0;
 			goto done;
 		}
 	}
 
-#if defined(CONFIG_BLUETOOTH_MESH_LOCAL_INTERFACE)
+#if (MYNEWT_VAL(BLE_MESH_LOCAL_INTERFACE))
 	/* Deliver to local network interface if necessary */
 	if (bt_mesh_fixed_group_match(tx->ctx->addr) ||
 	    bt_mesh_elem_find(tx->ctx->addr)) {
@@ -877,7 +871,7 @@ struct bt_mesh_subnet *bt_mesh_subnet_find(const u8_t net_id[8], u8_t flags,
 
 static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 		       size_t data_len, struct bt_mesh_net_rx *rx,
-		       struct net_buf_simple *buf)
+		       struct os_mbuf *buf)
 {
 	const u8_t *enc, *priv;
 
@@ -911,7 +905,7 @@ static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 	net_buf_simple_init(buf, 0);
 	memcpy(net_buf_simple_add(buf, data_len), data, data_len);
 
-	if (bt_mesh_net_obfuscate(buf->data, BT_MESH_NET_IVI_RX(rx), priv)) {
+	if (bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_RX(rx), priv)) {
 		return -ENOENT;
 	}
 
@@ -919,7 +913,7 @@ static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 		return -EALREADY;
 	}
 
-	rx->ctx.addr = sys_get_be16(&buf->data[5]);
+	rx->ctx.addr = sys_get_be16(&buf->om_data[5]);
 	if (!BT_MESH_ADDR_IS_UNICAST(rx->ctx.addr)) {
 		BT_WARN("Ignoring non-unicast src addr 0x%04x", rx->ctx.addr);
 		return -EINVAL;
@@ -927,7 +921,7 @@ static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 
 	BT_DBG("src 0x%04x", rx->ctx.addr);
 
-	if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_PROXY) &&
+	if ((MYNEWT_VAL(BLE_MESH_PROXY)) &&
 	    rx->net_if == BT_MESH_NET_IF_PROXY_CFG) {
 		return bt_mesh_net_decrypt(enc, buf, BT_MESH_NET_IVI_RX(rx),
 					   true);
@@ -938,7 +932,7 @@ static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 
 static int net_find_and_decrypt(const u8_t *data, size_t data_len,
 				struct bt_mesh_net_rx *rx,
-				struct net_buf_simple *buf)
+				struct os_mbuf *buf)
 {
 	int i;
 
@@ -975,17 +969,17 @@ static int net_find_and_decrypt(const u8_t *data, size_t data_len,
 	return false;
 }
 
-#if (defined(CONFIG_BLUETOOTH_MESH_RELAY) || \
-     defined(CONFIG_BLUETOOTH_MESH_FRIEND) || \
-     defined(CONFIG_BLUETOOTH_MESH_GATT_PROXY))
-static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
+#if ((MYNEWT_VAL(BLE_MESH_RELAY)) || \
+     (MYNEWT_VAL(BLE_MESH_FRIEND)) || \
+     (MYNEWT_VAL(BLE_MESH_GATT_PROXY)))
+static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 			      struct bt_mesh_net_rx *rx)
 {
 	const u8_t *enc, *priv;
-	struct net_buf *buf;
+	struct os_mbuf *buf;
 	u8_t nid, transmit;
 
-	BT_DBG("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, CTL(sbuf->data),
+	BT_DBG("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, CTL(sbuf->om_data),
 	       rx->dst);
 
 	if (rx->ctx.recv_ttl <= 1) {
@@ -1000,13 +994,13 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 		return;
 	}
 
-	net_buf_add_mem(buf, sbuf->data, sbuf->len);
+	net_buf_add_mem(buf, sbuf->om_data, sbuf->om_len);
 
 	/* Only decrement TTL for non-locally originated packets */
 	if (rx->net_if != BT_MESH_NET_IF_LOCAL) {
 		/* Leave CTL bit intact */
-		buf->data[1] &= 0x80;
-		buf->data[1] |= rx->ctx.recv_ttl - 1;
+		buf->om_data[1] &= 0x80;
+		buf->om_data[1] |= rx->ctx.recv_ttl - 1;
 	}
 
 	if (rx->sub->kr_phase == BT_MESH_KR_PHASE_2) {
@@ -1037,37 +1031,37 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 		}
 	}
 
-	BT_DBG("Relaying packet. TTL is now %u", TTL(buf->data));
+	BT_DBG("Relaying packet. TTL is now %u", TTL(buf->om_data));
 
 	/* Update NID if RX or TX is with friend credentials */
 	if (rx->ctx.friend_cred || bt_mesh_friend_dst_is_lpn(rx->dst)) {
-		buf->data[0] &= 0x80; /* Clear everything except IVI */
-		buf->data[0] |= nid;
+		buf->om_data[0] &= 0x80; /* Clear everything except IVI */
+		buf->om_data[0] |= nid;
 	}
 
 	/* We re-encrypt and obfuscate using the received IVI rather than
 	 * the normal TX IVI (which may be different) since the transport
 	 * layer nonce includes the IVI.
 	 */
-	if (bt_mesh_net_encrypt(enc, &buf->b, BT_MESH_NET_IVI_RX(rx), false)) {
+	if (bt_mesh_net_encrypt(enc, buf, BT_MESH_NET_IVI_RX(rx), false)) {
 		BT_ERR("Re-encrypting failed");
 		goto done;
 	}
 
-	if (bt_mesh_net_obfuscate(buf->data, BT_MESH_NET_IVI_RX(rx), priv)) {
+	if (bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_RX(rx), priv)) {
 		BT_ERR("Re-obfuscating failed");
 		goto done;
 	}
 
-	if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_FRIEND)) {
+	if ((MYNEWT_VAL(BLE_MESH_FRIEND))) {
 		if (bt_mesh_friend_enqueue(buf, rx->dst) &&
 		    BT_MESH_ADDR_IS_UNICAST(rx->dst)) {
 			goto done;
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_GATT_PROXY)) {
-		if (bt_mesh_proxy_relay(&buf->b, rx->dst) &&
+	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
+		if (bt_mesh_proxy_relay(buf, rx->dst) &&
 			    BT_MESH_ADDR_IS_UNICAST(rx->dst)) {
 			goto done;
 		}
@@ -1083,13 +1077,13 @@ done:
 }
 #endif /* RELAY || FRIEND || GATT_PROXY */
 
-int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
-		       struct bt_mesh_net_rx *rx, struct net_buf_simple *buf,
+int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
+		       struct bt_mesh_net_rx *rx, struct os_mbuf *buf,
 		       struct net_buf_simple_state *state)
 {
-	if (data->len < 18) {
-		BT_WARN("Dropping too short mesh packet (len %u)", data->len);
-		BT_WARN("%s", bt_hex(data->data, data->len));
+	if (data->om_len < 18) {
+		BT_WARN("Dropping too short mesh packet (len %u)", data->om_len);
+		BT_WARN("%s", bt_hex(data->om_data, data->om_len));
 		return -EINVAL;
 	}
 
@@ -1097,7 +1091,7 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
 		return -EINVAL;
 	}
 
-	BT_DBG("%u bytes: %s", data->len, bt_hex(data->data, data->len));
+	BT_DBG("%u bytes: %s", data->om_len, bt_hex(data->om_data, data->om_len));
 
 	rx->net_if = net_if;
 
@@ -1105,7 +1099,7 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
 		rx->hash = msg_hash(data);
 	}
 
-	if (!net_find_and_decrypt(data->data, data->len, rx, buf)) {
+	if (!net_find_and_decrypt(data->om_data, data->om_len, rx, buf)) {
 		BT_DBG("Unable to find matching net for packet");
 		return -ENOENT;
 	}
@@ -1118,7 +1112,7 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
 		net_buf_simple_save(buf, state);
 	}
 
-	rx->ctx.recv_ttl = TTL(buf->data);
+	rx->ctx.recv_ttl = TTL(buf->om_data);
 
 	/* Default to responding with TTL 0 for non-routed messages */
 	if (rx->ctx.recv_ttl == 0) {
@@ -1127,13 +1121,13 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
 		rx->ctx.send_ttl = BT_MESH_TTL_DEFAULT;
 	}
 
-	rx->ctl = CTL(buf->data);
+	rx->ctl = CTL(buf->om_data);
 	net_buf_simple_pull(buf, 2); /* SRC, already parsed by net_decrypt() */
 	rx->seq = net_seq(buf);
 	net_buf_simple_pull(buf, 2);
 	rx->dst = net_buf_simple_pull_be16(buf);
 
-	BT_DBG("Decryption successful. Payload len %u", buf->len);
+	BT_DBG("Decryption successful. Payload len %u", buf->om_len);
 
 	if (net_if != BT_MESH_NET_IF_LOCAL && bt_mesh_elem_find(rx->ctx.addr)) {
 		BT_DBG("Dropping locally originated packet");
@@ -1146,29 +1140,29 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl %u", rx->ctx.addr, rx->dst,
 	       rx->ctx.recv_ttl);
-	BT_DBG("PDU: %s", bt_hex(buf->data, buf->len));
+	BT_DBG("PDU: %s", bt_hex(buf->om_data, buf->om_len));
 
 	return 0;
 }
 
-void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
+void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 		      enum bt_mesh_net_if net_if)
 {
-	struct net_buf_simple *buf = NET_BUF_SIMPLE(29);
+	struct os_mbuf *buf = NET_BUF_SIMPLE(29);
 	struct net_buf_simple_state state;
 	struct bt_mesh_net_rx rx;
 
 	BT_DBG("rssi %d net_if %u", rssi, net_if);
 
 	if (!bt_mesh_is_provisioned()) {
-		return;
+		goto done;
 	}
 
 	if (bt_mesh_net_decode(data, net_if, &rx, buf, &state)) {
-		return;
+		goto done;
 	}
 
-	if (IS_ENABLED(CONFIG_BLUETOOTH_MESH_GATT_PROXY) &&
+	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY)) &&
 	    net_if == BT_MESH_NET_IF_PROXY) {
 		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
 	}
@@ -1177,19 +1171,22 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 		bt_mesh_trans_recv(buf, &rx);
 
 		if (BT_MESH_ADDR_IS_UNICAST(rx.dst)) {
-			return;
+			goto done;
 		}
 	}
 
-#if (defined(CONFIG_BLUETOOTH_MESH_RELAY) || \
-     defined(CONFIG_BLUETOOTH_MESH_FRIEND) || \
-     defined(CONFIG_BLUETOOTH_MESH_GATT_PROXY))
+#if ((MYNEWT_VAL(BLE_MESH_RELAY)) || \
+     (MYNEWT_VAL(BLE_MESH_FRIEND)) || \
+     (MYNEWT_VAL(BLE_MESH_GATT_PROXY)))
 	net_buf_simple_restore(buf, &state);
 	bt_mesh_net_relay(buf, &rx);
-#endif /* CONFIG_BLUETOOTH_MESH_RELAY  || FRIEND || GATT_PROXY */
+#endif /* MYNEWT_VAL(BLE_MESH_RELAY)  || FRIEND || GATT_PROXY */
+
+done:
+    os_mbuf_free_chain(buf);
 }
 
-static void ivu_complete(struct k_work *work)
+static void ivu_complete(struct os_event *work)
 {
 	BT_DBG("");
 
@@ -1201,7 +1198,7 @@ void bt_mesh_net_init(void)
 {
 	k_delayed_work_init(&bt_mesh.ivu_complete, ivu_complete);
 
-#if defined(CONFIG_BLUETOOTH_MESH_LOCAL_INTERFACE)
+#if (MYNEWT_VAL(BLE_MESH_LOCAL_INTERFACE))
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 #endif
 }
