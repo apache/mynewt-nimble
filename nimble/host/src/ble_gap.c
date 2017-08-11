@@ -2043,14 +2043,15 @@ ble_gap_adv_validate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
         break;
 
     case BLE_GAP_CONN_MODE_DIR:
+        if (peer_addr == NULL) {
+            return BLE_HS_EINVAL;
+        }
+
         if (peer_addr->type != BLE_ADDR_PUBLIC &&
             peer_addr->type != BLE_ADDR_RANDOM &&
             peer_addr->type != BLE_ADDR_PUBLIC_ID &&
             peer_addr->type != BLE_ADDR_RANDOM_ID) {
 
-            return BLE_HS_EINVAL;
-        }
-        if (peer_addr == NULL) {
             return BLE_HS_EINVAL;
         }
 
