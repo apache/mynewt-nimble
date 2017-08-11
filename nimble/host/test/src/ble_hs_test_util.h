@@ -32,7 +32,6 @@ struct ble_l2cap_chan;
 struct hci_disconn_complete;
 struct hci_create_conn;
 
-extern struct os_eventq ble_hs_test_util_evq;
 extern const struct ble_gap_adv_params ble_hs_test_util_adv_params;
 
 struct ble_hs_test_util_num_completed_pkts_entry {

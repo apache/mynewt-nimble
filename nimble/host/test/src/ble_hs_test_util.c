@@ -39,8 +39,6 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 #define BLE_HS_TEST_UTIL_LE_OPCODE(ocf) \
     ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, (ocf))
 
-struct os_eventq ble_hs_test_util_evq;
-
 static STAILQ_HEAD(, os_mbuf_pkthdr) ble_hs_test_util_prev_tx_queue;
 struct os_mbuf *ble_hs_test_util_prev_tx_cur;
 
@@ -2397,7 +2395,6 @@ ble_hs_test_util_init_no_start(void)
 {
     sysinit();
 
-    os_eventq_init(&ble_hs_test_util_evq);
     STAILQ_INIT(&ble_hs_test_util_prev_tx_queue);
     ble_hs_test_util_prev_tx_cur = NULL;
 
@@ -2413,8 +2410,6 @@ ble_hs_test_util_init_no_start(void)
     ble_hs_max_attrs = 64;
 
     ble_hs_test_util_prev_hci_tx_clear();
-
-    ble_hs_evq_set(&ble_hs_test_util_evq);
 
     ble_hs_cfg.store_read_cb = ble_hs_test_util_store_read;
     ble_hs_cfg.store_write_cb = ble_hs_test_util_store_write;
