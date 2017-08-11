@@ -121,7 +121,7 @@ ble_hs_evq_get(void)
 void
 ble_hs_evq_set(struct os_eventq *evq)
 {
-    os_eventq_designate(&ble_hs_evq, evq, &ble_hs_ev_start);
+    ble_hs_evq = evq;
 }
 
 int
@@ -637,6 +637,12 @@ ble_hs_init(void)
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
     ble_hs_evq_set(os_eventq_dflt_get());
+
+    /* Enqueue the start event to the default event queue.  Using the default
+     * queue ensures the event won't run until the end of main().  This allows
+     * the application to configure this package in the meantime.
+     */
+    os_eventq_put(os_eventq_dflt_get(), &ble_hs_ev_start);
 
 #if BLE_MONITOR
     ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");
