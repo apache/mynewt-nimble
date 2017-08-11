@@ -2408,6 +2408,8 @@ ble_sm_pair_initiate(uint16_t conn_handle)
     struct ble_sm_proc *proc;
     int rc;
 
+    memset(&res, 0, sizeof(res));
+
     /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
@@ -2453,6 +2455,8 @@ ble_sm_slave_initiate(uint16_t conn_handle)
 {
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
+
+    memset(&res, 0, sizeof(res));
 
     ble_hs_lock();
 
