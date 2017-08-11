@@ -368,7 +368,7 @@ static void
 ble_os_test_app_task_handler(void *arg)
 {
     while (1) {
-        os_eventq_run(&ble_hs_test_util_evq);
+        os_eventq_run(os_eventq_dflt_get());
     }
 }
 
