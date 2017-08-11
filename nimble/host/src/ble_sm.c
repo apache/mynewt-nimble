@@ -2069,6 +2069,10 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         /* Send identity information. */
         id_info = ble_sm_cmd_get(BLE_SM_OP_IDENTITY_INFO, sizeof(*id_info),
                                  &txom);
+        if (!id_info) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
 
         rc = ble_hs_pvcy_our_irk(&irk);
         if (rc != 0) {
