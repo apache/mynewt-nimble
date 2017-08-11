@@ -353,3 +353,11 @@ syscfg.defs:
             mechanism.
 
         value: 8
+
+    BLE_MESH:
+        description: >
+            Enable Bluetooth Mesh	
+        value: 0
+
+syscfg.vals.BLE_MESH:
+    BLE_SM_SC: 1

@@ -6,19 +6,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
 #include <errno.h>
-#include <misc/util.h>
-#include <misc/byteorder.h>
 
-#include <net/buf.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/mesh.h>
+#include <os/os_mbuf.h>
+#include "mesh/mesh.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BLUETOOTH_MESH_DEBUG_ACCESS)
-#include "common/log.h"
+#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_ACCESS))
+#include "host/ble_hs_log.h"
 
-#include "mesh.h"
+#include "mesh_priv.h"
 #include "adv.h"
 #include "net.h"
 #include "lpn.h"
@@ -94,11 +90,9 @@ s32_t bt_mesh_model_pub_period_get(struct bt_mesh_model *mod)
 	return period >> mod->pub->period_div;
 }
 
-static void mod_publish(struct k_work *work)
+static void mod_publish(struct os_event *work)
 {
-	struct bt_mesh_model_pub *pub = CONTAINER_OF(work,
-						     struct bt_mesh_model_pub,
-						     timer.work);
+	struct bt_mesh_model_pub *pub = work->ev_arg;
 	s32_t period_ms;
 
 	BT_DBG("");
@@ -293,12 +287,12 @@ static const struct bt_mesh_model_op *find_op(struct bt_mesh_model *models,
 	return NULL;
 }
 
-static int get_opcode(struct net_buf_simple *buf, u32_t *opcode)
+static int get_opcode(struct os_mbuf *buf, u32_t *opcode)
 {
-	switch (buf->data[0] >> 6) {
+	switch (buf->om_data[0] >> 6) {
 	case 0x00:
 	case 0x01:
-		if (buf->data[0] == 0x7f) {
+		if (buf->om_data[0] == 0x7f) {
 			BT_ERR("Ignoring RFU OpCode");
 			return -EINVAL;
 		}
@@ -306,7 +300,7 @@ static int get_opcode(struct net_buf_simple *buf, u32_t *opcode)
 		*opcode = net_buf_simple_pull_u8(buf);
 		return 0;
 	case 0x02:
-		if (buf->len < 2) {
+		if (buf->om_len < 2) {
 			BT_ERR("Too short payload for 2-octet OpCode");
 			return -EINVAL;
 		}
@@ -314,7 +308,7 @@ static int get_opcode(struct net_buf_simple *buf, u32_t *opcode)
 		*opcode = net_buf_simple_pull_be16(buf);
 		return 0;
 	case 0x03:
-		if (buf->len < 3) {
+		if (buf->om_len < 3) {
 			BT_ERR("Too short payload for 3-octet OpCode");
 			return -EINVAL;
 		}
@@ -345,7 +339,7 @@ bool bt_mesh_fixed_group_match(u16_t addr)
 	}
 }
 
-void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
+void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
 	struct bt_mesh_model *models, *model;
 	const struct bt_mesh_model_op *op;
@@ -355,7 +349,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 
 	BT_DBG("app_idx 0x%04x src 0x%04x dst 0x%04x", rx->ctx.app_idx,
 	       rx->ctx.addr, rx->dst);
-	BT_DBG("len %u: %s", buf->len, bt_hex(buf->data, buf->len));
+	BT_DBG("len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
 	if (get_opcode(buf, &opcode) < 0) {
 		BT_WARN("Unable to decode OpCode");
@@ -396,7 +390,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 		if (op) {
 			struct net_buf_simple_state state;
 
-			if (buf->len < op->min_len) {
+			if (buf->om_len < op->min_len) {
 				BT_ERR("Too short message for OpCode 0x%08x",
 				       opcode);
 				continue;
@@ -416,7 +410,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 	}
 }
 
-void bt_mesh_model_msg_init(struct net_buf_simple *msg, u32_t opcode)
+void bt_mesh_model_msg_init(struct os_mbuf *msg, u32_t opcode)
 {
 	net_buf_simple_init(msg, 0);
 
@@ -439,7 +433,7 @@ void bt_mesh_model_msg_init(struct net_buf_simple *msg, u32_t opcode)
 
 int bt_mesh_model_send(struct bt_mesh_model *model,
 		       struct bt_mesh_msg_ctx *ctx,
-		       struct net_buf_simple *msg, bt_mesh_cb_t cb,
+		       struct os_mbuf *msg, bt_mesh_cb_t cb,
 		       void *cb_data)
 {
 	struct bt_mesh_net_tx tx = {
@@ -455,14 +449,14 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x dst 0x%04x", ctx->net_idx,
 	       ctx->app_idx, ctx->addr);
-	BT_DBG("len %u: %s", msg->len, bt_hex(msg->data, msg->len));
+	BT_DBG("len %u: %s", msg->om_len, bt_hex(msg->om_data, msg->om_len));
 
 	if (net_buf_simple_tailroom(msg) < 4) {
 		BT_ERR("Not enough tailroom for TransMIC");
 		return -EINVAL;
 	}
 
-	if (msg->len > BT_MESH_TX_SDU_MAX - 4) {
+	if (msg->om_len > BT_MESH_TX_SDU_MAX - 4) {
 		BT_ERR("Too big message");
 		return -EMSGSIZE;
 	}
@@ -476,7 +470,7 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
 }
 
 int bt_mesh_model_publish(struct bt_mesh_model *model,
-			  struct net_buf_simple *msg)
+			  struct os_mbuf *msg)
 {
 	struct bt_mesh_app_key *key;
 	struct bt_mesh_msg_ctx ctx;

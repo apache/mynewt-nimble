@@ -6,28 +6,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER) == 1
+
 #include <stdint.h>
-#include <zephyr.h>
-#include <misc/byteorder.h>
 
-#include <net/buf.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/mesh.h>
+#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
+#include "host/ble_hs_log.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BLUETOOTH_MESH_DEBUG_LOW_POWER)
-#include "common/log.h"
-
+#include "mesh/mesh.h"
+#include "mesh_priv.h"
 #include "crypto.h"
 #include "adv.h"
-#include "mesh.h"
 #include "net.h"
 #include "transport.h"
 #include "access.h"
 #include "beacon.h"
 #include "lpn.h"
 
-#define LPN_RECV_DELAY            CONFIG_BLUETOOTH_MESH_LPN_RECV_DELAY
-#define SCAN_LATENCY              min(CONFIG_BLUETOOTH_MESH_LPN_SCAN_LATENCY, \
+#define LPN_RECV_DELAY            MYNEWT_VAL(BLE_MESH_LPN_RECV_DELAY)
+#define SCAN_LATENCY              min(MYNEWT_VAL(BLE_MESH_LPN_SCAN_LATENCY), \
 				      LPN_RECV_DELAY)
 
 #define FRIEND_REQ_RETRY_TIMEOUT  K_SECONDS(5)
@@ -41,17 +40,17 @@
 				  (LPN_RECV_DELAY + (lpn)->recv_win + \
 				   POLL_RETRY_TIMEOUT))
 
-#define POLL_TIMEOUT(lpn)   ((CONFIG_BLUETOOTH_MESH_LPN_POLL_TIMEOUT * 100) - \
+#define POLL_TIMEOUT(lpn)   ((MYNEWT_VAL(BLE_MESH_LPN_POLL_TIMEOUT) * 100) - \
 			     REQ_RETRY_DURATION(lpn))
 
-#define LPN_CRITERIA ((CONFIG_BLUETOOTH_MESH_LPN_MIN_QUEUE_SIZE) | \
-		      (CONFIG_BLUETOOTH_MESH_LPN_RSSI_FACTOR << 3) | \
-		      (CONFIG_BLUETOOTH_MESH_LPN_RECV_WIN_FACTOR << 5))
+#define LPN_CRITERIA ((MYNEWT_VAL(BLE_MESH_LPN_MIN_QUEUE_SIZE)) | \
+		      (MYNEWT_VAL(BLE_MESH_LPN_RSSI_FACTOR) << 3) | \
+		      (MYNEWT_VAL(BLE_MESH_LPN_RECV_WIN_FACTOR) << 5))
 
 #define POLL_TO(to) { (u8_t)((to) >> 16), (u8_t)((to) >> 8), (u8_t)(to) }
-#define LPN_POLL_TO POLL_TO(CONFIG_BLUETOOTH_MESH_LPN_POLL_TIMEOUT)
+#define LPN_POLL_TO POLL_TO(MYNEWT_VAL(BLE_MESH_LPN_POLL_TIMEOUT))
 
-#if defined(CONFIG_BLUETOOTH_MESH_DEBUG_LOW_POWER)
+#if (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
 static const char *state2str(int state)
 {
 	switch (state) {
@@ -79,7 +78,7 @@ static const char *state2str(int state)
 
 static inline void lpn_set_state(int state)
 {
-#if defined(CONFIG_BLUETOOTH_MESH_DEBUG_LOW_POWER)
+#if (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
 	BT_DBG("%s -> %s", state2str(bt_mesh.lpn.state), state2str(state));
 #endif
 	bt_mesh.lpn.state = state;
@@ -87,7 +86,7 @@ static inline void lpn_set_state(int state)
 
 static void clear_friendship(bool disable);
 
-static void friend_clear_sent(struct net_buf *buf, int err)
+static void friend_clear_sent(struct os_mbuf *buf, int err)
 {
 	/* We're switching away from Low Power behavior, so permanently
 	 * enable scanning.
@@ -168,7 +167,7 @@ static void clear_friendship(bool disable)
 	k_delayed_work_submit(&lpn->timer, FRIEND_REQ_RETRY_TIMEOUT);
 }
 
-static void friend_req_sent(struct net_buf *buf, int err)
+static void friend_req_sent(struct os_mbuf *buf, int err)
 {
 	if (err) {
 		BT_ERR("Sending Friend Request failed (err %d)", err);
@@ -247,7 +246,7 @@ static inline void group_clear(atomic_t *target, atomic_t *source)
 #endif
 }
 
-static void req_sent(struct net_buf *buf, int err)
+static void req_sent(struct os_mbuf *buf, int err)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
@@ -383,16 +382,16 @@ void bt_mesh_lpn_msg_received(struct bt_mesh_net_rx *rx)
 }
 
 int bt_mesh_lpn_friend_offer(struct bt_mesh_net_rx *rx,
-			     struct net_buf_simple *buf)
+			     struct os_mbuf *buf)
 {
-	struct bt_mesh_ctl_friend_offer *msg = (void *)buf->data;
+	struct bt_mesh_ctl_friend_offer *msg = (void *)buf->om_data;
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 	struct bt_mesh_subnet *sub = rx->sub;
 	struct bt_mesh_friend_cred *cred;
 	u16_t frnd_counter;
 	int err;
 
-	if (buf->len < sizeof(*msg)) {
+	if (buf->om_len < sizeof(*msg)) {
 		BT_WARN("Too short Friend Offer");
 		return -EINVAL;
 	}
@@ -449,13 +448,13 @@ int bt_mesh_lpn_friend_offer(struct bt_mesh_net_rx *rx,
 }
 
 int bt_mesh_lpn_friend_clear_cfm(struct bt_mesh_net_rx *rx,
-				 struct net_buf_simple *buf)
+				 struct os_mbuf *buf)
 {
-	struct bt_mesh_ctl_friend_clear_confirm *msg = (void *)buf->data;
+	struct bt_mesh_ctl_friend_clear_confirm *msg = (void *)buf->om_data;
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 	u16_t addr, counter;
 
-	if (buf->len < sizeof(*msg)) {
+	if (buf->om_len < sizeof(*msg)) {
 		BT_WARN("Too short Friend Clear Confirm");
 		return -EINVAL;
 	}
@@ -605,11 +604,11 @@ static bool sub_update(u8_t op)
 	return true;
 }
 
-static void lpn_timeout(struct k_work *work)
+static void lpn_timeout(struct os_event *work)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-#if defined(CONFIG_BLUETOOTH_MESH_DEBUG_LOW_POWER)
+#if (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
 	BT_DBG("state: %s", state2str(lpn->state));
 #endif
 
@@ -718,12 +717,12 @@ static s32_t poll_timeout(struct bt_mesh_lpn *lpn)
 }
 
 int bt_mesh_lpn_friend_sub_cfm(struct bt_mesh_net_rx *rx,
-			       struct net_buf_simple *buf)
+			       struct os_mbuf *buf)
 {
-	struct bt_mesh_ctl_friend_sub_confirm *msg = (void *)buf->data;
+	struct bt_mesh_ctl_friend_sub_confirm *msg = (void *)buf->om_data;
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-	if (buf->len < sizeof(*msg)) {
+	if (buf->om_len < sizeof(*msg)) {
 		BT_WARN("Too short Friend Subscription Confirm");
 		return -EINVAL;
 	}
@@ -783,14 +782,14 @@ int bt_mesh_lpn_friend_sub_cfm(struct bt_mesh_net_rx *rx,
 }
 
 int bt_mesh_lpn_friend_update(struct bt_mesh_net_rx *rx,
-			      struct net_buf_simple *buf)
+			      struct os_mbuf *buf)
 {
-	struct bt_mesh_ctl_friend_update *msg = (void *)buf->data;
+	struct bt_mesh_ctl_friend_update *msg = (void *)buf->om_data;
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 	struct bt_mesh_subnet *sub = rx->sub;
 	u32_t iv_index;
 
-	if (buf->len < sizeof(*msg)) {
+	if (buf->om_len < sizeof(*msg)) {
 		BT_WARN("Too short Friend Update");
 		return -EINVAL;
 	}
@@ -880,3 +879,5 @@ int bt_mesh_lpn_init(void)
 
 	return 0;
 }
+
+#endif //MYNEWT_VAL(BLE_MESH_LOW_POWER) == 1
