@@ -1889,13 +1889,14 @@ ble_gap_adv_params_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 {
 #if MYNEWT_VAL(BLE_EXT_ADV)
     struct hci_ext_adv_params hci_adv_params;
+    const ble_addr_t *peer_any = BLE_ADDR_ANY;
     uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN];
     uint16_t min_int = 0, max_int = 0;
     uint16_t props;
     int rc;
 
     if (peer_addr == NULL) {
-        peer_addr = BLE_ADDR_ANY;
+        peer_addr = peer_any;
     }
 
     hci_adv_params.own_addr_type = own_addr_type;
