@@ -2048,10 +2048,12 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
         rc = ble_sm_gen_ediv(&master_id->ediv);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
         rc = ble_sm_gen_master_id_rand(&master_id->rand_val);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
 
@@ -2076,6 +2078,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
         rc = ble_hs_pvcy_our_irk(&irk);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
 
