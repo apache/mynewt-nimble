@@ -27,13 +27,13 @@ static int
 ble_hs_startup_le_read_sup_f_tx(void)
 {
     uint8_t ack_params[BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN];
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t ack_params_len;
     uint32_t feat;
     int rc;
 
-    ble_hs_hci_cmd_build_le_read_loc_supp_feat(buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, ack_params, sizeof ack_params,
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
+                           NULL,0, ack_params, sizeof ack_params,
                            &ack_params_len);
     if (rc != 0) {
         return rc;
@@ -55,14 +55,13 @@ ble_hs_startup_le_read_buf_sz_tx(void)
 {
     uint16_t pktlen;
     uint8_t ack_params[BLE_HCI_RD_BUF_SIZE_RSPLEN];
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t ack_params_len;
     uint8_t max_pkts;
     int rc;
 
-    ble_hs_hci_cmd_build_le_read_buffer_size(buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, ack_params, sizeof ack_params,
-                           &ack_params_len);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_RD_BUF_SIZE),NULL, 0,
+                           ack_params, sizeof ack_params, &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -86,12 +85,12 @@ static int
 ble_hs_startup_read_bd_addr(void)
 {
     uint8_t ack_params[BLE_HCI_IP_RD_BD_ADDR_ACK_PARAM_LEN];
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t ack_params_len;
     int rc;
 
-    ble_hs_hci_cmd_build_read_bd_addr(buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, ack_params, sizeof ack_params,
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS,
+                                      BLE_HCI_OCF_IP_RD_BD_ADDR),
+                           NULL, 0, ack_params, sizeof ack_params,
                            &ack_params_len);
     if (rc != 0) {
         return rc;
@@ -108,7 +107,7 @@ ble_hs_startup_read_bd_addr(void)
 static int
 ble_hs_startup_le_set_evmask_tx(void)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_LE_EVENT_MASK_LEN];
+    uint8_t buf[BLE_HCI_SET_LE_EVENT_MASK_LEN];
     int rc;
 
     /**
@@ -130,7 +129,9 @@ ble_hs_startup_le_set_evmask_tx(void)
      *     0x0000000000080000 LE Channel Selection Algorithm Event
      */
     ble_hs_hci_cmd_build_le_set_event_mask(0x00000000000F1A7F, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                                BLE_HCI_OCF_LE_SET_EVENT_MASK),
+                                     buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -141,7 +142,7 @@ ble_hs_startup_le_set_evmask_tx(void)
 static int
 ble_hs_startup_set_evmask_tx(void)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_EVENT_MASK_LEN];
+    uint8_t buf[BLE_HCI_SET_EVENT_MASK_LEN];
     int rc;
 
     /**
@@ -153,7 +154,9 @@ ble_hs_startup_set_evmask_tx(void)
      *     0x2000000000000000 LE Meta-Event
      */
     ble_hs_hci_cmd_build_set_event_mask(0x2000000002008090, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                                BLE_HCI_OCF_CB_SET_EVENT_MASK),
+                                     buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -163,7 +166,9 @@ ble_hs_startup_set_evmask_tx(void)
      *     0x0000000000800000 Authenticated Payload Timeout Event
      */
     ble_hs_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                                BLE_HCI_OCF_CB_SET_EVENT_MASK2),
+                                     buf, sizeof(buf));
     if (rc != 0) {
         BLE_HS_LOG(WARN, "ble_hs_startup_set_evmask_tx() failed\n");
     }
@@ -174,11 +179,11 @@ ble_hs_startup_set_evmask_tx(void)
 static int
 ble_hs_startup_reset_tx(void)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     int rc;
 
-    ble_hs_hci_cmd_build_reset(buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                                BLE_HCI_OCF_CB_RESET),
+                                     NULL, 0);
     if (rc != 0) {
         return rc;
     }

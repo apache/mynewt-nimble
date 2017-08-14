@@ -1036,11 +1036,13 @@ ble_sm_chk_store_overflow(uint16_t conn_handle)
 static int
 ble_sm_start_encrypt_tx(struct hci_start_encrypt *cmd)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_START_ENCRYPT_LEN];
+    uint8_t buf[BLE_HCI_LE_START_ENCRYPT_LEN];
     int rc;
 
     ble_hs_hci_cmd_build_le_start_encrypt(cmd, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                                BLE_HCI_OCF_LE_START_ENCRYPT),
+                                          buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -1223,7 +1225,7 @@ ble_sm_ltk_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
 {
     struct hci_lt_key_req_reply cmd;
     uint16_t ack_conn_handle;
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LT_KEY_REQ_REPLY_LEN];
+    uint8_t buf[BLE_HCI_LT_KEY_REQ_REPLY_LEN];
     uint8_t ack_params_len;
     int rc;
 
@@ -1231,8 +1233,10 @@ ble_sm_ltk_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
     memcpy(cmd.long_term_key, ltk, 16);
 
     ble_hs_hci_cmd_build_le_lt_key_req_reply(&cmd, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
-                           &ack_params_len);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
+                           buf, sizeof(buf), &ack_conn_handle,
+                           sizeof(ack_conn_handle), &ack_params_len);
     if (rc != 0) {
         return rc;
     }
@@ -1251,13 +1255,15 @@ static int
 ble_sm_ltk_req_neg_reply_tx(uint16_t conn_handle)
 {
     uint16_t ack_conn_handle;
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN];
+    uint8_t buf[BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN];
     uint8_t ack_params_len;
     int rc;
 
     ble_hs_hci_cmd_build_le_lt_key_req_neg_reply(conn_handle, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, &ack_conn_handle, sizeof ack_conn_handle,
-                           &ack_params_len);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
+                           buf, sizeof(buf), &ack_conn_handle,
+                           sizeof(ack_conn_handle), &ack_params_len);
     if (rc != 0) {
         return rc;
     }

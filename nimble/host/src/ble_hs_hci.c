@@ -257,19 +257,17 @@ ble_hs_hci_wait_for_ack(void)
 }
 
 int
-ble_hs_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
+ble_hs_hci_cmd_tx(uint16_t opcode, void *cmd, uint8_t cmd_len,
+                  void *evt_buf, uint8_t evt_buf_len,
                   uint8_t *out_evt_buf_len)
 {
     struct ble_hs_hci_ack ack;
-    uint16_t opcode;
     int rc;
-
-    opcode = get_le16(cmd);
 
     BLE_HS_DBG_ASSERT(ble_hs_hci_ack == NULL);
     ble_hs_hci_lock();
 
-    rc = ble_hs_hci_cmd_send_buf(cmd);
+    rc = ble_hs_hci_cmd_send_buf(opcode, cmd, cmd_len);
     if (rc != 0) {
         goto done;
     }
@@ -303,11 +301,11 @@ done:
 }
 
 int
-ble_hs_hci_cmd_tx_empty_ack(void *cmd)
+ble_hs_hci_cmd_tx_empty_ack(uint16_t opcode, void *cmd, uint8_t cmd_len)
 {
     int rc;
 
-    rc = ble_hs_hci_cmd_tx(cmd, NULL, 0, NULL);
+    rc = ble_hs_hci_cmd_tx(opcode, cmd, cmd_len, NULL, 0, NULL);
     if (rc != 0) {
         return rc;
     }
