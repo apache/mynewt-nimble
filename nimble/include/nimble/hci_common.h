@@ -39,6 +39,9 @@ extern "C" {
 
 #define BLE_HCI_OPCODE_NOP                  (0)
 
+/* Set opcode based on OCF and OGF */
+#define BLE_HCI_OP(ogf, ocf)            ((ocf) | ((ogf) << 10))
+
 /* Get the OGF and OCF from the opcode in the command */
 #define BLE_HCI_OGF(opcode)                 (((opcode) >> 10) & 0x003F)
 #define BLE_HCI_OCF(opcode)                 ((opcode) & 0x03FF)

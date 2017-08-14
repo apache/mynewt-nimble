@@ -43,12 +43,12 @@ ble_hs_hci_util_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
 int
 ble_hs_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t params_len;
     int rc;
 
-    ble_hs_hci_cmd_build_read_adv_pwr(buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, out_tx_pwr, 1, &params_len);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR),
+                           NULL, 0,out_tx_pwr, 1, &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -66,17 +66,15 @@ int
 ble_hs_hci_util_rand(void *dst, int len)
 {
     uint8_t rsp_buf[BLE_HCI_LE_RAND_LEN];
-    uint8_t req_buf[BLE_HCI_CMD_HDR_LEN];
     uint8_t params_len;
     uint8_t *u8ptr;
     int chunk_sz;
     int rc;
 
-    ble_hs_hci_cmd_build_le_rand(req_buf, sizeof req_buf);
-
     u8ptr = dst;
     while (len > 0) {
-        rc = ble_hs_hci_cmd_tx(req_buf, rsp_buf, sizeof rsp_buf, &params_len);
+        rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RAND),
+                               NULL, 0, rsp_buf, sizeof rsp_buf, &params_len);
         if (rc != 0) {
             return rc;
         }
@@ -97,14 +95,16 @@ ble_hs_hci_util_rand(void *dst, int len)
 int
 ble_hs_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_READ_RSSI_LEN];
+    uint8_t buf[BLE_HCI_READ_RSSI_LEN];
     uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
     uint16_t params_conn_handle;
     uint8_t params_len;
     int rc;
 
     ble_hs_hci_cmd_build_read_rssi(conn_handle, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, params, sizeof params, &params_len);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_STATUS_PARAMS,
+                                      BLE_HCI_OCF_RD_RSSI), buf, sizeof(buf),
+                           params, sizeof(params), &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -128,9 +128,9 @@ ble_hs_hci_util_set_random_addr(const uint8_t *addr)
 {
 #if MYNEWT_VAL(BLE_EXT_ADV)
     /* this buffer is larger and can handle both commands */
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN];
+    uint8_t buf[BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN];
 #else
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_RAND_ADDR_LEN];
+    uint8_t buf[BLE_HCI_SET_RAND_ADDR_LEN];
 #endif
     int rc;
 
@@ -141,7 +141,9 @@ ble_hs_hci_util_set_random_addr(const uint8_t *addr)
         return rc;
     }
 
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                                BLE_HCI_OCF_LE_SET_RAND_ADDR),
+                                     buf, BLE_HCI_SET_RAND_ADDR_LEN);
     if (rc != 0) {
         return rc;
     }
@@ -157,7 +159,9 @@ ble_hs_hci_util_set_random_addr(const uint8_t *addr)
         return rc;
     }
 
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR),
+                                     buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -171,7 +175,7 @@ ble_hs_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
                              uint16_t tx_time)
 {
 
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_DATALEN_LEN];
+    uint8_t buf[BLE_HCI_SET_DATALEN_LEN];
     uint8_t params[BLE_HCI_SET_DATALEN_ACK_PARAM_LEN];
     uint16_t params_conn_handle;
     uint8_t params_len;
@@ -183,8 +187,10 @@ ble_hs_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
         return BLE_HS_HCI_ERR(rc);
     }
 
-    rc = ble_hs_hci_cmd_tx(buf, params, BLE_HCI_SET_DATALEN_ACK_PARAM_LEN,
-                           &params_len);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_SET_DATA_LEN),
+                           buf, sizeof(buf), params,
+                           BLE_HCI_SET_DATALEN_ACK_PARAM_LEN, &params_len);
     if (rc != 0) {
         return rc;
     }
@@ -251,14 +257,16 @@ ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
 int
 ble_hs_hci_read_chan_map(uint16_t conn_handle, uint8_t *out_chan_map)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_RD_CHANMAP_LEN];
+    uint8_t buf[BLE_HCI_RD_CHANMAP_LEN];
     uint8_t params[BLE_HCI_RD_CHANMAP_RSP_LEN];
     uint16_t params_conn_handle;
     uint8_t params_len;
     int rc;
 
     ble_hs_hci_cmd_build_le_read_chan_map(conn_handle, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx(buf, params, BLE_HCI_RD_CHANMAP_RSP_LEN,
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_RD_CHAN_MAP),
+                           buf, sizeof(buf), params, BLE_HCI_RD_CHANMAP_RSP_LEN,
                            &params_len);
     if (rc != 0) {
         return rc;
@@ -304,11 +312,13 @@ ble_hs_hci_read_chan_map(uint16_t conn_handle, uint8_t *out_chan_map)
 int
 ble_hs_hci_set_chan_class(const uint8_t *chan_map)
 {
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_HOST_CHAN_CLASS_LEN];
+    uint8_t buf[BLE_HCI_SET_HOST_CHAN_CLASS_LEN];
     int rc;
 
     ble_hs_hci_cmd_build_le_set_host_chan_class(chan_map, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                            BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS),
+                                     buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }

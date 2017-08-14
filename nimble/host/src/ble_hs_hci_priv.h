@@ -69,9 +69,10 @@ struct ble_hs_hci_ext_conn_params {
 };
 #endif
 
-int ble_hs_hci_cmd_tx(void *cmd, void *evt_buf, uint8_t evt_buf_len,
+int ble_hs_hci_cmd_tx(uint16_t opcode, void *cmd, uint8_t cmd_len,
+                      void *evt_buf, uint8_t evt_buf_len,
                       uint8_t *out_evt_buf_len);
-int ble_hs_hci_cmd_tx_empty_ack(void *cmd);
+int ble_hs_hci_cmd_tx_empty_ack(uint16_t opcode, void *cmd, uint8_t cmd_len);
 void ble_hs_hci_rx_ack(uint8_t *ack_ev);
 void ble_hs_hci_init(void);
 
@@ -96,10 +97,9 @@ int ble_hs_hci_evt_process(uint8_t *data);
 uint16_t ble_hs_hci_util_opcode_join(uint8_t ogf, uint16_t ocf);
 void ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len,
                               void *buf);
-int ble_hs_hci_cmd_send(uint8_t ogf, uint16_t ocf, uint8_t len,
+int ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len,
                         const void *cmddata);
-int ble_hs_hci_cmd_send_buf(void *cmddata);
-void ble_hs_hci_cmd_build_read_bd_addr(uint8_t *dst, int dst_len);
+int ble_hs_hci_cmd_send_buf(uint16_t opcode, void *buf, uint8_t buf_len);
 void ble_hs_hci_cmd_build_set_event_mask(uint64_t event_mask,
                                          uint8_t *dst, int dst_len);
 void ble_hs_hci_cmd_build_set_event_mask2(uint64_t event_mask, uint8_t *dst,
@@ -120,9 +120,7 @@ int ble_hs_hci_cmd_build_le_set_adv_params(const struct hci_adv_params *adv,
                                            uint8_t *dst, int dst_len);
 void ble_hs_hci_cmd_build_le_set_event_mask(uint64_t event_mask,
                                             uint8_t *dst, int dst_len);
-void ble_hs_hci_cmd_build_le_read_buffer_size(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_le_read_buffer_size(void);
-void ble_hs_hci_cmd_build_le_read_loc_supp_feat(uint8_t *dst, uint8_t dst_len);
 void ble_hs_hci_cmd_build_le_set_adv_enable(uint8_t enable, uint8_t *dst,
                                             int dst_len);
 int ble_hs_hci_cmd_le_set_adv_enable(uint8_t enable);
@@ -138,15 +136,11 @@ void ble_hs_hci_cmd_build_le_set_scan_enable(uint8_t enable,
 int ble_hs_hci_cmd_le_set_scan_enable(uint8_t enable, uint8_t filter_dups);
 int ble_hs_hci_cmd_build_le_create_connection(
     const struct hci_create_conn *hcc, uint8_t *cmd, int cmd_len);
-void ble_hs_hci_cmd_build_le_clear_whitelist(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_le_add_to_whitelist(const uint8_t *addr,
                                              uint8_t addr_type,
                                              uint8_t *dst, int dst_len);
-void ble_hs_hci_cmd_build_reset(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_reset(void);
-void ble_hs_hci_cmd_build_read_adv_pwr(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_read_adv_pwr(void);
-void ble_hs_hci_cmd_build_le_create_conn_cancel(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_le_create_conn_cancel(void);
 int ble_hs_hci_cmd_build_le_conn_update(const struct hci_conn_update *hcu,
                                         uint8_t *dst, int dst_len);
@@ -162,7 +156,6 @@ void ble_hs_hci_cmd_build_le_conn_param_neg_reply(
     const struct hci_conn_param_neg_reply *hcn, uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_le_conn_param_neg_reply(
     const struct hci_conn_param_neg_reply *hcn);
-void ble_hs_hci_cmd_build_le_rand(uint8_t *dst, int dst_len);
 void ble_hs_hci_cmd_build_le_start_encrypt(const struct hci_start_encrypt *cmd,
                                            uint8_t *dst, int dst_len);
 int ble_hs_hci_set_buf_sz(uint16_t pktlen, uint8_t max_pkts);
@@ -180,8 +173,6 @@ int ble_hs_hci_cmd_build_add_to_resolv_list(
     uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_remove_from_resolv_list(
     uint8_t addr_type, const uint8_t *addr, uint8_t *dst, int dst_len);
-int ble_hs_hci_cmd_build_read_resolv_list_size(uint8_t *dst, int dst_len);
-int ble_hs_hci_cmd_build_clear_resolv_list(uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_build_read_peer_resolv_addr(
     uint8_t peer_identity_addr_type, const uint8_t *peer_identity_addr,
     uint8_t *dst, int dst_len);
