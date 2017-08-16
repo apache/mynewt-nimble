@@ -1463,7 +1463,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static int
+static uint8_t
 ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
 {
     switch (adv_phy_mode) {
@@ -1475,7 +1475,7 @@ ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
         return BLE_PHY_CODED;
     }
 
-    return -1;
+    return 0;
 }
 
 static int
@@ -1503,7 +1503,7 @@ ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
 
     aux_scan->aux_phy =
             ble_ll_ext_adv_phy_mode_to_local_phy((aux_ptr_field >> 21) & 0x07);
-    if (aux_scan->aux_phy < 0) {
+    if (aux_scan->aux_phy == 0) {
         return -1;
     }
 
