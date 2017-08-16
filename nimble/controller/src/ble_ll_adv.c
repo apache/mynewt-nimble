@@ -1996,7 +1996,7 @@ ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
     set = (void *) cmd;
     /* validate instances */
     for (i = 0; i < sets; i++) {
-        if (set->handle > BLE_LL_ADV_INSTANCES) {
+        if (set->handle >= BLE_LL_ADV_INSTANCES) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
