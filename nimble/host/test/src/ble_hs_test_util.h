@@ -293,6 +293,9 @@ void ble_hs_test_util_post_test(void *arg);
 int ble_hs_test_util_num_cccds(void);
 int ble_hs_test_util_num_our_secs(void);
 int ble_hs_test_util_num_peer_secs(void);
+void ble_hs_test_util_reg_svcs(const struct ble_gatt_svc_def *svcs,
+                               ble_gatt_register_fn *reg_cb,
+                               void *cb_arg);
 void ble_hs_test_util_init_no_start(void);
 void ble_hs_test_util_init(void);
 

@@ -116,6 +116,25 @@ ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2)
     return 0;
 }
 
+void
+ble_uuid_copy(ble_uuid_any_t *dst, const ble_uuid_t *src)
+{
+    switch (src->type) {
+    case BLE_UUID_TYPE_16:
+        dst->u16 = *(const ble_uuid16_t *)src;
+        break;
+    case BLE_UUID_TYPE_32:
+        dst->u32 = *(const ble_uuid32_t *)src;
+        break;
+    case BLE_UUID_TYPE_128:
+        dst->u128 = *(const ble_uuid128_t *)src;
+        break;
+    default:
+        BLE_HS_DBG_ASSERT(0);
+        break;
+    }
+}
+
 /**
  * Converts the specified UUID to its string representation.
  *
