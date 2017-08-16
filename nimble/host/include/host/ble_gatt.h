@@ -235,7 +235,7 @@ struct ble_gatt_chr_def {
      * At registration time, this is filled in with the characteristic's value
      * attribute handle.
      */
-    uint16_t * const val_handle;
+    uint16_t *val_handle;
 };
 
 struct ble_gatt_svc_def {
@@ -430,6 +430,8 @@ typedef void (*ble_gatt_svc_foreach_fn)(const struct ble_gatt_svc_def *svc,
                                         uint16_t handle,
                                         uint16_t end_group_handle);
 void ble_gatts_show_local(void);
+int ble_gatts_reset(void);
+int ble_gatts_start(void);
 
 #ifdef __cplusplus
 }

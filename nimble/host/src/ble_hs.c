@@ -493,11 +493,6 @@ ble_hs_start(void)
     os_callout_init(&ble_hs_timer_timer, ble_hs_evq_get(),
                     ble_hs_timer_exp, NULL);
 
-    rc = ble_att_svr_start();
-    if (rc != 0) {
-        return rc;
-    }
-
     rc = ble_gatts_start();
     if (rc != 0) {
         return rc;

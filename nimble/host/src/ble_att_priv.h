@@ -216,6 +216,7 @@ void ble_att_svr_prep_clear(struct ble_att_prep_entry_list *prep_list);
 int ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
                             uint16_t offset, struct os_mbuf *om,
                             uint8_t *out_att_err);
+void ble_att_svr_reset(void);
 int ble_att_svr_init(void);
 
 

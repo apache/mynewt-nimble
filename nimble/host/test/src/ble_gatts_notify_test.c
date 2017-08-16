@@ -229,20 +229,15 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
     struct ble_hs_conn *conn;
     uint16_t flags;
     int exp_num_cccds;
-    int rc;
 
     ble_hs_test_util_init();
-
     ble_gatts_notify_test_num_events = 0;
 
-
-    rc = ble_gatts_register_svcs(ble_gatts_notify_test_svcs,
-                                 ble_gatts_notify_test_misc_reg_cb, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_reg_svcs(ble_gatts_notify_test_svcs,
+                              ble_gatts_notify_test_misc_reg_cb,
+                              NULL);
     TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_1_def_handle != 0);
     TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_2_def_handle != 0);
-
-    ble_gatts_start();
 
     ble_hs_test_util_create_conn(2, ble_gatts_notify_test_peer_addr,
                                  ble_gatts_notify_test_util_gap_event, NULL);
@@ -1016,7 +1011,6 @@ TEST_CASE(ble_gatts_notify_test_disallowed)
     uint16_t chr1_val_handle;
     uint16_t chr2_val_handle;
     uint16_t chr3_val_handle;
-    int rc;
 
     const struct ble_gatt_svc_def svcs[] = { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
@@ -1046,13 +1040,10 @@ TEST_CASE(ble_gatts_notify_test_disallowed)
 
     ble_hs_test_util_init();
 
-    rc = ble_gatts_register_svcs(svcs, NULL, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_reg_svcs(svcs, NULL, NULL);
     TEST_ASSERT_FATAL(chr1_val_handle != 0);
     TEST_ASSERT_FATAL(chr2_val_handle != 0);
     TEST_ASSERT_FATAL(chr3_val_handle != 0);
-
-    ble_gatts_start();
 
     ble_hs_test_util_create_conn(2, ble_gatts_notify_test_peer_addr,
                                  ble_gatts_notify_test_util_gap_event, NULL);

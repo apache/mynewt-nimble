@@ -2391,6 +2391,26 @@ ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
 }
 
 void
+ble_hs_test_util_reg_svcs(const struct ble_gatt_svc_def *svcs,
+                          ble_gatt_register_fn *reg_cb,
+                          void *cb_arg)
+{
+    int rc;
+
+    ble_hs_cfg.gatts_register_cb = reg_cb;
+    ble_hs_cfg.gatts_register_arg = cb_arg;
+
+    rc = ble_gatts_reset();
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_gatts_add_svcs(svcs);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_gatts_start();
+    TEST_ASSERT_FATAL(rc == 0);
+}
+
+void
 ble_hs_test_util_init_no_start(void)
 {
     sysinit();

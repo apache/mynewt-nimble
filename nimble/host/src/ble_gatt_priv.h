@@ -190,7 +190,6 @@ int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
 /*** @misc. */
 int ble_gatts_conn_can_alloc(void);
 int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
-int ble_gatts_start(void);
 int ble_gatts_init(void);
 
 #ifdef __cplusplus
