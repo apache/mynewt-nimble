@@ -4211,8 +4211,7 @@ ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
     /* If we have successfully queued any data, and the failure occurred before
      * we could send the execute write command, then erase all queued data.
      */
-    if (proc->write_reliable.cur_attr >= 0 &&
-        proc->write_reliable.cur_attr < proc->write_reliable.num_attrs) {
+    if (proc->write_reliable.cur_attr < proc->write_reliable.num_attrs) {
 
         ble_att_clt_tx_exec_write(proc->conn_handle,
                                   BLE_ATT_EXEC_WRITE_F_CANCEL);
