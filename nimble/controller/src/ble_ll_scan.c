@@ -2310,7 +2310,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
         ble_ll_scan_switch_phy(scansm);
 
-        if (scansm && scansm->scan_rsp_pending) {
+        if (scansm->scan_rsp_pending) {
             if (!scan_rsp_chk) {
                 return;
             }
@@ -2338,7 +2338,7 @@ scan_continue:
      * we have failed the scan request (as we would have reset the scan rsp
      * pending flag if we received a valid response
      */
-    if (scansm && scansm->scan_rsp_pending && scan_rsp_chk) {
+    if (scansm->scan_rsp_pending && scan_rsp_chk) {
         ble_ll_scan_req_backoff(scansm, 0);
     }
 
