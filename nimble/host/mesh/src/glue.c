@@ -374,7 +374,7 @@ u32_t k_uptime_get_32(void)
 }
 
 static uint8_t pub[64];
-static uint32_t priv[8];
+static uint8_t priv[32];
 static bool has_pub = false;
 
 int
