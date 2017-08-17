@@ -413,31 +413,36 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
 
 int
 ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
-                     uint32_t *our_priv_key, void *out_dhkey)
+                     uint8_t *our_priv_key, uint8_t *out_dhkey)
 {
-    uint32_t dh[8];
-    EccPoint pk;
+    uint8_t dh[32];
+    uint8_t pk[64];
+    uint8_t priv[32];
+    int rc;
 
-    memcpy(pk.x, peer_pub_key_x, 32);
-    memcpy(pk.y, peer_pub_key_y, 32);
+    swap_buf(pk, peer_pub_key_x, 32);
+    swap_buf(&pk[32], peer_pub_key_y, 32);
+    swap_buf(priv, our_priv_key, 32);
 
-    if (ecc_valid_public_key(&pk) < 0) {
+    if (uECC_valid_public_key(pk, &curve_secp256r1) < 0) {
         return BLE_HS_EUNKNOWN;
     }
 
-    if (ecdh_shared_secret(dh, &pk, our_priv_key) == TC_CRYPTO_FAIL) {
+    rc = uECC_shared_secret(pk, priv, dh, &curve_secp256r1);
+    if (rc == TC_CRYPTO_FAIL) {
         return BLE_HS_EUNKNOWN;
     }
 
-    memcpy(out_dhkey, dh, 32);
+    swap_buf(out_dhkey, dh, 32);
 
     return 0;
 }
 
 /* based on Core Specification 4.2 Vol 3. Part H 2.3.5.6.1 */
-static const uint32_t ble_sm_alg_dbg_priv_key[8] = {
-    0xcd3c1abd, 0x5899b8a6, 0xeb40b799, 0x4aff607b, 0xd2103f50, 0x74c9b3e3,
-    0xa3c55f38, 0x3f49f6d4
+static const uint8_t ble_sm_alg_dbg_priv_key[32] = {
+    0x3f, 0x49, 0xf6, 0xd4, 0xa3, 0xc5, 0x5f, 0x38, 0x74, 0xc9, 0xb3, 0xe3,
+    0xd2, 0x10, 0x3f, 0x50, 0x4a, 0xff, 0x60, 0x7b, 0xeb, 0x40, 0xb7, 0x99,
+    0x58, 0x99, 0xb8, 0xa6, 0xcd, 0x3c, 0x1a, 0xbd
 };
 
 /**
@@ -445,30 +450,34 @@ static const uint32_t ble_sm_alg_dbg_priv_key[8] = {
  * priv: 32 bytes
  */
 int
-ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv)
+ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
 {
-    uint32_t random[16];
-    EccPoint pkey;
-    int rc;
+    uint8_t pk[64];
 
     do {
-        rc = ble_hs_hci_util_rand(random, sizeof random);
-        if (rc != 0) {
-            return rc;
-        }
-
-        rc = ecc_make_key(&pkey, priv, random);
-        if (rc != TC_CRYPTO_SUCCESS) {
+        if (uECC_make_key(pk, priv, &curve_secp256r1) != TC_CRYPTO_SUCCESS) {
             return BLE_HS_EUNKNOWN;
         }
 
         /* Make sure generated key isn't debug key. */
     } while (memcmp(priv, ble_sm_alg_dbg_priv_key, 32) == 0);
 
-    memcpy(pub + 0, pkey.x, 32);
-    memcpy(pub + 32, pkey.y, 32);
+    swap_buf(pub, pk, 32);
+    swap_buf(&pub[32], &pk[32], 32);
+    swap_in_place(priv, 32);
 
     return 0;
+}
+
+/* used by uECC to get random data */
+int
+default_CSPRNG(uint8_t *dst, unsigned int size)
+{
+    if (ble_hs_hci_util_rand(dst, size)) {
+        return 0;
+    }
+
+    return 1;
 }
 
 #endif
