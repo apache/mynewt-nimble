@@ -1463,7 +1463,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static int
+static uint8_t
 ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
 {
     switch (adv_phy_mode) {
@@ -1475,7 +1475,7 @@ ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
         return BLE_PHY_CODED;
     }
 
-    return -1;
+    return 0;
 }
 
 static int
@@ -1503,7 +1503,7 @@ ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
 
     aux_scan->aux_phy =
             ble_ll_ext_adv_phy_mode_to_local_phy((aux_ptr_field >> 21) & 0x07);
-    if (aux_scan->aux_phy < 0) {
+    if (aux_scan->aux_phy == 0) {
         return -1;
     }
 
@@ -2310,7 +2310,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
         ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
         ble_ll_scan_switch_phy(scansm);
 
-        if (scansm && scansm->scan_rsp_pending) {
+        if (scansm->scan_rsp_pending) {
             if (!scan_rsp_chk) {
                 return;
             }
@@ -2338,7 +2338,7 @@ scan_continue:
      * we have failed the scan request (as we would have reset the scan rsp
      * pending flag if we received a valid response
      */
-    if (scansm && scansm->scan_rsp_pending && scan_rsp_chk) {
+    if (scansm->scan_rsp_pending && scan_rsp_chk) {
         ble_ll_scan_req_backoff(scansm, 0);
     }
 

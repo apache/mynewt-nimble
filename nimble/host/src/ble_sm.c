@@ -444,7 +444,7 @@ ble_sm_update_sec_state(uint16_t conn_handle, int encrypted,
 }
 
 static void
-ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
+ble_sm_fill_store_value(const ble_addr_t *peer_addr,
                         int authenticated,
                         int sc,
                         struct ble_sm_keys *keys,
@@ -452,8 +452,7 @@ ble_sm_fill_store_value(uint8_t peer_addr_type, uint8_t *peer_addr,
 {
     memset(value_sec, 0, sizeof *value_sec);
 
-    value_sec->peer_addr.type = peer_addr_type;
-    memcpy(value_sec->peer_addr.val, peer_addr, sizeof value_sec->peer_addr);
+    value_sec->peer_addr = *peer_addr;
 
     if (keys->ediv_rand_valid && keys->ltk_valid) {
         value_sec->key_size = keys->key_size;
@@ -563,12 +562,12 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
     sc = proc->flags & BLE_SM_PROC_F_SC;
 
-    ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
-                            sc, &proc->our_keys, &value_sec);
+    ble_sm_fill_store_value(&peer_addr, authenticated, sc, &proc->our_keys,
+                            &value_sec);
     ble_store_write_our_sec(&value_sec);
 
-    ble_sm_fill_store_value(peer_addr.type, peer_addr.val, authenticated,
-                            sc, &proc->peer_keys, &value_sec);
+    ble_sm_fill_store_value(&peer_addr, authenticated, sc, &proc->peer_keys,
+                            &value_sec);
     ble_store_write_peer_sec(&value_sec);
 }
 
@@ -2049,10 +2048,12 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
         rc = ble_sm_gen_ediv(&master_id->ediv);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
         rc = ble_sm_gen_master_id_rand(&master_id->rand_val);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
 
@@ -2070,9 +2071,14 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         /* Send identity information. */
         id_info = ble_sm_cmd_get(BLE_SM_OP_IDENTITY_INFO, sizeof(*id_info),
                                  &txom);
+        if (!id_info) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
 
         rc = ble_hs_pvcy_our_irk(&irk);
         if (rc != 0) {
+            os_mbuf_free_chain(txom);
             goto err;
         }
 
@@ -2408,6 +2414,8 @@ ble_sm_pair_initiate(uint16_t conn_handle)
     struct ble_sm_proc *proc;
     int rc;
 
+    memset(&res, 0, sizeof(res));
+
     /* Make sure a procedure isn't already in progress for this connection. */
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
@@ -2453,6 +2461,8 @@ ble_sm_slave_initiate(uint16_t conn_handle)
 {
     struct ble_sm_result res;
     struct ble_sm_proc *proc;
+
+    memset(&res, 0, sizeof(res));
 
     ble_hs_lock();
 
