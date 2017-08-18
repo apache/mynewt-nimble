@@ -46,6 +46,7 @@
 
 STAILQ_HEAD(ble_att_svr_entry_list, ble_att_svr_entry);
 static struct ble_att_svr_entry_list ble_att_svr_list;
+static struct ble_att_svr_entry_list ble_att_svr_hidden_list;
 
 static uint16_t ble_att_svr_id;
 
@@ -2654,6 +2655,80 @@ done:
     return rc;
 }
 
+static void
+ble_att_svr_move_entries(struct ble_att_svr_entry_list *src,
+                         struct ble_att_svr_entry_list *dst,
+                         uint16_t start_handle, uint16_t end_handle)
+{
+
+    struct ble_att_svr_entry *entry;
+    struct ble_att_svr_entry *prev;
+    struct ble_att_svr_entry *remove;
+    struct ble_att_svr_entry *insert;
+
+    /* Find first matching element to move */
+    remove = NULL;
+    entry = STAILQ_FIRST(src);
+    while (entry && entry->ha_handle_id < start_handle) {
+        remove = entry;
+        entry = STAILQ_NEXT(entry, ha_next);
+    }
+
+    /* Nothing to remove? */
+    if (!entry) {
+        return;
+    }
+
+    /* Find element after which we'll put moved elements */
+    prev = NULL;
+    insert = STAILQ_FIRST(dst);
+    while (insert && insert->ha_handle_id < start_handle) {
+        prev = insert;
+        insert = STAILQ_NEXT(insert, ha_next);
+    }
+    insert = prev;
+
+    /* Move elements */
+    while (entry && entry->ha_handle_id <= end_handle) {
+        /* Remove either from head or after prev (which is current one) */
+        if (remove == NULL) {
+            STAILQ_REMOVE_HEAD(src, ha_next);
+        } else {
+            STAILQ_REMOVE_AFTER(src, remove, ha_next);
+        }
+
+        /* Insert current element */
+        if (insert == NULL) {
+            STAILQ_INSERT_HEAD(dst, entry, ha_next);
+            insert = STAILQ_FIRST(dst);
+        } else {
+            STAILQ_INSERT_AFTER(dst, insert, entry, ha_next);
+            insert = entry;
+        }
+
+        /* Calculate next candidate to remove */
+        if (remove == NULL) {
+            entry = STAILQ_FIRST(src);
+        } else {
+            entry = STAILQ_NEXT(remove, ha_next);
+        }
+    }
+}
+
+void
+ble_att_svr_hide_range(uint16_t start_handle, uint16_t end_handle)
+{
+    ble_att_svr_move_entries(&ble_att_svr_list, &ble_att_svr_hidden_list,
+                             start_handle, end_handle);
+}
+
+void
+ble_att_svr_restore_range(uint16_t start_handle, uint16_t end_handle)
+{
+    ble_att_svr_move_entries(&ble_att_svr_hidden_list, &ble_att_svr_list,
+                             start_handle, end_handle);
+}
+
 void
 ble_att_svr_reset(void)
 {
@@ -2661,6 +2736,11 @@ ble_att_svr_reset(void)
 
     while ((entry = STAILQ_FIRST(&ble_att_svr_list)) != NULL) {
         STAILQ_REMOVE_HEAD(&ble_att_svr_list, ha_next);
+        ble_att_svr_entry_free(entry);
+    }
+
+    while ((entry = STAILQ_FIRST(&ble_att_svr_hidden_list)) != NULL) {
+        STAILQ_REMOVE_HEAD(&ble_att_svr_hidden_list, ha_next);
         ble_att_svr_entry_free(entry);
     }
 
@@ -2725,6 +2805,7 @@ ble_att_svr_init(void)
     }
 
     STAILQ_INIT(&ble_att_svr_list);
+    STAILQ_INIT(&ble_att_svr_hidden_list);
 
     ble_att_svr_id = 0;
 
