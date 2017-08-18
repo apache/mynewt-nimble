@@ -2000,6 +2000,27 @@ done:
     return rc;
 }
 
+int
+ble_gatts_svc_set_visibility(uint16_t handle, int visible)
+{
+    int i;
+
+    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
+        struct ble_gatts_svc_entry *entry = &ble_gatts_svc_entries[i];
+
+        if (entry->handle == handle) {
+            if (visible) {
+                ble_att_svr_restore_range(entry->handle, entry->end_group_handle);
+            } else {
+                ble_att_svr_hide_range(entry->handle, entry->end_group_handle);
+            }
+            return 0;
+        }
+    }
+
+    return BLE_HS_ENOENT;
+}
+
 /**
  * Accumulates counts of each resource type required by the specified service
  * definition array.  This function is generally used to calculate some host

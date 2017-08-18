@@ -416,6 +416,7 @@ typedef void ble_gatt_register_fn(struct ble_gatt_register_ctxt *ctxt,
                                   void *arg);
 
 int ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs);
+int ble_gatts_svc_set_visibility(uint16_t handle, int visible);
 int ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs);
 
 void ble_gatts_chr_updated(uint16_t chr_def_handle);
