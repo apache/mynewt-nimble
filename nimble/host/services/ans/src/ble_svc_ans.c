@@ -184,6 +184,8 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
 
+        assert(0);
+        return BLE_ATT_ERR_UNLIKELY;
     case BLE_SVC_ANS_CHR_UUID16_SUP_UNR_ALERT_CAT:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
         rc = os_mbuf_append(ctxt->om, &ble_svc_ans_unr_alert_cat,
