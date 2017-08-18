@@ -1862,8 +1862,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     }
 
     sec_phy = cmdbuf[22];
-    if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_2M &&
-        pri_phy != BLE_HCI_LE_PHY_CODED) {
+    if (sec_phy != BLE_HCI_LE_PHY_1M && sec_phy != BLE_HCI_LE_PHY_2M &&
+            sec_phy != BLE_HCI_LE_PHY_CODED) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
