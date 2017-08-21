@@ -1937,7 +1937,7 @@ ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
             return BLE_HS_ENOENT;
         }
 
-        if (cur->ha_handle_id == svc_entry->end_group_handle) {
+        if (cur->ha_handle_id > svc_entry->end_group_handle) {
             /* Reached end of service without a match. */
             return BLE_HS_ENOENT;
         }
