@@ -275,10 +275,11 @@ ble_hs_reset(void)
 
     ble_hs_sync_state = 0;
 
-    rc = ble_hci_trans_reset();
-    if (rc != 0) {
-        return rc;
-    }
+    /* Reset transport.  Assume success; there is nothing we can do in case of
+     * failure.  If the transport failed to reset, the host will reset itself
+     * again when it fails to sync with the controller.
+     */
+    (void)ble_hci_trans_reset();
 
     ble_hs_clear_data_queue(&ble_hs_tx_q);
     ble_hs_clear_data_queue(&ble_hs_rx_q);
