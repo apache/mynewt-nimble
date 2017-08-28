@@ -217,7 +217,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
      * However, we still have buffer to for next LE Frame so lets give one more
      * credit to peer so it can send us full SDU
      */
-    if (rx->credits == 0 && rx->sdu) {
+    if (rx->credits == 0) {
         /* Remote did not send full SDU. Lets give him one more credits to do
          * so since we have still buffer to handle it
          */

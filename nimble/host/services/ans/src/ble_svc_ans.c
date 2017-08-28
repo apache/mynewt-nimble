@@ -184,6 +184,8 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
 
+        assert(0);
+        return BLE_ATT_ERR_UNLIKELY;
     case BLE_SVC_ANS_CHR_UUID16_SUP_UNR_ALERT_CAT:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
         rc = os_mbuf_append(ctxt->om, &ble_svc_ans_unr_alert_cat,
@@ -219,13 +221,15 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             cmd_id = ble_svc_ans_alert_not_ctrl_pt[0];
             cat_id = ble_svc_ans_alert_not_ctrl_pt[1];
 
+
             /* Set cat_bit_mask to the appropriate bitmask based on cat_id */
             if (cat_id < BLE_SVC_ANS_CAT_NUM) {
                 cat_bit_mask = (1 << cat_id); 
             } else if (cat_id == 0xff) { 
                 cat_bit_mask = cat_id;
             } else {
-                cat_bit_mask = 0;
+                /* invalid category ID */
+                return BLE_ATT_ERR_UNLIKELY;
             }
 
             switch (cmd_id) {
