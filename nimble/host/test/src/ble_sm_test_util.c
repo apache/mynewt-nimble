@@ -531,7 +531,8 @@ ble_sm_test_util_init_good(struct ble_sm_test_params *params,
     ble_sm_dbg_set_next_csrk(out_us->sign_info->sig_key);
 
     if (out_us->public_key != NULL) {
-        ble_sm_dbg_set_sc_keys(out_us->public_key->x, params->our_priv_key);
+        ble_sm_dbg_set_sc_keys((uint8_t *)out_us->public_key,
+                               params->our_priv_key);
     }
 
     ble_hs_test_util_create_rpa_conn(2, out_us->addr_type, out_us->rpa,
