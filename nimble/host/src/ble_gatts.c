@@ -617,7 +617,7 @@ ble_gatts_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
                           uint8_t reason,
                           uint8_t prev_flags, uint8_t cur_flags)
 {
-    if (prev_flags != cur_flags) {
+    if ((prev_flags ^ cur_flags) & ~BLE_GATTS_CLT_CFG_F_RESERVED) {
         ble_gap_subscribe_event(conn_handle,
                                 attr_handle,
                                 reason,
