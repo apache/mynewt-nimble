@@ -79,6 +79,7 @@ static int
 ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
 {
     int *fail_reason;
+    int ret;
 
     ble_gap_test_event = *event;
     ble_gap_test_conn_arg = arg;
@@ -86,7 +87,9 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         ble_gap_test_conn_status = event->connect.status;
-        ble_gap_conn_find(event->connect.conn_handle, &ble_gap_test_conn_desc);
+        ret = ble_gap_conn_find(event->connect.conn_handle,
+                                &ble_gap_test_conn_desc);
+        TEST_ASSERT_FATAL(ble_gap_test_conn_status || ret == 0);
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
@@ -96,8 +99,9 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         ble_gap_test_conn_status = event->conn_update.status;
-        ble_gap_conn_find(event->conn_update.conn_handle,
-                          &ble_gap_test_conn_desc);
+        ret = ble_gap_conn_find(event->conn_update.conn_handle,
+                               &ble_gap_test_conn_desc);
+        TEST_ASSERT_FATAL(ret == 0);
         break;
 
     case BLE_GAP_EVENT_CONN_CANCEL:
@@ -105,8 +109,9 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_TERM_FAILURE:
         ble_gap_test_conn_status = event->term_failure.status;
-        ble_gap_conn_find(event->term_failure.conn_handle,
-                          &ble_gap_test_conn_desc);
+        ret = ble_gap_conn_find(event->term_failure.conn_handle,
+                                &ble_gap_test_conn_desc);
+        TEST_ASSERT_FATAL(ret == 0);
         break;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -116,8 +121,9 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_CONN_UPDATE_REQ:
         ble_gap_test_conn_peer_params = *event->conn_update_req.peer_params;
         *event->conn_update_req.self_params = ble_gap_test_conn_self_params;
-        ble_gap_conn_find(event->conn_update_req.conn_handle,
-                          &ble_gap_test_conn_desc);
+        ret = ble_gap_conn_find(event->conn_update_req.conn_handle,
+                                &ble_gap_test_conn_desc);
+        TEST_ASSERT_FATAL(ret == 0);
 
         fail_reason = arg;
         if (fail_reason == NULL) {
