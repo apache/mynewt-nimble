@@ -29,8 +29,19 @@
 #define BLE_SM_SC_PASSKEY_BYTES     4
 #define BLE_SM_SC_PASSKEY_BITS      20
 
-static uint8_t ble_sm_sc_pub_key[64];
-static uint8_t ble_sm_sc_priv_key[32];
+/**
+ * The public and private keys are stored in unions.  Some crypto functions
+ * accept pointers to uint32_t; others accept pointers to uint8_t.  The use of
+ * unions ensures the keys are properly aligned for pointers to uint32_t.
+ */
+static union {
+    uint32_t u32[16];
+    uint8_t u8[64];
+} ble_sm_sc_pub_key;
+static union {
+    uint32_t u32[8];
+    uint8_t u8[32];
+} ble_sm_sc_priv_key;
 
 /**
  * Whether our public-private key pair has been generated.  We generate it on
@@ -150,7 +161,7 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc, uint8_t *action)
 }
 
 static int
-ble_sm_gen_pub_priv(uint8_t *pub, uint8_t *priv)
+ble_sm_gen_pub_priv(void *pub, uint32_t *priv)
 {
     int rc;
 
@@ -177,7 +188,8 @@ ble_sm_sc_ensure_keys_generated(void)
     int rc;
 
     if (!ble_sm_sc_keys_generated) {
-        rc = ble_sm_gen_pub_priv(ble_sm_sc_pub_key, ble_sm_sc_priv_key);
+        rc = ble_sm_gen_pub_priv(ble_sm_sc_pub_key.u32,
+                                 ble_sm_sc_priv_key.u32);
         if (rc != 0) {
             return rc;
         }
@@ -287,7 +299,7 @@ ble_sm_sc_confirm_exec(struct ble_sm_proc *proc, struct ble_sm_result *res)
         return;
     }
 
-    rc = ble_sm_alg_f4(ble_sm_sc_pub_key, proc->pub_key_peer.x,
+    rc = ble_sm_alg_f4(ble_sm_sc_pub_key.u8, proc->pub_key_peer.x,
                        ble_sm_our_pair_rand(proc), proc->ri, cmd->value);
     if (rc != 0) {
         os_mbuf_free_chain(txom);
@@ -317,11 +329,11 @@ ble_sm_sc_gen_numcmp(struct ble_sm_proc *proc, struct ble_sm_result *res)
     uint8_t *pkb;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        pka = ble_sm_sc_pub_key;
+        pka = ble_sm_sc_pub_key.u8;
         pkb = proc->pub_key_peer.x;
     } else {
         pka = proc->pub_key_peer.x;
-        pkb = ble_sm_sc_pub_key;
+        pkb = ble_sm_sc_pub_key.u8;
     }
     res->app_status = ble_sm_alg_g2(pka, pkb, proc->randm, proc->rands,
                                     &res->passkey_params.numcmp);
@@ -421,7 +433,7 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
         ble_hs_log_flat_buf(proc->tk, 16);
         BLE_HS_LOG(DEBUG, "\n");
 
-        rc = ble_sm_alg_f4(proc->pub_key_peer.x, ble_sm_sc_pub_key,
+        rc = ble_sm_alg_f4(proc->pub_key_peer.x, ble_sm_sc_pub_key.u8,
                            ble_sm_peer_pair_rand(proc), proc->ri,
                            confirm_val);
         if (rc != 0) {
@@ -513,8 +525,8 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
         return;
     }
 
-    memcpy(cmd->x, ble_sm_sc_pub_key + 0, 32);
-    memcpy(cmd->y, ble_sm_sc_pub_key + 32, 32);
+    memcpy(cmd->x, ble_sm_sc_pub_key.u8 + 0, 32);
+    memcpy(cmd->y, ble_sm_sc_pub_key.u8 + 32, 32);
 
     res->app_status = ble_sm_tx(proc->conn_handle, txom);
     if (res->app_status != 0) {
@@ -579,7 +591,7 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
         memcpy(&proc->pub_key_peer, cmd, sizeof(*cmd));
         rc = ble_sm_alg_gen_dhkey(proc->pub_key_peer.x,
                                   proc->pub_key_peer.y,
-                                  ble_sm_sc_priv_key,
+                                  ble_sm_sc_priv_key.u32,
                                   proc->dhkey);
         if (rc != 0) {
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_DHKEY);
