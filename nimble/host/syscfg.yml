@@ -56,6 +56,9 @@ syscfg.defs:
     BLE_MONITOR_RTT_BUFFER_NAME:
         description: Monitor interface upstream buffer name
         value: '"monitor"'
+    BLE_MONITOR_RTT_BUFFER_SIZE:
+        description: Monitor interface upstream buffer size
+        value: 256
     BLE_MONITOR_RTT_BUFFERED:
         description: >
             Enables buffering when using monitor interface over RTT. The data
