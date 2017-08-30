@@ -45,7 +45,7 @@ struct os_mutex lock;
 #if MYNEWT_VAL(BLE_MONITOR_UART)
 struct uart_dev *uart;
 
-static uint8_t tx_ringbuf[64];
+static uint8_t tx_ringbuf[MYNEWT_VAL(BLE_MONITOR_UART_BUFFER_SIZE)];
 static uint8_t tx_ringbuf_head;
 static uint8_t tx_ringbuf_tail;
 #endif
