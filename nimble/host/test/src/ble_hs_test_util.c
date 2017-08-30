@@ -1688,6 +1688,7 @@ ble_hs_test_util_verify_tx_find_info_rsp(
     off = 0;
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om);
 
     rc = os_mbuf_copydata(om, off, sizeof buf, buf);
     TEST_ASSERT(rc == 0);
@@ -1741,6 +1742,7 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
     ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT_FATAL(om);
 
     ble_att_read_group_type_rsp_parse(om->om_data, om->om_len, &rsp);
 
