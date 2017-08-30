@@ -395,7 +395,8 @@ TEST_CASE(ble_gatt_find_s_test_oom)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify the procedure succeeds after mbufs become available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
@@ -414,7 +415,8 @@ TEST_CASE(ble_gatt_find_s_test_oom)
     ble_gatt_find_s_test_misc_rx_read_type(1, incs + 1);
 
     /* Verify the procedure succeeds after mbufs become available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
 

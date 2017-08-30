@@ -750,7 +750,8 @@ ble_l2cap_test_coc_connect(struct test_data *t)
     TEST_ASSERT_FATAL(rc == ev->early_error);
 
     if (rc != 0) {
-        os_mbuf_free_chain(sdu_rx);
+        rc = os_mbuf_free_chain(sdu_rx);
+        TEST_ASSERT_FATAL(rc == 0);
         return;
     }
 
@@ -953,8 +954,11 @@ ble_l2cap_test_coc_send_data(struct test_data *t)
     TEST_ASSERT(rc == ev->early_error);
 
     if (rc) {
-        os_mbuf_free(sdu);
-        os_mbuf_free(sdu_copy);
+        rc = os_mbuf_free(sdu);
+        TEST_ASSERT_FATAL(rc == 0);
+
+        rc = os_mbuf_free(sdu_copy);
+        TEST_ASSERT_FATAL(rc == 0);
         return;
     }
 
@@ -965,7 +969,8 @@ ble_l2cap_test_coc_send_data(struct test_data *t)
 
     ble_hs_test_util_verify_tx_l2cap(sdu);
 
-    os_mbuf_free_chain(sdu_copy);
+    rc = os_mbuf_free_chain(sdu_copy);
+    TEST_ASSERT_FATAL(rc == 0);
 }
 
 static void
