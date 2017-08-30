@@ -37,9 +37,6 @@
 #endif
 #include "ble_monitor_priv.h"
 
-/* UTC Timestamp for Jan 2016 00:00:00 */
-#define UTC01_01_2016    1451606400
-
 struct os_mutex lock;
 
 #if MYNEWT_VAL(BLE_MONITOR_UART)
@@ -166,26 +163,17 @@ static FILE *btmon = (FILE *) &(struct File) {
 };
 
 static void
-encode_monitor_hdr(struct ble_monitor_hdr *hdr, int64_t ts, uint16_t opcode,
-                   uint16_t len)
+encode_monitor_hdr(struct ble_monitor_hdr *hdr, uint16_t opcode, uint16_t len)
 {
-    int rc;
-    struct os_timeval tv;
+    int64_t ts;
 
     hdr->hdr_len  = sizeof(hdr->type) + sizeof(hdr->ts32);
     hdr->data_len = htole16(4 + hdr->hdr_len + len);
     hdr->opcode   = htole16(opcode);
     hdr->flags    = 0;
 
-    /* Calculate timestamp if not present (same way as used in log module) */
-    if (ts < 0) {
-        rc = os_gettimeofday(&tv, NULL);
-        if (rc || tv.tv_sec < UTC01_01_2016) {
-            ts = os_get_uptime_usec();
-        } else {
-            ts = tv.tv_sec * 1000000 + tv.tv_usec;
-        }
-    }
+    /* Use uptime for timestamp */
+    ts = os_get_uptime_usec();
 
     /* Extended header */
     hdr->type = BLE_MONITOR_EXTHDR_TS32;
@@ -240,7 +228,7 @@ ble_monitor_send(uint16_t opcode, const void *data, size_t len)
 {
     struct ble_monitor_hdr hdr;
 
-    encode_monitor_hdr(&hdr, -1, opcode, len);
+    encode_monitor_hdr(&hdr, opcode, len);
 
     os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
@@ -265,7 +253,7 @@ ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om)
         om_tmp = SLIST_NEXT(om_tmp, om_next);
     }
 
-    encode_monitor_hdr(&hdr, -1, opcode, length);
+    encode_monitor_hdr(&hdr, opcode, length);
 
     os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
@@ -330,7 +318,7 @@ ble_monitor_log(int level, const char *fmt, ...)
 
     ulog.ident_len = sizeof(id);
 
-    encode_monitor_hdr(&hdr, -1, BLE_MONITOR_OPCODE_USER_LOGGING,
+    encode_monitor_hdr(&hdr, BLE_MONITOR_OPCODE_USER_LOGGING,
                        sizeof(ulog) + sizeof(id) + len + 1);
 
     os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
