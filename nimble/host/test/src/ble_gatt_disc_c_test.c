@@ -589,7 +589,9 @@ TEST_CASE(ble_gatt_disc_c_test_oom_all)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify the procedure proceeds after mbufs become available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
+
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
@@ -611,7 +613,9 @@ TEST_CASE(ble_gatt_disc_c_test_oom_all)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify that procedure completes when mbufs are available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
+
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
@@ -678,7 +682,8 @@ TEST_CASE(ble_gatt_disc_c_test_oom_uuid)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify the procedure proceeds after mbufs become available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
@@ -700,7 +705,8 @@ TEST_CASE(ble_gatt_disc_c_test_oom_uuid)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify that procedure completes when mbufs are available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
 

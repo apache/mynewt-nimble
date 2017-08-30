@@ -44,6 +44,8 @@ static uint16_t ble_att_svr_test_attr_n_len;
 static int
 ble_att_svr_test_misc_gap_cb(struct ble_gap_event *event, void *arg)
 {
+    int rc;
+
     switch (event->type) {
     case BLE_GAP_EVENT_NOTIFY_RX:
         ble_att_svr_test_n_conn_handle = event->notify_rx.conn_handle;
@@ -51,8 +53,10 @@ ble_att_svr_test_misc_gap_cb(struct ble_gap_event *event, void *arg)
         TEST_ASSERT_FATAL(OS_MBUF_PKTLEN(event->notify_rx.om) <=
                           sizeof ble_att_svr_test_attr_n);
         ble_att_svr_test_attr_n_len = OS_MBUF_PKTLEN(event->notify_rx.om);
-        os_mbuf_copydata(event->notify_rx.om, 0, ble_att_svr_test_attr_n_len,
-                         ble_att_svr_test_attr_n);
+        rc = os_mbuf_copydata(event->notify_rx.om, 0,
+                              ble_att_svr_test_attr_n_len,
+                              ble_att_svr_test_attr_n);
+        TEST_ASSERT_FATAL(rc == 0);
         break;
 
     default:
@@ -102,14 +106,17 @@ ble_att_svr_test_misc_attr_fn_r_1(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t op, uint16_t offset,
                                   struct os_mbuf **om, void *arg)
 {
+    int rc;
+
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
         if (offset > ble_att_svr_test_attr_r_1_len) {
             return BLE_ATT_ERR_INVALID_OFFSET;
         }
 
-        os_mbuf_append(*om, ble_att_svr_test_attr_r_1 + offset,
-                       ble_att_svr_test_attr_r_1_len - offset);
+        rc = os_mbuf_append(*om, ble_att_svr_test_attr_r_1 + offset,
+                            ble_att_svr_test_attr_r_1_len - offset);
+        TEST_ASSERT_FATAL(rc == 0);
         return 0;
 
     default:
@@ -122,6 +129,7 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t op, uint16_t offset,
                                   struct os_mbuf **om, void *arg)
 {
+    int rc;
 
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
@@ -129,8 +137,9 @@ ble_att_svr_test_misc_attr_fn_r_2(uint16_t conn_handle, uint16_t attr_handle,
             return BLE_ATT_ERR_INVALID_OFFSET;
         }
 
-        os_mbuf_append(*om, ble_att_svr_test_attr_r_2 + offset,
-                       ble_att_svr_test_attr_r_2_len - offset);
+        rc = os_mbuf_append(*om, ble_att_svr_test_attr_r_2 + offset,
+                            ble_att_svr_test_attr_r_2_len - offset);
+        TEST_ASSERT_FATAL(rc == 0);
         return 0;
 
     default:
@@ -143,7 +152,11 @@ ble_att_svr_test_misc_attr_fn_r_err(uint16_t conn_handle, uint16_t attr_handle,
                                     uint8_t op, uint16_t offset,
                                     struct os_mbuf **om, void *arg)
 {
-    os_mbuf_append(*om, (uint8_t[4]){1,2,3,4}, 4);
+    int rc;
+
+    rc = os_mbuf_append(*om, (uint8_t[4]){1,2,3,4}, 4);
+    TEST_ASSERT_FATAL(rc == 0);
+
     return BLE_ATT_ERR_UNLIKELY;
 }
 
@@ -286,19 +299,23 @@ ble_att_svr_test_misc_attr_fn_rw_1(uint16_t conn_handle, uint16_t attr_handle,
                                    uint8_t op, uint16_t offset,
                                    struct os_mbuf **om, void *arg)
 {
+    int rc;
+
     switch (op) {
     case BLE_ATT_ACCESS_OP_READ:
         if (offset > ble_att_svr_test_attr_w_1_len) {
             return BLE_ATT_ERR_INVALID_OFFSET;
         }
 
-        os_mbuf_append(*om, ble_att_svr_test_attr_w_1 + offset,
-                       ble_att_svr_test_attr_w_1_len - offset);
+        rc = os_mbuf_append(*om, ble_att_svr_test_attr_w_1 + offset,
+                            ble_att_svr_test_attr_w_1_len - offset);
+        TEST_ASSERT_FATAL(rc == 0);
         return 0;
 
     case BLE_ATT_ACCESS_OP_WRITE:
-        os_mbuf_copydata(*om, 0, OS_MBUF_PKTLEN(*om),
-                         ble_att_svr_test_attr_w_1);
+        rc = os_mbuf_copydata(*om, 0, OS_MBUF_PKTLEN(*om),
+                              ble_att_svr_test_attr_w_1);
+        TEST_ASSERT_FATAL(rc == 0);
         ble_att_svr_test_attr_w_1_len = OS_MBUF_PKTLEN(*om);
         return 0;
 
@@ -312,10 +329,13 @@ ble_att_svr_test_misc_attr_fn_w_1(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t op, uint16_t offset,
                                   struct os_mbuf **om, void *arg)
 {
+    int rc;
+
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        os_mbuf_copydata(*om, 0, OS_MBUF_PKTLEN(*om),
-                         ble_att_svr_test_attr_w_1);
+        rc = os_mbuf_copydata(*om, 0, OS_MBUF_PKTLEN(*om),
+                              ble_att_svr_test_attr_w_1);
+        TEST_ASSERT_FATAL(rc == 0);
         ble_att_svr_test_attr_w_1_len = OS_MBUF_PKTLEN(*om);
         return 0;
 
@@ -329,10 +349,13 @@ ble_att_svr_test_misc_attr_fn_w_2(uint16_t conn_handle, uint16_t attr_handle,
                                   uint8_t op, uint16_t offset,
                                   struct os_mbuf **om, void *arg)
 {
+    int rc;
+
     switch (op) {
     case BLE_ATT_ACCESS_OP_WRITE:
-        os_mbuf_copydata(*om, 0, OS_MBUF_PKTLEN(*om),
-                         ble_att_svr_test_attr_w_2);
+        rc = os_mbuf_copydata(*om, 0, OS_MBUF_PKTLEN(*om),
+                              ble_att_svr_test_attr_w_2);
+        TEST_ASSERT_FATAL(rc == 0);
         ble_att_svr_test_attr_w_2_len = OS_MBUF_PKTLEN(*om);
         return 0;
 
@@ -856,7 +879,8 @@ TEST_CASE(ble_att_svr_test_read)
     TEST_ASSERT(OS_MBUF_PKTLEN(om) == ble_att_svr_test_attr_r_1_len);
     TEST_ASSERT(os_mbuf_cmpf(om, 0, ble_att_svr_test_attr_r_1,
                                ble_att_svr_test_attr_r_1_len) == 0);
-    os_mbuf_free_chain(om);
+    rc = os_mbuf_free_chain(om);
+    TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no response got sent. */
     ble_hs_test_util_tx_all();
@@ -2049,7 +2073,8 @@ TEST_CASE(ble_att_svr_test_oom)
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_INDICATE_REQ, 1,
                                        BLE_ATT_ERR_INSUFFICIENT_RES);
 
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
 }
 
 TEST_SUITE(ble_att_svr_suite)

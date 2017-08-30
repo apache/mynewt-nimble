@@ -62,6 +62,7 @@ ble_gatt_read_test_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
 {
     struct ble_gatt_read_test_attr *dst;
     int *stop_after;
+    int rc;
 
     stop_after = arg;
 
@@ -88,7 +89,8 @@ ble_gatt_read_test_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
     dst->conn_handle = conn_handle;
     dst->handle = attr->handle;
     dst->value_len = OS_MBUF_PKTLEN(attr->om);
-    os_mbuf_copydata(attr->om, 0, OS_MBUF_PKTLEN(attr->om), dst->value);
+    rc = os_mbuf_copydata(attr->om, 0, OS_MBUF_PKTLEN(attr->om), dst->value);
+    TEST_ASSERT_FATAL(rc == 0);
 
     if (stop_after != NULL && *stop_after > 0) {
         (*stop_after)--;
@@ -110,6 +112,7 @@ ble_gatt_read_test_long_cb(uint16_t conn_handle,
 {
     struct ble_gatt_read_test_attr *dst;
     int *reads_left;
+    int rc;
 
     reads_left = arg;
 
@@ -140,8 +143,9 @@ ble_gatt_read_test_long_cb(uint16_t conn_handle,
         TEST_ASSERT(conn_handle == dst->conn_handle);
         TEST_ASSERT(attr->handle == dst->handle);
     }
-    os_mbuf_copydata(attr->om, 0, OS_MBUF_PKTLEN(attr->om),
-                     dst->value + dst->value_len);
+    rc = os_mbuf_copydata(attr->om, 0, OS_MBUF_PKTLEN(attr->om),
+                          dst->value + dst->value_len);
+    TEST_ASSERT_FATAL(rc == 0);
     dst->value_len += OS_MBUF_PKTLEN(attr->om);
 
     if (reads_left != NULL && *reads_left > 0) {
@@ -859,7 +863,8 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify the procedure proceeds after mbufs become available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
     ble_hs_test_util_tx_all();
@@ -883,7 +888,8 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
 
     /* Verify that procedure completes when mbufs are available. */
-    os_mbuf_free_chain(oms);
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
 

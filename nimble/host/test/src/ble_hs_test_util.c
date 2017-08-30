@@ -110,7 +110,8 @@ ble_hs_test_util_prev_tx_dequeue(void)
     uint8_t pb;
     int rc;
 
-    os_mbuf_free_chain(ble_hs_test_util_prev_tx_cur);
+    rc = os_mbuf_free_chain(ble_hs_test_util_prev_tx_cur);
+    TEST_ASSERT_FATAL(rc == 0);
 
     om = ble_hs_test_util_prev_tx_dequeue_once(&hci_hdr);
     if (om != NULL) {
@@ -974,7 +975,8 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
     if (conn != NULL) {
         rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &reject_cid);
     } else {
-        os_mbuf_free_chain(om);
+        rc = os_mbuf_free_chain(om);
+        TEST_ASSERT_FATAL(rc == 0);
     }
 
     ble_hs_unlock();
@@ -2084,7 +2086,8 @@ ble_hs_test_util_read_local_flat(uint16_t attr_handle, uint16_t max_len,
 
     *out_len = OS_MBUF_PKTLEN(om);
 
-    os_mbuf_free_chain(om);
+    rc = os_mbuf_free_chain(om);
+    TEST_ASSERT_FATAL(rc == 0);
     return 0;
 }
 
@@ -2163,6 +2166,7 @@ ble_hs_test_util_mbuf_alloc_all_but(int count)
 {
     struct os_mbuf *prev;
     struct os_mbuf *om;
+    int rc;
     int i;
 
     /* Allocate all available mbufs and put them in a single chain. */
@@ -2184,7 +2188,8 @@ ble_hs_test_util_mbuf_alloc_all_but(int count)
     for (i = 0; i < count; i++) {
         TEST_ASSERT_FATAL(prev != NULL);
         om = SLIST_NEXT(prev, om_next);
-        os_mbuf_free(prev);
+        rc = os_mbuf_free(prev);
+        TEST_ASSERT_FATAL(rc == 0);
 
         prev = om;
     }
