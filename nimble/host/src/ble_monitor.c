@@ -51,10 +51,10 @@ static uint8_t tx_ringbuf_tail;
 #endif
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
-static uint8_t rtt_buf[256];
+static uint8_t rtt_buf[MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_SIZE)];
 static int rtt_index;
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
-static uint8_t rtt_pktbuf[256];
+static uint8_t rtt_pktbuf[MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_SIZE)];
 static size_t rtt_pktbuf_pos;
 #endif
 #endif
