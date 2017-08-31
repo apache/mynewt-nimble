@@ -145,7 +145,7 @@ ble_gatt_disc_d_test_misc_verify_dscs(struct ble_gatt_disc_d_test_dsc *dscs,
     int i;
 
     if (stop_after == 0) {
-        stop_after = INT_MAX;
+        stop_after = BLE_GATT_DISC_D_TEST_MAX_DSCS;
     }
 
     for (i = 0; i < stop_after && dscs[i].chr_val_handle != 0; i++) {
