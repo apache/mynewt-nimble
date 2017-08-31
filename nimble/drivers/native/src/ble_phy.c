@@ -416,11 +416,9 @@ int
 ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 {
     int rc;
-    uint32_t state;
 
     /* Better have a pdu! */
     assert(txpdu != NULL);
-
 
     if (ble_phy_state_get() != BLE_PHY_STATE_IDLE) {
         ble_phy_disable();
@@ -435,25 +433,15 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     } else {
     }
 
-
     /* Set the PHY transition */
     g_ble_phy_data.phy_transition = end_trans;
 
-    /* Make sure transceiver in correct state */
-    state = BLE_PHY_STATE_TX;
-    if (state == BLE_PHY_STATE_TX) {
-        /* Set phy state to transmitting and count packet statistics */
-        g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
-        ++g_ble_phy_stats.tx_good;
-        g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len +
-            BLE_LL_PDU_HDR_LEN;
-        rc = BLE_ERR_SUCCESS;
-    } else {
-        /* Frame failed to transmit */
-        ++g_ble_phy_stats.tx_fail;
-        ble_phy_disable();
-        rc = BLE_PHY_ERR_RADIO_STATE;
-    }
+    /* Set phy state to transmitting and count packet statistics */
+    g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
+    ++g_ble_phy_stats.tx_good;
+    g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len +
+        BLE_LL_PDU_HDR_LEN;
+    rc = BLE_ERR_SUCCESS;
 
     return rc;
 }
