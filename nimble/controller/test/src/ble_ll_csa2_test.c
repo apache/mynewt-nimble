@@ -50,7 +50,7 @@ TEST_CASE(ble_ll_csa2_test_1)
     conn.chanmap[1] = 0xff;
     conn.chanmap[2] = 0xff;
     conn.chanmap[3] = 0xff;
-    conn.chanmap[3] = 0x1f;
+    conn.chanmap[4] = 0x1f;
 
     conn.event_cntr = 1;
     rc = ble_ll_conn_calc_dci(&conn, 0);
