@@ -547,7 +547,7 @@ ble_l2cap_test_util_we_update(int peer_accepts)
     ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
 
     params.itvl_min = 0x200;
-    params.itvl_min = 0x300;
+    params.itvl_max = 0x300;
     params.slave_latency = 0;
     params.timeout_multiplier = 0x100;
     rc = ble_l2cap_sig_update(2, &params, ble_l2cap_test_util_update_cb, NULL);
@@ -602,7 +602,7 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_master)
                                     ble_l2cap_test_util_conn_cb, NULL);
 
     params.itvl_min = 0x200;
-    params.itvl_min = 0x300;
+    params.itvl_max = 0x300;
     params.slave_latency = 0;
     params.timeout_multiplier = 0x100;
     rc = ble_l2cap_sig_update(2, &params, ble_l2cap_test_util_update_cb, NULL);
@@ -628,7 +628,7 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)
     ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
 
     params.itvl_min = 0x200;
-    params.itvl_min = 0x300;
+    params.itvl_max = 0x300;
     params.slave_latency = 0;
     params.timeout_multiplier = 0x100;
     rc = ble_l2cap_sig_update(2, &params, ble_l2cap_test_util_update_cb, NULL);
