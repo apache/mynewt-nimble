@@ -155,7 +155,7 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
     int i;
 
     if (stop_after == 0) {
-        stop_after = INT_MAX;
+        stop_after = BLE_GATT_DISC_C_TEST_MAX_CHARS;
     }
 
     for (i = 0; i < stop_after && chars[i].def_handle != 0; i++) {
