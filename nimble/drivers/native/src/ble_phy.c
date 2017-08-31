@@ -221,7 +221,6 @@ void
 ble_phy_isr(void)
 {
     int rc;
-    uint8_t crcok;
     uint8_t transition;
     uint32_t irq_en;
     struct ble_mbuf_hdr *ble_hdr;
@@ -281,14 +280,9 @@ ble_phy_isr(void)
         ble_hdr->rxinfo.aux_data = NULL;
 #endif
 
-        /* Count PHY crc errors and valid packets */
-        crcok = 1;
-        if (!crcok) {
-            ++g_ble_phy_stats.rx_crc_err;
-        } else {
-            ++g_ble_phy_stats.rx_valid;
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
-        }
+        /* Count PHY valid packets */
+        ++g_ble_phy_stats.rx_valid;
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
 
         /* Call Link Layer receive payload function */
         rc = ble_ll_rx_end(g_ble_phy_data.rxdptr, ble_hdr);
