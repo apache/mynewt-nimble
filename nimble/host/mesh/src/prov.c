@@ -254,6 +254,7 @@ static struct os_mbuf *adv_buf_create(void)
 				 PROV_XMIT_INT, BUF_TIMEOUT);
 	if (!buf) {
 		BT_ERR("Out of provisioning buffers");
+		assert(0);
 		return NULL;
 	}
 
@@ -453,6 +454,16 @@ static void prov_buf_init(struct os_mbuf *buf, u8_t type)
 {
 	net_buf_simple_init(buf, PROV_BUF_HEADROOM);
 	net_buf_simple_add_u8(buf, type);
+}
+
+static void prov_send_fail_msg(u8_t err)
+{
+    struct os_mbuf *buf = PROV_BUF(2);
+
+    prov_buf_init(buf, PROV_FAILED);
+    net_buf_simple_add_u8(buf, err);
+    prov_send(buf);
+    os_mbuf_free_chain(buf);
 }
 
 static void prov_invite(const u8_t *data)
@@ -668,15 +679,25 @@ static void prov_start(const u8_t *data)
 
 	if (data[0] != PROV_ALG_P256) {
 		BT_ERR("Unknown algorithm 0x%02x", data[0]);
+		prov_send_fail_msg(PROV_ERR_NVAL_FMT);
+		return;
+	}
+
+	if (data[1] > 0x01) {
+		BT_ERR("Invalid public key value: 0x%02x", data[1]);
+		prov_send_fail_msg(PROV_ERR_NVAL_FMT);
 		return;
 	}
 
 	memcpy(&link.conf_inputs[12], data, 5);
 
+	/* TODO: reset link when auth fails? */
 	link.expect = PROV_PUB_KEY;
 
 	if (prov_auth(data[2], data[3], data[4]) < 0) {
-		BT_ERR("Invalid authentication method");
+		BT_ERR("Invalid authentication method: 0x%02x; "
+		       "action: 0x%02x; size: 0x%02x", data[2], data[3], data[4]);
+		prov_send_fail_msg(PROV_ERR_NVAL_FMT);
 	}
 }
 
@@ -1051,12 +1072,7 @@ static void close_link(u8_t err, u8_t reason)
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	if (err) {
-		struct os_mbuf *buf = PROV_BUF(2);
-
-		prov_buf_init(buf, PROV_FAILED);
-		net_buf_simple_add_u8(buf, err);
-		prov_send(buf);
-	    os_mbuf_free_chain(buf);
+		prov_send_fail_msg(err);
 	}
 
 	link.rx.seg = 0;
@@ -1187,7 +1203,7 @@ static void prov_msg_recv(void)
 
 	if (type != PROV_FAILED && type != link.expect) {
 		BT_WARN("Unexpected msg 0x%02x != 0x%02x", type, link.expect);
-		close_link(PROV_ERR_UNEXP_PDU, CLOSE_REASON_FAILED);
+		prov_send_fail_msg(PROV_ERR_UNEXP_PDU);
 		return;
 	}
 
