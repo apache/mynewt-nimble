@@ -254,6 +254,7 @@ static struct os_mbuf *adv_buf_create(void)
 				 PROV_XMIT_INT, BUF_TIMEOUT);
 	if (!buf) {
 		BT_ERR("Out of provisioning buffers");
+		assert(0);
 		return NULL;
 	}
 
