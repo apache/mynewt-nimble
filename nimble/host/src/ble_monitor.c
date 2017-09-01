@@ -354,7 +354,7 @@ ble_monitor_log(int level, const char *fmt, ...)
 int
 ble_monitor_out(int c)
 {
-    static char buf[128];
+    static char buf[MYNEWT_VAL(BLE_MONITOR_CONSOLE_BUFFER_SIZE)];
     static size_t len;
 
     if (c != '\n' && len < sizeof(buf) - 1) {
