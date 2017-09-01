@@ -126,6 +126,9 @@ struct ble_hs_adv_fields {
 #define BLE_HS_ADV_TYPE_SVC_DATA_UUID32         0x20
 #define BLE_HS_ADV_TYPE_SVC_DATA_UUID128        0x21
 #define BLE_HS_ADV_TYPE_URI                     0x24
+#define BLE_HS_ADV_TYPE_MESH_PROV               0x29
+#define BLE_HS_ADV_TYPE_MESH_MESSAGE            0x2a
+#define BLE_HS_ADV_TYPE_MESH_BEACON             0x2b
 #define BLE_HS_ADV_TYPE_MFG_DATA                0xff
 
 #define BLE_HS_ADV_FLAGS_LEN                    1

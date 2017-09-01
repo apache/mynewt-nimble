@@ -113,8 +113,18 @@ struct ble_gap_master_state {
             uint8_t extended:1;
         } disc;
     };
+
+
 };
 static bssnz_t struct ble_gap_master_state ble_gap_master;
+
+
+#if MYNEWT_VAL(BLE_MESH)
+struct ble_gap_mesh_state {
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+} ble_gap_mesh;
+#endif
 
 /**
  * The state of the in-progress slave connection.  If no slave connection is
@@ -521,6 +531,17 @@ ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
                              buf, sizeof(buf), NULL, 0, NULL);
 }
 
+#if MYNEWT_VAL(BLE_MESH)
+int
+ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg)
+{
+    ble_gap_mesh.cb = cb;
+    ble_gap_mesh.cb_arg = cb_arg;
+
+    return 0;
+}
+#endif
+
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
@@ -587,6 +608,16 @@ ble_gap_slave_reset_state(void)
     ble_hs_timer_resched();
 }
 
+static bool
+ble_gap_has_client(struct ble_gap_master_state *out_state)
+{
+    if (!out_state) {
+        return 0;
+    }
+
+    return out_state->cb;
+}
+
 static void
 ble_gap_master_extract_state(struct ble_gap_master_state *out_state,
                              int reset_state)
@@ -638,7 +669,7 @@ ble_gap_master_connect_failure(int status)
     int rc;
 
     ble_gap_master_extract_state(&state, 1);
-    if (state.cb != NULL) {
+    if (!ble_gap_has_client(&state)) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_CONNECT;
         event.connect.status = status;
@@ -686,27 +717,32 @@ ble_gap_is_extended_disc(void)
 static void
 ble_gap_disc_report(void *desc)
 {
-    struct ble_gap_master_state state;
+    struct ble_gap_master_state state;;
     struct ble_gap_event event;
 
-    ble_gap_master_extract_state(&state, 0);
-
-    if (state.cb != NULL) {
-        memset(&event, 0, sizeof event);
-        if (ble_gap_is_extended_disc()) {
+    memset(&event, 0, sizeof event);
+    if (ble_gap_is_extended_disc()) {
 #if MYNEWT_VAL(BLE_EXT_ADV)
-            event.type = BLE_GAP_EVENT_EXT_DISC;
-            event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
+        event.type = BLE_GAP_EVENT_EXT_DISC;
+        event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
 #else
-            assert(0);
+        assert(0);
 #endif
-        } else {
-            event.type = BLE_GAP_EVENT_DISC;
-            event.disc = *((struct ble_gap_disc_desc *)desc);
-        }
+    } else {
+        event.type = BLE_GAP_EVENT_DISC;
+        event.disc = *((struct ble_gap_disc_desc *)desc);
+    }
 
+    ble_gap_master_extract_state(&state, 0);
+    if (ble_gap_has_client(&state)) {
         state.cb(&event, state.cb_arg);
     }
+
+#if MYNEWT_VAL(BLE_MESH)
+    if (ble_gap_mesh.cb) {
+        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
+    }
+#endif
 }
 
 static void
@@ -715,14 +751,19 @@ ble_gap_disc_complete(void)
     struct ble_gap_master_state state;
     struct ble_gap_event event;
 
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_DISC_COMPLETE;
+
     ble_gap_master_extract_state(&state, 1);
-
-    if (state.cb != NULL) {
-        memset(&event, 0, sizeof event);
-        event.type = BLE_GAP_EVENT_DISC_COMPLETE;
-
+    if (ble_gap_has_client(&state)) {
         ble_gap_call_event_cb(&event, state.cb, state.cb_arg);
     }
+
+#if MYNEWT_VAL(BLE_MESH)
+    if (ble_gap_mesh.cb) {
+        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
+    }
+#endif
 }
 
 static void
@@ -923,6 +964,12 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     event.type = BLE_GAP_EVENT_DISCONNECT;
     event.disconnect.reason = reason;
     ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
+
+#if MYNEWT_VAL(BLE_MESH)
+    if (ble_gap_mesh.cb) {
+        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
+    }
+#endif
 
     STATS_INC(ble_gap_stats, disconnect);
 }
@@ -1340,6 +1387,12 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
     event.connect.conn_handle = evt->connection_handle;
     event.connect.status = 0;
     ble_gap_call_conn_event_cb(&event, evt->connection_handle);
+
+#if MYNEWT_VAL(BLE_MESH)
+    if (ble_gap_mesh.cb) {
+        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
+    }
+#endif
 
     ble_gap_rd_rem_sup_feat_tx(evt->connection_handle);
 
@@ -4138,6 +4191,12 @@ ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
     event.subscribe.prev_indicate = !!prev_indicate;
     event.subscribe.cur_indicate = !!cur_indicate;
     ble_gap_call_conn_event_cb(&event, conn_handle);
+
+#if MYNEWT_VAL(BLE_MESH)
+    if (ble_gap_mesh.cb) {
+        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
+    }
+#endif
 }
 
 /*****************************************************************************
