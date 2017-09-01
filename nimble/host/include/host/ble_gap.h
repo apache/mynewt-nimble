@@ -23,6 +23,8 @@
 #include <inttypes.h>
 #include "host/ble_hs.h"
 #include "host/ble_hs_adv.h"
+#include "syscfg/syscfg.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -698,6 +700,11 @@ int ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask,
 #define BLE_GAP_LE_PHY_CODED_S8             2
 int ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
                                 uint8_t rx_phys_mask, uint16_t phy_opts);
+
+#if MYNEWT_VAL(BLE_MESH)
+int ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
