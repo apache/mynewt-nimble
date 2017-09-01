@@ -555,6 +555,7 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
     ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT(om);
 
     ble_att_read_type_rsp_parse(om->om_data, om->om_len, &rsp);
 
@@ -615,6 +616,8 @@ ble_att_svr_test_misc_verify_tx_exec_write_rsp(void)
     ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT(om);
+
     ble_att_exec_write_rsp_parse(om->om_data, om->om_len);
 }
 
@@ -743,6 +746,7 @@ ble_att_svr_test_misc_verify_tx_indicate_rsp(void)
     ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
+    TEST_ASSERT(om);
 
     ble_att_indicate_rsp_parse(om->om_data, om->om_len);
 }
