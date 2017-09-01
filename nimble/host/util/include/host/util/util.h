@@ -17,20 +17,14 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_ID_PRIV_
-#define H_BLE_HS_ID_PRIV_
-
-#include <inttypes.h>
+#ifndef H_HOST_UTIL_
+#define H_HOST_UTIL_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void ble_hs_id_set_pub(const uint8_t *pub_addr);
-int ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
-                   int *out_is_nrpa);
-int ble_hs_id_use_addr(uint8_t addr_type);
-int ble_hs_id_infer_auto(int privacy, uint8_t *out_addr_type);
+int ble_hs_util_ensure_addr(int prefer_random);
 
 #ifdef __cplusplus
 }

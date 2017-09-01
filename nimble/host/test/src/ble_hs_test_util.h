@@ -260,7 +260,7 @@ int ble_hs_test_util_rx_l2cap_update_rsp(uint16_t conn_handle,
                                          uint8_t id, uint16_t result);
 void ble_hs_test_util_verify_tx_l2cap_update_rsp(uint8_t exp_id,
                                                  uint16_t exp_result);
-void ble_hs_test_util_set_static_rnd_addr(void);
+void ble_hs_test_util_set_static_rnd_addr(const uint8_t *addr);
 struct os_mbuf *ble_hs_test_util_om_from_flat(const void *buf, uint16_t len);
 int ble_hs_test_util_flat_attr_cmp(const struct ble_hs_test_util_flat_attr *a,
                                    const struct ble_hs_test_util_flat_attr *b);

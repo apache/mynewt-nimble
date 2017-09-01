@@ -117,10 +117,14 @@ done:
  *                                      o BLE_ADDR_PUBLIC
  *                                      o BLE_ADDR_RANDOM
  * @param out_id_addr           On success, this is reseated to point to the
- *                                  retrieved 6-byte identity address.
+ *                                  retrieved 6-byte identity address.  Pass
+ *                                  NULL if you do not require this
+ *                                  information.
+
  * @param out_is_nrpa           On success, the pointed-to value indicates
  *                                  whether the retrieved address is a
- *                                  non-resolvable private address.
+ *                                  non-resolvable private address.  Pass NULL
+ *                                  if you do not require this information.
  *
  * @return                      0 on success;
  *                              BLE_HS_EINVAL if an invalid address type was
@@ -178,10 +182,12 @@ ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
  *                                      o BLE_ADDR_RANDOM
  * @param out_id_addr           On success, the requested identity address is
  *                                  copied into this buffer.  The buffer must
- *                                  be at least six bytes in size.
+ *                                  be at least six bytes in size.  Pass NULL
+ *                                  if you do not require this information.
  * @param out_is_nrpa           On success, the pointed-to value indicates
  *                                  whether the retrieved address is a
- *                                  non-resolvable private address.
+ *                                  non-resolvable private address.  Pass NULL
+ *                                  if you do not require this information.
  *
  * @return                      0 on success;
  *                              BLE_HS_EINVAL if an invalid address type was
@@ -200,7 +206,7 @@ ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
     ble_hs_lock();
 
     rc = ble_hs_id_addr(id_addr_type, &addr, out_is_nrpa);
-    if (rc == 0) {
+    if (rc == 0 && out_id_addr != NULL) {
         memcpy(out_id_addr, addr, 6);
     }
 
@@ -209,8 +215,8 @@ ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
     return rc;
 }
 
-int
-ble_hs_id_use_addr(uint8_t own_addr_type)
+static int
+ble_hs_id_addr_type_usable(uint8_t own_addr_type)
 {
     uint8_t id_addr_type;
     int nrpa;
@@ -235,11 +241,6 @@ ble_hs_id_use_addr(uint8_t own_addr_type)
         if (nrpa) {
             return BLE_HS_ENOADDR;
         }
-
-        rc = ble_hs_pvcy_ensure_started();
-        if (rc != 0) {
-            return rc;
-        }
         break;
 
     default:
@@ -247,4 +248,99 @@ ble_hs_id_use_addr(uint8_t own_addr_type)
     }
 
     return 0;
+}
+
+int
+ble_hs_id_use_addr(uint8_t own_addr_type)
+{
+    int rc;
+
+    rc = ble_hs_id_addr_type_usable(own_addr_type);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* If privacy is being used, make sure RPA rotation is in effect. */
+    if (own_addr_type == BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT ||
+        own_addr_type == BLE_OWN_ADDR_RPA_RANDOM_DEFAULT) {
+
+        rc = ble_hs_pvcy_ensure_started();
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Determines the best address type to use for automatic address type
+ * resolution.  Calculation of the best address type is done as follows:
+ *
+ * if privacy requested:
+ *     if we have a random static address:
+ *          --> RPA with static random ID
+ *     else
+ *          --> RPA with public ID
+ *     end
+ * else
+ *     if we have a random static address:
+ *          --> random static address
+ *     else
+ *          --> public address
+ *     end
+ * end
+ *
+ * @param privacy               (0/1) Whether to use a private address.
+ * @param out_addr_type         On success, the "own addr type" code gets
+ *                                  written here.
+ *
+ * @return                      0 if an address type was successfully inferred.
+ *                              BLE_HS_ENOADDR if the device does not have a
+ *                                  suitable address.
+ *                              Other BLE host core code on error.
+ */
+int
+ble_hs_id_infer_auto(int privacy, uint8_t *out_addr_type)
+{
+    static const uint8_t pub_addr_types[] = {
+        BLE_OWN_ADDR_RANDOM,
+        BLE_OWN_ADDR_PUBLIC,
+    };
+    static const uint8_t priv_addr_types[] = {
+        BLE_OWN_ADDR_RPA_RANDOM_DEFAULT,
+        BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT,
+    };
+    const uint8_t *addr_types;
+    uint8_t addr_type;
+    int num_addr_types;
+    int rc;
+    int i;
+
+    if (privacy) {
+        addr_types = priv_addr_types;
+        num_addr_types = sizeof priv_addr_types / sizeof priv_addr_types[0];
+    } else {
+        addr_types = pub_addr_types;
+        num_addr_types = sizeof pub_addr_types / sizeof pub_addr_types[0];
+    }
+
+    for (i = 0; i < num_addr_types; i++) {
+        addr_type = addr_types[i];
+
+        rc = ble_hs_id_addr_type_usable(addr_type);
+        switch (rc) {
+        case 0:
+            *out_addr_type = addr_type;
+            return 0;
+
+        case BLE_HS_ENOADDR:
+            break;
+
+        default:
+            return rc;
+        }
+    }
+
+    return BLE_HS_ENOADDR;
 }
