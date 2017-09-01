@@ -119,6 +119,7 @@ void ble_hs_unlock(void);
 void ble_hs_hw_error(uint8_t hw_code);
 void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
+struct os_eventq *ble_hs_evq_get(void);
 
 #if MYNEWT_VAL(LOG_LEVEL) <= LOG_LEVEL_DEBUG && !BLE_MONITOR
 
