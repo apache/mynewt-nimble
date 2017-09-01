@@ -72,6 +72,11 @@ syscfg.defs:
             space in RTT buffer (e.g. there is no reader connected). If disabled,
             monitor will simply block waiting for RTT to free space in buffer.
         value: 1
+    BLE_MONITOR_CONSOLE_BUFFER_SIZE:
+        description: >
+            Size of internal buffer for console output. Any line exceeding this
+            length value will be split.
+        value: 128
 
     # L2CAP settings.
     BLE_L2CAP_MAX_CHANS:
