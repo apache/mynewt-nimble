@@ -105,7 +105,7 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, sync)
 STATS_NAME_END(ble_hs_stats)
 
-static struct os_eventq *
+struct os_eventq *
 ble_hs_evq_get(void)
 {
     return ble_hs_evq;
@@ -428,7 +428,7 @@ ble_hs_enqueue_hci_event(uint8_t *hci_evt)
         ev->ev_queued = 0;
         ev->ev_cb = ble_hs_event_rx_hci_ev;
         ev->ev_arg = hci_evt;
-        os_eventq_put(ble_hs_evq_get(), ev);
+        os_eventq_put(ble_hs_evq, ev);
     }
 }
 
@@ -446,7 +446,7 @@ ble_hs_notifications_sched(void)
     }
 #endif
 
-    os_eventq_put(ble_hs_evq_get(), &ble_hs_ev_tx_notifications);
+    os_eventq_put(ble_hs_evq, &ble_hs_ev_tx_notifications);
 }
 
 /**
@@ -462,7 +462,7 @@ ble_hs_sched_reset(int reason)
     BLE_HS_DBG_ASSERT(ble_hs_reset_reason == 0);
 
     ble_hs_reset_reason = reason;
-    os_eventq_put(ble_hs_evq_get(), &ble_hs_ev_reset);
+    os_eventq_put(ble_hs_evq, &ble_hs_ev_reset);
 }
 
 void
@@ -491,7 +491,7 @@ ble_hs_start(void)
 
     ble_hs_parent_task = os_sched_get_current_task();
 
-    os_callout_init(&ble_hs_timer_timer, ble_hs_evq_get(),
+    os_callout_init(&ble_hs_timer_timer, ble_hs_evq,
                     ble_hs_timer_exp, NULL);
 
     rc = ble_gatts_start();
@@ -518,7 +518,7 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
 
-    rc = os_mqueue_put(&ble_hs_rx_q, ble_hs_evq_get(), om);
+    rc = os_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
@@ -541,7 +541,7 @@ ble_hs_tx_data(struct os_mbuf *om)
 {
     int rc;
 
-    rc = os_mqueue_put(&ble_hs_tx_q, ble_hs_evq_get(), om);
+    rc = os_mqueue_put(&ble_hs_tx_q, ble_hs_evq, om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
