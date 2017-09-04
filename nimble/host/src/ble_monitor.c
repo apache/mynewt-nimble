@@ -35,27 +35,31 @@
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 #include "rtt/SEGGER_RTT.h"
 #endif
+#include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
-
-/* UTC Timestamp for Jan 2016 00:00:00 */
-#define UTC01_01_2016    1451606400
 
 struct os_mutex lock;
 
 #if MYNEWT_VAL(BLE_MONITOR_UART)
 struct uart_dev *uart;
 
-static uint8_t tx_ringbuf[64];
+static uint8_t tx_ringbuf[MYNEWT_VAL(BLE_MONITOR_UART_BUFFER_SIZE)];
 static uint8_t tx_ringbuf_head;
 static uint8_t tx_ringbuf_tail;
 #endif
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
-static uint8_t rtt_buf[256];
+static uint8_t rtt_buf[MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_SIZE)];
 static int rtt_index;
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
-static uint8_t rtt_pktbuf[256];
+static uint8_t rtt_pktbuf[MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_SIZE)];
 static size_t rtt_pktbuf_pos;
+static struct {
+    bool dropped;
+    struct os_callout tmo;
+    struct ble_monitor_drops_hdr drops_hdr;
+} rtt_drops;
+
 #endif
 #endif
 
@@ -120,12 +124,60 @@ monitor_write(const void *buf, size_t len)
 #endif
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
+
+#if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+static void
+update_drop_counters(struct ble_monitor_hdr *failed_hdr)
+{
+    uint8_t *cnt;
+
+    rtt_drops.dropped = true;
+
+    switch (failed_hdr->opcode) {
+    case BLE_MONITOR_OPCODE_COMMAND_PKT:
+        cnt = &rtt_drops.drops_hdr.cmd;
+        break;
+    case BLE_MONITOR_OPCODE_EVENT_PKT:
+        cnt = &rtt_drops.drops_hdr.evt;
+        break;
+    case BLE_MONITOR_OPCODE_ACL_TX_PKT:
+        cnt = &rtt_drops.drops_hdr.acl_tx;
+        break;
+    case BLE_MONITOR_OPCODE_ACL_RX_PKT:
+        cnt = &rtt_drops.drops_hdr.acl_rx;
+        break;
+    default:
+        cnt = &rtt_drops.drops_hdr.other;
+        break;
+    }
+
+    if (*cnt < UINT8_MAX) {
+        (*cnt)++;
+        os_callout_reset(&rtt_drops.tmo, OS_TICKS_PER_SEC);
+    }
+}
+
+static void
+reset_drop_counters(void)
+{
+    rtt_drops.dropped = false;
+    rtt_drops.drops_hdr.cmd = 0;
+    rtt_drops.drops_hdr.evt = 0;
+    rtt_drops.drops_hdr.acl_tx = 0;
+    rtt_drops.drops_hdr.acl_rx = 0;
+    rtt_drops.drops_hdr.other = 0;
+
+    os_callout_stop(&rtt_drops.tmo);
+}
+#endif
+
 static void
 monitor_write(const void *buf, size_t len)
 {
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
     struct ble_monitor_hdr *hdr = (struct ble_monitor_hdr *) rtt_pktbuf;
     bool discard;
+    unsigned ret = 0;
 
     /* We will discard any packet which exceeds length of intermediate buffer */
     discard = rtt_pktbuf_pos + len > sizeof(rtt_pktbuf);
@@ -139,9 +191,14 @@ monitor_write(const void *buf, size_t len)
         return;
     }
 
-    // TODO: count dropped packets
     if (!discard) {
-        SEGGER_RTT_WriteNoLock(rtt_index, rtt_pktbuf, rtt_pktbuf_pos);
+        ret = SEGGER_RTT_WriteNoLock(rtt_index, rtt_pktbuf, rtt_pktbuf_pos);
+    }
+
+    if (ret > 0) {
+        reset_drop_counters();
+    } else {
+        update_drop_counters(hdr);
     }
 
     rtt_pktbuf_pos = 0;
@@ -150,6 +207,49 @@ monitor_write(const void *buf, size_t len)
 #endif
 }
 #endif
+
+static void
+monitor_write_header(uint16_t opcode, uint16_t len)
+{
+    struct ble_monitor_hdr hdr;
+    struct ble_monitor_ts_hdr ts_hdr;
+    uint8_t hdr_len;
+    int64_t ts;
+
+    hdr_len = sizeof(ts_hdr);
+#if MYNEWT_VAL(BLE_MONITOR_RTT) && MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+    if (rtt_drops.dropped) {
+        hdr_len += sizeof(rtt_drops.drops_hdr);
+    }
+#endif
+
+    hdr.data_len = htole16(4 + hdr_len + len);
+    hdr.hdr_len  = hdr_len;
+    hdr.opcode   = htole16(opcode);
+    hdr.flags    = 0;
+
+    /* Use uptime for timestamp */
+    ts = os_get_uptime_usec();
+
+    /*
+     * btsnoop specification states that fields of extended header must be
+     * sorted in increasing order so we will send drops (if any) headers before
+     * timestamp header.
+     */
+
+    monitor_write(&hdr, sizeof(hdr));
+
+#if MYNEWT_VAL(BLE_MONITOR_RTT) && MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+    if (rtt_drops.dropped) {
+        monitor_write(&rtt_drops.drops_hdr, sizeof(rtt_drops.drops_hdr));
+    }
+#endif
+
+    ts_hdr.type = BLE_MONITOR_EXTHDR_TS32;
+    ts_hdr.ts32 = htole32(ts / 100);
+
+    monitor_write(&ts_hdr, sizeof(ts_hdr));
+}
 
 static size_t
 btmon_write(FILE *instance, const char *bp, size_t n)
@@ -165,32 +265,23 @@ static FILE *btmon = (FILE *) &(struct File) {
     },
 };
 
+#if MYNEWT_VAL(BLE_MONITOR_RTT) && MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
 static void
-encode_monitor_hdr(struct ble_monitor_hdr *hdr, int64_t ts, uint16_t opcode,
-                   uint16_t len)
+drops_tmp_cb(struct os_event *ev)
 {
-    int rc;
-    struct os_timeval tv;
+    os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
-    hdr->hdr_len  = sizeof(hdr->type) + sizeof(hdr->ts32);
-    hdr->data_len = htole16(4 + hdr->hdr_len + len);
-    hdr->opcode   = htole16(opcode);
-    hdr->flags    = 0;
+    /*
+     * There's no "nop" in btsnoop protocol so we just send empty system note
+     * to indicate drops.
+     */
 
-    /* Calculate timestamp if not present (same way as used in log module) */
-    if (ts < 0) {
-        rc = os_gettimeofday(&tv, NULL);
-        if (rc || tv.tv_sec < UTC01_01_2016) {
-            ts = os_get_uptime_usec();
-        } else {
-            ts = tv.tv_sec * 1000000 + tv.tv_usec;
-        }
-    }
+    monitor_write_header(BLE_MONITOR_OPCODE_SYSTEM_NOTE, 1);
+    monitor_write("", 1);
 
-    /* Extended header */
-    hdr->type = BLE_MONITOR_EXTHDR_TS32;
-    hdr->ts32 = htole32(ts / 100);
+    os_mutex_release(&lock);
 }
+#endif
 
 int
 ble_monitor_init(void)
@@ -216,6 +307,15 @@ ble_monitor_init(void)
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
+    os_callout_init(&rtt_drops.tmo, ble_hs_evq_get(), drops_tmp_cb, NULL);
+
+    /* Initialize types in header (we won't touch them later) */
+    rtt_drops.drops_hdr.type_cmd = BLE_MONITOR_EXTHDR_COMMAND_DROPS;
+    rtt_drops.drops_hdr.type_evt = BLE_MONITOR_EXTHDR_EVENT_DROPS;
+    rtt_drops.drops_hdr.type_acl_tx = BLE_MONITOR_EXTHDR_ACL_TX_DROPS;
+    rtt_drops.drops_hdr.type_acl_rx = BLE_MONITOR_EXTHDR_ACL_RX_DROPS;
+    rtt_drops.drops_hdr.type_other = BLE_MONITOR_EXTHDR_OTHER_DROPS;
+
     rtt_index = SEGGER_RTT_AllocUpBuffer(MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_NAME),
                                          rtt_buf, sizeof(rtt_buf),
                                          SEGGER_RTT_MODE_NO_BLOCK_SKIP);
@@ -238,13 +338,9 @@ ble_monitor_init(void)
 int
 ble_monitor_send(uint16_t opcode, const void *data, size_t len)
 {
-    struct ble_monitor_hdr hdr;
-
-    encode_monitor_hdr(&hdr, -1, opcode, len);
-
     os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
-    monitor_write(&hdr, sizeof(hdr));
+    monitor_write_header(opcode, len);
     monitor_write(data, len);
 
     os_mutex_release(&lock);
@@ -256,7 +352,6 @@ int
 ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om)
 {
     const struct os_mbuf *om_tmp;
-    struct ble_monitor_hdr hdr;
     uint16_t length = 0;
 
     om_tmp = om;
@@ -265,11 +360,9 @@ ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om)
         om_tmp = SLIST_NEXT(om_tmp, om_next);
     }
 
-    encode_monitor_hdr(&hdr, -1, opcode, length);
-
     os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
-    monitor_write(&hdr, sizeof(hdr));
+    monitor_write_header(opcode, length);
 
     while (om) {
         monitor_write(om->om_data, om->om_len);
@@ -301,7 +394,6 @@ int
 ble_monitor_log(int level, const char *fmt, ...)
 {
     static const char id[] = "nimble";
-    struct ble_monitor_hdr hdr;
     struct ble_monitor_user_logging ulog;
     va_list va;
     int len;
@@ -330,12 +422,10 @@ ble_monitor_log(int level, const char *fmt, ...)
 
     ulog.ident_len = sizeof(id);
 
-    encode_monitor_hdr(&hdr, -1, BLE_MONITOR_OPCODE_USER_LOGGING,
-                       sizeof(ulog) + sizeof(id) + len + 1);
-
     os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
-    monitor_write(&hdr, sizeof(hdr));
+    monitor_write_header(BLE_MONITOR_OPCODE_USER_LOGGING,
+                         sizeof(ulog) + sizeof(id) + len + 1);
     monitor_write(&ulog, sizeof(ulog));
     monitor_write(id, sizeof(id));
 
@@ -354,12 +444,15 @@ ble_monitor_log(int level, const char *fmt, ...)
 int
 ble_monitor_out(int c)
 {
-    static char buf[128];
+    static char buf[MYNEWT_VAL(BLE_MONITOR_CONSOLE_BUFFER_SIZE)];
     static size_t len;
 
-    if (c != '\n' && len < sizeof(buf) - 1) {
+    if (c != '\n') {
         buf[len++] = c;
-        return c;
+
+        if (len < sizeof(buf) - 1) {
+            return c;
+        }
     }
 
     buf[len++] = '\0';

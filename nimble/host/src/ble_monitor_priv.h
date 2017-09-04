@@ -38,7 +38,6 @@ extern "C" {
 #define BLE_MONITOR_OPCODE_VENDOR_DIAG  11
 #define BLE_MONITOR_OPCODE_SYSTEM_NOTE  12
 #define BLE_MONITOR_OPCODE_USER_LOGGING 13
-#define BLE_MONITOR_OPCODE_NOP          255
 
 #define BLE_MONITOR_EXTHDR_COMMAND_DROPS    1
 #define BLE_MONITOR_EXTHDR_EVENT_DROPS      2
@@ -54,8 +53,22 @@ struct ble_monitor_hdr {
     uint16_t  opcode;
     uint8_t   flags;
     uint8_t   hdr_len;
+} __attribute__((packed));
 
-    /* Extended header (timestamp always present) */
+struct ble_monitor_drops_hdr {
+    uint8_t type_cmd;
+    uint8_t cmd;
+    uint8_t type_evt;
+    uint8_t evt;
+    uint8_t type_acl_tx;
+    uint8_t acl_tx;
+    uint8_t type_acl_rx;
+    uint8_t acl_rx;
+    uint8_t type_other;
+    uint8_t other;
+} __attribute__((packed));
+
+struct ble_monitor_ts_hdr {
     uint8_t   type;
     uint32_t  ts32;
 } __attribute__((packed));
