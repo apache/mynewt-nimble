@@ -2635,13 +2635,15 @@ ble_ll_conn_event_end(struct os_event *ev)
      */
     if (connsm->conn_state == BLE_LL_CONN_STATE_CREATED) {
         tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6UL;
+        ble_err = BLE_ERR_CONN_ESTABLISHMENT;
     } else {
         tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000UL;
+        ble_err = BLE_ERR_CONN_SPVN_TMO;
     }
     /* XXX: Convert to ticks to usecs calculation instead??? */
     tmo = os_cputime_usecs_to_ticks(tmo);
     if ((int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >= tmo) {
-        ble_ll_conn_end(connsm, BLE_ERR_CONN_SPVN_TMO);
+        ble_ll_conn_end(connsm, ble_err);
         return;
     }
 
