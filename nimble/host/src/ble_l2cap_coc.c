@@ -349,9 +349,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         /* Prepare packet */
         txom = ble_hs_mbuf_l2cap_pkt();
         if (!txom) {
-            BLE_HS_LOG(DEBUG, "Could not prepare l2cap packet len %d, err=%d",
-                                                                   len, rc);
-
+            BLE_HS_LOG(DEBUG, "Could not prepare l2cap packet len %d", len);
             rc = BLE_HS_ENOMEM;
             goto failed;
         }
