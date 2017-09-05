@@ -2027,12 +2027,13 @@ ble_gap_adv_params_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
         return rc;
     }
 #else
+    const ble_addr_t *peer_any = BLE_ADDR_ANY;
     struct hci_adv_params hci_adv_params;
     uint8_t buf[BLE_HCI_SET_ADV_PARAM_LEN];
     int rc;
 
     if (peer_addr == NULL) {
-        peer_addr = BLE_ADDR_ANY;
+        peer_addr = peer_any;
     }
 
     hci_adv_params.own_addr_type = own_addr_type;
