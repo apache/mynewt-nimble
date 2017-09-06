@@ -2049,9 +2049,19 @@ ble_sm_test_util_rx_keys(struct ble_sm_test_params *params,
         ble_sm_test_util_rx_master_id(2, peer_master_id, 0);
     }
     if (peer_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
-        ble_hs_test_util_set_ack(
-            ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                        BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
+
+        ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+            {
+                .opcode = ble_hs_hci_util_opcode_join(
+                                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+            } ,
+            {
+                .opcode = ble_hs_hci_util_opcode_join(
+                                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+            },
+            { 0 }
+        }));
+
         ble_sm_test_util_rx_id_info(2, peer_id_info, 0);
         ble_sm_test_util_rx_id_addr_info(2, peer_id_addr_info, 0);
     }
