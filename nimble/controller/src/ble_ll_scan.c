@@ -133,6 +133,7 @@ struct ble_ll_scan_advertisers
 #define BLE_LL_SC_ADV_F_SCAN_RSP_RXD    (0x02)
 #define BLE_LL_SC_ADV_F_DIRECT_RPT_SENT (0x04)
 #define BLE_LL_SC_ADV_F_ADV_RPT_SENT    (0x08)
+#define BLE_LL_SC_ADV_F_SCAN_RSP_SENT   (0x10)
 
 /* Contains list of advertisers that we have heard scan responses from */
 static uint8_t g_ble_ll_scan_num_rsp_advs;
@@ -409,6 +410,10 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
             if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_DIRECT_RPT_SENT) {
                 return 1;
             }
+        } else if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
+            if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_SCAN_RSP_SENT) {
+                return 1;
+            }
         } else {
             if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_ADV_RPT_SENT) {
                 return 1;
@@ -427,9 +432,11 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
  * @param addr   Pointer to advertisers address or identity address
  * @param Txadd. TxAdd bit (0 public, random otherwise)
  * @param subev  Type of advertising report sent (direct or normal).
+ * @param evtype Advertising event type
  */
 void
-ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev)
+ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev,
+                        uint8_t evtype)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -457,7 +464,11 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev)
     if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
         adv->sc_adv_flags |= BLE_LL_SC_ADV_F_DIRECT_RPT_SENT;
     } else {
-        adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
+        if (evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP) {
+            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_SCAN_RSP_SENT;
+        } else {
+            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
+        }
     }
 }
 
@@ -771,7 +782,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
     if (!rc) {
         /* If filtering, add it to list of duplicate addresses */
         if (scansm->scan_filt_dups) {
-            ble_ll_scan_add_dup_adv(adv_addr, txadd, subev);
+            ble_ll_scan_add_dup_adv(adv_addr, txadd, subev, evtype);
         }
     }
 }
