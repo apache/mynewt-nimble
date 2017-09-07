@@ -582,6 +582,12 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
         return -1;
     }
 
+    /* Drop packet if it does not fit into event buffer */
+    if ((sizeof(*evt) + adv_data_len) + 1 > MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE)) {
+        STATS_INC(ble_ll_stats, adv_evt_dropped);
+        return -1;
+    }
+
     evt = ble_ll_scan_init_ext_adv();
     if (!evt) {
         return 0;
@@ -641,6 +647,12 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
     uint8_t *tmp;
 
     if (!ble_ll_hci_is_le_event_enabled(subev)) {
+        return -1;
+    }
+
+    /* Drop packet if it does not fit into event buffer */
+    if (event_len + 1 > MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE)) {
+        STATS_INC(ble_ll_stats, adv_evt_dropped);
         return -1;
     }
 
@@ -1741,6 +1753,14 @@ ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
 
     if ((pdu_len - i - 1 > 0)) {
         out_evt->adv_data_len = pdu_len - i - 1;
+
+        /* XXX Drop packet if it does not fit into event buffer for now.*/
+        if ((sizeof(*out_evt) + out_evt->adv_data_len) + 1 >
+                                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE)) {
+            STATS_INC(ble_ll_stats, adv_evt_dropped);
+            return -1;
+        }
+
         os_mbuf_copydata(om, 0, out_evt->adv_data_len, out_evt->adv_data);
     }
 
