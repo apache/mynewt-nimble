@@ -720,7 +720,7 @@ ble_ll_rx_pkt_in(void)
             ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
         case BLE_LL_STATE_SCANNING:
-            ble_ll_scan_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
+            ble_ll_scan_rx_pkt_in(pdu_type, m, ble_hdr);
             break;
         case BLE_LL_STATE_INITIATING:
             ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);

@@ -562,7 +562,7 @@ static int
 ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       uint8_t addr_type, uint8_t *addr,
                                       uint8_t rssi,
-                                      uint8_t adv_data_len, uint8_t *adv_data,
+                                      uint8_t adv_data_len, struct os_mbuf *adv_data,
                                       uint8_t *inita)
 {
     struct ble_ll_ext_adv *evt;
@@ -609,7 +609,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
         evt->event_len += BLE_DEV_ADDR_LEN  + 1;
     } else if (adv_data_len <= (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - sizeof(*evt))) {
         evt->adv_data_len = adv_data_len;
-        memcpy(evt->adv_data, adv_data, adv_data_len);
+        os_mbuf_copydata(adv_data, 0, adv_data_len, evt->adv_data);
         evt->event_len += adv_data_len;
     }
 
@@ -623,7 +623,8 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
 static int
 ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
                            uint8_t addr_type, uint8_t *addr, uint8_t rssi,
-                           uint8_t adv_data_len, uint8_t *adv_data, uint8_t *inita)
+                           uint8_t adv_data_len, struct os_mbuf *adv_data,
+                           uint8_t *inita)
 {
     uint8_t *evbuf;
     uint8_t *tmp;
@@ -653,7 +654,7 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
         tmp += BLE_DEV_ADDR_LEN + 1;
     } else if (subev == BLE_HCI_LE_SUBEV_ADV_RPT) {
         tmp[0] = adv_data_len;
-        memcpy(tmp + 1, adv_data, adv_data_len);
+        os_mbuf_copydata(adv_data, 0, adv_data_len, tmp + 1);
         tmp += adv_data_len + 1;
     } else {
         assert(0);
@@ -677,7 +678,7 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
  * @param scansm
  */
 static void
-ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
+ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
                            struct ble_mbuf_hdr *hdr,
                            struct ble_ll_scan_sm *scansm)
 {
@@ -685,13 +686,13 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int index;
 #endif
+    uint8_t *rxbuf = om->om_data;
     uint8_t evtype;
     uint8_t subev;
     uint8_t *adv_addr;
     uint8_t *inita;
     uint8_t addr_type;
     uint8_t adv_data_len;
-    uint8_t *adv_data = NULL;
     uint8_t event_len;
 
     inita = NULL;
@@ -721,7 +722,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
         adv_data_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
         adv_data_len -= BLE_DEV_ADDR_LEN;
         event_len = BLE_HCI_LE_ADV_RPT_MIN_LEN + adv_data_len;
-        adv_data = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
+        os_mbuf_adj(om, BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN);
     }
 
     if (txadd) {
@@ -752,20 +753,20 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, uint8_t *rxbuf,
         rc = ble_ll_hci_send_legacy_ext_adv_report(evtype,
                                                    addr_type, adv_addr,
                                                    hdr->rxinfo.rssi,
-                                                   adv_data_len, adv_data,
+                                                   adv_data_len, om,
                                                    inita);
     } else {
         rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
                                         addr_type, adv_addr,
                                         hdr->rxinfo.rssi,
-                                        adv_data_len, adv_data,
+                                        adv_data_len, om,
                                         inita);
     }
 #else
     rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
                                     addr_type, adv_addr,
                                     hdr->rxinfo.rssi,
-                                    adv_data_len, adv_data,
+                                    adv_data_len, om,
                                     inita);
 #endif
     if (!rc) {
@@ -1643,7 +1644,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
  *
  */
 int
-ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
+ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_ext_adv *out_evt)
 {
     uint8_t pdu_len;
@@ -1653,6 +1654,7 @@ ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_aux_data *aux_data;
     int i = 1;
+    uint8_t *rxbuf = om->om_data;
 
     if (!out_evt) {
         return -1;
@@ -1678,6 +1680,7 @@ ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
     ext_hdr_len = rxbuf[2] & 0x3F;
     ext_hdr_flags = rxbuf[3];
     ext_hdr = &rxbuf[4];
+    os_mbuf_adj(om, 4);
 
     i = 0;
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
@@ -1722,9 +1725,12 @@ ble_ll_scan_parse_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
     /* Skip ADAC if it is there */
     i = ext_hdr_len;
 
+    /* Adjust for advertising data */
+    os_mbuf_adj(om, i);
+
     if ((pdu_len - i - 1 > 0)) {
         out_evt->adv_data_len = pdu_len - i - 1;
-        memcpy(out_evt->adv_data, ext_hdr + ext_hdr_len - 1, out_evt->adv_data_len);
+        os_mbuf_copydata(om, 0, out_evt->adv_data_len, out_evt->adv_data);
     }
 
     /* In the event we need information on primary and secondary PHY used during
@@ -2151,7 +2157,7 @@ ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
 }
 
 static void
-ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *rxbuf,
+ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
                                struct ble_mbuf_hdr *hdr)
 {
     struct ble_ll_ext_adv *evt;
@@ -2166,7 +2172,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *rxbuf,
         return;
     }
 
-    rc = ble_ll_scan_parse_ext_adv(rxbuf, hdr, evt);
+    rc = ble_ll_scan_parse_ext_adv(om, hdr, evt);
     if (rc) {
 
         ble_hci_trans_buf_free((uint8_t *)evt);
@@ -2188,11 +2194,12 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *rxbuf,
  * @param rxbuf
  */
 void
-ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
+ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hdr)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int index;
 #endif
+    uint8_t *rxbuf = om->om_data;
     uint8_t *adv_addr = NULL;
     uint8_t *adva;
     uint8_t *ident_addr;
@@ -2307,7 +2314,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
             STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
-        ble_ll_hci_send_ext_adv_report(ptype, rxbuf, hdr);
+        ble_ll_hci_send_ext_adv_report(ptype, om, hdr);
         ble_ll_scan_switch_phy(scansm);
 
         if (scansm->scan_rsp_pending) {
@@ -2330,7 +2337,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 #endif
 
     /* Send the advertising report */
-    ble_ll_scan_send_adv_report(ptype, ident_addr_type, rxbuf, hdr, scansm);
+    ble_ll_scan_send_adv_report(ptype, ident_addr_type, om, hdr, scansm);
 
 scan_continue:
     /*
