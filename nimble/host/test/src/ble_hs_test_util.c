@@ -285,14 +285,6 @@ ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
     put_le16(dst + 4, opcode);
 }
 
-#define BLE_HS_TEST_UTIL_PHONY_ACK_MAX  64
-struct ble_hs_test_util_phony_ack {
-    uint16_t opcode;
-    uint8_t status;
-    uint8_t evt_params[256];
-    uint8_t evt_params_len;
-};
-
 static struct ble_hs_test_util_phony_ack
 ble_hs_test_util_phony_acks[BLE_HS_TEST_UTIL_PHONY_ACK_MAX];
 static int ble_hs_test_util_num_phony_acks;
@@ -351,7 +343,7 @@ ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status)
     ble_hs_test_util_set_ack_params(opcode, status, NULL, 0);
 }
 
-static void
+void
 ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks)
 {
     int i;

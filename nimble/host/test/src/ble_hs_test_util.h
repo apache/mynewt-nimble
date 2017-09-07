@@ -63,6 +63,14 @@ struct ble_hs_test_util_att_group_type_entry {
     const ble_uuid_t *uuid;
 };
 
+#define BLE_HS_TEST_UTIL_PHONY_ACK_MAX  64
+struct ble_hs_test_util_phony_ack {
+    uint16_t opcode;
+    uint8_t status;
+    uint8_t evt_params[256];
+    uint8_t evt_params_len;
+};
+
 #define BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(handle, pb, len) \
     ((struct hci_data_hdr) {                            \
         .hdh_handle_pb_bc = ((handle)  << 0) |          \
@@ -82,6 +90,7 @@ void ble_hs_test_util_prev_tx_queue_clear(void);
 void ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status,
                                      void *params, uint8_t params_len);
 void ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status);
+void ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks);
 void *ble_hs_test_util_get_first_hci_tx(void);
 void *ble_hs_test_util_get_last_hci_tx(void);
 void ble_hs_test_util_enqueue_hci_tx(void *cmd);
