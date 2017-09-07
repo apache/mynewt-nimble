@@ -1736,7 +1736,7 @@ ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
     /* In the event we need information on primary and secondary PHY used during
      * advertising.
      */
-    aux_data = ble_hdr->rxinfo.aux_data;
+    aux_data = ble_hdr->rxinfo.user_data;
     if (!aux_data) {
         out_evt->prim_phy = ble_hdr->rxinfo.phy;
         goto done;
@@ -1942,7 +1942,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
         }
 
-        ble_hdr->rxinfo.aux_data = aux_data;
+        ble_hdr->rxinfo.user_data = aux_data;
         scansm->cur_aux_data = NULL;
         rc = -1;
     }
@@ -2053,7 +2053,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
                 if (ble_hdr->rxinfo.channel <  BLE_PHY_NUM_DATA_CHANS) {
                     /* Let's keep the aux ptr as a reference to scan rsp */
-                    scansm->cur_aux_data = ble_hdr->rxinfo.aux_data;
+                    scansm->cur_aux_data = ble_hdr->rxinfo.user_data;
                     STATS_INC(ble_ll_stats, aux_scan_req_tx);
                 }
 #endif
@@ -2298,11 +2298,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         }
 
         if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
-            ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+            ble_ll_scan_aux_data_free(hdr->rxinfo.user_data);
             goto scan_continue;
         }
 
-        aux_data = hdr->rxinfo.aux_data;
+        aux_data = hdr->rxinfo.user_data;
 
         /* Let's see if that packet contains aux ptr*/
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
@@ -2329,7 +2329,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
             /* If there is no chaining, we can remove data. Otherwise it is
              * already scheduled for next aux*/
-            ble_ll_scan_aux_data_free(hdr->rxinfo.aux_data);
+            ble_ll_scan_aux_data_free(hdr->rxinfo.user_data);
         }
 
         goto scan_continue;

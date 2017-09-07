@@ -68,9 +68,7 @@ struct ble_mbuf_hdr_rxinfo
     int8_t  rssi;
     int8_t  phy;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    /* TODO  this could be just one user-data pointer */
-    void *advsm;   /* advertising state machine */
-    void *aux_data;
+    void *user_data;
 #endif
 };
 
