@@ -2386,7 +2386,7 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
     } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
-        rxhdr->rxinfo.advsm = g_ble_ll_cur_adv_sm;
+        rxhdr->rxinfo.user_data = g_ble_ll_cur_adv_sm;
 #endif
         if (crcok) {
             if ((pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
@@ -2429,7 +2429,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     struct ble_ll_adv_sm *advsm;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    advsm = (struct ble_ll_adv_sm *)hdr->rxinfo.advsm;
+    advsm = (struct ble_ll_adv_sm *)hdr->rxinfo.user_data;
 #else
     advsm = &g_ble_ll_adv_sm[0];
 #endif
@@ -2837,7 +2837,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     struct ble_ll_adv_sm *advsm;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    advsm = (struct ble_ll_adv_sm *)rxhdr->rxinfo.advsm;
+    advsm = (struct ble_ll_adv_sm *)rxhdr->rxinfo.user_data;
 #else
     advsm = &g_ble_ll_adv_sm[0];
 #endif
