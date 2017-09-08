@@ -205,7 +205,7 @@ static void ble_ll_event_dbuf_overflow(struct os_event *ev);
 /* TODO: This is for testing. Check it we really need it */
 #define BLE_LL_STACK_SIZE   (128)
 #else
-#define BLE_LL_STACK_SIZE   (80)
+#define BLE_LL_STACK_SIZE   (90)
 #endif
 
 struct os_task g_ble_ll_task;
