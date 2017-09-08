@@ -193,6 +193,7 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, aux_scan_rsp_err)
     STATS_NAME(ble_ll_stats, aux_chain_cnt)
     STATS_NAME(ble_ll_stats, aux_chain_err)
+    STATS_NAME(ble_ll_stats, adv_evt_dropped)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct os_event *ev);
