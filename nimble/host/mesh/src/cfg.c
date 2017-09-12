@@ -3032,6 +3032,7 @@ int bt_mesh_conf_init(struct bt_mesh_model *model, bool primary)
 	}
 
 	k_delayed_work_init(&cfg->hb_pub.timer, hb_publish);
+	k_delayed_work_add_arg(&cfg->hb_pub.timer, cfg);
 	cfg->hb_sub.expiry = 0;
 
 	cfg->model = model;
