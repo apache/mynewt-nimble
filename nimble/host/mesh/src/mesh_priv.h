@@ -14,6 +14,7 @@
 #define BT_MESH_ADDR_IS_UNICAST(addr) ((addr) && (addr) < 0x8000)
 #define BT_MESH_ADDR_IS_GROUP(addr) ((addr) >= 0xc000 && (addr) <= 0xff00)
 #define BT_MESH_ADDR_IS_VIRTUAL(addr) ((addr) >= 0x8000 && (addr) < 0xc000)
+#define BT_MESH_ADDR_IS_RFU(addr) ((addr) >= 0xff00 && (addr) <= 0xfffb)
 
 bool
 bt_mesh_is_provisioned(void);
