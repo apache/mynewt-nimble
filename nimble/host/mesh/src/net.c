@@ -1206,6 +1206,7 @@ void bt_mesh_net_init(void)
 	k_delayed_work_init(&bt_mesh.ivu_complete, ivu_complete);
 
 #if (MYNEWT_VAL(BLE_MESH_LOCAL_INTERFACE))
+	os_eventq_init(&bt_mesh.local_queue);
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 #endif
 }
