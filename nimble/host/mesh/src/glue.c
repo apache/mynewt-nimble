@@ -65,7 +65,7 @@ net_buf_ref(struct os_mbuf *om)
 
     /* For bufs with header we count refs*/
     if (OS_MBUF_USRHDR_LEN(om) == 0) {
-        return NULL;
+        return om;
     }
 
     adv = BT_MESH_ADV(om);
