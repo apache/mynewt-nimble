@@ -17,6 +17,13 @@
 
 #include "mesh/glue.h"
 
+
+/**
+ * Print out all the incoming advertising packets
+ * Used on log level 0
+ */
+#define BT_MESH_EXTENDED_DEBUG 0
+
 /**
  *  @brief Parsing state of a buffer.
  *
