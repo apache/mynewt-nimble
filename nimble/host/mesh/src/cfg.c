@@ -3024,7 +3024,7 @@ int bt_mesh_conf_init(struct bt_mesh_model *model, bool primary)
 	}
 
 	if (!(MYNEWT_VAL(BLE_MESH_FRIEND))) {
-		cfg->frnd = BT_MESH_RELAY_NOT_SUPPORTED;
+		cfg->frnd = BT_MESH_FRIEND_NOT_SUPPORTED;
 	}
 
 	if (!(MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
