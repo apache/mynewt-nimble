@@ -119,6 +119,7 @@ static void mod_init(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 	if (mod->pub) {
 		mod->pub->mod = mod;
 		k_delayed_work_init(&mod->pub->timer, mod_publish);
+		k_delayed_work_add_arg(&mod->pub->timer, mod->pub);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mod->keys); i++) {
