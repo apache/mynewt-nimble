@@ -16,6 +16,7 @@
 #include <tinycrypt/cmac_mode.h>
 #include <tinycrypt/ccm_mode.h>
 
+#include "syscfg/syscfg.h"
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_CRYPTO))
 #include "host/ble_hs_log.h"
 

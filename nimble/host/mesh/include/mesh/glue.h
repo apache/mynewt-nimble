@@ -142,9 +142,12 @@ typedef size_t ssize_t;
 #define BT_GAP_ADV_SLOW_INT_MIN                 0x0640  /* 1 s      */
 #define BT_GAP_ADV_SLOW_INT_MAX                 0x0780  /* 1.2 s    */
 
-#define BT_WARN(fmt, ...)   BLE_HS_LOG(WARN, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_DBG(fmt, ...)    BLE_HS_LOG(DEBUG, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_DBG(fmt, ...)    \
+    if (BT_DBG_ENABLED) { \
+        BLE_HS_LOG(DEBUG, "%s: " fmt "\n", __func__, ## __VA_ARGS__); \
+    }
 #define BT_INFO(fmt, ...)   BLE_HS_LOG(INFO, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_WARN(fmt, ...)   BLE_HS_LOG(WARN, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
 #define BT_ERR(fmt, ...)    BLE_HS_LOG(ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
 #define BT_GATT_ERR(_att_err)   (-(_att_err))
 

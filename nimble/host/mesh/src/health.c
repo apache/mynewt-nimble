@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
-
+#include "syscfg/syscfg.h"
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
 #include "host/ble_hs_log.h"
 
