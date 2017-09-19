@@ -13,6 +13,7 @@
 #include "mesh/mesh.h"
 #include "mesh_priv.h"
 
+#include "syscfg/syscfg.h"
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_TRANS))
 #include "host/ble_hs_log.h"
 
