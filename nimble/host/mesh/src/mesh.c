@@ -28,6 +28,7 @@
 #include "proxy.h"
 #include "mesh_priv.h"
 
+u8_t g_mesh_addr_type;
 static bool provisioned;
 
 int
@@ -161,6 +162,8 @@ bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 {
     int err;
 
+    g_mesh_addr_type = own_addr_type;
+
     err = bt_mesh_comp_register(comp);
     if (err) {
         return err;
@@ -182,7 +185,7 @@ bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 
     bt_mesh_beacon_init();
 
-    bt_mesh_adv_init(own_addr_type);
+    bt_mesh_adv_init();
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
     /* Make sure we're scanning for provisioning inviations */
