@@ -20,6 +20,8 @@
 #include "mesh/glue.h"
 #include "adv.h"
 
+extern u8_t g_mesh_addr_type;
+
 const char *
 bt_hex(const void *buf, size_t len)
 {
@@ -468,7 +470,8 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
         return err;
     }
 
-    err = ble_gap_adv_start(0x00, NULL, BLE_HS_FOREVER, param, NULL, NULL);
+    err = ble_gap_adv_start(g_mesh_addr_type, NULL, BLE_HS_FOREVER, param,
+                            NULL, NULL);
     if (err) {
         BT_ERR("Advertising failed: err %d", err);
         return err;

@@ -57,7 +57,7 @@ void bt_mesh_adv_send(struct os_mbuf *buf, bt_mesh_adv_func_t sent);
 
 void bt_mesh_adv_update(void);
 
-void bt_mesh_adv_init(uint8_t own_addr_type);
+void bt_mesh_adv_init(void);
 
 int bt_mesh_scan_enable(void);
 

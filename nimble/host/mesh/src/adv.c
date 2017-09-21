@@ -43,7 +43,7 @@
 
 struct os_task adv_task;
 static struct os_eventq adv_queue;
-static uint8_t g_own_addr_type;
+extern u8_t g_mesh_addr_type;
 
 static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
         MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
@@ -260,15 +260,13 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, s8_t rssi,
 	}
 }
 
-void bt_mesh_adv_init(uint8_t own_addr_type)
+void bt_mesh_adv_init(void)
 {
     os_stack_t *pstack;
     int rc;
 
     pstack = malloc(sizeof(os_stack_t) * ADV_STACK_SIZE);
     assert(pstack);
-
-    g_own_addr_type = own_addr_type;
 
     rc = os_mempool_init(&adv_buf_mempool, MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
     BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE,
@@ -343,7 +341,7 @@ int bt_mesh_scan_enable(void)
 
     BT_DBG("");
 
-    return ble_gap_disc(g_own_addr_type, BLE_HS_FOREVER, &scan_param, NULL, NULL);
+    return ble_gap_disc(g_mesh_addr_type, BLE_HS_FOREVER, &scan_param, NULL, NULL);
 }
 
 int bt_mesh_scan_disable(void)
