@@ -103,6 +103,12 @@ static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 /* Radio ramp-up times in usecs (fast mode) */
 #define BLE_PHY_T_TXENFAST      (XCVR_TX_RADIO_RAMPUP_USECS)
 #define BLE_PHY_T_RXENFAST      (XCVR_RX_RADIO_RAMPUP_USECS)
+/* delay between EVENTS_READY and start of tx */
+static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = { 5, 3, 3, 5 };
+/* delay between EVENTS_END and end of txd packet */
+static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = { 9, 3, 3, 3 };
+/* delay between end of rxd packet and EVENTS_END */
+static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = { 27, 7, 3, 22 };
 
 /* Statistics */
 STATS_SECT_START(ble_phy_stats)
@@ -611,7 +617,6 @@ ble_phy_rx_xcvr_setup(void)
     NRF_RADIO->EVENTS_CRCOK = 0;
     NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
                         RADIO_SHORTS_READY_START_Msk |
-                        RADIO_SHORTS_DISABLED_TXEN_Msk |
                         RADIO_SHORTS_ADDRESS_BCSTART_Msk |
                         RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
                         RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
@@ -629,9 +634,14 @@ ble_phy_tx_end_isr(void)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     int phy;
 #endif
+    uint8_t tx_phy_mode;
     uint8_t was_encrypted;
     uint8_t transition;
+    uint32_t rx_time;
     uint32_t wfr_time;
+
+    /* Store PHY on which we've just transmitted smth */
+    tx_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
 
     /* If this transmission was encrypted we need to remember it */
     was_encrypted = g_ble_phy_data.phy_encrypted;
@@ -684,6 +694,19 @@ ble_phy_tx_end_isr(void)
         ble_phy_rx_xcvr_setup();
 
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
+
+        /* Schedule RX exactly T_IFS after TX end captured in CC[2] */
+        rx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        /* Adjust for delay between EVENT_END and actual TX end time */
+        rx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+        /* Adjust for radio ramp-up */
+        rx_time -= BLE_PHY_T_RXENFAST;
+        /* Start listening a bit earlier due to allowed active clock accuracy */
+        rx_time -= 2;
+
+        NRF_TIMER0->CC[0] = rx_time;
+        NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+        NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
     } else {
         /*
          * XXX: not sure we need to stop the timer here all the time. Or that
@@ -697,12 +720,44 @@ ble_phy_tx_end_isr(void)
     }
 }
 
+static inline uint8_t
+ble_phy_get_cur_rx_phy_mode(void)
+{
+    uint8_t phy;
+
+    phy = g_ble_phy_data.phy_cur_phy_mode;
+
+#if BLE_LL_BT5_PHY_SUPPORTED
+    /*
+     * For Coded PHY mode can be set to either codings since actual coding is
+     * set in packet header. However, here we need actual coding of received
+     * packet as this determines pipeline delays so need to figure this out
+     * using CI field.
+     */
+    if ((phy == BLE_PHY_MODE_CODED_125KBPS) ||
+                                    (phy == BLE_PHY_MODE_CODED_500KBPS)) {
+        /*
+         * XXX CI field value is bits [2:1] in NRF_RADIO->PDUSTAT which is
+         *     available in SDK v14.0 - it's NRF_RADIO->RESERVED7[0] in
+         *     SDK v11.0 so let's use it for now
+         */
+        phy = NRF_RADIO->RESERVED7[0] & 0x06 ?
+                                        BLE_PHY_MODE_CODED_500KBPS :
+                                        BLE_PHY_MODE_CODED_125KBPS;
+    }
+#endif
+
+    return phy;
+}
+
 static void
 ble_phy_rx_end_isr(void)
 {
     int rc;
     uint8_t *dptr;
     uint8_t crcok;
+    uint8_t rx_phy_mode;
+    uint32_t tx_time;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Clear events and clear interrupt */
@@ -711,6 +766,9 @@ ble_phy_rx_end_isr(void)
 
     /* Disable automatic RXEN */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
+
+    /* Store PHY on which we've just received smth */
+    rx_phy_mode = ble_phy_get_cur_rx_phy_mode();
 
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
@@ -768,6 +826,20 @@ ble_phy_rx_end_isr(void)
     rc = ble_ll_rx_end(dptr + 1, ble_hdr);
     if (rc < 0) {
         ble_phy_disable();
+    } else if (rc == 0) {
+        /* Schedule TX exactly T_IFS after RX end captured in CC[2] */
+        tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        /* Adjust for delay between actual RX end time and EVENT_END */
+        tx_time -= g_ble_phy_t_rxenddelay[rx_phy_mode];
+        /* Adjust for radio ramp-up */
+        tx_time -= BLE_PHY_T_TXENFAST;
+        /* Adjust for delay between EVENT_READY and actual TX start time */
+        /* XXX: we may have asymmetric phy so next phy may be different... */
+        tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+
+        NRF_TIMER0->CC[0] = tx_time;
+        NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+        NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
     }
 }
 
@@ -1301,9 +1373,6 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 
     /* Enable shortcuts for transmit start/end. */
     shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
-    if (end_trans == BLE_PHY_TRANSITION_TX_RX) {
-        shortcuts |= RADIO_SHORTS_DISABLED_RXEN_Msk;
-    }
     NRF_RADIO->SHORTS = shortcuts;
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
 
