@@ -615,7 +615,6 @@ ble_phy_tx_end_isr(void)
 #endif
     uint8_t was_encrypted;
     uint8_t transition;
-    uint8_t txlen;
     uint32_t wfr_time;
 
     /* If this transmission was encrypted we need to remember it */
@@ -627,6 +626,7 @@ ble_phy_tx_end_isr(void)
     /* Log the event */
     ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_data.phy_tx_pyld_len,
                was_encrypted, NRF_TIMER0->CC[2]);
+    (void)was_encrypted;
 
     /* Clear events and clear interrupt on disabled event */
     NRF_RADIO->EVENTS_DISABLED = 0;
@@ -667,14 +667,6 @@ ble_phy_tx_end_isr(void)
         /* Packet pointer needs to be reset. */
         ble_phy_rx_xcvr_setup();
 
-        /*
-         * Enable the wait for response timer. Note that cc #1 on
-         * timer 0 contains the transmit start time
-         */
-        txlen = g_ble_phy_data.phy_tx_pyld_len;
-        if (txlen && was_encrypted) {
-            txlen += BLE_LL_DATA_MIC_LEN;
-        }
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
     } else {
         /*
