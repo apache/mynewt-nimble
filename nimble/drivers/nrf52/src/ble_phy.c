@@ -107,6 +107,8 @@ static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = { 5, 3, 3, 5 };
 /* delay between EVENTS_END and end of txd packet */
 static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = { 9, 3, 3, 3 };
+/* delay between rxd access address (w/ TERM1 for coded) and EVENTS_ADDRESS */
+static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = { 17, 7, 3, 17 };
 /* delay between end of rxd packet and EVENTS_END */
 static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = { 27, 7, 3, 22 };
 
@@ -463,46 +465,43 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs)
  * the received frame.
  *
  * @param txrx Flag denoting if this wfr is a txrx turn-around or not.
+ * @param tx_phy_mode phy mode for last TX (only valid for TX->RX)
  * @param wfr_usecs Amount of usecs to wait.
  */
 void
-ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
+ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 {
     uint32_t end_time;
-
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    int phy;
+    uint8_t phy;
 
     phy = g_ble_phy_data.phy_cur_phy_mode;
-#endif
-    if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
-        /*
-         * Timeout occurs an IFS time plus time it takes to receive address
-         * from the transmit end. We add additional time to make sure the
-         * address event comes before the compare. Note that transmit end
-         * is captured in CC[2]
-         */
-        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS +
-            ble_phy_mode_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-        if (phy == BLE_PHY_MODE_CODED_125KBPS ||
-                phy == BLE_PHY_MODE_CODED_500KBPS) {
-            /*
-             * FIXME!
-             * on Coded PHY the time calculated above seems to be too short
-             * adding extra 32us "solves" the problem (extra 16us, i.e. doubling
-             * the jitter is not enough). Need to figure out what is wrong here.
-             */
-            end_time += 32;
-        }
-#endif
+    if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
+        /* RX shall start exactly T_IFS after TX end captured in CC[2] */
+        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        /* Adjust for delay between EVENT_END and actual TX end time */
+        end_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+        /* Wait a bit longer due to allowed active clock accuracy */
+        end_time += 2;
     } else {
-        /* CC[0] is set to when RXEN occurs. NOTE: the extra 16 usecs is
-           jitter */
-        end_time = NRF_TIMER0->CC[0] + XCVR_RX_START_DELAY_USECS + wfr_usecs +
-            ble_phy_mode_pdu_start_off(phy) + BLE_LL_JITTER_USECS;
+        /*
+         * RX shall start no later than wfr_usecs after RX enabled.
+         * CC[0] is the time of RXEN so adjust for radio ram-up.
+         * Do not add jitter since this is already covered by LL.
+         */
+        end_time = NRF_TIMER0->CC[0] + BLE_PHY_T_RXENFAST + wfr_usecs;
     }
+
+    /*
+     * Note: on LE Coded EVENT_ADDRESS is fired after TERM1 is received, so
+     *       we are actually calculating relative to start of packet payload
+     *       which is fine.
+     */
+
+    /* Adjust for receiving access address since this triggers EVENT_ADDRESS */
+    end_time += ble_phy_mode_pdu_start_off(phy);
+    /* Adjust for delay between actual access address RX and EVENT_ADDRESS */
+    end_time += g_ble_phy_t_rxaddrdelay[phy];
 
     /* wfr_secs is the time from rxen until timeout */
     NRF_TIMER0->CC[3] = end_time;
@@ -693,7 +692,7 @@ ble_phy_tx_end_isr(void)
         /* Packet pointer needs to be reset. */
         ble_phy_rx_xcvr_setup();
 
-        ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
+        ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, tx_phy_mode, 0);
 
         /* Schedule RX exactly T_IFS after TX end captured in CC[2] */
         rx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;

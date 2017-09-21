@@ -627,6 +627,6 @@ ble_phy_xcvr_state_get(void)
 #endif
 
 void
-ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
+ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 {
 }
