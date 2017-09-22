@@ -842,7 +842,7 @@ ble_phy_rx_end_isr(void)
     }
 }
 
-static void
+static bool
 ble_phy_rx_start_isr(void)
 {
     int rc;
@@ -902,7 +902,7 @@ ble_phy_rx_start_isr(void)
         if (state == RADIO_STATE_STATE_Disabled) {
             NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
             NRF_RADIO->SHORTS = 0;
-            return;
+            return false;
         }
     }
 
@@ -950,6 +950,8 @@ ble_phy_rx_start_isr(void)
 
     /* Count rx starts */
     STATS_INC(ble_phy_stats, rx_starts);
+
+    return true;
 }
 
 static void
@@ -968,8 +970,19 @@ ble_phy_isr(void)
 
     /* We get this if we have started to receive a frame */
     if ((irq_en & RADIO_INTENCLR_ADDRESS_Msk) && NRF_RADIO->EVENTS_ADDRESS) {
-        irq_en &= ~RADIO_INTENCLR_DISABLED_Msk;
-        ble_phy_rx_start_isr();
+        /*
+         * wfr timer is calculated to expire at the exact time we should start
+         * receiving a packet (with 1 usec precision) so it is possible  it will
+         * fire at the same time as EVENT_ADDRESS. If this happens, radio will
+         * be disabled while we are waiting for EVENT_BCCMATCH after 1st byte
+         * of payload is received and ble_phy_rx_start_isr() will fail. In this
+         * case we should not clear DISABLED irq mask so it will be handled as
+         * regular radio disabled event below. In other case radio was disabled
+         * on purpose and there's nothing more to handle so we can clear mask.
+         */
+        if (ble_phy_rx_start_isr()) {
+            irq_en &= ~RADIO_INTENCLR_DISABLED_Msk;
+        }
     }
 
     /* Check for disabled event. This only happens for transmits now */
