@@ -2551,14 +2551,22 @@ static void lpn_timeout_get(struct bt_mesh_model *model,
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x lpn_addr 0x%02x",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, lpn_addr);
 
+	/* check if it's the address of the Low Power Node? */
+	if (!BT_MESH_ADDR_IS_UNICAST(lpn_addr)) {
+		BT_WARN("Invalid LPNAddress; ignoring msg");
+		goto done;
+	}
+
 	bt_mesh_model_msg_init(msg, OP_LPN_TIMEOUT_STATUS);
 	net_buf_simple_add_le16(msg, lpn_addr);
 	memset(net_buf_simple_add(msg, 3), 0, 3);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
-		BT_ERR("Unable to send Friend Status");
+		BT_ERR("Unable to send LPN PollTimeout Status");
 	}
-    os_mbuf_free_chain(msg);
+
+done:
+	os_mbuf_free_chain(msg);
 }
 
 static void send_krp_status(struct bt_mesh_model *model,
