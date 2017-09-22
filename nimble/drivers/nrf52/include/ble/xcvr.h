@@ -24,13 +24,16 @@
 extern "C" {
 #endif
 
+#define XCVR_RX_RADIO_RAMPUP_USECS  (40)
+#define XCVR_TX_RADIO_RAMPUP_USECS  (40)
+
 /*
  * NOTE: we have to account for the RTC output compare issue. We want it to be
  * 5 ticks.
  */
 #define XCVR_PROC_DELAY_USECS         (153)
-#define XCVR_RX_START_DELAY_USECS     (140)
-#define XCVR_TX_START_DELAY_USECS     (140)
+#define XCVR_RX_START_DELAY_USECS     (XCVR_RX_RADIO_RAMPUP_USECS)
+#define XCVR_TX_START_DELAY_USECS     (XCVR_TX_RADIO_RAMPUP_USECS)
 #define XCVR_TX_SCHED_DELAY_USECS     \
     (XCVR_TX_START_DELAY_USECS + XCVR_PROC_DELAY_USECS)
 #define XCVR_RX_SCHED_DELAY_USECS     \

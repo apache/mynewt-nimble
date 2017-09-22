@@ -99,6 +99,11 @@ static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
 
+/* Various radio timings */
+/* Radio ramp-up times in usecs (fast mode) */
+#define BLE_PHY_T_TXENFAST      (XCVR_TX_RADIO_RAMPUP_USECS)
+#define BLE_PHY_T_RXENFAST      (XCVR_RX_RADIO_RAMPUP_USECS)
+
 /* Statistics */
 STATS_SECT_START(ble_phy_stats)
     STATS_SECT_ENTRY(phy_isrs)
@@ -379,27 +384,23 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     uint32_t delta;
 
     /*
-     * XXX: The TXEN time is 140 usecs but there may be additional delays
-     * Need to look at this.
-     */
-
-    /*
      * With the 32.768 kHz crystal, we may need to adjust the RTC compare
-     * value by 1 tick due to the time it takes for TXEN. The code uses a 5 RTC
-     * tick offset, which is 152.5 usecs. The TXEN time is 140 usecs. This
-     * means that with a remainder of 0, TIMER0 should be set to 12 or 13 (as
-     * TIMER0 counts at 1MHz). A remainder of 19 or more we will need to add
+     * value by 1 tick due to the time it takes for radio ramp-up. The code uses
+     * a 2 RTC tick offset, which is 61.0 usecs. The radio ramp-up time is 40 usecs.
+     * This means that with a remainder of 0, TIMER0 should be set to 21 (as
+     * TIMER0 counts at 1MHz). A remainder of 10 or more we will need to add
      * 1 tick. We dont need to add 1 tick per se, but it does give us slightly
      * more time and thus less of a chance to miss a tick. Another note: we
      * cant set TIMER0 CC to 0 as the compare wont occur; it must be 1 or more.
-     * This is why we subtract 18 (as opposed to 19) as rem_uses will be >= 1.
+     * This is why we subtract 9 (as opposed to 10) as rem_uses will be >= 1.
      */
-    if (rem_usecs <= 18) {
-        cputime -= 5;
-        rem_usecs += 12;
+
+    if (rem_usecs <= 9) {
+        cputime -= 2;
+        rem_usecs += 21;
     } else {
-        cputime -= 4;
-        rem_usecs -= 18;
+        cputime -= 1;
+        rem_usecs -= 9;
     }
 
     /*
@@ -987,6 +988,10 @@ ble_phy_init(void)
                        (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
                        RADIO_PCNF1_WHITEEN_Msk;
 
+    /* Enable radio fast ramp-up */
+    NRF_RADIO->MODECNF0 |= (RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos) &
+                            RADIO_MODECNF0_RU_Msk;
+
     /* Set logical address 1 for TX and RX */
     NRF_RADIO->TXADDRESS  = 0;
     NRF_RADIO->RXADDRESSES  = (1 << 0);
@@ -1173,10 +1178,6 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* Clear timer0 compare to RXEN since we are transmitting */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
 
-    /*
-     * XXX: The TXEN time is 140 usecs but there may be additional delays
-     * Need to look at this.
-     */
     if (ble_phy_set_start_time(cputime, rem_usecs) != 0) {
         STATS_INC(ble_phy_stats, tx_late);
         ble_phy_disable();
@@ -1211,10 +1212,6 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* Clear timer0 compare to TXEN since we are transmitting */
     NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
 
-    /*
-     * XXX: The RXEN time is 138 usecs but there may be additional delays
-     * Need to look at this.
-     */
     if (ble_phy_set_start_time(cputime, rem_usecs) != 0) {
         STATS_INC(ble_phy_stats, rx_late);
         NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
