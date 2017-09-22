@@ -206,6 +206,7 @@ static void health_fault_test(struct bt_mesh_model *model,
 	struct bt_mesh_health *srv = model->user_data;
 	u16_t company_id;
 	u8_t test_id;
+	int rc;
 
 	BT_DBG("");
 
@@ -215,7 +216,11 @@ static void health_fault_test(struct bt_mesh_model *model,
 	BT_DBG("test 0x%02x company 0x%04x", test_id, company_id);
 
 	if (srv->fault_test) {
-		srv->fault_test(model, test_id, company_id);
+		rc = srv->fault_test(model, test_id, company_id);
+		if (rc) {
+			BT_WARN("Running fault test failed with err %d", rc);
+			goto done;
+		}
 	}
 
 	health_get_registered(model, company_id, msg);
@@ -224,6 +229,7 @@ static void health_fault_test(struct bt_mesh_model *model,
 		BT_ERR("Unable to send Health Current Status response");
 	}
 
+done:
 	os_mbuf_free_chain(msg);
 }
 
