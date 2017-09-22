@@ -43,7 +43,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include "os/os.h"
 
 #if MYNEWT_VAL(BLE_SOCK_USE_TCP)
 #include <sys/errno.h>
