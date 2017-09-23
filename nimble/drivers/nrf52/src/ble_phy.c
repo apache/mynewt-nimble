@@ -24,6 +24,7 @@
 #include "os/os.h"
 #include "ble/xcvr.h"
 #include "bsp/cmsis_nvic.h"
+#include "hal/hal_gpio.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
@@ -1009,6 +1010,67 @@ ble_phy_isr(void)
     STATS_INC(ble_phy_stats, phy_isrs);
 }
 
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
+        MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
+        MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+static inline void
+ble_phy_dbg_time_setup_gpiote(int index, int pin)
+{
+    hal_gpio_init_out(pin, 0);
+
+    NRF_GPIOTE->CONFIG[index] =
+                        (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
+                        ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
+                        ((pin > 31) << GPIOTE_CONFIG_PORT_Pos);
+}
+#endif
+
+static void
+ble_phy_dbg_time_setup(void)
+{
+    int gpiote_idx __attribute__((unused)) = 8;
+
+    /*
+     * We setup GPIOTE starting from last configuration index to minimize risk
+     * of conflict with GPIO setup via hal. It's not great solution, but since
+     * this is just debugging code we can live with this.
+     */
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
+    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+                              MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
+
+    NRF_PPI->CH[6].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
+    NRF_PPI->CH[6].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->CHENSET = PPI_CHEN_CH6_Msk;
+
+    /* CH[20] and PPI CH[21] are on to trigger TASKS_TXEN or TASKS_RXEN */
+    NRF_PPI->FORK[20].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+    NRF_PPI->FORK[21].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
+    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+                              MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
+
+    /* CH[26] and CH[27] are always on for EVENT_ADDRESS and EVENT_END */
+    NRF_PPI->FORK[26].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+    NRF_PPI->FORK[27].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+                              MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
+
+    NRF_PPI->CH[7].EEP = (uint32_t)&(NRF_RADIO->EVENTS_RXREADY);
+    NRF_PPI->CH[7].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+    NRF_PPI->CHENSET = PPI_CHEN_CH7_Msk;
+
+    /* CH[5] is always on for wfr */
+    NRF_PPI->FORK[5].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+#endif
+}
+
 /**
  * ble phy init
  *
@@ -1144,6 +1206,8 @@ ble_phy_init(void)
 
         g_ble_phy_data.phy_stats_initialized  = 1;
     }
+
+    ble_phy_dbg_time_setup();
 
     return 0;
 }
