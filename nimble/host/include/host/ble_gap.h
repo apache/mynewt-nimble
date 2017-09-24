@@ -686,7 +686,7 @@ int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
 
 #define BLE_GAP_LE_PHY_1M                   1
 #define BLE_GAP_LE_PHY_2M                   2
-#define BLE_GAP_LE_CODED                    3
+#define BLE_GAP_LE_PHY_CODED                3
 int ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy);
 
 #define BLE_GAP_LE_PHY_1M_MASK              0x01
