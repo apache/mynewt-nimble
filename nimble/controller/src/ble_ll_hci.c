@@ -328,11 +328,11 @@ ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy)
 #endif
         /* Set the default PHY preferences */
         if (all_phys & BLE_HCI_LE_PHY_NO_TX_PREF_MASK) {
-            tx_phys = 0;
+            tx_phys = BLE_HCI_LE_PHY_PREF_MASK_ALL;
         }
         *txphy = tx_phys;
         if (all_phys & BLE_HCI_LE_PHY_NO_RX_PREF_MASK) {
-            rx_phys = 0;
+            rx_phys = BLE_HCI_LE_PHY_PREF_MASK_ALL;
         }
         *rxphy = rx_phys;
         rc = BLE_ERR_SUCCESS;
