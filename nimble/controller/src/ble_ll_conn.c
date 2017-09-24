@@ -3442,9 +3442,12 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
             acl_len = rxbuf[1];
             acl_hdr = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
 
-            /* Check that the LLID is reasonable */
+            /*
+             * Check that the LLID and payload length are reasonable.
+             * Empty payload is only allowed for LLID == 01b.
+             *  */
             if ((acl_hdr == 0) ||
-                ((acl_hdr == BLE_LL_LLID_DATA_START) && (acl_len == 0))) {
+                ((acl_len == 0) && (acl_hdr != BLE_LL_LLID_DATA_FRAG))) {
                 STATS_INC(ble_ll_conn_stats, rx_bad_llid);
                 goto conn_rx_data_pdu_end;
             }
