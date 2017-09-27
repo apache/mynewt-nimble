@@ -19,6 +19,16 @@
 # Package: hw/drivers/nimble/nrf52
 
 syscfg.defs:
+    BLE_PHY_CODED_RX_IFS_EXTRA_MARGIN:
+        description: >
+            This defines additional margin for T_IFS tolerance while in
+            RX on coded phy to allow maintaining connections with some
+            controllers that exceed proper T_IFS (150 usecs) by more
+            than allowed 2 usecs.
+            This value shall be only used for debugging purposes. It is
+            strongly recommended to keep this settings at default value
+            to ensure compliance with specification.
+        value: 0
     BLE_PHY_DBG_TIME_TXRXEN_READY_PIN:
         description: >
             When set to proper GPIO pin number, this pin will be set
