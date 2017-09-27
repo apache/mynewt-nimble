@@ -55,13 +55,6 @@ syscfg.defs:
             This option specifies how many Proxy Filter entries the local
             node supports.
         value: 1
-       
-    BLE_MESH_LOCAL_INTERFACE:
-        description: >
-            This is needed in order to send messages between two local Mesh
-            elements. Only disable it if you're sure this will not be needed
-            (which description: >s save a little bit of memory).
-        value: 1
 
     BLE_MESH_SUBNET_COUNT:
         description: >
