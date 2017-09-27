@@ -200,7 +200,7 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     }
 
     STATS_INC(ble_ll_stats, aux_fired_for_read);
-    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, BLE_LL_SCHED_ADV_MAX_USECS);
+    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, 0, BLE_LL_SCHED_ADV_MAX_USECS);
 
 done:
 

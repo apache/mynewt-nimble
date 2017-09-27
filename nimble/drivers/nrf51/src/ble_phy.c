@@ -369,10 +369,11 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs)
  * the received frame.
  *
  * @param txrx Flag denoting if this wfr is a txrx turn-around or not.
+ * @param tx_phy_mode phy mode for last TX (not used on nRF51)
  * @param wfr_usecs Amount of usecs to wait.
  */
 void
-ble_phy_wfr_enable(int txrx, uint32_t wfr_usecs)
+ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 {
     uint32_t end_time;
 
@@ -540,7 +541,7 @@ ble_phy_tx_end_isr(void)
         if (txlen && was_encrypted) {
             txlen += BLE_LL_DATA_MIC_LEN;
         }
-        ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0);
+        ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0, 0);
     } else {
         /*
          * XXX: not sure we need to stop the timer here all the time. Or that
