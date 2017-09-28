@@ -2276,12 +2276,6 @@ ble_gap_adv_set_data(const uint8_t *data, int data_len)
 
     ble_hs_lock();
 
-    /* Don't allow advertising fields to be set while advertising is active. */
-    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EBUSY;
-        goto done;
-    }
-
 #if MYNEWT_VAL(BLE_EXT_ADV)
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_DATA);
     rc = ble_hs_hci_cmd_build_le_ext_adv_data(0,
@@ -2329,12 +2323,6 @@ ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len)
     int rc;
 
     ble_hs_lock();
-
-    /* Don't allow advertising fields to be set while advertising is active. */
-    if (ble_gap_slave.op != BLE_GAP_OP_NULL) {
-        rc = BLE_HS_EBUSY;
-        goto done;
-    }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA);
