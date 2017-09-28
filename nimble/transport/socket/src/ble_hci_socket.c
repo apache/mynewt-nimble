@@ -733,7 +733,7 @@ ble_hci_sock_init_task(void)
     pstack = malloc(sizeof(os_stack_t)*BLE_SOCK_STACK_SIZE);
     assert(pstack);
 
-    os_task_init(&ble_sock_task, "sock", ble_hci_sock_ack_handler, NULL,
+    os_task_init(&ble_sock_task, "hci_sock", ble_hci_sock_ack_handler, NULL,
                  MYNEWT_VAL(BLE_SOCK_TASK_PRIO), OS_WAIT_FOREVER, pstack,
                  BLE_SOCK_STACK_SIZE);
 
