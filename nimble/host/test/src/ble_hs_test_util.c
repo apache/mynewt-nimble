@@ -180,6 +180,20 @@ ble_hs_test_util_prev_tx_queue_clear(void)
     }
 }
 
+void
+ble_hs_test_util_prev_tx_queue_adj(int count)
+{
+    TEST_ASSERT(ble_hs_test_util_num_prev_hci_txes >= count);
+
+    ble_hs_test_util_num_prev_hci_txes -= count;
+    if (ble_hs_test_util_num_prev_hci_txes > 0) {
+        memmove(
+            ble_hs_test_util_prev_hci_tx, ble_hs_test_util_prev_hci_tx + count,
+            sizeof ble_hs_test_util_prev_hci_tx[0] *
+            ble_hs_test_util_num_prev_hci_txes);
+    }
+}
+
 void *
 ble_hs_test_util_get_first_hci_tx(void)
 {
@@ -190,13 +204,7 @@ ble_hs_test_util_get_first_hci_tx(void)
     memcpy(ble_hs_test_util_cur_hci_tx, ble_hs_test_util_prev_hci_tx[0],
            sizeof ble_hs_test_util_cur_hci_tx);
 
-    ble_hs_test_util_num_prev_hci_txes--;
-    if (ble_hs_test_util_num_prev_hci_txes > 0) {
-        memmove(
-            ble_hs_test_util_prev_hci_tx, ble_hs_test_util_prev_hci_tx + 1,
-            sizeof ble_hs_test_util_prev_hci_tx[0] *
-            ble_hs_test_util_num_prev_hci_txes);
-    }
+    ble_hs_test_util_prev_tx_queue_adj(1);
 
     return ble_hs_test_util_cur_hci_tx;
 }
@@ -317,12 +325,10 @@ ble_hs_test_util_phony_ack_cb(uint8_t *ack, int ack_buf_len)
 }
 
 void
-ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status, void *params,
-                                uint8_t params_len)
+ble_hs_test_util_build_ack_params(struct ble_hs_test_util_phony_ack *ack,
+                                  uint16_t opcode, uint8_t status,
+                                  void *params, uint8_t params_len)
 {
-    struct ble_hs_test_util_phony_ack *ack;
-
-    ack = ble_hs_test_util_phony_acks + 0;
     ack->opcode = opcode;
     ack->status = status;
 
@@ -332,6 +338,16 @@ ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status, void *params,
         memcpy(ack->evt_params, params, params_len);
         ack->evt_params_len = params_len;
     }
+}
+
+void
+ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status, void *params,
+                                uint8_t params_len)
+{
+    struct ble_hs_test_util_phony_ack *ack;
+
+    ack = ble_hs_test_util_phony_acks + 0;
+    ble_hs_test_util_build_ack_params(ack, opcode, status, params, params_len);
     ble_hs_test_util_num_phony_acks = 1;
 
     ble_hs_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
@@ -341,6 +357,25 @@ void
 ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status)
 {
     ble_hs_test_util_set_ack_params(opcode, status, NULL, 0);
+}
+
+void
+ble_hs_test_util_append_ack_params(uint16_t opcode, uint8_t status,
+                                   void *params, uint8_t params_len)
+{
+    struct ble_hs_test_util_phony_ack *ack;
+
+    ack = ble_hs_test_util_phony_acks + ble_hs_test_util_num_phony_acks;
+    ble_hs_test_util_build_ack_params(ack, opcode, status, params, params_len);
+    ble_hs_test_util_num_phony_acks++;
+
+    ble_hs_hci_set_phony_ack_cb(ble_hs_test_util_phony_ack_cb);
+}
+
+void
+ble_hs_test_util_append_ack(uint16_t opcode, uint8_t status)
+{
+    ble_hs_test_util_append_ack_params(opcode, status, NULL, 0);
 }
 
 void
@@ -707,6 +742,44 @@ ble_hs_test_util_verify_tx_rd_pwr(void)
                                    BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR,
                                    &param_len);
     TEST_ASSERT(param_len == 0);
+}
+
+void
+ble_hs_test_util_verify_tx_add_irk(uint8_t addr_type,
+                                   const uint8_t *addr,
+                                   const uint8_t *peer_irk,
+                                   const uint8_t *local_irk)
+{
+    uint8_t param_len;
+    uint8_t *param;
+
+    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
+                                           &param_len);
+    TEST_ASSERT(param_len == BLE_HCI_ADD_TO_RESOLV_LIST_LEN);
+
+    TEST_ASSERT(param[0] == addr_type);
+    TEST_ASSERT(memcmp(param + 1, addr, 6) == 0);
+    TEST_ASSERT(memcmp(param + 7, peer_irk, 16) == 0);
+    TEST_ASSERT(memcmp(param + 23, local_irk, 16) == 0);
+}
+
+void
+ble_hs_test_util_verify_tx_set_priv_mode(uint8_t addr_type,
+                                         const uint8_t *addr,
+                                         uint8_t priv_mode)
+{
+    uint8_t param_len;
+    uint8_t *param;
+
+    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+                                           BLE_HCI_OCF_LE_SET_PRIVACY_MODE,
+                                           &param_len);
+    TEST_ASSERT(param_len == BLE_HCI_LE_SET_PRIVACY_MODE_LEN);
+
+    TEST_ASSERT(param[0] == addr_type);
+    TEST_ASSERT(memcmp(param + 1, addr, 6) == 0);
+    TEST_ASSERT(param[7] == priv_mode);
 }
 
 int
@@ -2432,6 +2505,8 @@ ble_hs_test_util_init_no_start(void)
     ble_hs_cfg.store_read_cb = ble_hs_test_util_store_read;
     ble_hs_cfg.store_write_cb = ble_hs_test_util_store_write;
     ble_hs_cfg.store_delete_cb = ble_hs_test_util_store_delete;
+
+    ble_store_clear();
 }
 
 void
