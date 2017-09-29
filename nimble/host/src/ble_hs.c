@@ -103,6 +103,8 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, hci_timeout)
     STATS_NAME(ble_hs_stats, reset)
     STATS_NAME(ble_hs_stats, sync)
+    STATS_NAME(ble_hs_stats, pvcy_add_entry)
+    STATS_NAME(ble_hs_stats, pvcy_add_entry_fail)
 STATS_NAME_END(ble_hs_stats)
 
 struct os_eventq *
@@ -500,6 +502,9 @@ ble_hs_start(void)
     }
 
     ble_hs_sync();
+
+    rc = ble_hs_misc_restore_irks();
+    assert(rc == 0);
 
     return 0;
 }

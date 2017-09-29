@@ -19,10 +19,11 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include "stats/stats.h"
 #include "ble_hs_priv.h"
 
 static uint8_t ble_hs_pvcy_started;
-uint8_t ble_hs_pvcy_irk[16];
+static uint8_t ble_hs_pvcy_irk[16];
 
 /** Use this as a default IRK if none gets set. */
 const uint8_t ble_hs_pvcy_default_irk[16] = {
@@ -113,6 +114,8 @@ ble_hs_pvcy_add_entry(const uint8_t *addr, uint8_t addr_type,
     uint8_t buf[BLE_HCI_ADD_TO_RESOLV_LIST_LEN];
     int rc;
 
+    STATS_INC(ble_hs_stats, pvcy_add_entry);
+
     add.addr_type = addr_type;
     memcpy(add.addr, addr, 6);
     memcpy(add.local_irk, ble_hs_pvcy_irk, 16);
@@ -120,17 +123,21 @@ ble_hs_pvcy_add_entry(const uint8_t *addr, uint8_t addr_type,
 
     rc = ble_hs_hci_cmd_build_add_to_resolv_list(&add, buf, sizeof(buf));
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                       BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
                            buf, sizeof(buf), NULL, 0, NULL);
     if (rc != 0) {
-        return rc;
+        goto err;
     }
 
     return 0;
+
+err:
+    STATS_INC(ble_hs_stats, pvcy_add_entry_fail);
+    return rc;
 }
 
 int

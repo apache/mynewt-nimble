@@ -94,3 +94,35 @@ ble_hs_misc_addr_type_to_id(uint8_t own_addr_type)
         return BLE_ADDR_PUBLIC;
     }
 }
+
+static int
+ble_hs_misc_restore_one_irk(int obj_type, union ble_store_value *val,
+                            void *cookie)
+{
+    const struct ble_store_value_sec *sec;
+    int rc;
+
+    BLE_HS_DBG_ASSERT(obj_type == BLE_STORE_OBJ_TYPE_PEER_SEC);
+
+    sec = &val->sec;
+    if (sec->irk_present) {
+        rc = ble_hs_pvcy_add_entry(sec->peer_addr.val, sec->peer_addr.type,
+                                   sec->irk);
+        if (rc != 0) {
+            BLE_HS_LOG(ERROR, "failed to configure restored IRK\n");
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_hs_misc_restore_irks(void)
+{
+    int rc;
+
+    rc = ble_store_iterate(BLE_STORE_OBJ_TYPE_PEER_SEC,
+                           ble_hs_misc_restore_one_irk,
+                           NULL);
+    return rc;
+}
