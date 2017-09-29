@@ -325,8 +325,8 @@ int ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
                   const uint8_t *a1, uint8_t a2t, const uint8_t *a2,
                   uint8_t *check);
 int ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
-                         uint32_t *our_priv_key, void *out_dhkey);
-int ble_sm_alg_gen_key_pair(void *pub, uint32_t *priv);
+                         uint8_t *our_priv_key, uint8_t *out_dhkey);
+int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
 
 void ble_sm_enc_change_rx(struct hci_encrypt_change *evt);
 void ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt);
