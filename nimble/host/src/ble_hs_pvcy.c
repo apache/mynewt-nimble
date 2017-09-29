@@ -25,7 +25,7 @@ static uint8_t ble_hs_pvcy_started;
 uint8_t ble_hs_pvcy_irk[16];
 
 /** Use this as a default IRK if none gets set. */
-const uint8_t default_irk[16] = {
+const uint8_t ble_hs_pvcy_default_irk[16] = {
     0xef, 0x8d, 0xe2, 0x16, 0x4f, 0xec, 0x43, 0x0d,
     0xbf, 0x5b, 0xdd, 0x34, 0xc0, 0x53, 0x1e, 0xb8,
 };
@@ -165,7 +165,7 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
     if (irk != NULL) {
         memcpy(new_irk, irk, 16);
     } else {
-        memcpy(new_irk, default_irk, 16);
+        memcpy(new_irk, ble_hs_pvcy_default_irk, 16);
     }
 
     /* Clear the resolving list if this is a new IRK. */
