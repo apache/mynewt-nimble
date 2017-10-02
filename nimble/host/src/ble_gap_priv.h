@@ -104,6 +104,9 @@ void ble_gap_identity_event(uint16_t conn_handle);
 int ble_gap_repeat_pairing_event(const struct ble_gap_repeat_pairing *rp);
 int ble_gap_master_in_progress(void);
 
+void ble_gap_preempt(void);
+void ble_gap_preempt_done(void);
+
 void ble_gap_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_gap_timer(void);
 

@@ -76,6 +76,7 @@ struct os_event;
 #define BLE_HS_EENCRYPT_KEY_SZ      26
 #define BLE_HS_ESTORE_CAP           27
 #define BLE_HS_ESTORE_FAIL          28
+#define BLE_HS_EPREEMPTED           29
 
 #define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
