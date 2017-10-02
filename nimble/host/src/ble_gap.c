@@ -666,7 +666,7 @@ ble_gap_adv_finished(void)
     if (cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_ADV_COMPLETE;
-
+        event.adv_complete.reason = 0;
         cb(&event, cb_arg);
     }
 }
@@ -764,6 +764,7 @@ ble_gap_disc_complete(void)
 
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_DISC_COMPLETE;
+    event.disc_complete.reason = 0;
 
     ble_gap_master_extract_state(&state, 1);
     if (ble_gap_has_client(&state)) {
