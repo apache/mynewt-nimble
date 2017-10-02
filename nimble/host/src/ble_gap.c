@@ -172,7 +172,10 @@ ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg);
 
 static int ble_gap_adv_enable_tx(int enable, bool directed);
 static int ble_gap_conn_cancel_tx(void);
+
+#if NIMBLE_BLE_SCAN
 static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
+#endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static uint8_t ext_adv_pri_phy = 0;
@@ -237,6 +240,7 @@ ble_gap_dbg_update_active(uint16_t conn_handle)
  * $log                                                                      *
  *****************************************************************************/
 
+#if NIMBLE_BLE_SCAN
 static void
 ble_gap_log_duration(int32_t duration_ms)
 {
@@ -246,6 +250,7 @@ ble_gap_log_duration(int32_t duration_ms)
         BLE_HS_LOG(INFO, "duration=%dms", duration_ms);
     }
 }
+#endif
 
 static void
 ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
@@ -264,6 +269,7 @@ ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                params->min_ce_len, params->max_ce_len, own_addr_type);
 }
 
+#if NIMBLE_BLE_SCAN
 static void
 ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params)
@@ -274,6 +280,7 @@ ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
                disc_params->limited, disc_params->filter_duplicates);
     ble_gap_log_duration(duration_ms);
 }
+#endif
 
 static void
 ble_gap_log_update(uint16_t conn_handle,
@@ -745,6 +752,7 @@ ble_gap_disc_report(void *desc)
 #endif
 }
 
+#if NIMBLE_BLE_SCAN
 static void
 ble_gap_disc_complete(void)
 {
@@ -765,6 +773,7 @@ ble_gap_disc_complete(void)
     }
 #endif
 }
+#endif
 
 static void
 ble_gap_update_notify(uint16_t conn_handle, int status)
@@ -1218,7 +1227,7 @@ ble_gap_rx_adv_report_sanity_check(uint8_t *adv_data, uint8_t adv_data_len)
 void
 ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
 {
-#if !MYNEWT_VAL(BLE_ROLE_OBSERVER)
+#if !NIMBLE_BLE_SCAN
     return;
 #endif
 
@@ -1483,6 +1492,7 @@ ble_gap_master_timer(void)
         break;
 
     case BLE_GAP_OP_M_DISC:
+#if NIMBLE_BLE_SCAN
         /* When a discovery procedure times out, it is not a failure. */
         rc = ble_gap_disc_enable_tx(0, 0);
         if (rc != 0) {
@@ -1491,6 +1501,9 @@ ble_gap_master_timer(void)
         }
 
         ble_gap_disc_complete();
+#else
+        assert(0);
+#endif
         break;
 
     default:
@@ -2491,6 +2504,7 @@ int ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy)
  * $discovery procedures                                                     *
  *****************************************************************************/
 
+#if NIMBLE_BLE_SCAN
 static int
 ble_gap_disc_enable_tx(int enable, int filter_duplicates)
 {
@@ -2542,8 +2556,9 @@ ble_gap_disc_tx_params(uint8_t own_addr_type,
 
     return 0;
 }
+#endif
 
-#if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
 static int
 ble_gap_ext_disc_tx_params(uint8_t own_addr_type, uint8_t filter_policy,
                        const struct ble_hs_hci_ext_scan_param *uncoded_params,
@@ -2617,6 +2632,10 @@ ble_gap_ext_disc_enable_tx(uint8_t enable, uint8_t filter_duplicates,
 int
 ble_gap_disc_cancel(void)
 {
+#if !NIMBLE_BLE_SCAN
+    return BLE_HS_ENOTSUP;
+#else
+
     int rc;
 
     STATS_INC(ble_gap_stats, discover_cancel);
@@ -2651,8 +2670,10 @@ done:
     }
 
     return rc;
+#endif
 }
 
+#if NIMBLE_BLE_SCAN
 static int
 ble_gap_disc_ext_validate(uint8_t own_addr_type)
 {
@@ -2670,8 +2691,9 @@ ble_gap_disc_ext_validate(uint8_t own_addr_type)
 
     return 0;
 }
+#endif
 
-#if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
 static void
 ble_gap_ext_disc_fill_dflts(uint8_t limited,
                             struct ble_hs_hci_ext_scan_param *disc_params)
@@ -2719,7 +2741,7 @@ ble_gap_ext_disc(uint8_t own_addr_type, uint16_t duration, uint16_t period,
                  const struct ble_gap_ext_disc_params *coded_params,
                  ble_gap_event_fn *cb, void *cb_arg)
 {
-#if !MYNEWT_VAL(BLE_ROLE_OBSERVER) || !MYNEWT_VAL(BLE_EXT_ADV)
+#if !NIMBLE_BLE_SCAN || !MYNEWT_VAL(BLE_EXT_ADV)
     return BLE_HS_ENOTSUP;
 #else
 
@@ -2798,6 +2820,7 @@ done:
 #endif
 }
 
+#if NIMBLE_BLE_SCAN
 static void
 ble_gap_disc_fill_dflts(struct ble_gap_disc_params *disc_params)
 {
@@ -2828,6 +2851,7 @@ ble_gap_disc_validate(uint8_t own_addr_type,
 
     return ble_gap_disc_ext_validate(own_addr_type);
 }
+#endif
 
 /**
  * Performs the Limited or General Discovery Procedures.
@@ -2862,9 +2886,9 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
              const struct ble_gap_disc_params *disc_params,
              ble_gap_event_fn *cb, void *cb_arg)
 {
-#if !MYNEWT_VAL(BLE_ROLE_OBSERVER)
+#if !NIMBLE_BLE_SCAN
     return BLE_HS_ENOTSUP;
-#endif
+#else
 
     struct ble_gap_disc_params params;
     uint32_t duration_ticks;
@@ -2940,6 +2964,7 @@ done:
         STATS_INC(ble_gap_stats, discover_fail);
     }
     return rc;
+#endif
 }
 
 /**
