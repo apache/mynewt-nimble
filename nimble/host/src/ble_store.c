@@ -244,17 +244,6 @@ ble_store_write_peer_sec(const struct ble_store_value_sec *value_sec)
         if (rc != 0) {
             return rc;
         }
-
-        /* FIXME Controller is BT5.0 and default privacy mode is network which
-         * can cause problems for apps which are not aware of it. We need to
-         * sort it out somehow. For now we set device mode for all of the peer
-         * devices and application should change it to network if needed
-         */
-        rc = ble_hs_pvcy_set_mode(&value_sec->peer_addr,
-                                  BLE_GAP_PRIVATE_MODE_DEVICE);
-        if (rc != 0) {
-            return rc;
-        }
     }
 
     return 0;

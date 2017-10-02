@@ -631,6 +631,7 @@ ble_hs_init(void)
     /* These get initialized here to allow unit tests to run without a zeroed
      * bss.
      */
+    ble_hs_reset_reason = 0;
     ble_hs_ev_tx_notifications = (struct os_event) {
         .ev_cb = ble_hs_event_tx_notify,
     };
