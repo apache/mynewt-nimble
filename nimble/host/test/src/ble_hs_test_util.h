@@ -100,6 +100,7 @@ int ble_hs_test_util_connect(uint8_t own_addr_type,
                                    void *cb_arg,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
+void ble_hs_test_util_rx_conn_cancel_evt(void);
 void ble_hs_test_util_conn_cancel_full(void);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
 void ble_hs_test_util_rx_disconn_complete(uint16_t conn_handle,

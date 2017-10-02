@@ -304,8 +304,11 @@ ble_hs_test_util_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
     rc = ble_gap_connect(own_addr_type, peer_addr, duration_ms, params, cb,
                          cb_arg);
-
-    TEST_ASSERT(rc == BLE_HS_HCI_ERR(ack_status));
+    if (ack_status != 0) {
+        TEST_ASSERT(rc == BLE_HS_HCI_ERR(ack_status));
+    } else if (rc != 0) {
+        return rc;
+    }
 
     if (params == NULL) {
         ble_hs_test_util_conn_params_dflt(&dflt_params);
@@ -334,10 +337,17 @@ ble_hs_test_util_conn_cancel(uint8_t ack_status)
 }
 
 void
-ble_hs_test_util_conn_cancel_full(void)
+ble_hs_test_util_rx_conn_cancel_evt(void)
 {
     ble_hs_test_util_conn_cancel(0);
     ble_hs_test_util_hci_rx_conn_cancel_evt();
+}
+
+void
+ble_hs_test_util_conn_cancel_full(void)
+{
+    ble_hs_test_util_conn_cancel(0);
+    ble_hs_test_util_rx_conn_cancel_evt();
 }
 
 int
@@ -611,6 +621,10 @@ ble_hs_test_util_set_our_irk(const uint8_t *irk, int fail_idx,
         {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
             ble_hs_test_util_hci_misc_exp_status(3, fail_idx, hci_status),
+        },
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+            ble_hs_test_util_hci_misc_exp_status(4, fail_idx, hci_status),
         },
         {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
