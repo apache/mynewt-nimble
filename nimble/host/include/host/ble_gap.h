@@ -346,6 +346,39 @@ struct ble_gap_event {
          */
         struct ble_gap_ext_disc_desc ext_disc;
 #endif
+
+        /**
+         * Represents a completed discovery procedure.  Valid for the following
+         * event types:
+         *     o BLE_GAP_EVENT_DISC_COMPLETE
+         */
+        struct {
+            /**
+             * The reason the discovery procedure stopped.  Typical reason
+             * codes are:
+             *     o 0: Duration expired.
+             *     o BLE_HS_EPREEMPTED: Host aborted procedure to configure a
+             *       peer's identity.
+             */
+            int reason;
+        } disc_complete;
+
+        /**
+         * Represents a completed advertise procedure.  Valid for the following
+         * event types:
+         *     o BLE_GAP_EVENT_ADV_COMPLETE
+         */
+        struct {
+            /**
+             * The reason the advertise procedure stopped.  Typical reason
+             * codes are:
+             *     o 0: Duration expired.
+             *     o BLE_HS_EPREEMPTED: Host aborted procedure to configure a
+             *       peer's identity.
+             */
+            int reason;
+        } adv_complete;
+
         /**
          * Represents an attempt to update a connection's parameters.  If the
          * attempt was successful, the connection's descriptor reflects the
