@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+extern const uint8_t ble_hs_pvcy_default_irk[16];
+
 int ble_hs_pvcy_set_our_irk(const uint8_t *irk);
 int ble_hs_pvcy_our_irk(const uint8_t **out_irk);
 int ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr);

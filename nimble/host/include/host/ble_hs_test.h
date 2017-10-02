@@ -46,6 +46,7 @@ int ble_hs_hci_test_all(void);
 int ble_hs_id_test_all(void);
 int ble_l2cap_test_all(void);
 int ble_os_test_all(void);
+int ble_hs_pvcy_test_all(void);
 int ble_sm_lgcy_test_suite(void);
 int ble_sm_sc_test_suite(void);
 int ble_sm_test_all(void);

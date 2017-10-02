@@ -49,6 +49,7 @@ main(int argc, char **argv)
     ble_hs_conn_test_all();
     ble_hs_hci_test_all();
     ble_hs_id_test_all();
+    ble_hs_pvcy_test_all();
     ble_l2cap_test_all();
     ble_os_test_all();
     ble_sm_test_all();
