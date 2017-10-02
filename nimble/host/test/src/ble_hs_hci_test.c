@@ -58,7 +58,7 @@ TEST_CASE(ble_hs_hci_test_rssi)
     /* RSSI. */
     params[2] = -8;
 
-    ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params);
 
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT_FATAL(rc == 0);
@@ -67,25 +67,26 @@ TEST_CASE(ble_hs_hci_test_rssi)
     /*** Failure: incorrect connection handle. */
     put_le16(params + 0, 99);
 
-    ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params);
 
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
     /*** Failure: params too short. */
-    ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params - 1);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params - 1);
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
     /*** Failure: params too long. */
-    ble_hs_test_util_set_ack_params(opcode, 0, params, sizeof params + 1);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params + 1);
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 }
 
 TEST_CASE(ble_hs_hci_acl_one_conn)
 {
-    struct ble_hs_test_util_num_completed_pkts_entry ncpe[2] = { 0 };
+    struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2] = { 0 };
+    struct hci_disconn_complete evt;
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     uint8_t data[256];
     int rc;
@@ -126,7 +127,7 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
      */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 3;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 4);
 
     /* Use all remaining buffers (four fragments). */
@@ -142,13 +143,13 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
     /* Receive number-of-completed-packets: 5. */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 5;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 0);
 
     /* Receive number-of-completed-packets: 4. */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 5;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 1);
 
     /* Ensure the stalled fragments were sent in the expected order. */
@@ -158,13 +159,16 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
     /* Receive a disconnection-complete event. Ensure available buffer count
      * increases.
      */
-    ble_hs_test_util_rx_disconn_complete(1, 0);
+    evt.connection_handle = 1;
+    evt.status = 0;
+    evt.reason = BLE_ERR_CONN_TERM_LOCAL;
+    ble_hs_test_util_hci_rx_disconn_complete_event(&evt);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 5);
 }
 
 TEST_CASE(ble_hs_hci_acl_two_conn)
 {
-    struct ble_hs_test_util_num_completed_pkts_entry ncpe[2] = { 0 };
+    struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2] = { 0 };
     const struct ble_hs_conn *conn1;
     const struct ble_hs_conn *conn2;
     uint8_t peer_addr1[6] = { 1, 2, 3, 4, 5, 6 };
@@ -233,7 +237,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     /* Receive number-of-completed-packets: conn=2, num-pkts=1. */
     ncpe[0].handle_id = 2;
     ncpe[0].num_pkts = 1;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
 
     /**
      * controller: (11 222)
@@ -247,7 +251,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     /* Receive number-of-completed-packets: conn=1, num-pkts=1. */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 1;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
 
     /**
      * controller: (1 2222)
@@ -261,7 +265,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     /* Receive number-of-completed-packets: conn=1, num-pkts=1. */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 1;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
 
     /**
      * controller: (22222)
@@ -275,7 +279,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     /* Receive number-of-completed-packets: conn=2, num-pkts=3. */
     ncpe[0].handle_id = 2;
     ncpe[0].num_pkts = 3;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
 
     /**
      * controller: (11122)
@@ -289,7 +293,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     /* Receive number-of-completed-packets: conn=2, num-pkts=2. */
     ncpe[0].handle_id = 2;
     ncpe[0].num_pkts = 2;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
 
     /**
      * controller: (1111)
@@ -303,7 +307,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     /* Receive number-of-completed-packets: conn=1, num-pkts=4. */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 4;
-    ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
+    ble_hs_test_util_hci_rx_num_completed_pkts_event(ncpe);
 
     /**
      * controller: ()

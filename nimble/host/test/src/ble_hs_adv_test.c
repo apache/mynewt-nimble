@@ -104,7 +104,7 @@ ble_hs_adv_test_misc_verify_tx_adv_data(struct ble_hs_adv_test_field *fields)
     int data_len;
     uint8_t *cmd;
 
-    cmd = ble_hs_test_util_get_last_hci_tx();
+    cmd = ble_hs_test_util_hci_out_last();
     TEST_ASSERT_FATAL(cmd != NULL);
 
     data_len = ble_hs_adv_test_misc_calc_data_len(fields);
@@ -121,7 +121,7 @@ ble_hs_adv_test_misc_verify_tx_rsp_data(struct ble_hs_adv_test_field *fields)
     int data_len;
     uint8_t *cmd;
 
-    cmd = ble_hs_test_util_get_last_hci_tx();
+    cmd = ble_hs_test_util_hci_out_last();
     TEST_ASSERT_FATAL(cmd != NULL);
 
     data_len = ble_hs_adv_test_misc_calc_data_len(fields);
@@ -163,7 +163,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard the adv-enable command. */
-    ble_hs_test_util_get_last_hci_tx();
+    ble_hs_test_util_hci_out_last();
 
     /* Ensure the same data gets sent on repeated advertise procedures. */
     rc = ble_hs_test_util_adv_stop(0);
@@ -174,7 +174,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard the adv-enable command. */
-    ble_hs_test_util_get_last_hci_tx();
+    ble_hs_test_util_hci_out_last();
 }
 
 TEST_CASE(ble_hs_adv_test_case_user)

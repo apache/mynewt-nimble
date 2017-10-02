@@ -36,12 +36,12 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
      */
     rc = ble_hs_test_util_set_our_irk((uint8_t[16]){0}, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_hs_test_util_prev_hci_tx_clear();
+    ble_hs_test_util_hci_out_clear();
 
-    ble_hs_test_util_set_startup_acks();
+    ble_hs_test_util_hci_ack_set_startup();
 
     for (i = 0; i < num_expected_irks; i++) {
-        ble_hs_test_util_append_ack(
+        ble_hs_test_util_hci_ack_append(
             BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0); 
     }
 
@@ -49,7 +49,7 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard startup HCI commands. */
-    ble_hs_test_util_prev_tx_queue_adj(11);
+    ble_hs_test_util_hci_out_adj(11);
 }
 
 static void
@@ -57,22 +57,22 @@ ble_hs_pvcy_test_util_add_irk(const struct ble_store_value_sec *value_sec)
 {
     int rc;
 
-    ble_hs_test_util_set_ack(
-        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0); 
-    ble_hs_test_util_append_ack(
+    ble_hs_test_util_hci_ack_set(
+        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
+    ble_hs_test_util_hci_ack_append(
         BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE), 0);
 
     rc = ble_store_write_peer_sec(value_sec);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_verify_tx_add_irk(value_sec->peer_addr.type,
-                                       value_sec->peer_addr.val,
-                                       value_sec->irk,
-                                       ble_hs_pvcy_default_irk);
+    ble_hs_test_util_hci_verify_tx_add_irk(value_sec->peer_addr.type,
+                                           value_sec->peer_addr.val,
+                                           value_sec->irk,
+                                           ble_hs_pvcy_default_irk);
 
-    ble_hs_test_util_verify_tx_set_priv_mode(value_sec->peer_addr.type,
-                                             value_sec->peer_addr.val,
-                                             BLE_GAP_PRIVATE_MODE_DEVICE);
+    ble_hs_test_util_hci_verify_tx_set_priv_mode(value_sec->peer_addr.type,
+                                                 value_sec->peer_addr.val,
+                                                 BLE_GAP_PRIVATE_MODE_DEVICE);
 }
 
 TEST_CASE(ble_hs_pvcy_test_case_restore_irks)
@@ -100,10 +100,10 @@ TEST_CASE(ble_hs_pvcy_test_case_restore_irks)
 
     /* Ensure it gets added to list on startup. */
     ble_hs_pvcy_test_util_start_host(1);
-    ble_hs_test_util_verify_tx_add_irk(value_sec1.peer_addr.type,
-                                       value_sec1.peer_addr.val,
-                                       value_sec1.irk,
-                                       ble_hs_pvcy_default_irk);
+    ble_hs_test_util_hci_verify_tx_add_irk(value_sec1.peer_addr.type,
+                                           value_sec1.peer_addr.val,
+                                           value_sec1.irk,
+                                           ble_hs_pvcy_default_irk);
 
     /* Two persisted IRKs. */
     value_sec2 = (struct ble_store_value_sec) {
@@ -118,14 +118,14 @@ TEST_CASE(ble_hs_pvcy_test_case_restore_irks)
 
     /* Ensure both get added to list on startup. */
     ble_hs_pvcy_test_util_start_host(2);
-    ble_hs_test_util_verify_tx_add_irk(value_sec1.peer_addr.type,
-                                       value_sec1.peer_addr.val,
-                                       value_sec1.irk,
-                                       ble_hs_pvcy_default_irk);
-    ble_hs_test_util_verify_tx_add_irk(value_sec2.peer_addr.type,
-                                       value_sec2.peer_addr.val,
-                                       value_sec2.irk,
-                                       ble_hs_pvcy_default_irk);
+    ble_hs_test_util_hci_verify_tx_add_irk(value_sec1.peer_addr.type,
+                                           value_sec1.peer_addr.val,
+                                           value_sec1.irk,
+                                           ble_hs_pvcy_default_irk);
+    ble_hs_test_util_hci_verify_tx_add_irk(value_sec2.peer_addr.type,
+                                           value_sec2.peer_addr.val,
+                                           value_sec2.irk,
+                                           ble_hs_pvcy_default_irk);
 }
 
 TEST_SUITE(ble_hs_pvcy_test_suite_irk)
