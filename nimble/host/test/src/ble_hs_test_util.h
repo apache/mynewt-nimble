@@ -90,7 +90,11 @@ void ble_hs_test_util_prev_tx_queue_clear(void);
 void ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status,
                                      void *params, uint8_t params_len);
 void ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status);
+void ble_hs_test_util_append_ack_params(uint16_t opcode, uint8_t status,
+                                        void *params, uint8_t params_len);
+void ble_hs_test_util_append_ack(uint16_t opcode, uint8_t status);
 void ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks);
+void ble_hs_test_util_prev_tx_queue_adj(int count);
 void *ble_hs_test_util_get_first_hci_tx(void);
 void *ble_hs_test_util_get_last_hci_tx(void);
 void ble_hs_test_util_enqueue_hci_tx(void *cmd);
@@ -134,6 +138,13 @@ int ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
                           ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                           uint8_t fail_status);
 int ble_hs_test_util_disc_cancel(uint8_t ack_status);
+void ble_hs_test_util_verify_tx_add_irk(uint8_t addr_type,
+                                        const uint8_t *addr,
+                                        const uint8_t *peer_irk,
+                                        const uint8_t *local_irk);
+void ble_hs_test_util_verify_tx_set_priv_mode(uint8_t addr_type,
+                                              const uint8_t *addr,
+                                              uint8_t priv_mode);
 void ble_hs_test_util_verify_tx_disconnect(uint16_t handle, uint8_t reason);
 void ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp);
 int ble_hs_test_util_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
