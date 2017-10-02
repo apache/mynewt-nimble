@@ -93,7 +93,7 @@ ble_l2cap_test_util_rx_update_req(uint16_t conn_handle, uint8_t id,
     req->slave_latency = htole16(params->slave_latency);
     req->timeout_multiplier = htole16(params->timeout_multiplier);
 
-    ble_hs_test_util_set_ack(
+    ble_hs_test_util_hci_ack_set(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_CONN_UPDATE), 0);
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SIG,
@@ -108,7 +108,7 @@ ble_l2cap_test_util_verify_tx_update_conn(
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_CONN_UPDATE,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_UPDATE_LEN);
@@ -150,7 +150,7 @@ ble_l2cap_test_util_create_conn(uint16_t conn_handle, uint8_t *addr,
 
     ble_hs_conn_chan_insert(conn, chan);
 
-    ble_hs_test_util_prev_hci_tx_clear();
+    ble_hs_test_util_hci_out_clear();
 
     ble_hs_unlock();
 }
@@ -436,13 +436,13 @@ TEST_CASE(ble_l2cap_test_case_frag_timeout)
     TEST_ASSERT(ticks_from_now == MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT));
 
     /* Allow the timer to expire. */
-    ble_hs_test_util_set_ack_disconnect(0);
+    ble_hs_test_util_hci_ack_set_disconnect(0);
     os_time_advance(MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT));
     ticks_from_now = ble_hs_conn_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /* Ensure connection was terminated. */
-    ble_hs_test_util_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
+    ble_hs_test_util_hci_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
 }
 
 /*****************************************************************************
