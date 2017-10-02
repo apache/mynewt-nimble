@@ -1799,18 +1799,8 @@ ble_gap_adv_enable_tx(int enable, bool directed)
     return 0;
 }
 
-/**
- * Stops the currently-active advertising procedure.  A success return
- * code indicates that advertising has been fully aborted; a new advertising
- * procedure can be initiated immediately.
- *
- * @return                      0 on success;
- *                              BLE_HS_EALREADY if there is no active
- *                                  advertising procedure;
- *                              Other nonzero on error.
- */
-int
-ble_gap_adv_stop(void)
+static int
+ble_gap_adv_stop_no_lock(void)
 {
 #if !NIMBLE_BLE_ADVERTISE
     return BLE_HS_ENOTSUP;
@@ -1818,9 +1808,9 @@ ble_gap_adv_stop(void)
 
     int rc;
 
-    STATS_INC(ble_gap_stats, adv_stop);
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
-    ble_hs_lock();
+    STATS_INC(ble_gap_stats, adv_stop);
 
     /* Do nothing if advertising is already disabled. */
     if (!ble_gap_adv_active()) {
@@ -1840,11 +1830,35 @@ ble_gap_adv_stop(void)
     rc = 0;
 
 done:
-    ble_hs_unlock();
-
     if (rc != 0) {
-        STATS_INC(ble_gap_stats, adv_set_data_fail);
+        STATS_INC(ble_gap_stats, adv_stop_fail);
     }
+
+    return rc;
+}
+
+/**
+ * Stops the currently-active advertising procedure.  A success return
+ * code indicates that advertising has been fully aborted; a new advertising
+ * procedure can be initiated immediately.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if there is no active
+ *                                  advertising procedure;
+ *                              Other nonzero on error.
+ */
+int
+ble_gap_adv_stop(void)
+{
+#if !NIMBLE_BLE_ADVERTISE
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_gap_adv_stop_no_lock();
+    ble_hs_unlock();
 
     return rc;
 }
@@ -2629,6 +2643,61 @@ ble_gap_ext_disc_enable_tx(uint8_t enable, uint8_t filter_duplicates,
 }
 #endif
 
+static int
+ble_gap_disc_disable_tx(void)
+{
+#if !NIMBLE_BLE_SCAN
+    return BLE_HS_ENOTSUP;
+#else
+
+    int rc;
+
+    if (!ble_gap_is_extended_disc()) {
+        rc = ble_gap_disc_enable_tx(0, 0);
+    } else {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        rc = ble_gap_ext_disc_enable_tx(0, 0, 0, 0);
+#else
+        assert(0);
+        rc = BLE_HS_EUNKNOWN;
+#endif
+    }
+
+    return rc;
+}
+
+static int
+ble_gap_disc_cancel_no_lock(void)
+{
+#if !NIMBLE_BLE_SCAN
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+
+    STATS_INC(ble_gap_stats, discover_cancel);
+
+    if (!ble_gap_disc_active()) {
+        rc = BLE_HS_EALREADY;
+        goto done;
+    }
+
+    rc = ble_gap_disc_disable_tx();
+    if (rc != 0) {
+        goto done;
+    }
+
+    ble_gap_master_reset_state();
+
+done:
+    if (rc != 0) {
+        STATS_INC(ble_gap_stats, discover_cancel_fail);
+    }
+
+    return rc;
+#endif
+}
+
 /**
  * Cancels the discovery procedure currently in progress.  A success return
  * code indicates that scanning has been fully aborted; a new discovery or
@@ -2642,45 +2711,17 @@ ble_gap_ext_disc_enable_tx(uint8_t enable, uint8_t filter_duplicates,
 int
 ble_gap_disc_cancel(void)
 {
-#if !NIMBLE_BLE_SCAN
+#if !MYNEWT_VAL(BLE_ROLE_OBSERVER)
     return BLE_HS_ENOTSUP;
-#else
+#endif
 
     int rc;
 
-    STATS_INC(ble_gap_stats, discover_cancel);
-
     ble_hs_lock();
-
-    if (!ble_gap_disc_active()) {
-        rc = BLE_HS_EALREADY;
-        goto done;
-    }
-
-    if (!ble_gap_is_extended_disc()) {
-        rc = ble_gap_disc_enable_tx(0, 0);
-    } else {
-#if MYNEWT_VAL(BLE_EXT_ADV)
-        rc = ble_gap_ext_disc_enable_tx(0, 0, 0, 0);
-#else
-        assert(0);
-#endif
-    }
-    if (rc != 0) {
-        goto done;
-    }
-
-    ble_gap_master_reset_state();
-
-done:
+    rc = ble_gap_disc_cancel_no_lock();
     ble_hs_unlock();
 
-    if (rc != 0) {
-        STATS_INC(ble_gap_stats, discover_cancel_fail);
-    }
-
     return rc;
-#endif
 }
 
 #if NIMBLE_BLE_SCAN
@@ -3520,22 +3561,16 @@ ble_gap_conn_cancel_tx(void)
     return 0;
 }
 
-/**
- * Aborts a connect procedure in progress.
- *
- * @return                      0 on success;
- *                              BLE_HS_EALREADY if there is no active connect
- *                                  procedure.
- *                              Other nonzero on error.
- */
-int
-ble_gap_conn_cancel(void)
+static int
+ble_gap_conn_cancel_no_lock(void)
 {
+#if !MYNEWT_VAL(BLE_ROLE_CENTRAL)
+    return BLE_HS_ENOTSUP;
+#endif
+
     int rc;
 
     STATS_INC(ble_gap_stats, cancel);
-
-    ble_hs_lock();
 
     if (!ble_gap_conn_active()) {
         rc = BLE_HS_EALREADY;
@@ -3553,11 +3588,34 @@ ble_gap_conn_cancel(void)
     rc = 0;
 
 done:
-    ble_hs_unlock();
-
     if (rc != 0) {
         STATS_INC(ble_gap_stats, cancel_fail);
     }
+
+    return rc;
+}
+
+/**
+ * Aborts a connect procedure in progress.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if there is no active connect
+ *                                  procedure.
+ *                              Other nonzero on error.
+ */
+int
+ble_gap_conn_cancel(void)
+{
+#if !MYNEWT_VAL(BLE_ROLE_CENTRAL)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_gap_conn_cancel_no_lock();
+    ble_hs_unlock();
+
     return rc;
 }
 
