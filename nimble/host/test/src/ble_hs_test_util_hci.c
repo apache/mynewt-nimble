@@ -189,7 +189,7 @@ ble_hs_test_util_hci_ack_set(uint16_t opcode, uint8_t status)
 
 void
 ble_hs_test_util_hci_ack_append_params(uint16_t opcode, uint8_t status,
-                                   void *params, uint8_t params_len)
+                                       void *params, uint8_t params_len)
 {
     struct ble_hs_test_util_hci_ack *ack;
 
@@ -280,13 +280,17 @@ ble_hs_test_util_hci_ack_set_startup(void)
             .opcode = ble_hs_hci_util_opcode_join(
                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
         },
+        {
+            .opcode = ble_hs_hci_util_opcode_join(
+                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+        },
         { 0 }
     }));
 }
 
 void
 ble_hs_test_util_hci_ack_set_disc(uint8_t own_addr_type,
-                               int fail_idx, uint8_t fail_status)
+                                  int fail_idx, uint8_t fail_status)
 {
     static bool privacy_enabled;
 
