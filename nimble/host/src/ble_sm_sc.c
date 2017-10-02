@@ -784,6 +784,7 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **om,
 void
 ble_sm_sc_init(void)
 {
+    ble_sm_alg_ecc_init();
     ble_sm_sc_keys_generated = 0;
 }
 

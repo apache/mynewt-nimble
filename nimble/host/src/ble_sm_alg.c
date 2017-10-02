@@ -470,14 +470,20 @@ ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
 }
 
 /* used by uECC to get random data */
-int
-default_CSPRNG(uint8_t *dst, unsigned int size)
+static int
+ble_sm_alg_rand(uint8_t *dst, unsigned int size)
 {
     if (ble_hs_hci_util_rand(dst, size)) {
         return 0;
     }
 
     return 1;
+}
+
+void
+ble_sm_alg_ecc_init(void)
+{
+    uECC_set_rng(ble_sm_alg_rand);
 }
 
 #endif
