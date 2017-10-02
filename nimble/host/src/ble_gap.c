@@ -44,6 +44,16 @@
  * For (2), the procedure result is indicated by an application-configured
  * callback.  The callback is executed when the procedure completes.
  *
+ * The GAP is always in one of two states:
+ * 1. Free
+ * 2. Preempted
+ *
+ * While GAP is in the free state, new procedures can be started at will.
+ * While GAP is in the preempted state, no new procedures are allowed.  The
+ * host sets GAP to the preempted state when it needs to ensure no ongoing
+ * procedures, a condition required for some HCI commands to succeed.  The host
+ * must take care to take GAP out of the preempted state as soon as possible.
+ *
  * Notes on thread-safety:
  * 1. The ble_hs mutex must always be unlocked when an application callback is
  *    executed.  The purpose of this requirement is to allow callbacks to
@@ -100,8 +110,13 @@ struct ble_gap_master_state {
     ble_gap_event_fn *cb;
     void *cb_arg;
 
-    union {
+    /**
+     * Indicates the type of master procedure that was preempted, or
+     * BLE_GAP_OP_NULL if no procedure was preempted.
+     */
+    uint8_t preempted_op;
 
+    union {
         struct {
             uint8_t using_wl:1;
             uint8_t our_addr_type:2;
@@ -113,11 +128,8 @@ struct ble_gap_master_state {
             uint8_t extended:1;
         } disc;
     };
-
-
 };
 static bssnz_t struct ble_gap_master_state ble_gap_master;
-
 
 #if MYNEWT_VAL(BLE_MESH)
 struct ble_gap_mesh_state {
@@ -141,6 +153,9 @@ static bssnz_t struct {
     unsigned our_addr_type:2;
     ble_gap_event_fn *cb;
     void *cb_arg;
+
+    /** Set to 1 if advertising was preempted. */
+    uint8_t preempted:1;
 } ble_gap_slave;
 
 struct ble_gap_update_entry {
@@ -599,6 +614,15 @@ ble_gap_call_conn_event_cb(struct ble_gap_event *event, uint16_t conn_handle)
     return 0;
 }
 
+static bool
+ble_gap_is_preempted(void)
+{
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    return ble_gap_slave.preempted ||
+           ble_gap_master.preempted_op != BLE_GAP_OP_NULL;
+}
+
 static void
 ble_gap_master_reset_state(void)
 {
@@ -638,6 +662,7 @@ ble_gap_master_extract_state(struct ble_gap_master_state *out_state,
 
     if (reset_state) {
         ble_gap_master_reset_state();
+        ble_gap_master.preempted_op = BLE_GAP_OP_NULL;
     }
 
     ble_hs_unlock();
@@ -727,7 +752,7 @@ ble_gap_is_extended_disc(void)
 static void
 ble_gap_disc_report(void *desc)
 {
-    struct ble_gap_master_state state;;
+    struct ble_gap_master_state state;
     struct ble_gap_event event;
 
     memset(&event, 0, sizeof event);
@@ -1317,7 +1342,11 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
             if (ble_gap_master_in_progress()) {
                 if (evt->status == BLE_ERR_UNK_CONN_ID) {
                     /* Connect procedure successfully cancelled. */
-                    ble_gap_master_connect_cancelled();
+                    if (ble_gap_master.preempted_op == BLE_GAP_OP_M_CONN) {
+                        ble_gap_master_failed(BLE_HS_EPREEMPTED);
+                    } else {
+                        ble_gap_master_connect_cancelled();
+                    }
                 } else {
                     ble_gap_master_failed(BLE_HS_HCI_ERR(evt->status));
                 }
@@ -2240,6 +2269,11 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
         }
     }
 
+    if (ble_gap_is_preempted()) {
+        rc = BLE_HS_EPREEMPTED;
+        goto done;
+    }
+
     rc = ble_hs_id_use_addr(own_addr_type);
     if (rc != 0) {
         goto done;
@@ -2740,6 +2774,10 @@ ble_gap_disc_ext_validate(uint8_t own_addr_type)
         return BLE_HS_EALREADY;
     }
 
+    if (ble_gap_is_preempted()) {
+        return BLE_HS_EPREEMPTED;
+    }
+
     return 0;
 }
 #endif
@@ -3237,6 +3275,11 @@ ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
         goto done;
     }
 
+    if (ble_gap_is_preempted()) {
+        rc = BLE_HS_EPREEMPTED;
+        goto done;
+    }
+
     if (!ble_hs_conn_can_alloc()) {
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -3384,6 +3427,11 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
     if (ble_gap_disc_active()) {
         rc = BLE_HS_EBUSY;
+        goto done;
+    }
+
+    if (ble_gap_is_preempted()) {
+        rc = BLE_HS_EPREEMPTED;
         goto done;
     }
 
@@ -4299,6 +4347,97 @@ ble_gap_mtu_event(uint16_t conn_handle, uint16_t cid, uint16_t mtu)
     event.mtu.channel_id = cid;
     event.mtu.value = mtu;
     ble_gap_call_conn_event_cb(&event, conn_handle);
+}
+
+/*****************************************************************************
+ * $preempt                                                                  *
+ *****************************************************************************/
+
+/**
+ * Aborts all active GAP procedures and prevents new ones from being started.
+ * This function is used to ensure an idle GAP so that the controller's
+ * resolving list can be modified.  When done accessing the resolving list, the
+ * caller must call `ble_gap_preempt_done()` to permit new GAP procedures.
+ *
+ * On preemption, all aborted GAP procedures are reported with a status or
+ * reason code of BLE_HS_EPREEMPTED.  An attempt to initiate a new GAP
+ * procedure during preemption fails with a return code of BLE_HS_EPREEMPTED.
+ */
+void
+ble_gap_preempt(void)
+{
+    int rc;
+
+    ble_hs_lock();
+
+    BLE_HS_DBG_ASSERT(!ble_gap_is_preempted());
+
+    rc = ble_gap_adv_stop_no_lock();
+    if (rc == 0) {
+        ble_gap_slave.preempted = 1;
+    }
+
+    rc = ble_gap_conn_cancel_no_lock();
+    if (rc == 0) {
+        ble_gap_master.preempted_op = BLE_GAP_OP_M_CONN;
+    }
+
+    rc = ble_gap_disc_cancel_no_lock();
+    if (rc == 0) {
+        ble_gap_master.preempted_op = BLE_GAP_OP_M_DISC;
+    }
+
+    ble_hs_unlock();
+}
+
+/**
+ * Takes GAP out of the preempted state, allowing new GAP procedures to be
+ * initiaited.  This function should only be called after a call to
+ * `ble_gap_preempt()`.
+ */
+void
+ble_gap_preempt_done(void)
+{
+    struct ble_gap_event event;
+    ble_gap_event_fn *master_cb;
+    ble_gap_event_fn *slave_cb;
+    void *master_arg;
+    void *slave_arg;
+    int disc_preempted;
+    int adv_preempted;
+
+    adv_preempted = 0;
+    disc_preempted = 0;
+
+    ble_hs_lock();
+
+    if (ble_gap_slave.preempted) {
+        ble_gap_slave.preempted = 0;
+        adv_preempted = 1;
+        slave_cb = ble_gap_slave.cb;
+        slave_arg = ble_gap_slave.cb_arg;
+    }
+
+    if (ble_gap_master.preempted_op == BLE_GAP_OP_M_DISC) {
+        ble_gap_master.preempted_op = BLE_GAP_OP_NULL;
+        disc_preempted = 1;
+        master_cb = ble_gap_master.cb;
+        master_arg = ble_gap_master.cb_arg;
+    }
+
+    ble_hs_unlock();
+
+    if (adv_preempted) {
+        event.type = BLE_GAP_EVENT_ADV_COMPLETE;
+        event.adv_complete.reason = BLE_HS_EPREEMPTED;
+        ble_gap_call_event_cb(&event, slave_cb, slave_arg);
+    }
+
+    if (disc_preempted) {
+        event.type = BLE_GAP_EVENT_DISC_COMPLETE;
+        event.disc_complete.reason = BLE_HS_EPREEMPTED;
+        ble_gap_call_event_cb(&event, master_cb, master_arg);
+    }
 }
 
 /*****************************************************************************
