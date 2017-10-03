@@ -664,7 +664,7 @@ ble_hs_adv_parse(const uint8_t *data, uint8_t length,
         }
 
         length -= 1 + field->length;
-        length += 1 + field->length;
+        data += 1 + field->length;
     }
 
     return 0;
