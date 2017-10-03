@@ -412,6 +412,7 @@ int bt_mesh_health_init(struct bt_mesh_model *model, bool primary)
 	}
 
 	k_delayed_work_init(&srv->attention.timer, attention_off);
+	k_delayed_work_add_arg(&srv->attention.timer, srv);
 
 	srv->model = model;
 
