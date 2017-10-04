@@ -129,9 +129,10 @@ struct ble_ll_scan_sm
 
     uint8_t cur_phy;
     uint8_t next_phy;
-    struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
     uint8_t ext_scanning;
+    uint8_t restart_timer_needed;
     struct ble_ll_aux_data *cur_aux_data;
+    struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
 };
 
 /* Scan types */
