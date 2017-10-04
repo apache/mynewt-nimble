@@ -196,7 +196,7 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     if (ble_ll_scan_start(scansm, sch)) {
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
-        ble_ll_event_send(&scansm->scan_sched_ev);
+        ble_ll_scan_chk_resume();
         goto done;
     }
 
@@ -1096,6 +1096,7 @@ ble_ll_scan_sm_stop(int chk_disable)
 
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
+    scansm->restart_timer_needed = 0;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     OS_ENTER_CRITICAL(sr);
@@ -1293,6 +1294,8 @@ ble_ll_scan_event_proc(struct os_event *ev)
 
     if (scansm->cur_aux_data) {
         /* Aux scan in progress. Wait */
+        STATS_INC(ble_ll_stats, scan_timer_stopped);
+        scansm->restart_timer_needed = 1;
         OS_EXIT_CRITICAL(sr);
         return;
     }
@@ -1977,6 +1980,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+
             goto scan_rx_isr_exit;
         }
         if (rc == 0) {
@@ -2129,6 +2133,14 @@ ble_ll_scan_chk_resume(void)
     scansm = &g_ble_ll_scan_sm;
     if (scansm->scan_enabled) {
         OS_ENTER_CRITICAL(sr);
+        if (scansm->restart_timer_needed) {
+            scansm->restart_timer_needed = 0;
+            ble_ll_event_send(&scansm->scan_sched_ev);
+            STATS_INC(ble_ll_stats, scan_timer_restarted);
+            OS_EXIT_CRITICAL(sr);
+            return;
+        }
+
         if (ble_ll_state_get() == BLE_LL_STATE_STANDBY &&
                     ble_ll_scan_window_chk(scansm, os_cputime_get32()) == 0) {
             /* Turn on the receiver and set state */
@@ -2175,7 +2187,7 @@ ble_ll_scan_wfr_timer_exp(void)
         ble_ll_scan_req_backoff(scansm, 0);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         ble_ll_aux_scan_rsp_failed();
-        ble_ll_event_send(&scansm->scan_sched_ev);
+        ble_ll_scan_chk_resume();
 #endif
     }
 
@@ -2185,7 +2197,7 @@ ble_ll_scan_wfr_timer_exp(void)
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
         STATS_INC(ble_ll_stats, aux_missed_adv);
-        ble_ll_event_send(&scansm->scan_sched_ev);
+        ble_ll_scan_chk_resume();
     }
 #endif
 
