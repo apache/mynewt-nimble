@@ -813,9 +813,10 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 #endif
 
-    /* Set phy mode based on type of advertisement */
-    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
-        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+    /* We switch to RX after connectable or scannable legacy packets. */
+    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+            ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
+             (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE))) {
         end_trans = BLE_PHY_TRANSITION_TX_RX;
         ble_phy_set_txend_cb(NULL, NULL);
     } else {
@@ -898,8 +899,11 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
             max_usecs += BLE_LL_SCHED_ADV_MAX_USECS;
         }
     } else {
-        /* in ADV_EXT_IND we always set only ADI and AUX */
-        max_usecs = ble_ll_pdu_tx_time_get(10, advsm->pri_phy);
+        /*
+         * In ADV_EXT_IND we always set only ADI and AUX so the payload length
+         * is always 7 bytes.
+         */
+        max_usecs = ble_ll_pdu_tx_time_get(7, advsm->pri_phy);
     }
 #else
     max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
@@ -911,16 +915,10 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
     }
 #endif
 
-    /*
-     * XXX: For now, just schedule some additional time so we insure we have
-     * enough time to do everything we want.
-     */
-    max_usecs += XCVR_PROC_DELAY_USECS;
-
     sch->start_time = advsm->adv_pdu_start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
     sch->end_time = advsm->adv_pdu_start_time +
-        os_cputime_usecs_to_ticks(max_usecs);
+                    ble_ll_usecs_to_ticks_round_up(max_usecs);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1310,20 +1308,40 @@ ble_ll_set_adv_secondary_start_time(struct ble_ll_adv_sm *advsm)
 {
     static const uint8_t bits[8] = {0, 1, 1, 2, 1, 2, 2, 3};
     struct ble_ll_sched_item *sched = &advsm->adv_sch;
-    uint32_t ext_duration;
+    uint32_t adv_pdu_dur;
+    uint32_t adv_event_dur;
     uint8_t chans;
 
     assert(advsm->adv_chanmask <= BLE_HCI_ADV_CHANMASK_DEF);
 
     chans = bits[advsm->adv_chanmask];
 
-    ext_duration = (int32_t)(sched->end_time - sched->start_time);
-    ext_duration *= chans;
-    ext_duration += os_cputime_usecs_to_ticks(BLE_LL_IFS) * (chans -1);
+    /*
+     * We want to schedule auxiliary packet as soon as possible after the end
+     * of advertising event, but no sooner than T_MAFS. The interval between
+     * advertising packets is 250 usecs (8.19 ticks) on LE Coded and a bit less
+     * on 1M, but it can vary a bit due to scheduling which we can't really
+     * control. Since we round ticks up for both interval and T_MAFS, we still
+     * have some margin here. The worst thing that can happen is that we skip
+     * last advertising packet which is not a bit problem so leave it as-is, no
+     * need to make code more complicated.
+     */
+
+    /*
+     * XXX: this could be improved if phy has TX-TX transition with controlled
+     *      or predefined interval, but since it makes advertising code even
+     *      more complicated let's skip it for now...
+     */
+
+    adv_pdu_dur = (int32_t)(sched->end_time - sched->start_time) -
+                  g_ble_ll_sched_offset_ticks;
+
+    /* 9 is 8.19 ticks rounded up - see comment above */
+    adv_event_dur = (adv_pdu_dur * chans) + (9 * (chans - 1));
 
     advsm->adv_secondary_start_time = advsm->adv_event_start_time +
-                                      ext_duration +
-                                      os_cputime_usecs_to_ticks(BLE_LL_MAFS);
+                                      adv_event_dur +
+                                      ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS);
 }
 
 static void
@@ -2773,6 +2791,9 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
      */
     if (resched_pdu) {
         rc = ble_ll_sched_adv_resched_pdu(&advsm->adv_sch);
+        if (rc) {
+            STATS_INC(ble_ll_stats, adv_resched_pdu_fail);
+        }
     } else {
         /* Reschedule advertising event */
         rc = ble_ll_sched_adv_reschedule(&advsm->adv_sch, &start_time,
