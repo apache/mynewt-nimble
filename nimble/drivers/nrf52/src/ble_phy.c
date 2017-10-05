@@ -31,6 +31,20 @@
 #include "controller/ble_ll.h"
 #include "nrf.h"
 
+/*
+ * NOTE: This code uses a couple of PPI channels so care should be taken when
+ *       using PPI somewhere else.
+ *
+ * Pre-programmed channels: CH20, CH21, CH23, CH25, CH31
+ * Regular channels: CH4, CH5 and optionally CH17, CH18, CH19
+ *  - CH4 = cancel wfr timer on address match
+ *  - CH5 = disable radio on wfr timer expiry
+ *  - CH17 = (optional) gpio debug for radio ramp-up
+ *  - CH18 = (optional) gpio debug for wfr timer RX enabled
+ *  - CH19 = (optional) gpio debug for wfr timer radio disabled
+ *
+ */
+
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /*
