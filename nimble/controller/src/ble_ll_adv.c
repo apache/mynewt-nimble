@@ -496,7 +496,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     }
 
     if (aux_ptr) {
-        offset = advsm->adv_secondary_start_time - os_cputime_get32() + 1;
+        offset = advsm->adv_secondary_start_time - advsm->adv_pdu_start_time;
 
         /* in usecs */
         offset = os_cputime_ticks_to_usecs(offset);
@@ -1347,7 +1347,7 @@ ble_ll_set_adv_secondary_start_time(struct ble_ll_adv_sm *advsm)
 static void
 ble_ll_adv_secondary_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start)
 {
-    advsm->adv_secondary_start_time = sch_start;
+    advsm->adv_secondary_start_time = sch_start + g_ble_ll_sched_offset_ticks;
 }
 #endif
 
@@ -2592,6 +2592,8 @@ ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
                                       os_cputime_usecs_to_ticks(0));
      if (rc) {
          os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+     } else {
+         advsm->adv_secondary_start_time += g_ble_ll_sched_offset_ticks;
      }
 }
 #endif
