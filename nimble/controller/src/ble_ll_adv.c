@@ -1436,7 +1436,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      * NOTE: adv_event_start_time gets set by the sched_adv_new
      */
     advsm->adv_pdu_start_time = os_cputime_get32() +
-        os_cputime_usecs_to_ticks(BLE_LL_SCHED_MAX_TXRX_SLOT);
+                                os_cputime_usecs_to_ticks(5000);
 
     /*
      * Schedule advertising. We set the initial schedule start and end
