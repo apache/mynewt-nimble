@@ -1312,7 +1312,8 @@ ble_ll_set_adv_secondary_start_time(struct ble_ll_adv_sm *advsm)
     uint32_t adv_event_dur;
     uint8_t chans;
 
-    assert(advsm->adv_chanmask <= BLE_HCI_ADV_CHANMASK_DEF);
+    assert(advsm->adv_chanmask > 0 &&
+           advsm->adv_chanmask <= BLE_HCI_ADV_CHANMASK_DEF);
 
     chans = bits[advsm->adv_chanmask];
 
