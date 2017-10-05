@@ -481,6 +481,13 @@ ble_ll_get_addr_type(uint8_t txrxflag)
     return BLE_HCI_ADV_OWN_ADDR_PUBLIC;
 }
 
+/* Convert usecs to ticks and round up to nearest tick */
+static inline uint32_t
+ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
+{
+    return os_cputime_usecs_to_ticks(usecs + 30);
+}
+
 #include "console/console.h"
 
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
