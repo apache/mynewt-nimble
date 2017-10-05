@@ -144,6 +144,15 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
+static int
+ble_gap_test_util_copy_cb(struct ble_gap_event *event, void *arg)
+{
+    ble_gap_test_event = *event;
+    ble_gap_test_conn_arg = arg;
+
+    return 0;
+}
+
 static void
 ble_gap_test_util_verify_tx_clear_wl(void)
 {
@@ -964,6 +973,34 @@ TEST_CASE(ble_gap_test_case_conn_gen_busy)
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 }
 
+TEST_CASE(ble_gap_test_case_conn_gen_fail_evt)
+{
+    static const ble_addr_t peer_addr = {BLE_ADDR_PUBLIC, {1, 2, 3, 4, 5, 6}};
+    struct hci_le_conn_complete evt;
+    int rc;
+
+    ble_gap_test_util_init();
+
+    /* Start a connect procedure. */
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, 0, NULL,
+                                  ble_gap_test_util_copy_cb, NULL, 0);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Controller indicates failure via connect complete event. */
+    memset(&evt, 0, sizeof evt);
+    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
+    evt.status = BLE_ERR_CONN_ACCEPT_TMO;
+    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
+
+    rc = ble_gap_rx_conn_complete(&evt);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure failed connect was reported to application. */
+    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
+    TEST_ASSERT(ble_gap_test_event.connect.status ==
+                BLE_HS_HCI_ERR(BLE_ERR_CONN_ACCEPT_TMO));
+}
+
 TEST_SUITE(ble_gap_test_suite_conn_gen)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
@@ -974,6 +1011,7 @@ TEST_SUITE(ble_gap_test_suite_conn_gen)
     ble_gap_test_case_conn_gen_already();
     ble_gap_test_case_conn_gen_done();
     ble_gap_test_case_conn_gen_busy();
+    ble_gap_test_case_conn_gen_fail_evt();
 }
 
 /*****************************************************************************

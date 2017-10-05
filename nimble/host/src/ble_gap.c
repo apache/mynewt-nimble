@@ -669,7 +669,7 @@ ble_gap_master_connect_failure(int status)
     int rc;
 
     ble_gap_master_extract_state(&state, 1);
-    if (!ble_gap_has_client(&state)) {
+    if (ble_gap_has_client(&state)) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_CONNECT;
         event.connect.status = status;
