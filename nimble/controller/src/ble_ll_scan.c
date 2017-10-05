@@ -161,6 +161,7 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
 {
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     uint8_t lls = ble_ll_state_get();
+    uint32_t wfr_usec;
 
     /* In case scan has been disabled or there is other aux ptr in progress
      * just drop the scheduled item
@@ -201,7 +202,9 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     }
 
     STATS_INC(ble_ll_stats, aux_fired_for_read);
-    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, 0, BLE_LL_SCHED_ADV_MAX_USECS);
+
+    wfr_usec = scansm->cur_aux_data->offset_units ? 300 : 30;
+    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, 0, wfr_usec);
 
 done:
 
@@ -1536,6 +1539,7 @@ ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
 
     if ((aux_ptr_field >> 7) & 0x01) {
             aux_scan->offset *= 10;
+            aux_scan->offset_units = 1;
     }
 
     if (aux_scan->offset < BLE_LL_MAFS) {

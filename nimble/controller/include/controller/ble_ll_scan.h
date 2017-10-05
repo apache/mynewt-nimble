@@ -95,13 +95,14 @@ struct ble_ll_scan_params
 
 struct ble_ll_aux_data {
     uint8_t chan;
-    uint32_t offset;
     uint8_t aux_phy;
     uint8_t aux_primary_phy;
     uint8_t mode;
     uint8_t scanning;
     uint8_t flags;
     uint16_t did;
+    uint32_t offset;
+    uint8_t offset_units;
     struct ble_ll_sched_item sch;
 };
 
