@@ -1657,8 +1657,11 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
         (*aux_data)->aux_phy = tmp_aux_data.aux_phy;
 
         if (!scansm->cur_aux_data) {
-            /* In case of chaining adv do not overwrite*/
+            /* Only for first ext adv we want to keep primary phy.*/
             (*aux_data)->aux_primary_phy = ble_hdr->rxinfo.phy;
+        } else {
+            /* We are ok to clear cur_aux_data now. */
+            scansm->cur_aux_data = NULL;
         }
 
         (*aux_data)->chan = tmp_aux_data.chan;
@@ -2007,8 +2010,11 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
         }
 
+        /* If the ble_ll_scan_get_aux_data() succeed, scansm->cur_aux_data is NULL
+         * and aux_data contains correct data
+         */
+        assert(scansm->cur_aux_data == NULL);
         ble_hdr->rxinfo.user_data = aux_data;
-        scansm->cur_aux_data = NULL;
         rc = -1;
     }
 #endif
