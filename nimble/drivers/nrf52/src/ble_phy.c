@@ -1075,9 +1075,12 @@ ble_phy_dbg_time_setup(void)
 
     NRF_PPI->CH[7].EEP = (uint32_t)&(NRF_RADIO->EVENTS_RXREADY);
     NRF_PPI->CH[7].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
-    NRF_PPI->CHENSET = PPI_CHEN_CH7_Msk;
+    NRF_PPI->CH[8].EEP = (uint32_t)&(NRF_RADIO->EVENTS_DISABLED);
+    NRF_PPI->CH[8].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->CHENSET = PPI_CHEN_CH7_Msk | PPI_CHEN_CH8_Msk;
 
-    /* CH[5] is always on for wfr */
+    /* CH[4] and CH[5] are always on for wfr */
+    NRF_PPI->FORK[4].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
     NRF_PPI->FORK[5].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
 #endif
 }
