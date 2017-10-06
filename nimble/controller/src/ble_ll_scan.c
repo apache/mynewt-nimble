@@ -1947,6 +1947,10 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     scansm = &g_ble_ll_scan_sm;
     scanphy = &scansm->phy_data[scansm->cur_phy];
     ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
+#endif
     /*
      * The reason we do something different here (as opposed to failed CRC) is
      * that the received PDU will not be handed up in this case. So we have
@@ -1967,6 +1971,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Just leave if the CRC is not OK. */
     rc = -1;
     if (!crcok) {
+        scansm->cur_aux_data = NULL;
         goto scan_rx_isr_exit;
     }
 
@@ -1984,14 +1989,21 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+            /* cur_aux_data is already in the ble_hdr->rxinfo.user_data and
+             * will be taken care by LL task */
+            scansm->cur_aux_data = NULL;
 
             goto scan_rx_isr_exit;
         }
         if (rc == 0) {
-            /* AUX to be proceed. Set this flag anyway, so LL know to ignore this packet */
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
             if (ble_ll_sched_aux_scan(ble_hdr, scansm, aux_data)) {
-                aux_data->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
+                ble_ll_scan_aux_data_free(aux_data);
+                aux_data = NULL;
+            } else {
+                /* AUX to be proceed. Set this flag anyway
+                 * so LL know to ignore this packet
+                 */
+                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
             }
         }
 
@@ -2359,7 +2371,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         }
 
         if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
-            ble_ll_scan_aux_data_free(hdr->rxinfo.user_data);
             goto scan_continue;
         }
 
@@ -2369,6 +2380,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
             if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
                 /* This is just beacon. Let's wait for more data */
+                hdr->rxinfo.user_data = NULL;
                 goto scan_continue;
             }
 
@@ -2384,13 +2396,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             }
 
             ble_ll_scan_req_backoff(scansm, 1);
-            scansm->cur_aux_data = NULL;
-        }
-
-        if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
-            /* If there is no chaining, we can remove data. Otherwise it is
-             * already scheduled for next aux*/
-            ble_ll_scan_aux_data_free(hdr->rxinfo.user_data);
         }
 
         goto scan_continue;
@@ -2401,6 +2406,10 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     ble_ll_scan_send_adv_report(ptype, ident_addr_type, om, hdr, scansm);
 
 scan_continue:
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_ll_scan_aux_data_free(hdr->rxinfo.user_data);
+#endif
     /*
      * If the scan response check bit is set and we are pending a response,
      * we have failed the scan request (as we would have reset the scan rsp
