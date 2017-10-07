@@ -103,6 +103,7 @@ struct ble_ll_adv_sm
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint32_t adv_secondary_start_time;
     struct ble_ll_sched_item adv_secondary_sch;
+    struct os_event adv_sec_txdone_ev;
     uint16_t duration;
     uint16_t adi;
     uint8_t adv_secondary_chan;
@@ -114,17 +115,51 @@ struct ble_ll_adv_sm
 #endif
 };
 
-#define BLE_LL_ADV_SM_FLAG_TX_ADD           0x01
-#define BLE_LL_ADV_SM_FLAG_RX_ADD           0x02
-#define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF   0x04
-#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD     0x08
-#define BLE_LL_ADV_SM_FLAG_SECONDARY        0x10
+#define BLE_LL_ADV_SM_FLAG_TX_ADD               0x01
+#define BLE_LL_ADV_SM_FLAG_RX_ADD               0x02
+#define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF       0x04
+#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x08
+#define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x30 /* use helpers! */
+
+static inline int
+ble_ll_adv_active_chanset_is_pri(struct ble_ll_adv_sm *advsm)
+{
+    return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x10;
+}
+
+static inline int
+ble_ll_adv_active_chanset_is_sec(struct ble_ll_adv_sm *advsm)
+{
+    return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x20;
+}
+
+static inline void
+ble_ll_adv_active_chanset_clear(struct ble_ll_adv_sm *advsm)
+{
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
+}
+
+static inline void
+ble_ll_adv_active_chanset_set_pri(struct ble_ll_adv_sm *advsm)
+{
+    assert((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
+    advsm->flags |= 0x10;
+}
+
+static inline void
+ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
+{
+    assert((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
+    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
+    advsm->flags |= 0x20;
+}
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
-static void ble_ll_adv_done(struct ble_ll_adv_sm *advsm);
+static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr);
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
@@ -388,7 +423,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     ext_hdr_flags = 0;
 
 
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_SECONDARY) {
+    if (ble_ll_adv_active_chanset_is_sec(advsm)) {
         pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
 
         adi = true;
@@ -408,6 +443,8 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
         }
 
     } else {
+        assert(ble_ll_adv_active_chanset_is_pri(advsm));
+
         /* only ADV_EXT_IND goes on primary advertising channels */
         pdu_type = BLE_ADV_PDU_TYPE_ADV_EXT_IND;
 
@@ -733,12 +770,26 @@ ble_ll_adv_tx_done(void *arg)
     ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
     advsm = (struct ble_ll_adv_sm *)arg;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (ble_ll_adv_active_chanset_is_pri(advsm)) {
+        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    } else if (ble_ll_adv_active_chanset_is_sec(advsm)) {
+        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    } else {
+        assert(0);
+    }
+#else
+    assert(ble_ll_adv_active_chanset_is_pri(advsm));
     os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+#endif
 
     ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
                advsm->adv_instance, 0);
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    ble_ll_adv_active_chanset_clear(advsm);
 
     /* We no longer have a current state machine */
     g_ble_ll_cur_adv_sm = NULL;
@@ -783,6 +834,8 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
     /* Set the current advertiser */
     g_ble_ll_cur_adv_sm = advsm;
+
+    ble_ll_adv_active_chanset_set_pri(advsm);
 
     /* Set the power */
     ble_phy_txpwr_set(advsm->adv_txpwr);
@@ -833,7 +886,6 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SECONDARY;
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -937,6 +989,8 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     /* Set the current advertiser */
     g_ble_ll_cur_adv_sm = advsm;
 
+    ble_ll_adv_active_chanset_set_sec(advsm);
+
     /* Set the power */
     ble_phy_txpwr_set(advsm->adv_txpwr);
 
@@ -984,7 +1038,6 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-    advsm->flags |= BLE_LL_ADV_SM_FLAG_SECONDARY;
     ble_ll_adv_pdu_make(advsm, adv_pdu);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -1078,8 +1131,23 @@ ble_ll_adv_secondary_set_sched(struct ble_ll_adv_sm *advsm)
 void
 ble_ll_adv_halt(void)
 {
+    struct ble_ll_adv_sm *advsm;
+
     if (g_ble_ll_cur_adv_sm != NULL) {
-        ble_ll_adv_tx_done(g_ble_ll_cur_adv_sm);
+        advsm = g_ble_ll_cur_adv_sm;
+
+        ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+
+        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+#endif
+
+        ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
+                   advsm->adv_instance, 0);
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        ble_ll_adv_active_chanset_clear(g_ble_ll_cur_adv_sm);
+        g_ble_ll_cur_adv_sm = NULL;
     }
 }
 
@@ -1230,11 +1298,8 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
     if (advsm->adv_enabled) {
         /* Remove any scheduled advertising items */
         ble_ll_sched_rmv_elem(&advsm->adv_sch);
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
-            ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
-        }
+        ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
 #endif
 
         /* Set to standby if we are no longer advertising */
@@ -1265,12 +1330,17 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         OS_EXIT_CRITICAL(sr);
 
         os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+#endif
 
         /* If there is an event buf we need to free it */
         if (advsm->conn_comp_ev) {
             ble_hci_trans_buf_free(advsm->conn_comp_ev);
             advsm->conn_comp_ev = NULL;
         }
+
+        ble_ll_adv_active_chanset_clear(advsm);
 
         /* Disable advertising */
         advsm->adv_enabled = 0;
@@ -1374,7 +1444,6 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
-    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SECONDARY;
 
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -2405,6 +2474,11 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
         rxhdr->rxinfo.user_data = g_ble_ll_cur_adv_sm;
+        if (ble_ll_adv_active_chanset_is_sec(g_ble_ll_cur_adv_sm)) {
+            rxhdr->rxinfo.flags |= BLE_MBUF_HDR_F_EXT_ADV_SEC;
+        } else {
+            assert(ble_ll_adv_active_chanset_is_pri(g_ble_ll_cur_adv_sm));
+        }
 #endif
         if (crcok) {
             if ((pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
@@ -2483,7 +2557,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     }
 
     if (adv_event_over) {
-        ble_ll_adv_done(advsm);
+        ble_ll_adv_make_done(advsm, hdr);
     }
 }
 
@@ -2536,68 +2610,64 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
     return rc;
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
-ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
+{
+    ble_ll_sched_rmv_elem(&advsm->adv_sch);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
+#endif
+
+    advsm->adv_chan = ble_ll_adv_final_chan(advsm);
+    os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+}
+
+static void
+ble_ll_adv_reschedule_event(struct ble_ll_adv_sm *advsm)
 {
     int rc;
+    uint32_t start_time;
+    uint32_t max_delay_ticks;
 
-    ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
-    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    assert(advsm->adv_enabled);
 
-    /* Check if we need to resume scanning */
-    ble_ll_scan_chk_resume();
-
-    /* check if advertising timed out */
-    if (advsm->duration &&
-        advsm->adv_secondary_start_time >= advsm->adv_end_time) {
-        ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                              advsm->adv_instance, 0, 0);
-
-        /*
-         * For high duty directed advertising we need to send connection
-         * complete event with proper status
-         */
+    if (!advsm->adv_sch.enqueued) {
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                        advsm->conn_comp_ev, advsm);
-            advsm->conn_comp_ev = NULL;
+            max_delay_ticks = 0;
+        } else {
+            max_delay_ticks =
+                    os_cputime_usecs_to_ticks(BLE_LL_ADV_DELAY_MS_MAX * 1000);
         }
 
-        /* Disable advertising */
-        advsm->adv_enabled = 0;
-        return;
+        rc = ble_ll_sched_adv_reschedule(&advsm->adv_sch, &start_time,
+                                         max_delay_ticks);
+        if (rc) {
+            ble_ll_adv_drop_event(advsm);
+            return;
+        }
+
+        start_time += g_ble_ll_sched_offset_ticks;
+        advsm->adv_event_start_time = start_time;
+        advsm->adv_pdu_start_time = start_time;
     }
 
-    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
-        ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
-                                              advsm->adv_instance, 0,
-                                              advsm->events);
-         /* Disable advertising */
-         advsm->adv_enabled = 0;
-         return;
-    }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+                                        !advsm->adv_secondary_sch.enqueued) {
+        ble_ll_set_adv_secondary_start_time(advsm);
+        ble_ll_adv_secondary_set_sched(advsm);
 
-    ble_ll_set_adv_secondary_start_time(advsm);
-    ble_ll_adv_secondary_set_sched(advsm);
+         rc = ble_ll_sched_adv_reschedule(&advsm->adv_secondary_sch,
+                                          &advsm->adv_secondary_start_time, 0);
+         if (rc) {
+             ble_ll_adv_drop_event(advsm);
+             return;
+         }
 
-    /*
-     * In the unlikely event we cant reschedule this, just post a done
-     * event and we will reschedule the next advertising event
-     *
-     * TODO should we give scheduler more flexibility with delay?
-     */
-     /* Reschedule advertising event */
-     rc = ble_ll_sched_adv_reschedule(&advsm->adv_secondary_sch,
-                                      &advsm->adv_secondary_start_time,
-                                      os_cputime_usecs_to_ticks(0));
-     if (rc) {
-         os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
-     } else {
          advsm->adv_secondary_start_time += g_ble_ll_sched_offset_ticks;
-     }
-}
+    }
 #endif
+}
 
 /**
  * Called when an advertising event is over.
@@ -2608,6 +2678,7 @@ ble_ll_adv_secondary_done(struct ble_ll_adv_sm *advsm)
  */
 static void
 ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
+
 {
     int rc;
     int resched_pdu;
@@ -2617,20 +2688,16 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     uint32_t itvl;
     uint32_t tick_itvl;
     uint32_t start_time;
-    uint32_t max_delay_ticks;
 
     assert(advsm->adv_enabled);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    /* stop advertising this was due to transmitting connection response */
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
-        ble_ll_adv_sm_stop(advsm);
-        return;
-    }
-
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_SECONDARY) {
-        ble_ll_adv_secondary_done(advsm);
-        return;
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        /* stop advertising this was due to transmitting connection response */
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+            ble_ll_adv_sm_stop(advsm);
+            return;
+        }
     }
 #endif
 
@@ -2669,12 +2736,6 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          * add the random advDelay as the scheduling code will do that.
          */
         itvl = advsm->adv_itvl_usecs;
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-            max_delay_ticks = 0;
-        } else {
-            max_delay_ticks =
-                os_cputime_usecs_to_ticks(BLE_LL_ADV_DELAY_MS_MAX * 1000);
-        }
         tick_itvl = os_cputime_usecs_to_ticks(itvl);
         advsm->adv_event_start_time += tick_itvl;
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
@@ -2788,29 +2849,19 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     /* Schedule advertising transmit */
     ble_ll_adv_set_sched(advsm);
 
+    if (!resched_pdu) {
+        ble_ll_adv_reschedule_event(advsm);
+        return;
+    }
+
     /*
      * In the unlikely event we cant reschedule this, just post a done
      * event and we will reschedule the next advertising event
      */
-    if (resched_pdu) {
-        rc = ble_ll_sched_adv_resched_pdu(&advsm->adv_sch);
-        if (rc) {
-            STATS_INC(ble_ll_stats, adv_resched_pdu_fail);
-        }
-    } else {
-        /* Reschedule advertising event */
-        rc = ble_ll_sched_adv_reschedule(&advsm->adv_sch, &start_time,
-                                         max_delay_ticks);
-        if (!rc) {
-            start_time += g_ble_ll_sched_offset_ticks;
-            advsm->adv_event_start_time = start_time;
-            advsm->adv_pdu_start_time = start_time;
-        }
-    }
-
+    rc = ble_ll_sched_adv_resched_pdu(&advsm->adv_sch);
     if (rc) {
-        advsm->adv_chan = final_adv_chan;
-        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        STATS_INC(ble_ll_stats, adv_resched_pdu_fail);
+        ble_ll_adv_drop_event(advsm);
     }
 }
 
@@ -2818,6 +2869,93 @@ static void
 ble_ll_adv_event_done(struct os_event *ev)
 {
     ble_ll_adv_done(ev->ev_arg);
+}
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/**
+ * Called when auxiliary packet is txd on secondary channel
+ *
+ * Context: Link Layer task.
+ *
+ * @param ev
+ */
+static void
+ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
+{
+    assert(advsm->adv_enabled);
+
+    /* Remove anything else scheduled for secondary channel */
+    ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
+    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+
+    /* Stop advertising due to transmitting connection response */
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+        ble_ll_adv_sm_stop(advsm);
+        return;
+    }
+
+    /* Check if we need to resume scanning */
+    ble_ll_scan_chk_resume();
+
+    /* Check if advertising timed out */
+    if (advsm->duration &&
+        advsm->adv_secondary_start_time >= advsm->adv_end_time) {
+        ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
+                                              advsm->adv_instance, 0, 0);
+
+        /*
+         * For high duty directed advertising we need to send connection
+         * complete event with proper status
+         */
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                        advsm->conn_comp_ev, advsm);
+            advsm->conn_comp_ev = NULL;
+        }
+
+        /* Disable advertising */
+        advsm->adv_enabled = 0;
+        return;
+    }
+
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
+        ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+                                              advsm->adv_instance, 0,
+                                              advsm->events);
+         /* Disable advertising */
+         advsm->adv_enabled = 0;
+         return;
+    }
+
+    ble_ll_adv_reschedule_event(advsm);
+}
+
+static void
+ble_ll_adv_sec_event_done(struct os_event *ev)
+{
+    ble_ll_adv_sec_done(ev->ev_arg);
+}
+#endif
+
+static void
+ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (BLE_MBUF_HDR_EXT_ADV_SEC(hdr)) {
+        assert(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
+        assert(ble_ll_adv_active_chanset_is_sec(advsm));
+        ble_ll_adv_active_chanset_clear(advsm);
+        ble_ll_adv_sec_done(advsm);
+    } else {
+        assert(ble_ll_adv_active_chanset_is_pri(advsm));
+        ble_ll_adv_active_chanset_clear(advsm);
+        ble_ll_adv_done(advsm);
+    }
+#else
+    assert(ble_ll_adv_active_chanset_is_pri(advsm));
+    ble_ll_adv_active_chanset_set(advsm, 0);
+    ble_ll_adv_done(advsm);
+#endif
 }
 
 /**
@@ -2971,6 +3109,10 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     /* Initialize advertising tx done event */
     advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
     advsm->adv_txdone_ev.ev_arg = advsm;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    advsm->adv_sec_txdone_ev.ev_cb = ble_ll_adv_sec_event_done;
+    advsm->adv_sec_txdone_ev.ev_arg = advsm;
+#endif
 
     /*XXX Configure instances to be legacy on start */
     advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
