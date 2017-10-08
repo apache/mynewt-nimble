@@ -549,7 +549,7 @@ ble_ll_conn_calc_access_addr(void)
 
         /* Cannot have more than 24 transitions */
         transitions = 0;
-        consecutive = 0;
+        consecutive = 1;
         ones = 0;
         mask = 0x00000001;
         while (mask < 0x80000000) {
@@ -558,7 +558,7 @@ ble_ll_conn_calc_access_addr(void)
             if (mask & aa) {
                 if (prev_bit == 0) {
                     ++transitions;
-                    consecutive = 0;
+                    consecutive = 1;
                 } else {
                     ++consecutive;
                 }
@@ -567,7 +567,7 @@ ble_ll_conn_calc_access_addr(void)
                     ++consecutive;
                 } else {
                     ++transitions;
-                    consecutive = 0;
+                    consecutive = 1;
                 }
             }
 
@@ -587,6 +587,8 @@ ble_ll_conn_calc_access_addr(void)
 
             /* This is invalid! */
             if (consecutive > 6) {
+                /* Make sure we always detect invalid sequence below */
+                mask = 0;
                 break;
             }
         }
