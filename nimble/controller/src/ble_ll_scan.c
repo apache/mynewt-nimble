@@ -1742,9 +1742,10 @@ ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
     }
 
     ext_hdr_len = rxbuf[2] & 0x3F;
+    os_mbuf_adj(om, 3);
+
     ext_hdr_flags = rxbuf[3];
     ext_hdr = &rxbuf[4];
-    os_mbuf_adj(om, 4);
 
     i = 0;
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
