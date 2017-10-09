@@ -832,6 +832,14 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *adv_addr,
     use_whitelist = 0;
     chk_inita = 0;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && adv_addr == NULL) {
+        /* Note: adv_addr can be NULL (but don't have to) for ext adv. If NULL
+         * that means it is beacon and skip filter policy for now */
+        return 0;
+    }
+#endif
+
     switch (params->scan_filt_policy) {
     case BLE_HCI_SCAN_FILT_NO_WL:
         break;
