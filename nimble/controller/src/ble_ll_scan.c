@@ -1999,15 +1999,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             goto scan_rx_isr_exit;
         }
         if (rc == 0) {
-            if (ble_ll_sched_aux_scan(ble_hdr, scansm, aux_data)) {
-                ble_ll_scan_aux_data_free(aux_data);
-                aux_data = NULL;
-            } else {
-                /* AUX to be proceed. Set this flag anyway
-                 * so LL know to ignore this packet
-                 */
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
-            }
+            /* Let's tell LL to schedule aux */
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
         }
 
         /* If the ble_ll_scan_get_aux_data() succeed, scansm->cur_aux_data is NULL
@@ -2384,9 +2377,17 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
         /* Let's see if that packet contains aux ptr*/
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+            if (ble_ll_sched_aux_scan(hdr, scansm, hdr->rxinfo.user_data)) {
+                /* We are here when could not schedule the aux ptr */
+                hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+            }
+
             if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
                 /* This is just beacon. Let's wait for more data */
-                hdr->rxinfo.user_data = NULL;
+                if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+                    /* If scheduled for aux let's don't remove aux data */
+                    hdr->rxinfo.user_data = NULL;
+                }
                 goto scan_continue;
             }
 
@@ -2395,6 +2396,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
         ble_ll_hci_send_ext_adv_report(ptype, om, hdr);
         ble_ll_scan_switch_phy(scansm);
+
+        if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+            /* If scheduled for aux let's don't remove aux data */
+            hdr->rxinfo.user_data = NULL;
+        }
 
         if (scansm->scan_rsp_pending) {
             if (!scan_rsp_chk) {
