@@ -2915,6 +2915,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (BLE_MBUF_HDR_WAIT_AUX(ble_hdr)) {
             /* Just continue scanning. We are waiting for AUX */
+            if (ble_ll_sched_aux_scan(ble_hdr, connsm->scansm,
+                                      ble_hdr->rxinfo.user_data)) {
+                ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+            }
             goto scan_continue;
         } else {
             /* Wait for aux conn response */
@@ -3155,12 +3159,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         }
 
         if (!adv_addr) {
-            /*If address is not here it is beacon. Wait for aux */
-            if (ble_ll_sched_aux_scan(ble_hdr, scansm, aux_data)) {
-                ble_ll_scan_aux_data_free(aux_data);
-            } else {
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
-            }
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+            ble_hdr->rxinfo.user_data = aux_data;
             goto init_rx_isr_exit;
         } else {
             /*Ok, we got device address. Remove aux data. We don't need it*/
