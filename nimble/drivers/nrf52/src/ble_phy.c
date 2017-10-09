@@ -31,6 +31,20 @@
 #include "controller/ble_ll.h"
 #include "nrf.h"
 
+/*
+ * NOTE: This code uses a couple of PPI channels so care should be taken when
+ *       using PPI somewhere else.
+ *
+ * Pre-programmed channels: CH20, CH21, CH23, CH25, CH31
+ * Regular channels: CH4, CH5 and optionally CH17, CH18, CH19
+ *  - CH4 = cancel wfr timer on address match
+ *  - CH5 = disable radio on wfr timer expiry
+ *  - CH17 = (optional) gpio debug for radio ramp-up
+ *  - CH18 = (optional) gpio debug for wfr timer RX enabled
+ *  - CH19 = (optional) gpio debug for wfr timer radio disabled
+ *
+ */
+
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /*
@@ -1051,9 +1065,9 @@ ble_phy_dbg_time_setup(void)
     ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
                               MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
 
-    NRF_PPI->CH[6].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
-    NRF_PPI->CH[6].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
-    NRF_PPI->CHENSET = PPI_CHEN_CH6_Msk;
+    NRF_PPI->CH[17].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
+    NRF_PPI->CH[17].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->CHENSET = PPI_CHEN_CH17_Msk;
 
     /* CH[20] and PPI CH[21] are on to trigger TASKS_TXEN or TASKS_RXEN */
     NRF_PPI->FORK[20].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
@@ -1073,11 +1087,14 @@ ble_phy_dbg_time_setup(void)
     ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
                               MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
 
-    NRF_PPI->CH[7].EEP = (uint32_t)&(NRF_RADIO->EVENTS_RXREADY);
-    NRF_PPI->CH[7].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
-    NRF_PPI->CHENSET = PPI_CHEN_CH7_Msk;
+    NRF_PPI->CH[18].EEP = (uint32_t)&(NRF_RADIO->EVENTS_RXREADY);
+    NRF_PPI->CH[18].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+    NRF_PPI->CH[19].EEP = (uint32_t)&(NRF_RADIO->EVENTS_DISABLED);
+    NRF_PPI->CH[19].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->CHENSET = PPI_CHEN_CH18_Msk | PPI_CHEN_CH19_Msk;
 
-    /* CH[5] is always on for wfr */
+    /* CH[4] and CH[5] are always on for wfr */
+    NRF_PPI->FORK[4].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
     NRF_PPI->FORK[5].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
 #endif
 }
