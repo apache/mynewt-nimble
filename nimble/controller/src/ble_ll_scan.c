@@ -1601,8 +1601,9 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     uint8_t pdu_len;
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
+    uint8_t has_addr = 0;
     int i;
-    struct ble_ll_aux_data tmp_aux_data = { };
+    struct ble_ll_aux_data tmp_aux_data = { 0 };
 
     pdu_len = rxbuf[1];
     if (pdu_len == 0) {
@@ -1622,7 +1623,11 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     i = 0;
     /* Just all until AUX PTR it for now*/
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+        memcpy(tmp_aux_data.addr, ext_hdr + i, 6);
+        tmp_aux_data.addr_type =
+                ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
+        has_addr = 1;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
@@ -1675,7 +1680,11 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
         (*aux_data)->chan = tmp_aux_data.chan;
         (*aux_data)->offset = tmp_aux_data.offset;
         (*aux_data)->mode = tmp_aux_data.mode;
-
+        if (has_addr) {
+            memcpy((*aux_data)->addr, tmp_aux_data.addr, 6);
+            (*aux_data)->addr_type = tmp_aux_data.addr_type;
+            (*aux_data)->flags |= BLE_LL_AUX_HAS_ADDRA;
+        }
         return 0;
     }
 
@@ -1706,10 +1715,10 @@ ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
     uint8_t ext_hdr_len;
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
-    struct ble_ll_scan_sm *scansm;
-    struct ble_ll_aux_data *aux_data;
-    int i = 1;
     uint8_t *rxbuf = om->om_data;
+    int i = 1;
+    struct ble_ll_scan_sm *scansm;
+    struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
 
     if (!out_evt) {
         return -1;
@@ -1743,6 +1752,12 @@ ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
         out_evt->addr_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
+    } else {
+        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
+            /* Have address in aux_data */
+            memcpy(out_evt->addr, aux_data->addr, 6);
+            out_evt->addr_type = aux_data->addr_type;
+        }
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
@@ -1799,7 +1814,6 @@ ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
     /* In the event we need information on primary and secondary PHY used during
      * advertising.
      */
-    aux_data = ble_hdr->rxinfo.user_data;
     if (!aux_data) {
         out_evt->prim_phy = ble_hdr->rxinfo.phy;
         goto done;
@@ -1835,6 +1849,7 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
     int i;
+    struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
 
     pdu_len = rxbuf[1];
     if (pdu_len == 0) {
@@ -1847,19 +1862,33 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
     }
 
     ext_hdr_len = rxbuf[2] & 0x3F;
-    if (ext_hdr_len < BLE_LL_EXT_ADV_ADVA_SIZE) {
-        return -1;
-    }
 
     ext_hdr_flags = rxbuf[3];
     ext_hdr = &rxbuf[4];
 
     i = 0;
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+        if (ext_hdr_len < BLE_LL_EXT_ADV_ADVA_SIZE) {
+            return -1;
+        }
+
         *addr = ext_hdr + i;
         *addr_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
+        if (aux_data) {
+            /* Lets copy addr to aux_data. Need it for e.g. chaining */
+            /* XXX add sanity checks */
+            memcpy(aux_data->addr, *addr, 6);
+            aux_data->addr_type = *addr_type;
+            aux_data->flags |= BLE_LL_AUX_HAS_ADDRA;
+        }
+    } else {
+        /* We should have address already in aux_data */
+        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
+            *addr = aux_data->addr;
+            *addr_type = aux_data->addr_type;
+        }
     }
 
     if (!inita) {
