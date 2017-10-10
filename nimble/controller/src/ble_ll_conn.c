@@ -2915,15 +2915,21 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (BLE_MBUF_HDR_WAIT_AUX(ble_hdr)) {
             /* Just continue scanning. We are waiting for AUX */
-            if (ble_ll_sched_aux_scan(ble_hdr, connsm->scansm,
+            if (!ble_ll_sched_aux_scan(ble_hdr, connsm->scansm,
                                       ble_hdr->rxinfo.user_data)) {
-                ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+               /* Wait for aux conn response */
+                ble_hdr->rxinfo.user_data = NULL;
             }
             goto scan_continue;
-        } else {
-            /* Wait for aux conn response */
+        }
+    }
+
+    if (CONN_F_AUX_CONN_REQ(connsm)) {
+        /* Wait for connection response */
+        if (pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
             return;
         }
+        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
     }
 #endif
 
@@ -2988,6 +2994,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 scan_continue:
+        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
 #endif
         ble_ll_scan_chk_resume();
     }
@@ -3081,6 +3088,11 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     /* Get connection state machine to use if connection to be established */
     connsm = g_ble_ll_conn_create_sm;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    scansm = connsm->scansm;
+    ble_hdr->rxinfo.user_data =scansm->cur_aux_data;
+#endif
+
     rc = -1;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     pyld_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
@@ -3089,6 +3101,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* Invalid packet - make sure we do not wait for AUX_CONNECT_RSP */
         ble_ll_conn_reset_pending_aux_conn_rsp();
+        scansm->cur_aux_data = NULL;
 #endif
 
         /* Ignore this packet - do not send to LL */
@@ -3111,8 +3124,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     inita_is_rpa = 0;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    scansm = connsm->scansm;
-
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm) {
             goto init_rx_isr_exit;
@@ -3129,6 +3140,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             scansm->cur_aux_data = NULL;
             goto init_rx_isr_exit;
         }
+
+        ble_hdr->rxinfo.user_data = aux_data;
     }
 #endif
 
@@ -3139,7 +3152,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                                     &ext_adv_mode)) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-        ble_ll_scan_aux_data_free(aux_data);
 #endif
         goto init_rx_isr_exit;
     }
@@ -3154,17 +3166,12 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 
         /* If this is not connectable adv mode, lets skip it */
         if (!(ext_adv_mode & BLE_LL_EXT_ADV_MODE_CONN)) {
-            ble_ll_scan_aux_data_free(aux_data);
             goto init_rx_isr_exit;
         }
 
         if (!adv_addr) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
-            ble_hdr->rxinfo.user_data = aux_data;
             goto init_rx_isr_exit;
-        } else {
-            /*Ok, we got device address. Remove aux data. We don't need it*/
-            ble_ll_scan_aux_data_free(aux_data);
         }
 
         if (!init_addr) {
@@ -3301,11 +3308,18 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     }
 
     CONN_F_CONN_REQ_TXD(connsm) = 1;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ble_hdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
         /* Lets wait for AUX_CONNECT_RSP */
         CONN_F_AUX_CONN_REQ(connsm) = 1;
+        /* Keep aux data until we get scan response */
+        scansm->cur_aux_data = ble_hdr->rxinfo.user_data;
+        ble_hdr->rxinfo.user_data = NULL;
         STATS_INC(ble_ll_stats, aux_conn_req_tx);
     }
+#endif
+
     STATS_INC(ble_ll_conn_stats, conn_req_txd);
 
 init_rx_isr_exit:
