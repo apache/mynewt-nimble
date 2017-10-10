@@ -842,6 +842,34 @@ ble_phy_rx_end_isr(void)
     }
 
     /*
+     * Let's schedule TX now and we will just cancel it after processing RXed
+     * packet if we don't need TX.
+     *
+     * We need this to initiate connection in case AUX_CONNECT_REQ was sent on
+     * LE Coded S8. In this case the time we process RXed packet is roughly the
+     * same as the limit when we need to have TX scheduled (i.e. TIMER0 and PPI
+     * armed) so we may simply miss the slot and set the timer in the past.
+     *
+     * When TX is scheduled in advance, we may event process packet a bit longer
+     * during radio ramp-up - this gives us extra 40 usecs which is more than
+     * enough.
+     */
+
+    /* Schedule TX exactly T_IFS after RX end captured in CC[2] */
+    tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+    /* Adjust for delay between actual RX end time and EVENT_END */
+    tx_time -= g_ble_phy_t_rxenddelay[rx_phy_mode];
+    /* Adjust for radio ramp-up */
+    tx_time -= BLE_PHY_T_TXENFAST;
+    /* Adjust for delay between EVENT_READY and actual TX start time */
+    /* XXX: we may have asymmetric phy so next phy may be different... */
+    tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+
+    NRF_TIMER0->CC[0] = tx_time;
+    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+    NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
+
+    /*
      * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
      * that is not sent over the air but is present here. Simply move the
      * data pointer to deal with it. Fix this later.
@@ -851,20 +879,6 @@ ble_phy_rx_end_isr(void)
     rc = ble_ll_rx_end(dptr + 1, ble_hdr);
     if (rc < 0) {
         ble_phy_disable();
-    } else if (rc == 0) {
-        /* Schedule TX exactly T_IFS after RX end captured in CC[2] */
-        tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
-        /* Adjust for delay between actual RX end time and EVENT_END */
-        tx_time -= g_ble_phy_t_rxenddelay[rx_phy_mode];
-        /* Adjust for radio ramp-up */
-        tx_time -= BLE_PHY_T_TXENFAST;
-        /* Adjust for delay between EVENT_READY and actual TX start time */
-        /* XXX: we may have asymmetric phy so next phy may be different... */
-        tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
-
-        NRF_TIMER0->CC[0] = tx_time;
-        NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-        NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
     }
 }
 
