@@ -177,6 +177,8 @@ ble_hs_conn_alloc(uint16_t conn_handle)
         goto err;
     }
 
+    STAILQ_INIT(&conn->bhc_tx_q);
+
     STATS_INC(ble_hs_stats, conn_create);
 
     return conn;

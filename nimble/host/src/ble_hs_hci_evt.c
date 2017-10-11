@@ -142,6 +142,7 @@ static int
 ble_hs_hci_evt_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 {
     struct hci_disconn_complete evt;
+    const struct ble_hs_conn *conn;
 
     if (len < BLE_HCI_EVENT_DISCONN_COMPLETE_LEN) {
         return BLE_HS_ECONTROLLER;
@@ -150,6 +151,13 @@ ble_hs_hci_evt_disconn_complete(uint8_t event_code, uint8_t *data, int len)
     evt.status = data[2];
     evt.connection_handle = get_le16(data + 3);
     evt.reason = data[5];
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(evt.connection_handle);
+    if (conn != NULL) {
+        ble_hs_hci_add_avail_pkts(conn->bhc_outstanding_pkts);
+    }
+    ble_hs_unlock();
 
     ble_gap_rx_disconn_complete(&evt);
 
@@ -209,9 +217,11 @@ ble_hs_hci_evt_enc_key_refresh(uint8_t event_code, uint8_t *data, int len)
 static int
 ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
 {
+    struct ble_hs_conn *conn;
     uint16_t num_pkts;
     uint16_t handle;
     uint8_t num_handles;
+    int tx_outstanding;
     int off;
     int i;
 
@@ -227,14 +237,40 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
     }
     off++;
 
+    /* If we were previously blocked due to controller buffer exhaustion, and
+     * this event indicates that some buffers have been freed, then the host
+     * needs to resume transmitting.  `tx_outstanding` keeps track of whether
+     * this is the case.
+     */
+    tx_outstanding = 0;
+
     for (i = 0; i < num_handles; i++) {
         handle = get_le16(data + off);
         num_pkts = get_le16(data + off + 2);
         off += (2 * sizeof(uint16_t));
 
-        /* XXX: Do something with these values. */
-        (void)handle;
-        (void)num_pkts;
+        if (num_pkts > 0) {
+            ble_hs_lock();
+            conn = ble_hs_conn_find(handle);
+            if (conn != NULL) {
+                if (conn->bhc_outstanding_pkts < num_pkts) {
+                    ble_hs_sched_reset(BLE_HS_ECONTROLLER);
+                } else {
+                    conn->bhc_outstanding_pkts -= num_pkts;
+                }
+
+                if (ble_hs_hci_avail_pkts == 0) {
+                    tx_outstanding = 1;
+                }
+
+                ble_hs_hci_add_avail_pkts(num_pkts);
+            }
+            ble_hs_unlock();
+        }
+    }
+
+    if (tx_outstanding) {
+        ble_hs_wakeup_tx();
     }
 
     return 0;

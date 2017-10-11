@@ -69,6 +69,8 @@ struct ble_hs_hci_ext_conn_params {
 };
 #endif
 
+extern uint8_t ble_hs_hci_avail_pkts;
+
 int ble_hs_hci_cmd_tx(uint16_t opcode, void *cmd, uint8_t cmd_len,
                       void *evt_buf, uint8_t evt_buf_len,
                       uint8_t *out_evt_buf_len);
@@ -158,12 +160,14 @@ int ble_hs_hci_cmd_le_conn_param_neg_reply(
     const struct hci_conn_param_neg_reply *hcn);
 void ble_hs_hci_cmd_build_le_start_encrypt(const struct hci_start_encrypt *cmd,
                                            uint8_t *dst, int dst_len);
-int ble_hs_hci_set_buf_sz(uint16_t pktlen, uint8_t max_pkts);
+int ble_hs_hci_set_buf_sz(uint16_t pktlen, uint16_t max_pkts);
+void ble_hs_hci_add_avail_pkts(uint8_t delta);
 
 uint16_t ble_hs_hci_util_handle_pb_bc_join(uint16_t handle, uint8_t pb,
                                            uint8_t bc);
 
-int ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom);
+int ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om);
+int ble_hs_hci_acl_tx(struct ble_hs_conn *conn, struct os_mbuf **om);
 
 int ble_hs_hci_cmd_build_set_data_len(uint16_t connection_handle,
                                       uint16_t tx_octets, uint16_t tx_time,
@@ -263,7 +267,6 @@ int ble_hs_hci_cmd_build_le_set_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
 
 int ble_hs_hci_cmd_build_le_read_remote_feat(uint16_t handle, uint8_t *dst,
                                                                  int dst_len);
-
 #ifdef __cplusplus
 }
 #endif
