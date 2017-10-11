@@ -395,12 +395,21 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         return BLE_HS_ENOMEM;
     }
 
-    rc = ble_hs_hci_acl_tx(conn, txom);
-    if (rc != 0) {
+    rc = ble_hs_hci_acl_tx(conn, &txom);
+    switch (rc) {
+    case 0:
+        /* Success. */
+        return 0;
+
+    case BLE_HS_EAGAIN:
+        /* Controller could not accommodate full packet.  Enqueue remainder. */
+        STAILQ_INSERT_TAIL(&conn->bhc_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
+        return 0;
+
+    default:
+        /* Error. */
         return rc;
     }
-
-    return 0;
 }
 
 int

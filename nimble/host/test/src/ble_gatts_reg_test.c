@@ -504,7 +504,6 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
         0
     } });
 
-
     /*** 1 primary, 1 secondary. */
     ble_gatts_reg_test_misc_svcs((struct ble_gatt_svc_def[]) { {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,

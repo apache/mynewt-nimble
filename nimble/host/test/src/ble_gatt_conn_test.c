@@ -489,7 +489,6 @@ TEST_CASE(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Start the procedures. */
-    ble_hs_test_util_tx_all();
 
     /*** Break the connections; verify proper callbacks got called. */
     /* Connection 1. */
