@@ -27,14 +27,11 @@ extern "C" {
 #endif
 
 /*
- * Definitions for max rx/tx time/bytes for connections
- *  NOTE: you get 327 usecs from 27 bytes of payload by:
- *      -> adding 4 bytes for MIC
- *      -> adding 2 bytes for PDU header
- *      -> adding 8 bytes for preamble (1), access address (4) and crc (3).
+ * Definitions for min/max RX/TX time/bytes values allowed for connections.
+ * Source: Core 5.0 specification, Vol 6, Part B, section 4.5.10
  */
 #define BLE_LL_CONN_SUPP_TIME_MIN           (328)   /* usecs */
-#define BLE_LL_CONN_SUPP_TIME_MAX           (2120)  /* usecs */
+#define BLE_LL_CONN_SUPP_TIME_MAX           (17040) /* usecs */
 #define BLE_LL_CONN_SUPP_TIME_MIN_UNCODED   (328)   /* usecs */
 #define BLE_LL_CONN_SUPP_TIME_MAX_UNCODED   (2120)  /* usecs */
 #define BLE_LL_CONN_SUPP_TIME_MIN_CODED     (2704)  /* usecs */
