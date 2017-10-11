@@ -63,7 +63,7 @@ struct ble_hs_conn {
      * Count of packets sent over this connection that the controller has not
      * transmitted or flushed yet.
      */
-    uint8_t bhc_outstanding_pkts;
+    uint16_t bhc_outstanding_pkts;
 
     /** Queue of outgoing packets that could not be sent. */
     STAILQ_HEAD(, os_mbuf_pkthdr) bhc_tx_q;
