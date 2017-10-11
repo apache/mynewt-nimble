@@ -1677,6 +1677,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             scansm->cur_aux_data = NULL;
         }
 
+        (*aux_data)->did = tmp_aux_data.did;
         (*aux_data)->chan = tmp_aux_data.chan;
         (*aux_data)->offset = tmp_aux_data.offset;
         (*aux_data)->mode = tmp_aux_data.mode;
