@@ -252,7 +252,6 @@ void ble_hs_test_util_rx_disconn_complete_event(
     struct hci_disconn_complete *evt);
 uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
                                         uint8_t *out_param_len);
-void ble_hs_test_util_tx_all(void);
 void ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle,
                                            uint16_t offset,
                                            const void *data, int data_len);

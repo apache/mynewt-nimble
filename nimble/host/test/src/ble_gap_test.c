@@ -1292,7 +1292,6 @@ TEST_CASE(ble_gap_test_case_conn_find)
                                      ble_gap_test_util_connect_cb,
                                      NULL);
 
-
     rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, pub_addr, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -3035,7 +3034,6 @@ TEST_CASE(ble_gap_test_case_set_cb_good)
 
     ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
                                  NULL);
-
 
     /* Reconfigure the callback. */
     rc = ble_gap_set_event_cb(2, ble_gap_test_util_set_cb_event, &event);

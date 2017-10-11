@@ -164,7 +164,6 @@ ble_gatt_write_test_misc_long_good(int attr_len)
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_hs_test_util_tx_all();
     ble_gatt_write_test_rx_exec_rsp(2);
 
     /* Verify callback got called. */
@@ -354,7 +353,6 @@ ble_gatt_write_test_misc_reliable_good(
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_hs_test_util_tx_all();
     ble_gatt_write_test_rx_exec_rsp(2);
 
     /* Verify callback got called. */
@@ -383,7 +381,6 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
     TEST_ASSERT(rc == 0);
 
     /* Send the pending ATT Write Command. */
-    ble_hs_test_util_tx_all();
 
     /* No response expected; verify callback not called. */
     TEST_ASSERT(!ble_gatt_write_test_cb_called);
@@ -404,7 +401,6 @@ TEST_CASE(ble_gatt_write_test_rsp)
                                      &attr_len);
 
     /* Send the pending ATT Write Command. */
-    ble_hs_test_util_tx_all();
 
     /* Response not received yet; verify callback not called. */
     TEST_ASSERT(!ble_gatt_write_test_cb_called);
@@ -582,7 +578,6 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
     off = 0;
     for (i = 0; i < 2; i++) {
         /* Verify prep write request was sent. */
-        ble_hs_test_util_tx_all();
         TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
 
         /* Receive Prep Write response. */
@@ -597,7 +592,6 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
     }
 
     /* Verify prep write request was sent. */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
 
     /* Receive queue full error. */
@@ -657,7 +651,6 @@ TEST_CASE(ble_gatt_write_test_long_oom)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -669,7 +662,6 @@ TEST_CASE(ble_gatt_write_test_long_oom)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-    ble_hs_test_util_tx_all();
 
     chunk_sz = attr.value_len - off;
     ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
@@ -685,7 +677,6 @@ TEST_CASE(ble_gatt_write_test_long_oom)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -698,13 +689,10 @@ TEST_CASE(ble_gatt_write_test_long_oom)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_tx_all();
-
     /* Verify execute write request sent. */
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_hs_test_util_tx_all();
     ble_gatt_write_test_rx_exec_rsp(2);
 
     /* Verify callback got called. */
@@ -757,7 +745,6 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -769,7 +756,6 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-    ble_hs_test_util_tx_all();
 
     chunk_sz = attr.value_len - off;
     ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
@@ -785,7 +771,6 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -798,13 +783,10 @@ TEST_CASE(ble_gatt_write_test_reliable_oom)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_tx_all();
-
     /* Verify execute write request sent. */
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_hs_test_util_tx_all();
     ble_gatt_write_test_rx_exec_rsp(2);
 
     /* Verify callback got called. */

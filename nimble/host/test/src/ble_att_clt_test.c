@@ -175,14 +175,12 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
     /*** 5-byte write. */
     ble_att_clt_test_tx_write_req_or_cmd(conn_handle, 0x1234, value5,
                                          sizeof value5, is_req);
-    ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0x1234, value5, sizeof value5,
                                           is_req);
 
     /*** Overlong write; verify command truncated to ATT MTU. */
     ble_att_clt_test_tx_write_req_or_cmd(conn_handle, 0xab83, value300,
                                          sizeof value300, is_req);
-    ble_hs_test_util_tx_all();
     ble_att_clt_test_misc_verify_tx_write(0xab83, value300,
                                           BLE_ATT_MTU_DFLT - 3, is_req);
 }
@@ -203,7 +201,6 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
     rc = ble_att_clt_tx_prep_write(conn_handle, handle, offset, om);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
@@ -230,7 +227,6 @@ ble_att_clt_test_misc_exec_good(uint8_t flags)
     rc = ble_att_clt_tx_exec_write(conn_handle, flags);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_EXEC_WRITE_REQ_SZ);
@@ -268,7 +264,6 @@ ble_att_clt_test_misc_tx_mtu(uint16_t conn_handle, uint16_t mtu, int status)
         ble_hs_test_util_verify_tx_mtu_cmd(1, mtu);
     }
 }
-
 
 TEST_CASE(ble_att_clt_test_tx_write)
 {
@@ -372,7 +367,6 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     rc = ble_att_clt_tx_read_mult(conn_handle, ((uint16_t[]){ 1, 2 }), 2);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_READ_MULT_REQ_BASE_SZ + 4);

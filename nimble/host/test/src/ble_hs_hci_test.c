@@ -112,13 +112,11 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
     TEST_ASSERT_FATAL(rc == 0);
     rc = ble_hs_test_util_gatt_write_no_rsp_flat(1, 100, data, 3);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 3);
 
     /* Send fragmented packet (two fragments). */
     rc = ble_hs_test_util_gatt_write_no_rsp_flat(1, 100, data, 25);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 1);
 
     ble_hs_test_util_prev_tx_queue_clear();
@@ -133,13 +131,11 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
 
     /* Use all remaining buffers (four fragments). */
     rc = ble_hs_test_util_gatt_write_no_rsp_flat(1, 100, data, 70);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 0);
 
     /* Attempt to transmit eight more fragments. */
     rc = ble_hs_test_util_gatt_write_no_rsp_flat(1, 100, data, 160);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 0);
 
@@ -147,14 +143,12 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 5;
     ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 0);
 
     /* Receive number-of-completed-packets: 4. */
     ncpe[0].handle_id = 1;
     ncpe[0].num_pkts = 5;
     ble_hs_test_util_rx_num_completed_pkts_event(ncpe);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 1);
 
     /* Ensure the stalled fragments were sent in the expected order. */
