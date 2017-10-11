@@ -42,7 +42,7 @@ static uint32_t ble_hs_hci_sup_feat;
  * The number of available ACL transmit buffers on the controller.  This
  * variable must only be accessed while the host mutex is locked.
  */
-uint8_t ble_hs_hci_avail_pkts;
+uint16_t ble_hs_hci_avail_pkts;
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 static ble_hs_hci_phony_ack_fn *ble_hs_hci_phony_ack_cb;
@@ -92,11 +92,11 @@ ble_hs_hci_set_buf_sz(uint16_t pktlen, uint16_t max_pkts)
  * Increases the count of available controller ACL buffers.
  */
 void
-ble_hs_hci_add_avail_pkts(uint8_t delta)
+ble_hs_hci_add_avail_pkts(uint16_t delta)
 {
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
     
-    if (ble_hs_hci_avail_pkts + delta > UINT8_MAX) {
+    if (ble_hs_hci_avail_pkts + delta > UINT16_MAX) {
         ble_hs_sched_reset(BLE_HS_ECONTROLLER);
     } else {
         ble_hs_hci_avail_pkts += delta;
