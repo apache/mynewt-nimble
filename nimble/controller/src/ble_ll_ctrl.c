@@ -161,35 +161,6 @@ ble_ll_ctrl_rej_ext_ind_make(uint8_t rej_opcode, uint8_t err, uint8_t *ctrdata)
     ctrdata[1] = err;
 }
 
-static int
-ble_ll_ctrl_chk_supp_bytes(uint16_t bytes)
-{
-    int rc;
-
-    if ((bytes < BLE_LL_CONN_SUPP_BYTES_MIN) ||
-        (bytes > BLE_LL_CONN_SUPP_BYTES_MAX)) {
-        rc = 0;
-    } else {
-        rc = 1;
-    }
-
-    return rc;
-}
-
-static int
-ble_ll_ctrl_chk_supp_time(uint16_t t)
-{
-    int rc;
-
-    if ((t < BLE_LL_CONN_SUPP_TIME_MIN) || (t > BLE_LL_CONN_SUPP_TIME_MAX)) {
-        rc = 0;
-    } else {
-        rc = 1;
-    }
-
-    return rc;
-}
-
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 /**
  * Called to cancel a phy update procedure.
@@ -226,10 +197,10 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     ctrl_req.max_tx_bytes = get_le16(dptr + 4);
     ctrl_req.max_tx_time = get_le16(dptr + 6);
 
-    if (!ble_ll_ctrl_chk_supp_bytes(ctrl_req.max_rx_bytes) ||
-        !ble_ll_ctrl_chk_supp_bytes(ctrl_req.max_tx_bytes) ||
-        !ble_ll_ctrl_chk_supp_time(ctrl_req.max_tx_time) ||
-        !ble_ll_ctrl_chk_supp_time(ctrl_req.max_rx_time)) {
+    if ((ctrl_req.max_rx_bytes < BLE_LL_CONN_SUPP_BYTES_MIN) ||
+        (ctrl_req.max_rx_time < BLE_LL_CONN_SUPP_TIME_MIN) ||
+        (ctrl_req.max_tx_bytes < BLE_LL_CONN_SUPP_BYTES_MIN) ||
+        (ctrl_req.max_tx_time < BLE_LL_CONN_SUPP_TIME_MIN)) {
         rc = 1;
     } else {
         /* Update the connection with the new parameters */
@@ -2228,11 +2199,14 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_LENGTH_RSP:
         /* According to specification, process this only if we asked for it. */
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_DATA_LEN_UPD) {
-            /* Process the received data */
+            /*
+             * Process the received data. If received data is invalid, we'll
+             * reply with LL_UNKNOWN_RSP as per spec, but we still need to stop
+             * control procedure to avoid timeout.
+             */
             if (ble_ll_ctrl_len_proc(connsm, dptr)) {
                 rc = -1;
                 rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
-                goto ll_ctrl_send_rsp;
             }
 
             /* Stop the control procedure */
