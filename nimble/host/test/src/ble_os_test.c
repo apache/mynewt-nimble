@@ -278,7 +278,6 @@ ble_gap_terminate_cb(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
-
 static void
 ble_gap_terminate_test_task_handler(void *arg)
 {

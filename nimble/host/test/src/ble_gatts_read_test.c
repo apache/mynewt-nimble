@@ -62,7 +62,6 @@ static const struct ble_gatt_svc_def ble_gatts_read_test_svcs[] = { {
     0
 } };
 
-
 static uint16_t ble_gatts_read_test_chr_1_def_handle;
 static uint16_t ble_gatts_read_test_chr_1_val_handle;
 static uint8_t ble_gatts_read_test_chr_1_val[1024];

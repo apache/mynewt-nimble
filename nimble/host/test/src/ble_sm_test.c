@@ -303,8 +303,6 @@ TEST_CASE(ble_sm_test_case_peer_sec_req_inval)
     ble_sm_test_util_rx_sec_req(
         2, &sec_req, BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP));
 
-    ble_hs_test_util_tx_all();
-
     fail.reason = BLE_SM_ERR_CMD_NOT_SUPP;
     ble_sm_test_util_verify_tx_pair_fail(&fail);
 
@@ -312,11 +310,9 @@ TEST_CASE(ble_sm_test_case_peer_sec_req_inval)
     ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 1);
     rc = ble_sm_pair_initiate(2);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_prev_tx_queue_clear();
 
     ble_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 }
 

@@ -170,7 +170,6 @@ ble_gatt_read_test_misc_rx_rsp_good_raw(uint16_t conn_handle,
     TEST_ASSERT_FATAL(data_len <= sizeof buf);
 
     /* Send the pending ATT Read Request. */
-    ble_hs_test_util_tx_all();
 
     buf[0] = att_op;
     memcpy(buf + 1, data, data_len);
@@ -194,7 +193,6 @@ ble_gatt_read_test_misc_rx_rsp_bad(uint16_t conn_handle,
                                    uint8_t att_error, uint16_t err_handle)
 {
     /* Send the pending ATT Read Request. */
-    ble_hs_test_util_tx_all();
 
     ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_REQ,
                                     att_error, err_handle);
@@ -216,7 +214,6 @@ ble_gatt_read_test_misc_uuid_rx_rsp_good(
     }
 
     /* Send the pending ATT Read By Type Request. */
-    ble_hs_test_util_tx_all();
 
     rsp.batp_length = 2 + attrs[0].value_len;
     ble_att_read_type_rsp_write(buf, sizeof buf, &rsp);
@@ -312,7 +309,6 @@ ble_gatt_read_test_misc_uuid_verify_good(
     while (1) {
         num_read = ble_gatt_read_test_misc_uuid_rx_rsp_good(2, attrs + idx);
         if (num_read == 0) {
-            ble_hs_test_util_tx_all();
             ble_hs_test_util_rx_att_err_rsp(2, BLE_ATT_OP_READ_TYPE_REQ,
                                             BLE_ATT_ERR_ATTR_NOT_FOUND,
                                             start_handle);
@@ -855,7 +851,6 @@ TEST_CASE(ble_gatt_read_test_long_oom)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -867,7 +862,6 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-    ble_hs_test_util_tx_all();
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
@@ -880,7 +874,6 @@ TEST_CASE(ble_gatt_read_test_long_oom)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -892,8 +885,6 @@ TEST_CASE(ble_gatt_read_test_long_oom)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-
-    ble_hs_test_util_tx_all();
 
     chunk_sz = attr.value_len - off;
     ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,

@@ -61,7 +61,6 @@ static const struct ble_gatt_svc_def ble_gatts_notify_test_svcs[] = { {
     0
 } };
 
-
 static uint16_t ble_gatts_notify_test_chr_1_def_handle;
 static uint8_t ble_gatts_notify_test_chr_1_val[1024];
 static int ble_gatts_notify_test_chr_1_len;
@@ -113,8 +112,6 @@ ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle,
     rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
@@ -427,7 +424,6 @@ ble_gatts_notify_test_misc_rx_indicate_rsp(uint16_t conn_handle,
     ble_gatts_notify_test_util_verify_ack_event(conn_handle, attr_handle);
 }
 
-
 static void
 ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle,
                                        uint16_t attr_handle,
@@ -436,8 +432,6 @@ ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle,
     struct ble_att_notify_req req;
     struct os_mbuf *om;
     int i;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
@@ -461,8 +455,6 @@ ble_gatts_notify_test_misc_verify_tx_i(uint16_t conn_handle,
     struct ble_att_indicate_req req;
     struct os_mbuf *om;
     int i;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
@@ -556,7 +548,6 @@ ble_gatts_notify_test_restore_bonding(uint16_t conn_handle,
     if (chr1_tx) {
         ble_gatts_notify_test_misc_verify_tx_gen(conn_handle, 1, chr1_flags);
     }
-
 
     if (chr2_flags != 0) {
         ble_gatts_notify_test_util_verify_sub_event(
@@ -719,7 +710,6 @@ TEST_CASE(ble_gatts_notify_test_i)
     /* Verify the second indication doesn't get sent until the first is
      * confirmed.
      */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 
     /* Receive the confirmation for the first indication. */
@@ -728,7 +718,6 @@ TEST_CASE(ble_gatts_notify_test_i)
         ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify indication sent properly. */
-    ble_hs_test_util_tx_all();
     ble_gatts_notify_test_misc_verify_tx_i(
         conn_handle,
         ble_gatts_notify_test_chr_2_def_handle + 1,
@@ -896,7 +885,6 @@ TEST_CASE(ble_gatts_notify_test_bonded_i)
     /* Verify the second indication doesn't get sent until the first is
      * confirmed.
      */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 
     /* Receive the confirmation for the first indication. */
@@ -905,7 +893,6 @@ TEST_CASE(ble_gatts_notify_test_bonded_i)
         ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify indication sent properly. */
-    ble_hs_test_util_tx_all();
     ble_gatts_notify_test_misc_verify_tx_i(
         conn_handle,
         ble_gatts_notify_test_chr_2_def_handle + 1,
@@ -949,7 +936,6 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify indication sent properly. */
-    ble_hs_test_util_tx_all();
     ble_gatts_notify_test_misc_verify_tx_i(
         conn_handle,
         ble_gatts_notify_test_chr_1_def_handle + 1,

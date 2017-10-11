@@ -66,7 +66,6 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
     int i;
 
     /* Send the pending ATT Read By Group Type Request. */
-    ble_hs_test_util_tx_all();
 
     rsp.bagp_length = ble_gatt_disc_s_test_misc_svc_length(services);
     ble_att_read_group_type_rsp_write(buf, BLE_ATT_READ_GROUP_TYPE_RSP_BASE_SZ,
@@ -134,7 +133,6 @@ ble_gatt_disc_s_test_misc_rx_all_rsp(
 
     if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_tx_all();
         ble_hs_test_util_rx_att_err_rsp(conn_handle,
                                         BLE_ATT_OP_READ_GROUP_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
@@ -152,7 +150,6 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
     int i;
 
     /* Send the pending ATT Find By Type Value Request. */
-    ble_hs_test_util_tx_all();
 
     buf[0] = BLE_ATT_OP_FIND_TYPE_VALUE_RSP;
     off = BLE_ATT_FIND_TYPE_VALUE_RSP_BASE_SZ;
@@ -199,7 +196,6 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp(
 
     if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_tx_all();
         ble_hs_test_util_rx_att_err_rsp(conn_handle,
                                         BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
@@ -434,7 +430,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_all)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -455,7 +450,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_all)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -466,8 +460,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_all)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-
-    ble_hs_test_util_tx_all();
 
     ble_hs_test_util_rx_att_err_rsp(1,
                                     BLE_ATT_OP_READ_GROUP_TYPE_REQ,
@@ -515,7 +507,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -527,7 +518,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-    ble_hs_test_util_tx_all();
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
@@ -537,7 +527,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
      * due to mbuf exhaustion.
      */
     ble_hs_test_util_prev_tx_queue_clear();
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
@@ -549,8 +538,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
     TEST_ASSERT_FATAL(rc == 0);
     os_time_advance(ticks_until);
     ble_gattc_timer();
-
-    ble_hs_test_util_tx_all();
 
     ble_hs_test_util_rx_att_err_rsp(1,
                                     BLE_ATT_OP_READ_GROUP_TYPE_REQ,
@@ -594,7 +581,6 @@ TEST_CASE(ble_gatt_disc_s_test_oom_timeout)
          * sent due to mbuf exhaustion.
          */
         ble_hs_test_util_prev_tx_queue_clear();
-        ble_hs_test_util_tx_all();
         TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
 
         oms_temp = ble_hs_test_util_mbuf_alloc_all_but(0);
