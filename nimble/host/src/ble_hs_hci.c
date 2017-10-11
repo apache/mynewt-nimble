@@ -38,6 +38,12 @@ static uint16_t ble_hs_hci_buf_sz;
 static uint8_t ble_hs_hci_max_pkts;
 static uint32_t ble_hs_hci_sup_feat;
 
+/**
+ * The number of available ACL transmit buffers on the controller.  This
+ * variable must only be accessed while the host mutex is locked.
+ */
+uint8_t ble_hs_hci_avail_pkts;
+
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 static ble_hs_hci_phony_ack_fn *ble_hs_hci_phony_ack_cb;
 #endif
@@ -69,7 +75,7 @@ ble_hs_hci_unlock(void)
 }
 
 int
-ble_hs_hci_set_buf_sz(uint16_t pktlen, uint8_t max_pkts)
+ble_hs_hci_set_buf_sz(uint16_t pktlen, uint16_t max_pkts)
 {
     if (pktlen == 0 || max_pkts == 0) {
         return BLE_HS_EINVAL;
@@ -77,8 +83,24 @@ ble_hs_hci_set_buf_sz(uint16_t pktlen, uint8_t max_pkts)
 
     ble_hs_hci_buf_sz = pktlen;
     ble_hs_hci_max_pkts = max_pkts;
+    ble_hs_hci_avail_pkts = max_pkts;
 
     return 0;
+}
+
+/**
+ * Increases the count of available controller ACL buffers.
+ */
+void
+ble_hs_hci_add_avail_pkts(uint8_t delta)
+{
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+    
+    if (ble_hs_hci_avail_pkts + delta > UINT8_MAX) {
+        ble_hs_sched_reset(BLE_HS_ECONTROLLER);
+    } else {
+        ble_hs_hci_avail_pkts += delta;
+    }
 }
 
 static int
@@ -411,37 +433,39 @@ ble_hs_hci_acl_hdr_prepend(struct os_mbuf *om, uint16_t handle,
     return om;
 }
 
-/**
- * Transmits an HCI ACL data packet.  This function consumes the supplied mbuf,
- * regardless of the outcome.
- *
- * XXX: Ensure the controller has sufficient buffer capacity for the outgoing
- * fragments.
- */
 int
-ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
+ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om)
 {
+    struct os_mbuf *txom;
     struct os_mbuf *frag;
     uint8_t pb;
     int rc;
 
-    /* The first fragment uses the first-non-flush packet boundary value.
-     * After sending the first fragment, pb gets set appropriately for all
-     * subsequent fragments in this packet.
-     */
-    pb = BLE_HCI_PB_FIRST_NON_FLUSH;
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    txom = *om;
+    *om = NULL;
+
+    if (!(conn->bhc_flags & BLE_HS_CONN_F_TX_FRAG)) {
+        /* The first fragment uses the first-non-flush packet boundary value.
+         * After sending the first fragment, pb gets set appropriately for all
+         * subsequent fragments in this packet.
+         */
+        pb = BLE_HCI_PB_FIRST_NON_FLUSH;
+    } else {
+        pb = BLE_HCI_PB_MIDDLE;
+    }
 
     /* Send fragments until the entire packet has been sent. */
-    while (txom != NULL) {
+    while (txom != NULL && ble_hs_hci_avail_pkts > 0) {
         frag = mem_split_frag(&txom, ble_hs_hci_max_acl_payload_sz(),
                               ble_hs_hci_frag_alloc, NULL);
 
-        frag = ble_hs_hci_acl_hdr_prepend(frag, connection->bhc_handle, pb);
+        frag = ble_hs_hci_acl_hdr_prepend(frag, conn->bhc_handle, pb);
         if (frag == NULL) {
             rc = BLE_HS_ENOMEM;
             goto err;
         }
-        pb = BLE_HCI_PB_MIDDLE;
 
 #if !BLE_MONITOR
         BLE_HS_LOG(DEBUG, "ble_hs_hci_acl_tx(): ");
@@ -454,16 +478,60 @@ ble_hs_hci_acl_tx(struct ble_hs_conn *connection, struct os_mbuf *txom)
             goto err;
         }
 
-        connection->bhc_outstanding_pkts++;
+        /* If any fragments remain, they should be marked as 'middle'
+         * fragments.
+         */
+        conn->bhc_flags |= BLE_HS_CONN_F_TX_FRAG;
+        pb = BLE_HCI_PB_MIDDLE;
+
+        /* Account for the controller buf that will hold the txed fragment. */
+        conn->bhc_outstanding_pkts++;
+        ble_hs_hci_avail_pkts--;
     }
+
+    if (txom != NULL) {
+        /* The controller couldn't accommodate some or all of the packet. */
+        *om = txom;
+        return BLE_HS_EAGAIN;
+    }
+
+    /* The entire packet was transmitted. */
+    conn->bhc_flags &= ~BLE_HS_CONN_F_TX_FRAG;
 
     return 0;
 
 err:
     BLE_HS_DBG_ASSERT(rc != 0);
 
+    conn->bhc_flags &= ~BLE_HS_CONN_F_TX_FRAG;
     os_mbuf_free_chain(txom);
     return rc;
+}
+
+/**
+ * Transmits an HCI ACL data packet.  This function consumes the supplied mbuf,
+ * regardless of the outcome.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EAGAIN if the packet could not be sent
+ *                                  in its entirety due to controller buffer
+ *                                  exhaustion.  The unsent data is pointed to
+ *                                  by the `om` parameter.
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ * 
+ */
+int
+ble_hs_hci_acl_tx(struct ble_hs_conn *conn, struct os_mbuf **om)
+{
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    /* If this conn is already backed up, don't even try to send. */
+    if (STAILQ_FIRST(&conn->bhc_tx_q) != NULL) {
+        return BLE_HS_EAGAIN;
+    }
+
+    return ble_hs_hci_acl_tx_now(conn, om);
 }
 
 void

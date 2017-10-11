@@ -214,6 +214,76 @@ ble_hs_process_rx_data_queue(void)
     }
 }
 
+static int
+ble_hs_wakeup_tx_conn(struct ble_hs_conn *conn)
+{
+    struct os_mbuf_pkthdr *omp;
+    struct os_mbuf *om;
+    int rc;
+
+    while ((omp = STAILQ_FIRST(&conn->bhc_tx_q)) != NULL) {
+        STAILQ_REMOVE_HEAD(&conn->bhc_tx_q, omp_next);
+
+        om = OS_MBUF_PKTHDR_TO_MBUF(omp);
+        rc = ble_hs_hci_acl_tx_now(conn, &om);
+        if (rc == BLE_HS_EAGAIN) {
+            /* Controller is at capacity.  This packet will be the first to
+             * get transmitted next time around.
+             */
+            STAILQ_INSERT_HEAD(&conn->bhc_tx_q, OS_MBUF_PKTHDR(om),
+                               omp_next);
+            return BLE_HS_EAGAIN;
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Schedules the transmission of all queued ACL data packets to the controller.
+ */
+void
+ble_hs_wakeup_tx(void)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_lock();
+
+    /* If there is a connection with a partially transmitted packet, it has to
+     * be serviced first.  The controller is waiting for the remainder so it
+     * can reassemble it.
+     */
+    for (conn = ble_hs_conn_first();
+         conn != NULL;
+         conn = SLIST_NEXT(conn, bhc_next)) {
+
+        if (conn->bhc_flags && BLE_HS_CONN_F_TX_FRAG) {
+            rc = ble_hs_wakeup_tx_conn(conn);
+            if (rc != 0) {
+                goto done;
+            }
+            break;
+        }
+    }
+
+    /* For each connection, transmit queued packets until there are no more
+     * packets to send or the controller's buffers are exhausted.
+     */
+    for (conn = ble_hs_conn_first();
+         conn != NULL;
+         conn = SLIST_NEXT(conn, bhc_next)) {
+
+        rc = ble_hs_wakeup_tx_conn(conn);
+        if (rc != 0) {
+            goto done;
+        }
+    }
+
+done:
+    ble_hs_unlock();
+}
+
 static void
 ble_hs_clear_data_queue(struct os_mqueue *mqueue)
 {

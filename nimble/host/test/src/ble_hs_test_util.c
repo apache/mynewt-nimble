@@ -635,12 +635,15 @@ ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
 void
 ble_hs_test_util_rx_disconn_complete(uint16_t conn_handle, uint8_t reason)
 {
-    struct hci_disconn_complete evt;
+    uint8_t buf[BLE_HCI_EVENT_HDR_LEN + BLE_HCI_EVENT_DISCONN_COMPLETE_LEN];
 
-    evt.connection_handle = conn_handle;
-    evt.status = 0;
-    evt.reason = BLE_ERR_CONN_TERM_LOCAL;
-    ble_gap_rx_disconn_complete(&evt);
+    buf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
+    buf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
+    buf[2] = 0;
+    put_le16(buf + 3, conn_handle);
+    buf[5] = reason;
+
+    ble_hs_test_util_rx_hci_evt(buf);
 }
 
 void
@@ -1473,8 +1476,10 @@ ble_hs_test_util_set_startup_acks(void)
         {
             .opcode = ble_hs_hci_util_opcode_join(
                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_BUF_SIZE),
-            /* Use a very low buffer size (20) to test fragmentation. */
-            .evt_params = { 0x14, 0x00, 0x20 },
+            /* Use a very low buffer size (20) to test fragmentation. 
+             * Use a large num-pkts (200) to prevent controller buf exhaustion.
+             */
+            .evt_params = { 0x14, 0x00, 200 },
             .evt_params_len = 3,
         },
         {
@@ -1870,6 +1875,31 @@ ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
     TEST_ASSERT(rsp.baep_req_op == req_op);
     TEST_ASSERT(rsp.baep_handle == handle);
     TEST_ASSERT(rsp.baep_error_code == error_code);
+}
+
+void
+ble_hs_test_util_verify_tx_write_cmd(uint16_t handle, const void *data,
+                                     uint16_t data_len)
+{
+    struct ble_att_write_req req;
+    struct os_mbuf *om;
+    uint8_t buf[BLE_ATT_WRITE_CMD_BASE_SZ];
+    int rc;
+
+    ble_hs_test_util_tx_all();
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_att_write_cmd_parse(buf, sizeof buf, &req);
+
+    TEST_ASSERT(req.bawq_handle == handle);
+
+    os_mbuf_adj(om, sizeof buf);
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) == data_len);
+    TEST_ASSERT(os_mbuf_cmpf(om, 0, data, data_len) == 0);
 }
 
 static struct os_mbuf *
