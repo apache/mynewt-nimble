@@ -417,8 +417,6 @@ ble_att_svr_test_misc_verify_tx_read_mult_rsp(
     int off;
     int i;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue();
 
     rc = os_mbuf_copydata(om, 0, 1, &u8);
@@ -501,8 +499,6 @@ ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
     int off;
     int rc;
 
-    ble_hs_test_util_tx_all();
-
     off = 0;
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
@@ -552,8 +548,6 @@ ble_att_svr_test_misc_verify_tx_read_type_rsp(
     int off;
     int rc;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT(om);
 
@@ -590,8 +584,6 @@ ble_att_svr_test_misc_verify_tx_prep_write_rsp(uint16_t attr_handle,
     uint8_t buf[1024];
     int rc;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue();
 
     rc = os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), buf);
@@ -612,8 +604,6 @@ static void
 ble_att_svr_test_misc_verify_tx_exec_write_rsp(void)
 {
     struct os_mbuf *om;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT(om);
@@ -743,8 +733,6 @@ ble_att_svr_test_misc_verify_tx_indicate_rsp(void)
 {
     struct os_mbuf *om;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT(om);
 
@@ -788,7 +776,6 @@ ble_att_svr_test_misc_verify_indicate(uint16_t conn_handle,
         TEST_ASSERT(ble_att_svr_test_n_conn_handle == 0xffff);
         TEST_ASSERT(ble_att_svr_test_n_attr_handle == 0);
         TEST_ASSERT(ble_att_svr_test_attr_n_len == 0);
-        ble_hs_test_util_tx_all();
         TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
     }
 }
@@ -887,7 +874,6 @@ TEST_CASE(ble_att_svr_test_read)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no response got sent. */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /* Encrypt link; success. */
@@ -1068,7 +1054,6 @@ TEST_CASE(ble_att_svr_test_write)
     TEST_ASSERT(rc == 0);
 
     /* Ensure no response got sent. */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /*** Successful write. */
@@ -1101,7 +1086,6 @@ TEST_CASE(ble_att_svr_test_write)
     TEST_ASSERT(rc == 0);
 
     /* Ensure no response got sent. */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /* Encrypt link; success. */
@@ -1926,7 +1910,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure we were able to send a real response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_find_info_rsp(
         (struct ble_hs_test_util_att_info_entry[]) {
             { .handle = 1, .uuid = BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE) },
@@ -1942,7 +1925,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
 
     /* Ensure we were able to send an error response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 1,
                                        BLE_ATT_ERR_INSUFFICIENT_RES);
 
@@ -1955,7 +1937,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
 
     /* Ensure we were able to send a non-OOM error response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_TYPE_REQ, 100,
                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -1967,7 +1948,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure we were able to send a real response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_w_1,
                                         ble_att_svr_test_attr_w_1_len);
 
@@ -1979,10 +1959,8 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure we were able to send a real response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_read_blob_rsp(ble_att_svr_test_attr_w_1,
                                              ble_att_svr_test_attr_w_1_len);
-
 
     /*** Read multiple. */
     ble_hs_test_util_prev_tx_dequeue();
@@ -1994,10 +1972,8 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
 
     /* Ensure we were able to send an error response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_MULT_REQ, 0,
                                        BLE_ATT_ERR_INSUFFICIENT_RES);
-
 
     /***
      * Read by group type; always respond affirmatively, even when no
@@ -2011,7 +1987,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
 
     /* Ensure we were able to send a non-OOM error response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_GROUP_TYPE_REQ, 11,
                                        BLE_ATT_ERR_ATTR_NOT_FOUND);
 
@@ -2024,7 +1999,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
 
     /* Ensure we were able to send an error response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ, 1,
                                        BLE_ATT_ERR_INSUFFICIENT_RES);
 
@@ -2037,7 +2011,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no response sent. */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /*** Prepare write. */
@@ -2049,7 +2022,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
 
     /* Ensure we were able to send an error response. */
-    ble_hs_test_util_tx_all();
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_PREP_WRITE_REQ, 1,
                                        BLE_ATT_ERR_INSUFFICIENT_RES);
 
@@ -2062,7 +2034,6 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure no response sent. */
-    ble_hs_test_util_tx_all();
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
 
     /*** Indicate. */

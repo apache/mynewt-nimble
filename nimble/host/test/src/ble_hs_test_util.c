@@ -174,7 +174,6 @@ ble_hs_test_util_prev_tx_queue_sz(void)
 void
 ble_hs_test_util_prev_tx_queue_clear(void)
 {
-    ble_hs_test_util_tx_all();
     while (!STAILQ_EMPTY(&ble_hs_test_util_prev_tx_queue)) {
         ble_hs_test_util_prev_tx_dequeue();
     }
@@ -635,12 +634,15 @@ ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status)
 void
 ble_hs_test_util_rx_disconn_complete(uint16_t conn_handle, uint8_t reason)
 {
-    struct hci_disconn_complete evt;
+    uint8_t buf[BLE_HCI_EVENT_HDR_LEN + BLE_HCI_EVENT_DISCONN_COMPLETE_LEN];
 
-    evt.connection_handle = conn_handle;
-    evt.status = 0;
-    evt.reason = BLE_ERR_CONN_TERM_LOCAL;
-    ble_gap_rx_disconn_complete(&evt);
+    buf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
+    buf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
+    buf[2] = 0;
+    put_le16(buf + 3, conn_handle);
+    buf[5] = reason;
+
+    ble_hs_test_util_rx_hci_evt(buf);
 }
 
 void
@@ -1473,8 +1475,10 @@ ble_hs_test_util_set_startup_acks(void)
         {
             .opcode = ble_hs_hci_util_opcode_join(
                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_BUF_SIZE),
-            /* Use a very low buffer size (20) to test fragmentation. */
-            .evt_params = { 0x14, 0x00, 0x20 },
+            /* Use a very low buffer size (20) to test fragmentation. 
+             * Use a large num-pkts (200) to prevent controller buf exhaustion.
+             */
+            .evt_params = { 0x14, 0x00, 200 },
             .evt_params_len = 3,
         },
         {
@@ -1580,19 +1584,12 @@ ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
 }
 
 void
-ble_hs_test_util_tx_all(void)
-{
-    ble_hs_process_tx_data_queue();
-}
-
-void
 ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle, uint16_t offset,
                                       const void *data, int data_len)
 {
     struct ble_att_prep_write_cmd req;
     struct os_mbuf *om;
 
-    ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(OS_MBUF_PKTLEN(om) ==
@@ -1614,7 +1611,6 @@ ble_hs_test_util_verify_tx_exec_write(uint8_t expected_flags)
     struct ble_att_exec_write_req req;
     struct os_mbuf *om;
 
-    ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_EXEC_WRITE_REQ_SZ);
@@ -1633,7 +1629,6 @@ ble_hs_test_util_verify_tx_find_type_value(uint16_t start_handle,
     struct ble_att_find_type_value_req req;
     struct os_mbuf *om;
 
-    ble_hs_test_util_tx_all();
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
     TEST_ASSERT(om->om_len == BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + value_len);
@@ -1666,8 +1661,6 @@ ble_hs_test_util_verify_tx_read_rsp_gen(uint8_t att_op,
     uint8_t u8;
     int rc;
     int i;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue();
 
@@ -1706,8 +1699,6 @@ ble_hs_test_util_verify_tx_write_rsp(void)
     uint8_t u8;
     int rc;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue();
 
     rc = os_mbuf_copydata(om, 0, 1, &u8);
@@ -1720,8 +1711,6 @@ ble_hs_test_util_verify_tx_mtu_cmd(int is_req, uint16_t mtu)
 {
     struct ble_att_mtu_cmd cmd;
     struct os_mbuf *om;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om != NULL);
@@ -1747,8 +1736,6 @@ ble_hs_test_util_verify_tx_find_info_rsp(
     ble_uuid_any_t uuid;
     int off;
     int rc;
-
-    ble_hs_test_util_tx_all();
 
     off = 0;
 
@@ -1804,8 +1791,6 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
     int off;
     int rc;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
     TEST_ASSERT_FATAL(om);
 
@@ -1858,8 +1843,6 @@ ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
     uint8_t buf[BLE_ATT_ERROR_RSP_SZ];
     int rc;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_prev_tx_dequeue();
 
     rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
@@ -1870,6 +1853,29 @@ ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
     TEST_ASSERT(rsp.baep_req_op == req_op);
     TEST_ASSERT(rsp.baep_handle == handle);
     TEST_ASSERT(rsp.baep_error_code == error_code);
+}
+
+void
+ble_hs_test_util_verify_tx_write_cmd(uint16_t handle, const void *data,
+                                     uint16_t data_len)
+{
+    struct ble_att_write_req req;
+    struct os_mbuf *om;
+    uint8_t buf[BLE_ATT_WRITE_CMD_BASE_SZ];
+    int rc;
+
+    om = ble_hs_test_util_prev_tx_dequeue();
+
+    rc = os_mbuf_copydata(om, 0, sizeof buf, buf);
+    TEST_ASSERT(rc == 0);
+
+    ble_att_write_cmd_parse(buf, sizeof buf, &req);
+
+    TEST_ASSERT(req.bawq_handle == handle);
+
+    os_mbuf_adj(om, sizeof buf);
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) == data_len);
+    TEST_ASSERT(os_mbuf_cmpf(om, 0, data, data_len) == 0);
 }
 
 static struct os_mbuf *
@@ -1933,8 +1939,6 @@ ble_hs_test_util_verify_tx_l2cap_sig(uint16_t opcode, void *cmd,
     struct ble_l2cap_sig_hdr hdr;
     struct os_mbuf *om;
 
-    ble_hs_test_util_tx_all();
-
     om = ble_hs_test_util_verify_tx_l2cap_sig_hdr(opcode, 0, cmd_size, &hdr);
     om = os_mbuf_pullup(om, cmd_size);
 
@@ -1948,8 +1952,6 @@ void
 ble_hs_test_util_verify_tx_l2cap(struct os_mbuf *txom)
 {
     struct os_mbuf *om;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_prev_tx_dequeue();
     TEST_ASSERT_FATAL(om != NULL);
@@ -2002,8 +2004,6 @@ ble_hs_test_util_verify_tx_l2cap_update_req(
     struct ble_l2cap_sig_update_req req;
     struct ble_l2cap_sig_hdr hdr;
     struct os_mbuf *om;
-
-    ble_hs_test_util_tx_all();
 
     om = ble_hs_test_util_verify_tx_l2cap_sig_hdr(BLE_L2CAP_SIG_OP_UPDATE_REQ,
                                                   0,
@@ -2274,7 +2274,6 @@ ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
     int count;
     int i;
 
-    ble_hs_process_tx_data_queue();
     ble_hs_process_rx_data_queue();
 
     count = os_msys_num_free();

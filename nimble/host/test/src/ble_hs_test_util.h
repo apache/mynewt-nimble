@@ -252,7 +252,6 @@ void ble_hs_test_util_rx_disconn_complete_event(
     struct hci_disconn_complete *evt);
 uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
                                         uint8_t *out_param_len);
-void ble_hs_test_util_tx_all(void);
 void ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle,
                                            uint16_t offset,
                                            const void *data, int data_len);
@@ -274,6 +273,9 @@ void ble_hs_test_util_verify_tx_read_group_type_rsp(
     struct ble_hs_test_util_att_group_type_entry *entries);
 void ble_hs_test_util_verify_tx_err_rsp(uint8_t req_op, uint16_t handle,
                                         uint8_t error_code);
+void ble_hs_test_util_verify_tx_write_cmd(uint16_t handle, const void *data,
+                                          uint16_t data_len);
+
 uint8_t ble_hs_test_util_verify_tx_l2cap_update_req(
     struct ble_l2cap_sig_update_params *params);
 int ble_hs_test_util_rx_l2cap_update_rsp(uint16_t conn_handle,

@@ -36,6 +36,7 @@ typedef uint8_t ble_hs_conn_flags_t;
 
 #define BLE_HS_CONN_F_MASTER        0x01
 #define BLE_HS_CONN_F_TERMINATING   0x02
+#define BLE_HS_CONN_F_TX_FRAG       0x04 /* Cur ACL packet partially txed. */
 
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
@@ -57,7 +58,15 @@ struct ble_hs_conn {
     struct ble_l2cap_chan_list bhc_channels;
     struct ble_l2cap_chan *bhc_rx_chan; /* Channel rxing current packet. */
     uint32_t bhc_rx_timeout;
+
+    /**
+     * Count of packets sent over this connection that the controller has not
+     * transmitted or flushed yet.
+     */
     uint16_t bhc_outstanding_pkts;
+
+    /** Queue of outgoing packets that could not be sent. */
+    STAILQ_HEAD(, os_mbuf_pkthdr) bhc_tx_q;
 
     struct ble_att_svr_conn bhc_att_svr;
     struct ble_gatts_conn bhc_gatt_svr;
