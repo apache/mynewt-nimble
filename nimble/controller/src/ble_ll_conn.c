@@ -2403,7 +2403,6 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
     uint8_t *evbuf;
     uint32_t endtime;
     uint32_t usecs;
-    int rx_phy_mode;
 
     /* XXX: TODO this assumes we received in 1M phy */
 
@@ -2437,14 +2436,10 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
          */
         connsm->last_anchor_point = rxhdr->beg_cputime;
 
-#if BLE_LL_BT5_PHY_SUPPORTED
-        rx_phy_mode = connsm->phy_data.rx_phy_mode;
-#else
-        rx_phy_mode = BLE_PHY_MODE_1M;
-#endif
         usecs = rxhdr->rem_usecs + 1250 +
                 (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN, rx_phy_mode);
+                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
+                                       rxhdr->rxinfo.phy_mode);
 
         if (rxhdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
             switch (rxhdr->rxinfo.phy) {
