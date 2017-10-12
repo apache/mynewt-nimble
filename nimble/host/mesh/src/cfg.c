@@ -1246,11 +1246,7 @@ static void send_mod_sub_status(struct bt_mesh_model *model,
 
 	net_buf_simple_add_u8(msg, status);
 	net_buf_simple_add_le16(msg, elem_addr);
-	if (status) {
-		net_buf_simple_add_le16(msg, BT_MESH_ADDR_UNASSIGNED);
-	} else {
-		net_buf_simple_add_le16(msg, sub_addr);
-	}
+	net_buf_simple_add_le16(msg, sub_addr);
 
 	if (vnd) {
 		memcpy(net_buf_simple_add(msg, 4), mod_id, 4);
@@ -1735,7 +1731,7 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 				 struct bt_mesh_msg_ctx *ctx,
 				 struct os_mbuf *buf)
 {
-	u16_t elem_addr, sub_addr;
+	u16_t elem_addr, sub_addr = BT_MESH_ADDR_UNASSIGNED;
 	struct bt_mesh_model *mod;
 	struct bt_mesh_elem *elem;
 	u8_t *label_uuid;
@@ -1746,10 +1742,10 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 	elem_addr = net_buf_simple_pull_le16(buf);
 	label_uuid = buf->om_data;
 	net_buf_simple_pull(buf, 16);
-
-	BT_DBG("elem_addr 0x%04x", elem_addr);
-
 	mod_id = buf->om_data;
+
+	BT_DBG("elem_addr 0x%04x, addr %s, mod_id %s", elem_addr,
+	       bt_hex(label_uuid, 16), bt_hex(mod_id, buf->om_len));
 
 	elem = bt_mesh_elem_find(elem_addr);
 	if (!elem) {
