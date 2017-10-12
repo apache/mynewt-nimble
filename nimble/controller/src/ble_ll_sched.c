@@ -1341,19 +1341,28 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
 {
     int rc;
     os_sr_t sr;
-    uint32_t earliest_start;
-    uint32_t earliest_end;
+    uint32_t off_ticks;
+    uint32_t off_rem_usecs;
+    uint32_t start_time;
+    uint32_t start_time_rem_usecs;
+    uint32_t end_time;
     uint32_t dur;
-    uint32_t now;
     struct ble_ll_sched_item *entry;
     struct ble_ll_sched_item *sch;
     int phy_mode;
 
     sch = &aux_scan->sch;
 
-    now =  ble_hdr->beg_cputime;
-    earliest_start = now + os_cputime_usecs_to_ticks(aux_scan->offset);
-    earliest_start -= g_ble_ll_sched_offset_ticks;
+    off_ticks = os_cputime_usecs_to_ticks(aux_scan->offset);
+    off_rem_usecs = aux_scan->offset - os_cputime_ticks_to_usecs(off_ticks);
+
+    start_time = ble_hdr->beg_cputime + off_ticks;
+    start_time_rem_usecs = ble_hdr->rem_usecs + off_rem_usecs;
+    if (start_time_rem_usecs > 30) {
+        start_time++;
+        start_time_rem_usecs -= 30;
+    }
+    start_time -= g_ble_ll_sched_offset_ticks;
 
     /* Let's calculate time we reserve for aux packet. For now we assume to wait
      * for fixed number of bytes and handle possible interrupting it in
@@ -1363,14 +1372,13 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
     phy_mode = ble_ll_phy_to_phy_mode(aux_scan->aux_phy,
                                       BLE_HCI_LE_PHY_CODED_ANY);
     dur = ble_ll_pdu_tx_time_get(BLE_LL_SCHED_AUX_PTR_DFLT_BYTES_NUM, phy_mode);
-    earliest_end = earliest_start + os_cputime_usecs_to_ticks(dur);
+    end_time = start_time + os_cputime_usecs_to_ticks(dur);
 
-    /* We have to find a place for this schedule */
+    sch->start_time = start_time;
+    sch->remainder = start_time_rem_usecs;
+    sch->end_time = end_time;
+
     OS_ENTER_CRITICAL(sr);
-
-    /* The schedule item must occur after current running item (if any) */
-    sch->start_time = earliest_start;
-    sch->end_time = earliest_end;
 
     if (!ble_ll_sched_insert_if_empty(sch)) {
         /* Nothing in schedule. Schedule as soon as possible
@@ -1382,10 +1390,6 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
     /* Try to find slot for aux scan. */
     os_cputime_timer_stop(&g_ble_ll_sched_timer);
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
-        /* Set these because overlap function needs them to be set */
-        sch->start_time = earliest_start;
-        sch->end_time = earliest_end;
-
         /* We can insert if before entry in list */
         if (sch->end_time <= entry->start_time) {
             rc = 0;

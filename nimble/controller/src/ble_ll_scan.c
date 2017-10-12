@@ -153,7 +153,8 @@ static os_membuf_t ext_adv_mem[ OS_MEMPOOL_SIZE(
 
 static struct os_mempool ext_adv_pool;
 
-static int ble_ll_scan_start(struct ble_ll_scan_sm *scansm);
+static int ble_ll_scan_start(struct ble_ll_scan_sm *scansm,
+                             struct ble_ll_sched_item *sch);
 
 static int
 ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
@@ -192,7 +193,7 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     assert(scansm->cur_aux_data != NULL);
     scansm->cur_aux_data->scanning = 1;
 
-    if (ble_ll_scan_start(scansm)) {
+    if (ble_ll_scan_start(scansm, sch)) {
         ble_ll_scan_aux_data_free(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
         ble_ll_event_send(&scansm->scan_sched_ev);
@@ -901,7 +902,7 @@ ble_ll_get_chan_to_scan(struct ble_ll_scan_sm *scansm, uint8_t *chan,
  * @return int
  */
 static int
-ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
+ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
 {
     int rc;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
@@ -912,6 +913,13 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     int phy;
 
     ble_ll_get_chan_to_scan(scansm, &scan_chan, &phy);
+
+    /* XXX: right now scheduled item is only present if we schedule for aux
+     *      scan just make sanity check that we have proper combination of
+     *      sch and resulting scan_chan
+     */
+    assert(!sch || scan_chan < BLE_PHY_ADV_CHAN_START);
+    assert(sch || scan_chan >= BLE_PHY_ADV_CHAN_START);
     
     /* Set channel */
     rc = ble_phy_setchan(scan_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
@@ -942,8 +950,14 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
 
     /* XXX: probably need to make sure hfxo is running too */
     /* XXX: can make this better; want to just start asap. */
-    rc = ble_phy_rx_set_start_time(os_cputime_get32() +
-                                   g_ble_ll_sched_offset_ticks, 0);
+    if (sch) {
+        rc = ble_phy_rx_set_start_time(sch->start_time +
+                                       g_ble_ll_sched_offset_ticks,
+                                       sch->remainder);
+    } else {
+        rc = ble_phy_rx_set_start_time(os_cputime_get32() +
+                                       g_ble_ll_sched_offset_ticks, 0);
+    }
     if (!rc) {
         /* Enable/disable whitelisting */
         if (scanphy->scan_filt_policy & 1) {
@@ -1221,7 +1235,7 @@ ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
                                             BLE_HCI_SCAN_ITVL);
 
             next_phy->next_event_start = now + win;
-            ble_ll_scan_start(scansm);
+            ble_ll_scan_start(scansm, NULL);
         }
         next_event_time = next_phy->next_event_start;
     }
@@ -1398,7 +1412,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
             goto rfclk_not_settled;
         }
 #endif
-        ble_ll_scan_start(scansm);
+        ble_ll_scan_start(scansm, NULL);
     } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
       next_event_time = ble_ll_scan_start_next_phy(scansm, next_event_time);
@@ -2118,7 +2132,7 @@ ble_ll_scan_chk_resume(void)
         if (ble_ll_state_get() == BLE_LL_STATE_STANDBY &&
                     ble_ll_scan_window_chk(scansm, os_cputime_get32()) == 0) {
             /* Turn on the receiver and set state */
-            ble_ll_scan_start(scansm);
+            ble_ll_scan_start(scansm, NULL);
         }
         OS_EXIT_CRITICAL(sr);
     }
