@@ -3109,6 +3109,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+            ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+            scansm->cur_aux_data = NULL;
             goto init_rx_isr_exit;
         }
     }
@@ -3119,6 +3121,10 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                                     &adv_addr, &addr_type,
                                     &init_addr, &init_addr_type,
                                     &ext_adv_mode)) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+        ble_ll_scan_aux_data_free(aux_data);
+#endif
         goto init_rx_isr_exit;
     }
 
