@@ -2909,9 +2909,17 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (BLE_MBUF_HDR_AUX_INVALID(ble_hdr)) {
+        goto scan_continue;
+    }
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-        /* Do nothing, we need AUX_CONN_RSP*/
-        return;
+        if (BLE_MBUF_HDR_WAIT_AUX(ble_hdr)) {
+            /* Just continue scanning. We are waiting for AUX */
+            goto scan_continue;
+        } else {
+            /* Wait for aux conn response */
+            return;
+        }
     }
 #endif
 
@@ -2973,6 +2981,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble
 #endif
         ble_ll_conn_created(connsm, NULL);
     } else {
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+scan_continue:
+#endif
         ble_ll_scan_chk_resume();
     }
 }
