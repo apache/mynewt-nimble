@@ -2471,7 +2471,6 @@ scan_continue:
     }
 
     ble_ll_scan_chk_resume();
-    return;
 }
 
 int
