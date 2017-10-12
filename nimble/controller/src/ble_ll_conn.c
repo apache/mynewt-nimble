@@ -2889,9 +2889,11 @@ ble_ll_conn_event_halt(void)
  *
  * @param pdu_type
  * @param rxbuf
+ * @param ble_hdr
  */
 void
-ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr)
+ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
+                      struct ble_mbuf_hdr *ble_hdr)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int8_t rpa_index;
