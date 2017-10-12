@@ -2910,6 +2910,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         return;
     }
 
+    if (!BLE_MBUF_HDR_CRC_OK(ble_hdr)) {
+        goto scan_continue;
+    }
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (BLE_MBUF_HDR_AUX_INVALID(ble_hdr)) {
         goto scan_continue;
@@ -2992,14 +2996,14 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 #endif
 #endif
         ble_ll_conn_created(connsm, NULL);
-    } else {
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-scan_continue:
-        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
-#endif
-        ble_ll_scan_chk_resume();
+        return;
     }
+
+scan_continue:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+#endif
+    ble_ll_scan_chk_resume();
 }
 
 /**
@@ -3106,8 +3110,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         scansm->cur_aux_data = NULL;
 #endif
 
-        /* Ignore this packet - do not send to LL */
-        goto init_rx_isr_ignore_exit;
+        /* Ignore this packet */
+        goto init_rx_isr_exit;
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3350,7 +3354,6 @@ init_rx_isr_exit:
         ble_ll_rx_pdu_in(rxpdu);
     }
 
-init_rx_isr_ignore_exit:
     if (rc) {
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
     }
