@@ -781,7 +781,6 @@ ble_phy_rx_end_isr(void)
     int rc;
     uint8_t *dptr;
     uint8_t crcok;
-    uint8_t rx_phy_mode;
     uint32_t tx_time;
     struct ble_mbuf_hdr *ble_hdr;
 
@@ -791,9 +790,6 @@ ble_phy_rx_end_isr(void)
 
     /* Disable automatic RXEN */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
-
-    /* Store PHY on which we've just received smth */
-    rx_phy_mode = ble_phy_get_cur_rx_phy_mode();
 
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
@@ -858,7 +854,7 @@ ble_phy_rx_end_isr(void)
     /* Schedule TX exactly T_IFS after RX end captured in CC[2] */
     tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
     /* Adjust for delay between actual RX end time and EVENT_END */
-    tx_time -= g_ble_phy_t_rxenddelay[rx_phy_mode];
+    tx_time -= g_ble_phy_t_rxenddelay[ble_hdr->rxinfo.phy_mode];
     /* Adjust for radio ramp-up */
     tx_time -= BLE_PHY_T_TXENFAST;
     /* Adjust for delay between EVENT_READY and actual TX start time */
