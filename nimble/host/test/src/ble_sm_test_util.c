@@ -1257,7 +1257,7 @@ ble_sm_test_util_verify_tx_lt_key_req_reply(uint16_t conn_handle, uint8_t *stk)
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LT_KEY_REQ_REPLY_LEN);
@@ -1271,7 +1271,7 @@ ble_sm_test_util_verify_tx_lt_key_req_neg_reply(uint16_t conn_handle)
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN);
@@ -1285,7 +1285,7 @@ ble_sm_test_util_set_lt_key_req_neg_reply_ack(uint8_t status,
     static uint8_t params[BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN];
 
     put_le16(params, conn_handle);
-    ble_hs_test_util_set_ack_params(
+    ble_hs_test_util_hci_ack_set_params(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
         status, params, sizeof params);
@@ -1297,7 +1297,7 @@ ble_sm_test_util_set_lt_key_req_reply_ack(uint8_t status, uint16_t conn_handle)
     static uint8_t params[BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN];
 
     put_le16(params, conn_handle);
-    ble_hs_test_util_set_ack_params(
+    ble_hs_test_util_hci_ack_set_params(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
         status, params, sizeof params);
@@ -1325,7 +1325,7 @@ ble_sm_test_util_verify_tx_start_enc(uint16_t conn_handle,
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_START_ENCRYPT,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_LE_START_ENCRYPT_LEN);
@@ -1344,7 +1344,7 @@ ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_verify_tx_hci(BLE_HCI_OGF_LE,
+    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
                                            &param_len);
     TEST_ASSERT(param_len == BLE_HCI_ADD_TO_RESOLV_LIST_LEN);
@@ -1747,7 +1747,7 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_num_procs() == 0);
 
-    ble_hs_test_util_set_ack(
+    ble_hs_test_util_hci_ack_set(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_START_ENCRYPT),
         0);
@@ -2035,7 +2035,7 @@ ble_sm_test_util_rx_keys(struct ble_sm_test_params *params,
     }
     if (peer_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
 
-        ble_hs_test_util_set_ack_seq(((struct ble_hs_test_util_phony_ack[]) {
+        ble_hs_test_util_hci_ack_set_seq(((struct ble_hs_test_util_hci_ack[]) {
             {
                 .opcode = ble_hs_hci_util_opcode_join(
                                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
@@ -2111,7 +2111,7 @@ ble_sm_test_util_us_lgcy_good_once_no_init(
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_num_procs() == 0);
 
-    ble_hs_test_util_set_ack(
+    ble_hs_test_util_hci_ack_set(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_START_ENCRYPT), 0);
     if (params->sec_req.authreq != 0) {
@@ -2416,7 +2416,7 @@ ble_sm_test_util_us_sc_good_once_no_init(
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_num_procs() == 0);
 
-    ble_hs_test_util_set_ack(
+    ble_hs_test_util_hci_ack_set(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_START_ENCRYPT), 0);
     if (params->sec_req.authreq != 0) {

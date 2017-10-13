@@ -1837,13 +1837,13 @@ TEST_CASE(ble_att_svr_test_prep_write_tmo)
     TEST_ASSERT(ticks_from_now == BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
 
     /* Allow the timer to expire. */
-    ble_hs_test_util_set_ack_disconnect(0);
+    ble_hs_test_util_hci_ack_set_disconnect(0);
     os_time_advance(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
     ticks_from_now = ble_hs_conn_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
     /* Ensure connection was terminated. */
-    ble_hs_test_util_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
+    ble_hs_test_util_hci_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
 
     /* Free connection.  This is needed so that the prep write mbufs get
      * freed and no mbuf leak gets reported.
