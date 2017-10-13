@@ -66,7 +66,9 @@ struct ble_mbuf_hdr_rxinfo
     uint8_t channel;
     uint8_t handle;
     int8_t  rssi;
+    /* XXX: we could just use single phy_mode field */
     int8_t  phy;
+    uint8_t phy_mode;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     void *user_data;
 #endif
