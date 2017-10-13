@@ -2953,7 +2953,7 @@ ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr)
     }
 #else
     assert(ble_ll_adv_active_chanset_is_pri(advsm));
-    ble_ll_adv_active_chanset_set(advsm, 0);
+    ble_ll_adv_active_chanset_clear(advsm);
     ble_ll_adv_done(advsm);
 #endif
 }
