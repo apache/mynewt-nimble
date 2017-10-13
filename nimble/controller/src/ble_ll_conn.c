@@ -2776,6 +2776,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
             break;
         }
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         /* Check if peer uses RPA. If so and it match, use it as controller
          * supports privacy mode
          */
@@ -2801,6 +2802,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
         }
         peer_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
         break;
+#endif
     default:
         peer_addr = NULL;
         break;

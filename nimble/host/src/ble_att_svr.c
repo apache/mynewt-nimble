@@ -2475,6 +2475,7 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
+        flags = 0;
         goto done;
     }
 
