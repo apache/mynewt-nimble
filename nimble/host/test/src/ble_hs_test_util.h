@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
+#include "ble_hs_test_util_hci.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,12 +33,12 @@ struct ble_l2cap_chan;
 struct hci_disconn_complete;
 struct hci_create_conn;
 
-extern const struct ble_gap_adv_params ble_hs_test_util_adv_params;
+#define BLE_HS_TEST_UTIL_LE_OPCODE(ocf) \
+    ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, (ocf))
 
-struct ble_hs_test_util_num_completed_pkts_entry {
-    uint16_t handle_id; /* 0 for terminating entry in array. */
-    uint16_t num_pkts;
-};
+#define BLE_HS_TEST_UTIL_PUB_ADDR_VAL { 0x0a, 0x54, 0xab, 0x49, 0x7f, 0x06 }
+
+extern const struct ble_gap_adv_params ble_hs_test_util_adv_params;
 
 struct ble_hs_test_util_flat_attr {
     uint16_t handle;
@@ -63,14 +64,6 @@ struct ble_hs_test_util_att_group_type_entry {
     const ble_uuid_t *uuid;
 };
 
-#define BLE_HS_TEST_UTIL_PHONY_ACK_MAX  64
-struct ble_hs_test_util_phony_ack {
-    uint16_t opcode;
-    uint8_t status;
-    uint8_t evt_params[256];
-    uint8_t evt_params_len;
-};
-
 #define BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(handle, pb, len) \
     ((struct hci_data_hdr) {                            \
         .hdh_handle_pb_bc = ((handle)  << 0) |          \
@@ -87,24 +80,6 @@ struct os_mbuf *ble_hs_test_util_prev_tx_dequeue_pullup(void);
 int ble_hs_test_util_prev_tx_queue_sz(void);
 void ble_hs_test_util_prev_tx_queue_clear(void);
 
-void ble_hs_test_util_set_ack_params(uint16_t opcode, uint8_t status,
-                                     void *params, uint8_t params_len);
-void ble_hs_test_util_set_ack(uint16_t opcode, uint8_t status);
-void ble_hs_test_util_append_ack_params(uint16_t opcode, uint8_t status,
-                                        void *params, uint8_t params_len);
-void ble_hs_test_util_append_ack(uint16_t opcode, uint8_t status);
-void ble_hs_test_util_set_ack_seq(struct ble_hs_test_util_phony_ack *acks);
-void ble_hs_test_util_prev_tx_queue_adj(int count);
-void *ble_hs_test_util_get_first_hci_tx(void);
-void *ble_hs_test_util_get_last_hci_tx(void);
-void ble_hs_test_util_enqueue_hci_tx(void *cmd);
-void ble_hs_test_util_prev_hci_tx_clear(void);
-void ble_hs_test_util_build_cmd_complete(uint8_t *dst, int len,
-                                         uint8_t param_len, uint8_t num_pkts,
-                                         uint16_t opcode);
-void ble_hs_test_util_build_cmd_status(uint8_t *dst, int len,
-                                       uint8_t status, uint8_t num_pkts,
-                                       uint16_t opcode);
 void ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
                                       const uint8_t *our_rpa,
                                       uint8_t peer_addr_type,
@@ -126,27 +101,15 @@ int ble_hs_test_util_connect(uint8_t own_addr_type,
                                    uint8_t ack_status);
 int ble_hs_test_util_conn_cancel(uint8_t ack_status);
 void ble_hs_test_util_conn_cancel_full(void);
-void ble_hs_test_util_set_ack_disconnect(uint8_t hci_status);
 int ble_hs_test_util_conn_terminate(uint16_t conn_handle, uint8_t hci_status);
 void ble_hs_test_util_rx_disconn_complete(uint16_t conn_handle,
                                           uint8_t reason);
 void ble_hs_test_util_conn_disconnect(uint16_t conn_handle);
-int ble_hs_test_util_exp_hci_status(int cmd_idx, int fail_idx,
-                                    uint8_t fail_status);
 int ble_hs_test_util_disc(uint8_t own_addr_type, int32_t duration_ms,
                           const struct ble_gap_disc_params *disc_params,
                           ble_gap_event_fn *cb, void *cb_arg, int fail_idx,
                           uint8_t fail_status);
 int ble_hs_test_util_disc_cancel(uint8_t ack_status);
-void ble_hs_test_util_verify_tx_add_irk(uint8_t addr_type,
-                                        const uint8_t *addr,
-                                        const uint8_t *peer_irk,
-                                        const uint8_t *local_irk);
-void ble_hs_test_util_verify_tx_set_priv_mode(uint8_t addr_type,
-                                              const uint8_t *addr,
-                                              uint8_t priv_mode);
-void ble_hs_test_util_verify_tx_disconnect(uint16_t handle, uint8_t reason);
-void ble_hs_test_util_verify_tx_create_conn(const struct hci_create_conn *exp);
 int ble_hs_test_util_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
                                     int cmd_fail_idx, uint8_t hci_status);
 int ble_hs_test_util_adv_rsp_set_fields(
@@ -183,7 +146,6 @@ int ble_hs_test_util_inject_rx_l2cap_sig(uint16_t conn_handle, uint8_t opcode,
 void ble_hs_test_util_verify_tx_l2cap(struct os_mbuf *txom);
 void ble_hs_test_util_inject_rx_l2cap(uint16_t conn_handle, uint16_t cid,
                                       struct os_mbuf *rxom);
-void ble_hs_test_util_rx_hci_buf_size_ack(uint16_t buf_size);
 void ble_hs_test_util_set_att_mtu(uint16_t conn_handle, uint16_t mtu);
 int ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req,
                                     uint16_t mtu);
@@ -245,13 +207,6 @@ int ble_hs_test_util_rx_att_indicate_req(uint16_t conn_handle,
                                          uint16_t attr_len);
 void ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
                                      uint8_t error_code, uint16_t err_handle);
-void ble_hs_test_util_set_startup_acks(void);
-void ble_hs_test_util_rx_num_completed_pkts_event(
-    struct ble_hs_test_util_num_completed_pkts_entry *entries);
-void ble_hs_test_util_rx_disconn_complete_event(
-    struct hci_disconn_complete *evt);
-uint8_t *ble_hs_test_util_verify_tx_hci(uint8_t ogf, uint16_t ocf,
-                                        uint8_t *out_param_len);
 void ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle,
                                            uint16_t offset,
                                            const void *data, int data_len);

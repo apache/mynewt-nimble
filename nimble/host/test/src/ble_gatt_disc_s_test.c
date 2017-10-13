@@ -600,7 +600,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_timeout)
     /* Verify the procedure has timed out.  The connection should now be
      * in the process of being terminated.  XXX: Check this.
      */
-    ble_hs_test_util_set_ack_disconnect(0);
+    ble_hs_test_util_hci_ack_set_disconnect(0);
     ble_gattc_timer();
 
     ticks_until = ble_gattc_timer();

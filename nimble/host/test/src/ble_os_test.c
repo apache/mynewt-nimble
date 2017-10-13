@@ -74,7 +74,7 @@ ble_os_test_misc_init(void)
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_set_startup_acks();
+    ble_hs_test_util_hci_ack_set_startup();
 
     ble_os_test_init_app_task();
 }
@@ -145,7 +145,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     TEST_ASSERT(!cb_called);
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                              BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Receive an HCI connection-complete event. */
@@ -200,7 +200,7 @@ ble_os_disc_test_task_handler(void *arg)
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_set_startup_acks();
+    ble_hs_test_util_hci_ack_set_startup();
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.
@@ -236,7 +236,7 @@ ble_os_disc_test_task_handler(void *arg)
     TEST_ASSERT(ble_gap_master_in_progress());
     TEST_ASSERT(!cb_called);
 
-    ble_hs_test_util_set_ack(
+    ble_hs_test_util_hci_ack_set(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                                     BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
         0);
@@ -291,7 +291,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_set_startup_acks();
+    ble_hs_test_util_hci_ack_set_startup();
 
     /* Set the connect callback so we can verify that it gets called with the
      * proper arguments.
@@ -309,7 +309,7 @@ ble_gap_terminate_test_task_handler(void *arg)
                              &addr1, 0, NULL, ble_gap_terminate_cb,
                              &disconn_handle, 0);
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                              BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -323,7 +323,7 @@ ble_gap_terminate_test_task_handler(void *arg)
                              &addr2, 0, NULL, ble_gap_terminate_cb,
                              &disconn_handle, 0);
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_set_ack(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
                              BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
@@ -342,7 +342,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     disconn_evt.connection_handle = 1;
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
-    ble_hs_test_util_rx_disconn_complete_event(&disconn_evt);
+    ble_hs_test_util_hci_rx_disconn_complete_event(&disconn_evt);
     TEST_ASSERT(ble_os_test_gap_event_type == BLE_GAP_EVENT_DISCONNECT);
     TEST_ASSERT(disconn_handle == 1);
     TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(1));
@@ -354,7 +354,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     disconn_evt.connection_handle = 2;
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
-    ble_hs_test_util_rx_disconn_complete_event(&disconn_evt);
+    ble_hs_test_util_hci_rx_disconn_complete_event(&disconn_evt);
     TEST_ASSERT(ble_os_test_gap_event_type == BLE_GAP_EVENT_DISCONNECT);
     TEST_ASSERT(disconn_handle == 2);
     TEST_ASSERT_FATAL(!ble_os_test_misc_conn_exists(1));
