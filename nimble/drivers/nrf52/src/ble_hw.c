@@ -344,13 +344,11 @@ ble_hw_rng_start(void)
 
     /* No need for interrupt if there is no callback */
     OS_ENTER_CRITICAL(sr);
-    if (NRF_RNG->TASKS_START == 0) {
-        NRF_RNG->EVENTS_VALRDY = 0;
-        if (g_ble_rng_isr_cb) {
-            NRF_RNG->INTENSET = 1;
-        }
-        NRF_RNG->TASKS_START = 1;
+    NRF_RNG->EVENTS_VALRDY = 0;
+    if (g_ble_rng_isr_cb) {
+        NRF_RNG->INTENSET = 1;
     }
+    NRF_RNG->TASKS_START = 1;
     OS_EXIT_CRITICAL(sr);
 
     return 0;
