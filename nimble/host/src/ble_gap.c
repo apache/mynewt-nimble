@@ -2562,60 +2562,6 @@ ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy)
  * $discovery procedures                                                     *
  *****************************************************************************/
 
-#if NIMBLE_BLE_SCAN
-static int
-ble_gap_disc_enable_tx(int enable, int filter_duplicates)
-{
-    uint8_t buf[BLE_HCI_SET_SCAN_ENABLE_LEN];
-    int rc;
-
-    ble_hs_hci_cmd_build_le_set_scan_enable(!!enable, !!filter_duplicates,
-                                            buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(
-        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-        buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-
-static int
-ble_gap_disc_tx_params(uint8_t own_addr_type,
-                       const struct ble_gap_disc_params *disc_params)
-{
-    uint8_t buf[BLE_HCI_SET_SCAN_PARAM_LEN];
-    uint8_t scan_type;
-    int rc;
-
-    if (disc_params->passive) {
-        scan_type = BLE_HCI_SCAN_TYPE_PASSIVE;
-    } else {
-        scan_type = BLE_HCI_SCAN_TYPE_ACTIVE;
-    }
-
-    rc = ble_hs_hci_cmd_build_le_set_scan_params(scan_type,
-                                                 disc_params->itvl,
-                                                 disc_params->window,
-                                                 own_addr_type,
-                                                 disc_params->filter_policy,
-                                                 buf, sizeof buf);
-    if (rc != 0) {
-        return BLE_HS_EINVAL;
-    }
-
-    rc = ble_hs_hci_cmd_tx_empty_ack(
-        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
-        buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
-}
-#endif
-
 #if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
 static int
 ble_gap_ext_disc_tx_params(uint8_t own_addr_type, uint8_t filter_policy,
@@ -2677,12 +2623,62 @@ ble_gap_ext_disc_enable_tx(uint8_t enable, uint8_t filter_duplicates,
 }
 #endif
 
+#if NIMBLE_BLE_SCAN
+static int
+ble_gap_disc_enable_tx(int enable, int filter_duplicates)
+{
+    uint8_t buf[BLE_HCI_SET_SCAN_ENABLE_LEN];
+    int rc;
+
+    ble_hs_hci_cmd_build_le_set_scan_enable(!!enable, !!filter_duplicates,
+                                            buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(
+        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+        buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_gap_disc_tx_params(uint8_t own_addr_type,
+                       const struct ble_gap_disc_params *disc_params)
+{
+    uint8_t buf[BLE_HCI_SET_SCAN_PARAM_LEN];
+    uint8_t scan_type;
+    int rc;
+
+    if (disc_params->passive) {
+        scan_type = BLE_HCI_SCAN_TYPE_PASSIVE;
+    } else {
+        scan_type = BLE_HCI_SCAN_TYPE_ACTIVE;
+    }
+
+    rc = ble_hs_hci_cmd_build_le_set_scan_params(scan_type,
+                                                 disc_params->itvl,
+                                                 disc_params->window,
+                                                 own_addr_type,
+                                                 disc_params->filter_policy,
+                                                 buf, sizeof buf);
+    if (rc != 0) {
+        return BLE_HS_EINVAL;
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(
+        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
+        buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 static int
 ble_gap_disc_disable_tx(void)
 {
-#if !NIMBLE_BLE_SCAN
-    return BLE_HS_ENOTSUP;
-#else
 
     int rc;
 
@@ -2703,10 +2699,6 @@ ble_gap_disc_disable_tx(void)
 static int
 ble_gap_disc_cancel_no_lock(void)
 {
-#if !NIMBLE_BLE_SCAN
-    return BLE_HS_ENOTSUP;
-#endif
-
     int rc;
 
     STATS_INC(ble_gap_stats, discover_cancel);
@@ -2729,8 +2721,8 @@ done:
     }
 
     return rc;
-#endif
 }
+#endif
 
 /**
  * Cancels the discovery procedure currently in progress.  A success return
@@ -2745,9 +2737,9 @@ done:
 int
 ble_gap_disc_cancel(void)
 {
-#if !MYNEWT_VAL(BLE_ROLE_OBSERVER)
+#if !NIMBLE_BLE_SCAN
     return BLE_HS_ENOTSUP;
-#endif
+#else
 
     int rc;
 
@@ -2756,6 +2748,7 @@ ble_gap_disc_cancel(void)
     ble_hs_unlock();
 
     return rc;
+#endif
 }
 
 #if NIMBLE_BLE_SCAN
@@ -4368,24 +4361,32 @@ ble_gap_preempt(void)
 {
     int rc;
 
+    (void)rc;
+
     ble_hs_lock();
 
     BLE_HS_DBG_ASSERT(!ble_gap_is_preempted());
 
+#if NIMBLE_BLE_ADVERTISE
     rc = ble_gap_adv_stop_no_lock();
     if (rc == 0) {
         ble_gap_slave.preempted = 1;
     }
+#endif
 
+#if NIMBLE_BLE_CONNECT
     rc = ble_gap_conn_cancel_no_lock();
     if (rc == 0) {
         ble_gap_master.preempted_op = BLE_GAP_OP_M_CONN;
     }
+#endif
 
+#if NIMBLE_BLE_SCAN
     rc = ble_gap_disc_cancel_no_lock();
     if (rc == 0) {
         ble_gap_master.preempted_op = BLE_GAP_OP_M_DISC;
     }
+#endif
 
     ble_hs_unlock();
 }
