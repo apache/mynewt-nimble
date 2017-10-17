@@ -894,6 +894,7 @@ ble_phy_rx_start_isr(void)
     int rc;
     uint32_t state;
     uint32_t usecs;
+    uint32_t pdu_usecs;
     uint32_t ticks;
     struct ble_mbuf_hdr *ble_hdr;
     uint8_t *dptr;
@@ -919,18 +920,30 @@ ble_phy_rx_start_isr(void)
 #endif
 
     /*
-     * Calculate receive start time.
+     * Calculate accurate packets start time (with remainder)
      *
-     * XXX: possibly use other routine with remainder!
+     * We may start receiving packet somewhere during preamble in which case
+     * it is possible that actual transmission started before TIMER0 was
+     * running - need to take this into account.
      */
-    usecs = NRF_TIMER0->CC[1] - ble_phy_mode_pdu_start_off(g_ble_phy_data.phy_cur_phy_mode);
+    usecs = NRF_TIMER0->CC[1];
+    pdu_usecs = ble_phy_mode_pdu_start_off(ble_hdr->rxinfo.phy_mode) +
+                g_ble_phy_t_rxaddrdelay[ble_hdr->rxinfo.phy_mode];
+    if (usecs < pdu_usecs) {
+        ticks--;
+        usecs += 30;
+    }
+    usecs -= pdu_usecs;
+
     ticks = os_cputime_usecs_to_ticks(usecs);
-    ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
-    if (ble_hdr->rem_usecs == 31) {
-        ble_hdr->rem_usecs = 0;
+    usecs -= os_cputime_ticks_to_usecs(ticks);
+    if (usecs == 31) {
+        usecs = 0;
         ++ticks;
     }
+
     ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
+    ble_hdr->rem_usecs = usecs;
 
     /* XXX: I wonder if we always have the 1st byte. If we need to wait for
      * rx chain delay, it could be 18 usecs from address interrupt. The
