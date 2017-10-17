@@ -398,8 +398,8 @@ nrf_wait_disabled(void)
  *
  *
  */
-int
-ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs)
+static int
+ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
 {
     uint32_t next_cc;
     uint32_t cur_cc;
@@ -407,23 +407,33 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     uint32_t delta;
 
     /*
-     * With the 32.768 kHz crystal, we may need to adjust the RTC compare
-     * value by 1 tick due to the time it takes for radio ramp-up. The code uses
-     * a 2 RTC tick offset, which is 61.0 usecs. The radio ramp-up time is 40 usecs.
-     * This means that with a remainder of 0, TIMER0 should be set to 21 (as
-     * TIMER0 counts at 1MHz). A remainder of 10 or more we will need to add
-     * 1 tick. We dont need to add 1 tick per se, but it does give us slightly
-     * more time and thus less of a chance to miss a tick. Another note: we
-     * cant set TIMER0 CC to 0 as the compare wont occur; it must be 1 or more.
-     * This is why we subtract 9 (as opposed to 10) as rem_uses will be >= 1.
+     * We need to adjust start time to include radio ramp-up and TX pipeline
+     * delay (the latter only if applicable, so only for TX).
+     *
+     * Radio ramp-up time is 40 usecs and TX delay is 3 or 5 usecs depending on
+     * phy, thus we'll offset RTC by 2 full ticks (61 usecs) and then compensate
+     * using TIMER0 with 1 usec precision.
      */
 
-    if (rem_usecs <= 9) {
-        cputime -= 2;
-        rem_usecs += 21;
+    cputime -= 2;
+    rem_usecs += 61;
+    if (tx) {
+        rem_usecs -= BLE_PHY_T_TXENFAST;
+        rem_usecs -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
     } else {
-        cputime -= 1;
-        rem_usecs -= 9;
+        rem_usecs -= BLE_PHY_T_RXENFAST;
+    }
+
+    /*
+     * rem_usecs will be no more than 2 ticks, but if it is more than single
+     * tick then we should better count one more low-power tick rather than
+     * 30 high-power usecs. Also make sure we don't set TIMER0 CC to 0 as the
+     * compare won't occur.
+     */
+
+    if (rem_usecs > 30) {
+        cputime++;
+        rem_usecs -= 30;
     }
 
     /*
@@ -1365,7 +1375,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* Clear timer0 compare to RXEN since we are transmitting */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
 
-    if (ble_phy_set_start_time(cputime, rem_usecs) != 0) {
+    if (ble_phy_set_start_time(cputime, rem_usecs, true) != 0) {
         STATS_INC(ble_phy_stats, tx_late);
         ble_phy_disable();
         rc = BLE_PHY_ERR_TX_LATE;
@@ -1399,7 +1409,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* Clear timer0 compare to TXEN since we are transmitting */
     NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
 
-    if (ble_phy_set_start_time(cputime, rem_usecs) != 0) {
+    if (ble_phy_set_start_time(cputime, rem_usecs, false) != 0) {
         STATS_INC(ble_phy_stats, rx_late);
         NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
         NRF_RADIO->TASKS_RXEN = 1;
