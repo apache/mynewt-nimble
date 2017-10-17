@@ -78,6 +78,10 @@ static void hb_send(struct bt_mesh_model *model)
 		feat |= BT_MESH_FEAT_RELAY;
 	}
 
+	if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
+		feat |= BT_MESH_FEAT_PROXY;
+	}
+
 	if (bt_mesh_friend_get() == BT_MESH_FRIEND_ENABLED) {
 		feat |= BT_MESH_FEAT_FRIEND;
 	}
@@ -136,6 +140,14 @@ static int comp_get_page_0(struct os_mbuf *buf)
 
 	if ((MYNEWT_VAL(BLE_MESH_RELAY))) {
 		feat |= BT_MESH_FEAT_RELAY;
+	}
+
+	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
+		feat |= BT_MESH_FEAT_PROXY;
+	}
+
+	if ((MYNEWT_VAL(BLE_MESH_FRIEND))) {
+		feat |= BT_MESH_FEAT_FRIEND;
 	}
 
 	if ((MYNEWT_VAL(BLE_MESH_LOW_POWER))) {
