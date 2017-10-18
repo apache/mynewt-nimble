@@ -306,9 +306,6 @@ ble_hs_sync(void)
     rc = ble_hs_startup_go();
     if (rc == 0) {
         ble_hs_sync_state = BLE_HS_SYNC_STATE_GOOD;
-        if (ble_hs_cfg.sync_cb != NULL) {
-            ble_hs_cfg.sync_cb();
-        }
     } else {
         ble_hs_sync_state = BLE_HS_SYNC_STATE_BAD;
     }
@@ -316,6 +313,13 @@ ble_hs_sync(void)
     ble_hs_timer_sched(BLE_HS_SYNC_RETRY_RATE);
 
     if (rc == 0) {
+        rc = ble_hs_misc_restore_irks();
+        assert(rc == 0);
+
+        if (ble_hs_cfg.sync_cb != NULL) {
+            ble_hs_cfg.sync_cb();
+        }
+
         STATS_INC(ble_hs_stats, sync);
     }
 
@@ -555,9 +559,6 @@ ble_hs_start(void)
     }
 
     ble_hs_sync();
-
-    rc = ble_hs_misc_restore_irks();
-    assert(rc == 0);
 
     return 0;
 }
