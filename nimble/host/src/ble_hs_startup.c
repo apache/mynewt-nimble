@@ -101,10 +101,10 @@ ble_hs_startup_read_buf_sz_tx(uint16_t *out_pktlen, uint16_t *out_max_pkts)
 static int
 ble_hs_startup_read_buf_sz(void)
 {
-    uint16_t le_pktlen;
-    uint16_t max_pkts;
-    uint16_t pktlen;
-    uint8_t le_max_pkts;
+    uint16_t le_pktlen = 0;
+    uint16_t max_pkts = 0;
+    uint16_t pktlen = 0;
+    uint8_t le_max_pkts = 0;
     int rc;
 
     rc = ble_hs_startup_le_read_buf_sz_tx(&le_pktlen, &le_max_pkts);
@@ -114,7 +114,7 @@ ble_hs_startup_read_buf_sz(void)
 
     if (le_pktlen != 0) {
         pktlen = le_pktlen;
-        max_pkts = le_max_pkts;   
+        max_pkts = le_max_pkts;
     } else {
         rc = ble_hs_startup_read_buf_sz_tx(&pktlen, &max_pkts);
         if (rc != 0) {
