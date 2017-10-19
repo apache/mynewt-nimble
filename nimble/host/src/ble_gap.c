@@ -725,18 +725,15 @@ ble_gap_master_connect_cancelled(void)
 
     ble_gap_master_extract_state(&state, 1);
     if (state.cb != NULL) {
-        /* The GAP event type depends on whether 1) the application manually
-         * cancelled the connect procedure or 2) the connect procedure timed
-         * out.
-         */
         memset(&event, 0, sizeof event);
+        event.type = BLE_GAP_EVENT_CONNECT;
+        event.connect.conn_handle = BLE_HS_CONN_HANDLE_NONE;
         if (state.conn.cancel) {
-            event.type = BLE_GAP_EVENT_CONN_CANCEL;
+            /* Connect procedure successfully cancelled. */
+            event.connect.status = BLE_HS_EAPP;
         } else {
-            event.type = BLE_GAP_EVENT_CONNECT;
+            /* Connect procedure timed out. */
             event.connect.status = BLE_HS_ETIMEOUT;
-            event.connect.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-
         }
         state.cb(&event, state.cb_arg);
     }
