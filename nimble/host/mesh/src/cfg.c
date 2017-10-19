@@ -94,7 +94,7 @@ static void hb_send(struct bt_mesh_model *model)
 
 	hb.feat = sys_cpu_to_be16(feat);
 
-	BT_DBG("InitTTL %u feat 0x%02x", cfg->hb_pub.ttl, feat);
+	BT_DBG("InitTTL %u feat 0x%04x", cfg->hb_pub.ttl, feat);
 
 	bt_mesh_ctl_send(&tx, TRANS_CTL_OP_HEARTBEAT, &hb, sizeof(hb), NULL);
 }
@@ -2806,7 +2806,7 @@ static void heartbeat_pub_set(struct bt_mesh_model *model,
 		 * as possible after the Heartbeat Publication Period state
 		 * has been configured for periodic publishing.
 		 */
-		if (param->period_log) {
+		if (param->period_log && param->count_log) {
 			k_work_submit(&cfg->hb_pub.timer.work);
 		} else {
 			k_delayed_work_cancel(&cfg->hb_pub.timer);
@@ -2986,7 +2986,7 @@ static void hb_publish(struct os_event *work)
 	struct bt_mesh_subnet *sub;
 	u16_t period_ms;
 
-	BT_DBG("");
+	BT_DBG("hb_pub.count: %u", cfg->hb_pub.count);
 
 	sub = bt_mesh_subnet_get(cfg->hb_pub.net_idx);
 	if (!sub) {
@@ -2997,6 +2997,10 @@ static void hb_publish(struct os_event *work)
 	}
 
 	hb_send(model);
+
+	if (cfg->hb_pub.count == 0) {
+		return;
+	}
 
 	if (cfg->hb_pub.count != 0xffff) {
 		cfg->hb_pub.count--;
