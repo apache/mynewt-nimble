@@ -2616,6 +2616,8 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 static void
 ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
 {
+    STATS_INC(ble_ll_stats, adv_drop_event);
+
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
