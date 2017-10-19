@@ -243,7 +243,7 @@ ble_hs_wakeup_tx(void)
          conn != NULL;
          conn = SLIST_NEXT(conn, bhc_next)) {
 
-        if (conn->bhc_flags && BLE_HS_CONN_F_TX_FRAG) {
+        if (conn->bhc_flags & BLE_HS_CONN_F_TX_FRAG) {
             rc = ble_hs_wakeup_tx_conn(conn);
             if (rc != 0) {
                 goto done;
