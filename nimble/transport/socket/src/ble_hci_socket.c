@@ -167,7 +167,7 @@ static struct ble_hci_sock_state {
     struct os_event ev;
     struct os_callout timer;
 
-    uint8_t rx_off;
+    uint16_t rx_off;
     uint8_t rx_data[512];
 } ble_hci_sock_state;
 
