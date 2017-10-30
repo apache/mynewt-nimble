@@ -31,9 +31,7 @@ ble_hs_id_test_util_infer_auto(int privacy, uint8_t *own_addr_type)
 {
     int rc;
 
-    ble_hs_lock();
     rc = ble_hs_id_infer_auto(privacy, own_addr_type);
-    ble_hs_unlock();
 
     return rc;
 }
