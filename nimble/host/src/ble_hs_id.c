@@ -317,6 +317,8 @@ ble_hs_id_infer_auto(int privacy, uint8_t *out_addr_type)
     int rc;
     int i;
 
+    ble_hs_lock();
+
     if (privacy) {
         addr_types = priv_addr_types;
         num_addr_types = sizeof priv_addr_types / sizeof priv_addr_types[0];
@@ -332,15 +334,19 @@ ble_hs_id_infer_auto(int privacy, uint8_t *out_addr_type)
         switch (rc) {
         case 0:
             *out_addr_type = addr_type;
-            return 0;
+            goto done;
 
         case BLE_HS_ENOADDR:
             break;
 
         default:
-            return rc;
+            goto done;
         }
     }
 
-    return BLE_HS_ENOADDR;
+    rc = BLE_HS_ENOADDR;
+
+done:
+    ble_hs_unlock();
+    return rc;
 }
