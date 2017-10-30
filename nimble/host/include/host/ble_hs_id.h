@@ -33,9 +33,6 @@ int ble_hs_id_copy_addr(uint8_t id_addr_type, uint8_t *out_id_addr,
                         int *out_is_nrpa);
 int ble_hs_id_infer_auto(int privacy, uint8_t *out_addr_type);
 
-int ble_hs_id_infer_auto(int privacy, uint8_t *out_addr_type);
-int ble_hs_id_use_addr(uint8_t addr_type);
-
 #ifdef __cplusplus
 }
 #endif
