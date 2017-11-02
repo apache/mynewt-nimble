@@ -844,6 +844,19 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
     assert(rc == 0);
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    /* Set phy mode */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
+    } else {
+        ble_phy_mode_set(advsm->pri_phy, advsm->pri_phy);
+    }
+#else
+    ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
+#endif
+#endif
+
     /* Set transmit start time. */
     txstart = sch->start_time + g_ble_ll_sched_offset_ticks;
     rc = ble_phy_tx_set_start_time(txstart, sch->remainder);
@@ -887,19 +900,8 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_ll_adv_pdu_make(advsm, adv_pdu);
-
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
-    } else {
-        ble_phy_mode_set(advsm->pri_phy, advsm->pri_phy);
-    }
-#endif
 #else
     ble_ll_adv_legacy_pdu_make(advsm, adv_pdu);
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
-#endif
 #endif
 
     /* Transmit advertisement */
@@ -999,6 +1001,11 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
                          BLE_LL_CRCINIT_ADV);
     assert(rc == 0);
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    /* Set phy mode */
+     ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
+#endif
+
     /* Set transmit start time. */
     txstart = sch->start_time + g_ble_ll_sched_offset_ticks;
     rc = ble_phy_tx_set_start_time(txstart, sch->remainder);
@@ -1039,10 +1046,6 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
     ble_ll_adv_pdu_make(advsm, adv_pdu);
-
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-     ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
-#endif
 
     /* Transmit advertisement */
     rc = ble_phy_tx(adv_pdu, end_trans);
@@ -2613,6 +2616,8 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 static void
 ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
 {
+    STATS_INC(ble_ll_stats, adv_drop_event);
+
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_ll_sched_rmv_elem(&advsm->adv_secondary_sch);
@@ -2777,6 +2782,16 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          */
         advsm->adv_pdu_start_time = os_cputime_get32() +
                                     g_ble_ll_sched_offset_ticks;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        /* If we're past aux (unlikely, but can happen), just drop an event */
+        if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+                (advsm->adv_pdu_start_time > advsm->adv_secondary_start_time)) {
+            ble_ll_adv_drop_event(advsm);
+            return;
+        }
+#endif
+
         resched_pdu = 1;
     }
 
