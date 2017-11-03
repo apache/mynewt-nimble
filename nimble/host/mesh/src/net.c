@@ -44,6 +44,11 @@
 #define NID(pdu)           ((pdu)[0] & 0x7f)
 #define CTL(pdu)           ((pdu)[1] >> 7)
 #define TTL(pdu)           ((pdu)[1] & 0x7f)
+#define SEQ(pdu)           (((u32_t)(pdu)[2] << 16) | \
+                           ((u32_t)(pdu)[3] << 8) | (u32_t)(pdu)[4]);
+#define SRC(pdu)           (sys_get_be16(&(pdu)[5]))
+#define DST(pdu)           (sys_get_be16(&(pdu)[7]))
+
 
 /* Determine how many friendship credentials we need */
 #if (MYNEWT_VAL(BLE_MESH_FRIEND))
@@ -134,13 +139,6 @@ static bool msg_is_known(u64_t hash)
 	}
 
 	return false;
-}
-
-static inline u32_t net_seq(struct os_mbuf *buf)
-{
-	return ((net_buf_simple_pull_u8(buf) << 16) & 0xff0000) |
-		((net_buf_simple_pull_u8(buf) << 8) & 0xff00) |
-		net_buf_simple_pull_u8(buf);
 }
 
 struct bt_mesh_subnet *bt_mesh_subnet_get(u16_t net_idx)
@@ -949,7 +947,7 @@ static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 		return -EALREADY;
 	}
 
-	rx->ctx.addr = sys_get_be16(&buf->om_data[5]);
+	rx->ctx.addr = SRC(buf->om_data);
 	if (!BT_MESH_ADDR_IS_UNICAST(rx->ctx.addr)) {
 		BT_WARN("Ignoring non-unicast src addr 0x%04x", rx->ctx.addr);
 		return -EINVAL;
@@ -1113,8 +1111,7 @@ done:
 }
 
 int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
-		       struct bt_mesh_net_rx *rx, struct os_mbuf *buf,
-		       struct net_buf_simple_state *state)
+		       struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
 	if (data->om_len < 18) {
 		BT_WARN("Dropping too short mesh packet (len %u)", data->om_len);
@@ -1144,11 +1141,6 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 	/* Initialize AppIdx to a sane value */
 	rx->ctx.app_idx = BT_MESH_KEY_UNUSED;
 
-	/* Save parsing state so the buffer can later be relayed */
-	if (state) {
-		net_buf_simple_save(buf, state);
-	}
-
 	rx->ctx.recv_ttl = TTL(buf->om_data);
 
 	/* Default to responding with TTL 0 for non-routed messages */
@@ -1159,10 +1151,8 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 	}
 
 	rx->ctl = CTL(buf->om_data);
-	net_buf_simple_pull(buf, 2); /* SRC, already parsed by net_decrypt() */
-	rx->seq = net_seq(buf);
-	net_buf_simple_pull(buf, 2);
-	rx->dst = net_buf_simple_pull_be16(buf);
+	rx->seq = SEQ(buf->om_data);
+	rx->dst = DST(buf->om_data);
 
 	BT_DBG("Decryption successful. Payload len %u: %s", buf->om_len,
 		   bt_hex(buf->om_data, buf->om_len));
@@ -1209,7 +1199,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 		goto done;
 	}
 
-	if (bt_mesh_net_decode(data, net_if, &rx, buf, &state)) {
+	if (bt_mesh_net_decode(data, net_if, &rx, buf)) {
 		goto done;
 	}
 
@@ -1217,6 +1207,9 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 	    net_if == BT_MESH_NET_IF_PROXY) {
 		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
 	}
+
+	/* Save parsing state so the buffer can later be relayed */
+	net_buf_simple_save(buf, &state);
 
 	if (bt_mesh_fixed_group_match(rx.dst) || bt_mesh_elem_find(rx.dst)) {
 		bt_mesh_trans_recv(buf, &rx);

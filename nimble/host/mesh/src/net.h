@@ -239,6 +239,8 @@ extern struct bt_mesh_net bt_mesh;
 #define BT_MESH_NET_IVI_TX (bt_mesh.iv_index - bt_mesh.iv_update)
 #define BT_MESH_NET_IVI_RX(rx) (bt_mesh.iv_index - (rx)->old_iv)
 
+#define BT_MESH_NET_HDR_LEN 9
+
 int
 bt_mesh_net_keys_create(struct bt_mesh_subnet_keys *keys, const u8_t key[16]);
 
@@ -297,8 +299,7 @@ bool new_key,
 
 int
 bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
-                   struct bt_mesh_net_rx *rx, struct os_mbuf *buf,
-                   struct net_buf_simple_state *state);
+                   struct bt_mesh_net_rx *rx, struct os_mbuf *buf);
 
 void
 bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi, enum bt_mesh_net_if net_if);
