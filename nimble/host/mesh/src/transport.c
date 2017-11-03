@@ -1072,6 +1072,10 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx)
 
 	BT_DBG("src 0x%04x dst 0x%04x seq 0x%08x", rx->ctx.addr, rx->dst,
 	       rx->seq);
+
+	/* Remove network headers */
+	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);
+
 	BT_DBG("Payload %s", bt_hex(buf->om_data, buf->om_len));
 
 	/* If LPN mode is enabled messages are only accepted when we've
