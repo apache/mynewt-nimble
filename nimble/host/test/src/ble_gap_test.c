@@ -104,9 +104,6 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
         TEST_ASSERT_FATAL(ret == 0);
         break;
 
-    case BLE_GAP_EVENT_CONN_CANCEL:
-        break;
-
     case BLE_GAP_EVENT_TERM_FAILURE:
         ble_gap_test_conn_status = event->term_failure.status;
         ret = ble_gap_conn_find(event->term_failure.conn_handle,
@@ -1062,7 +1059,8 @@ ble_gap_test_util_conn_cancel(uint8_t hci_status)
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
 
-    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_CANCEL);
+    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
+    TEST_ASSERT(ble_gap_test_event.connect.status == BLE_HS_EAPP);
 }
 
 static void
@@ -1104,7 +1102,8 @@ TEST_CASE(ble_gap_test_case_conn_cancel_good)
 
     ble_gap_test_util_conn_and_cancel(peer_addr, 0);
 
-    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_CANCEL);
+    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
+    TEST_ASSERT(ble_gap_test_event.connect.status == BLE_HS_EAPP);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
 }
 

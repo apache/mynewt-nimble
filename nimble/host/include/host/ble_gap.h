@@ -98,7 +98,7 @@ struct hci_conn_update;
 
 #define BLE_GAP_EVENT_CONNECT               0
 #define BLE_GAP_EVENT_DISCONNECT            1
-#define BLE_GAP_EVENT_CONN_CANCEL           2
+/* Reserved                                 2 */
 #define BLE_GAP_EVENT_CONN_UPDATE           3
 #define BLE_GAP_EVENT_CONN_UPDATE_REQ       4
 #define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      5
