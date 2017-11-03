@@ -29,7 +29,7 @@ bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf);
 const u8_t *
 bt_mesh_prov_get_uuid(void);
 
-void
+int
 bt_mesh_prov_init(const struct bt_mesh_prov *prov);
 
 void

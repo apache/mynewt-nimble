@@ -1502,8 +1502,9 @@ bool bt_prov_active(void)
 	return atomic_test_bit(link.flags, LINK_ACTIVE);
 }
 
-void bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
+int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 {
+	int err;
 	static struct bt_pub_key_cb pub_key_cb = {
 		.func = pub_key_ready,
 	};
@@ -1512,8 +1513,10 @@ void bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 
 #endif
 
-	if (bt_pub_key_gen(&pub_key_cb)) {
-		BT_ERR("Failed to generate public key");
+	err = bt_pub_key_gen(&pub_key_cb);
+	if (err) {
+		BT_ERR("Failed to generate public key (%d)", err);
+		return err;
 	}
 
 	prov = prov_info;
@@ -1530,6 +1533,8 @@ void bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 #endif
 
 #endif /* MYNEWT_VAL(BLE_MESH_PB_ADV) */
+
+	return 0;
 }
 
 void bt_mesh_prov_reset_link(void) {
