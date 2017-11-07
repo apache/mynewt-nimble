@@ -1314,9 +1314,6 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
             g_ble_ll_cur_adv_sm = NULL;
             ble_ll_scan_chk_resume();
-#ifdef BLE_XCVR_RFCLK
-            ble_ll_sched_rfclk_chk_restart();
-#endif
         }
 #else
         if (ble_ll_state_get() == BLE_LL_STATE_ADV) {
@@ -1325,10 +1322,10 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
             g_ble_ll_cur_adv_sm = NULL;
             ble_ll_scan_chk_resume();
-#ifdef BLE_XCVR_RFCLK
-            ble_ll_sched_rfclk_chk_restart();
-#endif
         }
+#endif
+#ifdef BLE_XCVR_RFCLK
+        ble_ll_sched_rfclk_chk_restart();
 #endif
         OS_EXIT_CRITICAL(sr);
 
