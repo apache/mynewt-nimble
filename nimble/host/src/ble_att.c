@@ -19,7 +19,6 @@
 
 #include <stddef.h>
 #include <errno.h>
-#include "bsp/bsp.h"
 #include "ble_hs_priv.h"
 
 static uint16_t ble_att_preferred_mtu_val;

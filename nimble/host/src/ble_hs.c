@@ -22,7 +22,6 @@
 #include <string.h>
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
-#include "bsp/bsp.h"
 #include "stats/stats.h"
 #include "os/os.h"
 #include "console/console.h"
