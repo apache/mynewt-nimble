@@ -99,32 +99,23 @@ static bool check_dup(struct os_mbuf *data)
 	return false;
 }
 
-static u64_t msg_hash(struct os_mbuf *pdu)
+static u64_t msg_hash(struct bt_mesh_net_rx *rx, struct os_mbuf *pdu)
 {
-	u8_t *tpdu_last;
-	u64_t hash;
+	u32_t hash1, hash2;
 
-	/* Last byte of TransportPDU */
-	tpdu_last = net_buf_simple_tail(pdu) - (CTL(pdu->om_data) ? 8 : 4) - 1;
+	/* Three least significant bytes of IVI + first byte of SEQ */
+	hash1 = (BT_MESH_NET_IVI_RX(rx) << 8) | pdu->om_data[2];
 
-	((u8_t *)(&hash))[0] = pdu->om_data[0];
-	((u8_t *)(&hash))[1] = (pdu->om_data[1] & 0xc0);
-	((u8_t *)(&hash))[2] = *tpdu_last;
-	memcpy(&((u8_t *)&hash)[3], &pdu->om_data[2], 5);
+	/* Two last bytes of SEQ + SRC */
+	memcpy(&hash2, &pdu->om_data[3], 4);
 
-	BT_DBG("hash=%llx", hash)
-
-	return hash;
+	return (u64_t)hash1 << 32 | (u64_t)hash2;
 }
 
-static void msg_cache_add(u64_t new_hash)
+static bool msg_cache_match(struct bt_mesh_net_rx *rx,
+			    struct os_mbuf *pdu)
 {
-	msg_cache[msg_cache_next++] = new_hash;
-	msg_cache_next %= ARRAY_SIZE(msg_cache);
-}
-
-static bool msg_is_known(u64_t hash)
-{
+	u64_t hash = msg_hash(rx, pdu);
 	u16_t i;
 
 	for (i = 0; i < ARRAY_SIZE(msg_cache); i++) {
@@ -132,6 +123,10 @@ static bool msg_is_known(u64_t hash)
 			return true;
 		}
 	}
+
+	/* Add to the cache */
+	msg_cache[msg_cache_next++] = hash;
+	msg_cache_next %= ARRAY_SIZE(msg_cache);
 
 	return false;
 }
@@ -944,8 +939,8 @@ static int net_decrypt(struct bt_mesh_subnet *sub, u8_t idx, const u8_t *data,
 		return -ENOENT;
 	}
 
-	if (msg_is_known(rx->hash)) {
-		BT_DBG("Message is already in cache; hash=%llx", rx->hash);
+	if (rx->net_if == BT_MESH_NET_IF_ADV && msg_cache_match(rx, buf)) {
+		BT_WARN("Duplicate found in Network Message Cache");
 		return -EALREADY;
 	}
 
@@ -1132,10 +1127,6 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 
 	rx->net_if = net_if;
 
-	if (net_if == BT_MESH_NET_IF_ADV) {
-		rx->hash = msg_hash(data);
-	}
-
 	if (!net_find_and_decrypt(data->om_data, data->om_len, rx, buf)) {
 		BT_DBG("Unable to find matching net for packet");
 		return -ENOENT;
@@ -1181,11 +1172,6 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 	if (net_if != BT_MESH_NET_IF_LOCAL && bt_mesh_elem_find(rx->ctx.addr)) {
 		BT_DBG("Dropping locally originated packet");
 		return -EBADMSG;
-	}
-
-	if (net_if == BT_MESH_NET_IF_ADV) {
-		BT_DBG("Add message to cache; hash=%llx", rx->hash);
-		msg_cache_add(rx->hash);
 	}
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl %u", rx->ctx.addr, rx->dst,
