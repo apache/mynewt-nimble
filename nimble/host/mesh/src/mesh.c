@@ -173,7 +173,11 @@ bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
     }
 
     if (MYNEWT_VAL(BLE_MESH_PROV)) {
-        bt_mesh_prov_init(prov);
+        err = bt_mesh_prov_init(prov);
+        if (err) {
+            return err;
+        }
+
     }
 
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
