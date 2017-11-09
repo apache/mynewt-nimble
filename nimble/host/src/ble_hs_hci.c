@@ -338,7 +338,7 @@ ble_hs_hci_cmd_tx_empty_ack(uint16_t opcode, void *cmd, uint8_t cmd_len)
 void
 ble_hs_hci_rx_ack(uint8_t *ack_ev)
 {
-    if (ble_hs_hci_sem.sem_tokens != 0) {
+    if (os_sem_get_count(&ble_hs_hci_sem) > 0) {
         /* This ack is unexpected; ignore it. */
         ble_hci_trans_buf_free(ack_ev);
         return;
