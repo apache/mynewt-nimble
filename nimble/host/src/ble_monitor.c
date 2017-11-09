@@ -25,6 +25,7 @@
 #error "Cannot enable monitor over UART and RTT at the same time!"
 #endif
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include "os/os.h"
