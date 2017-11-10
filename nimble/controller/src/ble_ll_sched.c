@@ -1240,13 +1240,11 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 void
 ble_ll_sched_rfclk_chk_restart(void)
 {
-    int stop;
     os_sr_t sr;
     uint8_t ll_state;
     int32_t time_till_next;
     uint32_t next_time;
 
-    stop = 0;
     OS_ENTER_CRITICAL(sr);
     ll_state = ble_ll_state_get();
     if (ble_ll_sched_next_time(&next_time)) {
@@ -1256,19 +1254,24 @@ ble_ll_sched_rfclk_chk_restart(void)
          */
         time_till_next = (int32_t)(next_time - os_cputime_get32());
         if (time_till_next > g_ble_ll_data.ll_xtal_ticks) {
-            /* Stop the clock */
-            stop = 1;
+            /* Restart the rfclk timer based on the next scheduled time */
             ble_ll_xcvr_rfclk_timer_start(next_time);
+
+            /* Only disable the rfclk if doing nothing */
+            if (ll_state == BLE_LL_STATE_STANDBY) {
+                ble_ll_log(BLE_LL_LOG_ID_RFCLK_SCHED_DIS, g_ble_ll_data.ll_rfclk_state,
+                           0, 0);
+                ble_ll_xcvr_rfclk_disable();
+            }
         }
     } else {
-        stop = 1;
-    }
-
-    /* Only disable the rfclk if doing nothing */
-    if (stop && (ll_state == BLE_LL_STATE_STANDBY)) {
-        ble_ll_log(BLE_LL_LOG_ID_RFCLK_SCHED_DIS, g_ble_ll_data.ll_rfclk_state,
-                   0, 0);
-        ble_ll_xcvr_rfclk_disable();
+        /*
+         * Only stop the timer and rfclk if doing nothing currently. If
+         * in some other state, that state will handle the timer and rfclk
+         */
+        if (ll_state == BLE_LL_STATE_STANDBY) {
+            ble_ll_xcvr_rfclk_stop();
+        }
     }
     OS_EXIT_CRITICAL(sr);
 }
