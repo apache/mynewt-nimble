@@ -20,6 +20,12 @@
 #include <assert.h>
 #include <string.h>
 #include <math.h>
+
+/* Some ambiq SDK headers use `OVERFLOW` as an identifier.  This is a macro
+ * that is leaked by some versions of math.h.
+ */
+#undef OVERFLOW
+
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "host/ble_hs.h"
