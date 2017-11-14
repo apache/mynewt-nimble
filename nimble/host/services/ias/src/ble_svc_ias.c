@@ -44,10 +44,10 @@ static const struct ble_gatt_svc_def ble_svc_ias_defs[] = {
     {
         /*** Service: Immediate Alert Service (IAS). */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16(BLE_SVC_IAS_UUID16),
+        .uuid = BLE_UUID16_DECLARE(BLE_SVC_IAS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             /*** Characteristic: Alert Level. */
-            .uuid = BLE_UUID16(BLE_SVC_IAS_CHR_UUID16_ALERT_LEVEL),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_IAS_CHR_UUID16_ALERT_LEVEL),
             .access_cb = ble_svc_ias_access,
             .flags = BLE_GATT_CHR_F_WRITE_NO_RSP,
         }, {

@@ -22,7 +22,6 @@
 #include <string.h>
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
-#include "bsp/bsp.h"
 #include "stats/stats.h"
 #include "os/os.h"
 #include "console/console.h"
@@ -125,20 +124,20 @@ ble_hs_evq_set(struct os_eventq *evq)
     ble_hs_evq = evq;
 }
 
+#if MYNEWT_VAL(BLE_HS_DEBUG)
 int
 ble_hs_locked_by_cur_task(void)
 {
     struct os_task *owner;
 
-#if MYNEWT_VAL(BLE_HS_DEBUG)
     if (!os_started()) {
         return ble_hs_dbg_mutex_locked;
     }
-#endif
 
     owner = ble_hs_mutex.mu_owner;
     return owner != NULL && owner == os_sched_get_current_task();
 }
+#endif
 
 /**
  * Indicates whether the host's parent task is currently running.
