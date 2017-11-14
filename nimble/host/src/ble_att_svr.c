@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
